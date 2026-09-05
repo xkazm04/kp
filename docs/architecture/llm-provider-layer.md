@@ -481,6 +481,19 @@ nothing was stored), **id but no task** (aged out of task retention), **task but
 no result** (the run stored none). Only new rows link; the pre-existing window
 keeps its historical nulls.
 
+**Not every id is a task id.** A companion turn is not a background run and never
+had one to point at, so it names ITSELF: `companion:<threadId>:<turnId>`, minted
+by the message route before the spawn and used as the id the reply is stored
+under (`companionRequestId` / `parseCompanionRequestId` in
+`app/_lib/companion-turn.ts`). It used to stamp the bare THREAD id, which the
+detail then resolved against `/api/tasks/[id]` and reported as "run gone" on
+every companion row. The modal now branches on the id's shape: a companion id
+resolves to its conversation, with a button that opens the dock when that
+conversation is the one the dock will show; legacy bare thread ids resolve the
+same way, with the turn unknown. `withLlmRequestIdIfUnset` is what keeps the
+digest leg honest: it runs inside the task runner's scope, so the TASK id stays
+on its ledger rows rather than being shadowed by an id nothing can fetch.
+
 The **AI tasks** tab (`?tab=tasks`, `app/features/shell/tasks/**`) is the runtime
 half of the same story — what is running right now, what finished, what failed and
 can be replayed — as one paginated, column-filtered table over the recent window

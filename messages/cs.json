@@ -4341,7 +4341,8 @@
           "jdPick": "Vyberte uložený popis pozice…",
           "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
           "noteFallbackTitle": "Poznámka bez názvu",
-          "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech."
+          "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech.",
+          "countOfMax": "{used, number} z {max, number}"
         },
         "columns": {
           "col": {
@@ -4483,7 +4484,9 @@
             "noOwner": "neuvedeno, eskalace tedy nemají kam jít",
             "objectives": "Výsledky",
             "objectiveCount": "{count, plural, one {# výsledek} few {# výsledky} other {# výsledků}}",
-            "notes": "Zaznamenané předpoklady"
+            "notes": "Zaznamenané předpoklady",
+            "staleChip": "Starší zadání",
+            "stale": "Tato specifikace vznikla před poslední změnou zadání. Sestavte ji znovu, aby mandát odpovídal roli, kterou obsazujete."
           },
           "dispatch": "Odeslat do Personas",
           "dispatching": "Odesílám…",
@@ -9827,7 +9830,11 @@
     "runUnlinked": "Tato akce proběhla mimo sledovaný běh na pozadí, takže se pro ni neuložil žádný výstup.",
     "runGone": "Běh, který to vytvořil, už vypadl z historie úloh.",
     "runNoOutput": "Tento běh skončil, aniž by uložil jakýkoli výstup.",
-    "tzNote": "Časy se zobrazují ve vašem časovém pásmu. Záznamy se ukládají v UTC a denní přehled nákladů na kartě Modely se dělí podle dnů v UTC."
+    "tzNote": "Časy se zobrazují ve vašem časovém pásmu. Záznamy se ukládají v UTC a denní přehled nákladů na kartě Modely se dělí podle dnů v UTC.",
+    "companionTurn": "Výměna s Candi v rozhovoru: {thread}",
+    "companionThreadUntitled": "nepojmenovaný rozhovor",
+    "companionOpen": "Otevřít rozhovor",
+    "companionThreadGone": "Tento rozhovor už v záznamech není."
   },
   "readout": {
     "empty": "Nic zaznamenáno",

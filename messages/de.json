@@ -4341,7 +4341,8 @@
           "jdPick": "Gespeicherte Stellenbeschreibung wählen…",
           "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen.",
           "noteFallbackTitle": "Notiz ohne Titel",
-          "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an."
+          "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an.",
+          "countOfMax": "{used, number} von {max, number}"
         },
         "columns": {
           "col": {
@@ -4483,7 +4484,9 @@
             "noOwner": "nicht benannt, Eskalationen haben also kein Ziel",
             "objectives": "Ergebnisse",
             "objectiveCount": "{count, plural, one {# Ergebnis} other {# Ergebnisse}}",
-            "notes": "Festgehaltene Annahmen"
+            "notes": "Festgehaltene Annahmen",
+            "staleChip": "Älteres Briefing",
+            "stale": "Diese Spezifikation entstand vor der letzten Änderung am Briefing. Erstellen Sie sie neu, damit das Mandat zur besetzten Rolle passt."
           },
           "dispatch": "An Personas senden",
           "dispatching": "Wird gesendet…",
@@ -9827,7 +9830,11 @@
     "runUnlinked": "Diese Aktion lief außerhalb eines erfassten Hintergrundlaufs, daher wurde kein Ergebnis gespeichert.",
     "runGone": "Der Lauf, der dies erzeugt hat, ist aus der Aufgabenhistorie herausgefallen.",
     "runNoOutput": "Dieser Lauf endete, ohne ein Ergebnis zu speichern.",
-    "tzNote": "Zeiten erscheinen in Ihrer eigenen Zeitzone. Das Protokoll speichert UTC, und die tägliche Kostenübersicht im Tab „Modelle“ bildet Tage nach UTC."
+    "tzNote": "Zeiten erscheinen in Ihrer eigenen Zeitzone. Das Protokoll speichert UTC, und die tägliche Kostenübersicht im Tab „Modelle“ bildet Tage nach UTC.",
+    "companionTurn": "Ein Austausch mit Candi im Gespräch: {thread}",
+    "companionThreadUntitled": "ein unbenanntes Gespräch",
+    "companionOpen": "Gespräch öffnen",
+    "companionThreadGone": "Dieses Gespräch ist nicht mehr im Verzeichnis."
   },
   "readout": {
     "empty": "Nichts erfasst",

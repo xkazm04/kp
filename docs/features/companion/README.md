@@ -639,6 +639,17 @@ showing the FIRST 200 turns while the writes carried on landing. The conversatio
 froze on screen with nothing erroring. `app/_lib/db/companion-turns.test.ts`
 walks a 250-turn thread through all three.
 
+**Every turn's spend is named after the turn.** The route mints the assistant
+turn's id before the spawn and hands it to both halves: `runCompanionTurn` opens
+the ambient LLM-request scope as `companion:<threadId>:<turnId>`, and
+`appendTurnWithProposals` stores the reply under that same id, so the ledger row
+points at a turn that exists. It used to stamp the bare thread id, which
+Insights, Activity reads as a task id: every companion row resolved to nothing
+and the detail said the run was gone. A turn that runs INSIDE a task (the digest)
+keeps the task id instead of shadowing it (`withLlmRequestIdIfUnset`), because
+that is the id the Activity detail can actually fetch a run for. No ledger schema
+changed; see `docs/architecture/llm-provider-layer.md` for the resolver's side.
+
 Throttle: per-IP 30/10min on the message route, pinned in
 `app/api/rate-limit-contract.test.ts`. It runs after the cheap refusals (404 for
 an unknown or other-tenant thread, 400 for an empty message) so a rejected call

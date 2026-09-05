@@ -18,6 +18,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { randomId } from "@/app/_lib/random-id";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/companion/[id]/message — one companion exchange: the operator's
@@ -88,10 +89,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // between the read above and this call.
     if (!thread.title.trim()) renameThread(id, deriveThreadTitle(message), ws);
 
+    // The reply's id is minted HERE, before the spawn, and handed to both halves:
+    // the run tags its metered ledger rows with `companion:<thread>:<turn>`, and
+    // the append below stores the reply under that same id. Insights → Activity
+    // can then say which question the spend answered instead of resolving a
+    // thread id against /api/tasks and reporting the run gone.
+    const turnId = randomId("cturn");
     const turn = await runCompanionTurn(
       {
         workspaceId: ws,
         threadId: id,
+        turnId,
         message,
         // `source` rides along because the window FILTERS on it: an outage
         // reply is kept on screen and kept out of the next prompt
@@ -113,6 +121,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // paints empty — so they land together or neither lands.
     const stored = appendTurnWithProposals(
       {
+        id: turnId,
         threadId: id,
         role: "assistant",
         content: turn.reply,

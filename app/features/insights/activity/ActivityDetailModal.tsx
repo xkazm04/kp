@@ -19,12 +19,23 @@
 //     direct CLI). Nothing was ever stored to link to.
 //   • id, no task    → the run existed but has aged out of task retention.
 //   • task, no result→ the run stored no output (it failed, or produced none).
+//
+// A FOURTH id shape is not a task at all: a companion turn names itself
+// `companion:<threadId>:<turnId>` (companion-turn.ts), because the dock is not a
+// background run and never had one to point at. Those rows used to take the
+// branch above, fail the /api/tasks fetch and report "run gone" for spend whose
+// answer is still sitting in the conversation — so they resolve to the
+// conversation instead, with the dock one click away.
 import { useFormatter, useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { Modal } from "@/app/_components/Modal";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { StructuredReadout } from "@/app/_components/ui/StructuredReadout";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { parseCompanionRequestId } from "@/app/_lib/companion-turn";
+import { useOptionalCompanionDock } from "@/app/features/shell/companion/CompanionDockProvider";
+import type { CompanionThread } from "@/app/_lib/db/companion";
 import type { Task } from "@/app/features/shell/tasks/TasksProvider";
 import type { LlmActivityRow } from "@/app/_lib/db/llm";
 
@@ -88,6 +99,51 @@ function LinkedRun({ requestId }: { requestId: string }) {
   );
 }
 
+/**
+ * A companion turn's spend, resolved to the conversation it answered.
+ *
+ * There is no task to fetch — the dock is a live exchange — so the "run" is the
+ * thread, read from the same boot endpoint the dock itself uses. The turn id is
+ * deliberately NOT resolved to its text: what the operator wants from a cost row
+ * is the way back into the conversation, and the conversation is where the words
+ * already are.
+ */
+function CompanionTurnRun({ threadId, onClose }: { threadId: string; onClose: () => void }) {
+  const t = useTranslations("activity");
+  const dock = useOptionalCompanionDock();
+  const { data, error } = useJsonFetch<{ threads: CompanionThread[] }>("/api/companion/threads", "");
+  const threads = data?.threads ?? null;
+
+  if (error) return <p className="text-base text-steel">{t("companionThreadGone")}</p>;
+  if (!threads) return <div className="reveal-quiet min-h-[3rem]" aria-hidden />;
+  const thread = threads.find((entry) => entry.id === threadId);
+  if (!thread) return <p className="text-base text-steel">{t("companionThreadGone")}</p>;
+
+  // The dock always opens on the NEWEST conversation, which is the only one this
+  // button can honestly promise to show. For an older thread the line stands on
+  // its own rather than offering a click that would land somewhere else.
+  const openable = dock !== null && threads[0]?.id === thread.id;
+  return (
+    <div className="space-y-3">
+      <p className="text-base text-ink">
+        {t("companionTurn", { thread: thread.title.trim() || t("companionThreadUntitled") })}
+      </p>
+      {openable ? (
+        <button
+          type="button"
+          className={BTN_SECONDARY}
+          onClick={() => {
+            dock.openDock();
+            onClose();
+          }}
+        >
+          {t("companionOpen")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export function ActivityDetailModal({
   row,
   caseLabel,
@@ -104,6 +160,9 @@ export function ActivityDetailModal({
   // reader's number locale, never the runtime's default.
   const { grouped } = useNumberFormat();
   const num = (v: number | null) => (v == null ? "—" : grouped(v));
+  // Legacy companion rows carry a bare thread id and resolve here too — losing
+  // which turn it was does not cost the operator the way back to the answer.
+  const companionRef = parseCompanionRequestId(row.requestId);
 
   return (
     <Modal
@@ -147,7 +206,11 @@ export function ActivityDetailModal({
 
         <section className="space-y-2 border-t border-stone-200 pt-5">
           <h3 className="text-meta uppercase text-coral">{t("detailOutput")}</h3>
-          {row.requestId ? (
+          {/* Three answers, in order of what the id IS: a companion turn (its own
+              conversation), a tracked run (the task), or nothing at all. */}
+          {companionRef ? (
+            <CompanionTurnRun threadId={companionRef.threadId} onClose={onClose} />
+          ) : row.requestId ? (
             <LinkedRun requestId={row.requestId} />
           ) : (
             <p className="text-base text-steel">{t("runUnlinked")}</p>

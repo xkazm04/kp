@@ -7,9 +7,11 @@ import assert from "node:assert/strict";
 import {
   clampCompanionMessage,
   coerceVoiceReply,
+  companionRequestId,
   deriveThreadTitle,
   MAX_COMPANION_MESSAGE_CHARS,
   MAX_COMPANION_VOICE_CHARS,
+  parseCompanionRequestId,
   pipelineSummary,
   promptEligibleTurns,
   transcriptWindow,
@@ -158,4 +160,24 @@ test("the window is taken AFTER the drop, so a purged tail still fills it", () =
   ];
   const win = transcriptWindow(turns, 12);
   assert.deepEqual(win, [{ role: "user", content: "real" }]);
+});
+
+// ---- the ledger's name for one turn ---------------------------------------
+
+test("a companion request id names the turn, and parses back to it", () => {
+  const id = companionRequestId("cthread-abc-1", "cturn-def-2");
+  assert.equal(id, "companion:cthread-abc-1:cturn-def-2");
+  assert.deepEqual(parseCompanionRequestId(id), { threadId: "cthread-abc-1", turnId: "cturn-def-2" });
+});
+
+test("a LEGACY bare thread id still resolves to its conversation", () => {
+  // Rows written before this stamped the thread id alone. They are real spend
+  // and must keep rendering; only the turn is unknown.
+  assert.deepEqual(parseCompanionRequestId("cthread-abc-1"), { threadId: "cthread-abc-1", turnId: null });
+});
+
+test("anything that is not a companion id is left to the task resolver", () => {
+  for (const other of ["", "   ", null, undefined, "task-l9x2k1-a8f3qz", "companion:", "cturn-abc-1"]) {
+    assert.equal(parseCompanionRequestId(other), null, `expected null for ${JSON.stringify(other)}`);
+  }
 });

@@ -301,6 +301,11 @@ export function appendTurnWithProposals(
     content: string;
     meta?: CompanionTurnMeta | null;
     proposals: readonly { kind: string; payload: unknown }[];
+    /** Store the turn under an id the caller already minted. The message route
+     *  does, because the usage ledger names the turn BEFORE the model is called
+     *  (companionRequestId) and a ledger row that points at an id nothing was
+     *  ever stored under is the bug that fixed. Omitted everywhere else. */
+    id?: string;
   },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { turn: CompanionTurn; proposals: CompanionProposal[] } | null {
@@ -333,7 +338,7 @@ export function appendTurnWithProposals(
     }
     const meta: CompanionTurnMeta | null =
       proposals.length > 0 ? { ...(input.meta ?? {}), proposalIds: proposals.map((p) => p.id) } : input.meta ?? null;
-    const id = randomId("cturn");
+    const id = input.id ?? randomId("cturn");
     db.prepare(
       `INSERT INTO companion_turns (id, thread_id, workspace_id, role, content, meta_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`

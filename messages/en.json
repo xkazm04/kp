@@ -4341,7 +4341,8 @@
           "jdPick": "Pick a saved JD…",
           "error": "Could not update the attachments. Please try again.",
           "noteFallbackTitle": "Untitled note",
-          "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts."
+          "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts.",
+          "countOfMax": "{used, number} of {max, number}"
         },
         "columns": {
           "col": {
@@ -4483,7 +4484,9 @@
             "noOwner": "not named, so escalations have nowhere to go",
             "objectives": "Outcomes",
             "objectiveCount": "{count, plural, one {# outcome} other {# outcomes}}",
-            "notes": "Assumptions recorded"
+            "notes": "Assumptions recorded",
+            "staleChip": "Older brief",
+            "stale": "This spec was composed before the latest change to the brief. Recompose it so the mandate matches the role you are hiring for."
           },
           "dispatch": "Dispatch to Personas",
           "dispatching": "Dispatching…",
@@ -9827,7 +9830,11 @@
     "runUnlinked": "This action ran outside a tracked background run, so no output was stored for it.",
     "runGone": "The run that produced this has aged out of the task history.",
     "runNoOutput": "This run finished without storing any output.",
-    "tzNote": "Times are shown in your own time zone. The ledger stores UTC, and the daily cost rollup on the Models tab buckets by UTC day."
+    "tzNote": "Times are shown in your own time zone. The ledger stores UTC, and the daily cost rollup on the Models tab buckets by UTC day.",
+    "companionTurn": "A turn with Candi, in the conversation: {thread}",
+    "companionThreadUntitled": "an untitled conversation",
+    "companionOpen": "Open the conversation",
+    "companionThreadGone": "That conversation is no longer in the ledger."
   },
   "readout": {
     "empty": "Nothing recorded",

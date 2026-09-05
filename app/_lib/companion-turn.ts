@@ -254,3 +254,45 @@ export function shouldRefetchCompanionThread(
   if (prev === null || next === null) return false;
   return prev !== next;
 }
+
+// ---- how the usage ledger names a companion turn ---------------------------
+//
+// Every metered call in this product carries a `request_id` (llm-request-context.ts)
+// and everywhere else that id is a TASK id, which Insights → Activity resolves
+// against `/api/tasks/[id]` to show what the run produced. The companion spawn
+// used to stamp the THREAD id instead, so every companion row in the ledger
+// resolved to nothing and the detail said "run gone" — for spend that had in fact
+// produced a perfectly good answer that is still on screen in the dock.
+//
+// It is named here, with the pure half, because BOTH ends need it and they are on
+// opposite sides of the client boundary: the route mints it, the modal reads it.
+
+const COMPANION_REQUEST_PREFIX = "companion";
+
+/** Where one companion turn's spend belongs: the conversation AND the turn.
+ *  The turn, not just the thread, because a thread is a year of conversations
+ *  and the ledger row is one question. */
+export function companionRequestId(threadId: string, turnId: string): string {
+  return `${COMPANION_REQUEST_PREFIX}:${threadId}:${turnId}`;
+}
+
+/** What a `request_id` refers to when a companion turn wrote it, or null when it
+ *  belongs to something else (a task id, which the task resolver answers).
+ *
+ *  A bare thread id is the LEGACY shape — rows written before turns were named.
+ *  They resolve to their conversation with `turnId: null` rather than to the
+ *  "run gone" they used to show: which turn it was is lost, which conversation
+ *  it was is not, and that is the half the operator can actually act on. */
+export function parseCompanionRequestId(
+  raw: string | null | undefined
+): { threadId: string; turnId: string | null } | null {
+  const text = (raw ?? "").trim();
+  if (!text) return null;
+  if (text.startsWith(`${COMPANION_REQUEST_PREFIX}:`)) {
+    const [, threadId, turnId] = text.split(":");
+    return threadId ? { threadId, turnId: turnId || null } : null;
+  }
+  // Thread ids are minted by randomId("cthread") — the prefix is the whole test,
+  // and it cannot collide with a task id.
+  return /^cthread-/.test(text) ? { threadId: text, turnId: null } : null;
+}

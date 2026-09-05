@@ -4341,7 +4341,8 @@
           "jdPick": "Choisir une fiche enregistrée…",
           "error": "Impossible d'enregistrer les documents. Veuillez réessayer.",
           "noteFallbackTitle": "Note sans titre",
-          "textCap": "Cette note dépasse les {max, number} caractères qu'un document de référence peut contenir. Raccourcissez-la ou joignez-la en plusieurs parties."
+          "textCap": "Cette note dépasse les {max, number} caractères qu'un document de référence peut contenir. Raccourcissez-la ou joignez-la en plusieurs parties.",
+          "countOfMax": "{used, number} sur {max, number}"
         },
         "columns": {
           "col": {
@@ -4483,7 +4484,9 @@
             "noOwner": "non désignée, les escalades n'ont donc nulle part où aller",
             "objectives": "Résultats",
             "objectiveCount": "{count, plural, one {# résultat} other {# résultats}}",
-            "notes": "Hypothèses consignées"
+            "notes": "Hypothèses consignées",
+            "staleChip": "Brief antérieur",
+            "stale": "Cette spécification a été composée avant la dernière modification du brief. Recomposez-la pour que le mandat corresponde au poste à pourvoir."
           },
           "dispatch": "Envoyer à Personas",
           "dispatching": "Envoi…",
@@ -9827,7 +9830,11 @@
     "runUnlinked": "Cette action s’est exécutée hors d’un traitement en arrière-plan suivi ; aucun résultat n’a donc été conservé.",
     "runGone": "Le traitement à l’origine de ce résultat est sorti de l’historique des tâches.",
     "runNoOutput": "Ce traitement s’est terminé sans conserver de résultat.",
-    "tzNote": "Les heures s’affichent dans votre propre fuseau horaire. Le journal enregistre en UTC, et le récapitulatif quotidien des coûts de l’onglet Modèles découpe les jours en UTC."
+    "tzNote": "Les heures s’affichent dans votre propre fuseau horaire. Le journal enregistre en UTC, et le récapitulatif quotidien des coûts de l’onglet Modèles découpe les jours en UTC.",
+    "companionTurn": "Un échange avec Candi dans la conversation : {thread}",
+    "companionThreadUntitled": "une conversation sans titre",
+    "companionOpen": "Ouvrir la conversation",
+    "companionThreadGone": "Cette conversation ne figure plus dans le registre."
   },
   "readout": {
     "empty": "Rien d’enregistré",
