@@ -1,5 +1,5 @@
 import type { ChatBlock } from "@/app/_components/chat/chatBlockTypes";
-import type { CompanionVoiceReply } from "../companion-turn";
+import { COMPANION_THREAD_TURNS, type CompanionVoiceReply } from "../companion-turn";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -359,18 +359,33 @@ export function appendTurnWithProposals(
   return run.immediate();
 }
 
+/** The NEWEST `limit` turns of one conversation, returned oldest-first.
+ *
+ *  The direction is the contract. This read used to page from the OLDEST end,
+ *  which every caller then took at its default of 200: past turn 200 the dock,
+ *  the POST response and the model's own window all kept showing the first 200
+ *  turns while the writes carried on landing. Nothing errored — the conversation
+ *  simply froze, which is the one failure shape a screen cannot detect.
+ *
+ *  `rowid` breaks the tie because `created_at` does not: turns written inside one
+ *  millisecond share a timestamp, so ordering on it alone is not a total order
+ *  and "the newest N" would be arbitrary among them. Insert order is the truth.
+ *
+ *  The rows come back DESC (that is what the index can serve) and are reversed
+ *  here, so callers still read a transcript top-to-bottom. */
 export function listTurns(
   threadId: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  limit = 200
+  limit: number = COMPANION_THREAD_TURNS
 ): CompanionTurn[] {
+  const bound = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : COMPANION_THREAD_TURNS;
   const rows = ensureDb()
     .prepare(
       `SELECT id, thread_id, workspace_id, role, content, meta_json, created_at FROM companion_turns
-       WHERE thread_id = ? AND workspace_id = ? ORDER BY created_at ASC LIMIT ?`
+       WHERE thread_id = ? AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`
     )
-    .all(threadId, workspaceId, limit) as TurnRow[];
-  return rows.map(turnFromRow);
+    .all(threadId, workspaceId, bound) as TurnRow[];
+  return rows.reverse().map(turnFromRow);
 }
 
 // ---- proposals -------------------------------------------------------------

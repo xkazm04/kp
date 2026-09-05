@@ -112,3 +112,20 @@ test("every companion 429 answers with a code the dock can localize", () => {
     assert.match(src, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, `${rel}: expected the coded 429`);
   }
 });
+
+test("every listTurns caller states the bound it is reading", () => {
+  // The store now reads the NEWEST turns, which makes the bound a decision:
+  // what the dock renders and what the model is shown are different numbers,
+  // and a caller that takes the default has silently picked one of them. Both
+  // routes name the constant they mean (companion-turn.ts).
+  for (const rel of ["./[id]/message/route.ts", "./threads/route.ts"]) {
+    const src = read(rel).replace(/\r\n/g, "\n");
+    for (const call of src.match(/listTurns\([^)]*\)/g) ?? []) {
+      assert.match(
+        call,
+        /,\s*COMPANION_(THREAD|PROMPT_SCAN)_TURNS\s*\)/,
+        `${rel}: ${call} inherits the store's default instead of stating its bound`,
+      );
+    }
+  }
+});

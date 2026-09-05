@@ -14,6 +14,22 @@ export const MAX_COMPANION_MESSAGE_CHARS = 4_000;
  *  companion_cli.py — sending more would be paid for and then dropped. */
 export const COMPANION_TRANSCRIPT_TURNS = 12;
 
+/** How many turns of ONE conversation the dock renders — the bound every reader
+ *  of a thread states rather than inherits.
+ *
+ *  It is a bound on the NEWEST turns, and that direction is the whole point: the
+ *  store used to page from the oldest end, so a conversation past this length
+ *  silently froze on screen while its writes kept landing. */
+export const COMPANION_THREAD_TURNS = 200;
+
+/** How far back the route reads when it is building the model's window.
+ *
+ *  Larger than COMPANION_TRANSCRIPT_TURNS because the window is a tail that can
+ *  SHRINK — `transcriptWindow` may drop turns from the page it is given — so
+ *  reading exactly twelve rows could hand the model a window of one. Small
+ *  enough that the prompt read stays a cheap indexed page, never the thread. */
+export const COMPANION_PROMPT_SCAN_TURNS = 40;
+
 /** Bound + trim an untrusted message body. Empty (or non-string) → "" so the
  *  caller answers 400 rather than spawning Python for nothing. */
 export function clampCompanionMessage(raw: unknown): string {

@@ -611,8 +611,21 @@ including `meta.blocks` and the `meta.proposalIds` join).
 the same contract `companion_cli.py` keeps for episodes, and the reason a provider
 timeout costs a reply but never the question. A spawn failure therefore leaves a
 user turn with no answer; that is the honest record, not a bug. The message
-response carries the thread's FULL turn list so the client replaces optimistic
+response carries the thread's turn list so the client replaces optimistic
 bubbles with server truth on every exchange.
+
+**Which turns, exactly: the newest ones.** `listTurns` pages from the NEWEST end
+(`ORDER BY created_at DESC, rowid DESC`, reversed so callers still read
+oldest-first; the rowid tie-break matters because turns written inside one
+millisecond share a timestamp), and every caller states the bound it means rather
+than inheriting a default. There are two, both in `app/_lib/companion-turn.ts`:
+`COMPANION_THREAD_TURNS` (200) is what the dock renders, and
+`COMPANION_PROMPT_SCAN_TURNS` (40) is the page the model's 12-turn window is
+taken from. Before this, the read paged from the oldest end and every caller took
+its default: past turn 200 the dock, the POST response and the window all kept
+showing the FIRST 200 turns while the writes carried on landing. The conversation
+froze on screen with nothing erroring. `app/_lib/db/companion-turns.test.ts`
+walks a 250-turn thread through all three.
 
 Throttle: per-IP 30/10min on the message route, pinned in
 `app/api/rate-limit-contract.test.ts`. It runs after the cheap refusals (404 for

@@ -8,7 +8,12 @@ import {
   renameThread,
 } from "@/app/_lib/db/companion";
 import { runCompanionTurn } from "@/app/_lib/companion-run";
-import { clampCompanionMessage, deriveThreadTitle } from "@/app/_lib/companion-turn";
+import {
+  clampCompanionMessage,
+  COMPANION_PROMPT_SCAN_TURNS,
+  COMPANION_THREAD_TURNS,
+  deriveThreadTitle,
+} from "@/app/_lib/companion-turn";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
@@ -63,7 +68,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // The transcript handed to the engine is the history BEFORE this message —
     // the CLI fences the new message separately, so it must not also appear in
     // the rendered history.
-    const history = listTurns(id, ws);
+    // Two DIFFERENT bounds, each stated where it is used. The prompt reads a
+    // short page of the newest turns (the window is its tail); the response
+    // below reads what the dock renders. Both used to take the same default of
+    // 200 from the oldest end, so past turn 200 the model was answering with a
+    // months-old conversation in front of it.
+    const history = listTurns(id, ws, COMPANION_PROMPT_SCAN_TURNS);
     // Both appends re-check the thread INSIDE their transaction and answer null
     // when it is gone. Discarding that answer used to 200 with a transcript that
     // silently lacked the exchange it was reporting — the one shape a dock cannot
@@ -133,7 +143,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!stored) return jsonRefusal("COMPANION_THREAD_NOT_FOUND", 404);
 
     return NextResponse.json({
-      turns: listTurns(id, ws),
+      turns: listTurns(id, ws, COMPANION_THREAD_TURNS),
       // The conversation's proposals, live — not the ones this exchange made.
       // Status changes after a turn is written, so the dock joins the turn's
       // `meta.proposalIds` against these rows and an already-resolved proposal
