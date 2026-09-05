@@ -30,6 +30,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import sys
 import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -47,7 +48,17 @@ def _load_generator():
     spec = importlib.util.spec_from_file_location("app_master_fixture_generator", GENERATOR)
     assert spec is not None and spec.loader is not None, GENERATOR
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # ``generate.py`` inserts the repo root at ``sys.path[0]`` so it can be run
+    # from any cwd. That is right for a script and wrong for a test: the suite is
+    # ~150 modules in ONE process, and a path mutation left behind here changes
+    # how every module imported after it resolves. Snapshot and restore, so this
+    # module's only global side effect is no side effect.
+    saved_path = list(sys.path)
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path[:] = saved_path
+        sys.modules.pop("app_master_fixture_generator", None)
     return module
 
 
