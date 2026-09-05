@@ -10,6 +10,7 @@ import {
 import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
@@ -485,6 +486,12 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
   }
   // A human reject is the gate; the candidate hears about it (queued by default).
   if (action === "reject") await dispatchRejection(updated);
+  // …and so does the customer's system of record, if it subscribed. `candidate.rejected`
+  // was offered in the integrations panel and emitted from nowhere: only the hire ever
+  // fired, so a connector built on the vocabulary we publish saw half the funnel and
+  // silently kept rejected candidates open. Fire-and-forget beside the comm, for the same
+  // reason it is: the decision is committed and neither mirror may undo it.
+  if (action === "reject") void dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
   expireCachedGroupEvals(updated, workspaceId);
   return ok({ entry: updated });
 }
