@@ -187,8 +187,8 @@ export type { LlmUsageInput };
 export function insertLlmUsage(input: LlmUsageInput): void {
   const db = ensureDb();
   db.prepare(
-    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     new Date().toISOString(),
     input.useCase,
@@ -199,6 +199,8 @@ export function insertLlmUsage(input: LlmUsageInput): void {
     input.cachedTokens ?? null,
     input.costUsd ?? null,
     input.source,
+    input.outcome,
+    input.reason ?? null,
     input.requestId ?? null
   );
 }
@@ -275,8 +277,8 @@ export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
     const fold = db.transaction((batch: typeof rows) => {
       const stmt = db.prepare(
         `INSERT OR IGNORE INTO llm_usage
-           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id, ingest_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       let written = 0;
       for (const { row, key } of batch) {
@@ -290,6 +292,8 @@ export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
           row.cachedTokens ?? null,
           row.costUsd ?? null,
           row.source,
+          row.outcome,
+          row.reason ?? null,
           row.requestId ?? null,
           key
         ).changes;
@@ -325,6 +329,12 @@ export type LlmActivityRow = {
   cachedTokens: number | null;
   costUsd: number | null;
   source: string;
+  /** "ok" | "failed" — see the visible-but-not-billable note in llm-usage-ledger.ts.
+   *  A failed attempt is LISTED here (that is the point: an operator has to be able
+   *  to see the timeout that cost them a prompt) while contributing to no total. */
+  outcome: string;
+  /** Closed-vocabulary descent/failure code, or null when there is nothing to explain. */
+  reason: string | null;
   requestId: string | null;
 };
 
@@ -343,7 +353,7 @@ export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id
+      `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id
          FROM llm_usage
         ORDER BY ts DESC, id DESC
         LIMIT ?`
@@ -360,6 +370,10 @@ export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
     cachedTokens: r.cached_tokens == null ? null : Number(r.cached_tokens),
     costUsd: r.cost_usd == null ? null : Number(r.cost_usd),
     source: r.source as string,
+    // Defensive `?? "ok"`: the column is NOT NULL DEFAULT 'ok' so this cannot be
+    // null in a migrated DB, but a row is only ever rendered, never re-summed here.
+    outcome: (r.outcome as string) ?? "ok",
+    reason: (r.reason as string) ?? null,
     requestId: (r.request_id as string) ?? null,
   }));
 }
@@ -385,6 +399,11 @@ export type LlmUsageAggregateRow = {
   // NULL cost_usd (Azure / unknown-model spend). cost_usd sums them as 0, so the
   // usage panel needs this to distinguish "cost $0" from "cost unknown".
   unpricedCalls: number;
+  // tiger X2: attempts in this bucket that RAISED (outcome 'failed'). Deliberately
+  // OUTSIDE `calls` and outside every sum below — a timed-out call spent real money
+  // but reported no tokens, so it is counted, never priced. See the
+  // visible-but-not-billable note in llm-usage-ledger.ts.
+  failedCalls: number;
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
@@ -396,19 +415,32 @@ export type LlmUsageAggregateRow = {
  * Models usage panel and the pricing meters read. `sinceDays` bounds the scan to
  * recent rows (default 30). Costs sum only the rows that carry a cost_usd;
  * `unpricedCalls` counts the rows that don't (see the type note above).
+ *
+ * A group whose only rows FAILED reports calls 0 and failedCalls N. That is not an
+ * empty row to be filtered out — it is the answer to "why did this use case cost
+ * nothing this morning", which before tiger X2 the ledger could not give at all.
  */
 export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
   const db = ensureDb();
   const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
   const rows = db
     .prepare(
+      // Every aggregate below is conditioned on outcome, NOT filtered in the WHERE:
+      // a failed attempt has to stay in its (day × use_case × provider × model)
+      // bucket to be countable as `failed_calls`, while contributing to nothing
+      // else. `unpriced_calls` is conditioned too — a failed row carries NULL cost
+      // by construction, and letting it into that count would have turned "we
+      // cannot price this call" into "the provider died", two different facts the
+      // operator acts on differently. Pre-migration rows are all outcome 'ok'
+      // (NOT NULL DEFAULT), so a populated DB reads byte-identically.
       `SELECT substr(ts, 1, 10) AS day, use_case, provider, model,
-              COUNT(*) AS calls,
-              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_calls,
-              COALESCE(SUM(input_tokens), 0) AS input_tokens,
-              COALESCE(SUM(output_tokens), 0) AS output_tokens,
-              COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
-              COALESCE(SUM(cost_usd), 0) AS cost_usd
+              SUM(CASE WHEN outcome = 'ok' THEN 1 ELSE 0 END) AS calls,
+              SUM(CASE WHEN outcome = 'failed' THEN 1 ELSE 0 END) AS failed_calls,
+              SUM(CASE WHEN outcome = 'ok' AND cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_calls,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN input_tokens END), 0) AS input_tokens,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN output_tokens END), 0) AS output_tokens,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cached_tokens END), 0) AS cached_tokens,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_usd END), 0) AS cost_usd
          FROM llm_usage
         WHERE ts >= ?
         GROUP BY day, use_case, provider, model
@@ -423,6 +455,7 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     model: (r.model as string) ?? null,
     calls: Number(r.calls ?? 0),
     unpricedCalls: Number(r.unpriced_calls ?? 0),
+    failedCalls: Number(r.failed_calls ?? 0),
     inputTokens: Number(r.input_tokens ?? 0),
     outputTokens: Number(r.output_tokens ?? 0),
     cachedTokens: Number(r.cached_tokens ?? 0),

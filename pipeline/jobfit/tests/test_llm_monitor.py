@@ -390,5 +390,91 @@ class LedgerSidecarTest(unittest.TestCase):
             self.assertEqual(rows[0]["cached_tokens"], 30)
 
 
+class FailedAttemptLedgerTest(unittest.TestCase):
+    """tiger X2 — a failed attempt is the most expensive kind (the prompt was
+    already sent) and `emit_error` used to return early whenever LightTrack was
+    absent, which is the default deployment. So a timeout or a 429 was recorded
+    NOWHERE and the spend panel under-reported exactly the traffic an operator
+    needs to see. It now writes a ledger line first; the TS side keeps it out of
+    every billable aggregate via `outcome`."""
+
+    def _lines(self, fn) -> list[dict]:
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)  # observability OFF
+                fn()
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    return [json.loads(ln) for ln in fh.read().splitlines() if ln.strip()]
+            except FileNotFoundError:
+                return []
+
+    def test_a_failed_call_lands_in_the_ledger_with_lighttrack_off(self) -> None:
+        provider = StubProvider(
+            [LLMError("boom", provider="anthropic")], use_case="cv_analysis"
+        )
+        rows = self._lines(lambda: self.assertRaises(LLMError, provider.complete, "hi"))
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["outcome"], "failed")
+        self.assertEqual(row["use_case"], "cv_analysis")
+        self.assertEqual(row["reason"], "provider_error")
+        # No tokens and no cost: the provider reported none, and a guess here would
+        # be a guess in the column the pricing meters bill against.
+        self.assertIsNone(row["input_tokens"])
+        self.assertIsNone(row["cost_usd"])
+
+    def test_a_successful_call_is_outcome_ok(self) -> None:
+        rows = self._lines(
+            lambda: StubProvider([_result()], use_case="match_reasoning").complete("hi")
+        )
+        self.assertEqual(rows[0]["outcome"], "ok")
+        self.assertNotIn("reason", rows[0])
+
+    def test_a_timeout_is_named_a_timeout_not_a_generic_error(self) -> None:
+        """The reason is read off LLMError.subtype, which base.py maintains as a
+        contract, never off the message (which is provider-authored text)."""
+        err = LLMError("deadline", provider="anthropic", subtype="deadline_exceeded")
+        rows = self._lines(
+            lambda: monitor.emit_error(
+                provider="anthropic", model="m", use_case="jd_build", error=err
+            )
+        )
+        self.assertEqual(rows[0]["reason"], "provider_timeout")
+
+    def test_ledger_false_writes_no_row(self) -> None:
+        """base.complete_json's unparseable-JSON raise sits on top of a call
+        already metered as a paid success; a second row there would make one
+        logical call two events."""
+        err = LLMError("nope", provider="anthropic", subtype="unparseable_json")
+        rows = self._lines(
+            lambda: monitor.emit_error(
+                provider="anthropic", model="m", use_case="jd_build", error=err, ledger=False
+            )
+        )
+        self.assertEqual(rows, [])
+
+    def test_a_prose_reason_is_reduced_to_a_code(self) -> None:
+        """campaign / match_reasoning / group_compare hand their CLI a
+        `describe_fallback` line — "<Type>: <message>". Right for the per-request
+        envelope, wrong for a durable column: the message half can echo the
+        prompt. It collapses to the word DEGRADATION_REASONS already reserves for
+        "anything else the call raised"."""
+        rows = self._lines(
+            lambda: monitor.emit_deterministic(
+                "campaign_pack", reason="LLMError: gemini call failed: <prompt echo>"
+            )
+        )
+        self.assertEqual(rows[0]["reason"], "provider_error")
+        # …while a code from the vocabulary passes through untouched.
+        kept = self._lines(
+            lambda: monitor.emit_deterministic("campaign_pack", reason="unusable_output")
+        )
+        self.assertEqual(kept[0]["reason"], "unusable_output")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,7 @@ const row = (over: Partial<LlmUsageAggregateRow>): LlmUsageAggregateRow => ({
   model: "claude-haiku-4-5",
   calls: 0,
   unpricedCalls: 0,
+  failedCalls: 0,
   inputTokens: 0,
   outputTokens: 0,
   cachedTokens: 0,

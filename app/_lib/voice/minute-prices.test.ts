@@ -78,6 +78,9 @@ test("voiceUsageRow builds the fully attributed ledger row for a completed sessi
       cachedTokens: null,
       costUsd: voiceMinuteCostUsd("openai", 7),
       source: "llm",
+      // A session that ran and is being billed for its minutes (tiger X2's outcome
+      // column) — the failed class is written by the Python monitor, never here.
+      outcome: "ok",
       requestId: "iv_123",
     });
   });

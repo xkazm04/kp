@@ -1057,6 +1057,16 @@ export function computeCostWindow(
     clauses.push("ts < ?");
     args.push(upperIso);
   }
+  // tiger X2: a FAILED attempt (outcome 'failed') is now a row in this table, and
+  // cost-per-hire must not learn about it here. It has NULL tokens and NULL cost
+  // because the provider reported none, so counting it would inflate `calls`, and
+  // counting it as `unpriced` would confuse "we cannot price this call" with "the
+  // call died" — two facts an operator acts on differently. Named in the WHERE, not
+  // conditioned per-aggregate as in aggregateLlmUsage: this function returns one
+  // number about spend, with nowhere to put a failure count that would mean
+  // anything. Pre-migration rows are all 'ok' (NOT NULL DEFAULT), so a populated DB
+  // returns exactly what it returned before.
+  clauses.push("outcome = 'ok'");
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const row = db
     .prepare(

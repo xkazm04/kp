@@ -358,7 +358,13 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(out)["source"], "deterministic")
             rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
-        self.assertEqual([r["reason"] for r in rows], ["TimeoutError: timed out after 120s"])
+        # A CODE, not the thrown message. The engine still hands the CLI the full
+        # "<Type>: <message>" line for the per-request envelope, but `llm_usage.reason`
+        # is a durable operator-facing column and a provider message can echo the
+        # prompt into it (tiger X14) — so monitor._reason_code reduces the line, keeping
+        # the type half where it names a distinct descent. The assertion's point is
+        # unchanged: the descent is NAMED, where it used to be blank.
+        self.assertEqual([r["reason"] for r in rows], ["provider_timeout"])
 
 
 if __name__ == "__main__":

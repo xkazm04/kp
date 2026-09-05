@@ -116,7 +116,7 @@ test("ALTER-loop migrations landed: jds carries the backgrounded-analysis column
 
 test("the llm_usage ledger exists with its metering columns and both indexes", () => {
   const cols = columnNames("llm_usage");
-  for (const col of ["ts", "use_case", "provider", "model", "input_tokens", "output_tokens", "cost_usd", "source"]) {
+  for (const col of ["ts", "use_case", "provider", "model", "input_tokens", "output_tokens", "cost_usd", "source", "outcome", "reason"]) {
     assert.ok(cols.has(col), `llm_usage is missing column "${col}"`);
   }
   const indexes = new Set(
@@ -218,6 +218,13 @@ legacy.exec([
   "INSERT INTO billing_state (id, plan, status, updated_at) VALUES ('workspace','growth','active','2024-01-05T00:00:00.000Z');",
   "CREATE TABLE billing_usage (meter TEXT NOT NULL, period TEXT NOT NULL, qty INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (meter, period));",
   "INSERT INTO billing_usage (meter, period, qty) VALUES ('interview_minutes','2024-01',137);",
+  // The metering ledger as it stood before tiger X2/X14 added outcome + reason: no
+  // ingest_key either, and two rows of REAL recorded spend. This is the case a
+  // NOT NULL column added to a populated table can break — either the ALTER fails
+  // outright, or it lands and the rows read differently than they did yesterday.
+  "CREATE TABLE llm_usage (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, use_case TEXT NOT NULL, provider TEXT NOT NULL, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cached_tokens INTEGER, cost_usd REAL, source TEXT NOT NULL, request_id TEXT);",
+  "INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cost_usd, source) VALUES ('2024-01-06T00:00:00.000Z','cv_analysis','gemini','flash',900,150,0.25,'llm');",
+  "INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cost_usd, source) VALUES ('2024-01-06T01:00:00.000Z','cv_analysis','azure_openai','dep',400,60,NULL,'llm');",
 ].join("\\n"));
 legacy.close();
 
@@ -272,6 +279,23 @@ check("workspace typed as a team", one("SELECT type AS v FROM workspaces WHERE i
 check("workspace gained the comms locale default", one("SELECT default_locale AS v FROM workspaces WHERE id='workspace'").v, "cs");
 check("the default organization exists", one("SELECT COUNT(*) AS v FROM organizations WHERE id='org-default'").v, 1);
 
+// 5b. tiger X2/X14 — the ledger's new columns on a POPULATED table. outcome is
+//     NOT NULL DEFAULT 'ok', which is the only shape that can be added to rows that
+//     already exist: every one of them recorded a call that happened and was summed,
+//     which is precisely what 'ok' means. reason is nullable — "no reason recorded"
+//     is the honest reading of a row written before anyone recorded one. And the
+//     aggregate must return what it returned yesterday, to the cent.
+const ledgerCols = new Set(db.prepare("PRAGMA table_info(llm_usage)").all().map((c) => c.name));
+for (const col of ["outcome", "reason", "ingest_key"]) {
+  check("llm_usage gained " + col, ledgerCols.has(col), true);
+}
+check("no legacy ledger row was left unclassified", one("SELECT COUNT(*) AS v FROM llm_usage WHERE outcome IS NULL").v, 0);
+check("every legacy ledger row reads as a call that happened", one("SELECT COUNT(*) AS v FROM llm_usage WHERE outcome='ok'").v, 2);
+check("a row with no recorded reason says so", one("SELECT COUNT(*) AS v FROM llm_usage WHERE reason IS NULL").v, 2);
+check("legacy spend is unchanged to the cent", one("SELECT COALESCE(SUM(cost_usd),0) AS v FROM llm_usage WHERE outcome='ok'").v, 0.25);
+check("legacy tokens are unchanged", one("SELECT COALESCE(SUM(input_tokens),0) AS v FROM llm_usage WHERE outcome='ok'").v, 1300);
+check("the unpriced row is STILL unpriced, not reclassified as a failure", one("SELECT COUNT(*) AS v FROM llm_usage WHERE outcome='ok' AND cost_usd IS NULL").v, 1);
+
 // 6. A SECOND boot over the now-migrated legacy DB must change nothing (a rebuild
 //    that re-runs, or a backfill that flips a row back, shows up here).
 holder.__kpDb.close();
@@ -282,6 +306,10 @@ check("2nd boot keeps one channel_spend row", one("SELECT COUNT(*) AS v FROM cha
 check("2nd boot keeps the spend amount", one("SELECT amount_czk AS v FROM channel_spend WHERE channel='boards'").v, 4200.5);
 check("2nd boot keeps the usage counter", one("SELECT qty AS v FROM billing_usage WHERE meter='interview_minutes'").v, 137);
 check("2nd boot adds no entries", one("SELECT COUNT(*) AS v FROM pipeline_entries").v, 3);
+// The ALTERs are re-run verbatim on every boot (migrateExec swallows only "duplicate
+// column name"), so this is where a non-idempotent column addition would show up.
+check("2nd boot keeps the ledger rows", one("SELECT COUNT(*) AS v FROM llm_usage").v, 2);
+check("2nd boot keeps the ledger spend", one("SELECT COALESCE(SUM(cost_usd),0) AS v FROM llm_usage WHERE outcome='ok'").v, 0.25);
 
 db.close();
 rmSync(dir, { recursive: true, force: true });

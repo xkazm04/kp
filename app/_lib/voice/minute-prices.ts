@@ -99,6 +99,8 @@ export function voiceUsageRow(session: { id: string; provider: VoiceProviderId }
     cachedTokens: null,
     costUsd: voiceMinuteCostUsd(session.provider, minutes),
     source: "llm",
+    // A session that ran and is being billed for its minutes — 'ok' by construction.
+    outcome: "ok",
     requestId: session.id,
   };
 }
