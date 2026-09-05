@@ -50,9 +50,13 @@ class CompanionBrainTestCase(unittest.TestCase):
     def test_birth_creates_a_valid_tree(self):
         result = brain.ensure_brain()
         root = brain.brain_root()
-        self.assertTrue((root / "episodes").is_dir())
-        self.assertTrue((root / "identity.md").is_file())
-        self.assertTrue((root / "constitution.md").is_file())
+        # One assertion over the whole tree: a missing member names ITSELF in the diff,
+        # where three `assertTrue(...is_file())` lines could only say "False is not true".
+        self.assertEqual(
+            sorted(p.name for p in root.iterdir()),
+            ["constitution.md", "episodes", "identity.md"],
+        )
+        self.assertTrue((root / "episodes").is_dir(), f"{root / 'episodes'} is not a directory")
         self.assertEqual(sorted(result["born"]), ["constitution.md", "identity.md"])
         identity = brain.read_identity()
         self.assertIn("## About the operator", identity)
@@ -88,7 +92,7 @@ class CompanionBrainTestCase(unittest.TestCase):
         brain.append_episode("user", "How many candidates are waiting on me?", "kp-workspace")
         before = sorted(p.name for p in brain.brain_root().iterdir())
         probe = brain.probe_brain()
-        self.assertTrue(probe["present"])
+        self.assertEqual(probe["present"], True, probe)
         self.assertEqual(probe["episodes"], 1)
         self.assertEqual(probe["constitutionOrigin"], "kp")
         # The skeleton ships two `## ` sections and nothing has filled them in.
@@ -111,7 +115,7 @@ class CompanionBrainTestCase(unittest.TestCase):
         # Present on the episodes dir alone — a tree can carry memories before
         # anyone writes a constitution into it.
         probe = brain.probe_brain()
-        self.assertTrue(probe["present"])
+        self.assertEqual(probe["present"], True, probe)
         self.assertEqual(probe["episodes"], brain.EPISODE_PROBE_CAP)
         self.assertEqual(probe["constitutionOrigin"], "none")
 
@@ -119,15 +123,20 @@ class CompanionBrainTestCase(unittest.TestCase):
 
     def test_append_writes_markdown_and_indexes_locally(self):
         out = brain.append_episode("user", "How many candidates are waiting on me?", "kp-workspace")
-        self.assertTrue(out["path"].startswith("episodes/"))
-        self.assertTrue(out["path"].endswith("_user.md"))
-        self.assertTrue(Path(out["absPath"]).is_file())
-        self.assertTrue(out["indexed"]["brain"])
+        # The whole path shape in one assertion, so a failure prints the path it got.
+        self.assertRegex(out["path"], r"^episodes/.+_user\.md$")
+        self.assertTrue(Path(out["absPath"]).is_file(), f"no file at {out['absPath']}")
+        self.assertEqual(out["indexed"]["brain"], True, out["indexed"])
         # kp + Personas lanes are optional: absent DBs are a recorded skip, not a failure.
         self.assertFalse(out["indexed"]["kp"])
         self.assertFalse(out["indexed"]["personas"])
-        self.assertTrue(any(note.startswith("kp:") for note in out["skipped"]))
-        self.assertTrue(any(note.startswith("personas:") for note in out["skipped"]))
+        # The recorded reason per absent lane. Asserting on the PREFIX SET rather than
+        # `any(...)` twice means a missing skip note prints which lanes were recorded.
+        self.assertEqual(
+            sorted({note.split(":", 1)[0] for note in out["skipped"]}),
+            ["kp", "personas"],
+            out["skipped"],
+        )
 
         con = sqlite3.connect(str(brain.brain_root() / "index.sqlite"))
         try:
@@ -210,7 +219,7 @@ class CompanionBrainTestCase(unittest.TestCase):
         brain.append_episode("user", "The devcase for the platform role needs a rubric.", "kp-workspace")
         brain.append_episode("assistant", "Unrelated chatter about the weather.", "kp-workspace")
         hits = brain.recall("rubric devcase", limit=6)
-        self.assertTrue(hits)
+        self.assertNotEqual(hits, [], "recall returned nothing for a query that matches an appended episode")
         self.assertIn("rubric", hits[0]["excerpt"])
         self.assertEqual(brain.read_episode(hits[0]["path"]).splitlines()[-1], "The devcase for the platform role needs a rubric.")
 
@@ -269,8 +278,9 @@ class CompanionBrainTestCase(unittest.TestCase):
         long_one = "Today's load is front-heavy on decisions and channels across every open role in the studio right now"
         short = brain.insight_sentence(long_one)
         self.assertLessEqual(len(short), brain.INSIGHT_CHARS + 1)
-        self.assertTrue(short.endswith("…"))
-        self.assertTrue(long_one.startswith(short[:-1]))
+        self.assertEqual(short[-1], "…", short)
+        # The kept head is a genuine PREFIX of the input, not a paraphrase.
+        self.assertEqual(long_one[: len(short) - 1], short[:-1])
         self.assertEqual(brain.insight_sentence("   "), "")
 
     def test_surfacing_drops_the_echo_and_todays_command_and_shortens_the_rest(self):

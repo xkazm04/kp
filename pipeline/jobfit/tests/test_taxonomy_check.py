@@ -22,6 +22,29 @@ def _lint(terms, **kw):
     return tc.lint_taxonomy(tax, **kw)
 
 
+class _Reports(unittest.TestCase):
+    """Mixin: assert a lint report NAMES a defect, and print the report when it does not.
+
+    Every assertion below used to be `assertTrue(any(frag in e for e in res.errors))`.
+    That is a truth value: the failure said "False is not true", and the diagnostic —
+    which errors the lint DID report, the thing you need to fix it — arrived only
+    because each call site remembered to pass `res.errors` as the message. These two
+    helpers make that structural, and `assertIn` reports the haystack itself.
+    """
+
+    def assertReportsError(self, res, *fragments: str) -> None:
+        matching = [e for e in res.errors if all(f in e for f in fragments)]
+        self.assertNotEqual(
+            matching, [], f"no error mentions all of {list(fragments)}; got: {res.errors}"
+        )
+
+    def assertReportsWarning(self, res, *fragments: str) -> None:
+        matching = [w for w in res.warnings if all(f in w for f in fragments)]
+        self.assertNotEqual(
+            matching, [], f"no warning mentions all of {list(fragments)}; got: {res.warnings}"
+        )
+
+
 def _good_term(tid="alpha", **over):
     term = {
         "id": tid,
@@ -33,64 +56,64 @@ def _good_term(tid="alpha", **over):
     return term
 
 
-class LintCatchesDefectsTest(unittest.TestCase):
+class LintCatchesDefectsTest(_Reports):
     def test_baseline_good_terms_pass(self) -> None:
         res = _lint([_good_term("alpha"), _good_term("beta")])
-        self.assertTrue(res.ok, res.errors)
+        self.assertEqual((res.ok, res.errors), (True, []))
         self.assertEqual(res.warnings, [])
 
     def test_dangling_parent_is_caught(self) -> None:
         res = _lint([_good_term("alpha", parents=["ghost"])])
         self.assertFalse(res.ok)
-        self.assertTrue(any("dangling parent" in e and "ghost" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "dangling parent", "ghost")
 
     def test_duplicate_id_is_caught(self) -> None:
         res = _lint([_good_term("dup"), _good_term("dup")])
         self.assertFalse(res.ok)
-        self.assertTrue(any("duplicate term id" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "duplicate term id")
 
     def test_vote_to_unknown_family_is_caught(self) -> None:
         res = _lint([_good_term("alpha", role_family_votes={"made_up_family": 1})])
         self.assertFalse(res.ok)
-        self.assertTrue(any("unknown family" in e and "made_up_family" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "unknown family", "made_up_family")
 
     def test_single_surface_form_is_flagged(self) -> None:
         # Monolingual term: a WARNING (many legitimate proper nouns are monolingual),
         # but it must be surfaced so bilingual coverage stays measurable.
         res = _lint([_good_term("alpha", match=["alpha"])])
-        self.assertTrue(res.ok, res.errors)  # not an error
-        self.assertTrue(any("single surface form" in w for w in res.warnings), res.warnings)
+        self.assertEqual((res.ok, res.errors), (True, []))  # not an error
+        self.assertReportsWarning(res, "single surface form")
 
     def test_empty_match_is_caught(self) -> None:
         res = _lint([_good_term("alpha", match=[])])
         self.assertFalse(res.ok)
-        self.assertTrue(any("'match' must be a non-empty list" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "'match' must be a non-empty list")
 
     def test_unknown_category_is_caught(self) -> None:
         res = _lint([_good_term("alpha", categories=["skill", "not_a_category"])])
         self.assertFalse(res.ok)
-        self.assertTrue(any("unknown category" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "unknown category")
 
     def test_bad_salary_signal_is_caught(self) -> None:
         res = _lint([_good_term("alpha", salary_signal="nonexistent_signal")])
         self.assertFalse(res.ok)
-        self.assertTrue(any("salary_signal" in e and "nonexistent_signal" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "salary_signal", "nonexistent_signal")
 
     def test_within_term_duplicate_surface_is_caught(self) -> None:
         # Two forms that normalize to the same value (case/diacritic fold).
         res = _lint([_good_term("alpha", match=["Java", "java"])])
         self.assertFalse(res.ok)
-        self.assertTrue(any("duplicate normalized value" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "duplicate normalized value")
 
     def test_self_parent_is_caught(self) -> None:
         res = _lint([_good_term("alpha", parents=["alpha"])])
         self.assertFalse(res.ok)
-        self.assertTrue(any("its own parent" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "its own parent")
 
     def test_bilingual_exempt_suppresses_single_form_warning(self) -> None:
         # A proper-noun term declares itself monolingual-by-nature; no bilingual warning.
         res = _lint([_good_term("kubernetes", match=["kubernetes"], bilingual_exempt=True)])
-        self.assertTrue(res.ok, res.errors)
+        self.assertEqual((res.ok, res.errors), (True, []))
         self.assertEqual(res.warnings, [])
 
     def test_bilingual_exempt_on_multiform_term_is_caught(self) -> None:
@@ -98,12 +121,12 @@ class LintCatchesDefectsTest(unittest.TestCase):
         # a contradiction (someone gaming the parity number) and must error.
         res = _lint([_good_term("alpha", match=["alpha", "alfa"], bilingual_exempt=True)])
         self.assertFalse(res.ok)
-        self.assertTrue(any("bilingual_exempt" in e and "surface forms" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "bilingual_exempt", "surface forms")
 
     def test_bilingual_exempt_must_be_boolean(self) -> None:
         res = _lint([_good_term("alpha", match=["alpha"], bilingual_exempt="yes")])
         self.assertFalse(res.ok)
-        self.assertTrue(any("bilingual_exempt must be a boolean" in e for e in res.errors), res.errors)
+        self.assertReportsError(res, "bilingual_exempt must be a boolean")
 
 
 def _tax(terms):
@@ -120,7 +143,7 @@ class CorpusCollisionScanTest(unittest.TestCase):
         corpus = tc.build_corpus(["We run a payment system for millions of clients."])
         terms = [_good_term("stem_field", match=["stem", "stem obory"])]
         coll = tc.scan_corpus_collisions(_tax(terms), corpus, categories=None)
-        self.assertTrue(coll, "expected a collision for 'stem' inside 'system'")
+        self.assertNotEqual(coll, [], "expected a collision for 'stem' inside 'system'")
         c = coll[0]
         self.assertEqual((c.term_id, c.kind), ("stem_field", "interior"))
         self.assertIn("system", c.context)
@@ -139,7 +162,7 @@ class CorpusCollisionScanTest(unittest.TestCase):
         corpus = tc.build_corpus(["Musíš odpovídat za ochranu údajů."])
         terms = [_good_term("dpo_role", match=["dpo", "data protection officer"])]
         coll = tc.scan_corpus_collisions(_tax(terms), corpus, categories=None)
-        self.assertTrue(any(c.surface == "dpo" and c.kind == "interior" for c in coll), coll)
+        self.assertIn(("dpo", "interior"), [(c.surface, c.kind) for c in coll])
 
     def test_multiword_phrase_is_not_a_collision(self) -> None:
         # A multi-word surface legitimately spans word boundaries in the compacted
@@ -264,9 +287,9 @@ class LiveCollisionGateTest(unittest.TestCase):
         corpus = tc.build_corpus(["I am responsible for access reviews."])
         terms = [_good_term("iam", match=["iam", "identity and access management"])]
         coll = tc.scan_corpus_collisions(_tax(terms), corpus, categories=None)
-        self.assertTrue(any(c.surface == "iam" for c in coll), coll)
+        self.assertIn("iam", [c.surface for c in coll])
         gated = tc.gate_collisions(coll, corpus)
-        self.assertTrue(any(c.surface == "iam" for c in gated), gated)
+        self.assertIn("iam", [c.surface for c in gated])
 
     def test_prefix_inflection_hit_is_not_gated(self) -> None:
         # A hazard reported against word A ("pyspark") must not be judged LIVE by an
