@@ -37,6 +37,9 @@ function project(a: PipelineAnalytics) {
   return {
     total: a.total,
     hired: a.hired,
+    // The cohort cap must cut the two reads the SAME way, or a delta would compare
+    // a whole window against a slice of another — so the flag is part of the identity.
+    truncated: a.truncated,
     avgTimeToHireDays: a.avgTimeToHireDays,
     funnel: a.funnel.map((f) => ({ stage: f.stage, conversionPct: f.conversionPct })),
     bySource: a.bySource.map((r) => ({ source: r.source, total: r.total, hireRatePct: r.hireRatePct })),

@@ -880,7 +880,28 @@ Read-only over the operational tables, plus three the tab writes:
 | `channel_spend` | Per-channel spend with `updated_at`, read via `listChannelSpendDetail()` in `app/_lib/db/channels.ts` (`listChannelSpend()` survives for amount-only callers) |
 | `llm_usage` | The compute-cost ledger (account-wide — see Known gaps) |
 
-Payload additions this round: `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
+### Every aggregation read is bounded, and says when the bound bit
+
+`pipelineAnalytics`, `pipelineAnalyticsPrior` (`app/_lib/db/analytics.ts`) and
+`teamHiringStats` / `orgHiringBenchmark` (`app/_lib/db/org-benchmarks.ts`) aggregate in JS
+over rows they SELECT, and until this round none of those reads had a ceiling — an all-time
+view was a full scan of the board, run twice per load (current + prior window), and the org
+benchmark scanned every sibling team's board as well.
+
+Each read now takes `ANALYTICS_COHORT_CAP` / `BENCHMARK_ROW_CAP` (both **20 000** rows,
+`ORDER BY created_at DESC`, read one past the cap the way `listJobsPage` does) and answers
+**`truncated: boolean`** on the payload — `PipelineAnalytics`, `PriorWindowSlice`,
+`HiringStats` and `OrgHiringBenchmark` all carry it, so `GET /api/analytics` and
+`GET /api/benchmarks` carry it too. The bound is deliberately generous (20 000 candidates in
+one cohort is beyond any deployment this product is sized for), so in practice it buys a
+worst-case guarantee rather than changing an answer. `truncated` is the half that matters
+when it does bite: a funnel computed over a silent slice reads exactly like the funnel over
+the whole cohort and is a different number. The `rowCap` option on each function is for
+tests only. Pinned by `analytics-cohort-cap.test.ts` and `org-benchmarks-cap.test.ts`;
+`analytics-prior-slice.test.ts` additionally pins that the two cohort reads cut identically,
+so a delta can never compare a whole window against a slice of another.
+
+Payload additions this round: `truncated` (above), `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
 `hiresClosedInWindow`, `computeCost.windowDays` / `.hires`, and the `leakage` descriptor on both
 calibration payload types.
 

@@ -178,7 +178,35 @@ export type PipelineAnalytics = {
    *  demo the funnel and the board disagreed with nothing on screen to say why. The
    *  page renders a footnote from this; it is a COUNT, never a set of rows. */
   excludedSim: number;
+  /** TRUE when the cohort read hit {@link ANALYTICS_COHORT_CAP} and every figure
+   *  below was therefore computed over the most recent `cap` entries rather than
+   *  the whole matching set. A capped read that does not say so is the worse of
+   *  the two bugs the cap fixes: an unbounded scan is slow, a silent slice is
+   *  WRONG — the same `{ …, truncated }` contract `listJobsPage` states. */
+  truncated: boolean;
 };
+
+/** How many pipeline_entries rows one analytics aggregation will pull into memory.
+ *
+ *  Every figure on the Insights tab is computed in JS over rows this module SELECTs,
+ *  and until this constant existed there was no ceiling on that read anywhere on the
+ *  path: an all-time view is a full-table scan of the board, run twice per load
+ *  (current window + the prior window the deltas diff against). The bound is high
+ *  enough that no realistic deployment reaches it — 20k candidates in one cohort is
+ *  a decade of hiring for the buyer this product is sized for — so in practice this
+ *  buys a worst-case guarantee rather than changing any answer; when it IS reached,
+ *  `truncated` says so instead of quietly reshaping the funnel. */
+export const ANALYTICS_COHORT_CAP = 20_000;
+
+/** Resolve a caller's `rowCap` against the module cap. A non-positive or
+ *  non-integer override would bind `LIMIT 0` (reads nothing) or `LIMIT -1`
+ *  (SQLite's "unbounded", i.e. the very scan the cap exists to forbid), so both
+ *  fall back to the constant rather than being trusted. */
+function cohortCap(override?: number): number {
+  return Number.isInteger(override) && (override as number) > 0
+    ? Math.min(override as number, ANALYTICS_COHORT_CAP)
+    : ANALYTICS_COHORT_CAP;
+}
 
 // 82c2b8e8 — the reserved analytics_targets row whose value is a time-to-hire
 // goal in DAYS (every other row is a funnel stage name → conversion %% target).
@@ -248,24 +276,46 @@ export function pipelineAnalytics(
   // window ending now (byte-identical to the historical single-arg behavior). The
   // upper bound only scopes the cohort SELECT — as-of-now figures (age, momentum)
   // stay real-time and are not diffed (see analytics-deltas.ts).
-  opts?: { endMs?: number },
+  // `rowCap` overrides ANALYTICS_COHORT_CAP. Tests only — a production caller has
+  // no business narrowing the cohort, and the flag it would set is the payload's
+  // honesty about the DEFAULT bound.
+  opts?: { endMs?: number; rowCap?: number },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineAnalytics {
   const db = ensureDb();
   const endMs = opts?.endMs ?? Date.now();
   const cutoffIso = windowDays ? new Date(endMs - windowDays * 86_400_000).toISOString() : null;
   const upperIso = opts?.endMs != null && windowDays ? new Date(endMs).toISOString() : null;
+  const rowCap = cohortCap(opts?.rowCap);
   const ROW_COLUMNS =
     "job_id, job_title, archetype, stage, status, created_at, stage_changed_at, source_channel, source_campaign, source_variant";
-  const rows = (
-    cutoffIso
+  // NEWEST FIRST + one row past the cap: the ordering makes the slice deterministic
+  // and meaningful when the cap bites (the most recent `cap` of the cohort, not an
+  // arbitrary page), and the extra row is how `truncated` is known without a second
+  // COUNT round-trip — the listJobsPage shape. SQLite sorts NULLs first, so DESC puts
+  // created_at-less rows LAST, which is also where an all-time view wants them: they
+  // carry no cohort date and are the first thing a bounded read should drop.
+  const capped = <T>(list: T[]): { rows: T[]; truncated: boolean } =>
+    list.length > rowCap ? { rows: list.slice(0, rowCap), truncated: true } : { rows: list, truncated: false };
+  const read = capped(
+    (cutoffIso
       ? upperIso
         ? db
-            .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?`)
-            .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId)
-        : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND workspace_id = ?`).all(cutoffIso, SIM_TITLE_LIKE, workspaceId)
-      : db.prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ?`).all(SIM_TITLE_LIKE, workspaceId)
-  ) as {
+            .prepare(
+              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+            )
+            .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, rowCap + 1)
+        : db
+            .prepare(
+              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+            )
+            .all(cutoffIso, SIM_TITLE_LIKE, workspaceId, rowCap + 1)
+      : db
+          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
+          .all(SIM_TITLE_LIKE, workspaceId, rowCap + 1)) as unknown[]
+  );
+  const truncated = read.truncated;
+  const rows = read.rows as {
     job_id: string | null;
     job_title: string | null;
     archetype: string | null;
@@ -780,6 +830,7 @@ export function pipelineAnalytics(
     variantRecommendations,
     targets: analyticsTargets(targetValues),
     excludedSim: excludedSim.n,
+    truncated,
     costPerHireCzk,
     costPerHireAsOf,
     hiresClosedInWindow,
@@ -818,6 +869,9 @@ export type PriorWindowSlice = {
   funnel: { stage: string; conversionPct: number | null }[];
   bySource: { source: string; total: number; hireRatePct: number }[];
   byChannel: { channel: string; total: number; hireRatePct: number; costPerApplicantCzk: number | null }[];
+  /** Same bound, same honesty as PipelineAnalytics.truncated — a delta computed
+   *  against a silently cut baseline is a wrong delta, not a small one. */
+  truncated: boolean;
 };
 
 /**
@@ -847,11 +901,14 @@ export type PriorWindowSlice = {
 export function pipelineAnalyticsPrior(
   windowDays: number,
   endMs: number,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // Tests only — see pipelineAnalytics' note on the same option.
+  opts?: { rowCap?: number }
 ): PriorWindowSlice {
   const db = ensureDb();
   const cutoffIso = new Date(endMs - windowDays * 86_400_000).toISOString();
   const upperIso = new Date(endMs).toISOString();
+  const rowCap = cohortCap(opts?.rowCap);
   // Same axis resolution as pipelineAnalytics: the prior-window slice is diffed
   // against the live one, so the two MUST index identically or the delta would
   // compare a row of one funnel to a different row of another.
@@ -860,19 +917,25 @@ export function pipelineAnalyticsPrior(
   const idxOf = (s: string) => stageIndex(s, axis);
   const isTerminal = (stage: string) => stageHasRole(stage, "terminal", axis);
 
-  const rows = db
+  // Bounded + newest-first + one row past the cap, exactly like the full battery's
+  // cohort read (see the note there) — the two must cut the SAME way or the delta
+  // would compare a whole window against a slice of another.
+  const capRead = db
     .prepare(
       `SELECT stage, status, created_at, stage_changed_at, source_channel
          FROM pipeline_entries
-        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?`
+        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?
+        ORDER BY created_at DESC LIMIT ?`
     )
-    .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId) as {
+    .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, rowCap + 1) as {
     stage: string;
     status: string;
     created_at: string | null;
     stage_changed_at: string | null;
     source_channel: string | null;
   }[];
+  const truncated = capRead.length > rowCap;
+  const rows = truncated ? capRead.slice(0, rowCap) : capRead;
 
   const total = rows.length;
   const hired = rows.filter((r) => isTerminal(r.stage)).length;
@@ -940,7 +1003,7 @@ export function pipelineAnalyticsPrior(
     }))
     .sort((a, b) => b.total - a.total);
 
-  return { total, hired, avgTimeToHireDays, funnel, bySource, byChannel };
+  return { total, hired, avgTimeToHireDays, funnel, bySource, byChannel, truncated };
 }
 
 // compute-cost-per-hire — read-only windowed aggregate of the LLM usage ledger (the
