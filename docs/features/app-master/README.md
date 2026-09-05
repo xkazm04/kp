@@ -369,6 +369,21 @@ the POST is rate-limited `repo-scan:<ip>` at 10/10min, pinned in
 `app/api/rate-limit-contract.test.ts`. The spawn site is pinned in
 `app/_lib/llm-spawn-contract.test.ts`.
 
+**A refused dossier POST.** `POST /api/intake/[id]/dossier` refuses two ways that
+are not failures, and the watcher used to render both dishonestly: a **429** from
+its own `intake-dossier:<ip>` limiter (20/10min) fell into the catch and claimed
+the scan was *unreachable*, and a **409 `INTAKE_BRIEF_MOVED`** (the compare-and-
+swap, when a dialog turn landed while the merge was being computed) returned
+silently while the next tasks tick re-posted immediately, paying a full Python
+spawn before the CAS refused it again. Both now go through
+[`app/_lib/app-master/dossier-retry.ts`](../../../app/_lib/app-master/dossier-retry.ts):
+a 429 shows `appMaster.scan.throttled` and waits the response's `Retry-After`
+(delta-seconds only, clamped) or else the limiter's window; a 409 shows
+`appMaster.scan.rereading` and waits a doubling backoff (2s, capped at 60s). The
+ladder is bounded at five attempts, after which the state stays on screen and the
+client stops asking. Pure, so `dossier-retry.test.ts` pins the ladder and
+`jdsIntakeLogic.test.ts` pins the wiring.
+
 ### The reference reading
 
 `npm run schemas:gen`-shaped output from a real run against kp itself is checked

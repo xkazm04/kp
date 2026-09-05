@@ -1758,7 +1758,12 @@
     "EXTRACT_FILE_REQUIRED": "Attach a file to read text from.",
     "EXTRACT_TEXT_UNREADABLE": "That file could not be read. Try a PDF, DOCX, TXT or MD file with selectable text.",
     "EXTRACT_TEXT_TIMEOUT": "Reading that file took too long and was stopped. Try a smaller file.",
-    "EXTRACT_TEXT_FAILED": "Could not read text from that file. Please try again."
+    "EXTRACT_TEXT_FAILED": "Could not read text from that file. Please try again.",
+    "DEVCASE_CHAT_FAILED": "Could not reach the chat channel. Please try again.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Could not save this work session right now. Your work is kept on this device and will be sent again.",
+    "DEVCASE_SESSION_READ_FAILED": "Could not load the work session. Please try again.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "This work session has already been submitted.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Write a message before sending it."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4396,7 +4401,9 @@
             "fellBackProviderError": "The AI provider failed, so this is the file-walk reading only.",
             "fellBackUnknown": "The AI agent fell back, so this is the file-walk reading only.",
             "fenceUnverified": "The AI agent read this repo behind secret-file rules that have not been verified for the Claude CLI version installed here.",
-            "fenceVersionUnknown": "The Claude CLI did not report its version, so the secret-file rules this scan ran behind could not be verified."
+            "fenceVersionUnknown": "The Claude CLI did not report its version, so the secret-file rules this scan ran behind could not be verified.",
+            "throttled": "The codebase reading is waiting its turn. Attaching it shortly.",
+            "rereading": "The brief changed while the reading was being folded in. Re-reading it now."
           },
           "dossier": {
             "title": "What the scan read",

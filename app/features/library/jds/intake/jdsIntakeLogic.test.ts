@@ -272,3 +272,40 @@ test("a row with no fence block reads as no claim, not as a warning", () => {
     null
   );
 });
+
+// A REFUSED dossier POST is not an unreachable scan. The route throttles at
+// 20/10min per IP and answers 409 when a dialog turn moved the brief under the
+// merge; the watcher used to render the first as "can't reach the scan" (sending
+// the requestor off to re-scan a repository for nothing) and the second as
+// nothing at all, while re-posting on every tasks tick and paying a Python spawn
+// each time. The ladder itself is pure and pinned by
+// app/_lib/app-master/dossier-retry.test.ts; this is the wiring, asserted at the
+// source because the hook needs React to run.
+test("a refused dossier POST is classified and backed off, not called unreachable", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+
+  // The rule is IMPORTED, never re-derived beside the state it sets.
+  assert.match(src, /from "@\/app\/_lib\/app-master\/dossier-retry"/);
+  assert.match(src, /planDossierRetry\(outcome, postAttempts\.current\)/);
+  // 429 and 409 each get their own outcome; the catch-all keeps "unreachable".
+  assert.match(src, /post\.status === 429/);
+  assert.match(src, /retryAfterMsFrom\(post\.headers\.get\("Retry-After"\)\)/);
+  assert.match(src, /post\.status === 409/);
+  assert.match(src, /\{ kind: "conflict" \}/);
+  // NON-VACUITY: the two pre-fix lines. A 409 must no longer return silently,
+  // and a 429 must no longer fall through to the catch that says "unreachable".
+  assert.ok(!/if \(post\.status === 409\) return;/.test(src), "the silent 409 early-return is the old hole");
+  assert.ok(
+    !/throw new Error\(`HTTP \$\{post\.status\}`\)/.test(src),
+    "a refused POST must not be thrown into the catch that claims the scan is unreachable"
+  );
+
+  // The wait is real: the retry timer is scheduled for the ladder's delay, not
+  // for the next tasks tick.
+  assert.match(src, /setRetryAt\(Date\.now\(\) \+ plan\.waitMs\)/);
+  assert.match(src, /setTimeout\(\(\) => void run\(\), Math\.max\(0, retryAt - Date\.now\(\)\)\)/);
+  assert.ok(src.includes("hasDossier, applySession, retryAt]"), "retryAt must re-arm the effect");
+  // …and it is bounded: when the plan says stop, `posted` stays set, which is
+  // what makes the watcher stop asking.
+  assert.match(src, /if \(plan\.retry\) \{\s*\r?\n\s*posted\.current = null;/);
+});

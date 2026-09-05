@@ -1758,7 +1758,12 @@
     "EXTRACT_FILE_REQUIRED": "Joignez un fichier dont le texte doit être extrait.",
     "EXTRACT_TEXT_UNREADABLE": "Ce fichier n'a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD dont le texte est sélectionnable.",
     "EXTRACT_TEXT_TIMEOUT": "La lecture de ce fichier a pris trop de temps et a été interrompue. Essayez un fichier plus petit.",
-    "EXTRACT_TEXT_FAILED": "Impossible d'extraire le texte de ce fichier. Veuillez réessayer."
+    "EXTRACT_TEXT_FAILED": "Impossible d'extraire le texte de ce fichier. Veuillez réessayer.",
+    "DEVCASE_CHAT_FAILED": "Impossible de joindre le canal de discussion. Veuillez réessayer.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Impossible d'enregistrer cette session de travail pour l'instant. Votre travail reste sur cet appareil et sera renvoyé.",
+    "DEVCASE_SESSION_READ_FAILED": "Impossible de charger la session de travail. Veuillez réessayer.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "Cette session de travail a déjà été soumise.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4396,7 +4401,9 @@
             "fellBackProviderError": "Le fournisseur IA a échoué : ceci est uniquement la lecture par parcours de fichiers.",
             "fellBackUnknown": "L'agent IA est revenu au repli : ceci est uniquement la lecture par parcours de fichiers.",
             "fenceUnverified": "L'agent IA a lu ce dépôt derrière des règles sur les fichiers de secrets qui ne sont pas vérifiées pour la version de Claude CLI installée ici.",
-            "fenceVersionUnknown": "La CLI Claude n'a pas indiqué sa version : les règles sur les fichiers de secrets derrière lesquelles ce scan s'est exécuté n'ont pas pu être vérifiées."
+            "fenceVersionUnknown": "La CLI Claude n'a pas indiqué sa version : les règles sur les fichiers de secrets derrière lesquelles ce scan s'est exécuté n'ont pas pu être vérifiées.",
+            "throttled": "La lecture du code attend son tour. Elle sera jointe sous peu.",
+            "rereading": "Le brief a changé pendant l'intégration. Nouvelle lecture en cours."
           },
           "dossier": {
             "title": "Ce que l'analyse a lu",

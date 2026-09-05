@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
+import {
+  planDossierRetry,
+  retryAfterMsFrom,
+  type DossierPostOutcome,
+  type DossierRetryState,
+} from "@/app/_lib/app-master/dossier-retry";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
 import {
@@ -38,6 +44,12 @@ import {
  *  because this is the module that consumes them. */
 export type { RepoScanView };
 
+/** `ScanState` plus the two states the dossier POST can be in on its way back
+ *  (dossier-retry.ts). Both are message keys under
+ *  `library.tab.intake.appMaster.scan.*`, exactly like every `ScanState` member,
+ *  so JdsIntakePanel's `t(\`appMaster.scan.${state}\`)` keeps type-checking. */
+export type AppMasterScanState = ScanState | DossierRetryState;
+
 /** What the dispatch control is currently able to claim. `sent` means Personas
  *  ACCEPTED the request (it still needs a human approval there) — never "hired". */
 export type DispatchState =
@@ -55,7 +67,7 @@ export function useAppMasterLogic(
   applySession: (intakeId: string, patch: Partial<IntakeSession>) => void
 ) {
   const { tasks, fetchTask, cancelTask } = useTasks();
-  const [scanState, setScanState] = useState<ScanState>(null);
+  const [scanState, setScanState] = useState<AppMasterScanState>(null);
   // The fence disclosure, held beside `scanState` rather than inside it: they are
   // two independent facts about the same run (see ScanFenceWarning).
   const [scanFence, setScanFence] = useState<ScanFenceWarning>(null);
@@ -72,6 +84,12 @@ export function useAppMasterLogic(
   // The scan whose dossier was already posted — a second POST would re-merge
   // the same facets and re-spend on the population fit for no new information.
   const posted = useRef<string | null>(null);
+  // How many dossier POSTs this scan has already spent, and the earliest moment
+  // the next one may go out. A refused POST used to be retried on the very next
+  // tasks tick, which paid a Python spawn per tick for as long as the refusal
+  // lasted (dossier-retry.ts).
+  const postAttempts = useRef(0);
+  const [retryAt, setRetryAt] = useState(0);
 
   const intakeId = active?.id ?? null;
   const scanId = active?.scanId ?? null;
@@ -101,22 +119,39 @@ export function useAppMasterLogic(
         setScanFence(scanFenceWarningFor(scan));
         if (scan.status !== "complete" || !scan.dossier) return;
         posted.current = scanId;
+        postAttempts.current += 1;
         const post = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/dossier`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ scanId, dossier: scan.dossier }),
         });
         if (!post.ok) {
-          // Refused (429/409/offline): let the next tick try again rather than
-          // silently leaving a finished scan unattached to its session.
-          posted.current = null;
-          // 409 = INTAKE_BRIEF_MOVED: a dialog turn landed while the merge was
-          // being computed, so the server re-read rather than overwrote. That is
-          // the system working, not a fault — retry on the next tick WITHOUT
-          // claiming the scan is unreachable, which is what the catch below would
-          // otherwise render under an intake that is perfectly reachable.
-          if (post.status === 409) return;
-          throw new Error(`HTTP ${post.status}`);
+          // Refused. Each refusal gets its OWN state and its own wait — see
+          // dossier-retry.ts for why "unreachable, immediately, forever" was
+          // wrong on both halves:
+          //   429 = the route's per-IP limiter. The intake is reachable; the
+          //         door is shut for a while, and saying "unreachable" sends the
+          //         requestor off to re-scan a repository for nothing.
+          //   409 = INTAKE_BRIEF_MOVED: a dialog turn landed while the merge was
+          //         being computed, so the server re-read rather than overwrote.
+          //         That is the system working — but re-posting on the next tick
+          //         pays a full Python spawn before the CAS refuses it again.
+          const outcome: DossierPostOutcome =
+            post.status === 429
+              ? { kind: "throttled", retryAfterMs: retryAfterMsFrom(post.headers.get("Retry-After")) }
+              : post.status === 409
+                ? { kind: "conflict" }
+                : { kind: "unreachable" };
+          const plan = planDossierRetry(outcome, postAttempts.current);
+          if (cancelled) return;
+          setScanState(plan.state);
+          // `posted` stays set when the ladder is spent: that is what stops the
+          // watcher asking again, without a second flag to keep in sync.
+          if (plan.retry) {
+            posted.current = null;
+            setRetryAt(Date.now() + plan.waitMs);
+          }
+          return;
         }
         const payload = (await post.json()) as {
           brief: IntakeSession["brief"];
@@ -137,13 +172,17 @@ export function useAppMasterLogic(
         inFlight.current = false;
       }
     };
-    // Deferred a tick (the jdsHooks.ts pattern) — no synchronous setState in an effect.
-    const timer = window.setTimeout(() => void run(), 0);
+    // Deferred a tick (the jdsHooks.ts pattern) — no synchronous setState in an
+    // effect. After a refused POST the same timer carries the BACKOFF: `retryAt`
+    // is state, so setting it re-runs this effect, which schedules the next
+    // attempt for exactly when the ladder said. The tasks tick is still the
+    // clock for everything else; it is no longer the retry loop.
+    const timer = window.setTimeout(() => void run(), Math.max(0, retryAt - Date.now()));
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [tasks, scanId, intakeId, hasDossier, applySession]);
+  }, [tasks, scanId, intakeId, hasDossier, applySession, retryAt]);
 
   // ---- Cancelling the scan --------------------------------------------------
   //
@@ -274,6 +313,10 @@ export function useAppMasterLogic(
     // session's scan from the new session's button is exactly the class of bug the
     // reset block exists to prevent.
     setScanTaskId(null);
+    // …and the dossier POST ladder's wait. Its attempt COUNTER is a ref, so it is
+    // cleared in the effect below rather than here: touching a ref during render
+    // is exactly what react-hooks/refs forbids, and this block runs during render.
+    setRetryAt(0);
   }
 
   // A compose belongs to the session it was started from, so a session switch
@@ -282,6 +325,9 @@ export function useAppMasterLogic(
   // above: touching a ref during render is exactly what react-hooks/refs
   // forbids, and the reset block runs during render.
   useEffect(() => {
+    // The dossier POST ladder counts attempts for ONE scan; a session switch
+    // starts a new one at rung zero.
+    postAttempts.current = 0;
     return () => {
       composeAbort.current?.abort();
       composeAbort.current = null;

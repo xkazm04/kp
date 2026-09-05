@@ -1758,7 +1758,12 @@
     "EXTRACT_FILE_REQUIRED": "Hängen Sie eine Datei an, aus der Text gelesen werden soll.",
     "EXTRACT_TEXT_UNREADABLE": "Diese Datei konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei mit auswählbarem Text.",
     "EXTRACT_TEXT_TIMEOUT": "Das Lesen der Datei hat zu lange gedauert und wurde abgebrochen. Versuchen Sie eine kleinere Datei.",
-    "EXTRACT_TEXT_FAILED": "Der Text aus dieser Datei konnte nicht gelesen werden. Bitte versuchen Sie es erneut."
+    "EXTRACT_TEXT_FAILED": "Der Text aus dieser Datei konnte nicht gelesen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_CHAT_FAILED": "Der Chat-Kanal konnte nicht erreicht werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Diese Arbeitssitzung konnte gerade nicht gespeichert werden. Ihre Arbeit bleibt auf diesem Gerät und wird erneut gesendet.",
+    "DEVCASE_SESSION_READ_FAILED": "Die Arbeitssitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "Diese Arbeitssitzung wurde bereits eingereicht.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4396,7 +4401,9 @@
             "fellBackProviderError": "Der KI-Anbieter ist ausgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fellBackUnknown": "Der KI-Agent ist zurückgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fenceUnverified": "Der KI-Agent hat dieses Repo hinter Regeln für Geheimnisdateien gelesen, die für die hier installierte Claude-CLI-Version nicht verifiziert sind.",
-            "fenceVersionUnknown": "Die Claude CLI hat ihre Version nicht gemeldet, daher konnten die Regeln für Geheimnisdateien, hinter denen dieser Scan lief, nicht verifiziert werden."
+            "fenceVersionUnknown": "Die Claude CLI hat ihre Version nicht gemeldet, daher konnten die Regeln für Geheimnisdateien, hinter denen dieser Scan lief, nicht verifiziert werden.",
+            "throttled": "Die Auswertung des Codes wartet auf ihren Platz. Sie wird gleich angehängt.",
+            "rereading": "Das Briefing hat sich während der Übernahme geändert. Es wird erneut gelesen."
           },
           "dossier": {
             "title": "Was der Scan gelesen hat",

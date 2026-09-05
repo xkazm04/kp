@@ -1758,7 +1758,12 @@
     "EXTRACT_FILE_REQUIRED": "Přiložte soubor, ze kterého se má text načíst.",
     "EXTRACT_TEXT_UNREADABLE": "Tento soubor se nepodařilo přečíst. Zkuste PDF, DOCX, TXT nebo MD s vybíratelným textem.",
     "EXTRACT_TEXT_TIMEOUT": "Čtení souboru trvalo příliš dlouho a bylo zastaveno. Zkuste menší soubor.",
-    "EXTRACT_TEXT_FAILED": "Text z tohoto souboru se nepodařilo načíst. Zkuste to prosím znovu."
+    "EXTRACT_TEXT_FAILED": "Text z tohoto souboru se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DEVCASE_CHAT_FAILED": "Chatovací kanál se nepodařilo otevřít. Zkuste to prosím znovu.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Tuto pracovní relaci se teď nepodařilo uložit. Vaše práce zůstává v tomto zařízení a odešle se znovu.",
+    "DEVCASE_SESSION_READ_FAILED": "Pracovní relaci se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "Tato pracovní relace už byla odevzdána.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Než zprávu odešlete, napište ji."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4396,7 +4401,9 @@
             "fellBackProviderError": "Poskytovatel AI selhal, takže jde jen o čtení průchodem souborů.",
             "fellBackUnknown": "AI agent se vrátil k záloze, takže jde jen o čtení průchodem souborů.",
             "fenceUnverified": "AI agent četl toto repo za pravidly pro soubory s tajemstvími, která nejsou ověřená pro zdejší verzi Claude CLI.",
-            "fenceVersionUnknown": "Claude CLI neuvedlo svou verzi, takže pravidla pro soubory s tajemstvími, za kterými tento sken běžel, nešlo ověřit."
+            "fenceVersionUnknown": "Claude CLI neuvedlo svou verzi, takže pravidla pro soubory s tajemstvími, za kterými tento sken běžel, nešlo ověřit.",
+            "throttled": "Načtení kódu čeká, až na něj přijde řada. Za chvíli je připojíme.",
+            "rereading": "Během vkládání se zadání změnilo. Načítáme ho znovu."
           },
           "dossier": {
             "title": "Co sken přečetl",
