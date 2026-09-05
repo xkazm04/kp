@@ -538,6 +538,36 @@ whose `pending` never falls would otherwise spin the loop; what is left over is 
 lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
 stops the run rather than asking for another page, because events are ordered.
 
+**The Worker's inbound door is bounded like its install twin.** `POST /in/<token>`
+(`edge/src/index.ts`) is the edge's only unsigned route — its auth is the receiver
+token itself, and the edge cannot tell a valid token from a bogus one, so it accepts
+and lets the drain refuse. That made it the flood surface: one bogus token costs one
+queued row, and a sender faster than 250 events a tick buries the real leads behind
+it while D1 grows without limit. Two bounds now hold it:
+
+- a **60/min per token+IP** fixed window keyed `in:<token>:<cf-connecting-ip>` — the
+  same shape as `RATE_LIMIT = { limit: 60, windowMs: 60_000 }` on
+  `app/api/channels/inbound/[token]/route.ts`, so a flood cannot simply move to
+  whichever of the two URLs the operator handed out. It answers **429** with
+  `Retry-After: 60` and writes nothing. Backed by a `rate` table in `edge/schema.sql`
+  (D1 rather than KV: D1 is already the Worker's only binding, so this costs an
+  operator no new namespace). It is abuse containment, not an exact quota —
+  read-then-write is not atomic, so a same-millisecond burst can over-admit by a few,
+  and the queue cap is the hard bound;
+- a **10,000 undrained-event cap**, checked on every write so webhooks, mail and
+  receipts share one number. Over it the door **refuses rather than dropping the
+  oldest**: a stored event has already been answered `202 held`, and discarding it
+  later would break that promise silently, while a **503 + `Retry-After: 300`** is
+  something a job board, a relay and a sending MTA all retry (and a 4xx is what they
+  give up on). Inbound mail has no response to carry a 503, so it is rejected at SMTP
+  and the sending server holds it. A refused receipt gets its nonce back, so the
+  relay's re-presentation is not a 409.
+
+`edge/test/worker.test.ts` pins both, and — for the first time — `scheduled()`: one
+nudge per quiet period, counts and never names in the payload, `nudged_at` stamped
+**only** on a 2xx (a stamped failure would suppress the very retry the nudge exists to
+make), and a heartbeat clearing it so the next quiet period may nudge again.
+
 The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
 backlog still at the edge, last heartbeat — each with a relative time in the reader's
 locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a

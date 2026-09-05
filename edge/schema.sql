@@ -44,3 +44,23 @@ CREATE TABLE IF NOT EXISTS nonces (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nonces_expiry ON nonces (expires_at);
+
+-- The public door's rate limiter (POST /in/<token>). One row per (receiver token,
+-- caller IP) per minute, holding a count and the instant the window resets; expired
+-- rows are pruned on the next claim, exactly like `nonces`.
+--
+-- It lives in D1 rather than KV so an operator has nothing new to create: D1 is
+-- already the Worker's only binding, and this is one integer per caller per minute.
+-- It is abuse CONTAINMENT, not an exact quota -- read-then-write is not atomic, so a
+-- burst arriving in the same millisecond can over-admit by a few. The hard bound is
+-- the 10,000-event queue cap in src/index.ts, which is checked on every write and
+-- refuses (503 + Retry-After) rather than dropping the oldest event: a stored event
+-- has already been answered `202 held`, and silently discarding it later would break
+-- that promise with nobody told, while a refusal is one every sender retries.
+CREATE TABLE IF NOT EXISTS rate (
+  key      TEXT PRIMARY KEY,
+  count    INTEGER NOT NULL,
+  reset_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_reset ON rate (reset_at);
