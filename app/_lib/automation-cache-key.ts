@@ -29,7 +29,13 @@ export const LETTER_LANG_TASKS: ReadonlySet<string> = new Set(["outreach", "reje
 // served the old language's screening rationale / scorecard summary for the full
 // TTL. Their AUTOMATION_VERSIONs are bumped (screening-v2 / scorecard-v6) so the
 // pre-fix, wrongly-shared entries self-invalidate.
-export const UI_LANG_TASKS: ReadonlySet<string> = new Set(["prep", "screen", "scorecard"]);
+// rematch joined 2026-09-05. Its verdict sentence is recruiter-facing narrative like
+// the other three, and automation.py now forwards --lang to generate_reasoning and
+// stamps narrativeLang — but the engine only receives a locale for tasks in one of
+// these two sets, so without this entry the fix could not reach the app path and the
+// rationale stayed English on every install. Adding it also makes the locale a key
+// axis, so the wrongly-shared English entries self-invalidate.
+export const UI_LANG_TASKS: ReadonlySet<string> = new Set(["prep", "screen", "scorecard", "rematch"]);
 // THE one lang-task union — consumed by the key below AND (via the two sets above)
 // by automation-run's --lang gating, mirroring the GITHUB_EVIDENCE_TASKS pattern:
 // the cache axis and the prompt input can never drift apart.

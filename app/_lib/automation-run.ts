@@ -38,12 +38,22 @@ import {
 // AND by the background-task runner (single + batch). The LLM engine is the
 // configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
+  // ALL SEVEN bumped 2026-09-05 in one step. Candidate-authored prose reaching
+  // these prompts is now rendered inside an explicit untrusted fence
+  // (automation.context_block), and the interview projection the letters read is
+  // fenced with it; rematch additionally stamps narrativeLang. Six of the seven
+  // prompts therefore changed BYTES and the seventh changed its output shape, so
+  // every cached pre-fence payload has to retire — otherwise the injection fix
+  // is illusory for up to the full 168h TTL on entries that are already warm,
+  // which is exactly the failure this map's own docstring was written about.
+  // Lockstep with the automation.py *_PROMPT_VERSION constants is enforced by
+  // pipeline/jobfit/tests/test_prompt_version_sync.py.
   // v2 — screen receives --lang (its rationale/strengths/redFlags are recruiter-
   // facing prose) but its cache key ignored the locale, so a locale switch served
   // the previous language's screening rationale for the full 168h TTL. The locale
   // is now a key axis (UI_LANG_TASKS); bumped so the wrongly-shared v1 entries
   // self-invalidate. Kept in lockstep with automation.SCREENING_PROMPT_VERSION.
-  screen: "screening-v2",
+  screen: "screening-v3",
   // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
   // resolved comms locale) and their prompts carry the gender-neutral-Czech +
   // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
@@ -52,7 +62,7 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // gap with evidence-checked feedback, prep anchors questions in concrete
   // highlights and covers stated aspirations; bumped so cached prior letters
   // self-invalidate. Lockstep with the Python *_PROMPT_VERSION constants.
-  outreach: "outreach-v3",
+  outreach: "outreach-v4",
   // rejection v4 (and offer v5 below) — the two letters that follow an INTERVIEW now
   // receive the entry's stored scorecard. They were drafted from CV + score + stage
   // alone while the prompt demanded "the ACTUAL decisive reason", so the model
@@ -61,8 +71,8 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // draft invented "the decision was close". Every cached v3 rejection / v4 offer was
   // drafted blind to the interview, so the bump is what retires them. Lockstep with
   // automation.REJECTION_PROMPT_VERSION / OFFER_PROMPT_VERSION.
-  rejection: "rejection-v4",
-  prep: "interview-prep-v2",
+  rejection: "rejection-v5",
+  prep: "interview-prep-v3",
   // v5 — the read-back exchange is emitted as STRUCTURED `entities` (confirmed /
   // corrected heard→meant / unconfirmed) beside the prose trust rule, so the recruiter
   // gets a cue that "Rust" in the transcript meant React; bumped so cached v4
@@ -74,14 +84,14 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // (candidate speech was the one unfenced block in the package) and the scoring
   // instructions carry the interviewer brief's no-penalty-for-nerves clause; both
   // change the prompt bytes, so cached v6 scorecards must self-invalidate.
-  scorecard: "scorecard-v7",
-  rematch: "rematch-v1",
+  scorecard: "scorecard-v8",
+  rematch: "rematch-v2",
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer
   // (REC-01/OO-L2-10); bumped so cached v2 payloads self-invalidate.
   // v5 — see the rejection note above: the offer letter now sees the interview it
   // follows from, and its tone is branched on whether that interview closed as a yes.
-  offer: "offer-v5",
+  offer: "offer-v6",
 };
 
 /** The tasks whose prompt reads the entry's stored interview scorecard: the two

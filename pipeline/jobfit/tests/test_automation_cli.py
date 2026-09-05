@@ -242,5 +242,59 @@ class TestAutomationCliAdverseActionBoundary(unittest.TestCase):
             self.assertIn(_last_json(out)["result"]["route"], automation.SCREEN_ROUTES, archetype)
 
 
+class TestRematchReadsLang(unittest.TestCase):
+    """A7 — `rematch` is a narrative command and now receives --lang like the others.
+
+    Its branch returns before the screen/prep/scorecard dispatch below it, and the
+    locale was simply never forwarded: on a cs/de/fr install the one sentence saying
+    why a named person is being moved to another role came back in English, unstamped.
+    Keyless here (`--no-llm`), so the assertion is on the CONTRACT — the honest
+    `narrativeLang`, which must say "en" for the English-only template whatever was
+    asked — plus the fact that the flag is accepted at all on this command."""
+
+    def _rematch(self, *extra: str) -> dict:
+        with _fixture() as (cand, jobs):
+            code, out, err = _run(
+                ["rematch", "--no-llm", "--candidate-json", str(cand), "--jobs", str(jobs), *extra]
+            )
+        self.assertEqual(code, 0, err)
+        return _last_json(out)
+
+    def test_the_lang_flag_is_accepted_and_the_stamp_is_honest(self):
+        for lang in ("en", "cs", "de", "fr"):
+            with self.subTest(lang=lang):
+                payload = self._rematch("--lang", lang)
+                self.assertEqual(payload["source"], "deterministic")
+                # The template is English-only; the stamp reports the TEXT, not the ask.
+                self.assertEqual(payload["result"]["narrativeLang"], "en")
+
+    def test_a_caller_that_names_no_language_is_unchanged(self):
+        payload = self._rematch()
+        self.assertEqual(payload["result"]["narrativeLang"], "en")
+
+    def test_a_mid_flight_descent_reaches_the_ledger_with_a_reason(self):
+        # AL4 — `--no-llm` descents are named by the availability gate ("disabled");
+        # a provider that WAS available and then failed used to record nothing at all
+        # for rematch, because this branch never drained the mid-call reason.
+        class _Exploding:
+            def complete_json(self, prompt, system=None, expected_keys=None):
+                raise RuntimeError("provider exploded")
+
+        seen: dict = {}
+
+        def _emit(use_case, reason=None):
+            seen["use_case"], seen["reason"] = use_case, reason
+
+        with _fixture() as (cand, jobs):
+            with mock.patch.object(automation_cli, "resolve_provider", return_value=_Exploding()), \
+                 mock.patch.object(automation_cli, "provider_availability", return_value=(True, None)), \
+                 mock.patch.object(automation_cli, "emit_deterministic", _emit):
+                code, out, err = _run(["rematch", "--candidate-json", str(cand), "--jobs", str(jobs)])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(_last_json(out)["source"], "deterministic")
+        self.assertIsNotNone(seen.get("reason"), "a deterministic serve with no reason at all")
+        self.assertIn("provider exploded", seen["reason"])
+
+
 if __name__ == "__main__":
     unittest.main()
