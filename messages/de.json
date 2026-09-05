@@ -1745,7 +1745,16 @@
     "SCHEDULE_BULK_MINT_FAILED": "Für diese Person konnte kein Terminlink erstellt werden. Die übrigen sind davon nicht betroffen.",
     "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Wählen Sie eine Person aus, bevor Sie einen Terminlink erstellen.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet.",
+    "ATS_CONNECTION_SAVE_FAILED": "Die ATS-Verbindung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Die ATS-Verbindung konnte nicht entfernt werden. Bitte erneut versuchen.",
+    "ATS_CANDIDATE_NOT_FOUND": "Diese Kandidatin bzw. dieser Kandidat ist nicht auf diesem Board.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "Das ist kein ATS, mit dem Kandi sich verbinden kann. Wählen Sie einen Anbieter aus der Liste.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "Die API-Basis-URL muss eine https://-Adresse auf einem öffentlichen Host sein.",
+    "ATS_CONNECTION_TOKEN_INVALID": "Dieses API-Token konnte nicht gespeichert werden. Prüfen Sie, ob auf dem Server ein Verschlüsselungsschlüssel konfiguriert ist.",
+    "ATS_FIELD_MAP_INVALID": "Diese Feldzuordnung ist nicht verwendbar. Jedes zugeordnete Feld braucht einen Pfad, und der Pfad zur externen ID ist Pflicht.",
+    "ATS_CONNECTION_NOT_FOUND": "Für dieses ATS ist keine Verbindung gespeichert.",
+    "ATS_CONNECTION_STALE": "Jemand hat eine neuere Version dieser ATS-Verbindung gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1745,7 +1745,16 @@
     "SCHEDULE_BULK_MINT_FAILED": "Couldn't create a scheduling link for this candidate. The rest of the batch was unaffected.",
     "SCHEDULE_BULK_OVER_CAP": "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Pick a candidate before creating a scheduling link.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "That candidate is no longer active, so no invite was sent."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "That candidate is no longer active, so no invite was sent.",
+    "ATS_CONNECTION_SAVE_FAILED": "Could not save the ATS connection. Please try again.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Could not remove the ATS connection. Please try again.",
+    "ATS_CANDIDATE_NOT_FOUND": "That candidate is not on this board.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "That is not an ATS Kandi can connect to. Pick a provider from the list.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "The API base URL must be an https:// address on a public host.",
+    "ATS_CONNECTION_TOKEN_INVALID": "That API token could not be stored. Check the server has an encryption key configured.",
+    "ATS_FIELD_MAP_INVALID": "That field map is not usable. Every mapped field needs a path, and the external id path is required.",
+    "ATS_CONNECTION_NOT_FOUND": "There is no connection stored for that ATS.",
+    "ATS_CONNECTION_STALE": "Someone saved a newer version of this ATS connection. Reload and make your change again."
   },
   "resilience": {
     "notFoundEyebrow": "404",

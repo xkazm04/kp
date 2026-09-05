@@ -1745,7 +1745,16 @@
     "SCHEDULE_BULK_MINT_FAILED": "Pro tohoto kandidáta se nepodařilo vytvořit odkaz pro plánování. Ostatních se to nedotklo.",
     "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Než vytvoříte odkaz pro plánování, vyberte kandidáta.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Tento kandidát už není aktivní, pozvánka se neodeslala."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Tento kandidát už není aktivní, pozvánka se neodeslala.",
+    "ATS_CONNECTION_SAVE_FAILED": "Připojení k ATS se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Připojení k ATS se nepodařilo odebrat. Zkuste to prosím znovu.",
+    "ATS_CANDIDATE_NOT_FOUND": "Tento kandidát na této nástěnce není.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "Toto není ATS, ke kterému se Kandi umí připojit. Vyberte poskytovatele ze seznamu.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "Základní adresa API musí být https:// adresa na veřejném hostiteli.",
+    "ATS_CONNECTION_TOKEN_INVALID": "Tento API token se nepodařilo uložit. Zkontrolujte, že má server nastavený šifrovací klíč.",
+    "ATS_FIELD_MAP_INVALID": "Toto mapování polí není použitelné. Každé mapované pole potřebuje cestu a cesta k externímu ID je povinná.",
+    "ATS_CONNECTION_NOT_FOUND": "Pro toto ATS není uložené žádné připojení.",
+    "ATS_CONNECTION_STALE": "Někdo mezitím uložil novější verzi tohoto připojení k ATS. Načtěte je znovu a proveďte změnu ještě jednou."
   },
   "resilience": {
     "notFoundEyebrow": "404",

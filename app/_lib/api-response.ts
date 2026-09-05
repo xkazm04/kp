@@ -320,6 +320,13 @@ export const STORE_ERRORS = {
    *  constraint text, the absolute db path, or an at-rest crypto failure naming the key
    *  env var. */
   ATS_CONFIG_SAVE_FAILED: "Could not save the webhook settings. Please try again.",
+  /** The INBOUND connection write / removal (/perfect wave 41, api-ats-integration).
+   *  Both catches sat on better-sqlite3 plus the at-rest crypto helper, and the save's
+   *  400 branch forwarded every validation message the store and the field map threw —
+   *  canonical English into a four-locale panel. The refusals are coded below; these two
+   *  are what is left when the failure is genuinely ours. */
+  ATS_CONNECTION_SAVE_FAILED: "Could not save the ATS connection. Please try again.",
+  ATS_CONNECTION_REMOVE_FAILED: "Could not remove the ATS connection. Please try again.",
   BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
   /** The merchant of record accepted the request and then said nothing until the
    *  gateway's AbortSignal budget (POLAR_REQUEST_TIMEOUT_MS) ran out — answered at 504,
@@ -1348,6 +1355,33 @@ export const REFUSAL_ERRORS = {
    *  the route surfaces that refusal under its own code instead of the 404 the
    *  missing-entry branch answers. */
   ATS_CANDIDATE_ERASED: "This candidate's data was erased and cannot be exported.",
+  /** The per-candidate ATS export found no entry for this caller (404). Deliberately
+   *  ONE code for "never existed" and "belongs to another team": the two are
+   *  indistinguishable to a caller who does not hold the entry, which is the tenancy
+   *  property the route's own comment records. Distinct from ATS_CANDIDATE_ERASED,
+   *  which is a decision about an entry that IS there. */
+  ATS_CANDIDATE_NOT_FOUND: "That candidate is not on this board.",
+  // ---- Inbound ATS connection refusals (/perfect wave 41, api-ats-integration).
+  // The connections door answered five hand-written English sentences and forwarded
+  // every message the field-map parser and the connection store threw, straight into a
+  // panel that renders through useErrorMessage in four languages. The store and the
+  // parser now carry a code on the thrown error and the route maps it; the sentences
+  // below are what the operator actually reads, so each one names the fix.
+  /** `provider` is not on ATS_PROVIDERS (or the DELETE arrived without one). */
+  ATS_CONNECTION_PROVIDER_UNKNOWN: "That is not an ATS Kandi can connect to. Pick a provider from the list.",
+  /** The base URL failed the SSRF boundary (https-only, public host, no IP literal). */
+  ATS_CONNECTION_BASE_URL_INVALID: "The API base URL must be an https:// address on a public host.",
+  /** The token was not text, or could not be encrypted because no at-rest key is set. */
+  ATS_CONNECTION_TOKEN_INVALID: "That API token could not be stored. Check the server has an encryption key configured.",
+  /** parseFieldMap refused the map — an unknown field, an empty path, or no externalId,
+   *  which is the sync identity and the one path a map cannot go without. */
+  ATS_FIELD_MAP_INVALID: "That field map is not usable. Every mapped field needs a path, and the external id path is required.",
+  /** DELETE named a provider with no stored connection (404). */
+  ATS_CONNECTION_NOT_FOUND: "There is no connection stored for that ATS.",
+  /** The write was composed against a connection someone else has since replaced (409).
+   *  Same doctrine as ATS_CONFIG_STALE next door: nothing was written, and the panel's
+   *  answer is to reload and re-apply rather than to retry blind. */
+  ATS_CONNECTION_STALE: "Someone saved a newer version of this ATS connection. Reload and make your change again.",
   // ---- Interview-prep refusals (/perfect wave 37, lib-voice-interview-11).
   // The five write verbs of /api/interview-prep answered bare English sentences with
   // no code, while their voice twins next door had been coded since 2026-09-02. The

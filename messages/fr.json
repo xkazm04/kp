@@ -1745,7 +1745,16 @@
     "SCHEDULE_BULK_MINT_FAILED": "Impossible de créer un lien de planification pour ce candidat. Les autres n’ont pas été affectés.",
     "SCHEDULE_BULK_OVER_CAP": "Trop de candidats pour un seul envoi, celui-ci n’a pas été invité. Envoyez le reste dans un second lot.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Sélectionnez un candidat avant de créer un lien de planification.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucune invitation n’a été envoyée."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucune invitation n’a été envoyée.",
+    "ATS_CONNECTION_SAVE_FAILED": "Impossible d'enregistrer la connexion à l'ATS. Veuillez réessayer.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Impossible de supprimer la connexion à l'ATS. Veuillez réessayer.",
+    "ATS_CANDIDATE_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "Ce n'est pas un ATS auquel Kandi peut se connecter. Choisissez un fournisseur dans la liste.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "L'URL de base de l'API doit être une adresse https:// sur un hôte public.",
+    "ATS_CONNECTION_TOKEN_INVALID": "Ce jeton d'API n'a pas pu être enregistré. Vérifiez qu'une clé de chiffrement est configurée sur le serveur.",
+    "ATS_FIELD_MAP_INVALID": "Ce mappage de champs est inutilisable. Chaque champ mappé a besoin d'un chemin, et le chemin vers l'identifiant externe est obligatoire.",
+    "ATS_CONNECTION_NOT_FOUND": "Aucune connexion n'est enregistrée pour cet ATS.",
+    "ATS_CONNECTION_STALE": "Quelqu'un a enregistré une version plus récente de cette connexion ATS. Rechargez-la et refaites votre modification."
   },
   "resilience": {
     "notFoundEyebrow": "404",
