@@ -1690,6 +1690,8 @@
     "PROFILE_BUILD_TIMEOUT": "Le traitement du profil a pris trop de temps et a été interrompu. Essayez d’enregistrer à nouveau.",
     "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez.",
     "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté.",
+    "TTS_UNAVAILABLE": "La voix n'est pas configurée sur ce serveur, rien ne peut donc parler.",
+    "STT_UNAVAILABLE": "La transcription n'est pas configurée sur ce serveur.",
     "ATS_CANDIDATE_ERASED": "Les données de ce candidat ont été effacées et ne peuvent pas être exportées.",
     "INTERVIEW_PREP_NOT_FOUND": "Il n'existe pas encore de préparation d'entretien pour ce candidat. Générez-la d'abord.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Choisissez au moins une question à ajouter à la préparation.",

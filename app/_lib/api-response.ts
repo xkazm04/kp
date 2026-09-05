@@ -1376,6 +1376,11 @@ export const REFUSAL_ERRORS = {
    *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
    *  stop trying, not to retry, so the sentence says so. */
   COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
+  /** The voice engines answered `unavailable` (503): no TTS / STT provider is configured on
+   *  this server. A DECISION about the install, not a fault - the generic TTS_FAILED /
+   *  STT_FAILED sentence told a keyless operator to "try again", which cannot help. */
+  TTS_UNAVAILABLE: "Voice is not configured on this server, so nothing can speak.",
+  STT_UNAVAILABLE: "Transcription is not configured on this server.",
   /** Companion proposal doors (WP3), moved here 2026-09-05 from STORE_ERRORS: both
    *  are DECISIONS, not accidents. "That proposal is gone" (404) and "someone already
    *  answered it" (409) are different facts, and the second is the ordinary outcome

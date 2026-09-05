@@ -119,6 +119,7 @@ export async function POST(request: Request) {
       // own status is kept, because 503-vs-504-vs-502 is what a caller retries
       // against. `provider` left the body with the message: nothing read it, and
       // the served provider already travels in a header on the success path.
+      if (err.code === "unavailable") return jsonRefusal("TTS_UNAVAILABLE", 503);
       return safeJsonError(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS[err.code] ?? 502);
     }
     return safeJsonError(err, "api:tts", "TTS_FAILED");

@@ -152,6 +152,7 @@ export async function POST(request: Request) {
       // tail) is a server-log fact, never a response body. The chokepoint logs
       // it under `api:stt:engine` and answers STT_FAILED at the engine's own
       // status. `provider` left the body with the message; nothing read it.
+      if (err.code === "unavailable") return jsonRefusal("STT_UNAVAILABLE", 503);
       return safeJsonError(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS[err.code] ?? 502);
     }
     return safeJsonError(err, "api:stt", "STT_FAILED");

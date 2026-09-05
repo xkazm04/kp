@@ -1690,6 +1690,8 @@
     "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
     "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu.",
     "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat.",
+    "TTS_UNAVAILABLE": "Hlas není na tomto serveru nastaven, takže nic nemůže mluvit.",
+    "STT_UNAVAILABLE": "Přepis není na tomto serveru nastaven.",
     "ATS_CANDIDATE_ERASED": "Údaje tohoto kandidáta byly vymazány a nelze je exportovat.",
     "INTERVIEW_PREP_NOT_FOUND": "Pro tohoto kandidáta zatím neexistuje příprava na pohovor. Nejdřív ji vygenerujte.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Vyberte alespoň jednu otázku, kterou chcete přidat do přípravy.",
