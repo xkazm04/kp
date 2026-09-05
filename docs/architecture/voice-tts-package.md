@@ -177,12 +177,31 @@ ladder: explicit env → shared home `bin/` → PATH.
   into the clip the first one produced, so auto-speak followed by the play the operator
   presses after a blocked autoplay — or arrowing back to an answer and replaying it — is
   ONE synthesis. Key = requested provider + voice + language + speed + format + a sha256 of
-  the whitespace-normalised text; anything that changes the bytes is in the key.
+  the whitespace-normalised text, all taken from the **validated** request (2026-09-05):
+  the raw body used to be the key, so two asks the validation door collapses into one
+  synthesis (speed 3 and speed 2 — it clamps at 2; `CS-cz` and `cs-cz`) missed each other
+  and paid twice. Anything that changes the bytes is in the key.
   **In-memory, process lifetime** (64 entries / 16 MB, LRU, single clips over 4 MB served
   but not stored): a restart is rare next to a replay, and the audit trail survives it
   anyway because the ledger row does. The response carries `X-Tts-Cache: hit|miss`; a hit
   is metered as a counted call that spent nothing (`source: "deterministic"`, cost 0).
   `Cache-Control: no-store` on the response is unchanged — the browser still stores nothing.
+- **The throttle guards synthesis, not replay (2026-09-05).** The per-IP limiter used to be
+  charged before the cache was consulted, so replaying a clip the process already held spent
+  the same 1-of-60 as producing it. `ttsCacheLookup()` (the engine-free half of the cache)
+  now answers a hit BEFORE the limiter; every MISS still pays, and so does a body that did
+  not parse, so the door stays bounded — a cache can only be filled by charged misses. The
+  body is read before the limiter and is therefore bounded at 8 KB
+  (`readJsonWithLimit`, `PAYLOAD_TOO_LARGE` 413 over it). `app/api/rate-limit-contract.test.ts`
+  pins the new order as `servedBefore: "ttsCacheLookup("` + `expensive: "speakCached("`.
+- **Two presses inside one synthesis are one call.** The cache held only FINISHED clips, so
+  overlapping requests for the same utterance (auto-speak plus a play press while the first
+  call is still running) both reached the engine. `speakCached` keeps a promise-valued
+  in-flight entry: the second caller awaits the first call and is metered as a zero. A
+  rejected promise is evicted, so a failure is never remembered as a result. Caveat, stated
+  rather than hidden: the engine call carries the FIRST caller's `AbortSignal`, so a joiner
+  inherits that caller's abort (one synthesis wide, and typed `aborted` rather than a wrong
+  clip).
 
 ## Where it is applied in kp
 

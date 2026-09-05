@@ -3,18 +3,26 @@
 //   POST /api/tts  { text, language?, provider?, voiceId?, speed? } -> audio bytes
 // Operator-gated (defense in depth — the proxy already gates in team mode) and
 // per-IP rate-limited: a cloud call costs money and a local call spawns a
-// sidecar. The served provider travels in headers so the browser can show
-// "spoken by X (fell back from Y)" — fallback is visible, never silent.
+// sidecar. The limiter guards SYNTHESIS, not replay — a cache hit is served
+// before the budget is charged (see the comment at the call). The served
+// provider travels in headers so the browser can show "spoken by X (fell back
+// from Y)" — fallback is visible, never silent.
 import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { getTts, TtsError } from "@/app/_lib/tts";
-import { speakCached } from "@/app/_lib/tts-cache";
+import { speakCached, ttsCacheLookup } from "@/app/_lib/tts-cache";
 import { ttsUsageRow } from "@/app/_lib/tts-prices";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
+/** The text ceiling is 1200 chars; 8 KB leaves room for the voice id, the
+ *  language and generous UTF-8 without reading an unbounded body pre-throttle. */
+const MAX_TTS_BODY_BYTES = 8 * 1024;
+
+type TtsBody = { text?: unknown; language?: unknown; provider?: unknown; voiceId?: unknown; speed?: unknown };
 
 // The engine's typed code -> the status that tells the caller what to do next.
 // A LOOKUP rather than a ternary chain over the union: the package owns that
@@ -57,30 +65,37 @@ export async function GET() {
 export async function POST(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
-  if (!rateLimit(`tts:${clientIpFrom(request.headers)}`, TTS_RATE_LIMIT)) {
+  // The body is read BEFORE the throttle, and bounded on the way in: the pick
+  // below needs it, and a caller who cannot even be over the limit yet is worth
+  // at most 8 KB of reading (the text ceiling is 1200 chars).
+  const body = await readJsonWithLimit<TtsBody | null>(request, MAX_TTS_BODY_BYTES, null);
+  if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_TTS_BODY_BYTES });
+  const req = body
+    ? {
+        text: typeof body.text === "string" ? body.text : "",
+        language: typeof body.language === "string" ? body.language : null,
+        voiceId: typeof body.voiceId === "string" ? body.voiceId : null,
+        speed: typeof body.speed === "number" ? body.speed : null,
+      }
+    : null;
+  // A REPLAY IS NOT A SYNTHESIS, and the limiter guards synthesis. A cloud call
+  // costs money and a local call spawns a sidecar; handing back bytes this
+  // process already holds costs neither, so a hit answers UNCHARGED. Charging it
+  // only shortened the window for the calls that do spend — and the door is
+  // still bounded, because filling the cache takes 64 charged misses. Anything
+  // that is not a hit (a miss, and a body that did not parse) pays.
+  const replay = req && ttsCacheLookup(req, { provider: body?.provider });
+  if (!replay && !rateLimit(`tts:${clientIpFrom(request.headers)}`, TTS_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
-  let body: { text?: unknown; language?: unknown; provider?: unknown; voiceId?: unknown; speed?: unknown };
-  try {
-    body = await request.json();
-  } catch {
-    return jsonRefusal("VOICE_REQUEST_INVALID", 400);
-  }
-  const text = typeof body.text === "string" ? body.text : "";
+  if (!req || !body) return jsonRefusal("VOICE_REQUEST_INVALID", 400);
+  const text = req.text;
   try {
     // speakCached folds an identical repeat request into the clip the first one
     // produced (app/_lib/tts-cache.ts): auto-speak followed by the play the
     // operator presses when the browser blocked autoplay used to pay twice.
-    const { audio, cached, key } = await speakCached(
-      getTts(),
-      {
-        text,
-        language: typeof body.language === "string" ? body.language : null,
-        voiceId: typeof body.voiceId === "string" ? body.voiceId : null,
-        speed: typeof body.speed === "number" ? body.speed : null,
-      },
-      { provider: body.provider, signal: request.signal },
-    );
+    const { audio, cached, key } =
+      replay ?? (await speakCached(getTts(), req, { provider: body.provider, signal: request.signal }));
     // Every serve is metered, hits included — a hit is a counted call that spent
     // nothing (source "deterministic", cost 0), so the ledger shows both what
     // was spent and what the cache saved. Best-effort, in the house shape: the

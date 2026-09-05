@@ -6,8 +6,9 @@
 // them, and a table nothing exercises is a table that drifts.
 //
 // Keyless by construction: every case here is refused BEFORE any engine is
-// reached (the limiter and the body parse both run first), so this suite spends
-// nothing, spawns nothing and needs no key.
+// reached (a body that does not parse is refused on its own, and the limiter
+// refuses the rest), so this suite spends nothing, spawns nothing and needs no
+// key.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -90,4 +91,24 @@ test("an engine failure answers a registry code, never the engine's own sentence
     /safeJsonError\(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS\[err\.code\] \?\? 502\)/,
     "the engine branch answers through the chokepoint at the engine's own status",
   );
+});
+
+// the-cache-relieves-the-throttle. A SOURCE guard, for the same reason as the
+// two above: proving the hit path by invoking POST would mean seeding the cache
+// through an engine, which this keyless suite may not reach. The ORDER is the
+// contract — and rate-limit-contract.test.ts pins the other half of it
+// (`ttsCacheLookup(` must precede the limiter, `speakCached(` must follow it).
+test("a replay is answered before the throttle is charged, and everything else pays", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8").replace(/\r\n/g, "\n");
+  const lookupAt = src.indexOf("ttsCacheLookup(");
+  const limiterAt = src.indexOf("rateLimit(`tts:${clientIpFrom(request.headers)}`, TTS_RATE_LIMIT)");
+  const engineAt = src.indexOf("speakCached(getTts()");
+  assert.ok(lookupAt > 0 && limiterAt > lookupAt, "the cache lookup must come before the limiter");
+  assert.ok(engineAt > limiterAt, "the limiter must still guard the synthesis");
+  // A MISS still pays, and so does a body that never parsed: the limiter is
+  // skipped only when a replay was actually found.
+  assert.match(src, /if \(!replay && !rateLimit\(/, "only a hit escapes the budget");
+  // The pre-throttle body read is BOUNDED — an unbounded read in front of a
+  // limiter is a door of its own.
+  assert.match(src, /readJsonWithLimit<TtsBody \| null>\(request, MAX_TTS_BODY_BYTES, null\)/);
 });

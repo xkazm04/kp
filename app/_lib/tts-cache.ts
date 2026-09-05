@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { validateRequest } from "@/packages/voice-tts/src/index";
 import type { ServedTtsAudio, Tts, TtsRequest } from "@/packages/voice-tts/src/index";
 
 /*
@@ -54,6 +55,24 @@ type Entry = { audio: ServedTtsAudio; bytes: number };
 
 const cache = new Map<string, Entry>();
 let heldBytes = 0;
+/**
+ * THE SECOND PRESS INSIDE THE FIRST SYNTHESIS PAID TOO.
+ *
+ * The cache only ever held FINISHED clips, so two requests for the same
+ * utterance that overlapped - auto-speak plus the operator pressing play while
+ * the first call is still in flight, a double click, two tabs on one thread -
+ * both missed, both reached the engine, and the second one's bytes overwrote
+ * the first's. A promise-valued entry closes that window: the second caller
+ * awaits the first call instead of making its own. A REJECTED promise is
+ * evicted (the `finally` below), so a failure is never remembered as a result
+ * and the next caller gets a real attempt.
+ *
+ * The abort caveat, stated rather than hidden: the engine call carries the
+ * FIRST caller's signal, so a joiner inherits that caller's abort. The window is
+ * one synthesis long, the alternative is paying twice, and the joiner sees a
+ * typed `aborted` rather than a wrong clip.
+ */
+const inflight = new Map<string, Promise<ServedTtsAudio>>();
 
 /** Whitespace is the only thing normalised away: two requests that differ by a
  *  newline are the same utterance to every engine, and `speechReady` (the one
@@ -76,13 +95,26 @@ function normalizeText(text: string): string {
  * the bounded price of not paying twice.
  */
 export function ttsCacheKey(req: TtsRequest, provider?: unknown): string {
-  const digest = createHash("sha256").update(normalizeText(req.text ?? ""), "utf8").digest("hex");
+  // KEYED ON WHAT THE ENGINE WILL ACTUALLY RECEIVE. The raw body used to be the
+  // key, so two requests that the validation door collapses into ONE synthesis
+  // (speed 3 and speed 2 — it clamps at 2; "CS-cz" and "cs-cz"; a chat reply
+  // with and without its markdown) missed each other and paid twice. A request
+  // that does NOT validate keeps its raw shape: it is refused before an engine
+  // sees it, nothing is ever stored under that key, and keying it raw is what
+  // keeps it from colliding with a real clip.
+  let keyed = req;
+  try {
+    keyed = validateRequest(req);
+  } catch {
+    /* invalid: refused downstream by the same door, and never stored — see above */
+  }
+  const digest = createHash("sha256").update(normalizeText(keyed.text ?? ""), "utf8").digest("hex");
   const parts = [
     typeof provider === "string" && provider ? provider : "auto",
-    req.voiceId ?? "",
-    req.language ?? "",
-    req.speed == null ? "" : String(req.speed),
-    req.format ?? "",
+    keyed.voiceId ?? "",
+    keyed.language ?? "",
+    keyed.speed == null ? "" : String(keyed.speed),
+    keyed.format ?? "",
     digest,
   ];
   return parts.join("|");
@@ -130,17 +162,43 @@ export async function speakCached(
   opts?: { provider?: unknown; signal?: AbortSignal }
 ): Promise<TtsServeResult> {
   const key = ttsCacheKey(req, opts?.provider);
-  const hit = cache.get(key);
-  if (hit) {
-    // Re-insert: Map iterates in insertion order, so this is what makes
-    // eviction least-recently-USED rather than merely oldest-first.
-    cache.delete(key);
-    cache.set(key, hit);
-    return { audio: hit.audio, cached: true, key };
+  const hit = ttsCacheLookup(req, opts);
+  if (hit) return hit;
+  // Already being synthesized: join it rather than start a second one.
+  const pending = inflight.get(key);
+  if (pending) return { audio: await pending, cached: true, key };
+  const call = tts.speak(req, opts);
+  inflight.set(key, call);
+  try {
+    const audio = await call;
+    store(key, audio);
+    return { audio, cached: false, key };
+  } finally {
+    // Both outcomes: a resolved call is now IN the cache, and a rejected one
+    // must not be handed to the next caller as a result.
+    inflight.delete(key);
   }
-  const audio = await tts.speak(req, opts);
-  store(key, audio);
-  return { audio, cached: false, key };
+}
+
+/**
+ * The REPLAY half, with no engine anywhere near it.
+ *
+ * Split out so a host can answer a hit before it charges anything: /api/tts's
+ * per-IP limiter guards SYNTHESIS (money on the cloud path, a spawned sidecar on
+ * the local one), and replaying bytes the process already holds spends neither,
+ * so charging a replay just shortened the window for the calls that do cost.
+ * Never throws — an unvalidatable request has no cached clip by construction, so
+ * it reports a miss and the caller's normal path refuses it with its own code.
+ */
+export function ttsCacheLookup(req: TtsRequest, opts?: { provider?: unknown }): TtsServeResult | null {
+  const key = ttsCacheKey(req, opts?.provider);
+  const hit = cache.get(key);
+  if (!hit) return null;
+  // Re-insert: Map iterates in insertion order, so this is what makes
+  // eviction least-recently-USED rather than merely oldest-first.
+  cache.delete(key);
+  cache.set(key, hit);
+  return { audio: hit.audio, cached: true, key };
 }
 
 /** Entry count and held bytes — for tests and for a future operator surface. */
@@ -151,5 +209,6 @@ export function ttsCacheStats(): { entries: number; bytes: number } {
 /** Test seam: drop everything held. */
 export function resetTtsCacheForTests(): void {
   cache.clear();
+  inflight.clear();
   heldBytes = 0;
 }

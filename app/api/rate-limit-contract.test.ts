@@ -121,10 +121,14 @@ const ROUTES: RouteSpec[] = [
     // Moved onto the chokepoint: the dock renders errors.TOO_MANY_REQUESTS in
     // the reader's language instead of the server's English string.
     refusalCode: "TOO_MANY_REQUESTS",
-    // The limiter precedes the CACHE LOOKUP too, not just the engine: a hit is
-    // cheap but not free, and a throttle that only counted misses would let a
-    // burst walk the whole window for nothing.
+    // REVISED 2026-09-05, deliberately: the limiter guards SYNTHESIS, and the
+    // cache lookup is not one. A replay hands back bytes this process already
+    // holds — no money, no sidecar — so it is answered BEFORE the budget is
+    // charged, and the row now pins that order rather than the old one. The door
+    // stays bounded because every MISS still pays, and a cache can only be
+    // filled by paid misses; a body that did not parse pays too.
     expensive: "speakCached(",
+    servedBefore: "ttsCacheLookup(",
   },
   {
     // ADDED with the route (voice-stt package). The TIGHTEST of the three voice
