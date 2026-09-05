@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
-import { performReset, runControlFlags } from "./simRunControl";
+import { performReset, refreshSimDoor, runControlFlags } from "./simRunControl";
 import { useSimulationEngine } from "./useSimulationEngine";
 import { useSimulationWalk } from "./useSimulationWalk";
 
@@ -151,6 +151,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       status: cleared ? t("status.reset") : t("status.resetFailed"),
       error: cleared ? null : t("status.resetFailed"),
     }));
+    // The purge is exactly what makes the status door's residue count wrong, so
+    // re-read it here: a cleared tenant must stop pinning the deck to the console,
+    // and a FAILED purge must keep it there (the rows are still on the board).
+    void refreshSimDoor();
   }, [t]);
 
   const toggleStep = useCallback(() => {

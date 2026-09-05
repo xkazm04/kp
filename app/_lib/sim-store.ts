@@ -60,6 +60,34 @@ export const SIM_PURGED_TABLES = [
 
 export type SimPurgeCounts = Record<(typeof SIM_PURGED_TABLES)[number], number>;
 
+/** What a previous walk LEFT BEHIND in this workspace, counted from the three
+ *  marker-reachable tables the purge resolves its key sets from (every other table
+ *  it clears is only reachable through one of these, so a zero here really is a
+ *  clean tenant).
+ *
+ *  Three COUNT(*)s, no transaction and no write: this answers the status door on
+ *  every console boot, so it has to be cheap enough to be uninteresting. */
+export type SimResidue = { entries: number; jobs: number; jds: number; total: number };
+
+export function simResidue(workspaceId: string = DEFAULT_WORKSPACE_ID): SimResidue {
+  const d = db();
+  const count = (sql: string): number => {
+    try {
+      return (d.prepare(sql).get(MARKER, workspaceId) as { n: number }).n;
+    } catch (err) {
+      // A cold DB has not created jds yet (offers-store / db.ts make them lazily).
+      // "Not there" and "empty" are the same answer to "is anything left over?";
+      // anything else is a real store failure and must not read as a clean tenant.
+      if (!isNoSuchTable(err)) throw err;
+      return 0;
+    }
+  };
+  const entries = count(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`);
+  const jobs = count(`SELECT COUNT(*) AS n FROM jobs WHERE title LIKE ? AND workspace_id = ?`);
+  const jds = count(`SELECT COUNT(*) AS n FROM jds WHERE title LIKE ? AND workspace_id = ?`);
+  return { entries, jobs, jds, total: entries + jobs + jds };
+}
+
 // --- The per-workspace run lock ----------------------------------------------
 //
 // Every anonymous demo visitor and every operator tab shares ONE tenant, and a run
@@ -154,6 +182,15 @@ export function simRunActive(workspaceId: string, now = Date.now()): { active: b
   const held = runLocks.get(workspaceId);
   if (held === undefined || held.expiresAt <= now) return { active: false, retryAfterMs: 0 };
   return { active: true, retryAfterMs: held.expiresAt - now };
+}
+
+/** Does `token` own the LIVE lease on this workspace? The status door's
+ *  `ownedByMe`, and nothing more: a tab that reloaded holds no token, so it reads
+ *  false and is told the tenant is busy rather than being handed someone else's
+ *  run. Expired leases are not owned by anyone. */
+export function simRunOwnedBy(workspaceId: string, token: string, now = Date.now()): boolean {
+  const held = runLocks.get(workspaceId);
+  return held !== undefined && held.expiresAt > now && held.token === token;
 }
 
 /** Test seam only: drop every lease. */

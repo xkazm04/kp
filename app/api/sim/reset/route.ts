@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { beginSimRun, endSimRun, renewSimRun, resetSim } from "@/app/_lib/sim-store";
+import { beginSimRun, endSimRun, renewSimRun, resetSim, simResidue, simRunActive, simRunOwnedBy } from "@/app/_lib/sim-store";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { SIM_RUN_TOKEN_HEADER } from "@/app/features/shell/simulation/simRunLease";
@@ -8,6 +8,44 @@ import { SIM_RUN_TOKEN_HEADER } from "@/app/features/shell/simulation/simRunLeas
  *  it keeps the token out of access logs and lets DELETE stay bodyless. */
 function leaseToken(request: NextRequest): string | null {
   return request.headers.get(SIM_RUN_TOKEN_HEADER);
+}
+
+// The STATUS door (/perfect wave 44). The console's state was a browser fact only:
+// the lease lived on the server, the provider booted to IDLE_STATE, and a reloaded
+// tab therefore showed an idle deck whose Start was refused for up to five minutes
+// with copy that told the presenter to "stop it first" when there was nothing left
+// in that tab to stop. Reading the tenant's real state on boot is what makes the
+// console honest about a run it did not itself begin.
+//
+// Read-only by construction: no claim, no purge, no lease mutation of any kind. It
+// answers what the server knows about THIS tenant:
+//
+//   runActive            a live lease holds the workspace (someone is walking)
+//   retryAfterSeconds    how long that lease has left, 0 when nothing holds it
+//   ownedByMe            the caller presented the holder's token — only a tab that
+//                        still has its own lease can be true here, which is exactly
+//                        the distinction the copy needs ("your run" vs "another tab")
+//   residue              what a previous walk left behind, so an idle console can
+//                        offer the Reset that clears it instead of hiding until
+//                        someone starts a run they did not want
+export async function GET(request: NextRequest) {
+  try {
+    const ws = await currentWorkspace();
+    const run = simRunActive(ws);
+    const token = leaseToken(request);
+    return NextResponse.json({
+      ok: true,
+      runActive: run.active,
+      retryAfterSeconds: Math.ceil(run.retryAfterMs / 1000),
+      ownedByMe: token !== null && simRunOwnedBy(ws, token),
+      residue: simResidue(ws),
+    });
+  } catch (error) {
+    // The residue read touches three tables; a store failure here carries the db
+    // path, and the sim console is the reader. Same code as the purge: the console
+    // resolves it in the reader's language either way.
+    return safeJsonError(error, "api:sim/reset", "SIM_RESET_FAILED");
+  }
 }
 
 // Clear all artifacts from prior simulation runs so the demo re-runs cleanly, and

@@ -142,6 +142,28 @@ None. Nothing in this directory owns a table.
   would remove the sharing entirely; that is a tenancy-model change and the owner's
   call. The lock is in-process and best-effort: a courtesy against racing tabs on one
   self-hosted server, never an authorization boundary.
+- **The console reads the tenant's real state on boot.** `GET /api/sim/reset` is the
+  status door: read-only (no claim, no purge, no lease mutation) and tenant-scoped,
+  answering `{ runActive, retryAfterSeconds, ownedByMe, residue }`. `ownedByMe` is
+  true only for a caller presenting the holder's token, so a reloaded tab reads
+  `runActive: true, ownedByMe: false` — "someone is walking, and it is not you" —
+  rather than guessing. `residue` counts what a previous walk left behind, from the
+  three marker-reachable tables `simResidue()` (`app/_lib/sim-store.ts`) resolves the
+  purge's key sets from. The client half is the tiny external store in
+  `simRunControl.ts` (`refreshSimDoor` / `subscribeSimDoor` / `simDoorSnapshot`),
+  which `useControlMode` reads through `useSyncExternalStore` and the provider
+  re-reads after every reset. Before it, the console's whole idea of itself was a
+  BROWSER fact: the lease lives on the server, `SimulationProvider` boots to
+  `IDLE_STATE`, and nothing asked — so a reloaded tab wore the ops deck while its own
+  five-minute lease was still held, and the only control that reaches the console
+  from ops (`guideAction` → `start`) was refused by that very lease, with copy telling
+  the presenter to stop a run their tab no longer knew about.
+- **A lease or leftover residue puts the console in front of the operator.**
+  `consoleMode()` (`simRunControl.ts`, the extracted rule `useControlMode` now
+  delegates to) adds `door.runActive || door.residue > 0` to the three existing
+  reasons (running / done / errored / `?sim=auto`). The console is where Reset lives,
+  and both of those states are exactly the ones a Reset answers — so the cleanup is
+  reachable from idle instead of only through a run the operator did not want.
 - The dock's numbers are read, never stored: `useAttention()` for the awaiting
   count, `useTasks()` for the batch-screen task, `companion.open` for Candi.
 - Keyless: the demo is a product surface that must work with no API key at all —
@@ -178,6 +200,12 @@ an explicit guard rather than a special-case fake:
 
 ## Known gaps
 
+- **A closed tab still leaves its lease standing until the TTL expires.** There is no
+  `pagehide` release: the live token is `leaseRef` inside `useSimulationWalk`, which
+  exports only `run`, so nothing outside the walk can prove ownership. The status door
+  above makes the resulting wait HONEST (a reloaded tab is told a run is live and that
+  it is not the owner) but does not shorten it; a `keepalive` DELETE at `pagehide`
+  needs the walk to hand its lease out first.
 - The run lock is per PROCESS. Two `next start` workers (or a future horizontally
   scaled deploy) each hold their own map, so the race it closes reopens there. Moving
   it into SQLite is the obvious next step and was not needed for the single-process

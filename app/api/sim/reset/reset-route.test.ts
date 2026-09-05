@@ -18,13 +18,13 @@ import { cleanupUnitDb } from "@/app/_lib/testing/unit-db";
 import { createPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { SIM_MARKER } from "@/app/features/shell/simulation/constants";
-import { __resetSimRunLocks, simRunActive } from "@/app/_lib/sim-store";
+import { __resetSimRunLocks, simResidue, simRunActive } from "@/app/_lib/sim-store";
 import { SIM_RUN_TOKEN_HEADER } from "@/app/features/shell/simulation/simRunLease";
 
 after(() => cleanupUnitDb());
 
 register(new URL("../../../_lib/testing/next-server-hooks.mjs", import.meta.url));
-const { POST, DELETE } = await import("./route.ts");
+const { GET, POST, DELETE } = await import("./route.ts");
 const { NextRequest } = await import("next/server");
 
 /** POST with an optional body. `hold` claims the workspace's run lock for a walk. */
@@ -58,7 +58,9 @@ async function claim(): Promise<string> {
   return token;
 }
 
-const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "route.ts"), "utf8");
+// CRLF-normalized: this checkout is CRLF while the worktree may be LF, and the
+// slices below are taken by offset.
+const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "route.ts"), "utf8").replace(/\r\n/g, "\n");
 
 // No next/headers shim: `cookies()` throws outside a request scope, which is the
 // documented fallback path in currentWorkspace() — the caller resolves to the
@@ -211,4 +213,70 @@ test("the renew never reaches the purge", () => {
   const renewBranch = src.slice(src.indexOf("if (body?.renew)"), src.indexOf("const claim = beginSimRun"));
   assert.doesNotMatch(renewBranch, /resetSim/, "a lease renewal that deleted rows would be the opposite of protection");
   assert.doesNotMatch(renewBranch, /beginSimRun/, "and it must not fall through to a claim that refuses its own holder");
+});
+
+// --- GET: the status door (/perfect wave 44) -----------------------------------
+//
+// The defect: the console's state was a BROWSER fact. The lease lives here, the
+// provider boots to IDLE_STATE, and nothing asked — so a reloaded tab showed an
+// idle deck whose Start was refused for up to five minutes with copy that said
+// "stop it first" about a run that tab no longer knew it had begun.
+
+/** GET, optionally presenting a lease token (the only way `ownedByMe` is true). */
+function get(token?: string) {
+  return GET(
+    new NextRequest("http://localhost:3000/api/sim/reset", {
+      method: "GET",
+      ...(token ? { headers: { [SIM_RUN_TOKEN_HEADER]: token } } : {}),
+    })
+  );
+}
+
+test("the door reports a live lease, and only its holder is ownedByMe", async () => {
+  __resetSimRunLocks();
+  const idle = (await (await get()).json()) as { runActive: boolean; ownedByMe: boolean; retryAfterSeconds: number };
+  assert.equal(idle.runActive, false, "a free tenant");
+  assert.equal(idle.retryAfterSeconds, 0);
+
+  const token = await claim();
+  const held = (await (await get()).json()) as { runActive: boolean; ownedByMe: boolean; retryAfterSeconds: number };
+  assert.equal(held.runActive, true, "a reloaded tab can now SEE the lease it cannot remember claiming");
+  assert.equal(held.ownedByMe, false, "…and knows it is not the holder, because it presents no token");
+  assert.ok(held.retryAfterSeconds > 0, "with the time it has to wait, as data");
+
+  const mine = (await (await get(token)).json()) as { ownedByMe: boolean };
+  assert.equal(mine.ownedByMe, true, "the holder's own token is what makes it its run");
+  assert.equal((await (await get("some-other-tabs-token")).json()).ownedByMe, false);
+
+  assert.equal(simRunActive(CALLER_WS).active, true, "and reading the door never touched the lease");
+  assert.equal((await del(token)).status, 200);
+  __resetSimRunLocks();
+});
+
+test("the door counts the residue a previous walk left, scoped to the caller's tenant", async () => {
+  __resetSimRunLocks();
+  await post(); // start from a clean tenant
+  assert.equal(((await (await get()).json()) as { residue: { total: number } }).residue.total, 0);
+
+  simEntry("residue-mine", CALLER_WS);
+  simEntry("residue-theirs", OTHER_WS);
+  const body = (await (await get()).json()) as { residue: { entries: number; total: number } };
+  assert.equal(body.residue.entries, 1, "another tenant's (SIM) rows are not this console's mess");
+  assert.ok(body.residue.total >= 1, "so an idle console can offer the Reset that clears it");
+
+  // …and the purge is what makes it zero again: the console's reachability rule
+  // (simRunControl.consoleMode) reads exactly this number.
+  await post();
+  assert.equal(((await (await get()).json()) as { residue: { total: number } }).residue.total, 0);
+});
+
+test("simResidue never claims a cold tenant is dirty", () => {
+  const r = simResidue("workspace-that-never-ran-a-demo");
+  assert.deepEqual(r, { entries: 0, jobs: 0, jds: 0, total: 0 });
+});
+
+test("the status door reads and never writes", () => {
+  const getBody = src.slice(src.indexOf("export async function GET"), src.indexOf("// Clear all artifacts"));
+  assert.doesNotMatch(getBody, /resetSim|beginSimRun|endSimRun|renewSimRun/, "a status read that claimed or purged would be a trap");
+  assert.match(getBody, /await currentWorkspace\(\)/, "and it answers about the CALLER's tenant, never the default");
 });
