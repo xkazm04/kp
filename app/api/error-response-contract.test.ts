@@ -141,7 +141,7 @@ function stripDoorCalls(code: string): string {
 
 /** The raw thrown value being turned into text. */
 const RAW_MESSAGE =
-  /instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message|[A-Za-z_$][\w$]*\s*\.\s*message\s*(?:\?\?|\|\|)|\bString\s*\(\s*(?:err|error|e)\s*\)/;
+  /instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message|[A-Za-z_$][\w$]*\s*\.\s*message\s*(?:\?\?|\|\|)|\bString\s*\(\s*(?:err|error|e)\s*\)|\b(?:error|reason|detail)\s*:\s*[A-Za-z_$][\w$]*\s*\.\s*message\b/;
 
 /** …and that text heading for a client. */
 const CLIENT_BODY = /NextResponse\s*\.\s*json\s*\(|\berror\s*:|\breason\s*:|\bdetail\s*:/;
@@ -199,6 +199,19 @@ const EXEMPT = new Map<string, string>([
 // the 81 (schedule/invite/bulk) was fixed in the same change rather than ceilinged, so
 // the list below is 80 across 67 — the first tooth of the ratchet, taken on the way in.
 const LEAK_CEILING = new Map<string, number>([
+  // MEASURED 2026-09-05 when RAW_MESSAGE learned the `error: x.message` shape inside a
+  // NextResponse.json (the leak the tts/stt engine branches carried, found by /perfect
+  // round 44). Seven pre-existing sites became visible at once; each is an app-authored
+  // domain error narrowed by instanceof, so its sentence is English rather than a secret,
+  // but the client still cannot localize it. Initialization of the ratchet, not a raise:
+  // these rows only ever go DOWN, and the fix at each site is a code.
+  ["ats/config/route.ts", 1],
+  ["billing/webhook/route.ts", 1],
+  ["comms/relay/route.ts", 1],
+  ["jobs/[id]/campaign/route.ts", 1],
+  ["jobs/[id]/candidates/outreach/route.ts", 1],
+  ["jobs/[id]/candidates/route.ts", 1],
+  ["repo-scan/route.ts", 1],
   ["analytics/route.ts", 1],
   ["archetypes/[id]/route.ts", 2],
   ["archetypes/route.ts", 2],
