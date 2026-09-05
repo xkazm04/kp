@@ -19,7 +19,7 @@ import { getGroupEval } from "./group-eval.ts";
 import { getOpenOfferForEntry } from "./offers-store.ts";
 import { listScheduleInvites } from "./schedule-store.ts";
 import { outreachStateFor } from "./outreach-state-store.ts";
-import { resetSim, SIM_PURGED_TABLES, beginSimRun, endSimRun, simRunActive, __resetSimRunLocks } from "./sim-store.ts";
+import { resetSim, SIM_PURGED_TABLES, beginSimRun, endSimRun, renewSimRun, simRunActive, SIM_RUN_TTL_MS, __resetSimRunLocks } from "./sim-store.ts";
 import { SIM_MARKER } from "@/app/features/shell/simulation/constants";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 
@@ -320,5 +320,37 @@ test("a refused start cannot release the winner's lease", () => {
 
   assert.deepEqual(endSimRun(WS, tabA), { released: true }, "only A ends A's run");
   assert.equal(simRunActive(WS).active, false);
+  __resetSimRunLocks();
+});
+
+// --- renewing: the lease outlives a presenter who talks -----------------------
+
+test("the holder renews its lease, so a talked-through phase does not outlive it", () => {
+  __resetSimRunLocks();
+  const t0 = 2_000_000;
+  const token = claim(WS, t0);
+  const before = simRunActive(WS, t0 + 4 * 60_000).retryAfterMs;
+
+  const renewed = renewSimRun(WS, token, t0 + 4 * 60_000);
+  assert.ok(renewed.ok, "the holder may always renew");
+  assert.equal(simRunActive(WS, t0 + 4 * 60_000).retryAfterMs, SIM_RUN_TTL_MS, "the expiry moved a full TTL out");
+  assert.ok(simRunActive(WS, t0 + 4 * 60_000).retryAfterMs > before);
+  assert.equal(simRunActive(WS, t0 + 8 * 60_000).active, true, "past the ORIGINAL expiry the run is still protected");
+  __resetSimRunLocks();
+});
+
+test("a non-owner cannot renew, and an expired lease is not silently re-minted", () => {
+  __resetSimRunLocks();
+  const t0 = 3_000_000;
+  const token = claim(WS, t0);
+
+  const foreign = renewSimRun(WS, "some-other-tabs-token", t0 + 1_000);
+  assert.equal(foreign.ok, false, "renewing someone else's run would hand two tabs a lease each");
+  assert.ok(!foreign.ok && foreign.retryAfterMs > 0);
+  assert.equal(simRunActive(WS, t0 + 1_000).retryAfterMs, SIM_RUN_TTL_MS - 1_000, "and the holder's expiry did not move");
+
+  const late = renewSimRun(WS, token, t0 + 6 * 60_000);
+  assert.equal(late.ok, false, "a lease that already expired is lost, not resurrected");
+  assert.equal(simRunActive(WS, t0 + 6 * 60_000).active, false);
   __resetSimRunLocks();
 });

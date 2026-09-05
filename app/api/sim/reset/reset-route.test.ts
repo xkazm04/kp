@@ -28,11 +28,11 @@ const { POST, DELETE } = await import("./route.ts");
 const { NextRequest } = await import("next/server");
 
 /** POST with an optional body. `hold` claims the workspace's run lock for a walk. */
-function post(body?: { hold?: boolean }) {
+function post(body?: { hold?: boolean; renew?: boolean }, token?: string) {
   return POST(
     new NextRequest("http://localhost:3000/api/sim/reset", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { [SIM_RUN_TOKEN_HEADER]: token } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     })
   );
@@ -152,6 +152,31 @@ test("a DELETE from the tab that lost the race cannot free the winner's lease", 
   __resetSimRunLocks();
 });
 
+// Step mode is the walk's DEFAULT, so a presented run outlived its own five-minute
+// protection and a colleague's Start could wipe the board mid-sentence.
+test("the holder renews at a phase gate; nobody else can", async () => {
+  __resetSimRunLocks();
+  const token = await claim();
+  const before = simRunActive(CALLER_WS).retryAfterMs;
+
+  const renewed = await post({ renew: true }, token);
+  assert.equal(renewed.status, 200);
+  const body = (await renewed.json()) as { renewed: boolean; expiresInSeconds: number; cleared?: unknown };
+  assert.equal(body.renewed, true);
+  assert.equal(body.expiresInSeconds, 300, "a full TTL again");
+  assert.equal(body.cleared, undefined, "the renew purges nothing, so it counts nothing");
+  assert.ok(simRunActive(CALLER_WS).retryAfterMs >= before, "and the expiry moved out rather than in");
+
+  assert.equal((await post({ renew: true })).status, 409, "a renew with no token is not the holder's");
+  assert.equal((await post({ renew: true }, "some-other-tabs-token")).status, 409);
+  const refused = (await post({ renew: true }, "some-other-tabs-token")).clone();
+  assert.equal(((await refused.json()) as { code: string }).code, "SIM_RUN_NOT_OWNER");
+
+  assert.equal(simRunActive(CALLER_WS).active, true, "and none of that disturbed the holder");
+  assert.equal((await del(token)).status, 200);
+  __resetSimRunLocks();
+});
+
 test("releasing when nothing is held is still a success, token or not", async () => {
   __resetSimRunLocks();
   assert.equal((await del()).status, 200, "a walk whose lease already expired must not see an error");
@@ -180,4 +205,10 @@ test("the purge is scoped to the CALLER's tenant, not the default", () => {
 test("the release re-asserts ownership rather than freeing whoever holds the lock", () => {
   assert.match(src, /endSimRun\(ws, leaseToken\(request\)\)/, "the DELETE presents the caller's token");
   assert.match(src, /jsonRefusal\("SIM_RUN_NOT_OWNER", 409/, "and answers a CODE when it is not the owner");
+});
+
+test("the renew never reaches the purge", () => {
+  const renewBranch = src.slice(src.indexOf("if (body?.renew)"), src.indexOf("const claim = beginSimRun"));
+  assert.doesNotMatch(renewBranch, /resetSim/, "a lease renewal that deleted rows would be the opposite of protection");
+  assert.doesNotMatch(renewBranch, /beginSimRun/, "and it must not fall through to a claim that refuses its own holder");
 });

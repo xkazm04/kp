@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { beginSimRun, endSimRun, resetSim } from "@/app/_lib/sim-store";
+import { beginSimRun, endSimRun, renewSimRun, resetSim } from "@/app/_lib/sim-store";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { SIM_RUN_TOKEN_HEADER } from "@/app/features/shell/simulation/simRunLease";
 
-/** The lease token a claimant presents to release its own run. A header, not the URL:
+/** The lease token a claimant presents to release or renew its own run. A header, not the URL:
  *  it keeps the token out of access logs and lets DELETE stay bodyless. */
 function leaseToken(request: NextRequest): string | null {
   return request.headers.get(SIM_RUN_TOKEN_HEADER);
@@ -28,6 +28,9 @@ function leaseToken(request: NextRequest): string | null {
 //                         answer the lease TOKEN. Refused with SIM_RUN_ACTIVE (409)
 //                         when another run holds it, so the second visitor is told
 //                         rather than served a wipe of someone else's tour.
+//   POST { renew: true }  the holder is still walking (step mode, a presenter
+//                         talking): re-assert the token, push the expiry out a full
+//                         TTL. No claim, no purge, no counts.
 //   POST                  a manual reset: claim, purge, release immediately. Still
 //                         refused while a run is live — that is the whole point.
 //   DELETE                the run ended (done / stopped / failed): release, but only
@@ -48,7 +51,19 @@ function leaseToken(request: NextRequest): string | null {
 export async function POST(request: NextRequest) {
   try {
     const ws = await currentWorkspace();
-    const body = (await request.json().catch(() => null)) as { hold?: boolean } | null;
+    const body = (await request.json().catch(() => null)) as { hold?: boolean; renew?: boolean } | null;
+
+    // Renew first: it neither claims nor purges, so it must not fall through to the
+    // claim (which would refuse the holder's own walk with SIM_RUN_ACTIVE). Step mode
+    // is the walk's default, so a five-minute lease was shorter than a presented run.
+    if (body?.renew) {
+      const token = leaseToken(request);
+      const renewed = token ? renewSimRun(ws, token) : ({ ok: false, retryAfterMs: 0 } as const);
+      if (!renewed.ok) {
+        return jsonRefusal("SIM_RUN_NOT_OWNER", 409, { retryAfterSeconds: Math.ceil(renewed.retryAfterMs / 1000) });
+      }
+      return NextResponse.json({ ok: true, renewed: true, expiresInSeconds: Math.round(renewed.expiresInMs / 1000) });
+    }
 
     const claim = beginSimRun(ws);
     if (!claim.ok) {

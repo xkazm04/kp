@@ -131,7 +131,12 @@ None. Nothing in this directory owns a table.
   and the walk's own `finally` sends nothing at all when its start was refused
   (`releaseInit(null)` is `null`). Until that pair landed the release was
   unconditional on both sides: a second tab refused with `SIM_RUN_ACTIVE` freed the
-  first tab's lease anyway, and the next press wiped a live run. Without it
+  first tab's lease anyway, and the next press wiped a live run. The walk also
+  **renews** at every phase gate: `POST /api/sim/reset { renew: true }` with the same
+  token pushes the expiry out a full TTL, claiming nothing and purging nothing (a
+  non-owner gets `SIM_RUN_NOT_OWNER`). Step mode is the walk's default, so a run
+  talked through by a presenter used to outlive its own five-minute protection.
+  Without it
   a second visitor's run deleted the first one's job mid-walk — every demo visitor
   and every operator tab share the one `demo` tenant. Per-VISITOR demo namespaces
   would remove the sharing entirely; that is a tenancy-model change and the owner's

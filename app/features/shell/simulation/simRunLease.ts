@@ -40,3 +40,15 @@ export function releaseInit(lease: SimRunLease): RequestInit | null {
   if (!lease) return null;
   return { method: "DELETE", headers: { [SIM_RUN_TOKEN_HEADER]: lease.token } };
 }
+
+/** The `fetch` init for a phase-gate renew, or null when this walk holds no lease.
+ *  `renew: true` is the no-purge shape of the same door: it re-asserts ownership
+ *  with the token and moves the expiry, and it never touches a row. */
+export function renewInit(lease: SimRunLease): RequestInit | null {
+  if (!lease) return null;
+  return {
+    method: "POST",
+    headers: { "Content-Type": "application/json", [SIM_RUN_TOKEN_HEADER]: lease.token },
+    body: JSON.stringify({ renew: true }),
+  };
+}

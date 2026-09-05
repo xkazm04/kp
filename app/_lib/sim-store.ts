@@ -125,6 +125,29 @@ export function endSimRun(
   return { released: false, retryAfterMs: held.expiresAt - now };
 }
 
+/** Extend the holder's lease by a full TTL. The guided walk defaults to STEP mode,
+ *  so a presenter talking through a phase outlived the five-minute lease and a
+ *  colleague's Start could wipe the board mid-presentation; the walk re-asserts
+ *  ownership at every phase gate instead.
+ *
+ *  Cheap on purpose: one map read and one write, no purge and no residue count. An
+ *  EXPIRED or foreign lease is refused rather than silently re-minted. The run
+ *  really did lose its protection, and pretending otherwise would hand two tabs a
+ *  lease each. */
+export function renewSimRun(
+  workspaceId: string,
+  token: string,
+  now = Date.now()
+): { ok: true; expiresInMs: number } | { ok: false; retryAfterMs: number } {
+  const held = runLocks.get(workspaceId);
+  if (held === undefined || held.expiresAt <= now || held.token !== token) {
+    const retryAfterMs = held !== undefined && held.expiresAt > now ? held.expiresAt - now : 0;
+    return { ok: false, retryAfterMs };
+  }
+  held.expiresAt = now + SIM_RUN_TTL_MS;
+  return { ok: true, expiresInMs: SIM_RUN_TTL_MS };
+}
+
 /** Whether a live run holds this workspace. Used by the purge door, which must not
  *  delete a run's rows out from under it. */
 export function simRunActive(workspaceId: string, now = Date.now()): { active: boolean; retryAfterMs: number } {

@@ -4,7 +4,7 @@
 // wiped a live run.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SIM_RUN_TOKEN_HEADER, leaseFromClaim, releaseInit } from "./simRunLease.ts";
+import { SIM_RUN_TOKEN_HEADER, leaseFromClaim, releaseInit, renewInit } from "./simRunLease.ts";
 
 test("a granted claim yields the lease token the walk will present", () => {
   assert.deepEqual(leaseFromClaim({ ok: true, cleared: {}, token: "lease-1" }), { token: "lease-1" });
@@ -20,10 +20,18 @@ test("a refused start sends no release at all", () => {
   // The 409 path: okJson throws, the walk never records a lease, and the `finally`
   // asks for the release init — which is null, so nothing is sent.
   assert.equal(releaseInit(null), null, "the tab that lost the race must not free the winner");
+  assert.equal(renewInit(null), null, "and it renews nothing either");
 });
 
 test("the release presents the token this walk claimed", () => {
   const init = releaseInit({ token: "lease-1" });
   assert.equal(init?.method, "DELETE");
   assert.deepEqual(init?.headers, { [SIM_RUN_TOKEN_HEADER]: "lease-1" });
+});
+
+test("the renew is the same door with no purge: a token, and `renew`", () => {
+  const init = renewInit({ token: "lease-1" });
+  assert.equal(init?.method, "POST");
+  assert.equal((init?.headers as Record<string, string>)[SIM_RUN_TOKEN_HEADER], "lease-1");
+  assert.deepEqual(JSON.parse(String(init?.body)), { renew: true }, "no `hold`, so the route claims and purges nothing");
 });

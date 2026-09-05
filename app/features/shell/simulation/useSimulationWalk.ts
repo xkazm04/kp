@@ -18,7 +18,7 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
 import { applyCompanyTemplate } from "./simCompanyTemplate";
 import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type ScreenWave, type SimState, type StepOpts } from "./simulationProviderTypes";
-import { leaseFromClaim, releaseInit, type SimRunLease } from "./simRunLease";
+import { leaseFromClaim, releaseInit, renewInit, type SimRunLease } from "./simRunLease";
 import { clickRoute, matchHalt, offerHalt, simChapter } from "./simWalkSteps";
 import type { useSimulationEngine } from "./useSimulationEngine";
 
@@ -90,6 +90,20 @@ export function useSimulationWalk({
   // will need when it moves off the walk (see docs/features/simulation/README.md).
   const leaseRef = useRef<SimRunLease>(null);
 
+  // Renew at every phase gate. Step mode is the DEFAULT, so a presenter talking
+  // through a phase used to outlive the five-minute lease and a colleague's Start
+  // could wipe the board mid-presentation. Cheap by construction: the route's renew
+  // shape claims nothing and purges nothing.
+  //
+  // Best-effort: a lost renew (offline, or the lease really did expire) must not halt
+  // a demo that is otherwise walking fine. The next Start is refused or not on the
+  // server's terms either way, and there is nothing here a viewer would act on.
+  const renewLease = useCallback(async () => {
+    const init = renewInit(leaseRef.current);
+    if (!init) return; // nothing claimed: nothing to renew
+    await fetch("/api/sim/reset", init).catch(() => null);
+  }, []);
+
   const step = useCallback(
     async (o: StepOpts) => {
       patch({ phase: o.id, status: o.title, spotlight: { selector: o.target, title: o.title, caption: o.caption } });
@@ -100,8 +114,12 @@ export function useSimulationWalk({
       notifyDataChanged(); // reflect this phase's mutations in any open view
       await beat(o.settleMs ?? 1000);
       await gate();
+      // AFTER the gate, not before: the gate is where a presenter stops to talk, so
+      // the freshest possible moment to restart the five-minute clock is the instant
+      // they resume.
+      await renewLease();
     },
-    [beat, gate, log, nav, patch]
+    [beat, gate, log, nav, patch, renewLease]
   );
 
   const run = useCallback(async () => {
