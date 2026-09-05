@@ -22,6 +22,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { setAtsConfig } from "./ats-config-store.ts";
 import { listAtsDeliveries } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { createOffer } from "./offers-store.ts";
 import { respondToOffer } from "./offer-finalize.ts";
 import { runPipelineEntryAction } from "./pipeline-entry-action.ts";
@@ -62,7 +63,12 @@ test("a recruiter REJECT dispatches candidate.rejected", async () => {
     contact: "ats-ev-rej@example.com",
   }).entry;
 
-  const res = await runPipelineEntryAction({ id: entry.id, action: "reject", origin: "http://localhost:3000" });
+  const res = await runPipelineEntryAction({
+    id: entry.id,
+    action: "reject",
+    origin: "http://localhost:3000",
+    workspaceId: DEFAULT_WORKSPACE_ID,
+  });
   assert.equal(res.status, 200, "the reject itself must succeed (otherwise this proves nothing)");
   assert.deepEqual(eventsFor(entry.id), ["candidate.rejected"], "the rejection is mirrored to the ATS exactly once");
 });
@@ -115,7 +121,6 @@ test("a decline on a STALE link that changes nothing mirrors nothing", async () 
     jobId: "ats-ev-job-stale",
     jobTitle: "ATS Event Role",
     stage: "Hired",
-    status: "hired",
     contact: "ats-ev-stale@example.com",
   }).entry;
   const offer = createOffer({
