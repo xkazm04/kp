@@ -547,6 +547,17 @@ and the drain then does nothing forever. Failures are shown by CLASS
 never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
 `EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
 
+**All three edge doors require `org:manage`.** `POST /api/edge/drain` and
+`POST /api/edge/pair` always did; `POST /api/edge` — the one that WRITES the pairing —
+did not, so any signed-in seat could repoint the install at a queue it controlled (that
+queue then feeds inbound leads through the same intake a webhook uses) or unpair it with
+`url: ""`, which also resets the drain cursor. It now runs the same
+`requireCapabilityCoded("org:manage", requireOrgCapability)` its siblings do, behind
+`requireOperator`, and answers `FORBIDDEN_CAPABILITY` with the capability as data. `GET`
+is unchanged (operator-only, and it never returns the secret). The door is enrolled in
+`app/api/write-capability-gate.test.ts`, which drives the real handler with viewer,
+recruiter and owner sessions.
+
 Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
 `x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the
 body for a POST and the path+query for a GET. Both halves of that choice are

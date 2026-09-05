@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EdgeConfigError, getEdgeConfig, setEdgeConfig } from "@/app/_lib/edge-config";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 
 // The edge pairing (docs/concepts/local-first-edge.md §3.2) — the UI-backed twin of
 // KP_EDGE_URL / KP_EDGE_SECRET, shaped exactly like /api/comms/relay because it is
@@ -20,6 +21,14 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. This door rewrites INSTALLATION-level configuration: which
+  // remote queue this install accepts inbound candidate events from, and the secret
+  // that authenticates it. `url: ""` unpairs and resets the drain cursor. Its own
+  // siblings (drain, pair, comms/relay, ats/config) already ask for `org:manage`; the
+  // door that WRITES the pairing asked for nothing but a session.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   try {
     const body = (await request.json()) as { url?: unknown; secret?: unknown; nudgeTarget?: unknown };
     return NextResponse.json({ ok: true, config: setEdgeConfig(body) });
