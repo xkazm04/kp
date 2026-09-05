@@ -47,7 +47,9 @@ that `useTts` expects:
   the served provider is not the one asked for. `useTts` reads all four; `X-Tts-Voice`
   surfaces as `served.voiceId`, because the voice that spoke is not always the one asked for
   (a null request takes the engine default, and a fallback provider ignores the other
-  engine's ids).
+  engine's ids). `X-Tts-Unsupported-Language` rides along when NO ready engine declares the
+  requested language: the clip is served in the engine's own accent rather than not at all,
+  and that is a fact the surface should be able to show.
 - Gate it (a cloud call costs money, a local call spawns a process) — rate-limit per caller.
 
 ### `TtsError.code` → HTTP (the mapping a host owes its callers)
@@ -112,7 +114,12 @@ something) and broken (fix something) are different next actions.
    `speed`, `streaming`).
 2. **Every request passes `validateRequest`.** Adapters assume a bounded, sanitized request.
 3. **Probe the artifact, not the config.** Binary readable, `model.onnx` present, key accepted.
-4. **Fallback is visible; nothing-ready is an error.** Never an empty 200.
+4. **Fallback is visible; nothing-ready is an error.** Never an empty 200. The DECLARED
+   language is part of the pick: `resolve(requested, language)` skips a ready engine whose
+   `capabilities.languages` excludes the requested primary tag while another ready engine
+   declares it, and when none does it serves anyway with `unsupportedLanguage` set plus a
+   `language_fallback` log event. Kokoro declares no `cs`/`de`, and a Czech operator used to
+   be read to in English with nothing to show for it.
 5. **Local engines share one per-user home** (`~/.personas/companion-tts`, override
    `VOICE_SIDECAR_HOME`) so one model download serves every app on the machine.
 6. **Adding a provider** = one literal in `TTS_PROVIDER_IDS` + one adapter file + a row in

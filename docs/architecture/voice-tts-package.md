@@ -45,10 +45,18 @@ and its listening half by the STT one, once a streaming local engine is worth it
 - **Absent ≠ broken ≠ ready.** `probe()` distinguishes not-installed (with a `setup` hint)
   from installed-but-failing (with the reason) from ready, and probes the real artifact
   (binary on disk, `model.onnx` present, cloud key accepted) rather than a settings flag.
-- **Fallback is visible.** `resolve()` walks requested → preferred → first allowed+ready and
-  returns `fallbackFrom`; the route forwards it as `X-Tts-Fallback-From` and the panel says
-  "fell back from X". Nothing ready → typed `TtsError("unavailable")` with the last reason,
-  never an empty 200.
+- **Fallback is visible.** `resolve(requested, language)` walks requested → preferred →
+  first allowed+ready and returns `fallbackFrom`; the route forwards it as
+  `X-Tts-Fallback-From` and the panel says "fell back from X". Nothing ready → typed
+  `TtsError("unavailable")` with the last reason, never an empty 200.
+- **The declared language is part of readiness (2026-09-05).** The walk used to consider
+  probe state alone, so a `cs` request that landed on Kokoro — whose `capabilities.languages`
+  lists no `cs`/`de` — was read out in an English accent with no error, no `fallbackFrom` and
+  nothing logged. A ready engine that DECLARES the requested primary tag now wins over one
+  that does not (`"any"` and a language-less request match everything); when none declares
+  it, the first ready engine still serves — silence is worse than an accent — but the
+  resolution carries `unsupportedLanguage`, the host logs a `language_fallback` event, and
+  the route sends `X-Tts-Unsupported-Language`. Pinned in `packages/voice-tts/src/registry.test.ts`.
 - **Retired ids normalize on read.** `preferenceFromEnv` drops unknown ids instead of
   throwing, so a stale `KP_TTS_PROVIDER` never wedges the app.
 - **A failure is a next action, not a message.** `TtsErrorCode` names what the caller should
@@ -108,8 +116,8 @@ ladder: explicit env → shared home `bin/` → PATH.
 
 - `GET` → `{ providers: TtsStatus[], preferred, allowed }` — probes only, spends nothing.
 - `POST { text, language?, provider?, voiceId?, speed? }` → audio bytes with
-  `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`. `useTts` reads
-  all four; `X-Tts-Voice` surfaces as `served.voiceId` (the voice that spoke is not always the
+  `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`,
+  `X-Tts-Unsupported-Language?`. `useTts` reads the first four; `X-Tts-Voice` surfaces as `served.voiceId` (the voice that spoke is not always the
   one asked for — a null request takes the engine default and a fallback provider ignores the
   other engine's ids).
 - Errors are typed, and the status is part of the contract:

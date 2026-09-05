@@ -102,6 +102,11 @@ export async function POST(request: Request) {
         "x-tts-elapsed-ms": String(audio.elapsedMs),
         "x-tts-cache": cached ? "hit" : "miss",
         ...(audio.fallbackFrom ? { "x-tts-fallback-from": audio.fallbackFrom } : {}),
+        // The clip is in the wrong language, and saying so is the whole point:
+        // no installed engine declares the language that was asked for (Kokoro
+        // has no cs/de), so an English accent was served rather than silence.
+        // A browser can show it; a null here means the language WAS declared.
+        ...(audio.unsupportedLanguage ? { "x-tts-unsupported-language": audio.unsupportedLanguage } : {}),
       },
     });
   } catch (err) {

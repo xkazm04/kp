@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Tts, TtsAudio, TtsProviderId, TtsRequest } from "@/packages/voice-tts/src/index";
+import type { ServedTtsAudio, Tts, TtsRequest } from "@/packages/voice-tts/src/index";
 
 /*
  * THE SAME SENTENCE IS SYNTHESIZED ONCE.
@@ -41,7 +41,10 @@ export const TTS_CACHE_MAX_BYTES = 16 * 1024 * 1024;
  *  evicts the whole window on the way in is a cache that holds nothing. */
 export const TTS_CACHE_MAX_ENTRY_BYTES = 4 * 1024 * 1024;
 
-export type ServedTtsAudio = TtsAudio & { fallbackFrom: TtsProviderId | null };
+/** Re-exported from the package: what was served, plus HOW (the provider it fell
+ *  back from, the language nothing could speak). Both facts are cached with the
+ *  bytes, so a replay repeats the same honest claim rather than a cleaner one. */
+export type { ServedTtsAudio };
 
 /** Just the method this module needs, so a test can hand it a double without
  *  building a registry (and so nothing here can reach an engine by accident). */

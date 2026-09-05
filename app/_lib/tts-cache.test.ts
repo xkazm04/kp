@@ -25,6 +25,7 @@ function fakeTts(bytesPerCall = 8) {
         voiceId: `voice-${req.language ?? "en"}`,
         elapsedMs: 5,
         fallbackFrom: null,
+        unsupportedLanguage: null,
       };
     },
   };
