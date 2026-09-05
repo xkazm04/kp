@@ -162,13 +162,38 @@ Error mapping, in one place:
 | `rate_limited` — the engine asked us to slow down | **429**, plus `Retry-After` from `err.retryAfterMs` when the engine said how long |
 | `unavailable` — nothing ready | **503** as the `STT_UNAVAILABLE` refusal; the probe's reason is a server-log fact, never the body |
 | `timeout` | 504 |
-| `engine_failed`, `aborted` | 502 |
+| `aborted` — the CALLER closed the connection | **499**, empty body, nothing logged |
+| `engine_failed` | 502 |
 
 `too_long` is 413 rather than 400 for the same reason the upload gate answers 413 for too
 many bytes: a client branches on "too much audio" once, whether the excess is size or
 length. `rate_limited` exists so a vendor's concurrency ceiling does not reach an operator
 as "the engine broke" — the two have opposite next actions (wait and repeat vs. investigate),
 and the adapter keeps a cached positive probe across a 429 because busy is not down.
+
+`aborted` is the one row that is not a failure at all. It used to fall through to the 502
+engine branch, which LOGS under `api:stt:engine`, so every cancelled upload and every
+navigation away wrote an engine fault that no engine committed. It now answers **499**
+(nginx's "client closed request") with an **empty body and no log line**: the socket a body
+would be written to is the one that just closed, so there is no reader to resolve a code
+for, and saying nothing is the honest answer to somebody who stopped listening.
+
+### The deadline
+
+The route declares `export const maxDuration = 300` and DERIVES the engine budget from it
+(`STT_ENGINE_TIMEOUT_MS = (maxDuration - 10) * 1000`), which it passes to
+`Stt.transcribe({ timeoutMs })`; the registry hands it to the adapter as `transcribe`'s
+optional third argument, and each adapter takes the **minimum** of that and its own ceiling
+(`JOB_TIMEOUT_MS`, `WHISPER_TIMEOUT_MS`/`DEFAULT_TIMEOUT_MS`). A host budget never WIDENS an
+operator's own limit; it only shortens it.
+
+Both halves matter, and for different reasons. Declaring nothing let a serverless platform
+kill the handler mid-call, and a killed handler is the failure that leaves no trace: the
+local sidecar keeps running with no parent and its scratch dir is never removed. And
+`maxDuration` is **serverless-only** (see `.claude/CLAUDE.md`), so on a self-hosted
+`next start` nothing enforces it at all and the value passed to the engine is the real
+bound on both paths. That is why it is passed rather than merely declared. Same pairing as
+`app/api/extract-text/route.ts`, and pinned by the same kind of test.
 
 **Every refusal carries a CODE, never an English sentence** (api-contracts.md §1.1). The
 boundary refusals resolve through `REFUSAL_ERRORS`: `AUDIO_MISSING` (no multipart body, no
@@ -198,6 +223,21 @@ read it.
 The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every
 boundary that renders it.
+
+Two fields close the last gaps in that visibility, both added 2026-09-05:
+
+- **`requestedProvider`** on the transcript body. `fallbackFrom` could not carry the case
+  that matters most on a locked deploy: a provider outside `KP_STT_PROVIDERS` is dropped
+  from the resolution order **before** anything is compared, so a request for `assemblyai`
+  on a residency-locked install was served by `whisper_cpp` with `fallbackFrom: null` and
+  nothing said the pick had been overruled. `requestedProvider` is what the caller named
+  whenever it named a real provider, allowed or not.
+- **`models`** on every `SttStatus` row from the `GET`. Every adapter implemented
+  `models()` and no surface could reach it, so a picker had to make a round trip per
+  provider to learn which engine models an install can serve. Populated only for a **ready**
+  provider (an absent engine's catalog says nothing an operator can act on, and the probe
+  state already carries the fact that decides their next action), and a `models()` that
+  throws degrades that one row to `[]` and logs, rather than failing the whole status read.
 
 ## Money — every transcript is in the ledger
 

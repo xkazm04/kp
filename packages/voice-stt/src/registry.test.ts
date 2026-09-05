@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createStt, preferenceFromEnv } from "./registry.ts";
 import { FakeStt, silentWav } from "./providers/fake.ts";
-import { SttError, type SttHost, type SttLogEvent } from "./types.ts";
+import { SttError, type SttHost, type SttLogEvent, type SttProvider } from "./types.ts";
 import { STT_MAX_BYTES, validateRequest } from "./validate.ts";
 import { wavInfo } from "./node/wav.ts";
 
@@ -192,4 +192,63 @@ test("resolve() takes the language, so the capability gate runs before any probe
   assert.equal(english.probes, 0, "an engine that cannot serve the language is never probed");
   // Without the language the gate has nothing to filter on and the order stands.
   assert.equal((await stt.resolve()).provider.id, "whisper_cpp");
+});
+
+test("status carries the engine models a READY provider can serve, and none for one that cannot", async () => {
+  const ready = new FakeStt("whisper_cpp", { models: [{ id: "ggml-base.bin", label: "base", language: null }] });
+  const absent = new FakeStt("assemblyai", { kind: "cloud", probe: { state: "absent", reason: "no key" }, models: [{ id: "universal", label: "U", language: null }] });
+  const s = await createStt({ host: host(), providers: [ready, absent] }).status();
+  assert.deepEqual(s[0].models.map((m) => m.id), ["ggml-base.bin"], "models() had no caller before this field");
+  assert.deepEqual(s[1].models, [], "an engine that cannot serve lists no catalog; the probe state is the actionable fact");
+});
+
+test("a models() that throws degrades that one row, it does not take the status read down", async () => {
+  const log: SttLogEvent[] = [];
+  const broken = new FakeStt("whisper_cpp");
+  broken.models = async () => {
+    throw new Error("model dir vanished");
+  };
+  const s = await createStt({ host: host({}, log), providers: [broken, new FakeStt("assemblyai", { kind: "cloud" })] }).status();
+  assert.deepEqual(s[0].models, []);
+  assert.equal(s[0].probe.state, "ready", "the probe still says what it saw");
+  assert.equal(s[1].models.length, 1, "the sibling row is unaffected");
+  assert.ok(log.some((e) => e.type === "error" && e.provider === "whisper_cpp"));
+});
+
+test("requestedProvider survives a pick the deployment does not allow — fallbackFrom cannot say it", async () => {
+  const whisper = new FakeStt("whisper_cpp");
+  const cloud = new FakeStt("assemblyai", { kind: "cloud" });
+  const stt = createStt({ host: host(), providers: [whisper, cloud], preference: { preferred: null, allowed: ["whisper_cpp"] } });
+  const r = await stt.resolve("assemblyai");
+  assert.equal(r.provider.id, "whisper_cpp");
+  assert.equal(r.fallbackFrom, null, "the disallowed id never entered the order, so there is nothing to fall back FROM");
+  assert.equal(r.requestedProvider, "assemblyai", "…which is exactly why the caller's pick needs its own field");
+
+  const out = await stt.transcribe(clip, { provider: "assemblyai" });
+  assert.equal(out.provider, "whisper_cpp");
+  assert.equal(out.requestedProvider, "assemblyai");
+  assert.equal((await stt.resolve()).requestedProvider, null, "nothing asked for, nothing claimed");
+  assert.equal((await stt.resolve("not-an-engine")).requestedProvider, null, "an unrecognisable id is not a request");
+});
+
+test("the host's transcribe budget reaches the adapter, so a route deadline can bound the engine", async () => {
+  const seen: (number | undefined)[] = [];
+  const inner = new FakeStt("whisper_cpp");
+  // A wrapper rather than a monkey-patch: the fake's own transcribe takes one
+  // parameter (an adapter may ignore the budget and still satisfy the
+  // interface), and this asserts the OPTIONAL third argument really arrives.
+  const engine: SttProvider = {
+    ...inner,
+    id: inner.id,
+    probe: () => inner.probe(),
+    models: () => inner.models(),
+    transcribe: (req, _signal, timeoutMs) => {
+      seen.push(timeoutMs);
+      return inner.transcribe(req);
+    },
+  };
+  const stt = createStt({ host: host(), providers: [engine] });
+  await stt.transcribe(clip, { timeoutMs: 290_000 });
+  await stt.transcribe(clip);
+  assert.deepEqual(seen, [290_000, undefined], "the budget is passed through, and its absence stays absent");
 });

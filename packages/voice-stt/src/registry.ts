@@ -22,6 +22,7 @@ import {
   STT_PROVIDER_IDS,
   SttError,
   type SttHost,
+  type SttModel,
   type SttNeeds,
   type SttPreference,
   type SttProvider,
@@ -53,8 +54,8 @@ export type Stt = {
   resolve(requested?: unknown, needs?: SttNeeds, language?: string | null): Promise<SttResolution>;
   transcribe(
     req: SttRequest,
-    opts?: { provider?: unknown; needs?: SttNeeds; signal?: AbortSignal },
-  ): Promise<SttTranscript & { fallbackFrom: SttProviderId | null }>;
+    opts?: { provider?: unknown; needs?: SttNeeds; signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<SttTranscript & { fallbackFrom: SttProviderId | null; requestedProvider: SttProviderId | null }>;
 };
 
 export function defaultProviders(host: SttHost): SttProvider[] {
@@ -104,7 +105,8 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
   const resolve = async (requested?: unknown, needs: SttNeeds = {}, language: string | null = null): Promise<SttResolution> => {
     const order: SttProviderId[] = [];
     const push = (id: SttProviderId | null | undefined) => id && allowed.includes(id) && !order.includes(id) && order.push(id);
-    push(isSttProviderId(requested) ? requested : null);
+    const requestedProvider = isSttProviderId(requested) ? requested : null;
+    push(requestedProvider);
     push(preference.preferred);
     allowed.forEach(push);
     const asked = order[0] ?? null;
@@ -128,7 +130,11 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
         const fallbackFrom = asked && asked !== id ? asked : null;
         const reason = lastNotReady ?? lastGap;
         if (fallbackFrom) opts.host.log?.({ type: "fallback", from: fallbackFrom, to: id, reason: reason ?? "" });
-        return { provider, fallbackFrom, reason: fallbackFrom ? reason : null };
+        // A request for a provider this deployment does not allow was dropped
+        // from `order` before the loop, so `asked` is the preference and
+        // `fallbackFrom` is null. The caller still had its pick overruled, and
+        // `requestedProvider` is the only place that fact survives.
+        return { provider, fallbackFrom, reason: fallbackFrom ? reason : null, requestedProvider };
       }
       lastNotReady = `${id}: ${probe.reason}`;
     }
@@ -145,15 +151,32 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
     get,
     async status() {
       return Promise.all(
-        providers.map(async (p) => ({
-          id: p.id,
-          label: p.label,
-          kind: p.kind,
-          capabilities: p.capabilities,
-          probe: await p.probe(),
-          allowed: allowed.includes(p.id),
-          preferred: preference.preferred === p.id,
-        })),
+        providers.map(async (p) => {
+          const probe = await p.probe();
+          // A catalog is only meaningful for an engine that can serve: see
+          // SttStatus.models. `models()` is allowed to fail (a readdir on a
+          // vanished directory, a vendor 500) without taking the whole status
+          // read down with it — a picker that lists no models is degraded, a
+          // settings page that renders nothing is broken.
+          let models: SttModel[] = [];
+          if (probe.state === "ready") {
+            try {
+              models = await p.models();
+            } catch (err) {
+              opts.host.log?.({ type: "error", provider: p.id, message: err instanceof Error ? err.message : String(err) });
+            }
+          }
+          return {
+            id: p.id,
+            label: p.label,
+            kind: p.kind,
+            capabilities: p.capabilities,
+            probe,
+            allowed: allowed.includes(p.id),
+            preferred: preference.preferred === p.id,
+            models,
+          };
+        }),
       );
     },
     resolve: (requested, needs, language) => resolve(requested, needs, language ?? null),
@@ -164,7 +187,7 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
         diarization: o?.needs?.diarization || req.diarize === true,
         redaction: o?.needs?.redaction || req.redactPii === true,
       };
-      const { provider, fallbackFrom } = await resolve(o?.provider, needs, req.language);
+      const { provider, fallbackFrom, requestedProvider } = await resolve(o?.provider, needs, req.language);
       // The package-wide cap bounded the request before anything was resolved;
       // this is the SERVING engine's own ceiling, which may be lower.
       if (req.audio.byteLength > provider.capabilities.maxBytes) {
@@ -185,7 +208,7 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
           provider.id,
         );
       }
-      const run = () => provider.transcribe(req, o?.signal);
+      const run = () => provider.transcribe(req, o?.signal, o?.timeoutMs);
       const transcript =
         provider.kind === "local"
           ? await (() => {
@@ -194,7 +217,7 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
               return turn;
             })()
           : await run();
-      return { ...transcript, fallbackFrom };
+      return { ...transcript, fallbackFrom, requestedProvider };
     },
   };
 }

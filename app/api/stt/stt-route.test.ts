@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { MAX_AUDIO_BYTES } from "@/app/_lib/upload-constraints";
-import { POST } from "./route.ts";
+import { maxDuration, POST } from "./route.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -134,4 +134,39 @@ test("an engine failure answers a registry code, never the engine's own sentence
     /safeJsonError\(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS\[err\.code\] \?\? 502\)/,
     "the engine branch answers through the chokepoint at the engine's own status",
   );
+});
+
+// the-stt-route-has-a-deadline-and-honest-edges.
+test("the route declares a deadline and DERIVES the engine budget from it", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8").replace(/\r\n/g, "\n");
+  // Both adapters budget 300 s of their own; a route that declared nothing let
+  // the platform kill the handler first, orphaning the local sidecar and its
+  // scratch dir. The precedent is app/api/extract-text/route.ts, which pins the
+  // same derivation for the same reason.
+  assert.equal(maxDuration, 300);
+  assert.match(
+    src,
+    /const STT_ENGINE_TIMEOUT_MS = \(maxDuration - \d+\) \* 1000;/,
+    "the engine budget is derived from maxDuration so the two cannot drift",
+  );
+  assert.match(src, /timeoutMs: STT_ENGINE_TIMEOUT_MS/, "and it is PASSED to the engine — maxDuration alone binds nothing on a self-hosted next start");
+});
+
+test("a caller that went away is not an engine fault", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8").replace(/\r\n/g, "\n");
+  // `aborted` used to fall through to the 502 engine branch, which LOGS under
+  // `api:stt:engine`: every cancelled upload and every navigation wrote an
+  // engine fault no engine committed.
+  assert.match(src, /err\.code === "aborted"\) return new NextResponse\(null, \{ status: 499 \}\)/);
+  const abortIdx = src.indexOf('err.code === "aborted"');
+  const engineIdx = src.indexOf('safeJsonError(err, "api:stt:engine"');
+  assert.ok(abortIdx > 0 && abortIdx < engineIdx, "the abort branch answers BEFORE the engine-fault chokepoint");
+});
+
+test("the served payload says what was ASKED for, not only what fell back", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8").replace(/\r\n/g, "\n");
+  // A provider outside KP_STT_PROVIDERS is dropped before the resolution order
+  // is built, so fallbackFrom is null and the overrule was invisible.
+  assert.match(src, /requestedProvider: out\.requestedProvider/);
+  assert.match(src, /fallbackFrom: out\.fallbackFrom/);
 });

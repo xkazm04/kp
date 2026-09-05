@@ -22,6 +22,26 @@ import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
+// A transcription is minutes of work, not milliseconds, and both adapters budget
+// 300 s of their own (assemblyai.ts JOB_TIMEOUT_MS, whisper-cpp.ts
+// DEFAULT_TIMEOUT_MS). Declaring nothing here left the platform's default (a few
+// seconds on some hosts) to kill the handler mid-call, and a killed handler is
+// exactly the failure that leaves no trace: the local sidecar keeps running with
+// no parent, its scratch dir is never removed, and the caller gets a platform
+// error page rather than one of this route's coded refusals.
+//
+// The pair is the same one app/api/extract-text/route.ts uses, and it is a pair
+// on purpose: the engine budget is DERIVED from maxDuration so the two cannot
+// drift into the arrangement where the platform kills the function while the
+// adapter still believes it has time. The 10 s of headroom is for the abort to
+// propagate, the sidecar to be reaped and its scratch dir to be removed inside
+// the budget. Read `.claude/CLAUDE.md`: maxDuration is SERVERLESS-only, so on a
+// self-hosted `next start` nothing enforces it and STT_ENGINE_TIMEOUT_MS is the
+// real bound on both paths. That is the reason it is passed to the engine rather
+// than merely declared.
+export const maxDuration = 300;
+const STT_ENGINE_TIMEOUT_MS = (maxDuration - 10) * 1000;
+
 // The engine's typed code -> the status. A LOOKUP rather than a ternary chain
 // over the union, for the reason /api/tts's twin states: the package owns the
 // union and grows it, and a route that cannot compile against a member it has
@@ -74,6 +94,9 @@ export async function GET() {
   const denied = await requireOperator();
   if (denied) return denied;
   const stt = getStt();
+  // Each row now carries the engine models that install can actually serve
+  // (SttStatus.models), so a picker offering "whisper_cpp / ggml-base.bin"
+  // renders from this one probe instead of a second round trip per provider.
   const providers = await stt.status();
   return NextResponse.json({ providers, preferred: stt.preference.preferred, allowed: stt.preference.allowed });
 }
@@ -119,7 +142,7 @@ export async function POST(request: Request) {
         diarize: flag(form, "diarize"),
         redactPii: flag(form, "redact"),
       },
-      { provider: str(form, "provider"), needs, signal: request.signal },
+      { provider: str(form, "provider"), needs, signal: request.signal, timeoutMs: STT_ENGINE_TIMEOUT_MS },
     );
     // Every transcript is metered, local ones included: the cloud path is billed
     // per audio HOUR and the on-device path is a known zero, and both belong in
@@ -142,6 +165,13 @@ export async function POST(request: Request) {
         modelId: out.modelId,
         elapsedMs: out.elapsedMs,
         durationMs: out.durationMs,
+        // What was ASKED for, beside what served. `fallbackFrom` alone cannot
+        // say it: a provider outside KP_STT_PROVIDERS is dropped before the
+        // resolution order is built, so a residency-locked deploy answered a
+        // request for the cloud engine with the local one and reported no
+        // fallback at all. A surface with a provider picker has to be able to
+        // tell the operator their pick was overruled.
+        requestedProvider: out.requestedProvider,
         // What the engine DID. A surface that prints "redacted" reads this, not
         // the checkbox that was ticked.
         diarized: out.diarized,
@@ -173,6 +203,15 @@ export async function POST(request: Request) {
       // keyless install cannot do anything with. It never reaches
       // STT_ERROR_STATUS, which is why that table has no `unavailable` row.
       if (err.code === "unavailable") return jsonRefusal("STT_UNAVAILABLE", 503);
+      // THE CALLER WENT AWAY. Not a fault, so it must not travel the engine
+      // branch: that logs under `api:stt:engine`, and a page navigation or a
+      // cancelled upload would fill an operator's log with engine faults that
+      // no engine committed, teaching them to ignore the one line that matters.
+      // 499 (nginx's "client closed request") rather than a coded body: the
+      // socket the body would be written to is the one that just closed, so
+      // there is no reader to localize a code for, and an empty response is the
+      // only honest thing to say to somebody who stopped listening.
+      if (err.code === "aborted") return new NextResponse(null, { status: 499 });
       // The twin of /api/tts's engine branch, and for the same reason: the
       // adapter's English ("OPENAI_API_KEY is not set", a whisper.cpp stderr
       // tail) is a server-log fact, never a response body. The chokepoint logs

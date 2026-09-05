@@ -88,9 +88,16 @@ policy. The shape:
   **`rate_limited` 429 + a `Retry-After` header from `err.retryAfterMs`**, **`unavailable` 503
   as a REFUSAL** (the probe's reason names an env var or a model path, so it is a server-log
   fact and the body carries a resolvable code instead), `timeout` 504, else 502 with the
-  adapter's sentence logged, never returned. `too_long` is 413 rather than 400 so a client branches on length
+  adapter's sentence logged, never returned. A caller's own abort (`aborted`) is NOT a
+  failure: answer 499 with an empty body and log nothing, or every navigation away writes an
+  engine fault no engine committed. `too_long` is 413 rather than 400 so a client branches on length
   the same way it branches on size — the upload gate already answers 413 for too many bytes,
   and "too much audio" is the same conversation.
+- Give it a DEADLINE and pass it down. Both adapters budget 300 s of their own; a host that
+  will be killed sooner (a serverless `maxDuration`, a proxy read timeout) must say so
+  through `transcribe`'s optional `timeoutMs`, which every adapter takes the MINIMUM of
+  against its own ceiling. A call killed from outside leaves an orphaned sidecar and an
+  un-swept scratch dir; one the adapter times out itself is reaped.
 - Gate it hard. One call is billed per audio **hour** on the cloud path and occupies a CPU
   for minutes on the local one — a looser throttle than a synthesis route, not a tighter one,
   is the mistake to avoid.
