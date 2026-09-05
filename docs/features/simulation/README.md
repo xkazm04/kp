@@ -120,10 +120,18 @@ None. Nothing in this directory owns a table.
 - **`tasks` and `llm_usage` deliberately survive a reset.** They are the metering
   record of what the run spent; a demo that could erase its own usage ledger is a
   billing hole, not a clean reset.
-- **One live run per workspace.** `POST /api/sim/reset { hold: true }` claims a
-  TTL-bounded lock (`SIM_RUN_TTL_MS`, 5 min) for the length of a walk; a second start
-  is refused with `SIM_RUN_ACTIVE` (409) plus `retryAfterSeconds`, and the walk
-  renders it. `DELETE /api/sim/reset` releases on done / stopped / failed. Without it
+- **One live run per workspace, and the lease has an OWNER.** `POST /api/sim/reset
+  { hold: true }` claims a TTL-bounded lock (`SIM_RUN_TTL_MS`, 5 min) for the length
+  of a walk and answers the lease **token** that claim minted; a second start is
+  refused with `SIM_RUN_ACTIVE` (409) plus `retryAfterSeconds`, and the walk renders
+  it. `DELETE /api/sim/reset` releases on done / stopped / failed, presenting that
+  token in the `x-sim-run-token` header (`SIM_RUN_TOKEN_HEADER` in
+  `app/features/shell/simulation/simRunLease.ts`, the one definition both sides
+  import). A release from anyone else is refused with `SIM_RUN_NOT_OWNER` (409),
+  and the walk's own `finally` sends nothing at all when its start was refused
+  (`releaseInit(null)` is `null`). Until that pair landed the release was
+  unconditional on both sides: a second tab refused with `SIM_RUN_ACTIVE` freed the
+  first tab's lease anyway, and the next press wiped a live run. Without it
   a second visitor's run deleted the first one's job mid-walk — every demo visitor
   and every operator tab share the one `demo` tenant. Per-VISITOR demo namespaces
   would remove the sharing entirely; that is a tenancy-model change and the owner's

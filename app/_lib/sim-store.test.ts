@@ -249,30 +249,76 @@ test("an empty tenant resets to all zeros instead of throwing on an empty IN ()"
 
 // --- the run lock -------------------------------------------------------------
 
+/** Claim and hand back the lease token, failing loudly if the claim was refused —
+ *  every lock test below needs the token, and `ok` narrows the union. */
+function claim(workspaceId: string, now?: number): string {
+  const c = now === undefined ? beginSimRun(workspaceId) : beginSimRun(workspaceId, now);
+  assert.ok(c.ok, `expected a free tenant for ${workspaceId}`);
+  return c.token;
+}
+
 test("one live run per workspace: the second start is refused, not served a wipe", () => {
   __resetSimRunLocks();
-  assert.deepEqual(beginSimRun(WS), { ok: true });
+  claim(WS);
   const second = beginSimRun(WS);
   assert.equal(second.ok, false, "a second start while a walk is live must refuse");
   assert.ok(!second.ok && second.retryAfterMs > 0, "and say how long the holder's lease has left");
-  assert.deepEqual(beginSimRun(OTHER), { ok: true }, "the lock is per workspace, never global");
+  assert.ok(beginSimRun(OTHER).ok, "the lock is per workspace, never global");
+});
+
+test("the lease token is minted, not derived from the workspace a caller already knows", () => {
+  __resetSimRunLocks();
+  const a = claim(WS);
+  endSimRun(WS, a);
+  const b = claim(WS);
+  assert.notEqual(a, b, "two claims on the same tenant never share a token");
+  assert.doesNotMatch(a, new RegExp(WS), "and the token carries no part of the workspace id");
+  assert.ok(a.length >= 32, "a guessable token would let a refused tab free the holder anyway");
 });
 
 test("the lease expires, so a closed tab cannot lock a tenant forever", () => {
   __resetSimRunLocks();
   const t0 = 1_000_000;
-  assert.deepEqual(beginSimRun(WS, t0), { ok: true });
+  claim(WS, t0);
   assert.equal(simRunActive(WS, t0 + 1_000).active, true);
   assert.equal(simRunActive(WS, t0 + 6 * 60_000).active, false, "past the TTL the tenant is free again");
-  assert.deepEqual(beginSimRun(WS, t0 + 6 * 60_000), { ok: true });
+  assert.ok(beginSimRun(WS, t0 + 6 * 60_000).ok);
 });
 
 test("release is idempotent — done, stopped and failed all end the same way", () => {
   __resetSimRunLocks();
-  beginSimRun(WS);
-  endSimRun(WS);
-  endSimRun(WS);
+  const token = claim(WS);
+  assert.deepEqual(endSimRun(WS, token), { released: true });
+  assert.deepEqual(endSimRun(WS, token), { released: true }, "releasing a lease that is already gone is a success");
   assert.equal(simRunActive(WS).active, false);
-  assert.deepEqual(beginSimRun(WS), { ok: true });
+  assert.ok(beginSimRun(WS).ok);
+  __resetSimRunLocks();
+});
+
+// --- two tabs: the wave-22 regression, two presses away -----------------------
+//
+// Tab A starts a walk; tab B's start is REFUSED with SIM_RUN_ACTIVE and then runs
+// its own `finally` release. Before wave 44 that release freed A's lease (endSimRun
+// took a workspace and nothing else), so B's next press claimed the tenant and
+// resetSim wiped A's live run. The lease token is what makes B's release a no-op.
+test("a refused start cannot release the winner's lease", () => {
+  __resetSimRunLocks();
+  const tabA = claim(WS);
+
+  const tabB = beginSimRun(WS);
+  assert.equal(tabB.ok, false, "tab B is refused: one live run per workspace");
+
+  // tab B's cleanup path, with no lease of its own to present.
+  const stray = endSimRun(WS, null);
+  assert.equal(stray.released, false, "a caller that never claimed cannot free the holder");
+  assert.ok(!stray.released && stray.retryAfterMs > 0, "and is told how long A's lease has left");
+  const wrongToken = endSimRun(WS, "not-the-holders-token");
+  assert.equal(wrongToken.released, false, "nor can a caller holding some other run's token");
+
+  assert.equal(simRunActive(WS).active, true, "A still owns its tenant");
+  assert.equal(beginSimRun(WS).ok, false, "so B's next press is refused too, instead of wiping A mid-walk");
+
+  assert.deepEqual(endSimRun(WS, tabA), { released: true }, "only A ends A's run");
+  assert.equal(simRunActive(WS).active, false);
   __resetSimRunLocks();
 });

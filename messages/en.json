@@ -1764,7 +1764,8 @@
     "DEVCASE_SESSION_READ_FAILED": "Could not load the work session. Please try again.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "This work session has already been submitted.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Write a message before sending it.",
-    "EDGE_SECRET_UNREADABLE": "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with."
+    "EDGE_SECRET_UNREADABLE": "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
+    "SIM_RUN_NOT_OWNER": "That guided demo belongs to another tab. Wait for it to finish, or stop it there."
   },
   "resilience": {
     "notFoundEyebrow": "404",

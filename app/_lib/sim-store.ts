@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
@@ -78,29 +79,58 @@ export type SimPurgeCounts = Record<(typeof SIM_PURGED_TABLES)[number], number>;
 // release, and a demo tenant locked forever by a closed tab is worse than the race.
 // A full walk is ~2-3 minutes of beats.
 export const SIM_RUN_TTL_MS = 5 * 60_000;
-const runLocks = new Map<string, number>();
 
-/** Claim the run lock for `workspaceId`. Returns the ms until the holder's lease
- *  expires when it is already held — the caller answers SIM_RUN_ACTIVE with it. */
-export function beginSimRun(workspaceId: string, now = Date.now()): { ok: true } | { ok: false; retryAfterMs: number } {
+/** A lease is a workspace plus a TOKEN, not a workspace alone (/perfect wave 44).
+ *  The wave-22 lock had no owner: DELETE /api/sim/reset released whoever held it,
+ *  so a second tab whose start was REFUSED with SIM_RUN_ACTIVE still ran its own
+ *  `finally` release, freed the first tab's lease, and the next press wiped a live
+ *  run — the exact regression the lock exists to prevent, two presses away. The
+ *  token is minted here from `randomUUID`, so it is never derivable from the
+ *  workspace id a caller already knows; only the claimant can release or renew. */
+type SimRunLease = { token: string; expiresAt: number };
+const runLocks = new Map<string, SimRunLease>();
+
+/** Claim the run lock for `workspaceId`. Returns the lease TOKEN the claimant must
+ *  present to release or renew, or the ms until the holder's lease expires when it
+ *  is already held — the caller answers SIM_RUN_ACTIVE with that. */
+export function beginSimRun(workspaceId: string, now = Date.now()): { ok: true; token: string } | { ok: false; retryAfterMs: number } {
   const held = runLocks.get(workspaceId);
-  if (held !== undefined && held > now) return { ok: false, retryAfterMs: held - now };
-  runLocks.set(workspaceId, now + SIM_RUN_TTL_MS);
-  return { ok: true };
+  if (held !== undefined && held.expiresAt > now) return { ok: false, retryAfterMs: held.expiresAt - now };
+  const token = randomUUID();
+  runLocks.set(workspaceId, { token, expiresAt: now + SIM_RUN_TTL_MS });
+  return { ok: true, token };
 }
 
-/** Release the lock. Idempotent: a stop, a failure and the natural end of a run all
- *  call it, and a lease that already expired is simply gone. */
-export function endSimRun(workspaceId: string): void {
-  runLocks.delete(workspaceId);
+/** Release the lock, but ONLY for the claimant that holds it.
+ *
+ *  Idempotent where idempotence is honest: a stop, a failure and the natural end of
+ *  one run all release the same way, and a lease that already expired (or was never
+ *  taken) is simply gone — `{ released: true }`, nothing to protect. What is NOT a
+ *  no-op is a caller with no token, or the wrong one, asking to free a LIVE lease:
+ *  that is someone else's run and it is refused with the holder's remaining time. */
+export function endSimRun(
+  workspaceId: string,
+  token?: string | null,
+  now = Date.now()
+): { released: true } | { released: false; retryAfterMs: number } {
+  const held = runLocks.get(workspaceId);
+  if (held === undefined || held.expiresAt <= now) {
+    runLocks.delete(workspaceId); // sweep the expired entry; nothing was owned
+    return { released: true };
+  }
+  if (token && token === held.token) {
+    runLocks.delete(workspaceId);
+    return { released: true };
+  }
+  return { released: false, retryAfterMs: held.expiresAt - now };
 }
 
 /** Whether a live run holds this workspace. Used by the purge door, which must not
  *  delete a run's rows out from under it. */
 export function simRunActive(workspaceId: string, now = Date.now()): { active: boolean; retryAfterMs: number } {
   const held = runLocks.get(workspaceId);
-  if (held === undefined || held <= now) return { active: false, retryAfterMs: 0 };
-  return { active: true, retryAfterMs: held - now };
+  if (held === undefined || held.expiresAt <= now) return { active: false, retryAfterMs: 0 };
+  return { active: true, retryAfterMs: held.expiresAt - now };
 }
 
 /** Test seam only: drop every lease. */

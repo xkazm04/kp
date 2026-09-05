@@ -1200,6 +1200,14 @@ export const REFUSAL_ERRORS = {
    *  job mid-tour. `retryAfterSeconds` rides beside the code as data — the holder's
    *  remaining lease (sim-store.ts SIM_RUN_TTL_MS), not a guess. */
   SIM_RUN_ACTIVE: "A guided demo is already running here. Wait for it to finish, or stop it first.",
+  /** A release or renew of the run lock that did NOT come from the tab holding it
+   *  (409, /perfect wave 44). The wave-22 lease had no owner, so a second tab
+   *  refused with SIM_RUN_ACTIVE still ran its own end-of-run DELETE, freed the
+   *  holder's lease, and one more press wiped a live run. 409 rather than 403: the
+   *  lock is a courtesy between racing tabs, never an authorization boundary, and
+   *  the caller is out of date about the tenant rather than forbidden. Carries the
+   *  holder's remaining lease as `retryAfterSeconds`, exactly like SIM_RUN_ACTIVE. */
+  SIM_RUN_NOT_OWNER: "That guided demo belongs to another tab. Wait for it to finish, or stop it there.",
   /** GET /api/feedback is a read of colleagues' free-text reports WITH their reply
    *  addresses, so it is `members:manage`-gated (/perfect wave 17, api-workspace).
    *  One code covers both statuses requireCapability produces — 401 with no session,

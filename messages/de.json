@@ -1764,7 +1764,8 @@
     "DEVCASE_SESSION_READ_FAILED": "Die Arbeitssitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Diese Arbeitssitzung wurde bereits eingereicht.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
-    "EDGE_SECRET_UNREADABLE": "Diese Installation kann das gespeicherte Edge-Secret nicht lesen. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde."
+    "EDGE_SECRET_UNREADABLE": "Diese Installation kann das gespeicherte Edge-Secret nicht lesen. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde.",
+    "SIM_RUN_NOT_OWNER": "Diese geführte Demo gehört zu einem anderen Tab. Warten Sie, bis sie beendet ist, oder stoppen Sie sie dort."
   },
   "resilience": {
     "notFoundEyebrow": "404",

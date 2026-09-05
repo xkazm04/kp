@@ -9,7 +9,7 @@
 // landing page's localized "Try the live demo" CTA. All of it reads from the
 // `simulation` namespace; the only English left is the audit actor string on the
 // screening approval (see `approvedBy` below), which is deliberately stable.
-import { useCallback, type MutableRefObject } from "react";
+import { useCallback, useRef, type MutableRefObject } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { jdJobId } from "@/app/_lib/jd-limits";
@@ -18,6 +18,7 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
 import { applyCompanyTemplate } from "./simCompanyTemplate";
 import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type ScreenWave, type SimState, type StepOpts } from "./simulationProviderTypes";
+import { leaseFromClaim, releaseInit, type SimRunLease } from "./simRunLease";
 import { clickRoute, matchHalt, offerHalt, simChapter } from "./simWalkSteps";
 import type { useSimulationEngine } from "./useSimulationEngine";
 
@@ -83,6 +84,12 @@ export function useSimulationWalk({
     [log, t]
   );
 
+  // The RUN LOCK this walk claimed, or null when it never got one (a refused start).
+  // A ref, not state: it is read by the step gate and the end-of-run release, and no
+  // pixel depends on it. `leaseRef.current` is the seam the dock's own stop button
+  // will need when it moves off the walk (see docs/features/simulation/README.md).
+  const leaseRef = useRef<SimRunLease>(null);
+
   const step = useCallback(
     async (o: StepOpts) => {
       patch({ phase: o.id, status: o.title, spotlight: { selector: o.target, title: o.title, caption: o.caption } });
@@ -146,7 +153,15 @@ export function useSimulationWalk({
       // one's job mid-walk — the victim died on "intake returned none" while a
       // stranger's tour carried on. A held lock answers SIM_RUN_ACTIVE (409), which
       // okJson turns into a halt with the reason in the reader's language.
-      await okJson(await fetch("/api/sim/reset", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ hold: true }) }));
+      //
+      // The claim's TOKEN is what this walk owns. Recording it here (and only here)
+      // is the fix for the wave-44 bug: a REFUSED claim throws out of okJson before
+      // the ref is set, so the `finally` below has no lease to release and cannot
+      // free the winner's lock.
+      const claim = await okJson<{ token?: string }>(
+        await fetch("/api/sim/reset", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ hold: true }) })
+      );
+      leaseRef.current = leaseFromClaim(claim);
 
       // The columns THIS workspace's board actually has. The axis is per-workspace
       // data (Settings → Hiring composes it: free-form stage ids, extra rounds, an
@@ -497,11 +512,16 @@ export function useSimulationWalk({
       patch({ running: false, error: msg, status: t("status.failed", { message: msg }), ...CLEAR_OVERLAYS });
       log(t("log.error", { message: msg }));
     } finally {
-      // Release the run lock however this ended — done, stopped or failed.
-      // Best-effort: the lease expires on its own (SIM_RUN_TTL_MS), so a closed tab
-      // or an offline server costs the next visitor a wait, never a permanent lock,
-      // and there is nothing here an operator would act on.
-      await fetch("/api/sim/reset", { method: "DELETE" }).catch(() => null);
+      // Release the run lock however this ended — done, stopped or failed — but ONLY
+      // a lease this walk actually claimed. `releaseInit(null)` is null, so a start
+      // refused with SIM_RUN_ACTIVE sends nothing: it used to send an unconditional
+      // DELETE that freed the WINNER's lease, and one more press wiped a live run.
+      // Best-effort otherwise: the lease expires on its own (SIM_RUN_TTL_MS), so a
+      // closed tab or an offline server costs the next visitor a wait, never a
+      // permanent lock, and there is nothing here an operator would act on.
+      const release = releaseInit(leaseRef.current);
+      leaseRef.current = null;
+      if (release) await fetch("/api/sim/reset", release).catch(() => null);
     }
   }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, getBoard, okJson, topScreened, locale, log, logClickRoute, nav, patch, runGroupEval, stageLabel, step, t, waitDom, waitEntry]);
 

@@ -1764,7 +1764,8 @@
     "DEVCASE_SESSION_READ_FAILED": "Pracovní relaci se nepodařilo načíst. Zkuste to prosím znovu.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Tato pracovní relace už byla odevzdána.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Než zprávu odešlete, napište ji.",
-    "EDGE_SECRET_UNREADABLE": "Tato instalace nedokáže přečíst uložený klíč edge. Zadejte jej znovu, nebo obnovte klíč, kterým byl zašifrován."
+    "EDGE_SECRET_UNREADABLE": "Tato instalace nedokáže přečíst uložený klíč edge. Zadejte jej znovu, nebo obnovte klíč, kterým byl zašifrován.",
+    "SIM_RUN_NOT_OWNER": "Tato řízená ukázka patří jiné kartě. Počkejte, až skončí, nebo ji zastavte tam."
   },
   "resilience": {
     "notFoundEyebrow": "404",

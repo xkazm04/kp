@@ -1764,7 +1764,8 @@
     "DEVCASE_SESSION_READ_FAILED": "Impossible de charger la session de travail. Veuillez réessayer.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Cette session de travail a déjà été soumise.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer.",
-    "EDGE_SECRET_UNREADABLE": "Cette installation ne peut pas lire le secret edge enregistré. Saisissez-le à nouveau ou restaurez la clé qui l'a chiffré."
+    "EDGE_SECRET_UNREADABLE": "Cette installation ne peut pas lire le secret edge enregistré. Saisissez-le à nouveau ou restaurez la clé qui l'a chiffré.",
+    "SIM_RUN_NOT_OWNER": "Cette démo guidée appartient à un autre onglet. Attendez qu'elle se termine ou arrêtez-la depuis celui-là."
   },
   "resilience": {
     "notFoundEyebrow": "404",
