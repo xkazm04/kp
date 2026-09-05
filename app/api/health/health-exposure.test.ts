@@ -89,7 +89,8 @@ type HealthBody = {
   engines?: { gemini: boolean; claudeCli: boolean };
   tables?: Record<string, number>;
   queue?: { running: number; queued: number };
-  degradedReasons?: string[];
+  degradedReasons?: string[];
+
   config?: string;
   configIssues?: { phase: string; scope: string; workspaceId: string }[];
 };
