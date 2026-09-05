@@ -28,7 +28,7 @@ from .provenance import generate_with_fallback, str_list as _str_list
 _LOG = logging.getLogger(__name__)
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v4"  # v4: grounding rules — must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
-CASE_DESIGN_PROMPT_VERSION = "case-design-v6"  # v6: midFlightUpdate — a requirement change revealed mid-session, so one-shot generation is structurally impossible (LLM-era controls #5)
+CASE_DESIGN_PROMPT_VERSION = "case-design-v7"  # v7: the role's must-haves reach the designer as TERRAIN (the case is designed so they are unavoidably exercised) — they are what score_transfer later grades against
 
 # The cap on case length (UAT M8) is a POLICY number and now lives on the model
 # (models.MAX_TIMEBOX_HOURS), where every writer meets it — this designer was only the
@@ -254,12 +254,23 @@ def design_case(
     seniority = role.get("seniority") or need.seniority_target
     timebox = _timebox(seniority)
     role_family = role.get("roleFamily") or need.role_family
+    must_haves = _str_list(role.get("mustHaves"))
     ctx = {
         "role": {
             "title": role.get("title"),
             "function": _human(role_family),
             "seniority": seniority,
             "responsibilities": role.get("responsibilities", []),
+            # The must-haves are what score_transfer GRADES the submission against
+            # (evaluate.py, ctx.role.mustHaves). Designing the case without them let the
+            # two halves of one command disagree about the role: a candidate could do
+            # exactly what the case asked and still lose transfer points on a requirement
+            # the exercise never gave them a chance to touch, with nothing in the artifact
+            # explaining why. They reach the DESIGNER here — see the prompt for why they
+            # must not reach the candidate as a list. A pre-D4 role (or one whose
+            # requirements were never stated) carries none, and then the key is absent
+            # rather than empty — a designer asked to exercise "[]" invents requirements.
+            **({"mustHaves": must_haves} if must_haves else {}),
         },
         "providedContext": real,
         "trueComplexity": analysis.true_complexity,
@@ -294,7 +305,30 @@ def design_case(
         "in that budget (prefer 3-4 focused tasks; depth over coverage), and never pad a senior case with extra "
         "sub-deliverables to make it 'harder'. Be concrete — name real files/symbols/materials, avoid template "
         "phrases like 'per the brief'.\n"
-        "ASSUME the candidate's code will be 100% LLM-generated — including the commits and any write-up, so "
+        + (
+            # The must-haves are DESIGN INPUT, not brief copy. Pasting them in as a
+            # requirements list is the naive wiring and it destroys the instrument: a case
+            # that names what it wants collapses the decisionSpace (design.py's no-backfill
+            # note, MIN_PROBE_DECISION_OPTIONS) into a compliance exercise every competent
+            # candidate passes identically, and stops separating strong from naive — the
+            # exact failure `rina-eng-manager` rejects. So the must-haves shape the TERRAIN
+            # (which materials, which trade-offs, where the ambiguity sits); the candidate
+            # still chooses the path. Grading against them then lands on work they actually
+            # had to do, which is the disagreement this closes.
+            "ROLE MUST-HAVES — role.mustHaves are the capabilities this submission will LATER BE GRADED "
+            "ON for transfer to the role. Design the exercise so each of them is UNAVOIDABLY EXERCISED by "
+            "the work itself: choose starting materials, tasks and probes that cannot be completed well "
+            "without them, and prefer putting a must-have where a decision has to be made about it over "
+            "putting it where it merely has to be used. Do NOT name them as requirements, a checklist, a "
+            "'skills tested' line or an acceptance criterion anywhere the candidate reads (title, brief, "
+            "tasks, repoSeed, midFlightUpdate) — a case that states what it wants stops discriminating, "
+            "because every candidate then does the same thing. Every must-have must remain a CHOICE the "
+            "candidate makes, not an instruction they follow; if one genuinely cannot be exercised inside "
+            "the timebox, leave it out rather than mention it.\n"
+            if must_haves
+            else ""
+        )
+        + "ASSUME the candidate's code will be 100% LLM-generated — including the commits and any write-up, so "
         "NOTHING in the artifact proves authorship. The case's real instrument is AMBIGUITY: bake in 2-4 "
         "cover-probes — an underspecified/ambiguous requirement (rewards clarifying); a legacy/surprising area "
         "(rewards reading before generating); a verification trap where naive one-shot generation passes a "
