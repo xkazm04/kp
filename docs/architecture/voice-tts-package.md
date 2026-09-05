@@ -94,6 +94,18 @@ and its listening half by the STT one, once a streaming local engine is worth it
 - **Browser**: `useTts` normalizes + segments client-side, fetches chunk N+1 while N plays
   (lookahead 2), reports `served.firstAudioMs` and `progress {spoken,total}`; a mid-utterance
   failure is shown as a truncation ("stopped after 2 of 5, the rest is in the text").
+- **A throttled chunk is held, not dropped (2026-09-05).** `fetchChunk` threw on any non-2xx,
+  so a 429 on chunk 3 of 6 truncated the utterance mid-sentence and the immediate manual retry
+  the operator made hit the same closed window. It now retries a 429 **at the wait the host
+  asked for**: `retryWaitMs` reads `Retry-After` in both RFC forms (delta-seconds and an
+  HTTP-date; an already-open window is a zero wait), `TTS_RETRY_ATTEMPTS` = 2 extra attempts,
+  and `TTS_RETRY_MAX_WAIT_MS` = 10 s is the ceiling. A wait that is **absent, unreadable or
+  longer than the ceiling is not invented** - the client-side twin of the route's own refusal
+  to fabricate a `Retry-After` - so a per-IP refusal with no header still fails fast, and every
+  non-429 fails fast unchanged. The wait ends the instant the utterance is stopped (the
+  generation's `AbortSignal`), and `playback` reports `waiting` while it is held, but never
+  over a chunk being fetched AHEAD of audio that is playing. `fetchHonoringRetryAfter` and
+  `retryWaitMs` are pure and exported, pinned by a scripted fetch in `react/useTts.test.ts`.
 - **Like-for-like compare**: ElevenLabs is requested as raw 24 kHz PCM and wrapped into WAV
   (`node/wav.ts`), so all three providers return `audio/wav`. Not yet: loudness normalization,
   leading-silence trim, showing the sample rate.

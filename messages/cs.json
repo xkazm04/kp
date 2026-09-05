@@ -10102,7 +10102,8 @@
       "speak": "Přečíst nahlas",
       "stop": "Zastavit čtení",
       "resume": "Přehrát",
-      "failed": "Tohle se nepodařilo přečíst nahlas."
+      "failed": "Tohle se nepodařilo přečíst nahlas.",
+      "waiting": "Čeká se na přehrání…"
     },
     "action": {
       "runAnalysis": "Znovu spustit AI screening pro: {candidate}",

@@ -10102,7 +10102,8 @@
       "speak": "Lire à voix haute",
       "stop": "Arrêter la lecture",
       "resume": "Lire",
-      "failed": "Impossible de lire ce texte à voix haute."
+      "failed": "Impossible de lire ce texte à voix haute.",
+      "waiting": "En attente de la lecture…"
     },
     "action": {
       "runAnalysis": "Relancer le screening IA pour {candidate}",

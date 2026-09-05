@@ -831,6 +831,14 @@ and expected from V2's auto-speak). It is drawn only when the turn has something
 speakable: `voiceTextForTurn` has already run the one normalizer over it, so an
 empty answer means an empty utterance and no control at all.
 
+The transport row also has one quiet non-failure state: `playback === "waiting"`,
+which the package reports while a throttled chunk is held for the wait the host
+asked for (voice-tts-package.md, "a throttled chunk is held, not dropped").
+`VoicePlayback` renders it beside the control as `companion.voice.waiting` rather
+than on it, because the button's label is the verb for pressing and this is the
+state; two seconds of silence with no word said is indistinguishable from a
+control that broke.
+
 `useCompanionSpeech` is the single seam between a turn and the portable TTS
 package. It owns three decisions that would otherwise be made inconsistently per
 button: **what** gets spoken (`meta.voiceReply.text`, falling back to the prose

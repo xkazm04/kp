@@ -10102,7 +10102,8 @@
       "speak": "Read this aloud",
       "stop": "Stop reading",
       "resume": "Play",
-      "failed": "That could not be spoken."
+      "failed": "That could not be spoken.",
+      "waiting": "Waiting to speak…"
     },
     "action": {
       "runAnalysis": "Re-run the AI screening for {candidate}",

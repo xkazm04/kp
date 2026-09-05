@@ -40,6 +40,10 @@ type PlaybackState = {
    *  transport fault the server never named) falls back to the one generic
    *  sentence this surface has always had. */
   reason: string | null;
+  /** A quiet fact about the utterance that is NOT a failure: the host asked us
+   *  to wait before the next chunk. Rendered beside the control rather than on
+   *  it, because `label` is the verb for pressing and this is the state. */
+  note: string | null;
   press: () => void;
 };
 
@@ -51,11 +55,16 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
   const active = Boolean(entry && speech.speakingId === entry.id);
   const blocked = active && speech.playback === "blocked";
   const failed = active && speech.playback === "error";
+  // The engine (or our own throttle) asked for a pause. Saying so is the whole
+  // point: the utterance used to truncate here, and a control that goes quiet
+  // for two seconds with no word is indistinguishable from one that broke.
+  const waiting = active && speech.playback === "waiting";
   if (!speakable || !hasVoice) return null;
   return {
     active,
     blocked,
     failed,
+    note: waiting ? t("voice.waiting") : null,
     reason: failed ? resolveError({ code: speech.errorCode }, t("voice.failed")) : null,
     label: blocked ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
     press: () => {
@@ -98,6 +107,10 @@ export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | nul
       {state.reason ? (
         <span className="text-sm text-coral" role="status">
           {state.reason}
+        </span>
+      ) : state.note ? (
+        <span className="text-sm text-stone-400" role="status">
+          {state.note}
         </span>
       ) : null}
     </span>

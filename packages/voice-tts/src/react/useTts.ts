@@ -14,7 +14,12 @@ import type { TtsProviderId, TtsStatus } from "../types.ts";
 import { speechReady } from "../text/normalize.ts";
 import { segmentSpeech } from "../text/segment.ts";
 
-export type TtsPlayback = "idle" | "synthesizing" | "playing" | "blocked" | "error";
+/** `waiting` is a THROTTLE, not a failure: the host (or the engine behind it)
+ *  asked us to hold for a stated number of seconds, and the utterance is still
+ *  going to finish. It is its own member rather than a flavour of
+ *  `synthesizing` because the surface has something different to say - "still
+ *  working" invites waiting, "the engine asked us to wait 2s" explains why. */
+export type TtsPlayback = "idle" | "synthesizing" | "waiting" | "playing" | "blocked" | "error";
 
 /** A refusal the HOST ROUTE coded.
  *
@@ -39,6 +44,96 @@ export class TtsRequestError extends Error {
  *  falsy `error` never wins over the status line. */
 export function ttsErrorFrom(body: { error?: string; code?: string | null } | null | undefined, status: number): TtsRequestError {
   return new TtsRequestError(body?.error || `status ${status}`, body?.code ?? null);
+}
+
+/** How many EXTRA attempts one chunk gets after a throttled answer. Two, so a
+ *  brief window closing mid-utterance is survived, and a service that is simply
+ *  out of budget is answered rather than hammered. */
+export const TTS_RETRY_ATTEMPTS = 2;
+/** The longest wait an utterance will hold for. Past this the operator is told
+ *  it stopped: a held Play button that resumes a minute later is a surface that
+ *  looks broken while it is behaving. */
+export const TTS_RETRY_MAX_WAIT_MS = 10_000;
+
+/** The wait we will actually honor from a `Retry-After`, or null for "do not
+ *  retry".
+ *
+ *  Both RFC forms: delta-seconds and an HTTP-date. Null is returned for a header
+ *  that is absent or unreadable and for one asking LONGER than the ceiling - in
+ *  both cases inventing a wait is the failure mode. Waiting less than the
+ *  service asked for is hammering it, and a fabricated wait after no header at
+ *  all is the client-side twin of the fabricated `Retry-After` the route
+ *  deliberately does not send (app/api/tts/route.ts, `engineThrottled`). A
+ *  window that has already opened is 0, which is a retry, not a refusal. */
+export function retryWaitMs(header: string | null | undefined, now: number = Date.now()): number | null {
+  const raw = typeof header === "string" ? header.trim() : "";
+  if (!raw) return null;
+  // A value that STARTS like a number but is not delta-seconds ("-5", "2.5") is
+  // malformed, not a date: Date.parse("-5") happily yields the year 2001, which
+  // would have turned a broken header into "retry now".
+  if (/^[-+.0-9]/.test(raw) && !/^[0-9]+$/.test(raw)) return null;
+  const ms = /^[0-9]+$/.test(raw) ? Number(raw) * 1000 : Date.parse(raw) - now;
+  if (!Number.isFinite(ms)) return null;
+  if (ms <= 0) return 0;
+  return ms > TTS_RETRY_MAX_WAIT_MS ? null : ms;
+}
+
+function abortError(): Error {
+  // The name is the contract: `speak` treats an AbortError as "superseded", not
+  // as a failure to paint, and so does every fetch this package makes.
+  const err = new Error("aborted");
+  err.name = "AbortError";
+  return err;
+}
+
+/** setTimeout that ends the moment the generation is stopped. A wait that
+ *  outlived its utterance would resume a request the operator already cancelled. */
+function sleepUntil(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/** One request, retried while the answer is a 429 that named a wait we can hold.
+ *
+ *  Pure and exported so the decision is pinned without a DOM. It hands the LAST
+ *  response back rather than throwing: the caller already knows how to turn a
+ *  non-2xx into a coded `TtsRequestError`, and a retry loop that invented its own
+ *  error type would be a second vocabulary for the same refusal. */
+export async function fetchHonoringRetryAfter(
+  attempt: () => Promise<Response>,
+  signal: AbortSignal,
+  hooks: {
+    onWait?: (ms: number) => void;
+    onResume?: () => void;
+    sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
+  } = {},
+): Promise<Response> {
+  const wait = hooks.sleep ?? sleepUntil;
+  for (let left = TTS_RETRY_ATTEMPTS; ; left -= 1) {
+    const res = await attempt();
+    if (res.status !== 429 || left === 0) return res;
+    const ms = retryWaitMs(res.headers.get("retry-after"));
+    if (ms === null) return res;
+    hooks.onWait?.(ms);
+    try {
+      await wait(ms, signal);
+    } finally {
+      hooks.onResume?.();
+    }
+  }
 }
 
 export type UseTtsOptions = {
@@ -150,12 +245,34 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
 
   const fetchChunk = useCallback(
     async (text: string, args: SpeakArgs, signal: AbortSignal): Promise<Chunk> => {
-      const res = await f(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, language: args.language, provider: args.provider, voiceId: args.voiceId, speed: args.speed }),
+      // A throttled chunk is HELD, not dropped: a 429 on chunk 3 of 6 used to
+      // truncate the utterance mid-sentence, and the immediate manual retry the
+      // operator made hit the same closed window. The wait is the one the host
+      // asked for, bounded, and it ends the instant the utterance is stopped.
+      const res = await fetchHonoringRetryAfter(
+        () =>
+          f(endpoint, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              text,
+              language: args.language,
+              provider: args.provider,
+              voiceId: args.voiceId,
+              speed: args.speed,
+            }),
+            signal,
+          }),
         signal,
-      });
+        {
+          // A chunk being FETCHED AHEAD while an earlier one plays must not
+          // relabel the surface: the operator is hearing audio, and "waiting" over
+          // a playing utterance is a control that lies. Only a wait we are
+          // actually blocked on is shown.
+          onWait: () => setPlayback((p) => (p === "playing" ? p : "waiting")),
+          onResume: () => setPlayback((p) => (p === "waiting" ? "synthesizing" : p)),
+        },
+      );
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
         throw ttsErrorFrom(body, res.status);

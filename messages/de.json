@@ -10102,7 +10102,8 @@
       "speak": "Vorlesen lassen",
       "stop": "Vorlesen stoppen",
       "resume": "Abspielen",
-      "failed": "Das konnte nicht vorgelesen werden."
+      "failed": "Das konnte nicht vorgelesen werden.",
+      "waiting": "Warten auf die Sprachausgabe…"
     },
     "action": {
       "runAnalysis": "KI-Screening für {candidate} erneut ausführen",
