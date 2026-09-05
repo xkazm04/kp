@@ -77,6 +77,7 @@ export function CompanionVoiceTicker({
   onRetry,
   proposalById,
   onResolveProposal,
+  proposalError,
   blockLabels,
   chrome,
 }: {
@@ -100,6 +101,10 @@ export function CompanionVoiceTicker({
    *  joins them, never position. */
   proposalById: Map<string, CompanionProposal>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The proposal answer that did not land, and whose it was. It is drawn beside
+   *  that card, never in the error line above: the operator pressed a button on
+   *  one row and the sentence about it has to be readable from there. */
+  proposalError: { id: string; code: string } | null;
   blockLabels: ChatBlockLabels;
   /** The strip's own controls (settings, close). A slot rather than a fixed row
    *  because the host owns what the window can DO and this owns what it says. */
@@ -128,7 +133,17 @@ export function CompanionVoiceTicker({
           where the row fits as designed. */}
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         <VoicePlaybackButton entry={entry} speech={speech} />
-        <div className="min-w-0 flex-1 max-sm:order-first max-sm:w-full max-sm:basis-full">
+        {/* THE LIVE REGION, and it is this wrapper rather than any of the three
+            things inside it. The `aria-live` used to sit on VoiceProse — the node
+            that APPEARS — and a region inserted together with its first content
+            is announced by nothing, so the first answer of a session was silent
+            and only the second onward were read. This div is on screen from
+            mount, empty branch included, so every swap inside it is a change to
+            an existing region: empty -> thinking -> her answer -> the next one. */}
+        <div
+          aria-live="polite"
+          className="min-w-0 flex-1 max-sm:order-first max-sm:w-full max-sm:basis-full"
+        >
           {entry ? <VoiceProse entry={entry} clamp={!open} /> : busy ? <VoiceBusyNote /> : <VoiceEmpty />}
           {/* The SAME note the empty branch shows, not a second copy of it: the
               duplicate here was a second live region announcing the identical
@@ -150,8 +165,13 @@ export function CompanionVoiceTicker({
         {chrome}
       </div>
 
+      {/* An ALERT, not a paragraph. The strip sits at the top of a page the
+          operator is deliberately working instead of watching, so a failure that
+          only changed some pixels up there was a failure nobody heard. Outside
+          the polite region above on purpose: it must be read now rather than
+          after whatever answer is being announced. */}
       {error ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-2">
           <p className="text-sm text-coral">{error}</p>
           {/* The one control that gets an operator out of a failed boot on this
               surface. The footer input is correctly dead while the thread does
@@ -177,7 +197,14 @@ export function CompanionVoiceTicker({
         </div>
       ) : null}
 
-      {entry ? <VoiceProposals entry={entry} proposalById={proposalById} onResolve={onResolveProposal} /> : null}
+      {entry ? (
+        <VoiceProposals
+          entry={entry}
+          proposalById={proposalById}
+          onResolve={onResolveProposal}
+          proposalError={proposalError}
+        />
+      ) : null}
     </div>
   );
 }

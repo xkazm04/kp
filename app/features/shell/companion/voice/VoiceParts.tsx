@@ -25,17 +25,12 @@ import type { VoiceEntry } from "./voiceHistory";
 /** Her answer as prose. `clamp` is the strips' whole trick: two lines is a
  *  glance, and the disclosure below is where the rest lives. */
 export function VoiceProse({ entry, clamp = false }: { entry: VoiceEntry; clamp?: boolean }) {
-  return (
-    <p
-      className={`whitespace-pre-wrap text-body text-ink ${clamp ? "line-clamp-2" : ""}`}
-      // Announced as one region when the arrows or a new reply change it — the
-      // window IS the reading surface here, unlike the dock where the transcript
-      // owns the live region.
-      aria-live="polite"
-    >
-      {entry.content}
-    </p>
-  );
+  // NO `aria-live` HERE, deliberately. This node is what APPEARS, and a live
+  // region inserted together with its first content is announced by nothing: the
+  // first answer of a session was silent and only the second onward were read.
+  // The permanent wrapper in CompanionVoiceTicker owns the region; this is one of
+  // the children that swap inside it.
+  return <p className={`whitespace-pre-wrap text-body text-ink ${clamp ? "line-clamp-2" : ""}`}>{entry.content}</p>;
 }
 
 /** What she drew. Its own scroll, because a table that pushes the input bar off
@@ -69,10 +64,18 @@ export function VoiceProposals({
   entry,
   proposalById,
   onResolve,
+  proposalError,
 }: {
   entry: VoiceEntry;
   proposalById: Map<string, CompanionProposal>;
   onResolve: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The answer that did not land, and which card it belonged to. It belongs
+   *  BESIDE that card and not in the strip's error line: the operator pressed a
+   *  button on one row, and a sentence about it three lines up is a sentence
+   *  about nothing. The dock has had this since the card gained the prop; voice
+   *  mode rendered the same card without it, so a throttled Accept re-armed the
+   *  buttons and said nothing at all. */
+  proposalError?: { id: string; code: string } | null;
 }) {
   // Ids the turn CLAIMS, resolved against the live rows — an id that no longer
   // resolves draws nothing rather than an empty card.
@@ -83,7 +86,12 @@ export function VoiceProposals({
   return (
     <div className="mt-2 space-y-2">
       {proposals.map((proposal) => (
-        <CompanionProposalCard key={proposal.id} proposal={proposal} onResolve={onResolve} />
+        <CompanionProposalCard
+          key={proposal.id}
+          proposal={proposal}
+          onResolve={onResolve}
+          error={proposalError?.id === proposal.id ? proposalError.code : null}
+        />
       ))}
     </div>
   );
@@ -129,9 +137,8 @@ export function VoiceEmpty() {
  *  dock's thinking bubble: the wait is 2-10s and honest words beat motion. */
 export function VoiceBusyNote() {
   const t = useTranslations("companion");
-  return (
-    <span className="text-sm text-steel" role="status">
-      {t("chat.thinking")}
-    </span>
-  );
+  // NOT `role="status"`: this renders INSIDE the ticker's permanent live region,
+  // and a live region nested in a live region is announced twice by some readers
+  // and split by others. The wrapper announces the swap.
+  return <span className="text-sm text-steel">{t("chat.thinking")}</span>;
 }

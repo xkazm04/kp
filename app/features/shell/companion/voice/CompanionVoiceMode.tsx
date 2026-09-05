@@ -137,6 +137,7 @@ export function CompanionVoiceMode({
         onRetry={thread.retry}
         proposalById={proposalById}
         onResolveProposal={thread.resolveProposal}
+        proposalError={thread.proposalError}
         blockLabels={blockLabels}
         chrome={chrome}
       />

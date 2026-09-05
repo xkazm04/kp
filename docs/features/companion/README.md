@@ -1130,10 +1130,24 @@ behind it does not have focus in. *Below `sm` the row wraps*: the prose takes th
 full first row and the controls sit beneath it, because at 360px the controls
 alone want ~332px of the ~312px available and a nowrap row squeezes her answer to
 nothing. Hiding the counter would have been cheaper and would have deleted the
-one affordance the mode exists for. *One live region for the answer* (the prose)
-and *one status region for busy* — the counter is no longer live and the ticker
-reuses `VoiceBusyNote` instead of duplicating it, so a single arrow press no
-longer fires three announcements at once.
+one affordance the mode exists for. *ONE PERMANENT live region*, and it is the
+wrapper around the prose/busy/empty swap rather than any of the three: the
+`aria-live` used to sit on `VoiceProse`, which is the node that appears, and a
+region inserted together with its first content is announced by nothing — so the
+first answer of a session was silent and only the second onward were read. The
+wrapper is on screen from mount, empty branch included, so every swap inside it
+is a change to an existing region. Nothing inside it declares a second one:
+`VoiceBusyNote` lost its `role="status"`, because a live region nested in a live
+region is read twice by some screen readers and split by others.
+
+*The thread's error line is `role="alert"`* — outside the polite region on
+purpose, and an alert rather than a paragraph because the strip sits at the top of
+a page the operator is deliberately working instead of watching. *A refused
+proposal answer is drawn beside its own card*: `thread.proposalError` reaches
+`VoiceProposals`, which hands `error` to the card whose id matches and to no
+other. The dock has done this since the card gained the prop; voice mode rendered
+the same card without it, so a throttled Accept re-armed the buttons and said
+nothing at all.
 
 The input is one line (`<input>`, not a textarea): the operator gave up the
 column to keep the page visible, so the composer cannot claim it back, Enter has
