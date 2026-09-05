@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { ATS_SCHEMA_VERSION, buildAtsRecord, type AtsEntryInput } from "./ats-record.ts";
+import { ATS_SCHEMA_VERSION, AtsRecordRefusedError, buildAtsRecord, type AtsEntryInput } from "./ats-record.ts";
 
 function entry(over: Partial<AtsEntryInput> = {}): AtsEntryInput {
   return {
@@ -90,4 +90,51 @@ test("nulls degrade safely (label-only stub, no job/decision/offer)", () => {
   assert.equal(r.pipeline.matchScore, null);
   assert.equal(r.candidate.candidateId, null);
   assert.equal(r.exportedAt, null);
+});
+
+// THE CONSENT GATE. Before this, nothing on the egress path consulted consent at all:
+// the record carried displayName, contact and matchScore to a third-party endpoint on the
+// strength of the row having been scrubbed by the periodic anonymize sweep. That is
+// safety incidental to another feature's timing. The gate lives in the mapper — the one
+// function every egress path funnels through — and reads the SHARED predicates
+// (consent.ts), so it cannot drift from the /api/analyses, timeline and outreach gates.
+//
+// NON-VACUITY: pre-change the mapper had no consent input at all, so every assertion
+// below reads back the raw label/contact (and the anonymized case builds a full record
+// of a person kp has erased).
+const NOW = Date.parse("2026-06-20T12:00:00.000Z");
+
+test("an ANONYMIZED entry is REFUSED — an erased candidate is never mirrored to an ATS", () => {
+  assert.throws(
+    () => buildAtsRecord({ entry: entry({ anonymizedAt: "2026-06-19T00:00:00.000Z" }), nowMs: NOW }),
+    (e: unknown) => e instanceof AtsRecordRefusedError && e.reason === "anonymized",
+    "the refusal is a typed decision the caller can dead-letter, not a generic throw"
+  );
+});
+
+test("an EXPIRED consent masks the name, drops the contact, and SAYS it withheld them", () => {
+  const r = buildAtsRecord({
+    entry: entry({ consentGivenAt: "2025-01-01T00:00:00.000Z", consentExpiresAt: "2026-01-01T00:00:00.000Z" }),
+    nowMs: NOW,
+  });
+  assert.equal(r.candidate.displayName, "Ada L.", "masked exactly as the anonymize sweep would have masked it");
+  assert.equal(r.candidate.contact, null, "an expired lawful basis must never export a deliverable address");
+  assert.equal(r.candidate.piiWithheld, true, "a receiver can tell a redacted record from a sparse one");
+  assert.equal(r.pipeline.matchScore, 88, "the retained, non-identifying recruitment record still egresses");
+});
+
+test("a LIVE consent exports the full record — the gate must not over-scrub", () => {
+  const r = buildAtsRecord({
+    entry: entry({ consentGivenAt: "2026-01-01T00:00:00.000Z", consentExpiresAt: "2099-01-01T00:00:00.000Z" }),
+    nowMs: NOW,
+  });
+  assert.equal(r.candidate.displayName, "Ada Lovelace");
+  assert.equal(r.candidate.contact, "ada@example.com");
+  assert.equal(r.candidate.piiWithheld, false);
+});
+
+test("an entry with NO consent columns is not treated as withheld (pre-consent rows still mirror)", () => {
+  const r = buildAtsRecord({ entry: entry(), nowMs: NOW });
+  assert.equal(r.candidate.contact, "ada@example.com");
+  assert.equal(r.candidate.piiWithheld, false);
 });

@@ -165,6 +165,34 @@ renders the endpoint, the signing secret, the four subscribable events
 (`candidate.hired`, `candidate.rejected`, `offer.accepted`, `offer.declined`) and a test
 ping (`POST /api/ats/test`).
 
+- **All four subscribable events actually fire.** Until this pass `dispatchAtsEvent` had one
+  call site in the tree — the hire — so three of the four checkboxes were subscriptions
+  nothing could ever deliver, and a connector built on the vocabulary kp publishes saw half
+  the funnel and kept rejected candidates open. The emit sites now are: `candidate.hired`
+  and `offer.accepted` on the candidate's accept (`offer-finalize.ts`; the hire is
+  conditional on the entry CROSSING onto the terminal stage, the offer response is not —
+  they are different facts), `offer.declined` on a decline that actually transitioned the
+  entry (a decline on a stale link that demotes nobody mirrors nothing, exactly as it
+  stamps no timeline event), and `candidate.rejected` beside the rejection comm in
+  `pipeline-entry-action.ts`. Pinned by `app/_lib/ats-lifecycle-events.test.ts`.
+- **The consent gate is in the record builder, not behind one door.** `buildAtsRecord`
+  REFUSES an anonymized entry (`AtsRecordRefusedError` → the delivery is dead-lettered on
+  the spot: an erased candidate does not become mirrorable by waiting) and, when
+  `consentWithholdsPii` says the retention window has lapsed, masks the label, drops the
+  contact and sets `candidate.piiWithheld: true` so a receiver can tell a redacted record
+  from a sparse one. Both read the shared predicates in `consent.ts`, so the push door
+  cannot drift from the pull door and every future egress path inherits the gate.
+- **A retry is the same request, not a new one.** Every attempt carries the ledger row id as
+  `Idempotency-Key` and re-sends a byte-identical body (see the receiver contract below),
+  and the retry sweep CLAIMS each due row with a compare-and-swap on `(status, attempts)`
+  before delivering — an operator pressing Retry while a cron POSTs the same route used to
+  send the hire twice. `finalizeAtsDelivery` re-asserts the attempt count it read in the
+  UPDATE's `WHERE` for the same reason.
+- **The ledger is pruned.** Terminal rows — delivered, or dead-lettered with no retry
+  scheduled — are dropped after `DELIVERY_RETENTION_DAYS` (90) by a sweep on the
+  instrumentation clock. A still-scheduled failure is live work and is never swept, however
+  old. The table had no DELETE anywhere in the tree before this, and every row names a
+  candidate's pipeline entry.
 - **The secret is write-only**, same contract as the inbound token: `GET` returns
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
@@ -284,8 +312,9 @@ What a receiver must implement to accept a delivery from kp, and what it may rel
 | Header | Value |
 | --- | --- |
 | `X-Kp-Event` | the event id (`candidate.hired`, …, or `ping` for the test delivery) |
-| `X-Kp-Timestamp` | the ISO-8601 instant the delivery was signed — the SAME value the envelope carries in `sentAt` |
+| `X-Kp-Timestamp` | the ISO-8601 instant **this attempt** was signed. Re-stamped on every attempt; equal to the envelope's `sentAt` on the first one only |
 | `X-Kp-Signature` | `sha256=<hex>`, present only when a signing secret is configured |
+| `Idempotency-Key` | the delivery-ledger row id — constant across every attempt of one delivery, absent on the test ping. Also in the body as `idempotencyKey` |
 
 **Verification, in order** (`verifyWebhookSignature` in `app/_lib/ats-webhook.ts` is the
 reference implementation — port it, or read it as the spec):
@@ -300,6 +329,22 @@ reference implementation — port it, or read it as the spec):
    body bytes**, never a re-serialization, and compare it to `X-Kp-Signature` in constant
    time.
 
+3. **Dedupe on `Idempotency-Key`** and answer a repeat with the original outcome. An
+   attempt that timed out or lost its connection MAY already have been accepted by you;
+   from kp's side that is indistinguishable from never arriving, so the ladder retries and
+   your ATS gains a second hire for the same candidate unless you settle it. The key is the
+   delivery-ledger row id: one row per (event, entry) attempt-set, constant across all six
+   attempts, and it rides inside the signed body as `idempotencyKey` so you can verify it
+   rather than trust the header. Same contract the candidate-comms relay's `messageId`
+   already carried (../comms/outbound-export.md §1).
+
+**Why `sentAt` and `X-Kp-Timestamp` are two fields.** `sentAt` is when the DELIVERY was
+created and never moves, so a redelivery of unchanged data is byte-identical and a receiver
+can dedupe on the body alone. The header is when THIS attempt was signed. Freezing the
+signed instant as well would put every retry past minute five outside the tolerance above —
+the ladder would be signing deliveries no correct receiver could accept. Same split as
+Stripe's (`created` in the body, `t=` in the signature).
+
 **Why the timestamp is in the signed input and not merely beside it.** The signature used
 to cover the body alone, which made it valid forever: one captured delivery — a proxy log,
 a misconfigured receiver, a retry history — could be replayed verbatim at any later moment
@@ -313,8 +358,9 @@ the timestamped scheme and finds no usable header is REFUSED rather than silentl
 downgraded to the replayable one: that downgrade is the attack.
 
 > **Every consumer of `signWebhookBody` sends the timestamp** (grepped 2026-09-03, three
-> senders, all done): `app/_lib/ats-egress.ts` (`deliver`, the ATS webhook — one instant
-> is the envelope's `sentAt`, the header, and the HMAC input), `app/_lib/comms.ts` (the
+> senders, all done): `app/_lib/ats-egress.ts` (`deliver`, the ATS webhook — the header and
+> the HMAC input are this attempt's instant; the envelope's `sentAt` is the delivery's, and
+> the two agree on the first attempt), `app/_lib/comms.ts` (the
 > candidate-comms relay; its bounded retry ladder reuses the same instant deliberately —
 > it is the same delivery, and the ladder finishes far inside the window) and
 > `app/api/comms/relay/test/route.ts` (the relay test ping, built exactly like a real
@@ -389,7 +435,14 @@ side).
 - `ats_config` — the outbound webhook. ONE row (`id = 1`), org-level by design
   (`app/_lib/tenancy.ts`). `webhook_url`, encrypted `webhook_secret`, `events_json`,
   `version` (optimistic-concurrency token, bumped on every accepted write; back-filled to
-  `0` by an `ALTER TABLE` on stores created before it existed), `updated_at`.
+  `0` by an `ALTER TABLE` on stores created before it existed), `updated_at`. A corrupt
+  `events_json` still resolves to "nothing subscribed" (fail closed) but is now LOGGED with
+  the row id — `[]` was otherwise indistinguishable from an operator who unsubscribed.
+- `ats_delivery` — the outbound delivery ledger, one row per (event, entry) attempt-set,
+  org-level like the config. `event`, `entry_id`, `status` (`pending` / `delivered` /
+  `failed`, read through a runtime guard), `attempts`, `last_status`, `last_error`,
+  `next_attempt_at`, `created_at` (the envelope's stable `sentAt`), `updated_at`. Terminal
+  rows are pruned after 90 days.
 
 ## Known gaps
 
@@ -399,12 +452,16 @@ side).
   *due*, so the terminal row is visible in the ledger but has no force-replay path; recovering
   that hire means editing the row by hand. `ats-delivery-store.ts` calls the dead-letter
   "force-retryable", which is the intent, not yet the code.
-- **The push does not apply the consent gate the pull door does.** `GET /api/ats/candidate/<id>`
-  masks identity when the retention window has lapsed; `dispatchAtsEvent` sends the unredacted
-  record. Only `candidate.hired` fires today (consent on a just-hired candidate is current, and
-  the retry window is ~30 minutes), so the exposure is narrow — but the redaction helper lives
-  behind the route (`app/api/ats/candidate/ats-candidate-audit.ts`) rather than in the record
-  builder both doors share, and it needs to move before `candidate.rejected` is wired up.
+- **The retry ladder has no jitter, and it is not the comms ladder.** Six attempts,
+  exponential from one minute, unjittered — a receiver that comes back after an outage takes
+  every queued delivery in one thundering herd. The candidate-comms relay beside it has its
+  own ladder with its own constants; the two should be one policy.
+- **`GET /api/ats/candidate/<id>` now 404s an anonymized entry.** The consent gate moved into
+  the record builder, and its anonymized case is a refusal rather than a redaction, so the
+  pull door reports an erased candidate as absent. That is the honest answer for an erasure,
+  but it IS a behaviour change on that route, and the route's own redaction path
+  (`ats-candidate-audit.ts`) is now a belt-and-braces second application for the
+  expired-consent case rather than the enforcement.
 - **The field map has no UI.** A connection saved here uses the stored map (or an empty
   one), and an empty map has no `externalId` path — so a sync using it fails loudly rather
   than importing under a bad identity. Editing it still requires a `POST` with a `fieldMap`

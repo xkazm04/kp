@@ -29,9 +29,17 @@ export function isAtsEvent(v: unknown): v is AtsEventType {
 
 export const SIGNATURE_HEADER = "x-kp-signature";
 export const EVENT_HEADER = "x-kp-event";
-/** When the delivery was signed, as the SAME ISO-8601 instant the envelope carries in
- *  `sentAt`. A receiver can therefore check the header before parsing the body, and
- *  assert the two agree afterwards.
+/** When THIS ATTEMPT was signed — a fresh instant on every attempt, and the value the
+ *  HMAC binds. A receiver checks it before parsing the body.
+ *
+ *  IT IS NOT the envelope's `sentAt`, and the two are deliberately different questions.
+ *  `sentAt` is when the DELIVERY was created and is stable across the whole retry ladder,
+ *  so a redelivery is byte-identical to the first attempt and a receiver can dedupe on
+ *  the body alone. The header is when THIS attempt left, so the skew window below can do
+ *  its job: freezing both would mean every retry past five minutes arrives outside the
+ *  tolerance and is refused — the ladder would be signing deliveries that can never be
+ *  accepted. Same split as Stripe's (`created` in the body, `t=` in the signature). On
+ *  the FIRST attempt they are equal, which is why the two used to look like one value.
  *
  *  WHY IT EXISTS. The signature covered the body ALONE, so a signature stayed valid
  *  forever: anyone who captured one delivery (a proxy log, a misconfigured receiver, a
@@ -41,12 +49,24 @@ export const EVENT_HEADER = "x-kp-event";
  *  and a signature whose timestamp is outside the tolerance window is refused. Same
  *  construction as Stripe's `Stripe-Signature`, reduced to the one scheme we send. */
 export const TIMESTAMP_HEADER = "x-kp-timestamp";
+/** The delivery's stable identity, so a receiver can make a redelivery a NO-OP.
+ *  Standard `Idempotency-Key` (Stripe's spelling; the comms channel beside this one
+ *  already sends a constant key per message), carrying the ledger row's id.
+ *
+ *  WHY IT IS THE FIX AND THE RETRY LADDER IS NOT. A receiver that accepted a POST and
+ *  then timed out on the response is indistinguishable, from here, from one that never
+ *  got it — so the ladder retries, correctly, and the customer's ATS gains a SECOND hire
+ *  for the same candidate. Only the receiver can settle that, and only if we tell it
+ *  which two requests are the same request. The ledger row id is exactly that: one row
+ *  per (event, entry) attempt-set, stable across all six attempts. */
+export const IDEMPOTENCY_HEADER = "idempotency-key";
 /** How far a delivery's timestamp may sit from the receiver's clock and still be
  *  accepted: FIVE MINUTES either side. It has to cover honest clock skew between two
  *  machines plus the delivery's own flight time, and stay far below the retry ladder's
  *  reach (six attempts, exponential from one minute) so a legitimate retry re-signs
- *  rather than arriving stale. `deliver()` signs at send time, and each retry builds a
- *  fresh envelope, so every attempt carries its own current instant.
+ *  rather than arriving stale. `deliver()` signs at send time and stamps the header with
+ *  THAT instant on every attempt (the envelope's stable `sentAt` is a different field —
+ *  see {@link TIMESTAMP_HEADER}), so a retry an hour into the ladder is freshly signed.
  *
  *  Symmetric on purpose: a receiver whose clock runs ahead must not reject deliveries
  *  from a correct sender, and "the future" is not a safer direction than "the past". */
@@ -54,14 +74,28 @@ export const SIGNATURE_TOLERANCE_SECONDS = 300;
 
 export type WebhookEnvelope = {
   event: AtsEventType;
+  /** When the DELIVERY was created — stable across every attempt of the retry ladder,
+   *  which is what makes a redelivery byte-identical. Not the signing instant; that is
+   *  {@link TIMESTAMP_HEADER}, and it moves per attempt. */
   sentAt: string;
   schemaVersion: string;
+  /** The ledger row id, mirrored from {@link IDEMPOTENCY_HEADER} so a receiver that only
+   *  parses bodies can dedupe too. Absent on the operator's test ping, which has no
+   *  ledger row and nothing to be idempotent about. */
+  idempotencyKey?: string;
   data: AtsCandidateRecord | { ping: true };
 };
 
 /** Assemble the envelope. Caller supplies `sentAt` so this stays pure/testable. */
-export function buildEnvelope(event: AtsEventType, data: AtsCandidateRecord | { ping: true }, sentAt: string): WebhookEnvelope {
-  return { event, sentAt, schemaVersion: ATS_SCHEMA_VERSION, data };
+export function buildEnvelope(
+  event: AtsEventType,
+  data: AtsCandidateRecord | { ping: true },
+  sentAt: string,
+  idempotencyKey?: string
+): WebhookEnvelope {
+  // The key is omitted, not null, when there is none: JSON.stringify drops an undefined
+  // property, so a ping's body keeps exactly the shape receivers already parse.
+  return { event, sentAt, schemaVersion: ATS_SCHEMA_VERSION, ...(idempotencyKey ? { idempotencyKey } : {}), data };
 }
 
 /** `sha256=<hex>` HMAC over the delivery. Sign the serialized body the receiver will

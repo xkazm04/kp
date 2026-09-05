@@ -2,10 +2,11 @@ import { getJob } from "./db/jobs";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { listDecisionRecords } from "./decision-record-store";
 import { getOpenOfferForEntry, listOffersForEntry } from "./offers-store";
-import { buildAtsRecord, type AtsCandidateRecord } from "./ats-record.ts";
+import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord } from "./ats-record.ts";
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
 import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
 import {
+  claimAtsDelivery,
   finalizeAtsDelivery,
   listDueAtsDeliveries,
   recordAtsDeliveryStart,
@@ -14,6 +15,7 @@ import {
   type AtsEventType,
   buildEnvelope,
   EVENT_HEADER,
+  IDEMPOTENCY_HEADER,
   SIGNATURE_HEADER,
   signWebhookBody,
   TIMESTAMP_HEADER,
@@ -33,8 +35,31 @@ import {
  *  the wrong team's. The entry is fetched first precisely so the decision lookup
  *  can key off the tenant it proves. */
 export function getAtsRecord(entryId: string, workspaceId?: string): AtsCandidateRecord | null {
+  const result = getAtsRecordResult(entryId, workspaceId);
+  return result.record;
+}
+
+/** What `getAtsRecord` collapses to null, kept apart: "the entry is not there" and "the
+ *  mapper REFUSED it" are different facts, and the delivery ledger has to record which
+ *  one it met (a refusal is terminal — retrying it forever would be a lie about a
+ *  decision that will never change). The API route only needs the null. */
+export type AtsRecordResult = {
+  record: AtsCandidateRecord | null;
+  /** Set only when a record existed but the consent gate refused to release it. */
+  refusal: { reason: "anonymized"; message: string } | null;
+};
+
+export function getAtsRecordResult(
+  entryId: string,
+  workspaceId?: string,
+  /** The snapshot stamp. A ledger-backed delivery passes its ROW's creation instant so
+   *  every attempt of that delivery stamps the same value — otherwise `exportedAt` alone
+   *  makes each retry a different byte string, and a receiver that would happily dedupe on
+   *  the body cannot. Omitted (the pull door) it is now. */
+  exportedAt: string = new Date().toISOString()
+): AtsRecordResult {
   const entry = getPipelineEntry(entryId, workspaceId);
-  if (!entry) return null;
+  if (!entry) return { record: null, refusal: null };
   const job = entry.jobId ? getJob(entry.jobId) : null;
   const latest = listDecisionRecords({ candidateRef: entryId, limit: 1, workspaceId: entry.workspaceId })[0] ?? null;
   // Which offer's comp the record carries: the offer that actually caused the
@@ -50,22 +75,30 @@ export function getAtsRecord(entryId: string, workspaceId?: string): AtsCandidat
     getOpenOfferForEntry(entryId) ??
     offers.at(-1) ??
     null;
-  return buildAtsRecord({
-    entry,
-    job: job ? { id: job.id, title: job.title ?? null, company: job.company ?? null } : null,
-    decision: latest
-      ? {
-          kind: latest.kind,
-          actor: latest.actor,
-          reasonCode: latest.reasonCode,
-          contentHash: latest.contentHash,
-          policyVersion: latest.policyVersion,
-          createdAt: latest.createdAt,
-        }
-      : null,
-    offer: offer ? { currency: offer.currency, salary: offer.salary, status: offer.status } : null,
-    exportedAt: new Date().toISOString(),
-  });
+  try {
+    const record = buildAtsRecord({
+      entry,
+      job: job ? { id: job.id, title: job.title ?? null, company: job.company ?? null } : null,
+      decision: latest
+        ? {
+            kind: latest.kind,
+            actor: latest.actor,
+            reasonCode: latest.reasonCode,
+            contentHash: latest.contentHash,
+            policyVersion: latest.policyVersion,
+            createdAt: latest.createdAt,
+          }
+        : null,
+      offer: offer ? { currency: offer.currency, salary: offer.salary, status: offer.status } : null,
+      exportedAt,
+    });
+    return { record, refusal: null };
+  } catch (e) {
+    // The mapper's consent gate is the ONE refusal shape that reaches here; anything
+    // else is a genuine fault and must keep propagating to the caller's own handling.
+    if (e instanceof AtsRecordRefusedError) return { record: null, refusal: { reason: e.reason, message: e.message } };
+    throw e;
+  }
 }
 
 export type DeliveryResult =
@@ -81,7 +114,16 @@ export type DeliveryResult =
  *  or an unusable signing key is a FAILURE — previously ANY HTTP response counted
  *  as delivered, so a receiver returning 500/401 was silently treated as success
  *  and the event was lost. */
-export async function deliver(event: AtsEventType, data: AtsCandidateRecord | { ping: true }): Promise<DeliveryResult> {
+export async function deliver(
+  event: AtsEventType,
+  data: AtsCandidateRecord | { ping: true },
+  /** The ledger row this attempt belongs to. Given, every attempt of that row sends the
+   *  SAME body (its creation instant as `sentAt`) under the same `Idempotency-Key`, so a
+   *  receiver that already accepted attempt N can drop attempt N+1 instead of recording a
+   *  second hire. Omitted (the operator's test ping) the instant is now and there is no
+   *  key — a ping has no ledger row and nothing to deduplicate. */
+  delivery?: { id: number; createdAt: string }
+): Promise<DeliveryResult> {
   const cfg = getAtsConfig();
   if (!cfg.webhookUrl) return { delivered: false, reason: "No webhook URL configured." };
   // Re-vet AND resolve the host immediately before the fetch (not just at write
@@ -95,15 +137,23 @@ export async function deliver(event: AtsEventType, data: AtsCandidateRecord | { 
   } catch (e) {
     return { delivered: false, reason: e instanceof Error ? e.message : "webhook URL rejected." };
   }
-  // ONE instant, used three ways: it is the envelope's `sentAt`, it rides as
-  // X-Kp-Timestamp, and it is signed WITH the body. Binding it into the HMAC is what
-  // makes a captured delivery unreplayable — without it the signature never expired.
-  const sentAt = new Date().toISOString();
-  const body = JSON.stringify(buildEnvelope(event, data, sentAt));
+  // TWO instants, and the split is the point (see TIMESTAMP_HEADER):
+  //   • `sentAt` — when the DELIVERY was created. Stable across the ladder, so attempt 4
+  //     is byte-identical to attempt 1 and a receiver can dedupe on the body alone.
+  //   • `signedAt` — when THIS attempt left. It rides as X-Kp-Timestamp and is signed
+  //     WITH the body, which is what makes a captured delivery unreplayable. Freezing it
+  //     too would push every retry past the five-minute tolerance, i.e. sign deliveries
+  //     no correct receiver could accept.
+  // They are equal on the first attempt, which is why they used to be one value.
+  const signedAt = new Date().toISOString();
+  const sentAt = delivery?.createdAt ?? signedAt;
+  const key = delivery ? String(delivery.id) : undefined;
+  const body = JSON.stringify(buildEnvelope(event, data, sentAt, key));
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     [EVENT_HEADER]: event,
-    [TIMESTAMP_HEADER]: sentAt,
+    [TIMESTAMP_HEADER]: signedAt,
+    ...(key ? { [IDEMPOTENCY_HEADER]: key } : {}),
   };
   // Decrypt the signing secret to sign. Keep deliver() total: a missing/rotated
   // at-rest key surfaces as a delivery failure (→ recorded for retry) rather than a
@@ -114,7 +164,7 @@ export async function deliver(event: AtsEventType, data: AtsCandidateRecord | { 
   } catch (e) {
     return { delivered: false, reason: `signing secret unavailable: ${e instanceof Error ? e.message : "decrypt failed"}` };
   }
-  if (secret) headers[SIGNATURE_HEADER] = signWebhookBody(secret, body, sentAt);
+  if (secret) headers[SIGNATURE_HEADER] = signWebhookBody(secret, body, signedAt);
   try {
     // `redirect: "manual"` is part of the SSRF boundary, not a nicety. The guard above
     // vets ONLY the URL we dial; with the default `follow`, a webhook host that passes
@@ -174,17 +224,24 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
     // Open the ledger row BEFORE anything that can fail to produce a delivery, so no
     // path can exit silently. Every branch below finalizes it (the catch included), so a
     // row can never be stranded `pending`.
-    deliveryId = recordAtsDeliveryStart(event, entryId);
-    const record = getAtsRecord(entryId, tenant);
+    const openedAt = new Date();
+    deliveryId = recordAtsDeliveryStart(event, entryId, openedAt);
+    const { record, refusal } = getAtsRecordResult(entryId, tenant, openedAt.toISOString());
     if (!record) {
       // A hire that cannot be MIRRORED must never be INVISIBLE. Fail the row instead of
-      // returning: it becomes operator-visible and retryable like any other failure.
-      const reason = `pipeline entry ${entryId} not found in workspace "${tenant}" — nothing to mirror`;
-      finalizeAtsDelivery(deliveryId, { delivered: false, reason });
-      console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${reason}`);
+      // returning: it becomes operator-visible like any other failure. A REFUSAL is
+      // dead-lettered on the spot — an anonymized candidate will not become mirrorable
+      // by waiting, so the six-attempt ladder would only be noise on a settled answer.
+      const reason = refusal
+        ? refusal.message
+        : `pipeline entry ${entryId} not found in workspace "${tenant}" — nothing to mirror`;
+      finalizeAtsDelivery(deliveryId, { delivered: false, reason, terminal: !!refusal });
+      console.error(
+        `[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason}`
+      );
       return;
     }
-    const result = await deliver(event, record);
+    const result = await deliver(event, record, { id: deliveryId, createdAt: openedAt.toISOString() });
     finalizeAtsDelivery(deliveryId, toOutcome(result));
     if (!result.delivered) {
       console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason}`);
@@ -204,24 +261,47 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
 /** Retry every failed delivery whose backoff window has elapsed (and that still has
  *  retry budget). Called by an operator via POST /api/ats/deliveries or an external
  *  cron on a timer. Re-builds the record from CURRENT entry state (a mirror wants the
- *  latest), so a since-deleted entry is finalized off the queue. Never throws per row. */
-export async function retryDueAtsDeliveries(now: Date = new Date()): Promise<{ due: number; delivered: number; failed: number }> {
+ *  latest), so a since-deleted entry is finalized off the queue. Never throws per row.
+ *
+ *  Two sweeps can run at once (an operator pressing Retry while the cron fires), and both
+ *  read the same due list. Each row is therefore CLAIMED before it is delivered — a
+ *  compare-and-swap on (status, attempts) that exactly one caller wins — so a concurrent
+ *  sweep skips it instead of POSTing the same hire a second time. `skipped` counts those.
+ */
+export async function retryDueAtsDeliveries(
+  now: Date = new Date()
+): Promise<{ due: number; delivered: number; failed: number; skipped: number }> {
   const due = listDueAtsDeliveries(now.toISOString());
   let delivered = 0;
   let failed = 0;
+  let skipped = 0;
   for (const row of due) {
+    if (!claimAtsDelivery(row.id, row.attempts)) {
+      // Another sweep owns this attempt. Not an error and not a failure — nothing to
+      // record beyond not doing the work twice.
+      skipped++;
+      continue;
+    }
     try {
       // `ats_delivery` carries no workspace column (org-level by design, tenancy.ts), so
       // the tenant is re-derived from the entry itself. Unscoped, this read defaulted to
       // the DEFAULT workspace and finalized every non-default team's LIVE entry with the
       // false terminal reason "pipeline entry no longer exists".
-      const record = getAtsRecord(row.entryId, getEntryWorkspace(row.entryId));
+      const { record, refusal } = getAtsRecordResult(row.entryId, getEntryWorkspace(row.entryId), row.createdAt);
       if (!record) {
-        finalizeAtsDelivery(row.id, { delivered: false, reason: "pipeline entry no longer exists" });
+        // A candidate anonymized between the first attempt and this one: the retry is
+        // dropped terminally rather than continuing to offer their data to the receiver.
+        finalizeAtsDelivery(row.id, {
+          delivered: false,
+          reason: refusal ? refusal.message : "pipeline entry no longer exists",
+          terminal: !!refusal,
+        });
         failed++;
         continue;
       }
-      const result = await deliver(row.event, record);
+      // The SAME body and key the first attempt sent (the row's creation instant is the
+      // envelope's sentAt), so a receiver that already accepted it can drop this one.
+      const result = await deliver(row.event, record, { id: row.id, createdAt: row.createdAt });
       finalizeAtsDelivery(row.id, toOutcome(result));
       if (result.delivered) delivered++;
       else failed++;
@@ -230,5 +310,5 @@ export async function retryDueAtsDeliveries(now: Date = new Date()): Promise<{ d
       failed++;
     }
   }
-  return { due: due.length, delivered, failed };
+  return { due: due.length, delivered, failed, skipped };
 }

@@ -87,6 +87,21 @@ channel with their own kinds and `candidate: null`).
   accept and then hold open is dead-lettered as `timeout after 10000ms` rather
   than stalling the recruiter's click.
 
+### The `kp.ats.v1` envelope beside it
+
+`app/_lib/ats-webhook.ts` is the second sender built on this file's signing helpers — the
+lifecycle webhook (`candidate.hired` / `candidate.rejected` / `offer.accepted` /
+`offer.declined`), documented in full in
+[../integrations/README.md](../integrations/README.md#ats--hris-write-back-outbound). It
+now carries the same idempotency contract as `kp.comm.v1` above: an `Idempotency-Key`
+header mirrored into the body as `idempotencyKey` (the delivery-ledger row id), constant
+across every attempt, with `sentAt` frozen at the delivery's creation so a redelivery is
+byte-identical. The one difference from the comm envelope: the ATS ladder reaches ~30
+minutes, so `X-Kp-Timestamp` (the SIGNED instant) is re-stamped per attempt while `sentAt`
+stays put — freezing both would push every late retry outside the 300-second verification
+window. `sentAt` is therefore not a signature input there and the two fields are equal only
+on the first attempt.
+
 ## 2. Pull — bulk candidate sync
 
 `GET /api/pipeline` returns `{ entries: PipelineEntryView[] }` — the same
