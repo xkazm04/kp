@@ -19,6 +19,7 @@ from pipeline.jobfit.llm.base import (
     is_transient_error,
     price_usd,
 )
+from pipeline.jobfit.tests._helpers import env
 
 
 def _result(text: str) -> LLMResult:
@@ -294,10 +295,9 @@ class AnthropicAdapterTest(unittest.TestCase):
 
     def test_available_false_without_key(self) -> None:
         provider = AnthropicProvider(model="claude-haiku-4-5")
-        with mock.patch.dict(os.environ, {}, clear=False), mock.patch(
+        with env("ANTHROPIC_API_KEY"), mock.patch(
             "pipeline.jobfit.llm.adapters.anthropic_api.load_local_env"
         ):
-            os.environ.pop("ANTHROPIC_API_KEY", None)
             self.assertFalse(provider.available())
 
 

@@ -36,6 +36,7 @@ from pipeline.jobfit.eval.interview_eval import (
 from pipeline.jobfit.eval._style import _make_styler
 from pipeline.jobfit.eval.interview_scenarios_gen import BEHAVIORS, brief_for, rotating_sample
 from pipeline.jobfit.eval.thresholds import QUALITY_THRESHOLD
+from pipeline.jobfit.tests._helpers import env
 
 
 def _turns(*pairs):
@@ -369,20 +370,16 @@ class TestElevenLabsBackend(unittest.TestCase):
         self.assertEqual(el.failed_criteria(analysis), ["no_leak"])
 
     def test_missing_keys_report_unavailable_and_cli_errors_cleanly(self):
-        import os
-
         from pipeline.jobfit.eval import elevenlabs_backend as el
 
-        saved = {k: os.environ.pop(k, None) for k in ("ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID")}
-        try:
+        # The hand-rolled pop/restore this replaced leaked on an assertion failure:
+        # the `finally` restored only vars that HAD a value, so a red run here left
+        # the two EL vars unset for every later test in the process.
+        with env("ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID"):
             ok, reason = el.available()
             self.assertFalse(ok)
             self.assertIn("ELEVENLABS", reason)
             self.assertEqual(ie.main(["--backend", "elevenlabs", "--scenario", "swe_senior_strong"]), 2)
-        finally:
-            for k, v in saved.items():
-                if v is not None:
-                    os.environ[k] = v
 
     def test_offline_seals_off_elevenlabs_cloud_backend(self):
         # E-SH-4: api.elevenlabs.io is a cloud host, so KP_OFFLINE must refuse it

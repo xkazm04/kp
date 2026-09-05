@@ -9,28 +9,23 @@ and inference inside the customer's network — the enterprise self-host require
 from __future__ import annotations
 
 import json
-import os
 import unittest
-from contextlib import contextmanager
 from unittest import mock
 
 from pipeline.jobfit.llm import resolve_provider
 from pipeline.jobfit.llm.adapters import AzureOpenAIProvider, OpenAIProvider
 from pipeline.jobfit.llm.config import ENV_VAR, load_config
+from pipeline.jobfit.tests._helpers import env as shared_env
 
 
-@contextmanager
+# The LLM vars this module isolates. Every `env(...)` below starts from all three
+# unset, so a test that forgets one cannot be answered by the developer's shell.
+_LLM_VARS = (ENV_VAR, "OPENAI_BASE_URL", "OPENAI_API_KEY")
+
+
 def env(**overrides):
     """Isolate the LLM-related env vars for the block; None clears one."""
-    with mock.patch.dict(os.environ, {}, clear=False):
-        for key in (ENV_VAR, "OPENAI_BASE_URL", "OPENAI_API_KEY"):
-            os.environ.pop(key, None)
-        for key, value in overrides.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
-        yield
+    return shared_env(*_LLM_VARS, **overrides)
 
 
 class BaseUrlResolutionTest(unittest.TestCase):

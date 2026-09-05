@@ -14,19 +14,21 @@ again at ``post_simulation`` for a caller that skipped the check.
 
 from __future__ import annotations
 
-import os
 import unittest
 from types import SimpleNamespace
-from unittest import mock
 
 from pipeline.jobfit.eval import elevenlabs_backend as el
 from pipeline.jobfit.eval import interview_eval as ie
+from pipeline.jobfit.tests._helpers import env
+
+# The three vars every availability assertion in this module depends on. Named once
+# so a test says WHICH keys it is setting, not which it forgot to clear.
+_EL_VARS = ("KP_OFFLINE", "ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID")
 
 
 def _clean_env(**overrides):
-    env = {k: v for k, v in os.environ.items() if k not in ("KP_OFFLINE", "ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID")}
-    env.update(overrides)
-    return mock.patch.dict(os.environ, env, clear=True)
+    """The EL vars scrubbed, everything else (PATH, TMP, the suite's guards) intact."""
+    return env(*_EL_VARS, **overrides)
 
 
 class CriteriaMirrorTest(unittest.TestCase):
