@@ -7201,7 +7201,8 @@
     "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation.",
     "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
     "closedInWindowSub": "{count} closed in window",
-    "bucketTzNote": "The window and the weekly trend buckets are cut on UTC days."
+    "bucketTzNote": "The window and the weekly trend buckets are cut on {tz} days.",
+    "cohortTruncatedNote": "Only the newest {count, plural, one {# entry} other {# entries}} in this window were counted — the cohort is larger than one read covers, so every figure below is a bounded sample. Narrow the window to see it whole."
   },
   "matrix": {
     "loadFailed": "Load failed.",

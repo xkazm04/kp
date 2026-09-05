@@ -94,7 +94,14 @@ export function AnalyticsHeader({
             before a Prague operator's own day does. Small, real, and invisible
             while nothing said which zone the page counts in. The payload declares
             it (`bucketTz`); this states it where the control that uses it lives. */}
-        <p className="mt-1 max-w-3xl text-meta text-steel">{t("bucketTzNote")}</p>
+        <p className="mt-1 max-w-3xl text-meta text-steel">{t("bucketTzNote", { tz: data?.bucketTz ?? "UTC" })}</p>
+        {/* THE CAP, NAMED. db/analytics.ts reads at most ANALYTICS_COHORT_CAP entries
+            per window and says so in `truncated`; a bounded read the page did not
+            mention would be a quiet lie about what every figure below was computed
+            over. Only when it bites — the cap is sized past any realistic cohort. */}
+        {data?.truncated ? (
+          <p className="mt-1 max-w-3xl text-meta text-amber-700">{t("cohortTruncatedNote", { count: data.total })}</p>
+        ) : null}
         {/* THE SILENCE, NAMED. Every figure on this page excludes guided-demo rows
             (db/analytics.ts `notSim`) — correctly, since a demo must never move a
             leadership metric. But the board shows those same people, so after a

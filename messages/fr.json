@@ -7201,7 +7201,8 @@
     "simExcludedNote": "{count, plural, one {# entrée de la démo guidée est exclue} other {# entrées de la démo guidée sont exclues}} de tous les chiffres de cette page. Elles restent sur le tableau jusqu’à la réinitialisation de la simulation.",
     "daysAvgOver": "jours en moy. sur {count, plural, one {# recrutement} other {# recrutements}}",
     "closedInWindowSub": "{count} clôturés sur la période",
-    "bucketTzNote": "La période et les tranches hebdomadaires de tendance sont découpées sur des journées UTC."
+    "bucketTzNote": "La période et les tranches hebdomadaires de tendance sont découpées sur des journées {tz}.",
+    "cohortTruncatedNote": "Seules les {count, plural, one {# entrée la plus récente a été comptée} other {# entrées les plus récentes ont été comptées}} sur cette période — la cohorte dépasse ce qu'une lecture couvre, donc chaque chiffre ci-dessous est un échantillon borné. Réduisez la période pour la voir en entier."
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",

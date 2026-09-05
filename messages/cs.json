@@ -7201,7 +7201,8 @@
     "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete.",
     "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
     "closedInWindowSub": "{count} uzavřeno v období",
-    "bucketTzNote": "Období i týdenní intervaly trendu se počítají podle dnů v UTC."
+    "bucketTzNote": "Období i týdenní intervaly trendu se počítají podle dnů v {tz}.",
+    "cohortTruncatedNote": "Započítáno bylo jen {count, plural, one {# nejnovější záznam} few {# nejnovější záznamy} other {# nejnovějších záznamů}} v tomto období — kohorta je větší, než jedno čtení pokryje, takže každé číslo níže je omezený vzorek. Zúžením období ji uvidíte celou."
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
