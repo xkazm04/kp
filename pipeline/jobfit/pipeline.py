@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from .ats import evaluate_keyword_coverage, verify_skills_in_cv
+from .ats import evaluate_keyword_coverage, verify_gaps_against_cv, verify_skills_in_cv
 from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
@@ -271,6 +271,29 @@ def analyze_cv(
                 repairs.append(
                     f"Withheld {len(withheld_skills)} AI-suggested matching skill(s) "
                     f"not found in the CV (shown only when verifiable): {withheld_list}."
+                )
+
+        # The symmetric half of the same gate (M4): a claimed GAP is a stated
+        # reason a person is rejected, and it flows on into the interview kit and
+        # the keyword panel's missing list — so a gap the CV plainly contradicts
+        # is as damaging as a hallucinated match, and was checked by nothing.
+        # verify_gaps_against_cv is built ON verify_skills_in_cv so the two
+        # directions cannot disagree about what the CV evidences; it contradicts a
+        # gap only on an UN-hedged mention, leaving "familiar with X" / "learning
+        # X" standing as a real gap. Dropped rather than annotated: missing_skills
+        # is a flat list every consumer reads as "real gap", so a marker string
+        # would simply become a differently-worded gap on those surfaces — the
+        # review note below is where the drop is recorded.
+        if job_fit is not None and job_fit.missing_skills:
+            real_gaps, contradicted_gaps = verify_gaps_against_cv(
+                job_fit.missing_skills, raw_text
+            )
+            if contradicted_gaps:
+                job_fit.missing_skills = real_gaps
+                contradicted_list = ", ".join(contradicted_gaps)
+                repairs.append(
+                    f"Dropped {len(contradicted_gaps)} AI-suggested gap(s) the CV "
+                    f"contradicts (the skill is evidenced there): {contradicted_list}."
                 )
 
         market_evidence = _market_evidence_from_payload(payload.get("market_evidence"), sources)

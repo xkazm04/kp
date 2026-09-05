@@ -29,6 +29,7 @@ from pipeline.jobfit.ats import (
     _occurrences,
     _skill_in_text,
     evaluate_keyword_coverage,
+    verify_gaps_against_cv,
     verify_skills_in_cv,
 )
 from pipeline.jobfit import taxonomy
@@ -225,6 +226,78 @@ class MatchingSkillVerificationTest(unittest.TestCase):
 
     def test_empty_input_is_safe(self) -> None:
         self.assertEqual(verify_skills_in_cv([], _CV), ([], []))
+
+
+class GapVerificationTest(unittest.TestCase):
+    """M4 — the symmetric half of the trust gate: a claimed GAP the CV contradicts
+    is a rejection reason nobody can defend, so it is dropped; a genuine gap, and a
+    skill the CV only mentions aspirationally, both survive."""
+
+    def test_gap_the_cv_demonstrates_is_dropped(self) -> None:
+        # The CV proves Python in production; an LLM that calls Python a gap is
+        # asserting something the CV contradicts.
+        gaps, contradicted = verify_gaps_against_cv(["Python", "Kubernetes"], _CV)
+        self.assertEqual(gaps, ["Kubernetes"])
+        self.assertEqual(contradicted, ["Python"])
+
+    def test_genuine_gap_survives_untouched(self) -> None:
+        gaps, contradicted = verify_gaps_against_cv(["Kubernetes", "Terraform"], _CV)
+        self.assertEqual(gaps, ["Kubernetes", "Terraform"])
+        self.assertEqual(contradicted, [])
+
+    def test_alias_evidence_contradicts_the_gap(self) -> None:
+        # The CV writes "k8s"; a claimed "Kubernetes" gap is contradicted through
+        # the SAME alias-aware matcher the positive path uses.
+        gaps, contradicted = verify_gaps_against_cv(
+            ["Kubernetes"], "Ran production clusters on k8s for three years."
+        )
+        self.assertEqual(gaps, [])
+        self.assertEqual(contradicted, ["Kubernetes"])
+
+    def test_hedged_mention_is_not_evidence_and_the_gap_stands(self) -> None:
+        # Absence is not the mirror of presence: a term named only aspirationally
+        # is a mention, not proof, so the model calling it a gap is defensible.
+        for cv in (
+            "Backend in Python. Familiar with Kubernetes.",
+            "Backend in Python. Currently learning Kubernetes.",
+            "Backend in Python. Exposure to Kubernetes on a side project.",
+            "Backend in Python. Basics of Kubernetes from a course.",
+        ):
+            with self.subTest(cv=cv):
+                gaps, contradicted = verify_gaps_against_cv(["Kubernetes"], cv)
+                self.assertEqual(gaps, ["Kubernetes"])
+                self.assertEqual(contradicted, [])
+
+    def test_one_unhedged_mention_beats_a_hedged_one(self) -> None:
+        cv = (
+            "Familiar with Kubernetes from a course. Later ran Kubernetes in "
+            "production for the payments platform."
+        )
+        gaps, contradicted = verify_gaps_against_cv(["Kubernetes"], cv)
+        self.assertEqual(gaps, [])
+        self.assertEqual(contradicted, ["Kubernetes"])
+
+    def test_order_preserved_and_duplicates_collapsed(self) -> None:
+        gaps, contradicted = verify_gaps_against_cv(
+            ["Kubernetes", "Python", "kubernetes", "Terraform"], _CV
+        )
+        self.assertEqual(gaps, ["Kubernetes", "Terraform"])
+        self.assertEqual(contradicted, ["Python"])
+
+    def test_empty_input_is_safe(self) -> None:
+        self.assertEqual(verify_gaps_against_cv([], _CV), ([], []))
+
+    def test_positive_path_is_unchanged_by_the_gap_gate(self) -> None:
+        # The two directions share one matcher: whatever verify_skills_in_cv
+        # confirms is exactly what verify_gaps_against_cv can contradict (modulo
+        # the hedge rule, which only ever KEEPS a gap).
+        claims = ["Python", "Kubernetes", "FrobozzDB"]
+        verified, withheld = verify_skills_in_cv(claims, _CV)
+        self.assertEqual(verified, ["Python"])
+        self.assertEqual(withheld, ["Kubernetes", "FrobozzDB"])
+        gaps, contradicted = verify_gaps_against_cv(claims, _CV)
+        self.assertEqual(contradicted, verified)
+        self.assertEqual(gaps, withheld)
 
 
 class NormalizationPrimitiveDedupTest(unittest.TestCase):
