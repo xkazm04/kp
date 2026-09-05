@@ -228,9 +228,15 @@ reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
    assumptions in it (a flag, a rule grammar, a CLI version) and every non-Claude
    adapter has no fence at all — it answers from the grounding, and text can carry
    anything. So `redact_dossier` sweeps every refined free-text field at the WIRE
-   boundary (`repo_scan_cli`) for secret-SHAPED values — AWS key ids, PEM blocks,
-   `sk-`/`ghp_`/`xox…` tokens, `NAME_KEY=<20+ chars>` — masks them `[redacted]`
-   and puts the count on the envelope as `redactions`. A redaction nobody can see
+   boundary (`repo_scan_cli`) for secret-SHAPED values. The field names are
+   **derived from the Pydantic models** (`_text_fields(DossierFinding)` and its
+   siblings), not hand-listed: the first cut of this sweep named `rationale` on
+   findings and objectives, a field neither model declares, so every LLM-authored
+   `note` on a `riskArea` or a `hotSpot` reached `dossier_json` and the wire
+   unredacted while a guard test that invented the same key stayed green. The
+   shapes it looks for are AWS key ids, PEM blocks, `sk-`/`ghp_`/`xox…` tokens and
+   `NAME_KEY=<20+ chars>`; it masks them `[redacted]` and puts the count on the
+   envelope as `redactions`. A redaction nobody can see
    is a silent edit of the operator's data. The pattern set is deliberately
    narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
    `test_repo_scan.RedactionTest` pins both directions.

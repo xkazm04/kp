@@ -25,7 +25,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit.appmaster import DossierFinding, RepoDossier
+from pipeline.jobfit.appmaster import DossierContext, DossierFinding, Objective, RepoDossier
 from pipeline.jobfit.claude_cli import (
     READ_ONLY_PERMISSION_MODE,
     READ_ONLY_TOOLS,
@@ -622,34 +622,56 @@ class RedactionTest(unittest.TestCase):
                 self.assertEqual(hits, 0, text)
                 self.assertEqual(masked, text)
 
+    # The FIXTURES below are built from the Pydantic models and dumped by alias, so a
+    # field name cannot be invented by the test. That is the whole lesson of the
+    # 2026-09-02 sweep: it named `rationale` on findings, which no model defines, so
+    # every LLM-authored `note` reached dossier_json and the wire unredacted while a
+    # test full of `rationale` keys stayed green.
+
     def test_the_sweep_reaches_every_free_text_field_and_returns_the_count(self) -> None:
-        dossier = {
-            "maintainerLoadEstimate": f"one maintainer; deploy key {FAKE_AWS_KEY} is shared",
-            "riskAreas": [{"ref": "src/pay.ts", "rationale": "hardcoded sk-abcdefghijklmnopqrstuvwxyz"}],
-            "hotSpots": [{"ref": "src/billing.ts", "rationale": "changes weekly"}],
-            "candidateObjectives": [
-                {"label": "cut GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0 usage", "rationale": None}
+        dossier = RepoDossier(
+            maintainer_load_estimate=f"one maintainer; deploy key {FAKE_AWS_KEY} is shared",
+            risk_areas=[DossierFinding(ref="src/pay.ts", note="hardcoded sk-abcdefghijklmnopqrstuvwxyz")],
+            hot_spots=[DossierFinding(ref="src/billing.ts", note="changes weekly")],
+            candidate_objectives=[
+                Objective(kpi_key="token-spend", label="cut GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0 usage")
             ],
-            "existingKpis": ["src/analytics/kpi.ts", "note: DB_PASSWORD=correcthorsebatterystapler"],
-            "contexts": [{"name": "billing"}],
-        }
+            existing_kpis=["src/analytics/kpi.ts", "note: DB_PASSWORD=correcthorsebatterystapler"],
+            contexts=[DossierContext(name="billing")],
+        ).model_dump(by_alias=True)
         hits = redact_dossier(dossier)
         self.assertEqual(hits, 4)
         blob = json.dumps(dossier, ensure_ascii=False)
         for token in (FAKE_AWS_KEY, "sk-abcdefghij", "ghp_abcdefghij", "correcthorsebatterystapler"):
             self.assertNotIn(token, blob)
         # Untouched fields stay byte-identical; a sweep must not rewrite the dossier.
-        self.assertEqual(dossier["hotSpots"][0]["rationale"], "changes weekly")
-        self.assertEqual(dossier["contexts"], [{"name": "billing"}])
+        self.assertEqual(dossier["hotSpots"][0]["note"], "changes weekly")
+        self.assertEqual(dossier["contexts"][0]["name"], "billing")
+
+    def test_every_string_field_the_model_declares_is_swept(self) -> None:
+        """One secret, one field at a time, for every free-text field the models have.
+
+        Adding a string field to DossierFinding or Objective without teaching the
+        sweep about it fails HERE, which is the only place that can notice."""
+        for holder, model, build in (
+            ("riskAreas", DossierFinding, lambda **kw: RepoDossier(risk_areas=[DossierFinding(**kw)])),
+            ("hotSpots", DossierFinding, lambda **kw: RepoDossier(hot_spots=[DossierFinding(**kw)])),
+            ("candidateObjectives", Objective, lambda **kw: RepoDossier(candidate_objectives=[Objective(**kw)])),
+        ):
+            for name, field in model.model_fields.items():
+                if field.annotation is not str:
+                    continue
+                with self.subTest(holder=holder, field=name):
+                    dossier = build(**{name: f"leaked {FAKE_AWS_KEY} here"}).model_dump(by_alias=True)
+                    self.assertEqual(redact_dossier(dossier), 1)
+                    self.assertNotIn(FAKE_AWS_KEY, json.dumps(dossier))
 
     def test_a_clean_dossier_reports_zero_and_is_unchanged(self) -> None:
-        clean = {
-            "maintainerLoadEstimate": "two maintainers, steady cadence",
-            "riskAreas": [{"ref": "src/pay.ts", "rationale": "no tests"}],
-            "hotSpots": [],
-            "candidateObjectives": [],
-            "existingKpis": ["src/analytics/kpi.ts"],
-        }
+        clean = RepoDossier(
+            maintainer_load_estimate="two maintainers, steady cadence",
+            risk_areas=[DossierFinding(ref="src/pay.ts", note="no tests")],
+            existing_kpis=["src/analytics/kpi.ts"],
+        ).model_dump(by_alias=True)
         before = json.dumps(clean, sort_keys=True)
         self.assertEqual(redact_dossier(clean), 0)
         self.assertEqual(json.dumps(clean, sort_keys=True), before)
