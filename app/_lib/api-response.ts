@@ -1341,6 +1341,13 @@ export const REFUSAL_ERRORS = {
    *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
    *  stop trying, not to retry, so the sentence says so. */
   COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
+  /** The per-candidate ATS export refused because the entry was ANONYMIZED (410).
+   *  A DECISION, not "not found": the operator can still see the masked row on the
+   *  board, so a 404 would deny an erasure the product performed on purpose.
+   *  `buildAtsRecord` (ats-record.ts) refuses through the shared consent predicates;
+   *  the route surfaces that refusal under its own code instead of the 404 the
+   *  missing-entry branch answers. */
+  ATS_CANDIDATE_ERASED: "This candidate's data was erased and cannot be exported.",
   // ---- Interview-prep refusals (/perfect wave 37, lib-voice-interview-11).
   // The five write verbs of /api/interview-prep answered bare English sentences with
   // no code, while their voice twins next door had been coded since 2026-09-02. The

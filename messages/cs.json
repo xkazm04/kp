@@ -1690,6 +1690,7 @@
     "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
     "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu.",
     "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat.",
+    "ATS_CANDIDATE_ERASED": "Údaje tohoto kandidáta byly vymazány a nelze je exportovat.",
     "INTERVIEW_PREP_NOT_FOUND": "Pro tohoto kandidáta zatím neexistuje příprava na pohovor. Nejdřív ji vygenerujte.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Vyberte alespoň jednu otázku, kterou chcete přidat do přípravy.",
     "INTERVIEW_PREP_QUESTION_REQUIRED": "Určete, kterou otázku chcete přesunout.",

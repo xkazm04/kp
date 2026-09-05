@@ -1690,6 +1690,7 @@
     "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
     "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again.",
     "COMMS_SUPPRESSED": "This candidate can no longer be contacted.",
+    "ATS_CANDIDATE_ERASED": "This candidate's data was erased and cannot be exported.",
     "INTERVIEW_PREP_NOT_FOUND": "There is no interview prep pack for this candidate yet. Generate it first.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Pick at least one question to add to the prep pack.",
     "INTERVIEW_PREP_QUESTION_REQUIRED": "Say which question to move.",
