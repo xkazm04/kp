@@ -10,6 +10,7 @@ import {
   validateDecisionConfig,
 } from "./decision-config-schema";
 import { normalizeRegimeId, type RegimeId } from "./compliance-regimes";
+import { invalidateAnalyticsWorkspace } from "./analytics-cache";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 
 // Phase 3 — data-driven decision rules per pipeline phase, replacing the
@@ -300,6 +301,31 @@ export function setDecisionConfig(
     writeConfigRow(d, phase, config, workspaceId, scope);
   });
   tx.immediate();
+  retireAnalyticsMemo(workspaceId);
+}
+
+/**
+ * The analytics memo is keyed by (workspace, window, WRITE VERSION), and until this call
+ * the version was bumped only by /api/analytics/targets and /api/analytics/spend. But the
+ * memoized payload READS this store: `pipelineAnalytics` resolves the board's stage axis
+ * through `getPipelineAxis` → `getDecisionConfig("pipelineStages")` (db/analytics.ts:384,
+ * :942). So saving the board shape in Settings → Hiring changed how every funnel figure is
+ * grouped while the panel kept serving figures grouped the OLD way for the whole TTL — not
+ * a visibly stale number, which is survivable, but a consistent and wrong one beside the
+ * new settings. `analytics-config-independence.test.ts` is what refuses to let that edge
+ * exist without this call.
+ *
+ * Called AFTER the transaction commits, never inside it: it touches an in-memory map, and
+ * a bump for a write that then rolls back would throw away good payloads for nothing.
+ *
+ * ORG-SCOPE HONESTY: this retires the WRITER's workspace. An org-tier save changes the
+ * baseline every team inherits, and the tenants are not enumerable from here — those teams
+ * pick the change up on the next read past the TTL (seconds), which is the ordinary
+ * staleness the memo was designed around. What is fixed is the case the TTL argument never
+ * covered: the editor's own immediate `reload()`.
+ */
+function retireAnalyticsMemo(workspaceId: string): void {
+  invalidateAnalyticsWorkspace(workspaceId);
 }
 
 /**
@@ -353,7 +379,9 @@ export function updateDecisionConfig<T = Record<string, unknown>>(
     }
     return writeConfigRow(d, phase, mutate(current), workspaceId, scope) as T;
   });
-  return tx.immediate();
+  const written = tx.immediate();
+  retireAnalyticsMemo(workspaceId);
+  return written;
 }
 
 export function getAllDecisionConfigs(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, unknown> {

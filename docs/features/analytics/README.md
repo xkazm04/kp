@@ -849,6 +849,22 @@ every window of the written workspace is retired at once and no sibling tenant's
 collateral. Pinned end-to-end by `app/api/analytics/analytics-write-invalidates-read.test.ts`,
 which drives the real handlers: write, then read, and the read must carry the new figure.
 
+**And so does a decision-config save — the third write door, found by asking which writes the
+payload actually reads.** The memoized payload resolves the board's stage axis through
+`getPipelineAxis` → `getDecisionConfig("pipelineStages")` (`app/_lib/db/analytics.ts:384`,
+`:942`), so saving the board shape in Settings → Hiring changes how every funnel figure is
+grouped. Nothing bumped the write version for it, and the panel kept serving figures grouped the
+OLD way for the whole TTL: not a visibly stale number but a consistent, wrong one beside the new
+settings. `setDecisionConfig` and `updateDecisionConfig` now retire the writer's memo after the
+transaction commits (`app/_lib/decision-config-store.ts`). An ORG-tier save changes the baseline
+every team inherits and the tenants are not enumerable there, so sibling teams still pick it up
+on the next read past the TTL — the ordinary staleness the memo was designed around; what is
+fixed is the editor's own immediate `reload()`. The invariant is held as a CONDITIONAL by
+`app/_lib/analytics-config-independence.test.ts` — the payload may reach the config store only if
+the config writers bump the version — over a static import walk, so an edge added five modules
+deep fails it; the behavioural half (a save really bumps, a refused save does not) is in
+`decision-config-isolation.test.ts`.
+
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
 `analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,

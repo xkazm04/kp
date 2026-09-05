@@ -11,6 +11,7 @@ import {
   type ScreeningRule,
 } from "./decision-config-store.ts";
 import { SCREENING_DEFAULT } from "./decision-config-schema.ts";
+import { analyticsWriteVersion } from "./analytics-cache.ts";
 import type { InterviewPlanRule } from "./decision-config-schema.ts";
 
 after(() => cleanupUnitDb());
@@ -283,4 +284,40 @@ test("a healthy store reports ok, so the ledger is not a permanent alarm", () =>
   setDecisionConfig("screening", { autoRejectEnabled: true, rejectBottomPercent: 15, maxMatchToReject: 35 }, "ws-healthy", "team");
   assert.equal(getDecisionConfig<ScreeningRule>("screening", "ws-healthy").rejectBottomPercent, 15);
   assert.deepEqual(getDecisionConfigHealth(), { ok: true, total: 0, issues: [] });
+});
+
+// --- the config save retires the analytics memo (wave 41 D1) ------------------------
+//
+// The behavioural half of `analytics-config-independence.test.ts`. That file proves the
+// OBLIGATION statically (the memoized /api/analytics payload reads this store for the
+// board's stage axis, so a save must bump the memo's write version); this proves the bump
+// actually happens, through the real writers rather than by reading the source.
+
+test("saving a config bumps the analytics write version for that workspace", () => {
+  const ws = "ws-memo-bump";
+  const before = analyticsWriteVersion(ws);
+  const otherBefore = analyticsWriteVersion("ws-memo-other");
+
+  setDecisionConfig("screening", { autoRejectEnabled: true, rejectBottomPercent: 21, maxMatchToReject: 41 }, ws, "team");
+  const afterSet = analyticsWriteVersion(ws);
+  assert.ok(afterSet > before, "setDecisionConfig must retire this workspace's memoized analytics payloads");
+
+  // The calibration apply-threshold path writes through updateDecisionConfig, not
+  // setDecisionConfig, and it is the one that moves the family floors.
+  updateDecisionConfig<ScreeningRule>("screening", (cur) => ({ ...cur, rejectBottomPercent: 22 }), ws, "team");
+  assert.ok(analyticsWriteVersion(ws) > afterSet, "updateDecisionConfig must retire them too");
+
+  // Per workspace, never a global clear: retiring one tenant's payloads must not throw
+  // away every other tenant's fresh ones (the reason the memo carries a version at all).
+  assert.equal(analyticsWriteVersion("ws-memo-other"), otherBefore, "another workspace's memo is untouched");
+});
+
+test("a REFUSED save does not retire the memo", () => {
+  // The bump runs after the transaction commits. A validation failure or a stale-token
+  // rejection changed nothing, so throwing away good payloads for it would be pure cost.
+  const ws = "ws-memo-refused";
+  setDecisionConfig("screening", { autoRejectEnabled: true, rejectBottomPercent: 30, maxMatchToReject: 50 }, ws, "team");
+  const settled = analyticsWriteVersion(ws);
+  assert.throws(() => setDecisionConfig("screening", { autoRejectEnabled: "yes" }, ws, "team"), /autoRejectEnabled/);
+  assert.equal(analyticsWriteVersion(ws), settled, "a refused write must not retire anything");
 });
