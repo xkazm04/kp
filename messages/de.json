@@ -6444,7 +6444,11 @@
       "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt. Nichts ist verloren gegangen.",
       "chatRateLimited": "Sie haben das Limit für den Assistenten vorerst erreicht. Ihre Arbeit und alles, was Sie geschrieben haben, bleibt erhalten. Arbeiten Sie weiter und versuchen Sie es in ein paar Minuten erneut.",
       "chatDeterministicNote": "Diese Antwort stammt aus dem Offline-Ersatz, nicht von einem Live-Modell. Behandeln Sie sie als Platzhalter und halten Sie Ihre Annahmen im Entscheidungsprotokoll fest.",
-      "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen."
+      "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen.",
+      "clockHm": "{h} Std. {m} Min.",
+      "clockM": "{m} Min.",
+      "clockElapsed": "Zeit für diese Aufgabe: {elapsed} von {timebox}",
+      "clockOver": "Sie sind {over} über dem Zeitrahmen von {timebox}. Sie können weiterhin einreichen; die benötigte Zeit wird mit Ihrer Arbeit erfasst."
     },
     "eyebrow": "Take-Home-Aufgabe",
     "fallbackTitle": "Entwickleraufgabe",
@@ -8830,6 +8834,10 @@
       "skipPerf": "überspringen (nur Einstellung erfassen)",
       "hint": "Speisen Sie die Kalibrierung der Promote-Schwelle mit dem, was wirklich passiert ist",
       "label": "Ergebnis"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} Min. über dem Zeitrahmen",
+      "overTimeboxTitle": "Gemessen ab dem Start der Arbeitssitzung, gegen den Zeitrahmen der Aufgabe. Eine Angabe, keine Ablehnung."
     }
   },
   "rubric": {

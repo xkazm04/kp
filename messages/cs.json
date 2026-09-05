@@ -6444,7 +6444,11 @@
       "restored": "Obnovili jsme vaši neuloženou práci z tohoto zařízení. O nic jste nepřišli.",
       "chatRateLimited": "Momentálně jste vyčerpali limit asistenta. Vaše práce i vše, co jste napsali, zůstává v pořádku. Pokračujte v práci a zkuste to za pár minut znovu.",
       "chatDeterministicNote": "Tato odpověď pochází z offline náhrady, nikoli z živého modelu. Berte ji jako zástupný text a své předpoklady si poznamenejte do deníku rozhodnutí.",
-      "syncBlocked": "Tuto relaci se nepodařilo synchronizovat se serverem. Vaše práce je uložená v tomto zařízení. Spojení obnovíte tak, že načtete stránku znovu z původního odkazu."
+      "syncBlocked": "Tuto relaci se nepodařilo synchronizovat se serverem. Vaše práce je uložená v tomto zařízení. Spojení obnovíte tak, že načtete stránku znovu z původního odkazu.",
+      "clockHm": "{h} h {m} min",
+      "clockM": "{m} min",
+      "clockElapsed": "Čas na tomto zadání: {elapsed} z {timebox}",
+      "clockOver": "Jste {over} po uplynutí časového rámce {timebox}. Odevzdat můžete i tak; váš čas se zaznamená spolu s prací."
     },
     "eyebrow": "Domácí zadání",
     "fallbackTitle": "Vývojářské zadání",
@@ -8830,6 +8834,10 @@
       "skipPerf": "přeskočit (zaznamenat jen nástup)",
       "hint": "Doplňte kalibraci prahu pro posun tím, co se skutečně stalo",
       "label": "Výsledek"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} min nad rámec",
+      "overTimeboxTitle": "Měřeno od začátku pracovní relace proti časovému rámci zadání. Jde o záznam, ne o odmítnutí."
     }
   },
   "rubric": {

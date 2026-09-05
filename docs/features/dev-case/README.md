@@ -521,6 +521,37 @@ codes — finally gets one from the session read. Statuses are unchanged;
 `devcase-candidate-refusals.test.ts` now walks all five candidate doors and
 `session-read.test.ts` asserts the code rather than the English sentence.
 
+**The candidate can see the clock, and a late submission says so.** The brief printed
+"~2h" and the work surface then showed no elapsed time at all, while the server never
+compared a session's age to its timebox. Two different people were blind to the same
+number: the candidate, who could not tell whether they had been working for forty minutes
+or four hours, and the recruiter, for whom a 90-minute attempt and an eight-hour one
+arrived looking identical.
+
+Both halves come from the SAME server-side start time, `dev_sessions.created_at`, so a
+reload, a second device or a restored local draft cannot reset it. The 8s flush
+(`POST /api/devcase/session/[id]`) now answers `elapsedMinutes` alongside `perturbation`;
+`LiveWorkSurface` renders it against the timebox threaded down from the page
+(`timeboxHoursForDisplay`, so the clock and the brief cannot disagree) and ticks it
+locally between flushes. It stays hidden until a session exists: a visitor who is only
+reading the brief has not started anything, and inventing a start time for them would be
+the dishonest half.
+
+Past the box the line changes tone and says the overrun is recorded, and Submit keeps
+working. **A late submission is RECORDED, never refused** — the timebox is advisory, and
+deleting an hour of someone's work over a clock they were never shown is not a policy this
+product has. `POST .../submit` computes the overrun once and `submitDevSession` writes it
+to `dev_submissions.over_timebox_minutes` (an additive, idempotent `ADD COLUMN` inside
+`app/_lib/db/devcase.ts`, the shape `skill-profiles.ts` and `agents.ts` already use).
+Three states, deliberately distinct: `null` = not measured (a repo-link or webhook
+submission, or a row predating the column), `0` = measured and inside the box, `n > 0` =
+`n` minutes over. `DevSubmissionRow` shows the third and stays silent for the other two,
+because "inside the box" is the expected case and "not measured" is not a fact about the
+candidate. `app/_lib/db/devcase-over-timebox.test.ts` pins all three plus idempotence (a
+double-clicked finalize must not inflate the recorded overrun), and
+`devcase-timebox-ui.test.ts` now also guards the candidate page and `DevHelpers.ts`
+against re-typing a timebox literal.
+
 **The live finalize is a real intake, not a store call.** `POST
 /api/devcase/session/[id]/submit` used to call `submitDevSession` and stop there, while
 both sibling doors — the public webhook `inbound/route.ts` and the internal
@@ -1541,7 +1572,9 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   (`app/_lib/db/devcase.ts`) has no expiry column, so only `status === "closed"`
   invalidates a link.
 - `case.timeboxHours` is advisory — nothing on the server enforces it, so a session can
-  stay open indefinitely.
+  stay open indefinitely. It is now MEASURED rather than enforced (see "The candidate can
+  see the clock" below): the finalize door records how far past the box the attempt ran
+  and never refuses one.
 - The Define-need pane reads a task's result through `useTaskResult`, which gives up after
   `RESULT_FETCH_MAX_ATTEMPTS` failed `GET /api/tasks/[id]` calls. Both watches
   (`useDevTabNeedAnalysis.ts`) now honour that `resultUnavailable` flag, so a run that

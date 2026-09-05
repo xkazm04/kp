@@ -6444,7 +6444,11 @@
       "restored": "We restored your unsaved work from this device. Nothing was lost.",
       "chatRateLimited": "You've reached the assistant limit for now. Your work and everything you've written are safe. Keep working and try again in a few minutes.",
       "chatDeterministicNote": "This reply came from the offline stand-in, not a live model. Treat it as a placeholder and note your assumptions in the decision log.",
-      "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device. Reload the page from your original link to reconnect."
+      "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device. Reload the page from your original link to reconnect.",
+      "clockHm": "{h}h {m}m",
+      "clockM": "{m}m",
+      "clockElapsed": "Time on this assignment: {elapsed} of {timebox}",
+      "clockOver": "You are {over} past the {timebox} timebox. You can still submit; the time you took is recorded with your work."
     },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
@@ -8830,6 +8834,10 @@
       "skipPerf": "skip (record hire only)",
       "hint": "Feed the promote-floor calibration with what actually happened",
       "label": "Outcome"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} min over the timebox",
+      "overTimeboxTitle": "Measured from the start of the work session against the assignment timebox. A record, not a rejection."
     }
   },
   "rubric": {

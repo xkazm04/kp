@@ -6444,7 +6444,11 @@
       "restored": "Nous avons restauré votre travail non enregistré depuis cet appareil. Rien n’a été perdu.",
       "chatRateLimited": "Vous avez atteint la limite de l’assistant pour le moment. Votre travail et tout ce que vous avez écrit sont intacts. Continuez à travailler et réessayez dans quelques minutes.",
       "chatDeterministicNote": "Cette réponse provient du substitut hors ligne, pas d’un modèle en direct. Considérez-la comme un texte provisoire et notez vos hypothèses dans le journal de décisions.",
-      "syncBlocked": "Nous n’avons pas pu synchroniser cette session avec le serveur. Votre travail est enregistré sur cet appareil. Rechargez la page depuis votre lien d’origine pour vous reconnecter."
+      "syncBlocked": "Nous n’avons pas pu synchroniser cette session avec le serveur. Votre travail est enregistré sur cet appareil. Rechargez la page depuis votre lien d’origine pour vous reconnecter.",
+      "clockHm": "{h} h {m} min",
+      "clockM": "{m} min",
+      "clockElapsed": "Temps passé sur cet exercice : {elapsed} sur {timebox}",
+      "clockOver": "Vous dépassez de {over} le temps imparti de {timebox}. Vous pouvez toujours soumettre ; le temps passé est enregistré avec votre travail."
     },
     "eyebrow": "Exercice à domicile",
     "fallbackTitle": "Exercice pour développeur",
@@ -8830,6 +8834,10 @@
       "skipPerf": "passer (n'enregistrer que l'embauche)",
       "hint": "Alimentez le calibrage du seuil de promotion avec ce qui s'est réellement passé",
       "label": "Résultat"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} min au-delà du temps imparti",
+      "overTimeboxTitle": "Mesuré depuis le début de la session de travail, par rapport au temps imparti de l'exercice. Une information, pas un refus."
     }
   },
   "rubric": {

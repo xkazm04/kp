@@ -189,6 +189,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // and record the reveal SERVER-SIDE as a chained "perturbation" event (clients
     // can't submit that kind — see KINDS above — so the reveal moment is trustworthy).
     // Already-fired sessions keep receiving the text so a reload re-renders the banner.
+    // The clock the candidate could not see. The brief says "2h" and then the surface
+    // never showed elapsed time, so the only person who knew how long they had been
+    // working was the one least able to judge it. Server truth (the session's own
+    // createdAt), carried on the flush the surface already makes every 8s, so a reload
+    // or a second device cannot restart it. Advisory: nothing here refuses anything.
+    const startedAt = Date.parse(session.createdAt);
+    const elapsedMinutes = Number.isFinite(startedAt) ? Math.max(0, Math.round((Date.now() - startedAt) / 60_000)) : null;
+
     let perturbation: string | null = null;
     const mfu = session.token ? midFlightUpdateForToken(session.token) : null;
     if (mfu) {
@@ -200,7 +208,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    return NextResponse.json({ ok: true, seq, perturbation });
+    return NextResponse.json({ ok: true, seq, perturbation, elapsedMinutes });
   } catch (error) {
     // A PUBLIC candidate door: never the store's own message. The surface keeps the
     // batch buffered and the draft on the device, so this reads as "not saved yet".

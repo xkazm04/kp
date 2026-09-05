@@ -124,6 +124,12 @@ export type Submission = {
    *  without it the "recorded" state lived only in SubmissionRow and any remount
    *  re-offered the buttons, double-counting re-records in calibration. */
   outcome?: { outcome: "hired" | "rejected" | "withdrawn" | "pending"; performance: number | null; recordedAt: string } | null;
+  /** Minutes past the case timebox, measured server-side at finalize (/perfect wave
+   *  42a). 0 = measured and inside the box, null = not measured (a repo-link
+   *  submission, or a row written before the column existed). A recruiter comparing
+   *  two submissions is otherwise comparing a 90-minute attempt with an eight-hour one
+   *  and cannot tell. */
+  overTimeboxMinutes?: number | null;
 };
 export type Posting = {
   id: string;

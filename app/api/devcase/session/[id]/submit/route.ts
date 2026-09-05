@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { getDevSession, getPostingByToken, submitDevSession } from "@/app/_lib/db/devcase";
+import { getDevCase, getDevSession, getPostingByToken, submitDevSession } from "@/app/_lib/db/devcase";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { submissionReference } from "@/app/_lib/devcase-reference";
+import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // THROTTLE (session-intake-guards.test.ts, rate-limit-contract.test.ts). Since this
@@ -88,9 +89,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // candidate who double-clicked must not start a second evaluation pass.
     const alreadyFinalized = Boolean(session.submissionId);
 
+    // How far past the timebox this attempt ran, measured HERE because only the route
+    // can see the case behind the posting. RECORDED, never a refusal: the timebox is
+    // advisory (docs/features/dev-case/README.md, Known gaps), and turning it into a
+    // wall would delete an hour of a candidate's work over a clock they cannot see.
+    // What it buys the recruiter is the comparison the submission list could not make:
+    // a 90-minute attempt and an eight-hour one are not the same exercise. 0 means
+    // measured and inside the box; null means not measured at all.
+    const kase = posting.caseId ? (getDevCase(posting.caseId)?.case as { timeboxHours?: unknown } | null) : null;
+    // The CLAMPED hours, the same number the candidate was shown on the brief -
+    // devcase-timebox.ts is the single producer of any timebox a human reads.
+    const timeboxMinutes = Math.round(timeboxHoursForDisplay(kase?.timeboxHours) * 60);
+    const startedAt = Date.parse(session.createdAt);
+    const elapsedMinutes = Number.isFinite(startedAt) ? Math.max(0, Math.round((Date.now() - startedAt) / 60_000)) : null;
+    const overTimeboxMinutes = elapsedMinutes == null ? null : Math.max(0, elapsedMinutes - timeboxMinutes);
+
     // Seal first, in ONE transaction (submitDevSession) — the candidate's work is what
     // this request exists to protect, and the link is what makes a retry idempotent.
-    const submission = submitDevSession(id, posting.id, { candidate: candidateRef, contact: contact ?? null });
+    const submission = submitDevSession(id, posting.id, { candidate: candidateRef, contact: contact ?? null, overTimeboxMinutes });
     if (!submission) {
       return safeJsonError(
         new Error(`submitDevSession returned null for session ${id}`),

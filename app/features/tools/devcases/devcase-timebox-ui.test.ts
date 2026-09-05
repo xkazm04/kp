@@ -22,7 +22,17 @@ import path from "node:path";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(path.join(here, f), "utf8");
 
-const TIMEBOX_FILES = ["DevAnalysisDesignCard.tsx", "DevLifecycleReviewPanel.tsx"] as const;
+// The two recruiter surfaces this guard was written for, plus the two readers it never
+// covered (/perfect wave 42a): the CANDIDATE page - the one document where a wrong
+// timebox is actually handed to a person - and DevHelpers.caseToMarkdown, which renders
+// the "~Nh timebox" line inside it. Both already resolve through the shared module;
+// nothing stopped either from re-typing a literal tomorrow.
+const TIMEBOX_FILES = [
+  "DevAnalysisDesignCard.tsx",
+  "DevLifecycleReviewPanel.tsx",
+  "DevHelpers.ts",
+  "../../../devcase/apply/[token]/page.tsx",
+] as const;
 
 test("no timebox UI file carries a timebox number of its own", () => {
   for (const file of TIMEBOX_FILES) {

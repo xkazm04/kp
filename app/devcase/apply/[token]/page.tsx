@@ -120,7 +120,15 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
           surface (it grades the observed process and now carries identity); a case
           with no workspace submits through the repo-link form. Never both at once. */}
       {seedFiles.length > 0 ? (
-        <LiveWorkSurface token={token} seedFiles={seedFiles} note={seedNote} />
+        <LiveWorkSurface
+          token={token}
+          seedFiles={seedFiles}
+          note={seedNote}
+          // The SAME clamped number the brief above prints (assignment.timebox), so the
+          // clock inside the surface and the sentence the candidate read cannot disagree.
+          // devcase-timebox.ts is the single producer; this page never types a number.
+          timeboxHours={timeboxHoursForDisplay(kase?.timeboxHours)}
+        />
       ) : (
         <section className={`mt-6 ${PANEL_SUNKEN} p-4`}>
           <h2 className="font-serif text-h3 text-ink">{t("submitHeading")}</h2>

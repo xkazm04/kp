@@ -459,6 +459,13 @@ export type DevSubmission = {
   evaluation: unknown;
   transferScore: number | null;
   receivedAt: string;
+  /** How many minutes past the case timebox this attempt ran, measured SERVER-SIDE at
+   *  finalize from the session's createdAt (/perfect wave 42a). 0 = measured and inside
+   *  the box; null = not measured (a repo-link submission, or a row written before the
+   *  column existed). A late submission is RECORDED, never refused: the timebox is
+   *  advisory, and a recruiter who cannot tell a 90-minute attempt from an eight-hour
+   *  one is comparing two different exercises. */
+  overTimeboxMinutes: number | null;
   // The owning tenant, surfaced for the same reason PipelineEntry.workspaceId is:
   // getSubmission is a by-id point read (globally-unique id, so exempt from
   // WHERE-scoping), but promoteSubmission then WRITES a pipeline entry, an
@@ -479,6 +486,7 @@ function rowToSubmission(r: Record<string, unknown>): DevSubmission {
     evaluation: safeRowParse(r.eval_json as string | null, "submission.eval", r.id as string),
     transferScore: r.transfer_score == null ? null : Number(r.transfer_score),
     receivedAt: r.received_at as string,
+    overTimeboxMinutes: r.over_timebox_minutes == null ? null : Number(r.over_timebox_minutes),
     workspaceId: ((r.workspace_id as string) ?? null) || DEFAULT_WORKSPACE_ID,
   };
 }
@@ -758,6 +766,27 @@ export function getPostingByToken(token: string): Posting | null {
   return r ? rowToPosting(r) : null;
 }
 
+/** ensureDb() plus a one-time, idempotent ADD COLUMN for over_timebox_minutes. The
+ *  additive DDL lives in THIS store rather than core.ts, the same shape
+ *  skill-profiles.ts and agents.ts already use, and the guard is bound to the db
+ *  INSTANCE so a reset connection (tests) re-applies it. Existing rows stay NULL,
+ *  which is the honest reading: not measured, as opposed to 0 = measured, inside the
+ *  box. Every read and write of dev_submissions goes through here so a fresh
+ *  read-only process still sees the column. */
+function submissionStore() {
+  const db = ensureDb();
+  const marked = db as unknown as { __kpDevSubmissionOverTimebox?: boolean };
+  if (!marked.__kpDevSubmissionOverTimebox) {
+    try {
+      db.exec(`ALTER TABLE dev_submissions ADD COLUMN over_timebox_minutes INTEGER`);
+    } catch {
+      /* column already exists - idempotent, the same benign path core.ts migrateExec takes */
+    }
+    marked.__kpDevSubmissionOverTimebox = true;
+  }
+  return db;
+}
+
 // Atomic, idempotent on (posting, candidate, repo): the UNIQUE index +
 // ON CONFLICT DO NOTHING make a concurrent double-submit impossible at the DB
 // level (no read-then-write race). `created` is false when the row already
@@ -768,8 +797,11 @@ export function createSubmission(input: {
   repoRef: string;
   notes?: string;
   contact?: string;
+  /** Minutes past the case timebox, measured at finalize; omitted for the repo-link
+   *  and webhook paths, which have no observed session to measure. */
+  overTimeboxMinutes?: number | null;
 }): { submission: DevSubmission; created: boolean } {
-  const db = ensureDb();
+  const db = submissionStore();
   const now = new Date().toISOString();
   const id = randomId("sub");
   // Tenant (P1): a submission inherits the posting's workspace (by-id read of the posting).
@@ -777,11 +809,11 @@ export function createSubmission(input: {
   const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
   const info = db
     .prepare(
-      `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at, workspace_id)
-       VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
+      `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at, workspace_id, over_timebox_minutes)
+       VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?, ?)
        ON CONFLICT DO NOTHING`
     )
-    .run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now, workspaceId);
+    .run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now, workspaceId, input.overTimeboxMinutes ?? null);
   const created = Number(info.changes) > 0;
   // Re-select the canonical row: ours if just created, otherwise the row that
   // won the race / was inserted earlier.
@@ -803,7 +835,7 @@ export function createSubmission(input: {
 const SUBMISSION_LIST_LIMIT = 500;
 
 export function listSubmissions(postingId?: string, workspaceId: string = DEFAULT_WORKSPACE_ID, limit = SUBMISSION_LIST_LIMIT): DevSubmission[] {
-  const db = ensureDb();
+  const db = submissionStore();
   const rows = (
     postingId
       ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? AND workspace_id = ? ORDER BY received_at DESC`).all(postingId, workspaceId)
@@ -819,7 +851,7 @@ export function countSubmissions(workspaceId: string = DEFAULT_WORKSPACE_ID): nu
 }
 
 export function getSubmission(id: string): DevSubmission | null {
-  const db = ensureDb();
+  const db = submissionStore();
   const r = db.prepare(`SELECT * FROM dev_submissions WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
   return r ? rowToSubmission(r) : null;
 }
@@ -1212,9 +1244,12 @@ export function getDevCaseBaseline(id: string): unknown {
 export function submitDevSession(
   id: string,
   postingId: string,
-  identity?: { candidate?: string | null; contact?: string | null }
+  identity?: { candidate?: string | null; contact?: string | null; overTimeboxMinutes?: number | null }
 ): DevSubmission | null {
   const db = ensureDb();
+  // Apply the additive column BEFORE the transaction opens: DDL inside an open write
+  // transaction is legal in SQLite but there is no reason to hold the write lock for it.
+  submissionStore();
   // ONE transaction over read-check-create-link: previously these were three
   // statements with no atomicity, so a crash between createSubmission and the
   // submission_id UPDATE left the session permanently 'active' with an orphan
@@ -1234,6 +1269,9 @@ export function submitDevSession(
       // then the anonymous fallback.
       candidateRef: identity?.candidate?.trim() || session.candidateRef || "live-session",
       contact: identity?.contact?.trim() || undefined,
+      // Measured by the caller against the session's own createdAt, because only the
+      // route can see the case behind the posting. Recorded, never a reason to refuse.
+      overTimeboxMinutes: identity?.overTimeboxMinutes ?? null,
       repoRef: `session:${id}`,
     });
     const now = new Date().toISOString();
