@@ -14,6 +14,7 @@ import { cleanupUnitDb } from "../testing/unit-db.ts";
 import {
   ATS_PROVIDERS,
   AtsConnectionError,
+  AtsConnectionStaleError,
   deleteAtsConnection,
   getAtsConnection,
   getAtsToken,
@@ -115,4 +116,94 @@ test("a refused token store never silently downgrades to plaintext", () => {
   delete process.env.KP_SECRET;
   assert.throws(() => setAtsConnection({ provider: "recruitee", apiToken: TOKEN, fieldMap: MAP }), AtsConnectionError);
   assert.equal(getAtsToken("recruitee"), null);
+});
+
+// OPTIMISTIC CONCURRENCY (/perfect wave 41, api-ats-integration). The egress config store
+// next door has carried a version since 2026-09-03; this one had none, so two operator
+// tabs on the same panel were last-write-wins.
+//
+// NON-VACUITY: pre-fix there was no `version` on the public view and `expectedVersion`
+// was an unread key, so BOTH writes below landed and the assertions on the second one
+// read the loser's values back as the stored state.
+test("every accepted write bumps the version, and the public view carries it", () => {
+  const first = setAtsConnection({ provider: "recruitee", apiToken: TOKEN, fieldMap: MAP });
+  assert.equal(first.version, 1, "a fresh connection is version 1, not 0 — 0 is what a pre-upgrade row backfills to");
+  assert.equal(setAtsConnection({ provider: "recruitee", enabled: false }).version, 2);
+  assert.equal(getAtsConnection("recruitee")?.version, 2);
+});
+
+test("two writers: the one composed against a stale read is DROPPED, not merged", () => {
+  const read = setAtsConnection({ provider: "recruitee", baseUrl: "https://api.recruitee.com", apiToken: TOKEN, fieldMap: MAP });
+
+  // Tab A saves a new field map against the version both tabs read.
+  const tabA = setAtsConnection({
+    provider: "recruitee",
+    fieldMap: { paths: { externalId: "uuid", contact: "emails.0" } },
+    expectedVersion: read.version,
+  });
+  assert.equal(tabA.version, read.version + 1);
+
+  // Tab B still holds the OLD version and only means to park the connection. Pre-fix that
+  // silently reverted tab A's field map.
+  assert.throws(
+    () => setAtsConnection({ provider: "recruitee", enabled: false, expectedVersion: read.version }),
+    AtsConnectionStaleError
+  );
+  const stored = getAtsConnection("recruitee");
+  assert.equal(stored?.fieldMap.paths.contact, "emails.0", "tab A's map survived");
+  assert.equal(stored?.enabled, true, "and tab B's park was dropped whole, not half-applied");
+  assert.equal(stored?.version, tabA.version, "a refused write does not move the version");
+
+  // Re-reading and re-applying works — the panel's documented recovery.
+  assert.equal(setAtsConnection({ provider: "recruitee", enabled: false, expectedVersion: stored!.version }).enabled, false);
+});
+
+test("expectedVersion is optional: a server-internal write with no read to be stale about still lands", () => {
+  setAtsConnection({ provider: "recruitee", apiToken: TOKEN, fieldMap: MAP });
+  assert.equal(setAtsConnection({ provider: "recruitee", enabled: false }).enabled, false);
+  // A version we cannot compare refuses as stale rather than writing blind.
+  assert.throws(() => setAtsConnection({ provider: "recruitee", enabled: true, expectedVersion: "soon" }), AtsConnectionStaleError);
+  assert.throws(() => setAtsConnection({ provider: "recruitee", enabled: true, expectedVersion: -1 }), AtsConnectionStaleError);
+});
+
+// CODED REFUSALS. The route answers `errors.<code>` in the reader's language; the English
+// message stays in the server log. Pre-fix these errors carried no code at all and the
+// route forwarded `.message`, so a Czech operator read canonical English in the panel.
+test("every validation refusal carries the code the route answers with", () => {
+  const codeOf = (fn: () => unknown): string | undefined => {
+    try {
+      fn();
+    } catch (e) {
+      return (e as { code?: string }).code;
+    }
+    return undefined;
+  };
+  assert.equal(codeOf(() => setAtsConnection({ provider: "greenhoose" })), "ATS_CONNECTION_PROVIDER_UNKNOWN");
+  assert.equal(codeOf(() => setAtsConnection({ provider: "recruitee", baseUrl: "http://api.recruitee.com" })), "ATS_CONNECTION_BASE_URL_INVALID");
+  assert.equal(codeOf(() => setAtsConnection({ provider: "recruitee", baseUrl: 7 })), "ATS_CONNECTION_BASE_URL_INVALID");
+  assert.equal(codeOf(() => setAtsConnection({ provider: "recruitee", apiToken: 7 })), "ATS_CONNECTION_TOKEN_INVALID");
+  assert.equal(
+    codeOf(() => setAtsConnection({ provider: "recruitee", fieldMap: { paths: { displayName: "name" } } })),
+    "ATS_FIELD_MAP_INVALID"
+  );
+  delete process.env.KP_ATS_SECRET_KEY;
+  delete process.env.KP_SECRET;
+  assert.equal(codeOf(() => setAtsConnection({ provider: "recruitee", apiToken: TOKEN })), "ATS_CONNECTION_TOKEN_INVALID");
+});
+
+// ROTATION HEALING (Director addendum). A token sealed under the retired key is rewritten
+// under the current one on the next save, so the rotation window closes itself instead of
+// waiting for `npm run secrets:rotate`.
+test("a preserved token sealed under the PREVIOUS key is re-sealed under the current one", () => {
+  process.env.KP_ATS_SECRET_KEY = "the-old-ats-key";
+  setAtsConnection({ provider: "recruitee", apiToken: TOKEN, fieldMap: MAP });
+
+  process.env.KP_ATS_SECRET_KEY = "the-new-ats-key";
+  process.env.KP_ATS_SECRET_KEY_PREVIOUS = "the-old-ats-key";
+  // An unrelated edit that does NOT resend the token.
+  setAtsConnection({ provider: "recruitee", enabled: false });
+
+  delete process.env.KP_ATS_SECRET_KEY_PREVIOUS;
+  assert.equal(getAtsToken("recruitee"), TOKEN, "the row healed itself on the next write");
+  process.env.KP_ATS_SECRET_KEY = "unit-test-ats-key";
 });
