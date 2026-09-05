@@ -173,6 +173,70 @@ export function createRepoScan(
   };
 }
 
+/** How long a reading of a repository is allowed to stand for.
+ *
+ *  It is a claim about the WORLD, not about a cache: a codebase moves, and a
+ *  dossier older than this is a description of a repository that no longer exists.
+ *  Thirty minutes is chosen against the two things it has to sit between — the
+ *  runner's own 15-minute wall-clock budget (so an in-flight scan is still inside
+ *  the window for its whole life, and a row abandoned by a crashed process stops
+ *  blocking new scans shortly after it can no longer be finished) and the operator
+ *  loop this exists for: point kp at an app, compose a role, have the compose fail,
+ *  point it at the same app again. That is minutes, not hours.
+ *
+ *  For a URL target the commit is NOT part of the identity. Learning it means a
+ *  network round trip (`git ls-remote`) that this path deliberately does not spend
+ *  — so the window, not the SHA, is what bounds staleness, and it is stated here
+ *  rather than assumed at a call site. */
+export const REPO_SCAN_REUSE_WINDOW_MS = 30 * 60_000;
+
+/** Mint a row for this target — OR hand back the one that already covers it.
+ *
+ *  The dedupe key used to be the per-POST scan id, which can never match anything,
+ *  so a double-click (or a re-scan after a failed compose) cloned the repository and
+ *  ran the in-repo agent twice and discarded one of the two dossiers. Coalescing has
+ *  to happen HERE, before a row exists: doing it in the task runner instead would
+ *  merge the two TASKS while leaving the second ROW behind at `queued` forever, and
+ *  the row is what the operator polls.
+ *
+ *  This is a read→compute→write whose two callers arrive milliseconds apart by
+ *  construction, so it takes the write lock at BEGIN (`.immediate()`) rather than
+ *  re-checking afterwards: there is no compensating predicate for "somebody else
+ *  already inserted the row I am about to insert".
+ *
+ *  Reusable = same tenant, same resolved target, and either still in flight or
+ *  completed inside `REPO_SCAN_REUSE_WINDOW_MS`. A FAILED scan is never reused —
+ *  retrying a failure is the entire point of retrying — and neither is a row whose
+ *  last write is older than the window, which is what keeps a run abandoned by a
+ *  crashed process from making one repository permanently unscannable.
+ *
+ *  `nowMs` is injectable so the window is testable without waiting out half an hour. */
+export function claimRepoScan(
+  input: { id?: string; repoUrl?: string | null; rootPath?: string | null },
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  nowMs: number = Date.now()
+): { scan: RepoScanRecord; reused: boolean } {
+  const db = ensureDb();
+  const repoUrl = input.repoUrl ?? null;
+  const rootPath = input.rootPath ?? null;
+  const cutoff = new Date(nowMs - REPO_SCAN_REUSE_WINDOW_MS).toISOString();
+  const claim = db.transaction((): { scan: RepoScanRecord; reused: boolean } => {
+    const existing = db
+      .prepare(
+        `SELECT * FROM repo_scans
+          WHERE workspace_id = ? AND repo_url IS ? AND root_path IS ?
+            AND status IN ('queued', 'running', 'complete')
+            AND COALESCE(updated_at, created_at) >= ?
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 1`
+      )
+      .get(workspaceId, repoUrl, rootPath, cutoff) as RepoScanRow | undefined;
+    if (existing) return { scan: rowToScan(existing), reused: true };
+    return { scan: createRepoScan({ id: input.id, repoUrl, rootPath }, workspaceId), reused: false };
+  });
+  return claim.immediate();
+}
+
 export function getRepoScanRecord(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): RepoScanRecord | null {
   const db = ensureDb();
   const row = db.prepare(`SELECT * FROM repo_scans WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as

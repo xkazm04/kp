@@ -325,6 +325,38 @@ queued scan must not outlive the permission that admitted it — then spawns
 outcome onto the row itself, success *and* failure, so a reaped task leaves an
 honest `failed` row rather than one stuck at `running`.
 
+**Two scans of one target do not pay twice.** The `repo_scan` dedupe key used to
+be `repo_scan:<scanId>`, and `startRepoScan` mints a scan id per POST — a key
+unique by construction is a dedupe that can never fire, so a double-click, or the
+far more common "the compose failed, point kp at the same app again", bought a
+second shallow clone plus a second in-repo agent session over the same codebase
+and threw one of the two dossiers away.
+
+Coalescing now happens in front of the row, in `claimRepoScan`
+(`db/repo-scans.ts`), because merging the two TASKS alone would leave the second
+ROW at `queued` forever and the row is what the operator polls. It is a
+read→compute→write that takes the write lock at BEGIN (`.immediate()`), since the
+two POSTs it exists to merge arrive milliseconds apart. A POST is handed the
+existing scan when the tenant and the **resolved** target match and the row is
+either still in flight or completed inside `REPO_SCAN_REUSE_WINDOW_MS`
+(**30 minutes** — chosen to sit above the runner's own 15-minute wall-clock
+budget, so an in-flight scan stays inside the window for its whole life and a row
+abandoned by a crashed process stops blocking new scans shortly after it can no
+longer be finished). A **failed** scan is never reused: retrying a failure is the
+point of retrying. For a URL target the commit is deliberately NOT part of the
+identity — learning it costs a `git ls-remote` this path does not spend — so the
+window, not the SHA, is what bounds staleness.
+
+The dedupe key follows: `repo_scan:<workspaceId>:<repoUrl|rootPath>`. The
+workspace is in it explicitly because a builder only ever sees `params`, and two
+tenants must never share one reading of a codebase.
+
+The response carries `reused`, and `taskId` is `null` for a reused scan that had
+already completed — naming a task that finished before the request arrived is a
+green lie the poller would chase. The intake needs no new state for either: it
+polls `GET /api/repo-scan/[id]` with the returned id, which for a reused complete
+scan answers the dossier on the first poll.
+
 **The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
 of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
 now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
@@ -846,7 +878,7 @@ spec was composed, and it travels with the spec.
 
 | Symbol | Kind | What it is |
 | --- | --- | --- |
-| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId }`. `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
 | `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |

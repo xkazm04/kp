@@ -165,3 +165,28 @@ test("jd_build keys by jdSlug in the backgrounded flow, by input otherwise", () 
 test("an unknown kind has no builder and yields null (safe: forces a unique key)", () => {
   assert.equal(buildDedupeKey("does_not_exist", { anything: 1 }), null);
 });
+
+test("repo_scan keys by tenant + target, so two readings of one repo are one run", () => {
+  // It used to key by the per-POST scan id, which is unique by construction — a key
+  // that can never match anything is a dedupe that never dedupes, and a double-click
+  // cloned the repository and ran the in-repo agent twice.
+  assert.equal(
+    buildDedupeKey("repo_scan", { scanId: "rscan_a", workspaceId: "ws1", repoUrl: "https://github.com/acme/app" }),
+    buildDedupeKey("repo_scan", { scanId: "rscan_b", workspaceId: "ws1", repoUrl: "https://github.com/acme/app" }),
+    "the same target in the same tenant is the same run whatever row asked for it"
+  );
+  // The workspace is IN the key: a builder only ever sees `params`, so without it
+  // two tenants scanning the same public repo would share one run — and a dossier is
+  // a full read of a codebase.
+  assert.notEqual(
+    buildDedupeKey("repo_scan", { scanId: "r1", workspaceId: "ws1", repoUrl: "https://github.com/acme/app" }),
+    buildDedupeKey("repo_scan", { scanId: "r2", workspaceId: "ws2", repoUrl: "https://github.com/acme/app" })
+  );
+  assert.notEqual(
+    buildDedupeKey("repo_scan", { scanId: "r1", workspaceId: "ws1", repoUrl: "https://github.com/acme/app" }),
+    buildDedupeKey("repo_scan", { scanId: "r2", workspaceId: "ws1", rootPath: "/srv/apps/app" })
+  );
+  // No target at all is no identity: a unique key, never a colliding constant.
+  assert.equal(buildDedupeKey("repo_scan", { scanId: "r1", workspaceId: "ws1" }), null);
+  assert.equal(buildDedupeKey("repo_scan", { scanId: "r1", repoUrl: "https://github.com/acme/app" }), null);
+});
