@@ -74,7 +74,7 @@ export function ActivityTab() {
             call in Prague sits in "today" here and in tomorrow's cost column
             there. Two true statements that look like a contradiction until the
             page says which clock each one keeps. */}
-        <p className={`mt-1 max-w-2xl text-meta text-steel`}>{t("tzNote")}</p>
+        <p className="mt-1 max-w-2xl text-meta text-steel">{t("tzNote")}</p>
       </header>
 
       {error ? (
