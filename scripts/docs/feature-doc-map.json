@@ -310,7 +310,7 @@
       "doc": "docs/architecture/voice-stt-package.md",
       "sourceGlobs": [
         "packages/voice-stt/**",
-        "app/_lib/stt.ts",
+        "app/_lib/stt*.ts",
         "app/api/stt/**"
       ]
     },
