@@ -85,9 +85,47 @@ export function upsertAtsLink(
 }
 
 /** Drop a link — used when a connection is removed, so re-connecting re-imports cleanly
- *  rather than silently adopting stale bindings to entries that may have been erased. */
+ *  rather than silently adopting stale bindings to entries that may have been erased.
+ *
+ *  SCOPED to ONE workspace. Correct for a per-tenant cleanup; NOT correct for removing a
+ *  connection, which is installation-level — see deleteAtsLinksForProviderEverywhere. */
 export function deleteAtsLinksForProvider(provider: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   return ensureDb()
     .prepare(`DELETE FROM ats_links WHERE provider = ? AND workspace_id = ?`)
     .run(provider, workspaceId).changes;
+}
+
+/**
+ * Drop a provider's links in EVERY workspace.
+ *
+ * `ats_connections` is keyed by provider alone — one installation, one credential per
+ * ATS, no workspace column (tenancy.ts lists it exempt for exactly that reason), while
+ * `ats_links` IS per-tenant. So deleting a connection through the workspace-scoped
+ * function above forgot the caller's own links and left every OTHER workspace bound to a
+ * provider whose credential no longer exists: a re-connect then adopted their stale
+ * bindings silently — the failure mode the opt-in `forgetLinks` question exists to
+ * prevent — while telling the operator a count that only covered their own team.
+ *
+ * The org-wide drop is the honest counterpart of an org-wide delete. Kept as a SEPARATE
+ * function rather than a flag so no caller reaches installation-wide scope by accident.
+ */
+export function deleteAtsLinksForProviderEverywhere(provider: string): number {
+  return ensureDb().prepare(`DELETE FROM ats_links WHERE provider = ?`).run(provider).changes;
+}
+
+/**
+ * Drop every link pointing at ONE entry, in one workspace.
+ *
+ * The erasure counterpart. `ats_links` holds the entry-id ↔ vendor-id join, which is an
+ * identity join: after an entry is anonymized the row still says "this kp record is
+ * Recruitee application 907", so a re-sync re-attaches the vendor's copy of the name and
+ * contact to the very record the erasure emptied. Scrubbing the entry's PII columns
+ * without scrubbing this leaves the re-identification path open.
+ *
+ * Workspace-scoped, like every other read here: an entry belongs to exactly one.
+ */
+export function deleteAtsLinksForEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  return ensureDb()
+    .prepare(`DELETE FROM ats_links WHERE entry_id = ? AND workspace_id = ?`)
+    .run(entryId, workspaceId).changes;
 }
