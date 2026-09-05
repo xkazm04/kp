@@ -3,6 +3,12 @@ import { AtsConfigError, AtsConfigStaleError, getAtsConfig, setAtsConfig } from 
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+
+// A webhook config body is one URL, one secret and a short event list. 16 KB is far more
+// than any real one and still refuses a body sent purely to make the server hold it.
+// Measured on the bytes read off the wire, not on the advisory content-length header.
+const MAX_CONFIG_BODY_BYTES = 16 * 1024;
 
 
 // P1-5 — read / update the outbound-webhook integration config. The GET never
@@ -31,13 +37,14 @@ export async function POST(request: NextRequest) {
   // recruiters and viewers do not hold.
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
   if (under) return under;
+  const body = await readJsonWithLimit<{
+    webhookUrl?: unknown;
+    webhookSecret?: unknown;
+    events?: unknown;
+    expectedVersion?: unknown;
+  }>(request, MAX_CONFIG_BODY_BYTES, {});
+  if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_CONFIG_BODY_BYTES });
   try {
-    const body = (await request.json()) as {
-      webhookUrl?: unknown;
-      webhookSecret?: unknown;
-      events?: unknown;
-      expectedVersion?: unknown;
-    };
     // `expectedVersion` is the version the panel READ (GET's `config.version`). The write
     // is a PARTIAL update now, but the two fields it does carry are still a replace, so
     // without this a second tab (or a second operator) silently dropped the event

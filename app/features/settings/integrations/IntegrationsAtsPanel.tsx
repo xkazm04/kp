@@ -78,8 +78,14 @@ export function IntegrationsAtsPanel() {
       //                         that only meant to park the connection, and a park re-ran
       //                         the SSRF check on a URL the store had already vetted.
       //   • baseUrl blanked   → an explicit null, so clearing it still works.
+      //   • expectedVersion  → the version this panel READ. The store re-asserts it inside
+      //                         the write lock, so a save composed against a connection a
+      //                         second tab has since replaced is refused (409) instead of
+      //                         reverting their field map. Omitted for a first connect,
+      //                         which has nothing to be stale about.
       const trimmedUrl = baseUrl.trim();
       const body: Record<string, unknown> = { provider: active, enabled };
+      if (existing) body.expectedVersion = existing.version;
       if (trimmedUrl !== (existing?.baseUrl ?? "")) body.baseUrl = trimmedUrl || null;
       if (apiToken.trim()) body.apiToken = apiToken.trim();
       const r = await fetch("/api/ats/connections", {
@@ -97,7 +103,17 @@ export function IntegrationsAtsPanel() {
       // surfaced verbatim — but `error` is canonical English, so every non-en operator got
       // an English string. The detail stays in the server log; the operator gets a message
       // in their language, from the code when the route ships one.
-      if (!r.ok || !p.ok) throw new Error(errMsg(p, t("saveFailed")));
+      if (!r.ok || !p.ok) {
+        // A stale write changed nothing, and the operator's next step is to see what IS
+        // stored — so re-read and let the fields re-prefill from it, rather than leaving
+        // them showing a version the server has already rejected. The message itself
+        // still comes from the code, in the reader's language.
+        if (p.code === "ATS_CONNECTION_STALE") {
+          setPrefilledFor(null);
+          reload();
+        }
+        throw new Error(errMsg(p, t("saveFailed")));
+      }
       setApiToken("");
       // Adopt the store's parse-normalized URL — "https://x.example.com" comes back as
       // "https://x.example.com/" — so the next save compares the field against what is

@@ -19,6 +19,7 @@ import { GET as configGet, POST as configPost } from "./config/route.ts";
 import { POST as testPost } from "./test/route.ts";
 import { GET as candidateGet } from "./candidate/[id]/route.ts";
 import { GET as deliveriesGet, POST as deliveriesPost } from "./deliveries/route.ts";
+import { GET as connectionsGet, POST as connectionsPost, DELETE as connectionsDelete } from "./connections/route.ts";
 
 after(() => cleanupUnitDb());
 afterEach(() => {
@@ -47,6 +48,15 @@ test("gated: every ATS handler refuses a non-operator (password set, no operator
     ["GET candidate", () => candidateReq("pe-any")],
     ["GET deliveries", () => deliveriesGet()],
     ["POST deliveries", () => deliveriesPost()],
+    // The INBOUND connections door holds a credential that reads every candidate in the
+    // customer's ATS account — the most dangerous secret on this surface, and the one
+    // handler this list never covered.
+    ["GET connections", () => connectionsGet()],
+    ["POST connections", () => connectionsPost(jsonPost("http://localhost/api/ats/connections", { provider: "recruitee" }))],
+    [
+      "DELETE connections",
+      () => connectionsDelete(new NextRequest("http://localhost/api/ats/connections?provider=recruitee", { method: "DELETE" })),
+    ],
   ];
   for (const [name, call] of attempts) {
     const res = await call();
@@ -67,6 +77,12 @@ test("open mode (no operator password): the ATS handlers serve the local operato
 
   const candidate = await candidateReq("pe-nonexistent");
   assert.equal(candidate.status, 404, "a missing entry is 404, not 401 — the gate admitted the operator");
+  // …and that 404 answers a CODE now: this door serves a connector AND the operator UI,
+  // and it used to answer the bare English sentence "Candidate not found."
+  assert.equal(((await (await candidateReq("pe-nonexistent")).json()) as { code?: string }).code, "ATS_CANDIDATE_NOT_FOUND");
+
+  const connections = await connectionsGet();
+  assert.equal(connections.status, 200);
 
   const deliveriesList = await deliveriesGet();
   assert.equal(deliveriesList.status, 200);

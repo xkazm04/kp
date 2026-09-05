@@ -37,7 +37,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return jsonRefusal("ATS_CANDIDATE_ERASED", 410);
   }
   if (!record) {
-    return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
+    // Coded, not a bare English sentence: this door answers a connector AND the operator
+    // UI, and one vocabulary is the contract (.claude/CLAUDE.md). Deliberately ONE code
+    // for "never existed" and "belongs to another team" - indistinguishable to a caller
+    // who does not hold the entry, which is the tenancy property the comment above records.
+    return jsonRefusal("ATS_CANDIDATE_NOT_FOUND", 404);
   }
   // GDPR read-time consent gate. The `anonymizeExpiredConsents` sweep DOES run (the
   // clock calls it every tick — instrumentation-node.ts), but it is best-effort and

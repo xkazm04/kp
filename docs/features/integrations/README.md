@@ -119,6 +119,15 @@ neither may block:
   /api/calendar/google` tolerates the same failure and still drops the row, reporting
   `revokedAtGoogle: false` — otherwise the operator would be trapped with a connection they
   could neither use nor remove. Guarded by `app/_lib/calendar/google-calendar.test.ts`.
+- **A planned rotation no longer breaks anything.** `ats-secret.ts` reads through a retired
+  key (`KP_ATS_SECRET_KEY_PREVIOUS`, falling back to `KP_SECRET_PREVIOUS` on a
+  single-secret install) exactly as `llm-secret.ts` does for provider keys, so a deployment
+  that has just rotated stays readable instead of going dark until `npm run secrets:rotate`
+  has run. Encryption ALWAYS uses the current key, and `reencryptAtsSecret` lets a store
+  heal a row on its next write — `setAtsConnection` does that for a preserved ATS token,
+  best-effort: a value neither key opens is left exactly as stored, because rewriting a row
+  we cannot read would destroy the only copy of the credential. Unset the `*_PREVIOUS` var
+  once the rotation reports zero rows left. Pinned by `app/_lib/ats-secret-at-rest.test.ts`.
 
 ## ATS connections (inbound)
 
@@ -146,11 +155,31 @@ base URL, an API token and a field map.
   check on a URL the store already vetted. Blanking the field still sends an explicit
   `null`, which clears it. After a successful save the form adopts the store's
   parse-normalized URL, so the next save compares against what is really stored.
+- **Two tabs cannot clobber each other.** `GET` returns `connection.version`; the panel
+  echoes it back as `expectedVersion`, and `setAtsConnection` re-asserts it inside an
+  IMMEDIATE transaction before writing. A save composed against a connection someone else
+  has since replaced is refused whole — `ATS_CONNECTION_STALE`, 409, with the CURRENT
+  connection in the body — and the panel re-reads and re-prefills rather than reverting
+  the other tab's field map. Same contract as `ats_config` next door. `expectedVersion` is
+  optional, for server-internal writes with no read to be stale about.
+- **Every refusal is a code, not a sentence.** `ATS_CONNECTION_PROVIDER_UNKNOWN`,
+  `ATS_CONNECTION_BASE_URL_INVALID`, `ATS_CONNECTION_TOKEN_INVALID`,
+  `ATS_FIELD_MAP_INVALID` (400), `ATS_CONNECTION_NOT_FOUND` (404),
+  `ATS_CONNECTION_STALE` (409), `PAYLOAD_TOO_LARGE` (413) and the two store codes
+  `ATS_CONNECTION_{SAVE,REMOVE}_FAILED` (500). `AtsConnectionError` and `AtsFieldMapError`
+  carry the code; the route maps it and logs the English message. The panel resolves it
+  through `useErrorMessage`, so a Czech operator no longer reads canonical English.
+- **Bodies are capped**: 32 KB on `POST /api/ats/connections`, 16 KB on
+  `POST /api/ats/config`, measured on the bytes read off the wire (`readJsonWithLimit`) —
+  `content-length` is advisory. Over the cap answers 413 with `maxBytes`.
 - **Removal** asks the links question out loud. Forgetting the external-id links makes the
   next sync re-import every application as new (duplicating the pipeline); keeping them
   re-adopts bindings to records that may since have been erased. Neither is a safe default,
   so the confirm step carries an unticked checkbox matching the route's `forgetLinks` opt-in
-  and the result reports how many links were dropped.
+  and the result reports how many links were dropped. The drop is **installation-wide**:
+  `ats_connections` is keyed by provider alone while `ats_links` is per-tenant, so a
+  workspace-scoped drop left every other team bound to a provider whose credential no
+  longer exists (`deleteAtsLinksForProviderEverywhere`).
 - **Enabled** parks a connection without deleting its credentials or its links.
 
 The field map (`app/_lib/ats/field-map.ts`) is *not* editable from this tab yet — see
@@ -431,7 +460,9 @@ side).
   `account_email`, `calendar_id` (default `primary`), encrypted `refresh_token` /
   `access_token`, `access_expires_at`, `scopes_json`, `missing_scopes_json`, `connected_at`.
 - `ats_connections` — PK `provider`. `base_url`, encrypted `api_token`, `field_map_json`,
-  `enabled`, `updated_at`.
+  `enabled`, `version` (optimistic-concurrency token, bumped on every accepted write;
+  back-filled to `0` by an `ALTER TABLE` on stores created before it existed),
+  `updated_at`.
 - `ats_config` — the outbound webhook. ONE row (`id = 1`), org-level by design
   (`app/_lib/tenancy.ts`). `webhook_url`, encrypted `webhook_secret`, `events_json`,
   `version` (optimistic-concurrency token, bumped on every accepted write; back-filled to
@@ -473,5 +504,11 @@ side).
   adding a user dimension is additive.
 - **No "test connection" action** for ATS, unlike the outbound webhook's test ping — a
   wrong token surfaces at the first sync.
+- **Erasing a candidate does not yet drop that entry's `ats_links` rows.** The link is an
+  identity join, so leaving it behind keeps a re-identification path open: a re-sync can
+  re-attach the vendor's copy of the name and contact to the record the erasure emptied.
+  The seam exists (`deleteAtsLinksForEntry`, `app/_lib/ats/links-store.ts`, tested); the
+  one-line call from `scrubEntryLinkedPii` / `anonymizeEntry` in `app/_lib/db/pipeline.ts`
+  is not wired up yet.
 - `account_email` is never populated by the callback (no userinfo call), so a connected
   calendar shows *Unknown account* until it is set another way.
