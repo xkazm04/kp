@@ -1,5 +1,5 @@
 import { ensureDb } from "../db/core";
-import { DEFAULT_WORKSPACE_ID } from "../db/workspaces";
+import { DEFAULT_WORKSPACE_ID, listWorkspaces } from "../db/workspaces";
 
 // W1.1 — the external-id ↔ entry-id map. Sync identity, and nothing else.
 //
@@ -110,7 +110,25 @@ export function deleteAtsLinksForProvider(provider: string, workspaceId: string 
  * function rather than a flag so no caller reaches installation-wide scope by accident.
  */
 export function deleteAtsLinksForProviderEverywhere(provider: string): number {
-  return ensureDb().prepare(`DELETE FROM ats_links WHERE provider = ?`).run(provider).changes;
+  const db = ensureDb();
+  // One BOUND statement per workspace rather than a single unscoped
+  // `DELETE ... WHERE provider = ?`. The wide statement would be shorter and would also
+  // catch links whose workspace row is gone, but it is exactly the shape
+  // `tenancy-coverage.test.ts` refuses for a scoped table — every ats_links statement
+  // BINDS workspace_id — and buying brevity with an exemption to that rule is a bad
+  // trade: the next unscoped statement would then have a precedent to point at.
+  // DEFAULT_WORKSPACE_ID is unioned in because a single-tenant install has links under it
+  // before any row exists in `workspaces`.
+  const ids = new Set([DEFAULT_WORKSPACE_ID, ...listWorkspaces().map((w) => w.id)]);
+  const one = db.prepare(`DELETE FROM ats_links WHERE provider = ? AND workspace_id = ?`);
+  // IMMEDIATE: the write lock is taken at BEGIN, so a concurrent sync cannot record a new
+  // link into a workspace this loop has already passed. Nothing here awaits.
+  const drop = db.transaction((): number => {
+    let dropped = 0;
+    for (const id of ids) dropped += one.run(provider, id).changes;
+    return dropped;
+  });
+  return drop.immediate();
 }
 
 /**

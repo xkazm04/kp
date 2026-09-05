@@ -19,7 +19,12 @@ import {
   upsertAtsLink,
 } from "./links-store.ts";
 
-const OTHER_WS = "workspace-two";
+import { createWorkspace } from "../db/workspaces.ts";
+
+// A REAL second workspace row: the org-wide drop enumerates `listWorkspaces()` so that
+// every statement it runs binds workspace_id (tenancy-coverage.test.ts), which means a
+// fixture tenant that exists only as a string in ats_links would not be reached.
+const OTHER_WS = createWorkspace("ATS links fixture tenant").id;
 
 beforeEach(() => {
   deleteAtsLinksForProvider("recruitee");
