@@ -89,6 +89,10 @@ export function sttUsageRow(call: {
     cachedTokens: null,
     costUsd: sttCostUsd(call.provider, call.durationMs),
     source: "llm",
+    // A served transcript is a completed call; the failure branch never reaches
+    // this row (llm-usage-ledger.ts: outcome is explicit so no row class joins a
+    // total by accident).
+    outcome: "ok",
     requestId: call.requestId ?? null,
   };
 }
