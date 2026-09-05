@@ -1767,7 +1767,9 @@
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Diese Arbeitssitzung wurde bereits eingereicht.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
     "EDGE_SECRET_UNREADABLE": "Diese Installation kann das gespeicherte Edge-Secret nicht lesen. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde.",
-    "SIM_RUN_NOT_OWNER": "Diese geführte Demo gehört zu einem anderen Tab. Warten Sie, bis sie beendet ist, oder stoppen Sie sie dort."
+    "SIM_RUN_NOT_OWNER": "Diese geführte Demo gehört zu einem anderen Tab. Warten Sie, bis sie beendet ist, oder stoppen Sie sie dort.",
+    "simRunActiveSeconds": "Hier läuft bereits eine geführte Demo. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie den Lauf im Tab, der ihn gestartet hat.",
+    "simRunNotOwnerSeconds": "Diese geführte Demo gehört einem anderen Tab. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie sie dort."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3249,7 +3251,8 @@
       "passLine": "{advanced} weitergeleitet · {rejected} abgelehnt · {held} zurückgehalten · {alerts} markiert",
       "errorPreview": "Vorschau des Durchlaufs nicht möglich.",
       "errorNetwork": "Server nicht erreichbar.",
-      "errorRun": "Der Durchlauf konnte nicht ausgeführt werden."
+      "errorRun": "Der Durchlauf konnte nicht ausgeführt werden.",
+      "resetting": "Wird zurückgesetzt…"
     },
     "offAxis": {
       "title": "Außerhalb des Boards",
@@ -9142,7 +9145,9 @@
       "done": "Fertig. Stelle besetzt 🎉",
       "failed": "Fehlgeschlagen: {message}",
       "genericError": "Die Simulation wurde unerwartet beendet.",
-      "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen."
+      "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen.",
+      "resetCleared": "Zurückgesetzt. {count} Demo-Zeilen gelöscht.",
+      "resetNothing": "Zurückgesetzt. Es war nichts mehr zu löschen."
     },
     "phase": {
       "design": "Ausschreibung",

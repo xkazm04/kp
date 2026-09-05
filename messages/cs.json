@@ -1767,7 +1767,9 @@
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Tato pracovní relace už byla odevzdána.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Než zprávu odešlete, napište ji.",
     "EDGE_SECRET_UNREADABLE": "Tato instalace nedokáže přečíst uložený klíč edge. Zadejte jej znovu, nebo obnovte klíč, kterým byl zašifrován.",
-    "SIM_RUN_NOT_OWNER": "Tato řízená ukázka patří jiné kartě. Počkejte, až skončí, nebo ji zastavte tam."
+    "SIM_RUN_NOT_OWNER": "Tato řízená ukázka patří jiné kartě. Počkejte, až skončí, nebo ji zastavte tam.",
+    "simRunActiveSeconds": "Řízená ukázka tu už běží. Vynulovat půjde přibližně za {seconds} sekund, nebo běh zastavte na kartě, která ho spustila.",
+    "simRunNotOwnerSeconds": "Tato řízená ukázka patří jiné kartě. Vynulovat půjde přibližně za {seconds} sekund, nebo ji zastavte tam."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3249,7 +3251,8 @@
       "passLine": "postoupilo {advanced} · zamítnuto {rejected} · pozdrženo {held} · označeno {alerts}",
       "errorPreview": "Náhled průchodu se nepodařilo zobrazit.",
       "errorNetwork": "Nepodařilo se spojit se serverem.",
-      "errorRun": "Průchod se nepodařilo spustit."
+      "errorRun": "Průchod se nepodařilo spustit.",
+      "resetting": "Nuluji…"
     },
     "offAxis": {
       "title": "Mimo nástěnku",
@@ -9142,7 +9145,9 @@
       "done": "Hotovo. Pozice obsazena 🎉",
       "failed": "Selhalo: {message}",
       "genericError": "Simulace se neočekávaně zastavila.",
-      "resetFailed": "Vyčištění selhalo. Zkuste to znovu."
+      "resetFailed": "Vyčištění selhalo. Zkuste to znovu.",
+      "resetCleared": "Vynulováno. Smazáno {count} ukázkových řádků.",
+      "resetNothing": "Vynulováno. Nezbylo nic ke smazání."
     },
     "phase": {
       "design": "Popis pozice",

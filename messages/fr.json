@@ -1767,7 +1767,9 @@
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Cette session de travail a déjà été soumise.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer.",
     "EDGE_SECRET_UNREADABLE": "Cette installation ne peut pas lire le secret edge enregistré. Saisissez-le à nouveau ou restaurez la clé qui l'a chiffré.",
-    "SIM_RUN_NOT_OWNER": "Cette démo guidée appartient à un autre onglet. Attendez qu'elle se termine ou arrêtez-la depuis celui-là."
+    "SIM_RUN_NOT_OWNER": "Cette démo guidée appartient à un autre onglet. Attendez qu'elle se termine ou arrêtez-la depuis celui-là.",
+    "simRunActiveSeconds": "Une démo guidée est déjà en cours ici. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez la démo dans l'onglet qui l'a lancée.",
+    "simRunNotOwnerSeconds": "Cette démo guidée appartient à un autre onglet. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez-la depuis cet onglet."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3249,7 +3251,8 @@
       "passLine": "{advanced} avancé(s) · {rejected} rejeté(s) · {held} en attente · {alerts} signalé(s)",
       "errorPreview": "Impossible de prévisualiser la passe.",
       "errorNetwork": "Serveur injoignable.",
-      "errorRun": "Échec de l’exécution de la passe."
+      "errorRun": "Échec de l’exécution de la passe.",
+      "resetting": "Réinitialisation…"
     },
     "offAxis": {
       "title": "Hors du tableau",
@@ -9142,7 +9145,9 @@
       "done": "Terminé. Poste pourvu 🎉",
       "failed": "Échec : {message}",
       "genericError": "La simulation s’est arrêtée de façon inattendue.",
-      "resetFailed": "Échec du nettoyage. Réessayez."
+      "resetFailed": "Échec du nettoyage. Réessayez.",
+      "resetCleared": "Réinitialisé. {count} lignes de démo effacées.",
+      "resetNothing": "Réinitialisé. Il ne restait rien à effacer."
     },
     "phase": {
       "design": "Fiche de poste",

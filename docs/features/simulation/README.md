@@ -164,6 +164,21 @@ None. Nothing in this directory owns a table.
   reasons (running / done / errored / `?sim=auto`). The console is where Reset lives,
   and both of those states are exactly the ones a Reset answers — so the cleanup is
   reachable from idle instead of only through a run the operator did not want.
+- **Reset says why, how much, and that it is working.** `performReset`'s `purge` dep
+  returns the door's whole answer (`SimPurgeOutcome` in `simRunControl.ts`), not a
+  boolean: the summed thirteen-table count on a 2xx (`totalCleared`), the CODE and
+  `retryAfterSeconds` on a refusal. The console renders a success as
+  `status.resetCleared` with the number (or `status.resetNothing` at zero, which is
+  a success, not a failure) and a refusal through `useErrorMessage()` — with the
+  wait attached, via the seconds-carrying variants `errors.simRunActiveSeconds` /
+  `errors.simRunNotOwnerSeconds` that `simWaitVariant()` selects (the codes' own
+  messages stay placeholder-free for the consumers that resolve them with no values,
+  the same split as `errors.forbiddenCapabilityNeeds`). Before it a 409 rendered
+  "Cleanup failed. Try again", the one instruction that cannot work: the retry is
+  refused for as long as the holder's lease has left, and only the seconds say so.
+  The Reset button also carries a local `resetting` flag (disabled + `aria-busy` +
+  a spinning glyph) for the multi-second stop → settle → purge, so a presenter does
+  not press it twice and race the first pair.
 - The dock's numbers are read, never stored: `useAttention()` for the awaiting
   count, `useTasks()` for the batch-screen task, `companion.open` for Candi.
 - Keyless: the demo is a product surface that must work with no API key at all —

@@ -16,6 +16,8 @@ import {
   refreshSimDoor,
   runControlFlags,
   simDoorSnapshot,
+  simWaitVariant,
+  totalCleared,
   subscribeSimDoor,
 } from "./simRunControl.ts";
 
@@ -45,17 +47,35 @@ test("reset runs stop → settle → purge, in that order", async () => {
     settleRun: async () => void order.push("settle"),
     purge: async () => {
       order.push("purge");
-      return true;
+      return { ok: true, cleared: 14 };
     },
   });
   // Purging before the in-flight mutation settles deletes rows it then re-creates.
   assert.deepEqual(order, ["stop", "settle", "purge"]);
-  assert.deepEqual(out, { cleared: true, steps: ["stop", "settle", "purge"] });
+  assert.deepEqual(out, { purge: { ok: true, cleared: 14 }, steps: ["stop", "settle", "purge"] });
 });
 
-test("a purge that answers non-2xx reports cleared:false — never a green 'Reset'", async () => {
-  const out = await performReset({ requestStop: () => {}, settleRun: async () => {}, purge: async () => false });
-  assert.equal(out.cleared, false);
+// The count the route computes across thirteen tables was thrown away by a client
+// that read only `.ok` — a successful reset could not say what it had removed.
+test("a success carries the count through, and zero is a success too", async () => {
+  const out = await performReset({
+    requestStop: () => {},
+    settleRun: async () => {},
+    purge: async () => ({ ok: true, cleared: 0 }),
+  });
+  assert.deepEqual(out.purge, { ok: true, cleared: 0 }, "nothing left to clear is not a failure");
+});
+
+// The refusal half: a 409 said "Cleanup failed. Try again", which is the one
+// instruction that cannot work — the retry is refused for as long as the holder's
+// lease has left, and only `retryAfterSeconds` says how long.
+test("a refusal carries its CODE and its wait, not just a false", async () => {
+  const out = await performReset({
+    requestStop: () => {},
+    settleRun: async () => {},
+    purge: async () => ({ ok: false, code: "SIM_RUN_ACTIVE", retryAfterSeconds: 42 }),
+  });
+  assert.deepEqual(out.purge, { ok: false, code: "SIM_RUN_ACTIVE", retryAfterSeconds: 42 });
 });
 
 test("a purge that THROWS is a failed cleanup, not a swallowed success", async () => {
@@ -66,8 +86,23 @@ test("a purge that THROWS is a failed cleanup, not a swallowed success", async (
       throw new Error("network down");
     },
   });
-  assert.equal(out.cleared, false, "the old `.catch(() => undefined)` reported success here");
+  assert.deepEqual(out.purge, { ok: false, code: null, retryAfterSeconds: null }, "the old `.catch(() => undefined)` reported success here");
   assert.deepEqual(out.steps, ["stop", "settle", "purge"], "the purge step still happened — it just failed");
+});
+
+test("totalCleared sums the route's per-table map and refuses to invent a number", () => {
+  assert.equal(totalCleared({ entries: 3, jobs: 1, jds: 1, offers: 0 }), 5);
+  assert.equal(totalCleared({}), 0);
+  assert.equal(totalCleared(undefined), 0, "an unparseable body cleared nothing, as far as anyone can tell");
+  assert.equal(totalCleared({ entries: "lots" }), 0);
+});
+
+test("only a refusal that names a wait gets the seconds-carrying variant", () => {
+  assert.equal(simWaitVariant("SIM_RUN_ACTIVE", 42), "simRunActiveSeconds");
+  assert.equal(simWaitVariant("SIM_RUN_NOT_OWNER", 7), "simRunNotOwnerSeconds");
+  assert.equal(simWaitVariant("SIM_RUN_ACTIVE", 0), null, "no wait, no promise about when to retry");
+  assert.equal(simWaitVariant("SIM_RESET_FAILED", 42), null, "a store failure is not a wait");
+  assert.equal(simWaitVariant(null, 42), null);
 });
 
 // --- The status door (/perfect wave 44) ---------------------------------------

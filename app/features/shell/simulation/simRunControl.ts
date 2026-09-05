@@ -147,18 +147,58 @@ export function runControlFlags(action: SimRunAction, prev: SimRunFlags): { flag
   }
 }
 
-/** What a reset actually did. `cleared` is false when the purge did not answer
- *  2xx — the caller must NOT claim the demo data is gone. */
-export type SimResetOutcome = { cleared: boolean; steps: SimResetStep[] };
+/** What the purge door actually answered.
+ *
+ *  A BOOLEAN was the bug (/perfect wave 44): the route computes a thirteen-table
+ *  `cleared` count and, when a run holds the tenant, refuses with a CODE and the
+ *  holder's `retryAfterSeconds` — and the client threw all three away. So a success
+ *  said "Reset" with no idea what it had removed, and a 409 said "Cleanup failed.
+ *  Try again", which is the one instruction that cannot work: retrying is refused
+ *  for exactly as long as the lease has left, and nothing told the operator that. */
+export type SimPurgeOutcome =
+  | { ok: true; cleared: number }
+  | { ok: false; code: string | null; retryAfterSeconds: number | null };
+
+/** What a reset actually did. `purge` carries the door's own answer; `steps` is the
+ *  ordering proof. */
+export type SimResetOutcome = { purge: SimPurgeOutcome; steps: SimResetStep[] };
 export type SimResetStep = "stop" | "settle" | "purge";
+
+/** The total rows a purge removed, summed from the route's per-table map. Tolerant
+ *  of a body that is not that map: an unknown shape counts as nothing cleared, which
+ *  is the honest reading of "we cannot tell". */
+export function totalCleared(cleared: unknown): number {
+  if (typeof cleared !== "object" || cleared === null) return 0;
+  let sum = 0;
+  for (const v of Object.values(cleared as Record<string, unknown>)) if (typeof v === "number" && v > 0) sum += v;
+  return sum;
+}
+
+/** The `errors` catalog key that says the same refusal WITH the wait attached, or
+ *  null when there is no wait to state.
+ *
+ *  Same shape as `capabilityAwareReason` (use-error-message.ts): the code's own
+ *  message stays placeholder-free, because other consumers resolve it with no
+ *  values and a required ICU argument would break every one of them. A client that
+ *  HOLDS the seconds renders the richer variant instead. */
+const SIM_WAIT_VARIANT: Record<string, string> = {
+  SIM_RUN_ACTIVE: "simRunActiveSeconds",
+  SIM_RUN_NOT_OWNER: "simRunNotOwnerSeconds",
+};
+
+export function simWaitVariant(code: string | null | undefined, retryAfterSeconds: number | null | undefined): string | null {
+  if (!code || typeof retryAfterSeconds !== "number" || retryAfterSeconds <= 0) return null;
+  return SIM_WAIT_VARIANT[code] ?? null;
+}
 
 export type SimResetDeps = {
   /** Flip the stop flag + wake any parked gate (synchronous). */
   requestStop: () => void;
   /** Await the in-flight run's promise (already caught by the caller). */
   settleRun: () => Promise<void>;
-  /** POST /api/sim/reset — resolves TRUE only on a 2xx. */
-  purge: () => Promise<boolean>;
+  /** POST /api/sim/reset, parsed: the counts on a 2xx, the code and the wait on a
+   *  refusal. */
+  purge: () => Promise<SimPurgeOutcome>;
 };
 
 /** stop → settle → purge, in that order, reporting whether the purge succeeded.
@@ -169,15 +209,16 @@ export async function performReset(deps: SimResetDeps): Promise<SimResetOutcome>
   steps.push("stop");
   await deps.settleRun();
   steps.push("settle");
-  let cleared = false;
+  let purge: SimPurgeOutcome;
   try {
-    cleared = await deps.purge();
+    purge = await deps.purge();
   } catch {
     // Network failure / non-JSON response: the rows are still there, so the
     // outcome is a FAILED cleanup — the one thing the old `.catch(() =>
-    // undefined)` hid behind a green "Reset".
-    cleared = false;
+    // undefined)` hid behind a green "Reset". No code, because there is no
+    // answer to read one out of; the caller falls back to its own copy.
+    purge = { ok: false, code: null, retryAfterSeconds: null };
   }
   steps.push("purge");
-  return { cleared, steps };
+  return { purge, steps };
 }

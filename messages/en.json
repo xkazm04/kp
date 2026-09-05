@@ -1767,7 +1767,9 @@
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "This work session has already been submitted.",
     "DEVCASE_CHAT_MESSAGE_REQUIRED": "Write a message before sending it.",
     "EDGE_SECRET_UNREADABLE": "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
-    "SIM_RUN_NOT_OWNER": "That guided demo belongs to another tab. Wait for it to finish, or stop it there."
+    "SIM_RUN_NOT_OWNER": "That guided demo belongs to another tab. Wait for it to finish, or stop it there.",
+    "simRunActiveSeconds": "A guided demo is already running here. You can reset in about {seconds} seconds, or stop the run in the tab that started it.",
+    "simRunNotOwnerSeconds": "That guided demo belongs to another tab. You can reset in about {seconds} seconds, or stop it there."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3249,7 +3251,8 @@
       "passLine": "{advanced} advance · {rejected} reject · {held} hold · {alerts} flag",
       "errorPreview": "Couldn't preview the pass.",
       "errorNetwork": "Couldn't reach the server.",
-      "errorRun": "The pass failed to run."
+      "errorRun": "The pass failed to run.",
+      "resetting": "Resetting…"
     },
     "offAxis": {
       "title": "Off the board",
@@ -9142,7 +9145,9 @@
       "done": "Done. Candidate hired 🎉",
       "failed": "Failed: {message}",
       "genericError": "The simulation stopped unexpectedly.",
-      "resetFailed": "Cleanup failed. Try again."
+      "resetFailed": "Cleanup failed. Try again.",
+      "resetCleared": "Reset. {count} demo rows cleared.",
+      "resetNothing": "Reset. There was nothing left to clear."
     },
     "phase": {
       "design": "Design JD",

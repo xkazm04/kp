@@ -4,9 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
-import { performReset, refreshSimDoor, runControlFlags } from "./simRunControl";
+import { performReset, refreshSimDoor, runControlFlags, simWaitVariant, totalCleared } from "./simRunControl";
 import { useSimulationEngine } from "./useSimulationEngine";
 import { useSimulationWalk } from "./useSimulationWalk";
 
@@ -28,6 +29,10 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   // the tour is public (/?sim=auto from the localized landing CTA), so they must
   // never be the English literals they used to be.
   const t = useTranslations("simulation");
+  // The reset door answers a CODE; the console renders it in the reader's language,
+  // never the server's English. Stable identity (memoized on the translator), so it
+  // is safe in reset's dependency array.
+  const resolveError = useErrorMessage();
   const [state, setState] = useState<SimState>(IDLE_STATE);
 
   const ctrl = useRef<{ stop: boolean; paused: boolean; wake: (() => void) | null }>({ stop: false, paused: false, wake: null });
@@ -126,7 +131,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     // The settle is load-bearing: the stop flag is only honored at await checkpoints, so
     // a mutation already in flight (e.g. /api/sim/inbound, which CREATES SIM rows) would
     // otherwise complete AFTER the delete and re-orphan the rows it removed.
-    const { cleared } = await performReset({
+    const { purge } = await performReset({
       requestStop: () => {
         const { flags, wakes } = runControlFlags("stop", ctrl.current);
         Object.assign(ctrl.current, flags);
@@ -136,26 +141,49 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         await runPromiseRef.current?.catch(() => undefined);
         runPromiseRef.current = null;
       },
-      // 2xx or nothing: a 500 out of the DELETE transaction leaves every (SIM) row on
-      // the board, and the console used to answer that with a green "Reset".
-      purge: async () => (await fetch("/api/sim/reset", { method: "POST" })).ok,
+      // The door's whole answer, not just `.ok`. It computes a thirteen-table count
+      // on success and refuses with a CODE plus the holder's remaining lease on a
+      // 409; reading only the status threw all three away.
+      purge: async () => {
+        const r = await fetch("/api/sim/reset", { method: "POST" });
+        const body = (await r.json().catch(() => null)) as { cleared?: unknown; code?: unknown; retryAfterSeconds?: unknown } | null;
+        if (!r.ok) {
+          return {
+            ok: false,
+            code: typeof body?.code === "string" ? body.code : null,
+            retryAfterSeconds: typeof body?.retryAfterSeconds === "number" ? body.retryAfterSeconds : null,
+          };
+        }
+        return { ok: true, cleared: totalCleared(body?.cleared) };
+      },
     });
-    // Everything cleared to IDLE; keep the user's stepMode + explain-drawer state.
-    // A FAILED purge is not a clean slate: say so (and in red — SimControlDockSimFace
-    // styles the status line off `error`) so the presenter retries rather than starting
+    // What the operator is told, from what the server actually said.
+    //
+    //  · a refusal is the CODE in the reader's language, and — this is the half that
+    //    was missing — WITH the wait it carries. "Cleanup failed. Try again" over a
+    //    409 was the one instruction that cannot work: a retry is refused for as
+    //    long as the holder's lease has left, and only the seconds say so.
+    //  · a success names what it removed. A count of zero is not a failure and must
+    //    not read as one; it is the honest "there was nothing here".
+    //
+    // A FAILED purge is not a clean slate, so it also lands in `error` (the status
+    // line is styled off it by SimControlDockSimFace) — the presenter must not start
     // the next run on top of the last one's residue.
+    const waitKey = purge.ok ? null : simWaitVariant(purge.code, purge.retryAfterSeconds);
+    const generic = purge.ok ? "" : resolveError(purge, t("status.resetFailed"));
+    const failure = waitKey && !purge.ok ? resolveError({ code: waitKey }, generic, { seconds: purge.retryAfterSeconds ?? 0 }) : generic;
     setState((s) => ({
       ...IDLE_STATE,
       stepMode: s.stepMode,
       explainOpen: s.explainOpen,
-      status: cleared ? t("status.reset") : t("status.resetFailed"),
-      error: cleared ? null : t("status.resetFailed"),
+      status: purge.ok ? (purge.cleared > 0 ? t("status.resetCleared", { count: purge.cleared }) : t("status.resetNothing")) : failure,
+      error: purge.ok ? null : failure,
     }));
     // The purge is exactly what makes the status door's residue count wrong, so
     // re-read it here: a cleared tenant must stop pinning the deck to the console,
     // and a FAILED purge must keep it there (the rows are still on the board).
     void refreshSimDoor();
-  }, [t]);
+  }, [resolveError, t]);
 
   const toggleStep = useCallback(() => {
     stepRef.current = !stepRef.current;
