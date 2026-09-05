@@ -35,6 +35,59 @@ const DEFAULTS: Record<string, unknown> = {
   pipelineStages: PIPELINE_STAGES_DEFAULT,
 };
 
+// ── Corrupt-row accounting ────────────────────────────────────────────────────
+//
+// A stored config row that will not parse falls back to the CODE DEFAULT. That is the
+// right end state — a workspace must never be left with no screening rules — but until
+// this ledger it happened in total silence, and what silently reverts is the auto-reject
+// gate: `rejectBottomPercent`, `maxMatchToReject`, every `familyFloors` override an
+// operator applied from the calibration panel. The panel then re-reads the defaults and
+// renders them as the workspace's settings, so the operator is shown the shipped policy
+// as if they had chosen it. Nothing about the surface says a row was lost.
+//
+// Modeled on db/core.ts's `getRowHealth()` / SeedHealth pair, deliberately: `absent` and
+// `unreadable` are DIFFERENT FACTS, and the second one is the only one an operator can
+// act on (restore the row, or re-apply the policy). The line names the phase, the TIER
+// the unreadable row sits in (an org baseline going dark hits every team; a team override
+// hits one) and the workspace, so the fix is addressable from the log alone.
+export type DecisionConfigIssue = {
+  phase: string;
+  /** Which tier the unreadable row belongs to — `org` is the workspace_id IS NULL
+   *  baseline, `team` that workspace's own override. */
+  scope: "org" | "team";
+  workspaceId: string;
+  reason: string;
+  at: string;
+};
+
+const CONFIG_ISSUE_SAMPLE = 20;
+const configIssues: DecisionConfigIssue[] = [];
+let configIssueTotal = 0;
+
+function recordConfigIssue(phase: string, scope: "org" | "team", workspaceId: string, error: unknown): void {
+  const reason = error instanceof Error ? error.message : String(error);
+  const issue: DecisionConfigIssue = { phase, scope, workspaceId, reason, at: new Date().toISOString() };
+  configIssueTotal++;
+  // Retain a bounded SAMPLE so a flood cannot evict the count itself (getRowHealth's rule).
+  if (configIssues.length < CONFIG_ISSUE_SAMPLE) configIssues.push(issue);
+  console.warn(
+    `[decision-config] unreadable ${scope} row for phase "${phase}" (workspace ${workspaceId}) — ` +
+      `falling back to the CODE DEFAULT, so any stored rules for this phase are not in force: ${reason}`
+  );
+}
+
+/** How healthy the stored decision config is. `total` counts every unreadable row read
+ *  since boot; `issues` is the retained sample. Sibling of db/core.ts's getRowHealth(). */
+export function getDecisionConfigHealth(): { ok: boolean; total: number; issues: DecisionConfigIssue[] } {
+  return { ok: configIssueTotal === 0, total: configIssueTotal, issues: [...configIssues] };
+}
+
+/** Test seam — resets the ledger between cases. Not for production paths. */
+export function __resetDecisionConfigHealth(): void {
+  configIssues.length = 0;
+  configIssueTotal = 0;
+}
+
 let _db: Database.Database | null = null;
 function db(): Database.Database {
   if (_db) return _db;
@@ -72,11 +125,14 @@ function db(): Database.Database {
 export function getDecisionConfig<T = Record<string, unknown>>(phase: string, workspaceId: string = DEFAULT_WORKSPACE_ID): T {
   // Cascade: the TEAM's own override wins, else the ORG default, else the code default.
   // ORDER BY puts the team row (workspace_id NOT NULL ⇒ 0) ahead of the org row (NULL ⇒ 1).
+  // `workspace_id` comes back with the payload so a parse failure below can name the TIER
+  // the bad row sits in — an org baseline going dark is a different incident from one
+  // team's override going dark, and the fallback is identical, so only the log distinguishes them.
   const row = db()
     .prepare(
-      `SELECT config_json FROM decision_config WHERE phase = ? AND (workspace_id = ? OR workspace_id IS NULL) ORDER BY (workspace_id IS NULL) ASC LIMIT 1`
+      `SELECT config_json, workspace_id FROM decision_config WHERE phase = ? AND (workspace_id = ? OR workspace_id IS NULL) ORDER BY (workspace_id IS NULL) ASC LIMIT 1`
     )
-    .get(phase, workspaceId) as { config_json: string } | undefined;
+    .get(phase, workspaceId) as { config_json: string; workspace_id: string | null } | undefined;
   const fallback = (DEFAULTS[phase] ?? {}) as T;
   if (!row) return fallback;
   try {
@@ -95,7 +151,12 @@ export function getDecisionConfig<T = Record<string, unknown>>(phase: string, wo
       return (migrated.ok ? migrated.config : fallback) as T;
     }
     return { ...(fallback as object), ...parsed } as T;
-  } catch {
+  } catch (error) {
+    // The stored row will not parse. Falling back to the code default is correct — a
+    // workspace with no readable rules must still have rules — but it is NOT nothing:
+    // this is the auto-reject policy reverting, so it is recorded and logged with the
+    // tier and workspace rather than swallowed.
+    recordConfigIssue(phase, row.workspace_id == null ? "org" : "team", workspaceId, error);
     return fallback;
   }
 }
@@ -190,8 +251,11 @@ function writeConfigRow(
         if (stored.familyFloors && Object.keys(stored.familyFloors).length > 0) {
           (result.config as Record<string, unknown>).familyFloors = stored.familyFloors;
         }
-      } catch {
-        /* unreadable stored row — nothing to preserve */
+      } catch (error) {
+        // Nothing to preserve — but the same corruption class, and here it silently
+        // CLEARS every family floor an operator applied from the calibration panel, so
+        // it is recorded like the other two rather than dropped on the comment alone.
+        recordConfigIssue(result.phase, scope, workspaceId, error);
       }
     }
   }
@@ -278,7 +342,12 @@ export function updateDecisionConfig<T = Record<string, unknown>>(
       const fallback = (DEFAULTS[phase] ?? {}) as T;
       try {
         current = row ? ({ ...(fallback as object), ...(JSON.parse(row.config_json) as object) } as T) : fallback;
-      } catch {
+      } catch (error) {
+        // Worse than the read-side fallback: `mutate` is about to build the NEXT stored
+        // org baseline on top of this value, so an unreadable row does not merely revert
+        // the policy for one read — the revert is then WRITTEN BACK as the new baseline
+        // and the original rules are gone. Always recorded; never silent.
+        recordConfigIssue(phase, "org", workspaceId, error);
         current = fallback;
       }
     }
