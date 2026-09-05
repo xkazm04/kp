@@ -1,3 +1,4 @@
+import { normalizeSalaryBenchmark } from "../salary-benchmark";
 import { ensureDb } from "./core";
 
 // Cross-company reference tier (E0 Phase 2, tier-1 shared corpus) — market salary bands
@@ -11,6 +12,15 @@ import { ensureDb } from "./core";
 
 export const SALARY_BENCHMARK_MIN_COHORT = 3;
 
+/** WHICH corpus this band was read off. Not "the market": the rows are the seeded
+ *  cross-company reference corpus (`jobs` with workspace_id NULL), which is a
+ *  named, finite dataset and not a survey of employers. The compute-cost figure
+ *  standing next to this one on the same screens already carries its corpus and
+ *  its vintage (`costPerHireAsOf`); this one carried neither, so a band aggregated
+ *  from reference roles seeded years ago rendered exactly like one computed this
+ *  morning — the defect `app/_lib/salary-benchmark.ts` was written to name. */
+export const SALARY_BENCHMARK_SOURCE_ID = "kp-reference-corpus";
+
 export type SalaryBenchmark = {
   roleFamily: string;
   seniority: string | null;
@@ -19,6 +29,16 @@ export type SalaryBenchmark = {
   p25: number;
   median: number;
   p75: number;
+  /** {@link SALARY_BENCHMARK_SOURCE_ID} — the corpus the percentiles came from. */
+  source: string;
+  /** The NEWEST contributing reference role's `created_at`, ISO-8601, or null when
+   *  no contributing row carries a usable one. Newest, not oldest, because this is a
+   *  "how current can this possibly be" claim rather than a staleness blend (the
+   *  opposite choice from `costPerHireAsOf`, which blends recruiter-entered spend and
+   *  is therefore only as current as its stalest input). NULL is a real answer and
+   *  must stay one: today's date on a band of unknown vintage is the exact lie this
+   *  field exists to prevent. Render it with `formatBenchmarkAsOf`. */
+  asOf: string | null;
 };
 
 function percentile(sorted: number[], p: number): number {
@@ -40,12 +60,29 @@ export function salaryBenchmark(input: { roleFamily: string; seniority?: string 
     clauses.push("seniority = ?");
     params.push(input.seniority);
   }
-  const rows = db.prepare(`SELECT salary_min, salary_max FROM jobs WHERE ${clauses.join(" AND ")}`).all(...params) as {
+  const rows = db
+    .prepare(`SELECT salary_min, salary_max, created_at FROM jobs WHERE ${clauses.join(" AND ")}`)
+    .all(...params) as {
     salary_min: number;
     salary_max: number;
+    created_at: string | null;
   }[];
   if (rows.length < SALARY_BENCHMARK_MIN_COHORT) return null;
   const mids = rows.map((r) => Math.round((r.salary_min + r.salary_max) / 2)).sort((a, b) => a - b);
+  // Provenance through the SHARED normalizer (app/_lib/salary-benchmark.ts), so the
+  // vintage this payload carries is trimmed and validated by the same code the JD
+  // side's deterministic band uses instead of a second, subtly-different rule here.
+  // A blank / unparseable stamp normalizes away to "" and is reported as null.
+  const newest = rows
+    .map((r) => (r.created_at ?? "").trim())
+    .filter((ts) => Number.isFinite(Date.parse(ts)))
+    .sort()
+    .at(-1);
+  const provenance = normalizeSalaryBenchmark({
+    sourceId: SALARY_BENCHMARK_SOURCE_ID,
+    asOf: newest ?? "",
+    sampleK: rows.length,
+  });
   return {
     roleFamily: input.roleFamily,
     seniority: input.seniority ?? null,
@@ -54,5 +91,7 @@ export function salaryBenchmark(input: { roleFamily: string; seniority?: string 
     p25: percentile(mids, 0.25),
     median: percentile(mids, 0.5),
     p75: percentile(mids, 0.75),
+    source: provenance?.sourceId ?? SALARY_BENCHMARK_SOURCE_ID,
+    asOf: provenance?.asOf || null,
   };
 }

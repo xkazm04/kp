@@ -1,7 +1,8 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
-import { salaryBenchmark, SALARY_BENCHMARK_MIN_COHORT } from "./salary-benchmark.ts";
+import { salaryBenchmark, SALARY_BENCHMARK_MIN_COHORT, SALARY_BENCHMARK_SOURCE_ID } from "./salary-benchmark.ts";
+import { formatBenchmarkAsOf } from "../salary-benchmark.ts";
 import { ensureDb } from "./core.ts";
 
 after(() => cleanupUnitDb());
@@ -32,7 +33,12 @@ test("narrowing to a seniority never widens the cohort", () => {
 test("the benchmark is AGGREGATE-ONLY â€” no raw salary row leaks out", () => {
   const b = salaryBenchmark({ roleFamily: "software_engineering" });
   assert.ok(b);
-  assert.deepEqual(Object.keys(b!).sort(), ["count", "currency", "median", "p25", "p75", "roleFamily", "seniority"]);
+  // `asOf` and `source` joined them with the provenance round: both describe the
+  // CORPUS, not any one reference role, so the aggregate-only contract is intact.
+  assert.deepEqual(
+    Object.keys(b!).sort(),
+    ["asOf", "count", "currency", "median", "p25", "p75", "roleFamily", "seniority", "source"]
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -149,4 +155,41 @@ test("a team's own openings never enter the market band, and neither does a band
      VALUES (?, ?, ?, NULL, NULL, ?, ?, NULL)`
   ).run("sb-nullband-1", "Unpriced", rf2, "{}", new Date().toISOString());
   assert.equal(salaryBenchmark({ roleFamily: rf2 })?.count, 3);
+});
+
+// PROVENANCE. The compute-cost figure next door on the same screens carries both
+// its corpus and its vintage (`costPerHireAsOf`); this band carried neither, so a
+// market rate aggregated from reference roles seeded years ago read exactly like
+// one computed this morning — "a figure presented with more authority than the
+// data under it", the defect app/_lib/salary-benchmark.ts exists to name. The two
+// fields come out of that module's `normalizeSalaryBenchmark`, so the vintage is
+// normalised by the same code the JD side's band uses.
+test("the band names its corpus and its vintage", () => {
+  const rf = "sb_provenance";
+  const db = ensureDb();
+  // Out of chronological order on purpose: the vintage is the MAX, not the last written.
+  const stamps = ["2024-03-01T00:00:00.000Z", "2026-01-09T12:00:00.000Z", "2025-07-04T08:30:00.000Z"];
+  for (let i = 0; i < stamps.length; i += 1) corpusJob(rf, 100_000, 120_000);
+  const ids = (db.prepare(`SELECT id FROM jobs WHERE role_family = ? ORDER BY id`).all(rf) as { id: string }[]).map((r) => r.id);
+  assert.equal(ids.length, stamps.length);
+  ids.forEach((id, k) => db.prepare(`UPDATE jobs SET created_at = ? WHERE id = ?`).run(stamps[k], id));
+
+  const band = salaryBenchmark({ roleFamily: rf });
+  assert.ok(band);
+  assert.equal(band.source, SALARY_BENCHMARK_SOURCE_ID, "the payload names the corpus it read, not 'the market'");
+  assert.equal(band.asOf, "2026-01-09T12:00:00.000Z", "the vintage is the NEWEST contributing reference role");
+  // A band is only as current as its freshest input can prove — and a reader must
+  // be able to render it, which is what the shared provenance helper is for.
+  assert.equal(formatBenchmarkAsOf(band.asOf, "en"), "Jan 2026");
+});
+
+test("a corpus row with no usable created_at leaves the vintage null rather than inventing one", () => {
+  const rf = "sb_provenance_null";
+  const db = ensureDb();
+  for (let i = 0; i < 3; i += 1) corpusJob(rf, 100_000, 120_000);
+  db.prepare(`UPDATE jobs SET created_at = '' WHERE role_family = ?`).run(rf);
+  const band = salaryBenchmark({ roleFamily: rf });
+  assert.ok(band);
+  assert.equal(band.source, SALARY_BENCHMARK_SOURCE_ID, "the corpus is still named — only the date is unknown");
+  assert.equal(band.asOf, null, "an unknown vintage is null, never today");
 });
