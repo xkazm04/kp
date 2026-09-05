@@ -28,10 +28,12 @@ per-worktree install; run python gates from the tree root.
 - always: `npm run typecheck`, `npm run test:unit`, `npm run lint`
 - when `messages/*.json` or user-facing strings touched: `npm run i18n:check`
 - when `pipeline/` touched: `npm run test:python`
-- slow: none
-- builder: `npm run typecheck`, `npm run test:unit` (targeted where possible), `npm run lint`,
-  `npm run i18n:check` if strings touched, `npm run test:python` if `pipeline/` touched; report what you
-  COULD NOT verify honestly. Only the Director drives live flows, from the main checkout.
+- slow: `npm run test:python:gate` (~3 min alone, wedges under builder contention - Director only, once at quiescence, in the background)
+- builder: scoped only - eslint on own paths, `node scripts/run-unit-tests.mjs <own globs>`, tsc grep on
+  own dirs, `npm run i18n:check` if strings touched, `python -m unittest <own modules>` if `pipeline/`
+  touched; NEVER the full unit suite or `test:python:gate` (three builders running it concurrently wedged
+  all three, 2026-09-05). Report what you COULD NOT verify honestly. Only the Director drives live flows
+  and the slow gate, from the main checkout / quiet worktree.
 
 ## Class B
 - `messages/*.json` locale files (add the key to `messages/en.json` AND every other locale; anchored
@@ -443,3 +445,5 @@ Authority: `docs/design/README.md` for UI; `node_modules/next/dist/docs/` for Ne
 - 2026-09-05 **Verify regex bytes after any heredoc/stdin patch on this harness.** A python heredoc writing `\b` into a regex landed 0x08 (backspace) bytes in `repo_scan.py`; the file printed normally, the pins failed with "0 hits", and only `cat -A` showed `^H`. Patch by line index with plain strings, then `cat -A` the lines you wrote.
 - 2026-09-05 **Two builders stalled on the 600 s watchdog mid-lot; both resumed from their own transcript via SendMessage with zero rework.** Also: a builder that resolves its own DECISION NEEDED by disproving the premise and finding a real bug (D1: the analytics memo read the decision config) is the best outcome of the criterion's "or" branch - keep writing criteria with an honest alternative.
 - 2026-09-05 **Three cross-lot reds again, all Director-sized:** a fixture outside the lot missing a new field; a payload field with no renderer (the render-map guard); the client type mirror. The integrated gate on the quiet tree before every merge is what caught all three; keep it, and keep the fixes inline.
+- 2026-09-05 (round 42) **The python gate is a slow gate, never a builder gate.** Lot AM ran `test:python:gate` three times under three-builder contention; every run died without a summary line (two were the Director clearing orphans). Alone on the quiet tree it takes 163 s and passed twice. Builders run their own modules; the Director runs the gate once at quiescence in the background.
+- 2026-09-05 (round 42) **A builder that disproves a brief premise and ships the honest alternative is the best outcome of an "or" criterion** (D1 found the analytics memo bug; AM found AGENT_DISPATCH_SPEC_STALE is a shape check and shipped `spec-vintage` under its own name). Keep writing criteria with an honest alternative branch.
