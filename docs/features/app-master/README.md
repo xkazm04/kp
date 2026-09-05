@@ -384,6 +384,18 @@ ladder is bounded at five attempts, after which the state stays on screen and th
 client stops asking. Pure, so `dossier-retry.test.ts` pins the ladder and
 `jdsIntakeLogic.test.ts` pins the wiring.
 
+**The spec's vintage.** `AppMasterCompose.composedAt` has been stored since P3
+and was read by no surface, so a spec composed against three facets looked
+identical to one composed a second ago — under a button that hands a mandate to
+an accountable owner. `specVintage`
+([`app/_lib/app-master/spec-vintage.ts`](../../../app/_lib/app-master/spec-vintage.ts))
+compares it against the intake row's `updatedAt` (a 2-second grace window, because
+the compose route stamps `composedAt` and THEN writes the row) and the card shows
+an amber *Older brief* chip plus the remedy when the brief moved afterwards. It is
+a DISCLOSURE, not a gate: Dispatch stays enabled, and the requestor decides. It is
+also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`, which is a schema check
+on the stored spec's shape; a spec can be stale in vintage while parsing perfectly.
+
 ### The reference reading
 
 `npm run schemas:gen`-shaped output from a real run against kp itself is checked

@@ -8,6 +8,7 @@ import {
   type DossierPostOutcome,
   type DossierRetryState,
 } from "@/app/_lib/app-master/dossier-retry";
+import { specVintage, type SpecVintage } from "@/app/_lib/app-master/spec-vintage";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
 import {
@@ -377,8 +378,20 @@ export function useAppMasterLogic(
     }
   }, [intakeId, dispatchState.status]);
 
+  // Is the composed spec still about the brief on screen? `composedAt` has been
+  // stored since P3 and read by nothing, so a spec composed against three facets
+  // looked identical to one composed a second ago (spec-vintage.ts). Derived,
+  // never stored: it changes whenever either timestamp does.
+  const vintage: SpecVintage = specVintage({
+    composedAt: active?.appMaster?.composedAt ?? null,
+    briefUpdatedAt: active?.updatedAt ?? null,
+  });
+
   return {
     scanState,
+    /** "stale" = the brief moved after the spec was composed; the card says so
+     *  BEFORE the Dispatch click rather than after it. */
+    specVintage: vintage,
     /** What this session's scan can claim about the secret-file fence it ran
      *  behind. `null` = nothing to disclose. */
     scanFence,

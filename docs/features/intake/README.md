@@ -684,6 +684,14 @@ only once the server has accepted the attachment — hitting the 5-attachment
 cap, the 20k text cap (`INTAKE_ATTACHMENT_TOO_LONG`, carrying `max`) or a
 frozen session keeps the pasted note in the textarea instead of destroying it.
 
+The COUNT cap is disclosed the same way the text cap is: the pane carries a
+`{used} of {max}` chip (`attachments.countOfMax`, `ATTACHMENT_LIMIT` imported
+from `attachment-limits.ts`, never re-typed) and DISABLES both add controls at
+the cap, with the route's own `INTAKE_ATTACHMENT_LIMIT` message resolved through
+`useErrorMessage` underneath. Before that the pane imported the text cap only, so
+a sixth attachment looked addable and the click bought one round trip and a
+generic red line. Pinned by `JdsIntakeAttachmentsPane.test.ts`.
+
 Material is stored **as given**. Two consequences, both deliberate:
 
 - Over-cap note text is REFUSED, never truncated. The route used to `.slice()`

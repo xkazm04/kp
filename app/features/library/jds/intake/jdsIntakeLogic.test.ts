@@ -309,3 +309,29 @@ test("a refused dossier POST is classified and backed off, not called unreachabl
   // what makes the watcher stop asking.
   assert.match(src, /if \(plan\.retry\) \{\s*\r?\n\s*posted\.current = null;/);
 });
+
+// `composedAt` was stored by the compose route and read by NO surface, so a spec
+// composed against an early brief looked exactly like one composed a second ago
+// — under a button that hands a mandate to an accountable owner. The comparison
+// itself is pure (app/_lib/app-master/spec-vintage.test.ts); these are the two
+// halves that carry it to the screen.
+test("the composed spec's vintage is derived and rendered", () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const hook = readFileSync(path.join(dir, "jdsIntakeAppMaster.ts"), "utf8").replace(/\r\n/g, "\n");
+  const card = readFileSync(path.join(dir, "JdsIntakeAppMasterCard.tsx"), "utf8").replace(/\r\n/g, "\n");
+
+  // The hook derives it from the two timestamps it already holds — no new fetch,
+  // no stored field that could go out of date.
+  assert.match(hook, /from "@\/app\/_lib\/app-master\/spec-vintage"/);
+  assert.match(hook, /composedAt: active\?\.appMaster\?\.composedAt \?\? null/);
+  assert.match(hook, /briefUpdatedAt: active\?\.updatedAt \?\? null/);
+  assert.match(hook, /specVintage: vintage,/, "the hook must expose it");
+
+  // The card renders it, and only as a disclosure: an unknown vintage says
+  // nothing, and a stale one never disables the control.
+  assert.match(card, /specVintage = "unknown"/);
+  assert.match(card, /specVintage === "stale"/);
+  assert.match(card, /t\("spec\.staleChip"\)/);
+  assert.match(card, /t\("spec\.stale"\)/);
+  assert.ok(!/disabled=\{[^}]*specVintage/.test(card), "a stale spec is still dispatchable — the requestor decides");
+});

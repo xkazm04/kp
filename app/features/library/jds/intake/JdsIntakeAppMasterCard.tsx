@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, DIVIDER, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { mandateSections } from "@/app/_lib/app-master/mandate-view";
+import type { SpecVintage } from "@/app/_lib/app-master/spec-vintage";
 import type { AppMasterCompose, PopulationFit } from "@/app/_lib/db/intakes";
 import type { AppMasterSpec, RepoDossier } from "@/app/_lib/schemas.generated";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -210,6 +211,7 @@ export function JdsIntakeAppMasterCard({
   paired,
   dispatchState,
   onDispatch,
+  specVintage = "unknown",
 }: {
   dossier: RepoDossier | null;
   appMaster: AppMasterCompose | null;
@@ -238,6 +240,12 @@ export function JdsIntakeAppMasterCard({
   paired: boolean | null;
   dispatchState: DispatchState;
   onDispatch?: () => void;
+  /** Whether the spec below was composed against the brief on screen
+   *  (`app/_lib/app-master/spec-vintage.ts`). "stale" = the brief moved
+   *  afterwards, so the mandate the Dispatch button is about to hand to an owner
+   *  describes a role that has since changed. `undefined` reads as "unknown" —
+   *  the chip is a disclosure, never a guess. */
+  specVintage?: SpecVintage;
 }) {
   const t = useTranslations("library.tab.intake.appMaster");
   // An API failure is shown from its machine `code`, never from the server's
@@ -318,7 +326,16 @@ export function JdsIntakeAppMasterCard({
       {dossier ? (
         <div className={`${DIVIDER} space-y-2 pt-3`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className={META_LABEL}>{t("spec.title")}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className={META_LABEL}>{t("spec.title")}</div>
+              {/* Amber, not red: the spec is valid and dispatchable; it is simply
+                  about an older brief. The requestor is the one who decides
+                  whether that matters, so this states the fact and names the
+                  remedy rather than disabling the control. */}
+              {spec && specVintage === "stale" ? (
+                <span className={`${CHIP_QUIET} font-medium text-amber-700`}>{t("spec.staleChip")}</span>
+              ) : null}
+            </div>
             {!frozen && onCompose ? (
               <div className="flex items-center gap-2">
                 <button
@@ -342,6 +359,9 @@ export function JdsIntakeAppMasterCard({
           </div>
           {composeError ? (
             <p className="text-body text-red-700">{resolveError(composeError, t("composeError"))}</p>
+          ) : null}
+          {spec && specVintage === "stale" ? (
+            <p className="text-meta text-amber-700">{t("spec.stale")}</p>
           ) : null}
           {spec ? (
             <div className="space-y-1.5">

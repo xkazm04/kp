@@ -5,9 +5,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-// The cap is the ROUTE's — imported, never re-typed, so the composer's
-// disclosure and the server's refusal can never drift apart.
-import { ATTACHMENT_TEXT_MAX } from "@/app/api/intake/[id]/attachments/attachment-limits";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+// BOTH caps are the ROUTE's — imported, never re-typed, so the composer's
+// disclosure and the server's refusal can never drift apart. The pane used to
+// import the text cap only, so a sixth attachment looked addable: the click
+// spent a round trip and came back as one generic red line.
+import { ATTACHMENT_LIMIT, ATTACHMENT_TEXT_MAX } from "@/app/api/intake/[id]/attachments/attachment-limits";
 import type { IntakeAttachment } from "./jdsIntakeLogic";
 
 // Reference material ("podklady"): a colleague's note pasted as text, or a
@@ -37,6 +40,9 @@ export function JdsIntakeAttachmentsPane({
   showTitle?: boolean;
 }) {
   const t = useTranslations("library.tab.intake.attachments");
+  // The refusal is shown from the route's machine CODE, never from its English
+  // `error` string (app/_lib/use-error-message.ts).
+  const resolveError = useErrorMessage();
   const reduced = useReducedMotion();
   const [mode, setMode] = useState<"none" | "note" | "jd">("none");
   const [title, setTitle] = useState("");
@@ -73,6 +79,7 @@ export function JdsIntakeAttachmentsPane({
   }, [mode, jds]);
 
   const tooLong = text.trim().length > ATTACHMENT_TEXT_MAX;
+  const atLimit = attachments.length >= ATTACHMENT_LIMIT;
 
   const fade = {
     initial: { opacity: reduced ? 1 : 0 },
@@ -83,7 +90,13 @@ export function JdsIntakeAttachmentsPane({
 
   return (
     <div className="space-y-3">
-      {showTitle ? <div className={META_LABEL}>{t("title")}</div> : null}
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        {showTitle ? <div className={META_LABEL}>{t("title")}</div> : null}
+        {/* How much room is left, said BEFORE the send. The cap is a real
+            refusal on the route (INTAKE_ATTACHMENT_LIMIT), and a cap nobody
+            can see is only discoverable by hitting it. */}
+        <span className={`${CHIP_QUIET} nums`}>{t("countOfMax", { used: attachments.length, max: ATTACHMENT_LIMIT })}</span>
+      </div>
       {attachments.length === 0 ? <p className="text-body text-steel">{t("empty")}</p> : null}
       <AnimatePresence initial={false}>
         {attachments.map((a, i) => (
@@ -115,13 +128,35 @@ export function JdsIntakeAttachmentsPane({
       {frozen ? null : (
         <AnimatePresence mode="wait" initial={false}>
           {mode === "none" ? (
-            <motion.div key="pick" {...fade} className="flex flex-wrap gap-2">
-              <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} onClick={() => setMode("note")}>
-                {t("addNote")}
-              </button>
-              <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} onClick={() => setMode("jd")}>
-                {t("addJd")}
-              </button>
+            <motion.div key="pick" {...fade} className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
+                  disabled={atLimit}
+                  onClick={() => setMode("note")}
+                >
+                  {t("addNote")}
+                </button>
+                <button
+                  type="button"
+                  className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
+                  disabled={atLimit}
+                  onClick={() => setMode("jd")}
+                >
+                  {t("addJd")}
+                </button>
+              </div>
+              {/* The sentence under a stopped control is the ROUTE's own refusal,
+                  resolved in the reader's language, so the pane can never say
+                  something the server would contradict. */}
+              {atLimit ? (
+                <p className="text-meta text-steel">
+                  {resolveError({ code: "INTAKE_ATTACHMENT_LIMIT" }, t("countOfMax", { used: attachments.length, max: ATTACHMENT_LIMIT }), {
+                    max: ATTACHMENT_LIMIT,
+                  })}
+                </p>
+              ) : null}
             </motion.div>
           ) : mode === "note" ? (
             <motion.div key="note" {...fade} className="space-y-2">
