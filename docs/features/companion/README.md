@@ -1096,6 +1096,23 @@ carries the only stop control there is. In WINDOW mode that courtesy is
 impossible — the rest pill has no transport — so closing the window stops the
 utterance, which is V1's contract unchanged.
 
+**…and the strip it leaves behind can be dismissed.** In exactly that state the X
+and Escape both ran the host's `close`, which had already run: the one control on
+screen did nothing and the operator had to wait her out. Both now go through
+`companionVoiceCloseAction` (`app/_lib/companion-dock-states.ts`): open means
+close (the audio still survives it), not-open-but-speaking means `speech.stop()`,
+and neither means nothing at all rather than a close that would re-fire the focus
+handoff onto a rest pill that already has it.
+
+**A failed boot is no longer a dead end here.** The strip's error line offers the
+same **Try connecting again** / **Send it again** the dock's does, from the same
+`companionRetryTarget` and through the thread's own `retry` — so the boot re-arms
+and a refused message is re-sent from the text the thread is still holding. The
+footer input stays disabled while the thread has not booted (a message sent into
+no thread resolves false and restores itself), but it now carries a `title`
+saying so and naming the strip as the way out, instead of greying out
+indistinguishably from "she is thinking".
+
 ### Geometry
 
 The strip is fixed on `--z-sim-drawer`, the dock's own layer: above the sidebar,

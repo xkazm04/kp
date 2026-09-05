@@ -10149,7 +10149,8 @@
       "newer": "Réponse suivante",
       "position": "{index} sur {total}",
       "details": "Afficher les détails",
-      "detailsHide": "Masquer les détails"
+      "detailsHide": "Masquer les détails",
+      "notReady": "Pas encore connecté. Reconnectez-vous depuis le bandeau en haut de l'écran."
     }
   },
   "loadStatus": {

@@ -10149,7 +10149,8 @@
       "newer": "Novější odpověď",
       "position": "{index} z {total}",
       "details": "Zobrazit detaily",
-      "detailsHide": "Skrýt detaily"
+      "detailsHide": "Skrýt detaily",
+      "notReady": "Zatím nepřipojeno. Připojte se znovu z pruhu v horní části obrazovky."
     }
   },
   "loadStatus": {

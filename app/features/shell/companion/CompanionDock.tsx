@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 import { useAttention } from "@/app/features/shell/useAttention";
 import { shouldRefetchCompanionThread } from "@/app/_lib/companion-turn";
+import { companionVoiceCloseAction } from "@/app/_lib/companion-dock-states";
 import { useOptionalCompanionDock } from "./CompanionDockProvider";
 import { CompanionSettingsMenu } from "./CompanionSettingsMenu";
 import { CompanionVoiceMode } from "./voice/CompanionVoiceMode";
@@ -96,6 +97,17 @@ export function CompanionDock() {
     closeDock?.();
   }, [closeDock]);
 
+  // …and the voice strip's one dismissal control, which is the same act with one
+  // more state to answer for: a strip that is up ONLY because she is still
+  // speaking has already been closed, so running `close` again did nothing at all
+  // and the X and Escape were both dead. The decision is
+  // `companionVoiceCloseAction` so it is tested rather than inlined twice.
+  const closeVoice = useCallback(() => {
+    const action = companionVoiceCloseAction({ open, speaking });
+    if (action === "close") close();
+    else if (action === "stop") stop?.();
+  }, [open, speaking, close, stop]);
+
   // Escape closes the window. Deliberately NOT a dialog dismissal: this is a
   // complementary <aside> with no focus trap and no inert page (see the header),
   // so the key is a courtesy for the operator whose hands are on the keyboard,
@@ -136,7 +148,7 @@ export function CompanionDock() {
   if (!dock) return null;
   if (showVoice) {
     return (
-      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={close} />
+      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={closeVoice} />
     );
   }
   if (!open) {

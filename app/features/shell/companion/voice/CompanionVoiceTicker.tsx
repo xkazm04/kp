@@ -4,7 +4,8 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, PANEL } from "@/app/_components/ui/recipes";
+import type { CompanionRetryTarget } from "@/app/_lib/companion-dock-states";
 import type { CompanionProposal } from "@/app/_lib/db/companion";
 import type { CompanionSpeech } from "../useCompanionSpeech";
 import { VoiceNav } from "./VoiceNav";
@@ -72,6 +73,8 @@ export function CompanionVoiceTicker({
   speech,
   busy,
   error,
+  retryTarget,
+  onRetry,
   proposalById,
   onResolveProposal,
   blockLabels,
@@ -85,6 +88,14 @@ export function CompanionVoiceTicker({
   busy: boolean;
   /** Already resolved to a sentence by the host; null when nothing failed. */
   error: string | null;
+  /** What the error line should offer to do again — the boot that never produced
+   *  a thread, or the message that was refused. Null when there is nothing to
+   *  offer, which is the only state that draws the sentence alone. */
+  retryTarget: CompanionRetryTarget;
+  /** Re-runs whichever of the two `retryTarget` names. It is the thread's own
+   *  `retry`, so the boot re-arms and a refused message is re-sent from the text
+   *  the thread is still holding. */
+  onRetry: () => Promise<boolean>;
   /** Live proposal rows, keyed by id — the turn's `meta.proposalIds` is what
    *  joins them, never position. */
   proposalById: Map<string, CompanionProposal>;
@@ -139,7 +150,25 @@ export function CompanionVoiceTicker({
         {chrome}
       </div>
 
-      {error ? <p className="mt-1.5 text-sm text-coral">{error}</p> : null}
+      {error ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <p className="text-sm text-coral">{error}</p>
+          {/* The one control that gets an operator out of a failed boot on this
+              surface. The footer input is correctly dead while the thread does
+              not exist, so without this the strip stated a problem and offered
+              nothing — a reload was the only move. */}
+          {retryTarget ? (
+            <button
+              type="button"
+              onClick={() => void onRetry()}
+              disabled={busy}
+              className={`${BTN_GHOST} h-7 px-2 text-sm`}
+            >
+              {retryTarget === "boot" ? t("chat.reconnect") : t("chat.retry")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {entry && open ? (
         <div className="mt-2 border-t border-stone-200 pt-2">

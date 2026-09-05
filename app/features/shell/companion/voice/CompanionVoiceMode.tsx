@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { companionRetryTarget } from "@/app/_lib/companion-dock-states";
 import { CompanionSettingsMenu } from "../CompanionSettingsMenu";
 import type { CompanionSpeech } from "../useCompanionSpeech";
 import type { CompanionThreadState } from "../useCompanionThread";
@@ -93,6 +94,10 @@ export function CompanionVoiceMode({
     [t]
   );
   const error = thread.error ? resolveError({ code: thread.error }, t("chat.errorGeneric")) : null;
+  // The SAME decision the dock's error line makes, from the same helper. Without
+  // it a failed boot was a dead end on this surface: one red line, a footer input
+  // the thread's `ready` had disabled, and no way back but a reload.
+  const retryTarget = companionRetryTarget({ ready: thread.ready, error: thread.error, lastFailed: thread.lastFailed });
 
   useEffect(() => {
     if (settingsOpen) return;
@@ -128,6 +133,8 @@ export function CompanionVoiceMode({
         speech={speech}
         busy={thread.busy}
         error={error}
+        retryTarget={retryTarget}
+        onRetry={thread.retry}
         proposalById={proposalById}
         onResolveProposal={thread.resolveProposal}
         blockLabels={blockLabels}

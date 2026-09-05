@@ -10149,7 +10149,8 @@
       "newer": "Newer answer",
       "position": "{index} of {total}",
       "details": "Show details",
-      "detailsHide": "Hide details"
+      "detailsHide": "Hide details",
+      "notReady": "Not connected yet. Reconnect from the strip at the top of the screen."
     }
   },
   "loadStatus": {

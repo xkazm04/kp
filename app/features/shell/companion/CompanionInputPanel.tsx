@@ -67,6 +67,11 @@ export function CompanionInputPanel() {
   // has booted, and a message sent into no thread resolves false and silently
   // restores itself, which reads as the app ignoring you.
   const busy = thread.busy || !thread.ready;
+  // A disabled field with no reason is the half of the dead end the strip's
+  // Reconnect does not fix: the input greys out identically whether she is
+  // thinking about the last question or the thread never booted at all. It says
+  // which, and where the way out is.
+  const why = !thread.ready ? t("voiceMode.notReady") : null;
 
   async function submit() {
     const message = draft.trim();
@@ -90,6 +95,7 @@ export function CompanionInputPanel() {
         }}
         placeholder={t("voiceMode.placeholder")}
         aria-label={t("voiceMode.placeholder")}
+        title={why ?? undefined}
         disabled={busy}
         // No FIELD recipe: that one carries the rounded-md bordered box, and the
         // row itself IS the box here. The field inside it must be invisible.

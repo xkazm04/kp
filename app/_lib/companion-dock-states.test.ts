@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   companionRetryTarget,
+  companionVoiceCloseAction,
   readProposalAnswer,
   withoutOptimisticTurns,
 } from "./companion-dock-states.ts";
@@ -89,4 +90,43 @@ test("the composer is dead until the thread exists, and a failed boot offers a r
     "utf8"
   ).replace(/\r\n/g, "\n");
   assert.match(hook, /setBootAttempt\(/, "retry before a thread exists must re-run the boot request");
+});
+
+test("closing a voice strip that is only up because she is still speaking means STOP", () => {
+  // The strip outlives a close while an utterance is in flight (that courtesy is
+  // the whole reason `showVoice` reads `speaking`), and both the X and Escape ran
+  // the host's `close` — which had already run. So the one control on screen did
+  // nothing and the only way out was to wait her out.
+  assert.equal(companionVoiceCloseAction({ open: false, speaking: true }), "stop");
+  // Open is unchanged: closing the strip is closing the strip, and V3's contract
+  // is that the audio survives it.
+  assert.equal(companionVoiceCloseAction({ open: true, speaking: true }), "close");
+  assert.equal(companionVoiceCloseAction({ open: true, speaking: false }), "close");
+  // Neither open nor speaking is not a state the strip renders in; it answers
+  // null rather than a close that would re-fire the focus handoff.
+  assert.equal(companionVoiceCloseAction({ open: false, speaking: false }), null);
+});
+
+test("voice mode offers the same reconnect/retry the dock does, from the same helper", () => {
+  const mode = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/voice/CompanionVoiceMode.tsx", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  // A failed boot in voice mode was a dead end: one red line, a footer input the
+  // thread's `ready` had disabled, and no way back but a reload.
+  assert.match(mode, /companionRetryTarget\(/, "the offer is the tested decision, not a second inline guess");
+  assert.match(mode, /onRetry=\{thread\.retry\}/, "…and it goes through the thread's own retry, which re-arms the boot");
+
+  const ticker = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/voice/CompanionVoiceTicker.tsx", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  assert.match(ticker, /chat\.reconnect/, "the boot offer says reconnect");
+  assert.match(ticker, /chat\.retry/, "…and the message offer says retry");
+
+  const dock = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/CompanionDock.tsx", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  assert.match(dock, /companionVoiceCloseAction\(/, "the close/stop choice is the tested decision");
 });

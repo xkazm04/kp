@@ -69,3 +69,26 @@ export function companionRetryTarget(state: {
   if (!state.ready) return state.error ? "boot" : null;
   return state.lastFailed ? "message" : null;
 }
+
+export type CompanionVoiceCloseAction = "close" | "stop" | null;
+
+/**
+ * What the voice strip's ONE dismissal control should actually do.
+ *
+ * The strip stays on screen after a close while an utterance is still in flight
+ * — closing her is not a request to be cut off mid-sentence, and the strip
+ * carries the only stop control there is. But both the X and Escape ran the
+ * host's `close`, which had already run, so in exactly that state the only
+ * control on screen was a no-op and the operator had to wait her out.
+ *
+ * So: while the dock is open, closing is closing (the audio survives it, which is
+ * V3's contract). While it is not, the strip is up ONLY because she is speaking,
+ * and dismissing the thing that is speaking means stop.
+ */
+export function companionVoiceCloseAction(state: { open: boolean; speaking: boolean }): CompanionVoiceCloseAction {
+  if (state.open) return "close";
+  // Not open and not speaking is not a state the strip renders in. Answering null
+  // rather than "close" keeps a stray keypress from re-firing the focus handoff
+  // onto a rest pill that already has it.
+  return state.speaking ? "stop" : null;
+}

@@ -10149,7 +10149,8 @@
       "newer": "Neuere Antwort",
       "position": "{index} von {total}",
       "details": "Details anzeigen",
-      "detailsHide": "Details ausblenden"
+      "detailsHide": "Details ausblenden",
+      "notReady": "Noch nicht verbunden. Stellen Sie die Verbindung über die Leiste am oberen Bildschirmrand wieder her."
     }
   },
   "loadStatus": {
