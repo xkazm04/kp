@@ -7907,6 +7907,7 @@
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",
       "tts": "Hlas (převod textu na řeč)",
+      "stt": "Hlas (převod řeči na text)",
       "automation": "Automatizace",
       "campaign_pack": "Balíček kampaně",
       "jd_ingest": "Načtení popisu pozice",

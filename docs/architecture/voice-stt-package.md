@@ -199,6 +199,43 @@ The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every
 boundary that renders it.
 
+## Money — every transcript is in the ledger
+
+The cloud path is billed **per audio hour**, so a transcript is a paid leg exactly like a
+synthesis or a realtime minute, and it is metered the same way: `app/api/stt/route.ts`
+writes one `llm_usage` row per served transcript through `sttUsageRow`
+(`app/_lib/stt-prices.ts`), which is this plane's sibling of `tts-prices.ts` (per character)
+and `app/_lib/voice/minute-prices.ts` (per realtime minute). Without the row a cloud
+transcript appears in no Models usage panel, no billing spend fold and no total an operator
+can audit.
+
+| Field | Value |
+| --- | --- |
+| `use_case` | `stt` (the label is `models.useCases.stt` in all four catalogs) |
+| `provider` | the engine that actually served, `fallbackFrom` included |
+| `model` | the engine model id (`ggml-base.bin`, `universal`), or null |
+| tokens | **NULL** — audio seconds are not tokens, and `aggregateLlmUsage` sums those columns across every use case |
+| `cost_usd` | `STT_HOUR_PRICES[provider] x durationMs / 3_600_000`, rounded to 6 decimals |
+| `source` | always `llm`; there is no transcription cache, because no two uploads are the same clip |
+
+Three price conventions, all shared with the other two meters:
+
+- **The unit is the audio hour, not the wall clock.** The row is priced on
+  `SttTranscript.durationMs` (the vendor's own `audio_duration`, or the WAV header locally)
+  and never on `elapsedMs`. A slow CPU is not a bigger bill.
+- **AssemblyAI is $0.27 per audio hour**, its listed price for asynchronous Universal
+  transcription as of 2026-09-05. A LOCAL ESTIMATE, and a floor: diarization and PII
+  redaction are priced add-ons this row does not model. An operator on a negotiated rate
+  edits the number rather than trusting it.
+- **whisper.cpp is a KNOWN zero, and an unlisted provider is null.** "Costs nothing" and
+  "we do not know" are different facts; a null lands the call in `unpriced_calls`, where it
+  is visible, instead of in the sum as a fabricated zero. The known zero holds even when the
+  clip length does not parse: nothing is billed per hour, so no length can make it non-zero.
+
+The write is **best-effort** in the house shape (`try`/`catch` with a `console.warn`): the
+ledger is telemetry and never the request, so a transcript that succeeded is never failed by
+a bookkeeping error.
+
 ## Deployment shapes
 
 One package, two shapes, no code fork — the allowed set does the work:

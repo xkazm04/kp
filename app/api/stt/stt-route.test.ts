@@ -106,6 +106,23 @@ test("the engine code table covers the package's union, refusals included", () =
   assert.match(src, /safeJsonError\(err, "api:stt", "STT_FAILED"\)/);
 });
 
+// cloud-transcription-is-metered. Source rather than invocation: the ledger
+// write is past the engine, and the engine is what a keyless suite does not have.
+// What is pinned is the SHAPE that makes the row truthful and harmless — priced
+// on the clip's length rather than the wall clock, and best-effort so telemetry
+// can never fail a transcript that succeeded.
+test("every transcript writes an llm_usage row, priced by duration and best-effort", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8").replace(/\r\n/g, "\n");
+  assert.match(src, /insertLlmUsage\(\s*sttUsageRow\(/, "a served transcript is metered like every other paid leg");
+  assert.match(src, /durationMs: out\.durationMs/, "the vendor bills for the clip's length, not for how long the engine took");
+  assert.doesNotMatch(src, /sttUsageRow\([^)]*elapsedMs/, "elapsedMs is wall clock and prices nothing");
+  assert.match(
+    src,
+    /try \{\n\s*insertLlmUsage[\s\S]*?\} catch \(ledgerErr\) \{\n\s*console\.warn/,
+    "the ledger is telemetry: a failed write is logged, never raised into the response",
+  );
+});
+
 // the-keyless-voice-failure-reaches-the-operator-in-their-language — the twin of
 // the /api/tts guard. Source rather than invocation for the same reason: the
 // engine branch is past every keyless refusal.

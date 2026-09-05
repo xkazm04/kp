@@ -7907,6 +7907,7 @@
     "useCases": {
       "match_reasoning": "Match-Begründung",
       "tts": "Sprache (Text zu Sprache)",
+      "stt": "Sprache (Sprache zu Text)",
       "automation": "Automatisierung",
       "campaign_pack": "Kampagnenpaket",
       "jd_ingest": "JD-Import",

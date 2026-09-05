@@ -17,6 +17,8 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { validateAudioUploadServer } from "@/app/_lib/upload-constraints";
 import { getStt, isSttMimeType, SttError, type SttNeeds } from "@/app/_lib/stt";
+import { sttUsageRow } from "@/app/_lib/stt-prices";
+import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
@@ -119,6 +121,18 @@ export async function POST(request: Request) {
       },
       { provider: str(form, "provider"), needs, signal: request.signal },
     );
+    // Every transcript is metered, local ones included: the cloud path is billed
+    // per audio HOUR and the on-device path is a known zero, and both belong in
+    // the ledger so the Models usage panel and the billing spend fold can show
+    // what the input plane costs instead of leaving it off every total. Priced
+    // on `durationMs` (what a vendor bills for), never on `elapsedMs` (how long
+    // the engine took). Best-effort, in the house shape: the ledger is
+    // telemetry and never the request.
+    try {
+      insertLlmUsage(sttUsageRow({ provider: out.provider, modelId: out.modelId, durationMs: out.durationMs }));
+    } catch (ledgerErr) {
+      console.warn("[stt] ledger write failed", ledgerErr);
+    }
     return NextResponse.json(
       {
         text: out.text,

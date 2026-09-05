@@ -7907,6 +7907,7 @@
     "useCases": {
       "match_reasoning": "Match reasoning",
       "tts": "Voice (text to speech)",
+      "stt": "Voice (speech to text)",
       "automation": "Automation",
       "campaign_pack": "Campaign pack",
       "jd_ingest": "JD ingest",
