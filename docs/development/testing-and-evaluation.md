@@ -305,21 +305,30 @@ fixture, a sleep in `setUp`), none of which belong to any one test method. The
 bracket is `startTest`/`stopTest`, so setUp and tearDown are inside the number.
 
 **It reports; it does not gate.** There is no ceiling that fails a run, because a
-wall-clock threshold on a contended machine is a flake generator — the run above took
-1276s beside two other agents building in the same checkout and ~288s on a quiet one.
-What is stable is the RANKING and the share: ten modules out of ~150 own roughly four
-fifths of the clock, and that ratio has held across runs.
+wall-clock threshold is not a property of the code here. Two runs of the same tree an
+hour apart, on the same machine, beside two other agents building in the same
+checkout, gave 1276s and 814s — and they did not even agree on the ORDER:
+`test_scripts_entrypoints` was 171s in the first and 420s in the second, while
+`test_name_neutrality` went 271s → 35s. Both of those modules shell out, so they
+measure the machine's contention as much as their own work.
+
+What DID hold across both runs is the **share**: the top ten of ~150 modules own 79%
+and 85% of the clock respectively. That is the durable finding — the cost of this
+suite lives in a handful of subprocess-spawning modules, not spread across it — and
+it is the only thing to plan against.
 
 So the budget is a reading, not an assertion:
 
-- **The number to trust is CI's**, from the gate step's log — one machine, no
-  contention, the same shape every run. A local figure is for comparing a module
-  against its own neighbours in the same run, never against a figure from another.
+- **The number to trust is CI's**, from the gate step's log: one machine, one job, no
+  sibling agents. Compare a CI run against an earlier CI run and nothing else. A
+  local figure is good for ranking modules WITHIN that same run, and for nothing
+  across runs.
 - **Before adding a slow module, look at this list.** Ten entries own ~80% of the
   gate; an eleventh joining them is a decision, not an accident.
-- **The top of the list is where optimisation pays.** `test_name_neutrality` alone is
-  a fifth of the suite across ten tests — ~27s per test, which is the signature of
-  per-test work that could be class-level or fixture-cached.
+- **The top of the list is where optimisation pays**, and the shape to look for is a
+  high seconds-per-test ratio — `test_scripts_entrypoints` spends its whole cost on
+  four tests, which is the signature of per-test work (a spawn, a fixture build) that
+  could be class-level or cached.
 - The suite's other two tripwires — the skip ceiling/floor and the hermeticity check —
   are described in `run_gated.py`'s own docstring and are unaffected by `--timings`.
 
