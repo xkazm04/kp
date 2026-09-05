@@ -39,7 +39,7 @@ test("GET /session/[id] — 404 for unknown id", async () => {
   const res = await GET(...getReq("dsess-does-not-exist"));
   assert.equal(res.status, 404);
   const body = await res.json();
-  assert.equal(body.error, "session not found");
+  assert.equal(body.code, "DEVCASE_SESSION_NOT_FOUND", "the candidate-prefix read answers a code, never English prose");
 });
 
 test("GET /session/[id] — 404 for a session owned by another workspace", async () => {
@@ -50,7 +50,7 @@ test("GET /session/[id] — 404 for a session owned by another workspace", async
   // The caller is the DEFAULT workspace; session belongs to ws-session-beta
   assert.equal(res.status, 404, "a session from another team must be refused");
   const body = await res.json();
-  assert.equal(body.error, "session not found");
+  assert.equal(body.code, "DEVCASE_SESSION_NOT_FOUND", "the candidate-prefix read answers a code, never English prose");
 });
 
 test("GET /session/[id] — returns transcript and files for the owning workspace", async () => {

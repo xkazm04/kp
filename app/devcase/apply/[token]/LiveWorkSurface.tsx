@@ -367,11 +367,16 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // "limited" is a distinct terminal state from "error": the budget is a stated
   // product limit, not a fault, and it must never read as "your work was lost".
   const [chatState, setChatState] = useState<"idle" | "sending" | "error" | "limited">("idle");
+  // WHY the chat door refused, in the reader's language. The route used to answer bare
+  // English (and its catch forwarded the store's own message), so this surface had
+  // nothing to resolve and painted one generic line over four different causes.
+  const [chatRefusal, setChatRefusal] = useState<ApiErrorPayload | null>(null);
 
   async function sendChat() {
     const message = chatInput.trim();
     if (!message || chatState === "sending") return;
     setChatState("sending");
+    setChatRefusal(null);
     setChatMessages((prev) => [...prev, { channel: chatChannel, role: "user", text: message }]);
     setChatInput("");
     try {
@@ -398,7 +403,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         setChatState("limited");
         return;
       }
-      if (!r.ok) throw new Error("chat failed");
+      if (!r.ok) {
+        const payload = (await r.json().catch(() => null)) as ApiErrorPayload | null;
+        setChatRefusal(payload?.code ? payload : null);
+        throw new Error("chat failed");
+      }
       const data = (await r.json()) as { reply?: string; source?: string };
       if (data.reply)
         setChatMessages((prev) => [
@@ -566,7 +575,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         </div>
         {chatState === "error" ? (
           <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
-            {t("chatError")}
+            {errMsg(chatRefusal, t("chatError"))}
           </p>
         ) : null}
         {chatState === "limited" ? (

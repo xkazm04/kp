@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { appendDevSessionChat, appendDevSessionEvents, getDevCase, getDevSessionChat, getDevSessionMeta, getPostingByToken, lifecycleByPosting } from "@/app/_lib/db/devcase";
 import { runSessionChat } from "@/app/_lib/devcase-run";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -48,8 +48,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     // Status-only read (case-sim round 3): this route branches on status/token only.
     const session = getDevSessionMeta(id);
-    if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
-    if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
+    // Codes, not English: this door is read by an applicant with no account on a page
+    // the app renders in four languages (devcase-candidate-refusals.test.ts).
+    if (!session) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
+    if (session.status !== "active") return jsonRefusal("DEVCASE_SESSION_ALREADY_SUBMITTED", 409);
 
     const body = await readJsonWithLimit<{
       channel?: unknown;
@@ -73,7 +75,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const channel = body.channel === "stakeholder" ? "stakeholder" : "assistant";
     const message = typeof body.message === "string" ? body.message.trim().slice(0, MAX_MESSAGE_CHARS) : "";
-    if (!message) return NextResponse.json({ error: "message is required" }, { status: 400 });
+    if (!message) return jsonRefusal("DEVCASE_CHAT_MESSAGE_REQUIRED", 400);
     const cf = body.currentFile as { path?: unknown; contents?: unknown } | null | undefined;
     const currentFile =
       channel === "assistant" && cf && typeof cf.path === "string" && typeof cf.contents === "string"
@@ -92,7 +94,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const posting = session.token ? getPostingByToken(session.token) : null;
     const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
-    if (!devCase?.case) return NextResponse.json({ error: "case unavailable" }, { status: 404 });
+    // The apply link no longer resolves to a case anyone can be handed: the same
+    // refusal the mint and the finalize door give, for the same reason.
+    if (!devCase?.case) return jsonRefusal("DEVCASE_SESSION_UNAVAILABLE", 404);
 
     // Transcript BEFORE this message (channel-scoped) is the model's continuity
     // context; the stored copy is the evaluation evidence.
@@ -133,6 +137,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // work depends on knowing which one they are talking to.
     return NextResponse.json({ reply, source });
   } catch (error) {
-    return jsonError(error, "Failed to reach the chat channel.");
+    // A PUBLIC candidate door: the thrown message is a store or spawn detail
+    // (SQLITE_* codes, the absolute db path, provider stderr) and must never reach
+    // an applicant. The raw error goes to the server log; the client gets the code.
+    return safeJsonError(error, "api:devcase/session/chat", "DEVCASE_CHAT_FAILED");
   }
 }

@@ -503,6 +503,24 @@ the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins
 source: no route may re-type the closed-intake sentence, and the work surface may never
 use the inverted `body.error ?? t(...)` chain.
 
+**…and so do the last two doors.** The pass above left the chat channel and the 8s flush
+answering bare English, with catches on `jsonError` — which forwards the thrown
+`.message`, so `SQLITE_*` codes, the absolute db path and the provider stderr
+`runSessionChat` raises could reach an unauthenticated applicant mid-assessment. Both now
+refuse through the vocabulary: `DEVCASE_SESSION_NOT_FOUND` (404),
+`DEVCASE_SESSION_ALREADY_SUBMITTED` (409, a new code: nothing is lost and nothing is
+broken, the attempt is simply over), `DEVCASE_CHAT_MESSAGE_REQUIRED` (400) and
+`DEVCASE_SESSION_UNAVAILABLE` (404) for a link that no longer resolves to a case. The
+catches answer `safeJsonError` against three new `STORE_ERRORS` codes —
+`DEVCASE_CHAT_FAILED`, `DEVCASE_SESSION_FLUSH_FAILED` (worded so a failed flush never
+reads as lost work: the batch stays buffered and the draft stays on the device) and
+`DEVCASE_SESSION_READ_FAILED` for the operator GET that shares the public prefix.
+`LiveWorkSurface` resolves the chat refusal through `useErrorMessage` instead of painting
+one generic line over four causes, and `DevSessionEvidencePanel` — which already read
+codes — finally gets one from the session read. Statuses are unchanged;
+`devcase-candidate-refusals.test.ts` now walks all five candidate doors and
+`session-read.test.ts` asserts the code rather than the English sentence.
+
 **The live finalize is a real intake, not a store call.** `POST
 /api/devcase/session/[id]/submit` used to call `submitDevSession` and stop there, while
 both sibling doors — the public webhook `inbound/route.ts` and the internal

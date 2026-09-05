@@ -391,6 +391,21 @@ export const STORE_ERRORS = {
    *  wedged workdir, an ENOENT on PYTHON_CMD, or non-JSON stdout — whose diagnostic
    *  dump embeds stdout, stderr and the temp workdir path by construction. */
   EXTRACT_TEXT_FAILED: "Could not read text from that file. Please try again.",
+  // ---- The last two candidate doors of the work session (/perfect wave 42a,
+  // devcase-identity-and-lifecycle). The chat channel, the 8s flush and the
+  // recruiter read that shares their URL prefix all answered jsonError, which
+  // forwards the thrown .message: SQLITE_* codes, the absolute db path and the
+  // provider stderr runSessionChat raises, painted at an unauthenticated
+  // applicant mid-assessment.
+  /** The chat channel faulted (500): better-sqlite3 on the transcript write, or the
+   *  spawned model call. The candidate keeps working; the message was not sent. */
+  DEVCASE_CHAT_FAILED: "Could not reach the chat channel. Please try again.",
+  /** The 8s flush faulted (500). Its message must never read as lost work: the
+   *  surface keeps the batch buffered and the local draft on the device. */
+  DEVCASE_SESSION_FLUSH_FAILED: "Could not save this work session right now. Your work is kept on this device and will be sent again.",
+  /** The recruiter read of a work session faulted (500). Operator-facing, but it
+   *  sits under the public session prefix and shared the candidate responder. */
+  DEVCASE_SESSION_READ_FAILED: "Could not load the work session. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1505,6 +1520,15 @@ export const REFUSAL_ERRORS = {
   /** The extractor overran EXTRACT_TIMEOUT_MS (504) — 5s inside the route's own
    *  maxDuration budget, so cleanup still runs. A decision, not a fault. */
   EXTRACT_TEXT_TIMEOUT: "Reading that file took too long and was stopped. Try a smaller file.",
+  // ---- The chat and flush doors of a work session (/perfect wave 42a,
+  // devcase-identity-and-lifecycle). Both answered bare English sentences with no
+  // code, on the surface a candidate spends an hour inside.
+  /** The session has been finalized, so it takes no more work (409). Distinct from
+   *  DEVCASE_SESSION_NOT_FOUND on purpose: nothing is lost and nothing is broken,
+   *  the attempt is simply over, and a second tab is the usual way to reach it. */
+  DEVCASE_SESSION_ALREADY_SUBMITTED: "This work session has already been submitted.",
+  /** A chat turn arrived empty, or as something that is not text (400). */
+  DEVCASE_CHAT_MESSAGE_REQUIRED: "Write a message before sending it.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
