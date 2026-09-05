@@ -258,6 +258,24 @@ unfenced. It is the step the module leans on hardest when the artifact itself pr
 nothing ("the scores above are HYPOTHESES"), so steering it blunts the very interview that
 verifies them. Pinned by `TestFollowupContextIsFenced` in `test_devcase_evaluate.py`.
 
+**A step that spent tokens and kept none of them reports `deterministic`.**
+`provenance.generate_with_fallback` is the LLM-or-deterministic runner behind every devcase
+step (and agentfit, intake, repo_scan), and each step's `coerce` degrades field by field to
+its deterministic template — so a reply that contributes nothing (`{}`, or one whose every
+field is rejected) used to return a byte-identical template artifact stamped `"llm"`. It now
+compares the coerced artifact against the template and, when nothing survived, reports
+`deterministic` with an `unusable_output` `fallbackReason` (the same honesty rule
+`automation._generate` learned from the 2026-08-11 bench). The label is load-bearing on two
+seats: `devcase-orchestrator.ts` audits `seed_materialized` / `baseline_frozen` only on
+`"llm"` and FREEZES the artifact permanently (`saveDevCaseSeedIfAbsent`,
+`saveDevCaseBaselineIfAbsent`), so a mislabelled empty seed or baseline was frozen for the
+life of the case instead of taking the honest `seed_skeleton_only` / `baseline_unavailable`
+branch. The comparison excludes the `fallbackReason` key on BOTH sides — it is the runner's
+own stamp, and counting it would defeat the guard with the key the guard adds — and a
+template builder that raises leaves the comparison unprovable, which keeps the `"llm"` label
+rather than inventing a degradation. Pinned by `TestTemplateForTemplateIsNotLlm` in
+`pipeline/jobfit/tests/test_devcase_provenance.py`.
+
 `provenance.py` also owns the *other* half of that contract, used outside this module:
 **`defuse_fence_markers`**. `fenced_untrusted` neutralizes its payload by JSON-encoding it
 (`json.dumps` turns the newlines a standalone marker needs into `\n` escapes), which is

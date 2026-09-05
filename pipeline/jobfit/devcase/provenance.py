@@ -14,7 +14,12 @@ by every ``_generate`` in analyze/design/evaluate/reflect — it captures the sw
 exception (type + message), logs it at WARNING, and stashes a one-line reason on the
 artifact so :mod:`devcase_cli` can surface it beside ``perStepSources``. Without it a
 fully-deterministic run looks identical whether the provider was down, slow, or
-returning garbage; with it an operator/UI can tell those apart.
+returning garbage; with it an operator/UI can tell those apart. It also refuses to
+BILL the model for a reply it did not contribute: when coercion keeps nothing and the
+artifact comes out byte-identical to the template, the source is ``"deterministic"``
+with an ``unusable_output`` reason — the honesty rule ``automation._generate`` learned
+from the 2026-08-11 bench, and load-bearing here because two devcase seats freeze this
+label permanently.
 """
 
 from __future__ import annotations
@@ -111,6 +116,13 @@ FALLBACK_REASON_KEY = "fallbackReason"
 # 300-char unparsed-JSON snippet) can't bloat the envelope or a log line.
 _MAX_REASON_CHARS = 300
 
+# Reason recorded when the provider ANSWERED but coercion kept none of it. There is no
+# exception to describe here — the descent is the OUTPUT, not the call — so it gets its
+# own vocabulary instead of a :func:`describe_fallback` "<Type>: <message>" line, and it
+# reuses the word ``automation._generate`` already files this descent under
+# ("unusable_output") so the two ledgers name the same failure the same way.
+UNUSABLE_OUTPUT_REASON = "unusable_output: the provider answered but coercion kept none of it"
+
 
 def str_list(value: Any) -> list[str]:
     """Coerce arbitrary model output into a clean ``list[str]``.
@@ -203,6 +215,60 @@ def _complete_json(provider: Any, prompt: str, system: str, expected_keys: Seque
     return provider.complete_json(prompt, system=system)
 
 
+def _without_reason(d: dict) -> dict:
+    """The artifact minus the one key THIS module writes into it.
+
+    :data:`FALLBACK_REASON_KEY` is our own stamp, not the step's content, so it must
+    never take part in a template comparison — in either direction. Both directions
+    really occur: the coerced result carries it if a coercer echoes a previously
+    degraded artifact back (and this function stamps it onto its own return value one
+    line later), and the TEMPLATE carries it whenever a builder closes over an artifact
+    that already went through this runner. Compare the raw dicts and the guard is
+    defeated by the key the guard itself adds — the two sides differ by our stamp alone,
+    the check reads "the model contributed something", and the mislabel survives exactly
+    in the degraded case it was written to catch.
+    """
+    return {k: v for k, v in d.items() if k != FALLBACK_REASON_KEY}
+
+
+def _kept_nothing(result: Any, deterministic: Callable[[], dict], logger: logging.Logger) -> bool:
+    """Did coercion keep NOTHING of the model's reply — i.e. is the artifact the template?
+
+    Every devcase ``coerce`` degrades field by field to its deterministic template, so a
+    reply that contributes nothing (``{}``, or one whose every field is rejected) yields a
+    byte-identical template artifact that used to be stamped ``"llm"``. The same honesty
+    rule ``automation._generate`` learned from the 2026-08-11 bench, which caught a
+    template-for-template payload graded as the model's work — with two seats' worth of
+    extra cost here, because ``devcase-orchestrator.ts`` freezes the seed and the baseline
+    PERMANENTLY (``…IfAbsent``) on the strength of this label.
+
+    The witness is a second call to ``deterministic``: every caller's builder is a pure
+    dict factory (a literal, or a pydantic model dumped by alias), so re-running it costs
+    a fraction of the LLM call that just returned and cannot be observed by anyone. It is
+    still wrapped: a builder that throws leaves the comparison UNPROVABLE, and an
+    unprovable comparison is not a degradation — inventing one would be the same kind of
+    lie as the mislabel. We log and keep the ``"llm"`` label instead.
+
+    Whole-dict equality is only as strong as the coercer's weakest field: a coercer that
+    keeps one junk field the template lacks still reads as the model's work. That belongs
+    to the coercers; what this settles is that a reply which kept NOTHING can no longer
+    pass as one that did.
+    """
+    if not isinstance(result, dict):
+        return False
+    try:
+        template = deterministic()
+    except Exception as exc:  # noqa: BLE001 — an unprovable comparison, not a degradation
+        logger.warning(
+            "could not rebuild the deterministic template to verify the LLM answer: %s",
+            describe_fallback(exc),
+        )
+        return False
+    if not isinstance(template, dict):
+        return False
+    return _without_reason(result) == _without_reason(template)
+
+
 def generate_with_fallback(
     provider: Any | None,
     prompt: str,
@@ -223,12 +289,17 @@ def generate_with_fallback(
     The single LLM-or-deterministic contract shared by every ``_generate`` in
     analyze/design/evaluate/reflect (they differ only in their ``system`` preamble and
     their ``deterministic``/``coerce`` closures), so the "capture the cause, log it,
-    surface it" behaviour can never drift across the four steps. Three outcomes:
+    surface it" behaviour can never drift across the four steps. Four outcomes:
 
     * ``provider is None`` — the LLM is off by design (``--no-llm`` or the provider was
       unavailable): a clean deterministic run, NO reason recorded. The ``"deterministic"``
       source already says the template was used; this is not a failure.
-    * the LLM call succeeds — ``coerce`` the payload, source ``"llm"``.
+    * the LLM call succeeds AND ``coerce`` kept something of the reply — source ``"llm"``.
+    * the LLM call succeeds but ``coerce`` kept NOTHING — the artifact is byte-identical
+      to the deterministic template, so it is reported as ``"deterministic"`` with
+      :data:`UNUSABLE_OUTPUT_REASON` (see :func:`_kept_nothing`). The tokens were spent;
+      the answer on the wire is not the model's, and two devcase seats FREEZE this label
+      forever, so claiming ``"llm"`` here mislabels a permanent artifact.
     * the LLM call RAISES — the cause used to be swallowed by a bare ``except Exception``,
       making a slow, a down and a garbage-returning provider indistinguishable in a
       fully-deterministic run. We now log it at WARNING (attributed to the calling
@@ -243,10 +314,21 @@ def generate_with_fallback(
         return deterministic(), SOURCE_DETERMINISTIC
     try:
         payload = _complete_json(provider, prompt, system, expected_keys)
-        return coerce(payload), SOURCE_LLM
+        result = coerce(payload)
     except Exception as exc:
         reason = describe_fallback(exc)
         logger.warning("LLM step fell back to deterministic: %s", reason)
-        result = deterministic()
+        # Copy before stamping: a builder that hands back a cached/shared dict would
+        # otherwise be polluted by our own reason key for the rest of the process, and
+        # every later template comparison in this module would compare against it.
+        result = dict(deterministic())
         result[FALLBACK_REASON_KEY] = reason
         return result, SOURCE_DETERMINISTIC
+    if _kept_nothing(result, deterministic, logger):
+        logger.warning("LLM step answered but coercion kept none of it: %s", UNUSABLE_OUTPUT_REASON)
+        # Copy for the same reason as the raise path: this artifact IS the template, and a
+        # coercer that returns a cached one would carry our stamp into every later run.
+        result = dict(result)
+        result[FALLBACK_REASON_KEY] = UNUSABLE_OUTPUT_REASON
+        return result, SOURCE_DETERMINISTIC
+    return result, SOURCE_LLM
