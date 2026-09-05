@@ -8255,7 +8255,8 @@
         "language": "App language",
         "invites": "Teammate invites",
         "pipeline": "Board columns",
-        "brand": "Brand color and logo"
+        "brand": "Brand color and logo",
+        "companion": "Candi memory"
       },
       "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
       "line": "{part}: {reason}",

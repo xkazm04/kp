@@ -8255,7 +8255,8 @@
         "language": "Jazyk aplikace",
         "invites": "Pozvánky pro kolegy",
         "pipeline": "Sloupce nástěnky",
-        "brand": "Barva značky a logo"
+        "brand": "Barva značky a logo",
+        "companion": "Paměť Candi"
       },
       "reasonUnknown": "nepodařilo se uložit. Dokončit to můžete v Nastavení.",
       "line": "{part}: {reason}",

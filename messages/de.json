@@ -8255,7 +8255,8 @@
         "language": "App-Sprache",
         "invites": "Team-Einladungen",
         "pipeline": "Board-Spalten",
-        "brand": "Markenfarbe und Logo"
+        "brand": "Markenfarbe und Logo",
+        "companion": "Candi Gedächtnis"
       },
       "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
       "line": "{part}: {reason}",

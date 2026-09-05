@@ -8255,7 +8255,8 @@
         "language": "Langue de l’application",
         "invites": "Invitations d’équipe",
         "pipeline": "Colonnes du tableau",
-        "brand": "Couleur de marque et logo"
+        "brand": "Couleur de marque et logo",
+        "companion": "Mémoire de Candi"
       },
       "reasonUnknown": "n’a pas pu être enregistré. Vous pouvez le terminer dans les Réglages.",
       "line": "{part} : {reason}",

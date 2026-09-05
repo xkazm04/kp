@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { persistSetupBrand, sendSetupInvites } from "./setupOnboardingFinish";
+import { persistCompanionConsent, persistSetupBrand, sendSetupInvites } from "./setupOnboardingFinish";
 import { everyInviteLanded, foldSetupOutcome } from "./setupFinishOutcome";
 import type { SetupInvite, SetupState } from "./setupSteps";
 
@@ -178,4 +178,72 @@ test("a network fault is a refusal too — nothing was stored", async () => {
     () => persistSetupBrand(BRAND_STATE)
   );
   assert.deepEqual(result, { part: "brand", status: "refused", code: null });
+});
+
+// ---------------------------------------------------------------------------
+// Candi's memory — a consent write the wizard used to fire and forget.
+//
+// The trap: `POST /api/companion/brain` answers 403 (a seat without the
+// capability) or 500 WITHOUT throwing, so the old `try { await fetch(...) } catch {}`
+// resolved on a refusal and reported nothing. There is no consent control in
+// Settings, so the operator's only clue was the dock's "memory off" line weeks
+// later. A choice that was MADE and did not land now folds like every other write.
+
+const CONSENT_STATE = { companionChoice: "birth" } as unknown as SetupState;
+
+test("no choice is SKIPPED, and never touches the network", async () => {
+  const result = await withFetch(
+    () => Promise.reject(new Error("must not be called")),
+    () => persistCompanionConsent({ companionChoice: null } as unknown as SetupState)
+  );
+  assert.deepEqual(result, { part: "companion", status: "skipped" });
+});
+
+test("a stored consent lands — and says nothing in the closing sentence", async () => {
+  const result = await withFetch(
+    () => Promise.resolve(new Response("{}", { status: 200 })),
+    () => persistCompanionConsent(CONSENT_STATE)
+  );
+  assert.deepEqual(result, { part: "companion", status: "landed" });
+  assert.deepEqual(foldSetupOutcome([result]), { ok: true });
+});
+
+test("a 403 carries its code into the fold, not a silent green", async () => {
+  const result = await withFetch(
+    () => Promise.resolve(new Response(JSON.stringify({ error: "Forbidden", code: "FORBIDDEN_CAPABILITY" }), { status: 403 })),
+    () => persistCompanionConsent(CONSENT_STATE)
+  );
+  assert.deepEqual(result, { part: "companion", status: "refused", code: "FORBIDDEN_CAPABILITY" });
+  assert.deepEqual(foldSetupOutcome([result]), {
+    ok: false,
+    failures: [{ part: "companion", code: "FORBIDDEN_CAPABILITY", addresses: [] }],
+  });
+});
+
+test("a 500 with no parseable body still refuses, with a null code", async () => {
+  const result = await withFetch(
+    () => Promise.resolve(new Response("<html>502</html>", { status: 500 })),
+    () => persistCompanionConsent(CONSENT_STATE)
+  );
+  assert.deepEqual(result, { part: "companion", status: "refused", code: null });
+});
+
+test("a network fault is a refusal too — memory is not on", async () => {
+  const result = await withFetch(
+    () => Promise.reject(new Error("offline")),
+    () => persistCompanionConsent(CONSENT_STATE)
+  );
+  assert.deepEqual(result, { part: "companion", status: "refused", code: null });
+});
+
+test("the choice is posted verbatim to the brain door", async () => {
+  const seen: { url: string; body: unknown }[] = [];
+  await withFetch(
+    (url, init) => {
+      seen.push({ url, body: JSON.parse(String(init?.body)) });
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    },
+    () => persistCompanionConsent(CONSENT_STATE)
+  );
+  assert.deepEqual(seen, [{ url: "/api/companion/brain", body: { action: "birth" } }]);
 });
