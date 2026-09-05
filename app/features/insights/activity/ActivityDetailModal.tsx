@@ -131,7 +131,7 @@ function CompanionTurnRun({ threadId, onClose }: { threadId: string; onClose: ()
       {openable ? (
         <button
           type="button"
-          className={BTN_SECONDARY}
+          className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
           onClick={() => {
             dock.openDock();
             onClose();
