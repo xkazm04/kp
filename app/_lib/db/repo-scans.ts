@@ -44,6 +44,11 @@ export const REPO_SCAN_ERROR_CODES = [
   "clone_failed",
   "clone_timeout",
   "cancelled",
+  // The RUNNER's wall-clock budget, not git's: the task watchdog reaped the run at
+  // TASK_MAX_RUNTIME_MS. Distinct from `cancelled` because the remedies are
+  // opposite — a cancel is undone by re-running, a reap is not (tasks.ts aborts the
+  // same controller for both, which is why the watchdog now names its reason).
+  "timeout",
   "engine_failed",
   "unknown",
 ] as const;

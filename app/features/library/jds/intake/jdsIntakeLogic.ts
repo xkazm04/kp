@@ -78,6 +78,7 @@ export type ScanState =
   | "failedCloneFailed"
   | "failedCloneTimeout"
   | "failedCancelled"
+  | "failedTimeout"
   | "failedEngineFailed"
   // The dossier LANDED, but on the heuristic floor after the in-repo agent failed
   // (RepoScanFallbackClass — Python's FALLBACK_CLASSES, mirrored in TS).
@@ -120,6 +121,7 @@ const FAILURE_STATE: Record<string, ScanState> = {
   clone_failed: "failedCloneFailed",
   clone_timeout: "failedCloneTimeout",
   cancelled: "failedCancelled",
+  timeout: "failedTimeout",
   engine_failed: "failedEngineFailed",
 };
 

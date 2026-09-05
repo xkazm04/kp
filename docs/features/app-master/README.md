@@ -328,11 +328,21 @@ honest `failed` row rather than one stuck at `running`.
 **The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
 of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
 now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
-`clone_failed`, `clone_timeout`, `cancelled`, `engine_failed`, `unknown` — set at
-the throw site that observed it (`RepoScanFailure`), never reconstructed later by
-matching English; `error` stays the diagnostic line for the server log. An
-aborted run classifies as `cancelled` **first**, whatever the killed step raised,
-so a Cancel is never reported as an engine fault.
+`clone_failed`, `clone_timeout`, `cancelled`, `timeout`, `engine_failed`,
+`unknown` — set at the throw site that observed it (`RepoScanFailure`), never
+reconstructed later by matching English; `error` stays the diagnostic line for
+the server log. An aborted run classifies from the ABORT **first**, whatever the
+killed step raised, so a Cancel is never reported as an engine fault.
+
+**A watchdog reap is not the operator's Cancel.** The task runner aborts the same
+controller for both (`tasks.ts`: `cancelTask` at the operator's request,
+`TASK_MAX_RUNTIME_MS` at the wall-clock budget), so a reaped scan used to say
+"the scan was stopped" — and the operator re-ran it unchanged and waited another
+fifteen minutes. The watchdog now aborts **with a reason**, in the platform's own
+vocabulary (`DOMException(..., "TimeoutError")`, exactly what
+`AbortSignal.timeout()` produces), `isTimeoutAbort` reads it, and the row lands
+`timeout` — whose copy says re-running unchanged will hit the same limit.
+`cancelled` stays what it always was: `controller.abort()` with no reason.
 
 `repo_scans.fallback_class` is the other half: a dossier can *complete* on the
 heuristic floor because the in-repo agent failed, and that read identically to a

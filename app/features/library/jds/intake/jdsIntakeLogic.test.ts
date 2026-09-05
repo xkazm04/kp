@@ -185,6 +185,9 @@ test("a failure is named by its class, and an unnamed one still says failed", ()
   assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "git_missing" }), "failedGitMissing");
   assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "offline_refused" }), "failedOfflineRefused");
   assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "cancelled" }), "failedCancelled");
+  // A watchdog reap and a Cancel are different lines because they have opposite
+  // remedies: re-running undoes a Cancel and reproduces a reap.
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "timeout" }), "failedTimeout");
   // Unclassified, absent (a row written before the column existed), and a code this
   // build has never heard of all fall to the generic line rather than to a key that
   // does not resolve.
