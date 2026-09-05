@@ -58,7 +58,20 @@ are skipped unless enabled (`KP_CLAUDE_CLI_LIVE=1`). Playwright splits into
 cleanly without a Gemini key, includes a11y checks) and `e2e/profile-builder.spec.ts`
 (deterministic build/save round-trip, no API key needed). The deterministic keyless
 e2e subset and how to run it against an already-running server are listed in
-[`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands".
+[`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands"; the list
+itself is declared once, as `KEYLESS_SPECS` in `playwright.config.ts`, and pinned
+to both readers by `scripts/docs/__tests__/keyless-e2e-pin.test.mjs`.
+
+**The suite owns its database.** The managed webServer boots on a throwaway
+`KP_DB_PATH` (`data/kp-e2e.sqlite`, gitignored) rather than `data/kp.sqlite`.
+These specs write — an offer and an org invite are minted, profiles are saved,
+pipeline entries move — so before this they mutated the developer's own demo
+corpus, and each run changed what the next one measured. A fresh file self-seeds
+from `data/seed_*`, so **deleting it is the reset**. Two caveats worth knowing:
+`reuseExistingServer` means a dev server already on :3101 is used as it is, with
+whatever DB it opened; and setting `KP_E2E_BASE_URL` drops the webServer block
+entirely, so the server's env is whoever started it (ci.yml's keyless job boots
+its own against a disposable checkout).
 
 ## The exit-code contract
 

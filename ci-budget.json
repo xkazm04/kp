@@ -54,7 +54,7 @@
     "E2E deterministic (chromium, keyless)": {
       "maxMinutes": 18,
       "workflow": "ci.yml",
-      "why": "a full production build, a standalone runtime assembled the way the Dockerfile assembles it, a chromium install and four specs. Seeded from its 30-minute timeout; the Next build cache is what keeps it under, so a cache-key change shows up here first."
+      "why": "a full production build, a standalone runtime assembled the way the Dockerfile assembles it, a chromium install and FIFTEEN specs (it said four; it ran eight, and wave 41 enrolled the seven keyless specs that ran nowhere). Still the seeded 30-minute-timeout figure and not a measurement: no CI run of the fifteen exists yet, so tightening this would be inventing a number. The seven additions are read-mostly page loads plus one axe sweep on two-worker concurrency — minutes, against a build that dominates the job — and the Next build cache is what keeps the whole thing under, so a cache-key change still shows up here first. `npm run ci:budget -- --tighten` against real runs on main replaces this."
     },
     "Python gated suite": {
       "maxMinutes": 6,

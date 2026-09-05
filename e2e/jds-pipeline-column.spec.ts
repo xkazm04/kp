@@ -27,13 +27,22 @@ test.describe("JD library — pipeline column", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/?tab=library");
     await expect(page.locator("tbody tr").nth(3)).toBeVisible({ timeout: 20_000 });
-    await page.waitForTimeout(800);
-    const overflow = await page.evaluate(() => {
-      const table = document.querySelector("table") as HTMLElement;
-      const wrap = table.closest("div.overflow-x-auto") as HTMLElement | null;
-      return wrap ? table.scrollWidth - wrap.clientWidth : 0;
-    });
-    expect(overflow).toBeLessThanOrEqual(0);
+    // This used to be `waitForTimeout(800)` — the suite's only hard sleep, and
+    // the wrong instrument twice over: 800ms is a guess that is simultaneously
+    // too long on a warm run and too short on a cold compile. What the
+    // measurement actually needs is (a) the display face loaded, because a
+    // fallback-metric reflow changes every column width, and (b) a width that
+    // has stopped moving. Both are observable, so observe them.
+    await page.evaluate(() => document.fonts.ready);
+    const measureOverflow = () =>
+      page.evaluate(() => {
+        const table = document.querySelector("table") as HTMLElement;
+        const wrap = table.closest("div.overflow-x-auto") as HTMLElement | null;
+        return wrap ? table.scrollWidth - wrap.clientWidth : 0;
+      });
+    // Polled rather than sampled once: a layout still settling reports a
+    // transient overflow, and failing on that is the flake this replaces.
+    await expect.poll(measureOverflow, { timeout: 15_000 }).toBeLessThanOrEqual(0);
   });
 
   test("the quantitative columns sort, and say so for assistive tech", async ({ page }) => {

@@ -591,6 +591,13 @@ jobs:
           shell.spec
           journey-role-to-schedule
           journey-one-thread
+          activity-detail
+          analytics-sections
+          jds-pipeline-column
+          quality-tables
+          shell-tab-state
+          token-doors-axe
+          locale-smoke
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101
