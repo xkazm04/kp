@@ -26,7 +26,11 @@ from .provenance import generate_with_fallback
 
 _LOG = logging.getLogger(__name__)
 
-INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v2"
+# v3: the cover probes handed to the model now carry their `decisionSpace` — the
+# defensible options each ambiguity admits — so the counterfactual and the coachability
+# hint can be aimed at a real alternative instead of a generic "what if it changed".
+# The prompt text moved, so the version key moves with it.
+INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v3"
 
 # The shared skeleton — also imported by app/_lib/student-interview.ts, so the
 # phase structure can never drift between the generator and the agent brief.
@@ -152,10 +156,15 @@ def build_prompt(case: CaseScenario, role: RoleSpec) -> str:
             "title": case.title,
             "brief": case.brief,
             "tasks": case.tasks,
-            # `reveals` is INTERNAL agent material — it shapes the hint and the
-            # listen-for, and must never surface to the candidate.
+            # `reveals` and `decisionSpace` are INTERNAL agent material — they shape the
+            # hint and the listen-for, and must never surface to the candidate.
+            # `decisionSpace` (design.py: the 2-3 defensible options the ambiguity admits)
+            # is what the rest of the module already grades a submission against; without
+            # it here the counterfactual flipped an invented constraint and the hint could
+            # only point at a location, so the live interview probed a different landscape
+            # than the evaluation did.
             "coverProbes": [
-                {"id": cp.id, "kind": cp.kind, "where": cp.where, "reveals": cp.reveals}
+                {"id": cp.id, "kind": cp.kind, "where": cp.where, "reveals": cp.reveals, "decisionSpace": cp.decision_space}
                 for cp in case.cover_probes
             ],
         },
@@ -168,9 +177,13 @@ def build_prompt(case: CaseScenario, role: RoleSpec) -> str:
         f"and the problem, NO solutions, NO mention of probes, UNDER {_INTRO_MAX} characters ending on a "
         "complete sentence (it is delivered verbatim by a voice agent); and (2) for EACH phase in "
         "caseGroundedPhases, a concrete probe drawn from the case: Mechanism = why the case is shaped the way "
-        "it is / what breaks; Counterfactual = flip one REAL constraint of the case; Coachability = the ONE "
-        "hint the agent should offer mid-discussion, derived from a cover probe, plus what good uptake looks "
-        "like. Match each phase's goal; keep the candidate unaware anything is scripted.\n"
+        "it is / what breaks; Counterfactual = flip one REAL constraint of the case — when a probe's "
+        "'decisionSpace' names the options that constraint admits, flip it so a DIFFERENT one of those options "
+        "becomes the defensible answer; Coachability = the ONE hint the agent should offer mid-discussion, "
+        "derived from a cover probe — point at an option in its 'decisionSpace' the candidate has not weighed "
+        "— plus what good uptake looks like (naming the trade-off, not switching answers on command). Match "
+        "each phase's goal; keep the candidate unaware anything is scripted, and never read a 'reveals' or a "
+        "'decisionSpace' option aloud as a list.\n"
         'Return JSON: { "caseIntro": str, "phases": [ { "phase": str (exactly one of the listed phase names), '
         '"probe": str (spoken, concrete), "listenFor": str, "caseRef": str (which case element, e.g. "tasks[1]" '
         'or "coverProbes[p2]") } ] }. Cover every listed phase. JSON only.'

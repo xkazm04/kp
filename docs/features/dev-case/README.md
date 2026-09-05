@@ -99,7 +99,19 @@ palette. The full mapping table and the five reading states are in
    being hired, not the codebase's domain — a v2 fix (see
    `docs/_archive/dev-d3-hardening-findings.md`) — plus a mid-session
    **requirement change** (`midFlightUpdate`, v6) that makes pure one-shot
-   generation structurally insufficient.
+   generation structurally insufficient. Since v7 the RoleSpec's
+   **must-haves reach the case designer** — they are what `score_transfer`
+   grades the submission against, and a case designed without them could ask
+   for work that never touches the requirements the candidate is later marked
+   on. They reach the designer as *terrain*, never the candidate as a list:
+   the prompt asks for an exercise the must-haves cannot be completed well
+   without, and forbids naming them in the brief, tasks, starting materials or
+   mid-flight update — a case that states what it wants collapses each probe's
+   `decisionSpace` into a compliance exercise every candidate passes
+   identically. A role with no must-haves is designed exactly as before (the
+   key is omitted from the prompt rather than sent empty), and the
+   deterministic keyless template is unchanged — it has no way to design
+   terrain, so it does not pretend to.
 3. **Human gate.** The role/case is a Decisions approval
    (`app/api/devcase/lifecycle/route.ts`, `.../[id]/approve/route.ts`) before
    it is published/sent. The manual (non-lifecycle) gate in the Define-need
@@ -447,6 +459,29 @@ whose `perStepSources.tooling === "deterministic"`: the keyless/fallback templat
 stamps every probe `detected: false`, so including those rows produced a 100 %-miss
 cohort — and the panel's "this case is miscalibrated" banner — out of the absence of
 an API key.
+
+**…and the PRODUCER of that field now honours it too.** Every consumer above read the
+tri-state correctly while `reflect.assess_tooling` was still coercing the LLM's answer
+with `bool(o.get("handledWell", False))` — so a probe the model declined to judge, or
+simply did not mention, was written to the artifact as an explicit `false`: a graded
+failure, in a grading path, with no evidence behind it. `reflect._tri_bool` now keeps
+`true` / `false` / `null` end to end (a probe the model omitted is `null`), the prompt's
+answer schema is `"handledWell": bool|null` and says in words that `false` means judged
+and mishandled, and `TOOLING_SIGNAL_PROMPT_VERSION` moved to `tooling-signal-v4`.
+Downstream this lands in `evaluate`'s no-signal branch — judgment rests on verification
+alone rather than `0.5*verif + 0.5*0`.
+
+**The probes' `decisionSpace` now reaches both graders that judge against it.** The
+2-3 defensible options a probe admits (`design.py`) were already read by
+`evaluate_submission`, `mint_followups`, `chat.py` and `lifecycle_eval`, but not by the
+two steps that grade *probe handling* and *interview material*: `reflect.assess_tooling`
+(prompt v4) and `interview_scenario.build_prompt` (prompt `interview-scenario-v3`). The
+tooling grader is now asked which option the work encodes and to grade the deliberateness
+of the choice, not which option was picked; the interview's counterfactual flips the
+constraint so a *different* listed option becomes defensible, and the coachability hint
+points at an option the candidate has not weighed. Probes designed before the
+decision-space contract carry an empty list — `design.py` deliberately does not backfill
+it — and both prompts degrade to that rather than inventing a landscape.
 
 **Canary kind is rendered.** `CanaryOutcome.kind` rode in the bundle from the start
 and was never displayed, so "propagated · src/rates.ts" did not say whether a wrong
