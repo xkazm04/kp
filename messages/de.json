@@ -7202,7 +7202,7 @@
     "daysAvgOver": "Tage Ø aus {count, plural, one {# Einstellung} other {# Einstellungen}}",
     "closedInWindowSub": "{count} im Zeitraum beendet",
     "bucketTzNote": "Der Zeitraum und die wöchentlichen Trendabschnitte richten sich nach {tz}-Tagen.",
-    "cohortTruncatedNote": "Es wurden nur die neuesten {count, plural, one {# Eintrag} other {# Einträge}} in diesem Zeitraum gezählt — die Kohorte ist größer, als ein Lesevorgang abdeckt, daher ist jede Kennzahl unten eine begrenzte Stichprobe. Verkürzen Sie den Zeitraum, um sie vollständig zu sehen."
+    "cohortTruncatedNote": "Es wurden nur die neuesten {count, plural, one {# Eintrag} other {# Einträge}} in diesem Zeitraum gezählt. Die Kohorte ist größer, als ein Lesevorgang abdeckt, daher ist jede Kennzahl unten eine begrenzte Stichprobe. Verkürzen Sie den Zeitraum, um sie vollständig zu sehen."
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",

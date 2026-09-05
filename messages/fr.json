@@ -7202,7 +7202,7 @@
     "daysAvgOver": "jours en moy. sur {count, plural, one {# recrutement} other {# recrutements}}",
     "closedInWindowSub": "{count} clôturés sur la période",
     "bucketTzNote": "La période et les tranches hebdomadaires de tendance sont découpées sur des journées {tz}.",
-    "cohortTruncatedNote": "Seules les {count, plural, one {# entrée la plus récente a été comptée} other {# entrées les plus récentes ont été comptées}} sur cette période — la cohorte dépasse ce qu'une lecture couvre, donc chaque chiffre ci-dessous est un échantillon borné. Réduisez la période pour la voir en entier."
+    "cohortTruncatedNote": "Seules les {count, plural, one {# entrée la plus récente a été comptée} other {# entrées les plus récentes ont été comptées}} sur cette période. La cohorte dépasse ce qu'une lecture couvre, donc chaque chiffre ci-dessous est un échantillon borné. Réduisez la période pour la voir en entier."
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",

@@ -7202,7 +7202,7 @@
     "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
     "closedInWindowSub": "{count} uzavřeno v období",
     "bucketTzNote": "Období i týdenní intervaly trendu se počítají podle dnů v {tz}.",
-    "cohortTruncatedNote": "Započítáno bylo jen {count, plural, one {# nejnovější záznam} few {# nejnovější záznamy} other {# nejnovějších záznamů}} v tomto období — kohorta je větší, než jedno čtení pokryje, takže každé číslo níže je omezený vzorek. Zúžením období ji uvidíte celou."
+    "cohortTruncatedNote": "Započítáno bylo jen {count, plural, one {# nejnovější záznam} few {# nejnovější záznamy} other {# nejnovějších záznamů}} v tomto období. Kohorta je větší, než jedno čtení pokryje, takže každé číslo níže je omezený vzorek. Zúžením období ji uvidíte celou."
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
