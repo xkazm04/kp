@@ -16,6 +16,7 @@ src/
   validate.ts       the ONE validation door (byte cap, container allowlist, language shape, model-id charset)
   registry.ts       createStt(): dispatch door, capability gate, preference resolution, visible fallback
   node/             binary ladder · subprocess plumbing · a header-only WAV reader (no decoder, on purpose)
+  browser/          wav-encode.ts: the host-side capture conversion (mono → 16 kHz → PCM16 WAV)
   providers/        assemblyai (cloud async) · whisper-cpp (on-device) · fake (tests)
 ```
 
@@ -117,7 +118,28 @@ typed refusal naming the fix:
 invalid_audio: whisper.cpp needs 16 kHz PCM WAV; this clip is 44100 Hz format 1.
 ```
 
-Resample in the host, where the dependency is a choice somebody made on purpose.
+Resample in the host, where the dependency is a choice somebody made on purpose. **The host
+encodes before it uploads**, and for a browser host this package now ships that step so every
+consumer does not reinvent it:
+
+```ts
+import { encodeWavFromBlob } from "<path>/voice-stt/src/browser/wav-encode.ts";  // or "@kazm/voice-stt/browser"
+
+const recorded = new Blob(chunks, { type: "audio/webm" });   // what MediaRecorder gives you
+const { blob } = await encodeWavFromBlob(recorded);          // audio/wav, 16 kHz mono PCM16
+form.append("audio", new File([blob], "clip.wav", { type: "audio/wav" }));
+```
+
+It is still not a decoder: the ONE platform call is `AudioContext.decodeAudioData`, decoding a
+codec the same browser just wrote. Everything after it — `mixToMono`, `resampleLinear`,
+`encodeWav16` (and `decodeWav16` for the inverse) — is exported separately, is pure, and is
+tested on synthetic PCM, because that arithmetic is the half that can be wrong quietly. Rate
+conversion is linear interpolation with no anti-alias filter, which is a deliberate call for
+speech into a 16 kHz mel front end and the one line to revisit if an engine proves otherwise.
+
+Without this step the default install is a dead end rather than a degraded one: `MediaRecorder`
+writes Opus/WebM, the on-device engine leads the resolution order, and the first mic click is
+`invalid_audio` for every clip.
 
 ## Rules the package keeps, and you should too
 
@@ -156,6 +178,14 @@ ceilings, status enumeration, and the WAV reader. `providers/adapters.test.ts` c
 adapters themselves on doubles — a scripted `fetch` for the cloud path (`redacted` read off
 the row, a 429 becoming `rate_limited` with its `Retry-After`, the primary-tag narrowing)
 and a counting host for the local probe cache. No audio, no network, no model files.
+
+`browser/wav-encode.test.ts` covers the capture conversion on synthetic PCM: a 48 kHz sine
+resamples to exactly the 16 kHz frame count AND keeps its shape (every third input sample is
+an output sample at 3:1), an odd ratio rounds rather than drops a frame, out-of-range samples
+clamp instead of wrapping, channels are averaged to the shortest, and the header is validated
+by `node/wav.ts` — the SERVER's reader — against the four facts `whisper-cpp.ts` checks before
+it spawns anything. `encodeWavFromBlob` itself is NOT covered: `decodeAudioData` needs a real
+browser, and everything downstream of it is what these tests hold.
 
 Two things only a live check can confirm, and neither is asserted here: that AssemblyAI
 accepts each `DEFAULT_PII_POLICIES` name (a rejected one comes back as its 400 body), and

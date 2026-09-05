@@ -86,6 +86,34 @@ behind a decoder this package deliberately does not carry, so for `mpeg`/`mp4`/`
   confident English nonsense, which is worse than a refusal because it looks like a
   transcript. The adapter prefers a multilingual model and refuses the mismatch by name.
 
+### 4b. The host encodes before it uploads (`packages/voice-stt/src/browser/wav-encode.ts`)
+
+"The package does not transcode" is the right rule for the server and, left there alone, it
+made the default install a dead end rather than a degraded one. The browser records Opus in a
+WebM container (`MediaRecorder` offers nothing else on Chrome), the resolution order leads
+with the on-device engine on purpose, and whisper.cpp reads 16 kHz PCM WAV — so the first mic
+click was `invalid_audio` for every clip, and on a residency-locked deploy there was no second
+engine to fall back to.
+
+The conversion belongs on the capture side, where the platform already owns it, and the
+package now ships it so the first consumer does not invent it:
+
+| Step | Where | Pure? |
+| --- | --- | --- |
+| decode the recorded container | `AudioContext.decodeAudioData` | no — needs a browser |
+| channels → mono (averaged, not channel 0) | `mixToMono` | yes |
+| N kHz → 16 kHz (linear interpolation) | `resampleLinear` | yes |
+| Float32 → PCM16 + 44-byte RIFF header | `encodeWav16` | yes |
+
+Only the first row needs a browser, and it is the one row where the platform decodes a codec
+the same platform just wrote — not a decoder the package took on. Everything below it is
+arithmetic over `Float32Array`, exported separately, and tested on synthetic PCM whose header
+is validated **by `node/wav.ts`**, the reader the server uses to accept or refuse the clip;
+asserting our own bytes against our own constants would pass while shipping audio whisper.cpp
+rejects. Rate conversion is linear with no anti-alias filter — a deliberate call for speech
+into a 16 kHz mel front end, and one function to revisit if an engine proves otherwise.
+`encodeWavFromBlob` itself is unverified outside a real browser.
+
 ### 5. The scratch dir is a privacy control, not a convenience
 
 `withScratchDir` writes the clip to the OS temp folder for the local engine and removes it in
