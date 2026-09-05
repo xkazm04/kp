@@ -117,7 +117,7 @@ ladder: explicit env → shared home `bin/` → PATH.
   | `TtsError.code` | status | caller's next action |
   | --- | --- | --- |
   | `invalid_text`, `invalid_voice` | 400 | fix the request; never retry unchanged |
-  | `unavailable` | 503 | nothing can speak (no key, no entitlement, nothing installed) |
+  | `unavailable` | 503 + `TTS_UNAVAILABLE` | nothing can speak (no key, no entitlement, nothing installed) |
   | `rate_limited` | 429 + `Retry-After` | wait, then retry the same request |
   | `timeout` | 504 | retry or shorten the text |
   | `engine_failed` | 502 | the engine broke; retry or fall back |
@@ -130,6 +130,7 @@ ladder: explicit env → shared home `bin/` → PATH.
   `TOO_MANY_REQUESTS` for both the per-IP throttle and the engine's own 429 (which forwards
   `Retry-After` from `err.retryAfterMs`, and sends no header when the engine did not say — a
   fabricated wait is worse than none), `VOICE_REQUEST_INVALID` for a body that is not JSON,
+  `TTS_UNAVAILABLE` (503) when the engine says nothing can speak at all,
   and `safeJsonError(err, "api:tts", "TTS_FAILED")` for the 500, so a vendor HTTP body or a
   local model path goes to the server log only. The engine code -> status mapping is a
   LOOKUP keyed by the code, so a member the package adds later degrades to the honest 502
@@ -138,8 +139,11 @@ ladder: explicit env → shared home `bin/` → PATH.
 - **The ENGINE branch answers a code too, since 2026-09-05.** It used to send
   `{ error: err.message, code: err.code }`, and `err.message` is the adapter's English
   ("ELEVENLABS_API_KEY is not set", a provider's 502 body) — which a client renders, so a
-  keyless install printed an env var name in the Play button's tooltip of a Czech UI. Every
-  non-`rate_limited` engine failure now returns
+  keyless install printed an env var name in the Play button's tooltip of a Czech UI. Two
+  engine codes are answered by name first — `rate_limited` as `TOO_MANY_REQUESTS` and
+  `unavailable` as `jsonRefusal("TTS_UNAVAILABLE", TTS_ERROR_STATUS.unavailable)`, because
+  both are DECISIONS whose sentence is the information (wait; nothing is configured). Every
+  other engine failure returns
   `safeJsonError(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS[err.code] ?? 502)`:
   the whole error to the server log under that route tag, `TTS_FAILED` plus its registry
   sentence on the wire, and the engine's OWN status kept, because 503-vs-504-vs-502 is what

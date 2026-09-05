@@ -53,6 +53,14 @@ test("the engine code table maps every member the package declares", () => {
   // The branches that are NOT in the lookup, because they answer through the
   // refusal chokepoint instead.
   assert.match(src, /err\.code === "rate_limited"\) return engineThrottled\(err\.retryAfterMs\)/);
+  // `unavailable` is a REFUSAL (its sentence is the information), so it never
+  // reaches safeJsonError — but it still reads its status from the lookup, which
+  // is why the `unavailable: 503` row below is live rather than dead code.
+  assert.match(
+    src,
+    /err\.code === "unavailable"\) return jsonRefusal\("TTS_UNAVAILABLE", TTS_ERROR_STATUS\.unavailable\)/,
+    "nothing-can-speak answers TTS_UNAVAILABLE at the lookup's status",
+  );
   for (const [code, status] of [
     ["invalid_text", 400],
     ["invalid_voice", 400],
