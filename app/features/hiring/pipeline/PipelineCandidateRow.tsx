@@ -40,6 +40,7 @@ import { displayScoreOf } from "@/app/_lib/match-score";
 import { moveTargetStages } from "./pipelineMoveTargets";
 import { PipelineCandidateMenu, type CandidateMenuSection } from "./PipelineCandidateMenu";
 import { candidateRowEqual } from "./pipelineRenderDiet";
+import { useIntakeReasonText } from "./pipelineEventCatalog";
 import { DEFAULT_BOARD_AXIS, daysSince, slaForStage, styleFor, type Entry, type StageDef } from "@/app/features/shared/pipelineTypes";
 
 function CandidateRowImpl({
@@ -86,6 +87,9 @@ function CandidateRowImpl({
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
   const provenanceText = useScoreProvenanceText();
+  // The stored degraded reason is a CODE for anything the lead intake filed - resolved
+  // in the reader's language; legacy prose comes back verbatim (useIntakeReasonText).
+  const degradedReason = useIntakeReasonText()(entry.intakeDegradedReason);
   const style = styleFor(entry.archetype);
   const archLabel = enumLabel("archetype", entry.archetype);
   const days = daysSince(entry.stageChangedAt);
@@ -109,7 +113,7 @@ function CandidateRowImpl({
   const degraded = !!entry.intakeDegraded;
   const dotClass = degraded ? "bg-red-600" : pending ? "bg-coral animate-pulse" : stale ? "bg-amber-400" : style.bg;
   const dotTitle = degraded
-    ? `${t("candidateRow.intakeDegraded")}${entry.intakeDegradedReason ? t("candidateRow.degradedReasonSuffix", { reason: entry.intakeDegradedReason }) : ""}`
+    ? `${t("candidateRow.intakeDegraded")}${degradedReason ? t("candidateRow.degradedReasonSuffix", { reason: degradedReason }) : ""}`
     : pending
       ? t("candidateRow.awaitingDecision")
       : stale

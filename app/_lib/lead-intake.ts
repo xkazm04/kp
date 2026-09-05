@@ -36,6 +36,7 @@ import { ANONYMOUS_APPLICANT_LABEL } from "./apply-intake";
 import { dispatchApplicationReceived, dispatchKnockoutDecline } from "./comms-dispatch";
 import { randomId } from "./random-id";
 import { sanitizeFreeText } from "./text-sanitize";
+import { codedReasonDetail } from "./coded-reason";
 
 const STUB_REASON_MAX = 280;
 
@@ -207,12 +208,17 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
       changes.push("contact email captured");
       if (merged) await sendAck(merged, merged.intakeDegraded ? withLeadToken(input.enrichLink, leadToken) : null);
     }
+    // CODED, not prose: the reader resolves `pipeline.eventReasons.repeatApplication*`
+    // in their own language. The interesting half is the interpolated channel, which is
+    // why the code carries params rather than being a bare token. Rows written before
+    // this still hold the English sentence and still render - parseCodedReason returns
+    // null for them and the feed falls through to its legacy path.
     recordAutomationEvent(
       existing.id,
       "re_applied",
-      changes.length
-        ? `repeat application via ${input.channelLabel} — ${changes.join("; ")}`
-        : `repeat application via ${input.channelLabel}`,
+      codedReasonDetail(changes.length ? "repeatApplicationContact" : "repeatApplication", {
+        channel: input.channelLabel,
+      }),
       workspaceId
     );
     return { result: "accepted", duplicate: true, entryId: existing.id, leadToken };
@@ -220,12 +226,20 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
 
   // The stub reason is the recruiter-visible story of WHY this entry is thin —
   // including which eligibility gates the source form never asked (E3: ungated
-  // is visible, not silent). English-canonical like every degraded reason.
-  let stubReason = `${input.channelLabel} lead — profile pending enrichment (full-apply link sent in the acknowledgement)`;
-  if (input.ungatedKoIds?.length) {
-    stubReason += `; eligibility not verified by the source form: ${input.ungatedKoIds.join(", ")}`;
+  // is visible, not silent).
+  // CODED (`pipeline.intakeReasons.*`), so the banner and the row tooltip render it in
+  // the reader's language. Two codes rather than one with an optional param: next-intl
+  // wants every placeholder present, and "which gates the source never asked" is a
+  // different sentence, not a blank. The ungated ids are OUR ids (derived from the job's
+  // KO steps), never payload text. The cap is a last-resort guard on the ENCODED string:
+  // a cut token would simply fail to parse, so it degrades to the paramless code.
+  const ungated = input.ungatedKoIds?.length ? input.ungatedKoIds.join(", ") : "";
+  let stubReason = ungated
+    ? codedReasonDetail("leadPendingUngated", { channel: input.channelLabel, ungated })
+    : codedReasonDetail("leadPending", { channel: input.channelLabel });
+  if (stubReason.length > STUB_REASON_MAX) {
+    stubReason = codedReasonDetail("leadPending", { channel: input.channelLabel });
   }
-  if (stubReason.length > STUB_REASON_MAX) stubReason = `${stubReason.slice(0, STUB_REASON_MAX - 1)}…`;
 
   const { entry, created } = createPipelineEntry({
     candidateId: randomId("lead"),
@@ -255,7 +269,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   if (!created) {
     const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
     recordLeadConsent(entry.id, input.sourceChannel, workspaceId);
-    recordAutomationEvent(entry.id, "re_applied", `repeat application via ${input.channelLabel}`, workspaceId);
+    recordAutomationEvent(entry.id, "re_applied", codedReasonDetail("repeatApplication", { channel: input.channelLabel }), workspaceId);
     return { result: "accepted", duplicate: true, entryId: entry.id, leadToken };
   }
 

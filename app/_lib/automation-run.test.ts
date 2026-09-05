@@ -12,6 +12,7 @@
 // these tests loudly instead of silently spawning.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { CODED_REASON_PREFIX, parseCodedReason } from "./coded-reason.ts";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
@@ -356,10 +357,21 @@ test("the unattended extend runs on a FRESHLY re-read row, never the pre-hop sna
 
 test("the coded-detail wire format is understood by the event-detail renderer", () => {
   assert.equal(automationReasonDetail("offerAutoExtended"), "reason:offerAutoExtended");
-  // pipelineEventCatalog.ts is a client component and cannot import this module (it
-  // opens SQLite), so the prefix is duplicated there. This is the pin that keeps the
-  // writer and the reader from drifting apart.
+  // pipelineEventCatalog.ts is a client component and cannot import this module (it opens
+  // SQLite), so writer and reader used to duplicate the prefix. The format now lives in
+  // app/_lib/coded-reason.ts - pure, importable from both sides - and this is the pin that
+  // keeps this module's copy of the prefix from drifting away from it.
   const renderer = src("../features/hiring/pipeline/pipelineEventCatalog.ts");
-  assert.match(renderer, /const prefix = "reason:";/, "the renderer parses the prefix this module writes");
-  assert.equal(AUTOMATION_REASON_PREFIX, "reason:");
+  assert.match(
+    renderer,
+    /import \{ parseCodedReason \} from "@\/app\/_lib\/coded-reason";/,
+    "the renderer parses the format through the shared module"
+  );
+  assert.equal(AUTOMATION_REASON_PREFIX, CODED_REASON_PREFIX);
+  assert.equal(CODED_REASON_PREFIX, "reason:");
+  // Round-trip: what this module writes is what that module reads.
+  assert.deepEqual(parseCodedReason(automationReasonDetail("offerAutoExtended")), {
+    code: "offerAutoExtended",
+    params: {},
+  });
 });

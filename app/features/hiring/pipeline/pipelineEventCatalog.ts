@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { parseCodedReason } from "@/app/_lib/coded-reason";
 import { relativeTimeBucket } from "./pipelineRenderDiet";
 import type { PipelineEvent } from "@/app/features/shared/pipelineTypes";
 
@@ -285,15 +286,11 @@ export function isEventKind(kind: string): kind is EventKind {
 // disposition_set/sim_attached have a detail variant. Everything else resolves by key.
 //
 // A HOOK (not a pure fn) so it reads the request locale.
-/** The `reason:<code>` wire format automation-run.ts writes into an event detail.
- *  The prefix is duplicated rather than imported: automation-run.ts opens SQLite and
- *  this module is a client component. automation-run.test.ts pins both sides. */
-function codedReason(detail: string | null | undefined): string | null {
-  const prefix = "reason:";
-  if (!detail || !detail.startsWith(prefix)) return null;
-  const code = detail.slice(prefix.length).trim();
-  return /^[A-Za-z]+$/.test(code) ? code : null;
-}
+/** The `reason:<code>[:<params>]` wire format a writer records into an event detail.
+ *  The format itself now lives in `@/app/_lib/coded-reason` — a pure, dependency-free
+ *  module BOTH sides can import, which is what let the lead intake adopt it: its two
+ *  reader-facing strings interpolate a channel, so a bare token could not carry them.
+ *  automation-run.ts still writes the paramless shape and it still reads the same. */
 
 export function useEventVerb(): (ev: PipelineEvent) => string {
   const t = useTranslations("pipeline.events");
@@ -315,10 +312,12 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
     // any kind whose writer adopts it. A detail this build has no word for, and every
     // LEGACY row (English prose, or a machine handle like the rematch counterpart),
     // falls straight through to the existing rendering.
-    const coded = codedReason(ev.detail);
+    const coded = parseCodedReason(ev.detail);
     if (coded) {
-      const key = `${coded}` as Parameters<typeof tReason>[0];
-      if (tReason.has(key)) return tReason(key);
+      const key = coded.code as Parameters<typeof tReason>[0];
+      // The params ride through untyped: `tReason.has` has already established that this
+      // build knows the key, and a message with no placeholders ignores extras.
+      if (tReason.has(key)) return tReason(key, coded.params as never);
     }
     switch (ev.kind) {
       case "advanced":
@@ -347,6 +346,31 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
       default:
         return t(ev.kind);
     }
+  };
+}
+
+/**
+ * The SAME record-vs-screen split, for a pipeline entry's `intakeDegradedReason`.
+ *
+ * That column is the recruiter-visible story of why an entry is thin, and it is read in
+ * two places (the drawer banner and the candidate row tooltip) plus, later, by prompts.
+ * The lead intake used to store an English sentence there, so a Czech recruiter read
+ * English and nothing could re-render it. It now stores `reason:<code>:<params>` and this
+ * hook resolves it through `pipeline.intakeReasons`.
+ *
+ * A value that is not one of ours comes back VERBATIM: the CV pipeline still writes real
+ * prose there (a normalization failure message), and every row written before the codes
+ * existed holds a sentence. Returning it unchanged is what makes adopting a code a
+ * non-migration. Null/empty in, null out, so a caller can keep its `? :`.
+ */
+export function useIntakeReasonText(): (reason: string | null | undefined) => string | null {
+  const t = useTranslations("pipeline.intakeReasons");
+  return (reason) => {
+    if (!reason) return null;
+    const coded = parseCodedReason(reason);
+    if (!coded) return reason;
+    const key = coded.code as Parameters<typeof t>[0];
+    return t.has(key) ? t(key, coded.params as never) : reason;
   };
 }
 

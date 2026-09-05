@@ -6,6 +6,7 @@
 
 import { AlertTriangle, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useIntakeReasonText } from "./pipelineEventCatalog";
 
 export function PipelineDegradedIntakeBanner({
   reason,
@@ -19,6 +20,9 @@ export function PipelineDegradedIntakeBanner({
   onResolve: () => void;
 }) {
   const t = useTranslations("pipeline.drawer");
+  // The stored reason is a CODE for anything the lead intake filed; legacy rows (and
+  // the CV pipeline's normalization messages) come back verbatim. See useIntakeReasonText.
+  const reasonText = useIntakeReasonText()(reason);
   return (
     <div className="rounded-md border border-red-200 bg-red-50 p-3">
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-red-700">
@@ -27,8 +31,8 @@ export function PipelineDegradedIntakeBanner({
       <p className="mt-1 text-sm text-ink">
         {t.rich("intakeDegradedBody", { b: (chunks) => <span className="font-semibold">{chunks}</span> })}
       </p>
-      {reason ? (
-        <p className="mt-1.5 break-words rounded bg-white/70 px-2 py-1 font-mono text-meta text-steel">{reason}</p>
+      {reasonText ? (
+        <p className="mt-1.5 break-words rounded bg-white/70 px-2 py-1 text-meta text-steel">{reasonText}</p>
       ) : null}
       <button
         type="button"

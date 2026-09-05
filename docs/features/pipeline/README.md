@@ -314,7 +314,7 @@ strands nobody, and moving them would rewrite closed history.
 | `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
 | `app/api/pipeline/outcomes/route.ts` | The on-the-job outcome of a hire (UAT `KAT-L1-002`). `GET ?entry=<id>` returns that hire's 1..5 rating (`performance: null` = unrated) plus whether the entry stands on the terminal-role stage; `GET` with no params returns the workspace accrual counter `{ rated, hires, minOutcomes }`. `POST {entryId, performance}` records or corrects the rating. Both handlers `requireOperator()` first and scope every store call to `currentWorkspace()`. |
 | Board refusals: `[id]/route.ts`, `pipeline-entry-action.ts`, `batch/route.ts`, `stage-migration/route.ts` | Every refusal on these four answers a `REFUSAL_ERRORS` **code**, never English prose (`docs/architecture/api-contracts.md` §1.1). The shared helper's chokepoint `err(status, code, extra)` takes a code, the batch route copies that code onto each per-id row beside the canonical English, and data a localized sentence needs rides alongside as fields (`stages`, `max`, `unmapped`, `detail`) instead of being interpolated into a sentence. `usePipelineBulk` keeps the codes (`reasonCodes`) and `PipelineBulkActionBar` resolves them through `useErrorMessage`, so a Czech, German or French board no longer reads its hottest refusals in English. Pinned by `app/api/pipeline/pipeline-refusals-coded.test.ts`. |
-| `app/_lib/pipeline-entry-action.ts` | The shared move/decide action behind `/api/pipeline/[id]` and `/api/pipeline/batch`. Both approval writes that land AFTER an await are compare-and-swapped on `setApproval(..., { expectedApprovalKind })` read from the pre-write snapshot: the offer clear (after `dispatchOffer`) answers 409 when the gate moved while the offer went out, and the hybrid handoff's calendar arm answers the same stale 409. A `dispatchOffer` that THROWS is caught and compensated by LEAVING the approval open: the offer row is idempotent, so approving again re-sends the SAME link, the un-sent token is pending rather than orphaned, and the attempt is recorded as an `offer_comms_failed` event (the route answers 502). |
+| `app/_lib/pipeline-entry-action.ts` | The shared move/decide action behind `/api/pipeline/[id]` and `/api/pipeline/batch`. Both approval writes that land AFTER an await are compare-and-swapped on `setApproval(..., { expectedApprovalKind })` read from the pre-write snapshot: the offer clear (after `dispatchOffer`) answers 409 when the gate moved while the offer went out, and the hybrid handoff's calendar arm answers the same stale 409. A `dispatchOffer` that THROWS is caught and compensated by LEAVING the approval open: the offer row is idempotent, so approving again re-sends the SAME link, the un-sent token is pending rather than orphaned, and the attempt is recorded as an `offer_comms_failed` event (the route answers 502). A human `reject` also fires the `candidate.rejected` ATS webhook (`dispatchAtsEvent`, fire-and-forget beside the rejection comm) — that event was subscribable in the integrations panel and emitted from nowhere until this pass; see [../integrations/README.md](../integrations/README.md#ats--hris-write-back-outbound). |
 | `app/api/pipeline/[id]/consent/route.ts` | The drawer's GDPR consent snapshot + append-only audit trail. `requireOperator()` first, like every other pipeline PII surface, and pinned in `app/api/pipeline/batch/authz-parity.test.ts`. |
 | `app/api/pipeline/command/route.ts` + `command/execute.ts` | The natural-language command bar. `POST {text}` previews (nothing runs); `POST {text, confirm:true}` executes. An execute answers `{ count, failed, commsFailed }` always — `failed` is every target the guarded write refused (a lost `expectedStage` CAS) or that threw, `commsFailed` is applied rejections the candidate was not notified about — plus `heldAtOffer` / `droppedOut` when non-zero; the counting loop lives in `execute.ts` so each target lands in exactly one bucket. `run policy` runs the same global sweep as `POST /api/automation/run`: operator-gated, then throttled per IP (`pipeline-command-policy:<ip>`, 6/10min, pinned in `app/api/rate-limit-contract.test.ts`), recorded through `recordRun` the same way, and answered with the workspace-scoped `decisions` beside a `summary` explicitly labelled `summaryScope: "global"`. |
 | `app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx` | The drawer card that writes it — a 1..5 button rail, mounted only for a candidate on the terminal-role stage. |
@@ -747,6 +747,28 @@ six were converted. **No migration was needed and none was done:** the coded bra
 taken only on an exact `reason:<letters>` match, so every row already in a deployed
 database — English prose, a slot time, a rematch counterpart handle — renders exactly as
 it did before.
+
+**The format grew params, and one module now owns it.** The prefix was duplicated at
+every end because the writers open SQLite and the renderers are client components. It
+now lives once, in `app/_lib/coded-reason.ts` — pure and dependency-free, so both sides
+import it — as `reason:<code>` (unchanged) or `reason:<code>:<flat JSON params>`. Params
+were the missing piece for the lead intake, whose two reader-facing strings interpolate
+the source channel: a bare token could not carry them, so they had stayed English
+sentences. `parseCodedReason` is total — a legacy row, a malformed params blob, a code
+this build has no word for, all fall back to the rendering they had, so adopting a code
+is still a non-migration.
+
+Two surfaces read the format now:
+
+- `useEventVerb` (`pipelineEventCatalog.ts`) for an event `detail`, through
+  `pipeline.eventReasons.*` — now including `repeatApplication` /
+  `repeatApplicationContact`, written by `app/_lib/lead-intake.ts` in place of
+  `repeat application via <channel>`;
+- `useIntakeReasonText` (same module) for an ENTRY's `intakeDegradedReason`, through
+  `pipeline.intakeReasons.*` (`leadPending` / `leadPendingUngated`). That column is read
+  by the drawer banner (`PipelineDegradedIntakeBanner`) and the candidate-row tooltip
+  (`PipelineCandidateRow`), and both went through the same hook so they cannot disagree.
+  The CV pipeline still writes real prose there and it still renders verbatim.
 
 ## The drawer and the Comms Center tell one delivery truth
 
