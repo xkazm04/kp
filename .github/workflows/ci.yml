@@ -438,6 +438,14 @@ jobs:
           # Change either bound deliberately, with a derivation edit in the same
           # commit; run_gated.py's message names the number to record.
           KP_SKIP_BASELINE: "5"
+          # Print the ten slowest MODULES after the run (run_gated.py --timings by
+          # another name — set here rather than on the `run:` line so the gate
+          # command CI executes stays byte-identical to the one AGENTS.md documents
+          # and `npm run guidance:check` compares). Reporting only: nothing fails on
+          # a slow module. The budget it feeds is in
+          # docs/development/testing-and-evaluation.md, and this is the only place
+          # the numbers can be read from a clean, contended-free machine.
+          KP_TEST_TIMINGS: "1"
 
       # AI-BEHAVIOUR EVALS AS A GATE, not as something someone remembers to run.
       #

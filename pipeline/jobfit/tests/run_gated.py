@@ -17,7 +17,16 @@ Two tripwires, both for failures that leave a green run:
    checks both layers are installed BEFORE the suite is allowed to certify
    anything.
 
+3. COST. The suite is ~150 modules and takes minutes, and until now the run said
+   only its own total: `Ran 2324 tests in 288.082s`. A total cannot be acted on —
+   nobody could name which module owned it, so the slow ones were never found and
+   never budgeted. `--timings` (KP_TEST_TIMINGS=1, and set in CI) charges every
+   test's wall time to its MODULE and prints the ten most expensive, so the next
+   agent starts from a name instead of a number. It reports; it does not gate —
+   the budget in docs/development/testing-and-evaluation.md is the human half.
+
     python -m pipeline.jobfit.tests.run_gated     # gated run
+    python -m ...run_gated --timings              # + the ten slowest modules
     ALLOW_SKIP=1 python -m ...run_gated           # local override (no keys)
     KP_SKIP_BASELINE=6 python -m ...run_gated      # deliberately raise the bar
 
@@ -28,7 +37,9 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 import unittest
+from collections import defaultdict
 from pathlib import Path
 
 # THE CEILING. Skips we knowingly tolerate in a keyless CI: the live Claude-CLI
@@ -93,7 +104,73 @@ def _hermeticity_problems() -> list[str]:
     return problems
 
 
-def main() -> int:
+# How many of the slowest modules the report names. Ten is the number that fits on
+# a screen and, on the run this was written against, covers the tail that matters:
+# the top ten owned well over half the wall clock while the other ~140 modules were
+# noise. Reporting all of them would be a second way of saying "288s".
+SLOWEST_MODULES_REPORTED = 10
+
+
+class _TimingResult(unittest.TextTestResult):
+    """A ``TextTestResult`` that also charges each test's wall time to its module.
+
+    Charging to the MODULE rather than the test is deliberate: a module is the unit
+    a person can act on (it is what you delete, split, mark, or hand to an agent),
+    and it is also where the expensive things live — an import that spawns a
+    subprocess, a class-level fixture, a sleep in setUp — none of which belong to
+    any single test method. ``startTest``/``stopTest`` bracket setUp/tearDown too,
+    so the number is the cost of RUNNING the module, not of its assertions.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.module_seconds: dict[str, float] = defaultdict(float)
+        self.module_tests: dict[str, int] = defaultdict(int)
+        self._started_at = 0.0
+
+    def startTest(self, test) -> None:  # noqa: N802 - unittest's casing
+        self._started_at = time.perf_counter()
+        super().startTest(test)
+
+    def stopTest(self, test) -> None:  # noqa: N802 - unittest's casing
+        super().stopTest(test)
+        elapsed = time.perf_counter() - self._started_at
+        # A load error is reported as a _FailedTest whose module is unittest's own
+        # loader shim; charge it to the module it failed to import instead, which is
+        # the id's leading dotted path.
+        module = getattr(test, "__module__", None) or test.id().rsplit(".", 2)[0]
+        self.module_seconds[module] += elapsed
+        self.module_tests[module] += 1
+
+
+def _write_timings(result: unittest.TestResult, out) -> None:
+    """Print the slowest modules. Never raises: a report is not worth failing a run."""
+    seconds = getattr(result, "module_seconds", None)
+    if not seconds:
+        return
+    tests = getattr(result, "module_tests", {})
+    total = sum(seconds.values())
+    ranked = sorted(seconds.items(), key=lambda kv: kv[1], reverse=True)[:SLOWEST_MODULES_REPORTED]
+    covered = sum(value for _, value in ranked)
+    share = (covered / total * 100) if total else 0.0
+    print(
+        f"\nSlowest {len(ranked)} modules "
+        f"({covered:.1f}s of {total:.1f}s charged, {share:.0f}%):",
+        file=out,
+    )
+    for module, value in ranked:
+        short = module.rsplit(".", 1)[-1]
+        print(f"  {value:7.2f}s  {tests.get(module, 0):4d} tests  {short}", file=out)
+
+
+def _timings_requested(argv: list[str]) -> bool:
+    """Opt-in by flag or by env, so CI can turn it on without editing a call site."""
+    return "--timings" in argv or os.getenv("KP_TEST_TIMINGS") == "1"
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    timings = _timings_requested(argv)
     hermeticity = _hermeticity_problems()
     if hermeticity:
         sys.stderr.write("\nTRIPWIRE: the test suite's hermeticity guard is not intact:\n")
@@ -106,7 +183,12 @@ def main() -> int:
 
     loader = unittest.TestLoader()
     suite = loader.discover(str(TESTS_DIR), top_level_dir=str(REPO_ROOT))
-    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    runner = unittest.TextTestRunner(
+        verbosity=1, resultclass=_TimingResult if timings else None
+    )
+    result = runner.run(suite)
+    if timings:
+        _write_timings(result, sys.stderr)
 
     skipped = len(result.skipped)
     floor = max(0, SKIP_BASELINE - ENV_CONDITIONAL_SKIPS)

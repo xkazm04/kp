@@ -272,6 +272,57 @@ It is idempotent — the generator rewrites `app/_lib/schemas.generated.ts` and
 `app/_lib/taxonomy.generated.ts` from the Pydantic models. Fixtures:
 `scripts/__tests__/schemas-gen.test.mjs`, run by `npm run test:docs`.
 
+## The Python gate's time budget
+
+`npm run test:python:gate` is one of the two slowest gates in `ci.yml`, and until
+2026-09-05 the only thing it said about that was its own total — `Ran 2365 tests in
+1276.629s`. A total cannot be acted on. Nobody could name which of the ~150 modules
+owned it, so the expensive ones were never found and never budgeted, and "the Python
+suite is slow" stayed a feeling rather than a list.
+
+`--timings` (or `KP_TEST_TIMINGS=1`, which is what `ci.yml` sets on the gate step)
+makes [`run_gated.py`](../../pipeline/jobfit/tests/run_gated.py) charge every test's
+wall time to its **module** and print the ten most expensive after the run:
+
+```
+Slowest 10 modules (994.1s of 1265.3s charged, 79%):
+   271.50s    10 tests  test_name_neutrality
+   185.77s    11 tests  test_intake_eval
+   171.16s     4 tests  test_scripts_entrypoints
+    97.15s     3 tests  test_seed_analyses
+    93.93s     8 tests  test_role_family_routing
+    65.94s    12 tests  test_pipeline
+    35.72s    10 tests  test_llm_self_host
+    25.03s     5 tests  test_analyze_honesty_fields
+    24.09s    67 tests  test_intake
+    23.81s     6 tests  test_pipeline_degrade
+```
+
+Charging to the module, not the test, is deliberate: a module is the unit a person
+can act on — it is what you split, mark, or hand to an agent — and it is where the
+expensive things actually live (an import that spawns a subprocess, a class-level
+fixture, a sleep in `setUp`), none of which belong to any one test method. The
+bracket is `startTest`/`stopTest`, so setUp and tearDown are inside the number.
+
+**It reports; it does not gate.** There is no ceiling that fails a run, because a
+wall-clock threshold on a contended machine is a flake generator — the run above took
+1276s beside two other agents building in the same checkout and ~288s on a quiet one.
+What is stable is the RANKING and the share: ten modules out of ~150 own roughly four
+fifths of the clock, and that ratio has held across runs.
+
+So the budget is a reading, not an assertion:
+
+- **The number to trust is CI's**, from the gate step's log — one machine, no
+  contention, the same shape every run. A local figure is for comparing a module
+  against its own neighbours in the same run, never against a figure from another.
+- **Before adding a slow module, look at this list.** Ten entries own ~80% of the
+  gate; an eleventh joining them is a decision, not an accident.
+- **The top of the list is where optimisation pays.** `test_name_neutrality` alone is
+  a fifth of the suite across ten tests — ~27s per test, which is the signature of
+  per-test work that could be class-level or fixture-cached.
+- The suite's other two tripwires — the skip ceiling/floor and the hermeticity check —
+  are described in `run_gated.py`'s own docstring and are unaffected by `--timings`.
+
 ## Eval harness
 
 `pipeline/jobfit/eval/` ships a 14-fixture golden set of synthetic CVs covering the
