@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { ChatTranscript, type ChatSide, type ChatTurn } from "@/app/_components/chat/ChatTranscript";
@@ -8,6 +8,7 @@ import { ChatBlocks } from "@/app/_components/chat/ChatBlocks";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { renderableBlocks } from "@/app/_lib/companion-blocks";
+import { companionRetryTarget } from "@/app/_lib/companion-dock-states";
 import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
@@ -53,6 +54,10 @@ export type CompanionBodyProps = {
   /** Every proposal this conversation produced, live from the server. */
   proposals: CompanionProposal[];
   busy: boolean;
+  /** Whether the conversation exists yet. Until it does a message has nowhere to
+   *  go: `send` resolves false and nothing is stored, so the composer is dead and
+   *  a boot that FAILED says so with an offer to try again. */
+  ready: boolean;
   /** Machine error code from the route, resolved to a message at the door. */
   error: string | null;
   /** Live studio facts — the same counts behind the sidebar badges. */
@@ -68,10 +73,17 @@ export type CompanionBodyProps = {
   speech: CompanionSpeech;
   onSend: (message: string) => Promise<boolean>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The proposal whose answer did not land, and why. It is drawn on that card
+   *  rather than in the line below, because the operator pressed a button on one
+   *  row and the sentence about it has to be readable from there. */
+  proposalError: { id: string; code: string } | null;
   /** The message whose exchange did not land. Present means the error line can
    *  offer to send it again; the composer is holding the same text as a draft. */
   lastFailed: string | null;
   onRetry: () => Promise<boolean>;
+  /** The dock's handle on the composer, so opening the window can put the caret
+   *  in it. Owned above so it survives this component's re-renders. */
+  composerRef?: RefObject<HTMLTextAreaElement | null>;
 };
 
 /** Turn provenance, read from the stored meta without asserting past it: an
@@ -133,16 +145,22 @@ export function CompanionBody({
   turns,
   proposals,
   busy,
+  ready,
   error,
   attention,
   memoryEnabled,
   speech,
   onSend,
   onResolveProposal,
+  proposalError,
   lastFailed,
   onRetry,
+  composerRef,
 }: CompanionBodyProps) {
   const t = useTranslations("companion");
+  // What the error line offers to do again — a message that was refused, or the
+  // boot that never produced a thread. Both go through `onRetry`.
+  const retryTarget = companionRetryTarget({ ready, error, lastFailed });
   const resolveError = useErrorMessage();
   const metaById = useMemo(() => new Map(turns.map((turn) => [turn.id, turnMeta(turn)])), [turns]);
   // Proposals are joined onto their turn by ID, never by position or timestamp:
@@ -214,17 +232,17 @@ export function CompanionBody({
           after whatever else is being announced. The Retry re-sends the refused
           message; the composer is holding the same text, so this is the cheap
           path and typing it again is still the other one. */}
-      {error ? (
+      {error && !proposalError ? (
         <div role="alert" className="flex flex-wrap items-center gap-2 pb-2">
           <p className="text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p>
-          {lastFailed ? (
+          {retryTarget ? (
             <button
               type="button"
               onClick={() => void onRetry()}
               disabled={busy}
               className={`${BTN_GHOST} h-7 px-2 text-sm`}
             >
-              {t("chat.retry")}
+              {retryTarget === "boot" ? t("chat.reconnect") : t("chat.retry")}
             </button>
           ) : null}
         </div>
@@ -232,6 +250,16 @@ export function CompanionBody({
       <ChatTranscript
         className="min-h-0 flex-1"
         tall
+        // ONE representation of a refused message. The bubble stays up with the
+        // error line's Retry beside it, so the composer must not ALSO hand the
+        // text back: it did both, and the operator saw the same sentence twice
+        // while Enter re-asked what was already on screen.
+        restoreDraftOnFailure={false}
+        // Dead until the thread exists. The dock used to pass only `busy`, so a
+        // failed boot left a live composer whose every send returned false with
+        // nothing said and nothing stored.
+        composerDisabled={!ready}
+        composerRef={composerRef}
         turns={chatTurns}
         side={companionSide}
         labels={labels}
@@ -249,6 +277,7 @@ export function CompanionBody({
               blockLabels={blockLabels}
               proposalById={proposalById}
               onResolveProposal={onResolveProposal}
+              proposalError={proposalError}
               // Offered only when there is genuinely something to say: the door
               // has already run over this turn, so an empty answer means an empty
               // utterance, and a control that would do nothing is not drawn.
@@ -290,6 +319,7 @@ function TurnExtras({
   blockLabels,
   proposalById,
   onResolveProposal,
+  proposalError,
   speakSlot,
 }: {
   t: ReturnType<typeof useTranslations<"companion">>;
@@ -301,6 +331,7 @@ function TurnExtras({
   blockLabels: ChatBlockLabels;
   proposalById: Map<string, CompanionProposal>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  proposalError: { id: string; code: string } | null;
   /** The play control for this reply's spoken form, or null when there is
    *  nothing speakable. It rides in the chip row rather than beside the bubble
    *  so the whole strip stays one line of marginalia. */
@@ -357,7 +388,12 @@ function TurnExtras({
     <>
       <ChatBlocks blocks={blocks} labels={blockLabels} />
       {proposals.map((proposal) => (
-        <CompanionProposalCard key={proposal.id} proposal={proposal} onResolve={onResolveProposal} />
+        <CompanionProposalCard
+          key={proposal.id}
+          proposal={proposal}
+          onResolve={onResolveProposal}
+          error={proposalError?.id === proposal.id ? proposalError.code : null}
+        />
       ))}
       <div className="mt-1.5 flex max-w-[85%] flex-wrap items-center gap-1.5">
         {isDigest ? <span className={`${CHIP_QUIET} text-ink`}>{metaLabels.digest}</span> : null}

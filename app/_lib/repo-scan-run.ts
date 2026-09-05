@@ -72,6 +72,21 @@ export class RepoScanFailure extends Error {
   }
 }
 
+/** Whether an abort reason says "the wall-clock budget ran out" rather than "somebody
+ *  pressed Cancel".
+ *
+ *  Matched on the WEB's own name, not on a kp constant: `AbortSignal.timeout()`
+ *  aborts with `DOMException(..., "TimeoutError")` and the task watchdog now does
+ *  the same, so any future timeout source is classified correctly without this
+ *  module importing the task runner (which imports it back). A plain
+ *  `controller.abort()` yields an `AbortError`, and every other reason — a string,
+ *  an object, nothing — reads as a cancel, which is the safe direction: claiming a
+ *  timeout the evidence does not support would send the operator to shrink a repo
+ *  that was never the problem. */
+export function isTimeoutAbort(reason: unknown): boolean {
+  return typeof reason === "object" && reason !== null && (reason as { name?: unknown }).name === "TimeoutError";
+}
+
 /** The failure CLASS for the row. `unknown` is a real answer — it renders as the
  *  generic "the scan failed" line — and is far better than inventing a class the
  *  evidence does not support.
@@ -79,9 +94,16 @@ export class RepoScanFailure extends Error {
  *  The abort check comes FIRST on purpose: an aborted run surfaces as whatever
  *  error the killed step happened to raise (a git exit code, a SIGKILLed child), and
  *  reporting that as an engine fault would blame the engine for the operator's own
- *  Cancel. */
+ *  Cancel.
+ *
+ *  But an abort is not always the operator's. The task runner aborts the SAME
+ *  controller when a run passes `TASK_MAX_RUNTIME_MS` (tasks.ts), and answering
+ *  `cancelled` there told the operator they had stopped a scan they had in fact
+ *  watched for fifteen minutes — so they re-ran it unchanged and waited another
+ *  fifteen. The reason separates them, and `timeout` is the code that says
+ *  "nothing you did; this repository is too big for one budget". */
 export function classifyRepoScanError(error: unknown, signal?: AbortSignal): RepoScanErrorCode {
-  if (signal?.aborted) return "cancelled";
+  if (signal?.aborted) return isTimeoutAbort(signal.reason) ? "timeout" : "cancelled";
   if (error instanceof RepoScanFailure) return error.code;
   if (error instanceof PipelineError) return "engine_failed";
   return "unknown";

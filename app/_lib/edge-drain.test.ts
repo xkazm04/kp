@@ -14,8 +14,8 @@ import { fileURLToPath } from "node:url";
 // unit-db.ts MUST be the first project import: the drain resolves its config and
 // writes its ledger through the store.
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { drainEdge, mailToLead, setEdgeHostLookupForTests } from "./edge-drain.ts";
-import { getEdgeConfig } from "./edge-config.ts";
+import { drainEdge, mailToLead, pairEdge, sendEdgeHeartbeat, setEdgeHostLookupForTests } from "./edge-drain.ts";
+import { getEdgeConfig, setEdgeConfig } from "./edge-config.ts";
 
 after(() => cleanupUnitDb());
 
@@ -210,4 +210,40 @@ test("a public edge host still drains (the guard is not a blanket refusal)", asy
 
   assert.equal(summary.error, null, "a public host must still be drained");
   assert.match(String(asked), /^https:\/\/edge\.example\.test\/drain\?since=/);
+});
+
+// --- a credential nobody can open ------------------------------------------------
+// Decrypt used to run OUTSIDE resolveEdge's try, so a rotated KP_SECRET threw out of
+// drainEdge — the function whose contract says "never throws" — and "Drain now"
+// answered an unhandled 500 with a stack in it. All three outbound entry points are
+// pinned here, because each one is reached from a different clock or button.
+
+test("an unreadable secret is a LEDGER error, not a throw and not a signed call", async () => {
+  process.env.KP_SECRET = "edge-drain-master-key";
+  setEdgeConfig({ url: "https://edge.example.test", secret: "sealed-under-the-old-key" });
+  let fetched = 0;
+  globalThis.fetch = (async () => {
+    fetched += 1;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  process.env.KP_SECRET = "edge-drain-master-key-AFTER-A-ROTATION";
+  try {
+    const summary = await drainEdge();
+    assert.equal(fetched, 0, "a call cannot be signed with a secret that cannot be read");
+    assert.equal(summary.configured, false, "there is a pairing on file, but none this install can use");
+    assert.equal(summary.errorKind, "secret_unreadable", "the CLASS the card renders, not the machine text");
+    assert.ok(summary.error, "and a diagnostic for the server log");
+
+    const cfg = getEdgeConfig();
+    assert.equal(cfg.lastErrorKind, "secret_unreadable", "durable, through the same ledger every other drain error uses");
+    assert.equal(cfg.hasSecret, false, "and the card is not green while the pairing is dead");
+
+    const paired = await pairEdge();
+    assert.equal(paired.ok, false, "pairing answers a refusal instead of throwing");
+    assert.equal(await sendEdgeHeartbeat(), false, "and the heartbeat answers false, as it does for any unreachable edge");
+    assert.equal(fetched, 0, "none of the three left the machine");
+  } finally {
+    process.env.KP_SECRET = "edge-drain-master-key";
+    setEdgeConfig({ url: "" });
+  }
 });

@@ -538,14 +538,86 @@ whose `pending` never falls would otherwise spin the loop; what is left over is 
 lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
 stops the run rather than asking for another page, because events are ordered.
 
+**The Worker's inbound door is bounded like its install twin.** `POST /in/<token>`
+(`edge/src/index.ts`) is the edge's only unsigned route — its auth is the receiver
+token itself, and the edge cannot tell a valid token from a bogus one, so it accepts
+and lets the drain refuse. That made it the flood surface: one bogus token costs one
+queued row, and a sender faster than 250 events a tick buries the real leads behind
+it while D1 grows without limit. Two bounds now hold it:
+
+- a **60/min per token+IP** fixed window keyed `in:<token>:<cf-connecting-ip>` — the
+  same shape as `RATE_LIMIT = { limit: 60, windowMs: 60_000 }` on
+  `app/api/channels/inbound/[token]/route.ts`, so a flood cannot simply move to
+  whichever of the two URLs the operator handed out. It answers **429** with
+  `Retry-After: 60` and writes nothing. Backed by a `rate` table in `edge/schema.sql`
+  (D1 rather than KV: D1 is already the Worker's only binding, so this costs an
+  operator no new namespace). It is abuse containment, not an exact quota —
+  read-then-write is not atomic, so a same-millisecond burst can over-admit by a few,
+  and the queue cap is the hard bound;
+- a **10,000 undrained-event cap**, checked on every write so webhooks, mail and
+  receipts share one number. Over it the door **refuses rather than dropping the
+  oldest**: a stored event has already been answered `202 held`, and discarding it
+  later would break that promise silently, while a **503 + `Retry-After: 300`** is
+  something a job board, a relay and a sending MTA all retry (and a 4xx is what they
+  give up on). Inbound mail has no response to carry a 503, so it is rejected at SMTP
+  and the sending server holds it. A refused receipt gets its nonce back, so the
+  relay's re-presentation is not a 409.
+
+`edge/test/worker.test.ts` pins both, and — for the first time — `scheduled()`: one
+nudge per quiet period, counts and never names in the payload, `nudged_at` stamped
+**only** on a 2xx (a stamped failure would suppress the very retry the nudge exists to
+make), and a heartbeat clearing it so the next quiet period may nudge again.
+
 The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
 backlog still at the edge, last heartbeat — each with a relative time in the reader's
 locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
 distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
 and the drain then does nothing forever. Failures are shown by CLASS
-(`unreachable` / `held` / `ack` / `unknown`, `EDGE_ERROR_KINDS` in `edge-config.ts`),
-never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
+(`unreachable` / `held` / `ack` / `secret_unreadable` / `unknown`, `EDGE_ERROR_KINDS`
+in `edge-config.ts`), never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
 `EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
+
+**"Drain now" reports a refusal as a refusal.** The handler used to branch on
+`summary.error` alone, and a refusal of the DOOR carries no summary: a `403` (a seat
+without `org:manage`) or a `500` fell through to the success branch and rendered
+"Drained: 0 filed, 0 skipped" in green — the same sentence a healthy, quiet queue
+produces, so the one state an operator must see was indistinguishable from "nothing to
+do". It now branches on the response status first: a non-ok answer that carries an edge
+failure kind is shown as that CLASS (this is how the `409 EDGE_SECRET_UNREADABLE` below
+keeps its specific sentence), and anything else is resolved from its `code` through
+`useErrorMessage()`, falling back to the localized `drainFailedUnknown`. Pinned by
+`channelsEdgeDrainRefusal.test.ts`, which also asserts the kind→sentence map is total
+over `EDGE_ERROR_KINDS`.
+
+**A credential nobody can open is a ledger error, not a 500.** Decrypt used to run
+OUTSIDE `resolveEdge`'s try, so a rotated `KP_SECRET` (or a retired key dropped before
+`npm run secrets:rotate` had run) threw straight out of `drainEdge` — a function whose
+contract is "never throws" — and "Drain now" answered an unhandled 500, while the card
+stayed GREEN because `getEdgeConfig` never decrypted and reported `hasSecret: true` from
+the column's mere presence. Now: `resolveEdgeDetailed()` answers
+`{ ok: false, kind: "secret_unreadable" }` instead of throwing (`resolveEdge()` is the
+thin wrapper that still answers `null`, for callers with nothing to do either way); the
+drain records that kind through the same `recordDrain` ledger every other failure uses
+and makes no signed call; `pairEdge` and `sendEdgeHeartbeat` answer a refusal and
+`false`; `POST /api/edge/drain` answers `409 EDGE_SECRET_UNREADABLE` with the summary
+attached, and the decipher diagnostic goes to the server log rather than onto the wire.
+`hasSecret` now means READABLE — one AES-256-GCM open of a short string per read, which
+is cheaper than the SELECT that fetched it, and the env secret short-circuits it so a
+deployment the env var runs never consults the stored row at all. Pinned in
+`edge-config.test.ts` (an unreadable secret, an unreadable SEALING key, env precedence
+over a stale ciphertext, and a legacy plaintext row that must still resolve) and in
+`edge-drain.test.ts` (all three entry points answer instead of throwing).
+
+**All three edge doors require `org:manage`.** `POST /api/edge/drain` and
+`POST /api/edge/pair` always did; `POST /api/edge` — the one that WRITES the pairing —
+did not, so any signed-in seat could repoint the install at a queue it controlled (that
+queue then feeds inbound leads through the same intake a webhook uses) or unpair it with
+`url: ""`, which also resets the drain cursor. It now runs the same
+`requireCapabilityCoded("org:manage", requireOrgCapability)` its siblings do, behind
+`requireOperator`, and answers `FORBIDDEN_CAPABILITY` with the capability as data. `GET`
+is unchanged (operator-only, and it never returns the secret). The door is enrolled in
+`app/api/write-capability-gate.test.ts`, which drives the real handler with viewer,
+recruiter and owner sessions.
 
 Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
 `x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the

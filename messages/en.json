@@ -1763,7 +1763,8 @@
     "DEVCASE_SESSION_FLUSH_FAILED": "Could not save this work session right now. Your work is kept on this device and will be sent again.",
     "DEVCASE_SESSION_READ_FAILED": "Could not load the work session. Please try again.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "This work session has already been submitted.",
-    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Write a message before sending it."
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Write a message before sending it.",
+    "EDGE_SECRET_UNREADABLE": "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4393,6 +4394,7 @@
             "failedCloneFailed": "The repository could not be cloned. Check the URL and the access it needs.",
             "failedCloneTimeout": "Cloning the repository took too long and was stopped.",
             "failedCancelled": "The scan was stopped.",
+            "failedTimeout": "The scan ran past its time budget and was stopped. Re-running it unchanged will hit the same limit.",
             "failedEngineFailed": "The scan engine failed, so nothing was read.",
             "fellBackAgentNotInstalled": "The AI agent is not installed, so this is the file-walk reading only.",
             "fellBackAgentTimeout": "The AI agent timed out, so this is the file-walk reading only.",
@@ -5712,7 +5714,8 @@
       "drainFailedUnreachable": "Drain failed: the edge did not answer. Nothing was lost; the next tick retries.",
       "drainFailedHeld": "Drain paused: an event could not be filed yet. It stays at the edge and is retried.",
       "drainFailedAck": "Filed, but the edge was not told. It will offer those events again and they will not be filed twice.",
-      "drainFailedUnknown": "Drain failed. The reason is in this install's server log."
+      "drainFailedUnknown": "Drain failed. The reason is in this install's server log.",
+      "drainFailedSecretUnreadable": "Drain stopped: this install cannot read the stored edge secret. Nothing was lost. Re-enter the secret, or restore the key it was encrypted with."
     },
     "tablist": "Integration",
     "waiting": "{count} waiting in the pipeline",
@@ -8252,7 +8255,8 @@
         "language": "App language",
         "invites": "Teammate invites",
         "pipeline": "Board columns",
-        "brand": "Brand color and logo"
+        "brand": "Brand color and logo",
+        "companion": "Candi memory"
       },
       "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
       "line": "{part}: {reason}",
@@ -10053,7 +10057,8 @@
       "thinking": "Thinking…",
       "thinkingSlowCalm": "Still with you. She reads the studio before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
-      "errorGeneric": "That message did not go through. Nothing was lost, so try again."
+      "errorGeneric": "That message did not go through. Nothing was lost, so try again.",
+      "reconnect": "Try connecting again"
     },
     "state": {
       "here": "Here when you need me.",
@@ -10103,7 +10108,8 @@
       "working": "Working",
       "accepted": "Accepted",
       "declined": "Declined",
-      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}"
+      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}",
+      "failed": "That answer did not go through. Nothing was changed, so try again."
     },
     "outcome": {
       "analysisQueued": "Screening {candidate} in the background",

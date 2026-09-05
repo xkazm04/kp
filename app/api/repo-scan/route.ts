@@ -27,14 +27,19 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { repoUrl?: unknown; rootPath?: unknown };
     // The tenant comes from the SESSION, never the body.
     const ws = await currentWorkspace();
-    const { scanId, taskId } = startRepoScan(
+    const { scanId, taskId, reused } = startRepoScan(
       {
         repoUrl: typeof body.repoUrl === "string" ? body.repoUrl : null,
         rootPath: typeof body.rootPath === "string" ? body.rootPath : null,
       },
       ws
     );
-    return NextResponse.json({ scanId, taskId });
+    // `reused` is the truthful half of the coalescing: this POST either started a
+    // reading of the repository or was handed one that already covers it, and the
+    // caller is told which. `taskId` is `null` in exactly one case — the reused scan
+    // had already finished — because naming a task that is over is a green lie the
+    // poller would chase.
+    return NextResponse.json({ scanId, taskId, reused });
   } catch (error) {
     // A refused TARGET is the operator's own input problem and carries a message
     // they can act on (the allow-list is not set; the path is outside it; the URL is

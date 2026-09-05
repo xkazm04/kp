@@ -366,6 +366,37 @@ def _redact_in_place(container: Any, keys: Sequence[str]) -> int:
     return hits
 
 
+def _text_fields(model: type[Any]) -> tuple[str, ...]:
+    """The WIRE names of every plain-``str`` field a model declares.
+
+    Derived, never listed. The 2026-09-02 sweep hand-wrote ``rationale`` on findings
+    and objectives — a field neither model has — so every LLM-authored ``note``
+    reached ``dossier_json`` and the wire unredacted, while the guard test invented
+    the same key and stayed green. A name that comes off ``model_fields`` cannot be
+    invented, and a field added later is swept the day it is added.
+    """
+    names: list[str] = []
+    for name, field in model.model_fields.items():
+        if field.annotation is str:
+            names.append(field.alias or name)
+    return tuple(names)
+
+
+def _text_list_fields(model: type[Any]) -> tuple[str, ...]:
+    """Same, for ``list[str]`` fields (``stack``, ``declaredGates``, ``existingKpis``)."""
+    names: list[str] = []
+    for name, field in model.model_fields.items():
+        if field.annotation == list[str]:
+            names.append(field.alias or name)
+    return tuple(names)
+
+
+_DOSSIER_TEXT_FIELDS = _text_fields(RepoDossier)
+_DOSSIER_TEXT_LIST_FIELDS = _text_list_fields(RepoDossier)
+_FINDING_TEXT_FIELDS = _text_fields(DossierFinding)
+_OBJECTIVE_TEXT_FIELDS = _text_fields(Objective)
+
+
 def redact_dossier(dossier: Any) -> int:
     """Mask secret-shaped values in every free-text field of a dossier dict.
 
@@ -379,14 +410,13 @@ def redact_dossier(dossier: Any) -> int:
     if not isinstance(dossier, dict):
         return 0
     hits = 0
-    for key in ("maintainerLoadEstimate",):
-        hits += _redact_in_place(dossier, [key])
+    hits += _redact_in_place(dossier, _DOSSIER_TEXT_FIELDS)
     for key in ("riskAreas", "hotSpots"):
         for finding in dossier.get(key) or []:
-            hits += _redact_in_place(finding, ["ref", "rationale"])
+            hits += _redact_in_place(finding, _FINDING_TEXT_FIELDS)
     for objective in dossier.get("candidateObjectives") or []:
-        hits += _redact_in_place(objective, ["label", "rationale", "unit"])
-    for key in ("existingKpis", "stack", "declaredGates"):
+        hits += _redact_in_place(objective, _OBJECTIVE_TEXT_FIELDS)
+    for key in _DOSSIER_TEXT_LIST_FIELDS:
         values = dossier.get(key)
         if isinstance(values, list):
             for i, value in enumerate(values):

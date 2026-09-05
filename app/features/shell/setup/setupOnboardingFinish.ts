@@ -41,7 +41,7 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
 
   results.push(inviteBatchResult(await sendSetupInvites(state.invites)));
   results.push(await persistPipelineAxis(state));
-  await persistCompanionConsent(state);
+  results.push(await persistCompanionConsent(state));
   return foldSetupOutcome(results);
 }
 
@@ -151,21 +151,33 @@ export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise
  * of birthing a brain. `birth` is idempotent server-side, so a double finish
  * cannot make two.
  *
- * Silent on failure by design — and therefore NOT a part of the fold: the consent
- * question is re-askable and nothing downstream is broken by a missed stamp (the
- * dock simply stays memoryless), so naming it in the closing sentence would be
- * noise. The pipeline write, which CHANGES the board, is the one that speaks up.
+ * REPORTED, not silent. This used to `await fetch(...)` inside a catch and discard
+ * the response, on the argument that the question is re-askable — but nothing
+ * re-asks it: the wizard runs once and there is no consent control in Settings, so
+ * the operator's only clue that their "yes" never landed was the dock still saying
+ * "memory off", weeks later, with nothing to connect it to. And `fetch` RESOLVES on
+ * a 403 (a seat without the capability) and on a 500, so the old shape did not even
+ * catch the cases it was written for. A choice the operator MADE is now folded like
+ * every other write: skipping still posts nothing and reports `skipped`, and only a
+ * requested write that did not land reaches the closing sentence, where the code is
+ * resolved through `useErrorMessage` in the reader's language.
  */
-async function persistCompanionConsent(state: SetupState): Promise<void> {
-  if (!state.companionChoice) return;
+export async function persistCompanionConsent(state: SetupState): Promise<SetupPartResult> {
+  if (!state.companionChoice) return { part: "companion", status: "skipped" };
   try {
-    await fetch("/api/companion/brain", {
+    const res = await fetch("/api/companion/brain", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: state.companionChoice }),
     });
+    if (res.ok) return { part: "companion", status: "landed" };
+    // The code is the information; the server's English `error` never reaches the
+    // reader. An unparseable refusal still refuses, with a null code.
+    const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
+    return { part: "companion", status: "refused", code: typeof body?.code === "string" ? body.code : null };
   } catch {
-    /* re-askable; a missed stamp only means memory stays off */
+    // A network fault stored nothing either: the wizard must not imply memory is on.
+    return { part: "companion", status: "refused", code: null };
   }
 }
 

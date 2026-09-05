@@ -78,6 +78,7 @@ export type ScanState =
   | "failedCloneFailed"
   | "failedCloneTimeout"
   | "failedCancelled"
+  | "failedTimeout"
   | "failedEngineFailed"
   // The dossier LANDED, but on the heuristic floor after the in-repo agent failed
   // (RepoScanFallbackClass — Python's FALLBACK_CLASSES, mirrored in TS).
@@ -98,9 +99,10 @@ export type RepoScanView = {
   dossier: RepoDossier | null;
   /** The row's resolved `rootPath` is withheld; this is the projection of it. */
   isLocal?: boolean;
-  error?: string | null;
-  /** The failure CLASS. The route serves this so the reason survives translation;
-   *  `error` is the server's English diagnostic and is never rendered. */
+  /** The failure CLASS, and the ONLY thing the panel is told about a failure. The
+   *  row's `error` is the server's English diagnostic — for a clone failure it
+   *  quotes git's stderr — so the route does not serve it at all and this type does
+   *  not declare it (repo-scan-detail-route.test.ts enumerates the wire shape). */
   errorCode?: string | null;
   /** Set on a COMPLETE scan whose dossier came off the heuristic floor because the
    *  agent failed. Absent on a keyless install — the floor is not a fallback there,
@@ -119,6 +121,7 @@ const FAILURE_STATE: Record<string, ScanState> = {
   clone_failed: "failedCloneFailed",
   clone_timeout: "failedCloneTimeout",
   cancelled: "failedCancelled",
+  timeout: "failedTimeout",
   engine_failed: "failedEngineFailed",
 };
 

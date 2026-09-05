@@ -228,9 +228,15 @@ reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
    assumptions in it (a flag, a rule grammar, a CLI version) and every non-Claude
    adapter has no fence at all — it answers from the grounding, and text can carry
    anything. So `redact_dossier` sweeps every refined free-text field at the WIRE
-   boundary (`repo_scan_cli`) for secret-SHAPED values — AWS key ids, PEM blocks,
-   `sk-`/`ghp_`/`xox…` tokens, `NAME_KEY=<20+ chars>` — masks them `[redacted]`
-   and puts the count on the envelope as `redactions`. A redaction nobody can see
+   boundary (`repo_scan_cli`) for secret-SHAPED values. The field names are
+   **derived from the Pydantic models** (`_text_fields(DossierFinding)` and its
+   siblings), not hand-listed: the first cut of this sweep named `rationale` on
+   findings and objectives, a field neither model declares, so every LLM-authored
+   `note` on a `riskArea` or a `hotSpot` reached `dossier_json` and the wire
+   unredacted while a guard test that invented the same key stayed green. The
+   shapes it looks for are AWS key ids, PEM blocks, `sk-`/`ghp_`/`xox…` tokens and
+   `NAME_KEY=<20+ chars>`; it masks them `[redacted]` and puts the count on the
+   envelope as `redactions`. A redaction nobody can see
    is a silent edit of the operator's data. The pattern set is deliberately
    narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
    `test_repo_scan.RedactionTest` pins both directions.
@@ -319,14 +325,56 @@ queued scan must not outlive the permission that admitted it — then spawns
 outcome onto the row itself, success *and* failure, so a reaped task leaves an
 honest `failed` row rather than one stuck at `running`.
 
+**Two scans of one target do not pay twice.** The `repo_scan` dedupe key used to
+be `repo_scan:<scanId>`, and `startRepoScan` mints a scan id per POST — a key
+unique by construction is a dedupe that can never fire, so a double-click, or the
+far more common "the compose failed, point kp at the same app again", bought a
+second shallow clone plus a second in-repo agent session over the same codebase
+and threw one of the two dossiers away.
+
+Coalescing now happens in front of the row, in `claimRepoScan`
+(`db/repo-scans.ts`), because merging the two TASKS alone would leave the second
+ROW at `queued` forever and the row is what the operator polls. It is a
+read→compute→write that takes the write lock at BEGIN (`.immediate()`), since the
+two POSTs it exists to merge arrive milliseconds apart. A POST is handed the
+existing scan when the tenant and the **resolved** target match and the row is
+either still in flight or completed inside `REPO_SCAN_REUSE_WINDOW_MS`
+(**30 minutes** — chosen to sit above the runner's own 15-minute wall-clock
+budget, so an in-flight scan stays inside the window for its whole life and a row
+abandoned by a crashed process stops blocking new scans shortly after it can no
+longer be finished). A **failed** scan is never reused: retrying a failure is the
+point of retrying. For a URL target the commit is deliberately NOT part of the
+identity — learning it costs a `git ls-remote` this path does not spend — so the
+window, not the SHA, is what bounds staleness.
+
+The dedupe key follows: `repo_scan:<workspaceId>:<repoUrl|rootPath>`. The
+workspace is in it explicitly because a builder only ever sees `params`, and two
+tenants must never share one reading of a codebase.
+
+The response carries `reused`, and `taskId` is `null` for a reused scan that had
+already completed — naming a task that finished before the request arrived is a
+green lie the poller would chase. The intake needs no new state for either: it
+polls `GET /api/repo-scan/[id]` with the returned id, which for a reused complete
+scan answers the dossier on the first poll.
+
 **The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
 of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
 now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
-`clone_failed`, `clone_timeout`, `cancelled`, `engine_failed`, `unknown` — set at
-the throw site that observed it (`RepoScanFailure`), never reconstructed later by
-matching English; `error` stays the diagnostic line for the server log. An
-aborted run classifies as `cancelled` **first**, whatever the killed step raised,
-so a Cancel is never reported as an engine fault.
+`clone_failed`, `clone_timeout`, `cancelled`, `timeout`, `engine_failed`,
+`unknown` — set at the throw site that observed it (`RepoScanFailure`), never
+reconstructed later by matching English; `error` stays the diagnostic line for
+the server log. An aborted run classifies from the ABORT **first**, whatever the
+killed step raised, so a Cancel is never reported as an engine fault.
+
+**A watchdog reap is not the operator's Cancel.** The task runner aborts the same
+controller for both (`tasks.ts`: `cancelTask` at the operator's request,
+`TASK_MAX_RUNTIME_MS` at the wall-clock budget), so a reaped scan used to say
+"the scan was stopped" — and the operator re-ran it unchanged and waited another
+fifteen minutes. The watchdog now aborts **with a reason**, in the platform's own
+vocabulary (`DOMException(..., "TimeoutError")`, exactly what
+`AbortSignal.timeout()` produces), `isTimeoutAbort` reads it, and the row lands
+`timeout` — whose copy says re-running unchanged will hit the same limit.
+`cancelled` stays what it always was: `controller.abort()` with no reason.
 
 `repo_scans.fallback_class` is the other half: a dossier can *complete* on the
 heuristic floor because the in-repo agent failed, and that read identically to a
@@ -354,15 +402,27 @@ is closed by the `repo_scan` handler's `onCancelQueued` hook
 (`cancelQueuedRepoScan`), so it can never sit at `queued` after its task is gone.
 Either way the row lands `failed` / `cancelled`.
 
-`GET /api/repo-scan/[id]` returns the row with TWO fields withheld: the resolved
-`rootPath`, replaced by `isLocal: true`, and `fallbackReason` — the raw
-`"<ExceptionType>: <message>"` line, which is English, unbounded and can quote
-provider output. `errorCode` and `fallbackClass` go out instead, and the intake
-renders them per locale (`library.tab.intake.appMaster.scan.*`); the client never
-renders the server's `error` string. That is the *server's* filesystem after
-symlink resolution, which can differ from what the operator typed. The dossier's
-own `repo.rootPath` still carries it — that is the binding an `AppMasterSpec`
-needs — so this is a projection choice, not a redaction claim.
+`GET /api/repo-scan/[id]` answers an explicit **allow-list**, never a spread of
+the row: `id, repoUrl, status, source, dossier, errorCode, fallbackClass,
+isLocal, createdAt, updatedAt` — enumerated by
+`app/api/repo-scan/[id]/repo-scan-detail-route.test.ts`, so widening it is a
+decision rather than a side effect of the next migration. It used to be a spread
+with two fields removed, which put every later column on the wire by default and
+already put three there:
+
+- `rootPath` — the *server's* filesystem after symlink resolution, which can
+  differ from what the operator typed. `isLocal: true` is served instead. The
+  dossier's own `repo.rootPath` still carries it (that is the binding an
+  `AppMasterSpec` needs), so this is a projection choice, not a redaction claim.
+- `fallbackReason` — the raw `"<ExceptionType>: <message>"` line, English,
+  unbounded and able to quote provider output. `fallbackClass` goes out instead.
+- `error` — the thrown message, which for a clone failure carries git's last 200
+  stderr bytes: for a private remote, its host, branch and auth chatter. Nothing
+  ever rendered it — the panel resolves `errorCode` per locale
+  (`library.tab.intake.appMaster.scan.*`) and the client never renders the
+  server's `error` string — so it was pure egress.
+- `workspaceId` — the caller's own tenant, which it did not send and has no use
+  for.
 
 Both routes are `requireOperator`-gated (a documented no-op in open dev mode) and
 the POST is rate-limited `repo-scan:<ip>` at 10/10min, pinned in
@@ -818,8 +878,8 @@ spec was composed, and it travels with the spec.
 
 | Symbol | Kind | What it is |
 | --- | --- | --- |
-| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId }`. `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
-| `GET /api/repo-scan/[id]` | route | → `{ scan }` — the row, minus the resolved `rootPath` (`isLocal` instead) |
+| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
 | `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |

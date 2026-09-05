@@ -3,7 +3,7 @@ import { drainEdge, sendEdgeHeartbeat } from "@/app/_lib/edge-drain";
 import { getEdgeConfig } from "@/app/_lib/edge-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
-import { requireCapabilityCoded } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 
 // "Drain now" — the manual twin of what the clock does every tick, for an operator
 // who has just wired a source and wants to see it land rather than wait a cadence.
@@ -21,6 +21,14 @@ export async function POST() {
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
   if (under) return under;
   const summary = await drainEdge();
+  // A credential this install can no longer open is a REFUSAL, not a 200 with a
+  // footnote: nothing will drain until an operator re-enters the secret or restores
+  // the key, and no retry helps. The summary rides along so the card can keep
+  // rendering the failure CLASS it already renders, and the raw diagnostic (a
+  // decipher error, which can name key material) goes to the log, never the wire.
+  if (summary.errorKind === "secret_unreadable") {
+    return jsonRefusal("EDGE_SECRET_UNREADABLE", 409, { summary, config: getEdgeConfig() });
+  }
   if (summary.configured) await sendEdgeHeartbeat();
   return NextResponse.json({ summary, config: getEdgeConfig() });
 }

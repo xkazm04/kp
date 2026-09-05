@@ -226,3 +226,76 @@ test("a class this build has no word for reads as no claim at all", () => {
   assert.equal(read?.fallbackClass, null);
   assert.equal(read?.errorCode, null);
 });
+
+// ---- Coalescing: two scans of one target must not pay twice -----------------
+//
+// The dedupe key was the per-POST scan id, so it could never coalesce: a
+// double-click, or a re-scan after a failed dossier compose, cloned the repo and
+// ran the in-repo agent twice and threw one dossier away. `claimRepoScan` is the
+// read→compute→write that fixes it, and it takes the write lock at BEGIN
+// (`.immediate()`) because the two POSTs it exists to merge arrive milliseconds
+// apart — a plain read-then-insert would mint two rows and orphan one at `queued`.
+
+test("a second scan of the same target coalesces onto the one already in flight", async () => {
+  const { claimRepoScan } = await import("./repo-scans.ts");
+  const first = claimRepoScan({ repoUrl: "https://github.com/acme/app" }, "ws-claim");
+  assert.equal(first.reused, false, "the first scan of a target is a real scan");
+
+  const second = claimRepoScan({ repoUrl: "https://github.com/acme/app" }, "ws-claim");
+  assert.equal(second.reused, true);
+  assert.equal(second.scan.id, first.scan.id, "the double-click gets the run already paid for");
+
+  markRepoScanRunning(first.scan.id, "ws-claim");
+  const third = claimRepoScan({ repoUrl: "https://github.com/acme/app" }, "ws-claim");
+  assert.equal(third.reused, true, "a RUNNING scan coalesces too — that is the expensive one");
+  assert.equal(third.scan.id, first.scan.id);
+});
+
+test("a complete scan inside the reuse window is answered instead of re-run", async () => {
+  const { claimRepoScan, REPO_SCAN_REUSE_WINDOW_MS } = await import("./repo-scans.ts");
+  const first = claimRepoScan({ rootPath: "/srv/apps/one" }, "ws-claim");
+  markRepoScanRunning(first.scan.id, "ws-claim");
+  completeRepoScan(first.scan.id, { dossier: DOSSIER, source: "heuristic" }, "ws-claim");
+
+  const again = claimRepoScan({ rootPath: "/srv/apps/one" }, "ws-claim");
+  assert.equal(again.reused, true);
+  assert.equal(again.scan.id, first.scan.id);
+  assert.equal(again.scan.status, "complete", "the caller is handed a finished scan, not a queued one");
+
+  // Past the window the repository is assumed to have moved on: a re-scan is the
+  // point, not a cache miss.
+  const stale = claimRepoScan({ rootPath: "/srv/apps/one" }, "ws-claim", Date.now() + REPO_SCAN_REUSE_WINDOW_MS + 1_000);
+  assert.equal(stale.reused, false);
+  assert.notEqual(stale.scan.id, first.scan.id);
+});
+
+test("a failed scan is never reused, and neither is another tenant's or another target's", async () => {
+  const { claimRepoScan } = await import("./repo-scans.ts");
+  const failed = claimRepoScan({ repoUrl: "https://github.com/acme/broken" }, "ws-claim");
+  markRepoScanRunning(failed.scan.id, "ws-claim");
+  failRepoScan(failed.scan.id, "git exited 128", "clone_failed", "ws-claim");
+  const retry = claimRepoScan({ repoUrl: "https://github.com/acme/broken" }, "ws-claim");
+  assert.equal(retry.reused, false, "retrying a failure is the whole point of retrying");
+
+  const mine = claimRepoScan({ repoUrl: "https://github.com/acme/shared" }, "ws-claim");
+  const theirs = claimRepoScan({ repoUrl: "https://github.com/acme/shared" }, "ws-other");
+  assert.equal(theirs.reused, false, "a scan reads a private codebase; it never crosses a tenant");
+  assert.notEqual(theirs.scan.id, mine.scan.id);
+
+  const other = claimRepoScan({ repoUrl: "https://github.com/acme/different" }, "ws-claim");
+  assert.equal(other.reused, false);
+});
+
+test("a stale in-flight row stops blocking once it is past the window", async () => {
+  const { claimRepoScan, REPO_SCAN_REUSE_WINDOW_MS } = await import("./repo-scans.ts");
+  // A process that died mid-run leaves a `running` row nothing will ever finish.
+  // Coalescing onto it forever would make one crash permanently unscannable.
+  const abandoned = claimRepoScan({ rootPath: "/srv/apps/abandoned" }, "ws-claim");
+  markRepoScanRunning(abandoned.scan.id, "ws-claim");
+  const fresh = claimRepoScan(
+    { rootPath: "/srv/apps/abandoned" },
+    "ws-claim",
+    Date.now() + REPO_SCAN_REUSE_WINDOW_MS + 1_000
+  );
+  assert.equal(fresh.reused, false);
+});

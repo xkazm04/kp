@@ -31,6 +31,7 @@ import {
   recordDrain,
   recordHeartbeat,
   resolveEdge,
+  resolveEdgeDetailed,
   type EdgeErrorKind,
   type ResolvedEdge,
 } from "./edge-config";
@@ -220,7 +221,8 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
  * the config row (surfaced on the Channels tab) and retried next tick.
  */
 export async function drainEdge(): Promise<DrainSummary> {
-  const edge = resolveEdge();
+  const resolution = resolveEdgeDetailed();
+  const edge = resolution.ok ? resolution.edge : null;
   const summary: DrainSummary = {
     configured: !!edge,
     fetched: 0,
@@ -232,6 +234,23 @@ export async function drainEdge(): Promise<DrainSummary> {
     error: null,
     errorKind: null,
   };
+  if (!resolution.ok) {
+    // A stored pairing this install can no longer open (KP_SECRET rotated ahead of
+    // `secrets:rotate`, or the retired key dropped). Decrypt used to run outside the
+    // resolver's try, so this threw straight out of a function documented "never
+    // throws" and "Drain now" answered an unhandled 500. It is a LEDGER error like
+    // any other: recorded through recordDrain, so the card names the class and the
+    // clock's next tick is unaffected. `configured` stays false because there is
+    // nothing this install can talk to, and the cursor is left where it was.
+    // The ledger carries the CODE, not the decipher message: `lastError` is on the
+    // public config and a key-material-adjacent sentence has no business there. The
+    // raw diagnostic goes to this install's server log, where the operator is.
+    console.error("[edge:drain] EDGE_SECRET_UNREADABLE", resolution.error);
+    summary.error = "EDGE_SECRET_UNREADABLE";
+    summary.errorKind = resolution.kind;
+    recordDrain({ cursor: 0, error: summary.error, errorKind: summary.errorKind });
+    return summary;
+  }
   if (!edge) return summary;
   summary.cursor = edge.cursor;
   let cursor = edge.cursor;
@@ -322,7 +341,11 @@ export async function drainEdge(): Promise<DrainSummary> {
  * have already been at rest unsealed.
  */
 export async function pairEdge(): Promise<{ ok: boolean; error: string | null }> {
-  const edge = resolveEdge();
+  const resolution = resolveEdgeDetailed();
+  // Same refusal, said plainly: publishing a key over a link we cannot sign is not a
+  // thing that can succeed, and the route answers EDGE_PAIR_REFUSED for it.
+  if (!resolution.ok) return { ok: false, error: resolution.error };
+  const edge = resolution.edge;
   if (!edge) return { ok: false, error: "No edge configured." };
   try {
     const { ensureEdgeKeypair } = await import("./edge-config");

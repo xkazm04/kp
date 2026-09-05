@@ -110,6 +110,44 @@ test("an aborted run is `cancelled` whatever the killed step happened to raise",
   assert.equal(classifyRepoScanError(new RepoScanFailure("timed out", "clone_timeout"), ac.signal), "cancelled");
 });
 
+test("a watchdog reap is `timeout`, because it is not the operator's Cancel", () => {
+  // The task runner aborts the SAME controller for both, so an abort with no reason
+  // was read as a Cancel and the panel told the operator they had stopped a scan
+  // they had watched for fifteen minutes. The reason is the only thing that
+  // separates them, and it is the platform's own vocabulary: `AbortSignal.timeout()`
+  // aborts with exactly this DOMException, so nothing here is a private protocol.
+  const reaped = new AbortController();
+  reaped.abort(new DOMException("exceeded the 900000ms wall-clock budget", "TimeoutError"));
+  assert.equal(classifyRepoScanError(new PipelineError({ message: "killed", status: 500 }), reaped.signal), "timeout");
+  assert.equal(classifyRepoScanError(new Error("git died"), reaped.signal), "timeout");
+
+  // An operator Cancel still reads as a Cancel: `controller.abort()` with no
+  // argument yields an AbortError, and every other reason is one too.
+  const cancelled = new AbortController();
+  cancelled.abort();
+  assert.equal(classifyRepoScanError(new Error("git died"), cancelled.signal), "cancelled");
+  const other = new AbortController();
+  other.abort("some string reason");
+  assert.equal(classifyRepoScanError(new Error("git died"), other.signal), "cancelled");
+});
+
+test("the task watchdog aborts WITH a reason and Cancel aborts without one", () => {
+  // A source guard, because the alternative is a unit test that waits out
+  // TASK_MAX_RUNTIME_MS. It pins the seam the classifier reads: two abort sites on
+  // one controller, and only the watchdog names itself. Line endings normalised
+  // first — this file is read from a CRLF checkout and an LF worktree.
+  const src = readFileSync(
+    fileURLToPath(new URL("./tasks.ts", import.meta.url)),
+    "utf-8"
+  ).replace(/\r\n/g, "\n");
+  assert.match(
+    src,
+    /controller\.abort\(\s*new DOMException\([^)]*"TimeoutError"\s*\)\s*\)/,
+    "the watchdog must abort with a TimeoutError reason, or a reap is indistinguishable from a Cancel"
+  );
+  assert.match(src, /export function cancelTask[\s\S]*?controller\.abort\(\);/, "Cancel aborts with no reason");
+});
+
 // ---- The run -------------------------------------------------------------------
 
 test("a completed run lands the dossier, the source and the fallback class on the row", async () => {

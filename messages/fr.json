@@ -1763,7 +1763,8 @@
     "DEVCASE_SESSION_FLUSH_FAILED": "Impossible d'enregistrer cette session de travail pour l'instant. Votre travail reste sur cet appareil et sera renvoyé.",
     "DEVCASE_SESSION_READ_FAILED": "Impossible de charger la session de travail. Veuillez réessayer.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Cette session de travail a déjà été soumise.",
-    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer."
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer.",
+    "EDGE_SECRET_UNREADABLE": "Cette installation ne peut pas lire le secret edge enregistré. Saisissez-le à nouveau ou restaurez la clé qui l'a chiffré."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4393,6 +4394,7 @@
             "failedCloneFailed": "Le dépôt n'a pas pu être cloné. Vérifiez l'URL et les accès nécessaires.",
             "failedCloneTimeout": "Le clonage du dépôt a pris trop de temps et a été arrêté.",
             "failedCancelled": "L'analyse a été arrêtée.",
+            "failedTimeout": "L'analyse a dépassé son budget de temps et a été arrêtée. La relancer sans changement atteindra la même limite.",
             "failedEngineFailed": "Le moteur d'analyse a échoué, rien n'a été lu.",
             "fellBackAgentNotInstalled": "L'agent IA n'est pas installé : ceci est uniquement la lecture par parcours de fichiers.",
             "fellBackAgentTimeout": "L'agent IA a dépassé le délai : ceci est uniquement la lecture par parcours de fichiers.",
@@ -5712,7 +5714,8 @@
       "drainFailedUnreachable": "Collecte échouée : l'edge n'a pas répondu. Rien n'est perdu, le prochain cycle réessaie.",
       "drainFailedHeld": "Collecte suspendue : un évènement n'a pas pu être classé. Il reste sur l'edge et sera réessayé.",
       "drainFailedAck": "Classé, mais l'edge ne le sait pas. Il proposera à nouveau ces évènements et rien ne sera classé deux fois.",
-      "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation."
+      "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation.",
+      "drainFailedSecretUnreadable": "Collecte arrêtée : cette installation ne peut pas lire le secret edge enregistré. Rien n'est perdu. Saisissez-le à nouveau ou restaurez la clé de chiffrement."
     },
     "tablist": "Intégration",
     "waiting": "{count} en attente dans le pipeline",
@@ -8252,7 +8255,8 @@
         "language": "Langue de l’application",
         "invites": "Invitations d’équipe",
         "pipeline": "Colonnes du tableau",
-        "brand": "Couleur de marque et logo"
+        "brand": "Couleur de marque et logo",
+        "companion": "Mémoire de Candi"
       },
       "reasonUnknown": "n’a pas pu être enregistré. Vous pouvez le terminer dans les Réglages.",
       "line": "{part} : {reason}",
@@ -10053,7 +10057,8 @@
       "thinking": "Réflexion…",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du studio avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
-      "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez."
+      "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez.",
+      "reconnect": "Réessayer la connexion"
     },
     "state": {
       "here": "Je suis là quand vous en avez besoin.",
@@ -10103,7 +10108,8 @@
       "working": "Je m'en occupe",
       "accepted": "Acceptée",
       "declined": "Refusée",
-      "dropped": "{count, plural, one {# proposition a été écartée} other {# propositions ont été écartées}}"
+      "dropped": "{count, plural, one {# proposition a été écartée} other {# propositions ont été écartées}}",
+      "failed": "La réponse n’est pas passée. Rien n’a été modifié, réessayez."
     },
     "outcome": {
       "analysisQueued": "Screening de {candidate} en cours en arrière-plan",

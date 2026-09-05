@@ -248,12 +248,8 @@ export const STORE_ERRORS = {
   COMPANION_THREADS_FAILED: "Could not load your conversations with Candi. Please try again.",
   COMPANION_THREAD_CREATE_FAILED: "Could not start a new conversation with Candi. Please try again.",
   COMPANION_MESSAGE_FAILED: "Could not process that message. Please try again.",
-  // Proposal resolution (WP3). NOT_FOUND and RESOLVED are deliberate, distinct
-  // codes rather than one generic failure: "that proposal is gone" and "someone
-  // already answered it" are different facts, and the second is the ordinary
-  // outcome of two open docks rather than an error.
-  COMPANION_PROPOSAL_NOT_FOUND: "That proposal is no longer available.",
-  COMPANION_PROPOSAL_RESOLVED: "That proposal was already answered.",
+  // Proposal resolution (WP3): COMPANION_PROPOSAL_FAILED stays here (an accident);
+  // NOT_FOUND and RESOLVED are decisions and live in REFUSAL_ERRORS below.
   COMPANION_PROPOSAL_FAILED: "Could not run that proposal. Nothing was changed.",
   // Memory consent (WP4). The brain doors spawn companion_cli and their thrown
   // errors carry the operator's own home-directory paths, which is precisely the
@@ -680,6 +676,11 @@ export const REFUSAL_ERRORS = {
   /** Publishing the sealing key did not happen (400) — usually because no edge is
    *  paired yet, or it did not answer. Nothing was rotated; retrying is safe. */
   EDGE_PAIR_REFUSED: "Could not publish the sealing key to the edge. Check the pairing and try again.",
+  /** The stored edge credential cannot be decrypted on this install (409) - the
+   *  master key was rotated ahead of `secrets:rotate`, or the retired key was
+   *  dropped. A DECISION, and an actionable one: nothing drains until the secret is
+   *  re-entered or the key restored, and the drain says so instead of 500-ing. */
+  EDGE_SECRET_UNREADABLE: "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
   // ---- The voice host routes' boundary refusals (/api/tts, /api/stt). Every
   // one of these was an English sentence with no code, on routes a Czech,
   // German or French operator reaches through the same dock as everything else.
@@ -1367,6 +1368,13 @@ export const REFUSAL_ERRORS = {
    *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
    *  stop trying, not to retry, so the sentence says so. */
   COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
+  /** Companion proposal doors (WP3), moved here 2026-09-05 from STORE_ERRORS: both
+   *  are DECISIONS, not accidents. "That proposal is gone" (404) and "someone already
+   *  answered it" (409) are different facts, and the second is the ordinary outcome
+   *  of two open docks. The 409 carries the current row beside the code so the card
+   *  can repaint as answered (app/api/companion/proposals/[id]/resolve/route.ts). */
+  COMPANION_PROPOSAL_NOT_FOUND: "That proposal is no longer available.",
+  COMPANION_PROPOSAL_RESOLVED: "That proposal was already answered.",
   /** The per-candidate ATS export refused because the entry was ANONYMIZED (410).
    *  A DECISION, not "not found": the operator can still see the masked row on the
    *  board, so a 404 would deny an erasure the product performed on purpose.

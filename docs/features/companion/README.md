@@ -517,6 +517,17 @@ which is what makes the dock re-open safe: `status` comes from the live row, not
 from the turn that produced it, so a reloaded conversation paints an outcome chip
 and no buttons.
 
+**Every 409 carries the answered row.** All three already-answered paths (the
+pre-check, a lost decline, a lost claim) answer through `alreadyResolved()`, which
+puts the store's current proposal beside the code. The dock takes the response's
+proposal whatever the status (`readProposalAnswer` in
+`app/_lib/companion-dock-states.ts`), so the card that lost the race repaints as
+answered instead of re-arming Accept on a closed proposal and buying another 409
+on every click until the next 60 s attention read. A code with NO row is a genuine
+failure (a 429, a 500, a dropped connection): the card re-arms and prints that
+code through `useErrorMessage()` on the card itself, beside the button that was
+pressed, rather than in the dock-wide error line above the transcript.
+
 **The outcome lives in `payload_json`, not in a column.** `companion_proposals` has
 `status` and `resolved_at` and no free field, and adding one means a DDL migration
 in `db/core.ts` — a file this work package does not own and that concurrent
@@ -760,13 +771,35 @@ reads what it is handed:
 **Retry, and the duplicate it fixed.** A refused message is no longer put back
 into the shared orchestration machine's queue. That requeue is right for the voice
 caller the machine was written for (a dropped utterance exists nowhere), and wrong
-here: `ChatComposer` already RESTORES the draft on a false resolve, so the queued
+here: the composer used to RESTORE the draft on a false resolve, so the queued
 copy made the operator's next send coalesce their restored draft WITH it and ask
 Candi the same question twice, in one message. It also stranded anything typed
 while the failed turn was in flight, because `completeTurn` dispatches nothing on
 the tick that carries a `failed`. The refused message is held in `lastFailed`
 instead, and Retry re-sends it through the ordinary `send` path — so it still
 queues behind an in-flight turn and is still never re-dispatched on its own.
+
+**The composer is dead until the thread exists, and a failed boot is answerable.**
+The dock passes `ready` alongside `busy`, so before `GET /api/companion/threads`
+has produced a conversation the input and Send are disabled. Until then the
+composer was live and every send resolved false into nothing at all: no bubble, no
+error, no stored message. When the boot FAILED, the error line offers **Try
+connecting again** instead of the message Retry (`companionRetryTarget` picks
+which, unit-tested), and `retry()` bumps the boot attempt so the effect asks for
+the thread again. Focus follows the same intent: opening the window puts the caret
+in the composer once, from inside `CompanionDock` rather than in each of the four
+`openDock()` callers. It is not a trap, and Escape still closes.
+
+**One representation per failed send.** The dock passes
+`restoreDraftOnFailure={false}` to `ChatTranscript` (intake keeps the restore,
+where the refusal is drawn nowhere else): the refused message stays as its
+optimistic bubble with the error line's **Send it again** above it, instead of
+being both a bubble and a restored draft — sent and unsent at once, with Enter
+re-asking a question already on screen. Retry REPLACES that bubble:
+`withoutOptimisticTurns` drops the unsent turns before `send` pushes a fresh one,
+so a retried message is drawn once and a second failure does not stack a third
+bubble. A successful retry therefore leaves an empty composer and the server's
+own turns.
 
 **Late arm, no new poller.** `useAttention` already polls `/api/attention` every
 60 s for the sidebar badges, and `attention.companion` is the open-proposal count

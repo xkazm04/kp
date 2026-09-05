@@ -99,7 +99,7 @@ relay and ATS webhook.
 
 | Route | Auth | Purpose |
 | --- | --- | --- |
-| `POST /in/<token>` | the receiver token itself | Accept a JSON lead → 202 held |
+| `POST /in/<token>` | the receiver token itself + a 60/min per token+IP limiter | Accept a JSON lead → 202 held |
 | `POST /relay/callback` | `x-comms-secret` + freshness + nonce | Accept a delivery receipt → 202 held |
 | `GET /drain?since=&limit=` | signed | Events in sequence order + `pending` |
 | `POST /ack {upto}` | signed | Delete applied events; the install is now the record |
@@ -112,6 +112,24 @@ relay and ATS webhook.
 a second presentation of the same signature is answered **409**. The timestamp alone
 only bounds how long a captured envelope stays valid - inside those five minutes a
 captured `POST /ack {upto}` would otherwise replay and DELETE queued events.
+
+**The public door is bounded, and so is the queue.** `POST /in/<token>` is the only
+unsigned route, so it is the flood surface: one bogus token costs one queued row,
+which is cheap once and ruinous a million times. Two bounds hold it, and both mirror
+what the install already does:
+
+| Bound | Value | Behaviour |
+| --- | --- | --- |
+| Per-caller rate | 60 requests / 60 s, keyed `in:<token>:<cf-connecting-ip>` | **429** + `Retry-After: 60`. Identical to the install twin's window (`app/api/channels/inbound/[token]/route.ts`), so a flood cannot simply move to whichever URL was handed out. Backed by the `rate` table in `schema.sql` (D1, not KV: nothing new for you to create). It is abuse containment, not an exact quota — read-then-write is not atomic, so a same-millisecond burst can over-admit by a few. |
+| Undrained events | 10,000 | **503** + `Retry-After: 300` on `/in` and `/relay/callback`; an SMTP reject on inbound mail. |
+
+The cap **refuses rather than dropping the oldest**, and that is the deliberate half:
+a stored event has already been answered `202 held`, which is a promise to hand it to
+your install. Discarding it later breaks that promise silently — nobody is told and
+the lead is gone. A refusal is loud and recoverable: a job board, a relay and a
+sending mail server all retry a 503 (and all give up on a 4xx), so the sender holds
+the event while you drain. 10,000 is about 40 drain ticks of catch-up (the install
+fetches 5 pages of 50 per tick), and far short of D1's free-plan storage.
 
 ### Configuring the relay callback
 

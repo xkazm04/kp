@@ -149,3 +149,25 @@ test("the prompt transcript carries each turn's source, and every reply stores o
     "the assistant turn's meta must record which side answered",
   );
 });
+
+test("a 409 from the resolve route carries the proposal row the client must repaint", () => {
+  const src = read("./proposals/[id]/resolve/route.ts").replace(/\r\n/g, "\n");
+  // The dock's contract is "take the response's proposal whatever the status" —
+  // a 409 with only a code left the card armed on a closed proposal, so every
+  // further click bought another 409 until a poll happened.
+  assert.match(
+    src,
+    /function alreadyResolved\(proposal: CompanionProposal \| null\) \{[\s\S]*?jsonRefusal\("COMPANION_PROPOSAL_RESOLVED", 409, \{ proposal \}\)/,
+    "the 409 body must carry the server's current row beside the code",
+  );
+  assert.equal(
+    (src.match(/return alreadyResolved\(/g) ?? []).length,
+    3,
+    "three already-answered paths go through it: the pre-check, the lost decline, the lost claim",
+  );
+  assert.doesNotMatch(
+    src,
+    /That proposal was already resolved\./,
+    "…and none of them re-types the sentence STORE_ERRORS already owns",
+  );
+});

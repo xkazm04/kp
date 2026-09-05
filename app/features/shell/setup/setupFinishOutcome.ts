@@ -14,7 +14,7 @@
 // is unit-testable under `node --test`.
 
 /** The writes finish() performs, in the order the toast should name them. */
-export const SETUP_FINISH_PARTS = ["orgName", "language", "invites", "brand", "pipeline"] as const;
+export const SETUP_FINISH_PARTS = ["orgName", "language", "invites", "brand", "pipeline", "companion"] as const;
 export type SetupFinishPart = (typeof SETUP_FINISH_PARTS)[number];
 
 /**
@@ -33,6 +33,15 @@ export type SetupFinishPart = (typeof SETUP_FINISH_PARTS)[number];
  * (BRAND_ACCENT_ILLEGIBLE_LIGHT / _DARK, BRAND_LOGO_INVALID), and the wizard used
  * to fire that write and discard the response — closing green over a brand the
  * server never stored. A wizard must not claim what it did not save.
+ *
+ * `companion` is here on the same terms, and it was the last write in this wizard
+ * still fire-and-forget. Consent to Candi's memory is a CHOICE the operator made
+ * on a step, and `POST /api/companion/brain` answers a 403 (no capability) or a
+ * 500 without throwing, so the old `try { await fetch(...) } catch {}` treated a
+ * refusal as a success. Skipping the step still posts nothing and reports
+ * `skipped`; only a write that was asked for and did not land speaks. There is no
+ * Settings control for consent, so a silent miss surfaced weeks later as the
+ * dock's "memory off" line with no way to connect it to setup.
  */
 export type SetupPartResult =
   | { part: SetupFinishPart; status: "landed" | "skipped" }
