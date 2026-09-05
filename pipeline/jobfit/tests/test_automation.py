@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from dataclasses import replace
 from unittest import mock
@@ -941,6 +942,230 @@ class AdverseActionBoundaryTest(unittest.TestCase):
                         "daysInStage": days, "approvalKind": None,
                     })
                     self.assertEqual(d["action"], "hold", (archetype, score, days))
+
+
+class ScreeningRedFlagFloorTest(unittest.TestCase):
+    """AU1 — the honesty guard was defeated by the ONE coerced field with no
+    deterministic fallback.
+
+    `redFlags` was `_str_list(payload.get("redFlags"))` while every sibling field
+    had `or det[...]`. A reply that omitted it therefore differed from the template
+    in exactly that field, so `_generate`'s whole-dict comparison did not fire: the
+    result was stamped "llm", the deterministic adverse evidence ("No evidence of
+    <missing must-have>") was deleted, and a partial
+    {"recommendation":"advance","confidence":90} reached the unattended
+    screeningGate="auto" ratify path wearing the model's name."""
+
+    def setUp(self):
+        # A posting with must-haves this candidate does not cover, so the
+        # deterministic builder produces NON-EMPTY red flags — the case where the
+        # missing floor actually destroys evidence.
+        self.job = mkjob(requirements=[
+            {"skill": "Python", "kind": "must_have", "hardness": "prerequisite"},
+            {"skill": "Kubernetes", "kind": "must_have", "hardness": "prerequisite"},
+        ])
+        self.m = score_job(BAU, self.job)
+        self.assertTrue(self.m.missing_skills, "fixture drift: expected a missing must-have")
+
+    def test_a_partial_reply_keeps_the_adverse_evidence(self):
+        # The live shape: a verdict and a confidence, no redFlags. It used to reach
+        # the unattended auto-advance path with the deterministic red flags deleted.
+        cap = _CaptureProvider({"recommendation": "advance", "confidence": 90})
+        result, _ = automation.screen_candidate(BAU, self.job, self.m, provider=cap)
+        self.assertTrue(any("Kubernetes" in f for f in result["redFlags"]), result["redFlags"])
+
+    def test_a_reply_that_contributes_nothing_is_not_stamped_llm(self):
+        # An empty object coerces to the template in EVERY field, so _generate's
+        # whole-dict guard fires. redFlags was the one field that could differ, which
+        # is precisely how a contentless reply used to be sold as the model's answer.
+        cap = _CaptureProvider({})
+        result, source = automation.screen_candidate(BAU, self.job, self.m, provider=cap)
+        self.assertEqual(source, "deterministic")
+        self.assertTrue(any("Kubernetes" in f for f in result["redFlags"]), result["redFlags"])
+
+    def test_an_explicitly_empty_redflags_does_not_erase_the_missing_musthaves(self):
+        # `[]` is not "I looked, there are none": a model cannot make a recorded
+        # missing must-have present. Unlike draft_rejection's `feedback`, the empty
+        # answer is NOT compliant here and the deterministic floor wins.
+        cap = _CaptureProvider({
+            "recommendation": "advance", "confidence": 95, "rationale": "r",
+            "strengths": ["Django"], "redFlags": [],
+        })
+        result, source = automation.screen_candidate(BAU, self.job, self.m, provider=cap)
+        self.assertTrue(any("Kubernetes" in f for f in result["redFlags"]), result["redFlags"])
+        self.assertEqual(source, "llm")  # it contributed elsewhere, so it IS the model's answer
+
+    def test_the_models_own_redflags_still_win(self):
+        cap = _CaptureProvider({
+            "recommendation": "hold", "confidence": 60, "rationale": "r",
+            "strengths": ["Django"], "redFlags": ["No production Kubernetes anywhere in the CV"],
+        })
+        result, source = automation.screen_candidate(BAU, self.job, self.m, provider=cap)
+        self.assertEqual(result["redFlags"], ["No production Kubernetes anywhere in the CV"])
+        self.assertEqual(source, "llm")
+
+    def test_no_missing_musthaves_means_no_fabricated_flag(self):
+        # The floor is evidence, not decoration: with nothing missing it is empty.
+        clean = mkjob()
+        m = score_job(BAU, clean)
+        self.assertEqual(m.missing_skills, [])
+        result, _ = automation.screen_candidate(BAU, clean, m, provider=None)
+        self.assertEqual(result["redFlags"], [])
+
+
+# The shape app/_lib/db/interviews.ts hands the CLI as scorecard.json: the stored
+# interview_sessions.scorecard_json (app/_lib/interview-scorecard.ts::Scorecard).
+def scorecard(recommendation="hold", ratings=None):
+    return {
+        "recommendation": recommendation,
+        "summary": "Recruiter-facing synthesis that must never reach the candidate.",
+        "ratings": ratings if ratings is not None else [
+            {"competency": "Technical depth", "rating": 2, "evidence": "I have not used it in anger."},
+            {"competency": "Communication", "rating": 4, "evidence": "Explained the trade-off clearly."},
+            {"competency": "Motivation", "rating": 3, "evidence": "Not assessed (auto-synthesis unavailable)."},
+        ],
+    }
+
+
+class InterviewEvidenceProjectionTest(unittest.TestCase):
+    """A1/T4 — what the letters may see of an interview, and what they may not."""
+
+    def test_weak_and_strong_axes_are_separated_and_the_placeholder_is_neither(self):
+        ev = automation.interview_evidence(scorecard())
+        self.assertEqual([w["competency"] for w in ev["weakestCompetencies"]], ["Technical depth"])
+        self.assertEqual([s["competency"] for s in ev["strongestCompetencies"]], ["Communication"])
+        # A not-assessed 3 is an absence marker, never a decisive reason.
+        self.assertNotIn("Motivation", json.dumps(ev))
+
+    def test_recruiter_internal_text_never_enters_the_projection(self):
+        blob = json.dumps(automation.interview_evidence(scorecard()), ensure_ascii=False)
+        self.assertNotIn("Recruiter-facing synthesis", blob)
+        self.assertNotIn("I have not used it in anger", blob)  # the candidate's own words
+        self.assertNotIn("Explained the trade-off", blob)
+
+    def test_absence_stays_absence(self):
+        for empty in (None, {}, "not a scorecard", {"ratings": []}, {"ratings": "x"}):
+            self.assertIsNone(automation.interview_evidence(empty), repr(empty))
+
+    def test_a_garbage_verdict_never_reads_as_advance(self):
+        ev = automation.interview_evidence({"recommendation": "definitely-hire", "ratings": []})
+        self.assertEqual(ev["recommendation"], "hold")
+
+
+class RejectionGroundingTest(unittest.TestCase):
+    """A1 — the post-interview rejection is drafted WITH the interview.
+
+    Live evidence: an Interview-stage candidate was told the decisive reason was a
+    Kafka gap that was on her CV the day she was invited in, and a second variant
+    invented "the decision was close" / "another candidate matched more closely"
+    from nothing. The scorecard was on the same entry the whole time."""
+
+    def setUp(self):
+        self.job = mkjob()
+        self.m = score_job(BAU, self.job)
+
+    def test_the_interview_reaches_the_prompt_and_the_prompt_demands_it(self):
+        cap = _CaptureProvider({"subject": "s", "body": "b", "decisiveCompetency": "Technical depth"})
+        automation.draft_rejection(BAU, self.job, self.m, "Interview", provider=cap, scorecard=scorecard())
+        self.assertIn("interview.weakestCompetencies", cap.prompt)
+        self.assertIn("Technical depth", cap.prompt)
+        self.assertIn("decisiveCompetency", cap.prompt)
+        # …and never the recruiter's own file.
+        self.assertNotIn("Recruiter-facing synthesis", cap.prompt)
+
+    def test_a_reason_drawn_from_the_interview_survives(self):
+        cap = _CaptureProvider({
+            "subject": "s", "body": "b", "feedback": "", "decisiveCompetency": "technical depth ",
+        })
+        r, source = automation.draft_rejection(BAU, self.job, self.m, "Interview", provider=cap, scorecard=scorecard())
+        self.assertEqual(source, "llm")
+        # Matched back to the rubric's own spelling (case/punctuation folded).
+        self.assertEqual(r["decisiveCompetency"], "Technical depth")
+
+    def test_a_reason_the_interview_does_not_support_discards_the_draft(self):
+        # The Kafka letter: a CV gap named as the decisive reason after an interview.
+        cap = _CaptureProvider({
+            "subject": "s", "body": "You lack Kafka experience.", "decisiveCompetency": "Kafka",
+        })
+        r, source = automation.draft_rejection(BAU, self.job, self.m, "Interview", provider=cap, scorecard=scorecard())
+        self.assertEqual(source, "deterministic")
+        self.assertNotIn("Kafka", r["body"])
+        self.assertIsNone(r["decisiveCompetency"])
+
+    def test_a_silent_model_discards_the_draft_too(self):
+        cap = _CaptureProvider({"subject": "s", "body": "We are not moving forward."})
+        _, source = automation.draft_rejection(BAU, self.job, self.m, "Interview", provider=cap, scorecard=scorecard())
+        self.assertEqual(source, "deterministic")
+
+    def test_without_a_scorecard_the_prompt_asserts_no_decisive_reason(self):
+        # BAU covers this posting's must-haves, so there is no gap either — the exact
+        # input that produced "another candidate matched more closely".
+        self.assertEqual(self.m.missing_skills, [])
+        cap = _CaptureProvider({"subject": "s", "body": "b"})
+        r, source = automation.draft_rejection(BAU, self.job, self.m, "Screened", provider=cap)
+        self.assertIn("THERE IS NO DECISIVE REASON IN THESE FACTS", cap.prompt)
+        self.assertIn("do not say another candidate matched more closely", cap.prompt)
+        self.assertNotIn("the honest reason is that another candidate", cap.prompt)
+        # No interview key at all — absence is the signal, never an empty object.
+        self.assertNotIn('"interview"', cap.prompt)
+        self.assertEqual(source, "llm")
+        self.assertIsNone(r["decisiveCompetency"])
+
+    def test_a_recorded_gap_is_still_the_reason_when_there_was_no_interview(self):
+        job = mkjob(requirements=[
+            {"skill": "Python", "kind": "must_have", "hardness": "prerequisite"},
+            {"skill": "Kubernetes", "kind": "must_have", "hardness": "prerequisite"},
+        ])
+        m = score_job(BAU, job)
+        cap = _CaptureProvider({"subject": "s", "body": "b"})
+        automation.draft_rejection(BAU, job, m, "Screened", provider=cap)
+        self.assertIn("match.missingMustHaves", cap.prompt)
+
+    def test_the_deterministic_template_carries_the_key_so_the_guard_can_fire(self):
+        # A key present only on the LLM path would break _generate's whole-dict
+        # comparison — the same defect AU1 was.
+        r, source = automation.draft_rejection(BAU, self.job, self.m, "Interview", provider=None, scorecard=scorecard())
+        self.assertEqual(source, "deterministic")
+        self.assertIn("decisiveCompetency", r)
+
+
+class OfferGroundingTest(unittest.TestCase):
+    """T4 — the offer letter can see the interview, and a `hold` interview changes
+    what the prompt lets it say. Live: on an entry scored hold / 2-of-5 technical
+    the draft opened "Přesně takovou posilu jsme hledali" and invented a training
+    promise."""
+
+    def setUp(self):
+        self.job = mkjob()
+        self.m = score_job(BAU, self.job)
+
+    def test_a_hold_scorecard_forbids_enthusiasm_and_promises(self):
+        cap = _CaptureProvider({"subject": "s", "body": "b"})
+        automation.draft_offer(BAU, self.job, self.m, provider=cap, scorecard=scorecard("hold"))
+        self.assertIn("did NOT close as an unqualified", cap.prompt)
+        self.assertIn("Technical depth", cap.prompt)
+        self.assertIn("Promise no training", cap.prompt)
+        self.assertNotIn("Recruiter-facing synthesis", cap.prompt)
+
+    def test_an_advance_scorecard_may_cite_what_the_interview_showed(self):
+        cap = _CaptureProvider({"subject": "s", "body": "b"})
+        automation.draft_offer(BAU, self.job, self.m, provider=cap, scorecard=scorecard("advance"))
+        self.assertIn("it went well", cap.prompt)
+        self.assertIn("Communication", cap.prompt)
+        self.assertNotIn("did NOT close as an unqualified", cap.prompt)
+
+    def test_a_strong_verdict_with_no_strong_axis_still_gets_the_cautious_rule(self):
+        # advance + nothing rated 4/5 is not evidence of enthusiasm.
+        sc = scorecard("advance", ratings=[{"competency": "Technical depth", "rating": 2, "evidence": "e"}])
+        cap = _CaptureProvider({"subject": "s", "body": "b"})
+        automation.draft_offer(BAU, self.job, self.m, provider=cap, scorecard=sc)
+        self.assertIn("did NOT close as an unqualified", cap.prompt)
+
+    def test_no_interview_leaves_the_prompt_untouched(self):
+        cap_with = _CaptureProvider({"subject": "s", "body": "b"})
+        automation.draft_offer(BAU, self.job, self.m, provider=cap_with, scorecard=None)
+        self.assertNotIn("READ `interview`", cap_with.prompt)
+        self.assertNotIn('"interview"', cap_with.prompt)
 
 
 if __name__ == "__main__":

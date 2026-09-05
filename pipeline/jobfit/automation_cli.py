@@ -2,7 +2,7 @@
 
     python -m pipeline.jobfit.automation_cli screen      --candidate-json P --job-id J [--no-llm]
     python -m pipeline.jobfit.automation_cli outreach    --profile-json P --job-id J [--strengths-json S]
-    python -m pipeline.jobfit.automation_cli rejection   --candidate-json P --job-id J --stage Screened
+    python -m pipeline.jobfit.automation_cli rejection   --candidate-json P --job-id J --stage Screened [--scorecard-file S]
     python -m pipeline.jobfit.automation_cli prep        --candidate-json P --job-id J
     python -m pipeline.jobfit.automation_cli scorecard   --candidate-json P --job-id J --notes-file N
     python -m pipeline.jobfit.automation_cli rematch     --candidate-json P --current-job-id J
@@ -11,6 +11,8 @@
 Input candidate via --candidate-json (MatchCandidate) or --profile-json (CandidateProfileV2, transformed).
 Optional --github-evidence G (compact GithubEvidenceSummary JSON, GH7) enriches the screen/prep/scorecard
 prompts with a "Public repo evidence" block; the other commands ignore it.
+Optional --scorecard-file S (the entry's stored interview scorecard) grounds the rejection and offer letters
+in the interview that actually happened; the other commands ignore it.
 Output: one JSON object to stdout. On failure an {"error","status","code"} envelope goes to stderr with an
 HONEST status — 404/not_found for a missing job or entry, 400/invalid_input for bad arguments or validation,
 500/engine_error for an unexpected fault — plus a matching exit code (2 for 400, 1 otherwise), so the TS seam
@@ -101,6 +103,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strengths-json", type=Path)
     parser.add_argument("--stage", default="Screened")
     parser.add_argument("--notes-file", type=Path)
+    # The entry's stored interview scorecard (scorecard.json, written by
+    # automation-run.ts). Read by `rejection` and `offer` — the two letters drafted
+    # AFTER an interview, which until now could not see it and invented a decisive
+    # reason / an enthusiasm the record contradicted. Absent = no interview happened,
+    # and both prompts fall back to their evidence-less wording.
+    parser.add_argument("--scorecard-file", type=Path)
     # GH7 — compact GitHub evidence summary written by automation-run.ts
     # (github.json). Read by screen/prep/scorecard; ignored elsewhere.
     parser.add_argument("--github-evidence", type=Path)
@@ -139,6 +147,9 @@ def main(argv: list[str] | None = None) -> int:
         # GH7 — optional evidence summary. A malformed file raises
         # json.JSONDecodeError (a ValueError) → the honest 400 below.
         github = json.loads(args.github_evidence.read_text(encoding="utf-8")) if args.github_evidence else None
+        # Same honest-400 contract as --github-evidence: a malformed file raises a
+        # ValueError rather than being swallowed into a letter drafted blind.
+        scorecard = json.loads(args.scorecard_file.read_text(encoding="utf-8")) if args.scorecard_file else None
 
         if args.command == "rematch":
             result = automation.rematch_candidate(candidate, args.current_job_id, jobs, provider=provider)
@@ -162,14 +173,16 @@ def main(argv: list[str] | None = None) -> int:
             strengths = json.loads(args.strengths_json.read_text(encoding="utf-8")) if args.strengths_json else m.matched_skills
             result, source = automation.draft_outreach(candidate, job, strengths, lang=lang, provider=provider)
         elif args.command == "rejection":
-            result, source = automation.draft_rejection(candidate, job, m, args.stage, lang=lang, provider=provider)
+            result, source = automation.draft_rejection(
+                candidate, job, m, args.stage, lang=lang, provider=provider, scorecard=scorecard
+            )
         elif args.command == "prep":
             result, source = automation.interview_prep(candidate, job, m, lang=lang or "en", provider=provider, github=github)
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
             result, source = automation.interview_scorecard(candidate, job, notes, lang=lang or "en", provider=provider, github=github)
         elif args.command == "offer":
-            result, source = automation.draft_offer(candidate, job, m, lang=lang, provider=provider)
+            result, source = automation.draft_offer(candidate, job, m, lang=lang, provider=provider, scorecard=scorecard)
         else:  # pragma: no cover
             raise ValueError(f"unhandled command {args.command}")
 

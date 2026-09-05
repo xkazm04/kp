@@ -79,8 +79,15 @@ SCREENING_PROMPT_VERSION = "screening-v2"
 # the actual decisive gap + evidence-checked feedback, and _NEUTRAL_STYLE demands
 # grammatical neutrality by RECAST (no plural-for-one, no slash forms, no
 # mixed-script output).
+# rejection v4 / offer v5 — the letters that follow an INTERVIEW now receive the
+# interview's own record (interview_evidence, a candidate-safe projection of the
+# scorecard). Both prompts change bytes: the rejection's decisive reason is drawn
+# from the interview's weakest axes and is CHECKED (`decisiveCompetency`), and with
+# no evidence at all it stops demanding a decisive reason instead of inventing one;
+# the offer's tone is branched on whether the interview closed as a yes. Cached v3/v4
+# payloads were drafted blind to all of it and must self-invalidate.
 OUTREACH_PROMPT_VERSION = "outreach-v3"
-REJECTION_PROMPT_VERSION = "rejection-v3"
+REJECTION_PROMPT_VERSION = "rejection-v4"
 PREP_PROMPT_VERSION = "interview-prep-v2"
 # scorecard-v5: the read-back exchange is now emitted as STRUCTURED `entities`
 # (confirmed / corrected heard→meant / unconfirmed) alongside the prose trust rule,
@@ -100,7 +107,7 @@ REMATCH_PROMPT_VERSION = "rematch-v1"
 # rides structured as `matchBasis` (rendered under its own label by the approval
 # card, REC-01/OO-L2-10) and the rationale prose says "fresh fit check", not a
 # bare "Match", so it can't read as the entry's stored match score.
-OFFER_PROMPT_VERSION = "offer-v4"
+OFFER_PROMPT_VERSION = "offer-v5"
 
 # Task 7 thresholds — tunable per market/season (the only place rules live).
 POLICY: dict[str, int] = {
@@ -419,7 +426,102 @@ _NEUTRAL_STYLE = (
 )
 
 
-def _letter_context(candidate: MatchCandidate, job: Job, m: Any | None = None) -> dict[str, Any]:
+# A rating at or below this is a WEAK axis on the shared 1-5 rubric. 3 is the
+# not-assessed sentinel (see NOT_ASSESSED_RATING / interview-scorecard.ts) and the
+# mid band besides, so only 1-2 are evidence of a shortfall; 4-5 are the strong
+# axes an offer letter may cite.
+WEAK_RATING_MAX = 2
+STRONG_RATING_MIN = 4
+
+
+def interview_evidence(scorecard: Any) -> dict[str, Any] | None:
+    """Candidate-SAFE projection of an interview scorecard for a LETTER prompt.
+
+    THE FAILURE THIS EXISTS FOR: the post-interview rejection was drafted from CV +
+    score + stage alone, while the prompt demanded "the ACTUAL decisive reason". So
+    the model reached for the only evidence it had — the CV — and an Interview-stage
+    candidate was told the decisive reason was a Kafka gap that had been on her CV
+    the day she was invited in; a second draft invented "the decision was close" and
+    "another candidate matched more closely" out of nothing. The scorecard sat on
+    the same pipeline entry the whole time. Same root cause one gate down, with a
+    job offer attached: an entry rated `hold` / 2-of-5 technical opened
+    "přesně takovou posilu jsme hledali" and promised training nobody agreed to.
+
+    WHAT IS DELIBERATELY LEFT OUT. This goes into a letter the candidate reads, so
+    it carries competency names and their band ONLY — never `summary` (recruiter-
+    facing prose about them), never the verbatim `evidence` quotes (their own words
+    read back at them in a rejection is the creepiest letter in the product), never
+    `entities`/rubric metadata. Same rule `_letter_context` follows: the letter
+    prompts get facts, not the recruiter's file.
+
+    Returns None when there is no usable scorecard — absence must read as "no
+    interview happened", never as a scorecard with nothing in it.
+    """
+    if not isinstance(scorecard, dict):
+        return None
+    ratings = scorecard.get("ratings")
+    if not isinstance(ratings, list):
+        ratings = []
+    weak: list[dict[str, Any]] = []
+    strong: list[dict[str, Any]] = []
+    for r in ratings:
+        if not isinstance(r, dict):
+            continue
+        competency = str(r.get("competency") or "").strip()
+        try:
+            rating = int(r.get("rating"))
+        except (TypeError, ValueError):
+            continue
+        if not competency or not 1 <= rating <= 5:
+            continue
+        # A not-assessed axis is a 3 carrying the "Not assessed…" placeholder — the
+        # honest absence marker, not an observation. It is neither weak nor strong
+        # evidence and must never become the decisive reason for a rejection.
+        if rating == 3 and str(r.get("evidence") or "").startswith("Not assessed"):
+            continue
+        if rating <= WEAK_RATING_MAX:
+            weak.append({"competency": competency, "rating": rating})
+        elif rating >= STRONG_RATING_MIN:
+            strong.append({"competency": competency, "rating": rating})
+    # A verdict that is PRESENT but off-taxonomy fails closed to "hold" (the shared
+    # RECOMMENDATION_FALLBACK) rather than to None: "the scorecard says something we
+    # cannot read" must never resolve to the offer letter's confident branch. Only a
+    # genuinely absent verdict is None.
+    raw_rec = scorecard.get("recommendation")
+    recommendation = coerce_recommendation(raw_rec) if str(raw_rec or "").strip() else None
+    if not weak and not strong and not recommendation:
+        return None
+    return {
+        "happened": True,
+        "recommendation": recommendation,
+        "weakestCompetencies": sorted(weak, key=lambda x: x["rating"])[:3],
+        "strongestCompetencies": sorted(strong, key=lambda x: -x["rating"])[:3],
+    }
+
+
+def _match_competency(value: Any, allowed: list[str]) -> str | None:
+    """The member of ``allowed`` the model named, or None when it named none.
+
+    WHY A STRUCTURED FIELD AND NOT A SCAN OF THE PROSE. The obvious grounding check
+    — does the letter body mention a weak competency — cannot work here: the rubric
+    labels are English ("Technical depth") and the letter is drafted in the
+    candidate's language, so a containment check would discard every Czech, German
+    and French draft as ungrounded. So the rejection prompt asks the model to NAME
+    the axis it decided on, verbatim, in a field of its own; that is a checkable
+    commitment, and it doubles as the provenance line the recruiter's approval card
+    can show. Matching folds case and punctuation (_normalize_for_grounding) — the
+    same drift tolerance the quote grounding uses.
+    """
+    needle = _normalize_for_grounding(str(value or ""))
+    if not needle:
+        return None
+    for name in allowed:
+        if _normalize_for_grounding(name) == needle:
+            return name
+    return None
+
+
+def _letter_context(candidate: MatchCandidate, job: Job, m: Any | None = None, interview: dict | None = None) -> dict[str, Any]:
     """Compact candidate×job evidence for the candidate-facing letter prompts.
 
     The 2026-08-11 bench found the letters starved: outreach saw a name + three
@@ -452,6 +554,12 @@ def _letter_context(candidate: MatchCandidate, job: Job, m: Any | None = None) -
             "matchedSkills": m.matched_skills[:8],
             "missingMustHaves": m.missing_skills[:6],
         }
+    if interview is not None:
+        # The interview's own record (interview_evidence), present ONLY when one
+        # actually happened. Its absence is load-bearing: the prompts below stop
+        # asking for a decisive reason when this key is missing, because there is
+        # no evidence that could support one.
+        ctx["interview"] = interview
     return ctx
 
 
@@ -656,7 +764,25 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en"
             "confidence": conf,
             "rationale": str(payload.get("rationale") or det["rationale"]),
             "strengths": _str_list(payload.get("strengths")) or det["strengths"],
-            "redFlags": _str_list(payload.get("redFlags")),
+            # THE DETERMINISTIC FLOOR WINS HERE, and unlike `feedback` in
+            # draft_rejection an explicitly empty list does NOT survive. Two
+            # reasons, both incidents:
+            #   * det["redFlags"] is "no evidence of <missing must-have>" — DERIVED
+            #     from the same match facts the model was shown, not an opinion it
+            #     can retract. A model cannot make a missing must-have present, so
+            #     `[]` is never "I looked, there are none"; it is the adverse
+            #     evidence going missing on its way to the recruiter.
+            #   * it was the ONE field without a fallback, which defeated
+            #     _generate's honesty guard: a reply contributing nothing but a
+            #     dropped redFlags list differed from the template in exactly that
+            #     field, so it was stamped "llm" — and a partial
+            #     {"recommendation":"advance"} then reached the unattended
+            #     screeningGate="auto" ratify path (automation-run.ts) wearing the
+            #     model's name. With the floor restored, a nothing-reply is
+            #     byte-identical to the template and reported as `deterministic`.
+            # An empty det["redFlags"] (no missing must-haves) still yields [] — the
+            # honest "nothing adverse recorded", never a fabricated flag.
+            "redFlags": _str_list(payload.get("redFlags")) or det["redFlags"],
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce)
@@ -730,19 +856,55 @@ def draft_outreach(candidate: MatchCandidate, job: Job, strengths: list[str], *,
     return result, source
 
 
-def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang: str | None = None, provider: Any | None = None):
+def draft_rejection(
+    candidate: MatchCandidate,
+    job: Job,
+    m,
+    stage: str,
+    *,
+    lang: str | None = None,
+    provider: Any | None = None,
+    scorecard: Any | None = None,
+):
     lang = _letter_lang(candidate, lang)
     missing = m.missing_skills
+    interview = interview_evidence(scorecard)
+    weak = [w["competency"] for w in (interview or {}).get("weakestCompetencies", [])]
+    # THE REASON RULE, branched on what evidence actually exists. The single
+    # unbranched "name the ACTUAL decisive reason" instruction was what produced
+    # the inventions: an Interview-stage letter reached for the CV because the
+    # interview was never passed, and a Screened-stage letter with no gap to name
+    # was TOLD to say another candidate matched more closely — a fact nothing here
+    # records. A prompt may only demand a reason the facts can support.
+    if weak:
+        reason_rule = (
+            "This candidate was INTERVIEWED, and the interview's own record is in `interview`. The "
+            "decisive reason MUST come from `interview.weakestCompetencies` — that is what actually "
+            f"decided this ({', '.join(weak)}). Naming a CV gap instead is a lie the candidate can "
+            "check: it was on their CV the day you invited them in. Say plainly and kindly what did "
+            "not come through in the conversation, in your own words — never quote them back to "
+            "themselves, never mention ratings, scores, a scorecard, or the rubric.\n"
+        )
+    elif missing:
+        reason_rule = (
+            "No interview evidence is recorded, so the decisive reason is the recorded gap in "
+            "`match.missingMustHaves` — name it kindly and concretely, and nothing beyond it.\n"
+        )
+    else:
+        reason_rule = (
+            "THERE IS NO DECISIVE REASON IN THESE FACTS — no interview record, no recorded skill "
+            "gap — so DO NOT ASSERT ONE. Do not invent a gap (a claimed gap the candidate's own "
+            "highlights disprove is the worst possible letter), do not say the decision was close, "
+            "and do not say another candidate matched more closely: nothing here records that "
+            "either. State simply and warmly that you are not taking their application forward for "
+            "this role, and stop.\n"
+        )
     prompt = (
         f"Draft a respectful, specific, fair rejection message in {lang} for this candidate, who reached the "
         f"{stage} stage. Use ONLY these facts:\n"
-        f"{json.dumps(_letter_context(candidate, job, m), ensure_ascii=False, indent=2)}\n\n"
-        "The body must name the ACTUAL decisive reason, kindly and concretely — drawn from "
-        "missingMustHaves or the match tier, never a generic 'we proceeded with other candidates' "
-        "alone. When missingMustHaves is empty and the tier is strong, do NOT invent a skill gap "
-        "(a claimed gap the candidate's own highlights disprove is the worst possible letter): the "
-        "honest reason is that another candidate matched this role's specific needs even more "
-        "closely — say that gracefully. Acknowledge one real strength from their profile so the "
+        f"{json.dumps(_letter_context(candidate, job, m, interview), ensure_ascii=False, indent=2)}\n\n"
+        + reason_rule
+        + "Acknowledge one real strength from their profile so the "
         "message reads as considered, not templated.\n"
         "Feedback rules — the feedback must survive a check against the candidate's own evidence: "
         "never advise adding something their profile already shows (check experienceHighlights and "
@@ -753,7 +915,18 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
         "screening-stage rejection thanks them for their application, nothing more.\n"
         + _LETTER_GROUNDING
         + _NEUTRAL_STYLE
-        + 'Return JSON: { "subject": str, "body": str, "feedback": str, "language": str }. JSON only.'
+        + 'Return JSON: { "subject": str, "body": str, "feedback": str, "language": str'
+        # The decisive axis, named verbatim, BESIDE the prose — the checkable half of
+        # the grounding rule (see _match_competency for why the prose itself cannot
+        # be checked across four languages). Requested only when there is an
+        # interview record to name, so the letter-only schema is byte-identical for
+        # every other rejection.
+        + (
+            ', "decisiveCompetency": str (EXACTLY one of interview.weakestCompetencies, verbatim)'
+            if weak
+            else ""
+        )
+        + ' }. JSON only.'
     )
 
     def deterministic() -> dict:
@@ -779,7 +952,12 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
                 "We wish you the best.\n\nBest,\nThe hiring team"
             )
             subject = f"Your application — {job.title}"
-        return {"subject": subject, "body": body, "feedback": fb, "language": lang}
+        # `decisiveCompetency` is always present, always None here: the template
+        # asserts no reason at all, and a key that appears only on the LLM path
+        # would break _generate's whole-dict comparison against this template —
+        # the same missing-fallback shape that defeated the honesty guard in
+        # screen_candidate's coercer.
+        return {"subject": subject, "body": body, "feedback": fb, "language": lang, "decisiveCompetency": None}
 
     def coerce(payload: Any) -> dict:
         det = deterministic()
@@ -790,6 +968,18 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
         # protected characteristic has its whole draft discarded.
         if not _letter_is_safe(payload):
             return det
+        # GROUNDING POST-CHECK, same shape as match_reasoning's verdict-numbers
+        # check: the prompt ORDERS the reason to come from the interview, and until
+        # this ran nothing verified that it did — which is exactly how the Kafka-gap
+        # letter shipped. Lenient containment (one weak competency named is enough,
+        # case/punctuation folded), and the whole draft is discarded rather than
+        # patched, for the reason _letter_is_safe states: a letter whose stated
+        # reason has been swapped is no longer the letter the model wrote. The
+        # deterministic template asserts NO reason, so the degrade is honest — and
+        # _generate reports it as `deterministic` for free.
+        decisive = _match_competency(payload.get("decisiveCompetency"), weak) if weak else None
+        if weak and decisive is None:
+            return det
         # feedback is the one field where "" is a COMPLIANT answer (the prompt asks
         # for an empty string rather than generic advice), so only a genuinely
         # absent value falls back — `or` would overwrite the model's refusal.
@@ -799,6 +989,7 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
             "body": str(payload.get("body") or det["body"]),
             "feedback": det["feedback"] if feedback is None else str(feedback),
             "language": str(payload.get("language") or lang),
+            "decisiveCompetency": decisive,
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce)
@@ -1402,7 +1593,15 @@ def _round_k(value: float) -> int:
     return int(round(value / 1000.0)) * 1000
 
 
-def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = None, provider: Any | None = None):
+def draft_offer(
+    candidate: MatchCandidate,
+    job: Job,
+    m,
+    *,
+    lang: str | None = None,
+    provider: Any | None = None,
+    scorecard: Any | None = None,
+):
     """Propose a number inside the role's salary band (scaled by fit) + draft the offer letter."""
     market = ACTIVE_MARKET
     band: tuple[int, int] | None = None
@@ -1459,10 +1658,41 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
             "Keep it concise."
         )
 
+    # The interview this offer follows from — the evidence the letter was drafted
+    # WITHOUT until now. Live: an entry whose own scorecard said `hold` with 2-of-5
+    # on the technical axis opened "přesně takovou posilu jsme hledali" and invented
+    # a training promise, because the only inputs were the CV and a fit score. The
+    # tone rule is branched on the record rather than asserted over it.
+    interview = interview_evidence(scorecard)
+    strong = [c["competency"] for c in (interview or {}).get("strongestCompetencies", [])]
+    if interview is None:
+        # No interview on this entry (a recruiter can extend an offer without one):
+        # the prompt stays byte-identical to its pre-change bytes.
+        tone_rule = ""
+    elif strong and interview.get("recommendation") == "advance":
+        tone_rule = (
+            "The interview is recorded in `interview` and it went well: say why the team is confident "
+            f"using what it actually showed ({', '.join(strong)}), in your own words — never ratings, "
+            "scores, or the scorecard itself.\n"
+        )
+    else:
+        weak_axes = ", ".join(w["competency"] for w in interview.get("weakestCompetencies") or [])
+        tone_rule = (
+            "READ `interview` BEFORE CHOOSING YOUR TONE. This interview did NOT close as an unqualified "
+            "yes"
+            + (f" — {weak_axes} came in below the bar" if weak_axes else "")
+            + ". The offer stands, but the letter must not claim enthusiasm the record contradicts: no "
+            "'exactly the person we were looking for', no team consensus, no 'everyone loved meeting "
+            "you'. Promise no training, mentoring, onboarding programme or growth path — none is "
+            "recorded here, and a promise in an offer letter is a commitment. Warm, factual, brief.\n"
+            "`interview` is here to CONSTRAIN your tone, not to be reported: never name, quote or "
+            "allude to a weaker area in the letter. This person is being hired, not critiqued.\n"
+        )
     prompt = (
         f"Draft a warm, professional job-offer message in {lang} for this candidate. Use ONLY these facts:\n"
-        f"{json.dumps(_letter_context(candidate, job, m), ensure_ascii=False, indent=2)}\n\n"
+        f"{json.dumps(_letter_context(candidate, job, m, interview), ensure_ascii=False, indent=2)}\n\n"
         + figure_line + "\n"
+        + tone_rule
         + "Say WHY the team is making this offer by citing one or two real facts from the candidate's "
         "profile (a matched strength, a concrete highlight, a stated aspiration this role serves) — "
         "never invented sentiment ('the team loved meeting you') the facts don't contain. Allude to "

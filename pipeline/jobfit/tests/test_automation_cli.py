@@ -157,6 +157,50 @@ class TestAutomationCliErrorStatus(unittest.TestCase):
         self.assertEqual(payload["code"], "invalid_input")
 
 
+    def test_scorecard_file_reaches_the_rejection_prompt(self):
+        # A1 — the interview the letter follows from arrives as scorecard.json and
+        # must reach draft_rejection, not be parsed and dropped.
+        with _fixture() as (cand, jobs):
+            sc = jobs.parent / "scorecard.json"
+            sc.write_text(
+                json.dumps({
+                    "recommendation": "hold",
+                    "ratings": [{"competency": "Technical depth", "rating": 2, "evidence": "e"}],
+                }),
+                encoding="utf-8",
+            )
+            seen = {}
+            real = automation.draft_rejection
+
+            def spy(*a, **kw):
+                seen.update(kw)
+                return real(*a, **kw)
+
+            with mock.patch.object(automation, "draft_rejection", spy):
+                code, out, _err = _run(
+                    ["rejection", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                     "--jobs", str(jobs), "--stage", "Interview", "--scorecard-file", str(sc)]
+                )
+        self.assertEqual(code, 0)
+        self.assertIn("result", _last_json(out))
+        self.assertEqual(seen["scorecard"]["recommendation"], "hold")
+
+    def test_malformed_scorecard_file_is_400_invalid_input(self):
+        # Same honest-400 contract as --github-evidence: a corrupt scorecard.json is
+        # a bad request, never a letter drafted blind to the interview.
+        with _fixture() as (cand, jobs):
+            sc = jobs.parent / "scorecard.json"
+            sc.write_text("{not json", encoding="utf-8")
+            code, _out, err = _run(
+                ["offer", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                 "--jobs", str(jobs), "--scorecard-file", str(sc)]
+            )
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+
+
 class TestAutomationCliAdverseActionBoundary(unittest.TestCase):
     """The CLI is the ONLY surface a non-TypeScript integration has, and the
     "no adverse action runs unattended" guarantee lives in the TS pass

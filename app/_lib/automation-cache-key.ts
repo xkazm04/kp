@@ -77,6 +77,15 @@ export type AutomationKeyInput = {
    *  on a previously bare entry must too (the absent case keys as ""). Absent
    *  for every other task and for evidence-less entries. */
   githubEvidenceJson?: string;
+  /** Only folded into the key for the SCORECARD_TASKS (rejection/offer — the two
+   *  letters drafted after an interview): EXACTLY the serialized scorecard bytes
+   *  handed to Python as scorecard.json, hashed. Same shape and same reason as the
+   *  GH7 axis above: those prompts now ground themselves in the interview, so a
+   *  scorecard synthesized (or re-synthesized) AFTER a first draft must invalidate
+   *  the 168h entry — nothing else in the key moves when it appears, and the letter
+   *  it would keep serving is the ungrounded one. Absent for every other task and
+   *  for entries with no interview (which keys as "", so attaching one re-keys). */
+  scorecardJson?: string;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -116,6 +125,11 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       // GH7 — evidence axis for the prompts that render it; "" for a bare entry
       // so attaching evidence later genuinely re-keys.
       GITHUB_EVIDENCE_TASKS.has(input.task) && input.githubEvidenceJson ? shortHash(input.githubEvidenceJson) : "",
+      // The interview the rejection/offer letter is grounded in; "" for an entry
+      // with no interview, so a later synthesis genuinely re-keys. Gated on the
+      // VALUE rather than a task set: automation-run passes it only for the tasks
+      // whose prompt reads it, and one authority for that is enough.
+      input.scorecardJson ? shortHash(input.scorecardJson) : "",
       // Degraded (template) vs LLM output never share a key — see `degraded` above.
       input.degraded ? "no-llm" : "llm",
     ].join("|")

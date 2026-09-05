@@ -228,12 +228,11 @@ strands nobody, and moving them would rewrite closed history.
    of them (see Surface below); `app/_lib/automation-fairness.ts` re-asserts
    the auto-reject invariant at the TS boundary (`assertAutoRejectFair`) as a
    defense-in-depth check independent of the Python gate.
-   The candidate-facing letters (outreach v3 / rejection v3 / offer v4, since
-   the 2026-08-11 bench round) draw on a shared `_letter_context` evidence
-   block (highlights, aspirations, match data, job facts) and are prompted to
-   anchor on the strongest candidate-specific hooks; the rejection must name
-   the actual decisive gap and its feedback is evidence-checked (never advises
-   what the CV already shows). The interview prep pack (v2) anchors every
+   The candidate-facing letters (outreach v3 / rejection v4 / offer v5) draw on a
+   shared `_letter_context` evidence block (highlights, aspirations, match data,
+   job facts) and are prompted to anchor on the strongest candidate-specific
+   hooks; the rejection's feedback is evidence-checked (never advises what the CV
+   already shows). The interview prep pack (v2) anchors every
    question in a named highlight and probes stated aspirations. A result whose
    coercion discarded the model's payload now reports `source=deterministic`
    (`_generate`'s truthful-source rule), and — since `source` alone cannot say
@@ -247,6 +246,72 @@ strands nobody, and moving them would rewrite closed history.
    (`offline_policy` / `not_installed` / `unavailable` / `disabled`) on purpose,
    and which fault must record which reason is gated by
    [`fault_eval`](../../development/fault-injection.md#what-the-operator-reads-back).
+
+   **The screening coercer's red flags have a deterministic floor.** `redFlags`
+   was the one field in `screen_candidate`'s coercer without an `or det[...]`
+   fallback, and `det["redFlags"]` is `"No evidence of <missing must-have>"` —
+   non-empty exactly when the candidate has missing must-haves. So a reply that
+   omitted the field produced a dict differing from the template in that field
+   alone: `_generate`'s whole-dict honesty guard did not fire, the result was
+   stamped `llm`, **and the deterministic adverse evidence was deleted** — after
+   which a partial `{"recommendation":"advance","confidence":90}` could reach the
+   unattended `screeningGate="auto"` ratify path. The floor now wins, and unlike
+   `draft_rejection`'s `feedback` an explicitly empty `[]` does **not** survive:
+   the red flags are derived from the same match facts the model was shown, so a
+   model cannot make a recorded missing must-have present. With nothing missing
+   the floor is empty, so nothing is ever fabricated.
+
+   **A letter that follows an interview is drafted WITH that interview
+   (rejection v4 / offer v5).** Both letters were built from CV + fit score +
+   stage while the rejection prompt demanded "the ACTUAL decisive reason", so the
+   model reached for the only evidence it had: an Interview-stage candidate was
+   told the decisive reason was a skill gap that had been on her CV the day she
+   was invited in, and a sibling draft invented "the decision was close" /
+   "another candidate matched more closely" from nothing. The scorecard was on the
+   same entry the whole time. `automation-run.ts` now loads it
+   (`latestInterviewByEntry`), folds the same bytes into the cache key (via the
+   key's free-text `notes` axis, so a scorecard synthesized after a first draft
+   invalidates the ungrounded letter instead of serving it for the 168h TTL) and
+   passes it as `--scorecard-file`. Python narrows it through
+   `automation.interview_evidence` — a **candidate-safe** projection carrying
+   competency names and their band only: never the recruiter-facing `summary`,
+   never the verbatim evidence quotes, never rubric metadata, and never a
+   not-assessed 3 (the absence marker cannot be a decisive reason).
+
+   What each prompt then does with it:
+
+   - **Rejection.** With an interview, the decisive reason must come from
+     `interview.weakestCompetencies`, and the model must name the axis it used in
+     a structured `decisiveCompetency` field beside the prose. That field is
+     *checked* (`_match_competency`); a draft that names none, or names something
+     the interview does not record, is discarded whole and the deterministic
+     template ships — the same discard-don't-patch rule `_letter_is_safe` follows,
+     for the same reason. The check is a structured field rather than a scan of
+     the body because rubric labels are English and the letter is drafted in the
+     candidate's language.
+   - **Rejection with no evidence at all** (no interview, no recorded gap): the
+     prompt now says there is no decisive reason and forbids asserting one —
+     explicitly including "the decision was close" and "another candidate matched
+     more closely", which the previous wording actively instructed. A prompt may
+     only demand a reason the facts can support.
+   - **Offer.** The tone is branched on the record. An `advance` verdict with
+     strong axes may say why the team is confident, citing them. Anything else —
+     a `hold`, an unreadable verdict, or no strong axis — gets the cautious rule:
+     no "exactly the person we were looking for", no invented team consensus, and
+     no training/mentoring/growth promise (an offer letter's promise is a
+     commitment). Live, a `hold` / 2-of-5-technical entry produced exactly those.
+   - **No interview on the entry** leaves both prompts byte-identical to their
+     previous bytes; absence reads as "none happened", never as an empty record.
+
+   **`offerGate="auto"` will not send over the workspace's own verdict.** The
+   unattended extend had one evidential precondition — that a figure existed — and
+   a draft went out on an entry whose scorecard said `hold`.
+   `offerAutoExtendRefusal` (automation-run.ts) adds a second: a *recorded*
+   interview verdict that is not `advance` parks the draft at `offer_review` for a
+   human. It refuses the send rather than rewriting the letter, and it is silent
+   for the two cases the gate was configured for — an `advance` interview, and an
+   entry with no interview at all. A present-but-unreadable verdict fails closed
+   (coerced to `hold` → refuse).
 
    **That verdict provenance now reaches the recruiter, not just the ledger.**
    `automation-run.ts` reads the CLI's `source` once per run and stamps
@@ -298,8 +363,8 @@ strands nobody, and moving them would rewrite closed history.
 
 | Module / route | Purpose |
 |---|---|
-| `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `POLICY` dict holds the hard-coded defaults. `interview_scorecard` additionally fences its transcript, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
-| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. |
+| `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `draft_rejection` / `draft_offer` additionally take the entry’s stored scorecard and ground themselves in it through `interview_evidence` (candidate-safe projection) + `_match_competency` (the checked `decisiveCompetency`). `POLICY` dict holds the hard-coded defaults. `interview_scorecard` additionally fences its transcript, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
+| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
 | `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. |
 | `app/api/automation/schedule/route.ts` | The automation clock's control surface: `GET` returns the schedule, the reminders job, recent runs (decision rows workspace-filtered), `scheduleScope: "global"`, and — since /perfect 2026-09-03 — the clock's **liveness** (`liveness`/`livenessReason`/`lastTickAt`, from `schedulerLiveness()` over the `scheduler_heartbeat` row, the same verdict `/api/health` and `/api/ops` render). `POST` toggles the clock, sets the cadence, pauses reminders, or forces a tick. Operator-only. The malformed-interval 400 answers `jsonRefusal("SCHEDULE_INTERVAL_INVALID")` and the catch answers `safeJsonError(..., "SCHEDULE_UPDATE_FAILED")`, so the dock renders both in the reader's language. `{"tick": true}` — a full policy pass — is throttled per IP (`schedule-tick:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`); the GET and the cheap config writes are not. |
@@ -1038,7 +1103,8 @@ The plan's other two gates are enforced at the automation apply boundary
 `getPlanGateForRole("screening") === "auto"` auto-ratifies parked ADVANCE
 screening verdicts (hold/reject always park); `getPlanGateForRole("offer") ===
 "auto"` auto-extends priced offer drafts via the shared `extendDraftedOffer` path
-(unpriced fail-safe drafts always park). Both resolve the FIRST column with that
+(unpriced fail-safe drafts always park, and so does a draft whose entry carries an
+interview verdict that is not `advance` — `offerAutoExtendRefusal`, above). Both resolve the FIRST column with that
 role and fall back to `"human"` when the plan says nothing — the conservative
 direction, parking the decision for a person rather than ratifying it unattended.
 Routing a specific candidate through the gate of the specific column they stand
