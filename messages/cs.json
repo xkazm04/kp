@@ -7033,6 +7033,7 @@
         "interview_failover": "Pohovor přepnut na jiného poskytovatele",
         "comm_resent": "Zpráva odeslána znovu",
         "rejection_comms_failed": "E-mail o zamítnutí selhal",
+        "offer_comms_failed": "E-mail s nabídkou selhal",
         "moved": "Fáze nastavena ručně",
         "matched": "Spárováno s pozicí",
         "added": "Přidáno do pipeline",

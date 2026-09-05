@@ -7033,6 +7033,7 @@
         "interview_failover": "Interview auf anderen Anbieter umgeschaltet",
         "comm_resent": "Nachricht erneut gesendet",
         "rejection_comms_failed": "Absage-E-Mail fehlgeschlagen",
+        "offer_comms_failed": "Angebots-E-Mail fehlgeschlagen",
         "moved": "Phase manuell gesetzt",
         "matched": "Auf Stelle gematcht",
         "added": "Zur Pipeline hinzugefügt",

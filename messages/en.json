@@ -7033,6 +7033,7 @@
         "interview_failover": "Interview failed over to another provider",
         "comm_resent": "Message resent",
         "rejection_comms_failed": "Rejection email failed",
+        "offer_comms_failed": "Offer email failed",
         "moved": "Stage set manually",
         "matched": "Matched to role",
         "added": "Added to pipeline",

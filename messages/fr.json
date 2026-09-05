@@ -7033,6 +7033,7 @@
         "interview_failover": "Entretien basculé vers un autre fournisseur",
         "comm_resent": "Message renvoyé",
         "rejection_comms_failed": "Échec de l’e-mail de refus",
+        "offer_comms_failed": "Échec de l’e-mail d’offre",
         "moved": "Étape définie manuellement",
         "matched": "Matché à un poste",
         "added": "Ajouté au pipeline",
