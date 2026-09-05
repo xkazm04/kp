@@ -53,11 +53,16 @@ type EdgeState = {
  *  a blank line in the UI. */
 const DRAIN_ERROR_KEY: Record<
   EdgeErrorKind,
-  "drainFailedUnreachable" | "drainFailedHeld" | "drainFailedAck" | "drainFailedUnknown"
+  | "drainFailedUnreachable"
+  | "drainFailedHeld"
+  | "drainFailedAck"
+  | "drainFailedSecretUnreadable"
+  | "drainFailedUnknown"
 > = {
   unreachable: "drainFailedUnreachable",
   held: "drainFailedHeld",
   ack: "drainFailedAck",
+  secret_unreadable: "drainFailedSecretUnreadable",
   unknown: "drainFailedUnknown",
 };
 
