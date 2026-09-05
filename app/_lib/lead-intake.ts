@@ -35,6 +35,7 @@ import { applyDedupeKey, FALLBACK_ARCHETYPE } from "./apply";
 import { ANONYMOUS_APPLICANT_LABEL } from "./apply-intake";
 import { dispatchApplicationReceived, dispatchKnockoutDecline } from "./comms-dispatch";
 import { randomId } from "./random-id";
+import { sanitizeFreeText } from "./text-sanitize";
 
 const STUB_REASON_MAX = 280;
 
@@ -117,8 +118,15 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // webhook receiver passes its own workspace to override. Threaded into every entry-keyed
   // call below (dedup, token, merge, consent, events) so the whole intake stays team-scoped.
   const workspaceId = input.workspaceId ?? getJobWorkspace(job.id);
-  const name = input.name.trim();
+  // Untrusted free text, cleaned ONCE at the core rather than at each door: the name
+  // and the attribution values arrive from a third-party form we do not control, and
+  // they are rendered to a recruiter, stored into `intakeDegradedReason` (prose a later
+  // prompt reads back) and used as analytics group keys. sanitizeFreeText strips markup
+  // and every invisible/control code point; the length caps stay where they were.
+  const name = sanitizeFreeText(input.name);
   const email = input.email.trim();
+  const sourceCampaign = input.sourceCampaign ? sanitizeFreeText(input.sourceCampaign) || null : null;
+  const sourceVariant = input.sourceVariant ? sanitizeFreeText(input.sourceVariant) || null : null;
 
   // Knockout gate — audited, entry-less (see recordKnockoutDecline).
   if (input.failedKoIds.length > 0) {
@@ -238,8 +246,8 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     contact: email,
     locale: input.locale,
     sourceChannel: input.sourceChannel,
-    sourceCampaign: input.sourceCampaign ?? null,
-    sourceVariant: input.sourceVariant ?? null,
+    sourceCampaign,
+    sourceVariant,
     workspaceId,
   });
 

@@ -12,6 +12,7 @@ import {
   extractLead,
   flattenLeadFields,
   MAX_ATTRIBUTION_LENGTH,
+  capAttribution,
   ATTRIBUTION_TRUNCATION_MARKER,
 } from "./lead-payload.ts";
 
@@ -222,20 +223,24 @@ test("attribution: the cap counts CODE POINTS, so an emoji name is never split",
     "no unpaired surrogate survived the cut");
 });
 
-test("attribution: the downstream slice in inbound-lead.ts cannot re-truncate a capped value", () => {
-  // The webhook consumer applies its own MAX_LEAD_ATTRIBUTION_LENGTH slice. It is a
-  // no-op only while the two agree; if that constant ever drops BELOW the intake cap
-  // it would silently cut the marker off and re-introduce the invisible truncation
-  // this cap exists to make visible. Read from source (a value import would pull the
-  // DB layer into this pure test). CRLF-normalized: this checkout is CRLF, the
-  // worktree may be LF.
+test("attribution: the webhook consumer calls capAttribution instead of re-declaring the cap", () => {
+  // inbound-lead.ts used to carry its own `MAX_LEAD_ATTRIBUTION_LENGTH = 120` and slice
+  // with it. Two constants agreeing by convention is exactly how the marker this cap adds
+  // gets silently cut back off, so the consumer now calls the policy rather than
+  // reproducing its number. Read from source (a value import would pull the DB layer into
+  // this pure test). CRLF-normalized: this checkout is CRLF, the worktree may be LF.
   const src = fs
     .readFileSync(new URL("./inbound-lead.ts", import.meta.url), "utf8")
     .replace(/\r\n/g, "\n");
-  const m = /export const MAX_LEAD_ATTRIBUTION_LENGTH = (\d+);/.exec(src);
-  assert.ok(m, "inbound-lead.ts still declares MAX_LEAD_ATTRIBUTION_LENGTH");
   assert.ok(
-    Number(m[1]) >= MAX_ATTRIBUTION_LENGTH,
-    `inbound-lead's cap (${m?.[1]}) must not be below the intake cap (${MAX_ATTRIBUTION_LENGTH})`
+    /import \{[^}]*\bcapAttribution\b[^}]*\} from "\.\/lead-payload"/.test(src),
+    "inbound-lead.ts imports capAttribution from lead-payload"
   );
+  assert.ok(!/MAX_LEAD_ATTRIBUTION_LENGTH/.test(src), "and no longer declares or uses a cap of its own");
+  assert.ok(
+    /sourceCampaign: capAttribution\(/.test(src) && /sourceVariant: capAttribution\(/.test(src),
+    "both attribution values go through the shared cap"
+  );
+  // Non-vacuity: the cap it now shares is the one this file tests.
+  assert.equal(Array.from(capAttribution("x".repeat(MAX_ATTRIBUTION_LENGTH + 5))).length, MAX_ATTRIBUTION_LENGTH);
 });

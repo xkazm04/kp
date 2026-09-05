@@ -29,7 +29,7 @@ import { recordAutomationEvent } from "./db/pipeline";
 import type { JobRecord } from "./db/core";
 import { getJobStatus, isJobOpenForApplications } from "./job-ingest";
 import { intakeLead } from "./lead-intake";
-import { extractLead } from "./lead-payload";
+import { capAttribution, extractLead } from "./lead-payload";
 import { recordOutreachReply } from "./outreach-state-store";
 import { publicBaseUrl } from "./public-base-url";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "./webhook-idempotency";
@@ -39,7 +39,10 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
  *  cap can't drift between the two branches of one endpoint. */
 export const MAX_LEAD_NAME_LENGTH = 200;
 export const MAX_LEAD_EMAIL_LENGTH = 254;
-export const MAX_LEAD_ATTRIBUTION_LENGTH = 120;
+// The attribution cap is NOT re-declared here. It used to be a second `120` beside
+// lead-payload's, agreeing only by a source-read pin: `capAttribution` owns the policy
+// (code points, and a visible truncation marker rather than a silent slice), so this
+// module calls it instead of maintaining a number that could drift below it.
 
 /** An HTTP-shaped answer, because the receiver route returns it verbatim. The
  *  non-HTTP callers read `status` as a machine outcome (2xx = handled, and only a
@@ -132,8 +135,8 @@ export async function ingestInboundLeadJson(input: InboundLeadJsonInput): Promis
       locale,
       sourceChannel: webhook.channel,
       // E5 — campaign/creative attribution forwarded by the integration.
-      sourceCampaign: lead.campaign.slice(0, MAX_LEAD_ATTRIBUTION_LENGTH) || null,
-      sourceVariant: lead.variant.slice(0, MAX_LEAD_ATTRIBUTION_LENGTH) || null,
+      sourceCampaign: capAttribution(lead.campaign) || null,
+      sourceVariant: capAttribution(lead.variant) || null,
       channelLabel: `${webhook.channel} webhook`,
       failedKoIds: lead.failedKoIds,
       // Provided-only verdict: record as PASSED only the gates the source form

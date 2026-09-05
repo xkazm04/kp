@@ -446,6 +446,21 @@ semantics, the same idempotency window, the same receipt/accepted stamps and the
 same reply-halt, by construction rather than by discipline. Pinned by
 `channels-receiver-contract.test.ts`.
 
+**Untrusted free text is cleaned once, at the core.** A lead payload is written by
+someone else's form, and the three free-text values it carries (name, campaign,
+variant) are rendered to a recruiter, stored into `intakeDegradedReason` — prose a
+later LLM prompt reads back — and used as analytics group keys. They were only ever
+length-clamped, which is the wrong axis: markup defaces the record, a newline lets a
+payload frame its own instruction inside a stored reason, and a zero-width space forks
+one campaign into two identical-looking funnel rows. `sanitizeFreeText`
+(`app/_lib/text-sanitize.ts`) strips HTML tags and markdown markers (keeping the words,
+dropping link destinations), removes every control / invisible / bidi code point, folds
+whitespace and trims. It runs inside `intakeLead` (`app/_lib/lead-intake.ts`), so BOTH
+doors — the webhook receiver and the quick-apply form — inherit it rather than each
+remembering. Length caps are unchanged, and the attribution cap is now the single
+`capAttribution` policy from `lead-payload.ts` (code points, visible truncation marker)
+instead of a second `120` maintained beside it.
+
 ### L0 — pull sources (no cloud, no account, no dependency)
 
 A receiver row is now bidirectional. Set `pull_url` on it and the clock, on every
