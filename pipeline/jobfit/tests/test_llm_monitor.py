@@ -114,6 +114,9 @@ class AdapterEmissionTest(unittest.TestCase):
         # so it survives (an arbitrary operation deserializes to "other").
         self.assertEqual(ev["operation"], "chat")
         self.assertIn("use_case:match_reasoning", ev["tags"])
+        # The use case now also rides LightTrack's first-class `name` field —
+        # the tag above stays for back-compat.
+        self.assertEqual(ev["name"], "match_reasoning")
         self.assertEqual(ev["input_tokens"], 50)
         self.assertEqual(ev["output_tokens"], 10)
         self.assertEqual(ev["cached_input"], 5)
@@ -133,6 +136,26 @@ class AdapterEmissionTest(unittest.TestCase):
             provider.complete("hi")
         self.assertEqual(len(ctx.events), 1)
         self.assertIn("invalid api key", ctx.events[0]["error"])
+        self.assertEqual(ctx.events[0]["name"], "automation")
+
+    def test_success_with_no_use_case_sends_no_name(self) -> None:
+        """An absent use case must send no `name` at all — not None as a value,
+        and not a placeholder like "unknown". The use_case:/tool: tags are simply
+        omitted too, same as before this change."""
+        ctx = _Ctx(self)
+        StubProvider([_result()]).complete("hi")  # no use_case kwarg
+        self.assertEqual(len(ctx.events), 1)
+        ev = ctx.events[0]
+        self.assertNotIn("name", ev)
+        self.assertFalse(any(t.startswith("use_case:") for t in ev["tags"]))
+
+    def test_error_with_no_use_case_sends_no_name(self) -> None:
+        ctx = _Ctx(self)
+        provider = StubProvider([ValueError("boom")])  # no use_case kwarg
+        with self.assertRaises(LLMError):
+            provider.complete("hi")
+        self.assertEqual(len(ctx.events), 1)
+        self.assertNotIn("name", ctx.events[0])
 
     def test_disabled_without_url(self) -> None:
         ctx = _Ctx(self, url=None)

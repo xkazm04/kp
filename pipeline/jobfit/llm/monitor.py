@@ -99,6 +99,13 @@ def _client() -> Any:
 # queryable custom axis (cost_summary groups by provider+model; per-use-case
 # slicing is tag-filtered). Every kp call through this seam is a structured
 # JSON completion, so operation is uniformly "chat".
+#
+# LightTrack now also has a first-class `events.name` column (a use-case
+# registry keyed on it — see .ai/use-cases.json). The identity already existed
+# here as the use_case tag value; `client.track(..., name=use_case)` promotes
+# that same string into the field it always should have lived in. The tag
+# stays (below) for back-compat with anything still reading it. A call with no
+# use_case sends no name — an absent name is honest, a placeholder is not.
 _OPERATION = "chat"
 
 
@@ -239,6 +246,7 @@ def emit_result(
             latency_ms=duration_ms,
             tags=_tags(provider, use_case),
             metadata={"cost_usd": cost_usd} if cost_usd is not None else None,
+            **({"name": use_case} if use_case else {}),
         )
     except Exception:
         pass  # telemetry must never break the host call
@@ -263,6 +271,7 @@ def emit_error(
             latency_ms=duration_ms,
             error=str(error)[:500],
             tags=_tags(provider, use_case),
+            **({"name": use_case} if use_case else {}),
         )
     except Exception:
         pass
