@@ -88,6 +88,13 @@ export type Analytics = {
    *  board and nothing on screen said why. Optional so an older cached payload (or a
    *  fixture) still type-checks; absent and 0 both mean "nothing to say". */
   excludedSim?: number;
+  /** The cohort read hit db/analytics.ts ANALYTICS_COHORT_CAP and every figure was
+   *  computed over the newest `cap` entries, not the whole window. Optional for the
+   *  same cached-payload reason as excludedSim; nothing renders it yet. */
+  truncated?: boolean;
+  /** Which clock the window cutoffs and the weekly trend buckets are cut on
+   *  (`PipelineAnalytics.bucketTz`). The header states it as a static note. */
+  bucketTz?: "UTC";
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
