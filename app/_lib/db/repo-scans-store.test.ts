@@ -299,3 +299,43 @@ test("a stale in-flight row stops blocking once it is past the window", async ()
   );
   assert.equal(fresh.reused, false);
 });
+
+// --- the measuring caller opts OUT of coalescing -----------------------------
+// Reuse is right for an operator who clicked twice. It is wrong for a caller
+// whose whole purpose is to MEASURE the scan engine: the App-master bench runs
+// four scenarios against one root, and inside the reuse window runs 2-4 were
+// handed run 1's row and its dossier, so a regression in the reading could only
+// ever fail one of the four. `fresh` is that opt-out, and it is an explicit
+// argument rather than a window tweak because the two callers want genuinely
+// different things.
+//
+// What `fresh` skips is a FINISHED reading. It does not fork an in-flight one:
+// the task-level dedupe key is tenant + target (task-dedupe.ts, `repo_scan`), so
+// a second row minted while the first is still running would be handed the
+// running task and sit at `queued` for ever with nothing to finish it. The
+// second test below is that boundary, and the caller is told the truth.
+test("fresh: true refuses a finished reading and mints a new row", async () => {
+  const { claimRepoScan } = await import("./repo-scans.ts");
+  const first = claimRepoScan({ rootPath: "/srv/apps/measured" }, "ws-claim");
+  assert.equal(first.reused, false);
+  markRepoScanRunning(first.scan.id, "ws-claim");
+  completeRepoScan(first.scan.id, { dossier: { contexts: [] }, source: "heuristic" }, "ws-claim");
+
+  const coalesced = claimRepoScan({ rootPath: "/srv/apps/measured" }, "ws-claim");
+  assert.equal(coalesced.reused, true, "the default is still to hand back the fresh dossier");
+
+  const forced = claimRepoScan({ rootPath: "/srv/apps/measured" }, "ws-claim", Date.now(), { fresh: true });
+  assert.equal(forced.reused, false, "a measuring caller is never handed a reading it did not take");
+  assert.notEqual(forced.scan.id, first.scan.id);
+  assert.equal(forced.scan.status, "queued", "and the new row is one a runner can still pick up");
+});
+
+test("fresh: true still joins a reading that is actually in flight, and says so", async () => {
+  const { claimRepoScan } = await import("./repo-scans.ts");
+  const running = claimRepoScan({ rootPath: "/srv/apps/inflight" }, "ws-claim");
+  markRepoScanRunning(running.scan.id, "ws-claim");
+
+  const forced = claimRepoScan({ rootPath: "/srv/apps/inflight" }, "ws-claim", Date.now(), { fresh: true });
+  assert.equal(forced.reused, true, "a second row here would be one the running task can never finish");
+  assert.equal(forced.scan.id, running.scan.id);
+});

@@ -21,10 +21,21 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASELINE = JSON.parse(readFileSync(path.join(HERE, "baseline.json"), "utf8"));
 
 const baseline = (scenarios) => ({ recordedAt: "2026-08-26", scenarios });
-const run = (scenario, { ok = true, expectations = [], finishedAt = "2026-08-26T10:00:00.000Z", failedPhase = null, stub = false } = {}) => ({
+const run = (
+  scenario,
+  { ok = true, expectations = [], finishedAt = "2026-08-26T10:00:00.000Z", failedPhase = null, stub = false, reusedScan = false } = {},
+) => ({
   scenario,
   finishedAt,
-  result: { ok, failedPhase, finishedAt, expectations, personas: { stub }, scenario: { name: scenario } },
+  result: {
+    ok,
+    failedPhase,
+    finishedAt,
+    expectations,
+    personas: { stub },
+    scan: { scanId: "rscan-x", reused: reusedScan },
+    scenario: { name: scenario },
+  },
 });
 const expectation = (name, ok = true) => ({ name, ok, expected: "x", actual: ok ? "x" : "y" });
 
@@ -136,6 +147,42 @@ test("a live run is not mistaken for a stub one", () => {
   assert.equal(g.ok, true);
   assert.equal(g.rows[0].stub, false);
   assert.equal(g.counts.stub, 0);
+});
+
+// --- a COPIED scan does not certify the scan engine -------------------------
+// Four scenarios point at one root, and kp coalesces a repeat scan of a target
+// it read in the last 30 minutes. A run handed somebody else's dossier proves
+// the App master read a repository; it proves nothing about the READING. Same
+// class as a stub row, so it gets the same treatment and its own bucket, because
+// "re-run without --reuse-scan" and "re-run without --stub-personas" are
+// different instructions.
+test("a run whose scan was REUSED is refused, and named as copied", () => {
+  const g = evaluate(
+    baseline({ alpha: { mustPass: true, requiredExpectations: ["noViolations"] } }),
+    [run("alpha", { reusedScan: true, expectations: [expectation("noViolations")] })],
+  );
+  assert.equal(g.ok, false);
+  assert.equal(g.rows[0].verdict, "reused-scan");
+  assert.equal(g.counts.reusedScan, 1);
+  assert.match(g.rows[0].reason, /COALESCED/);
+  const rendered = renderGate(g, BASELINE);
+  assert.match(rendered, /COPIED scan/);
+  assert.match(rendered, /--reuse-scan/);
+});
+
+test("a run that took its own reading is not mistaken for a copied one", () => {
+  const g = evaluate(baseline({ alpha: { mustPass: true } }), [run("alpha", { reusedScan: false })]);
+  assert.equal(g.ok, true);
+  assert.equal(g.counts.reusedScan, 0);
+});
+
+test("a run with no scan record at all is not called a copy", () => {
+  // A tenure run skips the whole preamble: it has no `scan` block, and absence
+  // of a flag is not evidence of reuse.
+  const bare = { scenario: "alpha", finishedAt: "2026-08-26T10:00:00.000Z", result: { ok: true, finishedAt: "2026-08-26T10:00:00.000Z", expectations: [], personas: { stub: false }, scenario: { name: "alpha" } } };
+  const g = evaluate(baseline({ alpha: { mustPass: true } }), [bare]);
+  assert.equal(g.ok, true);
+  assert.equal(g.counts.reusedScan, 0);
 });
 
 // --- stale runs do not certify ----------------------------------------------

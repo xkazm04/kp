@@ -39,7 +39,7 @@ export type StartRepoScanResult = {
 };
 
 export function startRepoScan(
-  input: { repoUrl?: string | null; rootPath?: string | null },
+  input: { repoUrl?: string | null; rootPath?: string | null; fresh?: boolean },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): StartRepoScanResult {
   const resolved = resolveScanTarget(input);
@@ -55,9 +55,17 @@ export function startRepoScan(
   // flight, or completed inside REPO_SCAN_REUSE_WINDOW_MS. Two scans of one target
   // are one clone plus one in-repo agent session; the second caller watches the
   // first caller's run.
+  // `fresh` is the MEASURING caller's opt-out (the App-master bench sweep, which
+  // points four scenarios at one root): it refuses a finished reading and takes
+  // its own, so a scan-engine regression fails every scenario that runs the scan
+  // rather than only the first one of the four. It buys nothing else — the target
+  // allow-list above has already spoken, and an in-flight reading is still joined
+  // (claimRepoScan's own comment says why a second row there could never finish).
   const { scan, reused } = claimRepoScan(
     { id: scanId, repoUrl: resolved.target.repoUrl, rootPath: resolved.target.rootPath },
-    workspaceId
+    workspaceId,
+    Date.now(),
+    { fresh: input.fresh === true }
   );
   // A finished scan has nothing left to run. Starting a task on it would re-read a
   // repository whose dossier is already on the row, and `markRepoScanRunning` would

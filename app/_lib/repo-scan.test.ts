@@ -59,3 +59,30 @@ test("a refused target still leaves nothing behind", () => {
   assert.throws(() => startRepoScan({ rootPath: "/etc" }, "ws-front"), RepoScanRequestError);
   assert.throws(() => startRepoScan({}, "ws-front"), RepoScanRequestError);
 });
+
+// --- fresh: the measuring caller's opt-out ----------------------------------
+// The App-master bench points four of its seven scenarios at ONE root. With
+// coalescing and nothing else, three of those four never exercise the scan
+// engine at all: they are handed the first run's row and its dossier, and a
+// regression in the reading is invisible to three quarters of the sweep. The
+// bench asks for `fresh`, gets its own row and its own task, and is told
+// `reused: false`, so the record it writes is a measurement rather than a copy.
+test("fresh: true takes its own reading rather than a finished one", () => {
+  const first = startRepoScan({ rootPath: allowed }, "ws-fresh");
+  assert.equal(first.reused, false);
+  markRepoScanRunning(first.scanId, "ws-fresh");
+  completeRepoScan(first.scanId, { dossier: { contexts: [] }, source: "heuristic" }, "ws-fresh");
+
+  const coalesced = startRepoScan({ rootPath: allowed }, "ws-fresh");
+  assert.equal(coalesced.reused, true, "the default door is unchanged");
+  assert.equal(coalesced.taskId, null);
+
+  const measured = startRepoScan({ rootPath: allowed, fresh: true }, "ws-fresh");
+  assert.equal(measured.reused, false);
+  assert.notEqual(measured.scanId, first.scanId, "a new row");
+  assert.ok(measured.taskId, "and a task, so something actually reads the repository");
+});
+
+test("fresh does not buy a way past the target allow-list", () => {
+  assert.throws(() => startRepoScan({ rootPath: "/etc", fresh: true }, "ws-fresh"), RepoScanRequestError);
+});

@@ -357,6 +357,20 @@ green lie the poller would chase. The intake needs no new state for either: it
 polls `GET /api/repo-scan/[id]` with the returned id, which for a reused complete
 scan answers the dossier on the first poll.
 
+**`fresh: true` is the MEASURING caller's opt-out.** Reuse is right for the
+operator who clicked twice and wrong for a caller whose whole purpose is to
+exercise the scan engine: four of the seven bench scenarios name one root, so
+inside the window three of the four graded a dossier the first run produced and a
+scan regression could fail at most one of them. A POST carrying `fresh: true`
+refuses a *finished* reading and takes its own. It changes nothing else — the
+operator gate, the limiter and the target allow-list all speak first, and it is
+read as strict `=== true`.
+
+It deliberately does **not** fork a reading that is still in flight. The task
+dedupe key is tenant + target, so a second row minted beside a running task would
+be handed that task and sit at `queued` for ever with nothing to finish it; in
+that one case the answer is still `reused: true`, which is the truth.
+
 **The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
 of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
 now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
@@ -878,7 +892,7 @@ spec was composed, and it travels with the spec.
 
 | Symbol | Kind | What it is |
 | --- | --- | --- |
-| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` + optional `fresh: true` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan; `fresh` refuses a finished reading, never an in-flight one). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
 | `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
@@ -1343,6 +1357,7 @@ A night is now three ticks with a wait in the middle:
 
 | Knob | Default | Notes |
 | --- | --- | --- |
+| `--reuse-scan` | off | let kp coalesce a scan of a repository it read in the last 30 min. **Off by default**: four scenarios share `${KP_ROOT}`, and a copied dossier is not a measurement, so every bench scan asks for `fresh: true` and journals the `reused` kp answered |
 | `--settle-poll <ms>` | 90 000 | a fleet session writes a branch in minutes, and each poll is a real bridge call |
 | `--settle-timeout <ms>` | 1 800 000 (30 min) | a night with no branch by then produced nothing this run can measure |
 | `settleTimeoutMs` (scenario) | — | per-scenario override of the budget; the flag beats neither, it *is* the default the scenario overrides |
@@ -1553,7 +1568,7 @@ npm run bench:gate -- --max-age-days 30   # a wider freshness window, on purpose
 `result.json` per scenario, compares it against the committed baseline
 [`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
 writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
-counts six things as a regression:
+counts seven things as a regression:
 
 | | |
 | --- | --- |
@@ -1562,11 +1577,14 @@ counts six things as a regression:
 | expectation failed | any `expectations[].ok === false`, with its delta |
 | expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
 | `stub` | the run carries `personas.stub: true` — it ran against the in-process stub, so every number it holds is canned (see *Honesty properties* below). The gate was the one reader in the bench that never asked: a whole sweep against canned Personas used to exit 0 while the report beside it printed **EVERYTHING IT REPORTS IS CANNED**. |
+| `reused-scan` | the run carries `scan.reused: true` — kp coalesced its repo scan onto a reading another run had already taken, so the dossier it graded is a copy. Four scenarios share one root and the window is 30 minutes, which is how a sweep could measure the scan engine once and grade three copies. Re-run those without `--reuse-scan`. |
 | `stale` | the newest run for that scenario finished *before* the baseline it is compared to was recorded (it cannot certify a bar raised after it), or it is older than `--max-age-days` (default **14**). A run whose `finishedAt` will not parse is undatable, and undatable is not fresh. |
 
 The verdict on a row names the dominant reason — a genuine `fail` outranks
 `stub`, which outranks `stale` — while `reason` still carries every problem
-found, so a row is never quietly re-labelled into something smaller.
+found, so a row is never quietly re-labelled into something smaller. The full
+order is `fail` > `stub` > `reused-scan` > `stale`, and the buckets are separate
+because the instruction each carries is different.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is

@@ -24,13 +24,25 @@ export async function POST(request: NextRequest) {
     if (!rateLimit(`repo-scan:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const body = (await request.json().catch(() => ({}))) as { repoUrl?: unknown; rootPath?: unknown };
+    const body = (await request.json().catch(() => ({}))) as {
+      repoUrl?: unknown;
+      rootPath?: unknown;
+      fresh?: unknown;
+    };
     // The tenant comes from the SESSION, never the body.
     const ws = await currentWorkspace();
     const { scanId, taskId, reused } = startRepoScan(
       {
         repoUrl: typeof body.repoUrl === "string" ? body.repoUrl : null,
         rootPath: typeof body.rootPath === "string" ? body.rootPath : null,
+        // `fresh` is for the caller that is MEASURING the scan engine rather than
+        // asking for a reading — the App-master bench sweep, whose kp scenarios
+        // share one root and were being handed the first run's dossier. It sits
+        // BEHIND both gates above: it does not widen the allow-list and it does
+        // not buy a cheaper limiter, it only refuses a finished reading. Strict
+        // `=== true`, so a truthy string from a hand-rolled client cannot turn a
+        // whole team's scans into fresh clones by accident.
+        fresh: body.fresh === true,
       },
       ws
     );

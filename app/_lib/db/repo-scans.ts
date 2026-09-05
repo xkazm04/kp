@@ -214,18 +214,32 @@ export const REPO_SCAN_REUSE_WINDOW_MS = 30 * 60_000;
 export function claimRepoScan(
   input: { id?: string; repoUrl?: string | null; rootPath?: string | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  /** `fresh` is the MEASURING caller's opt-out (the App-master bench). Reuse is
+   *  right for an operator who clicked twice; it is wrong for a caller whose
+   *  whole purpose is to exercise the scan engine — four bench scenarios share
+   *  one root, and inside the window three of them were handed the first run's
+   *  dossier, so a regression in the reading could only ever fail one of four.
+   *
+   *  What it skips is a FINISHED reading. It deliberately does NOT fork one that
+   *  is still in flight: the task dedupe key is tenant + target (task-dedupe.ts,
+   *  `repo_scan`), so a second row minted beside a running task would be handed
+   *  that task and sit at `queued` for ever with nothing to finish it. In that
+   *  one case the caller is told `reused: true` rather than sold a row that can
+   *  never complete. */
+  { fresh = false }: { fresh?: boolean } = {}
 ): { scan: RepoScanRecord; reused: boolean } {
   const db = ensureDb();
   const repoUrl = input.repoUrl ?? null;
   const rootPath = input.rootPath ?? null;
   const cutoff = new Date(nowMs - REPO_SCAN_REUSE_WINDOW_MS).toISOString();
+  const reusable = fresh ? `('queued', 'running')` : `('queued', 'running', 'complete')`;
   const claim = db.transaction((): { scan: RepoScanRecord; reused: boolean } => {
     const existing = db
       .prepare(
         `SELECT * FROM repo_scans
           WHERE workspace_id = ? AND repo_url IS ? AND root_path IS ?
-            AND status IN ('queued', 'running', 'complete')
+            AND status IN ${reusable}
             AND COALESCE(updated_at, created_at) >= ?
           ORDER BY created_at DESC, rowid DESC
           LIMIT 1`

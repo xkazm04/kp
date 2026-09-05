@@ -110,6 +110,26 @@ function findFirst(node, key, guard = { n: 0 }) {
 // and skips the second. Kept as a pure decision so the branch is provable
 // without a server (run.test.mjs), the way `settleDispatch` is.
 
+/**
+ * The body `POST /api/repo-scan` gets for a bench run.
+ *
+ * `fresh: true` by default, and that default is the point. Four of the seven
+ * committed scenarios name the SAME root (`${KP_ROOT}`), and kp coalesces a
+ * second scan of one target onto the first for 30 minutes (claimRepoScan). A
+ * sweep therefore measured the scan engine ONCE and handed runs 2-4 a copy of
+ * run 1's dossier — so a regression in the reading could only ever fail one of
+ * the four kp scenarios, and the other three would go green over a reading
+ * nobody took. A bench that copies a measurement is not measuring.
+ *
+ * `--reuse-scan` puts the operator's behaviour back for a run that is testing
+ * the COALESCING rather than the scan (or simply wants a sweep to stop cloning
+ * the same repository four times).
+ */
+export function scanRequestBody(scenario, { reuseScan = false } = {}) {
+  const target = scenario.repo?.rootPath ? { rootPath: scenario.repo.rootPath } : { repoUrl: scenario.repo?.url };
+  return reuseScan ? target : { ...target, fresh: true };
+}
+
 /** scan → activate: the one-time cost of hiring, per repo. */
 export const PREAMBLE_PHASES = ["scan", "intake", "dialog", "compose", "dispatch", "activate"];
 /** Everything that exercises an existing holder. */
@@ -1114,7 +1134,7 @@ async function runScenario(scenario, opts) {
 
       // ── scan ───────────────────────────────────────────────────────────────
       const dossier = await phase(result, journal, "scan", async () => {
-        const target = scenario.repo.rootPath ? { rootPath: scenario.repo.rootPath } : { repoUrl: scenario.repo.url };
+        const target = scanRequestBody(scenario, { reuseScan: opts.reuseScan });
         const started = must(
           "POST /api/repo-scan",
           await kp.post("/api/repo-scan", target),
@@ -1123,7 +1143,13 @@ async function runScenario(scenario, opts) {
             : ""
         );
         const scanId = started.scanId;
-        journal.write("scan-started", { scanId, target });
+        // `reused` is journalled, not discarded. kp answers it on every POST and
+        // the driver used to read `scanId` alone, which is how four scenarios
+        // sharing one root turned into one measurement and three copies with
+        // nothing anywhere saying so. A reused scan is still recorded — the gate
+        // buckets it separately, the way it buckets a stub run.
+        const reused = started.reused === true;
+        journal.write("scan-started", { scanId, target, fresh: target.fresh === true, reused });
         const row = await poll(
           async () => {
             const res = await kp.get(`/api/repo-scan/${scanId}`);
@@ -1137,6 +1163,7 @@ async function runScenario(scenario, opts) {
         }
         result.scan = {
           scanId,
+          reused,
           source: row.source,
           isLocal: row.isLocal,
           contexts: row.dossier?.size?.contexts ?? null,
@@ -1836,6 +1863,7 @@ export const CLI_FLAGS = {
   "stub-build-fail-once": "boolean",
   "stub-retire": "boolean",
   "no-since-hire": "boolean",
+  "reuse-scan": "boolean",
   scenario: "value",
   tenure: "value",
   backlog: "value",
@@ -1979,6 +2007,9 @@ async function main() {
         "                           (off by default — Personas does not ship it yet)",
         "  --mode keyless|keyed     override every scenario's mode",
         "  --nights N               override every scenario's night count",
+        "  --reuse-scan             let kp coalesce a scan of a repository it read in",
+        "                           the last 30 min. OFF by default: four scenarios share",
+        "                           one root, and a copied dossier is not a measurement",
         "  --scan-timeout <ms>      how long a repo scan may take (default 1200000)",
         "  --activate-timeout <ms>  how long a hire's build session may take (default 5400000)",
         "  --throttle-wait <ms>     how long to sit out a kp 429 (default 65000; kp's",
@@ -2114,6 +2145,9 @@ async function main() {
     stub: !!stub,
     // A stub run never writes the cache: its key dies with the process.
     keyCacheFile: stub ? null : keyCacheFile,
+    // Off by default (see scanRequestBody). The flag exists for a run that is
+    // testing the coalescing itself, or that does not want four clones of one repo.
+    reuseScan: !!args["reuse-scan"],
     scanTimeoutMs: Number(args["scan-timeout"] || 20 * 60_000),
     // A real headless hire runs a full one-shot BUILD SESSION (a live Claude
     // Code session: design pass + build) before the request can reach `active`

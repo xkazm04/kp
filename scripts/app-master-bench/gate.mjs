@@ -31,6 +31,10 @@
 //     the one reader that never asked, so a full sweep against canned Personas
 //     exited 0 while the report beside it printed "EVERYTHING IT REPORTS IS
 //     CANNED". A verdict that green means nothing is worse than no verdict.
+//   - the run's repo scan was REUSED (`scan.reused: true`). kp coalesces a
+//     second scan of one target for 30 minutes and four scenarios share one
+//     root, so a sweep could measure the scan engine ONCE and hand the other
+//     three a copy. A graded copy is not a measurement.
 //   - the run is STALE: it finished before the baseline it is being compared to
 //     was recorded (a run cannot certify a bar that was raised after it), or it
 //     is older than `--max-age-days` (default 14). A month-old green run says
@@ -114,6 +118,7 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
     // reader owes work on.
     const problems = [];
     const stubProblems = [];
+    const reusedScanProblems = [];
     const staleProblems = [];
 
     for (const required of spec.requiredExpectations ?? []) {
@@ -137,6 +142,23 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
       );
     }
 
+    // A COPIED reading is the same class of nothing as a canned Personas, and it
+    // was invisible for the same reason: nobody asked. Four of the seven committed
+    // scenarios name one root, kp coalesces a repeat scan of a target it read in
+    // the last 30 minutes, and the driver used to discard the `reused` flag — so
+    // three of four kp runs could certify a dossier another run produced. Its own
+    // bucket rather than a shared "canned" one, because the instruction differs:
+    // drop --reuse-scan, not --stub-personas.
+    //
+    // `=== true` on purpose. A tenure run skips the whole preamble and carries no
+    // `scan` block at all, and a missing flag is not evidence of reuse.
+    const reusedScan = record?.scan?.reused === true;
+    if (reusedScan) {
+      reusedScanProblems.push(
+        "this run's repo scan was COALESCED onto a reading another run had already taken (`reused: true`) — the dossier it graded is a copy, so it certifies nothing about the scan engine",
+      );
+    }
+
     const finishedAt = record.finishedAt ?? run.finishedAt ?? null;
     const finishedMs = instant(finishedAt);
     if (finishedMs === null) {
@@ -157,15 +179,24 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
       }
     }
 
-    const all = [...problems, ...stubProblems, ...staleProblems];
+    const all = [...problems, ...stubProblems, ...reusedScanProblems, ...staleProblems];
     const verdict =
-      all.length === 0 ? "pass" : problems.length ? "fail" : stubProblems.length ? "stub" : "stale";
+      all.length === 0
+        ? "pass"
+        : problems.length
+          ? "fail"
+          : stubProblems.length
+            ? "stub"
+            : reusedScanProblems.length
+              ? "reused-scan"
+              : "stale";
 
     rows.push({
       scenario,
       verdict,
       ok: all.length === 0,
       stub,
+      reusedScan,
       reason: all.join("; ") || "every required expectation measured and met, on a fresh live run",
       expectations: expectations.map((e) => ({ name: e.name, ok: e.ok === true })),
       finishedAt: record.finishedAt ?? null,
@@ -179,6 +210,7 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
     fail: rows.filter((r) => r.verdict === "fail").length,
     missing: rows.filter((r) => r.verdict === "missing").length,
     stub: rows.filter((r) => r.verdict === "stub").length,
+    reusedScan: rows.filter((r) => r.reusedScan).length,
     stale: rows.filter((r) => r.verdict === "stale").length,
     unbaselined: unbaselined.length,
   };
@@ -196,6 +228,7 @@ export function renderGate(gate, baseline) {
       `${counts.pass}/${counts.total} baselined scenarios pass`,
       counts.missing ? `${counts.missing} not run` : null,
       counts.stub ? `${counts.stub} CANNED (stub Personas)` : null,
+      counts.reusedScan ? `${counts.reusedScan} COPIED scan (reused dossier)` : null,
       counts.stale ? `${counts.stale} stale` : null,
       counts.unbaselined ? `${counts.unbaselined} unbaselined` : null,
       `baseline ${baseline.recordedAt ?? "?"}`,
@@ -220,6 +253,18 @@ export function renderGate(gate, baseline) {
       `  ${glyph(false)} ${counts.stub} scenario(s) were only run against the in-process STUB Personas.` +
         `\n      A stub run proves the driver's plumbing, not the App master's performance.` +
         `\n      Re-run those scenarios without --stub-personas before asking for a verdict.`,
+    );
+  }
+  if (counts.reusedScan) {
+    lines.push("");
+    lines.push(
+      `  ${glyph(false)} ${counts.reusedScan} scenario(s) graded a COPIED scan: kp handed them a dossier` +
+        `
+      another run had already taken (the reuse window is 30 minutes, and four` +
+        `
+      scenarios share one root). Re-run them without --reuse-scan, so the sweep` +
+        `
+      measures the scan engine once per scenario instead of once per sweep.`,
     );
   }
   if (counts.stale) {

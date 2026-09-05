@@ -95,3 +95,32 @@ test("a refused target answers the operator's own input problem, not a generic f
   const body = (await res.json()) as { error?: string };
   assert.ok(body.error, "the allow-list refusal is the operator's to act on");
 });
+
+// --- the measuring caller's door --------------------------------------------
+// Coalescing is right for the operator and wrong for the bench: four App-master
+// scenarios point at ONE root, so inside the reuse window three of the four were
+// handed the first run's dossier and a scan-engine regression could fail only
+// one of them. `fresh: true` is the opt-out, and it is gated exactly like every
+// other scan — same operator check, same limiter, same allow-list.
+test("fresh: true takes its own reading instead of a finished one", async () => {
+  const addr = "10.7.3.1";
+  const first = (await (await post({ rootPath: allowed }, addr)).json()) as { scanId: string };
+  const { completeRepoScan, markRepoScanRunning } = await import("../../_lib/db/repo-scans.ts");
+  const { DEFAULT_WORKSPACE } = await import("../../_lib/auth/session.ts");
+  markRepoScanRunning(first.scanId, DEFAULT_WORKSPACE);
+  completeRepoScan(first.scanId, { dossier: { contexts: [] }, source: "heuristic" }, DEFAULT_WORKSPACE);
+
+  const measured = (await (await post({ rootPath: allowed, fresh: true }, addr)).json()) as {
+    scanId: string;
+    taskId: string | null;
+    reused: boolean;
+  };
+  assert.equal(measured.reused, false, "the sweep measured the scan rather than copying one");
+  assert.notEqual(measured.scanId, first.scanId);
+  assert.ok(measured.taskId, "a row with no task is a poll that never finishes");
+});
+
+test("fresh does not widen the allow-list", async () => {
+  const res = await post({ rootPath: "/etc", fresh: true });
+  assert.equal(res.status, 400, "the target gate speaks before `fresh` means anything");
+});
