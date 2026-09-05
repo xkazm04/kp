@@ -147,8 +147,12 @@ export async function POST(request: Request) {
       // operator can act on, so it carries a resolvable code rather than the
       // adapter's English: "split it and try again", in their own language.
       if (err.code === "too_long") return jsonRefusal("STT_TOO_LONG", 413);
-      const status = STT_ERROR_STATUS[err.code] ?? 502;
-      return NextResponse.json({ error: err.message, code: err.code, provider: err.provider ?? null }, { status });
+      // The twin of /api/tts's engine branch, and for the same reason: the
+      // adapter's English ("OPENAI_API_KEY is not set", a whisper.cpp stderr
+      // tail) is a server-log fact, never a response body. The chokepoint logs
+      // it under `api:stt:engine` and answers STT_FAILED at the engine's own
+      // status. `provider` left the body with the message; nothing read it.
+      return safeJsonError(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS[err.code] ?? 502);
     }
     return safeJsonError(err, "api:stt", "STT_FAILED");
   }

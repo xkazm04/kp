@@ -67,3 +67,19 @@ test("the engine code table maps every member the package declares", () => {
   // And the 500 is a store error with a code, never the thrown message.
   assert.match(src, /safeJsonError\(err, "api:tts", "TTS_FAILED"\)/);
 });
+
+// the-keyless-voice-failure-reaches-the-operator-in-their-language: the engine
+// branch used to answer `{ error: err.message }` — "ELEVENLABS_API_KEY is not
+// set", the provider's English 502 body — and the client reads `error`, so a
+// Czech install printed an env var name in the Play button's tooltip. A SOURCE
+// guard rather than an invocation: reaching the engine branch means reaching an
+// engine, which is exactly what this keyless suite may not do.
+test("an engine failure answers a registry code, never the engine's own sentence", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8");
+  assert.doesNotMatch(src, /error:\s*err\.message/, "the engine's sentence is a server-log fact, never a response body");
+  assert.match(
+    src,
+    /safeJsonError\(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS\[err\.code\] \?\? 502\)/,
+    "the engine branch answers through the chokepoint at the engine's own status",
+  );
+});

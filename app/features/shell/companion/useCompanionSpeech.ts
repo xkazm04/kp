@@ -65,8 +65,15 @@ export type CompanionSpeech = {
   speakingId: string | null;
   playback: TtsPlayback;
   /** The last attempt's failure text, straight from the route (an engine reason,
-   *  a rate limit, a transport error). Null while nothing has failed. */
+   *  a rate limit, a transport error). Null while nothing has failed. CANONICAL
+   *  ENGLISH: a surface renders `errorCode` and keeps this for its log. */
   error: string | null;
+  /** The route's machine code for that same failure, or null for a transport or
+   *  playback fault the server never named. This is what a surface resolves
+   *  through `useErrorMessage`, which is the whole of "the keyless install says
+   *  so in the reader's language" — the route used to answer the provider's own
+   *  sentence and the Play button's tooltip printed an env var name. */
+  errorCode: string | null;
   /** The provider roster, for a surface that wants to show or choose one. NOT
    *  called by this hook — see the header. */
   refreshProviders: () => Promise<void>;
@@ -135,6 +142,7 @@ export function useCompanionSpeech(): CompanionSpeech {
     speakingId: playback === "idle" ? null : lastId,
     playback,
     error: tts.error,
+    errorCode: tts.errorCode,
     refreshProviders: tts.refreshProviders,
   };
 }

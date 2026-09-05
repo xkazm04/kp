@@ -110,8 +110,16 @@ export async function POST(request: Request) {
       // throttle, so it answers with the same code and the same header — a
       // client that can back off from one can back off from both.
       if (err.code === "rate_limited") return engineThrottled(err.retryAfterMs);
-      const status = TTS_ERROR_STATUS[err.code] ?? 502;
-      return NextResponse.json({ error: err.message, code: err.code, provider: err.provider ?? null }, { status });
+      // THE ENGINE'S SENTENCE IS A SERVER-LOG FACT. It used to travel as `error`
+      // — "ELEVENLABS_API_KEY is not set", a provider's English 502 body, a
+      // sidecar's stderr — and the client renders `error`, so a keyless install
+      // printed an env var name in the Play button's tooltip of a Czech UI. The
+      // chokepoint logs the whole error under `api:tts:engine` and answers the
+      // registry sentence plus TTS_FAILED, which every locale has; the engine's
+      // own status is kept, because 503-vs-504-vs-502 is what a caller retries
+      // against. `provider` left the body with the message: nothing read it, and
+      // the served provider already travels in a header on the success path.
+      return safeJsonError(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS[err.code] ?? 502);
     }
     return safeJsonError(err, "api:tts", "TTS_FAILED");
   }

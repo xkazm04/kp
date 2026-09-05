@@ -180,6 +180,13 @@ is `safeJsonError(err, "api:stt", "STT_FAILED")` — the adapter's message (whic
 vendor HTTP body or a local model path) goes to the server log only. The code -> status
 table is pinned by invoking the handler in `app/api/stt/stt-route.test.ts`.
 
+The ENGINE branch joined them on 2026-09-05. It used to send `{ error: err.message }`, and
+that message is the adapter's English ("OPENAI_API_KEY is not set", a whisper.cpp stderr
+tail) — the one thing a client may not render. Every remaining engine failure now answers
+`safeJsonError(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS[err.code] ?? 502)`:
+the error whole to the server log, `STT_FAILED` plus its registry sentence on the wire, and
+the engine's own status kept. `provider` left the body with the message; nothing read it.
+
 The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every
 boundary that renders it.

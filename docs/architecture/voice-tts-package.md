@@ -135,6 +135,17 @@ ladder: explicit env → shared home `bin/` → PATH.
   LOOKUP keyed by the code, so a member the package adds later degrades to the honest 502
   rather than failing to compile. Pinned by invoking the handler in
   `app/api/tts/tts-route.test.ts`.
+- **The ENGINE branch answers a code too, since 2026-09-05.** It used to send
+  `{ error: err.message, code: err.code }`, and `err.message` is the adapter's English
+  ("ELEVENLABS_API_KEY is not set", a provider's 502 body) — which a client renders, so a
+  keyless install printed an env var name in the Play button's tooltip of a Czech UI. Every
+  non-`rate_limited` engine failure now returns
+  `safeJsonError(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS[err.code] ?? 502)`:
+  the whole error to the server log under that route tag, `TTS_FAILED` plus its registry
+  sentence on the wire, and the engine's OWN status kept, because 503-vs-504-vs-502 is what
+  a caller retries against. `provider` left the body with the message (nothing read it; the
+  served provider already travels in a header on the success path). The lookup table stays
+  as the status source and is still what the route test pins.
 - `requireOperator()` (defense in depth) and `rateLimit("tts:<ip>", 60/10 min)` — pinned by
   `app/api/rate-limit-contract.test.ts`, because in open mode a cloud call costs money and a
   local call spawns a process.

@@ -3,6 +3,7 @@
 import { Play, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { railIconBtn } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { voiceTextForTurn, type CompanionSpeech } from "../useCompanionSpeech";
 import type { VoiceEntry } from "./voiceHistory";
 
@@ -32,11 +33,19 @@ type PlaybackState = {
   failed: boolean;
   /** Verb for what pressing the control does right now. */
   label: string;
+  /** Why the last attempt failed, IN THE READER'S LANGUAGE, or null. Resolved
+   *  from the route's code and never from `speech.error`: that half is the
+   *  route's canonical English, and painting it put "ELEVENLABS_API_KEY is not
+   *  set" in this button's tooltip on a Czech install. An unknown code (a
+   *  transport fault the server never named) falls back to the one generic
+   *  sentence this surface has always had. */
+  reason: string | null;
   press: () => void;
 };
 
 function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): PlaybackState | null {
   const t = useTranslations("companion");
+  const resolveError = useErrorMessage();
   const speakable = entry ? { id: entry.id, content: entry.content, meta: entry.meta } : null;
   const hasVoice = speakable ? voiceTextForTurn(speakable).length > 0 : false;
   const active = Boolean(entry && speech.speakingId === entry.id);
@@ -47,6 +56,7 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
     active,
     blocked,
     failed,
+    reason: failed ? resolveError({ code: speech.errorCode }, t("voice.failed")) : null,
     label: blocked ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
     press: () => {
       if (blocked) speech.resume();
@@ -66,7 +76,6 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
  *  control across: on a one-line strip a second transport button would cost
  *  height to say what the first one already does. */
 export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | null; speech: CompanionSpeech }) {
-  const t = useTranslations("companion");
   const state = usePlayback(entry, speech);
   if (!state) return null;
   const stopping = state.active && !state.failed && !state.blocked;
@@ -76,7 +85,7 @@ export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | nul
         type="button"
         aria-pressed={state.active && !state.failed}
         aria-label={state.label}
-        title={state.failed && speech.error ? speech.error : state.label}
+        title={state.reason ?? state.label}
         onClick={state.press}
         className={railIconBtn(state.active && !state.failed)}
       >
@@ -86,9 +95,9 @@ export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | nul
           <Play size={16} aria-hidden fill="currentColor" />
         )}
       </button>
-      {state.failed ? (
+      {state.reason ? (
         <span className="text-sm text-coral" role="status">
-          {t("voice.failed")}
+          {state.reason}
         </span>
       ) : null}
     </span>

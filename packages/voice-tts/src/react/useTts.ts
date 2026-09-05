@@ -16,6 +16,31 @@ import { segmentSpeech } from "../text/segment.ts";
 
 export type TtsPlayback = "idle" | "synthesizing" | "playing" | "blocked" | "error";
 
+/** A refusal the HOST ROUTE coded.
+ *
+ *  `message` is the route's canonical English, kept because a non-kp host may
+ *  have nothing else; `code` is the machine name a localizing host resolves in
+ *  the reader's language. Both, rather than either: a package that threw only a
+ *  sentence forced every surface to paint English, and one that threw only a
+ *  code would break the hosts that print `error` today. */
+export class TtsRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+  ) {
+    super(message);
+    this.name = "TtsRequestError";
+  }
+}
+
+/** What a non-2xx answer from the host route MEANS. Pure and exported so the
+ *  contract can be pinned without a DOM: a body with no code (a proxy's HTML
+ *  error page, a truncated response) still yields a usable sentence, and a
+ *  falsy `error` never wins over the status line. */
+export function ttsErrorFrom(body: { error?: string; code?: string | null } | null | undefined, status: number): TtsRequestError {
+  return new TtsRequestError(body?.error || `status ${status}`, body?.code ?? null);
+}
+
 export type UseTtsOptions = {
   /** The host route, e.g. "/api/tts". GET returns { providers: TtsStatus[] }. */
   endpoint: string;
@@ -61,6 +86,11 @@ export type UseTts = {
   /** Chunks spoken so far / total for the current utterance. */
   progress: { spoken: number; total: number } | null;
   error: string | null;
+  /** The host route's machine code for that same failure, when it sent one
+   *  (`TTS_FAILED`, `TOO_MANY_REQUESTS`, `VOICE_REQUEST_INVALID`). Null for a
+   *  transport error, a playback fault, or a host that answers no code. A
+   *  localizing surface resolves THIS and keeps `error` for its log. */
+  errorCode: string | null;
   speak: (args: SpeakArgs) => Promise<void>;
   /** Resume a playback the browser blocked (must be called from a user gesture). */
   resume: () => Promise<void>;
@@ -76,6 +106,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
   const [served, setServed] = useState<TtsServed | null>(null);
   const [progress, setProgress] = useState<UseTts["progress"]>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlsRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -111,6 +142,9 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
     } catch (e) {
       setProviders([]);
       setError((e as Error).message);
+      // A probe that could not be read carries no route code: the failure is the
+      // fetch, not a refusal the host named.
+      setErrorCode(null);
     }
   }, [endpoint, f]);
 
@@ -123,8 +157,8 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
         signal,
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || `status ${res.status}`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        throw ttsErrorFrom(body, res.status);
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -165,6 +199,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       setError(null);
+      setErrorCode(null);
       setServed(null);
       const text = args.format === "chat" ? speechReady(args.text) : args.text;
       const chunks = args.segment === false ? [text] : segmentSpeech(text, { maxChars: maxChunkChars });
@@ -205,6 +240,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
       } catch (e) {
         if (gen !== generation.current || (e as Error).name === "AbortError") return;
         setError((e as Error).message);
+        setErrorCode(e instanceof TtsRequestError ? e.code : null);
         setPlayback("error");
       }
     },
@@ -222,5 +258,5 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
     }
   }, []);
 
-  return { providers, refreshProviders, playback, served, progress, error, speak, resume, stop };
+  return { providers, refreshProviders, playback, served, progress, error, errorCode, speak, resume, stop };
 }

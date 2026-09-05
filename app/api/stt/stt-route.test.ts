@@ -98,3 +98,16 @@ test("the engine code table covers the package's union, refusals included", () =
   assert.match(src, /STT_ERROR_STATUS\[err\.code\] \?\? 502/);
   assert.match(src, /safeJsonError\(err, "api:stt", "STT_FAILED"\)/);
 });
+
+// the-keyless-voice-failure-reaches-the-operator-in-their-language — the twin of
+// the /api/tts guard. Source rather than invocation for the same reason: the
+// engine branch is past every keyless refusal.
+test("an engine failure answers a registry code, never the engine's own sentence", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8");
+  assert.doesNotMatch(src, /error:\s*err\.message/, "the engine's sentence is a server-log fact, never a response body");
+  assert.match(
+    src,
+    /safeJsonError\(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS\[err\.code\] \?\? 502\)/,
+    "the engine branch answers through the chokepoint at the engine's own status",
+  );
+});
