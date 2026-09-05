@@ -1769,7 +1769,9 @@
     "EDGE_SECRET_UNREADABLE": "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
     "SIM_RUN_NOT_OWNER": "That guided demo belongs to another tab. Wait for it to finish, or stop it there.",
     "simRunActiveSeconds": "A guided demo is already running here. You can reset in about {seconds} seconds, or stop the run in the tab that started it.",
-    "simRunNotOwnerSeconds": "That guided demo belongs to another tab. You can reset in about {seconds} seconds, or stop it there."
+    "simRunNotOwnerSeconds": "That guided demo belongs to another tab. You can reset in about {seconds} seconds, or stop it there.",
+    "TTS_VOICE_INVALID": "That voice cannot be used for this. Pick another voice.",
+    "TTS_TEXT_TOO_LONG": "That text is too long to speak in one go. Send it in shorter pieces."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -10103,7 +10105,8 @@
       "stop": "Stop reading",
       "resume": "Play",
       "failed": "That could not be spoken.",
-      "waiting": "Waiting to speak…"
+      "waiting": "Waiting to speak…",
+      "wrongLanguage": "No installed voice speaks this language, so it was read in another accent."
     },
     "action": {
       "runAnalysis": "Re-run the AI screening for {candidate}",
@@ -10153,13 +10156,18 @@
       "close": "Leave voice mode",
       "empty": "Ask her something below. Her answer lands here, and you can play it.",
       "placeholder": "Ask Candi",
-      "mic": "Speaking to her comes with the relay",
+      "mic": "Dictate to Candi",
       "older": "Older answer",
       "newer": "Newer answer",
       "position": "{index} of {total}",
       "details": "Show details",
       "detailsHide": "Hide details",
-      "notReady": "Not connected yet. Reconnect from the strip at the top of the screen."
+      "notReady": "Not connected yet. Reconnect from the strip at the top of the screen.",
+      "micStop": "Stop and transcribe",
+      "micRecording": "Recording. Press again to transcribe.",
+      "micWorking": "Transcribing what you said…",
+      "micFailed": "That recording could not be transcribed. Try again.",
+      "micUnavailable": "Transcription is not set up on this server."
     }
   },
   "loadStatus": {

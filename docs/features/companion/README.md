@@ -831,6 +831,12 @@ and expected from V2's auto-speak). It is drawn only when the turn has something
 speakable: `voiceTextForTurn` has already run the one normalizer over it, so an
 empty answer means an empty utterance and no control at all.
 
+The transport row carries one more quiet non-failure fact: `unsupportedLanguage`,
+forwarded by `useCompanionSpeech` from the package's `served` record. No installed
+engine declares the language that was asked for (Kokoro speaks no cs/de), so the
+answer played in another accent rather than not at all; `companion.voice.wrongLanguage`
+says so instead of leaving the listener to guess whether it is a bug.
+
 The transport row also has one quiet non-failure state: `playback === "waiting"`,
 which the package reports while a throttled chunk is held for the wait the host
 asked for (voice-tts-package.md, "a throttled chunk is held, not dropped").
@@ -1165,10 +1171,35 @@ exchange resolves false) rather than sharing it — about eight lines, against
 adding a `compact` prop to a primitive another workstream owns. It is disabled
 until the thread is `ready`, because a message sent into no thread resolves false
 and silently restores itself, which reads as the app ignoring you. It takes focus
-on open: the operator pressed a control that makes a place to type. The mic is
-drawn disabled with a title naming what it waits for: a voice mode with no
-microphone reads as an oversight, one with a live-looking icon that does nothing
-is worse, and a control that is visibly not ready yet is the honest third option.
+on open: the operator pressed a control that makes a place to type.
+
+**The mic records** (it was a disabled placeholder until `/api/stt` had a browser
+binding). It is `useStt` from `packages/voice-stt/src/react/useStt.ts`, which owns
+the permission request, the `MediaRecorder` capture, the encode to the 16 kHz PCM
+WAV the on-device engine reads (`packages/voice-stt/src/browser/wav-encode.ts`)
+and the abort; the panel owns only the three decisions that are its own:
+
+- **It dictates, it does not send.** The transcript is APPENDED to whatever is
+  already in the composer and the caret stays in the field, so a mis-heard word is
+  fixed before Candi ever sees it. A mic that sent on release would turn every
+  transcription error into a message in the thread.
+- **One control, two meanings** (start / stop), the same shape
+  `CompanionSpeakButton` uses on the output side: `aria-pressed` while recording, a
+  stop glyph rather than a second button, and the busy phases (encoding, uploading)
+  refuse a press instead of queueing a second capture. A line under the row says
+  which state it is in; there is never more than one thing in it.
+- **`STT_UNAVAILABLE` latches, and nothing else does.** A keyless install with no
+  local model answers `503 STT_UNAVAILABLE`, and the operator's fix is a server
+  config rather than another press, so the control goes quiet and names the reason
+  in their own language (through `useErrorMessage`, never the route's English).
+  Every OTHER failure — a denied microphone, a throttle, an engine fault — leaves
+  the button live, because an operator who just granted permission is one press
+  away. There is deliberately no probe on mount: a `GET /api/stt` on every dock
+  open costs a readdir per model directory on a panel most operators only type
+  into, so the 503 is handled rather than pre-empted.
+
+The language hint is the reader's own locale. `companionMic.test.ts` is a source
+guard over exactly these decisions — the behaviour itself needs a browser.
 
 > **Found by painting it, not by a gate.** The dock header's `backdrop-blur`
 > gives it its own stacking context, which confined the settings panel's `z-50`

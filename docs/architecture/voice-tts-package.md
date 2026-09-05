@@ -127,16 +127,35 @@ ladder: explicit env → shared home `bin/` → PATH.
 ## Host wrapper (`/api/tts`)
 
 - `GET` → `{ providers: TtsStatus[], preferred, allowed }` — probes only, spends nothing.
-- `POST { text, language?, provider?, voiceId?, speed? }` → audio bytes with
+- `POST { text, language?, provider?, voiceId?, speed?, format? }` → audio bytes with
   `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`,
-  `X-Tts-Unsupported-Language?`. `useTts` reads the first four; `X-Tts-Voice` surfaces as `served.voiceId` (the voice that spoke is not always the
-  one asked for — a null request takes the engine default and a fallback provider ignores the
-  other engine's ids).
+  `X-Tts-Unsupported-Language?`. `useTts` reads all five; `X-Tts-Voice` surfaces as
+  `served.voiceId` (the voice that spoke is not always the one asked for — a null request
+  takes the engine default and a fallback provider ignores the other engine's ids) and
+  `X-Tts-Unsupported-Language` as `served.unsupportedLanguage`, which
+  `app/features/shell/companion/voice/VoicePlayback.tsx` renders beside the transport control
+  as `companion.voice.wrongLanguage` ("no installed voice speaks this language, so it was read
+  in another accent"). A header nothing renders does not exist.
+- **`format` reaches the server (2026-09-05).** `useTts` sent every other field and kept this
+  one, so `validateRequest` always saw `plain` — the chat branch of the one validation door was
+  unreachable over HTTP, and the cache key's format slot held the same empty value for every
+  request, so two asks for the same markdown reply (one wanting the speech normalizer, one not)
+  shared a key and therefore shared whichever clip landed first. It now rides the body
+  (`format: args.format ?? "plain"`), the route reads it into `req`, and `req` is what both
+  `ttsCacheKey` and the engine call receive. `speechReady` is idempotent, so a chunk the hook
+  already normalized is unchanged by the door running it again.
+- **The 1200-char ceiling is checked before the hash.** `TTS_MAX_CHARS` was enforced by the
+  validation door alone, i.e. after the whole body had been parsed AND sha256'd into a cache
+  key. The route now refuses over-long text with `TTS_TEXT_TOO_LONG` (400, `maxChars` beside
+  the code) immediately after the body parses, importing the constant rather than re-typing
+  1200. The refusal escapes the limiter for the same reason a cache hit does: a bounded 8 KB
+  read and a length compare, no hash, no engine, `requireOperator` already in front.
 - Errors are typed, and the status is part of the contract:
 
   | `TtsError.code` | status | caller's next action |
   | --- | --- | --- |
-  | `invalid_text`, `invalid_voice` | 400 | fix the request; never retry unchanged |
+  | `invalid_text` | 400 (`TTS_TEXT_TOO_LONG` when it is the length) | fix the request; never retry unchanged |
+  | `invalid_voice` | 400 + `TTS_VOICE_INVALID` | pick another voice; retrying this one never works |
   | `unavailable` | 503 + `TTS_UNAVAILABLE` | nothing can speak (no key, no entitlement, nothing installed) |
   | `rate_limited` | 429 + `Retry-After` | wait, then retry the same request |
   | `timeout` | 504 | retry or shorten the text |
@@ -151,6 +170,10 @@ ladder: explicit env → shared home `bin/` → PATH.
   `Retry-After` from `err.retryAfterMs`, and sends no header when the engine did not say — a
   fabricated wait is worse than none), `VOICE_REQUEST_INVALID` for a body that is not JSON,
   `TTS_UNAVAILABLE` (503) when the engine says nothing can speak at all,
+  `TTS_VOICE_INVALID` (400) when the engine refused the VOICE rather than the request — split
+  off TTS_FAILED 2026-09-05, because "pick another voice" and "try again" read identically
+  when both answer one code, and a caller told to retry retries the same unusable id forever —
+  `TTS_TEXT_TOO_LONG` (400 + `maxChars`) for text over `TTS_MAX_CHARS`,
   and `safeJsonError(err, "api:tts", "TTS_FAILED")` for the 500, so a vendor HTTP body or a
   local model path goes to the server log only. The engine code -> status mapping is a
   LOOKUP keyed by the code, so a member the package adds later degrades to the honest 502

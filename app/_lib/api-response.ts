@@ -1381,6 +1381,15 @@ export const REFUSAL_ERRORS = {
    *  STT_FAILED sentence told a keyless operator to "try again", which cannot help. */
   TTS_UNAVAILABLE: "Voice is not configured on this server, so nothing can speak.",
   STT_UNAVAILABLE: "Transcription is not configured on this server.",
+  /** The TTS engine refused the VOICE, not the request (400, /api/tts). Split off
+   *  TTS_FAILED 2026-09-05: "pick another voice" and "try again" read identically
+   *  when both answer the same code, and a caller told to retry retries the same
+   *  unusable voice id forever. */
+  TTS_VOICE_INVALID: "That voice cannot be used for this. Pick another voice.",
+  /** The utterance is longer than the package's own 1200-char ceiling (400,
+   *  /api/tts). Refused BEFORE the body is hashed into a cache key, and it rides
+   *  with `maxChars` so the reader's own sentence can carry the number. */
+  TTS_TEXT_TOO_LONG: "That text is too long to speak in one go. Send it in shorter pieces.",
   /** Companion proposal doors (WP3), moved here 2026-09-05 from STORE_ERRORS: both
    *  are DECISIONS, not accidents. "That proposal is gone" (404) and "someone already
    *  answered it" (409) are different facts, and the second is the ordinary outcome

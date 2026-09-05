@@ -1769,7 +1769,9 @@
     "EDGE_SECRET_UNREADABLE": "Diese Installation kann das gespeicherte Edge-Secret nicht lesen. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde.",
     "SIM_RUN_NOT_OWNER": "Diese geführte Demo gehört zu einem anderen Tab. Warten Sie, bis sie beendet ist, oder stoppen Sie sie dort.",
     "simRunActiveSeconds": "Hier läuft bereits eine geführte Demo. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie den Lauf im Tab, der ihn gestartet hat.",
-    "simRunNotOwnerSeconds": "Diese geführte Demo gehört einem anderen Tab. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie sie dort."
+    "simRunNotOwnerSeconds": "Diese geführte Demo gehört einem anderen Tab. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie sie dort.",
+    "TTS_VOICE_INVALID": "Diese Stimme kann dafür nicht verwendet werden. Wählen Sie eine andere Stimme.",
+    "TTS_TEXT_TOO_LONG": "Dieser Text ist zu lang, um am Stück vorgelesen zu werden. Senden Sie ihn in kürzeren Teilen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -10103,7 +10105,8 @@
       "stop": "Vorlesen stoppen",
       "resume": "Abspielen",
       "failed": "Das konnte nicht vorgelesen werden.",
-      "waiting": "Warten auf die Sprachausgabe…"
+      "waiting": "Warten auf die Sprachausgabe…",
+      "wrongLanguage": "Keine installierte Stimme spricht diese Sprache, der Text wurde daher mit einem anderen Akzent vorgelesen."
     },
     "action": {
       "runAnalysis": "KI-Screening für {candidate} erneut ausführen",
@@ -10153,13 +10156,18 @@
       "close": "Sprachmodus verlassen",
       "empty": "Fragen Sie sie unten etwas. Ihre Antwort landet hier, und Sie können sie abspielen.",
       "placeholder": "Candi fragen",
-      "mic": "Mit ihr sprechen kommt mit dem Relay",
+      "mic": "Candi diktieren",
       "older": "Ältere Antwort",
       "newer": "Neuere Antwort",
       "position": "{index} von {total}",
       "details": "Details anzeigen",
       "detailsHide": "Details ausblenden",
-      "notReady": "Noch nicht verbunden. Stellen Sie die Verbindung über die Leiste am oberen Bildschirmrand wieder her."
+      "notReady": "Noch nicht verbunden. Stellen Sie die Verbindung über die Leiste am oberen Bildschirmrand wieder her.",
+      "micStop": "Stoppen und transkribieren",
+      "micRecording": "Aufnahme läuft. Erneut drücken, um zu transkribieren.",
+      "micWorking": "Ihre Aufnahme wird transkribiert…",
+      "micFailed": "Diese Aufnahme konnte nicht transkribiert werden. Bitte erneut versuchen.",
+      "micUnavailable": "Transkription ist auf diesem Server nicht eingerichtet."
     }
   },
   "loadStatus": {

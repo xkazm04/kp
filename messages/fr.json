@@ -1769,7 +1769,9 @@
     "EDGE_SECRET_UNREADABLE": "Cette installation ne peut pas lire le secret edge enregistré. Saisissez-le à nouveau ou restaurez la clé qui l'a chiffré.",
     "SIM_RUN_NOT_OWNER": "Cette démo guidée appartient à un autre onglet. Attendez qu'elle se termine ou arrêtez-la depuis celui-là.",
     "simRunActiveSeconds": "Une démo guidée est déjà en cours ici. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez la démo dans l'onglet qui l'a lancée.",
-    "simRunNotOwnerSeconds": "Cette démo guidée appartient à un autre onglet. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez-la depuis cet onglet."
+    "simRunNotOwnerSeconds": "Cette démo guidée appartient à un autre onglet. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez-la depuis cet onglet.",
+    "TTS_VOICE_INVALID": "Cette voix ne peut pas être utilisée ici. Choisissez une autre voix.",
+    "TTS_TEXT_TOO_LONG": "Ce texte est trop long pour être lu en une fois. Envoyez-le en parties plus courtes."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -10103,7 +10105,8 @@
       "stop": "Arrêter la lecture",
       "resume": "Lire",
       "failed": "Impossible de lire ce texte à voix haute.",
-      "waiting": "En attente de la lecture…"
+      "waiting": "En attente de la lecture…",
+      "wrongLanguage": "Aucune voix installée ne parle cette langue, le texte a donc été lu avec un autre accent."
     },
     "action": {
       "runAnalysis": "Relancer le screening IA pour {candidate}",
@@ -10153,13 +10156,18 @@
       "close": "Quitter le mode vocal",
       "empty": "Posez-lui une question ci-dessous. Sa réponse arrive ici, et vous pouvez l'écouter.",
       "placeholder": "Demander à Candi",
-      "mic": "Lui parler arrivera avec le relais",
+      "mic": "Dicter à Candi",
       "older": "Réponse précédente",
       "newer": "Réponse suivante",
       "position": "{index} sur {total}",
       "details": "Afficher les détails",
       "detailsHide": "Masquer les détails",
-      "notReady": "Pas encore connecté. Reconnectez-vous depuis le bandeau en haut de l'écran."
+      "notReady": "Pas encore connecté. Reconnectez-vous depuis le bandeau en haut de l'écran.",
+      "micStop": "Arrêter et transcrire",
+      "micRecording": "Enregistrement en cours. Appuyez à nouveau pour transcrire.",
+      "micWorking": "Transcription de ce que vous avez dit…",
+      "micFailed": "Cet enregistrement n'a pas pu être transcrit. Réessayez.",
+      "micUnavailable": "La transcription n'est pas configurée sur ce serveur."
     }
   },
   "loadStatus": {

@@ -13,16 +13,17 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { getTts, TtsError } from "@/app/_lib/tts";
+import { TTS_MAX_CHARS } from "@/packages/voice-tts/src/validate";
 import { speakCached, ttsCacheLookup } from "@/app/_lib/tts-cache";
 import { ttsUsageRow } from "@/app/_lib/tts-prices";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
-/** The text ceiling is 1200 chars; 8 KB leaves room for the voice id, the
- *  language and generous UTF-8 without reading an unbounded body pre-throttle. */
+/** TTS_MAX_CHARS of text; 8 KB leaves room for the voice id, the language and
+ *  generous UTF-8 without reading an unbounded body pre-throttle. */
 const MAX_TTS_BODY_BYTES = 8 * 1024;
 
-type TtsBody = { text?: unknown; language?: unknown; provider?: unknown; voiceId?: unknown; speed?: unknown };
+type TtsBody = { text?: unknown; language?: unknown; provider?: unknown; voiceId?: unknown; speed?: unknown; format?: unknown };
 
 // The engine's typed code -> the status that tells the caller what to do next.
 // A LOOKUP rather than a ternary chain over the union: the package owns that
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
   if (denied) return denied;
   // The body is read BEFORE the throttle, and bounded on the way in: the pick
   // below needs it, and a caller who cannot even be over the limit yet is worth
-  // at most 8 KB of reading (the text ceiling is 1200 chars).
+  // at most 8 KB of reading (the text ceiling is TTS_MAX_CHARS).
   const body = await readJsonWithLimit<TtsBody | null>(request, MAX_TTS_BODY_BYTES, null);
   if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_TTS_BODY_BYTES });
   const req = body
@@ -76,8 +77,26 @@ export async function POST(request: Request) {
         language: typeof body.language === "string" ? body.language : null,
         voiceId: typeof body.voiceId === "string" ? body.voiceId : null,
         speed: typeof body.speed === "number" ? body.speed : null,
+        // FORMAT RIDES THE WIRE. It never did, so `validateRequest`'s chat
+        // branch was unreachable over HTTP (only an in-process caller could
+        // reach it) and the cache key's format slot was always the same empty
+        // value — two requests for the same markdown reply, one asking for the
+        // speech normalizer and one not, shared a key and therefore shared
+        // whichever clip landed first.
+        format: body.format === "chat" ? ("chat" as const) : ("plain" as const),
       }
     : null;
+  // THE CEILING IS CHECKED BEFORE THE HASH. The package's validation door has
+  // always enforced it, but only after the whole body was parsed AND sha256'd
+  // into a cache key, so an over-long text paid for a hash it could never use.
+  // The constant is IMPORTED, never re-typed: a second copy of the number here
+  // drifts away from the door that actually enforces it. This refusal escapes
+  // the limiter for the same reason a cache hit does — it costs a bounded 8 KB
+  // read and a length compare, no hash, no engine, and `requireOperator` is
+  // already in front of it.
+  if (req && req.text.length > TTS_MAX_CHARS) {
+    return jsonRefusal("TTS_TEXT_TOO_LONG", TTS_ERROR_STATUS.invalid_text, { maxChars: TTS_MAX_CHARS });
+  }
   // A REPLAY IS NOT A SYNTHESIS, and the limiter guards synthesis. A cloud call
   // costs money and a local call spawns a sidecar; handing back bytes this
   // process already holds costs neither, so a hit answers UNCHARGED. Charging it
@@ -144,6 +163,11 @@ export async function POST(request: Request) {
       // answers through jsonRefusal with its own code — and takes its status
       // from the same lookup as every other engine code, so 503 is written once.
       if (err.code === "unavailable") return jsonRefusal("TTS_UNAVAILABLE", TTS_ERROR_STATUS.unavailable);
+      // "That voice cannot be used" is a DECISION too, and its next move is not
+      // the one TTS_FAILED describes: a caller told to "try again" retries the
+      // same unusable voice id forever. Answered by name so the surface can say
+      // "pick another voice" instead.
+      if (err.code === "invalid_voice") return jsonRefusal("TTS_VOICE_INVALID", TTS_ERROR_STATUS.invalid_voice);
       return safeJsonError(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS[err.code] ?? 502);
     }
     return safeJsonError(err, "api:tts", "TTS_FAILED");

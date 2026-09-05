@@ -7,6 +7,8 @@
 // computed was dropped on the floor, so every surface had nothing to localize
 // with and printed the route's English.
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { TtsRequestError, ttsErrorFrom } from "./useTts.ts";
 
@@ -126,4 +128,19 @@ test("stopping the utterance during the wait aborts it instead of resuming", asy
     (e: Error) => e.name === "AbortError",
   );
   assert.equal(s.calls.length, 1, "the generation was stopped, so no second request is made");
+});
+
+// What `fetchChunk` puts on the wire and what it reads back off it. A SOURCE
+// guard: the request lives inside the hook, which needs a DOM, and the two
+// facts worth pinning are not behavioural branches but the presence of a field
+// nothing was sending and a header nothing was reading.
+test("the request carries format, and the answer's wrong-language header is kept", () => {
+  const src = readFileSync(fileURLToPath(new URL("./useTts.ts", import.meta.url)), "utf-8");
+  // `format` used to stay in the browser, so the host's validation door only
+  // ever saw "plain" and every request shared one format slot in the cache key.
+  assert.match(src, /format: args\.format \?\? "plain",/);
+  // The clip played in the wrong language and the host said so; a header nothing
+  // reads is a header that does not exist.
+  assert.match(src, /unsupportedLanguage: res\.headers\.get\("x-tts-unsupported-language"\) \|\| null,/);
+  assert.match(src, /unsupportedLanguage: chunk\.unsupportedLanguage,/, "and it reaches `served`, which is what a surface renders");
 });

@@ -1769,7 +1769,9 @@
     "EDGE_SECRET_UNREADABLE": "Tato instalace nedokáže přečíst uložený klíč edge. Zadejte jej znovu, nebo obnovte klíč, kterým byl zašifrován.",
     "SIM_RUN_NOT_OWNER": "Tato řízená ukázka patří jiné kartě. Počkejte, až skončí, nebo ji zastavte tam.",
     "simRunActiveSeconds": "Řízená ukázka tu už běží. Vynulovat půjde přibližně za {seconds} sekund, nebo běh zastavte na kartě, která ho spustila.",
-    "simRunNotOwnerSeconds": "Tato řízená ukázka patří jiné kartě. Vynulovat půjde přibližně za {seconds} sekund, nebo ji zastavte tam."
+    "simRunNotOwnerSeconds": "Tato řízená ukázka patří jiné kartě. Vynulovat půjde přibližně za {seconds} sekund, nebo ji zastavte tam.",
+    "TTS_VOICE_INVALID": "Tento hlas zde nelze použít. Vyberte jiný hlas.",
+    "TTS_TEXT_TOO_LONG": "Tento text je příliš dlouhý na jedno přečtení. Rozdělte ho na kratší části."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -10103,7 +10105,8 @@
       "stop": "Zastavit čtení",
       "resume": "Přehrát",
       "failed": "Tohle se nepodařilo přečíst nahlas.",
-      "waiting": "Čeká se na přehrání…"
+      "waiting": "Čeká se na přehrání…",
+      "wrongLanguage": "Tento jazyk neumí žádný nainstalovaný hlas, text byl proto přečten s jiným přízvukem."
     },
     "action": {
       "runAnalysis": "Znovu spustit AI screening pro: {candidate}",
@@ -10153,13 +10156,18 @@
       "close": "Opustit hlasový režim",
       "empty": "Zeptejte se jí níže. Odpověď přistane tady a můžete si ji pustit.",
       "placeholder": "Zeptejte se Candi",
-      "mic": "Mluvení na ni přijde s relay",
+      "mic": "Diktovat Candi",
       "older": "Starší odpověď",
       "newer": "Novější odpověď",
       "position": "{index} z {total}",
       "details": "Zobrazit detaily",
       "detailsHide": "Skrýt detaily",
-      "notReady": "Zatím nepřipojeno. Připojte se znovu z pruhu v horní části obrazovky."
+      "notReady": "Zatím nepřipojeno. Připojte se znovu z pruhu v horní části obrazovky.",
+      "micStop": "Zastavit a přepsat",
+      "micRecording": "Nahrávám. Dalším stisknutím přepíšete.",
+      "micWorking": "Přepisuji, co jste řekli…",
+      "micFailed": "Tuto nahrávku se nepodařilo přepsat. Zkuste to znovu.",
+      "micUnavailable": "Přepis řeči není na tomto serveru nastaven."
     }
   },
   "loadStatus": {

@@ -74,6 +74,13 @@ export type CompanionSpeech = {
    *  so in the reader's language" — the route used to answer the provider's own
    *  sentence and the Play button's tooltip printed an env var name. */
   errorCode: string | null;
+  /** The language that was asked for and that no installed engine declares, or
+   *  null. The clip PLAYED — silence is worse than an accent — so nothing here
+   *  is a failure; it is the one fact the surface owes the listener about why a
+   *  Czech answer came back in an English accent. Forwarded rather than exposing
+   *  the whole `served` record: this hook hands out meanings, not the package's
+   *  transport shape. */
+  unsupportedLanguage: string | null;
   /** The provider roster, for a surface that wants to show or choose one. NOT
    *  called by this hook — see the header. */
   refreshProviders: () => Promise<void>;
@@ -143,6 +150,7 @@ export function useCompanionSpeech(): CompanionSpeech {
     playback,
     error: tts.error,
     errorCode: tts.errorCode,
+    unsupportedLanguage: tts.served?.unsupportedLanguage ?? null,
     refreshProviders: tts.refreshProviders,
   };
 }

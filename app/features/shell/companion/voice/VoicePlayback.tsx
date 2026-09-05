@@ -59,12 +59,18 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
   // point: the utterance used to truncate here, and a control that goes quiet
   // for two seconds with no word is indistinguishable from one that broke.
   const waiting = active && speech.playback === "waiting";
+  // The clip is in the WRONG LANGUAGE and it played anyway: no installed engine
+  // declares the one that was asked for (Kokoro speaks no cs/de), so a Czech
+  // answer comes back in an English accent. Serving it is right — silence is
+  // worse — but saying nothing turns a known limitation into a bug the listener
+  // has to guess at. Shown only while this turn owns the utterance.
+  const wrongLanguage = active && !failed && Boolean(speech.unsupportedLanguage);
   if (!speakable || !hasVoice) return null;
   return {
     active,
     blocked,
     failed,
-    note: waiting ? t("voice.waiting") : null,
+    note: waiting ? t("voice.waiting") : wrongLanguage ? t("voice.wrongLanguage") : null,
     reason: failed ? resolveError({ code: speech.errorCode }, t("voice.failed")) : null,
     label: blocked ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
     press: () => {

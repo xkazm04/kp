@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { POST } from "./route.ts";
+import { TTS_MAX_CHARS } from "@/packages/voice-tts/src/validate";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -111,4 +112,47 @@ test("a replay is answered before the throttle is charged, and everything else p
   // The pre-throttle body read is BOUNDED — an unbounded read in front of a
   // limiter is a door of its own.
   assert.match(src, /readJsonWithLimit<TtsBody \| null>\(request, MAX_TTS_BODY_BYTES, null\)/);
+});
+
+// the-wire-carries-voice-validity-and-format.
+//
+// Three defects, one wire: "pick another voice" and "try again" both answered
+// TTS_FAILED so the surface could not tell them apart; `format` never left the
+// browser, so the validation door's chat branch was unreachable over HTTP and
+// the cache key's format slot was always empty; and the 1200-char bound fired
+// only after the whole body had been parsed AND hashed into a cache key.
+test("text over the package's own ceiling is refused before anything is hashed", async () => {
+  const long = "a".repeat(TTS_MAX_CHARS + 1);
+  const res = await POST(post("10.0.0.3", JSON.stringify({ text: long })));
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code?: string; maxChars?: number };
+  assert.equal(body.code, "TTS_TEXT_TOO_LONG");
+  assert.equal(body.maxChars, TTS_MAX_CHARS, "the reader's own sentence needs the number");
+  // The guard imports the ceiling; a second copy of 1200 in this route is a
+  // number that drifts away from the door that actually enforces it.
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8");
+  assert.match(src, /import \{ TTS_MAX_CHARS \}/);
+  assert.doesNotMatch(src, /1200/);
+  const guardAt = src.indexOf("TTS_TEXT_TOO_LONG");
+  assert.ok(guardAt > 0 && guardAt < src.indexOf("ttsCacheLookup("), "the guard runs before the hash");
+});
+
+test("an unusable voice is its own refusal, not the generic engine failure", () => {
+  // A SOURCE guard: reaching the invalid_voice branch means reaching an engine,
+  // which this keyless suite may not do. The point is that it does NOT fall
+  // through to TTS_FAILED, because "pick another voice" and "try again" are
+  // different next moves and read identically today.
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8");
+  assert.match(
+    src,
+    /err\.code === "invalid_voice"\) return jsonRefusal\("TTS_VOICE_INVALID", TTS_ERROR_STATUS\.invalid_voice\)/,
+  );
+});
+
+test("format rides the body into the validation door and the cache key", () => {
+  const src = readFileSync(path.join(here, "route.ts"), "utf-8");
+  assert.match(src, /format: body\.format === "chat" \? \("chat" as const\) : \("plain" as const\)/, "the route reads format off the wire");
+  // `req` is what BOTH the cache key and the engine call receive, so reading it
+  // once there is what puts format in the key and in front of speechReady.
+  assert.match(src, /ttsCacheLookup\(req,/);
 });

@@ -169,6 +169,11 @@ export type TtsServed = {
    *  fallback provider ignores the other engine's voice ids entirely. Null when
    *  the host does not send the header. */
   voiceId?: string | null;
+  /** The language that was ASKED for and that no ready engine declares
+   *  (`X-Tts-Unsupported-Language`), or null when the language was declared.
+   *  The clip still played — silence is worse than an accent — but it is in the
+   *  wrong one, and a surface that says nothing is a surface that hides it. */
+  unsupportedLanguage?: string | null;
 };
 
 export type UseTts = {
@@ -181,10 +186,17 @@ export type UseTts = {
   /** Chunks spoken so far / total for the current utterance. */
   progress: { spoken: number; total: number } | null;
   error: string | null;
-  /** The host route's machine code for that same failure, when it sent one
-   *  (`TTS_FAILED`, `TOO_MANY_REQUESTS`, `VOICE_REQUEST_INVALID`). Null for a
-   *  transport error, a playback fault, or a host that answers no code. A
-   *  localizing surface resolves THIS and keeps `error` for its log. */
+  /** The host route's machine code for that same failure, when it sent one.
+   *  What kp's `/api/tts` actually answers, and every one of them is a different
+   *  next move: `TTS_VOICE_INVALID` (400, pick another voice),
+   *  `TTS_TEXT_TOO_LONG` (400, send shorter pieces, with `maxChars` beside it),
+   *  `VOICE_REQUEST_INVALID` (400, the body was not JSON), `PAYLOAD_TOO_LARGE`
+   *  (413), `TOO_MANY_REQUESTS` (429, ours or the engine's — already retried
+   *  here when a `Retry-After` said how long), `TTS_UNAVAILABLE` (503, nothing
+   *  is configured to speak, so retrying cannot help) and `TTS_FAILED` (502 /
+   *  504, the engine broke or timed out). Null for a transport error, a playback
+   *  fault, or a host that answers no code. A localizing surface resolves THIS
+   *  and keeps `error` for its log. */
   errorCode: string | null;
   speak: (args: SpeakArgs) => Promise<void>;
   /** Resume a playback the browser blocked (must be called from a user gesture). */
@@ -192,7 +204,14 @@ export type UseTts = {
   stop: () => void;
 };
 
-type Chunk = { url: string; provider: TtsProviderId; fallbackFrom: TtsProviderId | null; elapsedMs: number; voiceId: string | null };
+type Chunk = {
+  url: string;
+  provider: TtsProviderId;
+  fallbackFrom: TtsProviderId | null;
+  elapsedMs: number;
+  voiceId: string | null;
+  unsupportedLanguage: string | null;
+};
 
 export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }: UseTtsOptions): UseTts {
   const f = useMemo(() => fetcher ?? ((...a: Parameters<typeof fetch>) => fetch(...a)), [fetcher]);
@@ -254,12 +273,20 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
           f(endpoint, {
             method: "POST",
             headers: { "content-type": "application/json" },
+            // FORMAT TRAVELS. It used to stay in the browser, so the host's
+            // validation door only ever saw "plain" and the cache key's format
+            // slot was always the same empty value — two asks for the same
+            // markdown reply, one wanting the speech normalizer and one not,
+            // shared a key and therefore shared whichever clip landed first.
+            // `speechReady` is idempotent, so a chunk this hook already
+            // normalized is unchanged by the door running it again.
             body: JSON.stringify({
               text,
               language: args.language,
               provider: args.provider,
               voiceId: args.voiceId,
               speed: args.speed,
+              format: args.format ?? "plain",
             }),
             signal,
           }),
@@ -286,6 +313,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
         fallbackFrom: (res.headers.get("x-tts-fallback-from") as TtsProviderId | null) || null,
         elapsedMs: Number(res.headers.get("x-tts-elapsed-ms") || 0),
         voiceId: res.headers.get("x-tts-voice") || null,
+        unsupportedLanguage: res.headers.get("x-tts-unsupported-language") || null,
       };
     },
     [endpoint, f],
@@ -338,7 +366,14 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
           const chunk = await pending[i];
           if (gen !== generation.current) return;
           if (i === 0) {
-            setServed({ provider: chunk.provider, fallbackFrom: chunk.fallbackFrom, elapsedMs: chunk.elapsedMs, firstAudioMs: Math.round(performance.now() - started), voiceId: chunk.voiceId });
+            setServed({
+              provider: chunk.provider,
+              fallbackFrom: chunk.fallbackFrom,
+              elapsedMs: chunk.elapsedMs,
+              firstAudioMs: Math.round(performance.now() - started),
+              voiceId: chunk.voiceId,
+              unsupportedLanguage: chunk.unsupportedLanguage,
+            });
           }
           const result = await playUrl(chunk.url, gen);
           if (gen !== generation.current) return;
