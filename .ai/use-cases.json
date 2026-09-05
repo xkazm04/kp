@@ -1,0 +1,278 @@
+{
+  "schema": "lighttrack-use-cases/1",
+  "project": "kp",
+  "generated_at": "2026-09-05",
+  "note": "Declared LLM call sites, transcribed from the existing use-case catalog in pipeline/jobfit/llm/ (capabilities.py USE_CASE_REQUIREMENTS/USE_CASE_MAX_TOKENS, registry.py resolve_provider). Keys match the codes resolve_provider routes on and the use_case: tag already emitted to LightTrack (monitor.py). Non-conformant entries (direct-to-vendor or off-registry paths) are included and flagged in their descriptions rather than omitted.",
+  "use_cases": [
+    {
+      "key": "match_reasoning",
+      "name": "Candidate-job match rationale",
+      "description": "Generates the verdict sentence, strengths, gaps and interview probes explaining a candidate's score against a job; base 2048-token cap by deliberate decision (11 short strings at the structural max, ~600 output tokens).",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/match_reasoning.py via reasoning_cli.py (also reused by automation.py under the automation use case)",
+      "expected_models": ["gemini-3.6-flash"],
+      "owner": "kp"
+    },
+    {
+      "key": "automation",
+      "name": "HR automation letters and prep (umbrella)",
+      "description": "Umbrella use case for automation_cli.py's screen/outreach/rejection/prep/rematch/offer sub-commands (letters, prep packs, screening notes); USE_CASE_MAX_TOKENS overrides the base cap to 4096 because letters/prep from a verbose model run past 2048.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/automation.py via automation_cli.py",
+      "owner": "kp"
+    },
+    {
+      "key": "campaign_pack",
+      "name": "Outreach campaign pack",
+      "description": "Generates a multi-variant outreach campaign (ad copy/video scripts) for a role; 8192-token cap (USE_CASE_MAX_TOKENS) because a full pack of ~8 variants truncates the base 2048 cap.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/campaign_cli.py",
+      "expected_models": ["deepseek-v4-flash"],
+      "owner": "kp"
+    },
+    {
+      "key": "jd_ingest",
+      "name": "Job description ingestion",
+      "description": "Parses a pasted job posting into structured requirements plus a re-emitted description; 6144-token cap (USE_CASE_MAX_TOKENS) since long ads truncate at the base cap and drop the requirements list.",
+      "kind": "extraction",
+      "status": "active",
+      "component": "pipeline/jobfit/jobs_cli.py",
+      "expected_models": ["deepseek-v4-flash"],
+      "owner": "kp"
+    },
+    {
+      "key": "profile_draft",
+      "name": "Candidate profile draft from notes",
+      "description": "Re-emits the full DRAFT_SCHEMA (skill claims, experiences) from recruiter notes into a structured candidate draft; 4096-token cap (USE_CASE_MAX_TOKENS) to match the direct-Gemini path's own default rather than silently halving it.",
+      "kind": "extraction",
+      "status": "active",
+      "component": "pipeline/jobfit/profile_draft_cli.py",
+      "owner": "kp"
+    },
+    {
+      "key": "group_compare",
+      "name": "Candidate group comparison",
+      "description": "Compares a shortlisted group of candidates against each other for a role and produces a ranked rationale; 4096-token cap (USE_CASE_MAX_TOKENS).",
+      "kind": "judge",
+      "status": "active",
+      "component": "pipeline/jobfit/group_compare_cli.py",
+      "expected_models": ["gemini-3.6-flash"],
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_analyze",
+      "name": "Dev-case need analysis",
+      "description": "Analyzes a hiring need plus repo snapshot(s) into a structured NeedAnalysis for dev-extension case design; 6144-token cap (USE_CASE_MAX_TOKENS).",
+      "kind": "extraction",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (analyze-need) + devcase/analyze.py",
+      "expected_models": ["claude-sonnet-5"],
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_role_design",
+      "name": "Dev-case role design",
+      "description": "Designs the role-facing artifacts of a dev-extension case (the role step of design-artifacts); 6144-token cap (USE_CASE_MAX_TOKENS) because a full case design payload truncates the base cap.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (design-artifacts) + devcase/design.py",
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_case_design",
+      "name": "Dev-case artifact design",
+      "description": "Designs the full dev-extension case (the case step of design-artifacts, and the calibration bench's case-design seat); 8192-token cap (USE_CASE_MAX_TOKENS), the largest of the devcase seats.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (design-artifacts) + devcase/calibrate.py",
+      "expected_models": ["claude-opus-5"],
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_reflect",
+      "name": "Dev-case commit reflection",
+      "description": "Reflects on a candidate's commit history against probes during a dev-extension case; on the base 2048-token cap (no USE_CASE_MAX_TOKENS row).",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (reflect-commits) + devcase/reflect.py",
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_tooling",
+      "name": "Dev-case tooling-fluency signal",
+      "description": "CATALOG ENTRY WITH NO CALL SITE: declared in capabilities.py USE_CASE_REQUIREMENTS and app/_lib/llm-config.ts (Models tab can pin it) but no resolve_provider(\"devcase_tooling\") call was found anywhere in pipeline/ — the tooling rubric dimension in devcase/models.py is scored without a dedicated LLM seat today.",
+      "kind": "judge",
+      "status": "planned",
+      "component": "pipeline/jobfit/llm/capabilities.py + app/_lib/llm-config.ts (no resolve_provider call site)",
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_evaluate",
+      "name": "Dev-case submission evaluation",
+      "description": "Evaluates a candidate's dev-extension case submission (also rides the in-session chat under session-chat, cheap/frequent); on the base 2048-token cap (no USE_CASE_MAX_TOKENS row).",
+      "kind": "judge",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (evaluate-submission, session-chat) + devcase/evaluate.py",
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_transfer",
+      "name": "Dev-case role-transfer judgement",
+      "description": "CATALOG ENTRY WITH NO CALL SITE: declared in capabilities.py USE_CASE_REQUIREMENTS and app/_lib/llm-config.ts (Models tab can pin it) but no resolve_provider(\"devcase_transfer\") call was found anywhere in pipeline/ — the transfer rubric dimension in devcase/models.py is scored without a dedicated LLM seat today.",
+      "kind": "judge",
+      "status": "planned",
+      "component": "pipeline/jobfit/llm/capabilities.py + app/_lib/llm-config.ts (no resolve_provider call site)",
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_judge",
+      "name": "Dev-case fairness/quality judge",
+      "description": "Independent judge seat that grades artifacts other devcase seats produced (fairness/quality gate); deliberately defaulted to a distinct model from the generator so judge_independence doesn't self-certify; small verdicts, on the base cap by decision.",
+      "kind": "judge",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/llm_judge.py",
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_interview_scenario",
+      "name": "Dev-case interview scenario generation",
+      "description": "Generates the interview-scenario artifact (follow-up scenario for a dev-extension case); 6144-token cap (USE_CASE_MAX_TOKENS).",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (interview-scenario)",
+      "expected_models": ["claude-opus-5"],
+      "owner": "kp"
+    },
+    {
+      "key": "devcase_seed",
+      "name": "Dev-case seed materialization",
+      "description": "Materializes a frozen case seed (incl. internal canaries) and serves the one-shot baseline-solve; on the base 2048-token cap (no USE_CASE_MAX_TOKENS row).",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/devcase/devcase_cli.py (materialize-seed, baseline-solve)",
+      "owner": "kp"
+    },
+    {
+      "key": "weight_proposal",
+      "name": "Scoring-weight proposal per candidate",
+      "description": "Proposes a scoring-weight adjustment plus rationale for each candidate in a pool, one call covering the whole pool; 16384-token cap (USE_CASE_MAX_TOKENS) — the largest budget in the catalog, sized after an 8192 cap truncated a 60+ candidate run.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/recruiter_cli.py",
+      "expected_models": ["claude-opus-5"],
+      "owner": "kp"
+    },
+    {
+      "key": "interview_scorecard",
+      "name": "Interview scorecard generation",
+      "description": "Turns interview notes into a structured scorecard (split out of the automation umbrella so its cost/telemetry and routing aren't mis-attributed); 6144-token cap (USE_CASE_MAX_TOKENS).",
+      "kind": "judge",
+      "status": "active",
+      "component": "pipeline/jobfit/automation_cli.py (scorecard command)",
+      "expected_models": ["claude-sonnet-5"],
+      "owner": "kp"
+    },
+    {
+      "key": "agent_fit",
+      "name": "Job-to-agent-fit transform",
+      "description": "Transforms a job posting into an AgentFitSpec, judging per-item coverage/rationale and drafting a ready-to-use system prompt; 4096-token cap (USE_CASE_MAX_TOKENS) sized for up to 12 coverage rows plus a 4000-char prompt draft.",
+      "kind": "judge",
+      "status": "active",
+      "component": "pipeline/jobfit/agentfit_cli.py + pipeline/jobfit/intake_cli.py",
+      "owner": "kp"
+    },
+    {
+      "key": "repo_scan",
+      "name": "Repository dossier extraction",
+      "description": "Reads a repository into a structured RepoDossier (up to 12 risk areas, 12 hot-spot rationales, 6 objectives); 6144-token cap (USE_CASE_MAX_TOKENS). The claude_cli provider's in-repo reading is a quality superpower here, not a gated capability.",
+      "kind": "extraction",
+      "status": "active",
+      "component": "pipeline/jobfit/repo_scan_cli.py",
+      "owner": "kp"
+    },
+    {
+      "key": "role_intake",
+      "name": "Role-intake dialog with hiring requestor",
+      "description": "One JSON turn per exchange in a dialog that builds up a RoleBrief (reply + updated brief), and also re-emits the whole brief in one shot from a finished voice-intake transcript; 6144-token cap (USE_CASE_MAX_TOKENS) because the brief is largest on the last turns.",
+      "kind": "agent",
+      "status": "active",
+      "component": "pipeline/jobfit/intake_cli.py + pipeline/jobfit/eval/intake_eval.py",
+      "owner": "kp"
+    },
+    {
+      "key": "role_intake_voice",
+      "name": "Role-intake fast voice thread",
+      "description": "The FAST spoken-utterance thread of role intake, coerced to ~700 chars / ~200 tokens with a 30s timeout so a slow answer falls to the scripted thread rather than stall a live call; no JSON contract, on the base cap by decision.",
+      "kind": "agent",
+      "status": "active",
+      "component": "pipeline/jobfit/intake_cli.py (run_voice_turn)",
+      "owner": "kp"
+    },
+    {
+      "key": "assistant",
+      "name": "Operator companion chat",
+      "description": "The operator companion's one-plain-text-reply-per-turn chat, carrying a constitution/identity/recalled-episodes prompt; 4096-token cap (USE_CASE_MAX_TOKENS) so a reasoning-heavy model doesn't truncate mid-sentence.",
+      "kind": "agent",
+      "status": "active",
+      "component": "pipeline/jobfit/companion_cli.py",
+      "owner": "kp"
+    },
+    {
+      "key": "github_analysis",
+      "name": "GitHub repo evidence code review",
+      "description": "NON-CONFORMANT: a deep code review of a candidate's top-ranked public repos against a job description, calling @google/genai directly from TypeScript rather than through the Python resolve_provider registry; metered and BYOM-aware but a known, deliberate bypass (test_byom_coverage.py excludes it explicitly).",
+      "kind": "judge",
+      "status": "active",
+      "component": "app/_lib/github/code-review.ts",
+      "owner": "kp"
+    },
+    {
+      "key": "cv_analysis",
+      "name": "CV/profile document analysis",
+      "description": "NON-CONFORMANT (partially): a single multimodal call combining profile extraction, scoring, salary range and grounded market context from an uploaded CV; routes through resolve_provider(\"cv_analysis\") but the 16000-token output cap is passed explicitly at the gemini.py call site (GeminiProvider.complete_document ignores USE_CASE_MAX_TOKENS/self.max_tokens for this verb) rather than living in the shared cap map.",
+      "kind": "extraction",
+      "status": "active",
+      "component": "pipeline/jobfit/gemini.py (analyze_profile_with_gemini) + pipeline/jobfit/pipeline.py",
+      "owner": "kp"
+    },
+    {
+      "key": "profile_extract",
+      "name": "Grounded profile extraction (direct Gemini)",
+      "description": "NON-CONFORMANT: calls gemini.grounded_answer directly rather than through a registry adapter, labeling the usage-ledger record itself; no capability/max-tokens row in capabilities.py governs it.",
+      "kind": "extraction",
+      "status": "active",
+      "component": "pipeline/jobfit/gemini.py (grounded_answer)",
+      "owner": "kp"
+    },
+    {
+      "key": "grounded_salary",
+      "name": "Grounded salary/market estimate",
+      "description": "NON-CONFORMANT + CALL SITE NOT IN CATALOG: market_salary_cli.py calls gemini.grounded_answer(use_case=\"grounded_salary\") directly, bypassing the registry the same way cv_analysis/profile_extract do; unlike those two, this label does not appear anywhere in capabilities.py's USE_CASE_REQUIREMENTS at all, so it is a real call site with no catalog entry.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/market_salary_cli.py",
+      "owner": "kp"
+    },
+    {
+      "key": "voice.interview.openai",
+      "name": "Realtime voice interview (OpenAI)",
+      "description": "NON-CONFORMANT BY DESIGN: a live realtime voice interview session over OpenAI's Realtime API, deliberately outside the provider/registry layer, priced per-minute (app/_lib/tts-prices.ts, voice/minute-prices.ts) rather than per-token, and not emitted to LightTrack.",
+      "kind": "other",
+      "status": "active",
+      "component": "app/_components/voice/transport/openai.ts + app/api/interview/connect route.ts",
+      "owner": "kp"
+    },
+    {
+      "key": "voice.interview.elevenlabs",
+      "name": "Realtime voice interview (ElevenLabs)",
+      "description": "NON-CONFORMANT BY DESIGN: a live realtime voice interview session over ElevenLabs, deliberately outside the provider/registry layer, priced per-minute (app/_lib/tts-prices.ts, voice/minute-prices.ts) rather than per-token, and not emitted to LightTrack.",
+      "kind": "other",
+      "status": "active",
+      "component": "app/_components/voice/transport/elevenlabs.ts + app/_lib/voice/elevenlabs.ts",
+      "owner": "kp"
+    }
+  ]
+}
