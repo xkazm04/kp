@@ -114,6 +114,35 @@ rejects. Rate conversion is linear with no anti-alias filter — a deliberate ca
 into a 16 kHz mel front end, and one function to revisit if an engine proves otherwise.
 `encodeWavFromBlob` itself is unverified outside a real browser.
 
+### 4c. The React binding, and the first consumer
+
+`packages/voice-stt/src/react/useStt.ts` is the sibling of `voice-tts/src/react/useTts.ts`
+and deliberately the same shape: a headless hook against whatever route the host mounts the
+package behind, carrying the host's machine CODE beside the English sentence
+(`SttRequestError` / `sttErrorFrom`, twins of the synthesis pair) so a localizing surface
+resolves the code and logs the sentence.
+
+The reason it exists is that without it the FIRST consumer has to invent four things that
+are not about its feature: the permission dance, `MediaRecorder`'s container negotiation,
+the encode above, and the refusal mapping. The reason its state machine (`sttPhaseNext`) is
+a pure exported table is that the transitions are where a recording gets lost — a second
+press mid-upload, a `MediaRecorder.onstop` arriving after the encode already threw, a 499
+(this client's own abort, which the route answers with an empty body) painted red as an
+engine fault. A table can be proven; a `MediaRecorder` cannot.
+
+Two behaviours of the hook are policy rather than plumbing:
+
+- **`unavailable` latches.** `STT_UNAVAILABLE` is a server-configuration fact, so the hook
+  remembers it and a surface stops offering the control instead of recording into the same
+  503 again. Only a probe finding a ready allowed engine clears it. Every other failure
+  leaves the control live.
+- **A capture over `maxSeconds` is stopped and TRANSCRIBED, not discarded** — throwing away
+  a clip for being long throws away the words somebody just said.
+
+kp's first consumer is the companion mic (`app/features/shell/companion/CompanionInputPanel.tsx`),
+which dictates into the composer rather than sending: see
+[docs/features/companion/README.md](../features/companion/README.md).
+
 ### 5. The scratch dir is a privacy control, not a convenience
 
 `withScratchDir` writes the clip to the OS temp folder for the local engine and removes it in
@@ -320,9 +349,17 @@ One package, two shapes, no code fork — the allowed set does the work:
   transcription today comes from the conversation provider's own session
   (`app/_lib/voice/`), not from this package. A socket-shaped adapter is the next seam, and
   it must carry its own language row (see the Czech constraint above).
-- **No consumer in the product yet.** The package, the binding and the route are in; no kp
-  surface calls `/api/stt`. The intended first consumers are post-hoc transcription of a
-  completed interview session and the GDPR redaction pass over a stored transcript.
+- **One consumer, and it is the smallest one.** The companion mic dictates into a one-line
+  composer (§4c). The two consumers this package was actually built for — post-hoc
+  transcription of a completed interview session, and the GDPR redaction pass over a stored
+  transcript — still do not call `/api/stt`, and neither uses the browser capture path at
+  all (their audio is already on the server).
+- **The capture path is unverified in a real browser.** `encodeWavFromBlob`,
+  `getUserMedia` and `MediaRecorder` have no coverage in the node:test runner; what is
+  pinned is the pure half (the resampler, the WAV writer, the phase table, the error
+  mapping) plus a source guard on the wiring. The first live check to run is the one that
+  matters most: that a clip recorded by Chrome and encoded here is accepted by a real
+  `whisper-cli` rather than refused by its own header check.
 - **No onboarding step.** The install/BYO-key choice is documented in
   `.claude/onboarding/config.md` (the CLI skill) but the product's first-run wizard
   (`app/features/shell/setup/`) still has no engine or key step for any of the three voice

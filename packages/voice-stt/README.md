@@ -17,6 +17,7 @@ src/
   registry.ts       createStt(): dispatch door, capability gate, preference resolution, visible fallback
   node/             binary ladder · subprocess plumbing · a header-only WAV reader (no decoder, on purpose)
   browser/          wav-encode.ts: the host-side capture conversion (mono → 16 kHz → PCM16 WAV)
+  react/            useStt.ts: the headless browser binding (permission → record → encode → POST)
   providers/        assemblyai (cloud async) · whisper-cpp (on-device) · fake (tests)
 ```
 
@@ -104,6 +105,37 @@ policy. The shape:
   is the mistake to avoid.
 
 Reference realization: kp's `app/api/stt/route.ts` + `app/_lib/stt.ts`.
+
+## Bind it to a browser (`@kazm/voice-stt/react`)
+
+`useStt` is the sibling of `@kazm/voice-tts`'s `useTts` and the same shape: headless, aimed
+at whatever route you mounted above, and carrying the route's machine CODE beside the English
+sentence so a localizing surface resolves one and logs the other.
+
+```tsx
+const stt = useStt({ endpoint: "/api/stt", language: locale, onTranscript: (text) => append(text) });
+<button onClick={stt.toggle} aria-pressed={stt.phase === "recording"} disabled={stt.busy || stt.unavailable} />
+```
+
+It owns the permission request, `MediaRecorder`'s container negotiation, the encode above,
+the upload and the abort. Three things it does that are policy rather than plumbing:
+
+1. **`unavailable` latches.** `STT_UNAVAILABLE` is a server-configuration fact, so the hook
+   remembers it and the surface stops offering the control rather than recording into the
+   same 503 again; a probe that finds a ready allowed engine clears it. Every other failure
+   (a denied microphone, a throttle, an engine fault) leaves the control live.
+2. **A capture over `maxSeconds` is stopped and TRANSCRIBED**, never discarded — throwing a
+   clip away for being long throws away the words somebody just said.
+3. **A 499 is not a fault.** `sttErrorFrom` maps the route's answer to this client's own
+   abort as code `ABORTED`, and the hook goes quiet instead of painting red.
+
+The state machine (`sttPhaseNext`) and the error mapping are exported and pure, which is
+what `react/useStt.test.ts` pins: the happy path, a denied permission landing in `error`
+rather than silently back at `idle`, `failed`/`cancel` answerable from every phase, a LATE
+`stop` (MediaRecorder's `onstop` after the encode already threw) not re-entering the upload
+path, a second press mid-capture changing nothing, and every phase/event pair landing on a
+declared phase. The hook body — `getUserMedia`, `MediaRecorder`, `AudioContext` — needs a
+real browser and is not covered.
 
 ## Audio in, and what this package refuses to do
 

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Mic } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUp, Mic, Square } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useStt } from "@/packages/voice-stt/src/react/useStt";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useOptionalCompanionDock } from "./CompanionDockProvider";
 
 /*
@@ -42,16 +44,49 @@ import { useOptionalCompanionDock } from "./CompanionDockProvider";
  * strip at the top of the screen and the next question is typed here, so a panel
  * that closed itself on send would make every second message a two-click act.
  *
- * THE MIC IS A PLACEHOLDER AND SAYS SO — drawn disabled with a title naming what
- * it is waiting for. A voice mode with no microphone icon at all reads as an
- * oversight; one with a live-looking icon that does nothing is worse. The honest
- * third option is a control that is visibly not ready yet.
+ * THE MIC RECORDS. It was a disabled placeholder for as long as there was
+ * nothing behind it; there is now — `/api/stt` with an on-device-first engine
+ * order, and `@kazm/voice-stt/react` carrying the permission dance, the capture,
+ * the encode to what whisper.cpp reads, and the abort. This panel owns only the
+ * three things that are ITS: where the transcript lands, what the operator sees
+ * while it is working, and how a refusal is said.
+ *
+ * IT DICTATES INTO THE COMPOSER, it does not send. The transcript is appended to
+ * whatever is already typed and the caret stays in the field, so a mis-heard word
+ * is fixed before Candi ever sees it. A mic that sent on release would make every
+ * transcription error a message in the thread.
+ *
+ * ONE CONTROL, TWO MEANINGS (start / stop), mirroring CompanionSpeakButton on the
+ * output side: `aria-pressed` while recording, a stop glyph rather than a second
+ * button, and the busy phases (encoding, uploading) refuse a press instead of
+ * queuing a second capture.
+ *
+ * STT_UNAVAILABLE LATCHES, and nothing else does. A keyless install with no local
+ * model answers 503 with that code, and the operator's fix is a server config
+ * rather than another press — so the control goes quiet and names the reason,
+ * rather than recording into the same refusal every time. The hook clears the
+ * latch when a probe finds a ready engine. Every OTHER failure (a denied
+ * microphone, a throttle, an engine fault) leaves the button live: an operator who
+ * just granted permission is one press from it working. This is the "handle the
+ * 503" half of the choice — no probe on mount, because a GET on every dock open
+ * spends a readdir per model directory on a panel most operators only type into.
  */
 export function CompanionInputPanel() {
   const t = useTranslations("companion");
+  const locale = useLocale();
+  const resolveError = useErrorMessage();
   const dock = useOptionalCompanionDock();
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Appended, never replacing: the operator may have typed half a sentence
+  // before pressing the mic, and a transcript that clobbered it would lose words
+  // the app never had to lose.
+  const acceptTranscript = useCallback((text: string) => {
+    setDraft((current) => (current.trim() ? `${current.trim()} ${text}` : text));
+    inputRef.current?.focus();
+  }, []);
+  const stt = useStt({ endpoint: "/api/stt", language: locale, onTranscript: acceptTranscript });
 
   // The panel mounts when the operator pressed Ask Candi. Focus follows the
   // press: they opened a place to type, so the caret belongs in it. A ref rather
@@ -72,6 +107,21 @@ export function CompanionInputPanel() {
   // thinking about the last question or the thread never booted at all. It says
   // which, and where the way out is.
   const why = !thread.ready ? t("voiceMode.notReady") : null;
+  const recording = stt.phase === "recording";
+  // One line under the row, and only ever one thing in it: what the mic is doing,
+  // or why it stopped. A code the server named is resolved in the reader's
+  // language; a browser-side denial has no code, so the panel's own sentence
+  // stands in rather than the browser's English `NotAllowedError`.
+  const micNote = stt.unavailable
+    ? t("voiceMode.micUnavailable")
+    : stt.phase === "error"
+      ? resolveError({ code: stt.errorCode }, t("voiceMode.micFailed"))
+      : recording
+        ? t("voiceMode.micRecording")
+        : stt.busy
+          ? t("voiceMode.micWorking")
+          : null;
+  const micLabel = recording ? t("voiceMode.micStop") : stt.unavailable ? t("voiceMode.micUnavailable") : t("voiceMode.mic");
 
   async function submit() {
     const message = draft.trim();
@@ -82,44 +132,55 @@ export function CompanionInputPanel() {
   }
 
   return (
-    <div className="flex items-center gap-1.5 rounded-lg border border-stone-200 py-1.5 pl-3 pr-1.5">
-      <input
-        ref={inputRef}
-        type="text"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
-          void submit();
-        }}
-        placeholder={t("voiceMode.placeholder")}
-        aria-label={t("voiceMode.placeholder")}
-        title={why ?? undefined}
-        disabled={busy}
-        // No FIELD recipe: that one carries the rounded-md bordered box, and the
-        // row itself IS the box here. The field inside it must be invisible.
-        className="min-w-0 flex-1 bg-transparent text-base text-ink caret-coral outline-none placeholder:text-steel disabled:opacity-60"
-      />
-      <button
-        type="button"
-        disabled
-        aria-label={t("voiceMode.mic")}
-        title={t("voiceMode.mic")}
-        className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-steel opacity-40"
-      >
-        <Mic size={17} aria-hidden />
-      </button>
-      <button
-        type="button"
-        onClick={() => void submit()}
-        disabled={busy || !draft.trim()}
-        aria-label={t("chat.send")}
-        title={t("chat.send")}
-        className={`${BTN_PRIMARY} h-9 w-9 shrink-0 justify-center rounded-full p-0 dark:rounded-full`}
-      >
-        <ArrowUp size={17} aria-hidden />
-      </button>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5 rounded-lg border border-stone-200 py-1.5 pl-3 pr-1.5">
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            void submit();
+          }}
+          placeholder={t("voiceMode.placeholder")}
+          aria-label={t("voiceMode.placeholder")}
+          title={why ?? undefined}
+          disabled={busy}
+          // No FIELD recipe: that one carries the rounded-md bordered box, and the
+          // row itself IS the box here. The field inside it must be invisible.
+          className="min-w-0 flex-1 bg-transparent text-base text-ink caret-coral outline-none placeholder:text-steel disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={stt.toggle}
+          disabled={stt.busy || stt.unavailable}
+          aria-pressed={recording}
+          aria-label={micLabel}
+          title={micLabel}
+          className={`focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+            recording ? "bg-coral/10 text-coral" : "text-steel hover:text-ink"
+          }`}
+        >
+          {recording ? <Square size={15} aria-hidden /> : <Mic size={17} aria-hidden />}
+        </button>
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy || !draft.trim()}
+          aria-label={t("chat.send")}
+          title={t("chat.send")}
+          className={`${BTN_PRIMARY} h-9 w-9 shrink-0 justify-center rounded-full p-0 dark:rounded-full`}
+        >
+          <ArrowUp size={17} aria-hidden />
+        </button>
+      </div>
+      {micNote ? (
+        <p className="px-1 text-sm text-steel" role="status">
+          {micNote}
+        </p>
+      ) : null}
     </div>
   );
 }
