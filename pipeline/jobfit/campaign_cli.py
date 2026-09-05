@@ -58,8 +58,18 @@ def main(argv: list[str] | None = None) -> int:
             if not ok:
                 provider = None
 
+        # A provider that PASSED the availability gate can still fail mid-flight
+        # (timeout, unparseable JSON, a reply coercion empties). `descent` then stayed
+        # None and the ledger recorded a deterministic serve with no reason at all —
+        # the one descent an operator can act on, unnamed. The engine hands the cause
+        # back, same seam as reasoning_cli's.
+        def note_descent(reason: str) -> None:
+            nonlocal descent
+            descent = reason
+
         result, source = campaign.draft_campaign_pack(
-            job, lang=args.lang, apply_url=args.apply_url, provider=provider
+            job, lang=args.lang, apply_url=args.apply_url, provider=provider,
+            on_fallback=note_descent,
         )
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so

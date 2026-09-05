@@ -224,17 +224,57 @@ class CoerceBoundaryTests(unittest.TestCase):
         pack, _ = draft_campaign_pack(_job(), lang="en", provider=provider)
         self.assertEqual(len(pack["variants"]), VARIANT_MAX)
 
-    def test_junk_payload_falls_back_to_deterministic_content(self):
+    def test_coerced_away_variants_are_not_sold_as_llm_copy(self):
+        """coerce()'s BOTTOM route to the template: the payload had the right shape
+        but every variant was empty, so nothing of the model's survived. This used
+        to answer source "llm" — which campaign-run.ts persists and the jobs tab
+        paints as AI-written copy, i.e. the exact template-for-template mislabel the
+        2026-08-11 bench caught in automation.py."""
+        reasons: list[str] = []
         provider = _FakeProvider(payload={"variants": [{"hook": "", "adCopy": ""}]})
-        pack, source = draft_campaign_pack(_job(), lang="en", apply_url=URL, provider=provider)
-        self.assertEqual(source, "llm")  # the call ran; coerce rebuilt the content
+        pack, source = draft_campaign_pack(
+            _job(), lang="en", apply_url=URL, provider=provider, on_fallback=reasons.append
+        )
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(reasons, [campaign.DESCENT_UNUSABLE_OUTPUT])
         self.assertEqual([v["hookType"] for v in pack["variants"]], ["number", "location", "skills", "problem"])
+
+    def test_wrong_shape_payload_is_not_sold_as_llm_copy(self):
+        """coerce()'s TOP route to the template: `variants` is not a list at all."""
+        reasons: list[str] = []
+        provider = _FakeProvider(payload={"variants": "sorry, I cannot help with that"})
+        pack, source = draft_campaign_pack(
+            _job(), lang="en", apply_url=URL, provider=provider, on_fallback=reasons.append
+        )
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(reasons, [campaign.DESCENT_UNUSABLE_OUTPUT])
+        self.assertTrue(pack["variants"])
 
     def test_provider_error_reports_deterministic_source(self):
         provider = _FakeProvider(exc=RuntimeError("CLI exploded"))
         pack, source = draft_campaign_pack(_job(), lang="en", provider=provider)
         self.assertEqual(source, "deterministic")
         self.assertTrue(pack["variants"])
+
+    def test_provider_error_names_the_cause(self):
+        """The three sibling wrappers all capture a cause; this one used to drop it,
+        so a timeout, a garbage reply and a provider that is not on PATH were one
+        indistinguishable blank line in the usage ledger."""
+        reasons: list[str] = []
+        provider = _FakeProvider(exc=TimeoutError("timed out after 120s"))
+        _, source = draft_campaign_pack(
+            _job(), lang="en", provider=provider, on_fallback=reasons.append
+        )
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(reasons, ["TimeoutError: timed out after 120s"])
+
+    def test_missing_provider_records_no_reason(self):
+        """A keyless/disabled run is not a failure: the availability gate already
+        named that descent, and reporting one here would file it as a fault."""
+        reasons: list[str] = []
+        _, source = draft_campaign_pack(_job(), lang="en", on_fallback=reasons.append)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(reasons, [])
 
     def test_hook_taxonomy_is_the_documented_set(self):
         self.assertEqual(HOOK_TYPES, ("number", "location", "problem", "skills"))
@@ -301,6 +341,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(rows[0]["use_case"], "campaign_pack")
         self.assertEqual(rows[0]["input_tokens"], 0)
         self.assertEqual(rows[0]["cost_usd"], 0.0)
+
+    def test_midflight_failure_names_the_reason_in_the_ledger(self):
+        """A provider that PASSED the availability gate and then failed left the
+        ledger row's `reason` blank — the one descent an operator can act on,
+        unnamed. The engine hands the cause back through on_fallback and the CLI
+        carries it into emit_deterministic, same seam as reasoning_cli's."""
+        record = {"id": "jd-frontend", "title": "Frontend Developer", "salaryBand": [60000, 80000]}
+        provider = _FakeProvider(exc=TimeoutError("timed out after 120s"))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "job.json"
+            p.write_text(json.dumps(record), encoding="utf-8")
+            ledger = Path(td) / "usage.ndjson"
+            with mock.patch.object(campaign_cli, "resolve_provider", return_value=provider),                 mock.patch.object(campaign_cli, "provider_availability", return_value=(True, None)),                 mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False):
+                code, out, _ = self._run(["--job-json", str(p)])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(out)["source"], "deterministic")
+            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+        self.assertEqual([r["reason"] for r in rows], ["TimeoutError: timed out after 120s"])
 
 
 if __name__ == "__main__":

@@ -24,8 +24,9 @@ trust boundary. See docs/features/jobs/README.md (E1).
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Callable
 
+from .devcase.provenance import describe_fallback
 from .i18n import language_directive, normalize_lang
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig, currency_unit
@@ -44,6 +45,12 @@ VARIANT_MAX = 12     # hard cap applied at the trust boundary
 WARN_NO_SALARY = "no_salary"
 WARN_NO_LOCATION = "no_location"
 WARN_NO_SKILLS = "no_skills"
+
+# Descent reason for a reply that parsed but survived none of coerce()'s checks.
+# Same spelling as automation.py's DEGRADATION_REASONS member so one ledger query
+# counts both engines' identical descent; not imported from there because the two
+# task modules deliberately share no code (this one inlines automation's _generate).
+DESCENT_UNUSABLE_OUTPUT = "unusable_output"
 
 def _system_prompt(market: MarketConfig = ACTIVE_MARKET) -> str:
     """The copywriter system prompt, with the target market named from config
@@ -197,6 +204,7 @@ def draft_campaign_pack(
     apply_url: str = "",
     provider: Any | None = None,
     market: MarketConfig = ACTIVE_MARKET,
+    on_fallback: Callable[[str], None] | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Draft the campaign pack for one job. Returns (pack, source).
 
@@ -204,6 +212,23 @@ def draft_campaign_pack(
     LLM via `provider` when supplied/available; deterministic otherwise — the
     fallback assembles one honest variant per hook type that has facts to stand
     on (so it may produce fewer than VARIANT_TARGET; `source` says which path ran).
+
+    `source` is truthful about WHOSE words are on the wire, not merely about
+    whether a call was made: when coerce() keeps nothing, the pack it returns IS
+    the deterministic template, so it is reported "deterministic" even though the
+    tokens were spent. This copy of automation.py's _generate never received that
+    rule, and the 2026-08-11 bench is what bought it there — a template-for-template
+    payload graded as the model's work. Here the mislabel travelled further than a
+    bench grade: campaign-run.ts persists `source` and the jobs tab paints an "llm"
+    pack as AI-generated copy to the recruiter.
+
+    `on_fallback` is called with a one-line reason when a provider that WAS
+    available failed to produce usable copy — :func:`describe_fallback` for a raise,
+    :data:`DESCENT_UNUSABLE_OUTPUT` for a reply coercion emptied. Same shape as
+    match_reasoning.generate, because this module's caller (campaign_cli) already
+    carries exactly that string out to `emit_deterministic(reason=...)`. A missing
+    provider reports NOTHING: that descent is not a failure and is named at the
+    availability gate, which is the caller's own.
     """
     lang = normalize_lang(lang)
     if lang not in _T:
@@ -260,18 +285,39 @@ def draft_campaign_pack(
             return deterministic()
         return {"variants": variants}
 
+    def note(reason: str) -> None:
+        if on_fallback is not None:
+            on_fallback(reason)
+
     # automation.py's _generate, inlined for the campaign's own _SYSTEM: try the
     # LLM; on a missing provider OR any error fall back to the deterministic pack.
     if provider is None:
+        # No call was made, so there is nothing to diagnose: the reason for THIS
+        # descent was resolved at the availability gate and is the caller's.
         result, source = deterministic(), "deterministic"
     else:
         try:
             # expected_keys pins the pack object by shape — the prompt shows an
             # example {"variants": [...]} and _extract_json otherwise returns the
             # LAST top-level value, which can be that echoed example.
-            result, source = coerce(provider.complete_json(_prompt(facts, lang, apply_url), system=_system_prompt(market), expected_keys=("variants",))), "llm"
-        except Exception:
+            result = coerce(provider.complete_json(_prompt(facts, lang, apply_url), system=_system_prompt(market), expected_keys=("variants",)))
+        except Exception as exc:
+            # Name the cause instead of swallowing it: a timeout, an unparseable
+            # reply and a provider that is not on PATH are three different operator
+            # actions, and this was the only one of the four task wrappers that
+            # recorded none of them.
+            note(describe_fallback(exc))
             result, source = deterministic(), "deterministic"
+        else:
+            if result == deterministic():
+                # It answered and was paid for; coercion kept none of it. Both of
+                # coerce()'s routes to the template land here — a payload of the
+                # wrong shape at the top, and zero surviving variants at the bottom
+                # — so neither can be sold as the model's copy.
+                note(DESCENT_UNUSABLE_OUTPUT)
+                source = "deterministic"
+            else:
+                source = "llm"
 
     # E5 — per-variant apply links: every occurrence of the base URL in a
     # variant's copy is rewritten to carry that variant's id (&v=v1…), so a lead
