@@ -43,6 +43,13 @@ function capture(fn) {
   return out;
 }
 
+test("KP_PYTHON wins over PYTHON_CMD, which wins over the platform list", () => {
+  // AGENTS.md documents KP_PYTHON; PYTHON_CMD is the older name python-runner.ts
+  // shares. Both are honoured, the documented one first.
+  assert.deepEqual(pythonCandidates({ KP_PYTHON: "/kp/py", PYTHON_CMD: "/opt/py/bin/python" }, "linux"), ["/kp/py"]);
+  assert.deepEqual(pythonCandidates({ KP_PYTHON: "  ", PYTHON_CMD: "/opt/py/bin/python" }, "linux"), ["/opt/py/bin/python"]);
+});
+
 test("PYTHON_CMD wins outright; otherwise the platform's candidates are tried in order", () => {
   assert.deepEqual(pythonCandidates({ PYTHON_CMD: "/opt/py/bin/python" }, "linux"), [
     "/opt/py/bin/python",
