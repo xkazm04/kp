@@ -680,6 +680,11 @@ export const REFUSAL_ERRORS = {
   /** Publishing the sealing key did not happen (400) — usually because no edge is
    *  paired yet, or it did not answer. Nothing was rotated; retrying is safe. */
   EDGE_PAIR_REFUSED: "Could not publish the sealing key to the edge. Check the pairing and try again.",
+  /** The stored edge credential cannot be decrypted on this install (409) - the
+   *  master key was rotated ahead of `secrets:rotate`, or the retired key was
+   *  dropped. A DECISION, and an actionable one: nothing drains until the secret is
+   *  re-entered or the key restored, and the drain says so instead of 500-ing. */
+  EDGE_SECRET_UNREADABLE: "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
   // ---- The voice host routes' boundary refusals (/api/tts, /api/stt). Every
   // one of these was an English sentence with no code, on routes a Czech,
   // German or French operator reaches through the same dock as everything else.

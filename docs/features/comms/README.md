@@ -543,9 +543,28 @@ backlog still at the edge, last heartbeat — each with a relative time in the r
 locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
 distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
 and the drain then does nothing forever. Failures are shown by CLASS
-(`unreachable` / `held` / `ack` / `unknown`, `EDGE_ERROR_KINDS` in `edge-config.ts`),
-never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
+(`unreachable` / `held` / `ack` / `secret_unreadable` / `unknown`, `EDGE_ERROR_KINDS`
+in `edge-config.ts`), never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
 `EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
+
+**A credential nobody can open is a ledger error, not a 500.** Decrypt used to run
+OUTSIDE `resolveEdge`'s try, so a rotated `KP_SECRET` (or a retired key dropped before
+`npm run secrets:rotate` had run) threw straight out of `drainEdge` — a function whose
+contract is "never throws" — and "Drain now" answered an unhandled 500, while the card
+stayed GREEN because `getEdgeConfig` never decrypted and reported `hasSecret: true` from
+the column's mere presence. Now: `resolveEdgeDetailed()` answers
+`{ ok: false, kind: "secret_unreadable" }` instead of throwing (`resolveEdge()` is the
+thin wrapper that still answers `null`, for callers with nothing to do either way); the
+drain records that kind through the same `recordDrain` ledger every other failure uses
+and makes no signed call; `pairEdge` and `sendEdgeHeartbeat` answer a refusal and
+`false`; `POST /api/edge/drain` answers `409 EDGE_SECRET_UNREADABLE` with the summary
+attached, and the decipher diagnostic goes to the server log rather than onto the wire.
+`hasSecret` now means READABLE — one AES-256-GCM open of a short string per read, which
+is cheaper than the SELECT that fetched it, and the env secret short-circuits it so a
+deployment the env var runs never consults the stored row at all. Pinned in
+`edge-config.test.ts` (an unreadable secret, an unreadable SEALING key, env precedence
+over a stale ciphertext, and a legacy plaintext row that must still resolve) and in
+`edge-drain.test.ts` (all three entry points answer instead of throwing).
 
 **All three edge doors require `org:manage`.** `POST /api/edge/drain` and
 `POST /api/edge/pair` always did; `POST /api/edge` — the one that WRITES the pairing —

@@ -23,6 +23,7 @@ import {
   getEdgeConfig,
   recordDrain,
   resolveEdge,
+  resolveEdgeDetailed,
   setEdgeConfig,
 } from "./edge-config.ts";
 
@@ -184,4 +185,86 @@ test("the sealing keypair survives a re-pair — unpairing must not orphan seale
   assert.equal(before, true, "guard the guard: the previous test published a key");
   setEdgeConfig({ url: "" });
   assert.equal(getEdgeConfig().sealed, true, "the edge may still hold bodies sealed to it");
+});
+
+// --- an unreadable secret ---------------------------------------------------------
+// KP_SECRET (or KP_ATS_SECRET_KEY) rotated, or the retired key dropped before
+// `secrets:rotate` ran: the ciphertext is still there and nothing can open it. That
+// used to THROW out of resolveEdge — through drainEdge, documented "never throws",
+// into an unhandled 500 on Drain now — while `getEdgeConfig` never decrypted at all
+// and reported `hasSecret: true`, so the card stayed green over a dead pairing.
+
+function withRotatedMasterKey<T>(fn: () => T): T {
+  const key = process.env.KP_SECRET;
+  process.env.KP_SECRET = "a-master-key-that-opens-nothing-here";
+  try {
+    return fn();
+  } finally {
+    process.env.KP_SECRET = key;
+  }
+}
+
+test("a secret nobody can decrypt is a REFUSAL, not a throw and not a green card", () => {
+  unpair();
+  setEdgeConfig({ url: URL_A, secret: "sealed-under-the-old-key" });
+  assert.equal(getEdgeConfig().hasSecret, true, "guard the guard: readable before the key moves");
+
+  withRotatedMasterKey(() => {
+    const cfg = getEdgeConfig();
+    assert.equal(cfg.url, URL_A, "the URL is still what the operator configured");
+    assert.equal(cfg.hasSecret, false, "hasSecret means READABLE — a card cannot be green over a dead pairing");
+
+    const detailed = resolveEdgeDetailed();
+    assert.equal(detailed.ok, false, "the caller that can act on it is told which failure this is");
+    assert.equal(detailed.ok === false ? detailed.kind : null, "secret_unreadable");
+    assert.ok(detailed.ok === false && detailed.error.length > 0, "with a diagnostic for the server log");
+
+    assert.equal(resolveEdge(), null, "and the thin resolver answers 'no edge' rather than throwing");
+  });
+
+  assert.equal(getEdgeConfig().hasSecret, true, "putting the key back is the whole recovery");
+  assert.equal(resolveEdge()?.secret, "sealed-under-the-old-key");
+});
+
+test("the env pairing is untouched by an unreadable STORED secret", () => {
+  unpair();
+  setEdgeConfig({ url: URL_A, secret: "sealed-under-the-old-key" });
+  // The sealing keypair a previous test minted is sealed under the same master key,
+  // and an unreadable PRIVATE half is its own refusal (the drain could not unseal a
+  // single body). Clear it so this test asserts one thing: the env SECRET's
+  // precedence over a stored ciphertext nobody can open.
+  openStore().prepare(`UPDATE edge_config SET private_jwk = NULL WHERE id = 1`).run();
+  withRotatedMasterKey(() => {
+    process.env.KP_EDGE_URL = URL_B;
+    process.env.KP_EDGE_SECRET = "env-secret";
+    try {
+      // env ▸ stored, and "in charge" means the broken row is never consulted: an
+      // operator whose env pairing works must not be stopped by a stale ciphertext.
+      assert.equal(getEdgeConfig().hasSecret, true);
+      const detailed = resolveEdgeDetailed();
+      assert.equal(detailed.ok, true);
+      assert.equal(detailed.ok === true ? detailed.edge?.secret : null, "env-secret");
+    } finally {
+      clearEnv();
+    }
+  });
+});
+
+test("a LEGACY plaintext secret still resolves — the tolerance predates the encryption", () => {
+  unpair();
+  setEdgeConfig({ url: URL_A, secret: "s" });
+  openStore().prepare(`UPDATE edge_config SET edge_secret = ? WHERE id = 1`).run("plain-legacy-secret");
+  assert.equal(getEdgeConfig().hasSecret, true);
+  assert.equal(resolveEdge()?.secret, "plain-legacy-secret");
+});
+
+test("an unreadable SEALING key is the same refusal — the drain could not unseal a body", async () => {
+  unpair();
+  setEdgeConfig({ url: URL_A, secret: "s" });
+  await ensureEdgeKeypair();
+  withRotatedMasterKey(() => {
+    const detailed = resolveEdgeDetailed();
+    assert.equal(detailed.ok, false, "holding on every sealed event one at a time is not an answer");
+    assert.equal(detailed.ok === false ? detailed.kind : null, "secret_unreadable");
+  });
 });

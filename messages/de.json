@@ -1763,7 +1763,8 @@
     "DEVCASE_SESSION_FLUSH_FAILED": "Diese Arbeitssitzung konnte gerade nicht gespeichert werden. Ihre Arbeit bleibt auf diesem Gerät und wird erneut gesendet.",
     "DEVCASE_SESSION_READ_FAILED": "Die Arbeitssitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Diese Arbeitssitzung wurde bereits eingereicht.",
-    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden."
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
+    "EDGE_SECRET_UNREADABLE": "Diese Installation kann das gespeicherte Edge-Secret nicht lesen. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5713,7 +5714,8 @@
       "drainFailedUnreachable": "Abruf fehlgeschlagen: der Edge hat nicht geantwortet. Nichts ging verloren, der nächste Durchlauf versucht es erneut.",
       "drainFailedHeld": "Abruf angehalten: ein Ereignis konnte noch nicht abgelegt werden. Es bleibt am Edge und wird erneut versucht.",
       "drainFailedAck": "Abgelegt, aber der Edge weiss es nicht. Er bietet diese Ereignisse erneut an, und sie werden nicht doppelt abgelegt.",
-      "drainFailedUnknown": "Abruf fehlgeschlagen. Der Grund steht im Server-Log dieser Installation."
+      "drainFailedUnknown": "Abruf fehlgeschlagen. Der Grund steht im Server-Log dieser Installation.",
+      "drainFailedSecretUnreadable": "Abruf gestoppt: diese Installation kann das gespeicherte Edge-Secret nicht lesen. Nichts ging verloren. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde."
     },
     "tablist": "Integration",
     "waiting": "{count} warten in der Pipeline",
@@ -10054,7 +10056,8 @@
       "thinking": "Denkt nach…",
       "thinkingSlowCalm": "Ich bin noch da. Sie sieht sich erst das Studio an, deshalb dauert es ein paar Sekunden.",
       "transcriptLabel": "Gespräch mit Candi",
-      "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal."
+      "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal.",
+      "reconnect": "Erneut verbinden"
     },
     "state": {
       "here": "Ich bin da, wenn Sie mich brauchen.",

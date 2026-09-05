@@ -23,7 +23,7 @@ import { generateEdgeKeypair } from "./edge-crypto";
  *  guard, the repo's shape for a closed vocabulary (tabs.ts, i18n/locales.ts) — the
  *  card owes one message per member and `i18n:check` cannot see a string built at
  *  runtime, so the union is what keeps the four catalogs honest. */
-export const EDGE_ERROR_KINDS = ["unreachable", "held", "ack", "unknown"] as const;
+export const EDGE_ERROR_KINDS = ["unreachable", "held", "ack", "secret_unreadable", "unknown"] as const;
 export type EdgeErrorKind = (typeof EDGE_ERROR_KINDS)[number];
 export function isEdgeErrorKind(v: unknown): v is EdgeErrorKind {
   return typeof v === "string" && (EDGE_ERROR_KINDS as readonly string[]).includes(v);
@@ -39,6 +39,10 @@ export class EdgeConfigError extends Error {
 /** The client-safe view. Never carries the secret or the private key. */
 export type EdgePublicConfig = {
   url: string | null;
+  /** A secret is on file AND this install can still open it. Those are not the same
+   *  fact: a rotated KP_SECRET leaves the ciphertext in place and unreadable, and a
+   *  card that answered "paired" from the column's mere presence painted green over
+   *  a pairing that could never drain again. */
   hasSecret: boolean;
   /** Whether this install has a sealing keypair, i.e. whether the edge is able to
    *  store event bodies it cannot read. False is a legitimate state (the edge then
@@ -59,7 +63,9 @@ export type EdgePublicConfig = {
   /** The CLASS of the last failure, which is what a reader can act on:
    *  `unreachable` (the edge did not answer), `held` (an event could not be filed
    *  and stays queued), `ack` (events were filed but the edge was not told, so it
-   *  re-serves them harmlessly). NULL when the last drain was clean. */
+   *  re-serves them harmlessly), `secret_unreadable` (the stored credential is
+   *  sealed under a key this install no longer has: nothing drains until the key is
+   *  restored or the pairing is re-entered). NULL when the last drain was clean. */
   lastErrorKind: EdgeErrorKind | null;
   /** Where a "your studio has mail" nudge is sent. An ntfy topic URL, a webhook, or
    *  null (the edge then still counts, and nothing is sent). */
@@ -143,10 +149,27 @@ function readRow(): Row | undefined {
     .get() as Row | undefined;
 }
 
-function decrypt(stored: string | null): string | null {
-  if (stored === null) return null;
+/** Decrypt WITHOUT throwing. `ok: false` is the one interesting failure: neither the
+ *  current nor the retired key opens the row (see decryptAtsSecretDetailed), i.e. a
+ *  rotation that ran ahead of `secrets:rotate`. Every caller here is on a path whose
+ *  contract is "never throws" (the drain's ledger, the card's read), so the failure
+ *  is DATA, the way this repo answers with a code rather than an exception. */
+type Decrypted = { ok: true; value: string | null } | { ok: false; error: string };
+
+function tryDecrypt(stored: string | null): Decrypted {
+  if (stored === null) return { ok: true, value: null };
   // Legacy plaintext tolerated and re-encrypted on the next write (ats doctrine).
-  return isEncryptedAtsSecret(stored) ? decryptAtsSecret(stored) : stored;
+  if (!isEncryptedAtsSecret(stored)) return { ok: true, value: stored };
+  try {
+    return { ok: true, value: decryptAtsSecret(stored) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "The stored edge secret could not be decrypted." };
+  }
+}
+
+function readableSecret(row: Row | undefined): boolean {
+  const stored = tryDecrypt(row?.edge_secret ?? null);
+  return stored.ok && stored.value !== null;
 }
 
 /** Is this install air-gapped? Checked here so no caller can forget it. */
@@ -165,7 +188,11 @@ export function getEdgeConfig(): EdgePublicConfig {
   }
   return {
     url: process.env.KP_EDGE_URL?.trim() || row?.edge_url || null,
-    hasSecret: Boolean(process.env.KP_EDGE_SECRET || row?.edge_secret),
+    // Decrypting on every read is ONE AES-256-GCM open of a short string, cheaper
+    // than the SELECT above, and the only way this answer can be true. The env
+    // secret short-circuits it: when the env var is in charge the stored row is not
+    // consulted at all, here or in resolveEdgeDetailed.
+    hasSecret: Boolean(process.env.KP_EDGE_SECRET) || readableSecret(row),
     sealed: Boolean(row?.private_jwk),
     cursor: row?.cursor ?? 0,
     lastDrainAt: row?.last_drain_at ?? null,
@@ -179,31 +206,60 @@ export function getEdgeConfig(): EdgePublicConfig {
   };
 }
 
-/** The drain's resolver. See ResolvedEdge; null = no edge, which is not an error. */
-export function resolveEdge(): ResolvedEdge | null {
-  if (edgeOffline()) return null;
+/** What the resolver found. `ok: true` with `edge: null` is the DEFAULT and not an
+ *  error (no edge configured, or air-gapped); `ok: false` is the one state a caller
+ *  must REPORT rather than treat as "nothing to do", because a stored pairing exists
+ *  and is unusable. Modeled on decryptAtsSecretDetailed: the detailed answer for the
+ *  caller that can act on it, a one-liner for everyone else. */
+export type EdgeResolution =
+  | { ok: true; edge: ResolvedEdge | null }
+  | { ok: false; kind: "secret_unreadable"; error: string };
+
+/** The drain's resolver, with the failure it used to throw. Never throws. */
+export function resolveEdgeDetailed(): EdgeResolution {
+  if (edgeOffline()) return { ok: true, edge: null };
   let row: Row | undefined;
   try {
     row = readRow();
   } catch {
-    return null;
+    return { ok: true, edge: null };
   }
   const envUrl = process.env.KP_EDGE_URL?.trim();
   const envSecret = process.env.KP_EDGE_SECRET?.trim();
   const url = envUrl || row?.edge_url || null;
-  if (!url) return null;
-  const secret = envUrl ? envSecret || decrypt(row?.edge_secret ?? null) : decrypt(row?.edge_secret ?? null) || envSecret || null;
+  if (!url) return { ok: true, edge: null };
+  // env ▸ stored, taken literally: with BOTH env halves set the stored ciphertext is
+  // never opened, so a stale row cannot break a deploy the env var is running.
+  const envInCharge = Boolean(envUrl && envSecret);
+  const stored: Decrypted = envInCharge ? { ok: true, value: null } : tryDecrypt(row?.edge_secret ?? null);
+  if (!stored.ok) return { ok: false, kind: "secret_unreadable", error: stored.error };
+  // The private half UNSEALS bodies. Draining with it unreadable would hold on every
+  // sealed event one at a time; saying so once is the answer an operator can act on.
+  const privateJwk = tryDecrypt(row?.private_jwk ?? null);
+  if (!privateJwk.ok) return { ok: false, kind: "secret_unreadable", error: privateJwk.error };
+  const secret = envUrl ? envSecret || stored.value : stored.value || envSecret || null;
   // No secret, no drain. An UNSIGNED drain would accept events from anyone who
   // learned the edge URL, and those events file candidates and send mail — so the
   // honest answer to "paired but unauthenticated" is "not paired".
-  if (!secret) return null;
+  if (!secret) return { ok: true, edge: null };
   return {
-    url: url.replace(/\/+$/, ""),
-    secret,
-    privateJwk: decrypt(row?.private_jwk ?? null),
-    cursor: row?.cursor ?? 0,
-    source: envUrl ? "env" : "config",
+    ok: true,
+    edge: {
+      url: url.replace(/\/+$/, ""),
+      secret,
+      privateJwk: privateJwk.value,
+      cursor: row?.cursor ?? 0,
+      source: envUrl ? "env" : "config",
+    },
   };
+}
+
+/** See ResolvedEdge; null = no edge, which is not an error. For callers with nothing
+ *  to do either way; the drain uses resolveEdgeDetailed so it can REPORT an
+ *  unreadable credential instead of looking idle. */
+export function resolveEdge(): ResolvedEdge | null {
+  const resolution = resolveEdgeDetailed();
+  return resolution.ok ? resolution.edge : null;
 }
 
 function validateUrl(raw: unknown): string | null {

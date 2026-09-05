@@ -1763,7 +1763,8 @@
     "DEVCASE_SESSION_FLUSH_FAILED": "Impossible d'enregistrer cette session de travail pour l'instant. Votre travail reste sur cet appareil et sera renvoyé.",
     "DEVCASE_SESSION_READ_FAILED": "Impossible de charger la session de travail. Veuillez réessayer.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Cette session de travail a déjà été soumise.",
-    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer."
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Écrivez un message avant de l'envoyer.",
+    "EDGE_SECRET_UNREADABLE": "Cette installation ne peut pas lire le secret edge enregistré. Saisissez-le à nouveau ou restaurez la clé qui l'a chiffré."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5713,7 +5714,8 @@
       "drainFailedUnreachable": "Collecte échouée : l'edge n'a pas répondu. Rien n'est perdu, le prochain cycle réessaie.",
       "drainFailedHeld": "Collecte suspendue : un évènement n'a pas pu être classé. Il reste sur l'edge et sera réessayé.",
       "drainFailedAck": "Classé, mais l'edge ne le sait pas. Il proposera à nouveau ces évènements et rien ne sera classé deux fois.",
-      "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation."
+      "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation.",
+      "drainFailedSecretUnreadable": "Collecte arrêtée : cette installation ne peut pas lire le secret edge enregistré. Rien n'est perdu. Saisissez-le à nouveau ou restaurez la clé de chiffrement."
     },
     "tablist": "Intégration",
     "waiting": "{count} en attente dans le pipeline",
@@ -10054,7 +10056,8 @@
       "thinking": "Réflexion…",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du studio avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
-      "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez."
+      "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez.",
+      "reconnect": "Réessayer la connexion"
     },
     "state": {
       "here": "Je suis là quand vous en avez besoin.",

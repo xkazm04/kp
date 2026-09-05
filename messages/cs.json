@@ -1763,7 +1763,8 @@
     "DEVCASE_SESSION_FLUSH_FAILED": "Tuto pracovní relaci se teď nepodařilo uložit. Vaše práce zůstává v tomto zařízení a odešle se znovu.",
     "DEVCASE_SESSION_READ_FAILED": "Pracovní relaci se nepodařilo načíst. Zkuste to prosím znovu.",
     "DEVCASE_SESSION_ALREADY_SUBMITTED": "Tato pracovní relace už byla odevzdána.",
-    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Než zprávu odešlete, napište ji."
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Než zprávu odešlete, napište ji.",
+    "EDGE_SECRET_UNREADABLE": "Tato instalace nedokáže přečíst uložený klíč edge. Zadejte jej znovu, nebo obnovte klíč, kterým byl zašifrován."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5713,7 +5714,8 @@
       "drainFailedUnreachable": "Stažení selhalo: edge neodpověděl. Nic se neztratilo, další cyklus to zkusí znovu.",
       "drainFailedHeld": "Stahování pozastaveno: událost zatím nešlo založit. Zůstává na edge a bude zkoušena znovu.",
       "drainFailedAck": "Založeno, ale edge o tom neví. Nabídne tyto události znovu a nezaloží se dvakrát.",
-      "drainFailedUnknown": "Stažení selhalo. Důvod najdete v serverovém logu této instalace."
+      "drainFailedUnknown": "Stažení selhalo. Důvod najdete v serverovém logu této instalace.",
+      "drainFailedSecretUnreadable": "Stahování zastaveno: tato instalace nedokáže přečíst uložený klíč edge. Nic se neztratilo. Zadejte klíč znovu, nebo obnovte šifrovací klíč."
     },
     "tablist": "Integrace",
     "waiting": "{count, plural, one {# čeká} few {# čekají} other {# čeká}} v pipeline",
@@ -10054,7 +10056,8 @@
       "thinking": "Přemýšlí…",
       "thinkingSlowCalm": "Jsem tu s vámi. Než odpoví, projde si stav studia, takže to pár sekund zabere.",
       "transcriptLabel": "Konverzace s Candi",
-      "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu."
+      "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu.",
+      "reconnect": "Zkusit se připojit znovu"
     },
     "state": {
       "here": "Jsem tu, když budete potřebovat.",
