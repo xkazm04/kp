@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { ChatTranscript, type ChatSide, type ChatTurn } from "@/app/_components/chat/ChatTranscript";
@@ -8,6 +8,7 @@ import { ChatBlocks } from "@/app/_components/chat/ChatBlocks";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { renderableBlocks } from "@/app/_lib/companion-blocks";
+import { companionRetryTarget } from "@/app/_lib/companion-dock-states";
 import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
@@ -53,6 +54,10 @@ export type CompanionBodyProps = {
   /** Every proposal this conversation produced, live from the server. */
   proposals: CompanionProposal[];
   busy: boolean;
+  /** Whether the conversation exists yet. Until it does a message has nowhere to
+   *  go: `send` resolves false and nothing is stored, so the composer is dead and
+   *  a boot that FAILED says so with an offer to try again. */
+  ready: boolean;
   /** Machine error code from the route, resolved to a message at the door. */
   error: string | null;
   /** Live studio facts — the same counts behind the sidebar badges. */
@@ -76,6 +81,9 @@ export type CompanionBodyProps = {
    *  offer to send it again; the composer is holding the same text as a draft. */
   lastFailed: string | null;
   onRetry: () => Promise<boolean>;
+  /** The dock's handle on the composer, so opening the window can put the caret
+   *  in it. Owned above so it survives this component's re-renders. */
+  composerRef?: RefObject<HTMLTextAreaElement | null>;
 };
 
 /** Turn provenance, read from the stored meta without asserting past it: an
@@ -137,6 +145,7 @@ export function CompanionBody({
   turns,
   proposals,
   busy,
+  ready,
   error,
   attention,
   memoryEnabled,
@@ -146,8 +155,12 @@ export function CompanionBody({
   proposalError,
   lastFailed,
   onRetry,
+  composerRef,
 }: CompanionBodyProps) {
   const t = useTranslations("companion");
+  // What the error line offers to do again — a message that was refused, or the
+  // boot that never produced a thread. Both go through `onRetry`.
+  const retryTarget = companionRetryTarget({ ready, error, lastFailed });
   const resolveError = useErrorMessage();
   const metaById = useMemo(() => new Map(turns.map((turn) => [turn.id, turnMeta(turn)])), [turns]);
   // Proposals are joined onto their turn by ID, never by position or timestamp:
@@ -222,14 +235,14 @@ export function CompanionBody({
       {error && !proposalError ? (
         <div role="alert" className="flex flex-wrap items-center gap-2 pb-2">
           <p className="text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p>
-          {lastFailed ? (
+          {retryTarget ? (
             <button
               type="button"
               onClick={() => void onRetry()}
               disabled={busy}
               className={`${BTN_GHOST} h-7 px-2 text-sm`}
             >
-              {t("chat.retry")}
+              {retryTarget === "boot" ? t("chat.reconnect") : t("chat.retry")}
             </button>
           ) : null}
         </div>
@@ -242,6 +255,11 @@ export function CompanionBody({
         // text back: it did both, and the operator saw the same sentence twice
         // while Enter re-asked what was already on screen.
         restoreDraftOnFailure={false}
+        // Dead until the thread exists. The dock used to pass only `busy`, so a
+        // failed boot left a live composer whose every send returned false with
+        // nothing said and nothing stored.
+        composerDisabled={!ready}
+        composerRef={composerRef}
         turns={chatTurns}
         side={companionSide}
         labels={labels}

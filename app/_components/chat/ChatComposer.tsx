@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { BTN_PRIMARY, FIELD } from "@/app/_components/ui/recipes";
 import type { ChatLabels } from "./ChatTranscript";
 
@@ -22,6 +22,8 @@ export function ChatComposer({
   dense = false,
   tall = false,
   restoreOnFailure = true,
+  disabled = false,
+  inputRef,
 }: {
   labels: ChatLabels;
   busy: boolean;
@@ -40,12 +42,21 @@ export function ChatComposer({
    *  it as well drew one message twice, and let Enter re-ask a question that is
    *  still sitting in the transcript. */
   restoreOnFailure?: boolean;
+  /** Dead for a reason the caller owns and this component cannot see — the
+   *  companion dock's thread has not booted yet, so a message typed here would
+   *  be sent into no conversation and silently refused. Distinct from `closed`
+   *  (the conversation is over) and from `busy` (a turn is in flight). */
+  disabled?: boolean;
+  /** The caller's handle on the input, for taking focus from outside — opening
+   *  the companion dock puts the caret here. Never focused BY this component:
+   *  a composer that grabs focus on every mount is a page that steals it. */
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const [draft, setDraft] = useState("");
 
   async function submitDraft() {
     const message = draft.trim();
-    if (!message || busy || closed) return;
+    if (!message || busy || closed || disabled) return;
     setDraft("");
     const ok = await onSend(message);
     if (ok === false && restoreOnFailure) setDraft((d) => (d.trim() ? d : message));
@@ -54,11 +65,12 @@ export function ChatComposer({
   return (
     <div className={`flex flex-wrap items-end gap-2 ${dense ? "mt-2" : "mt-3"}`}>
       <textarea
+        ref={inputRef}
         className={`${FIELD} flex-1 resize-y ${dense ? "min-h-[2.5rem]" : tall ? "min-h-[6.5rem]" : "min-h-[3.25rem]"}`}
         rows={dense ? 1 : tall ? 4 : 2}
         value={draft}
         placeholder={closed && labels.closed ? labels.closed : labels.placeholder}
-        disabled={closed || busy}
+        disabled={closed || busy || disabled}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
@@ -71,7 +83,7 @@ export function ChatComposer({
         type="button"
         className={`${BTN_PRIMARY} ${dense ? "h-9 px-3" : "h-10 px-4"} text-sm`}
         onClick={() => void submitDraft()}
-        disabled={closed || busy || !draft.trim()}
+        disabled={closed || busy || disabled || !draft.trim()}
       >
         {labels.send}
       </button>

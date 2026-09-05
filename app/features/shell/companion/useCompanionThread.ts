@@ -178,6 +178,11 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   const [lastFailed, setLastFailed] = useState<string | null>(null);
   const [proposalError, setProposalError] = useState<{ id: string; code: string } | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
+  // Bumped by `retry` when there is no thread yet: the boot effect is the only
+  // thing that can create one, and before this a failed boot was terminal for the
+  // whole dock — the composer stayed live and every send resolved false into
+  // nothing. Not a poller: it moves only when the operator asks.
+  const [bootAttempt, setBootAttempt] = useState(0);
   // Optimistic yes: the honest failure of this flag is a missing warning, not a
   // false one, and "Candi has forgotten everything" is a bad thing to say to an
   // operator whose boot request merely timed out.
@@ -228,7 +233,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
         loading.current = false;
       }
     })();
-  }, [active, threadId]);
+  }, [active, threadId, bootAttempt]);
 
   // The exchange loop lives at module scope (below) so its own recursive call is
   // not a hook reading a binding it is still declaring. Every piece it needs is
@@ -315,6 +320,13 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
    *  like any other message, so it queues behind an in-flight turn instead of
    *  racing it, and a second failure simply re-arms the button. */
   const retry = useCallback((): Promise<boolean> => {
+    // Nothing has booted: the failure the operator is looking at is the BOOT, and
+    // the only thing that can fix it is asking for the thread again.
+    if (!threadId) {
+      setError(null);
+      setBootAttempt((n) => n + 1);
+      return Promise.resolve(false);
+    }
     if (!lastFailed) return Promise.resolve(false);
     // REPLACES the failed bubble rather than adding one: `send` pushes a fresh
     // optimistic turn, so without this a retried message was drawn twice and a
@@ -323,7 +335,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     // and a success replaces the whole list with the server's turns anyway.
     setTurns(withoutOptimisticTurns);
     return send(lastFailed);
-  }, [lastFailed, send]);
+  }, [threadId, lastFailed, send]);
 
   /** Re-read the conversation the dock is showing.
    *

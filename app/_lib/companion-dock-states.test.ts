@@ -60,3 +60,33 @@ test("a failed send is drawn ONCE: the bubble stays and the composer does not re
     "retry must drop the unsent bubbles before send pushes a fresh one, or the message is drawn twice",
   );
 });
+
+test("the dock takes focus into the composer when it opens", () => {
+  const src = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/CompanionDock.tsx", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  // Not reachable from node:test (no DOM, and the dock is a client tree), so the
+  // call itself is pinned: opening the window used to leave the caret on <body>,
+  // so a keyboard operator tabbed in from the top of the page every time.
+  assert.match(src, /const composerRef = useRef<HTMLTextAreaElement \| null>\(null\);/, "the dock owns the composer ref");
+  assert.match(src, /composerRef\.current\?\.focus\(\)/, "opening the dock must move focus into the composer");
+  assert.match(src, /composerRef=\{composerRef\}/, "…and the ref must reach the body");
+});
+
+test("the composer is dead until the thread exists, and a failed boot offers a re-boot", () => {
+  const body = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/CompanionDockBody.tsx", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  // The dock passed `busy` and never `ready`, so after a failed boot the composer
+  // was live and every send returned false into nothing at all.
+  assert.match(body, /composerDisabled=\{!ready\}/, "the composer must be disabled until the thread has booted");
+  assert.match(body, /companionRetryTarget\(/, "the error line's offer is the tested decision, not an inline guess");
+
+  const hook = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/useCompanionThread.ts", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  assert.match(hook, /setBootAttempt\(/, "retry before a thread exists must re-run the boot request");
+});

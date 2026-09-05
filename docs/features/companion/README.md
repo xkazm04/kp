@@ -779,6 +779,17 @@ the tick that carries a `failed`. The refused message is held in `lastFailed`
 instead, and Retry re-sends it through the ordinary `send` path — so it still
 queues behind an in-flight turn and is still never re-dispatched on its own.
 
+**The composer is dead until the thread exists, and a failed boot is answerable.**
+The dock passes `ready` alongside `busy`, so before `GET /api/companion/threads`
+has produced a conversation the input and Send are disabled. Until then the
+composer was live and every send resolved false into nothing at all: no bubble, no
+error, no stored message. When the boot FAILED, the error line offers **Try
+connecting again** instead of the message Retry (`companionRetryTarget` picks
+which, unit-tested), and `retry()` bumps the boot attempt so the effect asks for
+the thread again. Focus follows the same intent: opening the window puts the caret
+in the composer once, from inside `CompanionDock` rather than in each of the four
+`openDock()` callers. It is not a trap, and Escape still closes.
+
 **One representation per failed send.** The dock passes
 `restoreDraftOnFailure={false}` to `ChatTranscript` (intake keeps the restore,
 where the refusal is drawn nowhere else): the refused message stays as its

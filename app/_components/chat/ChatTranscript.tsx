@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { ChatComposer } from "./ChatComposer";
@@ -57,6 +57,8 @@ export function ChatTranscript({
   dense = false,
   tall = false,
   restoreDraftOnFailure = true,
+  composerDisabled = false,
+  composerRef,
 }: {
   turns: ChatTurn[];
   side: (role: string) => ChatSide;
@@ -87,6 +89,11 @@ export function ChatTranscript({
    *  `restoreOnFailure`). Off where the caller keeps the refused message on
    *  screen itself, so it is represented once. */
   restoreDraftOnFailure?: boolean;
+  /** Composer dead for a caller-owned reason (the companion's thread has not
+   *  booted). See ChatComposer's `disabled`. */
+  composerDisabled?: boolean;
+  /** Handle on the composer's input, so the caller can take focus into it. */
+  composerRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const reduced = useReducedMotion();
   const slow = useSlowHint(busy);
@@ -174,6 +181,8 @@ export function ChatTranscript({
         dense={dense}
         tall={tall}
         restoreOnFailure={restoreDraftOnFailure}
+        disabled={composerDisabled}
+        inputRef={composerRef}
       />
     </div>
   );
