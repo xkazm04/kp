@@ -157,7 +157,7 @@ test("a 409 from the resolve route carries the proposal row the client must repa
   // further click bought another 409 until a poll happened.
   assert.match(
     src,
-    /function alreadyResolved\(proposal: CompanionProposal \| null\) \{[\s\S]*?code: "COMPANION_PROPOSAL_RESOLVED", proposal \}/,
+    /function alreadyResolved\(proposal: CompanionProposal \| null\) \{[\s\S]*?jsonRefusal\("COMPANION_PROPOSAL_RESOLVED", 409, \{ proposal \}\)/,
     "the 409 body must carry the server's current row beside the code",
   );
   assert.equal(

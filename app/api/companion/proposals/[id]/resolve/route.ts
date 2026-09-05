@@ -11,7 +11,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { STORE_ERRORS, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import type { CompanionProposal } from "@/app/_lib/db/companion";
 
 // ALREADY ANSWERED, WITH THE ROW. The dock's contract is "take the response's
@@ -20,14 +20,10 @@ import type { CompanionProposal } from "@/app/_lib/db/companion";
 // poll happened. The row beside the code is what lets the card repaint as
 // answered, which is the truth the 409 is reporting in the first place.
 //
-// Not `jsonRefusal`: COMPANION_PROPOSAL_RESOLVED lives in STORE_ERRORS, so the
-// sentence is read from that registry rather than typed again here (it had been
-// hand-written in three places and already differed from the registry's wording).
+// A decision, not an accident: the code lives in REFUSAL_ERRORS and jsonRefusal
+// carries the row as the data the reader's sentence needs.
 function alreadyResolved(proposal: CompanionProposal | null) {
-  return NextResponse.json(
-    { error: STORE_ERRORS.COMPANION_PROPOSAL_RESOLVED, code: "COMPANION_PROPOSAL_RESOLVED", proposal },
-    { status: 409 }
-  );
+  return jsonRefusal("COMPANION_PROPOSAL_RESOLVED", 409, { proposal });
 }
 
 // POST /api/companion/proposals/[id]/resolve — the operator's answer to one
@@ -67,10 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const ws = await currentWorkspace();
     const proposal = getProposal(id, ws);
     if (!proposal) {
-      return NextResponse.json(
-        { error: STORE_ERRORS.COMPANION_PROPOSAL_NOT_FOUND, code: "COMPANION_PROPOSAL_NOT_FOUND" },
-        { status: 404 }
-      );
+      return jsonRefusal("COMPANION_PROPOSAL_NOT_FOUND", 404);
     }
     const body = (await request.json().catch(() => ({}))) as { decision?: unknown };
     const decision = typeof body.decision === "string" ? body.decision : "";
