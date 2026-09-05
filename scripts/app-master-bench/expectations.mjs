@@ -14,13 +14,28 @@
 //     human can act on. The driver prints them and exits non-zero; it never
 //     throws out of this module.
 
-/** Autopilot modes, weakest first (app/_lib/agent-hire/report-payload.ts). */
+// Both vocabularies below are kp's, not this driver's: they are declared in
+// `app/_lib/agent-hire/report-payload.ts` (the CONTRACT SOURCE for what a
+// Personas build may send) and copied here only because this file is a plain
+// `.mjs` the driver loads without the app's module graph. `expectations.test.mjs`
+// pins each copy to that file — a mode added there, or a backbone field renamed
+// there, fails the bench suite instead of being silently unread by the bench.
+
+/** Autopilot modes, weakest first — the values of `AUTOPILOT_MODES`
+ *  (app/_lib/agent-hire/report-payload.ts), which is already declared weakest
+ *  first; `autopilotAtLeast` compares by index. */
 export const AUTOPILOT_ORDER = ["off", "measure", "suggest", "full"];
 
-/** The PerformanceBackbone fields a tick summary may carry, wherever it carries
+/** The `RollupBackbone` fields a tick summary may carry, wherever it carries
  *  them. Deep-scanned rather than read at a fixed path because the per-phase
  *  summary shape is Personas' to define — a driver that hard-codes one nesting
  *  reports `null` the day that shape gains a wrapper.
+ *
+ *  This is the REPORTED shape (`report-payload.ts::RollupBackbone`), not the
+ *  scored one: `windowDays` used to head this list and is not on it — the window
+ *  is the RECEIVER's (`backboneFromRollup(raw, windowDays)`), so scanning a tick
+ *  summary for it read a number the sender never sent. `kpiDeltas` and `memory`
+ *  ARE sent and were missing, so a tick summary that carried them was ignored.
  *
  *  This is HALF the reading. A live bridge's tick summary carries none of these
  *  names (sweep 2026-08-25 read `{}` from a night that genuinely opened three
@@ -28,17 +43,18 @@ export const AUTOPILOT_ORDER = ["off", "measure", "suggest", "full"];
  *  ROSTER, in the scored shape `readingFromRoster()` below reads. The two are
  *  folded together by `mergeReadings()`. */
 export const BACKBONE_FIELDS = [
-  "windowDays",
   "proposalsOpened",
   "proposalsMerged",
   "proposalsReverted",
   "gatePassRate",
   "forbiddenClassViolations",
+  "kpiDeltas",
   "budgetReservedUsd",
   "budgetSettledUsd",
   "budgetUnmeasured",
   "ledgerConsistent",
   "autopilotMode",
+  "memory",
 ];
 
 /**

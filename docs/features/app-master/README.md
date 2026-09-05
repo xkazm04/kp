@@ -1328,7 +1328,11 @@ delivered night into "unmeasured". A reason
 that does **not** match leaves the field absent rather than guessing, and a rule
 the roster never carried stays absent too. The tick summary is still deep-scanned
 and folded in underneath (`mergeReadings()`, roster wins), and `result.json`
-records a `readingSource` map saying which side each field came from.
+records a `readingSource` map saying which side each field came from. What that
+scan looks for is `BACKBONE_FIELDS`, now pinned to the `RollupBackbone`
+declaration in `app/_lib/agent-hire/report-payload.ts` by the same suite: it had
+drifted to scanning for `windowDays` (the receiver's window, never sent) while
+ignoring `kpiDeltas` and `memory`, which are.
 
 `– null` semantics are unchanged: absent is absent. The one thing that IS read as
 a zero is a *present* rule that says so — `"no proposals were opened in the

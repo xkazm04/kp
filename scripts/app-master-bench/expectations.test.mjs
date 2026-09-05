@@ -8,7 +8,12 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
+  AUTOPILOT_ORDER,
+  BACKBONE_FIELDS,
   collectStrings,
   evaluateExpectations,
   extractBackboneReading,
@@ -28,6 +33,66 @@ import {
 // loaded by node's type stripping (see personas-contract.test.mjs's header) —
 // backbone.ts's only import is `import type`, so nothing else comes with it.
 import { backboneScore } from "../../app/_lib/app-master/backbone.ts";
+// The CONTRACT SOURCE for what a Personas build may report. `AUTOPILOT_MODES` is
+// a value and imports; `RollupBackbone` is a type and is read out of the source
+// below — there is nothing else to compare a hand-typed field list against.
+import { AUTOPILOT_MODES } from "../../app/_lib/agent-hire/report-payload.ts";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const REPORT_PAYLOAD = path.join(REPO_ROOT, "app", "_lib", "agent-hire", "report-payload.ts");
+
+/** The top-level member names of `export type RollupBackbone` in report-payload.ts.
+ *  Comments go first (they hold prose colons), then a brace walk keeps depth-1
+ *  members only, so `memory`'s inline object contributes its own name and none of
+ *  its counts. Line endings are normalised: this repo is CRLF on Windows and LF
+ *  in the worktree, and an anchored read must not care which. */
+function rollupBackboneFields() {
+  const src = readFileSync(REPORT_PAYLOAD, "utf8").replace(/\r\n/g, "\n");
+  const start = src.indexOf("export type RollupBackbone = {");
+  assert.ok(start >= 0, "report-payload.ts no longer declares `export type RollupBackbone = {`");
+  const body = src
+    .slice(start)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  const lines = body.slice(body.indexOf("{")).split("\n");
+  const fields = [];
+  let depth = 0;
+  for (const line of lines) {
+    if (depth === 1) {
+      const member = /^\s*(\w+)\??\s*:/.exec(line);
+      if (member) fields.push(member[1]);
+    }
+    for (const ch of line) {
+      if (ch === "{") depth += 1;
+      else if (ch === "}") depth -= 1;
+    }
+    if (depth === 0 && fields.length > 0) break;
+  }
+  return fields;
+}
+
+// ─── the two vocabularies this driver copies from kp ────────────────────────
+// `expectations.mjs` is a plain `.mjs` the driver loads without the app's module
+// graph, so it re-types two closed sets `report-payload.ts` owns. Nothing checked
+// either copy: `BACKBONE_FIELDS` scanned tick summaries for `windowDays` (the
+// RECEIVER's, never sent) and ignored `kpiDeltas` and `memory` (sent since
+// 2026-08-27), and `AUTOPILOT_ORDER` was a second spelling of `AUTOPILOT_MODES`
+// with no parity assert — the exact class the personas-contract doubles were
+// fixed for one layer up.
+
+test("BACKBONE_FIELDS is the RollupBackbone field list report-payload.ts declares", () => {
+  const declared = rollupBackboneFields();
+  assert.ok(declared.length >= 10, `parsed only ${declared.length} RollupBackbone fields — the parser lost the shape`);
+  assert.deepEqual([...BACKBONE_FIELDS].sort(), [...declared].sort());
+  // The two halves of the drift this pin closes, named so a revert is loud.
+  assert.ok(!BACKBONE_FIELDS.includes("windowDays"), "windowDays is the receiver's window, not a reported field");
+  for (const sent of ["kpiDeltas", "memory"]) assert.ok(BACKBONE_FIELDS.includes(sent), `${sent} is reported and must be scanned`);
+});
+
+test("AUTOPILOT_ORDER is AUTOPILOT_MODES, in the order that file declares it", () => {
+  // Weakest first is load-bearing: `autopilotAtLeast` compares by index.
+  assert.deepEqual(AUTOPILOT_ORDER, [...AUTOPILOT_MODES]);
+});
 
 const scenario = (expect, budgetUsd = 120) => ({
   name: "t",
