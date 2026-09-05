@@ -201,6 +201,10 @@ clamp at both ends, exact-fit page not truncated, default still leads) and
 `jdsTemplateManagerLogic.test.ts` (the flag survives the client; a non-`true` value is
 false, never inferred).
 
+The command palette's library preview reads `countTemplates`, a real COUNT, rather than
+the bounded page's length — reporting a page size as a library total is the exact bug the
+JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-library-tools.ts`).
+
 ## Save vs. ingest — a draft can exist without a matchable Job
 
 `POST /api/jds/save` does two things, and only the first is authoritative:

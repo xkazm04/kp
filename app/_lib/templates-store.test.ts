@@ -2,6 +2,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import {
+  countTemplates,
   createTemplate,
   deleteTemplate,
   editTemplate,
@@ -110,4 +111,17 @@ test("the template list is bounded, clamps a caller's limit, and says when it cu
 
   // The bound does not change WHICH templates lead: the default still comes first.
   assert.equal(listTemplates(ws, 1).templates[0].isDefault, true);
+});
+
+test("countTemplates is a real count, not the bounded page's length", () => {
+  const ws = "ws-tpl-count";
+  for (let i = 0; i < 4; i++) createTemplate({ name: `Counted ${i}`, body: "# b" }, ws);
+  const visible = listTemplates(ws, TEMPLATE_LIST_MAX_LIMIT).templates.length;
+  assert.equal(countTemplates(ws), visible);
+  // The palette's library preview reads this to say how big the library IS, so it must
+  // not shrink to the page size the way the JD total once did.
+  assert.ok(countTemplates(ws) > listTemplates(ws, 2).templates.length);
+  // Same visibility rule as the list: org-shared + this team's own, never another team's.
+  createTemplate({ name: "Elsewhere", body: "# b" }, "ws-tpl-count-other");
+  assert.equal(countTemplates(ws), visible, "another team's private draft is not counted");
 });

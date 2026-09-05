@@ -119,6 +119,18 @@ export function listTemplates(workspaceId: string = DEFAULT_WORKSPACE_ID, limit?
   return { templates: rows.slice(0, n).map(rowTo), truncated: rows.length > n };
 }
 
+/** How many templates this team can see. A COUNT, not a page length: `listTemplates` is
+ *  bounded now, and the command palette's library preview exists to say how big things
+ *  are — reporting a page's size as a library total is the exact bug the JD count beside
+ *  it was already fixed for (see resolve-library-tools.ts). */
+export function countTemplates(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  return (
+    db()
+      .prepare(`SELECT COUNT(*) AS n FROM jd_templates WHERE workspace_id IS NULL OR workspace_id = ?`)
+      .get(workspaceId) as { n: number }
+  ).n;
+}
+
 /** One template by id — but only if it's ORG-SHARED or belongs to THIS team, so a
  *  team can't read another team's private template by guessing its id. */
 export function getTemplate(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JdTemplate | null {
