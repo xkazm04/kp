@@ -82,7 +82,8 @@ test("no interpreter at all: exit 1 with the install hint, and codegen is never 
   assert.equal(codegenSpawns, 0, "nothing to run the module with — do not try");
   assert.match(res.stderr, /could not find a Python interpreter/);
   assert.match(res.stderr, /pip install -r requirements\.txt/, "the hint must name the fix");
-  assert.match(res.stderr, /PYTHON_CMD=/, "the hint must name the override");
+  assert.match(res.stderr, /KP_PYTHON=/, "the hint must name the documented override");
+  assert.match(res.stderr, /PYTHON_CMD/, "and still mention the older name");
 });
 
 test("interpreter present, package missing: the traceback is kept AND the install hint added", () => {
