@@ -167,7 +167,11 @@ test("the holder renews at a phase gate; nobody else can", async () => {
   assert.equal(body.renewed, true);
   assert.equal(body.expiresInSeconds, 300, "a full TTL again");
   assert.equal(body.cleared, undefined, "the renew purges nothing, so it counts nothing");
-  assert.ok(simRunActive(CALLER_WS).retryAfterMs >= before, "and the expiry moved out rather than in");
+  // `before` and this read come from two clock moments; scheduler jitter under the
+  // parallel suite once made the later read a few ms smaller (FLAKE 2026-09-05). The
+  // expiresInSeconds === 300 assertion above already proves the full TTL; this one
+  // proves direction, so a small tolerance keeps the intent without the race.
+  assert.ok(simRunActive(CALLER_WS).retryAfterMs + 50 >= before, "and the expiry moved out rather than in");
 
   assert.equal((await post({ renew: true })).status, 409, "a renew with no token is not the holder's");
   assert.equal((await post({ renew: true }, "some-other-tabs-token")).status, 409);
