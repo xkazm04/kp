@@ -354,15 +354,27 @@ is closed by the `repo_scan` handler's `onCancelQueued` hook
 (`cancelQueuedRepoScan`), so it can never sit at `queued` after its task is gone.
 Either way the row lands `failed` / `cancelled`.
 
-`GET /api/repo-scan/[id]` returns the row with TWO fields withheld: the resolved
-`rootPath`, replaced by `isLocal: true`, and `fallbackReason` — the raw
-`"<ExceptionType>: <message>"` line, which is English, unbounded and can quote
-provider output. `errorCode` and `fallbackClass` go out instead, and the intake
-renders them per locale (`library.tab.intake.appMaster.scan.*`); the client never
-renders the server's `error` string. That is the *server's* filesystem after
-symlink resolution, which can differ from what the operator typed. The dossier's
-own `repo.rootPath` still carries it — that is the binding an `AppMasterSpec`
-needs — so this is a projection choice, not a redaction claim.
+`GET /api/repo-scan/[id]` answers an explicit **allow-list**, never a spread of
+the row: `id, repoUrl, status, source, dossier, errorCode, fallbackClass,
+isLocal, createdAt, updatedAt` — enumerated by
+`app/api/repo-scan/[id]/repo-scan-detail-route.test.ts`, so widening it is a
+decision rather than a side effect of the next migration. It used to be a spread
+with two fields removed, which put every later column on the wire by default and
+already put three there:
+
+- `rootPath` — the *server's* filesystem after symlink resolution, which can
+  differ from what the operator typed. `isLocal: true` is served instead. The
+  dossier's own `repo.rootPath` still carries it (that is the binding an
+  `AppMasterSpec` needs), so this is a projection choice, not a redaction claim.
+- `fallbackReason` — the raw `"<ExceptionType>: <message>"` line, English,
+  unbounded and able to quote provider output. `fallbackClass` goes out instead.
+- `error` — the thrown message, which for a clone failure carries git's last 200
+  stderr bytes: for a private remote, its host, branch and auth chatter. Nothing
+  ever rendered it — the panel resolves `errorCode` per locale
+  (`library.tab.intake.appMaster.scan.*`) and the client never renders the
+  server's `error` string — so it was pure egress.
+- `workspaceId` — the caller's own tenant, which it did not send and has no use
+  for.
 
 Both routes are `requireOperator`-gated (a documented no-op in open dev mode) and
 the POST is rate-limited `repo-scan:<ip>` at 10/10min, pinned in
@@ -819,7 +831,7 @@ spec was composed, and it travels with the spec.
 | Symbol | Kind | What it is |
 | --- | --- | --- |
 | `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId }`. `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
-| `GET /api/repo-scan/[id]` | route | → `{ scan }` — the row, minus the resolved `rootPath` (`isLocal` instead) |
+| `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
 | `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |
