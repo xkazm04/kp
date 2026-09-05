@@ -1336,6 +1336,18 @@ export function ensureDb(): Database.Database {
     // material — a colleague's note or a saved JD — the dialog grounds on.
     // JSON list of {kind: "note"|"jd", title, text, jdSlug?}.
     "ALTER TABLE role_intakes ADD COLUMN attachment_json TEXT",
+    // Per-LINE idempotency key for the usage-ledger fold (db/llm.ts
+    // ingestLlmUsageLog). The fold WAS idempotent only because the sidecar is
+    // deleted afterwards — and that delete is a best-effort rmSync in a catch, so
+    // a locked/read-only temp file or a crash between INSERT and unlink left the
+    // file where the next fold re-read it and doubled the spend the pricing
+    // meters bill against. NOT request_id: that is one id per SPAWN, shared by
+    // every call the spawn made, so a unique index on it would DROP legitimate
+    // rows. NULL on every row written before this column existed and on every
+    // direct insertLlmUsage call (the voice-interview estimate) — and NULLs are
+    // distinct under a SQLite UNIQUE index, so the index below can never be
+    // blocked by pre-existing data.
+    "ALTER TABLE llm_usage ADD COLUMN ingest_key TEXT",
   ]) {
     migrateExec(sql);
   }
@@ -1774,6 +1786,19 @@ export function ensureDb(): Database.Database {
     "uq_dev_postings_open",
     `CREATE UNIQUE INDEX IF NOT EXISTS uq_dev_postings_open
        ON dev_postings (workspace_id, case_id, channel) WHERE status = 'open'`
+  );
+  // Usage-ledger replay guard: one row per (sidecar file, line), so re-folding a
+  // sidecar the best-effort cleanup failed to delete inserts nothing instead of
+  // doubling the deployment's recorded spend (db/llm.ts ingestLlmUsageLog turns
+  // this into `INSERT OR IGNORE` + a counted skip). Guarded like the indexes above
+  // even though it cannot realistically fail: every pre-existing row has
+  // ingest_key NULL, and SQLite treats NULLs as distinct under a UNIQUE index, so
+  // legacy data can never block it — if some future writer does collide, the app
+  // must keep booting and the operator must be TOLD, not silently handed a
+  // half-migrated DB.
+  migrateUniqueIndex(
+    "uq_llm_usage_ingest_key",
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_usage_ingest_key ON llm_usage (ingest_key)`
   );
   // Atomic task dedup across connections (the scheduler ticks on its own connection
   // and an external cron can hit /api/automation/run): a partial UNIQUE index forbids

@@ -105,7 +105,23 @@ reserved for multi-tenancy, see the organization doc):
 
 - `llm_config(use_case, provider, model, params_json, updated_at)`
 - `provider_keys(provider, scope['platform'|'byom'], key_ciphertext, meta_json, updated_at)`
-- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id)`
+- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id, ingest_key)`
+
+**The ledger fold is replay-safe.** `ingestLlmUsageLog` (and
+`ingestLlmUsageResult`, which additionally reports the skip count) writes
+`INSERT OR IGNORE` against a UNIQUE index on `ingest_key` — a per-LINE key over
+(sidecar path, line ordinal, line bytes). Deleting the sidecar after the fold
+used to be the only thing making it idempotent, and that delete is a best-effort
+`rmSync` in a catch: a locked file, a read-only temp dir or a crash between the
+INSERT and the unlink left the file where the next fold re-read it, and every row
+landed twice — doubling the spend the pricing meters bill against. A refused
+replay is COUNTED and logged (`[llm-usage] N of M …`), because a non-zero skip
+means a cleanup failed. The key is deliberately **not** `request_id`: that
+identifies the *spawn* and is stamped on every line the spawn wrote, so a unique
+index on it would drop the second and later metered calls of every multi-call
+run. Rows written directly by `insertLlmUsage` (the voice-interview per-minute
+estimate) and every row predating the column carry `ingest_key` NULL, and SQLite
+treats NULLs as distinct — so the index can never be blocked by existing data.
 
 **Resolution happens on the TS side** (it owns the DB), then flows to Python via
 `KP_LLM_CONFIG` (JSON env) on `spawnPython` — Python's `registry.py` only reads

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
 import { ensureDb, safeRowParse } from "./core";
@@ -212,25 +213,103 @@ export function insertLlmUsage(input: LlmUsageInput): void {
  * ledger is telemetry, off the critical path.
  */
 export function ingestLlmUsageLog(logPath: string): number {
+  return ingestLlmUsageResult(logPath).inserted;
+}
+
+/** What one fold did: rows written, and rows REFUSED because this exact sidecar
+ *  line was already in the ledger (see `ingestLlmUsageResult`). */
+export type LlmUsageIngestResult = { inserted: number; skipped: number };
+
+/**
+ * The idempotency key for ONE ledger line: the sidecar path (a per-spawn
+ * `kp-llm-usage-<pid>-<uuid>.ndjson`, python-runner.ts), the line's ordinal in
+ * that file, and the line's bytes. Re-reading the same file yields the same key
+ * for the same line, so the second fold is refused; two identical lines from two
+ * different spawns, or two identical calls within one spawn, keep distinct keys
+ * and both land.
+ *
+ * Deliberately NOT `request_id`: that id identifies the SPAWN, is stamped on
+ * every line the spawn wrote (monitor.py `_request_id`), and is null for any
+ * spawn outside a tracked run — so a unique index on it would drop the second
+ * and later metered calls of every multi-call pipeline run, which is most of
+ * them. The key has to be per LINE because the thing being deduplicated is a
+ * line, not a request.
+ */
+function ingestKeyFor(logPath: string, index: number, line: string): string {
+  return createHash("sha256").update(`${logPath} ${index} ${line}`).digest("hex");
+}
+
+/**
+ * Same fold as {@link ingestLlmUsageLog}, but it also reports how many lines were
+ * refused as duplicates.
+ *
+ * REPLAY SAFETY. Deleting the sidecar afterwards was the ONLY thing that made this
+ * idempotent, and that delete is a best-effort `rmSync` whose failure is swallowed
+ * on purpose (the ledger must never break a spawn). A locked file on Windows, a
+ * read-only temp dir, or a crash between the INSERT and the unlink therefore left
+ * the file exactly where the next ingest of the same path would read it again —
+ * and with no key to refuse on, every row landed twice and the pricing meters
+ * billed double for spend that happened once. `INSERT OR IGNORE` on the
+ * `ingest_key` unique index (core.ts) makes the replay a no-op, and the skip is
+ * COUNTED rather than swallowed: a non-zero `skipped` means a cleanup failed, which
+ * is an operator-actionable fact.
+ */
+export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
   let raw: string;
   try {
     raw = readFileSync(logPath, "utf-8");
   } catch {
-    return 0; // file never created → no LLM calls in this spawn
+    return { inserted: 0, skipped: 0 }; // file never created → no LLM calls in this spawn
   }
-  const rows = raw.split(/\r?\n/).map(parseLedgerLine).filter((r): r is LlmUsageInput => r !== null);
+  const rows = raw
+    .split(/\r?\n/)
+    .map((line, index) => {
+      const parsed = parseLedgerLine(line);
+      return parsed === null ? null : { row: parsed, key: ingestKeyFor(logPath, index, line) };
+    })
+    .filter((r): r is { row: LlmUsageInput; key: string } => r !== null);
+  let inserted = 0;
   if (rows.length > 0) {
     const db = ensureDb();
-    db.transaction((batch: LlmUsageInput[]) => {
-      for (const row of batch) insertLlmUsage(row);
-    })(rows);
+    // No await anywhere inside: better-sqlite3 transactions are synchronous.
+    const fold = db.transaction((batch: typeof rows) => {
+      const stmt = db.prepare(
+        `INSERT OR IGNORE INTO llm_usage
+           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id, ingest_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      let written = 0;
+      for (const { row, key } of batch) {
+        written += stmt.run(
+          new Date().toISOString(),
+          row.useCase,
+          row.provider,
+          row.model ?? null,
+          row.inputTokens ?? null,
+          row.outputTokens ?? null,
+          row.cachedTokens ?? null,
+          row.costUsd ?? null,
+          row.source,
+          row.requestId ?? null,
+          key
+        ).changes;
+      }
+      return written;
+    });
+    inserted = fold(rows);
+  }
+  const skipped = rows.length - inserted;
+  if (skipped > 0) {
+    console.warn(
+      `[llm-usage] ${skipped} of ${rows.length} ledger line(s) in ${logPath} were already ingested — the sidecar's cleanup did not run last time; spend was NOT double-counted`
+    );
   }
   try {
     rmSync(logPath, { force: true });
   } catch {
-    /* best-effort cleanup */
+    /* best-effort cleanup — the ingest_key index above is what makes a re-read safe */
   }
-  return rows.length;
+  return { inserted, skipped };
 }
 
 // ---- Activity log (Insights → Activity) ------------------------------------
