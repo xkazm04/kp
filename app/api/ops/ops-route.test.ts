@@ -63,7 +63,17 @@ const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_
 
 after(() => cleanupUnitDb());
 
-type OpsBody = { tables?: Record<string, number>; queue?: unknown; engines?: unknown; error?: string; code?: string };
+type OpsBody = {
+  tables?: Record<string, number>;
+  queue?: unknown;
+  engines?: unknown;
+  error?: string;
+  code?: string;
+  ok?: boolean;
+  config?: string;
+  degradedReasons?: string[];
+  configIssues?: { phase: string; scope: string; workspaceId: string }[];
+};
 const bodyOf = async (r: Response): Promise<OpsBody> => (await r.json()) as OpsBody;
 
 test("an anonymous caller gets nothing", async () => {
@@ -97,4 +107,54 @@ test("the catch answers a CODE, never the thrown message", () => {
   const src = readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8");
   assert.match(src, /safeJsonError\(error, "api:ops", "OPS_STATUS_FAILED"\)/);
   assert.doesNotMatch(src, /error instanceof Error \? error\.message/, "the raw message must not reach the client again");
+});
+
+// ---- the decision-config health ledger (wave 41 D1) --------------------------------
+//
+// /api/health splits its payload (verdict public, detail behind isOperator). This route
+// is operator-gated in full, so it is where the DETAIL belongs: the reason strings and the
+// ledger sample the System strip can actually render. A corrupt config row means a
+// workspace's auto-reject rules are not in force while its settings panel shows the
+// shipped defaults — the exact class of silent revert the strip exists to surface.
+
+const { getDecisionConfig, __resetDecisionConfigHealth } = await import("../../_lib/decision-config-store.ts");
+const { UNIT_DB_PATH } = await import("../../_lib/testing/unit-db.ts");
+const { default: Database } = await import("better-sqlite3");
+
+function recordOneConfigIssue(workspaceId: string): void {
+  getDecisionConfig("screening", workspaceId);
+  __resetDecisionConfigHealth();
+  const raw = new Database(UNIT_DB_PATH);
+  raw.prepare(`DELETE FROM decision_config WHERE phase = ? AND workspace_id = ?`).run("screening", workspaceId);
+  raw
+    .prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, ?)`)
+    .run("screening", "{not json", new Date().toISOString(), workspaceId);
+  raw.close();
+  getDecisionConfig("screening", workspaceId);
+}
+
+test("an unreadable config row reaches the operator strip as a reason and a sample", async () => {
+  const ws = "ws-ops-corrupt";
+  recordOneConfigIssue(ws);
+  try {
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.config, "degraded", "the named sub-check, so the strip says WHICH thing is broken");
+    assert.equal(body.ok, false, "rules that are not in force are not a healthy deployment");
+    assert.ok(
+      body.degradedReasons?.includes(`decision-config:screening unreadable (team ${ws})`),
+      `the reason names phase, tier and workspace — got ${JSON.stringify(body.degradedReasons)}`
+    );
+    assert.equal(body.configIssues?.[0]?.workspaceId, ws, "the sample carries the row a responder must restore");
+  } finally {
+    __resetDecisionConfigHealth();
+  }
+});
+
+test("a clean ledger reports ok with an empty sample", async () => {
+  __resetDecisionConfigHealth();
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+  const body = await bodyOf(await GET());
+  assert.equal(body.config, "ok");
+  assert.deepEqual(body.configIssues, [], "present and empty — distinguishable from 'this build does not report it'");
 });

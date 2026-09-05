@@ -8,6 +8,7 @@ import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { analyzeTelemetry, commsTelemetry, engineTelemetry } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 
 
 // DATA2 — the operator's read of everything the app records and nothing read:
@@ -47,6 +48,17 @@ export async function GET() {
     const queue = countActiveTasks();
     if ((tables.jobs ?? 0) === 0) degradedReasons.push("job catalog is empty");
 
+    // Decision-config health (/perfect wave 41). /api/health carries the VERDICT for a
+    // monitor; this route is operator-gated in full, so it carries the DETAIL the System
+    // strip renders: which phase, which tier (an org baseline going dark hits every team,
+    // one team's override hits one) and which workspace. An unreadable row means that
+    // workspace's auto-reject rules are not in force while its settings panel shows the
+    // shipped defaults — a silent revert nothing else on this box would report.
+    const configHealth = getDecisionConfigHealth();
+    for (const issue of configHealth.issues) {
+      degradedReasons.push(`decision-config:${issue.phase} unreadable (${issue.scope} ${issue.workspaceId})`);
+    }
+
     // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
     // clock heartbeat, judged by age. This is the surface SystemCard's "Healthy"
     // dot reads, so a wedged automation clock now flips that dot to Degraded and
@@ -62,9 +74,11 @@ export async function GET() {
     return NextResponse.json({
       ok: degradedReasons.length === 0,
       seeds: seed.ok ? "ok" : "degraded",
+      config: configHealth.ok ? "ok" : "degraded",
       // Named sub-check so the panel says WHICH thing is broken, not just "unhealthy".
       clock,
       degradedReasons,
+      configIssues: configHealth.issues,
       tables,
       queue,
       engines: engineAvailability(),

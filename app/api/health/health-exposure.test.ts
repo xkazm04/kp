@@ -89,7 +89,9 @@ type HealthBody = {
   engines?: { gemini: boolean; claudeCli: boolean };
   tables?: Record<string, number>;
   queue?: { running: number; queued: number };
-  degradedReasons?: string[];
+  degradedReasons?: string[];
+  config?: string;
+  configIssues?: { phase: string; scope: string; workspaceId: string }[];
 };
 
 async function probe(): Promise<HealthBody> {
@@ -135,4 +137,73 @@ test("a signed-in operator still gets the full payload", async () => {
   }
   assert.equal(typeof body.queue?.queued, "number");
   assert.ok(Array.isArray(body.degradedReasons));
+});
+
+// ---- the decision-config health ledger (wave 41 D1) --------------------------------
+//
+// A stored decision-config row that will not parse falls back to the CODE DEFAULT, which
+// means the workspace's auto-reject rules are not in force while the settings panel shows
+// the shipped defaults as if they had been chosen. `decision-config-store.ts` records each
+// one, and this route is where that record becomes visible — a ledger nothing renders does
+// not exist.
+//
+// The SAME split as everything else here: the verdict (`ok`, `config`, the status code) is
+// public, the reason is not. A config reason names a WORKSPACE ID, so it is strictly more
+// sensitive than the counts already gated — it tells an anonymous caller a tenant exists.
+
+const { getDecisionConfig, __resetDecisionConfigHealth } = await import("../../_lib/decision-config-store.ts");
+const { UNIT_DB_PATH } = await import("../../_lib/testing/unit-db.ts");
+const { default: Database } = await import("better-sqlite3");
+
+/** Put one unreadable row in the store and read it, so the ledger holds exactly one issue. */
+function recordOneConfigIssue(workspaceId: string): void {
+  getDecisionConfig("screening", workspaceId); // materialize the table
+  __resetDecisionConfigHealth();
+  const raw = new Database(UNIT_DB_PATH);
+  raw.prepare(`DELETE FROM decision_config WHERE phase = ? AND workspace_id = ?`).run("screening", workspaceId);
+  raw
+    .prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, ?)`)
+    .run("screening", "{not json", new Date().toISOString(), workspaceId);
+  raw.close();
+  getDecisionConfig("screening", workspaceId);
+}
+
+test("a corrupt config row degrades the probe, and the reason stays behind the gate", async () => {
+  const ws = "ws-health-corrupt";
+  recordOneConfigIssue(ws);
+  try {
+    cookieValue = null;
+    const anon = await probe();
+    // The VERDICT is public: a named sub-check, so the monitor is told WHICH thing broke.
+    assert.equal(anon.config, "degraded", "the public verdict names the failing sub-check");
+    assert.equal(anon.ok, false, "rules that are not in force are not a healthy deployment");
+    // The DETAIL is not. The reason carries a workspace id; the sample carries the parse error.
+    assert.equal(anon.degradedReasons, undefined, "omitted, never blanked to a lying []");
+    assert.equal(anon.configIssues, undefined, "a tenant id is not a public readiness fact");
+
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const op = await probe();
+    assert.equal(op.config, "degraded");
+    assert.ok(
+      op.degradedReasons?.some((r) => r === `decision-config:screening unreadable (team ${ws})`),
+      `the operator's reason names the phase, the tier and the workspace — got ${JSON.stringify(op.degradedReasons)}`
+    );
+    assert.equal(op.configIssues?.[0]?.phase, "screening", "the ledger sample rides the same gate as the counts");
+    assert.equal(op.configIssues?.[0]?.scope, "team");
+  } finally {
+    __resetDecisionConfigHealth();
+  }
+});
+
+test("a healthy config store says so and adds no reason", async () => {
+  __resetDecisionConfigHealth();
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+  const body = await probe();
+  assert.equal(body.config, "ok");
+  assert.equal(
+    body.degradedReasons?.some((r) => r.startsWith("decision-config:")),
+    false,
+    "a clean ledger must not manufacture a reason"
+  );
+  assert.deepEqual(body.configIssues, [], "an empty sample, not a missing key — the operator can tell the two apart");
 });

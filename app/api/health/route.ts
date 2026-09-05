@@ -7,6 +7,7 @@ import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 
 
 // Readiness probe: confirms the DB opens, seeds loaded cleanly, and reports the
@@ -53,6 +54,8 @@ export async function GET() {
   let tables: Record<string, number> = {};
   let queue = { running: 0, queued: 0 };
   let clock: ReturnType<typeof schedulerLiveness> = "stalled";
+  let configOk = true;
+  let configIssues: ReturnType<typeof getDecisionConfigHealth>["issues"] = [];
   try {
     const seed = getSeedHealth();
     seedOk = seed.ok;
@@ -70,6 +73,24 @@ export async function GET() {
       jobsEmpty = ensureDb().prepare(`SELECT 1 AS n FROM jobs LIMIT 1 -- tenancy:global`).get() === undefined;
     }
     if (jobsEmpty) degradedReasons.push("job catalog is empty");
+
+    // Decision-config health (/perfect wave 41). An unreadable stored row falls back to
+    // the CODE DEFAULT, so the workspace's auto-reject rules are NOT in force while the
+    // settings panel renders the shipped defaults as if they had been chosen. It is a
+    // real degradation with no other reader — the ledger in decision-config-store.ts was
+    // written and nothing rendered it, which is the same as not recording it at all.
+    // In-memory only: no query, so this costs an untrusted hit nothing.
+    //
+    // The reason names a WORKSPACE ID, so it is strictly more sensitive than the counts
+    // already gated here and rides degradedReasons (operator-only). The VERDICT — `config`
+    // plus the status code — stays public like `seeds`: a monitor is told which sub-check
+    // failed, never whose tenant it was.
+    const config = getDecisionConfigHealth();
+    configOk = config.ok;
+    configIssues = config.issues;
+    for (const issue of config.issues) {
+      degradedReasons.push(`decision-config:${issue.phase} unreadable (${issue.scope} ${issue.workspaceId})`);
+    }
 
     // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
     // clock heartbeat, judged by age. A wedged automation clock now degrades the
@@ -102,6 +123,7 @@ export async function GET() {
       ok,
       db: "ok",
       seeds: seedOk ? "ok" : "degraded",
+      config: configOk ? "ok" : "degraded",
       // Named sub-check so the response says WHICH thing is broken, not just "unhealthy".
       clock,
       // Host/tenant detail — operator only (see the header). OMITTED rather than
@@ -111,7 +133,9 @@ export async function GET() {
       // DATA4 `engines` is informational and never a degradedReason (a missing
       // Claude CLI is a designed fallback mode), but it is also secret-presence,
       // so it sits behind the same gate as the counts.
-      ...(trusted ? { engines: engineAvailability(), tables, queue, degradedReasons } : {}),
+      ...(trusted
+        ? { engines: engineAvailability(), tables, queue, degradedReasons, configIssues }
+        : {}),
     },
     { status: ok ? 200 : 503 }
   );
