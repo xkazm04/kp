@@ -547,6 +547,18 @@ and the drain then does nothing forever. Failures are shown by CLASS
 in `edge-config.ts`), never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
 `EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
 
+**"Drain now" reports a refusal as a refusal.** The handler used to branch on
+`summary.error` alone, and a refusal of the DOOR carries no summary: a `403` (a seat
+without `org:manage`) or a `500` fell through to the success branch and rendered
+"Drained: 0 filed, 0 skipped" in green — the same sentence a healthy, quiet queue
+produces, so the one state an operator must see was indistinguishable from "nothing to
+do". It now branches on the response status first: a non-ok answer that carries an edge
+failure kind is shown as that CLASS (this is how the `409 EDGE_SECRET_UNREADABLE` below
+keeps its specific sentence), and anything else is resolved from its `code` through
+`useErrorMessage()`, falling back to the localized `drainFailedUnknown`. Pinned by
+`channelsEdgeDrainRefusal.test.ts`, which also asserts the kind→sentence map is total
+over `EDGE_ERROR_KINDS`.
+
 **A credential nobody can open is a ledger error, not a 500.** Decrypt used to run
 OUTSIDE `resolveEdge`'s try, so a rotated `KP_SECRET` (or a retired key dropped before
 `npm run secrets:rotate` had run) threw straight out of `drainEdge` — a function whose
