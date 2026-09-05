@@ -7900,6 +7900,7 @@
     },
     "useCases": {
       "match_reasoning": "Raisonnement de matching",
+      "tts": "Voix (synthèse vocale)",
       "automation": "Automatisation",
       "campaign_pack": "Pack de campagne",
       "jd_ingest": "Import de fiche de poste",

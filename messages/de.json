@@ -7900,6 +7900,7 @@
     },
     "useCases": {
       "match_reasoning": "Match-Begründung",
+      "tts": "Sprache (Text zu Sprache)",
       "automation": "Automatisierung",
       "campaign_pack": "Kampagnenpaket",
       "jd_ingest": "JD-Import",

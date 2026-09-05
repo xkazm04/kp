@@ -7900,6 +7900,7 @@
     },
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",
+      "tts": "Hlas (převod textu na řeč)",
       "automation": "Automatizace",
       "campaign_pack": "Balíček kampaně",
       "jd_ingest": "Načtení popisu pozice",
