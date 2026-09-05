@@ -325,14 +325,16 @@ ping (`POST /api/ats/test`).
 - **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand —
   operator-gated, scoped to the caller's workspace, and every successful export is audited
   onto that candidate's own pipeline-event timeline (`ats_export`).
-- **The pull door honours the consent gate.** It applies `consentWithholdsPii` at read time: an entry whose
-  retention window has lapsed (or that is already anonymized) exports with its label masked
-  to `First L.` and `contact: null` — exactly what `anonymizeEntry` would have written —
-  while keeping the non-identifying retained record (stage, status, match score, archetype,
-  sealed decision) so a connector's stage sync still works. The audit detail records that
-  the identity was withheld (`consent-redacted`). Redaction, not refusal, matches every
-  other PII read boundary; `anonymizeExpiredConsents` is a deferred sweep with no
-  production caller, so this read-time gate is the enforcement, not an optimization.
+- **The pull door honours the consent gate.** The gate lives in the record builder
+  (`buildAtsRecord`, `app/_lib/ats-record.ts`, through the shared `consent.ts` predicates), so
+  every export path applies it. An entry whose retention window has lapsed exports with its
+  label masked to `First L.`, `contact: null` and `piiWithheld: true`, while keeping the
+  non-identifying retained record (stage, status, match score, archetype, sealed decision)
+  so a connector's stage sync still works; the audit detail records that the identity was
+  withheld (`consent-redacted`). An entry that is already ANONYMIZED is refused, not
+  redacted: the route answers `ATS_CANDIDATE_ERASED` (410) and a ledger delivery is
+  dead-lettered. `anonymizeExpiredConsents` is a periodic best-effort sweep, so this
+  read-time gate is the enforcement, not an optimization.
 
 ### Receiver contract
 
@@ -487,12 +489,10 @@ side).
   exponential from one minute, unjittered — a receiver that comes back after an outage takes
   every queued delivery in one thundering herd. The candidate-comms relay beside it has its
   own ladder with its own constants; the two should be one policy.
-- **`GET /api/ats/candidate/<id>` now 404s an anonymized entry.** The consent gate moved into
-  the record builder, and its anonymized case is a refusal rather than a redaction, so the
-  pull door reports an erased candidate as absent. That is the honest answer for an erasure,
-  but it IS a behaviour change on that route, and the route's own redaction path
-  (`ats-candidate-audit.ts`) is now a belt-and-braces second application for the
-  expired-consent case rather than the enforcement.
+- **The route's own redaction path is now a second application.** With the consent gate in
+  the record builder, `ats-candidate-audit.ts`'s `redactAtsRecordForConsent` is belt-and-braces
+  for the expired-consent case rather than the enforcement; the anonymized case never
+  reaches it (coded 410 above).
 - **The field map has no UI.** A connection saved here uses the stored map (or an empty
   one), and an empty map has no `externalId` path — so a sync using it fails loudly rather
   than importing under a bad identity. Editing it still requires a `POST` with a `fieldMap`
@@ -504,11 +504,13 @@ side).
   adding a user dimension is additive.
 - **No "test connection" action** for ATS, unlike the outbound webhook's test ping — a
   wrong token surfaces at the first sync.
-- **Erasing a candidate does not yet drop that entry's `ats_links` rows.** The link is an
-  identity join, so leaving it behind keeps a re-identification path open: a re-sync can
-  re-attach the vendor's copy of the name and contact to the record the erasure emptied.
-  The seam exists (`deleteAtsLinksForEntry`, `app/_lib/ats/links-store.ts`, tested); the
-  one-line call from `scrubEntryLinkedPii` / `anonymizeEntry` in `app/_lib/db/pipeline.ts`
-  is not wired up yet.
+- **Erasing a candidate keeps that entry's `ats_links` rows, by decision.** The link holds
+  no personal data (provider, external id, stage) and the scrub in `app/_lib/db/pipeline.ts`
+  lists it as a table that must OUTLIVE erasure: without it the next sync would re-import the
+  same person as a NEW candidate, which is the worse outcome. The export side cannot
+  re-identify through it (the record builder refuses an anonymized entry), and no inbound
+  write path updates an existing entry from a vendor record today (`ats/inbound.ts` is a
+  pure mapper). `deleteAtsLinksForEntry` (`app/_lib/ats/links-store.ts`, tested) exists for
+  the day an inbound writer appears and needs to drop the join deliberately.
 - `account_email` is never populated by the callback (no userinfo call), so a connected
   calendar shows *Unknown account* until it is set another way.
