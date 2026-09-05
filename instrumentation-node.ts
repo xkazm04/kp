@@ -306,6 +306,20 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] rediscovery-alert retention sweep failed:", e);
     }
+    // ATS delivery-ledger retention (ats-delivery-store.ts) — independent, best-effort,
+    // idempotent. `ats_delivery` had no delete either: one row per mirrored lifecycle
+    // event, each naming a candidate's pipeline entry, kept forever to answer a question
+    // ("did this hire reach the HRIS?") that stops being asked within days. Only TERMINAL
+    // rows go — delivered, or dead-lettered with no retry scheduled — so live retry work
+    // is never swept out from under the sweep beside it. Same placement and same reason
+    // as the two above: storage hygiene on our own bookkeeping, under the autonomy pause.
+    try {
+      const { pruneAtsDeliveries } = await import("./app/_lib/ats-delivery-store");
+      const pruned = pruneAtsDeliveries();
+      if (pruned) console.log("[clock] ATS delivery ledger pruned:", pruned);
+    } catch (e) {
+      console.error("[clock] ATS delivery retention sweep failed:", e);
+    }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();
   };
