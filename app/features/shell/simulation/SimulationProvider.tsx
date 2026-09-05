@@ -89,7 +89,16 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   // ---- Observation + real-click engine, and the scripted walk ----------------
   const engine = useSimulationEngine({ ctrl, patch, log, beat });
-  const { run } = useSimulationWalk({ ctrl, patch, log, nav, beat, gate, engine });
+  const { run, releaseLease } = useSimulationWalk({ ctrl, patch, log, nav, beat, gate, engine });
+
+  // A reload mid-run used to strand the operator: the lease outlived the tab and
+  // the next Start was refused for up to five minutes. pagehide is the last
+  // reliable moment a closing or reloading tab gets; the release is keepalive and
+  // releases only a lease this tab claimed (useSimulationWalk.releaseLease).
+  useEffect(() => {
+    window.addEventListener("pagehide", releaseLease);
+    return () => window.removeEventListener("pagehide", releaseLease);
+  }, [releaseLease]);
 
   const start = useCallback(() => {
     ctrl.current = { ...runControlFlags("start", ctrl.current).flags, wake: null };

@@ -104,6 +104,18 @@ export function useSimulationWalk({
     await fetch("/api/sim/reset", init).catch(() => null);
   }, []);
 
+  // The pagehide seam (SimulationProvider): release a lease THIS walk claimed when
+  // the tab goes away, so a reload does not strand the operator behind their own
+  // five-minute lock. Fire-and-forget with keepalive - the page is unloading and
+  // nothing can await the answer; a lost release simply expires on the server's
+  // terms. Releases only what was claimed: `releaseInit(null)` is null.
+  const releaseLease = useCallback(() => {
+    const init = releaseInit(leaseRef.current);
+    if (!init) return;
+    leaseRef.current = null;
+    void fetch("/api/sim/reset", { ...init, keepalive: true }).catch(() => null);
+  }, []);
+
   const step = useCallback(
     async (o: StepOpts) => {
       patch({ phase: o.id, status: o.title, spotlight: { selector: o.target, title: o.title, caption: o.caption } });
@@ -543,5 +555,5 @@ export function useSimulationWalk({
     }
   }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, getBoard, okJson, topScreened, locale, log, logClickRoute, nav, patch, runGroupEval, stageLabel, step, t, waitDom, waitEntry]);
 
-  return { run };
+  return { run, releaseLease };
 }

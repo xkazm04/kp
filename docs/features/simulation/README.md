@@ -215,12 +215,10 @@ an explicit guard rather than a special-case fake:
 
 ## Known gaps
 
-- **A closed tab still leaves its lease standing until the TTL expires.** There is no
-  `pagehide` release: the live token is `leaseRef` inside `useSimulationWalk`, which
-  exports only `run`, so nothing outside the walk can prove ownership. The status door
-  above makes the resulting wait HONEST (a reloaded tab is told a run is live and that
-  it is not the owner) but does not shorten it; a `keepalive` DELETE at `pagehide`
-  needs the walk to hand its lease out first.
+- **A closed tab releases its lease on `pagehide`** (`useSimulationWalk.releaseLease`, a
+  `keepalive` DELETE carrying the token this tab claimed, wired by `SimulationProvider`).
+  It is fire-and-forget: a release lost to a dying tab simply expires on the server's
+  terms, and the status door above keeps the resulting wait honest.
 - The run lock is per PROCESS. Two `next start` workers (or a future horizontally
   scaled deploy) each hold their own map, so the race it closes reopens there. Moving
   it into SQLite is the obvious next step and was not needed for the single-process
