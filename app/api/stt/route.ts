@@ -28,12 +28,17 @@ const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // are healthy, but what was asked for (redaction, diarization, on-device) is not
 // on offer here. `too_long` is a 413 beside the byte cap, because the clip is
 // well-formed and the remedy for both is the same one: split it.
+//
+// `rate_limited`, `too_long` and `unavailable` are NOT here: each is answered as
+// a refusal below, before this lookup is consulted, so a row for any of them
+// would be a status nothing can select — and a dead row is drift waiting to
+// happen (this table carried `unavailable: 503` for a day after the refusal
+// landed, and the route test pinned the dead row rather than the live answer).
 const STT_ERROR_STATUS: Record<string, number> = {
   invalid_audio: 400,
   invalid_language: 400,
   invalid_model: 400,
   unsupported: 422,
-  unavailable: 503,
   timeout: 504,
 };
 
@@ -147,12 +152,18 @@ export async function POST(request: Request) {
       // operator can act on, so it carries a resolvable code rather than the
       // adapter's English: "split it and try again", in their own language.
       if (err.code === "too_long") return jsonRefusal("STT_TOO_LONG", 413);
+      // "Nothing here can listen" is a CONFIGURATION fact the operator can act
+      // on, and the probe reason that carries it names an env var or a model
+      // path — a server-log fact, never a response body. So it answers its own
+      // resolvable code rather than STT_FAILED's "please try again", which a
+      // keyless install cannot do anything with. It never reaches
+      // STT_ERROR_STATUS, which is why that table has no `unavailable` row.
+      if (err.code === "unavailable") return jsonRefusal("STT_UNAVAILABLE", 503);
       // The twin of /api/tts's engine branch, and for the same reason: the
       // adapter's English ("OPENAI_API_KEY is not set", a whisper.cpp stderr
       // tail) is a server-log fact, never a response body. The chokepoint logs
       // it under `api:stt:engine` and answers STT_FAILED at the engine's own
       // status. `provider` left the body with the message; nothing read it.
-      if (err.code === "unavailable") return jsonRefusal("STT_UNAVAILABLE", 503);
       return safeJsonError(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS[err.code] ?? 502);
     }
     return safeJsonError(err, "api:stt", "STT_FAILED");

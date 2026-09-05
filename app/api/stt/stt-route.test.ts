@@ -81,19 +81,26 @@ test("the per-IP throttle answers 429 through the refusal chokepoint", async () 
 
 test("the engine code table covers the package's union, refusals included", () => {
   const src = readFileSync(path.join(here, "route.ts"), "utf-8");
-  // Two engine codes answer through the chokepoint rather than the lookup: both
-  // are refusals an operator can act on, in their own language.
+  // THREE engine codes answer as refusals rather than through the lookup: each
+  // is something an operator can act on, in their own language.
   assert.match(src, /err\.code === "rate_limited"\) return engineThrottled\(err\.retryAfterMs\)/);
   assert.match(src, /err\.code === "too_long"\) return jsonRefusal\("STT_TOO_LONG", 413\)/);
+  assert.match(src, /err\.code === "unavailable"\) return jsonRefusal\("STT_UNAVAILABLE", 503\)/);
   for (const [code, status] of [
     ["invalid_audio", 400],
     ["invalid_language", 400],
     ["invalid_model", 400],
     ["unsupported", 422],
-    ["unavailable", 503],
     ["timeout", 504],
   ] as const) {
     assert.match(src, new RegExp(`${code}: ${status},`), `${code} must map to ${status}`);
+  }
+  // A code answered above must NOT also sit in the lookup: the row is
+  // unreachable, and an unreachable row is where a second, divergent status for
+  // the same failure quietly grows.
+  const table = /const STT_ERROR_STATUS[^}]*}/.exec(src)?.[0] ?? "";
+  for (const dead of ["rate_limited", "too_long", "unavailable"]) {
+    assert.doesNotMatch(table, new RegExp(`${dead}:`), `${dead} is answered as a refusal; a lookup row for it is dead`);
   }
   assert.match(src, /STT_ERROR_STATUS\[err\.code\] \?\? 502/);
   assert.match(src, /safeJsonError\(err, "api:stt", "STT_FAILED"\)/);

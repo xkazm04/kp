@@ -160,7 +160,7 @@ Error mapping, in one place:
 | `too_long` — well-formed audio, longer than the serving engine's `maxClipSeconds` | **413** |
 | `unsupported` — well-formed request, healthy engines, capability not on offer | **422** |
 | `rate_limited` — the engine asked us to slow down | **429**, plus `Retry-After` from `err.retryAfterMs` when the engine said how long |
-| `unavailable` — nothing ready, with the last probe's reason | 503 |
+| `unavailable` — nothing ready | **503** as the `STT_UNAVAILABLE` refusal; the probe's reason is a server-log fact, never the body |
 | `timeout` | 504 |
 | `engine_failed`, `aborted` | 502 |
 
@@ -174,7 +174,8 @@ and the adapter keeps a cached positive probe across a 429 because busy is not d
 boundary refusals resolve through `REFUSAL_ERRORS`: `AUDIO_MISSING` (no multipart body, no
 `audio` part, or an empty one), `AUDIO_UNSUPPORTED_TYPE`, `AUDIO_TOO_LARGE`,
 `TOO_MANY_REQUESTS` (the per-IP throttle AND the engine's own `rate_limited`, so a client
-backs off from both the same way) and `STT_TOO_LONG` for the engine's `too_long`.
+backs off from both the same way), `STT_TOO_LONG` for the engine's `too_long` and
+`STT_UNAVAILABLE` for its `unavailable`.
 `validateAudioUploadServer` returns `{ status, code }` rather than a sentence, and the 500
 is `safeJsonError(err, "api:stt", "STT_FAILED")` — the adapter's message (which can carry a
 vendor HTTP body or a local model path) goes to the server log only. The code -> status
@@ -182,10 +183,17 @@ table is pinned by invoking the handler in `app/api/stt/stt-route.test.ts`.
 
 The ENGINE branch joined them on 2026-09-05. It used to send `{ error: err.message }`, and
 that message is the adapter's English ("OPENAI_API_KEY is not set", a whisper.cpp stderr
-tail) — the one thing a client may not render. Every remaining engine failure now answers
+tail) — the one thing a client may not render. Three engine codes are answered as REFUSALS
+before that branch is reached, because each names something the operator can go and do:
+`rate_limited` (`TOO_MANY_REQUESTS` 429), `too_long` (`STT_TOO_LONG` 413) and `unavailable`
+(`STT_UNAVAILABLE` 503, "Transcription is not configured on this server" — a keyless install
+told to "try again" cannot act on that). Every OTHER engine failure answers
 `safeJsonError(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS[err.code] ?? 502)`:
 the error whole to the server log, `STT_FAILED` plus its registry sentence on the wire, and
-the engine's own status kept. `provider` left the body with the message; nothing read it.
+the engine's own status kept. Because `unavailable` never reaches the lookup, it carries no
+row there — a second 503 nothing can select is drift waiting to happen, and
+`stt-route.test.ts` pins its absence. `provider` left the body with the message; nothing
+read it.
 
 The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every

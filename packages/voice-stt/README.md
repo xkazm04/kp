@@ -85,8 +85,10 @@ policy. The shape:
   onDevice?` → a transcript as JSON, with `X-Stt-Provider`, `X-Stt-Elapsed-Ms`, and
   `X-Stt-Fallback-From` when the served engine is not the one asked for.
 - Map `SttError.code` → status: `invalid_*` 400, **`too_long` 413**, **`unsupported` 422**,
-  **`rate_limited` 429 + a `Retry-After` header from `err.retryAfterMs`**, `unavailable` 503,
-  `timeout` 504, else 502. `too_long` is 413 rather than 400 so a client branches on length
+  **`rate_limited` 429 + a `Retry-After` header from `err.retryAfterMs`**, **`unavailable` 503
+  as a REFUSAL** (the probe's reason names an env var or a model path, so it is a server-log
+  fact and the body carries a resolvable code instead), `timeout` 504, else 502 with the
+  adapter's sentence logged, never returned. `too_long` is 413 rather than 400 so a client branches on length
   the same way it branches on size — the upload gate already answers 413 for too many bytes,
   and "too much audio" is the same conversation.
 - Gate it hard. One call is billed per audio **hour** on the cloud path and occupies a CPU
