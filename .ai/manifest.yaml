@@ -72,10 +72,14 @@ guidance:
     - test:unit
     - lint
   gates_doc: AGENTS.md
-  # In ci.yml's own order: node-quality first, then python-gate. The two gates
-  # that read the COMMIT RANGE rather than the tree (doc-sync, commit-convention)
-  # are not npm scripts and are not listed here; AGENTS.md names them in prose
-  # beside the table.
+  # In ci.yml's own order: node-quality first, then python-gate, then the gates
+  # that read the COMMIT RANGE rather than the tree, and last the two review
+  # lenses .github/workflows/review.yml runs.
+  #
+  # A gate is an npm script a GATING WORKFLOW runs, however it invokes it. Three
+  # ci.yml steps and all of review.yml call the script FILE (`node scripts/…`)
+  # rather than `npm run …`; check-guidance.mjs resolves those through
+  # package.json, so they are gates here like any other and owe a row in AGENTS.md.
   gates:
     - typecheck
     - lint
@@ -108,6 +112,11 @@ guidance:
     - lint:ruff-ratchet
     - test:python:gate
     - test:eval:ci
+    - docs:check:diff
+    - commit:check
+    - ci:budget
+    - review:constitution
+    - review:agent
 
 # GUIDANCE THAT ARRIVES WITH THE SCOPE.
 #

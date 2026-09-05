@@ -64,11 +64,16 @@
 //   gates-undeclared      `guidance.gates` is absent or empty — the declaration
 //                         the four rules below compare against.
 //   gate-command-dangling a declared gate package.json does not define.
-//   gate-unlisted         .github/workflows/ci.yml runs `npm run <x>` and the
-//                         manifest does not declare it. A step added to CI that
-//                         the guidance never mentions is the drift itself.
-//   gate-stale            the manifest declares a gate CI no longer runs, so the
-//                         list has become a copy nobody re-read.
+//   gate-unlisted         a GATING WORKFLOW (ci.yml or review.yml) runs
+//                         `npm run <x>` and the manifest does not declare it. A
+//                         step added to CI that the guidance never mentions is
+//                         the drift itself. A step that invokes the script file
+//                         directly (`node scripts/review/constitution-check.mjs`,
+//                         which is how review.yml runs both lenses) counts: it is
+//                         resolved back to the npm script that wraps it, because
+//                         a gate that skips `npm run` is still a gate.
+//   gate-stale            the manifest declares a gate no gating workflow runs,
+//                         so the list has become a copy nobody re-read.
 //   gates-doc-missing     `guidance.gates_doc` is absent, names a file that is
 //                         not there, or names one the manifest does not otherwise
 //                         declare as guidance. It is the ONE file that carries the
@@ -96,6 +101,20 @@ export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url
 export const MANIFEST_PATH = '.ai/manifest.yaml';
 /** The workflow the gate rules read. Its `run:` steps ARE the definition of "green". */
 export const CI_WORKFLOW = '.github/workflows/ci.yml';
+/**
+ * …and it is not the only one. `.github/workflows/review.yml` runs the two review
+ * lenses on every PR and every push to main, and `.githooks/pre-push` runs them
+ * before a push to main — they gate a change exactly as ci.yml's steps do, and
+ * until this list existed neither had a row in the gate table or an entry in the
+ * manifest, so `guidance:check` reconciled nothing about them.
+ *
+ * A gate is an npm script a GATING WORKFLOW runs, however it invokes it: review.yml
+ * calls `node scripts/review/constitution-check.mjs` directly rather than through
+ * `npm run review:constitution`, and reading only `npm run` would have declared the
+ * lens undocumented forever. See `nodeScriptIndex`.
+ */
+export const GATE_WORKFLOWS = [CI_WORKFLOW, '.github/workflows/review.yml'];
+const GATE_WORKFLOWS_LABEL = GATE_WORKFLOWS.join(' / ');
 
 /**
  * Where agent guidance is conventionally found. A file here that the manifest
@@ -164,11 +183,31 @@ export function parseGuidance(yaml) {
  *
  * Shell comments inside a block scalar are skipped for the same reason.
  */
-export function ciCommands(yaml) {
+export function nodeScriptIndex(scripts = {}) {
+  const index = new Map();
+  for (const name of Object.keys(scripts).sort()) {
+    for (const m of String(scripts[name]).matchAll(/node\s+((?:\.\/)?[\w./-]+\.(?:mjs|cjs|js))/g)) {
+      const p = m[1].replace(/^\.\//, '');
+      if (!index.has(p)) index.set(p, name);
+    }
+  }
+  return index;
+}
+
+export function ciCommands(yaml, scripts = null) {
   const lines = String(yaml ?? '').split(/\r?\n/);
   const found = new Set();
+  // A workflow that runs the script FILE is running the gate. Without this, a
+  // step invoking `node scripts/review/constitution-check.mjs` reads as no gate
+  // at all, and the row it owes the table never becomes a finding.
+  const byFile = scripts ? nodeScriptIndex(scripts) : null;
   const scan = (s) => {
     for (const m of s.matchAll(/npm run ([\w:-]+)/g)) found.add(m[1]);
+    if (!byFile) return;
+    for (const m of s.matchAll(/node\s+((?:\.\/)?[\w./-]+\.(?:mjs|cjs|js))/g)) {
+      const name = byFile.get(m[1].replace(/^\.\//, ''));
+      if (name) found.add(name);
+    }
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -421,7 +460,7 @@ export function runChecks(guidance, files, scripts, ci = null) {
         finding(
           'gates-undeclared',
           `${MANIFEST_PATH} declares no \`guidance.gates\`.`,
-          `List every npm script ${CI_WORKFLOW} runs here. Without it this check can prove the guidance files ` +
+          `List every npm script ${GATE_WORKFLOWS_LABEL} run here. Without it this check can prove the guidance files ` +
             'agree with each other and nothing about whether following them lands a green build — which is the ' +
             'state in which the documented commands and the gating commands were two different sets.',
         ),
@@ -444,7 +483,7 @@ export function runChecks(guidance, files, scripts, ci = null) {
         out.push(
           finding(
             'gate-stale',
-            `\`guidance.gates\` declares \`npm run ${cmd}\`, which ${CI_WORKFLOW} does not run.`,
+            `\`guidance.gates\` declares \`npm run ${cmd}\`, which ${GATE_WORKFLOWS_LABEL} do not run.`,
             `Remove it, or restore the step. A gate list that names a command CI dropped tells an agent to spend ` +
               'time on something nothing checks, which is how the list stops being read at all.',
           ),
@@ -467,7 +506,7 @@ export function runChecks(guidance, files, scripts, ci = null) {
       out.push(
         finding(
           'gate-unlisted',
-          `${CI_WORKFLOW} runs \`npm run ${cmd}\` and ${MANIFEST_PATH} does not declare it as a gate.`,
+          `${GATE_WORKFLOWS_LABEL} run \`npm run ${cmd}\` and ${MANIFEST_PATH} does not declare it as a gate.`,
           `Add it to \`guidance.gates\` AND to the gate table in ${guidance?.gatesDoc ?? 'the declared gates doc'} ` +
             'in the same change. A step that gates every push and appears in no guidance is exactly the drift this ' +
             'rule exists for — an agent cannot run what it was never told about.',
@@ -507,7 +546,7 @@ export function render(findings, guidance) {
     return (
       `check-guidance: ${guidance.canonical} is canonical, ${guidance.projections.length} projection(s) point at it, ` +
       `every command they name exists, all ${guidance.verify?.length ?? 0} verify command(s) are named by every one of them, ` +
-      `and all ${guidance.gates?.length ?? 0} CI gate(s) are declared, still run by ${CI_WORKFLOW}, and named by ` +
+      `and all ${guidance.gates?.length ?? 0} CI gate(s) are declared, still run by ${GATE_WORKFLOWS_LABEL}, and named by ` +
       `${guidance.gatesDoc ?? 'the declared gates doc'}.`
     );
   }
@@ -519,9 +558,22 @@ export function render(findings, guidance) {
  * on purpose: a missing ci.yml turns every declared gate into `gate-stale`, which
  * is loud, where "the gate rules did not run" would be silent.
  */
-export function loadCiCommands(root = REPO_ROOT) {
-  const p = path.join(root, CI_WORKFLOW);
-  return fs.existsSync(p) ? ciCommands(fs.readFileSync(p, 'utf8')) : [];
+export function loadCiCommands(root = REPO_ROOT, scripts = null) {
+  // package.json is read here rather than demanded from the caller so that a
+  // one-argument call still resolves a direct `node scripts/…` invocation to the
+  // npm script that wraps it — the alternative silently drops review.yml's lenses.
+  let resolved = scripts;
+  if (!resolved) {
+    const pkgPath = path.join(root, 'package.json');
+    resolved = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')).scripts ?? {} : {};
+  }
+  const found = new Set();
+  for (const wf of GATE_WORKFLOWS) {
+    const p = path.join(root, wf);
+    if (!fs.existsSync(p)) continue;
+    for (const cmd of ciCommands(fs.readFileSync(p, 'utf8'), resolved)) found.add(cmd);
+  }
+  return [...found].sort();
 }
 
 if (process.argv[1]?.endsWith('check-guidance.mjs')) {

@@ -21,6 +21,7 @@ import path from 'node:path';
 
 import {
   CI_WORKFLOW,
+  GATE_WORKFLOWS,
   MANIFEST_PATH,
   REPO_ROOT,
   ciCommands,
@@ -28,6 +29,7 @@ import {
   declaredPaths,
   loadCiCommands,
   loadGuidanceFiles,
+  nodeScriptIndex,
   parseGuidance,
   resolveIncludes,
   runChecks,
@@ -235,6 +237,36 @@ check('a block scalar ends at its sibling key, not at the next step', () => {
   // block. Getting this wrong makes every `${{ }}` value part of the script.
   const yaml = ['      - name: x', '        run: |', '          npm run a', '        env:', '          K: v', '      - run: npm run b'].join('\n');
   assert.deepEqual(ciCommands(yaml), ['a', 'b']);
+});
+
+// A GATE THAT SKIPS `npm run` IS STILL A GATE. review.yml runs both review lenses
+// as `node scripts/review/<lens>.mjs`, and three ci.yml steps do the same; reading
+// only `npm run` left five gating steps that no guidance had to mention.
+check('a direct `node scripts/…` invocation resolves to the npm script that wraps it', () => {
+  const scripts = {
+    'review:constitution': 'node scripts/review/constitution-check.mjs',
+    'ci:budget': 'node ./scripts/perf/ci-budget.mjs',
+    lint: 'eslint .',
+  };
+  const yaml = [
+    '      - run: node scripts/review/constitution-check.mjs --base "$BASE" --head HEAD | tee out.txt',
+    '      - run: node scripts/perf/ci-budget.mjs',
+    '      - run: node scripts/not/mapped.mjs',
+    '      - run: npm run lint',
+  ].join('\n');
+  assert.deepEqual(ciCommands(yaml, scripts), ['ci:budget', 'lint', 'review:constitution']);
+  // …and without the scripts map the caller gets exactly the old behaviour.
+  assert.deepEqual(ciCommands(yaml), ['lint']);
+  assert.equal(nodeScriptIndex(scripts).get('scripts/perf/ci-budget.mjs'), 'ci:budget');
+});
+
+check('the gate workflows are ci.yml AND review.yml, and both are really read', () => {
+  assert.deepEqual(GATE_WORKFLOWS, [CI_WORKFLOW, '.github/workflows/review.yml']);
+  for (const wf of GATE_WORKFLOWS) assert.ok(fs.existsSync(path.join(REPO_ROOT, wf)), `${wf} is gone`);
+  const cmds = loadCiCommands(REPO_ROOT);
+  for (const lens of ['review:constitution', 'review:agent']) {
+    assert.ok(cmds.includes(lens), `${lens} runs in review.yml but the reader did not see it`);
+  }
 });
 
 const CI = ['lint', 'typecheck'];

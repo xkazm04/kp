@@ -21,6 +21,17 @@ it mechanically.
 Both live in [`scripts/review/`](../../scripts/review) and share one diff parser
 (`diff.mjs`). Fixtures: `npm run test:review`.
 
+Both are also **declared gates**: `npm run review:constitution` and
+`npm run review:agent` have rows in `AGENTS.md`'s gate table and entries in
+`.ai/manifest.yaml` `guidance.gates`, so `npm run guidance:check` reconciles them
+in both directions like every ci.yml step. That needed one change to the checker:
+`.github/workflows/review.yml` invokes the lenses as `node scripts/review/<lens>.mjs`
+rather than `npm run …`, so `check-guidance.mjs` now reads **both** gating
+workflows (`GATE_WORKFLOWS`) and resolves a direct `node scripts/…` step back to
+the npm script that wraps it (`nodeScriptIndex`). A gate that skips `npm run` is
+still a gate; before this, five gating steps — the two lenses, `docs:check:diff`,
+`commit:check` and `ci:budget` — owed no row anywhere.
+
 ## Lens 1 — the constitution check (deterministic)
 
 ```bash
@@ -103,13 +114,27 @@ does need a skip. The waiver is a **commit trailer**, on any commit in the
 range:
 
 ```
-Gate-exemption: the pypdf fixtures are deliberately not in the repo
+Gate-exemption: <rule> at <file>[:<line>] — <why this one is legitimate>
+Gate-exemption: test-skip at pipeline/jobfit/tests/test_extract.py:41 — the pypdf fixtures are deliberately not in the repo
 ```
 
-That waives every blocking finding in the range and prints the reason. It is a
-sentence in `git log` that a reviewer can read and disagree with — deliberately
-not a per-line `// review-ignore` comment, because those get copy-pasted and
-then nobody sees them again.
+It is a sentence in `git log` that a reviewer can read and disagree with —
+deliberately not a per-line `// review-ignore` comment, because those get
+copy-pasted and then nobody sees them again.
+
+**It names what it waives (changed 2026-09-05).** The trailer used to be free
+prose and downgraded *every* non-secret blocking finding in the range — from any
+commit in it, including an empty one appended afterwards, for findings it never
+mentioned. One legitimate skip bought silence for an unrelated route posture
+three commits away. Now the rule and the file must match (the line is optional;
+give it to pin the waiver to one occurrence), one trailer waives one finding, and
+repeating the line waives a second.
+
+A trailer that matches nothing — the old free-prose shape, a rule that no longer
+fires, a typo'd path — is reported as `waiver-unmatched`: *a waiver that names
+nothing waives nothing*. It neither blocks nor disappears, because a waiver that
+silently did nothing is how a range ends up believing it was reviewed. The
+separator before the reason may be `-`, `–` or `—`.
 
 **Except `secret`.** The hatch was designed for the rules that are legitimately
 right sometimes, and it downgraded a committed credential along with them — so

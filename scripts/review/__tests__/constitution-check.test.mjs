@@ -19,6 +19,7 @@ import {
   render,
   runRules,
   skipBaselineChange,
+  parseExemptions,
   skipReason,
 } from '../constitution-check.mjs';
 import { budgetDiff, buildPrompt, extractJson, renderMarkdown, verdictFor } from '../agent-review.mjs';
@@ -263,7 +264,7 @@ check('a committed credential is not waivable by Gate-exemption', () => {
   assert.ok(UNWAIVABLE_RULES.has('secret'));
   const findings = rules(diff({ path: 'app/_lib/a.ts', added: ['const k = "AIzaSyA1234567890123456789012345678901234";'] }));
   assert.equal(blockedBy(findings, null), true);
-  const waived = render(findings, ' this key is only for the demo tenant ');
+  const waived = render(findings, 'secret at app/_lib/a.ts — this key is only for the demo tenant');
   assert.equal(waived.blocked, true, 'a trailer must not wave a leaked key through');
   assert.match(waived.text, /does NOT waive/);
 });
@@ -275,11 +276,87 @@ check('one un-waivable finding does not un-waive the rest — it just still bloc
       diff({ path: 'app/_lib/a.ts', added: ['const k = "AIzaSyA1234567890123456789012345678901234";'] }),
     ].join('\n'),
   );
-  assert.equal(blockedBy(both, 'a reason'), true);
+  assert.equal(blockedBy(both, 'test-only at app/_lib/a.test.ts — debugging'), true);
   const onlyWaivable = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
-  assert.equal(blockedBy(onlyWaivable, 'a reason'), false);
+  assert.equal(blockedBy(onlyWaivable, 'test-only at app/_lib/a.test.ts — debugging'), false);
   assert.equal(blockedBy([], null), false);
   assert.equal(blockedBy([{ severity: 'warn', rule: 'suppression' }], null), false);
+});
+
+// --- a waiver names what it waives ------------------------------------------
+// The old trailer was free prose and downgraded EVERY non-secret blocking finding
+// in the range — from any commit, including an empty one appended afterwards, for
+// findings it never mentioned.
+check('a targeted waiver downgrades ONLY the finding it names', () => {
+  const findings = rules(
+    [
+      diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }),
+      diff({ path: 'app/api/widgets/route.ts', added: ['export async function GET() {}'], isNew: true }),
+    ].join('\n'),
+  );
+  assert.equal(findings.filter((f) => f.severity === 'blocking').length, 2);
+  const one = 'test-only at app/_lib/a.test.ts — a debugging aid this one time';
+  assert.equal(blockedBy(findings, one), true, 'the OTHER finding must still block');
+  const both = [one, 'route-auth-posture at app/api/widgets/route.ts — proxied internally, ADR 0005 §3'];
+  assert.equal(blockedBy(findings, both), false);
+});
+
+check('the line number is optional, and wrong when given is not a match', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  const line = findings[0].line;
+  assert.equal(blockedBy(findings, `test-only at app/_lib/a.test.ts:${line} — yes`), false);
+  assert.equal(blockedBy(findings, `test-only at app/_lib/a.test.ts:${line + 5} — no`), true);
+});
+
+check('a waiver for another rule, or another file, waives nothing', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  assert.equal(blockedBy(findings, 'test-skip at app/_lib/a.test.ts — wrong rule'), true);
+  assert.equal(blockedBy(findings, 'test-only at app/_lib/b.test.ts — wrong file'), true);
+});
+
+check('a shapeless (old free-prose) trailer is a NOTE, not a silent no-op', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  const r = render(findings, 'the fixture is unavailable in CI');
+  assert.equal(r.blocked, true);
+  assert.match(r.text, /waiver-unmatched/);
+  assert.match(r.text, /waives nothing/);
+  assert.match(r.text, /the fixture is unavailable in CI/);
+});
+
+check('a targeted waiver that names nothing that fired is reported too', () => {
+  const r = render([], 'test-skip at app/_lib/gone.test.ts — leftover from last week');
+  assert.equal(r.blocked, false);
+  assert.match(r.text, /waives nothing/);
+  assert.match(r.text, /leftover from last week/);
+});
+
+check('parseExemptions reads every trailer in the range, in any dash', () => {
+  const body = [
+    'fix(x): a',
+    '',
+    'Gate-exemption: test-skip at e2e/a.spec.ts:12 - hyphen',
+    'Gate-exemption: tenancy-manifest at app/_lib/db/core.ts — em dash',
+    'Gate-exemption: just some prose',
+  ].join('\n');
+  const parsed = parseExemptions(body);
+  assert.equal(parsed.length, 3);
+  assert.deepEqual(
+    parsed.map((e) => [e.targeted, e.rule, e.file, e.line]),
+    [
+      [true, 'test-skip', 'e2e/a.spec.ts', 12],
+      [true, 'tenancy-manifest', 'app/_lib/db/core.ts', null],
+      [false, null, null, null],
+    ],
+  );
+  assert.equal(parsed[2].why, 'just some prose');
+});
+
+check('a rendered waiver shows the reason beside the finding it waived', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  const r = render(findings, 'test-only at app/_lib/a.test.ts — bisecting a flake, removed in the next commit');
+  assert.equal(r.blocked, false);
+  assert.match(r.text, /waived on the record: bisecting a flake/);
+  assert.match(r.text, /1 waived by trailer/);
 });
 
 // --- tenancy ----------------------------------------------------------------
@@ -414,12 +491,12 @@ check('a clean diff renders as clean and does not block', () => {
   assert.match(text, /no finding/);
 });
 
-check('a blocking finding blocks; the trailer waives it ON THE RECORD', () => {
+check('a blocking finding blocks; a trailer that NAMES it waives it ON THE RECORD', () => {
   const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
   assert.equal(render(findings, null).blocked, true);
-  const waived = render(findings, ' the fixture is unavailable in CI ');
+  const waived = render(findings, ' test-only at app/_lib/a.test.ts — the fixture is unavailable in CI ');
   assert.equal(waived.blocked, false);
-  assert.match(waived.text, /waived by commit trailer/);
+  assert.match(waived.text, /waived on the record/);
 });
 
 check('warnings alone never block', () => {

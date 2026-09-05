@@ -20,10 +20,20 @@
 //             2 the check could not run (no comparable base) — deliberately not
 //             0, because the pre-push hook reads a 0 as "this change was read".
 //
-// THE ESCAPE HATCH IS A SENTENCE, NOT A FLAG. A blocking finding is downgraded
-// when any commit in the range carries:
+// THE ESCAPE HATCH IS A SENTENCE, NOT A FLAG — AND IT NAMES WHAT IT WAIVES.
+// A blocking finding is downgraded when a commit in the range carries:
 //
-//   Gate-exemption: <why this one is legitimate>
+//   Gate-exemption: <rule> at <file>[:<line>] — <why this one is legitimate>
+//   Gate-exemption: tenancy-manifest at app/_lib/db/core.ts — the table is the
+//                   Worker's own outbox mirror, exempt in the manifest already
+//
+// CHANGED 2026-09-05, and this is a contract change for every future commit.
+// The trailer used to be free prose and downgraded EVERY non-secret blocking
+// finding in the range — including findings it never mentioned, from a commit
+// appended after the fact, written by anyone. One legitimate skip bought silence
+// for a leaked route posture three commits away. A waiver that names nothing
+// waives nothing: an unmatched or shapeless trailer is now reported as a note,
+// never silently ignored and never silently effective.
 //
 // A reviewer reading `git log` sees the claim and can disagree with it. There is
 // deliberately no per-line suppression comment: those get copy-pasted.
@@ -41,7 +51,68 @@ import {
 import { SECRET_PATTERNS, isExempt as isSecretExempt } from '../security/secret-scan.mjs';
 import { codeOnlyLine, withoutCommentsLine } from './source-mask.mjs';
 
+/** One trailer, for callers that only need to know whether the range has one. */
 export const EXEMPTION_RE = /^\s*Gate-exemption:\s*(.+)$/im;
+/** Every trailer in the range — a range is many commits, and each may waive one thing. */
+const EXEMPTION_LINES_RE = /^[ \t]*Gate-exemption:[ \t]*(.+)$/gim;
+
+/**
+ * `<rule> at <file>[:<line>] — <why>`. The separator before the reason may be a
+ * hyphen, an en/em dash or a colon, because a commit body is typed by a human
+ * (or by a model imitating one) and rejecting a change over the dash character
+ * would teach exactly the wrong lesson about what this gate is for.
+ */
+const TARGETED_RE = /^([A-Za-z][\w-]*)\s+at\s+(\S+?)(?::(\d+))?\s*(?:[-–—]|:)\s+(\S[\s\S]*)$/;
+
+const normalizePath = (p) => String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '');
+
+/** Parse one trailer's text. `targeted` false means it named no finding. */
+export function parseExemption(text) {
+  const raw = String(text ?? '').trim();
+  const m = TARGETED_RE.exec(raw);
+  if (!m) return { raw, targeted: false, rule: null, file: null, line: null, why: raw };
+  return {
+    raw,
+    targeted: true,
+    rule: m[1],
+    file: normalizePath(m[2]),
+    line: m[3] ? Number(m[3]) : null,
+    why: m[4].trim(),
+  };
+}
+
+/** Every `Gate-exemption:` trailer in the range's commit messages, parsed. */
+export function parseExemptions(messages) {
+  return [...String(messages ?? '').matchAll(EXEMPTION_LINES_RE)].map((m) => parseExemption(m[1]));
+}
+
+/**
+ * Accepts what every caller has: null, one trailer's text, one parsed exemption,
+ * or an array of them. A bare string parses as a trailer — which is how the old
+ * free-prose form keeps arriving here and gets reported rather than obeyed.
+ */
+export function asExemptions(input) {
+  if (!input) return [];
+  const list = Array.isArray(input) ? input : [input];
+  return list.filter(Boolean).map((e) => (typeof e === 'string' ? parseExemption(e) : e));
+}
+
+/** Does this trailer name this finding? Rule must match; file exact or by suffix; line optional. */
+export function exemptionMatches(exemption, finding) {
+  if (!exemption?.targeted) return false;
+  if (exemption.rule !== finding.rule) return false;
+  const target = normalizePath(finding.file);
+  const named = exemption.file;
+  const sameFile = target === named || target.endsWith(`/${named}`) || named.endsWith(`/${target}`);
+  if (!sameFile) return false;
+  return exemption.line == null || exemption.line === finding.line;
+}
+
+/** The trailer that waives this finding, or null. `secret` is never waived. */
+export function waivedBy(finding, exemptions) {
+  if (UNWAIVABLE_RULES.has(finding.rule)) return null;
+  return asExemptions(exemptions).find((e) => exemptionMatches(e, finding)) ?? null;
+}
 
 /**
  * The findings a commit trailer may NOT wave through.
@@ -63,11 +134,14 @@ export const UNWAIVABLE_RULES = new Set(['secret']);
  * The single answer both `render()` and the exit code read, so the message a
  * human sees and the code CI reads can never disagree.
  */
-export function blockedBy(findings, exemption) {
-  const blocking = findings.filter((f) => f.severity === 'blocking');
-  if (blocking.length === 0) return false;
-  if (!exemption) return true;
-  return blocking.some((f) => UNWAIVABLE_RULES.has(f.rule));
+export function blockedBy(findings, exemptions) {
+  const list = asExemptions(exemptions);
+  return findings.some((f) => f.severity === 'blocking' && !waivedBy(f, list));
+}
+
+/** Trailers that named no finding in this range — each one is reported, never dropped. */
+export function unmatchedExemptions(findings, exemptions) {
+  return asExemptions(exemptions).filter((e) => !findings.some((f) => exemptionMatches(e, f)));
 }
 
 // Paths whose edits change how changes are JUDGED. Not wrong — but a reviewer
@@ -506,10 +580,24 @@ export function parseArgs(argv) {
   return out;
 }
 
-export function render(findings, exemption) {
+export function render(findings, exemptionInput) {
+  const exemptions = asExemptions(exemptionInput);
   const blocking = findings.filter((f) => f.severity === 'blocking');
   const warns = findings.filter((f) => f.severity === 'warn');
   const lines = [];
+
+  if (!findings.length && exemptions.length) {
+    // A trailer with nothing to waive is still worth a word: it is either a
+    // waiver for a finding that no longer fires, or a habit from the old
+    // free-prose form. Either way it must not pass unread.
+    const text = [
+      'constitution: ✓ no finding — but this range carries a Gate-exemption trailer that waives nothing:',
+      ...exemptions.map((e) => `    "${e.raw}"`),
+      '    A waiver that names nothing waives nothing. Drop the trailer, or write it as',
+      '    `Gate-exemption: <rule> at <file>[:<line>] — <why>`.',
+    ].join('\n');
+    return { text, blocked: false };
+  }
 
   if (!findings.length) {
     lines.push('constitution: ✓ no finding. (This lens checks gate integrity, not correctness —');
@@ -517,27 +605,43 @@ export function render(findings, exemption) {
     return { text: lines.join('\n'), blocked: false };
   }
 
-  const blocked = blockedBy(findings, exemption);
-  const unwaivable = blocking.filter((f) => UNWAIVABLE_RULES.has(f.rule));
+  const blocked = blockedBy(findings, exemptions);
+  const waived = blocking.map((f) => waivedBy(f, exemptions)).filter(Boolean);
+  const unwaivableNamed = blocking.filter(
+    (f) => UNWAIVABLE_RULES.has(f.rule) && exemptions.some((e) => exemptionMatches(e, f)),
+  );
   const order = [...blocking, ...warns];
-  lines.push(`constitution: ${blocking.length} blocking · ${warns.length} to note\n`);
+  lines.push(
+    `constitution: ${blocking.length - waived.length} blocking · ${warns.length} to note` +
+      `${waived.length ? ` · ${waived.length} waived by trailer` : ''}\n`,
+  );
   for (const f of order) {
-    const glyph = f.severity === 'blocking' ? '✗' : '–';
+    const waiver = f.severity === 'blocking' ? waivedBy(f, exemptions) : null;
+    const glyph = waiver ? '~' : f.severity === 'blocking' ? '✗' : '–';
     lines.push(`  ${glyph} [${f.rule}] ${f.file}:${f.line}`);
     lines.push(`      ${f.message}`);
-    lines.push(`      → ${f.fix}`);
+    if (waiver) lines.push(`      waived on the record: ${waiver.why}`);
+    else lines.push(`      → ${f.fix}`);
     lines.push('');
   }
-  if (unwaivable.length && exemption) {
-    lines.push(`  A commit trailer is on the record — "${exemption.trim()}" — and it does NOT waive`);
-    lines.push(`  ${unwaivable.map((f) => `[${f.rule}]`).join(' ')}. A committed credential is not a`);
+  for (const e of unmatchedExemptions(findings, exemptions)) {
+    lines.push(`  – [waiver-unmatched] "${e.raw}"`);
+    lines.push(
+      e.targeted
+        ? `      Nothing in this range fired [${e.rule}] in ${e.file}${e.line ? `:${e.line}` : ''}.`
+        : '      A waiver that names nothing waives nothing. This shape used to downgrade EVERY',
+    );
+    if (!e.targeted) lines.push('      blocking finding in the range, including ones it never mentioned.');
+    lines.push('      → Gate-exemption: <rule> at <file>[:<line>] — <why>');
+    lines.push('');
+  }
+  if (unwaivableNamed.length) {
+    lines.push('  A commit trailer names them, and it does NOT waive');
+    lines.push(`  ${unwaivableNamed.map((f) => `[${f.rule}]`).join(' ')}. A committed credential is not a`);
     lines.push('  judgement call: remove the literal and rotate the key.');
-  } else if (blocking.length && exemption) {
-    lines.push(`  Blocking findings waived by commit trailer — "${exemption.trim()}"`);
-    lines.push('  The waiver is on the record; a reviewer can disagree with it.');
   } else if (blocked) {
-    lines.push('  Fix the blocking findings, or state the exemption in a commit body:');
-    lines.push('      Gate-exemption: <why this one is legitimate>');
+    lines.push('  Fix the blocking findings, or waive ONE of them by name in a commit body:');
+    lines.push('      Gate-exemption: <rule> at <file>[:<line>] — <why this one is legitimate>');
   }
   return { text: lines.join('\n'), blocked };
 }
@@ -580,15 +684,28 @@ function main(argv) {
   const publicRoutesSource = fs.existsSync(routesPath) ? fs.readFileSync(routesPath, 'utf8') : '';
 
   const findings = runRules(files, { publicRoutesSource, changedPaths: [...files.keys()] });
-  const exemptionMatch = messagesForRange(range).match(EXEMPTION_RE);
-  const exemption = exemptionMatch ? exemptionMatch[1] : null;
+  // EVERY trailer in the range, not the first one: a range is many commits, and
+  // each waiver names one finding now.
+  const exemptions = parseExemptions(messagesForRange(range));
 
-  const blocked = blockedBy(findings, exemption);
+  const blocked = blockedBy(findings, exemptions);
 
   if (args.json) {
-    process.stdout.write(`${JSON.stringify({ range, exemption, findings, blocked }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          range,
+          exemptions,
+          unmatchedExemptions: unmatchedExemptions(findings, exemptions),
+          findings: findings.map((f) => ({ ...f, waivedBy: waivedBy(f, exemptions)?.raw ?? null })),
+          blocked,
+        },
+        null,
+        2,
+      )}\n`,
+    );
   } else {
-    const { text } = render(findings, exemption);
+    const { text } = render(findings, exemptions);
     process.stdout.write(`${text}\n`);
   }
 
