@@ -48,13 +48,21 @@ export function outreachHaltFor(entryId: string, workspaceId: string = DEFAULT_W
   }
 }
 
-/** Count a message that actually went out. */
+/** Count a message that actually went out.
+ *
+ *  TENANT (P1): the table's PK is `entry_id` alone, so the conflict target cannot carry
+ *  the workspace. The `DO UPDATE` re-asserts it instead - a call made under another team
+ *  finds the row already taken and updates NOTHING, rather than bumping a counter that
+ *  decides whether the next inbound message reads as a REPLY (outreach-halt.ts). The
+ *  reads have always filtered workspace_id, so a cross-tenant write was invisible until
+ *  the halt failed to hold. Proven by outreach-state-tenancy.test.ts. */
 export function recordOutreachSend(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   ensureDb()
     .prepare(
       `INSERT INTO outreach_state (entry_id, sends, last_sent_at, workspace_id)
        VALUES (?, 1, ?, ?)
-       ON CONFLICT(entry_id) DO UPDATE SET sends = sends + 1, last_sent_at = excluded.last_sent_at`
+       ON CONFLICT(entry_id) DO UPDATE SET sends = sends + 1, last_sent_at = excluded.last_sent_at
+        WHERE outreach_state.workspace_id = excluded.workspace_id`
     )
     .run(entryId, new Date().toISOString(), workspaceId);
 }
@@ -77,6 +85,8 @@ export function recordOutreachReply(entryId: string, workspaceId: string = DEFAU
 }
 
 /** Recruiter-initiated stop. Upserts, so a sequence can be halted before it ever ran.
+ *  Tenant-re-asserted in the DO UPDATE for the same reason as recordOutreachSend: a
+ *  foreign workspace must not be able to silence another team's sequence by entry id.
  *
  *  NOT YET REACHABLE FROM THE UI — there is no "stop contacting this person" control on
  *  the candidate drawer yet, so today the only halt in production is a reply. Kept
@@ -88,7 +98,8 @@ export function haltOutreach(entryId: string, workspaceId: string = DEFAULT_WORK
     .prepare(
       `INSERT INTO outreach_state (entry_id, sends, manual_halt_at, workspace_id)
        VALUES (?, 0, ?, ?)
-       ON CONFLICT(entry_id) DO UPDATE SET manual_halt_at = COALESCE(manual_halt_at, excluded.manual_halt_at)`
+       ON CONFLICT(entry_id) DO UPDATE SET manual_halt_at = COALESCE(manual_halt_at, excluded.manual_halt_at)
+        WHERE outreach_state.workspace_id = excluded.workspace_id`
     )
     .run(entryId, new Date().toISOString(), workspaceId);
 }
