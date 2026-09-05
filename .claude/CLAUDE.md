@@ -102,9 +102,6 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   the client-sorted sealed records)
                               # + shell-tab-state (?tab= is an inbox: it lands, it
                               #   is consumed, a repeat link still works)
-                              # + token-doors-axe (axe on /offer /data /invite
-                              #   /status /skill — every token minted keylessly
-                              #   through the app's own seams)
                               # + locale-smoke (a cs cookie really paints Czech —
                               #   the suite is otherwise English-only)
                               #

@@ -45,6 +45,13 @@ test.describe("Analytics — three sections behind the switcher", () => {
     // The regression the read-then-clear design exists to prevent.
     await page.goto("/?tab=analytics&sec=quality");
     await expect(sectionNav(page).getByRole("radio", { name: /quality/i })).toHaveAttribute("aria-checked", "true");
+    // WAIT FOR THE INBOX TO FINISH CONSUMING ?sec= before clicking. Arrival is a
+    // read-then-clear, and a click that lands mid-flight is overwritten by the
+    // cleanup re-render — the section snapped back to quality and this test
+    // failed on the app behaving correctly. Its sibling below already waits for
+    // exactly this; here it was missing. (Confirmed against a live server: with
+    // the wait the click sticks, without it the radio stays unchecked.)
+    await expect(page).toHaveURL(/^[^?]*\/?$/);
     await sectionNav(page).getByRole("radio", { name: /performance/i }).click();
     await expect(sectionNav(page).getByRole("radio", { name: /performance/i })).toHaveAttribute("aria-checked", "true");
     await page.goto("/?tab=analytics&sec=quality");

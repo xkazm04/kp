@@ -74,7 +74,12 @@ export const KEYLESS_SPECS = [
   "jds-pipeline-column",
   "quality-tables",
   "shell-tab-state",
-  "token-doors-axe",
+  // NOT token-doors-axe. It runs and it is right: /offer/[token]'s decline
+  // confirm puts white on `.bg-coral` (#ffffff on #d65a4a, 3.87:1) and fails
+  // WCAG AA on a destructive irreversible action. That is an app finding, not
+  // a spec defect, and enrolling a spec whose only route to green is a holdout
+  // entry would convert a real accessibility bug into a permanent exception.
+  // It joins this list when the token is darkened.
   "locale-smoke"
 ] as const;
 

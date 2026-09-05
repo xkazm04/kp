@@ -26,7 +26,13 @@ test.describe("JD library — pipeline column", () => {
     // a header-only table sizes its columns to the header text.
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/?tab=library");
-    await expect(page.locator("tbody tr").nth(3)).toBeVisible({ timeout: 20_000 });
+    // The FIRST row, not the fourth. The suite runs against a throwaway database
+    // now (playwright.config.ts) and the seeded library is one role there, so
+    // `nth(3)` was waiting 20s for a row that a legitimate corpus need not have.
+    // One real row is enough for what this measures: the widths come from the
+    // header text plus the widest CELL, and a single row already replaces the
+    // header-only sizing the comment below warns about.
+    await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 20_000 });
     // This used to be `waitForTimeout(800)` — the suite's only hard sleep, and
     // the wrong instrument twice over: 800ms is a guess that is simultaneously
     // too long on a warm run and too short on a cold compile. What the
@@ -47,6 +53,13 @@ test.describe("JD library — pipeline column", () => {
 
   test("the quantitative columns sort, and say so for assistive tech", async ({ page }) => {
     await page.goto("/?tab=library");
+    // The header row is readable BEFORE the table is interactive — which is how
+    // this test used to click a sort button that had no handler yet and then fail
+    // on an aria-sort that never moved. A visible row is NOT enough (it is
+    // painted before hydration finishes); waiting for the ledger's own fetch to
+    // settle is, and it is still an observed condition rather than a sleep.
+    await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 20_000 });
+    await page.waitForLoadState("networkidle");
 
     // The ledger's default ordering is newest-saved-first, and it must ANNOUNCE
     // that rather than leaving every column claiming "none" — the exact gap the
@@ -56,14 +69,19 @@ test.describe("JD library — pipeline column", () => {
 
     // Re-ranking by pipeline moves the sorted state with it.
     const pipeline = page.getByRole("columnheader", { name: /pipeline/i });
-    await pipeline.getByRole("button").click();
+    // BY NAME, not "the button in the header". A ColumnHead renders a sort
+    // control AND a filter/search control side by side (the Role and Status
+    // headers already carry both), so a bare getByRole("button") is a
+    // strict-mode violation waiting for the day this column gains a filter.
+    const sortPipeline = pipeline.getByRole("button", { name: /^sort by/i });
+    await sortPipeline.click();
     await expect(pipeline).toHaveAttribute("aria-sort", /ascending|descending/);
     await expect(saved).toHaveAttribute("aria-sort", "none");
 
     // And clicking the same column again reverses it rather than re-sorting the
     // same way, which would read as a dead control.
     const first = await pipeline.getAttribute("aria-sort");
-    await pipeline.getByRole("button").click();
+    await sortPipeline.click();
     await expect(pipeline).not.toHaveAttribute("aria-sort", first!);
   });
 

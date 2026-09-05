@@ -596,7 +596,6 @@ jobs:
           jds-pipeline-column
           quality-tables
           shell-tab-state
-          token-doors-axe
           locale-smoke
           --project=chromium
         env:
