@@ -288,6 +288,7 @@ class GroundedAnswer:
     sources: list[str] = field(default_factory=list)
     usage: dict[str, int] = field(default_factory=dict)
     finish_reason: str | None = None
+    schema_enforced: bool = True
 
     @property
     def truncated(self) -> bool:
@@ -439,8 +440,15 @@ def grounded_answer(
         "temperature": temperature,
         "max_output_tokens": max_output_tokens,
     }
+    # Grounding and a response schema contend for one emission surface: with
+    # tools attached the model answers in prose, so the mime-type constraint is
+    # dropped rather than merged. Record the shed on the result — the caller's
+    # parsing posture depends on which one it got, and an unreported shed leaves
+    # it believing syntax is guaranteed while _parse_json is scanning prose.
+    schema_enforced = True
     if use_grounding:
         config_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+        schema_enforced = response_mime_type is None
     elif response_mime_type:
         config_kwargs["response_mime_type"] = response_mime_type
 
@@ -489,7 +497,12 @@ def grounded_answer(
         raise
 
     return GroundedAnswer(
-        text=text, payload=payload, sources=sources, usage=usage, finish_reason=finish_reason
+        text=text,
+        payload=payload,
+        sources=sources,
+        usage=usage,
+        finish_reason=finish_reason,
+        schema_enforced=schema_enforced,
     )
 
 
