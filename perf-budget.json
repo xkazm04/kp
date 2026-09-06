@@ -49,8 +49,8 @@
   "groups": {
     "app/api/**/route.ts": {
       "maxModules": 225,
-      "maxKb": 2663,
-      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly",
+      "maxKb": 2700,
+      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly. Raised 2663 -> 2700 on 2026-09-05 when two independently gated trees merged (the /tiger LLM use-case catalog + call provenance, and /perfect round 45 voice metering): 28 routes measured 2665-2690 KB, a 1% overshoot with no single new import to remove; the next --tighten should bring it back down",
       "overrides": {}
     }
   },

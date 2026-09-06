@@ -34,6 +34,22 @@
 // number, and a file that drops below its number is a note rather than a red build,
 // because taxing the fix is how a ratchet gets switched off.
 //
+// TWO DETECTORS, because there are two ways to put the same message on the wire.
+//
+//   1. `offendersIn` / LEAK_CEILING — a catch body that SHAPES the message itself
+//      (`error instanceof Error ? error.message : "…"`) and hands the text to a
+//      client body. It keys on the text of the catch block, so it sees every hand
+//      rolled variant.
+//
+//   2. `forwardersIn` / FORWARD_CEILING — a catch body that hands the caught error
+//      to `jsonError(err, fallback)`, which does the shaping INSIDE
+//      app/_lib/api-response.ts:14-17 (`err instanceof Error ? err.message`). The
+//      catch body contains no `.message` text at all, so detector 1 is structurally
+//      blind to it and nine such call sites sat unwatched. `jsonError(null, "…")` and
+//      `jsonError("…", …)` are NOT leaks — the first argument is a literal, nothing
+//      thrown reaches the client — so the detector keys on the first argument being
+//      a binding rather than on the call.
+//
 // Runner: node:test, via `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -141,7 +157,7 @@ function stripDoorCalls(code: string): string {
 
 /** The raw thrown value being turned into text. */
 const RAW_MESSAGE =
-  /instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message|[A-Za-z_$][\w$]*\s*\.\s*message\s*(?:\?\?|\|\|)|\bString\s*\(\s*(?:err|error|e)\s*\)/;
+  /instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\s*\.\s*message|[A-Za-z_$][\w$]*\s*\.\s*message\s*(?:\?\?|\|\|)|\bString\s*\(\s*(?:err|error|e)\s*\)|\b(?:error|reason|detail)\s*:\s*[A-Za-z_$][\w$]*\s*\.\s*message\b/;
 
 /** …and that text heading for a client. */
 const CLIENT_BODY = /NextResponse\s*\.\s*json\s*\(|\berror\s*:|\breason\s*:|\bdetail\s*:/;
@@ -177,6 +193,57 @@ function offendersIn(files: string[], readSource: (f: string) => string = (f) =>
   return found;
 }
 
+// ---- detector 2: the forward, where the shaping happens inside the responder ----
+//
+// `jsonError` is a legitimate responder — for a message that is already client-safe
+// (a validation rule, a business refusal), which is exactly how the five
+// `jsonError(null, "…")` calls in comms/callback/route.ts use it. Handing it a CAUGHT
+// value is the leak, because api-response.ts then does `err instanceof Error ?
+// err.message` on a better-sqlite3 / fs / spawn error. Detector 1 cannot see it: the
+// catch body says `return jsonError(error, "Failed to …")` and contains no `.message`.
+
+/** `jsonError(` as a call, never `safeJsonError(` and never a property access. */
+const JSON_ERROR_CALL = /(?<![\w$.])jsonError\s*\(/g;
+
+/** The source text of a call's FIRST argument, given the index of its `(`.
+ *
+ *  Scanned over the comment/string-blanked copy so a comma inside a string or a
+ *  comment cannot end the argument early; sliced out of the ORIGINAL, so the caller
+ *  can still tell a string literal from a binding. `codeOnly` preserves length, so
+ *  the two share indices. */
+function firstArgOf(src: string, code: string, open: number): string {
+  let depth = 0;
+  for (let i = open; i < code.length; i += 1) {
+    const ch = code[i];
+    if (ch === "(" || ch === "[" || ch === "{") depth += 1;
+    else if (ch === ")" || ch === "]" || ch === "}") {
+      depth -= 1;
+      if (depth === 0) return src.slice(open + 1, i);
+    } else if (ch === "," && depth === 1) return src.slice(open + 1, i);
+  }
+  return src.slice(open + 1);
+}
+
+function forwardersIn(files: string[], readSource: (f: string) => string = (f) => readFileSync(f, "utf8")): Offender[] {
+  const found: Offender[] = [];
+  for (const f of files) {
+    const src = readSource(f);
+    const code = codeOnly(src);
+    let m: RegExpExecArray | null;
+    JSON_ERROR_CALL.lastIndex = 0;
+    // Matching on `code` rather than `src` is what keeps a `jsonError(` written in a
+    // comment (this file's own prose included) out of the count.
+    while ((m = JSON_ERROR_CALL.exec(code))) {
+      const arg = firstArgOf(src, code, m.index + m[0].length - 1).trim();
+      // A literal first argument cannot carry a thrown message: `jsonError(null, …)`
+      // and `jsonError("already client-safe", …)` are the responder used correctly.
+      if (arg === "null" || arg === "undefined" || /^["'`]/.test(arg)) continue;
+      found.push({ file: path.relative(apiDir, f).split(path.sep).join("/"), line: src.slice(0, m.index).split("\n").length });
+    }
+  }
+  return found;
+}
+
 // ---- exemptions: correct as written, one reason each --------------------------
 const EXEMPT = new Map<string, string>([
   [
@@ -199,6 +266,19 @@ const EXEMPT = new Map<string, string>([
 // the 81 (schedule/invite/bulk) was fixed in the same change rather than ceilinged, so
 // the list below is 80 across 67 — the first tooth of the ratchet, taken on the way in.
 const LEAK_CEILING = new Map<string, number>([
+  // MEASURED 2026-09-05 when RAW_MESSAGE learned the `error: x.message` shape inside a
+  // NextResponse.json (the leak the tts/stt engine branches carried, found by /perfect
+  // round 44). Seven pre-existing sites became visible at once; each is an app-authored
+  // domain error narrowed by instanceof, so its sentence is English rather than a secret,
+  // but the client still cannot localize it. Initialization of the ratchet, not a raise:
+  // these rows only ever go DOWN, and the fix at each site is a code.
+  ["ats/config/route.ts", 1],
+  ["billing/webhook/route.ts", 1],
+  ["comms/relay/route.ts", 1],
+  ["jobs/[id]/campaign/route.ts", 1],
+  ["jobs/[id]/candidates/outreach/route.ts", 1],
+  ["jobs/[id]/candidates/route.ts", 1],
+  ["repo-scan/route.ts", 1],
   ["analytics/route.ts", 1],
   ["archetypes/[id]/route.ts", 2],
   ["archetypes/route.ts", 2],
@@ -246,7 +326,15 @@ const LEAK_CEILING = new Map<string, number>([
   // its lifecycle sibling uses for the same human decision. The row is deleted so the
   // win is locked and a regression reads as `undeclared` rather than as budget already
   // granted - devcase/** now carries no ceiling at all.
-  ["extract-text/route.ts", 1],
+  // extract-text/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect wave
+  // 41, db-profiles). Its catch-all forwarded the thrown message on a PUBLIC door that
+  // spawns Python — the traceback, the temp workdir path, PYTHON_CMD — and the
+  // non-zero-exit path forwarded parseStderrError's message while THROWING AWAY the
+  // code the same call already returned. Both now answer through the vocabulary:
+  // jsonRefusal(EXTRACT_TEXT_UNREADABLE / EXTRACT_TEXT_TIMEOUT / ENGINE_BUSY) for a
+  // decision, safeJsonError(..., "EXTRACT_TEXT_FAILED") for a fault. The row is deleted
+  // so the win is locked and a regression reads as `undeclared` rather than as budget
+  // already granted; app/api/extract-text/route.test.ts drives all four answers.
   // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect
   // 2026-09-02, api-jobs): every one now answers `safeJsonError(error,
   // "api:jobs/<route>", "JOB_*_FAILED")` against the JOB_* codes added to
@@ -308,6 +396,31 @@ const LEAK_CEILING = new Map<string, number>([
   ["tasks/seen/route.ts", 1],
 ]);
 
+// ---- the ceiling for detector 2: routes that forward a caught error to jsonError --
+//
+// ONE reason for the whole list, because one thing is true of all of them: each is a
+// 500 catch over the SQLite store or a store-backed helper, written before
+// `safeJsonError` existed, and each hands `jsonError` the value it caught. The
+// `fallback` string beside it reads like the answer, but it is only reached when the
+// throw was NOT an Error — the ordinary case forwards `.message`.
+//
+// MEASURED 2026-09-05 against this tree, when the detector was added: 9 forwards
+// across 8 route files (the 14 `jsonError(` call sites in app/api minus the five
+// `jsonError(null, …)` in comms/callback/route.ts, which are correct by construction).
+// These rows only ever go DOWN. The fix at each site is the same as detector 1's:
+// `return safeJsonError(error, "api:<route>", "<CODE>")` plus a STORE_ERRORS code and
+// its four catalogue entries. Do NOT add a row here to make a build green.
+const FORWARD_CEILING = new Map<string, number>([
+  ["analytics/calibration/band/route.ts", 1],
+  ["analytics/calibration/route.ts", 1],
+  ["analytics/calibration/threshold-history/route.ts", 1],
+  ["auth/switch-workspace/route.ts", 1],
+  ["decisions/records/route.ts", 1],
+  ["skill-profile/[token]/verify/route.ts", 1],
+  ["workspaces/[id]/route.ts", 1],
+  ["workspaces/route.ts", 2],
+]);
+
 test("no NEW route shapes a thrown error's own message into a client response", (t) => {
   const files = walk(apiDir);
   const handlers = files.filter((f) => f.endsWith("route.ts"));
@@ -357,6 +470,103 @@ test("no NEW route shapes a thrown error's own message into a client response", 
   for (const [file] of LEAK_CEILING) {
     if ((counts.get(file) ?? 0) === 0) t.diagnostic(`leak-ceiling burnt down, delete the entry to lock the win: ${file}`);
   }
+});
+
+test("no NEW route hands a caught error to jsonError, whose fallback is not the answer", (t) => {
+  const files = walk(apiDir);
+  const handlers = files.filter((f) => f.endsWith("route.ts"));
+  assert.ok(handlers.length >= 150, `expected to scan the API surface, only found ${handlers.length} route handlers`);
+
+  const counts = new Map<string, number>();
+  const lines = new Map<string, number[]>();
+  for (const o of forwardersIn(files)) {
+    if (EXEMPT.has(o.file)) continue;
+    counts.set(o.file, (counts.get(o.file) ?? 0) + 1);
+    lines.set(o.file, [...(lines.get(o.file) ?? []), o.line]);
+  }
+
+  const undeclared: string[] = [];
+  const grew: string[] = [];
+  const shrank: string[] = [];
+  for (const [file, n] of counts) {
+    const ceiling = FORWARD_CEILING.get(file);
+    if (ceiling === undefined) undeclared.push(`${file}  (${n} at line${n > 1 ? "s" : ""} ${lines.get(file)!.join(", ")})`);
+    else if (n > ceiling) grew.push(`${file}  ${ceiling} -> ${n}  (lines ${lines.get(file)!.join(", ")})`);
+  }
+  for (const [file, ceiling] of FORWARD_CEILING) {
+    const n = counts.get(file) ?? 0;
+    if (n < ceiling) shrank.push(`${file}  ${ceiling} -> ${n}`);
+  }
+
+  const HOW =
+    "\n\n`jsonError(err, fallback)` forwards `err.message` (app/_lib/api-response.ts:14-17) — the\n" +
+    "fallback string is only reached when the throw was not an Error. On a store path that is\n" +
+    "the same information-disclosure leak the ceiling above ratchets, just written one call\n" +
+    "deeper. Answer through the safe responder instead:\n\n" +
+    '    return safeJsonError(error, "api:<route>", "<CODE>");\n\n' +
+    "…adding <CODE> to STORE_ERRORS in app/_lib/api-response.ts and its four catalogue entries\n" +
+    "(npm run i18n:check pins that). `jsonError` stays correct for a message that is already\n" +
+    "client-safe — pass the message, never the caught value. See\n" +
+    "docs/architecture/api-contracts.md §1.1.";
+
+  assert.deepEqual(undeclared.sort(), [], `These route files forward a caught error to jsonError and are not on the ceiling:\n  ${undeclared.join("\n  ")}${HOW}`);
+  assert.deepEqual(grew.sort(), [], `These route files forward MORE caught errors than their declared ceiling:\n  ${grew.join("\n  ")}${HOW}`);
+
+  for (const s of shrank) t.diagnostic(`forward-ceiling slack — tighten it: ${s}`);
+  for (const [file] of FORWARD_CEILING) {
+    if ((counts.get(file) ?? 0) === 0) t.diagnostic(`forward-ceiling burnt down, delete the entry to lock the win: ${file}`);
+  }
+});
+
+// NON-VACUITY for detector 2. Its three ways to go blind are its own: reading
+// `safeJsonError(` as `jsonError(`, reading a literal first argument as a caught
+// value (that would report comms/callback's five correct calls), and reading a
+// `jsonError(` written in prose — which this very file contains.
+test("the forward detector is not blind: a caught value fires, a literal does not", () => {
+  const fixtures = new Map<string, string>([
+    // Leaks: the shape all nine real ones have.
+    [
+      path.join(apiDir, "fx", "forward", "route.ts"),
+      `export async function GET(){ try { return null } catch (error) {\n` +
+        `  return jsonError(error, "Failed to list workspaces."); } }\n`,
+    ],
+    // Leaks: a re-bound caught value is still a caught value.
+    [
+      path.join(apiDir, "fx", "rebound", "route.ts"),
+      `export async function GET(){ try { return null } catch (err) {\n` +
+        `  const thrown = err;\n  return jsonError(thrown, "Failed, sorry, ok"); } }\n`,
+    ],
+    // Clean: a literal first argument — comms/callback/route.ts's five calls.
+    [
+      path.join(apiDir, "fx", "literal", "route.ts"),
+      `export async function POST(){ if (!ok) return jsonError(null, "Unauthorized.", 401);\n` +
+        `  return jsonError("ref, kind and outcome are required.", "x", 400); }\n`,
+    ],
+    // Clean: the safe responder is a different function, and its name CONTAINS the
+    // other one — a regex without the lookbehind counts every one of ~80 call sites.
+    [
+      path.join(apiDir, "fx", "safe-forward", "route.ts"),
+      `export async function GET(){ try { return null } catch (error) {\n` +
+        `  return safeJsonError(error, "api:fx", "JD_LOAD_FAILED"); } }\n`,
+    ],
+    // Clean: prose about the call is not the call.
+    [
+      path.join(apiDir, "fx", "forward-prose", "route.ts"),
+      `// jsonError(error, "…") forwards the thrown message; use safeJsonError on a store path.\n` +
+        `const doc = "jsonError(error, 'x')";\nexport const x = 1;\n`,
+    ],
+  ]);
+
+  const flagged = forwardersIn([...fixtures.keys()], (f) => fixtures.get(f) ?? "")
+    .map((o) => o.file)
+    .sort();
+
+  assert.deepEqual(
+    flagged,
+    ["fx/forward/route.ts", "fx/rebound/route.ts"],
+    "the forward detector must flag a caught value handed to jsonError while sparing a literal " +
+      "first argument, safeJsonError, and prose or a string that merely spells the call",
+  );
 });
 
 test("every exemption carries a reason", () => {

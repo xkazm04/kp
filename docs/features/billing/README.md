@@ -306,6 +306,61 @@ enforced on bytes actually read off the wire (`readTextWithLimit`, the same cont
 event is one subscription or order object) is retried and stays visible in the dashboard
 rather than being silently swallowed. Pinned by `app/api/billing/billing-routes.test.ts`.
 
+### The delivery RATE is bounded too, per client
+
+The cap above bounds one request; `WEBHOOK_RATE_LIMIT` (600 per 10 minutes, in
+`app/api/billing/webhook/route.ts`) bounds how many of them an anonymous caller may push
+through an HMAC verify and a SQLite transaction. It runs **before** the body read, so
+what a stranger can make the process allocate is the thing being limited. The ceiling is
+deliberately far above its neighbours: provider bursts are legitimate (a plan change
+fans out; a redelivery storm replays a backlog) and 600/10 min is one delivery a second
+sustained. A refused delivery answers a coded **429** (`TOO_MANY_REQUESTS`), which is
+non-2xx, so Polar re-delivers rather than losing the event.
+
+The bucket is keyed on `clientIpFrom` — which means it is only per-client when
+`KP_TRUSTED_PROXY` declares how many reverse-proxy hops sit in front of kp. Unset (a
+directly-exposed self-host), every caller shares one bucket and the ceiling is a coarse
+global cap; that is the safe failure for abuse containment, and it is the reason the
+number is so high. Both halves are pinned by `app/api/billing/billing-routes.test.ts`.
+
+### The state write re-asserts the row it was computed from
+
+`applyBillingAction` (`sync.ts`) is a read→compute→write: it SELECTs `billing_state`,
+runs the three out-of-order guards against what it read (`subscriptionWriteIsStale`,
+`clearSubscriptionIsStale`, `setForRevokedSubscriptionIsStale`), and then writes. The
+write used to re-assert nothing — a plain `ON CONFLICT (id) DO UPDATE` — so a second
+writer landing between the SELECT and the UPDATE was overwritten silently: no error, no
+failing test, and a paying customer regressed to a snapshot an already-superseded
+decision had approved.
+
+`upsertBillingState` now takes an optional `expectedUpdatedAt` and re-asserts it in the
+`DO UPDATE`'s `WHERE`, returning `false` when `res.changes === 0`. Of the two strategies
+`.claude/CLAUDE.md` allows, this is the **compensating precondition** rather than
+`.immediate()` — the ingest transaction in `sync.ts` (dedupe insert + apply, together)
+stays exactly as it was and needs no write lock at BEGIN. The key's presence is the
+discriminator: absent = an unconditional write (fixtures, seeds), `null` = "I read no
+row" (an existing row is a skip), a timestamp = "the row I read said this". A dropped
+write is reported in the ingest result's `detail` and still answers 2xx: the event was
+*correctly* not applied, so making the provider redeliver it would only re-run the race.
+
+### The alert worklist and the event payloads have horizons
+
+`listBillingAlerts` takes a `limit`, clamped to 1..500 (default 200). It is fed by a
+PROVIDER event stream — one row per distinct dark subscription or order — so an
+unbounded `SELECT … ORDER BY id DESC` was a table read whose size an external system
+decided.
+
+`billing_events` rows are kept **forever**: the row *is* the idempotency gate, and
+deleting one would let a very late redelivery re-apply a plan change or re-grant a pack.
+What ages out is `payload_json` — the verbatim provider body, carrying a customer id, an
+email on some Polar shapes, and the whole product/price object. It answers "what exactly
+did the provider send" during an incident, and nobody asks that of a delivery from last
+quarter. `pruneBillingEventPayloads` blanks payloads older than
+`BILLING_EVENT_PAYLOAD_RETENTION_DAYS` (90 days — a billing cycle plus a full dispute
+window, with room), keeping every row and therefore every dedupe. The clock runs it each
+tick beside the price-reconcile job (`instrumentation-node.ts`), under the autonomy
+pause: this is storage hygiene on our own bookkeeping, not a statutory duty.
+
 ### The displayed price is checked against the charged price DAILY
 
 Plan and pack prices live in two independent sources of truth: the TS catalog
@@ -498,6 +553,9 @@ ones into the footer is a small additive change if they turn out to be missed.
 2. `billing_credits.provider_ref` UNIQUE = order id — the same pack order
    arriving under a different event id still grants exactly once.
 
+Neither layer expires: the `billing_events` retention sweep blanks aged *payloads* and
+never removes a row, so layer 1 holds for the life of the deployment.
+
 ## Keyless / degraded behavior
 
 Leave `POLAR_ACCESS_TOKEN` unset and every billing route answers **503** — the
@@ -573,8 +631,14 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   fake provider and the real `billing_alerts` table.
 - `app/api/billing/billing-routes.test.ts` — the handlers themselves against real
   standard-webhooks signatures: the signature/idempotency/grant path, the bounded
-  body read (413 on both the declared and the chunked oversize), and every checkout
-  refusal.
+  body read (413 on both the declared and the chunked oversize), the coded 429 on a
+  spent per-client bucket (`KP_TRUSTED_PROXY=1`, so the bucket is keyed rather than
+  global), and every checkout refusal.
+- `app/_lib/db/billing-store.test.ts` — the write itself: the `billing_state`
+  compare-and-swap (an out-of-order second writer is dropped, not applied), that the CAS
+  token always advances so two same-millisecond writes cannot alias, a source guard that
+  `sync.ts` opts in on BOTH write paths, the clamped alert `limit`, and the payload
+  retention sweep (payload blanked, row and dedupe intact, idempotent on a second pass).
 - `app/_lib/db/billing-tenancy.test.ts` — the org axis. The source guard requires
   every statement on `billing_state` / `billing_credits` / `billing_usage` to **bind**
   `org_id` (an `org_id = ?` predicate, or an INSERT naming it in the column list) —

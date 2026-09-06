@@ -92,8 +92,26 @@ test("loading the list THROWS on a failed request or an unusable body — never 
   await assert.rejects(() => loadManagedTemplates(stub({ status: 200 }).impl), "an unparseable body is a failure, not an empty library");
 
   const rows = [{ id: "tpl-1", name: "Standard", body: "{{role}}", isDefault: true, scope: "org" as const, updatedAt: "2026-09-01T00:00:00.000Z" }];
-  assert.deepEqual(await loadManagedTemplates(stub({ status: 200, body: { templates: rows } }).impl), rows);
-  assert.deepEqual(await loadManagedTemplates(stub({ status: 200, body: { templates: [] } }).impl), [], "a genuinely empty library is an empty array");
+  assert.deepEqual(await loadManagedTemplates(stub({ status: 200, body: { templates: rows } }).impl), {
+    templates: rows,
+    truncated: false,
+  });
+  assert.deepEqual(
+    await loadManagedTemplates(stub({ status: 200, body: { templates: [] } }).impl),
+    { templates: [], truncated: false },
+    "a genuinely empty library is an empty array"
+  );
+  // The bounded read's honesty flag survives the client. The manager is the surface that
+  // claims to show a WHOLE library, so a page it cannot tell from the whole thing would
+  // under-report what exists. Absent or non-true is false: never guessed from a full page.
+  assert.deepEqual(await loadManagedTemplates(stub({ status: 200, body: { templates: rows, truncated: true } }).impl), {
+    templates: rows,
+    truncated: true,
+  });
+  assert.equal(
+    (await loadManagedTemplates(stub({ status: 200, body: { templates: rows, truncated: "yes" } }).impl)).truncated,
+    false
+  );
 });
 
 test("every validation refusal maps to a catalog key (no code falls through unlocalized)", () => {

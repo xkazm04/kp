@@ -4,6 +4,7 @@ import unittest
 
 from pipeline.jobfit.devcase.design import (
     CASE_DESIGN_PROMPT_VERSION,
+    MIN_PROBE_DECISION_OPTIONS,
     ROLE_DESIGN_PROMPT_VERSION,
     _PROBE_REVEALS_DEFAULT,
     design_case,
@@ -142,6 +143,64 @@ class TestAmbiguityAsInstrument(unittest.TestCase):
         by_id = {p["id"]: p for p in case["coverProbes"]}
         self.assertEqual(by_id["x1"]["decisionSpace"], ["Option A", "Option B"])  # cleaned
         self.assertEqual(by_id["x2"]["decisionSpace"], [])  # pre-v4 probes degrade gracefully
+
+
+class TestMustHavesReachTheDesigner(unittest.TestCase):
+    """D4: score_transfer grades the submission against role.mustHaves (evaluate.py), so the
+    designer has to know them — otherwise a candidate does exactly what the case asked and
+    still loses transfer points. They reach the DESIGNER as terrain, never the candidate as
+    a checklist: naming the requirements would collapse the probes' decisionSpace into a
+    compliance exercise, which is the discrimination this module exists to protect."""
+
+    def setUp(self):
+        self.need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="medior")
+        self.analysis = NeedAnalysis(real_stack=["Python"], true_complexity="medium")
+        self.role = {
+            "title": "Backend Engineer",
+            "seniority": "medior",
+            "roleFamily": "software_engineering",
+            "responsibilities": ["Own ingest"],
+            "mustHaves": ["idempotent ingest", "PostgreSQL"],
+        }
+
+    def _capture(self, role):
+        captured = {}
+
+        class Capture:
+            def complete_json(self, prompt, system=None):
+                captured["prompt"] = prompt
+                return {}
+
+        design_case(self.need, self.analysis, role, provider=Capture())
+        return captured["prompt"]
+
+    def test_must_haves_reach_the_design_prompt(self):
+        prompt = self._capture(self.role)
+        self.assertIn("mustHaves", prompt)
+        self.assertIn("idempotent ingest", prompt)
+        self.assertIn("PostgreSQL", prompt)
+        # …as terrain: the prompt must forbid the checklist shape, not just carry the list.
+        self.assertIn("UNAVOIDABLY EXERCISED", prompt)
+        self.assertIn("checklist", prompt)
+
+    def test_decision_space_survives_the_must_haves(self):
+        # The probe contract the rest of this module uses to express "the candidate still
+        # has real choices" — same assertion as TestAmbiguityAsInstrument, now with a role
+        # whose must-haves are in play.
+        case, _ = design_case(self.need, self.analysis, self.role, provider=None)
+        core = [p for p in case["coverProbes"] if p["id"] in ("p1", "p2", "p3")]
+        self.assertTrue(core)
+        for p in core:
+            self.assertGreaterEqual(len(p["decisionSpace"]), MIN_PROBE_DECISION_OPTIONS, p["id"])
+        # Nothing the candidate reads may name a must-have back at them.
+        facing = " ".join([case["title"], case["brief"], case["repoSeed"], *case["tasks"], case["midFlightUpdate"]["update"]]).lower()
+        for must in self.role["mustHaves"]:
+            self.assertNotIn(must.lower(), facing)
+
+    def test_role_without_must_haves_is_unchanged(self):
+        bare = {k: v for k, v in self.role.items() if k != "mustHaves"}
+        self.assertNotIn("mustHaves", self._capture(bare))
+        self.assertEqual(design_case(self.need, self.analysis, bare, provider=None)[0], design_case(self.need, self.analysis, self.role, provider=None)[0])
 
 
 class TestTimeboxCapAtEveryWriter(unittest.TestCase):

@@ -12,6 +12,10 @@ export type UseCaseTotals = {
   // bug-ui-scan-2026-07-09 (model-api-key-management #3): calls whose cost_usd was
   // NULL (Azure / unknown-model spend) and so summed to $0 — "unknown", not "$0".
   unpricedCalls: number;
+  // tiger X2: attempts that RAISED. Carried through the fold rather than dropped,
+  // because a use case whose spend went quiet because its provider is failing and one
+  // nobody used look identical in every other number on this row.
+  failedCalls: number;
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
@@ -27,6 +31,7 @@ export function foldByUseCase(rows: readonly LlmUsageAggregateRow[]): UseCaseTot
       calls: 0,
       deterministicCalls: 0,
       unpricedCalls: 0,
+      failedCalls: 0,
       inputTokens: 0,
       outputTokens: 0,
       cachedTokens: 0,
@@ -39,6 +44,7 @@ export function foldByUseCase(rows: readonly LlmUsageAggregateRow[]): UseCaseTot
     // #3: carry the unpriced-call count so the panel can say "N unpriced" instead
     // of presenting an authoritative-looking $0.00 for real Azure/custom spend.
     acc.unpricedCalls += row.unpricedCalls;
+    acc.failedCalls += row.failedCalls;
     acc.inputTokens += row.inputTokens;
     acc.outputTokens += row.outputTokens;
     acc.cachedTokens += row.cachedTokens;
@@ -57,11 +63,12 @@ export function sumTotals(totals: readonly UseCaseTotals[]): UsageSum {
       calls: acc.calls + r.calls,
       deterministicCalls: acc.deterministicCalls + r.deterministicCalls,
       unpricedCalls: acc.unpricedCalls + r.unpricedCalls,
+      failedCalls: acc.failedCalls + r.failedCalls,
       inputTokens: acc.inputTokens + r.inputTokens,
       outputTokens: acc.outputTokens + r.outputTokens,
       cachedTokens: acc.cachedTokens + r.cachedTokens,
       costUsd: acc.costUsd + r.costUsd,
     }),
-    { calls: 0, deterministicCalls: 0, unpricedCalls: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: 0 }
+    { calls: 0, deterministicCalls: 0, unpricedCalls: 0, failedCalls: 0, inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: 0 }
   );
 }

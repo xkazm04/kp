@@ -29,7 +29,13 @@ export const LETTER_LANG_TASKS: ReadonlySet<string> = new Set(["outreach", "reje
 // served the old language's screening rationale / scorecard summary for the full
 // TTL. Their AUTOMATION_VERSIONs are bumped (screening-v2 / scorecard-v6) so the
 // pre-fix, wrongly-shared entries self-invalidate.
-export const UI_LANG_TASKS: ReadonlySet<string> = new Set(["prep", "screen", "scorecard"]);
+// rematch joined 2026-09-05. Its verdict sentence is recruiter-facing narrative like
+// the other three, and automation.py now forwards --lang to generate_reasoning and
+// stamps narrativeLang — but the engine only receives a locale for tasks in one of
+// these two sets, so without this entry the fix could not reach the app path and the
+// rationale stayed English on every install. Adding it also makes the locale a key
+// axis, so the wrongly-shared English entries self-invalidate.
+export const UI_LANG_TASKS: ReadonlySet<string> = new Set(["prep", "screen", "scorecard", "rematch"]);
 // THE one lang-task union — consumed by the key below AND (via the two sets above)
 // by automation-run's --lang gating, mirroring the GITHUB_EVIDENCE_TASKS pattern:
 // the cache axis and the prompt input can never drift apart.
@@ -77,6 +83,15 @@ export type AutomationKeyInput = {
    *  on a previously bare entry must too (the absent case keys as ""). Absent
    *  for every other task and for evidence-less entries. */
   githubEvidenceJson?: string;
+  /** Only folded into the key for the SCORECARD_TASKS (rejection/offer — the two
+   *  letters drafted after an interview): EXACTLY the serialized scorecard bytes
+   *  handed to Python as scorecard.json, hashed. Same shape and same reason as the
+   *  GH7 axis above: those prompts now ground themselves in the interview, so a
+   *  scorecard synthesized (or re-synthesized) AFTER a first draft must invalidate
+   *  the 168h entry — nothing else in the key moves when it appears, and the letter
+   *  it would keep serving is the ungrounded one. Absent for every other task and
+   *  for entries with no interview (which keys as "", so attaching one re-keys). */
+  scorecardJson?: string;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -116,6 +131,11 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       // GH7 — evidence axis for the prompts that render it; "" for a bare entry
       // so attaching evidence later genuinely re-keys.
       GITHUB_EVIDENCE_TASKS.has(input.task) && input.githubEvidenceJson ? shortHash(input.githubEvidenceJson) : "",
+      // The interview the rejection/offer letter is grounded in; "" for an entry
+      // with no interview, so a later synthesis genuinely re-keys. Gated on the
+      // VALUE rather than a task set: automation-run passes it only for the tasks
+      // whose prompt reads it, and one authority for that is enough.
+      input.scorecardJson ? shortHash(input.scorecardJson) : "",
       // Degraded (template) vs LLM output never share a key — see `degraded` above.
       input.degraded ? "no-llm" : "llm",
     ].join("|")

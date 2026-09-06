@@ -6,7 +6,7 @@
 import { ElevenLabsTts } from "./providers/elevenlabs.ts";
 import { KokoroTts } from "./providers/kokoro.ts";
 import { PiperTts } from "./providers/piper.ts";
-import { validateRequest } from "./validate.ts";
+import { primaryLanguage, validateRequest } from "./validate.ts";
 import { segmentSpeech } from "./text/segment.ts";
 import { concatWav } from "./node/wav.ts";
 import {
@@ -21,6 +21,7 @@ import {
   type TtsRequest,
   type TtsResolution,
   type TtsStatus,
+  type ServedTtsAudio,
 } from "./types.ts";
 
 export type { TtsStatus } from "./types.ts";
@@ -30,11 +31,15 @@ export type Tts = {
   readonly preference: TtsPreference;
   get(id: TtsProviderId): TtsProvider;
   status(): Promise<TtsStatus[]>;
-  /** Pick the provider that will serve: the requested one if allowed+ready,
-   *  else the preferred, else the first allowed+ready. Throws `unavailable`
-   *  when nothing can speak — the host's degraded terminal state is text. */
-  resolve(requested?: unknown): Promise<TtsResolution>;
-  speak(req: TtsRequest, opts?: { provider?: unknown; signal?: AbortSignal }): Promise<TtsAudio & { fallbackFrom: TtsProviderId | null }>;
+  /** Pick the provider that will serve: the requested one if allowed+ready AND
+   *  declaring the requested language, else the preferred, else the first
+   *  allowed+ready. A ready engine that does not declare the language still
+   *  serves when nothing better can, with `unsupportedLanguage` set — silence is
+   *  worse than an accent, a SILENT accent is worse than both. Throws
+   *  `unavailable` when nothing can speak — the host's degraded terminal state
+   *  is text. */
+  resolve(requested?: unknown, language?: string | null): Promise<TtsResolution>;
+  speak(req: TtsRequest, opts?: { provider?: unknown; signal?: AbortSignal }): Promise<ServedTtsAudio>;
 };
 
 export function defaultProviders(host: TtsHost): TtsProvider[] {
@@ -69,22 +74,51 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
     return p;
   };
 
-  const resolve = async (requested?: unknown): Promise<TtsResolution> => {
+  /** Does this adapter CLAIM the requested primary language? "any" is the
+   *  multilingual engines' declaration (they pick a voice per language), and a
+   *  null request asks for nothing, so both are a yes. */
+  const speaks = (provider: TtsProvider, lang: string | null): boolean =>
+    !lang || provider.capabilities.languages === "any" || provider.capabilities.languages.includes(lang);
+
+  const resolve = async (requested?: unknown, language?: string | null): Promise<TtsResolution> => {
     const order: TtsProviderId[] = [];
     const push = (id: TtsProviderId | null | undefined) => id && allowed.includes(id) && !order.includes(id) && order.push(id);
     push(isTtsProviderId(requested) ? requested : null);
     push(preference.preferred);
     allowed.forEach(push);
     const asked = order[0] ?? null;
+    const lang = primaryLanguage(typeof language === "string" ? language : null);
     let lastReason = "no provider is allowed";
+    // THE DECLARED LANGUAGE IS PART OF READINESS. Probe state alone used to
+    // decide, so a Czech request that landed on Kokoro (which declares no `cs`)
+    // was read out in English: no error, no fallback, nothing logged. A ready
+    // engine that DECLARES the language wins over one that does not, whatever
+    // the order says — and each provider is still probed at most once.
+    let spokenElsewhere: { id: TtsProviderId; reason: string } | null = null;
     for (const id of order) {
-      const probe = await get(id).probe();
-      if (probe.state === "ready") {
+      const provider = get(id);
+      const probe = await provider.probe();
+      if (probe.state !== "ready") {
+        lastReason = `${id}: ${probe.reason}`;
+        continue;
+      }
+      if (speaks(provider, lang)) {
         const fallbackFrom = asked && asked !== id ? asked : null;
         if (fallbackFrom) opts.host.log?.({ type: "fallback", from: fallbackFrom, to: id, reason: lastReason });
-        return { provider: get(id), fallbackFrom, reason: fallbackFrom ? lastReason : null };
+        return { provider, fallbackFrom, reason: fallbackFrom ? lastReason : null, unsupportedLanguage: null };
       }
-      lastReason = `${id}: ${probe.reason}`;
+      // Remember the FIRST ready one that cannot: silence is worse than an
+      // accent, so it serves if nothing better turns up — but it says so.
+      spokenElsewhere ??= { id, reason: lastReason };
+      lastReason = `${id}: does not speak ${lang}`;
+    }
+    if (spokenElsewhere) {
+      const { id } = spokenElsewhere;
+      const reason = `no ready provider declares ${lang}`;
+      opts.host.log?.({ type: "language_fallback", provider: id, requested: lang as string, reason });
+      const fallbackFrom = asked && asked !== id ? asked : null;
+      if (fallbackFrom) opts.host.log?.({ type: "fallback", from: fallbackFrom, to: id, reason });
+      return { provider: get(id), fallbackFrom, reason, unsupportedLanguage: lang };
     }
     throw new TtsError("unavailable", lastReason);
   };
@@ -108,8 +142,10 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
     },
     resolve,
     async speak(raw, o) {
+      // Validated BEFORE the pick: the validated request is what carries the
+      // normalised language, and the language is now part of the pick.
       const req = validateRequest(raw);
-      const { provider, fallbackFrom } = await resolve(o?.provider);
+      const { provider, fallbackFrom, unsupportedLanguage } = await resolve(o?.provider, req.language);
       // Above the engine's clip cap, synthesize sentence chunks and join them —
       // the whole-clip host still gets one clip, and a streaming host calls
       // speak() per chunk itself (see react/useTts).
@@ -138,7 +174,7 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
         localQueue = turn.catch(() => {});
         audio = await turn;
       } else audio = await run();
-      return { ...audio, fallbackFrom };
+      return { ...audio, fallbackFrom, unsupportedLanguage };
     },
   };
 }

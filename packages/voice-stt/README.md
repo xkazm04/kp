@@ -16,6 +16,8 @@ src/
   validate.ts       the ONE validation door (byte cap, container allowlist, language shape, model-id charset)
   registry.ts       createStt(): dispatch door, capability gate, preference resolution, visible fallback
   node/             binary ladder · subprocess plumbing · a header-only WAV reader (no decoder, on purpose)
+  browser/          wav-encode.ts: the host-side capture conversion (mono → 16 kHz → PCM16 WAV)
+  react/            useStt.ts: the headless browser binding (permission → record → encode → POST)
   providers/        assemblyai (cloud async) · whisper-cpp (on-device) · fake (tests)
 ```
 
@@ -85,15 +87,55 @@ policy. The shape:
   onDevice?` → a transcript as JSON, with `X-Stt-Provider`, `X-Stt-Elapsed-Ms`, and
   `X-Stt-Fallback-From` when the served engine is not the one asked for.
 - Map `SttError.code` → status: `invalid_*` 400, **`too_long` 413**, **`unsupported` 422**,
-  **`rate_limited` 429 + a `Retry-After` header from `err.retryAfterMs`**, `unavailable` 503,
-  `timeout` 504, else 502. `too_long` is 413 rather than 400 so a client branches on length
+  **`rate_limited` 429 + a `Retry-After` header from `err.retryAfterMs`**, **`unavailable` 503
+  as a REFUSAL** (the probe's reason names an env var or a model path, so it is a server-log
+  fact and the body carries a resolvable code instead), `timeout` 504, else 502 with the
+  adapter's sentence logged, never returned. A caller's own abort (`aborted`) is NOT a
+  failure: answer 499 with an empty body and log nothing, or every navigation away writes an
+  engine fault no engine committed. `too_long` is 413 rather than 400 so a client branches on length
   the same way it branches on size — the upload gate already answers 413 for too many bytes,
   and "too much audio" is the same conversation.
+- Give it a DEADLINE and pass it down. Both adapters budget 300 s of their own; a host that
+  will be killed sooner (a serverless `maxDuration`, a proxy read timeout) must say so
+  through `transcribe`'s optional `timeoutMs`, which every adapter takes the MINIMUM of
+  against its own ceiling. A call killed from outside leaves an orphaned sidecar and an
+  un-swept scratch dir; one the adapter times out itself is reaped.
 - Gate it hard. One call is billed per audio **hour** on the cloud path and occupies a CPU
   for minutes on the local one — a looser throttle than a synthesis route, not a tighter one,
   is the mistake to avoid.
 
 Reference realization: kp's `app/api/stt/route.ts` + `app/_lib/stt.ts`.
+
+## Bind it to a browser (`@kazm/voice-stt/react`)
+
+`useStt` is the sibling of `@kazm/voice-tts`'s `useTts` and the same shape: headless, aimed
+at whatever route you mounted above, and carrying the route's machine CODE beside the English
+sentence so a localizing surface resolves one and logs the other.
+
+```tsx
+const stt = useStt({ endpoint: "/api/stt", language: locale, onTranscript: (text) => append(text) });
+<button onClick={stt.toggle} aria-pressed={stt.phase === "recording"} disabled={stt.busy || stt.unavailable} />
+```
+
+It owns the permission request, `MediaRecorder`'s container negotiation, the encode above,
+the upload and the abort. Three things it does that are policy rather than plumbing:
+
+1. **`unavailable` latches.** `STT_UNAVAILABLE` is a server-configuration fact, so the hook
+   remembers it and the surface stops offering the control rather than recording into the
+   same 503 again; a probe that finds a ready allowed engine clears it. Every other failure
+   (a denied microphone, a throttle, an engine fault) leaves the control live.
+2. **A capture over `maxSeconds` is stopped and TRANSCRIBED**, never discarded — throwing a
+   clip away for being long throws away the words somebody just said.
+3. **A 499 is not a fault.** `sttErrorFrom` maps the route's answer to this client's own
+   abort as code `ABORTED`, and the hook goes quiet instead of painting red.
+
+The state machine (`sttPhaseNext`) and the error mapping are exported and pure, which is
+what `react/useStt.test.ts` pins: the happy path, a denied permission landing in `error`
+rather than silently back at `idle`, `failed`/`cancel` answerable from every phase, a LATE
+`stop` (MediaRecorder's `onstop` after the encode already threw) not re-entering the upload
+path, a second press mid-capture changing nothing, and every phase/event pair landing on a
+declared phase. The hook body — `getUserMedia`, `MediaRecorder`, `AudioContext` — needs a
+real browser and is not covered.
 
 ## Audio in, and what this package refuses to do
 
@@ -108,7 +150,28 @@ typed refusal naming the fix:
 invalid_audio: whisper.cpp needs 16 kHz PCM WAV; this clip is 44100 Hz format 1.
 ```
 
-Resample in the host, where the dependency is a choice somebody made on purpose.
+Resample in the host, where the dependency is a choice somebody made on purpose. **The host
+encodes before it uploads**, and for a browser host this package now ships that step so every
+consumer does not reinvent it:
+
+```ts
+import { encodeWavFromBlob } from "<path>/voice-stt/src/browser/wav-encode.ts";  // or "@kazm/voice-stt/browser"
+
+const recorded = new Blob(chunks, { type: "audio/webm" });   // what MediaRecorder gives you
+const { blob } = await encodeWavFromBlob(recorded);          // audio/wav, 16 kHz mono PCM16
+form.append("audio", new File([blob], "clip.wav", { type: "audio/wav" }));
+```
+
+It is still not a decoder: the ONE platform call is `AudioContext.decodeAudioData`, decoding a
+codec the same browser just wrote. Everything after it — `mixToMono`, `resampleLinear`,
+`encodeWav16` (and `decodeWav16` for the inverse) — is exported separately, is pure, and is
+tested on synthetic PCM, because that arithmetic is the half that can be wrong quietly. Rate
+conversion is linear interpolation with no anti-alias filter, which is a deliberate call for
+speech into a 16 kHz mel front end and the one line to revisit if an engine proves otherwise.
+
+Without this step the default install is a dead end rather than a degraded one: `MediaRecorder`
+writes Opus/WebM, the on-device engine leads the resolution order, and the first mic click is
+`invalid_audio` for every clip.
 
 ## Rules the package keeps, and you should too
 
@@ -147,6 +210,14 @@ ceilings, status enumeration, and the WAV reader. `providers/adapters.test.ts` c
 adapters themselves on doubles — a scripted `fetch` for the cloud path (`redacted` read off
 the row, a 429 becoming `rate_limited` with its `Retry-After`, the primary-tag narrowing)
 and a counting host for the local probe cache. No audio, no network, no model files.
+
+`browser/wav-encode.test.ts` covers the capture conversion on synthetic PCM: a 48 kHz sine
+resamples to exactly the 16 kHz frame count AND keeps its shape (every third input sample is
+an output sample at 3:1), an odd ratio rounds rather than drops a frame, out-of-range samples
+clamp instead of wrapping, channels are averaged to the shortest, and the header is validated
+by `node/wav.ts` — the SERVER's reader — against the four facts `whisper-cpp.ts` checks before
+it spawns anything. `encodeWavFromBlob` itself is NOT covered: `decodeAudioData` needs a real
+browser, and everything downstream of it is what these tests hold.
 
 Two things only a live check can confirm, and neither is asserted here: that AssemblyAI
 accepts each `DEFAULT_PII_POLICIES` name (a rejected one comes back as its 400 body), and

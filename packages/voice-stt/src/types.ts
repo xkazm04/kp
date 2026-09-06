@@ -131,7 +131,19 @@ export interface SttProvider {
   probe(): Promise<SttProbe>;
   /** Engine model ids this install can serve (a downloaded GGUF, a vendor tier). */
   models(): Promise<SttModel[]>;
-  transcribe(req: SttRequest, signal?: AbortSignal): Promise<SttTranscript>;
+  /** `timeoutMs` is the HOST's budget for this call, and it wins over the
+   *  adapter's own default whenever it is shorter. Optional and third so the
+   *  parameter is purely additive: an adapter that ignores it still satisfies
+   *  this interface, and it keeps its own ceiling for a host that says nothing.
+   *
+   *  The budget exists because the two are not the same clock. An adapter's
+   *  300 s is "how long this engine may reasonably take"; the host's is "how
+   *  long this process will still be alive", and when the second is shorter the
+   *  first is a promise the adapter cannot keep: the call is killed from
+   *  outside, its finally never runs, and a sidecar plus its scratch dir are
+   *  orphaned. See app/api/stt/route.ts, which derives its budget from
+   *  `maxDuration`. */
+  transcribe(req: SttRequest, signal?: AbortSignal, timeoutMs?: number): Promise<SttTranscript>;
 }
 
 export type SttModel = {
@@ -178,6 +190,17 @@ export type SttStatus = {
   probe: SttProbe;
   allowed: boolean;
   preferred: boolean;
+  /** The engine models this install can actually serve, so a picker can offer
+   *  them without a second round trip. `models()` had ZERO callers before this
+   *  field existed: every adapter implemented it, and no surface could reach it.
+   *
+   *  Only populated for a READY provider. Asking an absent engine for its
+   *  catalog is a readdir over directories that are not there (or, on the cloud
+   *  path, an answer that says nothing about an install with no key), and the
+   *  three probe states already carry the fact that decides the next action. An
+   *  engine that is not ready lists no models rather than an empty catalog that
+   *  reads as "installed, nothing available". */
+  models: SttModel[];
 };
 
 export type SttResolution = {
@@ -185,6 +208,15 @@ export type SttResolution = {
   /** Set when `provider` is not the one asked for — fallback is visible, never silent. */
   fallbackFrom: SttProviderId | null;
   reason: string | null;
+  /** The provider the CALLER named, whenever it named a real one — even when the
+   *  deployment does not allow it. `fallbackFrom` cannot carry that case: a
+   *  request for a provider outside `allowed` is dropped from the resolution
+   *  order before anything is compared, so `fallbackFrom` is null and a caller
+   *  on a residency-locked deploy asks for `assemblyai`, is served by
+   *  `whisper_cpp`, and is told nothing happened. A surface that offers a picker
+   *  needs to know its pick was overruled; this is that fact, and it is null
+   *  only when nothing recognisable was asked for. */
+  requestedProvider: SttProviderId | null;
 };
 
 /** The failure vocabulary. Callers branch on the CODE; the message is for a log

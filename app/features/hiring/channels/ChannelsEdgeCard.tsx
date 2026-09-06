@@ -53,11 +53,16 @@ type EdgeState = {
  *  a blank line in the UI. */
 const DRAIN_ERROR_KEY: Record<
   EdgeErrorKind,
-  "drainFailedUnreachable" | "drainFailedHeld" | "drainFailedAck" | "drainFailedUnknown"
+  | "drainFailedUnreachable"
+  | "drainFailedHeld"
+  | "drainFailedAck"
+  | "drainFailedSecretUnreadable"
+  | "drainFailedUnknown"
 > = {
   unreachable: "drainFailedUnreachable",
   held: "drainFailedHeld",
   ack: "drainFailedAck",
+  secret_unreadable: "drainFailedSecretUnreadable",
   unknown: "drainFailedUnknown",
 };
 
@@ -149,19 +154,33 @@ export function EdgeConfigCard() {
       const d = (await r.json().catch(() => null)) as {
         summary?: { applied?: number; skipped?: number; error?: string | null; errorKind?: EdgeErrorKind | null };
         config?: Partial<EdgeState>;
+        error?: string;
+        code?: string;
       } | null;
       // An error from the edge is reported as itself: a drain that reached nothing
       // must not read as "0 new leads", which is the same sentence a healthy quiet
       // queue produces. It is reported as a CLASS, never as the machine text.
-      if (d?.summary?.error) setNote({ ok: false, text: t(DRAIN_ERROR_KEY[d.summary.errorKind ?? "unknown"]) });
-      else setNote({ ok: true, text: t("drained", { applied: d?.summary?.applied ?? 0, skipped: d?.summary?.skipped ?? 0 }) });
+      //
+      // And a REFUSAL of the door is the same lie one layer up. This handler used to
+      // read only `summary.error`, so a 403 (no `org:manage`) or a 500 — neither of
+      // which carries a summary at all — rendered "Drained: 0 filed, 0 skipped" in
+      // green, telling an operator who is not allowed to drain that the drain
+      // succeeded. Non-ok is answered from the edge's failure CLASS when the body
+      // carries one (the 409 for an unreadable secret does), otherwise from the
+      // refusal CODE through the same resolver every other door uses.
+      const kind = d?.summary?.errorKind;
+      if (!r.ok || d?.summary?.error) {
+        setNote({ ok: false, text: kind ? t(DRAIN_ERROR_KEY[kind]) : errMsg(d, t("drainFailedUnknown")) });
+      } else {
+        setNote({ ok: true, text: t("drained", { applied: d?.summary?.applied ?? 0, skipped: d?.summary?.skipped ?? 0 }) });
+      }
       adopt(await readConfig());
     } catch {
       setNote({ ok: false, text: t("drainFailedUnreachable") });
     } finally {
       setBusy(false);
     }
-  }, [t, readConfig, adopt]);
+  }, [t, errMsg, readConfig, adopt]);
 
   const enableSealing = useCallback(async () => {
     setBusy(true);

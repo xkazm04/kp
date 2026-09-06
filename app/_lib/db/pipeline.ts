@@ -1927,7 +1927,7 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["ats_links", "The vendor-id ↔ entry mapping for ATS sync. Holds no personal data (provider, external id, stage), and it must OUTLIVE the scrub: without it the next nightly sync re-imports the same person as a new candidate. Lot AA lands the delete (deleteAtsLinksForEntry) for the harder case where the operator disconnects the integration."],
   // Not workspace-scoped (so not reached by the manifest pin), but recorded here because
   // an erasure request WILL be asked about it: the LLM metering ledger.
-  ["llm_usage", "Deployment-level LLM metering (model, token counts, latency, cost), written off-request from the Python side. It records that a machine call happened, never who it was about — no candidate identifier or prompt text is stored — so there is nothing in it to erase."],
+  ["llm_usage", "Deployment-level LLM metering (model, token counts, latency, cost), written off-request from the Python side. It records that a machine call happened, never who it was about — no candidate identifier or prompt text is stored — so there is nothing in it to erase. That holds for the `reason` column too (tiger X14): it is bounded to a closed-vocabulary snake_case CODE on BOTH sides of the sidecar (monitor._reason_code, parseLedgerLine), precisely so a provider message — which can echo the prompt — can never land here and falsify this sentence."],
 ]);
 
 /** Tables the erasure path scrubs through a NAMED function rather than inline SQL.

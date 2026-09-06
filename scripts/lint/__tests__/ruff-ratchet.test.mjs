@@ -17,11 +17,13 @@ import {
   MARKER_RE,
   REPO_ROOT,
   RUFF_CONFIG_PATH,
+  TARGET,
   countByCode,
   parseArgs,
   parseIgnores,
   pruneEntries,
   ruffCounts,
+  ruffInterpreters,
   runChecks,
   tightenCeilings,
 } from '../ruff-ratchet.mjs';
@@ -142,8 +144,87 @@ check('ruff answering with something that is not JSON is an error, never "no vio
   assert.throws(() => ruffCounts({ spawn: () => ({ stdout: '{"code":"F401"}' }) }), /not an array/);
 });
 
-check('ruff not being installed says so instead of passing', () => {
-  assert.throws(() => ruffCounts({ spawn: () => ({ error: Object.assign(new Error('spawn ruff ENOENT'), { code: 'ENOENT' }) }) }), /ENOENT/);
+// --- ruff on PATH vs ruff as a module ------------------------------------------
+//
+// `pip install ruff` does not always leave a `ruff` console script on PATH — on
+// Windows, and in a venv the shell has not activated, the wheel is importable
+// while the binary is not. The gate spawned the bare string and threw on ENOENT,
+// so it was permanently red on such a machine for a reason that had nothing to do
+// with the ignore list. Every case above injects `counts`, so none of them could
+// see it; these drive the spawn itself.
+
+const enoent = (cmd) => ({ error: Object.assign(new Error(`spawn ${cmd} ENOENT`), { code: 'ENOENT' }) });
+
+/** A spawn stub that answers per program, and records what it was asked to run. */
+function scriptedSpawn(script) {
+  const calls = [];
+  return {
+    calls,
+    spawn: (cmd, args = []) => {
+      calls.push([cmd, ...args].join(' '));
+      return script(cmd, args);
+    },
+  };
+}
+
+check('ruff missing from PATH is retried as `python -m ruff` with the same arguments', () => {
+  const stdout = JSON.stringify([{ code: 'F401' }, { code: 'F541' }, { code: 'F401' }]);
+  const { spawn, calls } = scriptedSpawn((cmd, args) => {
+    if (cmd === 'ruff') return enoent('ruff');
+    if (args[0] === '--version') return { status: 0, stdout: 'Python 3.12.0\n' };
+    return { stdout };
+  });
+  const c = ruffCounts({ spawn, env: { KP_PYTHON: 'python' } });
+  assert.equal(c.get('F401'), 2, 'the fallback answer is the one that gets counted');
+
+  const via = calls.find((line) => line.startsWith('python -m ruff'));
+  assert.ok(via, `no \`python -m ruff\` attempt was made: ${calls.join(' | ')}`);
+  // The same invocation, not a simplified one: a fallback that drops
+  // `lint.ignore = []` would measure the ignores WITH the ignores applied and
+  // report every entry dead.
+  assert.equal(via, `python -m ruff check ${TARGET} --config lint.ignore = [] --output-format json --exit-zero`);
+});
+
+check('the py launcher is asked for a Python 3', () => {
+  const { spawn, calls } = scriptedSpawn((cmd, args) => {
+    if (cmd === 'ruff') return enoent('ruff');
+    if (args[0] === '--version') return { status: 0, stdout: 'Python 3.12.0\n' };
+    return { stdout: '[]' };
+  });
+  ruffCounts({ spawn, env: { KP_PYTHON: 'py' } });
+  assert.ok(
+    calls.some((line) => line.startsWith('py -3 -m ruff check')),
+    `py was not asked for a Python 3: ${calls.join(' | ')}`,
+  );
+});
+
+check('ruff absent AND no interpreter that can run it still fails, naming both', () => {
+  // The fallback must not turn a genuinely missing ruff into a silent pass —
+  // that is the same "no violations anywhere" lie the JSON cases guard.
+  const { spawn } = scriptedSpawn((cmd) => enoent(cmd));
+  assert.throws(
+    () => ruffCounts({ spawn, env: { KP_PYTHON: 'python' } }),
+    /ENOENT.*no Python interpreter could run it as a module either/s,
+  );
+});
+
+check('an interpreter that exists but refuses --version is not tried', () => {
+  // The Windows Store `python` stub: it spawns fine and answers non-zero. Running
+  // `-m ruff` through it would fail with a shim message instead of the install hint.
+  const { spawn, calls } = scriptedSpawn((cmd, args) => {
+    if (cmd === 'ruff') return enoent('ruff');
+    if (args[0] === '--version') return { status: 9009, stdout: '' };
+    return { stdout: '[]' };
+  });
+  assert.throws(() => ruffCounts({ spawn, env: { KP_PYTHON: 'python' } }), /no Python interpreter/);
+  assert.ok(!calls.some((line) => line.includes('-m ruff')), 'a refusing shim must not be handed the real invocation');
+});
+
+check('KP_PYTHON wins outright; otherwise the order is schemas-gen.mjs own', () => {
+  assert.deepEqual(ruffInterpreters({ KP_PYTHON: '  C:/tools/python.exe ' }), ['C:/tools/python.exe']);
+  assert.deepEqual(ruffInterpreters({ PYTHON_CMD: 'python3.12' }), ['python3.12'], 'schemas-gen resolver, reused');
+  const bare = ruffInterpreters({});
+  assert.ok(bare.includes('python') && bare.includes('python3'), `platform candidates missing: ${bare.join(', ')}`);
 });
 
 check('a real ruff answer becomes counts', () => {

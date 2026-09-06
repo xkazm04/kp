@@ -16,7 +16,7 @@ test("org-shared templates are visible to every team; team-private ones are isol
   assert.equal(orgT.scope, "org");
   assert.equal(privA.scope, "team");
 
-  const listA = listTemplates("ws-a").map((t) => t.id);
+  const listA = listTemplates("ws-a").templates.map((t) => t.id);
   assert.ok(listA.includes(orgT.id), "ws-a sees the org-shared template");
   assert.ok(listA.includes(privA.id), "ws-a sees its own private template");
   assert.ok(!listA.includes(privB.id), "ws-a must NOT see ws-b's private template");

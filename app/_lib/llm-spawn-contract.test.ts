@@ -6,8 +6,19 @@
 // weight_proposal, group_compare, profile_draft); this test pins the fix the same
 // way rate-limit-contract.test.ts pins limiter call sites. Adding a new LLM spawn
 // site means adding it here deliberately.
-import test from "node:test";
+//
+// 2026-09-05: a second sweep found a FIFTH site in that state, and the most
+// expensive one — `_lib/analyze-run.ts`, the flagship CV analysis. Its child
+// calls resolve_provider("cv_analysis") (pipeline/jobfit/pipeline.py) while the
+// spawn passed no env, so every Models-panel `cv_analysis` row and every BYOM key
+// was inert on the one path that runs on every candidate.
+//
+// unit-db.ts must stay the FIRST project import (isolated throwaway DB).
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { buildLlmConfigEnv } from "./llm-config.ts";
+import { upsertLlmConfig } from "./db/llm.ts";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +29,7 @@ const APP_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 // wrappers (profile_cli, extract_cli, match_cli, matrix_cli, winnability_cli)
 // are intentionally absent.
 const LLM_SPAWN_MODULES: Record<string, string> = {
+  "_lib/analyze-run.ts": "cv_analysis",
   "_lib/reasoning-run.ts": "match_reasoning",
   "_lib/automation-run.ts": "automation / interview_scorecard",
   "_lib/devcase-run.ts": "devcase_*",
@@ -54,3 +66,36 @@ for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
     );
   });
 }
+
+after(() => cleanupUnitDb());
+
+// The static assertion above proves the identifier is PRESENT; this one proves the
+// flagship spawn's option object actually carries it. `env` had to be added beside
+// `timeoutMs` on that call — a `buildLlmConfigEnv` mentioned only in a comment
+// would satisfy a regex and route nothing.
+test("_lib/analyze-run.ts passes the env on the spawn itself, not merely imports it", () => {
+  const source = readFileSync(path.join(APP_ROOT, "_lib/analyze-run.ts"), "utf-8");
+  const call = /spawnPython\(\s*cliArgs\([^)]*\),\s*\{([\s\S]*?)\}\s*\)/.exec(source);
+  assert.ok(call, "the analyze spawn call site moved — re-pin this contract");
+  assert.match(
+    call[1],
+    /env:\s*buildLlmConfigEnv\(\)/,
+    "the analyze spawn's options must carry env: buildLlmConfigEnv() — without it the " +
+      "child's resolve_provider(\"cv_analysis\") sees no KP_LLM_CONFIG and the operator's " +
+      "Models routing row plus any BYOM key are silently inert."
+  );
+});
+
+// …and that the env it builds actually ROUTES cv_analysis: the use case must survive
+// into KP_LLM_CONFIG with its provider AND its model pin, since the child reads the
+// model off the resolved provider (pipeline.py: `getattr(cv_provider, "model", None)`).
+test("a cv_analysis routing row reaches the child through KP_LLM_CONFIG", () => {
+  upsertLlmConfig({ useCase: "cv_analysis", provider: "openai", model: "gpt-5-vision" });
+  const env = buildLlmConfigEnv();
+  assert.ok(env.KP_LLM_CONFIG, "a configured row must produce the env var");
+  const parsed = JSON.parse(env.KP_LLM_CONFIG) as {
+    useCases: Record<string, { provider: string; model?: string }>;
+  };
+  assert.equal(parsed.useCases.cv_analysis?.provider, "openai");
+  assert.equal(parsed.useCases.cv_analysis?.model, "gpt-5-vision", "the model pin must survive too");
+});

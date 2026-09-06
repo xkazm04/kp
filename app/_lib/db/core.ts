@@ -890,6 +890,16 @@ export function ensureDb(): Database.Database {
       cached_tokens INTEGER,
       cost_usd REAL,
       source TEXT NOT NULL,
+      -- 'ok' (a meterable attempt — a real completion, or a template serve at a
+      -- truthful zero) or 'failed' (the call raised; tokens unknown because the
+      -- provider reported none). Every money-shaped aggregate filters on 'ok', so a
+      -- failed attempt is countable in the panel and billable in nothing. Added by
+      -- the ALTER loop below for existing DBs — see the note there.
+      outcome TEXT NOT NULL DEFAULT 'ok',
+      -- WHY this row is not a plain successful serve: a closed-vocabulary code from
+      -- monitor.FAILURE_REASONS / automation.DEGRADATION_REASONS / the availability
+      -- gate. Never a provider message. NULL = nothing to explain.
+      reason TEXT,
       request_id TEXT
     );
 
@@ -1336,6 +1346,41 @@ export function ensureDb(): Database.Database {
     // material — a colleague's note or a saved JD — the dialog grounds on.
     // JSON list of {kind: "note"|"jd", title, text, jdSlug?}.
     "ALTER TABLE role_intakes ADD COLUMN attachment_json TEXT",
+    // Per-LINE idempotency key for the usage-ledger fold (db/llm.ts
+    // ingestLlmUsageLog). The fold WAS idempotent only because the sidecar is
+    // deleted afterwards — and that delete is a best-effort rmSync in a catch, so
+    // a locked/read-only temp file or a crash between INSERT and unlink left the
+    // file where the next fold re-read it and doubled the spend the pricing
+    // meters bill against. NOT request_id: that is one id per SPAWN, shared by
+    // every call the spawn made, so a unique index on it would DROP legitimate
+    // rows. NULL on every row written before this column existed and on every
+    // direct insertLlmUsage call (the voice-interview estimate) — and NULLs are
+    // distinct under a SQLite UNIQUE index, so the index below can never be
+    // blocked by pre-existing data.
+    "ALTER TABLE llm_usage ADD COLUMN ingest_key TEXT",
+    // tiger X2/X14 — the two facts the ledger computed and then threw away.
+    //
+    // `outcome` is what makes a FAILED attempt visible without making it billable.
+    // monitor.emit_error returned early whenever LightTrack was absent (the default
+    // deployment), so a call that timed out or 429'd AFTER sending a large prompt —
+    // the most expensive attempt this app makes — was recorded nowhere and the spend
+    // panel under-reported exactly that traffic. It now writes a row with NULL tokens
+    // and NULL cost (the provider reported none; an estimate would be a guess in the
+    // column the meters bill against) carrying outcome 'failed', and every
+    // money-shaped aggregate names outcome = 'ok' explicitly. NOT NULL DEFAULT 'ok'
+    // backfills every existing row to exactly what it already was — a call that
+    // happened and was summed — so a populated DB reads byte-identically after the
+    // migration, and SQLite applies the default in place without rewriting the table.
+    //
+    // `reason` is the descent reason Python has computed all along
+    // (automation._call_failure_reason, "unusable_output", the availability-gate
+    // vocabulary) and which reached only the per-request CLI envelope: an operator
+    // could see WHY a call degraded now and never later — a keyless install and a
+    // provider answering with prose produced the same zero-cost line. Nullable, a
+    // closed-vocabulary CODE only (parseLedgerLine re-asserts the token shape), NULL
+    // on every pre-migration row = "no reason recorded".
+    "ALTER TABLE llm_usage ADD COLUMN outcome TEXT NOT NULL DEFAULT 'ok'",
+    "ALTER TABLE llm_usage ADD COLUMN reason TEXT",
   ]) {
     migrateExec(sql);
   }
@@ -1774,6 +1819,19 @@ export function ensureDb(): Database.Database {
     "uq_dev_postings_open",
     `CREATE UNIQUE INDEX IF NOT EXISTS uq_dev_postings_open
        ON dev_postings (workspace_id, case_id, channel) WHERE status = 'open'`
+  );
+  // Usage-ledger replay guard: one row per (sidecar file, line), so re-folding a
+  // sidecar the best-effort cleanup failed to delete inserts nothing instead of
+  // doubling the deployment's recorded spend (db/llm.ts ingestLlmUsageLog turns
+  // this into `INSERT OR IGNORE` + a counted skip). Guarded like the indexes above
+  // even though it cannot realistically fail: every pre-existing row has
+  // ingest_key NULL, and SQLite treats NULLs as distinct under a UNIQUE index, so
+  // legacy data can never block it — if some future writer does collide, the app
+  // must keep booting and the operator must be TOLD, not silently handed a
+  // half-migrated DB.
+  migrateUniqueIndex(
+    "uq_llm_usage_ingest_key",
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_usage_ingest_key ON llm_usage (ingest_key)`
   );
   // Atomic task dedup across connections (the scheduler ticks on its own connection
   // and an external cron can hit /api/automation/run): a partial UNIQUE index forbids

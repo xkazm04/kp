@@ -332,8 +332,17 @@ def _meter_success(use_case: str | None, usage: dict[str, int], duration_ms: int
 
 
 def _meter_failure(use_case: str | None, error: Exception, duration_ms: int, model: str = GEMINI_MODEL) -> None:
-    """Error-event counterpart of ``_meter_success`` (LightTrack only — the
-    durable ledger records spend, and a failed generate has no usage to bill)."""
+    """Error-event counterpart of ``_meter_success``.
+
+    This used to say "LightTrack only — a failed generate has no usage to bill", and
+    the second half is still true: the provider reports no token counts for a call
+    that died, so the row carries NULL tokens and NULL cost and is excluded from
+    every billable aggregate. The first half was the bug (tiger X2). A multimodal CV
+    analysis that timed out after uploading a whole résumé is the most expensive
+    attempt this app makes, and on a deployment without LightTrack — the default —
+    it appeared in `llm_usage` nowhere at all. ``emit_error`` now writes an
+    ``outcome = "failed"`` ledger line first: visible in Activity and in the
+    per-use-case failure count, billable in nothing."""
     try:
         from .llm import monitor
 

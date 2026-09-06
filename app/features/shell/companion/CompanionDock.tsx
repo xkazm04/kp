@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 import { useAttention } from "@/app/features/shell/useAttention";
 import { shouldRefetchCompanionThread } from "@/app/_lib/companion-turn";
+import { companionVoiceCloseAction } from "@/app/_lib/companion-dock-states";
 import { useOptionalCompanionDock } from "./CompanionDockProvider";
 import { CompanionSettingsMenu } from "./CompanionSettingsMenu";
 import { CompanionVoiceMode } from "./voice/CompanionVoiceMode";
@@ -57,6 +58,13 @@ export function CompanionDock() {
   // Whether the pill should take focus when it appears. True only on an operator
   // close, so a workspace that loads with Candi collapsed does not grab focus.
   const [focusRest, setFocusRest] = useState(false);
+  // The window's own entry point. Opening the dock is a request to TALK to her,
+  // and every caller of `openDock()` — the pill, the command palette's "Ask
+  // Candi", an activity row, the footer deck — left the caret on <body>, so the
+  // operator's next keystroke went nowhere and a keyboard operator tabbed in from
+  // the top of the page. Focus belongs INSIDE the dock rather than in each of
+  // those callers, which is also why they are untouched.
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   const open = dock?.open ?? false;
   const voice = dock?.prefs.mode === "voice";
@@ -73,6 +81,14 @@ export function CompanionDock() {
     stop();
   }, [open, voice, stop]);
 
+  // Once per open, and only for the window shape: voice mode has no composer, and
+  // the ref is null there anyway. Not a trap — this is a complementary <aside>,
+  // so focus can leave with one Tab and Escape still closes (see above).
+  useEffect(() => {
+    if (!open) return;
+    composerRef.current?.focus();
+  }, [open]);
+
   const closeDock = dock?.closeDock;
   // ONE close path, so "the pill gets focus back" is a property of closing rather
   // than of the button that happened to be pressed.
@@ -80,6 +96,17 @@ export function CompanionDock() {
     setFocusRest(true);
     closeDock?.();
   }, [closeDock]);
+
+  // …and the voice strip's one dismissal control, which is the same act with one
+  // more state to answer for: a strip that is up ONLY because she is still
+  // speaking has already been closed, so running `close` again did nothing at all
+  // and the X and Escape were both dead. The decision is
+  // `companionVoiceCloseAction` so it is tested rather than inlined twice.
+  const closeVoice = useCallback(() => {
+    const action = companionVoiceCloseAction({ open, speaking });
+    if (action === "close") close();
+    else if (action === "stop") stop?.();
+  }, [open, speaking, close, stop]);
 
   // Escape closes the window. Deliberately NOT a dialog dismissal: this is a
   // complementary <aside> with no focus trap and no inert page (see the header),
@@ -121,7 +148,7 @@ export function CompanionDock() {
   if (!dock) return null;
   if (showVoice) {
     return (
-      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={close} />
+      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={closeVoice} />
     );
   }
   if (!open) {
@@ -173,14 +200,17 @@ export function CompanionDock() {
           turns={dock.thread.turns}
           proposals={dock.thread.proposals}
           busy={dock.thread.busy}
+          ready={dock.thread.ready}
           error={dock.thread.error}
           attention={attention}
           memoryEnabled={dock.thread.memoryEnabled}
           speech={dock.speech}
           onSend={dock.thread.send}
           onResolveProposal={dock.thread.resolveProposal}
+          proposalError={dock.thread.proposalError}
           lastFailed={dock.thread.lastFailed}
           onRetry={dock.thread.retry}
+          composerRef={composerRef}
         />
       </div>
     </aside>

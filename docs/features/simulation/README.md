@@ -120,15 +120,65 @@ None. Nothing in this directory owns a table.
 - **`tasks` and `llm_usage` deliberately survive a reset.** They are the metering
   record of what the run spent; a demo that could erase its own usage ledger is a
   billing hole, not a clean reset.
-- **One live run per workspace.** `POST /api/sim/reset { hold: true }` claims a
-  TTL-bounded lock (`SIM_RUN_TTL_MS`, 5 min) for the length of a walk; a second start
-  is refused with `SIM_RUN_ACTIVE` (409) plus `retryAfterSeconds`, and the walk
-  renders it. `DELETE /api/sim/reset` releases on done / stopped / failed. Without it
+- **One live run per workspace, and the lease has an OWNER.** `POST /api/sim/reset
+  { hold: true }` claims a TTL-bounded lock (`SIM_RUN_TTL_MS`, 5 min) for the length
+  of a walk and answers the lease **token** that claim minted; a second start is
+  refused with `SIM_RUN_ACTIVE` (409) plus `retryAfterSeconds`, and the walk renders
+  it. `DELETE /api/sim/reset` releases on done / stopped / failed, presenting that
+  token in the `x-sim-run-token` header (`SIM_RUN_TOKEN_HEADER` in
+  `app/features/shell/simulation/simRunLease.ts`, the one definition both sides
+  import). A release from anyone else is refused with `SIM_RUN_NOT_OWNER` (409),
+  and the walk's own `finally` sends nothing at all when its start was refused
+  (`releaseInit(null)` is `null`). Until that pair landed the release was
+  unconditional on both sides: a second tab refused with `SIM_RUN_ACTIVE` freed the
+  first tab's lease anyway, and the next press wiped a live run. The walk also
+  **renews** at every phase gate: `POST /api/sim/reset { renew: true }` with the same
+  token pushes the expiry out a full TTL, claiming nothing and purging nothing (a
+  non-owner gets `SIM_RUN_NOT_OWNER`). Step mode is the walk's default, so a run
+  talked through by a presenter used to outlive its own five-minute protection.
+  Without it
   a second visitor's run deleted the first one's job mid-walk — every demo visitor
   and every operator tab share the one `demo` tenant. Per-VISITOR demo namespaces
   would remove the sharing entirely; that is a tenancy-model change and the owner's
   call. The lock is in-process and best-effort: a courtesy against racing tabs on one
   self-hosted server, never an authorization boundary.
+- **The console reads the tenant's real state on boot.** `GET /api/sim/reset` is the
+  status door: read-only (no claim, no purge, no lease mutation) and tenant-scoped,
+  answering `{ runActive, retryAfterSeconds, ownedByMe, residue }`. `ownedByMe` is
+  true only for a caller presenting the holder's token, so a reloaded tab reads
+  `runActive: true, ownedByMe: false` — "someone is walking, and it is not you" —
+  rather than guessing. `residue` counts what a previous walk left behind, from the
+  three marker-reachable tables `simResidue()` (`app/_lib/sim-store.ts`) resolves the
+  purge's key sets from. The client half is the tiny external store in
+  `simRunControl.ts` (`refreshSimDoor` / `subscribeSimDoor` / `simDoorSnapshot`),
+  which `useControlMode` reads through `useSyncExternalStore` and the provider
+  re-reads after every reset. Before it, the console's whole idea of itself was a
+  BROWSER fact: the lease lives on the server, `SimulationProvider` boots to
+  `IDLE_STATE`, and nothing asked — so a reloaded tab wore the ops deck while its own
+  five-minute lease was still held, and the only control that reaches the console
+  from ops (`guideAction` → `start`) was refused by that very lease, with copy telling
+  the presenter to stop a run their tab no longer knew about.
+- **A lease or leftover residue puts the console in front of the operator.**
+  `consoleMode()` (`simRunControl.ts`, the extracted rule `useControlMode` now
+  delegates to) adds `door.runActive || door.residue > 0` to the three existing
+  reasons (running / done / errored / `?sim=auto`). The console is where Reset lives,
+  and both of those states are exactly the ones a Reset answers — so the cleanup is
+  reachable from idle instead of only through a run the operator did not want.
+- **Reset says why, how much, and that it is working.** `performReset`'s `purge` dep
+  returns the door's whole answer (`SimPurgeOutcome` in `simRunControl.ts`), not a
+  boolean: the summed thirteen-table count on a 2xx (`totalCleared`), the CODE and
+  `retryAfterSeconds` on a refusal. The console renders a success as
+  `status.resetCleared` with the number (or `status.resetNothing` at zero, which is
+  a success, not a failure) and a refusal through `useErrorMessage()` — with the
+  wait attached, via the seconds-carrying variants `errors.simRunActiveSeconds` /
+  `errors.simRunNotOwnerSeconds` that `simWaitVariant()` selects (the codes' own
+  messages stay placeholder-free for the consumers that resolve them with no values,
+  the same split as `errors.forbiddenCapabilityNeeds`). Before it a 409 rendered
+  "Cleanup failed. Try again", the one instruction that cannot work: the retry is
+  refused for as long as the holder's lease has left, and only the seconds say so.
+  The Reset button also carries a local `resetting` flag (disabled + `aria-busy` +
+  a spinning glyph) for the multi-second stop → settle → purge, so a presenter does
+  not press it twice and race the first pair.
 - The dock's numbers are read, never stored: `useAttention()` for the awaiting
   count, `useTasks()` for the batch-screen task, `companion.open` for Candi.
 - Keyless: the demo is a product surface that must work with no API key at all —
@@ -165,6 +215,10 @@ an explicit guard rather than a special-case fake:
 
 ## Known gaps
 
+- **A closed tab releases its lease on `pagehide`** (`useSimulationWalk.releaseLease`, a
+  `keepalive` DELETE carrying the token this tab claimed, wired by `SimulationProvider`).
+  It is fire-and-forget: a release lost to a dying tab simply expires on the server's
+  terms, and the status door above keeps the resulting wait honest.
 - The run lock is per PROCESS. Two `next start` workers (or a future horizontally
   scaled deploy) each hold their own map, so the race it closes reopens there. Moving
   it into SQLite is the obvious next step and was not needed for the single-process

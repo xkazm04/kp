@@ -9,7 +9,7 @@ import { countSubmissions, listDevCases, listPostings } from "@/app/_lib/db/devc
 import { isInterviewSessionLive, listRecentInterviewSessions } from "@/app/_lib/db/interviews";
 import { jdLibraryStats, jobStats } from "@/app/_lib/db/jobs";
 import { countMatrixProfiles, listProfiles } from "@/app/_lib/db/profiles";
-import { listTemplates } from "@/app/_lib/templates-store";
+import { countTemplates } from "@/app/_lib/templates-store";
 import type { PalettePreview } from "./types";
 
 /** Top-N of a name → count map, descending, ties by name. */
@@ -33,7 +33,7 @@ export function resolveLibrary(ws: string): PalettePreview {
   // slice — a page's size presented as a library total, in the one surface whose
   // entire job is to preview how big things are.
   const { total, analyzing, failed, newest } = jdLibraryStats(ws);
-  return { view: "library", total, analyzing, failed, templates: listTemplates(ws).length, newest };
+  return { view: "library", total, analyzing, failed, templates: countTemplates(ws), newest };
 }
 
 export async function resolveArchetypes(ws: string): Promise<PalettePreview> {

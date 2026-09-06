@@ -26,7 +26,9 @@ import {
   recordAtsDeliveryStart,
 } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db.ts";
+import { anonymizeEntry } from "./db/pipeline.ts";
 import {
+  IDEMPOTENCY_HEADER,
   SIGNATURE_HEADER,
   SIGNATURE_TOLERANCE_SECONDS,
   TIMESTAMP_HEADER,
@@ -295,4 +297,109 @@ test("deliver stamps one instant into sentAt, the timestamp header and the signa
     false,
     "a captured delivery replayed past the window must no longer verify",
   );
+});
+
+// F — IDEMPOTENCY. A receiver that accepted a POST and then timed out on the response is,
+// from here, indistinguishable from one that never got it: the ladder retries and the
+// customer's ATS gains a SECOND hire for the same candidate. Only the receiver can settle
+// that, and only if the two requests say they are the same request. Every attempt of one
+// ledger row therefore sends the same `Idempotency-Key` (the row id) and a BYTE-IDENTICAL
+// body — the envelope's `sentAt` is the row's creation instant, not the attempt's.
+//
+// The X-Kp-Timestamp header still moves per attempt, and that is not an oversight: it is
+// what the signature binds and what the five-minute skew window is checked against, so
+// freezing it would make every retry past minute five unverifiable at the receiver.
+//
+// NON-VACUITY: pre-change there was no key at all (both key asserts fail) and `sentAt`
+// was `new Date()` per attempt, so the two bodies differ in that field.
+test("every attempt of one delivery carries the SAME idempotency key and a byte-identical body", async () => {
+  process.env.KP_ATS_SECRET_KEY = "unit-test-ats-key";
+  setAtsConfig({ webhookUrl: "https://example.com/hook", webhookSecret: "whsec-idem", events: ["candidate.hired"] });
+  const { entry } = createPipelineEntry({ candidateId: "c-idem", candidateLabel: "Idem Case", jobId: "job-idem", jobTitle: "Role" });
+  const seen: { headers: Record<string, string>; body: string }[] = [];
+  const capture = (async (_u: unknown, init: { headers: Record<string, string>; body: string }) => {
+    seen.push({ headers: init.headers, body: init.body });
+    return { ok: false, status: 500 };
+  }) as unknown as typeof fetch;
+
+  await withFetch(capture, () => dispatchAtsEvent("candidate.hired", entry.id));
+  const row = listAtsDeliveries().find((d) => d.entryId === entry.id);
+  assert.ok(row, "the first attempt opened a ledger row");
+  // Well past the first backoff window, so the sweep picks it up.
+  await withFetch(capture, () => retryDueAtsDeliveries(new Date(Date.now() + 3600_000)));
+
+  // The sweep drains every due row in this shared ledger, so keep only OUR two attempts.
+  const mine = seen.filter((s) => s.body.includes(entry.id));
+  assert.equal(mine.length, 2, "two attempts were actually made for this entry (otherwise this proves nothing)");
+  const [first, second] = mine;
+  assert.equal(first.headers[IDEMPOTENCY_HEADER], String(row!.id), "the key IS the ledger row id");
+  assert.equal(second.headers[IDEMPOTENCY_HEADER], first.headers[IDEMPOTENCY_HEADER], "a retry is the SAME request");
+  assert.equal(second.body, first.body, "a redelivery is byte-identical — a receiver can dedupe on the body alone");
+  assert.equal(JSON.parse(first.body).idempotencyKey, String(row!.id), "…and the key rides in the body too");
+
+  // The retry is freshly SIGNED against its own instant, so it verifies an hour later.
+  const stamp = second.headers[TIMESTAMP_HEADER];
+  assert.notEqual(stamp, JSON.parse(second.body).sentAt, "the signing instant moved; the delivery instant did not");
+  assert.equal(
+    verifyWebhookSignature("whsec-idem", second.body, second.headers[SIGNATURE_HEADER], {
+      timestamp: stamp,
+      nowMs: Date.parse(stamp),
+    }),
+    true,
+    "a retry outside the original tolerance window is still verifiable — the ladder is not signing dead letters"
+  );
+});
+
+// G — TWO SWEEPS, ONE DELIVERY. An operator pressing Retry while a cron POSTs the same
+// route both read the same due list; before the claim, both DELIVERED it, which is the
+// duplicate hire the ledger exists to prevent.
+//
+// NON-VACUITY: without claimAtsDelivery the second sweep sees the row still `failed` and
+// due, and the fetch counter reads 2.
+test("two concurrent retry sweeps deliver a due row exactly ONCE", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
+  const { entry } = createPipelineEntry({ candidateId: "c-race", candidateLabel: "Race Case", jobId: "job-race", jobTitle: "Role" });
+  const id = recordAtsDeliveryStart("candidate.hired", entry.id);
+  // Backdate the failure so its window has elapsed and it is due right now.
+  finalizeAtsDelivery(id, { delivered: false, reason: "transient" }, new Date(Date.now() - 3600_000));
+
+  let posts = 0;
+  const counting = (async () => {
+    posts += 1;
+    return { ok: true, status: 200 };
+  }) as unknown as typeof fetch;
+
+  const [a, b] = await withFetch(counting, () =>
+    Promise.all([retryDueAtsDeliveries(new Date()), retryDueAtsDeliveries(new Date())])
+  );
+  const forEntry = (s: { due: number; delivered: number; skipped: number }) => s;
+  assert.equal(posts, 1, "the receiver saw ONE POST, not two — a duplicate hire is what this prevents");
+  assert.equal(forEntry(a).delivered + forEntry(b).delivered, 1, "exactly one sweep owns the attempt");
+  assert.equal(getAtsDelivery(id)?.attempts, 2, "and the attempt count moved once, not twice");
+});
+
+// H — a REFUSAL is not a transient failure. An anonymized candidate will not become
+// mirrorable by waiting, so the row is dead-lettered on the first attempt instead of
+// spending six attempts on a settled answer.
+//
+// NON-VACUITY: pre-change the mapper had no consent gate at all — the record was BUILT
+// and the husk of an erased candidate was POSTed to the vendor.
+test("a hire on an ANONYMIZED entry is refused and dead-lettered, never delivered", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
+  const { entry } = createPipelineEntry({ candidateId: "c-anon", candidateLabel: "Erased Person", jobId: "job-anon", jobTitle: "Role" });
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "the fixture really is anonymized");
+
+  let posts = 0;
+  await withFetch(
+    (async () => {
+      posts += 1;
+      return { ok: true, status: 200 };
+    }) as unknown as typeof fetch,
+    () => dispatchAtsEvent("candidate.hired", entry.id)
+  );
+  assert.equal(posts, 0, "nothing was sent — the refusal happens before the wire");
+  const row = listAtsDeliveries().find((d) => d.entryId === entry.id);
+  assert.equal(row?.status, "failed", "the refusal is still operator-VISIBLE");
+  assert.equal(row?.nextAttemptAt, null, "…and terminal: no ladder is spent on a decision that will not change");
+  assert.match(row?.lastError ?? "", /anonymized/, "and it says why");
 });

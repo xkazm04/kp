@@ -78,6 +78,28 @@ export function billingOrgForProviderRefs(subscriptionId: string | null, custome
   return null;
 }
 
+/** Write the org's money state.
+ *
+ *  COMPARE-AND-SWAP, opt-in via `expectedUpdatedAt` (the read→compute→write rule in
+ *  `.claude/CLAUDE.md`). The webhook's staleness decisions (`subscriptionWriteIsStale`,
+ *  `clearSubscriptionIsStale`, `setForRevokedSubscriptionIsStale`) are computed a layer
+ *  up in `sync.ts` from a `getBillingState()` SELECT, and the UPDATE below used to
+ *  re-assert nothing: any second writer that landed between that SELECT and this write
+ *  was silently overwritten, so a concurrent delivery could regress a paying customer's
+ *  plan with no error and no failing test. The strategy chosen here is the COMPENSATING
+ *  PRECONDITION (not `.immediate()`): the caller passes the `updated_at` its decision was
+ *  computed from and the `DO UPDATE` re-asserts it in a `WHERE`, so a row that moved makes
+ *  `res.changes === 0` and the write is DROPPED rather than applied to a state nobody
+ *  reasoned about. That keeps the ingest transaction in `sync.ts` unchanged — it already
+ *  wraps the dedupe insert and the apply together — and needs no write lock at BEGIN.
+ *
+ *  The key's PRESENCE is the discriminator, so the two intents stay distinguishable:
+ *   - absent            → unconditional write (fixtures, tests, the seeded default row);
+ *   - `null`            → "I read NO row" — an existing row means someone else wrote
+ *                          first, so the write is skipped;
+ *   - an ISO timestamp  → "the row I read said this" — any other value skips.
+ *
+ *  Returns true when the row was written, false when the precondition rejected it. */
 export function upsertBillingState(input: {
   orgId?: string;
   plan: string;
@@ -87,11 +109,40 @@ export function upsertBillingState(input: {
   providerSubscriptionId?: string | null;
   currentPeriodStart?: string | null;
   currentPeriodEnd?: string | null;
-}): void {
+  expectedUpdatedAt?: string | null;
+}): boolean {
   const db = ensureDb();
   const orgId = input.orgId ?? DEFAULT_ORG_ID;
-  db.prepare(
-    `INSERT INTO billing_state
+  const cas = "expectedUpdatedAt" in input;
+  const expected = input.expectedUpdatedAt ?? null;
+  // `updated_at` is the CAS token, so it must MOVE on every write. ISO strings are
+  // millisecond-resolution and these writes are synchronous: two applies inside one
+  // millisecond would stamp the same value, and the second writer's precondition would
+  // then match a row it never read (an ABA). Advance past the token we are swapping out.
+  let stampedAt = new Date().toISOString();
+  if (cas && expected && stampedAt <= expected) {
+    const bumped = Date.parse(expected);
+    if (Number.isFinite(bumped)) stampedAt = new Date(bumped + 1).toISOString();
+  }
+  // `IS ?` rather than `= ?` so the null case is a real comparison: `updated_at` is
+  // NOT NULL, so "I read no row" can never match an existing one — which is exactly
+  // the intended skip.
+  const params: Array<string | null> = [
+    stateIdFor(orgId),
+    orgId,
+    input.plan,
+    input.status,
+    input.provider ?? null,
+    input.providerCustomerId ?? null,
+    input.providerSubscriptionId ?? null,
+    input.currentPeriodStart ?? null,
+    input.currentPeriodEnd ?? null,
+    stampedAt,
+  ];
+  if (cas) params.push(expected);
+  const res = db
+    .prepare(
+      `INSERT INTO billing_state
        (id, org_id, plan, status, provider, provider_customer_id, provider_subscription_id,
         current_period_start, current_period_end, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -104,19 +155,11 @@ export function upsertBillingState(input: {
        provider_subscription_id = excluded.provider_subscription_id,
        current_period_start = excluded.current_period_start,
        current_period_end = excluded.current_period_end,
-       updated_at = excluded.updated_at`
-  ).run(
-    stateIdFor(orgId),
-    orgId,
-    input.plan,
-    input.status,
-    input.provider ?? null,
-    input.providerCustomerId ?? null,
-    input.providerSubscriptionId ?? null,
-    input.currentPeriodStart ?? null,
-    input.currentPeriodEnd ?? null,
-    new Date().toISOString()
-  );
+       updated_at = excluded.updated_at
+     ${cas ? "WHERE billing_state.updated_at IS ?" : ""}`
+    )
+    .run(...params);
+  return Number(res.changes) > 0;
 }
 
 /** Idempotency gate: true when this provider event id is new (caller should
@@ -133,6 +176,33 @@ export function insertBillingEvent(id: string, type: string, payloadJson: string
     )
     .run(id, orgId, type, payloadJson, new Date().toISOString());
   return Number(info.changes) > 0;
+}
+
+/** How long a provider event's RAW payload is kept. The row itself is kept FOREVER —
+ *  it is the idempotency gate (`billing_events.id` = the provider's global event id),
+ *  and deleting it would let a very late redelivery re-apply a plan change or re-grant
+ *  a pack. What ages out is `payload_json`: the verbatim webhook body, which carries a
+ *  customer id, an email on some Polar shapes, and the whole product/price object. It
+ *  answers "what exactly did the provider send us" during an incident, and nobody asks
+ *  that of a delivery from last quarter — while every one of them stays on disk in a
+ *  table only the provider decides the size of. 90 days spans a monthly billing cycle
+ *  plus a full dispute window with room to spare. */
+export const BILLING_EVENT_PAYLOAD_RETENTION_DAYS = 90;
+
+/** Blank the raw payloads of provider events older than the retention window, KEEPING
+ *  the rows (see the constant above: the row is the idempotency gate, the payload is
+ *  the forensic copy). Idempotent — the `payload_json <> ''` predicate means a second
+ *  sweep over the same rows changes nothing — and deployment-wide by design: retention
+ *  is a property of the deployment's disk, not of one org's subscription. Returns the
+ *  number of payloads blanked. */
+export function pruneBillingEventPayloads(
+  now: Date = new Date(),
+  retentionDays: number = BILLING_EVENT_PAYLOAD_RETENTION_DAYS
+): number {
+  const db = ensureDb();
+  const cutoff = new Date(now.getTime() - retentionDays * 86_400_000).toISOString();
+  const res = db.prepare(`UPDATE billing_events SET payload_json = '' WHERE received_at < ? AND payload_json <> ''`).run(cutoff);
+  return Number(res.changes);
 }
 
 /** Prepaid-credit ledger entry. `providerRef` (e.g. the Polar order id) is
@@ -184,16 +254,34 @@ export function recordBillingAlert(input: { kind: string; detail: string; provid
   return Number(info.changes) > 0;
 }
 
-/** List billing alerts, unresolved first (newest first). Defaults to unresolved
- *  only — the "paid but dark" worklist for an admin surface / health check.
+/** Default page for the alert worklist — an operator triages the newest signals; a
+ *  deployment with more open alerts than this has a configuration emergency, not a
+ *  paging problem. */
+export const BILLING_ALERT_LIST_DEFAULT_LIMIT = 200;
+/** Hard ceiling a caller cannot argue past. `billing_alerts` grows from a PROVIDER
+ *  event stream (one row per distinct dark subscription/order), so an unbounded
+ *  `SELECT … ORDER BY id DESC` with no LIMIT was a table read whose size an external
+ *  system decides. */
+export const BILLING_ALERT_LIST_MAX_LIMIT = 500;
+
+/** List billing alerts, newest first. Defaults to unresolved only — the "paid but
+ *  dark" worklist for an admin surface / health check.
  *  DEPLOYMENT-scoped on purpose (no org filter): this is the operator's cross-
- *  customer worklist, and each row carries its orgId for attribution. */
-export function listBillingAlerts(opts: { includeResolved?: boolean } = {}): BillingAlert[] {
+ *  customer worklist, and each row carries its orgId for attribution.
+ *
+ *  BOUNDED: `limit` is clamped to 1..{@link BILLING_ALERT_LIST_MAX_LIMIT} (a missing,
+ *  non-finite or absurd value falls back to the default), so no caller can ask this
+ *  for the whole table. */
+export function listBillingAlerts(opts: { includeResolved?: boolean; limit?: number } = {}): BillingAlert[] {
   const db = ensureDb();
+  const requested = typeof opts.limit === "number" && Number.isFinite(opts.limit) ? Math.trunc(opts.limit) : BILLING_ALERT_LIST_DEFAULT_LIMIT;
+  const limit = Math.min(BILLING_ALERT_LIST_MAX_LIMIT, Math.max(1, requested));
   const where = opts.includeResolved ? "" : "WHERE resolved_at IS NULL";
   const rows = db
-    .prepare(`SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC`)
-    .all() as Array<Record<string, unknown>>;
+    .prepare(
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC LIMIT ?`
+    )
+    .all(limit) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: Number(r.id),
     orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,

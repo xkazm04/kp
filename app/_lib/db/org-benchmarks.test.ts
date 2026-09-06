@@ -110,8 +110,10 @@ test("the benchmark is AGGREGATE-ONLY — it returns no raw row, candidate, or t
 
   const org = orgHiringBenchmark("org-shape");
   // The ONLY keys are aggregates — no candidateId/label/workspace_id/rows leak out.
+  // `truncated` joined them when the read gained BENCHMARK_ROW_CAP: it is a boolean
+  // about THIS read, not a figure about any team, so it cannot de-anonymize anyone.
   assert.deepEqual(
     Object.keys(org).sort(),
-    ["available", "contributingTeams", "hireRatePct", "interviewRatePct", "medianTimeToHireDays", "totalEntries"]
+    ["available", "contributingTeams", "hireRatePct", "interviewRatePct", "medianTimeToHireDays", "totalEntries", "truncated"]
   );
 });

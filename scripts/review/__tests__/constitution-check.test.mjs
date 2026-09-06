@@ -5,6 +5,10 @@
 // Every case is a real unified diff fragment, because the failure mode this
 // suite exists to prevent is a rule that reads well and never fires.
 import assert from 'node:assert/strict';
+// The masker's own fixtures, run FIRST (an ESM import is hoisted). `test:review`
+// names this file, so importing the mask suite here is how the new module's checks
+// reach CI without editing a package.json line another lot owns this wave.
+import './source-mask.test.mjs';
 import { parseDiff } from '../diff.mjs';
 import {
   EXEMPTION_RE,
@@ -15,6 +19,8 @@ import {
   render,
   runRules,
   skipBaselineChange,
+  parseExemptions,
+  skipReason,
 } from '../constitution-check.mjs';
 import { budgetDiff, buildPrompt, extractJson, renderMarkdown, verdictFor } from '../agent-review.mjs';
 import { adrSummaries, buildRubric, section } from '../rubric.mjs';
@@ -116,6 +122,91 @@ check('a real skip in code still blocks after the prose carve-out', () => {
   assert.equal(sev(f, 'test-skip'), 'blocking');
 });
 
+// A CONDITIONAL skip that states its reason is a precondition, not lost coverage.
+// e2e/activity-detail.spec.ts declares `test.skip(count === 0, "the llm_usage ledger
+// is empty on this database")` across three lines — blocking it produced a
+// `Gate-exemption:` trailer that then downgraded every other finding in the range.
+check('a conditional skip WITH a reason is a note, and quotes the reason', () => {
+  const f = rules(
+    diff({
+      path: 'e2e/activity-detail.spec.ts',
+      added: ['  test.skip(', '    (await trigger.count()) === 0,', '    "the llm_usage ledger is empty on this database"', '  );'],
+    }),
+  );
+  assert.equal(sev(f, 'test-skip'), 'warn');
+  assert.match(f.find((x) => x.rule === 'test-skip').message, /llm_usage ledger is empty/);
+});
+
+check('a conditional skip on ONE line is a note too', () => {
+  const f = rules(diff({ path: 'app/_lib/a.test.ts', added: ['  test.skip(!process.env.KP_LIVE, "live-only smoke");'] }));
+  assert.equal(sev(f, 'test-skip'), 'warn');
+});
+
+check('@pytest.mark.skipif with a reason= is a note; a bare @pytest.mark.skip blocks', () => {
+  const noted = rules(
+    diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@pytest.mark.skipif(not HAS_PYPDF, reason="pypdf is not installed in this environment")'] }),
+  );
+  assert.equal(sev(noted, 'test-skip'), 'warn');
+  const bare = rules(diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@pytest.mark.skip("later")'] }));
+  assert.equal(sev(bare, 'test-skip'), 'blocking');
+});
+
+check('a skip whose first argument is a TITLE is still a bare skip', () => {
+  const f = rules(diff({ path: 'app/_lib/a.test.ts', added: ['test.describe.skip("the whole suite", () => {});'] }));
+  assert.equal(sev(f, 'test-skip'), 'blocking');
+  const py = rules(diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@unittest.skip("flaky")'] }));
+  assert.equal(sev(py, 'test-skip'), 'blocking');
+});
+
+check('skipReason reads the shape, not the framework', () => {
+  assert.equal(skipReason('test.skip(cond, "why")'), 'why');
+  assert.equal(skipReason('skipif(a and b, reason="why not")'), 'why not');
+  assert.equal(skipReason('test.skip("a title", () => {})'), null);
+  assert.equal(skipReason('test.skip()'), null);
+  assert.equal(skipReason('@unittest.skip("flaky")'), null);
+  assert.equal(skipReason('test.skip(count(x, y) === 0, "nested commas are one argument")'), 'nested commas are one argument');
+});
+
+// --- prose vs. the thing it describes (the masker) ---------------------------
+// The real regression: this comment in app/_lib/ats/connections-store.ts fired the
+// tenancy rule in a commit that creates no table, and the push was waived rather
+// than fixed. Masking is scripts/review/source-mask.mjs, a copy of the masker in
+// app/api/error-response-contract.test.ts.
+check('a COMMENT mentioning CREATE TABLE does not fire the tenancy rule', () => {
+  const f = rules(
+    diff({
+      path: 'app/_lib/ats/connections-store.ts',
+      added: ['    // Already present (the CREATE TABLE above just made it, or an earlier boot did) —'],
+    }),
+  );
+  assert.ok(!has(f, 'tenancy-manifest'));
+});
+
+check('a block-comment continuation mentioning CREATE TABLE is prose too', () => {
+  const f = rules(diff({ path: 'app/_lib/db/core.ts', added: [' * the CREATE TABLE below is the one the manifest governs'] }));
+  assert.ok(!has(f, 'tenancy-manifest'));
+});
+
+check('a REAL CREATE TABLE inside a template literal still blocks', () => {
+  const f = rules(diff({ path: 'app/_lib/db/core.ts', added: ['  d.exec(`CREATE TABLE IF NOT EXISTS widgets (id TEXT)`);'] }));
+  assert.equal(sev(f, 'tenancy-manifest'), 'blocking');
+});
+
+check('a COMMENT mentioning it.skip or .only does not fire', () => {
+  const skip = rules(diff({ path: 'app/_lib/a.test.ts', added: ['  // do not leave an it.skip( in here'] }));
+  assert.ok(!has(skip, 'test-skip'));
+  const only = rules(diff({ path: 'app/_lib/a.test.ts', added: ['  /* never land an it.only( here */'] }));
+  assert.ok(!has(only, 'test-only'));
+  // …and `#` is a comment in Python, where the marker would otherwise read as code.
+  const py = rules(diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['x = 1  # @unittest.skip is what this replaces'] }));
+  assert.ok(!has(py, 'test-skip'));
+});
+
+check('a suppression is STILL read from the raw line — it is itself a comment', () => {
+  const f = rules(diff({ path: 'app/_lib/a.ts', added: ['// eslint-disable-next-line no-console -- boot diagnostics'] }));
+  assert.equal(sev(f, 'suppression'), 'warn');
+});
+
 check('deleting a test file blocks', () => {
   const f = rules(diff({ path: 'app/_lib/a.test.ts', removed: ['it("x", () => {});'], isDeleted: true }));
   assert.equal(sev(f, 'test-deletion'), 'blocking');
@@ -173,7 +264,7 @@ check('a committed credential is not waivable by Gate-exemption', () => {
   assert.ok(UNWAIVABLE_RULES.has('secret'));
   const findings = rules(diff({ path: 'app/_lib/a.ts', added: ['const k = "AIzaSyA1234567890123456789012345678901234";'] }));
   assert.equal(blockedBy(findings, null), true);
-  const waived = render(findings, ' this key is only for the demo tenant ');
+  const waived = render(findings, 'secret at app/_lib/a.ts — this key is only for the demo tenant');
   assert.equal(waived.blocked, true, 'a trailer must not wave a leaked key through');
   assert.match(waived.text, /does NOT waive/);
 });
@@ -185,11 +276,87 @@ check('one un-waivable finding does not un-waive the rest — it just still bloc
       diff({ path: 'app/_lib/a.ts', added: ['const k = "AIzaSyA1234567890123456789012345678901234";'] }),
     ].join('\n'),
   );
-  assert.equal(blockedBy(both, 'a reason'), true);
+  assert.equal(blockedBy(both, 'test-only at app/_lib/a.test.ts — debugging'), true);
   const onlyWaivable = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
-  assert.equal(blockedBy(onlyWaivable, 'a reason'), false);
+  assert.equal(blockedBy(onlyWaivable, 'test-only at app/_lib/a.test.ts — debugging'), false);
   assert.equal(blockedBy([], null), false);
   assert.equal(blockedBy([{ severity: 'warn', rule: 'suppression' }], null), false);
+});
+
+// --- a waiver names what it waives ------------------------------------------
+// The old trailer was free prose and downgraded EVERY non-secret blocking finding
+// in the range — from any commit, including an empty one appended afterwards, for
+// findings it never mentioned.
+check('a targeted waiver downgrades ONLY the finding it names', () => {
+  const findings = rules(
+    [
+      diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }),
+      diff({ path: 'app/api/widgets/route.ts', added: ['export async function GET() {}'], isNew: true }),
+    ].join('\n'),
+  );
+  assert.equal(findings.filter((f) => f.severity === 'blocking').length, 2);
+  const one = 'test-only at app/_lib/a.test.ts — a debugging aid this one time';
+  assert.equal(blockedBy(findings, one), true, 'the OTHER finding must still block');
+  const both = [one, 'route-auth-posture at app/api/widgets/route.ts — proxied internally, ADR 0005 §3'];
+  assert.equal(blockedBy(findings, both), false);
+});
+
+check('the line number is optional, and wrong when given is not a match', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  const line = findings[0].line;
+  assert.equal(blockedBy(findings, `test-only at app/_lib/a.test.ts:${line} — yes`), false);
+  assert.equal(blockedBy(findings, `test-only at app/_lib/a.test.ts:${line + 5} — no`), true);
+});
+
+check('a waiver for another rule, or another file, waives nothing', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  assert.equal(blockedBy(findings, 'test-skip at app/_lib/a.test.ts — wrong rule'), true);
+  assert.equal(blockedBy(findings, 'test-only at app/_lib/b.test.ts — wrong file'), true);
+});
+
+check('a shapeless (old free-prose) trailer is a NOTE, not a silent no-op', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  const r = render(findings, 'the fixture is unavailable in CI');
+  assert.equal(r.blocked, true);
+  assert.match(r.text, /waiver-unmatched/);
+  assert.match(r.text, /waives nothing/);
+  assert.match(r.text, /the fixture is unavailable in CI/);
+});
+
+check('a targeted waiver that names nothing that fired is reported too', () => {
+  const r = render([], 'test-skip at app/_lib/gone.test.ts — leftover from last week');
+  assert.equal(r.blocked, false);
+  assert.match(r.text, /waives nothing/);
+  assert.match(r.text, /leftover from last week/);
+});
+
+check('parseExemptions reads every trailer in the range, in any dash', () => {
+  const body = [
+    'fix(x): a',
+    '',
+    'Gate-exemption: test-skip at e2e/a.spec.ts:12 - hyphen',
+    'Gate-exemption: tenancy-manifest at app/_lib/db/core.ts — em dash',
+    'Gate-exemption: just some prose',
+  ].join('\n');
+  const parsed = parseExemptions(body);
+  assert.equal(parsed.length, 3);
+  assert.deepEqual(
+    parsed.map((e) => [e.targeted, e.rule, e.file, e.line]),
+    [
+      [true, 'test-skip', 'e2e/a.spec.ts', 12],
+      [true, 'tenancy-manifest', 'app/_lib/db/core.ts', null],
+      [false, null, null, null],
+    ],
+  );
+  assert.equal(parsed[2].why, 'just some prose');
+});
+
+check('a rendered waiver shows the reason beside the finding it waived', () => {
+  const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  const r = render(findings, 'test-only at app/_lib/a.test.ts — bisecting a flake, removed in the next commit');
+  assert.equal(r.blocked, false);
+  assert.match(r.text, /waived on the record: bisecting a flake/);
+  assert.match(r.text, /1 waived by trailer/);
 });
 
 // --- tenancy ----------------------------------------------------------------
@@ -324,12 +491,12 @@ check('a clean diff renders as clean and does not block', () => {
   assert.match(text, /no finding/);
 });
 
-check('a blocking finding blocks; the trailer waives it ON THE RECORD', () => {
+check('a blocking finding blocks; a trailer that NAMES it waives it ON THE RECORD', () => {
   const findings = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
   assert.equal(render(findings, null).blocked, true);
-  const waived = render(findings, ' the fixture is unavailable in CI ');
+  const waived = render(findings, ' test-only at app/_lib/a.test.ts — the fixture is unavailable in CI ');
   assert.equal(waived.blocked, false);
-  assert.match(waived.text, /waived by commit trailer/);
+  assert.match(waived.text, /waived on the record/);
 });
 
 check('warnings alone never block', () => {

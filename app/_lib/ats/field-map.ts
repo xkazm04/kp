@@ -13,6 +13,7 @@
 //
 // Pure + dependency-free.
 
+import type { RefusalErrorCode } from "../api-response";
 import { PIPELINE_STAGES, type PipelineStage } from "../pipeline-stages";
 import { parseInboundCandidate, type AtsInboundCandidate } from "./inbound";
 
@@ -126,6 +127,12 @@ function coerceScalar(v: unknown): unknown {
 }
 
 export class AtsFieldMapError extends Error {
+  /** The refusal the route answers with. One code for every way a map can be
+   *  unusable: the specific sentence ("unknown mapped field \"foo\"") is operator
+   *  detail for the server log, and the panel renders `errors.<code>` in the
+   *  reader's language rather than this English message (.claude/CLAUDE.md, "a
+   *  failure is answered with a CODE"). */
+  readonly code: RefusalErrorCode = "ATS_FIELD_MAP_INVALID";
   constructor(message: string) {
     super(message);
     this.name = "AtsFieldMapError";

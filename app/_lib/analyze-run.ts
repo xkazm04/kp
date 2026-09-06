@@ -11,6 +11,7 @@ import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 
@@ -294,9 +295,17 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
           // Python child instead of leaving it to finish a billable LLM call whose
           // result is thrown away. spawnPython wires abort → SIGKILL.
+          // `env: buildLlmConfigEnv()` is NOT optional here: the child resolves
+          // `cv_analysis` through the registry (pipeline/jobfit/pipeline.py →
+          // resolve_provider("cv_analysis")), which reads KP_LLM_CONFIG and nothing
+          // else. Without it this flagship path ignored the operator's Models
+          // routing row and any BYOM key entirely and always ran the built-in
+          // default — silently, while the settings panel offered a cv_analysis
+          // choice that did nothing. Pinned by llm-spawn-contract.test.ts.
           const { result } = spawnPython(cliArgs(cvPath, p, jobStructurePath), {
             signal,
             timeoutMs: ANALYZE_TIMEOUT_MS,
+            env: buildLlmConfigEnv(),
           });
           const { stdout, stderr, exitCode } = await result;
           if (exitCode !== 0) {

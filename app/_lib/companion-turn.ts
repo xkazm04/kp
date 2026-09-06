@@ -14,6 +14,23 @@ export const MAX_COMPANION_MESSAGE_CHARS = 4_000;
  *  companion_cli.py — sending more would be paid for and then dropped. */
 export const COMPANION_TRANSCRIPT_TURNS = 12;
 
+/** How many turns of ONE conversation the dock renders — the bound every reader
+ *  of a thread states rather than inherits.
+ *
+ *  It is a bound on the NEWEST turns, and that direction is the whole point: the
+ *  store used to page from the oldest end, so a conversation past this length
+ *  silently froze on screen while its writes kept landing. */
+export const COMPANION_THREAD_TURNS = 200;
+
+/** How far back the route reads when it is building the model's window.
+ *
+ *  Larger than COMPANION_TRANSCRIPT_TURNS because the window is a tail that
+ *  SHRINKS — `promptEligibleTurns` drops the outage replies out of the page it
+ *  is given — so reading exactly twelve rows could hand the model a window of
+ *  one. Small enough that the prompt read stays a cheap indexed page, never the
+ *  whole thread. */
+export const COMPANION_PROMPT_SCAN_TURNS = 40;
+
 /** Bound + trim an untrusted message body. Empty (or non-string) → "" so the
  *  caller answers 400 rather than spawning Python for nothing. */
 export function clampCompanionMessage(raw: unknown): string {
@@ -65,14 +82,47 @@ export function coerceVoiceReply(raw: unknown): CompanionVoiceReply | null {
   return { text, source: entry.source === "model" ? "model" : "derived" };
 }
 
-export type CompanionWireTurn = { role: string; content: string };
+export type CompanionWireTurn = {
+  role: string;
+  content: string;
+  /** Where the turn came from, as the store recorded it (`meta.source`). Optional
+   *  because a user turn has none and a reply stored before the field existed
+   *  carries none either. */
+  source?: "llm" | "deterministic" | null;
+};
 
-/** The last N turns, oldest-first, in the shape companion_cli.py reads. */
+/** Turns the NEXT prompt may stand on — everything except an outage reply.
+ *
+ *  A deterministic assistant turn is the "I could not reach a model" answer. It
+ *  is a real turn: she said it, the dock keeps showing it, and the record of a
+ *  degraded exchange is exactly the kind of thing this product does not hide.
+ *  But it is not HISTORY. Replayed as transcript, the first answer after a key is
+ *  finally configured reads as if she were still broken, because the last thing
+ *  in her context is her own apology. The brain already refuses to remember these
+ *  as episodes (`companion_cli.py::_worth_remembering`); this is the same rule on
+ *  the other half of her memory, and it is the ONE predicate that decides it.
+ *
+ *  Only the turn's own `source` decides. A user turn never carries one, and a
+ *  reply stored before the field existed carries none either — an absent source
+ *  is not evidence of an outage, and dropping it would silently shorten every
+ *  conversation older than this rule. */
+export function promptEligibleTurns<T extends { role: string; source?: string | null }>(
+  turns: readonly T[]
+): T[] {
+  return turns.filter((turn) => !(turn.role === "assistant" && turn.source === "deterministic"));
+}
+
+/** The last N turns the model may read, oldest-first, in the shape
+ *  companion_cli.py reads. The drop happens FIRST: windowing before filtering
+ *  would spend the window on turns that are then thrown away, and a stretch of
+ *  outage replies would hand the model an almost-empty context. */
 export function transcriptWindow(
   turns: readonly CompanionWireTurn[],
   limit = COMPANION_TRANSCRIPT_TURNS
 ): CompanionWireTurn[] {
-  return turns.slice(-limit).map((turn) => ({ role: turn.role, content: turn.content }));
+  return promptEligibleTurns(turns)
+    .slice(-limit)
+    .map((turn) => ({ role: turn.role, content: turn.content }));
 }
 
 // ---- grounding ------------------------------------------------------------
@@ -203,4 +253,46 @@ export function shouldRefetchCompanionThread(
   if (!open) return false;
   if (prev === null || next === null) return false;
   return prev !== next;
+}
+
+// ---- how the usage ledger names a companion turn ---------------------------
+//
+// Every metered call in this product carries a `request_id` (llm-request-context.ts)
+// and everywhere else that id is a TASK id, which Insights → Activity resolves
+// against `/api/tasks/[id]` to show what the run produced. The companion spawn
+// used to stamp the THREAD id instead, so every companion row in the ledger
+// resolved to nothing and the detail said "run gone" — for spend that had in fact
+// produced a perfectly good answer that is still on screen in the dock.
+//
+// It is named here, with the pure half, because BOTH ends need it and they are on
+// opposite sides of the client boundary: the route mints it, the modal reads it.
+
+const COMPANION_REQUEST_PREFIX = "companion";
+
+/** Where one companion turn's spend belongs: the conversation AND the turn.
+ *  The turn, not just the thread, because a thread is a year of conversations
+ *  and the ledger row is one question. */
+export function companionRequestId(threadId: string, turnId: string): string {
+  return `${COMPANION_REQUEST_PREFIX}:${threadId}:${turnId}`;
+}
+
+/** What a `request_id` refers to when a companion turn wrote it, or null when it
+ *  belongs to something else (a task id, which the task resolver answers).
+ *
+ *  A bare thread id is the LEGACY shape — rows written before turns were named.
+ *  They resolve to their conversation with `turnId: null` rather than to the
+ *  "run gone" they used to show: which turn it was is lost, which conversation
+ *  it was is not, and that is the half the operator can actually act on. */
+export function parseCompanionRequestId(
+  raw: string | null | undefined
+): { threadId: string; turnId: string | null } | null {
+  const text = (raw ?? "").trim();
+  if (!text) return null;
+  if (text.startsWith(`${COMPANION_REQUEST_PREFIX}:`)) {
+    const [, threadId, turnId] = text.split(":");
+    return threadId ? { threadId, turnId: turnId || null } : null;
+  }
+  // Thread ids are minted by randomId("cthread") — the prefix is the whole test,
+  // and it cannot collide with a task id.
+  return /^cthread-/.test(text) ? { threadId: text, turnId: null } : null;
 }

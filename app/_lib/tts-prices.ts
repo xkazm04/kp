@@ -71,6 +71,9 @@ export function ttsUsageRow(call: {
     cachedTokens: null,
     costUsd: call.cached ? 0 : ttsCostUsd(call.provider, call.chars),
     source: call.cached ? "deterministic" : "llm",
+    // A synthesis that RETURNED — the only kind this row is built for; the route
+    // writes it after the audio is in hand. A failed synthesis has no row here.
+    outcome: "ok",
     requestId: call.requestId ?? null,
   };
 }

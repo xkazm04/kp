@@ -99,10 +99,15 @@ export async function sendTemplateWrite(
  *  picker (a missing list is not worth blocking a build) and wrong here: the
  *  manager rendered `null` as a skeleton, so a rejected load left it pulsing
  *  forever with no error and an unhandled rejection in the console. */
-export async function loadManagedTemplates(fetchImpl: TemplateFetch = fetch): Promise<ManagedTemplate[]> {
+/** The list plus the server's own statement that it is PARTIAL. The manager is the one
+ *  surface that claims to show a team its whole library, so a bounded read it cannot
+ *  see would be a quiet lie about what exists. */
+export type ManagedTemplateList = { templates: ManagedTemplate[]; truncated: boolean };
+
+export async function loadManagedTemplates(fetchImpl: TemplateFetch = fetch): Promise<ManagedTemplateList> {
   const r = await fetchImpl("/api/templates");
   if (!r.ok) throw new Error(`templates ${r.status}`);
-  const p = (await r.json()) as { templates?: ManagedTemplate[] } | null;
+  const p = (await r.json()) as { templates?: ManagedTemplate[]; truncated?: boolean } | null;
   if (!p || !Array.isArray(p.templates)) throw new Error("templates: unexpected body");
-  return p.templates;
+  return { templates: p.templates, truncated: p.truncated === true };
 }

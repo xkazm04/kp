@@ -48,10 +48,13 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       // The cost rides on the SAME read (a correlated SUM, no per-row round trip) and
       // is keyed by request id AND use case, exactly like the docket's ledger join —
       // one fact, one query shape, so the compare table and the docket can never
-      // disagree about what a call cost.
+      // disagree about what a call cost. `outcome = 'ok'` for the same reason it is
+      // named in every other money read (tiger X2): a failed attempt is a row here
+      // now, and it must not be able to reach a cost the UI presents as spent.
       `SELECT s.id, s.entry_id, s.candidate_label, s.scorecard_json, s.ended_at,
               (SELECT SUM(u.cost_usd) FROM llm_usage u
-                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime') AS cost_usd
+                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime'
+                  AND u.outcome = 'ok') AS cost_usd
          FROM interview_sessions s
         WHERE s.job_id = ? AND s.status = 'completed' AND s.workspace_id = ?
         ORDER BY s.ended_at DESC`
@@ -271,11 +274,14 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       // SUM over an empty set is NULL, which is exactly the "unknown" this field
       // means. llm_usage carries no workspace_id - it does not need one here, since
       // the join's left side is already scoped and the request id is a session id.
+      // `outcome = 'ok'` excludes a failed attempt (tiger X2) — it carries no cost to
+      // sum, and naming it keeps this read honest if one ever does.
       `SELECT s.id, s.entry_id, s.candidate_label, s.job_id, s.job_title, s.provider, s.status,
               s.started_at, s.ended_at, s.created_at, s.failover_from, s.attempts,
               (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_transcript, s.scorecard_json,
               (SELECT SUM(u.cost_usd) FROM llm_usage u
-                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime') AS cost_usd
+                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime'
+                  AND u.outcome = 'ok') AS cost_usd
          FROM interview_sessions s
         WHERE s.mode = 'candidate' AND s.workspace_id = ?
         ORDER BY s.created_at DESC

@@ -1,7 +1,8 @@
 import Database from "better-sqlite3";
 import { openStore } from "../db-path";
 import { assertPublicHttpsEndpoint } from "../safe-url";
-import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "../ats-secret";
+import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret, reencryptAtsSecret } from "../ats-secret";
+import type { RefusalErrorCode } from "../api-response";
 import { parseFieldMap, type AtsFieldMap } from "./field-map";
 
 // W1.1 — per-connection ATS credentials + field map.
@@ -32,13 +33,35 @@ export type AtsConnectionPublic = {
   fieldMap: AtsFieldMap;
   /** false parks a connection without deleting its credentials or its links. */
   enabled: boolean;
+  /** Bumped on every accepted write. The panel echoes the version it READ back as
+   *  `expectedVersion`, and the store re-asserts it inside the write lock — the same
+   *  optimistic-concurrency contract ats-config-store has carried since
+   *  /perfect 2026-09-03. Without it two operator tabs were last-write-wins: a save
+   *  that only meant to park a connection silently reverted the base URL and field map
+   *  the other tab had just written. */
+  version: number;
   updatedAt: string | null;
 };
 
 export class AtsConnectionError extends Error {
-  constructor(message: string) {
+  /** The refusal the route answers with. The English `.message` stays operator detail
+   *  for the server log; the panel renders `errors.<code>` in the reader's language
+   *  (.claude/CLAUDE.md, "a failure is answered with a CODE"). */
+  readonly code: RefusalErrorCode;
+  constructor(message: string, code: RefusalErrorCode) {
     super(message);
     this.name = "AtsConnectionError";
+    this.code = code;
+  }
+}
+
+/** A write composed against a connection someone else has since replaced. A REFUSAL
+ *  (409, nothing written), not a validation failure — subclassed so the route can answer
+ *  it before the 400 branch, exactly as its egress sibling does with AtsConfigStaleError. */
+export class AtsConnectionStaleError extends AtsConnectionError {
+  constructor(message: string) {
+    super(message, "ATS_CONNECTION_STALE");
+    this.name = "AtsConnectionStaleError";
   }
 }
 
@@ -63,9 +86,20 @@ function db(): Database.Database {
       api_token TEXT,
       field_map_json TEXT NOT NULL DEFAULT '{}',
       enabled INTEGER NOT NULL DEFAULT 1,
+      version INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT
     );
   `);
+  // Connections stored before optimistic concurrency existed have no `version` column.
+  // ADD COLUMN with a DEFAULT backfills every existing row to 0 — exactly the version a
+  // panel that has just read one sends, so the first write after an upgrade is not
+  // spuriously refused. (Same additive migration as ats-config-store.ts.)
+  try {
+    d.exec(`ALTER TABLE ats_connections ADD COLUMN version INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Already present (the CREATE TABLE above just made it, or an earlier boot did) —
+    // the only expected failure here, and re-adding is the no-op we want.
+  }
   _db = d;
   return d;
 }
@@ -76,6 +110,7 @@ type Row = {
   api_token: string | null;
   field_map_json: string;
   enabled: number;
+  version: number | null;
   updated_at: string | null;
 };
 
@@ -98,6 +133,7 @@ function toPublic(row: Row): AtsConnectionPublic {
     hasToken: !!row.api_token,
     fieldMap: safeFieldMap(row.field_map_json, row.provider),
     enabled: row.enabled !== 0,
+    version: row.version ?? 0,
     updatedAt: row.updated_at,
   };
 }
@@ -127,14 +163,19 @@ export function getAtsToken(provider: string): string | null {
 
 function validateBaseUrl(raw: unknown): string | null {
   if (raw === null || raw === undefined || raw === "") return null;
-  if (typeof raw !== "string") throw new AtsConnectionError("baseUrl must be a string or empty.");
+  if (typeof raw !== "string") {
+    throw new AtsConnectionError("baseUrl must be a string or empty.", "ATS_CONNECTION_BASE_URL_INVALID");
+  }
   // Same SSRF boundary as the outbound webhook: the server will send an authenticated
   // request here, so https-only and no IP literals / internal hostnames. A token pointed
   // at 169.254.169.254 would hand our credentials to a metadata service.
   try {
     return assertPublicHttpsEndpoint(raw, "baseUrl");
   } catch (e) {
-    throw new AtsConnectionError(e instanceof Error ? e.message : "baseUrl is not an allowed URL.");
+    throw new AtsConnectionError(
+      e instanceof Error ? e.message : "baseUrl is not an allowed URL.",
+      "ATS_CONNECTION_BASE_URL_INVALID"
+    );
   }
 }
 
@@ -155,6 +196,17 @@ function validateBaseUrl(raw: unknown): string | null {
  * A preserved URL is not re-validated: like the stored token it was vetted when written,
  * and a connector re-vets before it fetches (the same stance ats-config-store takes for a
  * URL stored before a rule tightened).
+ *
+ * `expectedVersion`, when given, is the version the caller READ (GET's
+ * `connection.version`). The read→compute→write runs in an IMMEDIATE transaction and
+ * re-asserts it INSIDE the write lock, so a save composed against a connection someone
+ * else has since replaced is DROPPED (AtsConnectionStaleError → a 409 the panel offers a
+ * reload for) rather than applied on top of theirs. Omit it only for server-internal
+ * writes with no read to be stale about (tests, fixtures) — see ats-config-store.ts, the
+ * same doctrine, and comms-relay-store.ts before it.
+ *
+ * Validation throws AtsConnectionError (or AtsFieldMapError), each carrying the refusal
+ * `code` the route answers with — never a prose message the panel would render as-is.
  */
 export function setAtsConnection(input: {
   provider: unknown;
@@ -162,45 +214,101 @@ export function setAtsConnection(input: {
   apiToken?: unknown;
   fieldMap?: unknown;
   enabled?: unknown;
+  expectedVersion?: unknown;
 }): AtsConnectionPublic {
   if (!isAtsProvider(input.provider)) {
-    throw new AtsConnectionError(`unknown provider. Allowed: ${ATS_PROVIDERS.join(", ")}.`);
+    throw new AtsConnectionError(
+      `unknown provider. Allowed: ${ATS_PROVIDERS.join(", ")}.`,
+      "ATS_CONNECTION_PROVIDER_UNKNOWN"
+    );
   }
   const provider = input.provider;
-  const existing = db().prepare(`SELECT * FROM ats_connections WHERE provider = ?`).get(provider) as Row | undefined;
 
-  const baseUrl = input.baseUrl === undefined ? (existing?.base_url ?? null) : validateBaseUrl(input.baseUrl);
+  // Validation and encryption are pure and can throw — they run OUTSIDE the write lock so
+  // a bad URL, an unusable field map or a missing at-rest key never opens a transaction.
+  // `undefined` means "keep what is stored"; the transaction below resolves that against
+  // the row it reads under the lock.
+  const baseUrl = input.baseUrl === undefined ? undefined : validateBaseUrl(input.baseUrl);
+  // parseFieldMap throws AtsFieldMapError, which the route maps to ATS_FIELD_MAP_INVALID —
+  // a map without an externalId path must never reach storage.
+  const fieldMapJson = input.fieldMap === undefined ? undefined : JSON.stringify(parseFieldMap(input.fieldMap));
 
-  let fieldMapJson = existing?.field_map_json ?? "{}";
-  if (input.fieldMap !== undefined) {
-    // parseFieldMap throws AtsFieldMapError, which the route maps to 400 — a map without
-    // an externalId path must never reach storage.
-    fieldMapJson = JSON.stringify(parseFieldMap(input.fieldMap));
-  }
-
-  let storedToken: string | null = existing?.api_token ?? null;
+  let nextToken: string | null | undefined;
   if (input.apiToken !== undefined) {
-    if (typeof input.apiToken !== "string") throw new AtsConnectionError("apiToken must be a string.");
+    if (typeof input.apiToken !== "string") {
+      throw new AtsConnectionError("apiToken must be a string.", "ATS_CONNECTION_TOKEN_INVALID");
+    }
     if (input.apiToken === "") {
-      storedToken = null;
+      nextToken = null;
     } else {
       try {
-        storedToken = encryptAtsSecret(input.apiToken);
+        nextToken = encryptAtsSecret(input.apiToken);
       } catch (e) {
-        throw new AtsConnectionError(e instanceof Error ? e.message : "Cannot store the ATS API token.");
+        throw new AtsConnectionError(
+          e instanceof Error ? e.message : "Cannot store the ATS API token.",
+          "ATS_CONNECTION_TOKEN_INVALID"
+        );
       }
     }
   }
 
-  const enabled = input.enabled === undefined ? (existing?.enabled ?? 1) : input.enabled ? 1 : 0;
-  db()
-    .prepare(
-      `INSERT INTO ats_connections (provider, base_url, api_token, field_map_json, enabled, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(provider) DO UPDATE SET base_url = excluded.base_url, api_token = excluded.api_token,
-         field_map_json = excluded.field_map_json, enabled = excluded.enabled, updated_at = excluded.updated_at`
-    )
-    .run(provider, baseUrl, storedToken, fieldMapJson, enabled, new Date().toISOString());
+  let expected: number | undefined;
+  if (input.expectedVersion !== undefined && input.expectedVersion !== null) {
+    const n = Number(input.expectedVersion);
+    // A version we cannot compare is not a version we can honour, and the honest advice is
+    // the same as a genuine mismatch: reload and re-apply. So it refuses as STALE rather
+    // than inventing a shape-validation sentence for a value only our own panel sends.
+    if (!Number.isInteger(n) || n < 0) {
+      throw new AtsConnectionStaleError("expectedVersion must be a whole number.");
+    }
+    expected = n;
+  }
+
+  // IMMEDIATE: the write lock is taken at BEGIN, so the version this reads cannot move
+  // between the check and the UPDATE (.claude/CLAUDE.md, "a read→compute→write either
+  // locks or re-checks"). Nothing here awaits — every slow/throwing step ran above.
+  const write = db().transaction((): void => {
+    const existing = db().prepare(`SELECT * FROM ats_connections WHERE provider = ?`).get(provider) as Row | undefined;
+    const version = existing?.version ?? 0;
+    if (expected !== undefined && expected !== version) {
+      throw new AtsConnectionStaleError("The ATS connection changed since it was read. Reload and make your change again.");
+    }
+    // A preserved token is re-encrypted under the CURRENT at-rest key when it is still
+    // sealed under KP_SECRET_PREVIOUS, so a rotated deployment heals itself on the next
+    // save instead of waiting for `npm run secrets:rotate`. Best-effort by design: a value
+    // neither key opens is left exactly as stored — rewriting a row we cannot read would
+    // destroy the only copy of the customer's credential.
+    let storedToken = existing?.api_token ?? null;
+    if (nextToken !== undefined) {
+      storedToken = nextToken;
+    } else if (storedToken !== null && isEncryptedAtsSecret(storedToken)) {
+      try {
+        storedToken = reencryptAtsSecret(storedToken).ciphertext;
+      } catch {
+        // Undecryptable under both keys: keep the ciphertext untouched. Loud on READ
+        // (getAtsToken throws, which the connector surfaces as a sync failure) rather
+        // than here, where the operator is editing an unrelated field.
+      }
+    }
+    db()
+      .prepare(
+        `INSERT INTO ats_connections (provider, base_url, api_token, field_map_json, enabled, version, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(provider) DO UPDATE SET base_url = excluded.base_url, api_token = excluded.api_token,
+           field_map_json = excluded.field_map_json, enabled = excluded.enabled, version = excluded.version,
+           updated_at = excluded.updated_at`
+      )
+      .run(
+        provider,
+        baseUrl === undefined ? (existing?.base_url ?? null) : baseUrl,
+        storedToken,
+        fieldMapJson === undefined ? (existing?.field_map_json ?? "{}") : fieldMapJson,
+        input.enabled === undefined ? (existing?.enabled ?? 1) : input.enabled ? 1 : 0,
+        version + 1,
+        new Date().toISOString()
+      );
+  });
+  write.immediate();
   return getAtsConnection(provider)!;
 }
 

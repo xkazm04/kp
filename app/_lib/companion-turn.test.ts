@@ -7,10 +7,13 @@ import assert from "node:assert/strict";
 import {
   clampCompanionMessage,
   coerceVoiceReply,
+  companionRequestId,
   deriveThreadTitle,
   MAX_COMPANION_MESSAGE_CHARS,
   MAX_COMPANION_VOICE_CHARS,
+  parseCompanionRequestId,
   pipelineSummary,
+  promptEligibleTurns,
   transcriptWindow,
 } from "./companion-turn.ts";
 
@@ -111,4 +114,70 @@ test("an empty board summarises to nothing rather than to zeros that read as fac
   assert.deepEqual(summary.byStage, {});
   assert.deepEqual(summary.topRoles, []);
   assert.equal(summary.meanMatchScore, null);
+});
+
+// ---- what the model is allowed to READ BACK -------------------------------
+//
+// An outage reply ("I could not reach a model") is a real turn: it is what she
+// said, so the dock keeps showing it. It is NOT history the next prompt should
+// stand on — replayed as transcript, the first answer after a key is finally
+// configured reads as if she is still broken, because the last thing in her
+// context is her own apology. The brain already refuses to remember these as
+// episodes (companion_cli.py::_worth_remembering); the window is the other half.
+
+test("an outage reply is kept on screen but never replayed into the prompt", () => {
+  const turns = [
+    { role: "user", content: "who is waiting on me?" },
+    { role: "assistant", content: "I could not reach a model.", source: "deterministic" as const },
+    { role: "user", content: "try again" },
+    { role: "assistant", content: "Two candidates are waiting.", source: "llm" as const },
+  ];
+  assert.deepEqual(promptEligibleTurns(turns), [turns[0], turns[2], turns[3]]);
+  assert.deepEqual(transcriptWindow(turns), [
+    { role: "user", content: "who is waiting on me?" },
+    { role: "user", content: "try again" },
+    { role: "assistant", content: "Two candidates are waiting." },
+  ]);
+});
+
+test("only an assistant's deterministic turn is dropped, and only on its own say-so", () => {
+  // A USER turn has no `source` and is never a candidate for the drop; an
+  // assistant turn stored before the field existed (undefined) is history we
+  // cannot prove is an outage, so it stays — dropping it would silently shorten
+  // every old conversation.
+  const kept = [
+    { role: "user", content: "u" },
+    { role: "assistant", content: "old reply" },
+    { role: "assistant", content: "llm reply", source: "llm" as const },
+  ];
+  assert.deepEqual(promptEligibleTurns(kept), kept);
+});
+
+test("the window is taken AFTER the drop, so a purged tail still fills it", () => {
+  const turns = [
+    ...Array.from({ length: 20 }, (_, i) => ({ role: "assistant", content: `outage ${i}`, source: "deterministic" as const })),
+    { role: "user", content: "real" },
+  ];
+  const win = transcriptWindow(turns, 12);
+  assert.deepEqual(win, [{ role: "user", content: "real" }]);
+});
+
+// ---- the ledger's name for one turn ---------------------------------------
+
+test("a companion request id names the turn, and parses back to it", () => {
+  const id = companionRequestId("cthread-abc-1", "cturn-def-2");
+  assert.equal(id, "companion:cthread-abc-1:cturn-def-2");
+  assert.deepEqual(parseCompanionRequestId(id), { threadId: "cthread-abc-1", turnId: "cturn-def-2" });
+});
+
+test("a LEGACY bare thread id still resolves to its conversation", () => {
+  // Rows written before this stamped the thread id alone. They are real spend
+  // and must keep rendering; only the turn is unknown.
+  assert.deepEqual(parseCompanionRequestId("cthread-abc-1"), { threadId: "cthread-abc-1", turnId: null });
+});
+
+test("anything that is not a companion id is left to the task resolver", () => {
+  for (const other of ["", "   ", null, undefined, "task-l9x2k1-a8f3qz", "companion:", "cturn-abc-1"]) {
+    assert.equal(parseCompanionRequestId(other), null, `expected null for ${JSON.stringify(other)}`);
+  }
 });

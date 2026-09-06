@@ -139,9 +139,23 @@ ratchet is). Those two key on `NextResponse.json({ error: … })`, so neither
 could see a raw message pushed into a results array on its way to the client;
 `/api/schedule/invite/bulk` was leaking that way past both of them.
 
+**The file carries two detectors, because there are two ways to put the same
+message on the wire.** The first (`LEAK_CEILING`, above) keys on a catch block
+that *shapes* the message itself. The second (`FORWARD_CEILING`) keys on a catch
+block that hands the caught value to `jsonError(err, fallback)` and lets
+`api-response.ts` do the shaping: such a body contains no `.message` text at all,
+so the first detector is structurally blind to it, and nine call sites across
+eight route files sat unwatched until 2026-09-05. It fires on the first argument
+being a *binding* rather than on the call, so the correct uses stay clean —
+`jsonError(null, "Unauthorized.", 401)` and its four siblings in
+`/api/comms/callback` pass a literal, and nothing thrown can reach the client
+through them. The `fallback` string beside a forwarded error reads like the
+answer but is only reached when the throw was not an `Error`. Both ceilings move
+in one direction: down.
+
 The scan cannot see a message that reaches the wire through a helper in another
-module, and it does not judge whether a `jsonError` call site's message is
-genuinely client-safe. Those stay review's job.
+module, and it does not judge whether a *literal* `jsonError` message is
+genuinely client-safe (or localizable). Those stay review's job.
 
 **And it cannot see the other half of the same defect: a handler that invents its
 own English.** The ratchet keys on a THROWN error's `.message` reaching the body,
@@ -347,7 +361,25 @@ A new line on that ratchet is a hole waiting to be closed, never an exemption.
   They are different limits and neither substitutes for the other.
 - **`export const maxDuration`** is serverless-only. A self-hosted `next start`
   will not kill a long handler, so the real bound is whatever timeout the route
-  passes to its own child process or fetch.
+  passes to its own child process or fetch. Derive that bound from `maxDuration`
+  rather than typing a second number beside it — `POST /api/extract-text` spawns
+  its extractor with `(maxDuration - 5) * 1000`, so the child is killed inside the
+  function's own budget and the `finally { cleanupWorkdir }` still runs.
+- **A spawned CLI's failure is answered through the registries, never by
+  forwarding its message.** `parseStderrError`
+  ([`app/_lib/python-runner.ts`](../../app/_lib/python-runner.ts)) already returns
+  a machine `code` (`invalid_input`, `not_found`, `timeout`, `engine_error`)
+  beside the message and the status; the route maps that onto its own vocabulary
+  with a DECIDED table — never `REFUSAL_ERRORS[err.code]`, since the code is an
+  untrusted string from a subprocess and an unmapped one resolves to the generic
+  fallback in all four languages. A 4xx is the caller's input (`jsonRefusal`); the
+  rest is a fault (`safeJsonError`), because the engine's message carries the
+  traceback, the temp workdir path and `PYTHON_CMD`. A spawn refused at the
+  admission door keeps `ENGINE_BUSY` at 503 — the child never ran, so "we could
+  not read your file" would be a lie. The shapes to copy are
+  [`app/api/matrix/matrix-error-code.ts`](../../app/api/matrix/matrix-error-code.ts)
+  (shared by three routes) and the local `extractAnswer` in
+  [`app/api/extract-text/route.ts`](../../app/api/extract-text/route.ts).
 - **Tenancy**: any query behind a route must be workspace-scoped, and the
   allowlist in [`app/_lib/tenancy.ts`](../../app/_lib/tenancy.ts) is fail-closed
   — a new persistent table is a reported gap until it is scoped and listed.

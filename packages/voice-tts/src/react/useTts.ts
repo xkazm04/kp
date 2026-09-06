@@ -14,7 +14,127 @@ import type { TtsProviderId, TtsStatus } from "../types.ts";
 import { speechReady } from "../text/normalize.ts";
 import { segmentSpeech } from "../text/segment.ts";
 
-export type TtsPlayback = "idle" | "synthesizing" | "playing" | "blocked" | "error";
+/** `waiting` is a THROTTLE, not a failure: the host (or the engine behind it)
+ *  asked us to hold for a stated number of seconds, and the utterance is still
+ *  going to finish. It is its own member rather than a flavour of
+ *  `synthesizing` because the surface has something different to say - "still
+ *  working" invites waiting, "the engine asked us to wait 2s" explains why. */
+export type TtsPlayback = "idle" | "synthesizing" | "waiting" | "playing" | "blocked" | "error";
+
+/** A refusal the HOST ROUTE coded.
+ *
+ *  `message` is the route's canonical English, kept because a non-kp host may
+ *  have nothing else; `code` is the machine name a localizing host resolves in
+ *  the reader's language. Both, rather than either: a package that threw only a
+ *  sentence forced every surface to paint English, and one that threw only a
+ *  code would break the hosts that print `error` today. */
+export class TtsRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+  ) {
+    super(message);
+    this.name = "TtsRequestError";
+  }
+}
+
+/** What a non-2xx answer from the host route MEANS. Pure and exported so the
+ *  contract can be pinned without a DOM: a body with no code (a proxy's HTML
+ *  error page, a truncated response) still yields a usable sentence, and a
+ *  falsy `error` never wins over the status line. */
+export function ttsErrorFrom(body: { error?: string; code?: string | null } | null | undefined, status: number): TtsRequestError {
+  return new TtsRequestError(body?.error || `status ${status}`, body?.code ?? null);
+}
+
+/** How many EXTRA attempts one chunk gets after a throttled answer. Two, so a
+ *  brief window closing mid-utterance is survived, and a service that is simply
+ *  out of budget is answered rather than hammered. */
+export const TTS_RETRY_ATTEMPTS = 2;
+/** The longest wait an utterance will hold for. Past this the operator is told
+ *  it stopped: a held Play button that resumes a minute later is a surface that
+ *  looks broken while it is behaving. */
+export const TTS_RETRY_MAX_WAIT_MS = 10_000;
+
+/** The wait we will actually honor from a `Retry-After`, or null for "do not
+ *  retry".
+ *
+ *  Both RFC forms: delta-seconds and an HTTP-date. Null is returned for a header
+ *  that is absent or unreadable and for one asking LONGER than the ceiling - in
+ *  both cases inventing a wait is the failure mode. Waiting less than the
+ *  service asked for is hammering it, and a fabricated wait after no header at
+ *  all is the client-side twin of the fabricated `Retry-After` the route
+ *  deliberately does not send (app/api/tts/route.ts, `engineThrottled`). A
+ *  window that has already opened is 0, which is a retry, not a refusal. */
+export function retryWaitMs(header: string | null | undefined, now: number = Date.now()): number | null {
+  const raw = typeof header === "string" ? header.trim() : "";
+  if (!raw) return null;
+  // A value that STARTS like a number but is not delta-seconds ("-5", "2.5") is
+  // malformed, not a date: Date.parse("-5") happily yields the year 2001, which
+  // would have turned a broken header into "retry now".
+  if (/^[-+.0-9]/.test(raw) && !/^[0-9]+$/.test(raw)) return null;
+  const ms = /^[0-9]+$/.test(raw) ? Number(raw) * 1000 : Date.parse(raw) - now;
+  if (!Number.isFinite(ms)) return null;
+  if (ms <= 0) return 0;
+  return ms > TTS_RETRY_MAX_WAIT_MS ? null : ms;
+}
+
+function abortError(): Error {
+  // The name is the contract: `speak` treats an AbortError as "superseded", not
+  // as a failure to paint, and so does every fetch this package makes.
+  const err = new Error("aborted");
+  err.name = "AbortError";
+  return err;
+}
+
+/** setTimeout that ends the moment the generation is stopped. A wait that
+ *  outlived its utterance would resume a request the operator already cancelled. */
+function sleepUntil(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/** One request, retried while the answer is a 429 that named a wait we can hold.
+ *
+ *  Pure and exported so the decision is pinned without a DOM. It hands the LAST
+ *  response back rather than throwing: the caller already knows how to turn a
+ *  non-2xx into a coded `TtsRequestError`, and a retry loop that invented its own
+ *  error type would be a second vocabulary for the same refusal. */
+export async function fetchHonoringRetryAfter(
+  attempt: () => Promise<Response>,
+  signal: AbortSignal,
+  hooks: {
+    onWait?: (ms: number) => void;
+    onResume?: () => void;
+    sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
+  } = {},
+): Promise<Response> {
+  const wait = hooks.sleep ?? sleepUntil;
+  for (let left = TTS_RETRY_ATTEMPTS; ; left -= 1) {
+    const res = await attempt();
+    if (res.status !== 429 || left === 0) return res;
+    const ms = retryWaitMs(res.headers.get("retry-after"));
+    if (ms === null) return res;
+    hooks.onWait?.(ms);
+    try {
+      await wait(ms, signal);
+    } finally {
+      hooks.onResume?.();
+    }
+  }
+}
 
 export type UseTtsOptions = {
   /** The host route, e.g. "/api/tts". GET returns { providers: TtsStatus[] }. */
@@ -49,6 +169,11 @@ export type TtsServed = {
    *  fallback provider ignores the other engine's voice ids entirely. Null when
    *  the host does not send the header. */
   voiceId?: string | null;
+  /** The language that was ASKED for and that no ready engine declares
+   *  (`X-Tts-Unsupported-Language`), or null when the language was declared.
+   *  The clip still played — silence is worse than an accent — but it is in the
+   *  wrong one, and a surface that says nothing is a surface that hides it. */
+  unsupportedLanguage?: string | null;
 };
 
 export type UseTts = {
@@ -61,13 +186,32 @@ export type UseTts = {
   /** Chunks spoken so far / total for the current utterance. */
   progress: { spoken: number; total: number } | null;
   error: string | null;
+  /** The host route's machine code for that same failure, when it sent one.
+   *  What kp's `/api/tts` actually answers, and every one of them is a different
+   *  next move: `TTS_VOICE_INVALID` (400, pick another voice),
+   *  `TTS_TEXT_TOO_LONG` (400, send shorter pieces, with `maxChars` beside it),
+   *  `VOICE_REQUEST_INVALID` (400, the body was not JSON), `PAYLOAD_TOO_LARGE`
+   *  (413), `TOO_MANY_REQUESTS` (429, ours or the engine's — already retried
+   *  here when a `Retry-After` said how long), `TTS_UNAVAILABLE` (503, nothing
+   *  is configured to speak, so retrying cannot help) and `TTS_FAILED` (502 /
+   *  504, the engine broke or timed out). Null for a transport error, a playback
+   *  fault, or a host that answers no code. A localizing surface resolves THIS
+   *  and keeps `error` for its log. */
+  errorCode: string | null;
   speak: (args: SpeakArgs) => Promise<void>;
   /** Resume a playback the browser blocked (must be called from a user gesture). */
   resume: () => Promise<void>;
   stop: () => void;
 };
 
-type Chunk = { url: string; provider: TtsProviderId; fallbackFrom: TtsProviderId | null; elapsedMs: number; voiceId: string | null };
+type Chunk = {
+  url: string;
+  provider: TtsProviderId;
+  fallbackFrom: TtsProviderId | null;
+  elapsedMs: number;
+  voiceId: string | null;
+  unsupportedLanguage: string | null;
+};
 
 export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }: UseTtsOptions): UseTts {
   const f = useMemo(() => fetcher ?? ((...a: Parameters<typeof fetch>) => fetch(...a)), [fetcher]);
@@ -76,6 +220,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
   const [served, setServed] = useState<TtsServed | null>(null);
   const [progress, setProgress] = useState<UseTts["progress"]>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlsRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -111,20 +256,53 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
     } catch (e) {
       setProviders([]);
       setError((e as Error).message);
+      // A probe that could not be read carries no route code: the failure is the
+      // fetch, not a refusal the host named.
+      setErrorCode(null);
     }
   }, [endpoint, f]);
 
   const fetchChunk = useCallback(
     async (text: string, args: SpeakArgs, signal: AbortSignal): Promise<Chunk> => {
-      const res = await f(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, language: args.language, provider: args.provider, voiceId: args.voiceId, speed: args.speed }),
+      // A throttled chunk is HELD, not dropped: a 429 on chunk 3 of 6 used to
+      // truncate the utterance mid-sentence, and the immediate manual retry the
+      // operator made hit the same closed window. The wait is the one the host
+      // asked for, bounded, and it ends the instant the utterance is stopped.
+      const res = await fetchHonoringRetryAfter(
+        () =>
+          f(endpoint, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            // FORMAT TRAVELS. It used to stay in the browser, so the host's
+            // validation door only ever saw "plain" and the cache key's format
+            // slot was always the same empty value — two asks for the same
+            // markdown reply, one wanting the speech normalizer and one not,
+            // shared a key and therefore shared whichever clip landed first.
+            // `speechReady` is idempotent, so a chunk this hook already
+            // normalized is unchanged by the door running it again.
+            body: JSON.stringify({
+              text,
+              language: args.language,
+              provider: args.provider,
+              voiceId: args.voiceId,
+              speed: args.speed,
+              format: args.format ?? "plain",
+            }),
+            signal,
+          }),
         signal,
-      });
+        {
+          // A chunk being FETCHED AHEAD while an earlier one plays must not
+          // relabel the surface: the operator is hearing audio, and "waiting" over
+          // a playing utterance is a control that lies. Only a wait we are
+          // actually blocked on is shown.
+          onWait: () => setPlayback((p) => (p === "playing" ? p : "waiting")),
+          onResume: () => setPlayback((p) => (p === "waiting" ? "synthesizing" : p)),
+        },
+      );
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || `status ${res.status}`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        throw ttsErrorFrom(body, res.status);
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -135,6 +313,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
         fallbackFrom: (res.headers.get("x-tts-fallback-from") as TtsProviderId | null) || null,
         elapsedMs: Number(res.headers.get("x-tts-elapsed-ms") || 0),
         voiceId: res.headers.get("x-tts-voice") || null,
+        unsupportedLanguage: res.headers.get("x-tts-unsupported-language") || null,
       };
     },
     [endpoint, f],
@@ -165,6 +344,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       setError(null);
+      setErrorCode(null);
       setServed(null);
       const text = args.format === "chat" ? speechReady(args.text) : args.text;
       const chunks = args.segment === false ? [text] : segmentSpeech(text, { maxChars: maxChunkChars });
@@ -186,7 +366,14 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
           const chunk = await pending[i];
           if (gen !== generation.current) return;
           if (i === 0) {
-            setServed({ provider: chunk.provider, fallbackFrom: chunk.fallbackFrom, elapsedMs: chunk.elapsedMs, firstAudioMs: Math.round(performance.now() - started), voiceId: chunk.voiceId });
+            setServed({
+              provider: chunk.provider,
+              fallbackFrom: chunk.fallbackFrom,
+              elapsedMs: chunk.elapsedMs,
+              firstAudioMs: Math.round(performance.now() - started),
+              voiceId: chunk.voiceId,
+              unsupportedLanguage: chunk.unsupportedLanguage,
+            });
           }
           const result = await playUrl(chunk.url, gen);
           if (gen !== generation.current) return;
@@ -205,6 +392,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
       } catch (e) {
         if (gen !== generation.current || (e as Error).name === "AbortError") return;
         setError((e as Error).message);
+        setErrorCode(e instanceof TtsRequestError ? e.code : null);
         setPlayback("error");
       }
     },
@@ -222,5 +410,5 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
     }
   }, []);
 
-  return { providers, refreshProviders, playback, served, progress, error, speak, resume, stop };
+  return { providers, refreshProviders, playback, served, progress, error, errorCode, speak, resume, stop };
 }

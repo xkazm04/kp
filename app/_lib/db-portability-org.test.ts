@@ -115,15 +115,15 @@ test("a multi-org restore brings the org's TEAM-PRIVATE dual-tier rows back", ()
   // org's own team-private rows in the same table. The restore then reported
   // `inserted: 0` and the operator saw a success summary while the team's template
   // library was permanently gone. Prove the two tiers are told apart per row.
-  assert.ok(listTemplates(teamA1.id).some((t) => t.id === draftA1.id), "the draft is there before");
+  assert.ok(listTemplates(teamA1.id).templates.some((t) => t.id === draftA1.id), "the draft is there before");
   deleteTemplate(draftA1.id, teamA1.id);
-  assert.ok(!listTemplates(teamA1.id).some((t) => t.id === draftA1.id), "and gone before the restore");
-  const sharedBefore = listTemplates(teamA1.id).filter((t) => t.scope === "org").map((t) => t.id).sort();
+  assert.ok(!listTemplates(teamA1.id).templates.some((t) => t.id === draftA1.id), "and gone before the restore");
+  const sharedBefore = listTemplates(teamA1.id).templates.filter((t) => t.scope === "org").map((t) => t.id).sort();
 
   const summary = restoreOrg(backup, DEFAULT_ORG_ID);
   assert.equal(summary.sharedTierRestored, false, "the deployment-global NULL tier stays out of scope");
 
-  const visible = listTemplates(teamA1.id);
+  const visible = listTemplates(teamA1.id).templates;
   assert.ok(visible.some((t) => t.id === draftA1.id), "the team's private draft comes back");
   const templates = summary.tables.find((t) => t.name === "jd_templates");
   assert.ok(templates, "jd_templates was in scope");

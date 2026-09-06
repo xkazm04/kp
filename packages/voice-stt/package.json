@@ -6,6 +6,16 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./browser": "./src/browser/wav-encode.ts",
+    "./react": "./src/react/useStt.ts",
     "./providers/*": "./src/providers/*.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   }
 }

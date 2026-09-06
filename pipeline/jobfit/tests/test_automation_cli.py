@@ -157,6 +157,50 @@ class TestAutomationCliErrorStatus(unittest.TestCase):
         self.assertEqual(payload["code"], "invalid_input")
 
 
+    def test_scorecard_file_reaches_the_rejection_prompt(self):
+        # A1 — the interview the letter follows from arrives as scorecard.json and
+        # must reach draft_rejection, not be parsed and dropped.
+        with _fixture() as (cand, jobs):
+            sc = jobs.parent / "scorecard.json"
+            sc.write_text(
+                json.dumps({
+                    "recommendation": "hold",
+                    "ratings": [{"competency": "Technical depth", "rating": 2, "evidence": "e"}],
+                }),
+                encoding="utf-8",
+            )
+            seen = {}
+            real = automation.draft_rejection
+
+            def spy(*a, **kw):
+                seen.update(kw)
+                return real(*a, **kw)
+
+            with mock.patch.object(automation, "draft_rejection", spy):
+                code, out, _err = _run(
+                    ["rejection", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                     "--jobs", str(jobs), "--stage", "Interview", "--scorecard-file", str(sc)]
+                )
+        self.assertEqual(code, 0)
+        self.assertIn("result", _last_json(out))
+        self.assertEqual(seen["scorecard"]["recommendation"], "hold")
+
+    def test_malformed_scorecard_file_is_400_invalid_input(self):
+        # Same honest-400 contract as --github-evidence: a corrupt scorecard.json is
+        # a bad request, never a letter drafted blind to the interview.
+        with _fixture() as (cand, jobs):
+            sc = jobs.parent / "scorecard.json"
+            sc.write_text("{not json", encoding="utf-8")
+            code, _out, err = _run(
+                ["offer", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                 "--jobs", str(jobs), "--scorecard-file", str(sc)]
+            )
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
+
+
 class TestAutomationCliAdverseActionBoundary(unittest.TestCase):
     """The CLI is the ONLY surface a non-TypeScript integration has, and the
     "no adverse action runs unattended" guarantee lives in the TS pass
@@ -196,6 +240,60 @@ class TestAutomationCliAdverseActionBoundary(unittest.TestCase):
                 )
             self.assertEqual(code, 0, archetype)
             self.assertIn(_last_json(out)["result"]["route"], automation.SCREEN_ROUTES, archetype)
+
+
+class TestRematchReadsLang(unittest.TestCase):
+    """A7 — `rematch` is a narrative command and now receives --lang like the others.
+
+    Its branch returns before the screen/prep/scorecard dispatch below it, and the
+    locale was simply never forwarded: on a cs/de/fr install the one sentence saying
+    why a named person is being moved to another role came back in English, unstamped.
+    Keyless here (`--no-llm`), so the assertion is on the CONTRACT — the honest
+    `narrativeLang`, which must say "en" for the English-only template whatever was
+    asked — plus the fact that the flag is accepted at all on this command."""
+
+    def _rematch(self, *extra: str) -> dict:
+        with _fixture() as (cand, jobs):
+            code, out, err = _run(
+                ["rematch", "--no-llm", "--candidate-json", str(cand), "--jobs", str(jobs), *extra]
+            )
+        self.assertEqual(code, 0, err)
+        return _last_json(out)
+
+    def test_the_lang_flag_is_accepted_and_the_stamp_is_honest(self):
+        for lang in ("en", "cs", "de", "fr"):
+            with self.subTest(lang=lang):
+                payload = self._rematch("--lang", lang)
+                self.assertEqual(payload["source"], "deterministic")
+                # The template is English-only; the stamp reports the TEXT, not the ask.
+                self.assertEqual(payload["result"]["narrativeLang"], "en")
+
+    def test_a_caller_that_names_no_language_is_unchanged(self):
+        payload = self._rematch()
+        self.assertEqual(payload["result"]["narrativeLang"], "en")
+
+    def test_a_mid_flight_descent_reaches_the_ledger_with_a_reason(self):
+        # AL4 — `--no-llm` descents are named by the availability gate ("disabled");
+        # a provider that WAS available and then failed used to record nothing at all
+        # for rematch, because this branch never drained the mid-call reason.
+        class _Exploding:
+            def complete_json(self, prompt, system=None, expected_keys=None):
+                raise RuntimeError("provider exploded")
+
+        seen: dict = {}
+
+        def _emit(use_case, reason=None):
+            seen["use_case"], seen["reason"] = use_case, reason
+
+        with _fixture() as (cand, jobs):
+            with mock.patch.object(automation_cli, "resolve_provider", return_value=_Exploding()), \
+                 mock.patch.object(automation_cli, "provider_availability", return_value=(True, None)), \
+                 mock.patch.object(automation_cli, "emit_deterministic", _emit):
+                code, out, err = _run(["rematch", "--candidate-json", str(cand), "--jobs", str(jobs)])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(_last_json(out)["source"], "deterministic")
+        self.assertIsNotNone(seen.get("reason"), "a deterministic serve with no reason at all")
+        self.assertIn("provider exploded", seen["reason"])
 
 
 if __name__ == "__main__":

@@ -37,6 +37,13 @@
 //               TypeScript side the entry is a CEILING on a suppression, so the
 //               same measurement is a win worth locking at 0 rather than a fault.)
 //
+// HOW IT FINDS RUFF: the `ruff` console script first, and — when that ENOENTs —
+// the same invocation as `<python> -m ruff`, through the interpreter order
+// `scripts/schemas-gen.mjs` already resolves (`KP_PYTHON`, else `PYTHON_CMD`,
+// else the platform's candidates). `pip install ruff` does not always leave a
+// binary on PATH, and on such a machine the gate was permanently red for a reason
+// that had nothing to do with the ignore list.
+//
 // WHY IT REFUSES TO GUESS: if ruff cannot be run, or answers with something that
 // is not a JSON array, this exits 1 saying so. The one thing it must never do is
 // read a broken invocation as "no violations anywhere" and report every entry
@@ -53,6 +60,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { findInterpreter, pythonCandidates } from '../schemas-gen.mjs';
 import { BLOCKING, NOTE, classify, finding as makeFinding, main, parseArgs, renderFindings } from './ratchet.mjs';
 
 export { parseArgs };
@@ -215,16 +223,47 @@ export function runChecks(entries, counts) {
  * silently matches nothing (the reason autofix.yml's `--fix --select F401,F541`
  * had to grow the same override).
  */
-export function ruffCounts({ root = REPO_ROOT, spawn = spawnSync } = {}) {
-  const res = spawn(
-    'ruff',
-    ['check', TARGET, '--config', 'lint.ignore = []', '--output-format', 'json', '--exit-zero'],
-    { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-  );
+/**
+ * Interpreters to try when the `ruff` binary is not on PATH, in the order the
+ * rest of the repo already uses: `KP_PYTHON` (the name AGENTS.md documents) wins
+ * outright, then `scripts/schemas-gen.mjs`'s own list — `PYTHON_CMD`, else the
+ * platform's candidates. One resolver, so a machine configured for `schemas:gen`
+ * is configured for this too.
+ */
+export function ruffInterpreters(env = process.env) {
+  const named = env.KP_PYTHON?.trim();
+  return named ? [named] : pythonCandidates(env);
+}
+
+/** `<python> -m ruff <args>`, or `null` when no interpreter can be found or run. */
+export function runRuffAsModule(args, { spawn = spawnSync, opts = {}, env = process.env } = {}) {
+  const interpreter = findInterpreter(ruffInterpreters(env), spawn);
+  if (!interpreter) return null;
+  // `py` is the Windows launcher, not an interpreter: it picks a version, and
+  // `-3` is how schemas-gen's documented order asks for a Python 3.
+  const prefix = interpreter === 'py' ? ['-3', '-m', 'ruff'] : ['-m', 'ruff'];
+  const res = spawn(interpreter, [...prefix, ...args], opts);
+  return res.error ? null : res;
+}
+
+export function ruffCounts({ root = REPO_ROOT, spawn = spawnSync, env = process.env } = {}) {
+  const args = ['check', TARGET, '--config', 'lint.ignore = []', '--output-format', 'json', '--exit-zero'];
+  const opts = { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 };
+  let res = spawn('ruff', args, opts);
   if (res.error) {
-    throw new Error(
-      `could not run ruff (${res.error.code ?? res.error.message}). CI installs ruff==0.15.0; locally: pip install ruff==0.15.0`,
-    );
+    // `pip install ruff` does not always put a `ruff` binary on PATH — on Windows,
+    // and inside a venv the shell has not activated, the wheel is importable while
+    // the console script is not. There the gate was permanently red for a reason
+    // that had nothing to do with the ignore list, so retry the SAME invocation
+    // through the interpreter before believing ruff is absent.
+    const via = runRuffAsModule(args, { spawn, opts, env });
+    if (!via) {
+      throw new Error(
+        `could not run ruff (${res.error.code ?? res.error.message}), and no Python interpreter could run it as a module either. ` +
+          'CI installs ruff==0.15.0; locally: pip install ruff==0.15.0 (or set KP_PYTHON/PYTHON_CMD to the interpreter that has it)',
+      );
+    }
+    res = via;
   }
   let parsed;
   try {

@@ -12,6 +12,19 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import type { CompanionProposal } from "@/app/_lib/db/companion";
+
+// ALREADY ANSWERED, WITH THE ROW. The dock's contract is "take the response's
+// proposal whatever the status": a 409 that carried only a code left the card
+// armed on a closed proposal, so every further click bought another 409 until a
+// poll happened. The row beside the code is what lets the card repaint as
+// answered, which is the truth the 409 is reporting in the first place.
+//
+// A decision, not an accident: the code lives in REFUSAL_ERRORS and jsonRefusal
+// carries the row as the data the reader's sentence needs.
+function alreadyResolved(proposal: CompanionProposal | null) {
+  return jsonRefusal("COMPANION_PROPOSAL_RESOLVED", 409, { proposal });
+}
 
 // POST /api/companion/proposals/[id]/resolve — the operator's answer to one
 // companion proposal (docs/features/companion/README.md, WP3).
@@ -50,10 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const ws = await currentWorkspace();
     const proposal = getProposal(id, ws);
     if (!proposal) {
-      return NextResponse.json(
-        { error: "Companion proposal not found.", code: "COMPANION_PROPOSAL_NOT_FOUND" },
-        { status: 404 }
-      );
+      return jsonRefusal("COMPANION_PROPOSAL_NOT_FOUND", 404);
     }
     const body = (await request.json().catch(() => ({}))) as { decision?: unknown };
     const decision = typeof body.decision === "string" ? body.decision : "";
@@ -64,10 +74,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // entitled to know it was resolved rather than that it vanished — a re-opened
     // dock racing a sibling tab is the common case, not an attack.
     if (proposal.status !== "open") {
-      return NextResponse.json(
-        { error: "That proposal was already resolved.", code: "COMPANION_PROPOSAL_RESOLVED" },
-        { status: 409 }
-      );
+      // The ROW rides with the code. The dock takes the response's proposal
+      // whatever the status, so a card that lost the race repaints as answered
+      // instead of re-arming Accept on a closed proposal and 409-ing on every
+      // further click until the next poll.
+      return alreadyResolved(proposal);
     }
 
     if (!rateLimit(`companion-resolve:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
@@ -80,10 +91,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // separately because it belongs in the payload beside the summary that was
       // declined, which is the whole story of that proposal in one row.
       if (!resolveProposal(id, "declined", ws)) {
-        return NextResponse.json(
-          { error: "That proposal was already resolved.", code: "COMPANION_PROPOSAL_RESOLVED" },
-          { status: 409 }
-        );
+        return alreadyResolved(getProposal(id, ws));
       }
       stampProposalOutcome(id, { key: "declined" }, ws);
       return NextResponse.json({ proposal: getProposal(id, ws) });
@@ -114,10 +122,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Win the right to run it. A losing double-click reads the same 409 a second
     // tab would, which is the truth: someone already answered this.
     if (!claimProposal(id, ws)) {
-      return NextResponse.json(
-        { error: "That proposal was already resolved.", code: "COMPANION_PROPOSAL_RESOLVED" },
-        { status: 409 }
-      );
+      return alreadyResolved(getProposal(id, ws));
     }
     try {
       const outcome = await spec.execute(revalidated.params, {

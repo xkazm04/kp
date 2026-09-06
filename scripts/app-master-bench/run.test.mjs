@@ -40,6 +40,7 @@ import {
   planPhases,
   planProbation,
   resolveCliArgs,
+  scanRequestBody,
   settleDispatch,
   teardownHire,
   tenureRecordFrom,
@@ -923,4 +924,28 @@ test("fetchJson takes the node:http path for long deadlines and keeps the contra
   } finally {
     srv.close();
   }
+});
+
+// --- the scan the sweep actually takes ---------------------------------------
+// Four of the seven committed scenarios name the SAME root (`${KP_ROOT}`), and
+// kp coalesces a second scan of one target onto the first for 30 minutes. A
+// sweep therefore measured the scan engine once and handed runs 2-4 a copy of
+// run 1's dossier — so a regression in the reading could fail at most one of the
+// four kp scenarios, and nothing in the record said the other three were copies.
+test("a bench scan asks for a FRESH reading by default", () => {
+  const local = scanRequestBody({ repo: { rootPath: "/srv/kp" } });
+  assert.deepEqual(local, { rootPath: "/srv/kp", fresh: true });
+  const remote = scanRequestBody({ repo: { url: "https://github.com/acme/app" } });
+  assert.deepEqual(remote, { repoUrl: "https://github.com/acme/app", fresh: true });
+});
+
+test("--reuse-scan puts the operator's coalescing back, and nothing else", () => {
+  const body = scanRequestBody({ repo: { rootPath: "/srv/kp" } }, { reuseScan: true });
+  assert.deepEqual(body, { rootPath: "/srv/kp" }, "no `fresh` key at all — kp's default is the default");
+});
+
+test("--reuse-scan is a declared boolean flag", () => {
+  assert.equal(CLI_FLAGS["reuse-scan"], "boolean");
+  const { args } = resolveCliArgs(["--scenario", "kp-default", "--reuse-scan"]);
+  assert.equal(args["reuse-scan"], true);
 });

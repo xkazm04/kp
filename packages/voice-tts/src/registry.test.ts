@@ -159,3 +159,69 @@ test("a failed local turn does not wedge the queue for the next caller", async (
   const out = await tts.speak({ text: "two" });
   assert.equal(out.provider, "piper");
 });
+
+// provider-resolution-respects-the-providers-languages. resolve() used to walk
+// requested -> preferred -> first-ready on PROBE STATE ALONE, so a Czech reply
+// that landed on Kokoro (whose capabilities declare no `cs`) was read out in an
+// English accent: no error, no fallbackFrom, nothing in the log. The declared
+// language is part of readiness now, and when nothing declares it the serve
+// still happens but SAYS so.
+test("a ready provider that does not declare the language loses to one that does", async () => {
+  const log: TtsLogEvent[] = [];
+  const kokoro = new FakeTts("kokoro", { capabilities: { languages: ["en", "fr"] } });
+  const piper = new FakeTts("piper", { capabilities: { languages: ["en", "cs"] } });
+  const tts = createTts({
+    host: host({}, log),
+    providers: [kokoro, piper],
+    preference: { preferred: "kokoro", allowed: ["kokoro", "piper"] },
+  });
+
+  // English: the preferred engine speaks it, so nothing moves.
+  const en = await tts.resolve(undefined, "en");
+  assert.equal(en.provider.id, "kokoro");
+  assert.equal(en.unsupportedLanguage, null);
+
+  // Czech: the preferred engine is ready and useless for it.
+  const cs = await tts.resolve(undefined, "cs-CZ");
+  assert.equal(cs.provider.id, "piper");
+  assert.equal(cs.fallbackFrom, "kokoro");
+  assert.equal(cs.unsupportedLanguage, null, "the chosen engine DOES speak cs");
+  assert.match(cs.reason!, /does not speak cs/);
+  assert.ok(log.some((e) => e.type === "fallback" && e.from === "kokoro" && e.to === "piper"));
+
+  // …and speak() takes the same route, since the language comes from the
+  // VALIDATED request rather than from the raw body.
+  const out = await tts.speak({ text: "dobry den", language: "cs" });
+  assert.equal(out.provider, "piper");
+  assert.equal(out.unsupportedLanguage, null);
+  assert.equal(kokoro.calls.length, 0, "the engine that cannot speak cs never synthesized");
+});
+
+test("when NO ready provider declares the language the serve says so, never silently", async () => {
+  const log: TtsLogEvent[] = [];
+  const kokoro = new FakeTts("kokoro", { capabilities: { languages: ["en", "fr"] } });
+  const tts = createTts({ host: host({}, log), providers: [kokoro], preference: { preferred: null, allowed: ["kokoro"] } });
+
+  const r = await tts.resolve(undefined, "cs");
+  assert.equal(r.provider.id, "kokoro", "an accent beats silence");
+  assert.equal(r.unsupportedLanguage, "cs", "…but the caller is told which language went unserved");
+  assert.match(r.reason!, /no ready provider declares cs/);
+  assert.ok(log.some((e) => e.type === "language_fallback" && e.provider === "kokoro" && e.requested === "cs"));
+
+  const out = await tts.speak({ text: "dobry den", language: "cs-CZ" });
+  assert.equal(out.unsupportedLanguage, "cs", "the fact travels with the audio, not just with the resolution");
+});
+
+test('a multilingual "any" engine and a language-less request both match everything', async () => {
+  const any = new FakeTts("elevenlabs", { kind: "cloud" }); // default capabilities: languages "any"
+  const piper = new FakeTts("piper", { capabilities: { languages: ["cs"] } });
+  const tts = createTts({ host: host(), providers: [any, piper], preference: { preferred: "elevenlabs", allowed: ["elevenlabs", "piper"] } });
+  assert.equal((await tts.resolve(undefined, "cs")).provider.id, "elevenlabs");
+  assert.equal((await tts.resolve(undefined, null)).provider.id, "elevenlabs");
+  // An explicit ask does NOT override the language: piper declares cs only, so a
+  // de request moves to the multilingual engine and the move is visible.
+  const de = await tts.resolve("piper", "de");
+  assert.equal(de.provider.id, "elevenlabs");
+  assert.equal(de.fallbackFrom, "piper");
+  assert.equal(de.unsupportedLanguage, null);
+});

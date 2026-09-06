@@ -4,6 +4,7 @@ import { lookupPromptCache, storePromptCache } from "./db/analyses";
 import { listCorpusJobs } from "./db/jobs";
 import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, hasEvent, recordAutomationEvent, rematchSourceEntry, setApproval } from "./db/pipeline";
 import { getProfileRecord } from "./db/profiles";
+import { latestInterviewByEntry } from "./db/interviews";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { meterAllows } from "./billing";
@@ -37,12 +38,22 @@ import {
 // AND by the background-task runner (single + batch). The LLM engine is the
 // configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
+  // ALL SEVEN bumped 2026-09-05 in one step. Candidate-authored prose reaching
+  // these prompts is now rendered inside an explicit untrusted fence
+  // (automation.context_block), and the interview projection the letters read is
+  // fenced with it; rematch additionally stamps narrativeLang. Six of the seven
+  // prompts therefore changed BYTES and the seventh changed its output shape, so
+  // every cached pre-fence payload has to retire — otherwise the injection fix
+  // is illusory for up to the full 168h TTL on entries that are already warm,
+  // which is exactly the failure this map's own docstring was written about.
+  // Lockstep with the automation.py *_PROMPT_VERSION constants is enforced by
+  // pipeline/jobfit/tests/test_prompt_version_sync.py.
   // v2 — screen receives --lang (its rationale/strengths/redFlags are recruiter-
   // facing prose) but its cache key ignored the locale, so a locale switch served
   // the previous language's screening rationale for the full 168h TTL. The locale
   // is now a key axis (UI_LANG_TASKS); bumped so the wrongly-shared v1 entries
   // self-invalidate. Kept in lockstep with automation.SCREENING_PROMPT_VERSION.
-  screen: "screening-v2",
+  screen: "screening-v3",
   // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
   // resolved comms locale) and their prompts carry the gender-neutral-Czech +
   // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
@@ -51,9 +62,17 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // gap with evidence-checked feedback, prep anchors questions in concrete
   // highlights and covers stated aspirations; bumped so cached prior letters
   // self-invalidate. Lockstep with the Python *_PROMPT_VERSION constants.
-  outreach: "outreach-v3",
-  rejection: "rejection-v3",
-  prep: "interview-prep-v2",
+  outreach: "outreach-v4",
+  // rejection v4 (and offer v5 below) — the two letters that follow an INTERVIEW now
+  // receive the entry's stored scorecard. They were drafted from CV + score + stage
+  // alone while the prompt demanded "the ACTUAL decisive reason", so the model
+  // reached for the CV: an Interview-stage candidate was told the decisive reason
+  // was a gap that had been on her CV the day she was invited in, and a sibling
+  // draft invented "the decision was close". Every cached v3 rejection / v4 offer was
+  // drafted blind to the interview, so the bump is what retires them. Lockstep with
+  // automation.REJECTION_PROMPT_VERSION / OFFER_PROMPT_VERSION.
+  rejection: "rejection-v5",
+  prep: "interview-prep-v3",
   // v5 — the read-back exchange is emitted as STRUCTURED `entities` (confirmed /
   // corrected heard→meant / unconfirmed) beside the prose trust rule, so the recruiter
   // gets a cue that "Rust" in the transcript meant React; bumped so cached v4
@@ -65,13 +84,44 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // (candidate speech was the one unfenced block in the package) and the scoring
   // instructions carry the interviewer brief's no-penalty-for-nerves clause; both
   // change the prompt bytes, so cached v6 scorecards must self-invalidate.
-  scorecard: "scorecard-v7",
-  rematch: "rematch-v1",
+  scorecard: "scorecard-v8",
+  rematch: "rematch-v2",
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer
   // (REC-01/OO-L2-10); bumped so cached v2 payloads self-invalidate.
-  offer: "offer-v4",
+  // v5 — see the rejection note above: the offer letter now sees the interview it
+  // follows from, and its tone is branched on whether that interview closed as a yes.
+  offer: "offer-v6",
 };
+
+/** The tasks whose prompt reads the entry's stored interview scorecard: the two
+ *  candidate-facing letters drafted AFTER an interview. Everything else ignores it,
+ *  and its prompt bytes are unchanged. */
+export const SCORECARD_TASKS = new Set(["rejection", "offer"]);
+
+/** Why an `offerGate="auto"` draft must NOT be extended unattended, or null when
+ *  nothing here objects.
+ *
+ *  An offer letter auto-sent to a candidate is the highest-consequence output in
+ *  the product, and the gate had exactly one evidential precondition: that a figure
+ *  existed. Live, that was not enough — a draft went out on an entry whose OWN
+ *  interview scorecard said `hold`, 2 of 5 on the technical axis. The gate's
+ *  meaning is unchanged for every case the operator configured it for: an interview
+ *  that closed as `advance`, and an entry with no interview at all (a recruiter can
+ *  reach Offer without one), still auto-extend. Only the case where the workspace's
+ *  own recorded verdict CONTRADICTS the send is refused — and refused by parking the
+ *  draft at offer_review, never by rewriting the letter.
+ *
+ *  Takes the raw stored scorecard (unvalidated row JSON): an unreadable or verdict-
+ *  less scorecard is "no recorded objection", not a refusal — it is the same absence
+ *  as no interview. */
+export function offerAutoExtendRefusal(scorecard: unknown): string | null {
+  if (!scorecard || typeof scorecard !== "object") return null;
+  const raw = (scorecard as { recommendation?: unknown }).recommendation;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const verdict = coerceInterviewRecommendation(raw);
+  return verdict === "advance" ? null : `scorecard_${verdict}`;
+}
 // LETTER_LANG_TASKS — candidate-facing letters; their language is the entry's
 // resolved comms locale (explicit apply choice, else the workspace default —
 // comms-locale.resolveCommsLocale), passed to Python as --lang so the letter and
@@ -287,6 +337,16 @@ export async function runAutomationTask(
   // the AI formed without it. Mirrors the profileJson serialize-once pattern.
   const githubEvidenceJson =
     GITHUB_EVIDENCE_TASKS.has(task) && entry.githubEvidence ? JSON.stringify(entry.githubEvidence) : null;
+  // THE INTERVIEW THE LETTER FOLLOWS FROM. It sat on this entry the whole time and
+  // was never passed: the post-interview rejection was drafted from CV + score +
+  // stage, so its "decisive reason" could only come from the CV (or from nothing —
+  // one live draft invented "another candidate matched more closely"), and the offer
+  // letter could open with unqualified enthusiasm over a `hold` scorecard. Null when
+  // the entry has no interview, which the prompts read as "none happened".
+  const interviewScorecard = SCORECARD_TASKS.has(task)
+    ? (latestInterviewByEntry(entryId, workspaceId)?.scorecard ?? null)
+    : null;
+  const scorecardJson = interviewScorecard ? JSON.stringify(interviewScorecard) : null;
   // Letter tasks render in the entry's resolved comms locale (pa-l2-null-locale):
   // resolved HERE — not left to the CV-language guess inside Python — so the
   // letter provably matches the locale comms-dispatch wraps it in.
@@ -334,6 +394,11 @@ export async function runAutomationTask(
     jobId: entry.jobId ?? null,
     stage: entry.stage,
     notes,
+    // The interview evidence is a key axis of its own (mirrors the GH7 one): a
+    // scorecard synthesized AFTER a first draft leaves candidateId/jobId/stage/lang
+    // all unchanged, so without it the 168h TTL would keep serving the letter that
+    // was drafted blind to the interview - the exact defect this change fixes.
+    scorecardJson: scorecardJson ?? undefined,
     corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
     // PREP2 — the recruiter-narrative locale (prep/screen/scorecard, uiLang) is a
     // cache axis; for the letter tasks the RESOLVED letter locale is one too (a
@@ -368,6 +433,15 @@ export async function runAutomationTask(
         args.push("--jobs", jobsPath);
       } else args.push("--job-id", entry.jobId ?? "");
       if (task === "rejection") args.push("--stage", entry.stage);
+      // The interview the letter follows from (rejection/offer). Written like
+      // profile.json/github.json — the SAME bytes folded into the cache key above,
+      // so a scorecard synthesized after a first draft invalidates the cached,
+      // ungrounded letter instead of serving it for the rest of the TTL.
+      if (scorecardJson) {
+        const scorecardPath = path.join(workdir, "scorecard.json");
+        await writeFile(scorecardPath, scorecardJson, "utf-8");
+        args.push("--scorecard-file", scorecardPath);
+      }
       if (task === "scorecard") {
         const notesPath = path.join(workdir, "notes.txt");
         await writeFile(notesPath, notes, "utf-8");
@@ -495,14 +569,27 @@ export async function runAutomationTask(
     // interviewPlan offerGate="auto" — extend the freshly-drafted offer to the
     // candidate unattended, through the SAME extend path a recruiter's approval
     // uses (idempotent open-offer reuse, truthful sent/queued dispatch, sealed
-    // offer_terms with the machine as actor). Two hard guards:
+    // offer_terms with the machine as actor). Three hard guards:
     //   • an UNPRICED fail-safe draft (recommended null — no figure was willing
     //     to be invented) ALWAYS parks for a human to price it;
     //   • the extend runs on the FRESH row (the approval just written), so a
-    //     concurrent decision can't be clobbered.
+    //     concurrent decision can't be clobbered;
+    //   • a THIRD guard, added after a live draft was auto-sent on an entry whose own
+    //     interview scorecard said `hold` (2 of 5 technical): a recorded verdict that
+    //     contradicts the send parks the draft for a human. See offerAutoExtendRefusal
+    //     — it refuses the send, it does not touch the letter, and it is silent for the
+    //     `advance` and no-interview cases the gate was configured for.
     // Origin "" → publicBaseUrl resolves the configured/canonical public origin
     // (never a request Host), which is exactly right for a background extend.
-    if (getPlanGateForRole("offer", workspaceId) === "auto" && result.recommended != null) {
+    const offerGateIsAuto = getPlanGateForRole("offer", workspaceId) === "auto";
+    const scorecardRefusal = offerGateIsAuto ? offerAutoExtendRefusal(interviewScorecard) : null;
+    if (scorecardRefusal) {
+      console.warn(
+        `[automation:offer] auto-extend withheld (${scorecardRefusal}); the interview verdict on this entry ` +
+          `does not support an unattended offer — draft parked at offer_review for human approval`
+      );
+    }
+    if (offerGateIsAuto && result.recommended != null && !scorecardRefusal) {
       const fresh = getPipelineEntry(entry.id, workspaceId);
       if (fresh && fresh.approvalKind === "offer_review") {
         try {

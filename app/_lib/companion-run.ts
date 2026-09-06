@@ -2,7 +2,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
-import { withLlmRequestId } from "./llm-request-context";
+import { withLlmRequestIdIfUnset } from "./llm-request-context";
 import { attentionCounts } from "./attention";
 // Import the SLICE, not the `./db` barrel — the barrel `export *`s 17 store
 // modules and `next dev` compiles a route's whole module graph with no
@@ -11,6 +11,7 @@ import { listPipeline } from "./db/pipeline";
 import { companionMemoryEnabled } from "./companion-brain";
 import {
   coerceVoiceReply,
+  companionRequestId,
   pipelineSummary,
   transcriptWindow,
   type CompanionVoiceReply,
@@ -167,15 +168,23 @@ function coerceTurn(payload: unknown): CompanionTurnResult {
 }
 
 /**
- * One turn. `threadId` doubles as the ambient LLM request id, so every metered
- * call this spawn makes lands in the usage ledger tagged with the conversation
- * it belonged to (llm-request-context.ts) — otherwise companion spend is an
- * anonymous row nobody can attribute.
+ * One turn. The ambient LLM request id names THIS TURN
+ * (`companion:<threadId>:<turnId>`), so every metered call the spawn makes lands
+ * in the ledger tagged with the question it answered (llm-request-context.ts).
+ * It used to be the bare thread id, which everything downstream reads as a task
+ * id: Insights → Activity resolved it against `/api/tasks/[id]`, found nothing,
+ * and told the operator the run was gone on every single companion row.
+ *
+ * The turn id is minted by the CALLER, before the spawn, and is the id the reply
+ * is then stored under — so the ledger row points at a turn that really exists.
  */
 export async function runCompanionTurn(
   input: {
     workspaceId: string;
     threadId: string;
+    /** The id the assistant turn will be stored under. Minted before the spawn
+     *  precisely so the ledger can name it. */
+    turnId: string;
     message: string;
     transcript: readonly CompanionWireTurn[];
     locale: string;
@@ -183,7 +192,7 @@ export async function runCompanionTurn(
   signal?: AbortSignal
 ): Promise<CompanionTurnResult> {
   return spawnCompanion(
-    input.threadId,
+    companionRequestId(input.threadId, input.turnId),
     {
       workspace_id: input.workspaceId,
       session_id: input.threadId,
@@ -243,9 +252,11 @@ export async function runCompanionDigest(
   );
 }
 
-/** The one spawn. `threadId` doubles as the ambient LLM request id for both legs,
- *  so a digest's spend is attributable to the conversation it landed in rather
- *  than becoming an anonymous ledger row.
+/** The one spawn. `requestId` is the ledger's name for this call, and it is only
+ *  used when NOTHING has named the call already: the digest leg runs inside the
+ *  task runner's scope, and the task id is the one the Activity detail can
+ *  actually fetch a run for, so shadowing it would trade a resolvable row for an
+ *  unresolvable one. Outermost wins (withLlmRequestIdIfUnset).
  *
  *  The ACTION CATALOG is attached here, in one place: the CLI's prompt addendum
  *  and its fence validator are both built from what arrives in `actions`, which
@@ -258,7 +269,7 @@ async function spawnCompanion(
   extraArgs: string[],
   signal?: AbortSignal
 ): Promise<CompanionTurnResult> {
-  return withLlmRequestId(requestId, async () => {
+  return withLlmRequestIdIfUnset(requestId, async () => {
     const workdir = await createWorkdir();
     try {
       // The CLI reads ONE file from the workdir — the whole turn, including the

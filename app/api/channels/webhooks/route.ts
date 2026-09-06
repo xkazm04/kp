@@ -39,7 +39,10 @@ import { isLocale } from "@/i18n/locales";
 const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 export async function GET() {
-  return NextResponse.json({ webhooks: listChannelWebhooks(await currentWorkspace()) });
+  // Bounded (db/channels) — the panes filter this list BY CHANNEL, so a silent cut
+  // would empty one pane and read as "nothing is wired". `truncated` says otherwise.
+  const { webhooks, truncated } = listChannelWebhooks(await currentWorkspace());
+  return NextResponse.json({ webhooks, truncated });
 }
 
 export async function POST(request: NextRequest) {

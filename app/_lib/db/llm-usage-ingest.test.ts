@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { cleanupUnitDb, UNIT_DB_DIR } from "../testing/unit-db.ts";
-import { aggregateLlmUsage, ingestLlmUsageLog, listLlmActivity } from "./llm.ts";
+import { aggregateLlmUsage, ingestLlmUsageLog, ingestLlmUsageResult, listLlmActivity } from "./llm.ts";
 
 after(() => {
   cleanupUnitDb();
@@ -110,4 +110,44 @@ test("a sidecar line's request_id survives the fold and reaches the activity row
     1,
     "the unlinked row stays null — it must not inherit a sibling's run"
   );
+});
+
+// IDEMPOTENCY. The fold used to be idempotent only by accident: the sidecar is
+// deleted afterwards, so nothing could be read twice — except that the delete is
+// a best-effort `rmSync` inside a catch, and a Windows lock / read-only temp dir
+// / crash between the INSERT and the unlink leaves the file exactly where the
+// next ingest of the same path will find it. With no key to refuse on, every one
+// of those rows landed a SECOND time and the spend the pricing meters read was
+// silently double what the deployment actually spent. The per-line `ingest_key`
+// (a unique index in core.ts) makes the second fold a no-op instead.
+test("a second ingest of the same sidecar adds nothing and reports the duplicates it skipped", () => {
+  const sidecar = path.join(UNIT_DB_DIR, "llm-usage-replay.ndjson");
+  const line = (n: number) =>
+    JSON.stringify({
+      use_case: "replay_probe",
+      provider: "claude_cli",
+      model: null,
+      input_tokens: n,
+      output_tokens: n,
+      cached_tokens: null,
+      cost_usd: 0.01,
+      source: "llm",
+      request_id: "t_replay_run",
+    });
+  // Two lines sharing ONE request_id — the real shape of a spawn that made two
+  // metered calls. Whatever refuses a replay must NOT refuse these, so the key
+  // cannot be request_id itself.
+  const body = `${line(1)}\n${line(2)}\n`;
+  writeFileSync(sidecar, body, "utf-8");
+  assert.equal(ingestLlmUsageLog(sidecar), 2, "both calls of the spawn fold in");
+
+  const after = () => listLlmActivity().filter((r) => r.useCase === "replay_probe");
+  assert.equal(after().length, 2, "one row per metered call, not one per request_id");
+
+  // The sidecar the failed cleanup left behind, re-read.
+  writeFileSync(sidecar, body, "utf-8");
+  const result = ingestLlmUsageResult(sidecar);
+  assert.equal(result.inserted, 0, "a replay of the same sidecar inserts nothing");
+  assert.equal(result.skipped, 2, "and SAYS how many duplicate lines it refused");
+  assert.equal(after().length, 2, "the ledger is unchanged — spend is not doubled");
 });

@@ -16,12 +16,24 @@
 //   node scripts/review/constitution-check.mjs --base origin/main --head HEAD
 //   npm run review:constitution                       # HEAD~1..HEAD
 //
-// EXIT CODES: 0 clean or warnings only · 1 at least one blocking finding.
+// EXIT CODES: 0 clean or warnings only · 1 at least one blocking finding ·
+//             2 the check could not run (no comparable base) — deliberately not
+//             0, because the pre-push hook reads a 0 as "this change was read".
 //
-// THE ESCAPE HATCH IS A SENTENCE, NOT A FLAG. A blocking finding is downgraded
-// when any commit in the range carries:
+// THE ESCAPE HATCH IS A SENTENCE, NOT A FLAG — AND IT NAMES WHAT IT WAIVES.
+// A blocking finding is downgraded when a commit in the range carries:
 //
-//   Gate-exemption: <why this one is legitimate>
+//   Gate-exemption: <rule> at <file>[:<line>] — <why this one is legitimate>
+//   Gate-exemption: tenancy-manifest at app/_lib/db/core.ts — the table is the
+//                   Worker's own outbox mirror, exempt in the manifest already
+//
+// CHANGED 2026-09-05, and this is a contract change for every future commit.
+// The trailer used to be free prose and downgraded EVERY non-secret blocking
+// finding in the range — including findings it never mentioned, from a commit
+// appended after the fact, written by anyone. One legitimate skip bought silence
+// for a leaked route posture three commits away. A waiver that names nothing
+// waives nothing: an unmatched or shapeless trailer is now reported as a note,
+// never silently ignored and never silently effective.
 //
 // A reviewer reading `git log` sees the claim and can disagree with it. There is
 // deliberately no per-line suppression comment: those get copy-pasted.
@@ -37,8 +49,70 @@ import {
   revExists,
 } from './diff.mjs';
 import { SECRET_PATTERNS, isExempt as isSecretExempt } from '../security/secret-scan.mjs';
+import { codeOnlyLine, withoutCommentsLine } from './source-mask.mjs';
 
+/** One trailer, for callers that only need to know whether the range has one. */
 export const EXEMPTION_RE = /^\s*Gate-exemption:\s*(.+)$/im;
+/** Every trailer in the range — a range is many commits, and each may waive one thing. */
+const EXEMPTION_LINES_RE = /^[ \t]*Gate-exemption:[ \t]*(.+)$/gim;
+
+/**
+ * `<rule> at <file>[:<line>] — <why>`. The separator before the reason may be a
+ * hyphen, an en/em dash or a colon, because a commit body is typed by a human
+ * (or by a model imitating one) and rejecting a change over the dash character
+ * would teach exactly the wrong lesson about what this gate is for.
+ */
+const TARGETED_RE = /^([A-Za-z][\w-]*)\s+at\s+(\S+?)(?::(\d+))?\s*(?:[-–—]|:)\s+(\S[\s\S]*)$/;
+
+const normalizePath = (p) => String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '');
+
+/** Parse one trailer's text. `targeted` false means it named no finding. */
+export function parseExemption(text) {
+  const raw = String(text ?? '').trim();
+  const m = TARGETED_RE.exec(raw);
+  if (!m) return { raw, targeted: false, rule: null, file: null, line: null, why: raw };
+  return {
+    raw,
+    targeted: true,
+    rule: m[1],
+    file: normalizePath(m[2]),
+    line: m[3] ? Number(m[3]) : null,
+    why: m[4].trim(),
+  };
+}
+
+/** Every `Gate-exemption:` trailer in the range's commit messages, parsed. */
+export function parseExemptions(messages) {
+  return [...String(messages ?? '').matchAll(EXEMPTION_LINES_RE)].map((m) => parseExemption(m[1]));
+}
+
+/**
+ * Accepts what every caller has: null, one trailer's text, one parsed exemption,
+ * or an array of them. A bare string parses as a trailer — which is how the old
+ * free-prose form keeps arriving here and gets reported rather than obeyed.
+ */
+export function asExemptions(input) {
+  if (!input) return [];
+  const list = Array.isArray(input) ? input : [input];
+  return list.filter(Boolean).map((e) => (typeof e === 'string' ? parseExemption(e) : e));
+}
+
+/** Does this trailer name this finding? Rule must match; file exact or by suffix; line optional. */
+export function exemptionMatches(exemption, finding) {
+  if (!exemption?.targeted) return false;
+  if (exemption.rule !== finding.rule) return false;
+  const target = normalizePath(finding.file);
+  const named = exemption.file;
+  const sameFile = target === named || target.endsWith(`/${named}`) || named.endsWith(`/${target}`);
+  if (!sameFile) return false;
+  return exemption.line == null || exemption.line === finding.line;
+}
+
+/** The trailer that waives this finding, or null. `secret` is never waived. */
+export function waivedBy(finding, exemptions) {
+  if (UNWAIVABLE_RULES.has(finding.rule)) return null;
+  return asExemptions(exemptions).find((e) => exemptionMatches(e, finding)) ?? null;
+}
 
 /**
  * The findings a commit trailer may NOT wave through.
@@ -60,11 +134,14 @@ export const UNWAIVABLE_RULES = new Set(['secret']);
  * The single answer both `render()` and the exit code read, so the message a
  * human sees and the code CI reads can never disagree.
  */
-export function blockedBy(findings, exemption) {
-  const blocking = findings.filter((f) => f.severity === 'blocking');
-  if (blocking.length === 0) return false;
-  if (!exemption) return true;
-  return blocking.some((f) => UNWAIVABLE_RULES.has(f.rule));
+export function blockedBy(findings, exemptions) {
+  const list = asExemptions(exemptions);
+  return findings.some((f) => f.severity === 'blocking' && !waivedBy(f, list));
+}
+
+/** Trailers that named no finding in this range — each one is reported, never dropped. */
+export function unmatchedExemptions(findings, exemptions) {
+  return asExemptions(exemptions).filter((e) => !findings.some((f) => exemptionMatches(e, f)));
 }
 
 // Paths whose edits change how changes are JUDGED. Not wrong — but a reviewer
@@ -113,9 +190,80 @@ const SKIP_MARKERS = [
   { re: /\b(?:xit|xdescribe|xtest)\s*\(/, what: 'a skipped JS test' },
   { re: /\btest\.describe\.skip\s*\(/, what: 'a skipped Playwright block' },
   { re: /@unittest\.skip\b/, what: 'a skipped Python test' },
+  { re: /@unittest\.skip(?:If|Unless)\s*\(/, what: 'a conditionally skipped Python test' },
+  { re: /@pytest\.mark\.skipif\s*\(/, what: 'a conditionally skipped Python test' },
+  { re: /@pytest\.mark\.skip\b(?!if)/, what: 'a skipped Python test' },
   { re: /\bself\.skipTest\s*\(/, what: 'a Python test that skips itself' },
 ];
 const ONLY_RE = /\b(?:it|test|describe)\.only\s*\(/;
+
+/**
+ * A CONDITIONAL skip that states its reason is a different animal from a bare one.
+ *
+ * `test.skip("later", …)` removes coverage. `test.skip(cond, "the llm_usage ledger
+ * is empty on this database")` is a test declaring the precondition it needs — it
+ * runs whenever the precondition holds, and the sentence in the second argument is
+ * exactly what a `Gate-exemption:` trailer would have said, except it lives beside
+ * the code instead of in one commit message. Blocking those taught the only lesson
+ * a false positive can teach: waive the range and move on.
+ *
+ * The shape, uniformly across both languages: the FIRST argument is not a string
+ * literal (so it is a condition), and a string argument follows it (the reason).
+ * `@unittest.skip("flaky")` and `describe.skip("later", …)` open with a string and
+ * are therefore still bare skips, which is the whole point.
+ *
+ * @param blob  the call text, starting at the marker match, with later added lines
+ *              appended — a Playwright `test.skip(` is routinely three lines.
+ * @returns the reason string, or null when this is a bare skip.
+ */
+export function skipReason(blob) {
+  const open = blob.indexOf('(');
+  if (open === -1) return null;
+  let depth = 0;
+  let end = -1;
+  for (let i = open; i < blob.length; i += 1) {
+    if (blob[i] === '(') depth += 1;
+    else if (blob[i] === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  const args = blob.slice(open + 1, end === -1 ? blob.length : end);
+
+  // Split on top-level commas only: a condition may itself be a call.
+  const parts = [];
+  let depth2 = 0;
+  let start = 0;
+  for (let i = 0; i < args.length; i += 1) {
+    const c = args[i];
+    if (c === '(' || c === '[' || c === '{') depth2 += 1;
+    else if (c === ')' || c === ']' || c === '}') depth2 -= 1;
+    else if (c === ',' && depth2 === 0) {
+      parts.push(args.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(args.slice(start));
+
+  const trimmed = parts.map((p) => p.trim()).filter((p) => p.length);
+  if (trimmed.length < 2) return null;
+  if (/^["'`]/.test(trimmed[0])) return null; // opens with a title/description: a bare skip
+  for (const part of trimmed.slice(1)) {
+    const m = /^(?:reason\s*=\s*)?(["'`])([\s\S]*?)\1/.exec(part);
+    if (m && m[2].trim()) return m[2].trim();
+  }
+  return null;
+}
+
+/** The marker's line plus the few added lines after it — enough to close the call. */
+function skipCallBlob(added, index, matchIndex) {
+  const parts = [added[index].text.slice(matchIndex)];
+  for (let k = index + 1; k < Math.min(index + 8, added.length); k += 1) parts.push(added[k].text);
+  return parts.join('\n');
+}
 
 // Credential shapes with enough structure that a match is worth stopping for.
 // Loose prefixes (a bare `sk-`) are deliberately absent: a rule that cries wolf
@@ -190,9 +338,22 @@ export function runRules(files, context = {}) {
 
     if (SELF_RE.test(p)) continue; // see SELF_RE
 
-    for (const { line, text } of file.added) {
+    for (let ai = 0; ai < file.added.length; ai += 1) {
+      const { line, text } = file.added[ai];
+      // The three CONTENT rules below read a MASKED line, not the raw one: a
+      // comment that mentions `CREATE TABLE` or `it.skip(` is a description, and
+      // a rule that cannot tell a description from the thing described gets
+      // waived rather than fixed (that is how commit 83852794 happened). Which
+      // mask matters: `codeOnly` for the rules that look for a CALL, and
+      // `withoutComments` for the tenancy rule, whose subject nearly always
+      // lives INSIDE a string. The `suppression` rule below deliberately keeps
+      // the raw text — an `eslint-disable` IS a comment, so masking comments
+      // there would delete the rule instead of sharpening it.
+      const code = codeOnlyLine(text, p);
+      const uncommented = withoutCommentsLine(text, p);
+
       // --- 2. `.only` — silently disables every other test in the file -----
-      if (ONLY_RE.test(text) && TEST_FILE_RE.test(p)) {
+      if (ONLY_RE.test(code) && TEST_FILE_RE.test(p)) {
         out.push(
           finding(
             'blocking',
@@ -207,7 +368,23 @@ export function runRules(files, context = {}) {
 
       // --- 3. Skipped tests --------------------------------------------------
       for (const marker of PROSE_RE.test(p) ? [] : SKIP_MARKERS) {
-        if (marker.re.test(text)) {
+        const m = marker.re.exec(code);
+        if (!m) continue;
+        const reason = skipReason(skipCallBlob(file.added, ai, m.index));
+        if (reason) {
+          out.push(
+            finding(
+              'warn',
+              'test-skip',
+              p,
+              line,
+              `A conditional skip that states its reason: "${reason}".`,
+              'Noted, not blocked: the test still runs whenever the condition is false, and the reason ' +
+                'is beside the code rather than in one commit message. Check the condition can actually ' +
+                'become false in CI — a condition that is always true is a bare skip with extra words.',
+            ),
+          );
+        } else {
           out.push(
             finding(
               'blocking',
@@ -216,11 +393,13 @@ export function runRules(files, context = {}) {
               line,
               `This change adds ${marker.what}.`,
               'Fix the test or fix the code. If the skip is genuinely correct (an unavailable ' +
-                'fixture, a live-only smoke), state why in the commit body with `Gate-exemption:`.',
+                'fixture, a live-only smoke), make it a CONDITIONAL skip with a reason — ' +
+                '`test.skip(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")` — or state why in ' +
+                'the commit body with `Gate-exemption:`.',
             ),
           );
-          break;
         }
+        break;
       }
 
       // --- 4. Suppression directives ----------------------------------------
@@ -265,7 +444,7 @@ export function runRules(files, context = {}) {
 
       // --- 6. A new persistent table that never reached the manifest --------
       if (
-        /CREATE\s+TABLE/i.test(text) &&
+        /CREATE\s+TABLE/i.test(uncommented) &&
         APP_SOURCE_RE.test(p) &&
         !TEST_FILE_RE.test(p) &&
         !changed.has('app/_lib/tenancy.ts')
@@ -401,10 +580,24 @@ export function parseArgs(argv) {
   return out;
 }
 
-export function render(findings, exemption) {
+export function render(findings, exemptionInput) {
+  const exemptions = asExemptions(exemptionInput);
   const blocking = findings.filter((f) => f.severity === 'blocking');
   const warns = findings.filter((f) => f.severity === 'warn');
   const lines = [];
+
+  if (!findings.length && exemptions.length) {
+    // A trailer with nothing to waive is still worth a word: it is either a
+    // waiver for a finding that no longer fires, or a habit from the old
+    // free-prose form. Either way it must not pass unread.
+    const text = [
+      'constitution: ✓ no finding — but this range carries a Gate-exemption trailer that waives nothing:',
+      ...exemptions.map((e) => `    "${e.raw}"`),
+      '    A waiver that names nothing waives nothing. Drop the trailer, or write it as',
+      '    `Gate-exemption: <rule> at <file>[:<line>] — <why>`.',
+    ].join('\n');
+    return { text, blocked: false };
+  }
 
   if (!findings.length) {
     lines.push('constitution: ✓ no finding. (This lens checks gate integrity, not correctness —');
@@ -412,27 +605,43 @@ export function render(findings, exemption) {
     return { text: lines.join('\n'), blocked: false };
   }
 
-  const blocked = blockedBy(findings, exemption);
-  const unwaivable = blocking.filter((f) => UNWAIVABLE_RULES.has(f.rule));
+  const blocked = blockedBy(findings, exemptions);
+  const waived = blocking.map((f) => waivedBy(f, exemptions)).filter(Boolean);
+  const unwaivableNamed = blocking.filter(
+    (f) => UNWAIVABLE_RULES.has(f.rule) && exemptions.some((e) => exemptionMatches(e, f)),
+  );
   const order = [...blocking, ...warns];
-  lines.push(`constitution: ${blocking.length} blocking · ${warns.length} to note\n`);
+  lines.push(
+    `constitution: ${blocking.length - waived.length} blocking · ${warns.length} to note` +
+      `${waived.length ? ` · ${waived.length} waived by trailer` : ''}\n`,
+  );
   for (const f of order) {
-    const glyph = f.severity === 'blocking' ? '✗' : '–';
+    const waiver = f.severity === 'blocking' ? waivedBy(f, exemptions) : null;
+    const glyph = waiver ? '~' : f.severity === 'blocking' ? '✗' : '–';
     lines.push(`  ${glyph} [${f.rule}] ${f.file}:${f.line}`);
     lines.push(`      ${f.message}`);
-    lines.push(`      → ${f.fix}`);
+    if (waiver) lines.push(`      waived on the record: ${waiver.why}`);
+    else lines.push(`      → ${f.fix}`);
     lines.push('');
   }
-  if (unwaivable.length && exemption) {
-    lines.push(`  A commit trailer is on the record — "${exemption.trim()}" — and it does NOT waive`);
-    lines.push(`  ${unwaivable.map((f) => `[${f.rule}]`).join(' ')}. A committed credential is not a`);
+  for (const e of unmatchedExemptions(findings, exemptions)) {
+    lines.push(`  – [waiver-unmatched] "${e.raw}"`);
+    lines.push(
+      e.targeted
+        ? `      Nothing in this range fired [${e.rule}] in ${e.file}${e.line ? `:${e.line}` : ''}.`
+        : '      A waiver that names nothing waives nothing. This shape used to downgrade EVERY',
+    );
+    if (!e.targeted) lines.push('      blocking finding in the range, including ones it never mentioned.');
+    lines.push('      → Gate-exemption: <rule> at <file>[:<line>] — <why>');
+    lines.push('');
+  }
+  if (unwaivableNamed.length) {
+    lines.push('  A commit trailer names them, and it does NOT waive');
+    lines.push(`  ${unwaivableNamed.map((f) => `[${f.rule}]`).join(' ')}. A committed credential is not a`);
     lines.push('  judgement call: remove the literal and rotate the key.');
-  } else if (blocking.length && exemption) {
-    lines.push(`  Blocking findings waived by commit trailer — "${exemption.trim()}"`);
-    lines.push('  The waiver is on the record; a reviewer can disagree with it.');
   } else if (blocked) {
-    lines.push('  Fix the blocking findings, or state the exemption in a commit body:');
-    lines.push('      Gate-exemption: <why this one is legitimate>');
+    lines.push('  Fix the blocking findings, or waive ONE of them by name in a commit body:');
+    lines.push('      Gate-exemption: <rule> at <file>[:<line>] — <why this one is legitimate>');
   }
   return { text: lines.join('\n'), blocked };
 }
@@ -440,9 +649,29 @@ export function render(findings, exemption) {
 function main(argv) {
   const args = parseArgs(argv);
   const range = resolveRange(args, revExists);
+
+  // A CHECK THAT DID NOT RUN IS NOT A GREEN CHECK. This printed "check skipped"
+  // and returned 0, and `.githooks/pre-push` reads that exit code as "clean" —
+  // so a clone whose `origin/main` was never fetched pushed to main with the
+  // deterministic lens silently doing nothing. Two behaviours, both loud:
+  //
+  //   base requested but absent, parent commit available -> run the NARROW range
+  //     (HEAD~1..HEAD, resolveRange's fallback) and SAY the range narrowed.
+  //     Shallow CI checkouts land here and a narrow review beats none.
+  //   no comparable base at all (a root commit) -> exit 2. Nothing was read;
+  //     the caller must not be told it was.
+  if (args.base && !revExists(args.base)) {
+    process.stdout.write(
+      `constitution: ${args.base} is not in this clone — reviewing ${range.base}..${range.head} instead.\n` +
+        '              This is a NARROWER range than the one you asked for; `git fetch origin main` widens it.\n',
+    );
+  }
   if (!revExists(range.base)) {
-    process.stdout.write(`constitution: no comparable base (${range.base}) — check skipped.\n`);
-    return 0;
+    process.stdout.write(
+      `constitution: no comparable base (${range.base}) — NOTHING was reviewed.\n` +
+        '              This exits non-zero on purpose: a check that did not run must not read as a pass.\n',
+    );
+    return 2;
   }
 
   const files = parseDiff(diffForRange(range));
@@ -455,15 +684,28 @@ function main(argv) {
   const publicRoutesSource = fs.existsSync(routesPath) ? fs.readFileSync(routesPath, 'utf8') : '';
 
   const findings = runRules(files, { publicRoutesSource, changedPaths: [...files.keys()] });
-  const exemptionMatch = messagesForRange(range).match(EXEMPTION_RE);
-  const exemption = exemptionMatch ? exemptionMatch[1] : null;
+  // EVERY trailer in the range, not the first one: a range is many commits, and
+  // each waiver names one finding now.
+  const exemptions = parseExemptions(messagesForRange(range));
 
-  const blocked = blockedBy(findings, exemption);
+  const blocked = blockedBy(findings, exemptions);
 
   if (args.json) {
-    process.stdout.write(`${JSON.stringify({ range, exemption, findings, blocked }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          range,
+          exemptions,
+          unmatchedExemptions: unmatchedExemptions(findings, exemptions),
+          findings: findings.map((f) => ({ ...f, waivedBy: waivedBy(f, exemptions)?.raw ?? null })),
+          blocked,
+        },
+        null,
+        2,
+      )}\n`,
+    );
   } else {
-    const { text } = render(findings, exemption);
+    const { text } = render(findings, exemptions);
     process.stdout.write(`${text}\n`);
   }
 

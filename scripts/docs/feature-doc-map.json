@@ -310,7 +310,7 @@
       "doc": "docs/architecture/voice-stt-package.md",
       "sourceGlobs": [
         "packages/voice-stt/**",
-        "app/_lib/stt.ts",
+        "app/_lib/stt*.ts",
         "app/api/stt/**"
       ]
     },
@@ -321,6 +321,7 @@
         "app/_lib/llm-config.ts",
         "app/_lib/provider-key-precedence.ts",
         "app/_lib/db/llm.ts",
+        "app/_lib/llm-usage-ledger.ts",
         "app/api/llm/**",
         "app/features/settings/models/**",
         "app/features/insights/activity/**",

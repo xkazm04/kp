@@ -1,8 +1,52 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { beginSimRun, endSimRun, resetSim } from "@/app/_lib/sim-store";
+import { beginSimRun, endSimRun, renewSimRun, resetSim, simResidue, simRunActive, simRunOwnedBy } from "@/app/_lib/sim-store";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { SIM_RUN_TOKEN_HEADER } from "@/app/features/shell/simulation/simRunLease";
 
+/** The lease token a claimant presents to release or renew its own run. A header, not the URL:
+ *  it keeps the token out of access logs and lets DELETE stay bodyless. */
+function leaseToken(request: NextRequest): string | null {
+  return request.headers.get(SIM_RUN_TOKEN_HEADER);
+}
+
+// The STATUS door (/perfect wave 44). The console's state was a browser fact only:
+// the lease lived on the server, the provider booted to IDLE_STATE, and a reloaded
+// tab therefore showed an idle deck whose Start was refused for up to five minutes
+// with copy that told the presenter to "stop it first" when there was nothing left
+// in that tab to stop. Reading the tenant's real state on boot is what makes the
+// console honest about a run it did not itself begin.
+//
+// Read-only by construction: no claim, no purge, no lease mutation of any kind. It
+// answers what the server knows about THIS tenant:
+//
+//   runActive            a live lease holds the workspace (someone is walking)
+//   retryAfterSeconds    how long that lease has left, 0 when nothing holds it
+//   ownedByMe            the caller presented the holder's token — only a tab that
+//                        still has its own lease can be true here, which is exactly
+//                        the distinction the copy needs ("your run" vs "another tab")
+//   residue              what a previous walk left behind, so an idle console can
+//                        offer the Reset that clears it instead of hiding until
+//                        someone starts a run they did not want
+export async function GET(request: NextRequest) {
+  try {
+    const ws = await currentWorkspace();
+    const run = simRunActive(ws);
+    const token = leaseToken(request);
+    return NextResponse.json({
+      ok: true,
+      runActive: run.active,
+      retryAfterSeconds: Math.ceil(run.retryAfterMs / 1000),
+      ownedByMe: token !== null && simRunOwnedBy(ws, token),
+      residue: simResidue(ws),
+    });
+  } catch (error) {
+    // The residue read touches three tables; a store failure here carries the db
+    // path, and the sim console is the reader. Same code as the purge: the console
+    // resolves it in the reader's language either way.
+    return safeJsonError(error, "api:sim/reset", "SIM_RESET_FAILED");
+  }
+}
 
 // Clear all artifacts from prior simulation runs so the demo re-runs cleanly, and
 // hold the workspace's RUN LOCK while a walk is live.
@@ -18,32 +62,61 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // start wiped the first run's job mid-walk and the victim died on an unrelated
 // sentence. Two shapes, one door:
 //
-//   POST { hold: true }   a run is starting: claim the lock, purge, KEEP it.
-//                         Refused with SIM_RUN_ACTIVE (409) when another run holds
-//                         it, so the second visitor is told rather than served a
-//                         wipe of someone else's tour.
+//   POST { hold: true }   a run is starting: claim the lock, purge, KEEP it, and
+//                         answer the lease TOKEN. Refused with SIM_RUN_ACTIVE (409)
+//                         when another run holds it, so the second visitor is told
+//                         rather than served a wipe of someone else's tour.
+//   POST { renew: true }  the holder is still walking (step mode, a presenter
+//                         talking): re-assert the token, push the expiry out a full
+//                         TTL. No claim, no purge, no counts.
 //   POST                  a manual reset: claim, purge, release immediately. Still
 //                         refused while a run is live — that is the whole point.
-//   DELETE                the run ended (done / stopped / failed): release.
+//   DELETE                the run ended (done / stopped / failed): release, but only
+//                         for the claimant that presents the token.
 //
-// The lock is in-process and TTL-bounded (SIM_RUN_TTL_MS): a courtesy against the
-// racing-tabs case that actually happens on one self-hosted server, never an
-// authorization boundary. The DELETEs stay workspace-scoped regardless.
+// /perfect wave 44 — the lease has an OWNER. Until then the release was
+// unconditional on both sides: a second tab refused with SIM_RUN_ACTIVE still ran
+// its own `finally` DELETE, this route freed the first tab's lease, and the next
+// press purged a live run. SIM_RUN_NOT_OWNER (409) is the answer now.
+//
+// 409 rather than 403 on purpose: this lock is a courtesy against racing tabs on one
+// self-hosted server, NEVER an authorization boundary (nothing downstream trusts it,
+// and the DELETEs stay workspace-scoped either way). The caller is not forbidden, it
+// is out of date about the tenant's state — the same conflict SIM_RUN_ACTIVE reports,
+// from the other side, and it carries the same `retryAfterSeconds`.
+//
+// The lock is in-process and TTL-bounded (SIM_RUN_TTL_MS).
 export async function POST(request: NextRequest) {
   try {
     const ws = await currentWorkspace();
-    const body = (await request.json().catch(() => null)) as { hold?: boolean } | null;
+    const body = (await request.json().catch(() => null)) as { hold?: boolean; renew?: boolean } | null;
+
+    // Renew first: it neither claims nor purges, so it must not fall through to the
+    // claim (which would refuse the holder's own walk with SIM_RUN_ACTIVE). Step mode
+    // is the walk's default, so a five-minute lease was shorter than a presented run.
+    if (body?.renew) {
+      const token = leaseToken(request);
+      const renewed = token ? renewSimRun(ws, token) : ({ ok: false, retryAfterMs: 0 } as const);
+      if (!renewed.ok) {
+        return jsonRefusal("SIM_RUN_NOT_OWNER", 409, { retryAfterSeconds: Math.ceil(renewed.retryAfterMs / 1000) });
+      }
+      return NextResponse.json({ ok: true, renewed: true, expiresInSeconds: Math.round(renewed.expiresInMs / 1000) });
+    }
+
     const claim = beginSimRun(ws);
     if (!claim.ok) {
       return jsonRefusal("SIM_RUN_ACTIVE", 409, { retryAfterSeconds: Math.ceil(claim.retryAfterMs / 1000) });
     }
     try {
       const cleared = resetSim(ws);
-      return NextResponse.json({ ok: true, cleared });
+      // The token rides back ONLY on a held claim: a manual reset has already
+      // released by the time this returns, so handing it one would be a lease that
+      // does not exist.
+      return NextResponse.json({ ok: true, cleared, ...(body?.hold ? { token: claim.token } : {}) });
     } finally {
       // A manual reset holds the lock only for the length of its own purge; a run
       // start keeps it until the walk's DELETE (or the lease expires).
-      if (!body?.hold) endSimRun(ws);
+      if (!body?.hold) endSimRun(ws, claim.token);
     }
   } catch (error) {
     // The purge runs a DELETE transaction across thirteen tables: a thrown
@@ -57,11 +130,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// The run ended. Idempotent, and deliberately unconditional: a walk that failed, was
-// stopped or finished all release the same way, and releasing a lease that already
-// expired is a no-op.
-export async function DELETE() {
+// The run ended. Idempotent for the OWNER: a walk that failed, was stopped or
+// finished all release the same way, and releasing a lease that already expired (or
+// was never taken) is a no-op success.
+//
+// What it is no longer is unconditional. A caller with no token, or another run's
+// token, cannot free a LIVE lease — that request comes from a tab whose own start
+// was refused, and honouring it is the wave-22 regression restored.
+export async function DELETE(request: NextRequest) {
   const ws = await currentWorkspace();
-  endSimRun(ws);
+  const released = endSimRun(ws, leaseToken(request));
+  if (!released.released) {
+    return jsonRefusal("SIM_RUN_NOT_OWNER", 409, { retryAfterSeconds: Math.ceil(released.retryAfterMs / 1000) });
+  }
   return NextResponse.json({ ok: true, released: true });
 }

@@ -43,6 +43,13 @@ function capture(fn) {
   return out;
 }
 
+test("KP_PYTHON wins over PYTHON_CMD, which wins over the platform list", () => {
+  // AGENTS.md documents KP_PYTHON; PYTHON_CMD is the older name python-runner.ts
+  // shares. Both are honoured, the documented one first.
+  assert.deepEqual(pythonCandidates({ KP_PYTHON: "/kp/py", PYTHON_CMD: "/opt/py/bin/python" }, "linux"), ["/kp/py"]);
+  assert.deepEqual(pythonCandidates({ KP_PYTHON: "  ", PYTHON_CMD: "/opt/py/bin/python" }, "linux"), ["/opt/py/bin/python"]);
+});
+
 test("PYTHON_CMD wins outright; otherwise the platform's candidates are tried in order", () => {
   assert.deepEqual(pythonCandidates({ PYTHON_CMD: "/opt/py/bin/python" }, "linux"), [
     "/opt/py/bin/python",
@@ -75,7 +82,8 @@ test("no interpreter at all: exit 1 with the install hint, and codegen is never 
   assert.equal(codegenSpawns, 0, "nothing to run the module with — do not try");
   assert.match(res.stderr, /could not find a Python interpreter/);
   assert.match(res.stderr, /pip install -r requirements\.txt/, "the hint must name the fix");
-  assert.match(res.stderr, /PYTHON_CMD=/, "the hint must name the override");
+  assert.match(res.stderr, /KP_PYTHON=/, "the hint must name the documented override");
+  assert.match(res.stderr, /PYTHON_CMD/, "and still mention the older name");
 });
 
 test("interpreter present, package missing: the traceback is kept AND the install hint added", () => {

@@ -26,6 +26,8 @@ const read = (rel: string) => readFileSync(path.join(here, rel), "utf8");
 // Every route below is reachable by an unauthenticated candidate holding an apply link.
 const CANDIDATE_ROUTES = [
   "session/route.ts",
+  "session/[id]/route.ts",
+  "session/[id]/chat/route.ts",
   "session/[id]/submit/route.ts",
   "inbound/route.ts",
 ] as const;
@@ -137,4 +139,28 @@ test("neither candidate surface prints the raw submission id", () => {
     assert.doesNotMatch(src, /payload\??\.submissionId/, `${file}: show the opaque reference, not the store id`);
     assert.match(src, /\breference\b/, `${file}: the candidate's handle is the opaque reference`);
   }
+});
+
+// /perfect wave 42a (devcase-identity-and-lifecycle). The last two of the five doors
+// an applicant can reach still answered bare English and still forwarded the store's
+// own message: the chat channel and the flush. Both are read by someone with no
+// account, on a page rendered in four languages, and jsonError puts SQLITE_* codes,
+// the absolute db path and provider stderr on that wire.
+test("the chat door refuses with codes and hides the store's message", () => {
+  const src = read("session/[id]/chat/route.ts");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_ALREADY_SUBMITTED", 409\)/, "a sealed session needs a code");
+  assert.match(src, /jsonRefusal\("DEVCASE_CHAT_MESSAGE_REQUIRED", 400\)/, "an empty message needs a code");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_UNAVAILABLE", 404\)/, "a link that resolves to no case reuses the mint code");
+  assert.match(src, /safeJsonError\(error, "api:devcase\/session\/chat", "DEVCASE_CHAT_FAILED"\)/, "the catch logs and codes");
+  assert.doesNotMatch(src, /jsonError\(/, "jsonError forwards .message - never on a public candidate door");
+});
+
+test("the flush door refuses with codes and hides the store's message", () => {
+  const src = read("session/[id]/route.ts");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_ALREADY_SUBMITTED", 409\)/, "a sealed session needs a code");
+  assert.match(src, /safeJsonError\(error, "api:devcase\/session\/flush", "DEVCASE_SESSION_FLUSH_FAILED"\)/, "the flush catch logs and codes");
+  assert.match(src, /safeJsonError\(error, "api:devcase\/session\/read", "DEVCASE_SESSION_READ_FAILED"\)/, "the operator read catch logs and codes");
+  assert.doesNotMatch(src, /jsonError\(/, "jsonError forwards .message - never on a route under the public prefix");
 });

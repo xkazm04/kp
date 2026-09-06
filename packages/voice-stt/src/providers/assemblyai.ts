@@ -167,13 +167,26 @@ export class AssemblyAiStt implements SttProvider {
     );
   }
 
-  async transcribe(req: SttRequest, signal?: AbortSignal): Promise<SttTranscript> {
+  async transcribe(req: SttRequest, signal?: AbortSignal, hostBudgetMs?: number): Promise<SttTranscript> {
     const key = this.apiKey();
     if (!key) throw new SttError("unavailable", "ASSEMBLYAI_API_KEY is not set", this.id);
     const started = Date.now();
-    const deadline = started + JOB_TIMEOUT_MS;
+    // The whole-job budget, narrowed by the HOST's when it gave one. Always the
+    // minimum: a host that allows longer does not widen this adapter's own
+    // ceiling, and a host that allows LESS is telling us the process will not be
+    // alive to receive the answer. Timing out here leaves a job the vendor is
+    // still billing for, which is why the honest budget matters: the shorter it
+    // is, the sooner a caller is told to stop waiting rather than being killed
+    // mid-poll and never told anything at all.
+    const budget = Math.min(JOB_TIMEOUT_MS, typeof hostBudgetMs === "number" && Number.isFinite(hostBudgetMs) && hostBudgetMs > 0 ? hostBudgetMs : Infinity);
+    const deadline = started + budget;
+    // No single HTTP leg may outlive the whole-job budget either: a 30 s upload
+    // window inside a 10 s budget is a leg that is still open when the budget
+    // is already gone.
     const withSignal = (timeoutMs: number) =>
-      signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
+      signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(Math.min(timeoutMs, budget))])
+        : AbortSignal.timeout(Math.min(timeoutMs, budget));
 
     // 1. Upload. The bytes go up as-is: the vendor decodes every container the
     //    validation door admits, so there is nothing to transcode here.
@@ -228,7 +241,7 @@ export class AssemblyAiStt implements SttProvider {
     //    a second charge for the same audio, and that is the host's call to make.
     let waitMs = POLL_MIN_MS;
     while (row.status !== "completed" && row.status !== "error") {
-      if (Date.now() > deadline) throw new SttError("timeout", `transcript ${row.id} unfinished after ${JOB_TIMEOUT_MS}ms`, this.id);
+      if (Date.now() > deadline) throw new SttError("timeout", `transcript ${row.id} unfinished after ${budget}ms`, this.id);
       await sleep(waitMs, signal);
       waitMs = Math.min(POLL_MAX_MS, Math.round(waitMs * 1.5));
       const poll = await this.call(`/v2/transcript/${encodeURIComponent(row.id)}`, key, { signal: withSignal(REQUEST_TIMEOUT_MS) });

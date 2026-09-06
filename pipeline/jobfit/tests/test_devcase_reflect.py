@@ -6,6 +6,7 @@ from pipeline.jobfit.devcase.reflect import (
     COMMIT_REFLECTION_PROMPT_VERSION,
     TOOLING_SIGNAL_PROMPT_VERSION,
     _clamp01,
+    _tri_bool,
     assess_tooling,
     reflect_commits,
 )
@@ -126,6 +127,115 @@ class TestReflectStructuralSignals(unittest.TestCase):
         self.assertEqual(bursty["iterationPattern"], "exploratory")
         self.assertEqual(steady["iterationPattern"], "linear")  # control: same commits, not bursty
         self.assertEqual(bursty["deadEnds"], [])  # exploratory came from burstiness, not reverts
+
+
+class _StubProvider:
+    """Minimal provider fake — records the prompt it was handed, returns a canned payload."""
+
+    def __init__(self, payload):
+        self._payload = payload
+        self.prompt = ""
+
+    def complete_json(self, prompt, system=None, expected_keys=None):  # noqa: ARG002 - mirrors ClaudeCliProvider
+        self.prompt = prompt
+        return self._payload
+
+
+_PROBES = [
+    {
+        "id": "p1",
+        "kind": "ambiguity",
+        "where": "the retention requirement",
+        "reveals": "do they state the reading they picked?",
+        "decisionSpace": ["Clarify the retention window first", "Pick a window, state it and proceed"],
+    },
+    {"id": "p2", "kind": "legacy_trap", "where": "legacy.py", "reveals": "read first?", "decisionSpace": []},
+    {"id": "p3", "kind": "verification_trap", "where": "tests", "reveals": "do they verify?"},
+]
+
+
+class TestHandledWellIsTriState(unittest.TestCase):
+    """`handledWell` is true | false | UNKNOWN, and this module is where the unknown was lost.
+
+    `bool(o.get("handledWell", False))` turned "the model declined to judge this probe"
+    into "the candidate mishandled it" — inside a grading path. Four consumers already
+    honour the tri-state (evaluate.py's `assessed` filter, process_events' observed
+    outcomes, DevTypes.ProbeOutcome, the cohort heatmap); only the LLM coercion here
+    collapsed it, and nothing covered the null, which is why it survived."""
+
+    def test_tri_bool_maps_only_real_verdicts(self):
+        self.assertIs(_tri_bool(True), True)
+        self.assertIs(_tri_bool(False), False)
+        self.assertIsNone(_tri_bool(None))
+        self.assertIsNone(_tri_bool("unknown"))
+        self.assertIsNone(_tri_bool(""))
+        # A model that spelled the JSON boolean as a string still stated a verdict.
+        self.assertIs(_tri_bool("true"), True)
+        self.assertIs(_tri_bool("false"), False)
+
+    def test_null_and_omitted_outcomes_are_unknown_not_failed(self):
+        payload = {
+            "fluency": 0.7,
+            "probeOutcomes": [
+                {"probeId": "p1", "detected": True, "handledWell": True, "note": "picked a window and said so"},
+                {"probeId": "p2", "detected": True, "handledWell": None, "note": "cannot tell from the commits"},
+            ],
+            "overRelianceFlags": [],
+            "confidence": 0.6,
+        }
+        t, source = assess_tooling({}, [{"message": "wip"}], _PROBES, provider=_StubProvider(payload))
+        self.assertEqual(source, "llm")
+        by_id = {o["probeId"]: o for o in t["probeOutcomes"]}
+        self.assertIs(by_id["p1"]["handledWell"], True)
+        self.assertIsNone(by_id["p2"]["handledWell"])  # explicit null survives...
+        self.assertIsNone(by_id["p3"]["handledWell"])  # ...and so does a probe the model skipped
+
+    def test_declined_probe_is_not_graded_as_a_failure_downstream(self):
+        """The consumer that actually spends the value: evaluate's judgment dimension.
+
+        A declined probe must land in the no-signal branch (judgment rests on
+        verification alone), NOT in `0.5*verif + 0.5*handled` with handled=0 — the same
+        halving evaluate.py:415-421 already fixed for the observed path."""
+        from pipeline.jobfit.devcase.evaluate import evaluate_submission
+
+        reflection = {"readBeforeWrite": 0.6, "verificationHabits": ["ran the tests", "checked the output"]}
+        case = {"coverProbes": _PROBES}
+        role = {"title": "Junior Backend Developer", "seniority": "junior"}
+
+        def judgment(handled_well):
+            tooling = {"fluency": 0.7, "probeOutcomes": [{"probeId": "p1", "detected": True, "handledWell": handled_well}]}
+            ev, _ = evaluate_submission(reflection, tooling, case, role, provider=None)
+            return ev["dimensionScores"]["judgment"], ev
+
+        unknown, ev_unknown = judgment(None)
+        failed, _ = judgment(False)
+        self.assertGreater(unknown, failed)  # an unjudged probe never costs the candidate...
+        # ...and it is not reported as a weakness either.
+        self.assertFalse(any("probe" in c.lower() and "unclear" in c.lower() for c in ev_unknown["concerns"]))
+
+
+class TestProbeDecisionSpaceReachesThePrompt(unittest.TestCase):
+    """`decisionSpace` is what makes "handled well" answerable rather than a vibe: the
+    submission must encode ONE of the probe's defensible options, so the grader can say
+    which. evaluate, mint_followups, chat and lifecycle_eval all read it; this grader —
+    the one that judges probe HANDLING — was grading against a landscape it had never
+    been shown."""
+
+    def test_options_and_the_instruction_are_in_the_prompt(self):
+        stub = _StubProvider({"fluency": 0.5, "probeOutcomes": [], "confidence": 0.4})
+        assess_tooling({}, [{"message": "wip"}], _PROBES, provider=stub)
+        self.assertIn("Clarify the retention window first", stub.prompt)
+        self.assertIn("Pick a window, state it and proceed", stub.prompt)
+        self.assertIn("decisionSpace", stub.prompt)
+        # and the answer schema must invite the unknown rather than force a verdict
+        self.assertIn('"handledWell": bool|null', stub.prompt)
+
+    def test_a_probe_without_a_decision_space_still_carries_the_key(self):
+        # design.py deliberately does NOT backfill decisionSpace (pre-v4 probes have
+        # none) — the grader must degrade to an empty list, never a KeyError.
+        stub = _StubProvider({"fluency": 0.5, "probeOutcomes": [], "confidence": 0.4})
+        assess_tooling({}, [], [{"id": "p9", "kind": "ambiguity", "where": "brief"}], provider=stub)
+        self.assertIn('"decisionSpace": []', stub.prompt.replace("\\", ""))
 
 
 if __name__ == "__main__":

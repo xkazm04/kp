@@ -1,7 +1,30 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { config as loadEnv } from "dotenv";
 
 loadEnv({ path: ".env.local" });
+
+// ─── The suite owns its database ─────────────────────────────────────────────
+// Every spec below writes: token-doors-axe mints an offer and an org invite,
+// profile-roster saves and deletes profiles, the journeys move pipeline entries.
+// With no KP_DB_PATH the managed webServer opened `data/kp.sqlite` — the
+// operator's own developer database — so a local `npm run test:e2e` mutated the
+// demo corpus the next `npm run dev` shows, and a spec's leftovers changed what
+// the NEXT run measured (the JD ledger's row count, the roster's pager total).
+//
+// Absolute, because a relative KP_DB_PATH resolves against the SERVER's cwd
+// (app/_lib/db-path.ts), which is the launch directory and not necessarily this
+// one. Throwaway and gitignored (`data/*.sqlite`): a fresh file self-seeds the
+// demo corpus from data/seed_* on first boot, so DELETING IT IS THE RESET —
+// that is the supported way to clear whatever the specs accumulated.
+//
+// TWO HONEST CAVEATS. (1) `reuseExistingServer` is on locally, so a dev server
+// already listening on :3101 is used AS IT IS — it has its own KP_DB_PATH (very
+// likely none), and this isolation does not retroactively apply to it. (2) When
+// KP_E2E_BASE_URL is set the webServer block is dropped entirely and the server
+// env is whatever started it; ci.yml's keyless job boots its own against a
+// fresh checkout's data/kp.sqlite, which is isolated by being disposable.
+const E2E_DB_PATH = path.resolve(import.meta.dirname, "data", "kp-e2e.sqlite");
 
 // KP_E2E_BASE_URL points the suite at an ALREADY-RUNNING app (e.g. a production
 // build started with `npm run build && npm run start -- --port 3101`, or a
@@ -30,7 +53,9 @@ const overrideBaseUrl = process.env.KP_E2E_BASE_URL;
 // one by one rather than by a shared prefix: a filter that widens as files are
 // added is how a slow or key-needing spec ends up in the release gate without
 // anyone deciding to put it there. `shell.spec`, not `shell` — a bare `shell`
-// would also pull in shell-tab-state.spec.ts, which is exactly that widening.
+// would ALSO pull in shell-tab-state.spec.ts. That spec is in the gate now, but
+// as its own decided entry below: the point of the precise filter is that
+// dropping a `shell-something.spec.ts` into e2e/ tomorrow still enrols nothing.
 export const KEYLESS_SPECS = [
   "modal-escape",
   "profile-builder",
@@ -39,7 +64,23 @@ export const KEYLESS_SPECS = [
   "public-pages",
   "shell.spec",
   "journey-role-to-schedule",
-  "journey-one-thread"
+  "journey-one-thread",
+  // Wave 41: seven specs that already declared themselves keyless and
+  // deterministic in their own headers and ran NOWHERE — not in this array, not
+  // in ci.yml, not in any package.json script. A spec nobody runs is a spec
+  // nobody maintains, and each of these is the only coverage its surface has.
+  "activity-detail",
+  "analytics-sections",
+  "jds-pipeline-column",
+  "quality-tables",
+  "shell-tab-state",
+  // NOT token-doors-axe. It runs and it is right: /offer/[token]'s decline
+  // confirm puts white on `.bg-coral` (#ffffff on #d65a4a, 3.87:1) and fails
+  // WCAG AA on a destructive irreversible action. That is an app finding, not
+  // a spec defect, and enrolling a spec whose only route to green is a holdout
+  // entry would convert a real accessibility bug into a permanent exception.
+  // It joins this list when the token is darkened.
+  "locale-smoke"
 ] as const;
 
 export default defineConfig({
@@ -91,6 +132,10 @@ export default defineConfig({
           // Only forwarded WHEN SET: an unset one must not arrive as "" (an empty
           // KP_OFFLINE would be a truthiness trap waiting to happen).
           env: {
+            // Unconditional, unlike the three below: the whole point is that the
+            // suite must NOT inherit the operator's database. An outer KP_DB_PATH
+            // still wins if it is exported deliberately.
+            KP_DB_PATH: process.env.KP_DB_PATH ?? E2E_DB_PATH,
             ...(process.env.KP_OFFLINE ? { KP_OFFLINE: process.env.KP_OFFLINE } : {}),
             ...(process.env.KP_APP_MASTER_REPO_ROOTS
               ? { KP_APP_MASTER_REPO_ROOTS: process.env.KP_APP_MASTER_REPO_ROOTS }

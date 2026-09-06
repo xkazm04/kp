@@ -34,8 +34,10 @@ const PROVIDER_ALIASES: Record<string, string> = {
 export type LightTrackInput = {
   provider: string;
   model?: string | null;
-  /** The kp use-case id — emitted as the `use_case:` / `tool:` tags (per-tool
-   *  attribution). NOT as `operation`, which is a closed enum: see OPERATION. */
+  /** The kp use-case id — emitted as the event's `name` field (LightTrack's
+   *  use-case registry), plus the `use_case:` / `tool:` tags kept for back-compat.
+   *  NOT as `operation`, which is a closed enum: see OPERATION. Omitted (no name,
+   *  no use_case/tool tags) when the call has no use case. */
   useCase?: string | null;
   inputTokens?: number | null;
   outputTokens?: number | null;
@@ -89,6 +91,12 @@ export function trackLlmToLightTrack(input: LightTrackInput): void {
 
     const project = process.env.LIGHTTRACK_PROJECT;
     if (project) event.project_id = project;
+    // LightTrack now has a first-class `name` column (a use-case registry keyed
+    // on it — see .ai/use-cases.json). The identity already existed as the
+    // use_case tag below; this promotes that same string into the field it
+    // always should have lived in. No useCase means no name — an absent name
+    // is honest, a placeholder is not.
+    if (input.useCase) event.name = input.useCase;
     event.operation = OPERATION;
     const latency = intOrUndef(input.latencyMs);
     if (latency != null) event.latency_ms = latency;

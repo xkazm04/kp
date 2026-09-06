@@ -92,6 +92,24 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   alternates, no theme flash — filtered as
                               #   `shell.spec`, not `shell`)
                               # + journey-role-to-schedule + journey-one-thread
+                              # + activity-detail (Insights → Activity row detail,
+                              #   incl. the null-request_id degraded case)
+                              # + analytics-sections (the ?sec= switcher, its
+                              #   fallback, and that it writes nothing to the URL)
+                              # + jds-pipeline-column (the JD ledger's merged
+                              #   pipeline cell, its sort headers and its width)
+                              # + quality-tables (the server-paged decision log and
+                              #   the client-sorted sealed records)
+                              # + shell-tab-state (?tab= is an inbox: it lands, it
+                              #   is consumed, a repeat link still works)
+                              # + locale-smoke (a cs cookie really paints Czech —
+                              #   the suite is otherwise English-only)
+                              #
+                              # The managed webServer runs on a THROWAWAY
+                              # KP_DB_PATH (data/kp-e2e.sqlite, see
+                              # playwright.config.ts): these specs write, and
+                              # data/kp.sqlite is the operator's own DB. Deleting
+                              # that file is how the suite's fixtures are reset.
                               #
                               # NOT in that subset, though this line used to claim
                               # it was: app-master-hire (the App-master battle test

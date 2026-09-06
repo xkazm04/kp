@@ -5,10 +5,13 @@ import {
   parsePythonJson,
   parseStderrError,
   persistFile,
+  ENGINE_BUSY_CODE,
+  PipelineError,
   spawnPython,
 } from "@/app/_lib/python-runner";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
+import { jsonRefusal, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
 export const maxDuration = 60;
@@ -22,6 +25,35 @@ export const maxDuration = 60;
 // silently and accumulates. Derived from maxDuration so the two can't drift; the
 // 5s headroom leaves room for the SIGKILL + cleanup to finish inside the budget.
 const EXTRACT_TIMEOUT_MS = (maxDuration - 5) * 1000;
+
+// How an engine-side failure is ANSWERED — the same shape the matrix family uses
+// (app/api/matrix/matrix-error-code.ts), kept local because this door has one
+// caller pair and no sibling to share a surface with.
+//
+// `parseStderrError` has always returned a machine `code` beside the message and
+// this route threw it away, forwarding `err.message` — extract_cli's own prose,
+// and on the catch-all path a Python traceback, the temp workdir path and
+// PYTHON_CMD — to a PUBLIC endpoint. The client cannot localize a sentence, so a
+// Czech candidate whose PDF was a scan read English, and only if the surface
+// painted the server's string at all (api-contracts.md §1.1 forbids that).
+//
+// The forwarding is a DECIDED table, never `REFUSAL_ERRORS[err.code]`: the code is
+// an untrusted string from a subprocess, and a code with no catalogue entry
+// resolves to the generic fallback in all four languages — worse than the mapping
+// it replaced.
+type ExtractAnswer = { kind: "refusal"; code: RefusalErrorCode; status: number } | { kind: "store" };
+
+function extractAnswer(err: { status: number; code?: string }): ExtractAnswer {
+  // Refused at the admission door (the spawn semaphore) — the child never ran, so
+  // "we could not read your file" would be a lie. Its remedy is "wait", like a 429.
+  if (err.code === ENGINE_BUSY_CODE) return { kind: "refusal", code: "ENGINE_BUSY", status: 503 };
+  if (err.status === 504 || err.code === "timeout") return { kind: "refusal", code: "EXTRACT_TEXT_TIMEOUT", status: 504 };
+  // A 4xx is the FILE, not a fault: a scanned PDF with no text layer, a renamed
+  // binary, an encrypted DOCX. One code — the reader's next move (pick another
+  // file) is the same for every one of them, and which it was is log detail.
+  if (err.status >= 400 && err.status < 500) return { kind: "refusal", code: "EXTRACT_TEXT_UNREADABLE", status: err.status };
+  return { kind: "store" };
+}
 
 // Extract plain text from an uploaded document (PDF/DOCX/TXT/MD) using the same
 // Python extractor the CV pipeline uses. Lets a caller that only holds the file
@@ -41,13 +73,16 @@ export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "Attach a file under the field name 'file'." }, { status: 400 });
+    return jsonRefusal("EXTRACT_FILE_REQUIRED", 400);
   }
   // Same MIME + size gate as /api/analyze, so the two upload endpoints can't
   // drift on accepted types or the size cap (see upload-constraints.ts).
   const rejection = validateUploadServer(file, "file");
   if (rejection) {
-    return NextResponse.json({ error: rejection.error }, { status: rejection.status });
+    // The gate's `error` names the constraint in English for the log and for API
+    // consumers; `code` is the half the surface renders, localized — the exact
+    // pair /api/analyze forwards, and the half this route used to drop.
+    return NextResponse.json({ error: rejection.error, code: rejection.code }, { status: rejection.status });
   }
 
   // persistFile keeps the original extension, which the extractor uses to pick
@@ -65,13 +100,28 @@ export async function POST(request: Request) {
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      const answer = extractAnswer(err);
+      if (answer.kind === "refusal") return jsonRefusal(answer.code, answer.status);
+      // The engine's own message still reaches the operator's log — it is the only
+      // place the traceback belongs.
+      return safeJsonError(new Error(err.message), "api:extract-text", "EXTRACT_TEXT_FAILED");
     }
     const { text } = parsePythonJson<{ text: string }>(stdout, stderr);
     return NextResponse.json({ text });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Text extraction failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The deadline is delivered as a REJECTION carrying a sentence, not a typed
+    // error, so it is matched through the one shared predicate.
+    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+      return jsonRefusal("EXTRACT_TEXT_TIMEOUT", 504);
+    }
+    if (error instanceof PipelineError) {
+      const answer = extractAnswer(error);
+      if (answer.kind === "refusal") return jsonRefusal(answer.code, answer.status);
+    }
+    // Everything else is a FAULT: a wedged workdir, an ENOENT on PYTHON_CMD,
+    // parsePythonJson's diagnostic dump of stdout+stderr. Logged whole, answered
+    // by code — this is the leak the response-envelope ratchet counted.
+    return safeJsonError(error, "api:extract-text", "EXTRACT_TEXT_FAILED");
   } finally {
     await cleanupWorkdir(baseDir);
   }

@@ -7,7 +7,19 @@
 // was still on the board — the demo then re-ran on top of its own residue.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { performReset, runControlFlags } from "./simRunControl.ts";
+import {
+  SIM_DOOR_IDLE,
+  __resetSimDoor,
+  consoleMode,
+  parseSimDoor,
+  performReset,
+  refreshSimDoor,
+  runControlFlags,
+  simDoorSnapshot,
+  simWaitVariant,
+  totalCleared,
+  subscribeSimDoor,
+} from "./simRunControl.ts";
 
 const IDLE = { stop: false, paused: false };
 
@@ -35,17 +47,35 @@ test("reset runs stop → settle → purge, in that order", async () => {
     settleRun: async () => void order.push("settle"),
     purge: async () => {
       order.push("purge");
-      return true;
+      return { ok: true, cleared: 14 };
     },
   });
   // Purging before the in-flight mutation settles deletes rows it then re-creates.
   assert.deepEqual(order, ["stop", "settle", "purge"]);
-  assert.deepEqual(out, { cleared: true, steps: ["stop", "settle", "purge"] });
+  assert.deepEqual(out, { purge: { ok: true, cleared: 14 }, steps: ["stop", "settle", "purge"] });
 });
 
-test("a purge that answers non-2xx reports cleared:false — never a green 'Reset'", async () => {
-  const out = await performReset({ requestStop: () => {}, settleRun: async () => {}, purge: async () => false });
-  assert.equal(out.cleared, false);
+// The count the route computes across thirteen tables was thrown away by a client
+// that read only `.ok` — a successful reset could not say what it had removed.
+test("a success carries the count through, and zero is a success too", async () => {
+  const out = await performReset({
+    requestStop: () => {},
+    settleRun: async () => {},
+    purge: async () => ({ ok: true, cleared: 0 }),
+  });
+  assert.deepEqual(out.purge, { ok: true, cleared: 0 }, "nothing left to clear is not a failure");
+});
+
+// The refusal half: a 409 said "Cleanup failed. Try again", which is the one
+// instruction that cannot work — the retry is refused for as long as the holder's
+// lease has left, and only `retryAfterSeconds` says how long.
+test("a refusal carries its CODE and its wait, not just a false", async () => {
+  const out = await performReset({
+    requestStop: () => {},
+    settleRun: async () => {},
+    purge: async () => ({ ok: false, code: "SIM_RUN_ACTIVE", retryAfterSeconds: 42 }),
+  });
+  assert.deepEqual(out.purge, { ok: false, code: "SIM_RUN_ACTIVE", retryAfterSeconds: 42 });
 });
 
 test("a purge that THROWS is a failed cleanup, not a swallowed success", async () => {
@@ -56,6 +86,88 @@ test("a purge that THROWS is a failed cleanup, not a swallowed success", async (
       throw new Error("network down");
     },
   });
-  assert.equal(out.cleared, false, "the old `.catch(() => undefined)` reported success here");
+  assert.deepEqual(out.purge, { ok: false, code: null, retryAfterSeconds: null }, "the old `.catch(() => undefined)` reported success here");
   assert.deepEqual(out.steps, ["stop", "settle", "purge"], "the purge step still happened — it just failed");
+});
+
+test("totalCleared sums the route's per-table map and refuses to invent a number", () => {
+  assert.equal(totalCleared({ entries: 3, jobs: 1, jds: 1, offers: 0 }), 5);
+  assert.equal(totalCleared({}), 0);
+  assert.equal(totalCleared(undefined), 0, "an unparseable body cleared nothing, as far as anyone can tell");
+  assert.equal(totalCleared({ entries: "lots" }), 0);
+});
+
+test("only a refusal that names a wait gets the seconds-carrying variant", () => {
+  assert.equal(simWaitVariant("SIM_RUN_ACTIVE", 42), "simRunActiveSeconds");
+  assert.equal(simWaitVariant("SIM_RUN_NOT_OWNER", 7), "simRunNotOwnerSeconds");
+  assert.equal(simWaitVariant("SIM_RUN_ACTIVE", 0), null, "no wait, no promise about when to retry");
+  assert.equal(simWaitVariant("SIM_RESET_FAILED", 42), null, "a store failure is not a wait");
+  assert.equal(simWaitVariant(null, 42), null);
+});
+
+// --- The status door (/perfect wave 44) ---------------------------------------
+//
+// The defect these pin: the console's state was a BROWSER fact. The lease lives on
+// the server, the provider boots to IDLE_STATE, and nothing asked — so a reloaded
+// tab wore the ops deck while its own five-minute lease was still held, and the one
+// control that reaches the console from there (`guideAction` → "start") was refused
+// with copy telling the presenter to stop a run their tab no longer knew about.
+
+test("a tenant that holds a lease wears the console, even with a freshly booted state", () => {
+  const idleState = { running: false, done: false, error: null };
+  assert.equal(consoleMode(idleState, false, SIM_DOOR_IDLE), "ops", "a clean tenant still hands the deck back");
+  assert.equal(
+    consoleMode(idleState, false, { runActive: true, ownedByMe: false, residue: 0 }),
+    "sim",
+    "a live lease this tab did not claim is exactly when Start is about to be refused"
+  );
+});
+
+test("residue alone opens the console — Reset must be reachable without starting a run", () => {
+  assert.equal(consoleMode({ running: false, done: false, error: null }, false, { runActive: false, ownedByMe: false, residue: 4 }), "sim");
+});
+
+test("the three existing reasons are untouched", () => {
+  const off = SIM_DOOR_IDLE;
+  assert.equal(consoleMode({ running: true, done: false, error: null }, false, off), "sim");
+  assert.equal(consoleMode({ running: false, done: true, error: null }, false, off), "sim");
+  assert.equal(consoleMode({ running: false, done: false, error: "boom" }, false, off), "sim");
+  assert.equal(consoleMode({ running: false, done: false, error: null }, true, off), "sim", "?sim=auto");
+});
+
+test("a body that is not the door's shape means NOTHING known, never a fabricated run", () => {
+  assert.deepEqual(parseSimDoor(null), SIM_DOOR_IDLE);
+  assert.deepEqual(parseSimDoor("<html>502</html>"), SIM_DOOR_IDLE);
+  assert.deepEqual(parseSimDoor({ runActive: "yes", residue: 9 }), SIM_DOOR_IDLE, "wrong types are not truthy facts");
+  assert.deepEqual(parseSimDoor({ runActive: true, ownedByMe: true, residue: { total: 3 } }), {
+    runActive: true,
+    ownedByMe: true,
+    residue: 3,
+  });
+});
+
+test("refreshSimDoor publishes a change once, and keeps the last answer when the door is unreachable", async () => {
+  __resetSimDoor();
+  let notified = 0;
+  const stop = subscribeSimDoor(() => notified++);
+  const ok = (body: unknown) => async () => ({ ok: true, json: async () => body }) as unknown as Response;
+
+  await refreshSimDoor(ok({ runActive: true, ownedByMe: false, residue: { total: 2 } }) as unknown as typeof fetch);
+  assert.deepEqual(simDoorSnapshot(), { runActive: true, ownedByMe: false, residue: 2 });
+  assert.equal(notified, 1);
+
+  // Same facts: the snapshot object must not change identity, or every reader
+  // re-renders on a poll that learned nothing.
+  const before = simDoorSnapshot();
+  await refreshSimDoor(ok({ runActive: true, ownedByMe: false, residue: { total: 2 } }) as unknown as typeof fetch);
+  assert.equal(simDoorSnapshot(), before);
+  assert.equal(notified, 1);
+
+  const dead = (async () => {
+    throw new Error("offline");
+  }) as unknown as typeof fetch;
+  await refreshSimDoor(dead);
+  assert.equal(simDoorSnapshot(), before, "an unreachable door is not evidence the tenant is clean");
+  stop();
+  __resetSimDoor();
 });

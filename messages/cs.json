@@ -1691,6 +1691,9 @@
     "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
     "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu.",
     "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat.",
+    "TTS_UNAVAILABLE": "Hlas není na tomto serveru nastaven, takže nic nemůže mluvit.",
+    "STT_UNAVAILABLE": "Přepis není na tomto serveru nastaven.",
+    "ATS_CANDIDATE_ERASED": "Údaje tohoto kandidáta byly vymazány a nelze je exportovat.",
     "INTERVIEW_PREP_NOT_FOUND": "Pro tohoto kandidáta zatím neexistuje příprava na pohovor. Nejdřív ji vygenerujte.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Vyberte alespoň jednu otázku, kterou chcete přidat do přípravy.",
     "INTERVIEW_PREP_QUESTION_REQUIRED": "Určete, kterou otázku chcete přesunout.",
@@ -1745,7 +1748,31 @@
     "SCHEDULE_BULK_MINT_FAILED": "Pro tohoto kandidáta se nepodařilo vytvořit odkaz pro plánování. Ostatních se to nedotklo.",
     "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Než vytvoříte odkaz pro plánování, vyberte kandidáta.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Tento kandidát už není aktivní, pozvánka se neodeslala."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Tento kandidát už není aktivní, pozvánka se neodeslala.",
+    "ATS_CONNECTION_SAVE_FAILED": "Připojení k ATS se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Připojení k ATS se nepodařilo odebrat. Zkuste to prosím znovu.",
+    "ATS_CANDIDATE_NOT_FOUND": "Tento kandidát na této nástěnce není.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "Toto není ATS, ke kterému se Kandi umí připojit. Vyberte poskytovatele ze seznamu.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "Základní adresa API musí být https:// adresa na veřejném hostiteli.",
+    "ATS_CONNECTION_TOKEN_INVALID": "Tento API token se nepodařilo uložit. Zkontrolujte, že má server nastavený šifrovací klíč.",
+    "ATS_FIELD_MAP_INVALID": "Toto mapování polí není použitelné. Každé mapované pole potřebuje cestu a cesta k externímu ID je povinná.",
+    "ATS_CONNECTION_NOT_FOUND": "Pro toto ATS není uložené žádné připojení.",
+    "ATS_CONNECTION_STALE": "Někdo mezitím uložil novější verzi tohoto připojení k ATS. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "EXTRACT_FILE_REQUIRED": "Přiložte soubor, ze kterého se má text načíst.",
+    "EXTRACT_TEXT_UNREADABLE": "Tento soubor se nepodařilo přečíst. Zkuste PDF, DOCX, TXT nebo MD s vybíratelným textem.",
+    "EXTRACT_TEXT_TIMEOUT": "Čtení souboru trvalo příliš dlouho a bylo zastaveno. Zkuste menší soubor.",
+    "EXTRACT_TEXT_FAILED": "Text z tohoto souboru se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DEVCASE_CHAT_FAILED": "Chatovací kanál se nepodařilo otevřít. Zkuste to prosím znovu.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Tuto pracovní relaci se teď nepodařilo uložit. Vaše práce zůstává v tomto zařízení a odešle se znovu.",
+    "DEVCASE_SESSION_READ_FAILED": "Pracovní relaci se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "Tato pracovní relace už byla odevzdána.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Než zprávu odešlete, napište ji.",
+    "EDGE_SECRET_UNREADABLE": "Tato instalace nedokáže přečíst uložený klíč edge. Zadejte jej znovu, nebo obnovte klíč, kterým byl zašifrován.",
+    "SIM_RUN_NOT_OWNER": "Tato řízená ukázka patří jiné kartě. Počkejte, až skončí, nebo ji zastavte tam.",
+    "simRunActiveSeconds": "Řízená ukázka tu už běží. Vynulovat půjde přibližně za {seconds} sekund, nebo běh zastavte na kartě, která ho spustila.",
+    "simRunNotOwnerSeconds": "Tato řízená ukázka patří jiné kartě. Vynulovat půjde přibližně za {seconds} sekund, nebo ji zastavte tam.",
+    "TTS_VOICE_INVALID": "Tento hlas zde nelze použít. Vyberte jiný hlas.",
+    "TTS_TEXT_TOO_LONG": "Tento text je příliš dlouhý na jedno přečtení. Rozdělte ho na kratší části."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3227,7 +3254,8 @@
       "passLine": "postoupilo {advanced} · zamítnuto {rejected} · pozdrženo {held} · označeno {alerts}",
       "errorPreview": "Náhled průchodu se nepodařilo zobrazit.",
       "errorNetwork": "Nepodařilo se spojit se serverem.",
-      "errorRun": "Průchod se nepodařilo spustit."
+      "errorRun": "Průchod se nepodařilo spustit.",
+      "resetting": "Nuluji…"
     },
     "offAxis": {
       "title": "Mimo nástěnku",
@@ -3263,7 +3291,13 @@
       "intakeCapturedManually": "Údaje doplněny ručně.",
       "githubDeepDiveFromDrawer": "Hloubková analýza GitHubu spuštěna z detailu kandidáta.",
       "manualStageMove": "Přesunuto ručně náborářem.",
-      "addedToPipeline": "Přidáno do náboru."
+      "addedToPipeline": "Přidáno do náboru.",
+      "repeatApplication": "Opakovaná přihláška přes {channel}.",
+      "repeatApplicationContact": "Opakovaná přihláška přes {channel}. Zachycen kontaktní e-mail."
+    },
+    "intakeReasons": {
+      "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",
+      "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}"
     }
   },
   "decisions": {
@@ -4317,7 +4351,8 @@
           "jdPick": "Vyberte uložený popis pozice…",
           "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
           "noteFallbackTitle": "Poznámka bez názvu",
-          "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech."
+          "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech.",
+          "countOfMax": "{used, number} z {max, number}"
         },
         "columns": {
           "col": {
@@ -4368,6 +4403,7 @@
             "failedCloneFailed": "Repozitář se nepodařilo naklonovat. Zkontrolujte URL a potřebný přístup.",
             "failedCloneTimeout": "Klonování repozitáře trvalo příliš dlouho a bylo zastaveno.",
             "failedCancelled": "Sken byl zastaven.",
+            "failedTimeout": "Čtení kódu překročilo časový limit a bylo zastaveno. Opakované spuštění beze změny narazí na stejný limit.",
             "failedEngineFailed": "Skenovací engine selhal, takže se nic nenačetlo.",
             "fellBackAgentNotInstalled": "AI agent není nainstalovaný, takže jde jen o čtení průchodem souborů.",
             "fellBackAgentTimeout": "AI agentovi vypršel čas, takže jde jen o čtení průchodem souborů.",
@@ -4377,7 +4413,9 @@
             "fellBackProviderError": "Poskytovatel AI selhal, takže jde jen o čtení průchodem souborů.",
             "fellBackUnknown": "AI agent se vrátil k záloze, takže jde jen o čtení průchodem souborů.",
             "fenceUnverified": "AI agent četl toto repo za pravidly pro soubory s tajemstvími, která nejsou ověřená pro zdejší verzi Claude CLI.",
-            "fenceVersionUnknown": "Claude CLI neuvedlo svou verzi, takže pravidla pro soubory s tajemstvími, za kterými tento sken běžel, nešlo ověřit."
+            "fenceVersionUnknown": "Claude CLI neuvedlo svou verzi, takže pravidla pro soubory s tajemstvími, za kterými tento sken běžel, nešlo ověřit.",
+            "throttled": "Načtení kódu čeká, až na něj přijde řada. Za chvíli je připojíme.",
+            "rereading": "Během vkládání se zadání změnilo. Načítáme ho znovu."
           },
           "dossier": {
             "title": "Co sken přečetl",
@@ -4457,7 +4495,9 @@
             "noOwner": "neuvedeno, eskalace tedy nemají kam jít",
             "objectives": "Výsledky",
             "objectiveCount": "{count, plural, one {# výsledek} few {# výsledky} other {# výsledků}}",
-            "notes": "Zaznamenané předpoklady"
+            "notes": "Zaznamenané předpoklady",
+            "staleChip": "Starší zadání",
+            "stale": "Tato specifikace vznikla před poslední změnou zadání. Sestavte ji znovu, aby mandát odpovídal roli, kterou obsazujete."
           },
           "dispatch": "Odeslat do Personas",
           "dispatching": "Odesílám…",
@@ -4664,7 +4704,8 @@
       "unsavedTitle": "Zahodit neuloženou šablonu?",
       "unsavedBody": "V této šabloně máte neuložené úpravy. Odchodem z editoru je zahodíte.",
       "unsavedDiscard": "Zahodit změny",
-      "unsavedKeep": "Pokračovat v úpravách"
+      "unsavedKeep": "Pokračovat v úpravách",
+      "truncated": "Zobrazujeme jen část knihovny. Některé šablony zde nejsou uvedeny."
     },
     "intakeTab": {
       "eyebrow": "Pracovní prostor",
@@ -5682,7 +5723,8 @@
       "drainFailedUnreachable": "Stažení selhalo: edge neodpověděl. Nic se neztratilo, další cyklus to zkusí znovu.",
       "drainFailedHeld": "Stahování pozastaveno: událost zatím nešlo založit. Zůstává na edge a bude zkoušena znovu.",
       "drainFailedAck": "Založeno, ale edge o tom neví. Nabídne tyto události znovu a nezaloží se dvakrát.",
-      "drainFailedUnknown": "Stažení selhalo. Důvod najdete v serverovém logu této instalace."
+      "drainFailedUnknown": "Stažení selhalo. Důvod najdete v serverovém logu této instalace.",
+      "drainFailedSecretUnreadable": "Stahování zastaveno: tato instalace nedokáže přečíst uložený klíč edge. Nic se neztratilo. Zadejte klíč znovu, nebo obnovte šifrovací klíč."
     },
     "tablist": "Integrace",
     "waiting": "{count, plural, one {# čeká} few {# čekají} other {# čeká}} v pipeline",
@@ -5869,7 +5911,8 @@
         "waiting": "Přijímač je připravený a zatím nedorazily žádné leady. První se do pipeline založí sám."
       }
     },
-    "copyFailed": "Kopírování selhalo. Označte text."
+    "copyFailed": "Kopírování selhalo. Označte text.",
+    "receiversTruncated": "Zobrazujeme nejnovější příjemce. Některé v seznamu nejsou, takže některý kanál níže může působit prázdněji, než ve skutečnosti je."
   },
   "interviewSim": {
     "eyebrow": "Simulátor pohovoru",
@@ -6413,7 +6456,11 @@
       "restored": "Obnovili jsme vaši neuloženou práci z tohoto zařízení. O nic jste nepřišli.",
       "chatRateLimited": "Momentálně jste vyčerpali limit asistenta. Vaše práce i vše, co jste napsali, zůstává v pořádku. Pokračujte v práci a zkuste to za pár minut znovu.",
       "chatDeterministicNote": "Tato odpověď pochází z offline náhrady, nikoli z živého modelu. Berte ji jako zástupný text a své předpoklady si poznamenejte do deníku rozhodnutí.",
-      "syncBlocked": "Tuto relaci se nepodařilo synchronizovat se serverem. Vaše práce je uložená v tomto zařízení. Spojení obnovíte tak, že načtete stránku znovu z původního odkazu."
+      "syncBlocked": "Tuto relaci se nepodařilo synchronizovat se serverem. Vaše práce je uložená v tomto zařízení. Spojení obnovíte tak, že načtete stránku znovu z původního odkazu.",
+      "clockHm": "{h} h {m} min",
+      "clockM": "{m} min",
+      "clockElapsed": "Čas na tomto zadání: {elapsed} z {timebox}",
+      "clockOver": "Jste {over} po uplynutí časového rámce {timebox}. Odevzdat můžete i tak; váš čas se zaznamená spolu s prací."
     },
     "eyebrow": "Domácí zadání",
     "fallbackTitle": "Vývojářské zadání",
@@ -7016,6 +7063,7 @@
         "interview_failover": "Pohovor přepnut na jiného poskytovatele",
         "comm_resent": "Zpráva odeslána znovu",
         "rejection_comms_failed": "E-mail o zamítnutí selhal",
+        "offer_comms_failed": "E-mail s nabídkou selhal",
         "moved": "Fáze nastavena ručně",
         "matched": "Spárováno s pozicí",
         "added": "Přidáno do pipeline",
@@ -7192,7 +7240,9 @@
     "briefRolesNoDataClaim": "Zatím žádná role pipeline netáhne.",
     "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete.",
     "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
-    "closedInWindowSub": "{count} uzavřeno v období"
+    "closedInWindowSub": "{count} uzavřeno v období",
+    "bucketTzNote": "Období i týdenní intervaly trendu se počítají podle dnů v {tz}.",
+    "cohortTruncatedNote": "Započítáno bylo jen {count, plural, one {# nejnovější záznam} few {# nejnovější záznamy} other {# nejnovějších záznamů}} v tomto období. Kohorta je větší, než jedno čtení pokryje, takže každé číslo níže je omezený vzorek. Zúžením období ji uvidíte celou."
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
@@ -7859,6 +7909,8 @@
     },
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",
+      "tts": "Hlas (převod textu na řeč)",
+      "stt": "Hlas (převod řeči na text)",
       "automation": "Automatizace",
       "campaign_pack": "Balíček kampaně",
       "jd_ingest": "Načtení popisu pozice",
@@ -8214,7 +8266,8 @@
         "language": "Jazyk aplikace",
         "invites": "Pozvánky pro kolegy",
         "pipeline": "Sloupce nástěnky",
-        "brand": "Barva značky a logo"
+        "brand": "Barva značky a logo",
+        "companion": "Paměť Candi"
       },
       "reasonUnknown": "nepodařilo se uložit. Dokončit to můžete v Nastavení.",
       "line": "{part}: {reason}",
@@ -8796,6 +8849,10 @@
       "skipPerf": "přeskočit (zaznamenat jen nástup)",
       "hint": "Doplňte kalibraci prahu pro posun tím, co se skutečně stalo",
       "label": "Výsledek"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} min nad rámec",
+      "overTimeboxTitle": "Měřeno od začátku pracovní relace proti časovému rámci zadání. Jde o záznam, ne o odmítnutí."
     }
   },
   "rubric": {
@@ -9092,7 +9149,9 @@
       "done": "Hotovo. Pozice obsazena 🎉",
       "failed": "Selhalo: {message}",
       "genericError": "Simulace se neočekávaně zastavila.",
-      "resetFailed": "Vyčištění selhalo. Zkuste to znovu."
+      "resetFailed": "Vyčištění selhalo. Zkuste to znovu.",
+      "resetCleared": "Vynulováno. Smazáno {count} ukázkových řádků.",
+      "resetNothing": "Vynulováno. Nezbylo nic ke smazání."
     },
     "phase": {
       "design": "Popis pozice",
@@ -9795,7 +9854,12 @@
     "detailCached": "Tokeny z cache",
     "runUnlinked": "Tato akce proběhla mimo sledovaný běh na pozadí, takže se pro ni neuložil žádný výstup.",
     "runGone": "Běh, který to vytvořil, už vypadl z historie úloh.",
-    "runNoOutput": "Tento běh skončil, aniž by uložil jakýkoli výstup."
+    "runNoOutput": "Tento běh skončil, aniž by uložil jakýkoli výstup.",
+    "tzNote": "Časy se zobrazují ve vašem časovém pásmu. Záznamy se ukládají v UTC a denní přehled nákladů na kartě Modely se dělí podle dnů v UTC.",
+    "companionTurn": "Výměna s Candi v rozhovoru: {thread}",
+    "companionThreadUntitled": "nepojmenovaný rozhovor",
+    "companionOpen": "Otevřít rozhovor",
+    "companionThreadGone": "Tento rozhovor už v záznamech není."
   },
   "readout": {
     "empty": "Nic zaznamenáno",
@@ -10006,7 +10070,8 @@
       "thinking": "Přemýšlí…",
       "thinkingSlowCalm": "Jsem tu s vámi. Než odpoví, projde si stav studia, takže to pár sekund zabere.",
       "transcriptLabel": "Konverzace s Candi",
-      "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu."
+      "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu.",
+      "reconnect": "Zkusit se připojit znovu"
     },
     "state": {
       "here": "Jsem tu, když budete potřebovat.",
@@ -10040,7 +10105,9 @@
       "speak": "Přečíst nahlas",
       "stop": "Zastavit čtení",
       "resume": "Přehrát",
-      "failed": "Tohle se nepodařilo přečíst nahlas."
+      "failed": "Tohle se nepodařilo přečíst nahlas.",
+      "waiting": "Čeká se na přehrání…",
+      "wrongLanguage": "Tento jazyk neumí žádný nainstalovaný hlas, text byl proto přečten s jiným přízvukem."
     },
     "action": {
       "runAnalysis": "Znovu spustit AI screening pro: {candidate}",
@@ -10056,7 +10123,8 @@
       "working": "Pracuji",
       "accepted": "Přijato",
       "declined": "Odmítnuto",
-      "dropped": "{count, plural, one {# návrh byl zahozen} few {# návrhy byly zahozeny} other {# návrhů bylo zahozeno}}"
+      "dropped": "{count, plural, one {# návrh byl zahozen} few {# návrhy byly zahozeny} other {# návrhů bylo zahozeno}}",
+      "failed": "Odpověď se nepodařilo odeslat. Nic se nezměnilo, zkuste to prosím znovu."
     },
     "outcome": {
       "analysisQueued": "Screening pro: {candidate} běží na pozadí",
@@ -10089,12 +10157,18 @@
       "close": "Opustit hlasový režim",
       "empty": "Zeptejte se jí níže. Odpověď přistane tady a můžete si ji pustit.",
       "placeholder": "Zeptejte se Candi",
-      "mic": "Mluvení na ni přijde s relay",
+      "mic": "Diktovat Candi",
       "older": "Starší odpověď",
       "newer": "Novější odpověď",
       "position": "{index} z {total}",
       "details": "Zobrazit detaily",
-      "detailsHide": "Skrýt detaily"
+      "detailsHide": "Skrýt detaily",
+      "notReady": "Zatím nepřipojeno. Připojte se znovu z pruhu v horní části obrazovky.",
+      "micStop": "Zastavit a přepsat",
+      "micRecording": "Nahrávám. Dalším stisknutím přepíšete.",
+      "micWorking": "Přepisuji, co jste řekli…",
+      "micFailed": "Tuto nahrávku se nepodařilo přepsat. Zkuste to znovu.",
+      "micUnavailable": "Přepis řeči není na tomto serveru nastaven."
     }
   },
   "loadStatus": {

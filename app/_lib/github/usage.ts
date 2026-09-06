@@ -66,6 +66,7 @@ export function recordGeminiUsage(
       cachedTokens,
       costUsd,
       source: "llm",
+      outcome: "ok", // this seam is reached only after a completion came back
       requestId: requestId ?? null,
     });
   } catch {

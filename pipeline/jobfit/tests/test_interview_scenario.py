@@ -117,5 +117,47 @@ class ScenarioCliTest(unittest.TestCase):
         self.assertEqual(len(payload["result"]["scenario"]["phases"]), len(_SCRIPT["phases"]))
 
 
+class DecisionSpaceInPromptTest(unittest.TestCase):
+    """The case's `decisionSpace` — the defensible options each cover probe admits — is
+    what the evaluation grades a submission against (evaluate.mint_followups,
+    lifecycle_eval, chat all read it). The interview generator judged the SAME probes
+    without it, so the counterfactual flipped an invented constraint and the coachability
+    hint could only name a location; live interview and evaluation probed two different
+    landscapes."""
+
+    CASE_WITH_SPACE = CaseScenario(
+        id="case-2",
+        title="Order notifications",
+        brief="Duplicate shipping emails; the service reads events from a queue.",
+        tasks=["Diagnose the duplicates"],
+        cover_probes=[
+            CoverProbe(
+                id="p1",
+                kind="ambiguity",
+                where="the duplicate-delivery constraint",
+                reveals="idempotency or exactly-once assumption?",
+                decision_space=[
+                    "Deduplicate on a stored message id",
+                    "Make the send itself idempotent downstream",
+                ],
+            )
+        ],
+    )
+
+    def test_options_and_the_instruction_reach_the_prompt(self):
+        prompt = interview_scenario.build_prompt(self.CASE_WITH_SPACE, ROLE)
+        self.assertIn("Deduplicate on a stored message id", prompt)
+        self.assertIn("Make the send itself idempotent downstream", prompt)
+        # …and the model is told what to do with them, in both case-grounded phases.
+        self.assertIn("decisionSpace", prompt)
+        self.assertIn("has not weighed", prompt)
+
+    def test_a_probe_without_a_decision_space_is_still_well_formed(self):
+        # Probes designed before the decision-space contract carry none; the prompt must
+        # degrade to an empty list rather than omit the key or raise.
+        prompt = interview_scenario.build_prompt(CASE, ROLE)
+        self.assertIn('"decisionSpace": []', prompt)
+
+
 if __name__ == "__main__":
     unittest.main()

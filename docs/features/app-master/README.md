@@ -228,9 +228,15 @@ reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
    assumptions in it (a flag, a rule grammar, a CLI version) and every non-Claude
    adapter has no fence at all — it answers from the grounding, and text can carry
    anything. So `redact_dossier` sweeps every refined free-text field at the WIRE
-   boundary (`repo_scan_cli`) for secret-SHAPED values — AWS key ids, PEM blocks,
-   `sk-`/`ghp_`/`xox…` tokens, `NAME_KEY=<20+ chars>` — masks them `[redacted]`
-   and puts the count on the envelope as `redactions`. A redaction nobody can see
+   boundary (`repo_scan_cli`) for secret-SHAPED values. The field names are
+   **derived from the Pydantic models** (`_text_fields(DossierFinding)` and its
+   siblings), not hand-listed: the first cut of this sweep named `rationale` on
+   findings and objectives, a field neither model declares, so every LLM-authored
+   `note` on a `riskArea` or a `hotSpot` reached `dossier_json` and the wire
+   unredacted while a guard test that invented the same key stayed green. The
+   shapes it looks for are AWS key ids, PEM blocks, `sk-`/`ghp_`/`xox…` tokens and
+   `NAME_KEY=<20+ chars>`; it masks them `[redacted]` and puts the count on the
+   envelope as `redactions`. A redaction nobody can see
    is a silent edit of the operator's data. The pattern set is deliberately
    narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
    `test_repo_scan.RedactionTest` pins both directions.
@@ -319,14 +325,70 @@ queued scan must not outlive the permission that admitted it — then spawns
 outcome onto the row itself, success *and* failure, so a reaped task leaves an
 honest `failed` row rather than one stuck at `running`.
 
+**Two scans of one target do not pay twice.** The `repo_scan` dedupe key used to
+be `repo_scan:<scanId>`, and `startRepoScan` mints a scan id per POST — a key
+unique by construction is a dedupe that can never fire, so a double-click, or the
+far more common "the compose failed, point kp at the same app again", bought a
+second shallow clone plus a second in-repo agent session over the same codebase
+and threw one of the two dossiers away.
+
+Coalescing now happens in front of the row, in `claimRepoScan`
+(`db/repo-scans.ts`), because merging the two TASKS alone would leave the second
+ROW at `queued` forever and the row is what the operator polls. It is a
+read→compute→write that takes the write lock at BEGIN (`.immediate()`), since the
+two POSTs it exists to merge arrive milliseconds apart. A POST is handed the
+existing scan when the tenant and the **resolved** target match and the row is
+either still in flight or completed inside `REPO_SCAN_REUSE_WINDOW_MS`
+(**30 minutes** — chosen to sit above the runner's own 15-minute wall-clock
+budget, so an in-flight scan stays inside the window for its whole life and a row
+abandoned by a crashed process stops blocking new scans shortly after it can no
+longer be finished). A **failed** scan is never reused: retrying a failure is the
+point of retrying. For a URL target the commit is deliberately NOT part of the
+identity — learning it costs a `git ls-remote` this path does not spend — so the
+window, not the SHA, is what bounds staleness.
+
+The dedupe key follows: `repo_scan:<workspaceId>:<repoUrl|rootPath>`. The
+workspace is in it explicitly because a builder only ever sees `params`, and two
+tenants must never share one reading of a codebase.
+
+The response carries `reused`, and `taskId` is `null` for a reused scan that had
+already completed — naming a task that finished before the request arrived is a
+green lie the poller would chase. The intake needs no new state for either: it
+polls `GET /api/repo-scan/[id]` with the returned id, which for a reused complete
+scan answers the dossier on the first poll.
+
+**`fresh: true` is the MEASURING caller's opt-out.** Reuse is right for the
+operator who clicked twice and wrong for a caller whose whole purpose is to
+exercise the scan engine: four of the seven bench scenarios name one root, so
+inside the window three of the four graded a dossier the first run produced and a
+scan regression could fail at most one of them. A POST carrying `fresh: true`
+refuses a *finished* reading and takes its own. It changes nothing else — the
+operator gate, the limiter and the target allow-list all speak first, and it is
+read as strict `=== true`.
+
+It deliberately does **not** fork a reading that is still in flight. The task
+dedupe key is tenant + target, so a second row minted beside a running task would
+be handed that task and sit at `queued` for ever with nothing to finish it; in
+that one case the answer is still `reused: true`, which is the truth.
+
 **The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
 of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
 now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
-`clone_failed`, `clone_timeout`, `cancelled`, `engine_failed`, `unknown` — set at
-the throw site that observed it (`RepoScanFailure`), never reconstructed later by
-matching English; `error` stays the diagnostic line for the server log. An
-aborted run classifies as `cancelled` **first**, whatever the killed step raised,
-so a Cancel is never reported as an engine fault.
+`clone_failed`, `clone_timeout`, `cancelled`, `timeout`, `engine_failed`,
+`unknown` — set at the throw site that observed it (`RepoScanFailure`), never
+reconstructed later by matching English; `error` stays the diagnostic line for
+the server log. An aborted run classifies from the ABORT **first**, whatever the
+killed step raised, so a Cancel is never reported as an engine fault.
+
+**A watchdog reap is not the operator's Cancel.** The task runner aborts the same
+controller for both (`tasks.ts`: `cancelTask` at the operator's request,
+`TASK_MAX_RUNTIME_MS` at the wall-clock budget), so a reaped scan used to say
+"the scan was stopped" — and the operator re-ran it unchanged and waited another
+fifteen minutes. The watchdog now aborts **with a reason**, in the platform's own
+vocabulary (`DOMException(..., "TimeoutError")`, exactly what
+`AbortSignal.timeout()` produces), `isTimeoutAbort` reads it, and the row lands
+`timeout` — whose copy says re-running unchanged will hit the same limit.
+`cancelled` stays what it always was: `controller.abort()` with no reason.
 
 `repo_scans.fallback_class` is the other half: a dossier can *complete* on the
 heuristic floor because the in-repo agent failed, and that read identically to a
@@ -354,20 +416,59 @@ is closed by the `repo_scan` handler's `onCancelQueued` hook
 (`cancelQueuedRepoScan`), so it can never sit at `queued` after its task is gone.
 Either way the row lands `failed` / `cancelled`.
 
-`GET /api/repo-scan/[id]` returns the row with TWO fields withheld: the resolved
-`rootPath`, replaced by `isLocal: true`, and `fallbackReason` — the raw
-`"<ExceptionType>: <message>"` line, which is English, unbounded and can quote
-provider output. `errorCode` and `fallbackClass` go out instead, and the intake
-renders them per locale (`library.tab.intake.appMaster.scan.*`); the client never
-renders the server's `error` string. That is the *server's* filesystem after
-symlink resolution, which can differ from what the operator typed. The dossier's
-own `repo.rootPath` still carries it — that is the binding an `AppMasterSpec`
-needs — so this is a projection choice, not a redaction claim.
+`GET /api/repo-scan/[id]` answers an explicit **allow-list**, never a spread of
+the row: `id, repoUrl, status, source, dossier, errorCode, fallbackClass,
+isLocal, createdAt, updatedAt` — enumerated by
+`app/api/repo-scan/[id]/repo-scan-detail-route.test.ts`, so widening it is a
+decision rather than a side effect of the next migration. It used to be a spread
+with two fields removed, which put every later column on the wire by default and
+already put three there:
+
+- `rootPath` — the *server's* filesystem after symlink resolution, which can
+  differ from what the operator typed. `isLocal: true` is served instead. The
+  dossier's own `repo.rootPath` still carries it (that is the binding an
+  `AppMasterSpec` needs), so this is a projection choice, not a redaction claim.
+- `fallbackReason` — the raw `"<ExceptionType>: <message>"` line, English,
+  unbounded and able to quote provider output. `fallbackClass` goes out instead.
+- `error` — the thrown message, which for a clone failure carries git's last 200
+  stderr bytes: for a private remote, its host, branch and auth chatter. Nothing
+  ever rendered it — the panel resolves `errorCode` per locale
+  (`library.tab.intake.appMaster.scan.*`) and the client never renders the
+  server's `error` string — so it was pure egress.
+- `workspaceId` — the caller's own tenant, which it did not send and has no use
+  for.
 
 Both routes are `requireOperator`-gated (a documented no-op in open dev mode) and
 the POST is rate-limited `repo-scan:<ip>` at 10/10min, pinned in
 `app/api/rate-limit-contract.test.ts`. The spawn site is pinned in
 `app/_lib/llm-spawn-contract.test.ts`.
+
+**A refused dossier POST.** `POST /api/intake/[id]/dossier` refuses two ways that
+are not failures, and the watcher used to render both dishonestly: a **429** from
+its own `intake-dossier:<ip>` limiter (20/10min) fell into the catch and claimed
+the scan was *unreachable*, and a **409 `INTAKE_BRIEF_MOVED`** (the compare-and-
+swap, when a dialog turn landed while the merge was being computed) returned
+silently while the next tasks tick re-posted immediately, paying a full Python
+spawn before the CAS refused it again. Both now go through
+[`app/_lib/app-master/dossier-retry.ts`](../../../app/_lib/app-master/dossier-retry.ts):
+a 429 shows `appMaster.scan.throttled` and waits the response's `Retry-After`
+(delta-seconds only, clamped) or else the limiter's window; a 409 shows
+`appMaster.scan.rereading` and waits a doubling backoff (2s, capped at 60s). The
+ladder is bounded at five attempts, after which the state stays on screen and the
+client stops asking. Pure, so `dossier-retry.test.ts` pins the ladder and
+`jdsIntakeLogic.test.ts` pins the wiring.
+
+**The spec's vintage.** `AppMasterCompose.composedAt` has been stored since P3
+and was read by no surface, so a spec composed against three facets looked
+identical to one composed a second ago — under a button that hands a mandate to
+an accountable owner. `specVintage`
+([`app/_lib/app-master/spec-vintage.ts`](../../../app/_lib/app-master/spec-vintage.ts))
+compares it against the intake row's `updatedAt` (a 2-second grace window, because
+the compose route stamps `composedAt` and THEN writes the row) and the card shows
+an amber *Older brief* chip plus the remedy when the brief moved afterwards. It is
+a DISCLOSURE, not a gate: Dispatch stays enabled, and the requestor decides. It is
+also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`, which is a schema check
+on the stored spec's shape; a spec can be stale in vintage while parsing perfectly.
 
 ### The reference reading
 
@@ -791,8 +892,8 @@ spec was composed, and it travels with the spec.
 
 | Symbol | Kind | What it is |
 | --- | --- | --- |
-| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId }`. `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
-| `GET /api/repo-scan/[id]` | route | → `{ scan }` — the row, minus the resolved `rootPath` (`isLocal` instead) |
+| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` + optional `fresh: true` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan; `fresh` refuses a finished reading, never an in-flight one). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
 | `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |
@@ -1219,11 +1320,19 @@ now reads the roster instead, structured fields first:
 The two count pairs have no structured carrier — the delivery rule's `value` is
 the merged/opened *ratio* — so they are parsed out of the reason string, which
 is written character-for-character by both `app/_lib/app-master/backbone.ts` and
-`pipeline/jobfit/appmaster.py` and pinned by fixtures on both sides. A reason
+`pipeline/jobfit/appmaster.py` and pinned by fixtures on both sides. The bench's
+own copy of those strings is pinned by a third check: `expectations.test.mjs`
+imports the real `backboneScore` and drives its output through the regexes, so a
+copy-edit to a `reason:` fails in the run that makes it instead of turning a
+delivered night into "unmeasured". A reason
 that does **not** match leaves the field absent rather than guessing, and a rule
 the roster never carried stays absent too. The tick summary is still deep-scanned
 and folded in underneath (`mergeReadings()`, roster wins), and `result.json`
-records a `readingSource` map saying which side each field came from.
+records a `readingSource` map saying which side each field came from. What that
+scan looks for is `BACKBONE_FIELDS`, now pinned to the `RollupBackbone`
+declaration in `app/_lib/agent-hire/report-payload.ts` by the same suite: it had
+drifted to scanning for `windowDays` (the receiver's window, never sent) while
+ignoring `kpiDeltas` and `memory`, which are.
 
 `– null` semantics are unchanged: absent is absent. The one thing that IS read as
 a zero is a *present* rule that says so — `"no proposals were opened in the
@@ -1256,6 +1365,7 @@ A night is now three ticks with a wait in the middle:
 
 | Knob | Default | Notes |
 | --- | --- | --- |
+| `--reuse-scan` | off | let kp coalesce a scan of a repository it read in the last 30 min. **Off by default**: four scenarios share `${KP_ROOT}`, and a copied dossier is not a measurement, so every bench scan asks for `fresh: true` and journals the `reused` kp answered |
 | `--settle-poll <ms>` | 90 000 | a fleet session writes a branch in minutes, and each poll is a real bridge call |
 | `--settle-timeout <ms>` | 1 800 000 (30 min) | a night with no branch by then produced nothing this run can measure |
 | `settleTimeoutMs` (scenario) | — | per-scenario override of the budget; the flag beats neither, it *is* the default the scenario overrides |
@@ -1466,7 +1576,7 @@ npm run bench:gate -- --max-age-days 30   # a wider freshness window, on purpose
 `result.json` per scenario, compares it against the committed baseline
 [`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
 writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
-counts six things as a regression:
+counts eight things as a regression:
 
 | | |
 | --- | --- |
@@ -1475,21 +1585,59 @@ counts six things as a regression:
 | expectation failed | any `expectations[].ok === false`, with its delta |
 | expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
 | `stub` | the run carries `personas.stub: true` — it ran against the in-process stub, so every number it holds is canned (see *Honesty properties* below). The gate was the one reader in the bench that never asked: a whole sweep against canned Personas used to exit 0 while the report beside it printed **EVERYTHING IT REPORTS IS CANNED**. |
+| number regressed | a baselined **number** fell past its tolerance, or was not measured. `mustPass` + `requiredExpectations` cannot see this class at all: a tenure that fell from five opened proposals to one measured every required check and met every one of its own floors. |
+| `reused-scan` | the run carries `scan.reused: true` — kp coalesced its repo scan onto a reading another run had already taken, so the dossier it graded is a copy. Four scenarios share one root and the window is 30 minutes, which is how a sweep could measure the scan engine once and grade three copies. Re-run those without `--reuse-scan`. |
 | `stale` | the newest run for that scenario finished *before* the baseline it is compared to was recorded (it cannot certify a bar raised after it), or it is older than `--max-age-days` (default **14**). A run whose `finishedAt` will not parse is undatable, and undatable is not fresh. |
 
 The verdict on a row names the dominant reason — a genuine `fail` outranks
 `stub`, which outranks `stale` — while `reason` still carries every problem
-found, so a row is never quietly re-labelled into something smaller.
+found, so a row is never quietly re-labelled into something smaller. The full
+order is `fail` > `stub` > `reused-scan` > `stale`, and the buckets are separate
+because the instruction each carries is different.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
 printed loudly so nobody reads silence as coverage.
 
+#### The baseline carries numbers (schemaVersion 2)
+
+`mustPass` + `requiredExpectations` are structural: they say a check ran and met
+its own floor. They let the App master get **worse** silently. `baseline.json`
+now also carries per-scenario `metrics` — `atLeast` (higher is better) or
+`atMost` (lower is better) — read out of the run at the same paths REPORT.md
+prints, reduced over the **busiest night** (`METRIC_READERS` in `gate.mjs`), with
+a per-scenario `tolerance` as a fraction of the bar so a metric that wobbles does
+not cry wolf. An absent number is a problem, never a zero.
+
+`metricsFrom` is required beside any `metrics` block: a bar with no stated origin
+is a number somebody made up. Today exactly one scenario has one —
+**`kp-default`, from
+[`__fixtures__/result-stub.json`](../../../scripts/app-master-bench/__fixtures__/result-stub.json)**,
+the committed recorded run `report.test.mjs` is built on (3 proposals opened, 2
+merged, gate pass rate 0.944, 0 violations, backbone score 0.9056, coverage 1).
+That run used `--stub-personas`, so those figures are **canned by construction**
+and the gate refuses a stub run outright: treat them as the SHAPE a real sweep
+must clear, and re-record them from the first live sweep with `metricsFrom`
+naming its run. The other five scenarios stay honestly at `metrics: null` and are
+reported as **`unmetered`** — nobody has measured them, which is a gap to fill
+rather than a failure to invent, and the gate says so in its own line.
+
 `baseline.json` is pinned to the committed scenarios by `gate.test.mjs` (in
-`npm run test:bench-driver`, now a CI step) in both directions: every baselined
+`npm run test:bench-driver`, a CI step) in both directions: every baselined
 scenario must have a scenario file, and every `requiredExpectations` name must
-actually be declared in that scenario's `expect` block. Moving a number is
-allowed — edit the baseline in the same change and say which number moved.
+actually be declared in that scenario's `expect` block. It is also a **ratchet**:
+`FLOOR` in `gate.test.mjs` freezes what the baseline has already promised, so
+deleting a scenario, dropping a required expectation, lowering a bar or widening
+a tolerance is red — and the numbers are checked back against the fixture they
+claim to come from. Raising a bar is expected; lowering one is a deliberate edit
+to `FLOOR` with the reason in the commit body.
+
+**What CI actually runs.** `npm run bench:gate` is **not** a CI gate and never
+could be: it reads `bench/app-master/runs/`, `bench/` is gitignored, and with no
+runs it exits 1 by design. It is a local ritual after a sweep. CI holds the
+committed half — `npm run test:bench-driver` runs `gate.test.mjs`, so the
+baseline's structure, its ratchet and its stated sources are gated even though
+the sweep itself never runs there.
 
 ### Honesty properties, and what stays unmeasured
 
@@ -1640,8 +1788,17 @@ The schemas travel three ways once the later phases land:
 - **`backbone_score` lives in two languages.** Python is the authority; the
   TypeScript port exists because the roster scores every row on every read and a
   subprocess per row is not an option. They are pinned by fixtures the Python
-  function generated (`app/_lib/app-master/backbone.test.ts`, byte-identical on
-  three cases), but a rule change still has to be made twice.
+  function generated, from BOTH sides:
+  `app/_lib/app-master/backbone.test.ts` catches a change to the port
+  (byte-identical on three cases), and
+  `pipeline/jobfit/tests/test_appmaster_fixtures.py` re-scores every case in
+  memory through `__fixtures__/generate.py`'s own path and catches a change to
+  the AUTHORITY. Until 2026-09-05 only the first existed, so a moved weight in
+  `appmaster.py` left the fixtures asserting the old rubric and the roster
+  shipping a verdict that silently disagreed with it. A rule change still has to
+  be made twice, and the fixtures still have to be regenerated by hand
+  (`python app/_lib/app-master/__fixtures__/generate.py`) — but forgetting is now
+  a red gate rather than a silent drift.
 - **Only the latest period is scored.** Rollups are absolutes per period, so the
   latest one is treated as the review window. An agent that reported August and
   went quiet keeps showing August's verdict; there is no trend across windows and

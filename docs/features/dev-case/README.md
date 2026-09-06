@@ -99,7 +99,19 @@ palette. The full mapping table and the five reading states are in
    being hired, not the codebase's domain — a v2 fix (see
    `docs/_archive/dev-d3-hardening-findings.md`) — plus a mid-session
    **requirement change** (`midFlightUpdate`, v6) that makes pure one-shot
-   generation structurally insufficient.
+   generation structurally insufficient. Since v7 the RoleSpec's
+   **must-haves reach the case designer** — they are what `score_transfer`
+   grades the submission against, and a case designed without them could ask
+   for work that never touches the requirements the candidate is later marked
+   on. They reach the designer as *terrain*, never the candidate as a list:
+   the prompt asks for an exercise the must-haves cannot be completed well
+   without, and forbids naming them in the brief, tasks, starting materials or
+   mid-flight update — a case that states what it wants collapses each probe's
+   `decisionSpace` into a compliance exercise every candidate passes
+   identically. A role with no must-haves is designed exactly as before (the
+   key is omitted from the prompt rather than sent empty), and the
+   deterministic keyless template is unchanged — it has no way to design
+   terrain, so it does not pretend to.
 3. **Human gate.** The role/case is a Decisions approval
    (`app/api/devcase/lifecycle/route.ts`, `.../[id]/approve/route.ts`) before
    it is published/sent. The manual (non-lifecycle) gate in the Define-need
@@ -257,6 +269,24 @@ deterministic reflect path (`reflect.deterministic` → `reverts[:4]`), so a com
 unfenced. It is the step the module leans on hardest when the artifact itself proves
 nothing ("the scores above are HYPOTHESES"), so steering it blunts the very interview that
 verifies them. Pinned by `TestFollowupContextIsFenced` in `test_devcase_evaluate.py`.
+
+**A step that spent tokens and kept none of them reports `deterministic`.**
+`provenance.generate_with_fallback` is the LLM-or-deterministic runner behind every devcase
+step (and agentfit, intake, repo_scan), and each step's `coerce` degrades field by field to
+its deterministic template — so a reply that contributes nothing (`{}`, or one whose every
+field is rejected) used to return a byte-identical template artifact stamped `"llm"`. It now
+compares the coerced artifact against the template and, when nothing survived, reports
+`deterministic` with an `unusable_output` `fallbackReason` (the same honesty rule
+`automation._generate` learned from the 2026-08-11 bench). The label is load-bearing on two
+seats: `devcase-orchestrator.ts` audits `seed_materialized` / `baseline_frozen` only on
+`"llm"` and FREEZES the artifact permanently (`saveDevCaseSeedIfAbsent`,
+`saveDevCaseBaselineIfAbsent`), so a mislabelled empty seed or baseline was frozen for the
+life of the case instead of taking the honest `seed_skeleton_only` / `baseline_unavailable`
+branch. The comparison excludes the `fallbackReason` key on BOTH sides — it is the runner's
+own stamp, and counting it would defeat the guard with the key the guard adds — and a
+template builder that raises leaves the comparison unprovable, which keeps the `"llm"` label
+rather than inventing a degradation. Pinned by `TestTemplateForTemplateIsNotLlm` in
+`pipeline/jobfit/tests/test_devcase_provenance.py`.
 
 `provenance.py` also owns the *other* half of that contract, used outside this module:
 **`defuse_fence_markers`**. `fenced_untrusted` neutralizes its payload by JSON-encoding it
@@ -430,6 +460,29 @@ stamps every probe `detected: false`, so including those rows produced a 100 %-m
 cohort — and the panel's "this case is miscalibrated" banner — out of the absence of
 an API key.
 
+**…and the PRODUCER of that field now honours it too.** Every consumer above read the
+tri-state correctly while `reflect.assess_tooling` was still coercing the LLM's answer
+with `bool(o.get("handledWell", False))` — so a probe the model declined to judge, or
+simply did not mention, was written to the artifact as an explicit `false`: a graded
+failure, in a grading path, with no evidence behind it. `reflect._tri_bool` now keeps
+`true` / `false` / `null` end to end (a probe the model omitted is `null`), the prompt's
+answer schema is `"handledWell": bool|null` and says in words that `false` means judged
+and mishandled, and `TOOLING_SIGNAL_PROMPT_VERSION` moved to `tooling-signal-v4`.
+Downstream this lands in `evaluate`'s no-signal branch — judgment rests on verification
+alone rather than `0.5*verif + 0.5*0`.
+
+**The probes' `decisionSpace` now reaches both graders that judge against it.** The
+2-3 defensible options a probe admits (`design.py`) were already read by
+`evaluate_submission`, `mint_followups`, `chat.py` and `lifecycle_eval`, but not by the
+two steps that grade *probe handling* and *interview material*: `reflect.assess_tooling`
+(prompt v4) and `interview_scenario.build_prompt` (prompt `interview-scenario-v3`). The
+tooling grader is now asked which option the work encodes and to grade the deliberateness
+of the choice, not which option was picked; the interview's counterfactual flips the
+constraint so a *different* listed option becomes defensible, and the coachability hint
+points at an option the candidate has not weighed. Probes designed before the
+decision-space contract carry an empty list — `design.py` deliberately does not backfill
+it — and both prompts degrade to that rather than inventing a landscape.
+
 **Canary kind is rendered.** `CanaryOutcome.kind` rode in the bundle from the start
 and was never displayed, so "propagated · src/rates.ts" did not say whether a wrong
 constant or a stale doc had survived.
@@ -502,6 +555,55 @@ future code with no catalog entry still degrades to a sentence. Statuses are unc
 the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins the
 source: no route may re-type the closed-intake sentence, and the work surface may never
 use the inverted `body.error ?? t(...)` chain.
+
+**…and so do the last two doors.** The pass above left the chat channel and the 8s flush
+answering bare English, with catches on `jsonError` — which forwards the thrown
+`.message`, so `SQLITE_*` codes, the absolute db path and the provider stderr
+`runSessionChat` raises could reach an unauthenticated applicant mid-assessment. Both now
+refuse through the vocabulary: `DEVCASE_SESSION_NOT_FOUND` (404),
+`DEVCASE_SESSION_ALREADY_SUBMITTED` (409, a new code: nothing is lost and nothing is
+broken, the attempt is simply over), `DEVCASE_CHAT_MESSAGE_REQUIRED` (400) and
+`DEVCASE_SESSION_UNAVAILABLE` (404) for a link that no longer resolves to a case. The
+catches answer `safeJsonError` against three new `STORE_ERRORS` codes —
+`DEVCASE_CHAT_FAILED`, `DEVCASE_SESSION_FLUSH_FAILED` (worded so a failed flush never
+reads as lost work: the batch stays buffered and the draft stays on the device) and
+`DEVCASE_SESSION_READ_FAILED` for the operator GET that shares the public prefix.
+`LiveWorkSurface` resolves the chat refusal through `useErrorMessage` instead of painting
+one generic line over four causes, and `DevSessionEvidencePanel` — which already read
+codes — finally gets one from the session read. Statuses are unchanged;
+`devcase-candidate-refusals.test.ts` now walks all five candidate doors and
+`session-read.test.ts` asserts the code rather than the English sentence.
+
+**The candidate can see the clock, and a late submission says so.** The brief printed
+"~2h" and the work surface then showed no elapsed time at all, while the server never
+compared a session's age to its timebox. Two different people were blind to the same
+number: the candidate, who could not tell whether they had been working for forty minutes
+or four hours, and the recruiter, for whom a 90-minute attempt and an eight-hour one
+arrived looking identical.
+
+Both halves come from the SAME server-side start time, `dev_sessions.created_at`, so a
+reload, a second device or a restored local draft cannot reset it. The 8s flush
+(`POST /api/devcase/session/[id]`) now answers `elapsedMinutes` alongside `perturbation`;
+`LiveWorkSurface` renders it against the timebox threaded down from the page
+(`timeboxHoursForDisplay`, so the clock and the brief cannot disagree) and ticks it
+locally between flushes. It stays hidden until a session exists: a visitor who is only
+reading the brief has not started anything, and inventing a start time for them would be
+the dishonest half.
+
+Past the box the line changes tone and says the overrun is recorded, and Submit keeps
+working. **A late submission is RECORDED, never refused** — the timebox is advisory, and
+deleting an hour of someone's work over a clock they were never shown is not a policy this
+product has. `POST .../submit` computes the overrun once and `submitDevSession` writes it
+to `dev_submissions.over_timebox_minutes` (an additive, idempotent `ADD COLUMN` inside
+`app/_lib/db/devcase.ts`, the shape `skill-profiles.ts` and `agents.ts` already use).
+Three states, deliberately distinct: `null` = not measured (a repo-link or webhook
+submission, or a row predating the column), `0` = measured and inside the box, `n > 0` =
+`n` minutes over. `DevSubmissionRow` shows the third and stays silent for the other two,
+because "inside the box" is the expected case and "not measured" is not a fact about the
+candidate. `app/_lib/db/devcase-over-timebox.test.ts` pins all three plus idempotence (a
+double-clicked finalize must not inflate the recorded overrun), and
+`devcase-timebox-ui.test.ts` now also guards the candidate page and `DevHelpers.ts`
+against re-typing a timebox literal.
 
 **The live finalize is a real intake, not a store call.** `POST
 /api/devcase/session/[id]/submit` used to call `submitDevSession` and stop there, while
@@ -1523,7 +1625,9 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   (`app/_lib/db/devcase.ts`) has no expiry column, so only `status === "closed"`
   invalidates a link.
 - `case.timeboxHours` is advisory — nothing on the server enforces it, so a session can
-  stay open indefinitely.
+  stay open indefinitely. It is now MEASURED rather than enforced (see "The candidate can
+  see the clock" below): the finalize door records how far past the box the attempt ran
+  and never refuses one.
 - The Define-need pane reads a task's result through `useTaskResult`, which gives up after
   `RESULT_FETCH_MAX_ATTEMPTS` failed `GET /api/tasks/[id]` calls. Both watches
   (`useDevTabNeedAnalysis.ts`) now honour that `resultUnavailable` flag, so a run that

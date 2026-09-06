@@ -958,8 +958,9 @@ pipeline/jobfit/eval/fixtures_csas --strict`. Full corpus:
 
 ### Absence is not a finding (the analysis add-ons)
 
-Two derived add-ons state signals about a named person and share one rule: a
-*missing* input never becomes an accusation.
+Three derived add-ons state signals about a named person and share one rule: a
+*missing* input never becomes an accusation — and, symmetrically, an asserted
+absence has to survive the CV.
 
 - **`recruiter_risk_flags` that assert there are no risks.** The Gemini contract has
   no "return `[]` when clean" rule, so a clean CV comes back as a sentence ("No
@@ -975,6 +976,29 @@ Two derived add-ons state signals about a named person and share one rule: a
   (`gemini.py`), so a `cs`/`de`/`fr` analysis still folds its "no risks" sentence in;
   closing that needs a contract change (an explicit empty-list rule or a structured
   flag), not more phrase matching.
+- **A claimed GAP is verified against the CV, like a claimed match.**
+  `job_fit.matching_skills` has been gated since UAT M1 (`ats.verify_skills_in_cv`
+  — a claimed skill the CV cannot evidence is withheld). `missing_skills` had no
+  such gate, so the model could assert a gap the CV contradicts, and that gap is a
+  stated reason a person is rejected as well as an input to the interview kit and
+  the keyword panel's missing list. `ats.verify_gaps_against_cv` closes it, built
+  **on** `verify_skills_in_cv` rather than beside it so the two directions cannot
+  disagree about what the CV evidences (same alias-aware, whole-token, taxonomy-
+  backed matcher: a "Kubernetes" gap is contradicted by a CV that only writes
+  "k8s"). Absence is not the mirror of presence, though, so the gate is asymmetric
+  on purpose: a term the CV names only aspirationally — "familiar with X",
+  "currently learning X", "basics of X" (`ats.HEDGE_MARKERS`, prefix phrases,
+  English-first with cs/de equivalents) — is a mention, not evidence, and the gap
+  **stands**. One un-hedged mention is enough to contradict it. A contradicted gap
+  is dropped from the list rather than annotated — `missing_skills` is a flat
+  `list[str]` every consumer reads as "real gap", so a marker string would just
+  become a differently-worded gap on those surfaces — and the drop is recorded in
+  `sanity_checks` with its count and the terms ("Dropped N AI-suggested gap(s) the
+  CV contradicts…"), so nothing disappears silently. Wired at
+  `pipeline/jobfit/pipeline.py` immediately after the matching gate, before
+  `keyword_coverage` and the interview kit consume the lists. Tests:
+  `tests/test_ats.py::GapVerificationTest` and the two analyze-level cases in
+  `tests/test_analyze_honesty_fields.py`.
 - **Quantified-outcome detection is gender-neutral in Czech.** The
   `soft_signals._METRIC_RE` achievement verbs now carry their l-participle inflection
   (`snížil|snížila|snížili|snížily…`). The masculine-only stems used to award

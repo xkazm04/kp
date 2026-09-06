@@ -53,12 +53,12 @@ test("restoring a single-org deployment brings the shared library back", () => {
   // standard and the team's draft.
   deleteTemplate(shared.id, teamA.id);
   deleteTemplate(priv.id, teamA.id);
-  assert.ok(!listTemplates(teamA.id).some((t) => t.id === shared.id), "gone before the restore");
+  assert.ok(!listTemplates(teamA.id).templates.some((t) => t.id === shared.id), "gone before the restore");
 
   const summary = restoreOrg(backup, DEFAULT_ORG_ID);
   assert.equal(summary.sharedTierRestored, true, "nobody else is on this deployment");
 
-  const back = listTemplates(teamA.id).map((t) => t.id);
+  const back = listTemplates(teamA.id).templates.map((t) => t.id);
   assert.ok(back.includes(shared.id), "the company library is restored");
   assert.ok(back.includes(priv.id), "so is the team's private draft");
 });

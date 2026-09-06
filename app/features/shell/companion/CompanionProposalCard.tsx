@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, EYEBROW } from "@/app/_components/ui/recipes";
 import type { CompanionProposal } from "@/app/_lib/db/companion";
 // The PURE payload module, never `companion-actions` — the catalog's executors
@@ -53,10 +54,16 @@ export type CompanionProposalCardProps = {
   /** Resolves to false when the answer did not land, so the card can re-arm its
    *  buttons instead of sitting disabled on a request that failed. */
   onResolve: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The code from an answer that did not land, when it was THIS card's. Read
+   *  through `useErrorMessage` like every other code: the server's English
+   *  sentence is never what the operator sees. Absent in surfaces that show the
+   *  failure elsewhere (voice mode's ticker prints the thread's error line). */
+  error?: string | null;
 };
 
-export function CompanionProposalCard({ proposal, onResolve }: CompanionProposalCardProps) {
+export function CompanionProposalCard({ proposal, onResolve, error }: CompanionProposalCardProps) {
   const t = useTranslations("companion");
+  const resolveError = useErrorMessage();
   const [busy, setBusy] = useState(false);
   const payload = coerceProposalPayload(proposal.payload);
   const summary = payload
@@ -85,7 +92,16 @@ export function CompanionProposalCard({ proposal, onResolve }: CompanionProposal
             {t("proposal.decline")}
           </button>
         </div>
-      ) : (
+      ) : null}
+      {/* An answer that did not land, said where the button was pressed. A 409
+          is NOT one of these: the route sends the answered row with it, so that
+          card has already repainted as answered by the time this could render. */}
+      {proposal.status === "open" && error ? (
+        <p role="alert" className="mt-2 text-sm text-coral">
+          {resolveError({ code: error }, t("proposal.failed"))}
+        </p>
+      ) : null}
+      {proposal.status !== "open" ? (
         <p className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className={CHIP_QUIET}>
             {proposal.status === "accepted" ? t("proposal.accepted") : t("proposal.declined")}
@@ -96,7 +112,7 @@ export function CompanionProposalCard({ proposal, onResolve }: CompanionProposal
             </span>
           ) : null}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

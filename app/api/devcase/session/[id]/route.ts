@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionMeta, getPostingByToken, saveDevSessionFiles } from "@/app/_lib/db/devcase";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -50,11 +50,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const session = getDevSession(id);
-    if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
+    if (!session) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
 
     const callerWorkspace = await currentWorkspace();
     if (session.workspaceId !== callerWorkspace) {
-      return NextResponse.json({ error: "session not found" }, { status: 404 });
+      return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
     }
 
     const transcript = getDevSessionChat(id);
@@ -71,7 +71,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       files: session.files,
     });
   } catch (error) {
-    return jsonError(error, "Failed to read session.");
+    // Operator-facing, but on better-sqlite3: the thrown message carries SQLITE_*
+    // codes and the absolute db path. Log it, answer the code.
+    return safeJsonError(error, "api:devcase/session/read", "DEVCASE_SESSION_READ_FAILED");
   }
 }
 
@@ -97,8 +99,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Status-only read (case-sim round 3): this hot path never needs the files
     // blob getDevSession would parse on every flush.
     const session = getDevSessionMeta(id);
-    if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
-    if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
+    // Codes, not English: the flush is a candidate door, and the surface reads the
+    // 404/409 as "this session id is dead, mint a fresh one" either way.
+    if (!session) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
+    if (session.status !== "active") return jsonRefusal("DEVCASE_SESSION_ALREADY_SUBMITTED", 409);
 
     // Read the body as TEXT first: its byte length is what the per-token daily budget
     // charges, and JSON.parse of the same string costs nothing extra.
@@ -185,6 +189,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // and record the reveal SERVER-SIDE as a chained "perturbation" event (clients
     // can't submit that kind — see KINDS above — so the reveal moment is trustworthy).
     // Already-fired sessions keep receiving the text so a reload re-renders the banner.
+    // The clock the candidate could not see. The brief says "2h" and then the surface
+    // never showed elapsed time, so the only person who knew how long they had been
+    // working was the one least able to judge it. Server truth (the session's own
+    // createdAt), carried on the flush the surface already makes every 8s, so a reload
+    // or a second device cannot restart it. Advisory: nothing here refuses anything.
+    const startedAt = Date.parse(session.createdAt);
+    const elapsedMinutes = Number.isFinite(startedAt) ? Math.max(0, Math.round((Date.now() - startedAt) / 60_000)) : null;
+
     let perturbation: string | null = null;
     const mfu = session.token ? midFlightUpdateForToken(session.token) : null;
     if (mfu) {
@@ -196,8 +208,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    return NextResponse.json({ ok: true, seq, perturbation });
+    return NextResponse.json({ ok: true, seq, perturbation, elapsedMinutes });
   } catch (error) {
-    return jsonError(error, "Failed to save the work session.");
+    // A PUBLIC candidate door: never the store's own message. The surface keeps the
+    // batch buffered and the draft on the device, so this reads as "not saved yet".
+    return safeJsonError(error, "api:devcase/session/flush", "DEVCASE_SESSION_FLUSH_FAILED");
   }
 }

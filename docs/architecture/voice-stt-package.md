@@ -86,6 +86,63 @@ behind a decoder this package deliberately does not carry, so for `mpeg`/`mp4`/`
   confident English nonsense, which is worse than a refusal because it looks like a
   transcript. The adapter prefers a multilingual model and refuses the mismatch by name.
 
+### 4b. The host encodes before it uploads (`packages/voice-stt/src/browser/wav-encode.ts`)
+
+"The package does not transcode" is the right rule for the server and, left there alone, it
+made the default install a dead end rather than a degraded one. The browser records Opus in a
+WebM container (`MediaRecorder` offers nothing else on Chrome), the resolution order leads
+with the on-device engine on purpose, and whisper.cpp reads 16 kHz PCM WAV — so the first mic
+click was `invalid_audio` for every clip, and on a residency-locked deploy there was no second
+engine to fall back to.
+
+The conversion belongs on the capture side, where the platform already owns it, and the
+package now ships it so the first consumer does not invent it:
+
+| Step | Where | Pure? |
+| --- | --- | --- |
+| decode the recorded container | `AudioContext.decodeAudioData` | no — needs a browser |
+| channels → mono (averaged, not channel 0) | `mixToMono` | yes |
+| N kHz → 16 kHz (linear interpolation) | `resampleLinear` | yes |
+| Float32 → PCM16 + 44-byte RIFF header | `encodeWav16` | yes |
+
+Only the first row needs a browser, and it is the one row where the platform decodes a codec
+the same platform just wrote — not a decoder the package took on. Everything below it is
+arithmetic over `Float32Array`, exported separately, and tested on synthetic PCM whose header
+is validated **by `node/wav.ts`**, the reader the server uses to accept or refuse the clip;
+asserting our own bytes against our own constants would pass while shipping audio whisper.cpp
+rejects. Rate conversion is linear with no anti-alias filter — a deliberate call for speech
+into a 16 kHz mel front end, and one function to revisit if an engine proves otherwise.
+`encodeWavFromBlob` itself is unverified outside a real browser.
+
+### 4c. The React binding, and the first consumer
+
+`packages/voice-stt/src/react/useStt.ts` is the sibling of `voice-tts/src/react/useTts.ts`
+and deliberately the same shape: a headless hook against whatever route the host mounts the
+package behind, carrying the host's machine CODE beside the English sentence
+(`SttRequestError` / `sttErrorFrom`, twins of the synthesis pair) so a localizing surface
+resolves the code and logs the sentence.
+
+The reason it exists is that without it the FIRST consumer has to invent four things that
+are not about its feature: the permission dance, `MediaRecorder`'s container negotiation,
+the encode above, and the refusal mapping. The reason its state machine (`sttPhaseNext`) is
+a pure exported table is that the transitions are where a recording gets lost — a second
+press mid-upload, a `MediaRecorder.onstop` arriving after the encode already threw, a 499
+(this client's own abort, which the route answers with an empty body) painted red as an
+engine fault. A table can be proven; a `MediaRecorder` cannot.
+
+Two behaviours of the hook are policy rather than plumbing:
+
+- **`unavailable` latches.** `STT_UNAVAILABLE` is a server-configuration fact, so the hook
+  remembers it and a surface stops offering the control instead of recording into the same
+  503 again. Only a probe finding a ready allowed engine clears it. Every other failure
+  leaves the control live.
+- **A capture over `maxSeconds` is stopped and TRANSCRIBED, not discarded** — throwing away
+  a clip for being long throws away the words somebody just said.
+
+kp's first consumer is the companion mic (`app/features/shell/companion/CompanionInputPanel.tsx`),
+which dictates into the composer rather than sending: see
+[docs/features/companion/README.md](../features/companion/README.md).
+
 ### 5. The scratch dir is a privacy control, not a convenience
 
 `withScratchDir` writes the clip to the OS temp folder for the local engine and removes it in
@@ -160,9 +217,10 @@ Error mapping, in one place:
 | `too_long` — well-formed audio, longer than the serving engine's `maxClipSeconds` | **413** |
 | `unsupported` — well-formed request, healthy engines, capability not on offer | **422** |
 | `rate_limited` — the engine asked us to slow down | **429**, plus `Retry-After` from `err.retryAfterMs` when the engine said how long |
-| `unavailable` — nothing ready, with the last probe's reason | 503 |
+| `unavailable` — nothing ready | **503** as the `STT_UNAVAILABLE` refusal; the probe's reason is a server-log fact, never the body |
 | `timeout` | 504 |
-| `engine_failed`, `aborted` | 502 |
+| `aborted` — the CALLER closed the connection | **499**, empty body, nothing logged |
+| `engine_failed` | 502 |
 
 `too_long` is 413 rather than 400 for the same reason the upload gate answers 413 for too
 many bytes: a client branches on "too much audio" once, whether the excess is size or
@@ -170,19 +228,110 @@ length. `rate_limited` exists so a vendor's concurrency ceiling does not reach a
 as "the engine broke" — the two have opposite next actions (wait and repeat vs. investigate),
 and the adapter keeps a cached positive probe across a 429 because busy is not down.
 
+`aborted` is the one row that is not a failure at all. It used to fall through to the 502
+engine branch, which LOGS under `api:stt:engine`, so every cancelled upload and every
+navigation away wrote an engine fault that no engine committed. It now answers **499**
+(nginx's "client closed request") with an **empty body and no log line**: the socket a body
+would be written to is the one that just closed, so there is no reader to resolve a code
+for, and saying nothing is the honest answer to somebody who stopped listening.
+
+### The deadline
+
+The route declares `export const maxDuration = 300` and DERIVES the engine budget from it
+(`STT_ENGINE_TIMEOUT_MS = (maxDuration - 10) * 1000`), which it passes to
+`Stt.transcribe({ timeoutMs })`; the registry hands it to the adapter as `transcribe`'s
+optional third argument, and each adapter takes the **minimum** of that and its own ceiling
+(`JOB_TIMEOUT_MS`, `WHISPER_TIMEOUT_MS`/`DEFAULT_TIMEOUT_MS`). A host budget never WIDENS an
+operator's own limit; it only shortens it.
+
+Both halves matter, and for different reasons. Declaring nothing let a serverless platform
+kill the handler mid-call, and a killed handler is the failure that leaves no trace: the
+local sidecar keeps running with no parent and its scratch dir is never removed. And
+`maxDuration` is **serverless-only** (see `.claude/CLAUDE.md`), so on a self-hosted
+`next start` nothing enforces it at all and the value passed to the engine is the real
+bound on both paths. That is why it is passed rather than merely declared. Same pairing as
+`app/api/extract-text/route.ts`, and pinned by the same kind of test.
+
 **Every refusal carries a CODE, never an English sentence** (api-contracts.md §1.1). The
 boundary refusals resolve through `REFUSAL_ERRORS`: `AUDIO_MISSING` (no multipart body, no
 `audio` part, or an empty one), `AUDIO_UNSUPPORTED_TYPE`, `AUDIO_TOO_LARGE`,
 `TOO_MANY_REQUESTS` (the per-IP throttle AND the engine's own `rate_limited`, so a client
-backs off from both the same way) and `STT_TOO_LONG` for the engine's `too_long`.
+backs off from both the same way), `STT_TOO_LONG` for the engine's `too_long` and
+`STT_UNAVAILABLE` for its `unavailable`.
 `validateAudioUploadServer` returns `{ status, code }` rather than a sentence, and the 500
 is `safeJsonError(err, "api:stt", "STT_FAILED")` — the adapter's message (which can carry a
 vendor HTTP body or a local model path) goes to the server log only. The code -> status
 table is pinned by invoking the handler in `app/api/stt/stt-route.test.ts`.
 
+The ENGINE branch joined them on 2026-09-05. It used to send `{ error: err.message }`, and
+that message is the adapter's English ("OPENAI_API_KEY is not set", a whisper.cpp stderr
+tail) — the one thing a client may not render. Three engine codes are answered as REFUSALS
+before that branch is reached, because each names something the operator can go and do:
+`rate_limited` (`TOO_MANY_REQUESTS` 429), `too_long` (`STT_TOO_LONG` 413) and `unavailable`
+(`STT_UNAVAILABLE` 503, "Transcription is not configured on this server" — a keyless install
+told to "try again" cannot act on that). Every OTHER engine failure answers
+`safeJsonError(err, "api:stt:engine", "STT_FAILED", STT_ERROR_STATUS[err.code] ?? 502)`:
+the error whole to the server log, `STT_FAILED` plus its registry sentence on the wire, and
+the engine's own status kept. Because `unavailable` never reaches the lookup, it carries no
+row there — a second 503 nothing can select is drift waiting to happen, and
+`stt-route.test.ts` pins its absence. `provider` left the body with the message; nothing
+read it.
+
 The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every
 boundary that renders it.
+
+Two fields close the last gaps in that visibility, both added 2026-09-05:
+
+- **`requestedProvider`** on the transcript body. `fallbackFrom` could not carry the case
+  that matters most on a locked deploy: a provider outside `KP_STT_PROVIDERS` is dropped
+  from the resolution order **before** anything is compared, so a request for `assemblyai`
+  on a residency-locked install was served by `whisper_cpp` with `fallbackFrom: null` and
+  nothing said the pick had been overruled. `requestedProvider` is what the caller named
+  whenever it named a real provider, allowed or not.
+- **`models`** on every `SttStatus` row from the `GET`. Every adapter implemented
+  `models()` and no surface could reach it, so a picker had to make a round trip per
+  provider to learn which engine models an install can serve. Populated only for a **ready**
+  provider (an absent engine's catalog says nothing an operator can act on, and the probe
+  state already carries the fact that decides their next action), and a `models()` that
+  throws degrades that one row to `[]` and logs, rather than failing the whole status read.
+
+## Money — every transcript is in the ledger
+
+The cloud path is billed **per audio hour**, so a transcript is a paid leg exactly like a
+synthesis or a realtime minute, and it is metered the same way: `app/api/stt/route.ts`
+writes one `llm_usage` row per served transcript through `sttUsageRow`
+(`app/_lib/stt-prices.ts`), which is this plane's sibling of `tts-prices.ts` (per character)
+and `app/_lib/voice/minute-prices.ts` (per realtime minute). Without the row a cloud
+transcript appears in no Models usage panel, no billing spend fold and no total an operator
+can audit.
+
+| Field | Value |
+| --- | --- |
+| `use_case` | `stt` (the label is `models.useCases.stt` in all four catalogs) |
+| `provider` | the engine that actually served, `fallbackFrom` included |
+| `model` | the engine model id (`ggml-base.bin`, `universal`), or null |
+| tokens | **NULL** — audio seconds are not tokens, and `aggregateLlmUsage` sums those columns across every use case |
+| `cost_usd` | `STT_HOUR_PRICES[provider] x durationMs / 3_600_000`, rounded to 6 decimals |
+| `source` | always `llm`; there is no transcription cache, because no two uploads are the same clip |
+
+Three price conventions, all shared with the other two meters:
+
+- **The unit is the audio hour, not the wall clock.** The row is priced on
+  `SttTranscript.durationMs` (the vendor's own `audio_duration`, or the WAV header locally)
+  and never on `elapsedMs`. A slow CPU is not a bigger bill.
+- **AssemblyAI is $0.27 per audio hour**, its listed price for asynchronous Universal
+  transcription as of 2026-09-05. A LOCAL ESTIMATE, and a floor: diarization and PII
+  redaction are priced add-ons this row does not model. An operator on a negotiated rate
+  edits the number rather than trusting it.
+- **whisper.cpp is a KNOWN zero, and an unlisted provider is null.** "Costs nothing" and
+  "we do not know" are different facts; a null lands the call in `unpriced_calls`, where it
+  is visible, instead of in the sum as a fabricated zero. The known zero holds even when the
+  clip length does not parse: nothing is billed per hour, so no length can make it non-zero.
+
+The write is **best-effort** in the house shape (`try`/`catch` with a `console.warn`): the
+ledger is telemetry and never the request, so a transcript that succeeded is never failed by
+a bookkeeping error.
 
 ## Deployment shapes
 
@@ -200,9 +349,17 @@ One package, two shapes, no code fork — the allowed set does the work:
   transcription today comes from the conversation provider's own session
   (`app/_lib/voice/`), not from this package. A socket-shaped adapter is the next seam, and
   it must carry its own language row (see the Czech constraint above).
-- **No consumer in the product yet.** The package, the binding and the route are in; no kp
-  surface calls `/api/stt`. The intended first consumers are post-hoc transcription of a
-  completed interview session and the GDPR redaction pass over a stored transcript.
+- **One consumer, and it is the smallest one.** The companion mic dictates into a one-line
+  composer (§4c). The two consumers this package was actually built for — post-hoc
+  transcription of a completed interview session, and the GDPR redaction pass over a stored
+  transcript — still do not call `/api/stt`, and neither uses the browser capture path at
+  all (their audio is already on the server).
+- **The capture path is unverified in a real browser.** `encodeWavFromBlob`,
+  `getUserMedia` and `MediaRecorder` have no coverage in the node:test runner; what is
+  pinned is the pure half (the resampler, the WAV writer, the phase table, the error
+  mapping) plus a source guard on the wiring. The first live check to run is the one that
+  matters most: that a clip recorded by Chrome and encoded here is accepted by a real
+  `whisper-cli` rather than refused by its own header check.
 - **No onboarding step.** The install/BYO-key choice is documented in
   `.claude/onboarding/config.md` (the CLI skill) but the product's first-run wizard
   (`app/features/shell/setup/`) still has no engine or key step for any of the three voice

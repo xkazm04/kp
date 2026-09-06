@@ -5,6 +5,7 @@ import {
   resetTtsCacheForTests,
   speakCached,
   ttsCacheKey,
+  ttsCacheLookup,
   ttsCacheStats,
 } from "./tts-cache.ts";
 import type { TtsRequest } from "@/packages/voice-tts/src/index";
@@ -25,6 +26,7 @@ function fakeTts(bytesPerCall = 8) {
         voiceId: `voice-${req.language ?? "en"}`,
         elapsedMs: 5,
         fallbackFrom: null,
+        unsupportedLanguage: null,
       };
     },
   };
@@ -118,4 +120,89 @@ test("a stored clip cannot be mutated through the caller's copy", async () => {
   first.audio.bytes.fill(0xff);
   const second = await speakCached(tts, { text: "hello" });
   assert.notDeepEqual(Array.from(second.audio.bytes), Array.from(first.audio.bytes));
+});
+
+// the-cache-relieves-the-throttle-and-dedupes-in-flight ------------------------
+
+test("two presses INSIDE one synthesis are one engine call, not two", async () => {
+  let calls = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const slow = {
+    speak: async () => {
+      calls += 1;
+      await gate;
+      return {
+        bytes: new Uint8Array(8).fill(1),
+        mimeType: "audio/mpeg" as const,
+        provider: "elevenlabs" as const,
+        voiceId: "v",
+        elapsedMs: 5,
+        fallbackFrom: null,
+        unsupportedLanguage: null,
+      };
+    },
+  };
+  const req: TtsRequest = { text: "the same sentence, twice" };
+  const first = speakCached(slow as never, req);
+  const second = speakCached(slow as never, req);
+  release();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(calls, 1, "the overlapping request joined the call in flight");
+  assert.equal(a.cached, false);
+  assert.equal(b.cached, true, "the joiner spent nothing, so its ledger row is a zero");
+  assert.deepEqual(Array.from(b.audio.bytes), Array.from(a.audio.bytes));
+});
+
+test("an in-flight call that FAILS is evicted, so the next caller gets a real attempt", async () => {
+  let calls = 0;
+  let fail!: () => void;
+  const gate = new Promise<void>((_, reject) => (fail = () => reject(new Error("engine down"))));
+  const failing = {
+    speak: async () => {
+      calls += 1;
+      await gate;
+      throw new Error("unreachable");
+    },
+  };
+  const req: TtsRequest = { text: "this one breaks" };
+  const first = speakCached(failing as never, req);
+  const second = speakCached(failing as never, req);
+  fail();
+  await assert.rejects(() => first);
+  await assert.rejects(() => second, "the joiner sees the same failure, never a stale success");
+  assert.equal(calls, 1);
+  assert.equal(ttsCacheStats().entries, 0);
+  // …and the NEXT caller is a fresh attempt rather than a remembered failure.
+  await assert.rejects(() => speakCached(failing as never, req));
+  assert.equal(calls, 2);
+});
+
+test("the key is built from the VALIDATED request, so equivalent asks are one clip", async () => {
+  // Everything the validation door collapses: speed clamped at 2, the language
+  // tag lower-cased, whitespace squeezed, an absent format defaulted to plain.
+  assert.equal(
+    ttsCacheKey({ text: "hello", speed: 9 }),
+    ttsCacheKey({ text: "hello", speed: 2, format: "plain" }),
+    "speed 9 IS speed 2 — validate clamps it before any engine sees it",
+  );
+  assert.equal(ttsCacheKey({ text: "hello", language: "CS-cz" }), ttsCacheKey({ text: "hello", language: "cs-cz" }));
+  const tts = fakeTts();
+  await speakCached(tts, { text: " hello ", speed: 3 });
+  await speakCached(tts, { text: "hello", speed: 2 });
+  assert.equal(tts.calls(), 1, "the second ask resolves to the same synthesis");
+});
+
+test("ttsCacheLookup never synthesizes and never throws", async () => {
+  const tts = fakeTts();
+  const req: TtsRequest = { text: "a stored line" };
+  assert.equal(ttsCacheLookup(req), null, "an empty cache is a miss, not a call");
+  await speakCached(tts, req);
+  const hit = ttsCacheLookup(req);
+  assert.equal(hit?.cached, true);
+  assert.equal(tts.calls(), 1, "the lookup half touched no engine");
+  // An unvalidatable request has no clip by construction: a miss, not a throw —
+  // the route refuses it with its own code right after.
+  assert.equal(ttsCacheLookup({ text: "   " }), null);
+  assert.equal(ttsCacheLookup({ text: "hi", voiceId: "../etc" }), null);
 });

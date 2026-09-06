@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createThread, listProposalsForThread, listThreads, listTurns } from "@/app/_lib/db/companion";
 import { companionMemoryEnabled } from "@/app/_lib/companion-brain";
+import { COMPANION_THREAD_TURNS } from "@/app/_lib/companion-turn";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -24,7 +25,10 @@ export async function GET() {
   try {
     const ws = await currentWorkspace();
     const threads = listThreads(ws);
-    const turns = threads.length > 0 ? listTurns(threads[0].id, ws) : [];
+    // The bound is STATED, never inherited: `listTurns` reads the newest N, and
+    // the dock's N is the one the transcript renders. Taking the default is how
+    // this payload used to hand back the oldest 200 turns of a longer thread.
+    const turns = threads.length > 0 ? listTurns(threads[0].id, ws, COMPANION_THREAD_TURNS) : [];
     // The newest thread's PROPOSALS ride along for the same reason its turns do:
     // the dock opens on that conversation and would otherwise paint an Accept
     // button for something the operator already answered, one round trip ago.

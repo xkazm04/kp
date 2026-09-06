@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, GitBranch, Loader2, Mail, MessageSquare, RotateCcw, Sparkles, UserSearch } from "lucide-react";
+import { AlertTriangle, Clock, GitBranch, Loader2, Mail, MessageSquare, RotateCcw, Sparkles, UserSearch } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { StatusChip } from "@/app/_components/StatusChip";
@@ -49,6 +49,7 @@ export function SubmissionRow({
   // Producer-owned vocabulary (the DB writes the value), so the has-guard stays:
   // a status this catalog has not learned yet renders raw rather than throwing.
   const tStatus = useTranslations("devcase.submissionStatus");
+  const tRow = useTranslations("devcase.submissionRow");
   const {
     owner,
     ghOpen, gh, toggleAuthorGithub, assessAuthor,
@@ -170,6 +171,20 @@ export function SubmissionRow({
             <AlertTriangle size={10} aria-hidden /> No contact — unreachable if promoted
           </span>
         )}
+        {/* How far past the timebox this attempt ran. Recorded, never refused (the
+            finalize door accepts a late submission by design), so this is the ONLY place
+            the difference between a 90-minute attempt and an eight-hour one is visible.
+            Rendered only when there is something to say: 0 and null both stay silent,
+            because "inside the box" is the expected case and "not measured" is not a
+            fact about the candidate. */}
+        {typeof submission.overTimeboxMinutes === "number" && submission.overTimeboxMinutes > 0 ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-amber-700"
+            title={tRow("overTimeboxTitle")}
+          >
+            <Clock size={10} aria-hidden /> {tRow("overTimebox", { minutes: submission.overTimeboxMinutes })}
+          </span>
+        ) : null}
         {submission.notes ? <span className="min-w-0 flex-1 truncate italic" title={submission.notes}>“{submission.notes}”</span> : null}
       </div>
       {ghOpen ? (

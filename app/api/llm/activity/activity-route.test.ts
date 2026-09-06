@@ -36,8 +36,8 @@ test("GET returns the bounded newest-first window and says how big it is", async
 test("GET serves the ledger rows, newest first", async () => {
   // The store stamps `ts` itself; the window is ordered `ts DESC, id DESC`, so the
   // later insert is the newer row even inside one millisecond.
-  insertLlmUsage({ useCase: "match_reasoning", provider: "gemini", model: "flash", source: "llm" });
-  insertLlmUsage({ useCase: "jd_build", provider: "claude_cli", model: null, source: "llm" });
+  insertLlmUsage({ useCase: "match_reasoning", provider: "gemini", model: "flash", source: "llm", outcome: "ok" });
+  insertLlmUsage({ useCase: "jd_build", provider: "claude_cli", model: null, source: "llm", outcome: "ok" });
 
   const body = (await (await GET()).json()) as { rows: Array<{ useCase: string; provider: string }> };
   assert.ok(body.rows.length >= 2);

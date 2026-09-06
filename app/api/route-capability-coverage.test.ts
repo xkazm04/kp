@@ -116,7 +116,6 @@ const ALLOWED = new Map<string, string>([
   ["devcase/session/[id]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["devcase/session/[id]/submit/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["devcase/session/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["edge/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["extract-text/route.ts", "public utility — stateless text extraction, throttled per IP; it writes nothing"],
   ["intake/[id]/attachments/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["intake/[id]/brief/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

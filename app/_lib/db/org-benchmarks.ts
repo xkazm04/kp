@@ -23,12 +23,44 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 export const BENCHMARK_MIN_ENTRIES = 20; // too small a sample is noise, not a benchmark
 export const BENCHMARK_MIN_TEAMS = 2; // k-anonymity: an org benchmark is never a window onto ONE other team
 
+/** How many pipeline_entries rows ONE benchmark aggregation will read.
+ *
+ *  These two reads are the widest scans in the app — `teamHiringStats` pulls a
+ *  team's whole board and `orgHiringBenchmark` pulls EVERY sibling team's, by
+ *  design (that is what an org aggregate is) — and neither had a ceiling. The
+ *  bound is deliberately generous: a real org hitting it would need 20k lifetime
+ *  candidates across its teams, so this is a worst-case guarantee rather than a
+ *  change of answer. When it IS reached, `truncated` travels with the figures,
+ *  because a rate computed over a silent slice reads exactly like the org's rate
+ *  and is the rate of whatever SQLite happened to return first. */
+export const BENCHMARK_ROW_CAP = 20_000;
+
+/** Newest-first + one row past the cap, so the slice is deterministic (the most
+ *  recent `cap` entries) and truncation is known without a second COUNT — the
+ *  `listJobsPage` shape. Both reads below share it so a team's own stats and the
+ *  org aggregate it is compared against can never cut differently. */
+function capRows(rows: StatRow[], cap: number): { rows: StatRow[]; truncated: boolean } {
+  return rows.length > cap ? { rows: rows.slice(0, cap), truncated: true } : { rows, truncated: false };
+}
+
+/** A caller's `rowCap` (tests only) resolved against the module cap. A
+ *  non-positive or fractional override would bind `LIMIT 0` or SQLite's
+ *  unbounded `LIMIT -1`, so it falls back to the constant instead. */
+function benchmarkCap(override?: number): number {
+  return Number.isInteger(override) && (override as number) > 0
+    ? Math.min(override as number, BENCHMARK_ROW_CAP)
+    : BENCHMARK_ROW_CAP;
+}
+
 
 export type HiringStats = {
   totalEntries: number;
   interviewRatePct: number; // reached Interview+ / total
   hireRatePct: number; // reached Hired / total
   medianTimeToHireDays: number | null; // median created→Hired days, over hired entries (null if none)
+  /** TRUE when the read hit BENCHMARK_ROW_CAP, so every figure above covers the
+   *  most recent `cap` entries rather than all of them. */
+  truncated: boolean;
 };
 
 export type OrgHiringBenchmark = HiringStats & {
@@ -38,9 +70,9 @@ export type OrgHiringBenchmark = HiringStats & {
 
 type StatRow = { stage: string; created_at: string | null; stage_changed_at: string | null; workspace_id: string };
 
-function statsFrom(rows: StatRow[]): HiringStats {
+function statsFrom(rows: StatRow[], truncated = false): HiringStats {
   const total = rows.length;
-  if (total === 0) return { totalEntries: 0, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+  if (total === 0) return { totalEntries: 0, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null, truncated };
   // This is the ONE aggregate that spans teams, and teams may run DIFFERENT
   // boards — one team's "Onsite" is another's "Interview", and neither name means
   // anything to the other. Each row is therefore judged against ITS OWN team's
@@ -82,6 +114,7 @@ function statsFrom(rows: StatRow[]): HiringStats {
     interviewRatePct: Math.round((reachedInterview / total) * 100),
     hireRatePct: Math.round((hired / total) * 100),
     medianTimeToHireDays: median == null ? null : Math.round(median),
+    truncated,
   };
 }
 
@@ -92,19 +125,28 @@ export function orgIdForWorkspace(workspaceId: string = DEFAULT_WORKSPACE_ID): s
 }
 
 /** One team's OWN hiring stats — its pipeline only (workspace-scoped). */
-export function teamHiringStats(workspaceId: string = DEFAULT_WORKSPACE_ID): HiringStats {
+export function teamHiringStats(workspaceId: string = DEFAULT_WORKSPACE_ID, opts?: { rowCap?: number }): HiringStats {
+  const cap = benchmarkCap(opts?.rowCap);
   const rows = ensureDb()
-    .prepare(`SELECT stage, created_at, stage_changed_at, workspace_id FROM pipeline_entries WHERE workspace_id = ?`)
-    .all(workspaceId) as StatRow[];
-  return statsFrom(rows);
+    .prepare(
+      `SELECT stage, created_at, stage_changed_at, workspace_id FROM pipeline_entries
+        WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(workspaceId, cap + 1) as StatRow[];
+  const read = capRows(rows, cap);
+  return statsFrom(read.rows, read.truncated);
 }
 
 /** The org-wide AGGREGATE across the org's sibling teams (org_id-join), WITHHELD below
  *  the k-anonymity floor. Aggregate-only — the returned object never carries a row or a
  *  team identity. `excludeWorkspaceId` yields a "vs peers" benchmark (the org minus the
  *  caller's own team) when the org has enough OTHER teams to stay anonymous. */
-export function orgHiringBenchmark(orgId: string, opts?: { excludeWorkspaceId?: string }): OrgHiringBenchmark {
+export function orgHiringBenchmark(
+  orgId: string,
+  opts?: { excludeWorkspaceId?: string; rowCap?: number }
+): OrgHiringBenchmark {
   const db = ensureDb();
+  const cap = benchmarkCap(opts?.rowCap);
   const params: unknown[] = [orgId];
   let extra = "";
   if (opts?.excludeWorkspaceId) {
@@ -115,11 +157,13 @@ export function orgHiringBenchmark(orgId: string, opts?: { excludeWorkspaceId?: 
     .prepare(
       `SELECT pe.stage, pe.created_at, pe.stage_changed_at, pe.workspace_id
          FROM pipeline_entries pe JOIN workspaces w ON w.id = pe.workspace_id
-        WHERE w.org_id = ?${extra}`
+        WHERE w.org_id = ?${extra}
+        ORDER BY pe.created_at DESC LIMIT ?`
     )
-    .all(...params) as StatRow[];
-  const contributingTeams = new Set(rows.map((r) => r.workspace_id)).size;
-  const stats = statsFrom(rows);
+    .all(...params, cap + 1) as StatRow[];
+  const read = capRows(rows, cap);
+  const contributingTeams = new Set(read.rows.map((r) => r.workspace_id)).size;
+  const stats = statsFrom(read.rows, read.truncated);
   const available = stats.totalEntries >= BENCHMARK_MIN_ENTRIES && contributingTeams >= BENCHMARK_MIN_TEAMS;
   // Below the floor we still report HOW MANY teams contributed (a count of teams is
   // not de-anonymizing — it's what the locked panel prints), but withhold the
@@ -137,7 +181,15 @@ export function orgHiringBenchmark(orgId: string, opts?: { excludeWorkspaceId?: 
   // aggregate the moment ≥ BENCHMARK_MIN_TEAMS teams stand behind it.
   if (!available) {
     const anonymousTotal = contributingTeams >= BENCHMARK_MIN_TEAMS ? stats.totalEntries : 0;
-    return { available: false, contributingTeams, totalEntries: anonymousTotal, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+    return {
+      available: false,
+      contributingTeams,
+      totalEntries: anonymousTotal,
+      interviewRatePct: 0,
+      hireRatePct: 0,
+      medianTimeToHireDays: null,
+      truncated: stats.truncated,
+    };
   }
   return { ...stats, available: true, contributingTeams };
 }
@@ -158,6 +210,14 @@ export function teamBenchmark(workspaceId: string = DEFAULT_WORKSPACE_ID): TeamB
   const orgId = orgIdForWorkspace(workspaceId);
   const org: OrgHiringBenchmark = orgId
     ? orgHiringBenchmark(orgId, { excludeWorkspaceId: workspaceId })
-    : { available: false, contributingTeams: 0, totalEntries: 0, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+    : {
+        available: false,
+        contributingTeams: 0,
+        totalEntries: 0,
+        interviewRatePct: 0,
+        hireRatePct: 0,
+        medianTimeToHireDays: null,
+        truncated: false,
+      };
   return { team, org };
 }

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
 import { ensureDb, safeRowParse } from "./core";
@@ -186,8 +187,8 @@ export type { LlmUsageInput };
 export function insertLlmUsage(input: LlmUsageInput): void {
   const db = ensureDb();
   db.prepare(
-    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     new Date().toISOString(),
     input.useCase,
@@ -198,6 +199,8 @@ export function insertLlmUsage(input: LlmUsageInput): void {
     input.cachedTokens ?? null,
     input.costUsd ?? null,
     input.source,
+    input.outcome,
+    input.reason ?? null,
     input.requestId ?? null
   );
 }
@@ -212,25 +215,105 @@ export function insertLlmUsage(input: LlmUsageInput): void {
  * ledger is telemetry, off the critical path.
  */
 export function ingestLlmUsageLog(logPath: string): number {
+  return ingestLlmUsageResult(logPath).inserted;
+}
+
+/** What one fold did: rows written, and rows REFUSED because this exact sidecar
+ *  line was already in the ledger (see `ingestLlmUsageResult`). */
+export type LlmUsageIngestResult = { inserted: number; skipped: number };
+
+/**
+ * The idempotency key for ONE ledger line: the sidecar path (a per-spawn
+ * `kp-llm-usage-<pid>-<uuid>.ndjson`, python-runner.ts), the line's ordinal in
+ * that file, and the line's bytes. Re-reading the same file yields the same key
+ * for the same line, so the second fold is refused; two identical lines from two
+ * different spawns, or two identical calls within one spawn, keep distinct keys
+ * and both land.
+ *
+ * Deliberately NOT `request_id`: that id identifies the SPAWN, is stamped on
+ * every line the spawn wrote (monitor.py `_request_id`), and is null for any
+ * spawn outside a tracked run — so a unique index on it would drop the second
+ * and later metered calls of every multi-call pipeline run, which is most of
+ * them. The key has to be per LINE because the thing being deduplicated is a
+ * line, not a request.
+ */
+function ingestKeyFor(logPath: string, index: number, line: string): string {
+  return createHash("sha256").update(`${logPath} ${index} ${line}`).digest("hex");
+}
+
+/**
+ * Same fold as {@link ingestLlmUsageLog}, but it also reports how many lines were
+ * refused as duplicates.
+ *
+ * REPLAY SAFETY. Deleting the sidecar afterwards was the ONLY thing that made this
+ * idempotent, and that delete is a best-effort `rmSync` whose failure is swallowed
+ * on purpose (the ledger must never break a spawn). A locked file on Windows, a
+ * read-only temp dir, or a crash between the INSERT and the unlink therefore left
+ * the file exactly where the next ingest of the same path would read it again —
+ * and with no key to refuse on, every row landed twice and the pricing meters
+ * billed double for spend that happened once. `INSERT OR IGNORE` on the
+ * `ingest_key` unique index (core.ts) makes the replay a no-op, and the skip is
+ * COUNTED rather than swallowed: a non-zero `skipped` means a cleanup failed, which
+ * is an operator-actionable fact.
+ */
+export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
   let raw: string;
   try {
     raw = readFileSync(logPath, "utf-8");
   } catch {
-    return 0; // file never created → no LLM calls in this spawn
+    return { inserted: 0, skipped: 0 }; // file never created → no LLM calls in this spawn
   }
-  const rows = raw.split(/\r?\n/).map(parseLedgerLine).filter((r): r is LlmUsageInput => r !== null);
+  const rows = raw
+    .split(/\r?\n/)
+    .map((line, index) => {
+      const parsed = parseLedgerLine(line);
+      return parsed === null ? null : { row: parsed, key: ingestKeyFor(logPath, index, line) };
+    })
+    .filter((r): r is { row: LlmUsageInput; key: string } => r !== null);
+  let inserted = 0;
   if (rows.length > 0) {
     const db = ensureDb();
-    db.transaction((batch: LlmUsageInput[]) => {
-      for (const row of batch) insertLlmUsage(row);
-    })(rows);
+    // No await anywhere inside: better-sqlite3 transactions are synchronous.
+    const fold = db.transaction((batch: typeof rows) => {
+      const stmt = db.prepare(
+        `INSERT OR IGNORE INTO llm_usage
+           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      let written = 0;
+      for (const { row, key } of batch) {
+        written += stmt.run(
+          new Date().toISOString(),
+          row.useCase,
+          row.provider,
+          row.model ?? null,
+          row.inputTokens ?? null,
+          row.outputTokens ?? null,
+          row.cachedTokens ?? null,
+          row.costUsd ?? null,
+          row.source,
+          row.outcome,
+          row.reason ?? null,
+          row.requestId ?? null,
+          key
+        ).changes;
+      }
+      return written;
+    });
+    inserted = fold(rows);
+  }
+  const skipped = rows.length - inserted;
+  if (skipped > 0) {
+    console.warn(
+      `[llm-usage] ${skipped} of ${rows.length} ledger line(s) in ${logPath} were already ingested — the sidecar's cleanup did not run last time; spend was NOT double-counted`
+    );
   }
   try {
     rmSync(logPath, { force: true });
   } catch {
-    /* best-effort cleanup */
+    /* best-effort cleanup — the ingest_key index above is what makes a re-read safe */
   }
-  return rows.length;
+  return { inserted, skipped };
 }
 
 // ---- Activity log (Insights → Activity) ------------------------------------
@@ -246,6 +329,12 @@ export type LlmActivityRow = {
   cachedTokens: number | null;
   costUsd: number | null;
   source: string;
+  /** "ok" | "failed" — see the visible-but-not-billable note in llm-usage-ledger.ts.
+   *  A failed attempt is LISTED here (that is the point: an operator has to be able
+   *  to see the timeout that cost them a prompt) while contributing to no total. */
+  outcome: string;
+  /** Closed-vocabulary descent/failure code, or null when there is nothing to explain. */
+  reason: string | null;
   requestId: string | null;
 };
 
@@ -264,7 +353,7 @@ export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id
+      `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id
          FROM llm_usage
         ORDER BY ts DESC, id DESC
         LIMIT ?`
@@ -281,12 +370,27 @@ export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
     cachedTokens: r.cached_tokens == null ? null : Number(r.cached_tokens),
     costUsd: r.cost_usd == null ? null : Number(r.cost_usd),
     source: r.source as string,
+    // Defensive `?? "ok"`: the column is NOT NULL DEFAULT 'ok' so this cannot be
+    // null in a migrated DB, but a row is only ever rendered, never re-summed here.
+    outcome: (r.outcome as string) ?? "ok",
+    reason: (r.reason as string) ?? null,
     requestId: (r.request_id as string) ?? null,
   }));
 }
 
+/** The zone `aggregateLlmUsage` cuts its DAYS in. `substr(ts, 1, 10)` takes the
+ *  date part of an ISO-8601 UTC timestamp, so every bucket edge is a UTC midnight
+ *  — for a Prague operator that is 01:00 or 02:00 local, and an LLM call made late
+ *  in the evening lands in the NEXT day's cost column. Small, real, and invisible
+ *  while nothing on the wire said which zone the rollup counted in. Stated on every
+ *  bucket rather than assumed; re-cutting the buckets in the operator's zone is a
+ *  separate decision (it needs an operator zone to exist first). */
+export const LLM_USAGE_DAY_TZ = "UTC" as const;
+
 export type LlmUsageAggregateRow = {
   day: string;
+  /** {@link LLM_USAGE_DAY_TZ} — the zone `day`'s boundaries were cut in. */
+  tz: typeof LLM_USAGE_DAY_TZ;
   useCase: string;
   provider: string;
   model: string | null;
@@ -295,6 +399,11 @@ export type LlmUsageAggregateRow = {
   // NULL cost_usd (Azure / unknown-model spend). cost_usd sums them as 0, so the
   // usage panel needs this to distinguish "cost $0" from "cost unknown".
   unpricedCalls: number;
+  // tiger X2: attempts in this bucket that RAISED (outcome 'failed'). Deliberately
+  // OUTSIDE `calls` and outside every sum below — a timed-out call spent real money
+  // but reported no tokens, so it is counted, never priced. See the
+  // visible-but-not-billable note in llm-usage-ledger.ts.
+  failedCalls: number;
   inputTokens: number;
   outputTokens: number;
   cachedTokens: number;
@@ -306,19 +415,32 @@ export type LlmUsageAggregateRow = {
  * Models usage panel and the pricing meters read. `sinceDays` bounds the scan to
  * recent rows (default 30). Costs sum only the rows that carry a cost_usd;
  * `unpricedCalls` counts the rows that don't (see the type note above).
+ *
+ * A group whose only rows FAILED reports calls 0 and failedCalls N. That is not an
+ * empty row to be filtered out — it is the answer to "why did this use case cost
+ * nothing this morning", which before tiger X2 the ledger could not give at all.
  */
 export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
   const db = ensureDb();
   const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
   const rows = db
     .prepare(
+      // Every aggregate below is conditioned on outcome, NOT filtered in the WHERE:
+      // a failed attempt has to stay in its (day × use_case × provider × model)
+      // bucket to be countable as `failed_calls`, while contributing to nothing
+      // else. `unpriced_calls` is conditioned too — a failed row carries NULL cost
+      // by construction, and letting it into that count would have turned "we
+      // cannot price this call" into "the provider died", two different facts the
+      // operator acts on differently. Pre-migration rows are all outcome 'ok'
+      // (NOT NULL DEFAULT), so a populated DB reads byte-identically.
       `SELECT substr(ts, 1, 10) AS day, use_case, provider, model,
-              COUNT(*) AS calls,
-              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_calls,
-              COALESCE(SUM(input_tokens), 0) AS input_tokens,
-              COALESCE(SUM(output_tokens), 0) AS output_tokens,
-              COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
-              COALESCE(SUM(cost_usd), 0) AS cost_usd
+              SUM(CASE WHEN outcome = 'ok' THEN 1 ELSE 0 END) AS calls,
+              SUM(CASE WHEN outcome = 'failed' THEN 1 ELSE 0 END) AS failed_calls,
+              SUM(CASE WHEN outcome = 'ok' AND cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_calls,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN input_tokens END), 0) AS input_tokens,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN output_tokens END), 0) AS output_tokens,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cached_tokens END), 0) AS cached_tokens,
+              COALESCE(SUM(CASE WHEN outcome = 'ok' THEN cost_usd END), 0) AS cost_usd
          FROM llm_usage
         WHERE ts >= ?
         GROUP BY day, use_case, provider, model
@@ -327,11 +449,13 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     .all(since) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     day: r.day as string,
+    tz: LLM_USAGE_DAY_TZ,
     useCase: r.use_case as string,
     provider: r.provider as string,
     model: (r.model as string) ?? null,
     calls: Number(r.calls ?? 0),
     unpricedCalls: Number(r.unpriced_calls ?? 0),
+    failedCalls: Number(r.failed_calls ?? 0),
     inputTokens: Number(r.input_tokens ?? 0),
     outputTokens: Number(r.output_tokens ?? 0),
     cachedTokens: Number(r.cached_tokens ?? 0),

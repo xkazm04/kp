@@ -438,6 +438,14 @@ jobs:
           # Change either bound deliberately, with a derivation edit in the same
           # commit; run_gated.py's message names the number to record.
           KP_SKIP_BASELINE: "5"
+          # Print the ten slowest MODULES after the run (run_gated.py --timings by
+          # another name — set here rather than on the `run:` line so the gate
+          # command CI executes stays byte-identical to the one AGENTS.md documents
+          # and `npm run guidance:check` compares). Reporting only: nothing fails on
+          # a slow module. The budget it feeds is in
+          # docs/development/testing-and-evaluation.md, and this is the only place
+          # the numbers can be read from a clean, contended-free machine.
+          KP_TEST_TIMINGS: "1"
 
       # AI-BEHAVIOUR EVALS AS A GATE, not as something someone remembers to run.
       #
@@ -470,8 +478,16 @@ jobs:
       #
       # Deliberately NOT gated: `test:eval:strict` (the Gemini golden set) and
       # `bench:app-master` (needs a live server + Personas). Those stay
-      # on-demand; the bench's verdict is kept honest by `npm run bench:gate`
-      # against scripts/app-master-bench/baseline.json instead.
+      # on-demand.
+      #
+      # `npm run bench:gate` is NOT a CI gate either, and this comment used to
+      # say it was. It reads bench/app-master/runs/, `bench/` is gitignored, and
+      # with no runs it exits 1 by design — so it cannot run here at all. It is a
+      # LOCAL ritual after a sweep. What CI holds is the committed half:
+      # `npm run test:bench-driver` (a step of its own, above) runs gate.test.mjs,
+      # which pins scripts/app-master-bench/baseline.json to the committed
+      # scenarios AND ratchets it — a required expectation deleted or a number
+      # loosened is red here, even though the sweep itself never runs.
       #
       # Cost: both are pure-Python over committed fixtures, in the job that has
       # already paid for the dependency install.
@@ -583,6 +599,12 @@ jobs:
           shell.spec
           journey-role-to-schedule
           journey-one-thread
+          activity-detail
+          analytics-sections
+          jds-pipeline-column
+          quality-tables
+          shell-tab-state
+          locale-smoke
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101

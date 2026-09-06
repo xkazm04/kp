@@ -25,6 +25,7 @@
 // LEGACY rows still render, because the coded branch is only taken on an exact match.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { CODED_REASON_PREFIX } from "../coded-reason.ts";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PIPELINE_REASON_CODES, PIPELINE_REASON_PREFIX, pipelineReasonDetail } from "./pipeline.ts";
@@ -62,15 +63,20 @@ test("the translations are real, not English copied into the other three catalog
   }
 });
 
-test("the wire prefix matches the renderer's, which duplicates it rather than importing it", () => {
+test("the wire prefix matches the shared format the renderer parses", () => {
+  // The prefix used to be duplicated at both ends (this store opens SQLite; the renderer
+  // is a client component). The format now lives once, in app/_lib/coded-reason.ts, which
+  // is pure and importable from both sides — so this pins the store's constant against
+  // THAT module and checks the renderer actually goes through it.
   const renderer = readFileSync(
     fileURLToPath(new URL("../../features/hiring/pipeline/pipelineEventCatalog.ts", import.meta.url)),
     "utf8"
   );
+  assert.equal(PIPELINE_REASON_PREFIX, CODED_REASON_PREFIX, "the store writes the shared prefix");
   assert.match(
     renderer,
-    new RegExp(`const prefix = "${PIPELINE_REASON_PREFIX}"`),
-    "pipelineEventCatalog.ts parses a different prefix than the store writes — the coded details would never resolve"
+    /parseCodedReason\(ev\.detail\)/,
+    "pipelineEventCatalog.ts must parse coded details through the shared module, or they would never resolve"
   );
   assert.match(
     renderer,

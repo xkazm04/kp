@@ -221,6 +221,18 @@ says so in the operator's language rather than inventing an answer.
   same rule with only one half to apply it to: a degraded digest has no operator
   message either, so it writes no episode at all and `episodePaths` is empty.
 
+- **…and it is not replayed either.** The episode rule covers the brain; the
+  TRANSCRIPT is the other half of her memory, and until this round the route fed
+  every stored turn back into the next prompt. So the first answer after a key
+  was finally configured had her own apology as the last thing in her context and
+  read as if she were still broken. `promptEligibleTurns` in
+  `app/_lib/companion-turn.ts` is the one predicate that decides it: an assistant
+  turn whose `meta.source` is `deterministic` is dropped from the window,
+  everything else stays. The drop runs BEFORE the 12-turn slice, so a stretch of
+  outage replies does not eat the window. Only the turn's own `source` decides,
+  so a reply stored before the field existed is kept. It stays on SCREEN either
+  way: the dock renders the whole page, degraded exchanges included.
+
 ## What she is allowed to remember at you
 
 **Storage is never filtered. Surfacing is.** Every exchange is written and
@@ -505,6 +517,17 @@ which is what makes the dock re-open safe: `status` comes from the live row, not
 from the turn that produced it, so a reloaded conversation paints an outcome chip
 and no buttons.
 
+**Every 409 carries the answered row.** All three already-answered paths (the
+pre-check, a lost decline, a lost claim) answer through `alreadyResolved()`, which
+puts the store's current proposal beside the code. The dock takes the response's
+proposal whatever the status (`readProposalAnswer` in
+`app/_lib/companion-dock-states.ts`), so the card that lost the race repaints as
+answered instead of re-arming Accept on a closed proposal and buying another 409
+on every click until the next 60 s attention read. A code with NO row is a genuine
+failure (a 429, a 500, a dropped connection): the card re-arms and prints that
+code through `useErrorMessage()` on the card itself, beside the button that was
+pressed, rather than in the dock-wide error line above the transcript.
+
 **The outcome lives in `payload_json`, not in a column.** `companion_proposals` has
 `status` and `resolved_at` and no free field, and adding one means a DDL migration
 in `db/core.ts` — a file this work package does not own and that concurrent
@@ -611,8 +634,32 @@ including `meta.blocks` and the `meta.proposalIds` join).
 the same contract `companion_cli.py` keeps for episodes, and the reason a provider
 timeout costs a reply but never the question. A spawn failure therefore leaves a
 user turn with no answer; that is the honest record, not a bug. The message
-response carries the thread's FULL turn list so the client replaces optimistic
+response carries the thread's turn list so the client replaces optimistic
 bubbles with server truth on every exchange.
+
+**Which turns, exactly: the newest ones.** `listTurns` pages from the NEWEST end
+(`ORDER BY created_at DESC, rowid DESC`, reversed so callers still read
+oldest-first; the rowid tie-break matters because turns written inside one
+millisecond share a timestamp), and every caller states the bound it means rather
+than inheriting a default. There are two, both in `app/_lib/companion-turn.ts`:
+`COMPANION_THREAD_TURNS` (200) is what the dock renders, and
+`COMPANION_PROMPT_SCAN_TURNS` (40) is the page the model's 12-turn window is
+taken from. Before this, the read paged from the oldest end and every caller took
+its default: past turn 200 the dock, the POST response and the window all kept
+showing the FIRST 200 turns while the writes carried on landing. The conversation
+froze on screen with nothing erroring. `app/_lib/db/companion-turns.test.ts`
+walks a 250-turn thread through all three.
+
+**Every turn's spend is named after the turn.** The route mints the assistant
+turn's id before the spawn and hands it to both halves: `runCompanionTurn` opens
+the ambient LLM-request scope as `companion:<threadId>:<turnId>`, and
+`appendTurnWithProposals` stores the reply under that same id, so the ledger row
+points at a turn that exists. It used to stamp the bare thread id, which
+Insights, Activity reads as a task id: every companion row resolved to nothing
+and the detail said the run was gone. A turn that runs INSIDE a task (the digest)
+keeps the task id instead of shadowing it (`withLlmRequestIdIfUnset`), because
+that is the id the Activity detail can actually fetch a run for. No ledger schema
+changed; see `docs/architecture/llm-provider-layer.md` for the resolver's side.
 
 Throttle: per-IP 30/10min on the message route, pinned in
 `app/api/rate-limit-contract.test.ts`. It runs after the cheap refusals (404 for
@@ -724,13 +771,35 @@ reads what it is handed:
 **Retry, and the duplicate it fixed.** A refused message is no longer put back
 into the shared orchestration machine's queue. That requeue is right for the voice
 caller the machine was written for (a dropped utterance exists nowhere), and wrong
-here: `ChatComposer` already RESTORES the draft on a false resolve, so the queued
+here: the composer used to RESTORE the draft on a false resolve, so the queued
 copy made the operator's next send coalesce their restored draft WITH it and ask
 Candi the same question twice, in one message. It also stranded anything typed
 while the failed turn was in flight, because `completeTurn` dispatches nothing on
 the tick that carries a `failed`. The refused message is held in `lastFailed`
 instead, and Retry re-sends it through the ordinary `send` path — so it still
 queues behind an in-flight turn and is still never re-dispatched on its own.
+
+**The composer is dead until the thread exists, and a failed boot is answerable.**
+The dock passes `ready` alongside `busy`, so before `GET /api/companion/threads`
+has produced a conversation the input and Send are disabled. Until then the
+composer was live and every send resolved false into nothing at all: no bubble, no
+error, no stored message. When the boot FAILED, the error line offers **Try
+connecting again** instead of the message Retry (`companionRetryTarget` picks
+which, unit-tested), and `retry()` bumps the boot attempt so the effect asks for
+the thread again. Focus follows the same intent: opening the window puts the caret
+in the composer once, from inside `CompanionDock` rather than in each of the four
+`openDock()` callers. It is not a trap, and Escape still closes.
+
+**One representation per failed send.** The dock passes
+`restoreDraftOnFailure={false}` to `ChatTranscript` (intake keeps the restore,
+where the refusal is drawn nowhere else): the refused message stays as its
+optimistic bubble with the error line's **Send it again** above it, instead of
+being both a bubble and a restored draft — sent and unsent at once, with Enter
+re-asking a question already on screen. Retry REPLACES that bubble:
+`withoutOptimisticTurns` drops the unsent turns before `send` pushes a fresh one,
+so a retried message is drawn once and a second failure does not stack a third
+bubble. A successful retry therefore leaves an empty composer and the server's
+own turns.
 
 **Late arm, no new poller.** `useAttention` already polls `/api/attention` every
 60 s for the sidebar badges, and `attention.companion` is the open-proposal count
@@ -761,6 +830,20 @@ refused (rare from a click, since a user gesture is exactly what browsers want,
 and expected from V2's auto-speak). It is drawn only when the turn has something
 speakable: `voiceTextForTurn` has already run the one normalizer over it, so an
 empty answer means an empty utterance and no control at all.
+
+The transport row carries one more quiet non-failure fact: `unsupportedLanguage`,
+forwarded by `useCompanionSpeech` from the package's `served` record. No installed
+engine declares the language that was asked for (Kokoro speaks no cs/de), so the
+answer played in another accent rather than not at all; `companion.voice.wrongLanguage`
+says so instead of leaving the listener to guess whether it is a bug.
+
+The transport row also has one quiet non-failure state: `playback === "waiting"`,
+which the package reports while a throttled chunk is held for the wait the host
+asked for (voice-tts-package.md, "a throttled chunk is held, not dropped").
+`VoicePlayback` renders it beside the control as `companion.voice.waiting` rather
+than on it, because the button's label is the verb for pressing and this is the
+state; two seconds of silence with no word said is indistinguishable from a
+control that broke.
 
 `useCompanionSpeech` is the single seam between a turn and the portable TTS
 package. It owns three decisions that would otherwise be made inconsistently per
@@ -1027,6 +1110,23 @@ carries the only stop control there is. In WINDOW mode that courtesy is
 impossible — the rest pill has no transport — so closing the window stops the
 utterance, which is V1's contract unchanged.
 
+**…and the strip it leaves behind can be dismissed.** In exactly that state the X
+and Escape both ran the host's `close`, which had already run: the one control on
+screen did nothing and the operator had to wait her out. Both now go through
+`companionVoiceCloseAction` (`app/_lib/companion-dock-states.ts`): open means
+close (the audio still survives it), not-open-but-speaking means `speech.stop()`,
+and neither means nothing at all rather than a close that would re-fire the focus
+handoff onto a rest pill that already has it.
+
+**A failed boot is no longer a dead end here.** The strip's error line offers the
+same **Try connecting again** / **Send it again** the dock's does, from the same
+`companionRetryTarget` and through the thread's own `retry` — so the boot re-arms
+and a refused message is re-sent from the text the thread is still holding. The
+footer input stays disabled while the thread has not booted (a message sent into
+no thread resolves false and restores itself), but it now carries a `title`
+saying so and naming the strip as the way out, instead of greying out
+indistinguishably from "she is thinking".
+
 ### Geometry
 
 The strip is fixed on `--z-sim-drawer`, the dock's own layer: above the sidebar,
@@ -1044,10 +1144,24 @@ behind it does not have focus in. *Below `sm` the row wraps*: the prose takes th
 full first row and the controls sit beneath it, because at 360px the controls
 alone want ~332px of the ~312px available and a nowrap row squeezes her answer to
 nothing. Hiding the counter would have been cheaper and would have deleted the
-one affordance the mode exists for. *One live region for the answer* (the prose)
-and *one status region for busy* — the counter is no longer live and the ticker
-reuses `VoiceBusyNote` instead of duplicating it, so a single arrow press no
-longer fires three announcements at once.
+one affordance the mode exists for. *ONE PERMANENT live region*, and it is the
+wrapper around the prose/busy/empty swap rather than any of the three: the
+`aria-live` used to sit on `VoiceProse`, which is the node that appears, and a
+region inserted together with its first content is announced by nothing — so the
+first answer of a session was silent and only the second onward were read. The
+wrapper is on screen from mount, empty branch included, so every swap inside it
+is a change to an existing region. Nothing inside it declares a second one:
+`VoiceBusyNote` lost its `role="status"`, because a live region nested in a live
+region is read twice by some screen readers and split by others.
+
+*The thread's error line is `role="alert"`* — outside the polite region on
+purpose, and an alert rather than a paragraph because the strip sits at the top of
+a page the operator is deliberately working instead of watching. *A refused
+proposal answer is drawn beside its own card*: `thread.proposalError` reaches
+`VoiceProposals`, which hands `error` to the card whose id matches and to no
+other. The dock has done this since the card gained the prop; voice mode rendered
+the same card without it, so a throttled Accept re-armed the buttons and said
+nothing at all.
 
 The input is one line (`<input>`, not a textarea): the operator gave up the
 column to keep the page visible, so the composer cannot claim it back, Enter has
@@ -1057,10 +1171,35 @@ exchange resolves false) rather than sharing it — about eight lines, against
 adding a `compact` prop to a primitive another workstream owns. It is disabled
 until the thread is `ready`, because a message sent into no thread resolves false
 and silently restores itself, which reads as the app ignoring you. It takes focus
-on open: the operator pressed a control that makes a place to type. The mic is
-drawn disabled with a title naming what it waits for: a voice mode with no
-microphone reads as an oversight, one with a live-looking icon that does nothing
-is worse, and a control that is visibly not ready yet is the honest third option.
+on open: the operator pressed a control that makes a place to type.
+
+**The mic records** (it was a disabled placeholder until `/api/stt` had a browser
+binding). It is `useStt` from `packages/voice-stt/src/react/useStt.ts`, which owns
+the permission request, the `MediaRecorder` capture, the encode to the 16 kHz PCM
+WAV the on-device engine reads (`packages/voice-stt/src/browser/wav-encode.ts`)
+and the abort; the panel owns only the three decisions that are its own:
+
+- **It dictates, it does not send.** The transcript is APPENDED to whatever is
+  already in the composer and the caret stays in the field, so a mis-heard word is
+  fixed before Candi ever sees it. A mic that sent on release would turn every
+  transcription error into a message in the thread.
+- **One control, two meanings** (start / stop), the same shape
+  `CompanionSpeakButton` uses on the output side: `aria-pressed` while recording, a
+  stop glyph rather than a second button, and the busy phases (encoding, uploading)
+  refuse a press instead of queueing a second capture. A line under the row says
+  which state it is in; there is never more than one thing in it.
+- **`STT_UNAVAILABLE` latches, and nothing else does.** A keyless install with no
+  local model answers `503 STT_UNAVAILABLE`, and the operator's fix is a server
+  config rather than another press, so the control goes quiet and names the reason
+  in their own language (through `useErrorMessage`, never the route's English).
+  Every OTHER failure — a denied microphone, a throttle, an engine fault — leaves
+  the button live, because an operator who just granted permission is one press
+  away. There is deliberately no probe on mount: a `GET /api/stt` on every dock
+  open costs a readdir per model directory on a panel most operators only type
+  into, so the 503 is handled rather than pre-empted.
+
+The language hint is the reader's own locale. `companionMic.test.ts` is a source
+guard over exactly these decisions — the behaviour itself needs a browser.
 
 > **Found by painting it, not by a gate.** The dock header's `backdrop-blur`
 > gives it its own stacking context, which confined the settings panel's `z-50`

@@ -164,6 +164,12 @@ export async function respondToOffer(token: string, response: "accept" | "declin
         // accept (dispatchAtsEvent swallows its own errors).
         void dispatchAtsEvent("candidate.hired", hired.id);
       }
+      // …and the OFFER RESPONSE itself, which is a different fact from the hire and was
+      // subscribable in the panel while nothing on any path ever emitted it (an operator
+      // ticking `offer.accepted` got a subscription that could not fire). It rides on the
+      // CAS winner, not on `hired`: a workspace whose board has a stage after Offer still
+      // wants to know the candidate said yes, on the day they said it.
+      void dispatchAtsEvent("offer.accepted", offer.entryId, offer.workspaceId);
     }
     return { ok: true, status: "accepted", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
   }
@@ -183,6 +189,11 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     // phantom `offer_declined` (recordAutomationEvent logs the entry's CURRENT stage).
     const transitioned = markEntryStatus(offer.entryId, "declined", offer.workspaceId);
     if (transitioned) recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "", offer.workspaceId);
+    // Mirror the decline into the ATS, on the same condition as the timeline stamp: only
+    // when the entry actually transitioned. A decline on a stale link that did NOT demote
+    // an already-hired candidate must not tell the customer's system of record that it
+    // did — the webhook is held to the same truthfulness as the entry's own history.
+    if (transitioned) void dispatchAtsEvent("offer.declined", offer.entryId, offer.workspaceId);
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
 }

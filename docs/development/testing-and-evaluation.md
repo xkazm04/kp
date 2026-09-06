@@ -58,7 +58,20 @@ are skipped unless enabled (`KP_CLAUDE_CLI_LIVE=1`). Playwright splits into
 cleanly without a Gemini key, includes a11y checks) and `e2e/profile-builder.spec.ts`
 (deterministic build/save round-trip, no API key needed). The deterministic keyless
 e2e subset and how to run it against an already-running server are listed in
-[`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands".
+[`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands"; the list
+itself is declared once, as `KEYLESS_SPECS` in `playwright.config.ts`, and pinned
+to both readers by `scripts/docs/__tests__/keyless-e2e-pin.test.mjs`.
+
+**The suite owns its database.** The managed webServer boots on a throwaway
+`KP_DB_PATH` (`data/kp-e2e.sqlite`, gitignored) rather than `data/kp.sqlite`.
+These specs write — an offer and an org invite are minted, profiles are saved,
+pipeline entries move — so before this they mutated the developer's own demo
+corpus, and each run changed what the next one measured. A fresh file self-seeds
+from `data/seed_*`, so **deleting it is the reset**. Two caveats worth knowing:
+`reuseExistingServer` means a dev server already on :3101 is used as it is, with
+whatever DB it opened; and setting `KP_E2E_BASE_URL` drops the webServer block
+entirely, so the server's env is whoever started it (ci.yml's keyless job boots
+its own against a disposable checkout).
 
 ## The exit-code contract
 
@@ -271,6 +284,66 @@ command a fresh clone or a new CI image executes. It goes through
 It is idempotent — the generator rewrites `app/_lib/schemas.generated.ts` and
 `app/_lib/taxonomy.generated.ts` from the Pydantic models. Fixtures:
 `scripts/__tests__/schemas-gen.test.mjs`, run by `npm run test:docs`.
+
+## The Python gate's time budget
+
+`npm run test:python:gate` is one of the two slowest gates in `ci.yml`, and until
+2026-09-05 the only thing it said about that was its own total — `Ran 2365 tests in
+1276.629s`. A total cannot be acted on. Nobody could name which of the ~150 modules
+owned it, so the expensive ones were never found and never budgeted, and "the Python
+suite is slow" stayed a feeling rather than a list.
+
+`--timings` (or `KP_TEST_TIMINGS=1`, which is what `ci.yml` sets on the gate step)
+makes [`run_gated.py`](../../pipeline/jobfit/tests/run_gated.py) charge every test's
+wall time to its **module** and print the ten most expensive after the run:
+
+```
+Slowest 10 modules (994.1s of 1265.3s charged, 79%):
+   271.50s    10 tests  test_name_neutrality
+   185.77s    11 tests  test_intake_eval
+   171.16s     4 tests  test_scripts_entrypoints
+    97.15s     3 tests  test_seed_analyses
+    93.93s     8 tests  test_role_family_routing
+    65.94s    12 tests  test_pipeline
+    35.72s    10 tests  test_llm_self_host
+    25.03s     5 tests  test_analyze_honesty_fields
+    24.09s    67 tests  test_intake
+    23.81s     6 tests  test_pipeline_degrade
+```
+
+Charging to the module, not the test, is deliberate: a module is the unit a person
+can act on — it is what you split, mark, or hand to an agent — and it is where the
+expensive things actually live (an import that spawns a subprocess, a class-level
+fixture, a sleep in `setUp`), none of which belong to any one test method. The
+bracket is `startTest`/`stopTest`, so setUp and tearDown are inside the number.
+
+**It reports; it does not gate.** There is no ceiling that fails a run, because a
+wall-clock threshold is not a property of the code here. Two runs of the same tree an
+hour apart, on the same machine, beside two other agents building in the same
+checkout, gave 1276s and 814s — and they did not even agree on the ORDER:
+`test_scripts_entrypoints` was 171s in the first and 420s in the second, while
+`test_name_neutrality` went 271s → 35s. Both of those modules shell out, so they
+measure the machine's contention as much as their own work.
+
+What DID hold across both runs is the **share**: the top ten of ~150 modules own 79%
+and 85% of the clock respectively. That is the durable finding — the cost of this
+suite lives in a handful of subprocess-spawning modules, not spread across it — and
+it is the only thing to plan against.
+
+So the budget is a reading, not an assertion:
+
+- **The number to trust is CI's**, from the gate step's log: one machine, one job, no
+  sibling agents. Compare a CI run against an earlier CI run and nothing else. A
+  local figure is good for ranking modules WITHIN that same run, and for nothing
+  across runs.
+- **Before adding a slow module, look at this list.** Ten entries own ~80% of the
+  gate; an eleventh joining them is a decision, not an accident.
+- **The top of the list is where optimisation pays**, and the shape to look for is a
+  high seconds-per-test ratio — `test_scripts_entrypoints` spends its whole cost on
+  four tests, which is the signature of per-test work (a spawn, a fixture build) that
+  could be class-level or cached.
+- The suite's other two tripwires — the skip ceiling/floor and the hermeticity check —
+  are described in `run_gated.py`'s own docstring and are unaffected by `--timings`.
 
 ## Eval harness
 

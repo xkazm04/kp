@@ -45,10 +45,18 @@ and its listening half by the STT one, once a streaming local engine is worth it
 - **Absent ≠ broken ≠ ready.** `probe()` distinguishes not-installed (with a `setup` hint)
   from installed-but-failing (with the reason) from ready, and probes the real artifact
   (binary on disk, `model.onnx` present, cloud key accepted) rather than a settings flag.
-- **Fallback is visible.** `resolve()` walks requested → preferred → first allowed+ready and
-  returns `fallbackFrom`; the route forwards it as `X-Tts-Fallback-From` and the panel says
-  "fell back from X". Nothing ready → typed `TtsError("unavailable")` with the last reason,
-  never an empty 200.
+- **Fallback is visible.** `resolve(requested, language)` walks requested → preferred →
+  first allowed+ready and returns `fallbackFrom`; the route forwards it as
+  `X-Tts-Fallback-From` and the panel says "fell back from X". Nothing ready → typed
+  `TtsError("unavailable")` with the last reason, never an empty 200.
+- **The declared language is part of readiness (2026-09-05).** The walk used to consider
+  probe state alone, so a `cs` request that landed on Kokoro — whose `capabilities.languages`
+  lists no `cs`/`de` — was read out in an English accent with no error, no `fallbackFrom` and
+  nothing logged. A ready engine that DECLARES the requested primary tag now wins over one
+  that does not (`"any"` and a language-less request match everything); when none declares
+  it, the first ready engine still serves — silence is worse than an accent — but the
+  resolution carries `unsupportedLanguage`, the host logs a `language_fallback` event, and
+  the route sends `X-Tts-Unsupported-Language`. Pinned in `packages/voice-tts/src/registry.test.ts`.
 - **Retired ids normalize on read.** `preferenceFromEnv` drops unknown ids instead of
   throwing, so a stale `KP_TTS_PROVIDER` never wedges the app.
 - **A failure is a next action, not a message.** `TtsErrorCode` names what the caller should
@@ -86,6 +94,18 @@ and its listening half by the STT one, once a streaming local engine is worth it
 - **Browser**: `useTts` normalizes + segments client-side, fetches chunk N+1 while N plays
   (lookahead 2), reports `served.firstAudioMs` and `progress {spoken,total}`; a mid-utterance
   failure is shown as a truncation ("stopped after 2 of 5, the rest is in the text").
+- **A throttled chunk is held, not dropped (2026-09-05).** `fetchChunk` threw on any non-2xx,
+  so a 429 on chunk 3 of 6 truncated the utterance mid-sentence and the immediate manual retry
+  the operator made hit the same closed window. It now retries a 429 **at the wait the host
+  asked for**: `retryWaitMs` reads `Retry-After` in both RFC forms (delta-seconds and an
+  HTTP-date; an already-open window is a zero wait), `TTS_RETRY_ATTEMPTS` = 2 extra attempts,
+  and `TTS_RETRY_MAX_WAIT_MS` = 10 s is the ceiling. A wait that is **absent, unreadable or
+  longer than the ceiling is not invented** - the client-side twin of the route's own refusal
+  to fabricate a `Retry-After` - so a per-IP refusal with no header still fails fast, and every
+  non-429 fails fast unchanged. The wait ends the instant the utterance is stopped (the
+  generation's `AbortSignal`), and `playback` reports `waiting` while it is held, but never
+  over a chunk being fetched AHEAD of audio that is playing. `fetchHonoringRetryAfter` and
+  `retryWaitMs` are pure and exported, pinned by a scripted fetch in `react/useTts.test.ts`.
 - **Like-for-like compare**: ElevenLabs is requested as raw 24 kHz PCM and wrapped into WAV
   (`node/wav.ts`), so all three providers return `audio/wav`. Not yet: loudness normalization,
   leading-silence trim, showing the sample rate.
@@ -107,17 +127,36 @@ ladder: explicit env → shared home `bin/` → PATH.
 ## Host wrapper (`/api/tts`)
 
 - `GET` → `{ providers: TtsStatus[], preferred, allowed }` — probes only, spends nothing.
-- `POST { text, language?, provider?, voiceId?, speed? }` → audio bytes with
-  `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`. `useTts` reads
-  all four; `X-Tts-Voice` surfaces as `served.voiceId` (the voice that spoke is not always the
-  one asked for — a null request takes the engine default and a fallback provider ignores the
-  other engine's ids).
+- `POST { text, language?, provider?, voiceId?, speed?, format? }` → audio bytes with
+  `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`,
+  `X-Tts-Unsupported-Language?`. `useTts` reads all five; `X-Tts-Voice` surfaces as
+  `served.voiceId` (the voice that spoke is not always the one asked for — a null request
+  takes the engine default and a fallback provider ignores the other engine's ids) and
+  `X-Tts-Unsupported-Language` as `served.unsupportedLanguage`, which
+  `app/features/shell/companion/voice/VoicePlayback.tsx` renders beside the transport control
+  as `companion.voice.wrongLanguage` ("no installed voice speaks this language, so it was read
+  in another accent"). A header nothing renders does not exist.
+- **`format` reaches the server (2026-09-05).** `useTts` sent every other field and kept this
+  one, so `validateRequest` always saw `plain` — the chat branch of the one validation door was
+  unreachable over HTTP, and the cache key's format slot held the same empty value for every
+  request, so two asks for the same markdown reply (one wanting the speech normalizer, one not)
+  shared a key and therefore shared whichever clip landed first. It now rides the body
+  (`format: args.format ?? "plain"`), the route reads it into `req`, and `req` is what both
+  `ttsCacheKey` and the engine call receive. `speechReady` is idempotent, so a chunk the hook
+  already normalized is unchanged by the door running it again.
+- **The 1200-char ceiling is checked before the hash.** `TTS_MAX_CHARS` was enforced by the
+  validation door alone, i.e. after the whole body had been parsed AND sha256'd into a cache
+  key. The route now refuses over-long text with `TTS_TEXT_TOO_LONG` (400, `maxChars` beside
+  the code) immediately after the body parses, importing the constant rather than re-typing
+  1200. The refusal escapes the limiter for the same reason a cache hit does: a bounded 8 KB
+  read and a length compare, no hash, no engine, `requireOperator` already in front.
 - Errors are typed, and the status is part of the contract:
 
   | `TtsError.code` | status | caller's next action |
   | --- | --- | --- |
-  | `invalid_text`, `invalid_voice` | 400 | fix the request; never retry unchanged |
-  | `unavailable` | 503 | nothing can speak (no key, no entitlement, nothing installed) |
+  | `invalid_text` | 400 (`TTS_TEXT_TOO_LONG` when it is the length) | fix the request; never retry unchanged |
+  | `invalid_voice` | 400 + `TTS_VOICE_INVALID` | pick another voice; retrying this one never works |
+  | `unavailable` | 503 + `TTS_UNAVAILABLE` | nothing can speak (no key, no entitlement, nothing installed) |
   | `rate_limited` | 429 + `Retry-After` | wait, then retry the same request |
   | `timeout` | 504 | retry or shorten the text |
   | `engine_failed` | 502 | the engine broke; retry or fall back |
@@ -130,11 +169,30 @@ ladder: explicit env → shared home `bin/` → PATH.
   `TOO_MANY_REQUESTS` for both the per-IP throttle and the engine's own 429 (which forwards
   `Retry-After` from `err.retryAfterMs`, and sends no header when the engine did not say — a
   fabricated wait is worse than none), `VOICE_REQUEST_INVALID` for a body that is not JSON,
+  `TTS_UNAVAILABLE` (503) when the engine says nothing can speak at all,
+  `TTS_VOICE_INVALID` (400) when the engine refused the VOICE rather than the request — split
+  off TTS_FAILED 2026-09-05, because "pick another voice" and "try again" read identically
+  when both answer one code, and a caller told to retry retries the same unusable id forever —
+  `TTS_TEXT_TOO_LONG` (400 + `maxChars`) for text over `TTS_MAX_CHARS`,
   and `safeJsonError(err, "api:tts", "TTS_FAILED")` for the 500, so a vendor HTTP body or a
   local model path goes to the server log only. The engine code -> status mapping is a
   LOOKUP keyed by the code, so a member the package adds later degrades to the honest 502
   rather than failing to compile. Pinned by invoking the handler in
   `app/api/tts/tts-route.test.ts`.
+- **The ENGINE branch answers a code too, since 2026-09-05.** It used to send
+  `{ error: err.message, code: err.code }`, and `err.message` is the adapter's English
+  ("ELEVENLABS_API_KEY is not set", a provider's 502 body) — which a client renders, so a
+  keyless install printed an env var name in the Play button's tooltip of a Czech UI. Two
+  engine codes are answered by name first — `rate_limited` as `TOO_MANY_REQUESTS` and
+  `unavailable` as `jsonRefusal("TTS_UNAVAILABLE", TTS_ERROR_STATUS.unavailable)`, because
+  both are DECISIONS whose sentence is the information (wait; nothing is configured). Every
+  other engine failure returns
+  `safeJsonError(err, "api:tts:engine", "TTS_FAILED", TTS_ERROR_STATUS[err.code] ?? 502)`:
+  the whole error to the server log under that route tag, `TTS_FAILED` plus its registry
+  sentence on the wire, and the engine's OWN status kept, because 503-vs-504-vs-502 is what
+  a caller retries against. `provider` left the body with the message (nothing read it; the
+  served provider already travels in a header on the success path). The lookup table stays
+  as the status source and is still what the route test pins.
 - `requireOperator()` (defense in depth) and `rateLimit("tts:<ip>", 60/10 min)` — pinned by
   `app/api/rate-limit-contract.test.ts`, because in open mode a cloud call costs money and a
   local call spawns a process.
@@ -154,12 +212,31 @@ ladder: explicit env → shared home `bin/` → PATH.
   into the clip the first one produced, so auto-speak followed by the play the operator
   presses after a blocked autoplay — or arrowing back to an answer and replaying it — is
   ONE synthesis. Key = requested provider + voice + language + speed + format + a sha256 of
-  the whitespace-normalised text; anything that changes the bytes is in the key.
+  the whitespace-normalised text, all taken from the **validated** request (2026-09-05):
+  the raw body used to be the key, so two asks the validation door collapses into one
+  synthesis (speed 3 and speed 2 — it clamps at 2; `CS-cz` and `cs-cz`) missed each other
+  and paid twice. Anything that changes the bytes is in the key.
   **In-memory, process lifetime** (64 entries / 16 MB, LRU, single clips over 4 MB served
   but not stored): a restart is rare next to a replay, and the audit trail survives it
   anyway because the ledger row does. The response carries `X-Tts-Cache: hit|miss`; a hit
   is metered as a counted call that spent nothing (`source: "deterministic"`, cost 0).
   `Cache-Control: no-store` on the response is unchanged — the browser still stores nothing.
+- **The throttle guards synthesis, not replay (2026-09-05).** The per-IP limiter used to be
+  charged before the cache was consulted, so replaying a clip the process already held spent
+  the same 1-of-60 as producing it. `ttsCacheLookup()` (the engine-free half of the cache)
+  now answers a hit BEFORE the limiter; every MISS still pays, and so does a body that did
+  not parse, so the door stays bounded — a cache can only be filled by charged misses. The
+  body is read before the limiter and is therefore bounded at 8 KB
+  (`readJsonWithLimit`, `PAYLOAD_TOO_LARGE` 413 over it). `app/api/rate-limit-contract.test.ts`
+  pins the new order as `servedBefore: "ttsCacheLookup("` + `expensive: "speakCached("`.
+- **Two presses inside one synthesis are one call.** The cache held only FINISHED clips, so
+  overlapping requests for the same utterance (auto-speak plus a play press while the first
+  call is still running) both reached the engine. `speakCached` keeps a promise-valued
+  in-flight entry: the second caller awaits the first call and is metered as a zero. A
+  rejected promise is evicted, so a failure is never remembered as a result. Caveat, stated
+  rather than hidden: the engine call carries the FIRST caller's `AbortSignal`, so a joiner
+  inherits that caller's abort (one synthesis wide, and typed `aborted` rather than a wrong
+  clip).
 
 ## Where it is applied in kp
 

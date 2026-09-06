@@ -14,13 +14,28 @@
 //     human can act on. The driver prints them and exits non-zero; it never
 //     throws out of this module.
 
-/** Autopilot modes, weakest first (app/_lib/agent-hire/report-payload.ts). */
+// Both vocabularies below are kp's, not this driver's: they are declared in
+// `app/_lib/agent-hire/report-payload.ts` (the CONTRACT SOURCE for what a
+// Personas build may send) and copied here only because this file is a plain
+// `.mjs` the driver loads without the app's module graph. `expectations.test.mjs`
+// pins each copy to that file — a mode added there, or a backbone field renamed
+// there, fails the bench suite instead of being silently unread by the bench.
+
+/** Autopilot modes, weakest first — the values of `AUTOPILOT_MODES`
+ *  (app/_lib/agent-hire/report-payload.ts), which is already declared weakest
+ *  first; `autopilotAtLeast` compares by index. */
 export const AUTOPILOT_ORDER = ["off", "measure", "suggest", "full"];
 
-/** The PerformanceBackbone fields a tick summary may carry, wherever it carries
+/** The `RollupBackbone` fields a tick summary may carry, wherever it carries
  *  them. Deep-scanned rather than read at a fixed path because the per-phase
  *  summary shape is Personas' to define — a driver that hard-codes one nesting
  *  reports `null` the day that shape gains a wrapper.
+ *
+ *  This is the REPORTED shape (`report-payload.ts::RollupBackbone`), not the
+ *  scored one: `windowDays` used to head this list and is not on it — the window
+ *  is the RECEIVER's (`backboneFromRollup(raw, windowDays)`), so scanning a tick
+ *  summary for it read a number the sender never sent. `kpiDeltas` and `memory`
+ *  ARE sent and were missing, so a tick summary that carried them was ignored.
  *
  *  This is HALF the reading. A live bridge's tick summary carries none of these
  *  names (sweep 2026-08-25 read `{}` from a night that genuinely opened three
@@ -28,17 +43,18 @@ export const AUTOPILOT_ORDER = ["off", "measure", "suggest", "full"];
  *  ROSTER, in the scored shape `readingFromRoster()` below reads. The two are
  *  folded together by `mergeReadings()`. */
 export const BACKBONE_FIELDS = [
-  "windowDays",
   "proposalsOpened",
   "proposalsMerged",
   "proposalsReverted",
   "gatePassRate",
   "forbiddenClassViolations",
+  "kpiDeltas",
   "budgetReservedUsd",
   "budgetSettledUsd",
   "budgetUnmeasured",
   "ledgerConsistent",
   "autopilotMode",
+  "memory",
 ];
 
 /**
@@ -426,11 +442,22 @@ export function reconcileCounts(summary) {
 //
 // The two count pairs are the only fields with no structured carrier: the
 // delivery rule's `value` is the merged/opened RATIO, and the counts behind it
-// survive only in the reason string the scorer writes. That string is pinned on
-// both sides (`backbone.ts` and `pipeline/jobfit/appmaster.py` write it
-// character-for-character, fixture-tested against each other), so parsing it is
-// a narrow, checked read rather than prose mining — and a reason that does NOT
-// match leaves the field ABSENT rather than guessing a zero.
+// survive only in the reason string the scorer writes.
+//
+// THREE pins make parsing that string a checked read rather than prose mining,
+// and the third is the one that protects THIS file:
+//
+//   1. `backbone.ts` and `pipeline/jobfit/appmaster.py` write the string
+//      character-for-character, fixture-tested against each other.
+//   2. A reason that does NOT match leaves the field ABSENT — never a zero.
+//   3. `expectations.test.mjs` drives the REAL `backboneScore` (imported from
+//      `app/_lib/app-master/backbone.ts`) through the regexes below, so a
+//      copy-edit to a `reason:` fails in the run that makes it. Until it did,
+//      such an edit turned a delivered night into "unmeasured" in silence and
+//      the bench kept reporting under its own "unmeasured is not zero" rule.
+//
+// Every regex here therefore has an arm exercised from the producer; if you add
+// one, add its producer-driven case beside the others.
 
 /** `"0 of 3 proposals merged"` — backbone.ts delivery, measured arm. */
 const DELIVERY_REASON = /^(\d+) of (\d+) proposals merged$/;

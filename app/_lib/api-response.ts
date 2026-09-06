@@ -253,12 +253,8 @@ export const STORE_ERRORS = {
   COMPANION_THREADS_FAILED: "Could not load your conversations with Candi. Please try again.",
   COMPANION_THREAD_CREATE_FAILED: "Could not start a new conversation with Candi. Please try again.",
   COMPANION_MESSAGE_FAILED: "Could not process that message. Please try again.",
-  // Proposal resolution (WP3). NOT_FOUND and RESOLVED are deliberate, distinct
-  // codes rather than one generic failure: "that proposal is gone" and "someone
-  // already answered it" are different facts, and the second is the ordinary
-  // outcome of two open docks rather than an error.
-  COMPANION_PROPOSAL_NOT_FOUND: "That proposal is no longer available.",
-  COMPANION_PROPOSAL_RESOLVED: "That proposal was already answered.",
+  // Proposal resolution (WP3): COMPANION_PROPOSAL_FAILED stays here (an accident);
+  // NOT_FOUND and RESOLVED are decisions and live in REFUSAL_ERRORS below.
   COMPANION_PROPOSAL_FAILED: "Could not run that proposal. Nothing was changed.",
   // Memory consent (WP4). The brain doors spawn companion_cli and their thrown
   // errors carry the operator's own home-directory paths, which is precisely the
@@ -325,6 +321,13 @@ export const STORE_ERRORS = {
    *  constraint text, the absolute db path, or an at-rest crypto failure naming the key
    *  env var. */
   ATS_CONFIG_SAVE_FAILED: "Could not save the webhook settings. Please try again.",
+  /** The INBOUND connection write / removal (/perfect wave 41, api-ats-integration).
+   *  Both catches sat on better-sqlite3 plus the at-rest crypto helper, and the save's
+   *  400 branch forwarded every validation message the store and the field map threw —
+   *  canonical English into a four-locale panel. The refusals are coded below; these two
+   *  are what is left when the failure is genuinely ours. */
+  ATS_CONNECTION_SAVE_FAILED: "Could not save the ATS connection. Please try again.",
+  ATS_CONNECTION_REMOVE_FAILED: "Could not remove the ATS connection. Please try again.",
   BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
   /** The merchant of record accepted the request and then said nothing until the
    *  gateway's AbortSignal budget (POLAR_REQUEST_TIMEOUT_MS) ran out — answered at 504,
@@ -385,6 +388,25 @@ export const STORE_ERRORS = {
   PROFILE_UPDATE_FAILED: "Could not save your changes to that profile. Please try again.",
   PROFILE_DELETE_FAILED: "Could not delete that profile. Please try again.",
   PROFILE_CANDIDATES_FAILED: "Could not load the candidate matrix. Please try again.",
+  /** The text extractor faulted (500): a non-zero exit with no client-fixable code, a
+   *  wedged workdir, an ENOENT on PYTHON_CMD, or non-JSON stdout — whose diagnostic
+   *  dump embeds stdout, stderr and the temp workdir path by construction. */
+  EXTRACT_TEXT_FAILED: "Could not read text from that file. Please try again.",
+  // ---- The last two candidate doors of the work session (/perfect wave 42a,
+  // devcase-identity-and-lifecycle). The chat channel, the 8s flush and the
+  // recruiter read that shares their URL prefix all answered jsonError, which
+  // forwards the thrown .message: SQLITE_* codes, the absolute db path and the
+  // provider stderr runSessionChat raises, painted at an unauthenticated
+  // applicant mid-assessment.
+  /** The chat channel faulted (500): better-sqlite3 on the transcript write, or the
+   *  spawned model call. The candidate keeps working; the message was not sent. */
+  DEVCASE_CHAT_FAILED: "Could not reach the chat channel. Please try again.",
+  /** The 8s flush faulted (500). Its message must never read as lost work: the
+   *  surface keeps the batch buffered and the local draft on the device. */
+  DEVCASE_SESSION_FLUSH_FAILED: "Could not save this work session right now. Your work is kept on this device and will be sent again.",
+  /** The recruiter read of a work session faulted (500). Operator-facing, but it
+   *  sits under the public session prefix and shared the candidate responder. */
+  DEVCASE_SESSION_READ_FAILED: "Could not load the work session. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -659,6 +681,11 @@ export const REFUSAL_ERRORS = {
   /** Publishing the sealing key did not happen (400) — usually because no edge is
    *  paired yet, or it did not answer. Nothing was rotated; retrying is safe. */
   EDGE_PAIR_REFUSED: "Could not publish the sealing key to the edge. Check the pairing and try again.",
+  /** The stored edge credential cannot be decrypted on this install (409) - the
+   *  master key was rotated ahead of `secrets:rotate`, or the retired key was
+   *  dropped. A DECISION, and an actionable one: nothing drains until the secret is
+   *  re-entered or the key restored, and the drain says so instead of 500-ing. */
+  EDGE_SECRET_UNREADABLE: "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
   // ---- The voice host routes' boundary refusals (/api/tts, /api/stt). Every
   // one of these was an English sentence with no code, on routes a Czech,
   // German or French operator reaches through the same dock as everything else.
@@ -1178,6 +1205,14 @@ export const REFUSAL_ERRORS = {
    *  job mid-tour. `retryAfterSeconds` rides beside the code as data — the holder's
    *  remaining lease (sim-store.ts SIM_RUN_TTL_MS), not a guess. */
   SIM_RUN_ACTIVE: "A guided demo is already running here. Wait for it to finish, or stop it first.",
+  /** A release or renew of the run lock that did NOT come from the tab holding it
+   *  (409, /perfect wave 44). The wave-22 lease had no owner, so a second tab
+   *  refused with SIM_RUN_ACTIVE still ran its own end-of-run DELETE, freed the
+   *  holder's lease, and one more press wiped a live run. 409 rather than 403: the
+   *  lock is a courtesy between racing tabs, never an authorization boundary, and
+   *  the caller is out of date about the tenant rather than forbidden. Carries the
+   *  holder's remaining lease as `retryAfterSeconds`, exactly like SIM_RUN_ACTIVE. */
+  SIM_RUN_NOT_OWNER: "That guided demo belongs to another tab. Wait for it to finish, or stop it there.",
   /** GET /api/feedback is a read of colleagues' free-text reports WITH their reply
    *  addresses, so it is `members:manage`-gated (/perfect wave 17, api-workspace).
    *  One code covers both statuses requireCapability produces — 401 with no session,
@@ -1346,6 +1381,61 @@ export const REFUSAL_ERRORS = {
    *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
    *  stop trying, not to retry, so the sentence says so. */
   COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
+  /** The voice engines answered `unavailable` (503): no TTS / STT provider is configured on
+   *  this server. A DECISION about the install, not a fault - the generic TTS_FAILED /
+   *  STT_FAILED sentence told a keyless operator to "try again", which cannot help. */
+  TTS_UNAVAILABLE: "Voice is not configured on this server, so nothing can speak.",
+  STT_UNAVAILABLE: "Transcription is not configured on this server.",
+  /** The TTS engine refused the VOICE, not the request (400, /api/tts). Split off
+   *  TTS_FAILED 2026-09-05: "pick another voice" and "try again" read identically
+   *  when both answer the same code, and a caller told to retry retries the same
+   *  unusable voice id forever. */
+  TTS_VOICE_INVALID: "That voice cannot be used for this. Pick another voice.",
+  /** The utterance is longer than the package's own 1200-char ceiling (400,
+   *  /api/tts). Refused BEFORE the body is hashed into a cache key, and it rides
+   *  with `maxChars` so the reader's own sentence can carry the number. */
+  TTS_TEXT_TOO_LONG: "That text is too long to speak in one go. Send it in shorter pieces.",
+  /** Companion proposal doors (WP3), moved here 2026-09-05 from STORE_ERRORS: both
+   *  are DECISIONS, not accidents. "That proposal is gone" (404) and "someone already
+   *  answered it" (409) are different facts, and the second is the ordinary outcome
+   *  of two open docks. The 409 carries the current row beside the code so the card
+   *  can repaint as answered (app/api/companion/proposals/[id]/resolve/route.ts). */
+  COMPANION_PROPOSAL_NOT_FOUND: "That proposal is no longer available.",
+  COMPANION_PROPOSAL_RESOLVED: "That proposal was already answered.",
+  /** The per-candidate ATS export refused because the entry was ANONYMIZED (410).
+   *  A DECISION, not "not found": the operator can still see the masked row on the
+   *  board, so a 404 would deny an erasure the product performed on purpose.
+   *  `buildAtsRecord` (ats-record.ts) refuses through the shared consent predicates;
+   *  the route surfaces that refusal under its own code instead of the 404 the
+   *  missing-entry branch answers. */
+  ATS_CANDIDATE_ERASED: "This candidate's data was erased and cannot be exported.",
+  /** The per-candidate ATS export found no entry for this caller (404). Deliberately
+   *  ONE code for "never existed" and "belongs to another team": the two are
+   *  indistinguishable to a caller who does not hold the entry, which is the tenancy
+   *  property the route's own comment records. Distinct from ATS_CANDIDATE_ERASED,
+   *  which is a decision about an entry that IS there. */
+  ATS_CANDIDATE_NOT_FOUND: "That candidate is not on this board.",
+  // ---- Inbound ATS connection refusals (/perfect wave 41, api-ats-integration).
+  // The connections door answered five hand-written English sentences and forwarded
+  // every message the field-map parser and the connection store threw, straight into a
+  // panel that renders through useErrorMessage in four languages. The store and the
+  // parser now carry a code on the thrown error and the route maps it; the sentences
+  // below are what the operator actually reads, so each one names the fix.
+  /** `provider` is not on ATS_PROVIDERS (or the DELETE arrived without one). */
+  ATS_CONNECTION_PROVIDER_UNKNOWN: "That is not an ATS Kandi can connect to. Pick a provider from the list.",
+  /** The base URL failed the SSRF boundary (https-only, public host, no IP literal). */
+  ATS_CONNECTION_BASE_URL_INVALID: "The API base URL must be an https:// address on a public host.",
+  /** The token was not text, or could not be encrypted because no at-rest key is set. */
+  ATS_CONNECTION_TOKEN_INVALID: "That API token could not be stored. Check the server has an encryption key configured.",
+  /** parseFieldMap refused the map — an unknown field, an empty path, or no externalId,
+   *  which is the sync identity and the one path a map cannot go without. */
+  ATS_FIELD_MAP_INVALID: "That field map is not usable. Every mapped field needs a path, and the external id path is required.",
+  /** DELETE named a provider with no stored connection (404). */
+  ATS_CONNECTION_NOT_FOUND: "There is no connection stored for that ATS.",
+  /** The write was composed against a connection someone else has since replaced (409).
+   *  Same doctrine as ATS_CONFIG_STALE next door: nothing was written, and the panel's
+   *  answer is to reload and re-apply rather than to retry blind. */
+  ATS_CONNECTION_STALE: "Someone saved a newer version of this ATS connection. Reload and make your change again.",
   // ---- Interview-prep refusals (/perfect wave 37, lib-voice-interview-11).
   // The five write verbs of /api/interview-prep answered bare English sentences with
   // no code, while their voice twins next door had been coded since 2026-09-02. The
@@ -1450,6 +1540,30 @@ export const REFUSAL_ERRORS = {
    *  Both used to store as null behind a green "Saved": a truncated signed CDN URL is
    *  still a valid https URL, so it round-tripped happily and 403'd forever. */
   BRAND_LOGO_INVALID: "That logo link must be an https:// URL, short enough to store.",
+  // ---- The public text-extraction door (/perfect wave 41, db-profiles). POST
+  // /api/extract-text spawns pipeline.jobfit.extract_cli per request and is reachable
+  // with no session, yet it answered every failure with the ENGINE's own prose —
+  // parseStderrError's message on a non-zero exit, the thrown `.message` on the
+  // catch-all. It had the code all along and dropped it.
+  /** The POST carried no file (400). The apply form and the analyze form both send
+   *  one, so reaching this is a hand-rolled call or a dropped multipart part. */
+  EXTRACT_FILE_REQUIRED: "Attach a file to read text from.",
+  /** The extractor refused the document (400): a scanned PDF with no text layer, an
+   *  encrypted DOCX, a renamed binary. ONE code for all of them — the reader's next
+   *  move is the same, and which one it was is operator detail for the log. */
+  EXTRACT_TEXT_UNREADABLE: "That file could not be read. Try a PDF, DOCX, TXT or MD file with selectable text.",
+  /** The extractor overran EXTRACT_TIMEOUT_MS (504) — 5s inside the route's own
+   *  maxDuration budget, so cleanup still runs. A decision, not a fault. */
+  EXTRACT_TEXT_TIMEOUT: "Reading that file took too long and was stopped. Try a smaller file.",
+  // ---- The chat and flush doors of a work session (/perfect wave 42a,
+  // devcase-identity-and-lifecycle). Both answered bare English sentences with no
+  // code, on the surface a candidate spends an hour inside.
+  /** The session has been finalized, so it takes no more work (409). Distinct from
+   *  DEVCASE_SESSION_NOT_FOUND on purpose: nothing is lost and nothing is broken,
+   *  the attempt is simply over, and a second tab is the usual way to reach it. */
+  DEVCASE_SESSION_ALREADY_SUBMITTED: "This work session has already been submitted.",
+  /** A chat turn arrived empty, or as something that is not text (400). */
+  DEVCASE_CHAT_MESSAGE_REQUIRED: "Write a message before sending it.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

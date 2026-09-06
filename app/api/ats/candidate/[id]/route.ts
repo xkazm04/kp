@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAtsRecord } from "@/app/_lib/ats-egress";
+import { getAtsRecordResult } from "@/app/_lib/ats-egress";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { consentWithholdsPii } from "@/app/_lib/consent";
@@ -25,9 +26,22 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   // candidate PII, and it was the only one not resolving a tenant — so it served
   // the default workspace to everyone and 404'd every other team's own candidates.
   const workspaceId = await currentWorkspace();
-  const record = getAtsRecord(id, workspaceId);
+  const { record, refusal } = getAtsRecordResult(id, workspaceId);
+  // An ANONYMIZED entry is refused by the mapper itself (ats-record.ts, through the
+  // shared consent predicates). Surfaced under its own code and 410, never the 404
+  // below: the operator can still see the masked row on the board, and "not found"
+  // would deny an erasure the product performed on purpose. Logged, not audited —
+  // nothing left, so there is no export to audit.
+  if (refusal) {
+    console.info(`[ats] candidate export refused for ${id}: ${refusal.reason}`);
+    return jsonRefusal("ATS_CANDIDATE_ERASED", 410);
+  }
   if (!record) {
-    return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
+    // Coded, not a bare English sentence: this door answers a connector AND the operator
+    // UI, and one vocabulary is the contract (.claude/CLAUDE.md). Deliberately ONE code
+    // for "never existed" and "belongs to another team" - indistinguishable to a caller
+    // who does not hold the entry, which is the tenancy property the comment above records.
+    return jsonRefusal("ATS_CANDIDATE_NOT_FOUND", 404);
   }
   // GDPR read-time consent gate. The `anonymizeExpiredConsents` sweep DOES run (the
   // clock calls it every tick — instrumentation-node.ts), but it is best-effort and

@@ -2,7 +2,16 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { UNIT_DB_PATH, cleanupUnitDb } from "./testing/unit-db.ts";
-import { getDecisionConfig, setDecisionConfig, updateDecisionConfig, type ScreeningRule } from "./decision-config-store.ts";
+import {
+  __resetDecisionConfigHealth,
+  getDecisionConfig,
+  getDecisionConfigHealth,
+  setDecisionConfig,
+  updateDecisionConfig,
+  type ScreeningRule,
+} from "./decision-config-store.ts";
+import { SCREENING_DEFAULT } from "./decision-config-schema.ts";
+import { analyticsWriteVersion } from "./analytics-cache.ts";
 import type { InterviewPlanRule } from "./decision-config-schema.ts";
 
 after(() => cleanupUnitDb());
@@ -198,4 +207,117 @@ test("a legacy interviewPlan blob is migrated on read, not overwritten by the de
   // No legacy keys leak through the merge onto the stage-keyed shape.
   const leaked = ["screeningGate", "offerGate", "rounds"].filter((k) => k in (plan as unknown as Record<string, unknown>));
   assert.deepEqual(leaked, [], "the migrated plan carries no legacy wire keys");
+});
+
+// --- a corrupt stored row is REPORTED, not silently reverted (wave 41 D1) -----------
+//
+// Both parse fallbacks returned the CODE DEFAULT with an empty catch. The end state is
+// right, but the event is the auto-reject policy reverting: the panel then re-reads the
+// shipped defaults and renders them as the workspace's own settings, so an operator is
+// shown a policy they never chose with nothing anywhere saying a row was lost. What is
+// pinned here is that the fallback still happens AND that it is now recorded with the
+// tier and the workspace — the two facts a responder needs to restore the right row.
+
+/** Write a config row straight to the store's table, bypassing every validator. */
+function writeRawRow(phase: string, json: string, workspaceId: string | null): void {
+  const raw = new Database(UNIT_DB_PATH);
+  raw
+    .prepare(
+      `DELETE FROM decision_config WHERE phase = ? AND (workspace_id IS ? OR (workspace_id IS NOT NULL AND ? IS NOT NULL AND workspace_id = ?))`
+    )
+    .run(phase, workspaceId, workspaceId, workspaceId);
+  raw
+    .prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, ?)`)
+    .run(phase, json, new Date().toISOString(), workspaceId);
+  raw.close();
+}
+
+test("an unreadable TEAM row falls back to the default AND is reported with its tier", () => {
+  const ws = "ws-corrupt-team";
+  getDecisionConfig("screening", ws); // materialize the table
+  __resetDecisionConfigHealth();
+  writeRawRow("screening", "{not json at all", ws);
+
+  const read = getDecisionConfig<ScreeningRule>("screening", ws);
+  assert.equal(read.rejectBottomPercent, SCREENING_DEFAULT.rejectBottomPercent, "the code default is still what is in force");
+
+  const health = getDecisionConfigHealth();
+  assert.equal(health.ok, false, "an unreadable row is not a healthy store");
+  assert.equal(health.total, 1, "exactly the one corrupt read is counted");
+  assert.equal(health.issues[0].phase, "screening");
+  assert.equal(health.issues[0].scope, "team", "the TIER the bad row sits in — one team, not the company baseline");
+  assert.equal(health.issues[0].workspaceId, ws);
+  assert.ok(health.issues[0].reason.length > 0, "the parse error is carried, not discarded");
+});
+
+test("an unreadable ORG row is reported as org, so one incident is not mistaken for the other", () => {
+  const ws = "ws-corrupt-org";
+  getDecisionConfig("screening", ws);
+  __resetDecisionConfigHealth();
+  // No team override for this workspace, so the cascade resolves to the org baseline.
+  writeRawRow("screening", "[1,2,3", null);
+
+  getDecisionConfig<ScreeningRule>("screening", ws);
+  const health = getDecisionConfigHealth();
+  assert.equal(health.total, 1);
+  assert.equal(health.issues[0].scope, "org", "an org baseline going dark hits EVERY team — a different incident from one override");
+
+  // And the write path: updateDecisionConfig(scope 'org') builds the next baseline on
+  // this value, so the revert would be WRITTEN BACK. That must never be silent either.
+  __resetDecisionConfigHealth();
+  writeRawRow("screening", "[1,2,3", null);
+  updateDecisionConfig<ScreeningRule>("screening", (cur) => ({ ...cur, rejectBottomPercent: 12 }), ws, "org");
+  const afterWrite = getDecisionConfigHealth();
+  // TWO, and both are real reads of the same unreadable row: the read-modify-write's own
+  // "what is the baseline right now" (updateDecisionConfig), and writeConfigRow's
+  // familyFloors preservation, which re-reads this tier's stored row to carry the
+  // operator's per-family floors forward. The second is the one that silently CLEARS
+  // those floors, so collapsing the pair would hide the more damaging half.
+  assert.equal(afterWrite.total, 2, "both fallbacks over the same corrupt org row are recorded");
+  assert.deepEqual(new Set(afterWrite.issues.map((i) => i.scope)), new Set(["org"]));
+  // The write still lands (the store must not be left unwritable by a bad row).
+  assert.equal(getDecisionConfig<ScreeningRule>("screening", ws).rejectBottomPercent, 12);
+});
+
+test("a healthy store reports ok, so the ledger is not a permanent alarm", () => {
+  __resetDecisionConfigHealth();
+  setDecisionConfig("screening", { autoRejectEnabled: true, rejectBottomPercent: 15, maxMatchToReject: 35 }, "ws-healthy", "team");
+  assert.equal(getDecisionConfig<ScreeningRule>("screening", "ws-healthy").rejectBottomPercent, 15);
+  assert.deepEqual(getDecisionConfigHealth(), { ok: true, total: 0, issues: [] });
+});
+
+// --- the config save retires the analytics memo (wave 41 D1) ------------------------
+//
+// The behavioural half of `analytics-config-independence.test.ts`. That file proves the
+// OBLIGATION statically (the memoized /api/analytics payload reads this store for the
+// board's stage axis, so a save must bump the memo's write version); this proves the bump
+// actually happens, through the real writers rather than by reading the source.
+
+test("saving a config bumps the analytics write version for that workspace", () => {
+  const ws = "ws-memo-bump";
+  const before = analyticsWriteVersion(ws);
+  const otherBefore = analyticsWriteVersion("ws-memo-other");
+
+  setDecisionConfig("screening", { autoRejectEnabled: true, rejectBottomPercent: 21, maxMatchToReject: 41 }, ws, "team");
+  const afterSet = analyticsWriteVersion(ws);
+  assert.ok(afterSet > before, "setDecisionConfig must retire this workspace's memoized analytics payloads");
+
+  // The calibration apply-threshold path writes through updateDecisionConfig, not
+  // setDecisionConfig, and it is the one that moves the family floors.
+  updateDecisionConfig<ScreeningRule>("screening", (cur) => ({ ...cur, rejectBottomPercent: 22 }), ws, "team");
+  assert.ok(analyticsWriteVersion(ws) > afterSet, "updateDecisionConfig must retire them too");
+
+  // Per workspace, never a global clear: retiring one tenant's payloads must not throw
+  // away every other tenant's fresh ones (the reason the memo carries a version at all).
+  assert.equal(analyticsWriteVersion("ws-memo-other"), otherBefore, "another workspace's memo is untouched");
+});
+
+test("a REFUSED save does not retire the memo", () => {
+  // The bump runs after the transaction commits. A validation failure or a stale-token
+  // rejection changed nothing, so throwing away good payloads for it would be pure cost.
+  const ws = "ws-memo-refused";
+  setDecisionConfig("screening", { autoRejectEnabled: true, rejectBottomPercent: 30, maxMatchToReject: 50 }, ws, "team");
+  const settled = analyticsWriteVersion(ws);
+  assert.throws(() => setDecisionConfig("screening", { autoRejectEnabled: "yes" }, ws, "team"), /autoRejectEnabled/);
+  assert.equal(analyticsWriteVersion(ws), settled, "a refused write must not retire anything");
 });

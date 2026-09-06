@@ -105,7 +105,11 @@ class CoercionTest(unittest.TestCase):
 
     def test_garbage_payload_falls_back_wholesale(self):
         seed, src = materialize_seed(CASE, ROLE, provider=_StubProvider({"files": "not a list"}))
-        self.assertEqual(src, "llm")  # the call succeeded; the SHAPE fell back
+        # X4: the call succeeded and the SHAPE fell back, so the seed on the wire IS the
+        # prose-only skeleton — this line used to assert "llm" and that label is what let
+        # devcase-orchestrator.ts audit a skeleton as `seed_materialized` and FREEZE it
+        # (saveDevCaseSeedIfAbsent). Coercion kept nothing, so the source says so.
+        self.assertEqual(src, "deterministic")
         self.assertEqual([f["path"] for f in seed["files"]], ["README.md", DECISIONS_FILE])
 
     def test_provider_error_degrades_to_deterministic(self):

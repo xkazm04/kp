@@ -1691,6 +1691,9 @@
     "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
     "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again.",
     "COMMS_SUPPRESSED": "This candidate can no longer be contacted.",
+    "TTS_UNAVAILABLE": "Voice is not configured on this server, so nothing can speak.",
+    "STT_UNAVAILABLE": "Transcription is not configured on this server.",
+    "ATS_CANDIDATE_ERASED": "This candidate's data was erased and cannot be exported.",
     "INTERVIEW_PREP_NOT_FOUND": "There is no interview prep pack for this candidate yet. Generate it first.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Pick at least one question to add to the prep pack.",
     "INTERVIEW_PREP_QUESTION_REQUIRED": "Say which question to move.",
@@ -1745,7 +1748,31 @@
     "SCHEDULE_BULK_MINT_FAILED": "Couldn't create a scheduling link for this candidate. The rest of the batch was unaffected.",
     "SCHEDULE_BULK_OVER_CAP": "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Pick a candidate before creating a scheduling link.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "That candidate is no longer active, so no invite was sent."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "That candidate is no longer active, so no invite was sent.",
+    "ATS_CONNECTION_SAVE_FAILED": "Could not save the ATS connection. Please try again.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Could not remove the ATS connection. Please try again.",
+    "ATS_CANDIDATE_NOT_FOUND": "That candidate is not on this board.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "That is not an ATS Kandi can connect to. Pick a provider from the list.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "The API base URL must be an https:// address on a public host.",
+    "ATS_CONNECTION_TOKEN_INVALID": "That API token could not be stored. Check the server has an encryption key configured.",
+    "ATS_FIELD_MAP_INVALID": "That field map is not usable. Every mapped field needs a path, and the external id path is required.",
+    "ATS_CONNECTION_NOT_FOUND": "There is no connection stored for that ATS.",
+    "ATS_CONNECTION_STALE": "Someone saved a newer version of this ATS connection. Reload and make your change again.",
+    "EXTRACT_FILE_REQUIRED": "Attach a file to read text from.",
+    "EXTRACT_TEXT_UNREADABLE": "That file could not be read. Try a PDF, DOCX, TXT or MD file with selectable text.",
+    "EXTRACT_TEXT_TIMEOUT": "Reading that file took too long and was stopped. Try a smaller file.",
+    "EXTRACT_TEXT_FAILED": "Could not read text from that file. Please try again.",
+    "DEVCASE_CHAT_FAILED": "Could not reach the chat channel. Please try again.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Could not save this work session right now. Your work is kept on this device and will be sent again.",
+    "DEVCASE_SESSION_READ_FAILED": "Could not load the work session. Please try again.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "This work session has already been submitted.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Write a message before sending it.",
+    "EDGE_SECRET_UNREADABLE": "This install cannot read the stored edge secret. Re-enter it, or restore the key it was encrypted with.",
+    "SIM_RUN_NOT_OWNER": "That guided demo belongs to another tab. Wait for it to finish, or stop it there.",
+    "simRunActiveSeconds": "A guided demo is already running here. You can reset in about {seconds} seconds, or stop the run in the tab that started it.",
+    "simRunNotOwnerSeconds": "That guided demo belongs to another tab. You can reset in about {seconds} seconds, or stop it there.",
+    "TTS_VOICE_INVALID": "That voice cannot be used for this. Pick another voice.",
+    "TTS_TEXT_TOO_LONG": "That text is too long to speak in one go. Send it in shorter pieces."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3227,7 +3254,8 @@
       "passLine": "{advanced} advance · {rejected} reject · {held} hold · {alerts} flag",
       "errorPreview": "Couldn't preview the pass.",
       "errorNetwork": "Couldn't reach the server.",
-      "errorRun": "The pass failed to run."
+      "errorRun": "The pass failed to run.",
+      "resetting": "Resetting…"
     },
     "offAxis": {
       "title": "Off the board",
@@ -3263,7 +3291,13 @@
       "intakeCapturedManually": "Intake captured manually.",
       "githubDeepDiveFromDrawer": "GitHub deep-dive run from the candidate drawer.",
       "manualStageMove": "Moved manually by a recruiter.",
-      "addedToPipeline": "Added to the pipeline."
+      "addedToPipeline": "Added to the pipeline.",
+      "repeatApplication": "Repeat application via {channel}.",
+      "repeatApplicationContact": "Repeat application via {channel}. Contact email captured."
+    },
+    "intakeReasons": {
+      "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",
+      "leadPendingUngated": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement. Eligibility not verified by the source form: {ungated}"
     }
   },
   "decisions": {
@@ -4317,7 +4351,8 @@
           "jdPick": "Pick a saved JD…",
           "error": "Could not update the attachments. Please try again.",
           "noteFallbackTitle": "Untitled note",
-          "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts."
+          "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts.",
+          "countOfMax": "{used, number} of {max, number}"
         },
         "columns": {
           "col": {
@@ -4368,6 +4403,7 @@
             "failedCloneFailed": "The repository could not be cloned. Check the URL and the access it needs.",
             "failedCloneTimeout": "Cloning the repository took too long and was stopped.",
             "failedCancelled": "The scan was stopped.",
+            "failedTimeout": "The scan ran past its time budget and was stopped. Re-running it unchanged will hit the same limit.",
             "failedEngineFailed": "The scan engine failed, so nothing was read.",
             "fellBackAgentNotInstalled": "The AI agent is not installed, so this is the file-walk reading only.",
             "fellBackAgentTimeout": "The AI agent timed out, so this is the file-walk reading only.",
@@ -4377,7 +4413,9 @@
             "fellBackProviderError": "The AI provider failed, so this is the file-walk reading only.",
             "fellBackUnknown": "The AI agent fell back, so this is the file-walk reading only.",
             "fenceUnverified": "The AI agent read this repo behind secret-file rules that have not been verified for the Claude CLI version installed here.",
-            "fenceVersionUnknown": "The Claude CLI did not report its version, so the secret-file rules this scan ran behind could not be verified."
+            "fenceVersionUnknown": "The Claude CLI did not report its version, so the secret-file rules this scan ran behind could not be verified.",
+            "throttled": "The codebase reading is waiting its turn. Attaching it shortly.",
+            "rereading": "The brief changed while the reading was being folded in. Re-reading it now."
           },
           "dossier": {
             "title": "What the scan read",
@@ -4457,7 +4495,9 @@
             "noOwner": "not named, so escalations have nowhere to go",
             "objectives": "Outcomes",
             "objectiveCount": "{count, plural, one {# outcome} other {# outcomes}}",
-            "notes": "Assumptions recorded"
+            "notes": "Assumptions recorded",
+            "staleChip": "Older brief",
+            "stale": "This spec was composed before the latest change to the brief. Recompose it so the mandate matches the role you are hiring for."
           },
           "dispatch": "Dispatch to Personas",
           "dispatching": "Dispatching…",
@@ -4664,7 +4704,8 @@
       "unsavedTitle": "Discard your unsaved template?",
       "unsavedBody": "This template has edits you haven't saved yet. Leaving the editor discards them.",
       "unsavedDiscard": "Discard changes",
-      "unsavedKeep": "Keep editing"
+      "unsavedKeep": "Keep editing",
+      "truncated": "Showing part of the library. Some templates are not listed here."
     },
     "intakeTab": {
       "eyebrow": "Workspace",
@@ -5682,7 +5723,8 @@
       "drainFailedUnreachable": "Drain failed: the edge did not answer. Nothing was lost; the next tick retries.",
       "drainFailedHeld": "Drain paused: an event could not be filed yet. It stays at the edge and is retried.",
       "drainFailedAck": "Filed, but the edge was not told. It will offer those events again and they will not be filed twice.",
-      "drainFailedUnknown": "Drain failed. The reason is in this install's server log."
+      "drainFailedUnknown": "Drain failed. The reason is in this install's server log.",
+      "drainFailedSecretUnreadable": "Drain stopped: this install cannot read the stored edge secret. Nothing was lost. Re-enter the secret, or restore the key it was encrypted with."
     },
     "tablist": "Integration",
     "waiting": "{count} waiting in the pipeline",
@@ -5869,7 +5911,8 @@
         "waiting": "The receiver is armed and no leads have arrived yet. The first one files itself into the pipeline."
       }
     },
-    "copyFailed": "Copy failed. Select the text."
+    "copyFailed": "Copy failed. Select the text.",
+    "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is."
   },
   "interviewSim": {
     "eyebrow": "Interview simulator",
@@ -6413,7 +6456,11 @@
       "restored": "We restored your unsaved work from this device. Nothing was lost.",
       "chatRateLimited": "You've reached the assistant limit for now. Your work and everything you've written are safe. Keep working and try again in a few minutes.",
       "chatDeterministicNote": "This reply came from the offline stand-in, not a live model. Treat it as a placeholder and note your assumptions in the decision log.",
-      "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device. Reload the page from your original link to reconnect."
+      "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device. Reload the page from your original link to reconnect.",
+      "clockHm": "{h}h {m}m",
+      "clockM": "{m}m",
+      "clockElapsed": "Time on this assignment: {elapsed} of {timebox}",
+      "clockOver": "You are {over} past the {timebox} timebox. You can still submit; the time you took is recorded with your work."
     },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
@@ -7016,6 +7063,7 @@
         "interview_failover": "Interview failed over to another provider",
         "comm_resent": "Message resent",
         "rejection_comms_failed": "Rejection email failed",
+        "offer_comms_failed": "Offer email failed",
         "moved": "Stage set manually",
         "matched": "Matched to role",
         "added": "Added to pipeline",
@@ -7192,7 +7240,9 @@
     "briefRolesNoDataClaim": "No role is carrying the pipeline yet.",
     "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation.",
     "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
-    "closedInWindowSub": "{count} closed in window"
+    "closedInWindowSub": "{count} closed in window",
+    "bucketTzNote": "The window and the weekly trend buckets are cut on {tz} days.",
+    "cohortTruncatedNote": "Only the newest {count, plural, one {# entry} other {# entries}} in this window were counted. The cohort is larger than one read covers, so every figure below is a bounded sample. Narrow the window to see it whole."
   },
   "matrix": {
     "loadFailed": "Load failed.",
@@ -7859,6 +7909,8 @@
     },
     "useCases": {
       "match_reasoning": "Match reasoning",
+      "tts": "Voice (text to speech)",
+      "stt": "Voice (speech to text)",
       "automation": "Automation",
       "campaign_pack": "Campaign pack",
       "jd_ingest": "JD ingest",
@@ -8214,7 +8266,8 @@
         "language": "App language",
         "invites": "Teammate invites",
         "pipeline": "Board columns",
-        "brand": "Brand color and logo"
+        "brand": "Brand color and logo",
+        "companion": "Candi memory"
       },
       "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
       "line": "{part}: {reason}",
@@ -8796,6 +8849,10 @@
       "skipPerf": "skip (record hire only)",
       "hint": "Feed the promote-floor calibration with what actually happened",
       "label": "Outcome"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} min over the timebox",
+      "overTimeboxTitle": "Measured from the start of the work session against the assignment timebox. A record, not a rejection."
     }
   },
   "rubric": {
@@ -9092,7 +9149,9 @@
       "done": "Done. Candidate hired 🎉",
       "failed": "Failed: {message}",
       "genericError": "The simulation stopped unexpectedly.",
-      "resetFailed": "Cleanup failed. Try again."
+      "resetFailed": "Cleanup failed. Try again.",
+      "resetCleared": "Reset. {count} demo rows cleared.",
+      "resetNothing": "Reset. There was nothing left to clear."
     },
     "phase": {
       "design": "Design JD",
@@ -9795,7 +9854,12 @@
     "detailCached": "Cached tokens",
     "runUnlinked": "This action ran outside a tracked background run, so no output was stored for it.",
     "runGone": "The run that produced this has aged out of the task history.",
-    "runNoOutput": "This run finished without storing any output."
+    "runNoOutput": "This run finished without storing any output.",
+    "tzNote": "Times are shown in your own time zone. The ledger stores UTC, and the daily cost rollup on the Models tab buckets by UTC day.",
+    "companionTurn": "A turn with Candi, in the conversation: {thread}",
+    "companionThreadUntitled": "an untitled conversation",
+    "companionOpen": "Open the conversation",
+    "companionThreadGone": "That conversation is no longer in the ledger."
   },
   "readout": {
     "empty": "Nothing recorded",
@@ -10006,7 +10070,8 @@
       "thinking": "Thinking…",
       "thinkingSlowCalm": "Still with you. She reads the studio before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
-      "errorGeneric": "That message did not go through. Nothing was lost, so try again."
+      "errorGeneric": "That message did not go through. Nothing was lost, so try again.",
+      "reconnect": "Try connecting again"
     },
     "state": {
       "here": "Here when you need me.",
@@ -10040,7 +10105,9 @@
       "speak": "Read this aloud",
       "stop": "Stop reading",
       "resume": "Play",
-      "failed": "That could not be spoken."
+      "failed": "That could not be spoken.",
+      "waiting": "Waiting to speak…",
+      "wrongLanguage": "No installed voice speaks this language, so it was read in another accent."
     },
     "action": {
       "runAnalysis": "Re-run the AI screening for {candidate}",
@@ -10056,7 +10123,8 @@
       "working": "Working",
       "accepted": "Accepted",
       "declined": "Declined",
-      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}"
+      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}",
+      "failed": "That answer did not go through. Nothing was changed, so try again."
     },
     "outcome": {
       "analysisQueued": "Screening {candidate} in the background",
@@ -10089,12 +10157,18 @@
       "close": "Leave voice mode",
       "empty": "Ask her something below. Her answer lands here, and you can play it.",
       "placeholder": "Ask Candi",
-      "mic": "Speaking to her comes with the relay",
+      "mic": "Dictate to Candi",
       "older": "Older answer",
       "newer": "Newer answer",
       "position": "{index} of {total}",
       "details": "Show details",
-      "detailsHide": "Hide details"
+      "detailsHide": "Hide details",
+      "notReady": "Not connected yet. Reconnect from the strip at the top of the screen.",
+      "micStop": "Stop and transcribe",
+      "micRecording": "Recording. Press again to transcribe.",
+      "micWorking": "Transcribing what you said…",
+      "micFailed": "That recording could not be transcribed. Try again.",
+      "micUnavailable": "Transcription is not set up on this server."
     }
   },
   "loadStatus": {

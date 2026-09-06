@@ -9,6 +9,7 @@
 // run controls (primary action, stop/reset/step/explain) — including the primary
 // action, which used to be built in SimControlDock.tsx and now lives beside the
 // only face that renders it.
+import { useState } from "react";
 import { BookOpen, Check, ChevronRight, Footprints, Pause, Play, RotateCcw, Sparkles, Square } from "lucide-react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { useRouter } from "next/navigation";
@@ -90,6 +91,7 @@ export function SimControlDockSimFace({
 }) {
   const t = useTranslations("pipeline.controlCenter");
   const tSim = useTranslations("simulation");
+  const [resetting, setResetting] = useState(false);
   return (
     <div className="space-y-2.5">
       {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #4): name the list
@@ -143,8 +145,29 @@ export function SimControlDockSimFace({
               <Square size={13} /> {t("stop")}
             </button>
           ) : null}
-          <button type="button" onClick={() => void sim.reset()} title={t("resetTitle")} className={ctrlToggle(false)}>
-            <RotateCcw size={13} /> {t("reset")}
+          {/* Reset is stop → settle → purge across thirteen tables: multiple seconds
+              with the walk's last in-flight mutation to wait out. It used to look
+              inert for all of it, so a presenter pressed it again — and a second
+              press mid-settle is a second stop/purge pair racing the first. The flag
+              is LOCAL: `reset()` is a promise the provider hands back, and the one
+              component that awaits it is the one that owns the button. */}
+          <button
+            type="button"
+            onClick={async () => {
+              setResetting(true);
+              try {
+                await sim.reset();
+              } finally {
+                setResetting(false);
+              }
+            }}
+            disabled={resetting}
+            aria-busy={resetting}
+            title={t("resetTitle")}
+            className={`${ctrlToggle(false)} disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            <RotateCcw size={13} className={resetting ? "animate-spin motion-reduce:animate-none" : undefined} />{" "}
+            {resetting ? t("resetting") : t("reset")}
           </button>
           <button type="button" onClick={sim.toggleStep} title={t("stepTitle")} className={ctrlToggle(sim.stepMode)}>
             <Footprints size={13} /> {t("step")}

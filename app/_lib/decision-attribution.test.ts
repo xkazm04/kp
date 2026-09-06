@@ -423,3 +423,59 @@ test("parseEventActor separates the machine, the named person, and the unidentif
     assert.deepEqual(parseEventActor(missing), { kind: "unknown", name: null }, `"${String(missing)}" must not be attributed`);
   }
 });
+
+// ---- DECISION_META <-> catalog lockstep (wave 41 D1) -------------------------------
+//
+// The map and the label catalog were only coupled by habit. `offer_comms_failed` was
+// mapped in c22d5e05 with no `analytics.log.kinds.*` entry in any of the four catalogs,
+// and `kindLabel` degrades an unlabelled kind to the de-snaked raw key — so the row that
+// says "the offer approval is still open because the message never went out" rendered as
+// "offer comms failed" in Czech, German and French alike. Nothing failed; the degrade
+// path is deliberate for a kind nobody mapped, and it silently covered for one that was.
+//
+// So the mapping is now the input to a catalog assertion, in BOTH directions and in all
+// four locales: a kind added to DECISION_META owes four labels in the same change, and a
+// label whose kind is gone is dead copy translators keep paying for.
+//
+// This lives here rather than in `npm run i18n:check`: that gate's satellite registry
+// (SATELLITE_ERROR_SOURCES) is shaped for ERROR CODES specifically — a `code:` literal
+// scan against `errors.*` — and DECISION_META is neither a code nor spelled that way.
+// Teaching the gate a second, differently-shaped registry buys nothing the unit suite
+// does not already run on every push.
+
+const REPO_ROOT = resolve(APP_ROOT, "..");
+const CATALOG_LOCALES = ["en", "cs", "de", "fr"] as const;
+
+function kindCatalog(locale: string): Record<string, string> {
+  const raw = JSON.parse(readFileSync(join(REPO_ROOT, "messages", `${locale}.json`), "utf8")) as {
+    analytics: { log: { kinds: Record<string, string> } };
+  };
+  return raw.analytics.log.kinds;
+}
+
+test("every mapped decision kind has a label in all four catalogs", () => {
+  const kinds = Object.keys(DECISION_META);
+  assert.ok(kinds.length >= 60, `only ${kinds.length} kinds — DECISION_META has stopped being read`);
+  for (const locale of CATALOG_LOCALES) {
+    const catalog = kindCatalog(locale);
+    assert.deepEqual(
+      kinds.filter((k) => typeof catalog[k] !== "string" || catalog[k].trim() === ""),
+      [],
+      `messages/${locale}.json analytics.log.kinds is missing a label — kindLabel would render the de-snaked raw key`
+    );
+  }
+});
+
+test("no catalog label outlives the kind it labels", () => {
+  // The converse direction, so a kind RETIRED out of DECISION_META (never merely
+  // renamed) takes its four labels with it instead of leaving copy in the translation
+  // budget forever. RETIRED_EVENT_KINDS stay MAPPED, so they are covered by the test
+  // above, not exempted from this one.
+  for (const locale of CATALOG_LOCALES) {
+    assert.deepEqual(
+      Object.keys(kindCatalog(locale)).filter((k) => !(k in DECISION_META)),
+      [],
+      `messages/${locale}.json labels a kind that is no longer in DECISION_META`
+    );
+  }
+});

@@ -149,6 +149,13 @@ test("THE FIX: the locale splits the key for EVERY task that receives --lang", (
     ["offer", "offer-v3"],
     ["screen", "screening-v2"],
     ["scorecard", "scorecard-v6"],
+    // rematch joined the lang-keyed set 2026-09-05. The comment below used to say it
+    // "ranks a corpus, drafts no prose" and asserted its key must NOT split on locale.
+    // That premise was wrong: the result's `rationale` IS prose — it is the model's
+    // verdict sentence, lifted from generate_reasoning — and because rematch received
+    // no --lang, that sentence was English on every install regardless of the org
+    // language, carrying no narrativeLang stamp to say so.
+    ["rematch", "rematch-v2"],
   ] as Array<[string, string]>) {
     const t = { ...base, task, version };
     assert.notEqual(
@@ -157,12 +164,13 @@ test("THE FIX: the locale splits the key for EVERY task that receives --lang", (
       task
     );
   }
-  // rematch is handed no --lang at all (it ranks a corpus, it drafts no prose),
-  // so a stray lang must not split its key — the task-scoping the other axes keep.
-  const rematch = { ...base, task: "rematch", version: "rematch-v1" };
+  // A task that receives no --lang must still not split on a stray one — that
+  // task-scoping is what keeps every other axis honest. `notes` is the standing
+  // example: only the scorecard is handed one.
+  const noLang = { ...base, task: "screen", version: "screening-v3" };
   assert.equal(
-    computeAutomationCacheKey({ ...rematch, lang: "en" }),
-    computeAutomationCacheKey({ ...rematch, lang: "cs" })
+    computeAutomationCacheKey({ ...noLang, notes: "a" }),
+    computeAutomationCacheKey({ ...noLang, notes: "b" })
   );
 });
 
@@ -173,7 +181,7 @@ test("the lang-task union is exactly the tasks automation-run passes --lang to",
   // serving wrong-language output again — which is exactly the bug this union
   // exists to make structurally impossible.
   assert.deepEqual([...LETTER_LANG_TASKS].sort(), ["offer", "outreach", "rejection"]);
-  assert.deepEqual([...UI_LANG_TASKS].sort(), ["prep", "scorecard", "screen"]);
+  assert.deepEqual([...UI_LANG_TASKS].sort(), ["prep", "rematch", "scorecard", "screen"]);
   assert.deepEqual(
     [...LANG_KEYED_TASKS].sort(),
     [...new Set([...LETTER_LANG_TASKS, ...UI_LANG_TASKS])].sort()

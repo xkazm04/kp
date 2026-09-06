@@ -46,6 +46,38 @@ const MAX_BODY_BYTES = 128 * 1024;
 /** A mail event stores HEADERS ONLY (see email() below), so this is generous. */
 const MAX_SUBJECT = 300;
 
+/** The public door's window, deliberately IDENTICAL to the install twin's
+ *  (`RATE_LIMIT = { limit: 60, windowMs: 60_000 }` in
+ *  app/api/channels/inbound/[token]/route.ts, keyed `inbound:<token>:<ip>`). The
+ *  two doors are the same door to a job board — one of them being ten times more
+ *  permissive would just move a flood to whichever URL the operator happened to
+ *  hand out. */
+const INBOUND_LIMIT = 60;
+const INBOUND_WINDOW_MS = 60_000;
+
+/**
+ * How much undrained work the edge will hold. Beyond it the door REFUSES rather
+ * than dropping the oldest, and that choice is the whole point:
+ *
+ *   · a stored event has already been answered `202 held`, which is a promise to
+ *     hand it to the install. Dropping it later breaks that promise SILENTLY —
+ *     nobody is told, and the lead is simply gone;
+ *   · a refusal is loud and recoverable: `503 + Retry-After` is what a job board,
+ *     a relay and a mail server all retry (and what they do NOT give up on, unlike
+ *     a 4xx), so the sender holds the event while the operator drains.
+ *
+ * The number is sized against what a drain can actually clear: the install fetches
+ * 5 pages of 50 per tick (MAX_PAGES_PER_DRAIN in app/_lib/edge-drain.ts), so 10k is
+ * ~40 ticks of catch-up — a long weekend of real traffic, and far short of D1's
+ * free-plan storage.
+ */
+const MAX_QUEUED_EVENTS = 10_000;
+
+/** Thrown by `append` when the queue is at {@link MAX_QUEUED_EVENTS}; every door
+ *  that writes turns it into a 503 rather than the generic storage failure, so the
+ *  Worker log distinguishes "full" from "broken". */
+const QUEUE_FULL = "kp-edge:queue-full";
+
 // ---- signing (mirror of app/_lib/edge-crypto.ts) ----------------------------
 
 async function hmacHex(secret: string, payload: string): Promise<string> {
@@ -180,6 +212,11 @@ async function setMeta(env: Env, key: string, value: string | null): Promise<voi
 /** Append one event. `body` is sealed when a public key is published; the sealed and
  *  cleartext columns are mutually exclusive so the install can tell which it got. */
 async function append(env: Env, kind: string, token: string | null, payload: unknown): Promise<void> {
+  // The cap is checked HERE, not per door, so mail and receipts are bounded by the
+  // same number as webhooks — three producers writing into one unbounded table is
+  // how it grows without limit.
+  const held = await env.DB.prepare(`SELECT COUNT(*) AS n FROM events`).first<{ n: number }>();
+  if ((held?.n ?? 0) >= MAX_QUEUED_EVENTS) throw new Error(QUEUE_FULL);
   const plaintext = JSON.stringify(payload ?? null);
   const sealed = await seal(await meta(env, "public_jwk"), plaintext);
   await env.DB.prepare(
@@ -206,6 +243,68 @@ function storageFailure(where: string, err: unknown): Response {
     status: 503,
     headers: { "content-type": "application/json", "retry-after": "30" },
   });
+}
+
+/** The queue is at its cap. 503 + a LONG Retry-After, never 4xx: the sender must
+ *  keep the event and try again, because we did not store it. Distinct from
+ *  {@link storageFailure} so the Worker log says which of the two happened. */
+function queueFull(where: string): Response {
+  console.error(`kp-edge: queue is full (${MAX_QUEUED_EVENTS} undrained events); refused a write in ${where}`);
+  return new Response(
+    JSON.stringify({ error: "Edge queue is full. Drain the install, then retry.", retryable: true }),
+    { status: 503, headers: { "content-type": "application/json", "retry-after": "300" } }
+  );
+}
+
+/** Whether a thrown value is the queue-cap sentinel rather than a storage fault. */
+function isQueueFull(err: unknown): boolean {
+  return err instanceof Error && err.message === QUEUE_FULL;
+}
+
+/**
+ * The public door's fixed-window limiter, D1-backed.
+ *
+ * WHY D1 AND NOT KV: D1 is already bound (it is the whole storage), so this costs an
+ * operator nothing new — a KV limiter would mean a second namespace to create, a
+ * second binding in wrangler.toml and a second thing to get wrong during setup, for
+ * a table that holds one integer per (token, IP) per minute. It is also the same
+ * table shape as `nonces`, which already proves the "small counter row, pruned on
+ * the next claim" pattern here.
+ *
+ * WHAT IT IS NOT: an exact quota. Read-then-write is not atomic, so two requests
+ * arriving in the same millisecond can both see the last slot and both take it. That
+ * is acceptable and deliberate — this is abuse CONTAINMENT (turn a flood into a
+ * trickle), and the hard bound on what a flood can cost is {@link MAX_QUEUED_EVENTS},
+ * which is checked on every single write. Pretending to be exact would mean a
+ * transaction per inbound request for no protection the cap does not already give.
+ *
+ * Throws on a storage failure, which the caller answers 503: an unverifiable limiter
+ * must not be treated as "under the limit".
+ */
+async function claimRate(env: Env, key: string, nowMs: number): Promise<boolean> {
+  await env.DB.prepare(`DELETE FROM rate WHERE reset_at <= ?`).bind(nowMs).run();
+  const row = await env.DB.prepare(`SELECT count, reset_at FROM rate WHERE key = ?`)
+    .bind(key)
+    .first<{ count: number; reset_at: number }>();
+  // The prune above removed every expired row, so a row that is still here is live.
+  if (!row) {
+    await env.DB.prepare(`INSERT OR REPLACE INTO rate (key, count, reset_at) VALUES (?, 1, ?)`)
+      .bind(key, nowMs + INBOUND_WINDOW_MS)
+      .run();
+    return true;
+  }
+  if (row.count >= INBOUND_LIMIT) return false;
+  await env.DB.prepare(`UPDATE rate SET count = count + 1 WHERE key = ?`).bind(key).run();
+  return true;
+}
+
+/** The caller's IP as Cloudflare resolved it. `cf-connecting-ip` is set by the edge
+ *  itself and cannot be forged by the client (unlike `x-forwarded-for`, which is why
+ *  the install refuses to key on it without a declared proxy — clientIpFrom in
+ *  app/_lib/rate-limit.ts). When it is absent every caller shares ONE bucket, which
+ *  is the safe direction for a door whose limiter is abuse containment. */
+function clientIp(req: Request): string {
+  return req.headers.get("cf-connecting-ip")?.trim() || "shared";
 }
 
 /** Read a request body, bounded. Returns null when it is over the cap — every door
@@ -248,6 +347,22 @@ async function handleInbound(req: Request, env: Env, token: string): Promise<Res
   // The edge does not know which tokens are valid (that is install state), so it
   // accepts and lets the install refuse: a bogus token costs one queued row, which
   // the drain discards as "unknown webhook" without filing anything.
+  //
+  // …which is exactly why it is LIMITED, per token and per IP, on the install twin's
+  // window. "One queued row per bogus token" is cheap once and ruinous a million
+  // times: a flood outruns the drain (250 events a tick) and buries the real leads
+  // behind it in a queue the operator has to wade through, while D1 grows for as long
+  // as the sender keeps going. Before the door, so a refused caller writes nothing.
+  try {
+    if (!(await claimRate(env, `in:${token}:${clientIp(req)}`, Date.now()))) {
+      return new Response(JSON.stringify({ error: "Too many requests.", retryable: true }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "60" },
+      });
+    }
+  } catch (err) {
+    return storageFailure("inbound rate limit", err);
+  }
   const raw = await readBounded(req);
   if (raw === null) return json({ error: "Payload too large." }, 413);
   const parsed = parseJson(raw);
@@ -255,7 +370,7 @@ async function handleInbound(req: Request, env: Env, token: string): Promise<Res
   try {
     await append(env, "lead", token, parsed.value);
   } catch (err) {
-    return storageFailure("inbound", err);
+    return isQueueFull(err) ? queueFull("inbound") : storageFailure("inbound", err);
   }
   // 202, not 200: "held", never "accepted". The eligibility decision belongs to the
   // install and has not happened yet, and an integrator's log must not read as if a
@@ -301,8 +416,10 @@ async function handleReceipt(req: Request, env: Env): Promise<Response> {
     claimed = true;
     await append(env, "receipt", null, parsed.value);
   } catch (err) {
+    // The nonce goes back either way: a receipt we refused for want of room is one
+    // the relay must be able to re-present, exactly like one we failed to store.
     if (claimed) await releaseNonce(env, nonce);
-    return storageFailure("receipt", err);
+    return isQueueFull(err) ? queueFull("receipt") : storageFailure("receipt", err);
   }
   return json({ recorded: false, held: true }, 202);
 }
@@ -467,7 +584,17 @@ const worker = {
     const angled = /<([^>]+)>/.exec(rawFrom);
     const from = (angled ? angled[1] : rawFrom).trim();
     const name = angled ? rawFrom.slice(0, angled.index).replace(/["']/g, "").trim() : "";
-    await append(env, "mail", token, { from, name, subject });
+    // Mail has no response to carry a 503, so a full queue is REJECTED at SMTP: the
+    // sending server keeps the message and retries for days, which is the mail-shaped
+    // version of the same promise the HTTP doors make. Accepting it and dropping it
+    // would lose a candidate's application with nobody told.
+    try {
+      await append(env, "mail", token, { from, name, subject });
+    } catch (err) {
+      if (!isQueueFull(err)) throw err;
+      console.error(`kp-edge: queue is full (${MAX_QUEUED_EVENTS} undrained events); rejected an inbound mail`);
+      message.setReject("Mailbox is temporarily full. Please retry.");
+    }
   },
 
   /**

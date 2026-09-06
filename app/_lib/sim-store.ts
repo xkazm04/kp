@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
@@ -59,6 +60,34 @@ export const SIM_PURGED_TABLES = [
 
 export type SimPurgeCounts = Record<(typeof SIM_PURGED_TABLES)[number], number>;
 
+/** What a previous walk LEFT BEHIND in this workspace, counted from the three
+ *  marker-reachable tables the purge resolves its key sets from (every other table
+ *  it clears is only reachable through one of these, so a zero here really is a
+ *  clean tenant).
+ *
+ *  Three COUNT(*)s, no transaction and no write: this answers the status door on
+ *  every console boot, so it has to be cheap enough to be uninteresting. */
+export type SimResidue = { entries: number; jobs: number; jds: number; total: number };
+
+export function simResidue(workspaceId: string = DEFAULT_WORKSPACE_ID): SimResidue {
+  const d = db();
+  const count = (sql: string): number => {
+    try {
+      return (d.prepare(sql).get(MARKER, workspaceId) as { n: number }).n;
+    } catch (err) {
+      // A cold DB has not created jds yet (offers-store / db.ts make them lazily).
+      // "Not there" and "empty" are the same answer to "is anything left over?";
+      // anything else is a real store failure and must not read as a clean tenant.
+      if (!isNoSuchTable(err)) throw err;
+      return 0;
+    }
+  };
+  const entries = count(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`);
+  const jobs = count(`SELECT COUNT(*) AS n FROM jobs WHERE title LIKE ? AND workspace_id = ?`);
+  const jds = count(`SELECT COUNT(*) AS n FROM jds WHERE title LIKE ? AND workspace_id = ?`);
+  return { entries, jobs, jds, total: entries + jobs + jds };
+}
+
 // --- The per-workspace run lock ----------------------------------------------
 //
 // Every anonymous demo visitor and every operator tab shares ONE tenant, and a run
@@ -78,29 +107,90 @@ export type SimPurgeCounts = Record<(typeof SIM_PURGED_TABLES)[number], number>;
 // release, and a demo tenant locked forever by a closed tab is worse than the race.
 // A full walk is ~2-3 minutes of beats.
 export const SIM_RUN_TTL_MS = 5 * 60_000;
-const runLocks = new Map<string, number>();
 
-/** Claim the run lock for `workspaceId`. Returns the ms until the holder's lease
- *  expires when it is already held — the caller answers SIM_RUN_ACTIVE with it. */
-export function beginSimRun(workspaceId: string, now = Date.now()): { ok: true } | { ok: false; retryAfterMs: number } {
+/** A lease is a workspace plus a TOKEN, not a workspace alone (/perfect wave 44).
+ *  The wave-22 lock had no owner: DELETE /api/sim/reset released whoever held it,
+ *  so a second tab whose start was REFUSED with SIM_RUN_ACTIVE still ran its own
+ *  `finally` release, freed the first tab's lease, and the next press wiped a live
+ *  run — the exact regression the lock exists to prevent, two presses away. The
+ *  token is minted here from `randomUUID`, so it is never derivable from the
+ *  workspace id a caller already knows; only the claimant can release or renew. */
+type SimRunLease = { token: string; expiresAt: number };
+const runLocks = new Map<string, SimRunLease>();
+
+/** Claim the run lock for `workspaceId`. Returns the lease TOKEN the claimant must
+ *  present to release or renew, or the ms until the holder's lease expires when it
+ *  is already held — the caller answers SIM_RUN_ACTIVE with that. */
+export function beginSimRun(workspaceId: string, now = Date.now()): { ok: true; token: string } | { ok: false; retryAfterMs: number } {
   const held = runLocks.get(workspaceId);
-  if (held !== undefined && held > now) return { ok: false, retryAfterMs: held - now };
-  runLocks.set(workspaceId, now + SIM_RUN_TTL_MS);
-  return { ok: true };
+  if (held !== undefined && held.expiresAt > now) return { ok: false, retryAfterMs: held.expiresAt - now };
+  const token = randomUUID();
+  runLocks.set(workspaceId, { token, expiresAt: now + SIM_RUN_TTL_MS });
+  return { ok: true, token };
 }
 
-/** Release the lock. Idempotent: a stop, a failure and the natural end of a run all
- *  call it, and a lease that already expired is simply gone. */
-export function endSimRun(workspaceId: string): void {
-  runLocks.delete(workspaceId);
+/** Release the lock, but ONLY for the claimant that holds it.
+ *
+ *  Idempotent where idempotence is honest: a stop, a failure and the natural end of
+ *  one run all release the same way, and a lease that already expired (or was never
+ *  taken) is simply gone — `{ released: true }`, nothing to protect. What is NOT a
+ *  no-op is a caller with no token, or the wrong one, asking to free a LIVE lease:
+ *  that is someone else's run and it is refused with the holder's remaining time. */
+export function endSimRun(
+  workspaceId: string,
+  token?: string | null,
+  now = Date.now()
+): { released: true } | { released: false; retryAfterMs: number } {
+  const held = runLocks.get(workspaceId);
+  if (held === undefined || held.expiresAt <= now) {
+    runLocks.delete(workspaceId); // sweep the expired entry; nothing was owned
+    return { released: true };
+  }
+  if (token && token === held.token) {
+    runLocks.delete(workspaceId);
+    return { released: true };
+  }
+  return { released: false, retryAfterMs: held.expiresAt - now };
+}
+
+/** Extend the holder's lease by a full TTL. The guided walk defaults to STEP mode,
+ *  so a presenter talking through a phase outlived the five-minute lease and a
+ *  colleague's Start could wipe the board mid-presentation; the walk re-asserts
+ *  ownership at every phase gate instead.
+ *
+ *  Cheap on purpose: one map read and one write, no purge and no residue count. An
+ *  EXPIRED or foreign lease is refused rather than silently re-minted. The run
+ *  really did lose its protection, and pretending otherwise would hand two tabs a
+ *  lease each. */
+export function renewSimRun(
+  workspaceId: string,
+  token: string,
+  now = Date.now()
+): { ok: true; expiresInMs: number } | { ok: false; retryAfterMs: number } {
+  const held = runLocks.get(workspaceId);
+  if (held === undefined || held.expiresAt <= now || held.token !== token) {
+    const retryAfterMs = held !== undefined && held.expiresAt > now ? held.expiresAt - now : 0;
+    return { ok: false, retryAfterMs };
+  }
+  held.expiresAt = now + SIM_RUN_TTL_MS;
+  return { ok: true, expiresInMs: SIM_RUN_TTL_MS };
 }
 
 /** Whether a live run holds this workspace. Used by the purge door, which must not
  *  delete a run's rows out from under it. */
 export function simRunActive(workspaceId: string, now = Date.now()): { active: boolean; retryAfterMs: number } {
   const held = runLocks.get(workspaceId);
-  if (held === undefined || held <= now) return { active: false, retryAfterMs: 0 };
-  return { active: true, retryAfterMs: held - now };
+  if (held === undefined || held.expiresAt <= now) return { active: false, retryAfterMs: 0 };
+  return { active: true, retryAfterMs: held.expiresAt - now };
+}
+
+/** Does `token` own the LIVE lease on this workspace? The status door's
+ *  `ownedByMe`, and nothing more: a tab that reloaded holds no token, so it reads
+ *  false and is told the tenant is busy rather than being handed someone else's
+ *  run. Expired leases are not owned by anyone. */
+export function simRunOwnedBy(workspaceId: string, token: string, now = Date.now()): boolean {
+  const held = runLocks.get(workspaceId);
+  return held !== undefined && held.expiresAt > now && held.token === token;
 }
 
 /** Test seam only: drop every lease. */

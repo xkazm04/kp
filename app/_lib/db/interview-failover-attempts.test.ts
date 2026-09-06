@@ -119,6 +119,7 @@ test("the compare cohort carries what each interview cost", () => {
     cachedTokens: null,
     costUsd: 1.5,
     source: "llm",
+    outcome: "ok",
     requestId: s.id,
   });
   assert.equal(interviewedForJob(jobId, WS)[0]?.costUsd, 1.5);

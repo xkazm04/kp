@@ -35,7 +35,11 @@ test.describe("Decision log — table, not infinite scroll", () => {
     const when = page.getByRole("columnheader", { name: /when/i }).first();
     const candidate = page.getByRole("columnheader", { name: /candidate/i }).first();
 
-    await candidate.getByRole("button").click();
+    // BY NAME. The candidate header now carries TWO controls — "Sort by
+    // Candidate" and "Search Candidate…" — so a bare getByRole("button") is a
+    // strict-mode violation. The table gained a header-cell filter; the
+    // selector had not noticed.
+    await candidate.getByRole("button", { name: /^sort by/i }).click();
     await expect(candidate).toHaveAttribute("aria-sort", /ascending|descending/);
     await expect(when).toHaveAttribute("aria-sort", "none");
   });
@@ -61,13 +65,24 @@ test.describe("Sealed decision records — table", () => {
     await page.goto("/?tab=analytics&sec=quality");
     await expect(page.getByRole("heading", { name: /decision records/i })).toBeVisible({ timeout: 20_000 });
 
-    // Six columns, seq first. Targeted structurally rather than by label: the
-    // chain-position column is titled "#", and a ColumnHead's accessible name is
-    // its title plus the sort button's, so a text matcher on a single glyph is
-    // both brittle and ambiguous against the sibling log table.
+    // Seq FIRST, and the table did not collapse. Targeted structurally rather
+    // than by label: the chain-position column is titled "#", and a ColumnHead's
+    // accessible name is its title plus its buttons', so a text matcher on a
+    // single glyph is both brittle and ambiguous against the sibling log table.
+    //
+    // The exact column count used to be pinned at six. It is eight today (the
+    // records table gained kind/actor filters and a key column) and the pin
+    // failed on a table that got BETTER — a magic number that can only ever be
+    // wrong twice. What actually matters is asserted instead: the chain position
+    // leads, it is sortable, and the table still carries the substance columns
+    // rather than having degraded to a stub.
     const records = page.locator("table").first();
-    await expect(records.locator("thead th")).toHaveCount(6);
-    await expect(records.locator("thead th").first()).toHaveAttribute("aria-sort", /ascending|descending/);
+    const heads = records.locator("thead th");
+    await expect(heads.first()).toHaveAttribute("aria-sort", /ascending|descending/);
+    expect(await heads.count()).toBeGreaterThanOrEqual(6);
+    for (const label of [/kind/i, /subject/i, /sealed/i]) {
+      await expect(records.getByRole("columnheader", { name: label }).first()).toBeVisible();
+    }
   });
 
   test("defaults to newest link first and re-sorts on click", async ({ page }) => {
@@ -77,7 +92,7 @@ test.describe("Sealed decision records — table", () => {
     // Opens on the chain's own order, newest link first.
     await expect(seq).toHaveAttribute("aria-sort", "descending");
 
-    await seq.getByRole("button").click();
+    await seq.getByRole("button", { name: /^sort by/i }).click();
     await expect(seq).toHaveAttribute("aria-sort", "ascending");
   });
 });

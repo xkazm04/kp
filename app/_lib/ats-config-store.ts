@@ -87,14 +87,35 @@ function readRow(): Row | undefined {
     .get() as Row | undefined;
 }
 
-function parseEvents(json: string): AtsEventType[] {
+/** The stored subscription list, or `[]`. `[]` also means "unsubscribed from
+ *  everything", which is why the corrupt cases are LOGGED with the row they came from:
+ *  a config row whose events_json cannot be read silently turned every subscription off
+ *  and looked exactly like an operator who had turned them off, so a deployment could
+ *  stop mirroring hires with nothing anywhere saying why. `rowId` is the ats_config row
+ *  (always 1 — the store is single-row) so the log line names something greppable. */
+function parseEvents(json: string, rowId: number = 1): AtsEventType[] {
+  let arr: unknown;
   try {
-    const arr = JSON.parse(json);
-    if (!Array.isArray(arr)) return [];
-    return arr.filter(isAtsEvent).filter((e) => e !== "ping");
-  } catch {
+    arr = JSON.parse(json);
+  } catch (e) {
+    console.error(
+      `[ats] ats_config row ${rowId}: events_json is not valid JSON — NO events are subscribed until it is repaired:`,
+      e instanceof Error ? e.message : e
+    );
     return [];
   }
+  if (!Array.isArray(arr)) {
+    console.error(`[ats] ats_config row ${rowId}: events_json is ${typeof arr}, not an array — NO events are subscribed.`);
+    return [];
+  }
+  const known = arr.filter(isAtsEvent).filter((e) => e !== "ping");
+  if (known.length !== arr.length) {
+    const dropped = arr.filter((e) => !isAtsEvent(e));
+    if (dropped.length) {
+      console.error(`[ats] ats_config row ${rowId}: dropping unknown subscribed event(s) ${JSON.stringify(dropped)}.`);
+    }
+  }
+  return known;
 }
 
 /** The client-safe view — never includes the secret. */

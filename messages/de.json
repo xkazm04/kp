@@ -1691,6 +1691,9 @@
     "PROFILE_BUILD_TIMEOUT": "Die Verarbeitung des Profils hat zu lange gedauert und wurde abgebrochen. Versuchen Sie erneut zu speichern.",
     "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden.",
+    "TTS_UNAVAILABLE": "Sprachausgabe ist auf diesem Server nicht eingerichtet, daher kann nichts sprechen.",
+    "STT_UNAVAILABLE": "Transkription ist auf diesem Server nicht eingerichtet.",
+    "ATS_CANDIDATE_ERASED": "Die Daten dieser Kandidatin bzw. dieses Kandidaten wurden gelöscht und können nicht exportiert werden.",
     "INTERVIEW_PREP_NOT_FOUND": "Für diese Kandidatin bzw. diesen Kandidaten gibt es noch keine Interviewvorbereitung. Erstellen Sie sie zuerst.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Wählen Sie mindestens eine Frage aus, die in die Vorbereitung übernommen werden soll.",
     "INTERVIEW_PREP_QUESTION_REQUIRED": "Geben Sie an, welche Frage verschoben werden soll.",
@@ -1745,7 +1748,31 @@
     "SCHEDULE_BULK_MINT_FAILED": "Für diese Person konnte kein Terminlink erstellt werden. Die übrigen sind davon nicht betroffen.",
     "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Wählen Sie eine Person aus, bevor Sie einen Terminlink erstellen.",
-    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet."
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet.",
+    "ATS_CONNECTION_SAVE_FAILED": "Die ATS-Verbindung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ATS_CONNECTION_REMOVE_FAILED": "Die ATS-Verbindung konnte nicht entfernt werden. Bitte erneut versuchen.",
+    "ATS_CANDIDATE_NOT_FOUND": "Diese Kandidatin bzw. dieser Kandidat ist nicht auf diesem Board.",
+    "ATS_CONNECTION_PROVIDER_UNKNOWN": "Das ist kein ATS, mit dem Kandi sich verbinden kann. Wählen Sie einen Anbieter aus der Liste.",
+    "ATS_CONNECTION_BASE_URL_INVALID": "Die API-Basis-URL muss eine https://-Adresse auf einem öffentlichen Host sein.",
+    "ATS_CONNECTION_TOKEN_INVALID": "Dieses API-Token konnte nicht gespeichert werden. Prüfen Sie, ob auf dem Server ein Verschlüsselungsschlüssel konfiguriert ist.",
+    "ATS_FIELD_MAP_INVALID": "Diese Feldzuordnung ist nicht verwendbar. Jedes zugeordnete Feld braucht einen Pfad, und der Pfad zur externen ID ist Pflicht.",
+    "ATS_CONNECTION_NOT_FOUND": "Für dieses ATS ist keine Verbindung gespeichert.",
+    "ATS_CONNECTION_STALE": "Jemand hat eine neuere Version dieser ATS-Verbindung gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
+    "EXTRACT_FILE_REQUIRED": "Hängen Sie eine Datei an, aus der Text gelesen werden soll.",
+    "EXTRACT_TEXT_UNREADABLE": "Diese Datei konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei mit auswählbarem Text.",
+    "EXTRACT_TEXT_TIMEOUT": "Das Lesen der Datei hat zu lange gedauert und wurde abgebrochen. Versuchen Sie eine kleinere Datei.",
+    "EXTRACT_TEXT_FAILED": "Der Text aus dieser Datei konnte nicht gelesen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_CHAT_FAILED": "Der Chat-Kanal konnte nicht erreicht werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_SESSION_FLUSH_FAILED": "Diese Arbeitssitzung konnte gerade nicht gespeichert werden. Ihre Arbeit bleibt auf diesem Gerät und wird erneut gesendet.",
+    "DEVCASE_SESSION_READ_FAILED": "Die Arbeitssitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_SESSION_ALREADY_SUBMITTED": "Diese Arbeitssitzung wurde bereits eingereicht.",
+    "DEVCASE_CHAT_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
+    "EDGE_SECRET_UNREADABLE": "Diese Installation kann das gespeicherte Edge-Secret nicht lesen. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde.",
+    "SIM_RUN_NOT_OWNER": "Diese geführte Demo gehört zu einem anderen Tab. Warten Sie, bis sie beendet ist, oder stoppen Sie sie dort.",
+    "simRunActiveSeconds": "Hier läuft bereits eine geführte Demo. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie den Lauf im Tab, der ihn gestartet hat.",
+    "simRunNotOwnerSeconds": "Diese geführte Demo gehört einem anderen Tab. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie sie dort.",
+    "TTS_VOICE_INVALID": "Diese Stimme kann dafür nicht verwendet werden. Wählen Sie eine andere Stimme.",
+    "TTS_TEXT_TOO_LONG": "Dieser Text ist zu lang, um am Stück vorgelesen zu werden. Senden Sie ihn in kürzeren Teilen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3227,7 +3254,8 @@
       "passLine": "{advanced} weitergeleitet · {rejected} abgelehnt · {held} zurückgehalten · {alerts} markiert",
       "errorPreview": "Vorschau des Durchlaufs nicht möglich.",
       "errorNetwork": "Server nicht erreichbar.",
-      "errorRun": "Der Durchlauf konnte nicht ausgeführt werden."
+      "errorRun": "Der Durchlauf konnte nicht ausgeführt werden.",
+      "resetting": "Wird zurückgesetzt…"
     },
     "offAxis": {
       "title": "Außerhalb des Boards",
@@ -3263,7 +3291,13 @@
       "intakeCapturedManually": "Daten manuell erfasst.",
       "githubDeepDiveFromDrawer": "GitHub-Tiefenanalyse aus der Kandidatenansicht gestartet.",
       "manualStageMove": "Manuell von einer recruitenden Person verschoben.",
-      "addedToPipeline": "Zur Pipeline hinzugefügt."
+      "addedToPipeline": "Zur Pipeline hinzugefügt.",
+      "repeatApplication": "Erneute Bewerbung über {channel}.",
+      "repeatApplicationContact": "Erneute Bewerbung über {channel}. Kontakt-E-Mail erfasst."
+    },
+    "intakeReasons": {
+      "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",
+      "leadPendingUngated": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt. Eignung vom Quellformular nicht geprüft: {ungated}"
     }
   },
   "decisions": {
@@ -4317,7 +4351,8 @@
           "jdPick": "Gespeicherte Stellenbeschreibung wählen…",
           "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen.",
           "noteFallbackTitle": "Notiz ohne Titel",
-          "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an."
+          "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an.",
+          "countOfMax": "{used, number} von {max, number}"
         },
         "columns": {
           "col": {
@@ -4368,6 +4403,7 @@
             "failedCloneFailed": "Das Repository konnte nicht geklont werden. Prüfen Sie die URL und die nötigen Zugriffsrechte.",
             "failedCloneTimeout": "Das Klonen des Repositorys hat zu lange gedauert und wurde gestoppt.",
             "failedCancelled": "Der Scan wurde gestoppt.",
+            "failedTimeout": "Der Scan hat sein Zeitbudget überschritten und wurde gestoppt. Ein unveränderter neuer Versuch läuft in dasselbe Limit.",
             "failedEngineFailed": "Die Scan-Engine ist ausgefallen, es wurde nichts gelesen.",
             "fellBackAgentNotInstalled": "Der KI-Agent ist nicht installiert, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fellBackAgentTimeout": "Beim KI-Agenten ist die Zeit abgelaufen, dies ist nur die Lesung aus dem Dateidurchlauf.",
@@ -4377,7 +4413,9 @@
             "fellBackProviderError": "Der KI-Anbieter ist ausgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fellBackUnknown": "Der KI-Agent ist zurückgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fenceUnverified": "Der KI-Agent hat dieses Repo hinter Regeln für Geheimnisdateien gelesen, die für die hier installierte Claude-CLI-Version nicht verifiziert sind.",
-            "fenceVersionUnknown": "Die Claude CLI hat ihre Version nicht gemeldet, daher konnten die Regeln für Geheimnisdateien, hinter denen dieser Scan lief, nicht verifiziert werden."
+            "fenceVersionUnknown": "Die Claude CLI hat ihre Version nicht gemeldet, daher konnten die Regeln für Geheimnisdateien, hinter denen dieser Scan lief, nicht verifiziert werden.",
+            "throttled": "Die Auswertung des Codes wartet auf ihren Platz. Sie wird gleich angehängt.",
+            "rereading": "Das Briefing hat sich während der Übernahme geändert. Es wird erneut gelesen."
           },
           "dossier": {
             "title": "Was der Scan gelesen hat",
@@ -4457,7 +4495,9 @@
             "noOwner": "nicht benannt, Eskalationen haben also kein Ziel",
             "objectives": "Ergebnisse",
             "objectiveCount": "{count, plural, one {# Ergebnis} other {# Ergebnisse}}",
-            "notes": "Festgehaltene Annahmen"
+            "notes": "Festgehaltene Annahmen",
+            "staleChip": "Älteres Briefing",
+            "stale": "Diese Spezifikation entstand vor der letzten Änderung am Briefing. Erstellen Sie sie neu, damit das Mandat zur besetzten Rolle passt."
           },
           "dispatch": "An Personas senden",
           "dispatching": "Wird gesendet…",
@@ -4664,7 +4704,8 @@
       "unsavedTitle": "Nicht gespeicherte Vorlage verwerfen?",
       "unsavedBody": "Diese Vorlage enthält noch nicht gespeicherte Änderungen. Wenn Sie den Editor verlassen, gehen sie verloren.",
       "unsavedDiscard": "Änderungen verwerfen",
-      "unsavedKeep": "Weiter bearbeiten"
+      "unsavedKeep": "Weiter bearbeiten",
+      "truncated": "Angezeigt wird ein Teil der Bibliothek. Einige Vorlagen fehlen hier."
     },
     "intakeTab": {
       "eyebrow": "Arbeitsbereich",
@@ -5682,7 +5723,8 @@
       "drainFailedUnreachable": "Abruf fehlgeschlagen: der Edge hat nicht geantwortet. Nichts ging verloren, der nächste Durchlauf versucht es erneut.",
       "drainFailedHeld": "Abruf angehalten: ein Ereignis konnte noch nicht abgelegt werden. Es bleibt am Edge und wird erneut versucht.",
       "drainFailedAck": "Abgelegt, aber der Edge weiss es nicht. Er bietet diese Ereignisse erneut an, und sie werden nicht doppelt abgelegt.",
-      "drainFailedUnknown": "Abruf fehlgeschlagen. Der Grund steht im Server-Log dieser Installation."
+      "drainFailedUnknown": "Abruf fehlgeschlagen. Der Grund steht im Server-Log dieser Installation.",
+      "drainFailedSecretUnreadable": "Abruf gestoppt: diese Installation kann das gespeicherte Edge-Secret nicht lesen. Nichts ging verloren. Geben Sie es erneut ein oder stellen Sie den Schlüssel wieder her, mit dem es verschlüsselt wurde."
     },
     "tablist": "Integration",
     "waiting": "{count} warten in der Pipeline",
@@ -5869,7 +5911,8 @@
         "waiting": "Der Empfänger ist bereit und es sind noch keine Leads eingegangen. Der erste legt sich selbst in der Pipeline ab."
       }
     },
-    "copyFailed": "Kopieren fehlgeschlagen. Text markieren."
+    "copyFailed": "Kopieren fehlgeschlagen. Text markieren.",
+    "receiversTruncated": "Angezeigt werden die neuesten Empfänger. Einige fehlen in der Liste, daher kann ein Kanal unten leerer wirken, als er ist."
   },
   "interviewSim": {
     "eyebrow": "Interview-Simulator",
@@ -6413,7 +6456,11 @@
       "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt. Nichts ist verloren gegangen.",
       "chatRateLimited": "Sie haben das Limit für den Assistenten vorerst erreicht. Ihre Arbeit und alles, was Sie geschrieben haben, bleibt erhalten. Arbeiten Sie weiter und versuchen Sie es in ein paar Minuten erneut.",
       "chatDeterministicNote": "Diese Antwort stammt aus dem Offline-Ersatz, nicht von einem Live-Modell. Behandeln Sie sie als Platzhalter und halten Sie Ihre Annahmen im Entscheidungsprotokoll fest.",
-      "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen."
+      "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen.",
+      "clockHm": "{h} Std. {m} Min.",
+      "clockM": "{m} Min.",
+      "clockElapsed": "Zeit für diese Aufgabe: {elapsed} von {timebox}",
+      "clockOver": "Sie sind {over} über dem Zeitrahmen von {timebox}. Sie können weiterhin einreichen; die benötigte Zeit wird mit Ihrer Arbeit erfasst."
     },
     "eyebrow": "Take-Home-Aufgabe",
     "fallbackTitle": "Entwickleraufgabe",
@@ -7016,6 +7063,7 @@
         "interview_failover": "Interview auf anderen Anbieter umgeschaltet",
         "comm_resent": "Nachricht erneut gesendet",
         "rejection_comms_failed": "Absage-E-Mail fehlgeschlagen",
+        "offer_comms_failed": "Angebots-E-Mail fehlgeschlagen",
         "moved": "Phase manuell gesetzt",
         "matched": "Auf Stelle gematcht",
         "added": "Zur Pipeline hinzugefügt",
@@ -7192,7 +7240,9 @@
     "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline.",
     "simExcludedNote": "{count, plural, one {# Eintrag aus der geführten Demo ist} other {# Einträge aus der geführten Demo sind}} von allen Zahlen auf dieser Seite ausgenommen. Auf dem Board bleiben sie, bis Sie die Simulation zurücksetzen.",
     "daysAvgOver": "Tage Ø aus {count, plural, one {# Einstellung} other {# Einstellungen}}",
-    "closedInWindowSub": "{count} im Zeitraum beendet"
+    "closedInWindowSub": "{count} im Zeitraum beendet",
+    "bucketTzNote": "Der Zeitraum und die wöchentlichen Trendabschnitte richten sich nach {tz}-Tagen.",
+    "cohortTruncatedNote": "Es wurden nur die neuesten {count, plural, one {# Eintrag} other {# Einträge}} in diesem Zeitraum gezählt. Die Kohorte ist größer, als ein Lesevorgang abdeckt, daher ist jede Kennzahl unten eine begrenzte Stichprobe. Verkürzen Sie den Zeitraum, um sie vollständig zu sehen."
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",
@@ -7859,6 +7909,8 @@
     },
     "useCases": {
       "match_reasoning": "Match-Begründung",
+      "tts": "Sprache (Text zu Sprache)",
+      "stt": "Sprache (Sprache zu Text)",
       "automation": "Automatisierung",
       "campaign_pack": "Kampagnenpaket",
       "jd_ingest": "JD-Import",
@@ -8214,7 +8266,8 @@
         "language": "App-Sprache",
         "invites": "Team-Einladungen",
         "pipeline": "Board-Spalten",
-        "brand": "Markenfarbe und Logo"
+        "brand": "Markenfarbe und Logo",
+        "companion": "Candi Gedächtnis"
       },
       "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
       "line": "{part}: {reason}",
@@ -8796,6 +8849,10 @@
       "skipPerf": "überspringen (nur Einstellung erfassen)",
       "hint": "Speisen Sie die Kalibrierung der Promote-Schwelle mit dem, was wirklich passiert ist",
       "label": "Ergebnis"
+    },
+    "submissionRow": {
+      "overTimebox": "{minutes} Min. über dem Zeitrahmen",
+      "overTimeboxTitle": "Gemessen ab dem Start der Arbeitssitzung, gegen den Zeitrahmen der Aufgabe. Eine Angabe, keine Ablehnung."
     }
   },
   "rubric": {
@@ -9092,7 +9149,9 @@
       "done": "Fertig. Stelle besetzt 🎉",
       "failed": "Fehlgeschlagen: {message}",
       "genericError": "Die Simulation wurde unerwartet beendet.",
-      "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen."
+      "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen.",
+      "resetCleared": "Zurückgesetzt. {count} Demo-Zeilen gelöscht.",
+      "resetNothing": "Zurückgesetzt. Es war nichts mehr zu löschen."
     },
     "phase": {
       "design": "Ausschreibung",
@@ -9795,7 +9854,12 @@
     "detailCached": "Tokens aus dem Cache",
     "runUnlinked": "Diese Aktion lief außerhalb eines erfassten Hintergrundlaufs, daher wurde kein Ergebnis gespeichert.",
     "runGone": "Der Lauf, der dies erzeugt hat, ist aus der Aufgabenhistorie herausgefallen.",
-    "runNoOutput": "Dieser Lauf endete, ohne ein Ergebnis zu speichern."
+    "runNoOutput": "Dieser Lauf endete, ohne ein Ergebnis zu speichern.",
+    "tzNote": "Zeiten erscheinen in Ihrer eigenen Zeitzone. Das Protokoll speichert UTC, und die tägliche Kostenübersicht im Tab „Modelle“ bildet Tage nach UTC.",
+    "companionTurn": "Ein Austausch mit Candi im Gespräch: {thread}",
+    "companionThreadUntitled": "ein unbenanntes Gespräch",
+    "companionOpen": "Gespräch öffnen",
+    "companionThreadGone": "Dieses Gespräch ist nicht mehr im Verzeichnis."
   },
   "readout": {
     "empty": "Nichts erfasst",
@@ -10006,7 +10070,8 @@
       "thinking": "Denkt nach…",
       "thinkingSlowCalm": "Ich bin noch da. Sie sieht sich erst das Studio an, deshalb dauert es ein paar Sekunden.",
       "transcriptLabel": "Gespräch mit Candi",
-      "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal."
+      "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal.",
+      "reconnect": "Erneut verbinden"
     },
     "state": {
       "here": "Ich bin da, wenn Sie mich brauchen.",
@@ -10040,7 +10105,9 @@
       "speak": "Vorlesen lassen",
       "stop": "Vorlesen stoppen",
       "resume": "Abspielen",
-      "failed": "Das konnte nicht vorgelesen werden."
+      "failed": "Das konnte nicht vorgelesen werden.",
+      "waiting": "Warten auf die Sprachausgabe…",
+      "wrongLanguage": "Keine installierte Stimme spricht diese Sprache, der Text wurde daher mit einem anderen Akzent vorgelesen."
     },
     "action": {
       "runAnalysis": "KI-Screening für {candidate} erneut ausführen",
@@ -10056,7 +10123,8 @@
       "working": "Arbeite",
       "accepted": "Angenommen",
       "declined": "Abgelehnt",
-      "dropped": "{count, plural, one {# Vorschlag wurde verworfen} other {# Vorschläge wurden verworfen}}"
+      "dropped": "{count, plural, one {# Vorschlag wurde verworfen} other {# Vorschläge wurden verworfen}}",
+      "failed": "Die Antwort kam nicht an. Es wurde nichts geändert, bitte erneut versuchen."
     },
     "outcome": {
       "analysisQueued": "Screening für {candidate} läuft im Hintergrund",
@@ -10089,12 +10157,18 @@
       "close": "Sprachmodus verlassen",
       "empty": "Fragen Sie sie unten etwas. Ihre Antwort landet hier, und Sie können sie abspielen.",
       "placeholder": "Candi fragen",
-      "mic": "Mit ihr sprechen kommt mit dem Relay",
+      "mic": "Candi diktieren",
       "older": "Ältere Antwort",
       "newer": "Neuere Antwort",
       "position": "{index} von {total}",
       "details": "Details anzeigen",
-      "detailsHide": "Details ausblenden"
+      "detailsHide": "Details ausblenden",
+      "notReady": "Noch nicht verbunden. Stellen Sie die Verbindung über die Leiste am oberen Bildschirmrand wieder her.",
+      "micStop": "Stoppen und transkribieren",
+      "micRecording": "Aufnahme läuft. Erneut drücken, um zu transkribieren.",
+      "micWorking": "Ihre Aufnahme wird transkribiert…",
+      "micFailed": "Diese Aufnahme konnte nicht transkribiert werden. Bitte erneut versuchen.",
+      "micUnavailable": "Transkription ist auf diesem Server nicht eingerichtet."
     }
   },
   "loadStatus": {

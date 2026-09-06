@@ -15,6 +15,7 @@ from pipeline.jobfit.devcase.provenance import (
     SOURCE_DETERMINISTIC,
     SOURCE_LLM,
     SOURCE_PARTIAL,
+    UNUSABLE_OUTPUT_REASON,
     combine_source,
     describe_fallback,
     generate_with_fallback,
@@ -104,6 +105,108 @@ class TestGenerateWithFallback(unittest.TestCase):
         self.assertEqual(result["value"], 1)  # the deterministic template
         self.assertEqual(result[FALLBACK_REASON_KEY], "RuntimeError: provider down")
         self.assertTrue(any("fell back to deterministic" in m for m in cm.output))
+
+
+class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
+    """X4 — a reply that contributed NOTHING must not be stamped as the model's work.
+
+    Every devcase ``coerce`` degrades field by field to its deterministic template, so a
+    payload of ``{}`` (or one whose every field is rejected) returns the template itself.
+    Stamped ``"llm"``, that artifact takes the orchestrator's success branch and is FROZEN
+    permanently on two seats (``seed_materialized`` / ``baseline_frozen``, both
+    freeze-if-absent) instead of the honest ``seed_skeleton_only`` / ``baseline_unavailable``
+    branches written for exactly this failure.
+    """
+
+    TEMPLATE = {"files": [], "note": "baseline unavailable (no LLM)"}
+
+    def _det(self):
+        # A fresh dict per call, like every real caller's builder.
+        return dict(self.TEMPLATE)
+
+    def _coerce(self, payload):
+        # The shape every devcase coercer has: keep the model's field only when it
+        # survives validation, else fall back to the template's.
+        det = self._det()
+        files = payload.get("files") if isinstance(payload, dict) else None
+        return {"files": files, "note": det["note"]} if files else det
+
+    def _run(self, payload, logger):
+        class _Provider:
+            def complete_json(self, prompt, system=None):
+                return payload
+
+        return generate_with_fallback(_Provider(), "p", "sys", self._det, self._coerce, logger)
+
+    def test_payload_that_coerces_to_the_template_is_deterministic(self):
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_empty")
+        with self.assertLogs(logger, level="WARNING") as cm:
+            result, source = self._run({}, logger)
+        self.assertEqual(source, SOURCE_DETERMINISTIC)  # NOT llm: coercion kept nothing
+        self.assertEqual(result[FALLBACK_REASON_KEY], UNUSABLE_OUTPUT_REASON)
+        self.assertTrue(any("kept none of it" in m for m in cm.output))
+
+    def test_payload_whose_every_field_is_rejected_is_deterministic(self):
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_junk")
+        with self.assertLogs(logger, level="WARNING"):
+            _, source = self._run({"files": [], "note": 12}, logger)
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+
+    def test_one_real_field_is_still_llm(self):
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_real")
+        result, source = self._run({"files": [{"path": "a.py"}]}, logger)
+        self.assertEqual(source, SOURCE_LLM)
+        self.assertNotIn(FALLBACK_REASON_KEY, result)  # a clean LLM run records no reason
+
+    def test_our_own_stamp_never_decides_the_comparison(self):
+        """The self-defeat: the reason key is written by THIS function, so a template (or a
+        coerced echo) carrying it must still compare equal — otherwise the guard is beaten
+        by its own stamp, precisely in the degraded case it exists to catch."""
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_stamp")
+
+        stamped = dict(self.TEMPLATE)
+        stamped[FALLBACK_REASON_KEY] = "RuntimeError: an earlier step degraded"
+
+        def det():
+            return dict(stamped)  # a builder closing over an already-degraded artifact
+
+        def coerce(_payload):
+            return dict(self.TEMPLATE)  # the plain template, no stamp
+
+        class _Provider:
+            def complete_json(self, prompt, system=None):
+                return {}
+
+        with self.assertLogs(logger, level="WARNING"):
+            result, source = generate_with_fallback(_Provider(), "p", "sys", det, coerce, logger)
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertEqual(result[FALLBACK_REASON_KEY], UNUSABLE_OUTPUT_REASON)
+
+    def test_template_that_cannot_be_rebuilt_keeps_the_llm_label(self):
+        """An unprovable comparison is not a degradation — a builder that throws on the
+        second call must not manufacture a deterministic verdict out of nothing."""
+        logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_unprovable")
+        def det():
+            # The witness itself is the only caller here (the provider answered), so a
+            # builder that throws leaves the comparison unprovable.
+            raise RuntimeError("builder is not re-entrant")
+
+        class _Provider:
+            def complete_json(self, prompt, system=None):
+                return {"files": [{"path": "a.py"}]}
+
+        with self.assertLogs(logger, level="WARNING") as cm:
+            result, source = generate_with_fallback(_Provider(), "p", "sys", det, self._coerce, logger)
+        self.assertEqual(source, SOURCE_LLM)
+        self.assertNotIn(FALLBACK_REASON_KEY, result)
+        self.assertTrue(any("could not rebuild" in m for m in cm.output))
+
+    def test_provider_none_still_a_clean_deterministic_run(self):
+        result, source = generate_with_fallback(
+            None, "p", "sys", self._det, self._coerce, logging.getLogger("t")
+        )
+        self.assertEqual(source, SOURCE_DETERMINISTIC)
+        self.assertNotIn(FALLBACK_REASON_KEY, result)  # off by design is not a failure
 
 
 class _PartialReflectProvider:

@@ -63,6 +63,16 @@ test("the use case rides on a use_case: tag (the queryable axis), beside tool:",
   assert.ok(tags.includes("llm-layer") && tags.includes("runtime:ts"));
 });
 
+test("name is populated from the use case (LightTrack's use-case registry field)", () => {
+  assert.equal(track({ useCase: "github_analysis" }).body.name, "github_analysis");
+});
+
+test("name is absent when there is no use case", () => {
+  const body = track({ useCase: undefined }).body;
+  assert.equal(body.name, undefined);
+  assert.ok(!("name" in body));
+});
+
 test("provider alias folds gemini into google so TS traffic groups with Python's", () => {
   const body = track().body;
   assert.equal(body.provider, "google");

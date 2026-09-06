@@ -109,16 +109,38 @@ rather than a snapshot.
 | `npm run lint:ruff-ratchet` | a `ruff.toml` ignore has no ceiling, is over it, or now suppresses nothing |
 | `npm run test:python:gate` | the gated Python suite, or its skip count exceeded `KP_SKIP_BASELINE` |
 | `npm run test:eval:ci` | a keyless deterministic AI-behaviour eval regressed (matching, automation, fault) |
+| `npm run docs:check:diff` | **reads the commit range.** Changed source vs the doc `scripts/docs/feature-doc-map.json` couples it to. Waive on the record with a `Doc-sync: internal-only — <why>` trailer in the commit body |
+| `npm run commit:check` | **reads the commit range.** The subject is ONE CLAUSE ABOUT THE CHANGE; the session narrative belongs in the body. Waive with `Commit-convention-exemption: <why>` |
+| `npm run ci:budget` | a job in `ci.yml` or `review.yml` has no wall-clock ceiling, or the measured run blew the one it declares |
+| `npm run review:constitution` | **`review.yml`, not `ci.yml`.** The deterministic review lens: a `.only`, a bare test skip, a deleted test, a raised `KP_SKIP_BASELINE`, a new route with no auth posture, a `CREATE TABLE` that never reached the tenancy manifest, a committed credential. Waive ONE finding with `Gate-exemption: <rule> at <file>[:<line>] — <why>` |
+| `npm run review:agent` | **`review.yml`, not `ci.yml`.** The judgement lens: intent drift, scope creep, a reversed ADR. Keyless-degrading — it says so and passes when no CLI or key is present |
 
-Two further CI jobs read the **commit range** rather than the tree, so no local
-command stands in for them:
+The last five rows do not appear as `npm run …` in a workflow: three ci.yml steps
+and all of review.yml invoke the script file directly (`node scripts/…`).
+`check-guidance.mjs` resolves those back to the npm script that wraps them, so
+they are gates like any other and `guidance:check` reconciles them in both
+directions. The two review lenses live in `review.yml`; everything above them is
+`ci.yml`. Both files are read, so a step added to either one owes a row here.
 
-- **doc-sync** — changed source vs the doc `scripts/docs/feature-doc-map.json`
-  couples it to. Waive on the record with a `Doc-sync: internal-only — <why>`
-  trailer in the commit body.
-- **commit-convention** — `scripts/release/commit-msg.mjs`. The subject is ONE
-  CLAUSE ABOUT THE CHANGE; the session narrative belongs in the body. Waive with
-  `Commit-convention-exemption: <why>`.
+The first two of those read the **commit range** rather than the tree, which is
+why they are the two with a waiver trailer; run them locally as
+`npm run docs:check:diff -- --base origin/main --head HEAD`.
+
+**Changed 2026-09-05 — `Gate-exemption:` now names what it waives.** The trailer
+was free prose and downgraded *every* non-secret blocking finding in the range,
+including findings it never mentioned, from a commit appended after the fact. It
+is now:
+
+```
+Gate-exemption: <rule> at <file>[:<line>] — <why this one is legitimate>
+Gate-exemption: tenancy-manifest at app/_lib/db/core.ts — mirrors the Worker outbox, already exempt
+```
+
+One trailer waives one finding (repeat the line for a second); the `secret` rule
+stays un-waivable; and a trailer that matches nothing — the old free-prose shape
+included — is reported as a note rather than silently ignored or silently
+effective. Details in
+[`docs/development/change-review.md`](./docs/development/change-review.md).
 
 Before a push to `main`, `.githooks/pre-push` runs the fast core of the table
 (both review lenses, then `typecheck`, `lint`, `lint:ts-ratchet`, `design:check`,

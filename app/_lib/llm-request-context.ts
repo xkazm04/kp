@@ -37,3 +37,21 @@ export function withLlmRequestId<T>(requestId: string, fn: () => T): T {
 export function currentLlmRequestId(): string | null {
   return storage.getStore() ?? null;
 }
+
+/**
+ * Run `fn` under `requestId` ONLY when no scope is open, and under the existing
+ * one when there is.
+ *
+ * The difference matters at exactly one seam. A companion turn names itself
+ * (`companion:<threadId>:<turnId>`) because nothing else does — the message
+ * route is not a task. The SAME code also runs inside the digest task, where the
+ * runner has already opened a scope with the task id, and that id is the one the
+ * Activity detail can resolve against `/api/tasks/[id]`. `withLlmRequestId` would
+ * shadow it and the row would point at a run nobody can open, which is the whole
+ * bug this exists to prevent. Outermost wins: the caller that owns a durable,
+ * fetchable record of the run is the one that names it.
+ */
+export function withLlmRequestIdIfUnset<T>(requestId: string, fn: () => T): T {
+  const open = storage.getStore();
+  return open ? fn() : storage.run(requestId, fn);
+}

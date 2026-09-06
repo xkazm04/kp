@@ -94,14 +94,32 @@ export function createChannelWebhook(
   return rowToWebhook(row);
 }
 
+/** How many receivers one read returns, and the ceiling a caller may ask for. The list
+ *  was unbounded, and it is loaded by the whole Channels tab on every mount; a receiver
+ *  per role per board adds up quietly. 200 is far above any real installation and still a
+ *  bound. A caller may raise it to {@link CHANNEL_WEBHOOK_LIST_MAX_LIMIT} and no further. */
+export const CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT = 200;
+export const CHANNEL_WEBHOOK_LIST_MAX_LIMIT = 500;
+
+/** A bounded read. `truncated` says so out loud — the receivers panes filter this list
+ *  BY CHANNEL, so a silent cut would empty one pane and look like "nothing is wired". */
+export type ChannelWebhookList = { webhooks: ChannelWebhookRecord[]; truncated: boolean };
+
+function webhookLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT;
+  return Math.min(Math.max(1, Math.floor(limit)), CHANNEL_WEBHOOK_LIST_MAX_LIMIT);
+}
+
 /** Active (non-revoked) webhooks, newest first — the Channels tab's list AND
- *  what flips a stub channel's badge to "Listening". */
-export function listChannelWebhooks(workspaceId: string = DEFAULT_WORKSPACE_ID): ChannelWebhookRecord[] {
+ *  what flips a stub channel's badge to "Listening". Bounded; reads one row past the
+ *  bound so `truncated` is answered rather than inferred from a full page. */
+export function listChannelWebhooks(workspaceId: string = DEFAULT_WORKSPACE_ID, limit?: number): ChannelWebhookList {
   const db = ensureDb();
+  const n = webhookLimit(limit);
   const rows = db
-    .prepare(`${WEBHOOK_SELECT} WHERE w.revoked_at IS NULL AND w.workspace_id = ? ORDER BY w.created_at DESC`)
-    .all(workspaceId) as ChannelWebhookRow[];
-  return rows.map(rowToWebhook);
+    .prepare(`${WEBHOOK_SELECT} WHERE w.revoked_at IS NULL AND w.workspace_id = ? ORDER BY w.created_at DESC LIMIT ?`)
+    .all(workspaceId, n + 1) as ChannelWebhookRow[];
+  return { webhooks: rows.slice(0, n).map(rowToWebhook), truncated: rows.length > n };
 }
 
 /** The receive-time lookup: an unknown OR revoked token both resolve to null —

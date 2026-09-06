@@ -30,11 +30,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MODULE = "pipeline.jobfit.codegen";
 
-/** Interpreters to try, in order. PYTHON_CMD wins outright when set — an operator
- *  who names an interpreter means that one, and silently falling back to another
- *  would generate from a different environment than they asked for. */
+/** Interpreters to try, in order. A NAMED interpreter wins outright — an operator
+ *  who names one means that one, and silently falling back to another would
+ *  generate from a different environment than they asked for. Two names are
+ *  honoured: KP_PYTHON (the one AGENTS.md documents; it wins) and PYTHON_CMD (the
+ *  older name app/_lib/python-runner.ts shares). Until 2026-09-05 only PYTHON_CMD
+ *  was read here while the doc promised KP_PYTHON - the ruff ratchet's resolver
+ *  found the gap. */
 export function pythonCandidates(env = process.env, platform = process.platform) {
-  const named = env.PYTHON_CMD?.trim();
+  const named = env.KP_PYTHON?.trim() || env.PYTHON_CMD?.trim();
   if (named) return [named];
   return platform === "win32" ? ["python", "python3", "py"] : ["python3", "python"];
 }
@@ -60,7 +64,7 @@ const MISSING_PYTHON_HINT = [
   "  Install Python 3.11+ and its dependencies:",
   "    pip install -r requirements.txt",
   "  Or point the build at an interpreter you already have:",
-  "    PYTHON_CMD=/path/to/python npm run schemas:gen",
+  "    KP_PYTHON=/path/to/python npm run schemas:gen   (PYTHON_CMD also works)",
 ].join("\n");
 
 const missingPackageHint = (interpreter) =>

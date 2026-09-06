@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, type RefObject } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CalendarClock, FileText, Mail, Radio, ShieldCheck, Trophy, Users, type LucideIcon } from "lucide-react";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { useSimulation } from "./SimulationProvider";
+import { SIM_DOOR_IDLE, consoleMode, refreshSimDoor, simDoorSnapshot, subscribeSimDoor } from "./simRunControl";
 import type { SimPhaseId } from "./constants";
 
 // Shared brain for the two control-center prototypes (ControlDock + CandiLauncher).
@@ -24,11 +25,25 @@ import type { SimPhaseId } from "./constants";
  *  this state) never painted — the in-app tour just vanished with no explanation,
  *  and the Reset that purges its (SIM) residue went with it. Only `?sim=auto` ever
  *  showed the message. Cleared by start() and reset(), both of which restore
- *  IDLE_STATE's null error, so the console still hands the deck back. */
+ *  IDLE_STATE's null error, so the console still hands the deck back.
+ *
+ *  /perfect wave 44 adds the fourth reason, and it is the only one the BROWSER
+ *  cannot see: the tenant itself. The lease lives on the server and the provider
+ *  boots to IDLE_STATE, so a reloaded tab wore the ops face while a five-minute
+ *  lease was still held — and the guide button's only action from ops is `start`,
+ *  which that lease refuses. Reading the status door on mount lets a lease or a
+ *  previous walk's residue put the console (and its Reset) in front of the operator
+ *  without them having to start a run to reach the cleanup. */
 export function useControlMode(): "sim" | "ops" {
   const sim = useSimulation();
   const params = useSearchParams();
-  return sim.running || sim.done || sim.error !== null || params.get("sim") === "auto" ? "sim" : "ops";
+  // The server snapshot is the idle constant: the door is a client-only fact, and
+  // an SSR pass that guessed "a run is live" would hydrate into a mismatch.
+  const door = useSyncExternalStore(subscribeSimDoor, simDoorSnapshot, () => SIM_DOOR_IDLE);
+  useEffect(() => {
+    void refreshSimDoor();
+  }, []);
+  return consoleMode(sim, params.get("sim") === "auto", door);
 }
 
 /** Per-phase glyph for the chronology stepper — SIM_PHASES only carries id/label/tab,

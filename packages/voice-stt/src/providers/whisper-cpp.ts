@@ -88,9 +88,19 @@ export class WhisperCppStt implements SttProvider {
     return resolveBinary(this.host, { envVar: "WHISPER_BIN", names: ["whisper-cli", "main"] });
   }
 
-  private timeoutMs(): number {
+  /** The engine's own budget, narrowed by the HOST's when the host gave one.
+   *  Always the MINIMUM, never the host's value outright: the operator's
+   *  WHISPER_TIMEOUT_MS is a ceiling they set on their own machine, and a host
+   *  that happens to allow longer does not get to raise it. The other
+   *  direction is what matters here — a host budget shorter than 300 s means
+   *  the process will be gone before this call returns, and a sidecar killed
+   *  from outside leaves an orphan and a scratch dir behind, while one this
+   *  adapter times out itself is reaped and cleaned up. */
+  private timeoutMs(hostBudgetMs?: number): number {
     const raw = Number(this.host.env("WHISPER_TIMEOUT_MS"));
-    return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_TIMEOUT_MS;
+    const own = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_TIMEOUT_MS;
+    const host = typeof hostBudgetMs === "number" && Number.isFinite(hostBudgetMs) && hostBudgetMs > 0 ? hostBudgetMs : null;
+    return host === null ? own : Math.min(own, host);
   }
 
   private modelDirs(): string[] {
@@ -151,7 +161,7 @@ export class WhisperCppStt implements SttProvider {
     return (await this.catalog()).map(({ id, label, language }) => ({ id, label, language }));
   }
 
-  async transcribe(req: SttRequest, signal?: AbortSignal): Promise<SttTranscript> {
+  async transcribe(req: SttRequest, signal?: AbortSignal, timeoutMs?: number): Promise<SttTranscript> {
     const bin = this.binary();
     if (!bin) {
       this.invalidateProbe();
@@ -194,7 +204,7 @@ export class WhisperCppStt implements SttProvider {
       const args = ["-m", model.file, "-f", wav, "-oj", "-of", outBase, "-l", lang || "auto"];
       const threads = this.host.env("WHISPER_THREADS");
       if (threads && /^\d{1,3}$/.test(threads)) args.push("-t", threads);
-      const run = await runSidecar(this.id, bin, args, { timeoutMs: this.timeoutMs(), signal });
+      const run = await runSidecar(this.id, bin, args, { timeoutMs: this.timeoutMs(timeoutMs), signal });
       if (run.code !== 0) {
         // The engine itself failed, not the request: whatever the last probe
         // said about this install is no longer evidence.

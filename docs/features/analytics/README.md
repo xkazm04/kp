@@ -849,6 +849,22 @@ every window of the written workspace is retired at once and no sibling tenant's
 collateral. Pinned end-to-end by `app/api/analytics/analytics-write-invalidates-read.test.ts`,
 which drives the real handlers: write, then read, and the read must carry the new figure.
 
+**And so does a decision-config save — the third write door, found by asking which writes the
+payload actually reads.** The memoized payload resolves the board's stage axis through
+`getPipelineAxis` → `getDecisionConfig("pipelineStages")` (`app/_lib/db/analytics.ts:384`,
+`:942`), so saving the board shape in Settings → Hiring changes how every funnel figure is
+grouped. Nothing bumped the write version for it, and the panel kept serving figures grouped the
+OLD way for the whole TTL: not a visibly stale number but a consistent, wrong one beside the new
+settings. `setDecisionConfig` and `updateDecisionConfig` now retire the writer's memo after the
+transaction commits (`app/_lib/decision-config-store.ts`). An ORG-tier save changes the baseline
+every team inherits and the tenants are not enumerable there, so sibling teams still pick it up
+on the next read past the TTL — the ordinary staleness the memo was designed around; what is
+fixed is the editor's own immediate `reload()`. The invariant is held as a CONDITIONAL by
+`app/_lib/analytics-config-independence.test.ts` — the payload may reach the config store only if
+the config writers bump the version — over a static import walk, so an edge added five modules
+deep fails it; the behavioural half (a save really bumps, a refused save does not) is in
+`decision-config-isolation.test.ts`.
+
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
 `analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
@@ -880,7 +896,48 @@ Read-only over the operational tables, plus three the tab writes:
 | `channel_spend` | Per-channel spend with `updated_at`, read via `listChannelSpendDetail()` in `app/_lib/db/channels.ts` (`listChannelSpend()` survives for amount-only callers) |
 | `llm_usage` | The compute-cost ledger (account-wide — see Known gaps) |
 
-Payload additions this round: `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
+### Every aggregation read is bounded, and says when the bound bit
+
+`pipelineAnalytics`, `pipelineAnalyticsPrior` (`app/_lib/db/analytics.ts`) and
+`teamHiringStats` / `orgHiringBenchmark` (`app/_lib/db/org-benchmarks.ts`) aggregate in JS
+over rows they SELECT, and until this round none of those reads had a ceiling — an all-time
+view was a full scan of the board, run twice per load (current + prior window), and the org
+benchmark scanned every sibling team's board as well.
+
+Each read now takes `ANALYTICS_COHORT_CAP` / `BENCHMARK_ROW_CAP` (both **20 000** rows,
+`ORDER BY created_at DESC`, read one past the cap the way `listJobsPage` does) and answers
+**`truncated: boolean`** on the payload — `PipelineAnalytics`, `PriorWindowSlice`,
+`HiringStats` and `OrgHiringBenchmark` all carry it, so `GET /api/analytics` and
+`GET /api/benchmarks` carry it too. The bound is deliberately generous (20 000 candidates in
+one cohort is beyond any deployment this product is sized for), so in practice it buys a
+worst-case guarantee rather than changing an answer. `truncated` is the half that matters
+when it does bite: a funnel computed over a silent slice reads exactly like the funnel over
+the whole cohort and is a different number. The `rowCap` option on each function is for
+tests only. Pinned by `analytics-cohort-cap.test.ts` and `org-benchmarks-cap.test.ts`;
+`analytics-prior-slice.test.ts` additionally pins that the two cohort reads cut identically,
+so a delta can never compare a whole window against a slice of another.
+
+### The page counts in UTC, and now says so
+
+Every date bound in `db/analytics.ts` is ISO-string comparison against `Date`
+millisecond arithmetic, and the weekly momentum buckets are cut the same way — so
+"the last 30 days" and every trend bar end at a **UTC midnight**, one or two hours
+before a Central European operator's own day does. That is enough to move an entry
+created late in the evening into the neighbouring bucket: small, real, and
+invisible while nothing on the wire named the zone. `PipelineAnalytics.bucketTz`
+declares it (`"UTC"`, from the module's single `BUCKET_TZ` constant so the claim and
+the arithmetic cannot drift), and `AnalyticsHeader` states it under the window
+switcher (`analytics.bucketTzNote`, 4 locales). The LLM ledger's daily cost rollup
+cuts the same way and declares `tz` per bucket (`LLM_USAGE_DAY_TZ`, see the
+provider-layer doc). Re-cutting the arithmetic in an operator's zone is a separate,
+larger decision — it needs an operator zone to exist first.
+
+Also single-sourced this round: `originOf`, the earliest-event → origin bucket map
+`bySource` reports, was typed out byte-identically inside `pipelineAnalytics` and
+`pipelineAnalyticsPrior`, whose entire contract is that they bucket the same rows
+the same way. One module-level function now.
+
+Payload additions this round: `truncated` (above), `bucketTz`, `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
 `hiresClosedInWindow`, `computeCost.windowDays` / `.hires`, and the `leakage` descriptor on both
 calibration payload types.
 

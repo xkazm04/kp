@@ -131,11 +131,18 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     return k && `${k}:${localePart(p.lang)}`;
   },
   agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
-  // One run per SCAN ROW, not per repository: each POST /api/repo-scan mints its own
-  // row (a re-scan is a new reading of a repo that has since changed, and must not be
-  // handed the previous run's dossier), while a retried/duplicated submission of the
-  // SAME scanId coalesces onto the run already in flight.
-  repo_scan: (p) => stableKey("repo_scan", p.scanId),
+  // One run per TENANT + TARGET. It used to key by `scanId`, which startRepoScan
+  // mints fresh on every POST — a key unique by construction is a dedupe that can
+  // never fire, so a double-click cloned the repository and ran the in-repo agent
+  // twice and threw one of the two dossiers away. The target is the RESOLVED one
+  // (the normalized URL, the real path), so what merges is what will actually be
+  // read. The workspace is IN the key because a builder only ever sees `params`:
+  // without it two tenants scanning the same public repo would share one run, and a
+  // dossier is a full reading of a codebase.
+  //
+  // The row-level half of this lives in `claimRepoScan` (db/repo-scans.ts), which is
+  // what stops a second POST minting a row this key would then orphan at `queued`.
+  repo_scan: (p) => stableKey("repo_scan", p.workspaceId, p.repoUrl ?? p.rootPath),
   // One pack per (job, language): a double-click on Generate reuses the in-flight
   // run, while switching the language toggle starts its own.
   campaign: (p) => stableKey("campaign", p.jobId, p.lang),

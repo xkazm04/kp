@@ -573,7 +573,14 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     runPromise.catch(() => {});
     const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
       watchdog = setTimeout(() => {
-        controller.abort();
+        // Abort WITH a reason. `cancelTask` aborts the SAME controller with none,
+        // so without this a handler could not tell "the operator pressed Cancel"
+        // from "the runner reaped you at the wall-clock budget" — and repo_scan,
+        // which checks the abort first, told an operator they had cancelled a scan
+        // they had watched for fifteen minutes. The vocabulary is the platform's
+        // own: `AbortSignal.timeout()` aborts with exactly this DOMException, so a
+        // handler reads a standard name rather than a private protocol.
+        controller.abort(new DOMException(`exceeded the ${TASK_MAX_RUNTIME_MS}ms wall-clock budget`, "TimeoutError"));
         resolve(TIMED_OUT);
       }, TASK_MAX_RUNTIME_MS);
       (watchdog as { unref?: () => void }).unref?.(); // never keep the process alive for the watchdog alone

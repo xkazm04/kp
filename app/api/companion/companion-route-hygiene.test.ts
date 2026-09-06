@@ -112,3 +112,62 @@ test("every companion 429 answers with a code the dock can localize", () => {
     assert.match(src, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, `${rel}: expected the coded 429`);
   }
 });
+
+test("every listTurns caller states the bound it is reading", () => {
+  // The store now reads the NEWEST turns, which makes the bound a decision:
+  // what the dock renders and what the model is shown are different numbers,
+  // and a caller that takes the default has silently picked one of them. Both
+  // routes name the constant they mean (companion-turn.ts).
+  for (const rel of ["./[id]/message/route.ts", "./threads/route.ts"]) {
+    const src = read(rel).replace(/\r\n/g, "\n");
+    for (const call of src.match(/listTurns\([^)]*\)/g) ?? []) {
+      assert.match(
+        call,
+        /,\s*COMPANION_(THREAD|PROMPT_SCAN)_TURNS\s*\)/,
+        `${rel}: ${call} inherits the store's default instead of stating its bound`,
+      );
+    }
+  }
+});
+
+test("the prompt transcript carries each turn's source, and every reply stores one", () => {
+  const src = read("./[id]/message/route.ts").replace(/\r\n/g, "\n");
+  // Without the field, promptEligibleTurns has nothing to filter on and the
+  // outage replay comes straight back — silently, since the shape still fits.
+  assert.match(
+    src,
+    /transcript: history\.map\(\(t\) => \(\{ role: t\.role, content: t\.content, source: t\.meta\?\.source \?\? null \}\)\)/,
+    "the transcript handed to the engine must carry meta.source per turn",
+  );
+  // …and the source has to have been WRITTEN, or every stored reply looks like
+  // a pre-field turn and none of them can ever be filtered.
+  const at = src.indexOf("const stored = appendTurnWithProposals(");
+  assert.ok(at >= 0, "expected the reply's append");
+  assert.match(
+    src.slice(at, src.indexOf("\n      ws,", at)),
+    /meta: \{\n\s*source: turn\.source,/,
+    "the assistant turn's meta must record which side answered",
+  );
+});
+
+test("a 409 from the resolve route carries the proposal row the client must repaint", () => {
+  const src = read("./proposals/[id]/resolve/route.ts").replace(/\r\n/g, "\n");
+  // The dock's contract is "take the response's proposal whatever the status" —
+  // a 409 with only a code left the card armed on a closed proposal, so every
+  // further click bought another 409 until a poll happened.
+  assert.match(
+    src,
+    /function alreadyResolved\(proposal: CompanionProposal \| null\) \{[\s\S]*?jsonRefusal\("COMPANION_PROPOSAL_RESOLVED", 409, \{ proposal \}\)/,
+    "the 409 body must carry the server's current row beside the code",
+  );
+  assert.equal(
+    (src.match(/return alreadyResolved\(/g) ?? []).length,
+    3,
+    "three already-answered paths go through it: the pre-check, the lost decline, the lost claim",
+  );
+  assert.doesNotMatch(
+    src,
+    /That proposal was already resolved\./,
+    "…and none of them re-types the sentence STORE_ERRORS already owns",
+  );
+});

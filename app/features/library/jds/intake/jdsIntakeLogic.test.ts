@@ -185,6 +185,9 @@ test("a failure is named by its class, and an unnamed one still says failed", ()
   assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "git_missing" }), "failedGitMissing");
   assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "offline_refused" }), "failedOfflineRefused");
   assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "cancelled" }), "failedCancelled");
+  // A watchdog reap and a Cancel are different lines because they have opposite
+  // remedies: re-running undoes a Cancel and reproduces a reap.
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "timeout" }), "failedTimeout");
   // Unclassified, absent (a row written before the column existed), and a code this
   // build has never heard of all fall to the generic line rather than to a key that
   // does not resolve.
@@ -271,4 +274,67 @@ test("a row with no fence block reads as no claim, not as a warning", () => {
     scanFenceWarningFor({ ...base, status: "running", dossier: { scanFence: { state: "unverified_version" } } as never }),
     null
   );
+});
+
+// A REFUSED dossier POST is not an unreachable scan. The route throttles at
+// 20/10min per IP and answers 409 when a dialog turn moved the brief under the
+// merge; the watcher used to render the first as "can't reach the scan" (sending
+// the requestor off to re-scan a repository for nothing) and the second as
+// nothing at all, while re-posting on every tasks tick and paying a Python spawn
+// each time. The ladder itself is pure and pinned by
+// app/_lib/app-master/dossier-retry.test.ts; this is the wiring, asserted at the
+// source because the hook needs React to run.
+test("a refused dossier POST is classified and backed off, not called unreachable", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+
+  // The rule is IMPORTED, never re-derived beside the state it sets.
+  assert.match(src, /from "@\/app\/_lib\/app-master\/dossier-retry"/);
+  assert.match(src, /planDossierRetry\(outcome, postAttempts\.current\)/);
+  // 429 and 409 each get their own outcome; the catch-all keeps "unreachable".
+  assert.match(src, /post\.status === 429/);
+  assert.match(src, /retryAfterMsFrom\(post\.headers\.get\("Retry-After"\)\)/);
+  assert.match(src, /post\.status === 409/);
+  assert.match(src, /\{ kind: "conflict" \}/);
+  // NON-VACUITY: the two pre-fix lines. A 409 must no longer return silently,
+  // and a 429 must no longer fall through to the catch that says "unreachable".
+  assert.ok(!/if \(post\.status === 409\) return;/.test(src), "the silent 409 early-return is the old hole");
+  assert.ok(
+    !/throw new Error\(`HTTP \$\{post\.status\}`\)/.test(src),
+    "a refused POST must not be thrown into the catch that claims the scan is unreachable"
+  );
+
+  // The wait is real: the retry timer is scheduled for the ladder's delay, not
+  // for the next tasks tick.
+  assert.match(src, /setRetryAt\(Date\.now\(\) \+ plan\.waitMs\)/);
+  assert.match(src, /setTimeout\(\(\) => void run\(\), Math\.max\(0, retryAt - Date\.now\(\)\)\)/);
+  assert.ok(src.includes("hasDossier, applySession, retryAt]"), "retryAt must re-arm the effect");
+  // …and it is bounded: when the plan says stop, `posted` stays set, which is
+  // what makes the watcher stop asking.
+  assert.match(src, /if \(plan\.retry\) \{\s*\r?\n\s*posted\.current = null;/);
+});
+
+// `composedAt` was stored by the compose route and read by NO surface, so a spec
+// composed against an early brief looked exactly like one composed a second ago
+// — under a button that hands a mandate to an accountable owner. The comparison
+// itself is pure (app/_lib/app-master/spec-vintage.test.ts); these are the two
+// halves that carry it to the screen.
+test("the composed spec's vintage is derived and rendered", () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const hook = readFileSync(path.join(dir, "jdsIntakeAppMaster.ts"), "utf8").replace(/\r\n/g, "\n");
+  const card = readFileSync(path.join(dir, "JdsIntakeAppMasterCard.tsx"), "utf8").replace(/\r\n/g, "\n");
+
+  // The hook derives it from the two timestamps it already holds — no new fetch,
+  // no stored field that could go out of date.
+  assert.match(hook, /from "@\/app\/_lib\/app-master\/spec-vintage"/);
+  assert.match(hook, /composedAt: active\?\.appMaster\?\.composedAt \?\? null/);
+  assert.match(hook, /briefUpdatedAt: active\?\.updatedAt \?\? null/);
+  assert.match(hook, /specVintage: vintage,/, "the hook must expose it");
+
+  // The card renders it, and only as a disclosure: an unknown vintage says
+  // nothing, and a stale one never disables the control.
+  assert.match(card, /specVintage = "unknown"/);
+  assert.match(card, /specVintage === "stale"/);
+  assert.match(card, /t\("spec\.staleChip"\)/);
+  assert.match(card, /t\("spec\.stale"\)/);
+  assert.ok(!/disabled=\{[^}]*specVintage/.test(card), "a stale spec is still dispatchable — the requestor decides");
 });

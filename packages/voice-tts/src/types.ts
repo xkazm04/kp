@@ -98,6 +98,7 @@ export type TtsLogEvent =
   | { type: "probe"; provider: TtsProviderId; probe: TtsProbe; ms: number }
   | { type: "synthesize"; provider: TtsProviderId; voiceId: string; chars: number; ms: number; bytes: number }
   | { type: "fallback"; from: TtsProviderId; to: TtsProviderId; reason: string }
+  | { type: "language_fallback"; provider: TtsProviderId; requested: string; reason: string }
   | { type: "error"; provider: TtsProviderId; message: string };
 
 /** The host's stance on which providers may serve and which is preferred.
@@ -126,6 +127,19 @@ export type TtsResolution = {
   /** Set when `provider` is not the one asked for — fallback is visible, never silent. */
   fallbackFrom: TtsProviderId | null;
   reason: string | null;
+  /** The requested primary language ("cs") when the serving provider does NOT
+   *  declare it, else null. A ready engine that cannot speak the language is
+   *  still better than silence, but the caller has to be able to SAY the clip is
+   *  in the wrong accent: Kokoro declares no `cs`, and a Czech operator used to
+   *  be read to in English with nothing in the response to show for it. */
+  unsupportedLanguage: string | null;
+};
+
+/** What resolve() + speak() hand back to a host: the audio plus the two facts
+ *  about HOW it was served that a silent implementation would swallow. */
+export type ServedTtsAudio = TtsAudio & {
+  fallbackFrom: TtsProviderId | null;
+  unsupportedLanguage: string | null;
 };
 
 /** `rate_limited` is deliberately NOT `engine_failed`: the engine is healthy and

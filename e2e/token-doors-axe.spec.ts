@@ -67,6 +67,30 @@ let invitePath = "";
 // not be produced on this database rather than failing for a data reason.
 let statusPath = "";
 let skillPath = "";
+// Kept so the run can revoke what it minted (see the afterAll).
+let inviteToken = "";
+
+// CLEAN UP WHAT CAN BE CLEANED UP. This file mints three kinds of state and only
+// one of them is reversible through a seam the app offers:
+//   • the org invite — revoked here. It is the one that ACCUMULATES: every run
+//     adds an unaccepted `e2e-doors-<runId>@example.test` row to the members
+//     screen, which is a real operator-visible mess after ten runs.
+//   • the offer and the schedule comm — deliberately left. Both are ledger
+//     facts on a seeded pipeline entry (an extended offer, a sent letter), and
+//     the app has no un-send; the two tests that COULD close them (decline,
+//     erase) already stop at the confirm dialog for exactly that reason.
+// The residue is bounded and idempotent-ish rather than zero, and it is why the
+// managed webServer now runs on its own throwaway KP_DB_PATH (playwright.config
+// .ts): the reset for the irreversible half is deleting the database file.
+test.afterAll(async ({ playwright }) => {
+  if (!inviteToken) return;
+  const api = await playwright.request.newContext({ baseURL: E2E_BASE_URL });
+  try {
+    await api.delete(`/api/org/invites/${encodeURIComponent(inviteToken)}`);
+  } finally {
+    await api.dispose();
+  }
+});
 
 // Same pragmatic axe gate as journey-role-to-schedule.spec.ts and
 // analyze-smoke.spec.ts: fail on serious/critical WCAG A/AA violations only.
@@ -161,7 +185,7 @@ test("recruiter mints an offer, an erasure and an invite token through the app's
     data: { email: `e2e-doors-${runId}@example.test`, role: "recruiter" },
   });
   expect(invite.ok(), `POST /api/org/invites responded ${invite.status()}`).toBe(true);
-  const inviteToken = ((await invite.json()) as { invite: { token: string } }).invite.token;
+  inviteToken = ((await invite.json()) as { invite: { token: string } }).invite.token;
   expect(inviteToken).toBeTruthy();
   invitePath = `/invite/${inviteToken}`;
 });

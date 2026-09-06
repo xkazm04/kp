@@ -30,18 +30,29 @@
 // the policy version for constraint 2, and IS keyed on the role so one candidate
 // isn't permanently in (or out of) the holdout everywhere.
 //
-// Pure and dependency-free so it is unit-testable under bare `node --test`.
+// Pure so it is unit-testable under bare `node --test`: its one import is hash.ts,
+// which is itself pure and dependency-free.
 
-/** FNV-1a, 32-bit. A small, fast, well-mixed non-cryptographic hash — this needs
- *  stable spread, not unpredictability against an adversary with the source. */
+import { fnv1a } from "./hash";
+
+/** FNV-1a, 32-bit, as a number — the repo's ONE non-cryptographic string hash
+ *  (`app/_lib/hash.ts`), read back off its hex digest.
+ *
+ *  This module used to carry a fourth private copy of the algorithm, written in the
+ *  shift-add form (`h + ((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24))`, i.e. `h * 16777619`)
+ *  rather than `Math.imul`. The two are digest-identical — same 32 bits, only the
+ *  arithmetic differs — and `holdout-hash-parity.test.ts` proves it over the exact
+ *  `<jobId>:<entryId>` key shape rather than asserting it. That proof is what makes
+ *  the fold safe HERE and nowhere else in the repo: this digest does not key a cache
+ *  that can be re-warmed, it assigns HOLDOUT MEMBERSHIP. A digest change would move
+ *  which candidates a live wave spares, break the preview/commit approval token
+ *  (every commit 409s on "the candidate set changed"), and silently retire the clean
+ *  arm the calibration figures are already computed against.
+ *
+ *  `hash.ts` states its own stability contract for the same class of reason, so the
+ *  pin now lives once instead of in four places that could each drift alone. */
 function hash32(input: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    // h *= 16777619, in 32-bit space without overflowing the float mantissa.
-    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
-  }
-  return h >>> 0;
+  return parseInt(fnv1a(input), 16);
 }
 
 /** Is this candidate in the calibration holdout for this role?

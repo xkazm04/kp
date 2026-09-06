@@ -23,7 +23,30 @@ const DECISIONS_FILE = "DECISIONS.md";
 const FLUSH_MS = 8000;
 const EDIT_DEBOUNCE_MS = 600;
 
-export function LiveWorkSurface({ token, seedFiles, note }: { token: string; seedFiles: SeedFile[]; note: string | null }) {
+/** Compact elapsed label, e.g. "1h 12m" or "45m". The unit strings come from the
+ *  catalog, so the reader sees their own language rather than an English "h". */
+function useDurationLabel() {
+  const t = useTranslations("devApply.workSurface");
+  return (minutes: number) => {
+    const m = Math.max(0, Math.round(minutes));
+    const h = Math.floor(m / 60);
+    return h > 0 ? t("clockHm", { h, m: m % 60 }) : t("clockM", { m });
+  };
+}
+
+export function LiveWorkSurface({
+  token,
+  seedFiles,
+  note,
+  timeboxHours,
+}: {
+  token: string;
+  seedFiles: SeedFile[];
+  note: string | null;
+  /** The case timebox the candidate was shown on the brief, already clamped by the
+   *  page through devcase-timebox.ts. This component never carries a number of its own. */
+  timeboxHours: number;
+}) {
   const t = useTranslations("devApply.workSurface");
   const [files, setFiles] = useState<SeedFile[]>(() => seedFiles.map((f) => ({ ...f })));
   const [activePath, setActivePath] = useState<string>(seedFiles[0]?.path ?? "");
@@ -69,6 +92,13 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // response once the session crosses the case's afterMinutes; rendered as a
   // stakeholder banner. The reveal moment is server-recorded in the process log.
   const [perturbation, setPerturbation] = useState<string | null>(null);
+  // The clock. SERVER truth, refreshed by every 8s flush from the session's own
+  // createdAt, then ticked locally between flushes so the number moves. Null until the
+  // session exists: a visitor who is only reading the brief has not started anything,
+  // and inventing a start time for them would be the dishonest half.
+  const [elapsedMinutes, setElapsedMinutes] = useState<number | null>(null);
+  const timeboxMinutes = Math.round(timeboxHours * 60);
+  const duration = useDurationLabel();
 
   // Local draft persistence (harvested from case-sim round 1's winning submission,
   // 2026-07-17). The server flush is the system of record, but it only lands every
@@ -257,8 +287,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         persistDraft();
         // The server decides when the mid-flight update fires; the flush response
         // carries it (and keeps carrying it so a reload re-renders the banner).
-        const data = (await r.json().catch(() => null)) as { perturbation?: string | null } | null;
+        const data = (await r.json().catch(() => null)) as { perturbation?: string | null; elapsedMinutes?: number | null } | null;
         if (data?.perturbation) setPerturbation(data.perturbation);
+        if (typeof data?.elapsedMinutes === "number") setElapsedMinutes(data.elapsedMinutes);
         return true;
       } catch {
         // Network failure (offline, flaky wifi) — re-buffer so an unsent batch
@@ -271,6 +302,14 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
     },
     [ensureSession, persistDraft, token]
   );
+
+  // Tick the clock between flushes so it reads as a clock, not a value that jumps
+  // every eight seconds. The server's number overwrites it on the next flush, so drift
+  // never accumulates and a paused tab re-syncs rather than under-counting.
+  useEffect(() => {
+    const iv = setInterval(() => setElapsedMinutes((m) => (m == null ? m : m + 1)), 60_000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     const iv = setInterval(() => void flush(), FLUSH_MS);
@@ -367,11 +406,16 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // "limited" is a distinct terminal state from "error": the budget is a stated
   // product limit, not a fault, and it must never read as "your work was lost".
   const [chatState, setChatState] = useState<"idle" | "sending" | "error" | "limited">("idle");
+  // WHY the chat door refused, in the reader's language. The route used to answer bare
+  // English (and its catch forwarded the store's own message), so this surface had
+  // nothing to resolve and painted one generic line over four different causes.
+  const [chatRefusal, setChatRefusal] = useState<ApiErrorPayload | null>(null);
 
   async function sendChat() {
     const message = chatInput.trim();
     if (!message || chatState === "sending") return;
     setChatState("sending");
+    setChatRefusal(null);
     setChatMessages((prev) => [...prev, { channel: chatChannel, role: "user", text: message }]);
     setChatInput("");
     try {
@@ -398,7 +442,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         setChatState("limited");
         return;
       }
-      if (!r.ok) throw new Error("chat failed");
+      if (!r.ok) {
+        const payload = (await r.json().catch(() => null)) as ApiErrorPayload | null;
+        setChatRefusal(payload?.code ? payload : null);
+        throw new Error("chat failed");
+      }
       const data = (await r.json()) as { reply?: string; source?: string };
       if (data.reply)
         setChatMessages((prev) => [
@@ -453,6 +501,24 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       {refusal && status !== "error" ? (
         <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
           {errMsg(refusal, t("error"))}
+        </p>
+      ) : null}
+
+      {/* The clock the brief promised. Advisory by design: past the box it says so and
+          says the time is recorded, and the Submit button never stops working. A
+          candidate who ran long has still done the work, and refusing it would delete an
+          hour over a limit they were never shown until now. */}
+      {elapsedMinutes != null ? (
+        <p
+          className={
+            elapsedMinutes > timeboxMinutes
+              ? `mt-2 ${NOTICE()} px-3 py-1.5 text-micro`
+              : "mt-2 text-micro text-steel"
+          }
+        >
+          {elapsedMinutes > timeboxMinutes
+            ? t("clockOver", { over: duration(elapsedMinutes - timeboxMinutes), timebox: duration(timeboxMinutes) })
+            : t("clockElapsed", { elapsed: duration(elapsedMinutes), timebox: duration(timeboxMinutes) })}
         </p>
       ) : null}
 
@@ -566,7 +632,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         </div>
         {chatState === "error" ? (
           <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
-            {t("chatError")}
+            {errMsg(chatRefusal, t("chatError"))}
           </p>
         ) : null}
         {chatState === "limited" ? (

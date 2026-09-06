@@ -36,6 +36,7 @@ from pipeline.jobfit.eval.interview_eval import (
 from pipeline.jobfit.eval._style import _make_styler
 from pipeline.jobfit.eval.interview_scenarios_gen import BEHAVIORS, brief_for, rotating_sample
 from pipeline.jobfit.eval.thresholds import QUALITY_THRESHOLD
+from pipeline.jobfit.tests._helpers import env
 
 
 def _turns(*pairs):
@@ -184,9 +185,9 @@ class TestScenarioBank(unittest.TestCase):
     def test_fixed_bank_is_valid_and_grounded(self):
         for s in self.fixed:
             with self.subTest(scenario=s.name):
-                self.assertTrue(s.candidate_prompt.strip())
+                self.assertNotEqual(s.candidate_prompt.strip(), "", "scenario has no candidate prompt")
                 self.assertIn(s.brief, ("student", "default", "grounded"))
-                self.assertTrue(s.must_hold)
+                self.assertNotEqual(s.must_hold, [], "scenario asserts nothing — it can never fail")
 
     def test_every_behaviour_is_represented(self):
         seen = {s.behavior for s in self.fixed}
@@ -309,14 +310,14 @@ class TestScorecardDownstreamSanity(unittest.TestCase):
         # produce a well-formed, gate-passing scorecard (no scorecard issues folded in).
         scenarios = load_scenarios()
         rows = run_golden(scenarios)
-        self.assertTrue(rows)
+        self.assertNotEqual(rows, [], "run_golden produced no rows — the scorecard assertions below are vacuous")
         ie.score_rows(rows, {s.name: s for s in scenarios}, provider=None)
         for r in rows:
             with self.subTest(scenario=r.scenario):
                 self.assertIsNotNone(r.scorecard, "scorecard should be attached")
                 self.assertEqual(r.scorecard_issues, [], r.scorecard_issues)
                 self.assertIn(r.scorecard.get("recommendation"), ("advance", "hold", "reject"))
-                self.assertTrue(r.scorecard.get("ratings"))
+                self.assertNotEqual(r.scorecard.get("ratings"), [], r.scorecard)
 
     def test_no_llm_scorecard_gate_exits_zero(self):
         # Fully-covered selection → the offline scorecard gate still certifies.
@@ -325,7 +326,9 @@ class TestScorecardDownstreamSanity(unittest.TestCase):
         )
 
     def test_bad_scorecard_folds_into_reliability(self):
-        self.assertTrue(ie._check_scorecard({"recommendation": "nope", "ratings": []}))
+        # The malformed card yields ISSUES; asserting on the list (not its truthiness)
+        # means a failure prints what the checker actually found.
+        self.assertNotEqual(ie._check_scorecard({"recommendation": "nope", "ratings": []}), [])
         self.assertEqual(ie._check_scorecard({"recommendation": "hold", "ratings": [{"competency": "x", "rating": 4}]}), [])
 
 
@@ -345,7 +348,7 @@ class TestElevenLabsBackend(unittest.TestCase):
         ids = {c["id"] for c in req["extra_evaluation_criteria"]}
         self.assertEqual({"no_decision", "language_follow_cs", "handling"}, ids)
         for c in req["extra_evaluation_criteria"]:
-            self.assertTrue(c["conversation_goal_prompt"])
+            self.assertNotEqual(c["conversation_goal_prompt"], "", c)
 
     def test_normalize_transcript_maps_roles_and_failures(self):
         from pipeline.jobfit.eval import elevenlabs_backend as el
@@ -369,20 +372,16 @@ class TestElevenLabsBackend(unittest.TestCase):
         self.assertEqual(el.failed_criteria(analysis), ["no_leak"])
 
     def test_missing_keys_report_unavailable_and_cli_errors_cleanly(self):
-        import os
-
         from pipeline.jobfit.eval import elevenlabs_backend as el
 
-        saved = {k: os.environ.pop(k, None) for k in ("ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID")}
-        try:
+        # The hand-rolled pop/restore this replaced leaked on an assertion failure:
+        # the `finally` restored only vars that HAD a value, so a red run here left
+        # the two EL vars unset for every later test in the process.
+        with env("ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID"):
             ok, reason = el.available()
             self.assertFalse(ok)
             self.assertIn("ELEVENLABS", reason)
             self.assertEqual(ie.main(["--backend", "elevenlabs", "--scenario", "swe_senior_strong"]), 2)
-        finally:
-            for k, v in saved.items():
-                if v is not None:
-                    os.environ[k] = v
 
     def test_offline_seals_off_elevenlabs_cloud_backend(self):
         # E-SH-4: api.elevenlabs.io is a cloud host, so KP_OFFLINE must refuse it
@@ -402,8 +401,8 @@ class TestElevenLabsBackend(unittest.TestCase):
         # Sanity: with the flag off, keys present → available (no network call).
         with mock.patch.dict(os.environ, {"ELEVENLABS_API_KEY": "k", "ELEVENLABS_AGENT_ID": "a"}):
             os.environ.pop("KP_OFFLINE", None)
-            ok, _ = el.available()
-            self.assertTrue(ok)
+            ok, reason = el.available()
+            self.assertEqual((ok, reason), (True, ""), reason)
 
 
 class TestBriefBridge(unittest.TestCase):
@@ -500,7 +499,11 @@ class TestOptimizer(unittest.TestCase):
         tn, vn = {s.name for s in train}, {s.name for s in val}
         self.assertEqual(tn & vn, set())
         self.assertEqual(tn | vn, {s.name for s in scen})
-        self.assertTrue(train and val)
+        # Both folds non-empty — a split that put everything on one side would satisfy
+        # the disjoint/total assertions above while measuring nothing.
+        self.assertNotEqual((len(train), len(val)), (len(scen), 0))
+        self.assertGreater(len(train), 0)
+        self.assertGreater(len(val), 0)
 
     def test_optimizer_rejects_a_train_only_improvement(self):
         # Finding #2: a rule that fixes a TRAINING failure but does nothing on the held-out
@@ -566,7 +569,8 @@ class TestGroundedBridge(unittest.TestCase):
     def test_grounded_scenarios_load(self):
         names = {s.name for s in load_scenarios()}
         self.assertIn("grounded_senior_strong", names)
-        self.assertTrue(all(s.brief in ("student", "default", "grounded") for s in load_scenarios()))
+        briefs = sorted({s.brief for s in load_scenarios()})
+        self.assertEqual([b for b in briefs if b not in ("student", "default", "grounded")], [], briefs)
 
     def test_grounded_brief_renders_the_real_run_of_show(self):
         scn = _scn(name="grounded_senior_strong", brief="grounded", role_line="Senior Backend Engineer", seniority="senior")

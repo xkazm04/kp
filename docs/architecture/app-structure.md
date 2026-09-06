@@ -711,6 +711,21 @@ refused. The Team step keeps the first half of that bargain by refusing to stage
 an address the route would reject at all (`SetupInviteEditor.tsx`), so the common
 mistake is caught where it is made rather than four steps later.
 
+Candi's memory consent was the last write in this wizard still fire-and-forget,
+and it is now the sixth part of the fold (`companion` in `SETUP_FINISH_PARTS`,
+label `setup.finish.part.companion`). `persistCompanionConsent()` used to
+`await fetch("/api/companion/brain", …)` inside a bare catch, on the argument that
+the question is re-askable — but nothing re-asks it: the wizard runs once and
+there is no consent control in Settings, so an operator whose "yes" was refused
+learned of it weeks later from the dock's "memory off" line, with nothing to
+connect it to. And `fetch` resolves on a 403 and on a 500, so the old shape did
+not catch even the cases it was written for. Skipping the step still posts nothing
+and reports `skipped`; only a choice that was MADE and did not land reaches the
+closing sentence, with its code resolved like every other part. Pinned in
+`setupOnboardingFinish.test.ts` (skip touches no network, landed says nothing, a
+403 carries `FORBIDDEN_CAPABILITY` into the fold, an unparseable 500 and a network
+fault both refuse with a null code, and the choice is posted verbatim).
+
 `brand` is the fifth part, and it is in the fold for the REFUSAL only. The accent
 and the logo are decoration the operator can redo in Settings in one click, so a
 brand that lands says nothing in the closing sentence — but `PUT /api/brand`

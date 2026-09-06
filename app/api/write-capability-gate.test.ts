@@ -82,6 +82,7 @@ const { PATCH: jdPatch } = await import("./jds/[slug]/route.ts");
 const { POST: commsRelay } = await import("./comms/relay/route.ts");
 const { POST: atsConnections, DELETE: atsConnectionDelete } = await import("./ats/connections/route.ts");
 const { POST: atsConfig } = await import("./ats/config/route.ts");
+const { POST: edgeConfigSave } = await import("./edge/route.ts");
 const { POST: edgeDrain } = await import("./edge/drain/route.ts");
 const { POST: edgePair } = await import("./edge/pair/route.ts");
 const { POST: llmKeyTest } = await import("./llm/keys/test/route.ts");
@@ -156,6 +157,12 @@ const DOORS: Door[] = [
   { name: "POST /api/ats/connections", capability: "org:manage", call: () => atsConnections(req({ provider: "greenhouse", apiKey: "k" })) },
   { name: "DELETE /api/ats/connections", capability: "org:manage", call: () => atsConnectionDelete(req({ provider: "greenhouse" })) },
   { name: "POST /api/ats/config", capability: "org:manage", call: () => atsConfig(req({ config: {} })) },
+  // /perfect wave 43 (the-edge-config-door-requires-org-manage): the door its own
+  // siblings guard. POST /api/edge decides WHICH remote queue this installation
+  // accepts inbound candidate events from and holds the secret that authenticates
+  // it, and `url: ""` unpairs and resets the cursor. Drain and pair already ask
+  // org:manage; the door that WRITES the pairing asked only for a session.
+  { name: "POST /api/edge", capability: "org:manage", call: () => edgeConfigSave(req({ url: "https://edge.attacker.test", secret: "theirs" })) },
   { name: "POST /api/edge/drain", capability: "org:manage", call: () => edgeDrain() },
   { name: "POST /api/edge/pair", capability: "org:manage", call: () => edgePair() },
   { name: "POST /api/llm/keys/test", capability: "org:manage", call: () => llmKeyTest(req({ provider: "openai", scope: "byom" })) },

@@ -6,23 +6,42 @@
 // every call made outside a background task. Those rows must open a detail that
 // says plainly there is no stored output — not an empty panel, not a spinner
 // that never resolves, and not a fetch to /api/tasks/null.
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { seedDevAuth } from "./dev-auth";
 
 test.beforeEach(async ({ page }) => {
   await seedDevAuth(page);
 });
 
+/** THE LEDGER CAN BE LEGITIMATELY EMPTY, and that is not a failure.
+ *
+ *  llm_usage records AI calls that actually happened; a fresh database — which
+ *  is what the suite now runs against (playwright.config.ts's throwaway
+ *  KP_DB_PATH) and what CI's keyless job always had — has made none. The table
+ *  only exists when there are rows, so both tests below need one.
+ *
+ *  This used to be `toPass` on `count > 0`, which turns "nothing has been run
+ *  yet" into a 20-second timeout and a red build. Skipping SAYS which of the two
+ *  it was, which is the whole difference between a gap in coverage and a defect.
+ *  It is deliberately not a fixture: a fabricated ledger row would not exercise
+ *  the request-id chain this file is about. */
+async function skipOnEmptyLedger(page: Page): Promise<void> {
+  await page.goto("/?tab=activity");
+  await expect(page.getByRole("main")).toBeVisible({ timeout: 20_000 });
+  const trigger = page.locator("tbody tr button").first();
+  // Give the tab's client fetch a chance to paint rows before concluding there
+  // are none — an empty ledger and an unresolved one look identical for a moment.
+  await trigger.waitFor({ state: "visible", timeout: 15_000 }).catch(() => undefined);
+  test.skip(
+    (await trigger.count()) === 0,
+    "the llm_usage ledger is empty on this database — no AI action has been run, so there is no row to open"
+  );
+}
+
 test.describe("Activity — row detail", () => {
   test("clicking a row opens the detail with the ledger facts", async ({ page }) => {
-    await page.goto("/?tab=activity");
-
-    // The table only exists when the ledger has rows; skip rather than fail on a
-    // workspace that has never run an AI action.
+    await skipOnEmptyLedger(page);
     const trigger = page.locator("tbody tr button").first();
-    await expect(async () => {
-      expect(await trigger.count()).toBeGreaterThan(0);
-    }).toPass({ timeout: 20_000 });
 
     await trigger.click();
     const dialog = page.getByRole("dialog");
@@ -52,11 +71,8 @@ test.describe("Activity — row detail", () => {
   });
 
   test("Escape closes the detail", async ({ page }) => {
-    await page.goto("/?tab=activity");
+    await skipOnEmptyLedger(page);
     const trigger = page.locator("tbody tr button").first();
-    await expect(async () => {
-      expect(await trigger.count()).toBeGreaterThan(0);
-    }).toPass({ timeout: 20_000 });
 
     await trigger.click();
     await expect(page.getByRole("dialog")).toBeVisible();
