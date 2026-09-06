@@ -7,7 +7,7 @@ import random
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence, get_args
 
 try:
     from dotenv import load_dotenv
@@ -80,6 +80,15 @@ class GeminiError(_cli.CliError, RuntimeError):
             raise ValueError(f"unknown Gemini error subtype: {subtype!r}")
         super().__init__(message, code=_SUBTYPE_CLI_CODE[subtype])
         self.subtype = subtype
+
+
+# What a request managed to constrain. One authority for the set: the Literal is
+# the static half and the tuple is the runtime half, derived from it so the two
+# cannot drift.
+ConstraintSent = Literal["none", "mime", "schema"]
+# Derived, never retyped - a hand-written copy of the same set is the drift this
+# pairing exists to prevent.
+CONSTRAINT_SENT_VALUES: tuple[str, ...] = get_args(ConstraintSent)
 
 
 ANALYSIS_RESPONSE_SCHEMA = {
@@ -288,7 +297,28 @@ class GroundedAnswer:
     sources: list[str] = field(default_factory=list)
     usage: dict[str, int] = field(default_factory=dict)
     finish_reason: str | None = None
-    schema_enforced: bool = True
+    # What the request actually constrained, from a closed set - never a boolean.
+    #
+    #   "none"   nothing was sent, or a constraint was requested and shed
+    #            (grounding and a response constraint contend for one surface)
+    #   "mime"   response_mime_type only: the reply is JSON-shaped, and NOTHING
+    #            was said about any field's domain
+    #   "schema" a response schema was sent, so field domains were communicated
+    #
+    # A boolean could not carry this. The previous flag read True for a mime-only
+    # call - claiming the model had been told field domains it had not been told,
+    # while the clamps downstream are the evidence those domains get violated. It
+    # also could not survive sending a real schema: True would mean two different
+    # things. Defaults to "none" because the paths that build this without setting
+    # it are the degraded ones (the fallback a caller returns when the call
+    # raised), and those constrained nothing at all.
+    #
+    # Typed as a Literal rather than a bare str on purpose. A closed set written
+    # only in a comment is exactly the defect this module's sibling instrument
+    # exists to count: a value domain that is known, written down in prose, and
+    # unreadable by the machines on either boundary. CONSTRAINT_SENT_VALUES is the
+    # runtime half of the same statement.
+    constraint_sent: ConstraintSent = "none"
 
     @property
     def truncated(self) -> bool:
@@ -445,12 +475,15 @@ def grounded_answer(
     # dropped rather than merged. Record the shed on the result — the caller's
     # parsing posture depends on which one it got, and an unreported shed leaves
     # it believing syntax is guaranteed while _parse_json is scanning prose.
-    schema_enforced = True
+    # Report what was actually constrained. "Nothing requested" and "requested
+    # then shed" both leave the payload unconstrained and both report "none";
+    # only a constraint that was really sent reports what it was.
+    constraint_sent = "none"
     if use_grounding:
         config_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
-        schema_enforced = response_mime_type is None
     elif response_mime_type:
         config_kwargs["response_mime_type"] = response_mime_type
+        constraint_sent = "mime"
 
     contents: list[Any] = [prompt, *parts]
 
@@ -502,7 +535,7 @@ def grounded_answer(
         sources=sources,
         usage=usage,
         finish_reason=finish_reason,
-        schema_enforced=schema_enforced,
+        constraint_sent=constraint_sent,
     )
 
 
