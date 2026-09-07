@@ -17,13 +17,13 @@ numpy==2.5.2
 websockets==16.1.1
 
 pydantic==2.13.4
-google-genai==2.20.0
+google-genai==2.22.0
 python-dotenv==1.2.3
 defusedxml==0.7.1
 # Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) — adapters import these
 # lazily; only the providers you actually route to need their SDK installed.
-anthropic==1.2.0
-openai==3.5.0
+anthropic==1.3.0
+openai==3.8.0
 # Optional LLM observability (local dev): the LightTrack SDK lives in the
 # sibling repo — `pip install ../LightTrack/clients/python` — and activates
 # only when LIGHTTRACK_URL is set. See pipeline/jobfit/llm/monitor.py.
