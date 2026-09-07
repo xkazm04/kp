@@ -367,6 +367,14 @@ export const STORE_ERRORS = {
    *  the Add-receiver modal painted, in every locale. */
   CHANNEL_WEBHOOK_CREATE_FAILED: "Could not create the receiver. Please try again.",
   CHANNEL_WEBHOOK_UPDATE_FAILED: "Could not update the receiver. Please try again.",
+  /** POST /api/channels/inbound/[token] — the PUBLIC, session-less lead webhook: the
+   *  only credential is the channel token, so its caller is unauthenticated. Its 500
+   *  catch forwarded the thrown message whole, and the path sits on better-sqlite3 plus
+   *  a spawned CV extractor (ingestCvApplication), so that message carries SQLITE_*
+   *  constraint text, the absolute db path and Python tracebacks to whoever POSTed. Its
+   *  siblings /api/apply and /api/agents/report/[token] already answer via safeJsonError;
+   *  this closes the last public-webhook leak of the same class. */
+  CHANNEL_INBOUND_FAILED: "Lead intake failed. Please try again.",
   /** The two organization-backup handlers (/perfect wave 37, lib-infra-runtime).
    *  Both sat straight on better-sqlite3 and forwarded the thrown message, so a
    *  SQLITE_* code and the absolute db path were what the Backup panel painted. */
