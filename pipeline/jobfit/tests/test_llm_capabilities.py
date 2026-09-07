@@ -25,9 +25,12 @@ import re
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit.llm.base import DEFAULT_MAX_TOKENS
+from pipeline.jobfit.llm.adapters import ADAPTERS
+from pipeline.jobfit.llm.base import DEFAULT_MAX_TOKENS, LLMError, TextProvider
 from pipeline.jobfit.llm.capabilities import (
     BASE_CAP_BY_DECISION,
+    CAP_FILE_INPUT,
+    PROVIDER_CAPABILITIES,
     USE_CASE_MAX_TOKENS,
     USE_CASE_REQUIREMENTS,
     default_max_tokens,
@@ -141,6 +144,62 @@ class NewRowsTest(unittest.TestCase):
         for use_case in ("match_reasoning", "cv_analysis", "role_intake_voice", "devcase_judge"):
             with self.subTest(use_case=use_case):
                 self.assertIsNone(default_max_tokens(use_case))
+
+
+class FileInputMatrixIsHonest(unittest.TestCase):
+    """The ``file_input`` row and the adapter code say the same thing, both ways.
+
+    WHY THIS FILE GREW. ``PROVIDER_CAPABILITIES`` is read by routing and by nothing
+    else: a row that stops matching its adapter changes no behaviour until a real
+    CV lands on a text-only provider. The supported direction is checked implicitly
+    every time gemini runs; the UNSUPPORTED direction — that ``complete_document``
+    on a provider without the row refuses by name rather than returning an empty
+    answer — is checked nowhere, and it is the direction the matrix exists for.
+    ``subtype="missing_capability"`` appears once in the source and, before this
+    class, in no test.
+
+    Both directions are derived from the matrix rather than listed, so adding a
+    provider extends the population instead of silently sitting outside it.
+    """
+
+    def _population(self) -> dict[str, type]:
+        pairs = {name: cls for name, cls in ADAPTERS.items() if name in PROVIDER_CAPABILITIES}
+        # The floor: a derived population that quietly empties turns both tests below
+        # into vacuous passes, and neither would report anything different.
+        self.assertEqual(
+            set(pairs), set(ADAPTERS),
+            "every adapter must have a PROVIDER_CAPABILITIES row — an adapter outside "
+            "the matrix is routed on an empty capability set",
+        )
+        self.assertGreaterEqual(len(pairs), 7, "adapter/matrix join collapsed — the scan is broken")
+        return pairs
+
+    def test_a_provider_without_the_row_refuses_by_name(self) -> None:
+        for name, cls in self._population().items():
+            if CAP_FILE_INPUT in PROVIDER_CAPABILITIES[name]:
+                continue
+            with self.subTest(provider=name):
+                # __new__, not __init__: this asserts method resolution, and construction
+                # would drag in key/SDK probing that has nothing to do with the claim.
+                provider = object.__new__(cls)
+                with self.assertRaises(LLMError) as caught:
+                    provider.complete_document(prompt="p", file=None)
+                self.assertEqual(
+                    caught.exception.subtype, "missing_capability",
+                    f"{name} does not declare file_input, so the refusal must be typed as "
+                    "missing_capability — a generic error routes an operator to a bug hunt",
+                )
+
+    def test_a_provider_with_the_row_overrides_the_refusal(self) -> None:
+        declared = [n for n in self._population() if CAP_FILE_INPUT in PROVIDER_CAPABILITIES[n]]
+        self.assertTrue(declared, "no adapter declares file_input — cv_analysis cannot route")
+        for name in declared:
+            with self.subTest(provider=name):
+                self.assertIsNot(
+                    ADAPTERS[name].complete_document, TextProvider.complete_document,
+                    f"{name} declares file_input but inherits the refusing base — the row "
+                    "promises an attachment the adapter would reject",
+                )
 
 
 if __name__ == "__main__":
