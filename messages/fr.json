@@ -2991,14 +2991,6 @@
       "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison."
     },
     "emptyState": {
-      "proto": {
-        "eyebrow": "Prototype : choisissez une direction",
-        "label": "Direction de l’état vide",
-        "stageSet": "Le décor",
-        "stageSetHint": "Le tableau enseigne l’entonnoir, les étapes le remplissent",
-        "buildOrder": "Ordre des étapes",
-        "buildOrderHint": "Une étape à la fois, dans l’ordre imposé par le produit"
-      },
       "optional": "Facultatif",
       "tour": "Voir le parcours de recrutement",
       "setupTitle": "Terminez la configuration de cet espace",
@@ -3006,25 +2998,18 @@
       "setupResume": "Reprendre la configuration",
       "moves": {
         "role": {
-          "title": "Rédigez la description du poste",
-          "body": "Décrivez le poste dans le dialogue de cadrage, ou fournissez une annonce que vous avez déjà. Chaque colonne du tableau est rattachée à un poste : c’est donc la première étape.",
-          "action": "Ouvrir le cadrage du poste"
+          "title": "Rédigez la description du poste"
         },
         "candidates": {
-          "title": "Confrontez-lui des candidats",
-          "body": "Téléversez un CV dans Analyse, choisissez la description de poste enregistrée, puis ajoutez le résultat au tableau. Analyse ne peut ajouter un candidat qu’une fois l’exécution rattachée à un poste.",
-          "action": "Ouvrir Analyse"
+          "title": "Confrontez-lui des candidats"
         },
         "channels": {
-          "title": "Ouvrez les canaux",
-          "body": "Votre page carrières, une boîte mail de transfert et les formulaires publicitaires déposent les candidatures tout seuls. Faites-le une fois que le poste vous convient.",
-          "action": "Ouvrir Canaux"
+          "title": "Ouvrez les canaux"
         }
       },
       "stageSet": {
         "eyebrow": "Le tableau, monté et vide",
         "title": "Votre entonnoir, encore sans personne",
-        "body": "Voici les colonnes qu’un candidat traverse, dans l’ordre. Tout le monde entre par la première, et les trois portes ci-dessous sont ce qui la remplit.",
         "laneStrip": "Étapes du pipeline",
         "inflow": "Ce qui remplit la première colonne"
       },
@@ -3035,15 +3020,7 @@
         "Offer": "l’offre",
         "Hired": "signé, arrivée à venir"
       },
-      "stageSlotFallback": "encore rien",
-      "buildOrder": {
-        "eyebrow": "Personne sur le tableau",
-        "title": "Trois étapes, dans cet ordre",
-        "setupLead": "Avant la première étape",
-        "stepOf": "Étape {n} sur {total}",
-        "rail": "Choisir une étape",
-        "then": "Ensuite le tableau se remplit :"
-      }
+      "stageSlotFallback": "encore rien"
     },
     "today": {
       "eyebrow": "Aujourd’hui",

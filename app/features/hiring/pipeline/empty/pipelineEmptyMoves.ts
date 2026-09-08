@@ -21,9 +21,10 @@
  * `archetypes`, which cannot add anyone to the board at all (it builds standalone
  * profiles) — the two things this taxonomy fixes.
  *
- * Pure on purpose: no React, no next-intl, no glyph data. Copy is resolved per
- * variant from `pipeline.emptyState.moves.<key>.*`, and the glyph for a move is a
- * VARIANT's choice (only the sequence variant draws one).
+ * Pure on purpose: no React, no next-intl, no glyph data. A move's title is
+ * resolved from `pipeline.emptyState.moves.<key>.title` and its drawn subject from
+ * the `MOVE_GLYPH` map in `PipelineEmptyMoveCard.tsx` — both live at the render
+ * site so this module stays runnable under `node --test`.
  */
 
 // Type-only, so this module stays runnable under `node --test` type stripping.
@@ -35,8 +36,9 @@ export type EmptyMove = {
   key: EmptyMoveKey;
   /** The workspace tab this move is done on. */
   tab: WorkspaceTabId;
-  /** True for a move the operator may skip forever. Rendered as a chip, never
-   *  as a dimmed step — an optional move is still a first-class one. */
+  /** True for a move the operator may skip forever. Rendered as a chip on the
+   *  card itself, never as a dimmed step or a second control — an optional move
+   *  is still a first-class one. */
   optional: boolean;
 };
 

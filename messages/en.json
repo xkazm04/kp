@@ -2991,14 +2991,6 @@
       "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why."
     },
     "emptyState": {
-      "proto": {
-        "eyebrow": "Prototype: pick a direction",
-        "label": "Empty-state direction",
-        "stageSet": "Stage set",
-        "stageSetHint": "The board teaches the funnel, the moves feed it",
-        "buildOrder": "Build order",
-        "buildOrderHint": "One move at a time, in the order the product enforces"
-      },
       "optional": "Optional",
       "tour": "Watch the hiring story",
       "setupTitle": "Finish setting up this workspace",
@@ -3006,25 +2998,18 @@
       "setupResume": "Resume setup",
       "moves": {
         "role": {
-          "title": "Write the job description",
-          "body": "Talk the role through in the intake dialog, or hand over a posting you already have. Every lane on the board is keyed to a job, so this comes first.",
-          "action": "Open job intake"
+          "title": "Write the job description"
         },
         "candidates": {
-          "title": "Put candidates against it",
-          "body": "Upload a CV in Analyze, pick the saved job description, then add the result to the board. Analyze can only add someone once the run is tagged to a job.",
-          "action": "Open Analyze"
+          "title": "Put candidates against it"
         },
         "channels": {
-          "title": "Open the channels",
-          "body": "Your careers page, a forwarding mailbox and lead forms file applications in on their own. Do this once the role reads the way you want it to.",
-          "action": "Open Channels"
+          "title": "Open the channels"
         }
       },
       "stageSet": {
         "eyebrow": "The board, set and empty",
         "title": "Your funnel, with nobody on it yet",
-        "body": "These are the lanes a candidate walks, in order. Everyone enters at the first one, and the three doors below are what fills it.",
         "laneStrip": "Pipeline stages",
         "inflow": "How the first lane fills"
       },
@@ -3035,15 +3020,7 @@
         "Offer": "the offer",
         "Hired": "signed and starting"
       },
-      "stageSlotFallback": "nothing here yet",
-      "buildOrder": {
-        "eyebrow": "Nobody on the board yet",
-        "title": "Three moves, in this order",
-        "setupLead": "Before the first move",
-        "stepOf": "Move {n} of {total}",
-        "rail": "Pick a move",
-        "then": "Then the board fills:"
-      }
+      "stageSlotFallback": "nothing here yet"
     },
     "today": {
       "eyebrow": "Today",

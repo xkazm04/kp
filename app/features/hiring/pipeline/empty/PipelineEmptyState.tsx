@@ -1,38 +1,51 @@
 "use client";
 
 /**
- * The pipeline board's empty state — PROTOTYPE HOST (round 1 of the /prototype
- * loop; the tab strip is throwaway and goes away when the owner prunes).
+ * The pipeline board's empty state — "the stage set", the winner of the
+ * /prototype round and now the only surface here (the switcher, the second
+ * direction and their catalog keys are gone).
  *
- * It renders one of two DIRECTIONAL variants behind a labelled switcher. Both
- * take these exact props, so pruning is deleting a file and an entry, and the
- * consumer (PipelineTab) never changes:
+ * METAPHOR: a set built for a play nobody has walked onto yet. The board is the
+ * teaching object, so the surface IS the board: the real lanes, in the real
+ * order, wearing the real column-header type (`text-meta uppercase text-steel`,
+ * hairline dividers) the live PipelineBoard uses. Each lane holds a bracketed
+ * exemplar of what lands in it, so reading the empty surface is reading what the
+ * work will produce (docs/design/surface-doctrine.md §1: "an empty state is an
+ * exemplar, not a skeleton" — the version before this one drew a row of grey
+ * em-dashes, which is the skeleton that rule was written against).
  *
- *   - `PipelineEmptyStageSet`   "the stage set"   the board teaches the funnel
- *   - `PipelineEmptyBuildOrder` "the build order" the work is a ranked sequence
+ * The missing half is attached WHERE IT ACTS: a hairline below the set opens the
+ * inflow zone, three numbered doors that all feed the first lane, arranged left
+ * to right in the order the product enforces (`pipelineEmptyMoves.ts`, pinned by
+ * its test). The teaching is spatial — you can see that the role comes before
+ * the candidate because it sits upstream of the lane the candidate lands in.
  *
- * WHAT THE ROUND IS FOR. The previous empty state drew the funnel well and the
- * owner is keeping that idea, but it led the operator with "set up a channel"
- * and "add a candidate manually" — backwards (nothing can arrive before a role
- * exists) and, in the second case, not true (that link lands on the archetype
- * roster, which cannot put anyone on the board). The order both variants teach
- * is declared once in `pipelineEmptyMoves.ts` and pinned by its test.
+ * NO SENTENCE OCCUPIES LAYOUT (§1). The lane strip used to carry a sentence
+ * explaining that these are the lanes a candidate walks and the doors below fill
+ * them; each door carried two more explaining itself. The strip and the doors
+ * already say it, so all of that copy is deleted rather than shrunk, and each
+ * door is now a single action card (`PipelineEmptyMoveCard.tsx`) whose whole body
+ * is the control.
  *
- * STEP ZERO. The Getting-started checklist was deleted in the same change, and it
- * was the only door back into the first-run wizard for an operator who left it
- * early. That door lives here now: `setupUnfinished` turns on ONE full-width band
- * per variant, never a fourth peer step, so each surface reads whole with it and
- * without it.
+ * STEP ZERO. The Getting-started checklist was deleted when this surface was
+ * built, and it was the only door back into the first-run wizard for an operator
+ * who left it early. That door lives here: `setupUnfinished` turns on ONE
+ * full-width band above the set, never a fourth peer step, so the surface reads
+ * whole with it and without it.
+ *
+ * MOTION: none of its own. Every mark here is static; the only movement is the
+ * one-shot reveal each traced glyph plays on mount and the hover/focus colour
+ * transitions on the cards, both gated for reduced motion (§5).
  */
 
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { META_LABEL } from "@/app/_components/ui/recipes";
-import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { PipelineEmptyStageSet } from "./PipelineEmptyStageSet";
-import { PipelineEmptyBuildOrder } from "./PipelineEmptyBuildOrder";
+import { ArrowRight, CornerLeftUp, UserPlus } from "lucide-react";
+import { PANEL, EYEBROW, TITLE_DISPLAY, META_LABEL, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
+import { STAGES } from "@/app/features/shared/pipelineTypes";
+import { EMPTY_MOVES } from "./pipelineEmptyMoves";
+import { useEmptyMoveNav } from "./useEmptyMoveNav";
+import { PipelineEmptyMoveCard } from "./PipelineEmptyMoveCard";
 
 export type PipelineEmptyStateProps = {
   /** The operator left the first-run wizard early: offer to finish it as step zero. */
@@ -42,50 +55,101 @@ export type PipelineEmptyStateProps = {
   onStartTour?: () => void;
 };
 
-type VariantId = "stageSet" | "buildOrder";
+/**
+ * One lane of the set. The brackets are the placeholder convention and belong to
+ * the COMPONENT, never to the catalog: ICU MessageFormat reads `<word>` as a tag,
+ * so a translator who kept them would break the message.
+ */
+function SetLane({ label, slot, entry }: { label: string; slot: string; entry: boolean }) {
+  return (
+    <li className="min-w-0 flex-1 border-r border-stone-200 px-3 py-3 text-center last:border-r-0">
+      <p className={`truncate ${META_LABEL}`}>{label}</p>
+      <p className={`mt-1.5 truncate text-sm ${entry ? "font-medium text-coral" : "text-stone-400"}`}>
+        {entry ? <UserPlus size={13} className="mr-1 inline align-[-2px]" aria-hidden /> : null}
+        {"<"}
+        {slot}
+        {">"}
+      </p>
+    </li>
+  );
+}
 
-export function PipelineEmptyState(props: PipelineEmptyStateProps): React.JSX.Element {
+export function PipelineEmptyState({
+  setupUnfinished,
+  onResumeSetup,
+  onStartTour,
+}: PipelineEmptyStateProps): React.JSX.Element {
   const t = useTranslations("pipeline.emptyState");
-  const reduced = useReducedMotion();
-  const [variant, setVariant] = useState<VariantId>("stageSet");
-
-  const option = (id: VariantId, label: string, hint: string) => ({
-    value: id,
-    label: (
-      <span className="block text-left">
-        <span className="block text-base font-semibold">{label}</span>
-        <span className={`block text-sm ${variant === id ? "text-white/75" : "text-steel"}`}>{hint}</span>
-      </span>
-    ),
-  });
+  const enumLabel = useEnumLabel();
+  const go = useEmptyMoveNav();
+  // The slot copy is OPTIONAL per stage: a workspace that renames or invents a
+  // column (Settings -> Hiring composes the axis) simply gets no exemplar rather
+  // than an English one baked in.
+  const slotFor = (stage: string): string => labelOr(t, `stageSlot.${stage}`, t("stageSlotFallback"));
 
   return (
-    <div className="space-y-3">
-      {/* Deliberately ugly: a dashed scaffold nobody could mistake for shipped chrome. */}
-      <div className="rounded-lg border border-dashed border-stone-300 p-3">
-        <p className={`mb-2 ${META_LABEL}`}>{t("proto.eyebrow")}</p>
-        <SegmentedControl
-          label={t("proto.label")}
-          value={variant}
-          onChange={setVariant}
-          options={[
-            option("stageSet", t("proto.stageSet"), t("proto.stageSetHint")),
-            option("buildOrder", t("proto.buildOrder"), t("proto.buildOrderHint")),
-          ]}
-        />
+    <section className={`${PANEL} overflow-hidden`} aria-label={t("stageSet.title")}>
+      {/* Step zero, when the wizard was left early: one full-width band, so the
+          surface below is unchanged whether it is here or not. */}
+      {setupUnfinished ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-50 px-5 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-amber-900">{t("setupTitle")}</p>
+            <p className="mt-0.5 text-sm text-amber-900">{t("setupBody")}</p>
+          </div>
+          <button type="button" onClick={onResumeSetup} className={`${BTN_SECONDARY} h-8 shrink-0 bg-white px-3 text-sm`}>
+            {t("setupResume")} <ArrowRight size={13} aria-hidden />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="px-5 pt-5">
+        <p className={EYEBROW}>{t("stageSet.eyebrow")}</p>
+        <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("stageSet.title")}</h2>
       </div>
 
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={variant}
-          initial={reduced ? false : { opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduced ? { opacity: 1 } : { opacity: 0, y: -4 }}
-          transition={reduced ? { duration: 0 } : { duration: 0.16, ease: "easeOut" }}
-        >
-          {variant === "stageSet" ? <PipelineEmptyStageSet {...props} /> : <PipelineEmptyBuildOrder {...props} />}
-        </motion.div>
-      </AnimatePresence>
-    </div>
+      {/* The set itself: the live board's column header row, unfilled. */}
+      <ol aria-label={t("stageSet.laneStrip")} className="mt-4 flex border-y border-stone-200 bg-stone-50">
+        {STAGES.map((stage, i) => (
+          <SetLane key={stage} label={enumLabel("stage", stage)} slot={slotFor(stage)} entry={i === 0} />
+        ))}
+      </ol>
+
+      {/* The inflow zone: everything that fills the lane above it, in order. */}
+      <p id="pipeline-empty-inflow" className={`flex items-center gap-1.5 px-5 pb-1 pt-4 ${META_LABEL}`}>
+        <CornerLeftUp size={13} aria-hidden />
+        {t("stageSet.inflow")}
+      </p>
+      {/* Named by the visible line above rather than by a duplicate `aria-label`,
+          so the label is not read twice. */}
+      <ol
+        aria-labelledby="pipeline-empty-inflow"
+        className="flex flex-col divide-y divide-stone-200 sm:flex-row sm:divide-y-0"
+      >
+        {EMPTY_MOVES.map((move, i) => (
+          <PipelineEmptyMoveCard
+            key={move.key}
+            index={i}
+            moveKey={move.key}
+            title={t(`moves.${move.key}.title`)}
+            optional={move.optional}
+            optionalLabel={t("optional")}
+            onOpen={() => go(move.tab)}
+          />
+        ))}
+      </ol>
+
+      {onStartTour ? (
+        <div className="border-t border-stone-200 px-5 py-3">
+          <button
+            type="button"
+            onClick={onStartTour}
+            className="focus-ring rounded text-sm font-semibold text-coral hover:underline"
+          >
+            {t("tour")}
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }

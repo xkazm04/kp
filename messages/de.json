@@ -2991,14 +2991,6 @@
       "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen."
     },
     "emptyState": {
-      "proto": {
-        "eyebrow": "Prototyp: Richtung wählen",
-        "label": "Richtung des Leerzustands",
-        "stageSet": "Bühnenbild",
-        "stageSetHint": "Das Board erklärt den Funnel, die Schritte füllen ihn",
-        "buildOrder": "Reihenfolge",
-        "buildOrderHint": "Ein Schritt nach dem anderen, in der Reihenfolge, die das Produkt verlangt"
-      },
       "optional": "Optional",
       "tour": "Die Recruiting-Story ansehen",
       "setupTitle": "Einrichtung dieses Workspace abschließen",
@@ -3006,25 +2998,18 @@
       "setupResume": "Einrichtung fortsetzen",
       "moves": {
         "role": {
-          "title": "Stellenbeschreibung schreiben",
-          "body": "Besprechen Sie die Stelle im Intake-Dialog oder übergeben Sie eine vorhandene Ausschreibung. Jede Spur auf dem Board hängt an einer Stelle, deshalb kommt das zuerst.",
-          "action": "Stellen-Intake öffnen"
+          "title": "Stellenbeschreibung schreiben"
         },
         "candidates": {
-          "title": "Kandidat/innen dagegen stellen",
-          "body": "Laden Sie in der Analyse einen Lebenslauf hoch, wählen Sie die gespeicherte Stellenbeschreibung und übernehmen Sie das Ergebnis aufs Board. Die Analyse kann erst jemanden hinzufügen, wenn der Lauf einer Stelle zugeordnet ist.",
-          "action": "Analyse öffnen"
+          "title": "Kandidat/innen dagegen stellen"
         },
         "channels": {
-          "title": "Kanäle öffnen",
-          "body": "Ihre Karriereseite, ein weiterleitendes Postfach und Lead-Formulare legen Bewerbungen von selbst an. Machen Sie das, sobald die Stelle so klingt, wie Sie es wollen.",
-          "action": "Kanäle öffnen"
+          "title": "Kanäle öffnen"
         }
       },
       "stageSet": {
         "eyebrow": "Das Board, aufgebaut und leer",
         "title": "Ihr Funnel, noch ohne Personen",
-        "body": "Das sind die Spuren, die eine Bewerbung durchläuft, in dieser Reihenfolge. Alle treten in der ersten ein, und die drei Türen darunter füllen sie.",
         "laneStrip": "Pipeline-Phasen",
         "inflow": "Wie sich die erste Spur füllt"
       },
@@ -3035,15 +3020,7 @@
         "Offer": "das Angebot",
         "Hired": "unterschrieben, Start folgt"
       },
-      "stageSlotFallback": "noch nichts",
-      "buildOrder": {
-        "eyebrow": "Noch niemand auf dem Board",
-        "title": "Drei Schritte, in dieser Reihenfolge",
-        "setupLead": "Vor dem ersten Schritt",
-        "stepOf": "Schritt {n} von {total}",
-        "rail": "Schritt wählen",
-        "then": "Dann füllt sich das Board:"
-      }
+      "stageSlotFallback": "noch nichts"
     },
     "today": {
       "eyebrow": "Heute",

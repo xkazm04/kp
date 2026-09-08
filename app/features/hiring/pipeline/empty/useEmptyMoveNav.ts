@@ -8,8 +8,8 @@ import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tab
 /**
  * "Take me to the tab where this move is done."
  *
- * Both empty-state variants need exactly this and nothing more, so it is hoisted
- * rather than retyped: `buildTabSwitchUrl` off the REACT-tracked search string
+ * Every door on the empty board needs exactly this and nothing more, so it is
+ * hoisted rather than retyped per card: `buildTabSwitchUrl` off the REACT-tracked search string
  * (never window.location — see the note in tabs.ts), pushed through
  * `useShellNavigate` so a tab switch patches the URL in-document instead of
  * re-fetching the whole RSC payload of a route whose server output does not

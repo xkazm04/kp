@@ -422,6 +422,48 @@ The board page is four blocks, in the order the day is worked:
 4. `PipelineActivityFeed`, wrapped in `<Defer strategy="visible">` — history, not
    today's work, so it stays off the first commit until it nears the viewport.
 
+### The empty board — "the stage set"
+
+When the board has no entries, block 3 is replaced by
+`app/features/hiring/pipeline/empty/PipelineEmptyState.tsx`. It is the first-run
+surface, so it teaches rather than apologises, and the board is its own
+illustration: the five real lanes through `useEnumLabel`, in the live column-header
+type, each holding a bracketed exemplar of what lands in it
+(`stageSlot.<stage>`, optional per stage so a renamed axis gets no English baked
+in — see [surface-doctrine §1](../../design/surface-doctrine.md), "an empty state
+is an exemplar, not a skeleton").
+
+Below a hairline sits the inflow zone: **three action cards, numbered, that all
+feed the first lane**. The order is a real dependency and lives once in
+`empty/pipelineEmptyMoves.ts`, pinned by `empty/pipelineEmptyMoves.test.ts`:
+
+| # | Move | Tab | Why here |
+| --- | --- | --- | --- |
+| 1 | Write the job description | `intake` | Every lane is keyed to a job (`entryLaneKey`), so nothing can arrive before a role exists |
+| 2 | Put candidates against it | `analyze` | Analyze's "Add to pipeline" is disabled until the run is tagged to a saved JD (`analyzePipelineRef.ts`, reason `jdless`) |
+| 3 | Open the channels | `channels` | Optional forever — a next choice, never a prerequisite. Marked with a chip on the card, never a dimmed step |
+
+Each card (`empty/PipelineEmptyMoveCard.tsx`) is **one control**: the whole cell is
+a `<button>` whose accessible name is the move, carrying its numeral, the traced
+`/motionize` glyph drawn for it (`STEP_FIRST_ROLE_GLYPH`, `PROFILE_ROSTER_GLYPH`,
+`STEP_CHANNELS_GLYPH` — this is their only render site, which
+`app/_components/glyph/glyphs/glyphsHaveConsumers.test.ts` requires) and its title.
+Hover and keyboard focus produce the **same** reaction — an inset coral outline, a
+wash, the glyph lifted out of its resting opacity, coral numeral/arrow/title — and
+nothing moves; every transition drops under `motion-reduce`. Clicking navigates
+in-document via `empty/useEmptyMoveNav.ts` (`buildTabSwitchUrl` +
+`useShellNavigate`, never `router.push`).
+
+There is no explanatory prose on this surface: the lane strip and the card titles
+say what the sentences used to, and the `body`/`action` catalog entries behind them
+were deleted rather than shrunk. The /prototype round that produced it is closed —
+there is one component, no switcher, no second direction.
+
+`setupUnfinished` (from `shell/setup/useSetupUnfinished.ts`) adds ONE full-width
+amber band above the set with the way back into an unfinished first-run wizard —
+never a fourth peer step, so the surface reads whole with it and without it. The
+guided-tour link (`sim.start`) sits in a footer row and hides while the tour runs.
+
 ### The board header — two rows, split by job
 
 `PipelineFilterBar` is **narrowing** on top and **the result** underneath:

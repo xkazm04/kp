@@ -2991,14 +2991,6 @@
       "bulkInviteItemsRefused": "Některé pozvánky byly odmítnuty. Důvod zjistíte otevřením kandidáta."
     },
     "emptyState": {
-      "proto": {
-        "eyebrow": "Prototyp: vyberte směr",
-        "label": "Směr prázdného stavu",
-        "stageSet": "Scéna",
-        "stageSetHint": "Nástěnka učí trychtýř, kroky ji plní",
-        "buildOrder": "Pořadí kroků",
-        "buildOrderHint": "Jeden krok po druhém, v pořadí, které produkt vyžaduje"
-      },
       "optional": "Volitelné",
       "tour": "Přehrát příběh náboru",
       "setupTitle": "Dokončete nastavení pracovního prostoru",
@@ -3006,25 +2998,18 @@
       "setupResume": "Pokračovat v nastavení",
       "moves": {
         "role": {
-          "title": "Napište popis pozice",
-          "body": "Proberte pozici ve vstupním dialogu, nebo předejte inzerát, který už máte. Každý sloupec nástěnky je navázaný na pozici, takže tohle je první krok.",
-          "action": "Otevřít vstup pozice"
+          "title": "Napište popis pozice"
         },
         "candidates": {
-          "title": "Přiřaďte k ní kandidáty",
-          "body": "Nahrajte životopis v Analýze, vyberte uložený popis pozice a výsledek přidejte na nástěnku. Analýza umí kandidáta přidat až ve chvíli, kdy je běh navázaný na pozici.",
-          "action": "Otevřít Analýzu"
+          "title": "Přiřaďte k ní kandidáty"
         },
         "channels": {
-          "title": "Otevřete kanály",
-          "body": "Vaše kariérní stránka, přeposílací schránka a inzertní formuláře zakládají přihlášky samy. Udělejte to, až bude pozice znít přesně tak, jak chcete.",
-          "action": "Otevřít Kanály"
+          "title": "Otevřete kanály"
         }
       },
       "stageSet": {
         "eyebrow": "Nástěnka, připravená a prázdná",
         "title": "Váš trychtýř, zatím bez kandidátů",
-        "body": "Tohle jsou fáze, kterými kandidát projde, v pořadí. Všichni vstupují do první z nich a tři dveře níže jsou to, co ji plní.",
         "laneStrip": "Fáze náboru",
         "inflow": "Čím se plní první fáze"
       },
@@ -3035,15 +3020,7 @@
         "Offer": "nabídka",
         "Hired": "podepsáno, nástup"
       },
-      "stageSlotFallback": "zatím prázdné",
-      "buildOrder": {
-        "eyebrow": "Na nástěnce zatím nikdo není",
-        "title": "Tři kroky, v tomto pořadí",
-        "setupLead": "Před prvním krokem",
-        "stepOf": "Krok {n} z {total}",
-        "rail": "Vyberte krok",
-        "then": "Pak se nástěnka naplní:"
-      }
+      "stageSlotFallback": "zatím prázdné"
     },
     "today": {
       "eyebrow": "Dnes",

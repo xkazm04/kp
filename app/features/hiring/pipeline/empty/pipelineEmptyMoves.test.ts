@@ -47,17 +47,24 @@ test("channels is the only optional move", () => {
   );
 });
 
-test("every move carries title, body and action copy in all four locales", () => {
+test("every move carries a title in all four locales, and nothing else", () => {
   for (const locale of LOCALES) {
     const catalog = JSON.parse(readFileSync(resolve(REPO_ROOT, "messages", `${locale}.json`), "utf8"));
     const moves = catalog?.pipeline?.emptyState?.moves;
     assert.ok(moves, `${locale}: pipeline.emptyState.moves is missing`);
     for (const move of EMPTY_MOVES) {
-      for (const field of ["title", "body", "action"]) {
-        const value = moves?.[move.key]?.[field];
-        assert.equal(typeof value, "string", `${locale}: pipeline.emptyState.moves.${move.key}.${field} is missing`);
-        assert.ok((value as string).trim().length > 0, `${locale}: ${move.key}.${field} is empty`);
-      }
+      const value = moves?.[move.key]?.title;
+      assert.equal(typeof value, "string", `${locale}: pipeline.emptyState.moves.${move.key}.title is missing`);
+      assert.ok((value as string).trim().length > 0, `${locale}: ${move.key}.title is empty`);
+      // The card IS the button and the title IS its accessible name, so the
+      // explanatory `body` and the separate `action` label were deleted rather
+      // than hidden. A locale that still carries one is an orphan the parity
+      // gate cannot see (it only compares the four catalogs against each other).
+      assert.deepEqual(
+        Object.keys(moves[move.key]).sort(),
+        ["title"],
+        `${locale}: pipeline.emptyState.moves.${move.key} carries a key beyond title`
+      );
     }
   }
 });

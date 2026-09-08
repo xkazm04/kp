@@ -106,8 +106,8 @@ export function PipelineTab() {
         /* The empty board is the first-run moment, so it carries the three
            moves in the order the product actually enforces - a role first,
            candidates onto it, channels as the next choice - and, when the
-           operator left the setup wizard early, the door back to it. Two
-           directional variants behind a switcher while the owner picks
+           operator left the setup wizard early, the door back to it. The board's
+           own lanes are the illustration and each move is one action card
            (empty/PipelineEmptyState.tsx). */
         <PipelineEmptyState
           setupUnfinished={setupUnfinished}
