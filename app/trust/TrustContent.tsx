@@ -12,12 +12,18 @@
  */
 import {
   CLASSIFICATION,
+  DATA_CLASS_LABEL,
   DATA_RIGHTS,
   DISCLAIMER,
+  EU_REGION_LABEL,
   LAST_REVIEWED,
+  REGULATION_CHECKED,
   SUBPROCESSORS,
+  TRAINS_LABEL,
   byWeakestFirst,
+  needsAttention,
   postureSummary,
+  subprocessorsVerifiedSince,
   type Posture,
 } from "@/app/_lib/trust-posture";
 import { CARD_PAD, EYEBROW, INTRO, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
@@ -68,7 +74,15 @@ export function TrustContent() {
             no review date cannot be told apart from an abandoned one, and /privacy and
             /terms have always carried "Last updated". Rendered from the LAST_REVIEWED
             constant so it cannot drift from the module the claims live in. */}
-        <p className="mt-3 text-sm text-steel">Last reviewed against the code: {LAST_REVIEWED}</p>
+        {/* TWO dates, because they are two different acts of review and one of them
+            silently went stale. This page published a superseded applicability date
+            through a code review that was itself honest — the reviewer checked the
+            claims against the repository, which had not changed, while the law
+            underneath them had. A single "last reviewed" line cannot express that. */}
+        <p className="mt-3 text-sm text-steel">
+          Last reviewed against the code: {LAST_REVIEWED} · last checked against the regulation:{" "}
+          {REGULATION_CHECKED}
+        </p>
         {/* Lead with the shape. A reader who scrolls no further should still leave knowing
             how many obligations are NOT fully met — the partial + not-yet chips below,
             counted from OBLIGATIONS — rather than with a green impression. Never restate
@@ -96,6 +110,11 @@ export function TrustContent() {
           </p>
           <p className="text-body text-steel">{CLASSIFICATION.derogation}</p>
           <p className="text-body text-steel">{CLASSIFICATION.providerRole}</p>
+          {/* The deferral, stated with the part that was NOT deferred immediately
+              beside it. Publishing the later date on its own would be true and
+              misleading in the same breath. */}
+          <p className="text-body text-steel">{CLASSIFICATION.deferredBy}</p>
+          <p className="text-body text-steel">{CLASSIFICATION.inForceNow}</p>
         </div>
       </section>
 
@@ -142,24 +161,58 @@ export function TrustContent() {
           KandiDate routes to the engines each customer configures, so this is the set it <em>can</em> engage — not
           one it always does. Every entry is optional: an offline, self-hosted install engages none of them.
         </p>
+        {/* The table used to render Processor + Purpose and nothing else — two columns
+            of prose on the page whose whole thesis is that its claims are checkable.
+            A reviewer's actual questions are: does it see candidate data, does it
+            train on it, how long does it keep it, and can it run in the EU. Those are
+            now DATA on each row rather than something a reader has to ask us for. */}
         <div className={`mt-4 overflow-x-auto ${PANEL}`}>
-          <table className="w-full min-w-[32rem] text-left">
+          <table className="w-full min-w-[56rem] text-left">
             <thead>
               <tr className="border-b border-stone-200">
                 <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Processor</th>
-                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Purpose</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Handles</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Trains on inputs</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Retention</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">EU region</th>
               </tr>
             </thead>
             <tbody>
               {SUBPROCESSORS.map((s) => (
-                <tr key={s.name} className="border-b border-stone-200 last:border-0">
-                  <td className="px-4 py-3 text-body font-semibold text-ink">{s.name}</td>
-                  <td className="px-4 py-3 text-body text-steel">{s.purpose}</td>
+                <tr key={s.name} className="border-b border-stone-200 align-top last:border-0">
+                  <td className="px-4 py-3 text-body font-semibold text-ink">
+                    {s.name}
+                    <span className="mt-1 block text-meta font-normal text-steel">{s.purpose}</span>
+                  </td>
+                  <td className="px-4 py-3 text-body text-steel">{DATA_CLASS_LABEL[s.dataClass]}</td>
+                  <td
+                    className={`px-4 py-3 text-body ${needsAttention(s) ? "font-semibold text-ink" : "text-steel"}`}
+                  >
+                    {TRAINS_LABEL[s.trainsOnInputs]}
+                  </td>
+                  <td className="px-4 py-3 text-body text-steel">{s.retention}</td>
+                  <td className="px-4 py-3 text-body text-steel">{EU_REGION_LABEL[s.euRegion]}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {/* The notes carry what a cell cannot: the free-tier trap, the endpoint that
+            decides the jurisdiction, the substitute that engages nobody. They are the
+            reason this section is worth reading rather than skimming. */}
+        <ul className="mt-4 space-y-2">
+          {SUBPROCESSORS.filter((s) => s.note).map((s) => (
+            <li key={s.name} className="border-l-2 border-stone-200 pl-3 text-body text-steel">
+              <span className="font-semibold text-ink">{s.name}: </span>
+              {s.note}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm text-steel">
+          Every row above was read against the processor&rsquo;s own published terms on or after{" "}
+          {subprocessorsVerifiedSince()}. Terms change without notice; where a row says a posture could not be
+          established, that is what we found rather than a placeholder.
+        </p>
       </section>
 
       <footer className={`mt-10 ${PANEL_SUNKEN} ${CARD_PAD} space-y-2`}>

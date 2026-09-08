@@ -37,12 +37,36 @@ export const CLASSIFICATION = {
   // Art. 6(3)'s "narrow procedural task" derogation is the standard escape hatch. Saying
   // out loud that it does not apply is a stronger signal than any badge.
   derogation:
-    "The Art. 6(3) derogation for narrow procedural or preparatory tasks does not apply: the score is designed to shape advance and reject outcomes.",
-  providerRole: "The KandiDate vendor is the provider (Art. 16). A customer running KandiDate on their candidates is a deployer (Art. 26). A self-hosted install that substantially modifies the system makes that customer a provider too.",
-  appliesFrom: "2 August 2026",
+    "The Art. 6(3) derogation for narrow procedural or preparatory tasks does not apply: the score is designed to shape advance and reject outcomes. That covers the job-description builder too — it derives the required qualifications itself and then feeds the scorer that ranks CVs against them, which is not a narrow procedural task.",
+  providerRole: "The KandiDate vendor is the provider (Art. 16). A customer running KandiDate on their candidates is a deployer (Art. 26). A self-hosted install that substantially modifies the system makes that customer a provider too. Being open-source changes none of it: Art. 2(12) does not exempt a high-risk system, and distributing free of charge is still placing on the market.",
+  // MOVED, and this page said the old date for six weeks after it moved. Regulation
+  // (EU) 2026/1744 — the AI Omnibus, in force 27 July 2026 — deferred the Annex III
+  // high-risk obligations from 2 August 2026 to 2 December 2027. Verified 2026-09-08
+  // against the Commission's own page (digital-strategy.ec.europa.eu, "Regulatory
+  // framework on AI"), not against a summary.
+  //
+  // The deferral is a runway, not a reprieve, and it is NOT a general one — see
+  // `inForceNow` for the parts that bind today. Naming the amending act is itself the
+  // credibility signal: a reader can check it.
+  appliesFrom: "2 December 2027",
+  deferredBy: "Regulation (EU) 2026/1744 (the AI Omnibus), in force 27 July 2026, moved this from 2 August 2026.",
+  inForceNow:
+    "Three parts of the Act were not deferred and bind today: the Art. 5 prohibitions (since 2 February 2025), the Art. 50 transparency duties (since 2 August 2026, with synthetic-content marking required from 2 December 2026), and Art. 4 AI literacy. GDPR and national employment law were never on this clock at all.",
 } as const;
 
 export const OBLIGATIONS: readonly ObligationRow[] = [
+  {
+    // The table used to start at Art. 9 — i.e. it opened at the obligations that were
+    // still 15 months away and never mentioned the one part of the Act that has been
+    // enforceable since February 2025. Art. 5 is also the article kp most cleanly
+    // satisfies, and a breach of it is uncurable: no oversight gate, no disclosure and
+    // no human review saves a system that infers emotion in a hiring context.
+    article: "Art. 5",
+    title: "Prohibited practices",
+    posture: "enforced",
+    summary:
+      "KandiDate does not infer emotions, and the design makes it hard to start. Voice interviews persist a transcript and never the audio, so no tone, pace or hesitation signal reaches scoring at all; the rubric scores stated competencies against verbatim evidence quotes; and the scorecard prompt instructs the model to rate substance and never to lower a rating for nerves, filler words, silences or an accent. It also runs no biometric categorisation and holds no demographic data.",
+  },
   {
     article: "Art. 9",
     title: "Risk-management system",
@@ -69,9 +93,19 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     article: "Art. 12",
     title: "Record-keeping",
     posture: "enforced",
+    // THIS ROW USED TO OVER-CLAIM, on the one line a procurement reviewer reads most
+    // closely. It asserted "tamper-evident … HMAC-SHA256, key rotation, anti-downgrade"
+    // unconditionally, while the engineering doc said the opposite is the DEFAULT: the
+    // seal is HMAC-SHA256 only when KP_DECISION_HMAC_KEY is set, and the reference
+    // deploy does not set it. Keyless rows carry key_id "" and a plain SHA-256, which
+    // decision-record-store.test.ts pins as "a keyless chain ACCEPTS an insider
+    // re-hash". The strength is a deployment property, so the sentence has to be
+    // conditional — the mechanism is enforced, the KEYING is the operator's act.
+    // The truncation limit is stated for the same reason: verifyDecisionChain holds no
+    // head or length commitment, so deleting the newest rows still verifies ok:true.
     summary:
-      "Every decision is sealed into a per-tenant, tamper-evident hash chain (HMAC-SHA256, key rotation, anti-downgrade). Each record carries the acting party — distinguishing an automated actor from a named human — the policy and prompt version, the candidate reference, the rationale and the decisive inputs. A bulk rejection wave will not seal at all where the deployment cannot name the person who approved it, and the audit table marks every record whose actor is a role rather than a person. Group evaluations additionally seal the model's own reasoning about the candidate it ranked first.",
-    gap: "A separate audit log for authentication, configuration and export events, and signed SIEM export, are outstanding.",
+      "Every decision is sealed into a per-tenant hash chain. Each record carries the acting party — distinguishing an automated actor from a named human — the policy and prompt version, the candidate reference, the rationale and the decisive inputs. A bulk rejection wave will not seal at all where the deployment cannot name the person who approved it, and the audit table marks every record whose actor is a role rather than a person. Group evaluations additionally seal the model's own reasoning about the candidate it ranked first. Where the operator configures a signing key the chain is HMAC-SHA256 with key rotation and downgrade protection; with no key configured it is a plain hash chain, and the product reports which of the two a given chain actually has rather than assuming the stronger one.",
+    gap: "Two limits a reviewer should know. An unkeyed chain is integrity-evident but not tamper-resistant against someone with write access to the database, and the reference deployment ships unkeyed — turning the key on is an operator action that cannot retroactively re-seal existing records. Separately, the chain commits to no head or length, so truncating the newest records is not yet detectable at any key setting. A separate audit log for authentication, configuration and export events, and signed SIEM export, are also outstanding.",
   },
   {
     article: "Art. 13",
@@ -123,13 +157,53 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     summary: "The product operationalizes the deployer's duties: named oversight assignment, logs that are never pruned, and the candidate information duties.",
     gap: "Until instructions-for-use ships, deployers must determine their own duties — worker-representative notification, fundamental-rights impact assessment for public bodies, and log retention of at least six months.",
   },
+  {
+    // Art. 50 was missing from this table while being the one part of the Act with a
+    // deadline inside 2026. It is also the article where the OPEN-SOURCE build is the
+    // worse case rather than the safer one: a keyless self-hosted install speaks
+    // through a local voice model that marks nothing at all.
+    article: "Art. 50",
+    title: "Transparency about AI interaction",
+    posture: "partial",
+    summary:
+      "Candidates are told an AI is involved before it reads their data. The disclosure renders on every public candidate surface — both apply paths, the work-sample case, the voice interview, scheduling, the offer and the status page — and the voice portal additionally marks the conversation as AI-led. Voice interviews cannot start at all until consent is recorded, enforced on the server both when the credentials are minted and again when the transcript is persisted.",
+    gap: "Synthetic-content marking under Art. 50(2) is not implemented. The AI interviewer generates synthetic speech and nothing in the product marks that audio as machine-generated in a machine-readable way; a self-hosted install using a local voice model is the most exposed case. This obligation is already in force, with the marking requirement landing on 2 December 2026.",
+  },
 ] as const;
+
+/** Does the processor use what kp sends it to train models, in the configuration kp
+ *  actually produces? "depends_on_tier" is the honest answer where a free key and a
+ *  billed key have materially different terms — which is the Gemini trap. */
+export type TrainsOnInputs = "no" | "yes" | "yes_unless_opted_out" | "depends_on_tier";
+
+/** Whether the processor can be reached in an EU region, and at what cost. */
+export type EuRegion = "available" | "enterprise_only" | "not_offered" | "customer_tenant" | "self_hosted" | "n/a";
+
+/** What class of data this processor can see. Presenting a billing processor and a
+ *  model provider in one undifferentiated list overstates the first and understates
+ *  the second. */
+export type DataClass = "candidate_pii" | "operator_only" | "none";
 
 export type Subprocessor = {
   name: string;
   purpose: string;
   /** True when the customer can run kp without this processor ever being engaged. */
   optional: boolean;
+  /** What this processor can see. Not every row on this page handles candidate data. */
+  dataClass: DataClass;
+  trainsOnInputs: TrainsOnInputs;
+  /** Plain-language retention, as the processor's own terms state it. */
+  retention: string;
+  euRegion: EuRegion;
+  /** The Chapter V basis for a transfer out of the EEA, where one is needed. */
+  transferBasis: "scc" | "dpf" | "eea" | "customer_owned" | "none" | "unknown";
+  /** The day a human last opened this row's sources. A single page-level review date
+   *  cannot express that one row was checked and another was not — which is exactly
+   *  how the applicability date above stayed wrong through a review. */
+  verifiedOn: string;
+  /** Stated where a row's honest answer does not fit a column — the free-tier trap,
+   *  the endpoint that decides the jurisdiction, the substitute that engages nobody. */
+  note?: string;
   /** The `LLM_PROVIDERS` ids (llm-config.ts) this row discloses — empty for a row
    *  that is not a model route (billing, voice, mail). The trust page never renders
    *  these; they exist so a TEST can hold the table against the product's own
@@ -143,11 +217,88 @@ export type Subprocessor = {
 // the set kp can engage, not a set it always does. Self-hosted installs can reduce it to
 // nothing external (KP_OFFLINE blocks egress in both the TS and Python halves).
 export const SUBPROCESSORS: readonly Subprocessor[] = [
-  { name: "Anthropic", purpose: "Text model for analysis, reasoning and evaluation", optional: true, providers: ["anthropic", "claude_cli"] },
-  { name: "OpenAI", purpose: "Text model; realtime voice interviews", optional: true, providers: ["openai"] },
-  { name: "Google (Gemini)", purpose: "Document/CV analysis and web-grounded salary lookups", optional: true, providers: ["gemini"] },
-  { name: "Azure OpenAI", purpose: "Text model on the customer's own Azure deployment", optional: true, providers: ["azure_openai"] },
-  { name: "OpenRouter", purpose: "Model proxy when the customer routes through it", optional: true, providers: ["openrouter"] },
+  {
+    name: "Anthropic (API)",
+    purpose: "Text model for analysis, reasoning and evaluation, on a commercial API key",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "no",
+    retention: "30 days for abuse monitoring; longer for content its safety systems flag",
+    euRegion: "not_offered",
+    transferBasis: "scc",
+    verifiedOn: "2026-09-08",
+    note: "Processing is US or global; the first-party API offers no EU region, and KandiDate ships no adapter for the cloud resellers that do.",
+    providers: ["anthropic"],
+  },
+  {
+    // SPLIT OUT of the Anthropic row, because collapsing the two into one line hid a
+    // materially different legal posture behind an identical name. The CLI runs under
+    // whatever account the operator logged in with; on a consumer plan that means no
+    // processing agreement at all and, unless the operator turned it off, training.
+    name: "Anthropic (Claude Code CLI)",
+    purpose: "The same models reached through the local Claude Code command-line tool instead of an API key",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "depends_on_tier",
+    retention: "30 days on a business plan; five years on a personal plan with training left on",
+    euRegion: "not_offered",
+    transferBasis: "unknown",
+    verifiedOn: "2026-09-08",
+    note: "This route runs under the operator's own Anthropic account. A personal Free, Pro or Max subscription carries no data-processing agreement, excludes business use, and defaults to using inputs for training — so it belongs on a development machine, not on a deployment that reads real candidates.",
+    providers: ["claude_cli"],
+  },
+  {
+    name: "OpenAI",
+    purpose: "Text model; realtime voice interviews",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "no",
+    retention: "30 days for abuse monitoring; removable under an approved zero-retention agreement",
+    euRegion: "available",
+    transferBasis: "scc",
+    verifiedOn: "2026-09-08",
+    note: "European processing requires a Europe-region project; KandiDate does not select one for you.",
+    providers: ["openai"],
+  },
+  {
+    name: "Google (Gemini)",
+    purpose: "Document/CV analysis and web-grounded salary lookups",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "depends_on_tier",
+    retention: "Up to 55 days on a billed key; free-tier content is retained and reviewed",
+    euRegion: "not_offered",
+    transferBasis: "dpf",
+    verifiedOn: "2026-09-08",
+    note: "Read this row before uploading a real CV. On a FREE API key Google may use submitted content — including the CV file — to improve its products, and human reviewers may read it; operators in the EEA, Switzerland and the UK are covered by the paid terms even on a free key, and everyone else is not. KandiDate cannot tell the two kinds of key apart. This is also the one route that carries the whole CV file, and the web-grounded lookups on that path cannot be placed under a zero-retention agreement.",
+    providers: ["gemini"],
+  },
+  {
+    name: "Azure OpenAI",
+    purpose: "Text model on the customer's own Azure deployment",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "no",
+    retention: "30 days for abuse monitoring, or none under approved modified abuse monitoring",
+    euRegion: "customer_tenant",
+    transferBasis: "customer_owned",
+    verifiedOn: "2026-09-08",
+    note: "The strongest posture available here: the deployment is the customer's own, in the region they choose, under their own agreement with Microsoft. Candidate data never touches a KandiDate contract.",
+    providers: ["azure_openai"],
+  },
+  {
+    name: "OpenRouter",
+    purpose: "Model proxy when the customer routes through it",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "no",
+    retention: "Set by whichever provider serves the request, not by OpenRouter",
+    euRegion: "enterprise_only",
+    transferBasis: "unknown",
+    verifiedOn: "2026-09-08",
+    note: "A router, not a destination. It forwards to one of many upstream providers, so naming it does not name the company that actually processed a candidate's CV; an operator who routes through it has to enumerate and permit the downstream providers themselves.",
+    providers: ["openrouter"],
+  },
   // The disclosure gap the coverage test below this list was written for: a `qwen`
   // adapter shipped with a configurable remote endpoint and never reached the table.
   {
@@ -155,12 +306,81 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
     purpose:
       "Text model on the OpenAI-compatible endpoint the customer configures; pointed at a self-hosted Qwen endpoint it engages no third party",
     optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "no",
+    retention: "Not published in a form we could verify",
+    euRegion: "available",
+    transferBasis: "scc",
+    verifiedOn: "2026-09-08",
+    note: "The endpoint decides the jurisdiction. There is a Frankfurt region that keeps processing inside the EU; the mainland-China endpoints do not, and an operator pointing there should expect to justify it in their own transfer assessment.",
     providers: ["qwen"],
   },
-  { name: "ElevenLabs", purpose: "Voice interview speech", optional: true, providers: [] },
-  { name: "Polar", purpose: "Subscription billing and checkout", optional: true, providers: [] },
-  { name: "Customer-configured mail relay", purpose: "Candidate email delivery; with none configured, messages stay in a local outbox and are never sent", optional: true, providers: [] },
-  { name: "Self-hosted model server", purpose: "On-box or in-VPC model (Ollama, vLLM, an OpenAI-compatible proxy)", optional: true, providers: ["ollama"] },
+  {
+    name: "ElevenLabs",
+    purpose: "Voice interview speech",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "yes_unless_opted_out",
+    retention: "Two years by default for interview audio and transcripts, configurable per agent",
+    euRegion: "enterprise_only",
+    transferBasis: "scc",
+    verifiedOn: "2026-09-08",
+    note: "Interview audio lives in the operator's ElevenLabs account, not in KandiDate, so an erasure inside KandiDate does not reach it. Lower the agent's retention to match your consent window and turn audio saving off, or use the self-hosted voice route below.",
+    providers: [],
+  },
+  {
+    // Named because it answers the two ElevenLabs rows above outright, and because a
+    // page that lists a processor without naming its substitute is only half honest.
+    name: "Self-hosted voice server",
+    purpose: "Speech recognition and synthesis on the operator's own hardware, in place of a hosted voice provider",
+    optional: true,
+    dataClass: "none",
+    trainsOnInputs: "no",
+    retention: "Whatever the operator's own storage keeps",
+    euRegion: "self_hosted",
+    transferBasis: "eea",
+    verifiedOn: "2026-09-08",
+    note: "Engages no third party. Voice interviews run against a local speech stack instead of a hosted one.",
+    providers: [],
+  },
+  {
+    name: "Polar",
+    purpose: "Subscription billing and checkout",
+    optional: true,
+    dataClass: "operator_only",
+    trainsOnInputs: "no",
+    retention: "As their billing terms provide",
+    euRegion: "not_offered",
+    transferBasis: "scc",
+    verifiedOn: "2026-09-08",
+    note: "Sees the account holder's billing identity and never candidate data. It engages a payment processor of its own, in the United States and Ireland. Self-hosted installs are unmetered and engage it not at all.",
+    providers: [],
+  },
+  {
+    name: "Customer-configured mail relay",
+    purpose: "Candidate email delivery; with none configured, messages stay in a local outbox and are never sent",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "no",
+    retention: "Set by whichever relay the operator configures",
+    euRegion: "customer_tenant",
+    transferBasis: "customer_owned",
+    verifiedOn: "2026-09-08",
+    providers: [],
+  },
+  {
+    name: "Self-hosted model server",
+    purpose: "On-box or in-VPC model (Ollama, vLLM, an OpenAI-compatible proxy)",
+    optional: true,
+    dataClass: "none",
+    trainsOnInputs: "no",
+    retention: "Whatever the operator's own storage keeps",
+    euRegion: "self_hosted",
+    transferBasis: "eea",
+    verifiedOn: "2026-09-08",
+    note: "No candidate data leaves the operator's infrastructure. Pointing the same setting at a HOSTED endpoint instead re-engages a third party that this table cannot name for you.",
+    providers: ["ollama"],
+  },
 ];
 
 /** The day a human last read this page against the code. A compliance posture with
@@ -168,13 +388,26 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
  *  reviewed this month from one abandoned two years ago, and "2 August 2026" on the
  *  page is the AI Act's application date, not ours. Bump it when the posture rows,
  *  the classification or the subprocessor table are re-checked — not on a refactor. */
-export const LAST_REVIEWED = "2026-09-04";
+export const LAST_REVIEWED = "2026-09-08";
+
+/** The day the REGULATION was last read, as opposed to the code. These are two
+ *  different acts of review and conflating them is how this page kept publishing a
+ *  superseded applicability date through a code review that was itself honest: the
+ *  reviewer checked the claims against the repository, which had not changed, while
+ *  the law underneath them had. Each subprocessor row carries its own `verifiedOn`
+ *  for the same reason. */
+export const REGULATION_CHECKED = "2026-09-08";
 
 export const DATA_RIGHTS = [
-  "Candidate data is never sold or shared, and is never used to train models.",
+  "Candidate data is never sold, and KandiDate itself never trains models on it. What a model provider does with what it is sent is that provider's policy, and the table below states it per provider — including the one case where a free API key means the provider may.",
   "Provider API keys are stored write-only and encrypted at rest; they never round-trip to a browser.",
   "Every candidate gets a token link to see the data and the decisions held about them, and to request erasure.",
-  "Erasure runs as a single transaction across the profile, transcripts, scorecards and the outbox.",
+  // SCOPED, because it was not true of voice. The erasure transaction is genuinely
+  // single-transaction and genuinely reaches every table it names — but a hosted voice
+  // provider holds its own copy of the interview in the operator's account, and no
+  // transaction inside this product can reach into that.
+  "Erasure runs as a single transaction across everything KandiDate stores: the profile, transcripts, scorecards, offers and the outbox. It cannot reach a copy held by a third party — a hosted voice provider keeps its own recording of an interview under its own retention setting, which the operator must configure separately or avoid by running voice locally.",
+  "The usage ledger records how many tokens a call cost and what it was for. It stores no prompt, no model response and no candidate reference.",
   "An offline mode blocks all model egress, for air-gapped and in-VPC installs.",
 ] as const;
 
@@ -191,6 +424,43 @@ export function postureSummary(rows: readonly ObligationRow[] = OBLIGATIONS): Re
   const out: Record<Posture, number> = { enforced: 0, partial: 0, not_yet: 0 };
   for (const r of rows) out[r.posture] += 1;
   return out;
+}
+
+/** Plain-English labels for the posture columns. Kept beside the data rather than in
+ *  the component so the wording is reviewable as text, like everything else here. */
+export const TRAINS_LABEL: Record<TrainsOnInputs, string> = {
+  no: "No",
+  yes: "Yes",
+  yes_unless_opted_out: "Yes, unless you opt out",
+  depends_on_tier: "Depends on your plan",
+};
+
+export const EU_REGION_LABEL: Record<EuRegion, string> = {
+  available: "Available",
+  enterprise_only: "Enterprise plans only",
+  not_offered: "Not offered",
+  customer_tenant: "Your own tenant",
+  self_hosted: "Your own hardware",
+  "n/a": "—",
+};
+
+export const DATA_CLASS_LABEL: Record<DataClass, string> = {
+  candidate_pii: "Candidate data",
+  operator_only: "Billing details only",
+  none: "Stays on your infrastructure",
+};
+
+/** True where a row's answer is one a reader should not skim past — it drives the
+ *  emphasis on the page. Anything that may train on candidate data, or whose posture
+ *  we could not establish, is worth a second look by definition. */
+export function needsAttention(s: Subprocessor): boolean {
+  return s.dataClass === "candidate_pii" && (s.trainsOnInputs !== "no" || s.transferBasis === "unknown");
+}
+
+/** The oldest per-row verification date — the honest headline for the table, since a
+ *  table is only as current as its stalest row. */
+export function subprocessorsVerifiedSince(rows: readonly Subprocessor[] = SUBPROCESSORS): string {
+  return rows.map((r) => r.verifiedOn).sort()[0] ?? LAST_REVIEWED;
 }
 
 /** Weakest first. A trust page that opens with its strongest row is a sales page; the

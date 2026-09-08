@@ -5,12 +5,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CLASSIFICATION,
+  DATA_RIGHTS,
   DISCLAIMER,
   LAST_REVIEWED,
   OBLIGATIONS,
+  REGULATION_CHECKED,
   SUBPROCESSORS,
   byWeakestFirst,
+  needsAttention,
   postureSummary,
+  subprocessorsVerifiedSince,
 } from "./trust-posture.ts";
 import { INTERVIEW_PLAN_DEFAULT } from "./decision-config-schema.ts";
 import { HUMAN_ROLE_ACTOR, isNamedApprover, PLACEHOLDER_APPROVER } from "./auth/operator-approver.ts";
@@ -260,6 +264,230 @@ test("the trust page states when it was last reviewed", () => {
   // application date, which is not the same fact.
   assert.match(LAST_REVIEWED, /^\d{4}-\d{2}-\d{2}$/, "the review date must be an ISO day, rendered from a constant");
   assert.ok(Number.isFinite(Date.parse(LAST_REVIEWED)), "the review date must parse");
+});
+
+/* ── The applicability date, and the review that did not catch it ────────────
+ *
+ * This page published "2 August 2026" for six weeks after Regulation (EU)
+ * 2026/1744 moved the Annex III obligations to 2 December 2027 — through a code
+ * review that bumped LAST_REVIEWED and left the date standing, because reading
+ * the claims against the repository is not the same act as reading them against
+ * the law. Both halves are pinned below: the date itself, and the second review
+ * field whose absence is what let the first one rot. */
+
+test("the applicability date is the deferred one, and names the act that deferred it", () => {
+  assert.match(CLASSIFICATION.appliesFrom, /2027/, "the Annex III obligations moved to 2 December 2027");
+  assert.doesNotMatch(
+    CLASSIFICATION.appliesFrom,
+    /2 August 2026/,
+    "the superseded date must not come back — it was published, indexed and wrong",
+  );
+  assert.match(
+    CLASSIFICATION.deferredBy,
+    /2026\/1744/,
+    "naming the amending regulation is the credibility signal: a reader can check it",
+  );
+});
+
+test("the deferral is never stated without the obligations that were NOT deferred", () => {
+  // A page that reports only the later date is true and misleading at once. The
+  // prohibitions have bound since February 2025 and the transparency duties since
+  // August 2026, and those are the ones that can bite a deployment today.
+  assert.match(CLASSIFICATION.inForceNow, /Art\. 5/, "the prohibitions bind now and must be said to");
+  assert.match(CLASSIFICATION.inForceNow, /Art\. 50/, "the transparency duties bind now too");
+  assert.match(
+    CLASSIFICATION.inForceNow,
+    /GDPR/,
+    "GDPR was never on the AI Act's clock; a reader must not infer a reprieve from it",
+  );
+});
+
+test("the regulation review date is separate from the code review date", () => {
+  for (const [label, value] of [
+    ["LAST_REVIEWED", LAST_REVIEWED],
+    ["REGULATION_CHECKED", REGULATION_CHECKED],
+  ] as const) {
+    assert.match(value, /^\d{4}-\d{2}-\d{2}$/, `${label} must be an ISO day`);
+    assert.ok(Number.isFinite(Date.parse(value)), `${label} must parse`);
+  }
+});
+
+test("the classification covers the JD builder, not only the scorer", () => {
+  // The builder derives the required qualifications itself and then feeds the scorer
+  // that ranks CVs against them, so it is inside the high-risk system rather than a
+  // low-risk sibling. It looks like the safe part of the product, which is exactly
+  // why its absence from the classification is the omission a reviewer would probe.
+  assert.match(
+    CLASSIFICATION.derogation,
+    /job-description|qualification/i,
+    "the JD builder must be named in the classification, not left implicit",
+  );
+});
+
+/* ── Art. 12: the seal's strength is a deployment property, not a given ──────
+ *
+ * The row asserted "tamper-evident … HMAC-SHA256, key rotation, anti-downgrade"
+ * unconditionally while the reference deploy ships with no key at all — a plain
+ * hash chain that decision-record-store.test.ts pins as accepting an insider
+ * re-hash. The engineering doc corrected that sentence; the public page did not,
+ * on the row a procurement reviewer reads most closely. */
+
+test("the Art. 12 row does not claim an HMAC the default deployment does not have", () => {
+  const art12 = OBLIGATIONS.find((r) => r.article === "Art. 12")!;
+  const claimsHmac = /HMAC/i.test(art12.summary);
+  if (claimsHmac) {
+    assert.match(
+      art12.summary,
+      /where the operator configures|with no key|when a key/i,
+      "an HMAC claim must be conditioned on the key being configured — it is not the default",
+    );
+  }
+  assert.ok(art12.gap, "the Art. 12 row must keep naming its limits");
+  assert.match(
+    art12.gap!,
+    /unkeyed|no key|not tamper-resistant/i,
+    "the keyless default is the case most deployments are in; it cannot be left to inference",
+  );
+  assert.match(
+    art12.gap!,
+    /truncat/i,
+    "truncation of the newest records is undetectable at any key setting, and the page must say so",
+  );
+});
+
+/* ── Art. 5 and Art. 50: the two articles in force TODAY ─────────────────────
+ *
+ * The table used to start at Art. 9 — it opened at obligations 15 months away
+ * and never mentioned either article that was already enforceable. One of them
+ * (Art. 5) is the one kp most cleanly satisfies, and a breach of it cannot be
+ * cured by any safeguard, so claiming it is free and losing it is fatal. */
+
+test("the two articles already in force are both on the page", () => {
+  const byArticle = Object.fromEntries(OBLIGATIONS.map((r) => [r.article, r]));
+  assert.ok(byArticle["Art. 5"], "the prohibitions have bound since February 2025 and must be stated");
+  assert.ok(byArticle["Art. 50"], "the transparency duties have bound since August 2026");
+});
+
+test("the Art. 5 row rests on the two facts that actually make it true", () => {
+  const art5 = OBLIGATIONS.find((r) => r.article === "Art. 5")!;
+  assert.equal(art5.posture, "enforced", "kp does not infer emotion; under-claiming this costs as much as over-claiming");
+  // Both halves are load-bearing and both are cheap to lose: persisting audio would
+  // put a prosodic signal in reach, and dropping the prompt's no-delivery clause
+  // would let the model score affect from a transcript.
+  assert.match(art5.summary, /transcript/i, "transcript-only storage is half the reason this row is true");
+  assert.match(
+    art5.summary,
+    /never the audio|no audio|not the audio/i,
+    "never storing the audio is what keeps a prosodic signal out of scoring entirely",
+  );
+  assert.match(
+    art5.summary,
+    /nerves|filler|substance/i,
+    "the scorecard prompt's rate-substance-not-delivery instruction is the other half",
+  );
+});
+
+test("the Art. 50 row admits the marking gap rather than resting on the disclosure", () => {
+  const art50 = OBLIGATIONS.find((r) => r.article === "Art. 50")!;
+  assert.notEqual(art50.posture, "enforced", "synthetic-content marking is not implemented");
+  assert.match(art50.gap!, /mark/i, "the missing half is marking, and it has a 2026 deadline");
+});
+
+/* ── The subprocessor table has to answer a reviewer's real questions ────────
+ *
+ * It rendered as two columns of prose — name and purpose — on the page whose
+ * whole thesis is checkable claims. The posture fields below are the checkable
+ * part, and the per-row verifiedOn exists because ONE page-level review date is
+ * what let the applicability date above go stale unnoticed. */
+
+test("every subprocessor declares a full, dated posture", () => {
+  for (const s of SUBPROCESSORS) {
+    assert.match(s.verifiedOn, /^\d{4}-\d{2}-\d{2}$/, `${s.name}: verifiedOn must be an ISO day`);
+    assert.ok(s.retention.length > 5, `${s.name}: retention must say something a reader can use`);
+    if (s.dataClass === "candidate_pii" && s.trainsOnInputs !== "no") {
+      // The whole point of the column. A processor that may train on candidate data
+      // is the one row a reader must not skim, so it owes an explanation.
+      assert.ok(
+        s.note && s.note.length > 40,
+        `${s.name} may train on candidate data and must explain the circumstances`,
+      );
+    }
+  }
+});
+
+test("a processor that only sees billing data is not presented as one that sees candidates", () => {
+  // Listing a payment processor and a model provider identically overstates the first
+  // and understates the second; both directions mislead.
+  const classes = new Set(SUBPROCESSORS.map((s) => s.dataClass));
+  assert.ok(classes.has("candidate_pii"), "model providers see candidate data and the table must say so");
+  assert.ok(classes.has("operator_only"), "billing is a different data class and must be distinguished");
+});
+
+test("the routes that engage nobody are disclosed too", () => {
+  // A page that lists a hosted processor without naming its self-hosted substitute is
+  // only half honest — and for kp the substitute is the differentiator.
+  const selfHosted = SUBPROCESSORS.filter((s) => s.euRegion === "self_hosted");
+  assert.ok(selfHosted.length >= 2, "both the local model server and the local voice server must be named");
+  for (const s of selfHosted) {
+    assert.equal(s.dataClass, "none", `${s.name} keeps data on the operator's own infrastructure`);
+  }
+});
+
+test("the CLI route is disclosed separately from the metered API", () => {
+  // These were ONE row called "Anthropic". They are the same models under materially
+  // different terms: an API key carries a processing agreement, a personal
+  // subscription does not and may train on what it is sent. One row hid that.
+  const cli = SUBPROCESSORS.find((s) => s.providers.includes("claude_cli"));
+  const api = SUBPROCESSORS.find((s) => s.providers.includes("anthropic"));
+  assert.ok(cli && api, "both Anthropic routes must be disclosed");
+  assert.notEqual(cli!.name, api!.name, "collapsing them into one row hides the posture difference");
+  assert.match(
+    cli!.note!,
+    /no data-processing agreement|no processing agreement|carries no data-processing/i,
+    "the missing processing agreement is the whole point of splitting the row",
+  );
+});
+
+test("the table's stated freshness is its stalest row", () => {
+  const since = subprocessorsVerifiedSince();
+  for (const s of SUBPROCESSORS) {
+    assert.ok(s.verifiedOn >= since, `${s.name} is older than the date the page advertises`);
+  }
+});
+
+test("attention is drawn to the rows that deserve it, and only those", () => {
+  for (const s of SUBPROCESSORS) {
+    if (s.dataClass !== "candidate_pii") {
+      assert.equal(needsAttention(s), false, `${s.name} sees no candidate data and must not be flagged`);
+    }
+  }
+});
+
+/* ── The erasure claim had to be scoped ──────────────────────────────────────
+ *
+ * "Erasure runs as a single transaction across the profile, transcripts,
+ * scorecards and the outbox" is true of what kp stores and false of the copy a
+ * hosted voice provider keeps in the operator's own account under its own
+ * retention setting. No transaction in this product can reach that. */
+
+test("the erasure claim is scoped to what kp actually holds", () => {
+  const erasure = DATA_RIGHTS.find((line) => /erasure runs/i.test(line));
+  assert.ok(erasure, "the erasure claim must still be made — it is a real and unusual control");
+  assert.match(
+    erasure!,
+    /third part|cannot reach|voice provider/i,
+    "the claim must name the copy it cannot reach, or it is false for every voice interview",
+  );
+});
+
+test("the training claim distinguishes what kp does from what a provider may do", () => {
+  const training = DATA_RIGHTS.find((line) => /train/i.test(line));
+  assert.ok(training, "the no-training claim is worth making");
+  assert.doesNotMatch(
+    training!,
+    /never used to train models\.?$/i,
+    "an unqualified never is not kp's to make: a free-tier provider key can put candidate data into training",
+  );
 });
 
 test("the disclaimer refuses to claim certified conformance", () => {
