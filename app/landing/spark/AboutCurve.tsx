@@ -81,6 +81,16 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
     stiffness: 110,
     damping: 26
   });
+  /* The illustration peaks 10% larger than the copy beside it: same scroll
+     progress, same keyframe positions, same spring — only the centre value
+     moves (1 → 1.1), so the in-ramp and the linear post-peak decrease keep
+     their shape. Measured at 1024/1280/1440: the widest art card at 1.1 still
+     stops short of the number-dot column, so the extra size costs no collision
+     and `scale` never reflows. The text column stays on `scale`. */
+  const artScale = useSpring(useTransform(scrollYProgress, [0, 0.5, 1], [0.74, 1.1, 0.82]), {
+    stiffness: 110,
+    damping: 26
+  });
   const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.1, 1, 1, 0.15]);
   const dot = useTransform(scrollYProgress, [0.34, 0.5], [0, 1]);
   const artLeft = index % 2 === 0;
@@ -99,7 +109,7 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
           than the copy beside them. One class on the art column lifts every
           size inside the card; see app/globals.css. */}
       <motion.div
-        style={{ scale, opacity }}
+        style={{ scale: artScale, opacity }}
         className={`${ART_TYPE_SCALE} flex justify-center ${artLeft ? "md:order-1" : "md:order-3"}`}
       >
         <StepArt stepKey={stepKey} color={color} />
@@ -224,12 +234,29 @@ export default function AboutCurve() {
       </div>
 
       {/* ── Closing ────────────────────────────────────────────── */}
-      <section className="mx-auto mt-8 max-w-3xl px-6 text-center">
+      {/* `xl:max-w-4xl`, not the 3xl the rest of the page uses: the closing line
+          must never wrap, and the widest locale needs more room than 3xl gives.
+          Measured on this page at text-lg/Gabarito — de 771px, en 563, cs 520,
+          fr 499 — against 720px of content inside a 3xl section. 4xl carries
+          848px, so the 771 fits with room to spare; the widening is `xl:`-only
+          so nothing below the breakpoint moves. */}
+      <section className="mx-auto mt-8 max-w-3xl px-6 text-center xl:max-w-4xl">
         <p className={`${HAND} text-xl text-[#526b4f]`}>{t("closing.tag")}</p>
         <h2 className={`${DISPLAY} mt-2 text-4xl font-extrabold sm:text-5xl`}>
           {t.rich("closing.title", { br: () => <br />, emph: coralEmph })}
         </h2>
-        <p className="mx-auto mt-4 max-w-lg text-lg text-[#42606f]">{t("closing.body")}</p>
+        {/* One row from `xl` up in all four locales; below it the line wraps at
+            the readable `max-w-lg` measure rather than pushing the page into a
+            horizontal scroll (the de string alone is 771px — wider than a 768px
+            tablet viewport, so nowrap below `lg` would overflow outright).
+            `xl` and not `lg`, because the viewport is not the only limit: the
+            `fixed` SectionRail below reserves the rightmost 200px from `lg` up,
+            and a centred 771px line clears it only from vw ≥ 1171 — at 1024 its
+            tail runs under the rail. 1280 gives 55px of clearance, 1440 gives
+            135px. */}
+        <p className="mx-auto mt-4 max-w-lg text-lg text-[#42606f] xl:max-w-none xl:whitespace-nowrap">
+          {t("closing.body")}
+        </p>
         <button
           type="button"
           onClick={onSignIn}
