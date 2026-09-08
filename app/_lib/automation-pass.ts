@@ -324,9 +324,13 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
     // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
     // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
     // every fairness-cleared reject is queued for a human on the Decisions gate.
-    // Advances, holds and alerts stay autonomous. This keeps the candidate
-    // disclosure ("nothing adverse is decided automatically") true for EVERY
-    // candidate, unconditionally; the former opt-in `auto` reject mode is gone.
+    // Advances, holds and alerts stay autonomous. This is what makes the candidate
+    // disclosure's ONE absolute — "a rejection is always a person's: no setting can
+    // hand that decision to the machine" (messages/*.json aiDisclosure.body) — true
+    // unconditionally; the former opt-in `auto` reject mode is gone. The disclosure
+    // used to claim more than this, and the surrounding "nothing adverse is decided
+    // automatically" wording was retired with G16 precisely because advance and offer
+    // ARE delegable; do not restore an absolute here that only the reject path earns.
     for (const d of decisions) {
       if (!d.entryId) continue;
       // One decision's apply failing (a comm throw from dispatchRejection, a
