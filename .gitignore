@@ -93,6 +93,9 @@ data/piper/
 # DURABLE outcome of a bench sweep belongs in docs/features/app-master/README.md
 # or docs/BACKLOG.md, which stay tracked. The committed fixture the report tests
 # render lives in scripts/app-master-bench/__fixtures__/, not here.
+# `/bench/intake-sim/` (the JD-grounded intake simulation's --dump directory,
+# docs/development/testing-and-evaluation.md) is covered by the same rule for the
+# same reason — transcripts and briefs for 50 simulated roles are a run artifact.
 /bench/
 # …and the tenure files the driver writes: they name a live hire on ONE machine's
 # Personas + kp DB pair, so a committed one is a handle nobody else can resolve.
@@ -117,6 +120,7 @@ scripts/app-master-bench/tenures/*.json
 # Links are machine state; the declarations live in .ai/manifest.yaml (`skills:` and `knowledge.domains`).
 /.claude/skills/architect
 /.claude/skills/conform
+/.claude/skills/cx
 /.claude/skills/consult
 /.claude/skills/explorer
 /.claude/skills/i18n-translate

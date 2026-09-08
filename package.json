@@ -41,6 +41,7 @@
     "test:eval:match": "python -m pipeline.jobfit.eval.matching_eval --strict",
     "test:eval:automation": "python -m pipeline.jobfit.eval.automation_eval --no-llm --strict",
     "test:eval:fault": "python -m pipeline.jobfit.eval.fault_eval --strict",
+    "test:eval:intake-sim": "python -m pipeline.jobfit.eval.intake_eval --jd-corpus data/seed_calibration/jobs.json --roles 50 --strict",
     "test:eval:ci": "npm run test:eval:match && npm run test:eval:automation && npm run test:eval:fault",
     "i18n:check": "node scripts/i18n-check.mjs",
     "docs:check": "node scripts/docs/check-adrs.mjs",

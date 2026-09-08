@@ -34,25 +34,10 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         report, ok = run_eval(bank, no_llm=True, cap=30, color=False)
         self.assertTrue(ok, f"market-breadth intake eval failed:\n{report}")
 
-    def test_every_scenario_carries_both_standing_assertions(self) -> None:
-        # role_family and requirements_captured are CONDITIONAL in check_dialog:
-        # it emits them only when the scenario declares a family / dealbreakers,
-        # and run_eval's all(checks.values()) then passes over the smaller set.
-        # So a scenario added without those keys loses both assertions silently
-        # and still reports PASS. Both are meant to be STANDING coverage (B11,
-        # L2-NEW-2) — pin the declaration for every scenario in BOTH banks so
-        # the coverage cannot be dropped by omitting a key.
-        from pipeline.jobfit.eval.intake_scenarios_gen import fixed_bank
-
-        for label, bank in (("curated", load_scenarios()), ("generated", fixed_bank(100))):
-            for scenario in bank:
-                name = f"{label}:{scenario['name']}"
-                family = scenario.get("family") or (scenario.get("expect") or {}).get("role_family")
-                self.assertTrue(family, f"{name} declares no family — role_family would not be asserted")
-                self.assertTrue(
-                    scenario.get("dealbreakers"),
-                    f"{name} declares no dealbreakers — requirements_captured would not be asserted",
-                )
+    # NOTE: `test_every_scenario_carries_both_standing_assertions` was defined
+    # TWICE in this class — the first definition was shadowed by the second and
+    # never ran (ruff F811). The surviving one below is the stronger of the two
+    # (it also proves the declaration materialises as a check).
 
     def test_undeclared_scenario_would_lose_both_assertions(self) -> None:
         # Proves the guard above is load-bearing rather than decorative: strip
@@ -189,6 +174,242 @@ class IntakeEvalOfflineTest(unittest.TestCase):
             for r in brief["requirements"]
         ]
         self.assertTrue(check_dialog(scenario, turns, narrowed, shape, done)["requirements_captured"])
+
+
+class JdGroundedCorpusTest(unittest.TestCase):
+    """The JD-grounded simulation: real postings → requestor personas → the same invariants."""
+
+    FIXTURE = [
+        {
+            "id": "p1",
+            "title": "Registered Nurse",
+            "company": "Ward Health",
+            "description": "You will run the morning ward round and keep patient documentation audit-ready.",
+            "requirements": ["Valid nursing licence", "Patient documentation experience"],
+            "seniority": "medior",
+        },
+        {
+            # No role_family declared and no requirements[] — the loader must
+            # fill the family from title+body through the product's classifier.
+            "id": "p2",
+            "title": "Senior Java Backend Engineer",
+            "company": "Bank",
+            "jd_text": "You will design and operate resilient Java microservices. "
+            "Required: 6 years experience with Java and Spring Boot. Knowledge of Kafka is required.",
+        },
+        {
+            "id": "p3",
+            "title": "registered   nurse",  # same normalized title as p1 — must not be picked twice
+            "company": "Other Ward",
+            "role_family": "healthcare_clinical",
+            "description": "Ward nursing. Requirements: valid nursing licence.",
+        },
+    ]
+
+    def _fixture_path(self, tmp: str) -> str:
+        import json as _json
+        import os
+
+        path = os.path.join(tmp, "jobs.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            _json.dump(self.FIXTURE, handle)
+        return path
+
+    def test_loader_fills_family_and_appends_requirements(self) -> None:
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_corpus import load_jd_corpus
+
+        with tempfile.TemporaryDirectory() as tmp:
+            postings = load_jd_corpus(self._fixture_path(tmp))
+        self.assertEqual([p.id for p in postings], ["p1", "p2", "p3"])
+        # requirements[] land in the body as bullets — that is where the persona reads must-haves from.
+        self.assertIn("- Valid nursing licence", postings[0].body)
+        # An undeclared family is classified, not defaulted blindly to the schema default.
+        self.assertEqual(postings[1].role_family, "software_engineering")
+        self.assertEqual(postings[1].seniority, "senior")  # read off the title when undeclared
+        self.assertEqual(postings[0].role_family, "healthcare_clinical")
+
+    def test_stratification_is_distinct_and_round_robin(self) -> None:
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_corpus import load_jd_corpus, stratified_distinct_roles
+
+        with tempfile.TemporaryDirectory() as tmp:
+            postings = load_jd_corpus(self._fixture_path(tmp))
+        picked = stratified_distinct_roles(postings, 5)
+        # p3 repeats p1's normalized title — a corpus of 3 yields 2 distinct roles.
+        self.assertEqual([p.id for p in picked], ["p1", "p2"])
+        # Round-robin: one family, then the next, before a family's second pick.
+        self.assertEqual([p.role_family for p in picked], ["healthcare_clinical", "software_engineering"])
+        # Deterministic: same input, same order, every run.
+        self.assertEqual(picked, stratified_distinct_roles(list(reversed(postings)), 5))
+
+    def test_persona_prompt_is_a_fenced_requestor(self) -> None:
+        from pipeline.jobfit.eval.intake_corpus import Posting
+        from pipeline.jobfit.eval.intake_jd_persona import golden_answers_from_jd, requestor_prompt_from_jd
+
+        posting = Posting(
+            id="p", title="Registered Nurse", company="Ward Health", role_family="healthcare_clinical",
+            seniority="medior", lang="en", body="You will run the ward round.\n\n- Valid nursing licence",
+        )
+        prompt = requestor_prompt_from_jd(posting, "en")
+        self.assertIn("<<<JOB_DESCRIPTION", prompt)
+        self.assertIn("Valid nursing licence", prompt)
+        self.assertIn("HIRING MANAGER", prompt)
+        self.assertIn("ONE topic per reply", prompt)
+        self.assertIn("not decided yet", prompt)  # the JD-is-silent rule
+        self.assertIn("NEVER invent", prompt)
+        answers = golden_answers_from_jd(posting)
+        self.assertTrue(all(a.strip() for a in answers))
+        self.assertEqual(answers, golden_answers_from_jd(posting))  # deterministic
+        self.assertIn("Registered Nurse", answers[1])
+
+    def test_corpus_run_passes_every_invariant_offline(self) -> None:
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_eval import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            code = main(["--no-llm", "--jd-corpus", self._fixture_path(tmp), "--roles", "2", "--strict"])
+        self.assertEqual(code, 0)
+
+    def test_resume_skips_recorded_roles(self) -> None:
+        import json as _json
+        import os
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_eval import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = os.path.join(tmp, "dump")
+            argv = ["--no-llm", "--jd-corpus", self._fixture_path(tmp), "--roles", "2", "--dump", dump]
+            self.assertEqual(main(argv), 0)
+            with open(os.path.join(dump, "run.json"), encoding="utf-8") as handle:
+                first = _json.load(handle)
+            self.assertEqual(first["ran"], 2)
+            self.assertEqual(first["resumed"], 0)
+            self.assertTrue(os.path.exists(os.path.join(dump, "transcripts", first["rows"][0]["name"] + ".md")))
+            self.assertTrue(os.path.exists(os.path.join(dump, "briefs", first["rows"][0]["name"] + ".json")))
+            self.assertEqual(main(argv + ["--resume"]), 0)
+            with open(os.path.join(dump, "run.json"), encoding="utf-8") as handle:
+                second = _json.load(handle)
+        self.assertEqual(second["ran"], 0, "every recorded role must be skipped on resume")
+        self.assertEqual(second["resumed"], 2)
+        self.assertEqual([r["name"] for r in second["rows"]], [r["name"] for r in first["rows"]])
+
+    def test_http_client_refuses_a_public_host(self) -> None:
+        # No network: the guard fires in the constructor, before any request.
+        from pipeline.jobfit.eval.intake_http_client import IntakeHttpClient, IntakeHttpError
+
+        with self.assertRaises(IntakeHttpError) as caught:
+            IntakeHttpClient("https://kp.example.com", allowed_hosts=frozenset())
+        self.assertIn("not a loopback/private kp server", str(caught.exception))
+        # …and an explicitly allowlisted host is accepted.
+        self.assertEqual(
+            IntakeHttpClient("https://kp.example.com/", allowed_hosts={"kp.example.com"}).base_url,
+            "https://kp.example.com",
+        )
+        # Loopback is always legal.
+        self.assertEqual(IntakeHttpClient("http://localhost:3000").base_url, "http://localhost:3000")
+
+    def test_http_client_is_sealed_offline_except_loopback(self) -> None:
+        import unittest.mock
+
+        from pipeline.jobfit.eval.intake_http_client import IntakeHttpClient, IntakeHttpError
+
+        with unittest.mock.patch.dict("os.environ", {"KP_OFFLINE": "1"}):
+            IntakeHttpClient("http://127.0.0.1:3000")  # on-box hop stays legal
+            with self.assertRaises(IntakeHttpError) as caught:
+                IntakeHttpClient("http://10.0.0.5:3000", allowed_hosts={"10.0.0.5"})
+        self.assertIn("KP_OFFLINE", str(caught.exception))
+
+    def test_simulate_http_runs_the_whole_product_path(self) -> None:
+        # No network and no server: a fake client backed by the SAME deterministic
+        # engine the route runs. What is under test here is the sequence the HTTP
+        # mode performs — create → attach the JD → one message per answer →
+        # promote — and that check_dialog grades an HTTP session exactly like an
+        # in-process one.
+        from pipeline.jobfit.eval.intake_corpus import Posting
+        from pipeline.jobfit.eval.intake_eval import check_dialog
+        from pipeline.jobfit.eval.intake_http_client import simulate_http
+        from pipeline.jobfit.eval.intake_jd_persona import scenario_from_posting
+        from pipeline.jobfit.intake import opening_turn, run_intake_turn
+
+        posting = Posting(
+            id="p", title="Registered Nurse", company="Ward Health", role_family="healthcare_clinical",
+            seniority="medior", lang="en",
+            body="You will run the morning ward round.\n\n- Valid nursing licence\n- Patient documentation",
+        )
+        scenario = scenario_from_posting(posting, "en", "power_unit")
+
+        class FakeClient:
+            base_url = "http://localhost:3000"
+
+            def __init__(self) -> None:
+                self.attachments: list[tuple[str, str]] = []
+                self.promotes = 0
+                self.turns: list[dict] = []
+                self.brief: dict = {}
+
+            def create(self, lang: str = "en") -> dict:
+                opener = opening_turn(lang)
+                self.turns = [{"role": "interviewer", "text": opener["reply"]}]
+                self.brief = opener["brief"]
+                return {"id": "sess-1", "transcript": [{"role": "interviewer", "text": opener["reply"]}],
+                        "brief": opener["brief"], "shape": opener["shape"]}
+
+            def attach(self, session_id: str, title: str, text: str) -> dict:
+                self.attachments.append((title, text))
+                return {"attachments": self.attachments}
+
+            def message(self, session_id: str, text: str) -> dict:
+                result = run_intake_turn(None, self.turns, self.brief, text, lang="en")
+                self.turns.append({"role": "candidate", "text": text})
+                self.turns.append({"role": "interviewer", "text": result["reply"]})
+                self.brief = result["brief"]
+                return result
+
+            def promote(self, session_id: str, **_kw) -> dict:
+                self.promotes += 1
+                return {"slug": "registered-nurse", "jobId": "job-1", "taskId": "t1"}
+
+        client = FakeClient()
+        result = simulate_http(client, None, posting, scenario, cap=20)
+        self.assertEqual(len(client.attachments), 1, "the JD must ride along as exactly one note")
+        self.assertIn("Valid nursing licence", client.attachments[0][1])
+        self.assertTrue(result["done"])
+        self.assertEqual(client.promotes, 1)
+        self.assertEqual(result["promoted"]["slug"], "registered-nurse")
+        checks = check_dialog(scenario, result["turns"], result["brief"], result["shape"], result["done"])
+        self.assertTrue(all(checks.values()), checks)
+
+    def test_http_client_retries_a_429_then_succeeds(self) -> None:
+        import io
+        import unittest.mock
+        import urllib.error
+
+        from pipeline.jobfit.eval.intake_http_client import IntakeHttpClient
+
+        client = IntakeHttpClient("http://localhost:3000", sleep=lambda _s: None)
+        throttled = urllib.error.HTTPError(
+            "http://localhost:3000/api/intake", 429, "Too Many Requests",
+            {"Retry-After": "2"}, io.BytesIO(b'{"code":"TOO_MANY_REQUESTS"}'),
+        )
+
+        class _Response:
+            def read(self):
+                return b'{"id":"s1"}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_a):
+                return False
+
+        with unittest.mock.patch("urllib.request.urlopen", side_effect=[throttled, _Response()]) as opened:
+            self.assertEqual(client.create("en"), {"id": "s1"})
+        self.assertEqual(opened.call_count, 2)
 
 
 if __name__ == "__main__":

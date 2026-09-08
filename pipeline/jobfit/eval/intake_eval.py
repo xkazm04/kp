@@ -64,6 +64,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -71,7 +72,7 @@ from .._cli import configure_stdio
 from ..intake import opening_turn, run_intake_turn
 from ..rolebrief import BRIEF_PROVENANCE, coerce_role_brief
 from ._style import _make_styler, should_color
-from .runner import glyph, verdict_banner
+from .runner import glyph, verdict_banner, write_text_lf
 
 SCENARIOS_PATH = Path(__file__).with_name("intake_scenarios.json")
 END_TOKEN = "<<END>>"
@@ -268,6 +269,229 @@ def run_eval(scenarios: list[dict], *, no_llm: bool, cap: int, color: bool) -> t
     return "\n".join(lines) + "\n", ok
 
 
+# --- JD-grounded corpus mode ------------------------------------------------
+#
+# The banks above are WRITTEN scenarios. This mode reads REAL job descriptions
+# (eval/intake_corpus.py), turns each into a requestor persona grounded in that
+# document (eval/intake_jd_persona.py) and runs the same dialog + the same
+# `check_dialog` invariants — either in-process, or against a running kp server
+# (`--http`), where the session is also PROMOTED so the run proves the whole
+# product path and not just the engine.
+
+
+DEFAULT_ROLES = 50
+DUMP_RUN_FILE = "run.json"
+
+
+def _load_previous(dump: str | None) -> dict[str, dict]:
+    """Rows a previous run recorded as complete, keyed by scenario name."""
+    if not dump:
+        return {}
+    path = Path(dump) / DUMP_RUN_FILE
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return {}
+    return {r["name"]: r for r in data.get("rows", []) if isinstance(r, dict) and r.get("complete") and r.get("name")}
+
+
+def _write_dump(dump: str, rows: list[dict], meta: dict[str, Any]) -> None:
+    root = Path(dump)
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    (root / "briefs").mkdir(parents=True, exist_ok=True)
+    payload = {
+        **meta,
+        "rows": [{k: v for k, v in row.items() if k not in ("turns", "brief")} for row in rows],
+    }
+    write_text_lf(root / DUMP_RUN_FILE, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    for row in rows:
+        if row.get("turns"):
+            lines = [
+                f"# {row['name']}",
+                "",
+                f"- posting: **{row.get('posting_id') or '—'}** · title: **{row.get('title') or '—'}**",
+                f"- JD family: **{row.get('jd_role_family') or '—'}** · captured family: **{row.get('family') or '—'}**",
+                f"- shape: **{row.get('shape') or '—'}** · agent turns: **{row.get('agent_turns')}** · done: **{row.get('done')}**",
+                "- checks: "
+                + ", ".join(k + "=" + ("PASS" if v else "FAIL") for k, v in (row.get("checks") or {}).items()),
+            ]
+            if row.get("promoted"):
+                lines.append(f"- promoted: **{row['promoted'].get('slug')}** (job {row['promoted'].get('jobId')})")
+            elif row.get("promote_error"):
+                lines.append(f"- promote refused: `{row['promote_error']}`")
+            lines += ["", "## Transcript", ""]
+            for turn in row["turns"]:
+                who = "Interviewer" if turn["role"] == "interviewer" else "Requestor"
+                lines += [f"**{who}:** {turn['text']}", ""]
+            write_text_lf(root / "transcripts" / f"{row['name']}.md", "\n".join(lines))
+        if row.get("brief") is not None:
+            write_text_lf(
+                root / "briefs" / f"{row['name']}.json",
+                json.dumps(row["brief"], indent=2, ensure_ascii=False) + "\n",
+            )
+
+
+def run_corpus_eval(
+    pairs: list[tuple[Any, dict]],
+    *,
+    no_llm: bool,
+    cap: int,
+    color: bool,
+    dump: str | None = None,
+    resume: bool = False,
+    http_base: str | None = None,
+    wall_minutes: float | None = None,
+) -> tuple[str, bool, int]:
+    """Run JD-grounded scenarios. Returns (report, ok, rows_reported).
+
+    ``pairs`` is (Posting, scenario). Both transports produce the same row
+    shape and are graded by the SAME ``check_dialog``; only the ``promoted``
+    column is HTTP-only (there is nothing to promote in-process).
+    """
+    st = _make_styler(color)
+    agent_provider = None
+    persona_provider = None
+    if not no_llm:
+        from ..llm.registry import resolve_provider
+
+        agent_provider = resolve_provider("role_intake", timeout=120)
+        if agent_provider is not None and not agent_provider.available():
+            agent_provider = None
+        persona_provider = agent_provider
+
+    client = None
+    if http_base:
+        from .intake_http_client import IntakeHttpClient, simulate_http
+
+        client = IntakeHttpClient(http_base)
+
+    previous = _load_previous(dump) if resume else {}
+    rows: list[dict] = []
+    ran = 0
+    skipped = 0
+    stopped_early = False
+    started = time.monotonic()
+    budget = wall_minutes * 60 if wall_minutes else None
+
+    for posting, scenario in pairs:
+        name = scenario["name"]
+        if name in previous:
+            rows.append(previous[name])
+            skipped += 1
+            continue
+        if budget is not None and time.monotonic() - started > budget:
+            stopped_early = True
+            break
+        if client is not None:
+            result = simulate_http(client, persona_provider, posting, scenario, cap=cap)
+            turns, brief, shape, done = result["turns"], result["brief"], result["shape"], result["done"]
+            promoted, promote_error = result["promoted"], result["promote_error"]
+        else:
+            turns, brief, shape, done = simulate(agent_provider, persona_provider, scenario, cap=cap)
+            promoted, promote_error = None, None
+        # GROUND TRUTH for role_family differs by mode, on purpose. Offline the
+        # answers ARE the deterministic script, so the truth is what this
+        # pipeline classifies from them (scenario["family"], computed once in
+        # intake_jd_persona). Live, the requestor improvises from the document,
+        # so the only honest comparand is the POSTING's own family — grading a
+        # live dialog against a deterministic replay's classification measures
+        # the replay, not the agent.
+        graded = scenario
+        if persona_provider is not None and scenario.get("jd_role_family"):
+            graded = {**scenario, "family": scenario["jd_role_family"]}
+        checks = check_dialog(graded, turns, brief, shape, done, strict_shape=persona_provider is None)
+        rows.append(
+            {
+                "name": name,
+                "complete": True,
+                "posting_id": scenario.get("posting_id"),
+                "title": scenario.get("title"),
+                "company": scenario.get("company"),
+                "jd_role_family": scenario.get("jd_role_family"),
+                # what the dialog actually captured / what role_family was graded against
+                "family": (brief or {}).get("roleFamily") or (brief or {}).get("role_family"),
+                "expected_family": graded.get("family"),
+                "shape": shape,
+                "done": done,
+                "agent_turns": len([t for t in turns if t["role"] == "interviewer"]),
+                "checks": checks,
+                "promoted": promoted,
+                "promote_error": promote_error,
+                "turns": turns,
+                "brief": brief,
+            }
+        )
+        ran += 1
+
+    passed = sum(1 for r in rows if all((r.get("checks") or {}).values()))
+    ok = bool(rows) and passed == len(rows) and not stopped_early
+    mode = "offline (deterministic agent + JD-derived answers)" if persona_provider is None else "live"
+    if client is not None:
+        mode += f" · HTTP {client.base_url}"
+    keys = sorted({k for r in rows for k in (r.get("checks") or {})})
+    lines = ["# JD-grounded role-intake simulation", ""]
+    parts = [f"{passed}/{len(rows)} roles PASS", f"{ran} run", mode]
+    if skipped:
+        parts.append(f"{skipped} resumed")
+    if stopped_early:
+        parts.append(f"STOPPED at the {wall_minutes:g}-minute budget")
+    lines.append(verdict_banner(parts, passed=ok, s=st))
+    header = ["role", "family", "turns"] + keys + (["promoted"] if client is not None else [])
+    lines += ["", "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    for row in rows:
+        checks = row.get("checks") or {}
+        cells = [
+            row["name"],
+            str(row.get("family") or "—"),
+            str(row.get("agent_turns") or "—"),
+            *[glyph(checks.get(k), st) if k in checks else glyph(None) for k in keys],
+        ]
+        if client is not None:
+            promoted = row.get("promoted") or {}
+            cells.append(promoted.get("slug") or (row.get("promote_error") or "—"))
+        lines.append("| " + " | ".join(cells) + " |")
+    drifted = [r for r in rows if r.get("jd_role_family") and r.get("family") != r.get("jd_role_family")]
+    if drifted:
+        lines += [
+            "",
+            f"**Family drift** — {len(drifted)}/{len(rows)} dialogs captured a family the posting did not "
+            "declare (a signal about the intake dialog, not a failed check):",
+            "",
+        ]
+        lines += [f"- `{r['name']}`: JD says {r['jd_role_family']} · dialog captured {r['family']}" for r in drifted]
+    report = "\n".join(lines) + "\n"
+
+    if dump:
+        _write_dump(
+            dump,
+            rows,
+            {
+                "mode": mode,
+                "cap": cap,
+                "roles": len(pairs),
+                "ran": ran,
+                "resumed": skipped,
+                "passed": passed,
+                "stopped_early": stopped_early,
+            },
+        )
+    return report, ok, len(rows)
+
+
+def corpus_pairs(
+    corpus_path: str, roles: int, lang: str, shape: str = "power_unit"
+) -> list[tuple[Any, dict]]:
+    """(Posting, scenario) pairs for ``roles`` distinct titles from ``corpus_path``."""
+    from .intake_corpus import load_jd_corpus, stratified_distinct_roles
+    from .intake_jd_persona import scenario_from_posting
+
+    postings = load_jd_corpus(corpus_path, lang=lang)
+    selection = stratified_distinct_roles(postings, roles)
+    return [(p, scenario_from_posting(p, lang, shape)) for p in selection]
+
+
 def main(argv: list[str] | None = None) -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(description="Quality-gate the role-intake dialog agent (text plane).")
@@ -283,12 +507,84 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--cap", type=int, default=DEFAULT_CAP)
     parser.add_argument(
+        "--jd-corpus",
+        metavar="PATH",
+        help="JD-GROUNDED mode: read real job descriptions from this JSON corpus "
+        "(data/seed_calibration/jobs.json, data/seed_jobs/jobs.json) and simulate one "
+        "requestor per distinct role instead of running the written banks.",
+    )
+    parser.add_argument(
+        "--roles",
+        type=int,
+        default=DEFAULT_ROLES,
+        metavar="N",
+        help=f"how many distinct roles to simulate from --jd-corpus (default {DEFAULT_ROLES})",
+    )
+    parser.add_argument("--lang", default="en", help="dialog language for the simulated sessions (default en)")
+    parser.add_argument(
+        "--shape",
+        choices=("power_unit", "story"),
+        default="power_unit",
+        help="the session shape the JD-grounded persona plays (default power_unit — the short script)",
+    )
+    parser.add_argument(
+        "--dump",
+        metavar="DIR",
+        help="write run.json + transcripts/<role>.md + briefs/<role>.json for the JD-grounded run",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="skip roles already recorded as complete in <DUMP>/run.json (needs --dump)",
+    )
+    parser.add_argument(
+        "--http",
+        metavar="BASE_URL",
+        help="drive the RUNNING kp server's intake API (create → attach JD → messages → promote) "
+        "instead of calling the dialog engine in-process. Loopback/private hosts only.",
+    )
+    parser.add_argument(
+        "--wall-minutes",
+        type=float,
+        metavar="M",
+        help="stop cleanly after M minutes and report the partial run (exit 2 if nothing ran)",
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
         help="Exit non-zero if a gate fails. Without it the report still prints FAIL and exits 0 "
              "(the suite-wide contract in eval/__main__.py).",
     )
     args = parser.parse_args(argv)
+
+    if args.jd_corpus:
+        try:
+            pairs = corpus_pairs(args.jd_corpus, args.roles, args.lang, args.shape)
+        except (OSError, ValueError) as exc:
+            print(f"could not read the JD corpus: {exc}", file=sys.stderr)
+            return 2
+        if not pairs:
+            print(f"no usable postings in {args.jd_corpus}", file=sys.stderr)
+            return 2
+        try:
+            report, ok, reported = run_corpus_eval(
+                pairs,
+                no_llm=args.no_llm,
+                cap=args.cap,
+                color=should_color(),
+                dump=args.dump,
+                resume=args.resume,
+                http_base=args.http,
+                wall_minutes=args.wall_minutes,
+            )
+        except Exception as exc:  # noqa: BLE001 — a harness that cannot run exits 2, never 1
+            print(f"the JD-grounded run could not start: {exc}", file=sys.stderr)
+            return 2
+        print(report)
+        if not reported:
+            print("no roles were simulated", file=sys.stderr)
+            return 2
+        return 1 if (args.strict and not ok) else 0
 
     if args.generated:
         from .intake_scenarios_gen import fixed_bank

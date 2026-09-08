@@ -43,6 +43,7 @@ or a live server was not running:
 | `automation_eval --judge` | a live Claude CLI judge, and a judge model that is **not** the engine's (below) |
 | `bench:app-master` | a running kp **and** Personas (or `--stub-personas`) |
 | `test:e2e` (full) | provider keys for the Analyze suite |
+| `test:eval:intake-sim` | the JD-grounded intake simulation. LIVE by default (both sides are LLMs — keyless that is the subscription-billed Claude CLI); add `--no-llm` for the deterministic pass, `--http` for a running kp server. A **probe**, never a gate: it is not in `test:eval:ci` ([below](#jd-grounded-intake-simulation)) |
 
 The bench is the interesting case: it cannot run in CI, but its verdict is still
 machine-readable rather than prose. `npm run bench:gate` compares the sweep
@@ -395,6 +396,91 @@ scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixt
 breakdown print as a markdown table; `--json` swaps in machine-readable output for
 CI; `--strict` exits non-zero when any threshold is missed. Use it after every prompt
 or taxonomy change to catch drift.
+
+## JD-grounded intake simulation
+
+`pipeline/jobfit/eval/intake_eval.py --jd-corpus` runs the role-intake dialog
+against roles taken from OUTSIDE the repository: a corpus of real job
+descriptions (`data/seed_calibration/jobs.json`, 100 EN postings;
+`data/seed_jobs/jobs.json`, 120 Czech-market postings), one simulated hiring
+requestor per posting. Three moving parts:
+
+| Module | Does |
+| --- | --- |
+| `eval/intake_corpus.py` | reads a JSON corpus into `Posting` records (title/company/family/seniority/lang/body; `requirements[]` appended as bullets, a missing family filled by `classify_role_family`) and picks N **distinct** titles round-robin across families, deterministically |
+| `eval/intake_jd_persona.py` | that posting → a requestor persona (live system prompt) + the deterministic answers the keyless script asks for (`--no-llm`) — see the persona's rules in [role-intake-research.md §4.1](role-intake-research.md#41-the-jd-grounded-requestor-breadth-not-behavior) |
+| `eval/intake_http_client.py` | the same dialog against a RUNNING kp server: create → attach the JD as a note → message per turn → **promote** |
+
+Every mode is graded by the same `check_dialog` invariants as the written banks
+(completed, one_question_per_turn, no_premature_end, grounded_readback,
+brief_core, shape, role_family, requirements_captured).
+
+```bash
+# offline / deterministic — 50 roles, no provider, ~15s
+python -m pipeline.jobfit.eval.intake_eval --no-llm \
+  --jd-corpus data/seed_calibration/jobs.json --roles 50 --strict
+
+# live, in-process (both sides LLM; keyless = the subscription-billed Claude CLI)
+npm run test:eval:intake-sim -- --roles 5 --dump bench/intake-sim/live
+
+# against the real API, promoting every session into a JD + Job
+KP_BENCH_MODE=1 KP_DB_PATH=data/kp-sim.sqlite npm run dev      # terminal 1
+python -m pipeline.jobfit.eval.intake_eval --jd-corpus data/seed_calibration/jobs.json \
+  --roles 50 --http http://localhost:3000 --dump bench/intake-sim/http \
+  --wall-minutes 90 --resume                                    # terminal 2
+```
+
+Notes that bite:
+
+- **Use a throwaway DB.** The HTTP mode WRITES — 50 sessions and 50 promoted
+  jobs land in whatever `KP_DB_PATH` the server opened, which is the operator's
+  own demo corpus by default. `KP_BENCH_MODE=1` (server env) raises the
+  message/promote rate limits to 600/10min for the sweep; `POST /api/intake`
+  (session create) is **not** raised — it stays 30/10min, so a 50-role run meets
+  a 429 there and the client waits out its `Retry-After` rather than failing.
+- **Dumps are run artifacts**, not results: `<DIR>/run.json` (per-role checks,
+  turn count, captured vs JD family, promoted slug), `<DIR>/transcripts/<role>.md`
+  and `<DIR>/briefs/<role>.json`. `/bench/` is gitignored; `--resume` re-reads
+  `run.json` and skips roles already recorded as complete, which is what makes a
+  long live sweep restartable.
+- **`--wall-minutes M`** stops cleanly at the budget and reports the partial run.
+- **Exit codes** follow the suite contract above: 0 ran (and passed under
+  `--strict`), 1 a gate failed under `--strict`, 2 the run could not be performed
+  (unreadable corpus, no usable postings, a server that could not be driven,
+  nothing simulated).
+- **Family drift is a finding, not a failure.** The `role_family` invariant's
+  ground truth differs by mode on purpose: offline the answers ARE the
+  deterministic script, so the truth is what this pipeline classifies from them;
+  live the requestor improvises from the document, so the comparand is the
+  POSTING's own family (grading a live dialog against a deterministic replay
+  measures the replay). Either way the report lists every role where the
+  captured family and the posting's disagree. On the committed 50-role
+  selection (seed_calibration, `--no-llm`, 2026-09-08) that is **24 of 50**, and
+  the dialogs land in 13 families where the postings declared 11 — the honest
+  measurement of how much of a JD's family survives being re-elicited through a
+  six-question conversation.
+
+**What the first live probe found (2026-09-08, Claude CLI, 2 roles,
+in-process).** Every dialog-reliability invariant held — the sessions completed,
+never machine-gunned questions, never ended early, and closed with a grounded
+read-back that named the role and its conditions (10–11 agent turns). Three
+checks failed on BOTH roles, and each names a different defect on the extraction
+side of `intake.py`:
+
+- `brief_core` / `requirements_captured` — the closing read-back recited the
+  three dealbreakers the requestor had just narrowed down, while the extracted
+  brief came back with **`requirements: []`**. That is the L2-NEW-2 shape (hard
+  conditions living in prose instead of in the brief), reproduced live against
+  real job descriptions.
+- `role_family` — the captured family was **right** (`creative_design` and
+  `customer_support`, both matching the posting) but
+  `spineProvenance.role_family` was never stamped, so the classification is
+  indistinguishable from the schema default. The invariant's anti-vacuous-pass
+  clause is what caught it: the deterministic path stamps `inferred` there, the
+  LLM path does not.
+
+Which is exactly what a breadth probe is for — none of the three is visible from
+the written banks.
 
 Beyond the golden set: `eval/matching_eval.py` scores the matching engine,
 `eval/automation_eval.py` scores the automation tasks

@@ -140,6 +140,39 @@ intake agent. Personas × the shape axis:
 | `derailer` | drifts into reorg politics | gentle agenda pull-back, relevant detail still harvested as facets |
 | `llm_era_confused` | "do we even need a junior now that we have Copilot?" | agent leads: proposes role archetypes, marks them `inferred` |
 
+### 4.1 The JD-grounded requestor (breadth, not behavior)
+
+The bank above covers how a requestor BEHAVES. It says nothing about how many
+different roles the dialog survives, and a hand-written bank cannot: the
+scenarios are written by the same people who wrote the agent. The JD-grounded
+persona closes that gap by taking the role from outside — one real job
+description per simulated requestor (`pipeline/jobfit/eval/intake_jd_persona.py`,
+corpus loader `intake_corpus.py`).
+
+The document is the persona's PRIVATE knowledge — the interviewer has not read
+it — and the rules are exactly the registry standard's requestor
+(`knowledge/recruiting/role-definition/role-intake-conversation`):
+
+**It may:** answer in the JD's own words; quote a line when asked about it; name
+the hard requirements the JD states when asked what is non-negotiable; confirm
+or correct a read-back in one sentence.
+
+**It may not:** invent a fact the document does not carry — anything the JD is
+silent about (compensation, budget, team size, start date) is answered
+"not decided yet", which is a real answer and must be captured as such, not
+coaxed into a number; dump or summarise the whole JD; answer more than one topic
+per reply (≤ 3 sentences); play the interviewer or the candidate.
+
+Two properties make the run a measurement rather than a demo. The roles are
+**stratified and distinct** — one posting per normalized title, round-robin
+across role families, deterministic — so "50 roles" is the same 50 on every
+machine. And the family the run asserts is the one the **pipeline itself**
+classified from the dialog; the posting's own `role_family` rides alongside, so
+a disagreement between the two shows up in the report as *family drift* (a
+signal about the intake dialog) instead of disappearing into a passing check.
+
+How to run it: [testing-and-evaluation.md](testing-and-evaluation.md#jd-grounded-intake-simulation).
+
 ## 5. Session-shape heuristic (`power_unit` vs `story`)
 
 Deterministic triage after the first 1–2 requestor turns; LLM may override
