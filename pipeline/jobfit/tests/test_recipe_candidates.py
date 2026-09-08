@@ -300,6 +300,9 @@ class CliTest(unittest.TestCase):
     def test_strict_exits_one_when_a_record_violates_the_schema(self) -> None:
         original = rc._candidates_for_posting
 
+        # The stand-in must keep the real signature so `--strict` sees exactly one
+        # injected bad record through the seam it uses in production; the unused
+        # parameters are the seam's, hence the suppression on the line below.
         def broken(posting, registry, *, provider):  # noqa: ARG001 - injection seam
             records, note = original(posting, registry, provider=provider)
             bad = dict(records[0])
@@ -344,15 +347,20 @@ class CliTest(unittest.TestCase):
 
 
 class RegistryReadTest(unittest.TestCase):
-    def test_a_real_checkout_is_read_when_present(self) -> None:
+    def test_the_default_registry_path_is_read_or_named_as_absent(self) -> None:
+        # The sibling checkout is machine-specific (present on the operator's box,
+        # absent in CI), so the test asserts WHICHEVER branch applies rather than
+        # skipping: a real checkout is read and yields the live vocabulary; no
+        # checkout yields the embedded fallback and the summary header says so.
         path = (rc.REPO_ROOT / rc.DEFAULT_REGISTRY).resolve()
         registry = rc.load_registry(path)
-        if not path.is_dir():
+        if path.is_dir():
+            self.assertIn(str(path), registry.source)
+            self.assertIn("code-review", registry.topics.get("software_engineering", ()))
+            self.assertIn("crm", registry.connector_types)
+        else:
             self.assertIn("embedded fallback", registry.source)
-            self.skipTest("no ai-registry checkout beside this repo")
-        self.assertIn(str(path), registry.source)
-        self.assertIn("code-review", registry.topics.get("software_engineering", ()))
-        self.assertIn("crm", registry.connector_types)
+            self.assertEqual(registry.topics, dict(rc.FALLBACK_TOPICS))
 
     def test_the_embedded_fallback_says_so(self) -> None:
         registry = rc.load_registry(rc.REPO_ROOT / "definitely-not-a-registry")
