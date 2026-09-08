@@ -651,6 +651,14 @@ export const REFUSAL_ERRORS = {
   INTAKE_CLOSED: "This intake session is closed. Re-open it to keep talking.",
   /** An empty message, spoken utterance or attachment note (400). */
   INTAKE_TEXT_REQUIRED: "There is nothing to send. Write or say something first.",
+  /** A job-posting id does not resolve in this workspace (404). */
+  POSTING_NOT_FOUND: "That job posting could not be found.",
+  /** A URL import reached the page but got no readable text back, or the fetch failed (502). */
+  POSTING_FETCH_FAILED: "The page could not be fetched or did not contain readable text.",
+  /** A paste/URL import carried fewer than the minimum characters of body text (400). */
+  POSTING_TEXT_REQUIRED: "The posting needs at least a few paragraphs of text.",
+  /** KP_OFFLINE seals egress, so a URL import is refused up front rather than failing inside fetch (503). */
+  POSTING_OFFLINE: "This server runs offline, so a page cannot be fetched. Paste the text instead.",
   /** A brief edit whose payload did not resolve to a brief at all (400). Not
    *  INTAKE_BRIEF_EMPTY: that one is about the SESSION's brief having nothing in
    *  it yet, this one is about the request body. */

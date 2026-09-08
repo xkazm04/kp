@@ -1478,6 +1478,10 @@
     "INTAKE_BRIEF_EMPTY": "The brief is still empty. Answer the dialog first, then compose.",
     "INTAKE_CLOSED": "This intake session is closed. Re-open it to keep talking.",
     "INTAKE_TEXT_REQUIRED": "There is nothing to send. Write or say something first.",
+    "POSTING_NOT_FOUND": "That job posting could not be found.",
+    "POSTING_FETCH_FAILED": "The page could not be fetched or did not contain readable text.",
+    "POSTING_TEXT_REQUIRED": "The posting needs at least a few paragraphs of text.",
+    "POSTING_OFFLINE": "This server runs offline, so a page cannot be fetched. Paste the text instead.",
     "INTAKE_BRIEF_INVALID": "That brief edit was not in the expected shape.",
     "INTAKE_BRIEF_NOT_READY": "The brief needs a role title plus one dealbreaker or 90-day outcome before it can become a JD.",
     "INTAKE_ALREADY_OPEN": "This session is already open.",
@@ -4290,6 +4294,15 @@
           "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text.",
           "checkFailed": "Couldn't check whether voice is available. Try again, or continue in text.",
           "recheck": "Check again"
+        },
+        "voiceIo": {
+          "dictate": "Dictate",
+          "dictating": "Listening… tap to stop",
+          "dictateUnavailable": "Dictation is not set up on this server; typing works as usual.",
+          "speak": "Read aloud",
+          "speaking": "Stop reading",
+          "speakUnavailable": "Read-aloud is not set up on this server.",
+          "autoSpeak": "Read every reply aloud"
         },
         "edit": {
           "start": "Edit brief",

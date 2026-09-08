@@ -1478,6 +1478,10 @@
     "INTAKE_BRIEF_EMPTY": "Zadání je zatím prázdné. Nejdřív odpovězte v dialogu, potom skládejte.",
     "INTAKE_CLOSED": "Tato konzultace je uzavřená. Chcete-li pokračovat, otevřete ji znovu.",
     "INTAKE_TEXT_REQUIRED": "Není co odeslat. Nejdřív něco napište nebo řekněte.",
+    "POSTING_NOT_FOUND": "Tento inzerát se nepodařilo najít.",
+    "POSTING_FETCH_FAILED": "Stránku se nepodařilo načíst nebo neobsahovala čitelný text.",
+    "POSTING_TEXT_REQUIRED": "Inzerát potřebuje alespoň několik odstavců textu.",
+    "POSTING_OFFLINE": "Tento server běží offline, stránku nelze načíst. Vložte místo toho text.",
     "INTAKE_BRIEF_INVALID": "Tato úprava zadání nemá očekávaný tvar.",
     "INTAKE_BRIEF_NOT_READY": "Zadání potřebuje název role a alespoň jeden vylučovací požadavek nebo cíl na 90 dní, než z něj vznikne inzerát.",
     "INTAKE_ALREADY_OPEN": "Tato konzultace už je otevřená.",
@@ -4290,6 +4294,15 @@
           "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem.",
           "checkFailed": "Nepodařilo se zjistit, zda je hlas k dispozici. Zkuste to znovu, nebo pokračujte v textu.",
           "recheck": "Zkusit znovu"
+        },
+        "voiceIo": {
+          "dictate": "Diktovat",
+          "dictating": "Poslouchám… klepnutím zastavíte",
+          "dictateUnavailable": "Diktování není na tomto serveru nastaveno; psaní funguje jako obvykle.",
+          "speak": "Přečíst nahlas",
+          "speaking": "Zastavit čtení",
+          "speakUnavailable": "Předčítání není na tomto serveru nastaveno.",
+          "autoSpeak": "Předčítat každou odpověď"
         },
         "edit": {
           "start": "Upravit zadání",

@@ -1478,6 +1478,10 @@
     "INTAKE_BRIEF_EMPTY": "Le brief est encore vide. Répondez d'abord au dialogue, puis composez.",
     "INTAKE_CLOSED": "Cette session de cadrage est close. Rouvrez-la pour continuer à parler.",
     "INTAKE_TEXT_REQUIRED": "Il n'y a rien à envoyer. Écrivez ou dites d'abord quelque chose.",
+    "POSTING_NOT_FOUND": "Cette offre d’emploi est introuvable.",
+    "POSTING_FETCH_FAILED": "La page n’a pas pu être récupérée ou ne contenait pas de texte lisible.",
+    "POSTING_TEXT_REQUIRED": "L’offre doit contenir au moins quelques paragraphes de texte.",
+    "POSTING_OFFLINE": "Ce serveur fonctionne hors ligne, la page ne peut pas être récupérée. Collez le texte à la place.",
     "INTAKE_BRIEF_INVALID": "Cette modification du brief n'a pas la forme attendue.",
     "INTAKE_BRIEF_NOT_READY": "Le brief a besoin d'un intitulé de poste et d'au moins un critère rédhibitoire ou un objectif à 90 jours avant de devenir une offre.",
     "INTAKE_ALREADY_OPEN": "Cette session est déjà ouverte.",
@@ -4290,6 +4294,15 @@
           "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit.",
           "checkFailed": "Impossible de vérifier si la voix est disponible. Réessayez ou continuez par écrit.",
           "recheck": "Vérifier à nouveau"
+        },
+        "voiceIo": {
+          "dictate": "Dicter",
+          "dictating": "À l’écoute… touchez pour arrêter",
+          "dictateUnavailable": "La dictée n’est pas configurée sur ce serveur ; la saisie fonctionne normalement.",
+          "speak": "Lire à voix haute",
+          "speaking": "Arrêter la lecture",
+          "speakUnavailable": "La lecture à voix haute n’est pas configurée sur ce serveur.",
+          "autoSpeak": "Lire chaque réponse à voix haute"
         },
         "edit": {
           "start": "Modifier le brief",

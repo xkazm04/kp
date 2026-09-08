@@ -715,6 +715,10 @@ const ROUTES: RouteSpec[] = [
     rel: "./intake/[id]/promote/route.ts",
     key: "`intake-promote:${clientIpFrom(request.headers)}`",
     limit: 20,
+    // Same server-env-gated raise as the message route: the 50-role intake
+    // simulation promotes every session, which the human budget would throttle.
+    limitSrc: "benchMode ? 600 : 20",
+    limitDef: 'const benchMode = process.env.KP_BENCH_MODE === "1";',
     // Moved onto the refusal chokepoint with the rest of this surface: the
     // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
     // the server's English string (api-contracts.md §1.1).

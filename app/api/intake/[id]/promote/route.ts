@@ -44,7 +44,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // throttles, so the budget and the ordering stay contract-locked. That spec's
     // `expensive` marker is the INSERT CALL below including its opening brace, not
     // the bare function name - the name also appears in prose above the limiter.
-    if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+    // 20/10min is far above human pace (a promote produces a JD to read). KP_BENCH_MODE=1
+    // (server env, local sweeps only) raises it to 600 so a scripted 50-role intake
+    // simulation can promote every session; the raise is never reachable from a request.
+    const benchMode = process.env.KP_BENCH_MODE === "1";
+    if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: benchMode ? 600 : 20, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 

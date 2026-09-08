@@ -1478,6 +1478,10 @@
     "INTAKE_BRIEF_EMPTY": "Das Briefing ist noch leer. Beantworten Sie zuerst den Dialog, dann komponieren Sie.",
     "INTAKE_CLOSED": "Dieses Intake-Gespräch ist abgeschlossen. Öffnen Sie es erneut, um weiterzusprechen.",
     "INTAKE_TEXT_REQUIRED": "Es gibt nichts zu senden. Schreiben oder sagen Sie zuerst etwas.",
+    "POSTING_NOT_FOUND": "Diese Stellenanzeige wurde nicht gefunden.",
+    "POSTING_FETCH_FAILED": "Die Seite konnte nicht geladen werden oder enthielt keinen lesbaren Text.",
+    "POSTING_TEXT_REQUIRED": "Die Anzeige braucht mindestens ein paar Absätze Text.",
+    "POSTING_OFFLINE": "Dieser Server läuft offline, eine Seite kann nicht geladen werden. Fügen Sie stattdessen den Text ein.",
     "INTAKE_BRIEF_INVALID": "Diese Briefing-Änderung hat nicht die erwartete Form.",
     "INTAKE_BRIEF_NOT_READY": "Das Briefing braucht einen Rollentitel und mindestens ein Ausschlusskriterium oder ein 90-Tage-Ziel, bevor daraus eine Stellenanzeige wird.",
     "INTAKE_ALREADY_OPEN": "Dieses Gespräch ist bereits offen.",
@@ -4290,6 +4294,15 @@
           "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren.",
           "checkFailed": "Ob Sprache verfügbar ist, ließ sich nicht prüfen. Versuchen Sie es erneut oder schreiben Sie weiter.",
           "recheck": "Erneut prüfen"
+        },
+        "voiceIo": {
+          "dictate": "Diktieren",
+          "dictating": "Höre zu… tippen zum Stoppen",
+          "dictateUnavailable": "Diktat ist auf diesem Server nicht eingerichtet; Tippen funktioniert wie gewohnt.",
+          "speak": "Vorlesen",
+          "speaking": "Vorlesen stoppen",
+          "speakUnavailable": "Vorlesen ist auf diesem Server nicht eingerichtet.",
+          "autoSpeak": "Jede Antwort vorlesen"
         },
         "edit": {
           "start": "Briefing bearbeiten",
