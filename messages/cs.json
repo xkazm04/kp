@@ -848,8 +848,8 @@
         "body": "Zamítnutí je vždy na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
       },
       "oversight": {
-        "title": "Připraveno na EU AI Act",
-        "body": "Screening a řazení považujeme za vysoce rizikovou AI: smysluplný lidský dohled, zdůvodnění, které si přečtete, a záznam o každém automatizovaném kroku."
+        "title": "AI Act, článek po článku",
+        "body": "Screening a řazení považujeme za vysoce rizikovou AI: smysluplný lidský dohled, zdůvodnění, které si přečtete, a záznam o každém automatizovaném kroku. U každého článku zveřejňujeme, jak na tom jsme, včetně mezer."
       },
       "gdpr": {
         "title": "GDPR a článek 22",
@@ -1319,7 +1319,7 @@
   },
   "aiDisclosure": {
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Každé rozhodnutí o postupu, nabídce či zamítnutí přezkoumává a dělá člověk; nic nepříznivého se nerozhoduje automaticky. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Zamítnutí je vždy na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
   },

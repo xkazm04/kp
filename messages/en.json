@@ -848,8 +848,8 @@
         "body": "A rejection is always a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. Advancing and extending an offer are human-approved by default too. A workspace can delegate either one, stage by stage, and every step that then runs unattended is logged with the plan that allowed it."
       },
       "oversight": {
-        "title": "EU AI Act ready",
-        "body": "Screening and ranking are treated as high-risk AI: meaningful human oversight, reasoning you can read, and a record of every automated step."
+        "title": "AI Act, article by article",
+        "body": "Screening and ranking are treated as high-risk AI: meaningful human oversight, reasoning you can read, and a record of every automated step. We publish where we stand on each article, including the gaps."
       },
       "gdpr": {
         "title": "GDPR & Article 22",
@@ -1319,7 +1319,7 @@
   },
   "aiDisclosure": {
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
+    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. A rejection is always a person's: no setting can hand that decision to the machine. Advancing and offers are human-approved by default; a workspace can delegate either one, stage by stage, and every step that then runs unattended is logged. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },

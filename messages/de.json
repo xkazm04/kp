@@ -848,8 +848,8 @@
         "body": "Eine Ablehnung trifft immer ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
       },
       "oversight": {
-        "title": "Bereit für den EU AI Act",
-        "body": "Screening und Ranking gelten als Hochrisiko-AI: wirksame menschliche Aufsicht, nachvollziehbare Begründungen und ein Protokoll jedes automatisierten Schritts."
+        "title": "AI Act, Artikel für Artikel",
+        "body": "Screening und Ranking gelten als Hochrisiko-AI: wirksame menschliche Aufsicht, nachvollziehbare Begründungen und ein Protokoll jedes automatisierten Schritts. Zu jedem Artikel veröffentlichen wir, wo wir stehen, auch die Lücken."
       },
       "gdpr": {
         "title": "DSGVO & Artikel 22",
@@ -1319,7 +1319,7 @@
   },
   "aiDisclosure": {
     "title": "So funktioniert es",
-    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Ein Mensch prüft und trifft jede Entscheidung über Weiterleitung, Angebot und Ablehnung; nichts Nachteiliges wird automatisch entschieden. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
+    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Eine Ablehnung trifft immer ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
   },

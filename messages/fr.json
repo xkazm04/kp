@@ -848,8 +848,8 @@
         "body": "Un rejet revient toujours à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
       },
       "oversight": {
-        "title": "Prêt pour l’EU AI Act",
-        "body": "La présélection et le classement sont traités comme une AI à haut risque : supervision humaine effective, un raisonnement lisible, et une trace de chaque étape automatisée."
+        "title": "AI Act, article par article",
+        "body": "La présélection et le classement sont traités comme une AI à haut risque : supervision humaine effective, un raisonnement lisible, et une trace de chaque étape automatisée. Pour chaque article, nous publions où nous en sommes, lacunes comprises."
       },
       "gdpr": {
         "title": "RGPD et article 22",
@@ -1319,7 +1319,7 @@
   },
   "aiDisclosure": {
     "title": "Comment ça marche",
-    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Un humain examine et prend chaque décision d’avancement, d’offre et de rejet. Rien de défavorable n’est décidé automatiquement. Vous pouvez demander un examen humain à tout moment.",
+    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Un rejet revient toujours à une personne : aucun réglage ne peut confier cette décision à la machine. L’avancement et la remise d’une offre sont validés par un humain par défaut ; un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
   },
