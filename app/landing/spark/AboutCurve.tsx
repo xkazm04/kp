@@ -249,11 +249,11 @@ export default function AboutCurve() {
             the readable `max-w-lg` measure rather than pushing the page into a
             horizontal scroll (the de string alone is 771px — wider than a 768px
             tablet viewport, so nowrap below `lg` would overflow outright).
-            `xl` and not `lg`, because the viewport is not the only limit: the
-            `fixed` SectionRail below reserves the rightmost 200px from `lg` up,
-            and a centred 771px line clears it only from vw ≥ 1171 — at 1024 its
-            tail runs under the rail. 1280 gives 55px of clearance, 1440 gives
-            135px. */}
+            `xl` and not `lg` because that is where the SECTION gets the room:
+            it is `max-w-3xl` (720px of content) until `xl:max-w-4xl` widens it
+            to 848, and 771 does not fit in 720. (This used to cite the fixed
+            rail reserving the rightmost 200px too; the nav is a bottom-right
+            dock now and reserves nothing on this line.) */}
         <p className="mx-auto mt-4 max-w-lg text-lg text-[#42606f] xl:max-w-none xl:whitespace-nowrap">
           {t("closing.body")}
         </p>
@@ -269,14 +269,27 @@ export default function AboutCurve() {
         </button>
       </section>
 
-      {/* The you-are-here rail, the same component the homepage renders — it
+      {/* The you-are-here nav, the same component the homepage renders — it
           reveals past the hero, follows scroll position, and glides rather
           than jump-cuts. Inside <main> like the landing's (SparkLanding.tsx):
           it is `fixed`, so the surrounding `overflow-x-clip` does not box it. */}
+      {/* `placement="adaptive"`, not the homepage's plain rail. The rail is
+          vertically centred and so are these step illustrations, and this page
+          has no gutter to park it in below 1696px: the art card fills its grid
+          column, so its painted right edge lands 5.2px from the viewport edge
+          at 1024 and 7.9px at 1280. The rail sat ON the right-hand steps by
+          194.8px / 192.1px / 112.1px at 1024 / 1280 / 1440. Reserving its band
+          instead would have cut the art column to 301px at 1024 (from 400) and
+          425px at 1280 (from 512) — smaller than before the art was enlarged.
+          From 1696px up the gutter is real and the rail is what renders, with
+          15.9px of clearance that no longer changes with width; below it the
+          bottom-right dock takes over. The full reasoning, with the numbers
+          that ruled out every other position, is in SectionRail.tsx's header. */}
       {/* 12.5rem, not the homepage's 9.25rem: the widest label here is a
-          translated phase name ("05 Pracovní ukázka", "05 Travail pratique"),
-          and the clamp is what positions the rail on a 1440px laptop. */}
-      <SectionRail sections={railSections} width="12.5rem" />
+          translated phase name ("05 Pracovní ukázka", "05 Travail pratique").
+          It sets the rail's clamped right edge, the width the dock's pill holds
+          on every step, AND — through gutterMinRem — the 1696px crossover. */}
+      <SectionRail sections={railSections} widthRem={12.5} placement="adaptive" />
     </main>
       {/* Footer: OUTSIDE <main> so it keeps its contentinfo landmark - a footer inside main,
           article or section has no role, and the public-pages spec (and screen readers)

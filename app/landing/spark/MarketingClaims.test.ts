@@ -282,7 +282,10 @@ test("every /about phase yields a numbered rail label in every locale", () => {
    * silently falls back to the full "Krok 03 · Příjem" in a column sized for
    * two words. The ids are checked here too — they are what a `#step-07` deep
    * link and the scroll-spy both address. */
-  const MAX_LABEL_CHARS = 22; // the rail reserves 12.5rem; see SectionRail's `width`.
+  // The rail reserves 12.5rem; see SectionRail's `widthRem`, which also sets the
+  // dock pill's width AND (through gutterMinRem) the width at which /about swaps
+  // the dock for the rail — so a label that outgrows this outgrows all three.
+  const MAX_LABEL_CHARS = 22;
   for (const locale of LOCALES) {
     const { steps } = CATALOGS[locale].aboutPage;
     const ids = ABOUT_STEP_KEYS.map((_, i) => aboutStepId(i));
@@ -301,7 +304,7 @@ test("every /about phase yields a numbered rail label in every locale", () => {
       );
       assert.ok(
         label.length <= MAX_LABEL_CHARS,
-        `${locale}'s rail label for ${key} ("${label}") is ${label.length} chars — widen SectionRail's \`width\` on /about or shorten the eyebrow`
+        `${locale}'s rail label for ${key} ("${label}") is ${label.length} chars — widen SectionRail's \`widthRem\` on /about or shorten the eyebrow`
       );
     });
   }
