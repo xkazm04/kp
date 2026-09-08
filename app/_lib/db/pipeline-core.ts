@@ -47,12 +47,14 @@ export type PipelineRow = {
   // not mapped onto the PipelineEntry client view.
   profile_gaps_json?: string | null;
   // GDPR consent lifecycle (consent.ts). The 4 dated fields map onto PipelineEntry;
-  // erasure_token does NOT (capability token, internal-only, like lead_token).
+  // erasure_token and optout_token do NOT (capability tokens, internal-only, like
+  // lead_token) — they leave this process only inside a link in the candidate's own mail.
   consent_given_at?: string | null;
   consent_expires_at?: string | null;
   consent_source?: string | null;
   anonymized_at?: string | null;
   erasure_token?: string | null;
+  optout_token?: string | null;
   // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
   // caller holding an entry never has to be told its tenant separately.
   workspace_id?: string | null;

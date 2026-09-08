@@ -263,6 +263,37 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "60_000",
   },
   {
+    // ADDED with the candidate opt-out door. Same posture as its /data sibling above
+    // and for the same reasons: an anonymous, token-authed public door whose POST is a
+    // WRITE, so the limiter runs BEFORE the token lookup and a flood never reaches the
+    // store. Keyed per token AND client, so the shared client key an untrusted proxy
+    // produces still gives each candidate their own bucket.
+    rel: "./stop/[token]/route.ts",
+    key: "`stop-view:${clientIpFrom(request.headers)}:${token}`",
+    limit: 60,
+    optsSrc: "STOP_VIEW_RATE_LIMIT",
+    optsDef: "const STOP_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "findEntryByOptOutToken(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // The write half. 20/min rather than the erasure door's 10: this endpoint is ALSO
+    // the RFC 8058 one-click target, so a mail provider may POST it unattended beside
+    // the human's own click, and the write is idempotent so a repeat costs nothing.
+    // Still an order of magnitude short of what a script would want.
+    rel: "./stop/[token]/route.ts",
+    key: "`stop-write:${clientIpFrom(request.headers)}:${token}`",
+    limit: 20,
+    optsSrc: "STOP_WRITE_RATE_LIMIT",
+    optsDef: "const STOP_WRITE_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "recordCandidateOptOut(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
     // ADDED 2026-09-01 (perfect: open-doors-throttled). The offer GET runs
     // expireOfferIfDue — a write — on every hit and only the POST was throttled.
     // 60/min: the page revalidates every 60s plus on focus, an order of magnitude under.

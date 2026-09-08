@@ -13,7 +13,19 @@
 // This module is the pure policy so the rules are testable without a database;
 // outreach-state-store.ts persists it.
 
-export type HaltReason = "replied" | "manual";
+// `candidate` is the CANDIDATE'S OWN opt-out, recorded from the public /stop/[token]
+// door. It is deliberately a separate member from `manual` (the recruiter's stop): the
+// two are different facts with different force. A recruiter halt is an internal workflow
+// decision — pausing a sequence, and reversible by the next recruiter. A candidate
+// opt-out is a legally binding objection to further commercial contact:
+//   • ePrivacy Art. 13(4) — a commercial message with no valid address to decline
+//     further messages is prohibited outright;
+//   • Czech § 7(4)(c) with § 11(2)(a)(4) of zák. č. 480/2004 Sb. — a standalone offence,
+//     fine up to 10,000,000 Kč, and Czechia is this product's primary market;
+//   • German UWG § 7(2) No. 2.
+// Folding it into `manual` would make the legally significant fact indistinguishable
+// from the operational one, and the operational one is the one an operator may clear.
+export type HaltReason = "replied" | "manual" | "candidate";
 
 export type OutreachState = {
   /** How many outreach messages have gone out on this entry. */
@@ -23,6 +35,8 @@ export type OutreachState = {
   repliedAt: string | null;
   /** Set when a recruiter halts the sequence by hand. */
   manualHaltAt: string | null;
+  /** Set when the CANDIDATE opted out through the unsubscribe link in our own mail. */
+  candidateHaltAt: string | null;
 };
 
 export const EMPTY_OUTREACH_STATE: OutreachState = {
@@ -30,17 +44,28 @@ export const EMPTY_OUTREACH_STATE: OutreachState = {
   lastSentAt: null,
   repliedAt: null,
   manualHaltAt: null,
+  candidateHaltAt: null,
 };
 
 /**
  * Why outreach must not go out, or null when it may.
  *
- * A manual halt outranks a reply in the reported reason: if a recruiter deliberately
- * stopped the sequence, that is the fact worth surfacing, and it stays true even if a
- * reply later arrives.
+ * Precedence is by WEIGHT of the fact, not by recency. The candidate's own opt-out
+ * outranks everything: it is the one reason that is a legal obligation rather than a
+ * workflow state, so it must be the reason surfaced in the audit event and in the
+ * recruiter UI even when a recruiter halt or a reply also happens to be on the row.
+ * A manual halt then outranks a reply, for the reason it always did: a recruiter who
+ * deliberately stopped the sequence stated something, and it stays true even if a reply
+ * later arrives.
+ *
+ * NOTE this reads only the state it is handed, which is per ENTRY. The durable
+ * candidate-identity resolution (an opt-out on ANY of the person's entries stops mail on
+ * all of them, so a freshly minted rediscovery entry cannot re-arm the contact) lives in
+ * outreach-state-store.ts, where the join is — see candidateOptOutHalt there.
  */
 export function outreachHaltReason(state: OutreachState | null | undefined): HaltReason | null {
   if (!state) return null;
+  if (state.candidateHaltAt) return "candidate";
   if (state.manualHaltAt) return "manual";
   if (state.repliedAt) return "replied";
   return null;

@@ -97,14 +97,51 @@ export type CommEnvelope = {
   } | null;
   job: { id: string | null; title: string | null } | null;
   stage: string | null;
+  /** THE UNSUBSCRIBE CONTRACT (additive, still v1).
+   *
+   *  ePrivacy Art. 13(4) — and, in this product's primary market, § 7(4)(c) with
+   *  § 11(2)(a)(4) of the Czech zák. č. 480/2004 Sb. (a standalone offence, fine up to
+   *  10,000,000 Kč) — require every commercial message to carry a valid address at
+   *  which the recipient can decline further messages. In mail that address is the
+   *  `List-Unsubscribe` header (RFC 2369) plus, for one-click, `List-Unsubscribe-Post`
+   *  (RFC 8058).
+   *
+   *  KP CANNOT SET THOSE HEADERS, and saying so plainly is more useful than faking it:
+   *  kp's relay abstraction is an HTTP POST of this JSON document to an operator-
+   *  configured receiver (comms.ts WebhookChannel) — there is no SMTP client and no MIME
+   *  header seam anywhere in the tree. The HTTP request headers on that POST are a
+   *  conversation with the RELAY, not with the recipient's mail client; writing
+   *  `List-Unsubscribe` among them would put the value somewhere no mail agent will ever
+   *  read it, which is worse than not shipping it, because it looks done.
+   *
+   *  So the values travel as DATA, pre-formatted exactly as the two headers must appear,
+   *  and the relay copies them onto the message it composes:
+   *
+   *      List-Unsubscribe: <https://…/api/stop/ob-…>
+   *      List-Unsubscribe-Post: List-Unsubscribe=One-Click
+   *
+   *  `listUnsubscribe` is angle-bracketed per RFC 2369 §2. The URL is a POST endpoint
+   *  that records the opt-out and answers 200 — the RFC 8058 requirement — and is
+   *  idempotent, so a mail provider's unattended POST and a human's click cannot
+   *  disagree. Both are null for an entry-less comm (no candidate identity to opt out)
+   *  and for an anonymized entry (already unreachable). A receiver that only knows the
+   *  legacy flat shape ignores them, as with every other additive v1 field. */
+  listUnsubscribe: string | null;
+  listUnsubscribePost: string | null;
 };
 
+/** The exact `List-Unsubscribe-Post` value RFC 8058 §3 defines. A constant rather than a
+ *  literal at the use site so the relay contract, the docs and the envelope test all
+ *  name the same string. */
+export const LIST_UNSUBSCRIBE_POST_ONE_CLICK = "List-Unsubscribe=One-Click";
+
 export function buildCommEnvelope(
-  msg: { to: string; subject: string; body: string; kind: string; ref?: string },
+  msg: { to: string; subject: string; body: string; kind: string; ref?: string; unsubscribeUrl?: string },
   entry: CommEnvelopeContext | null,
   sentAt: string,
   messageId: string | null = null
 ): CommEnvelope {
+  const unsubscribe = (msg.unsubscribeUrl ?? "").trim();
   return {
     schema: COMM_SCHEMA,
     to: msg.to,
@@ -114,6 +151,10 @@ export function buildCommEnvelope(
     ref: msg.ref ?? null,
     messageId,
     sentAt,
+    listUnsubscribe: unsubscribe ? `<${unsubscribe}>` : null,
+    // Paired: One-Click is only meaningful beside an address, and a receiver that saw
+    // the POST directive with no target would have nothing to POST to.
+    listUnsubscribePost: unsubscribe ? LIST_UNSUBSCRIBE_POST_ONE_CLICK : null,
     candidate: entry
       ? {
           id: entry.candidateId,

@@ -51,6 +51,11 @@ export const PUBLIC_PAGES = [
   // those links 302'd to /login in password mode — the right-to-erasure path was
   // unreachable for exactly the people it exists for.
   "/data/",
+  // ePrivacy Art. 13(4) opt-out: the unsubscribe footer on every candidate comm links
+  // to an ABSOLUTE `<base>/stop/<optOutToken>` (comms-dispatch.ts). Same posture as
+  // /data/ above and the same reason it must be listed — a login wall in front of an
+  // unsubscribe link is a message with no valid address to decline further messages.
+  "/stop/",
   "/skill/",
   "/devcase/apply/",
   "/invite/",
@@ -76,6 +81,13 @@ export const PUBLIC_API_PREFIXES = [
   // its own token lookup ran. Trailing slash = strict descendants: `/api/data` itself
   // and any future sibling stay gated.
   "/api/data/",
+  // The API behind the /stop/<token> page above — GET projects the role the letter was
+  // about plus whether the stop is already on file, POST records the candidate's
+  // opt-out. Authed by the opaque CSPRNG opt-out token alone (no session), and it is
+  // ALSO the RFC 8058 one-click target a mail provider POSTs unattended — a provider
+  // has no cookie to present, so a gated path would make the header inert. Trailing
+  // slash = strict descendants: `/api/stop` itself and any future sibling stay gated.
+  "/api/stop/",
   "/api/skill-profile/",
   "/api/devcase/session",
   // Inbound ad/email intake (token-authed) only. `/api/channels/webhooks*` is the

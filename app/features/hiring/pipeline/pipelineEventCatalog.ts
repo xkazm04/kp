@@ -22,6 +22,7 @@ import {
   Lock,
   Mail,
   MailWarning,
+  MailX,
   PauseCircle,
   Phone,
   Repeat,
@@ -123,10 +124,12 @@ export const EVENT_KINDS = [
   "interview_prep_generated",
   "rejection_drafted",
   "offer_drafted",
-  // Outreach and the two ways it does NOT go out (comms-dispatch.ts, inbound webhook).
+  // Outreach and the ways it does NOT go out (comms-dispatch.ts, inbound webhook,
+  // and the candidate's own unsubscribe at /api/stop/[token]).
   "outreach_sent",
   "outreach_halted",
   "outreach_suppressed",
+  "outreach_opted_out",
   // Dispatched candidate/interviewer comms (comms-dispatch.ts, resend route).
   "acknowledgement_sent",
   "rejection_sent",
@@ -231,6 +234,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   outreach_sent: { Icon: Send, tone: "text-steel" },
   outreach_halted: { Icon: PauseCircle, tone: "text-steel" },
   outreach_suppressed: { Icon: Ban, tone: "text-amber-600" },
+  outreach_opted_out: { Icon: MailX, tone: "text-amber-600" },
   acknowledgement_sent: { Icon: Mail, tone: "text-steel" },
   rejection_sent: { Icon: Mail, tone: "text-coral" },
   interview_invite_sent: { Icon: Mail, tone: "text-steel" },

@@ -33,7 +33,9 @@ config), every candidate-facing message is POSTed to it as JSON:
     "sourceChannel": "quick-apply"
   },
   "job": { "id": "job-1", "title": "Backend Engineer" },
-  "stage": "Offer"
+  "stage": "Offer",
+  "listUnsubscribe": "<https://hire.example.com/api/stop/ob-Kx3…>",
+  "listUnsubscribePost": "List-Unsubscribe=One-Click"
 }
 ```
 
@@ -46,6 +48,45 @@ config), every candidate-facing message is POSTed to it as JSON:
 | `candidate` | `null` when `ref` isn't a pipeline entry | `email` is the captured contact — prefer it over `to` for delivery. `label` is the display name (null when anonymous). `locale` is the candidate's applied language (`en`/`cs`) — the body is already written in it. `sourceChannel` is the attribution (`apply` / `quick-apply` / `email` / `boards`, null for recruiter-sourced). |
 | `job` | `null` when `ref` isn't a pipeline entry | The role the message concerns. |
 | `stage` | `null` when `ref` isn't a pipeline entry | Pipeline stage at send time (`Accepted` → `Screened` → `Interview` → `Offer` → `Hired`). |
+| `listUnsubscribe`, `listUnsubscribePost` | additive in v1; both `null` together, or both set | **The unsubscribe obligation, and it is yours to discharge.** See below. |
+
+### `List-Unsubscribe` — the one thing the relay MUST do
+
+ePrivacy Art. 13(4) requires every commercial message to carry a valid address at which
+the recipient can decline further messages; in kp's primary market
+§ 7(4)(c) with § 11(2)(a)(4) of the Czech zák. č. 480/2004 Sb. makes failing to do so a
+standalone offence, fine up to 10,000,000 Kč (German UWG § 7(2) No. 2 is the same duty).
+In mail that address is the `List-Unsubscribe` header (RFC 2369) plus, for one-click,
+`List-Unsubscribe-Post` (RFC 8058).
+
+**kp cannot set those headers, and this is deliberate rather than an omission.** kp's
+relay abstraction is an HTTP POST of this JSON document to your receiver — there is no
+SMTP client and no MIME header seam anywhere in the codebase, and the HTTP request
+headers on that POST are a conversation with *you*, not with the recipient's mail client.
+Putting `List-Unsubscribe` among them would place the value where no mail agent will ever
+read it, which is worse than not shipping it because it looks done.
+
+So the two values travel as data, **pre-formatted exactly as the headers must appear**.
+Copy them verbatim onto the message you compose:
+
+```
+List-Unsubscribe: <https://hire.example.com/api/stop/ob-Kx3…>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+```
+
+`listUnsubscribe` is already angle-bracketed per RFC 2369 §2. The URL is a public,
+token-authed POST endpoint that records the opt-out and answers 200 — the RFC 8058
+requirement — accepts the `List-Unsubscribe=One-Click` form body, and is **idempotent**,
+so a provider's unattended POST and a human's click cannot disagree. Both fields are
+`null` for an entry-less comm (no candidate identity to opt out) and for an anonymized
+entry (already unreachable); they are present-and-null rather than absent, so a receiver
+can read them unconditionally. A receiver that only knows the legacy flat shape ignores
+them, as with every other additive v1 field.
+
+The body of every candidate letter also carries a human-readable link to the same
+`/stop/<token>` page, `?lang=`-pinned to the language the letter is written in. The
+header is what a mail client offers; the footer is what a person clicks. Full mechanics:
+[README.md §7b](./README.md).
 
 ### Kind vocabulary
 

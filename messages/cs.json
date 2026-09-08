@@ -515,6 +515,7 @@
     "aRole": "pozice",
     "yourNewRole": "vaše nová pozice",
     "dataFooter": "· · ·\nVaše údaje: kdykoli si zkontrolujte, co o vás evidujeme, nebo požádejte o jejich výmaz:\n{link}",
+    "stopFooter": "Zastavit tyto zprávy: další zprávy o pracovních příležitostech můžete kdykoli jedním kliknutím odmítnout:\n{link}",
     "ack": {
       "subject": "Přijali jsme vaše řešení",
       "subjectRole": "Přijali jsme vaše řešení: {role}",
@@ -1378,6 +1379,9 @@
     "REDISCOVERY_ALERTS_FAILED": "Nepodařilo se načíst upozornění na dřívější kandidáty. Zkuste to prosím znovu.",
     "DATA_LOOKUP_FAILED": "Nepodařilo se teď načíst vaše údaje. Zkuste to prosím znovu.",
     "DATA_ERASE_FAILED": "Nepodařilo se teď dokončit výmaz. Zkuste to prosím znovu.",
+    "STOP_LINK_INVALID": "Tento odhlašovací odkaz už neplatí.",
+    "STOP_LOOKUP_FAILED": "Vaše nastavení kontaktování se teď nepodařilo načíst. Zkuste to prosím znovu.",
+    "STOP_FAILED": "Zprávy se teď nepodařilo zastavit. Zkuste to prosím znovu.",
     "CONSENT_LOOKUP_FAILED": "Nepodařilo se načíst podrobnosti souhlasu. Zkuste to prosím znovu.",
     "COMMAND_FAILED": "Nepodařilo se spustit tento příkaz. Zkuste to prosím znovu.",
     "BENCHMARK_FAILED": "Nepodařilo se načíst firemní srovnání. Zkuste to prosím znovu.",
@@ -1890,6 +1894,23 @@
     "proposalsPendingBody": "Vaše navržené termíny jsme předali náborovému týmu. Brzy vám jeden potvrdí. Tuto stránku můžete zavřít.",
     "proposalsDeclinedTitle": "Tyto termíny se nám nepodařilo zajistit",
     "proposalsDeclinedBody": "Náborový tým nemohl vašim navrženým termínům vyhovět. Ozve se vám přímo, aby s vámi našel termín, který bude vyhovovat."
+  },
+  "stop": {
+    "eyebrow": "Vaše zprávy",
+    "title": "Zprávy k pozici {role}",
+    "titleGeneric": "Zprávy od nás",
+    "loadFailed": "Platnost tohoto odhlašovacího odkazu vypršela nebo odkaz už neplatí.",
+    "stopFailed": "Zprávy se teď nepodařilo zastavit. Zkuste to prosím znovu.",
+    "explainer": "Jedním kliknutím vám přestaneme posílat zprávy o pracovních příležitostech. Není k tomu potřeba žádný formulář ani přihlášení.",
+    "scopeTitle": "Co to udělá a co ne",
+    "scopeStops": "Zastaví to zprávy, které vám posíláme o pracovních příležitostech.",
+    "scopeKeepsData": "Nic to nevymaže. Údaje, které o vás evidujeme, zůstanou beze změny.",
+    "scopeKeepsApplication": "Nestahuje to vaši přihlášku. Pokud jste se přihlásil/a, zůstáváte ve výběrovém řízení a o své přihlášce od nás dál uslyšíte.",
+    "cta": "Už mi neposílejte zprávy",
+    "stopping": "Zastavujeme",
+    "doneTitle": "Přestaneme vás kontaktovat",
+    "doneBody": "Vaši žádost jsme zaznamenali a platí okamžitě. Další zprávy o pracovních příležitostech vám posílat nebudeme. Nic jsme nevymazali a žádnou přihlášku jsme nestáhli.",
+    "eraseInstead": "Chcete raději, abychom vymazali osobní údaje, které o vás evidujeme? To je samostatná žádost a odkaz na ni najdete ve stejné zprávě hned vedle tohoto."
   },
   "data": {
     "eyebrow": "Vaše údaje",
@@ -2753,6 +2774,7 @@
       "outreach_sent": "dostal/a oslovení",
       "outreach_halted": "má zastavené oslovování (odpověděl/a)",
       "outreach_suppressed": "nebyl/a osloven/a, systém oslovení zadržel",
+      "outreach_opted_out": "požádal/a, abychom ho/ji přestali kontaktovat",
       "acknowledgement_sent": "dostal/a potvrzení přihlášky",
       "rejection_sent": "dostal/a zamítnutí",
       "interview_invite_sent": "dostal/a pozvánku na pohovor",
@@ -4319,6 +4341,35 @@
           "speaking": "Zastavit čtení",
           "speakUnavailable": "Předčítání není na tomto serveru nastaveno.",
           "autoSpeak": "Předčítat každou odpověď"
+        },
+        "coat": {
+          "label": "Vzhled",
+          "name": {
+            "classic": "Klasický",
+            "atelier": "Ateliér",
+            "console": "Konzole"
+          }
+        },
+        "promoteCaseShort": "Pracovní úkol",
+        "promoteCaseHint": "navrhnout zadání spolu s inzerátem",
+        "promoteMarketShort": "Mzdové rozpětí",
+        "promoteMarketHint": "zjistit tržní sazbu",
+        "glyph": {
+          "materials": "Podklady",
+          "dictate": "Diktovat",
+          "dictateOff": "Diktování není dostupné",
+          "speak": "Přečíst nahlas",
+          "speakOff": "Předčítání není dostupné",
+          "autoSpeak": "Číst každou odpověď",
+          "call": "Hlasový hovor",
+          "callOff": "Hlas není dostupný",
+          "send": "Odeslat",
+          "history": "Starší kola",
+          "collapse": "Sbalit",
+          "expand": "Rozbalit",
+          "edit": "Upravit zadání",
+          "turn": "Z kola {turn, number}",
+          "compose": "Zpráva"
         },
         "edit": {
           "start": "Upravit zadání",
@@ -7102,6 +7153,7 @@
         "outreach_sent": "Oslovení odesláno",
         "outreach_halted": "Oslovování zastaveno: kandidát odpověděl",
         "outreach_suppressed": "Oslovení zadrženo",
+        "outreach_opted_out": "Kandidát se odhlásil",
         "rejection_sent": "Zamítnutí odesláno",
         "rejected": "Zamítnuto",
         "applied": "Přihlášeno",
@@ -8133,7 +8185,8 @@
     "rail": {
       "brand": "Kandi",
       "language": "Jazyk aplikace",
-      "languageAria": "Vyberte jazyk aplikace"
+      "languageAria": "Vyberte jazyk aplikace",
+      "stepOf": "Krok {index} z {total}"
     },
     "steps": {
       "welcome": {
@@ -8188,7 +8241,7 @@
           "body": "Screening, pohovory a nabídky: jeden proces, rozhodnutí zůstávají na vás."
         }
       },
-      "minutes": "Zabere to asi 3 minuty"
+      "minutes": "Šest krátkých kroků. Každý má funkční výchozí nastavení."
     },
     "company": {
       "nameLabel": "Název společnosti",
@@ -8205,7 +8258,8 @@
         "illegibleDark": "Tato barva nemá čitelnou variantu pro Spark Dark. Zvolte jasnější nebo sytější odstín."
       },
       "logoLabel": "URL loga",
-      "logoInvalid": "Zadejte adresu obrázku začínající https://."
+      "logoInvalid": "Zadejte adresu obrázku začínající https://.",
+      "nameHint": "Tento název vidí kandidáti v inzerátech, nabídkách a v každé zprávě, kterou jim pošlete."
     },
     "team": {
       "emailPlaceholder": "jmeno@spolecnost.cz",
@@ -8286,7 +8340,8 @@
       "soloBody": "Postupujte vlastním tempem. Ukázka zůstává na jedno kliknutí za kulatým tlačítkem Candi dole na obrazovce.",
       "pipelineTitle": "Vaše nástěnka: {count, plural, one {# krok} few {# kroky} other {# kroků}}",
       "pipelineChangedBody": "Vaše změny se uloží po dokončení. Kdykoli je upravíte v Nastavení → Náborová pipeline.",
-      "pipelineDefaultBody": "Sloupce, kterými kandidáti procházejí. Kdykoli je změníte v Nastavení → Náborová pipeline."
+      "pipelineDefaultBody": "Sloupce, kterými kandidáti procházejí. Kdykoli je změníte v Nastavení → Náborová pipeline.",
+      "recommended": "Doporučeno pro nový pracovní prostor"
     },
     "footer": {
       "back": "Zpět",
@@ -8329,6 +8384,10 @@
           "body": "Otevřete e-mailový příjem a přijměte testovací přihlášku.",
           "listening": "Nasloucháme. Přepošlete jeden e-mail na nakonfigurovanou adresu (nebo použijte tlačítko simulace na kartě Kanály) a tím krok ověřte.",
           "listeningSimLink": "Přejít na kartu Kanály →"
+        },
+        "finishSetup": {
+          "title": "Dokončit nastavení",
+          "body": "Vaše firma, tým, nástěnka a Candi. Navažte tam, kde jste skončili."
         }
       }
     },
@@ -8344,6 +8403,12 @@
       "reasonUnknown": "nepodařilo se uložit. Dokončit to můžete v Nastavení.",
       "line": "{part}: {reason}",
       "lineWithAddresses": "{part} ({addresses}): {reason}"
+    },
+    "leave": {
+      "title": "Opustit nastavení?",
+      "body": "Nic se neztratí. Nastavení můžete kdykoli dokončit ze seznamu Začínáme na vaší nástěnce.",
+      "confirm": "Opustit nastavení",
+      "cancel": "Pokračovat v nastavení"
     }
   },
   "devcase": {

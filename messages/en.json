@@ -515,6 +515,7 @@
     "aRole": "a role",
     "yourNewRole": "your new role",
     "dataFooter": "· · ·\nYour data: review what we hold about you, or request its erasure, anytime:\n{link}",
+    "stopFooter": "Stop these messages: decline further messages about openings anytime, in one click:\n{link}",
     "ack": {
       "subject": "We received your submission",
       "subjectRole": "We received your submission: {role}",
@@ -1378,6 +1379,9 @@
     "REDISCOVERY_ALERTS_FAILED": "Could not load rediscovery alerts. Please try again.",
     "DATA_LOOKUP_FAILED": "Could not load your data right now. Please try again.",
     "DATA_ERASE_FAILED": "Could not complete the erasure right now. Please try again.",
+    "STOP_LINK_INVALID": "This unsubscribe link is no longer valid.",
+    "STOP_LOOKUP_FAILED": "Could not load your contact preferences right now. Please try again.",
+    "STOP_FAILED": "Could not stop the messages right now. Please try again.",
     "CONSENT_LOOKUP_FAILED": "Could not load consent details. Please try again.",
     "COMMAND_FAILED": "Could not run that command. Please try again.",
     "BENCHMARK_FAILED": "Could not load the org benchmark. Please try again.",
@@ -1890,6 +1894,23 @@
     "proposalsPendingBody": "We’ve passed your proposed times to the hiring team. They’ll confirm one with you shortly. You can close this page.",
     "proposalsDeclinedTitle": "We couldn't fit those times",
     "proposalsDeclinedBody": "The hiring team couldn't accommodate the times you suggested. They'll reach out to you directly to find one that works."
+  },
+  "stop": {
+    "eyebrow": "Your messages",
+    "title": "Messages about {role}",
+    "titleGeneric": "Messages from us",
+    "loadFailed": "This unsubscribe link has expired or is no longer valid.",
+    "stopFailed": "Could not stop the messages right now. Please try again.",
+    "explainer": "One click and we stop sending you messages about openings. There is no form and no account to sign in to.",
+    "scopeTitle": "What this does, and what it does not",
+    "scopeStops": "It stops the messages we send you about openings.",
+    "scopeKeepsData": "It does not erase anything. Whatever we hold about you stays exactly as it is.",
+    "scopeKeepsApplication": "It does not withdraw an application. If you have applied, you are still in the running and we will still write to you about that application.",
+    "cta": "Stop sending me messages",
+    "stopping": "Stopping",
+    "doneTitle": "We will stop contacting you",
+    "doneBody": "Your request is recorded and takes effect straight away. We will not send you further messages about openings. Nothing has been erased, and no application has been withdrawn.",
+    "eraseInstead": "Would you rather we removed the personal data we hold about you? That is a separate request, and its link is in the same message, beside this one."
   },
   "data": {
     "eyebrow": "Your data",
@@ -2753,6 +2774,7 @@
       "outreach_sent": "was sent an outreach message",
       "outreach_halted": "had outreach stopped (they replied)",
       "outreach_suppressed": "had outreach withheld",
+      "outreach_opted_out": "asked us to stop contacting them",
       "acknowledgement_sent": "was sent an application acknowledgement",
       "rejection_sent": "was sent a rejection",
       "interview_invite_sent": "was sent an interview invite",
@@ -4319,6 +4341,35 @@
           "speaking": "Stop reading",
           "speakUnavailable": "Read-aloud is not set up on this server.",
           "autoSpeak": "Read every reply aloud"
+        },
+        "coat": {
+          "label": "Design",
+          "name": {
+            "classic": "Classic",
+            "atelier": "Atelier",
+            "console": "Console"
+          }
+        },
+        "promoteCaseShort": "Work-sample",
+        "promoteCaseHint": "design the assignment with the JD",
+        "promoteMarketShort": "Salary band",
+        "promoteMarketHint": "research the market rate",
+        "glyph": {
+          "materials": "Materials",
+          "dictate": "Dictate",
+          "dictateOff": "Dictation unavailable",
+          "speak": "Read aloud",
+          "speakOff": "Read-aloud unavailable",
+          "autoSpeak": "Read every reply",
+          "call": "Voice call",
+          "callOff": "Voice unavailable",
+          "send": "Send",
+          "history": "Earlier turns",
+          "collapse": "Collapse",
+          "expand": "Expand",
+          "edit": "Edit brief",
+          "turn": "From turn {turn, number}",
+          "compose": "Message"
         },
         "edit": {
           "start": "Edit brief",
@@ -7102,6 +7153,7 @@
         "outreach_sent": "Outreach sent",
         "outreach_halted": "Outreach stopped: candidate replied",
         "outreach_suppressed": "Outreach withheld",
+        "outreach_opted_out": "Candidate opted out",
         "rejection_sent": "Rejection sent",
         "rejected": "Rejected",
         "applied": "Applied",
@@ -8133,7 +8185,8 @@
     "rail": {
       "brand": "Kandi",
       "language": "App language",
-      "languageAria": "Pick the app language"
+      "languageAria": "Pick the app language",
+      "stepOf": "Step {index} of {total}"
     },
     "steps": {
       "welcome": {
@@ -8188,7 +8241,7 @@
           "body": "Screening, interviews, and offers: one flow, with you making the calls."
         }
       },
-      "minutes": "Takes about 3 minutes"
+      "minutes": "Six short steps. Every one has a working default."
     },
     "company": {
       "nameLabel": "Company name",
@@ -8205,7 +8258,8 @@
         "illegibleDark": "That color has no readable Spark Dark version. Pick a brighter or more saturated one."
       },
       "logoLabel": "Logo URL",
-      "logoInvalid": "Enter an https:// image URL."
+      "logoInvalid": "Enter an https:// image URL.",
+      "nameHint": "This is the name candidates see on job posts, offers and every message you send them."
     },
     "team": {
       "emailPlaceholder": "name@company.com",
@@ -8286,7 +8340,8 @@
       "soloBody": "Take it at your own pace. The demo stays one click away behind the round Candi button at the bottom of the screen.",
       "pipelineTitle": "Your board: {count, plural, one {# step} other {# steps}}",
       "pipelineChangedBody": "Your changes apply when you finish. Adjust them any time in Settings → Hiring pipeline.",
-      "pipelineDefaultBody": "The columns candidates move through. Change them any time in Settings → Hiring pipeline."
+      "pipelineDefaultBody": "The columns candidates move through. Change them any time in Settings → Hiring pipeline.",
+      "recommended": "Recommended for a new workspace"
     },
     "footer": {
       "back": "Back",
@@ -8329,6 +8384,10 @@
           "body": "Open an email intake and receive a test application.",
           "listening": "Listening. Forward one email to the configured address (or use the simulate button on the Channels tab) to verify this step.",
           "listeningSimLink": "Go to Channels tab →"
+        },
+        "finishSetup": {
+          "title": "Finish setting up",
+          "body": "Your company, your team, your board and Candi. Pick up where you left off."
         }
       }
     },
@@ -8344,6 +8403,12 @@
       "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
       "line": "{part}: {reason}",
       "lineWithAddresses": "{part} ({addresses}): {reason}"
+    },
+    "leave": {
+      "title": "Leave setup?",
+      "body": "Nothing is lost. You can finish setting up any time from the Getting-started checklist on your board.",
+      "confirm": "Leave setup",
+      "cancel": "Keep setting up"
     }
   },
   "devcase": {

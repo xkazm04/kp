@@ -367,12 +367,14 @@ type PipelineRow = {
   // not mapped onto the PipelineEntry client view.
   profile_gaps_json?: string | null;
   // GDPR consent lifecycle (consent.ts). The 4 dated fields map onto PipelineEntry;
-  // erasure_token does NOT (capability token, internal-only, like lead_token).
+  // erasure_token and optout_token do NOT (capability tokens, internal-only, like
+  // lead_token) — they leave this process only inside a link in the candidate's own mail.
   consent_given_at?: string | null;
   consent_expires_at?: string | null;
   consent_source?: string | null;
   anonymized_at?: string | null;
   erasure_token?: string | null;
+  optout_token?: string | null;
   // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
   // caller holding an entry never has to be told its tenant separately.
   workspace_id?: string | null;
@@ -1875,6 +1877,47 @@ export function findEntryByErasureToken(token: string): PipelineEntry | null {
   return row ? rowToEntry(row) : null;
 }
 
+/** Mint (or return) the entry's opaque OPT-OUT token — the capability the
+ *  unsubscribe footer carries to the public /stop/[token] page. Deliberately a
+ *  SEPARATE column and a separate prefix from the erasure token: this one may do
+ *  exactly one thing, record a candidate-side halt on further outreach, and must never
+ *  become a second door onto the held-data projection or the erasure write. That is the
+ *  whole point of the split — the law forbids making "stop mailing me" cost a candidate
+ *  their entire application, so the two capabilities must not be interchangeable.
+ *
+ *  Same mechanics as ensureErasureToken otherwise: FILL-ONLY (COALESCE-guarded) so a
+ *  link already sitting in someone's inbox never stops working, CSPRNG (randomToken),
+ *  never the raw entry id. Null for an unknown id. */
+export function ensureOptOutToken(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT optout_token FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
+    | { optout_token: string | null }
+    | undefined;
+  if (!row) return null;
+  if (row.optout_token) return row.optout_token;
+  db.prepare(
+    `UPDATE pipeline_entries SET optout_token = COALESCE(optout_token, ?), updated_at = ? WHERE id = ? AND workspace_id = ?`
+  ).run(randomToken("ob"), new Date().toISOString(), entryId, workspaceId);
+  const after = db.prepare(`SELECT optout_token FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
+    | { optout_token: string | null }
+    | undefined;
+  return after?.optout_token ?? null;
+}
+
+/** Resolve an opt-out token to its entry (public /stop/[token] page). Same soft
+ *  contract as findEntryByErasureToken — blank/unknown returns null and the page shows
+ *  one indistinguishable refusal — and, critically, it matches ONLY `optout_token`: an
+ *  erasure token presented here resolves to nothing, and vice versa, so neither door
+ *  can be walked with the other's key. */
+export function findEntryByOptOutToken(token: string): PipelineEntry | null {
+  const key = token.trim();
+  if (!key) return null;
+  const row = ensureDb().prepare(`SELECT * FROM pipeline_entries WHERE optout_token = ?`).get(key) as
+    | PipelineRow
+    | undefined;
+  return row ? rowToEntry(row) : null;
+}
+
 /** THE ERASURE RECORD — the counterpart of `TENANCY_SCOPED_TABLES` (tenancy.ts).
  *
  *  The tenancy manifest answers "which tables hold per-tenant data"; it says nothing
@@ -2125,7 +2168,7 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     const claimed = db.prepare(
       `UPDATE pipeline_entries
           SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL,
-              notes = NULL, erasure_token = NULL, anonymized_at = ?, updated_at = ?
+              notes = NULL, erasure_token = NULL, optout_token = NULL, anonymized_at = ?, updated_at = ?
         WHERE id = ? AND workspace_id = ? AND anonymized_at IS NULL`
     ).run(masked, now, now, entryId, workspaceId);
     if (claimed.changes === 0) {

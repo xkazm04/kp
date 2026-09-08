@@ -515,6 +515,7 @@
     "aRole": "un poste",
     "yourNewRole": "votre nouveau poste",
     "dataFooter": "· · ·\nVos données : consultez ce que nous détenons à votre sujet, ou demandez leur suppression, à tout moment :\n{link}",
+    "stopFooter": "Arrêter ces messages : refusez à tout moment, en un clic, de recevoir d’autres messages au sujet de nos offres :\n{link}",
     "ack": {
       "subject": "Nous avons bien reçu votre travail",
       "subjectRole": "Nous avons bien reçu votre travail : {role}",
@@ -1378,6 +1379,9 @@
     "REDISCOVERY_ALERTS_FAILED": "Impossible de charger les alertes d’anciens candidats. Veuillez réessayer.",
     "DATA_LOOKUP_FAILED": "Impossible de charger vos données pour le moment. Veuillez réessayer.",
     "DATA_ERASE_FAILED": "Impossible de finaliser l’effacement pour le moment. Veuillez réessayer.",
+    "STOP_LINK_INVALID": "Ce lien de désabonnement n’est plus valide.",
+    "STOP_LOOKUP_FAILED": "Impossible de charger vos préférences de contact pour le moment. Veuillez réessayer.",
+    "STOP_FAILED": "Impossible d’arrêter les messages pour le moment. Veuillez réessayer.",
     "CONSENT_LOOKUP_FAILED": "Impossible de charger le détail des consentements. Veuillez réessayer.",
     "COMMAND_FAILED": "Impossible d’exécuter cette commande. Veuillez réessayer.",
     "BENCHMARK_FAILED": "Impossible de charger le référentiel de l’organisation. Veuillez réessayer.",
@@ -1890,6 +1894,23 @@
     "proposalsPendingBody": "Nous avons transmis vos créneaux proposés à l’équipe de recrutement. Elle vous en confirmera un sous peu. Vous pouvez fermer cette page.",
     "proposalsDeclinedTitle": "Nous n’avons pas pu retenir ces créneaux",
     "proposalsDeclinedBody": "L’équipe de recrutement n’a pas pu retenir les créneaux que vous avez proposés. Elle vous contactera directement pour trouver un créneau qui convienne."
+  },
+  "stop": {
+    "eyebrow": "Vos messages",
+    "title": "Messages concernant le poste {role}",
+    "titleGeneric": "Messages de notre part",
+    "loadFailed": "Ce lien de désabonnement a expiré ou n’est plus valide.",
+    "stopFailed": "Impossible d’arrêter les messages pour le moment. Veuillez réessayer.",
+    "explainer": "Un clic suffit : nous cessons de vous envoyer des messages au sujet de nos offres. Aucun formulaire, aucune connexion.",
+    "scopeTitle": "Ce que cela fait, et ce que cela ne fait pas",
+    "scopeStops": "Cela arrête les messages que nous vous envoyons au sujet de nos offres.",
+    "scopeKeepsData": "Cela n’efface rien. Les données que nous détenons à votre sujet restent inchangées.",
+    "scopeKeepsApplication": "Cela ne retire aucune candidature. Si vous avez postulé, vous restez en lice et nous continuerons à vous écrire au sujet de cette candidature.",
+    "cta": "Ne plus m’envoyer de messages",
+    "stopping": "Arrêt en cours",
+    "doneTitle": "Nous cesserons de vous contacter",
+    "doneBody": "Votre demande est enregistrée et prend effet immédiatement. Nous ne vous enverrons plus de messages au sujet de nos offres. Rien n’a été effacé et aucune candidature n’a été retirée.",
+    "eraseInstead": "Vous préférez que nous supprimions les données personnelles que nous détenons à votre sujet ? C’est une demande distincte, et son lien figure dans le même message, juste à côté."
   },
   "data": {
     "eyebrow": "Vos données",
@@ -2753,6 +2774,7 @@
       "outreach_sent": "a reçu un message d’approche",
       "outreach_halted": "approche interrompue (a répondu)",
       "outreach_suppressed": "a vu son message d’approche retenu",
+      "outreach_opted_out": "a demandé que nous cessions de le contacter",
       "acknowledgement_sent": "a reçu un accusé de réception de candidature",
       "rejection_sent": "a reçu un refus",
       "interview_invite_sent": "a reçu une invitation à un entretien",
@@ -4319,6 +4341,35 @@
           "speaking": "Arrêter la lecture",
           "speakUnavailable": "La lecture à voix haute n’est pas configurée sur ce serveur.",
           "autoSpeak": "Lire chaque réponse à voix haute"
+        },
+        "coat": {
+          "label": "Design",
+          "name": {
+            "classic": "Classique",
+            "atelier": "Atelier",
+            "console": "Console"
+          }
+        },
+        "promoteCaseShort": "Test pratique",
+        "promoteCaseHint": "concevoir l’exercice avec l’offre",
+        "promoteMarketShort": "Fourchette salariale",
+        "promoteMarketHint": "rechercher le taux du marché",
+        "glyph": {
+          "materials": "Documents",
+          "dictate": "Dicter",
+          "dictateOff": "Dictée indisponible",
+          "speak": "Lire à voix haute",
+          "speakOff": "Lecture indisponible",
+          "autoSpeak": "Lire chaque réponse",
+          "call": "Appel vocal",
+          "callOff": "Voix indisponible",
+          "send": "Envoyer",
+          "history": "Tours précédents",
+          "collapse": "Replier",
+          "expand": "Déplier",
+          "edit": "Modifier le brief",
+          "turn": "Du tour {turn, number}",
+          "compose": "Message"
         },
         "edit": {
           "start": "Modifier le brief",
@@ -7102,6 +7153,7 @@
         "outreach_sent": "Prise de contact envoyée",
         "outreach_halted": "Prise de contact arrêtée : le candidat a répondu",
         "outreach_suppressed": "Prise de contact retenue",
+        "outreach_opted_out": "Le candidat s’est désabonné",
         "rejection_sent": "Refus envoyé",
         "rejected": "Rejeté",
         "applied": "Candidature déposée",
@@ -8133,7 +8185,8 @@
     "rail": {
       "brand": "Kandi",
       "language": "Langue de l’application",
-      "languageAria": "Choisir la langue de l’application"
+      "languageAria": "Choisir la langue de l’application",
+      "stepOf": "Étape {index} sur {total}"
     },
     "steps": {
       "welcome": {
@@ -8188,7 +8241,7 @@
           "body": "Présélection, entretiens et offres : un seul flux, et c’est vous qui décidez."
         }
       },
-      "minutes": "Environ 3 minutes"
+      "minutes": "Six étapes courtes. Chacune a une valeur par défaut qui fonctionne."
     },
     "company": {
       "nameLabel": "Nom de l’entreprise",
@@ -8205,7 +8258,8 @@
         "illegibleDark": "Cette couleur n’a pas de version lisible en Spark Dark. Choisissez une teinte plus vive ou plus saturée."
       },
       "logoLabel": "URL du logo",
-      "logoInvalid": "Saisissez une URL d’image en https://."
+      "logoInvalid": "Saisissez une URL d’image en https://.",
+      "nameHint": "C'est le nom que les candidats voient sur les offres, les propositions et dans chaque message que vous leur envoyez."
     },
     "team": {
       "emailPlaceholder": "nom@entreprise.fr",
@@ -8286,7 +8340,8 @@
       "soloBody": "Allez à votre rythme. La démo reste à un clic, derrière le bouton rond Candi en bas de l’écran.",
       "pipelineTitle": "Votre tableau : {count, plural, one {# étape} other {# étapes}}",
       "pipelineChangedBody": "Vos modifications s’appliquent à la fin. Ajustez-les à tout moment dans Paramètres → Pipeline de recrutement.",
-      "pipelineDefaultBody": "Les colonnes que traversent les candidats. Modifiez-les à tout moment dans Paramètres → Pipeline de recrutement."
+      "pipelineDefaultBody": "Les colonnes que traversent les candidats. Modifiez-les à tout moment dans Paramètres → Pipeline de recrutement.",
+      "recommended": "Recommandé pour un nouvel espace de travail"
     },
     "footer": {
       "back": "Retour",
@@ -8329,6 +8384,10 @@
           "body": "Ouvrez une réception d’e-mails et recevez une candidature test.",
           "listening": "En écoute. Transférez un e-mail à l'adresse configurée (ou utilisez le bouton de simulation dans l'onglet Canaux) pour valider cette étape.",
           "listeningSimLink": "Aller à l'onglet Canaux →"
+        },
+        "finishSetup": {
+          "title": "Terminer la configuration",
+          "body": "Votre entreprise, votre équipe, votre tableau et Candi. Reprenez où vous en étiez."
         }
       }
     },
@@ -8344,6 +8403,12 @@
       "reasonUnknown": "n’a pas pu être enregistré. Vous pouvez le terminer dans les Réglages.",
       "line": "{part} : {reason}",
       "lineWithAddresses": "{part} ({addresses}) : {reason}"
+    },
+    "leave": {
+      "title": "Quitter la configuration ?",
+      "body": "Rien n'est perdu. Vous pourrez terminer la configuration à tout moment depuis la liste Premiers pas sur votre tableau.",
+      "confirm": "Quitter la configuration",
+      "cancel": "Continuer la configuration"
     }
   },
   "devcase": {

@@ -1321,6 +1321,16 @@ export function ensureDb(): Database.Database {
     // candidate email and resolved at the public /data/[token] page. Opaque CSPRNG
     // like lead_token — NEVER the raw entry id.
     "ALTER TABLE pipeline_entries ADD COLUMN erasure_token TEXT",
+    // Self-service OPT-OUT capability token (ePrivacy Art. 13(4); § 7(4)(c) of the
+    // Czech zák. č. 480/2004 Sb.). A SECOND, deliberately NARROWER token beside
+    // erasure_token: it opens `/stop/[token]`, which records a candidate-side halt on
+    // further outreach and NOTHING else — it cannot read the held-data projection and
+    // cannot erase. Two columns rather than one shared token precisely because the two
+    // capabilities must not be interchangeable: a candidate who wants the mail to stop
+    // must not be offered "delete your whole application" as the only way to get it,
+    // which is the coupling the law forbids. Opaque CSPRNG like lead_token/erasure_token
+    // — NEVER the raw entry id.
+    "ALTER TABLE pipeline_entries ADD COLUMN optout_token TEXT",
     // E5 — when a webhook received its FIRST lead (time-to-first-lead metric).
     // Tenant scope (P2) for the BOARD: pipeline_entries had NO workspace column (only
     // analyses/profiles did), so the analysis→board chip + disposition echo matched
@@ -1423,6 +1433,13 @@ export function ensureDb(): Database.Database {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_workspace ON pipeline_entries (workspace_id)`);
   // Same single-row public lookup for the self-service erasure token.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_erasure_token ON pipeline_entries (erasure_token)`);
+  // …and for the opt-out token the unsubscribe footer carries (/stop/[token]).
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_optout_token ON pipeline_entries (optout_token)`);
+  // The candidate opt-out gate resolves at the DURABLE identity — "has any entry this
+  // person owns been opted out?" — so every outreach send joins outreach_state to
+  // pipeline_entries on candidate_id. Index it, or the gate degrades into a full scan
+  // of the board on every send.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_candidate_id ON pipeline_entries (candidate_id)`);
   // The anonymization sweep scans for due consents — index the expiry so it stays
   // a range probe rather than a full table scan as the board grows.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_consent_expiry ON pipeline_entries (consent_expires_at)`);
@@ -1460,12 +1477,22 @@ export function ensureDb(): Database.Database {
     -- re-run mailed the same people again, including the ones who had already written
     -- back. The sends counter is what makes an inbound message a REPLY rather than a
     -- re-application (outreach-halt.ts); replied_at/manual_halt_at stop the sequence.
+    --
+    -- candidate_halt_at is the CANDIDATE'S OWN opt-out (/stop/[token]) and is a
+    -- different fact from manual_halt_at, which is the recruiter's. They are kept apart
+    -- deliberately: an operator halt is an internal workflow decision a later operator
+    -- may reverse, a candidate opt-out is a legally binding objection to further
+    -- commercial contact (ePrivacy Art. 13(4); § 7(4)(c) with § 11(2)(a)(4) of the Czech
+    -- zák. č. 480/2004 Sb., a standalone offence up to 10,000,000 Kč; UWG § 7(2) No. 2).
+    -- Collapsing them into one column would lose the one that matters legally the first
+    -- time a recruiter cleared "their" halt.
     CREATE TABLE IF NOT EXISTS outreach_state (
       entry_id TEXT PRIMARY KEY,
       sends INTEGER NOT NULL DEFAULT 0,
       last_sent_at TEXT,
       replied_at TEXT,
       manual_halt_at TEXT,
+      candidate_halt_at TEXT,
       workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE INDEX IF NOT EXISTS idx_outreach_state_ws ON outreach_state (workspace_id);
@@ -1790,6 +1817,12 @@ export function ensureDb(): Database.Database {
     // connected yet, both read as the ordinary single-attempt session rather than as
     // a fabricated zero.
     "ALTER TABLE interview_sessions ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
+    // The candidate's own opt-out timestamp on an outreach_state row that predates it.
+    // It has to live in THIS loop rather than the one beside the pipeline_entries
+    // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws
+    // "no such table" (only "duplicate column"/"already exists" are benign), so an
+    // earlier ALTER would hard-fail every fresh boot.
+    "ALTER TABLE outreach_state ADD COLUMN candidate_halt_at TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -1801,6 +1834,13 @@ export function ensureDb(): Database.Database {
   // access_token (new credentials); index it like the other single-row token lookups.
   // Created AFTER the ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_skill_profiles_access_token ON skill_profiles (access_token)`);
+  // The candidate opt-out gate runs on EVERY outreach send and asks one question of this
+  // table: "is any row here a halt?". A PARTIAL index over just those rows keeps that a
+  // probe of the (usually tiny) opted-out set rather than a scan of one row per contacted
+  // candidate. Created AFTER the ALTER loop above so a legacy DB already holds the column.
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_outreach_candidate_halt ON outreach_state (candidate_halt_at) WHERE candidate_halt_at IS NOT NULL`
+  );
   // Content-addressed identity lookups: History grouping (newest per cv_hash+jd),
   // cross-job linkage (same cv_hash, other JDs), and the label-collision probe all
   // filter analyses by (workspace_id, cv_hash). Created AFTER the ALTER loop so a

@@ -32,6 +32,10 @@ const EXEMPT: Record<string, string> = {
   "/api/auth/logout": "reads no body — it clears the session cookie and redirects",
   "/api/data/[token]":
     "reads no body — the erasure token in the path is the whole request (GDPR Art. 17 one-click link)",
+  "/api/stop/[token]":
+    "reads no body — the opt-out token in the path is the whole request. It ACCEPTS the RFC 8058 " +
+    "one-click form body (`List-Unsubscribe=One-Click`) that a mail provider POSTs, but never parses " +
+    "it: nothing in that body is trusted or needed, so there is no buffer to bound",
   "/api/extract-text":
     "multipart/form-data, not JSON: the upload is bounded by the route's own file-size gate and the extractor's " +
     "child-process timeout, neither of which readTextWithLimit can express",

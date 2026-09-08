@@ -310,6 +310,75 @@ also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earl
 the route's own 422 missing-fields check; expired consent is the case the gate answers.)
 Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
+## 7b. The candidate's own stop (unsubscribe)
+
+Until this shipped there was **no unsubscribe anywhere**. Every candidate comm carried
+the GDPR footer to `/data/<erasureToken>` and nothing else, so the only lever a candidate
+had for "stop writing to me" was **erase my entire application**. Those are different
+rights and they are not interchangeable — coupling them is what
+**ePrivacy Art. 13(4)** forbids (a commercial message with no valid address to decline
+further messages), and in this product's primary market **§ 7(4)(c) with
+§ 11(2)(a)(4) of zák. č. 480/2004 Sb.** makes it a standalone offence with a fine up to
+10,000,000 Kč. Germany's **UWG § 7(2) No. 2** is the same obligation. Talent
+rediscovery, which contacts people who never applied to anything, is exactly the traffic
+these rules govern.
+
+**The token.** `ensureOptOutToken` (`db/pipeline.ts`) mints a second, deliberately
+narrower CSPRNG capability into `pipeline_entries.optout_token` — fill-only
+(`COALESCE`-guarded, so a link already in someone's inbox keeps working), prefix `ob-`,
+never the raw entry id. It is a **separate column** from `erasure_token`:
+`findEntryByOptOutToken` matches only its own column, so neither key opens the other
+lock, and the opt-out door can read no held data and perform no erasure.
+
+**The record.** `outreach_state.candidate_halt_at`, written by `recordCandidateOptOut`
+(`outreach-state-store.ts`). It is a **different column** from `manual_halt_at`, which is
+the recruiter's stop: an operator halt is a workflow decision the next operator may
+clear, a candidate opt-out is a legally binding objection. `outreachHaltReason`
+(`outreach-halt.ts`) ranks `candidate` above `manual` above `replied`, so the
+legally-significant reason is the one surfaced. `outreach_state` stays `ERASURE_EXEMPT`
+for the reason it always was, which this strengthens: it is the record that stops further
+mail, so deleting it would re-arm the contact it prevents.
+
+**It resolves at the durable candidate identity.** `candidateOptOutHalt` joins
+`outreach_state` to `pipeline_entries` on `candidate_id` — an opt-out on ANY entry the
+person owns stops mail on all of them. An entry-scoped read would be trivially bypassed:
+rediscovery mints a fresh entry per role with an empty `outreach_state`, which is the
+same hole the consent gate already had to close. It is deliberately workspace-**global**,
+like `candidateConsentSnapshots`, and **fails closed** — unlike its reply/manual siblings,
+which stay fail-open because they are workflow state rather than a legal obligation.
+
+**Where it is honoured** — in the library, so a future caller inherits the refusal:
+
+| Point | What it does |
+| --- | --- |
+| `commsSendSuppression` (`comms.ts`) | the one predicate every door into the channel shares; refuses `kind: "outreach"` (see §7a for why transactional mail is not withheld) |
+| `dispatchOutreach` (`comms-dispatch.ts`) | still gates first via `outreachHaltFor`, so it can report the reason and record `outreach_suppressed` |
+| `rediscoverForJob` (`rediscover.ts`) | `optedOutCandidateIds` filters the pool at **rank time**, beside the consent gate — so an opted-out person is never ranked, never persisted as an alert carrying their name, and never gets a "Reach out" button the channel is guaranteed to refuse |
+| `POST /api/jobs/[id]/candidates/outreach` | pre-mint 409 (`suppressed: "candidate"`), so no entry is created and no paid draft is spawned |
+
+**The surfaces.** `/stop/[token]` (public page, `StopClient.tsx`) over
+`/api/stop/[token]`: `GET` returns an explicit field allowlist (`jobTitle`, `company`,
+`stopped` — never the entry id, the name, the score or the stage), `POST` records the
+halt. Both verbs are `rateLimit`-ed **before** the token lookup (60/min read, 20/min
+write, pinned in `rate-limit-contract.test.ts`), and both answer one indistinguishable
+`STOP_LINK_INVALID` 404 for "no such token" and "no such entry" so the door is not an
+existence oracle. Both paths are in `public-routes.ts` (`/stop/`, `/api/stop/`) — a login
+wall in front of an unsubscribe link is a message with no valid address to decline.
+
+The write is **idempotent** (`COALESCE` keeps the first objection timestamp) and there is
+**no confirm dialog**: unlike the erasure door this is neither irreversible nor
+destructive, and friction on this affordance is the thing the law is about. The page is
+honest about scope, in copy and in code: it stops outreach, it **erases nothing**, and it
+**does not withdraw an application** — someone mid-process stays in the running and still
+hears back. The erasure link is not repeated on this page (that would hand the scoped
+token the capability the split exists to deny); the copy points at the "review or erase
+your data" link in the same letter instead.
+
+Audited as `outreach_opted_out` (`DECISION_META`, `EVENT_KINDS`, four catalogs) —
+attributed **human**, because a person made this decision.
+
+Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts`.
+
 ## 8. One delivery truth, on every surface
 
 - **Failure reason persisted.** `dev_outbox.failure_detail` (additive,
@@ -411,8 +480,10 @@ links. `comms-dispatch.test.ts` now derives the key list **from the dispatcher s
 and asserts `t.has(key)` in **all four** locales, so neither a phantom key nor an
 unpinned de/fr catalog can come back.
 
-**Links.** The GDPR erasure footer is the only candidate link BUILT inside
-`comms-dispatch.ts`; the offer letter and the offer reminder receive their link from the
+**Links.** The GDPR erasure footer and the unsubscribe footer (§7b) are the only
+candidate links BUILT inside `comms-dispatch.ts` — one builder, `candidateFooters`, so a
+new dispatcher cannot ship a letter carrying the erasure link and no opt-out. Both ride
+on every send through `sendCandidateComm`. The offer letter and the offer reminder receive their link from the
 caller and PIN it here (`pinLinkLocale`, beside the same `candidateLocale` resolution the
 letter uses) — until 2026-09-01 the offer link was the one bare candidate door, so a Czech
 letter opened an English accept/decline page. Locked by `offer-link-locale.test.ts`. The
@@ -421,7 +492,10 @@ loudly when nothing is configured) **and `?lang=`-pinned to the language the let
 written in**, exactly like the status link that rides beside it — `proxy.ts` turns the
 param into the `NEXT_LOCALE` cookie, and without it the page resolved from a cookie the
 candidate does not have and then from `Accept-Language`, opening the erasure explainer
-in a language they never chose. Locked by `comms-dispatch-links.test.ts`.
+in a language they never chose. Locked by `comms-dispatch-links.test.ts`. The visible
+unsubscribe link is pinned the same way; the machine-readable copy handed to the relay
+(§7b, `List-Unsubscribe`) deliberately is **not**, since a mail provider POSTs it
+unattended and the language of a page nobody opens is noise.
 
 ## 11. Inbound when the studio is off: pull sources and the always-on edge
 

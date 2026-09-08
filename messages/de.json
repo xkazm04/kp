@@ -515,6 +515,7 @@
     "aRole": "eine Stelle",
     "yourNewRole": "Ihre neue Stelle",
     "dataFooter": "· · ·\nIhre Daten: Sehen Sie jederzeit ein, welche Daten wir über Sie speichern, oder fordern Sie deren Löschung an:\n{link}",
+    "stopFooter": "Diese Nachrichten stoppen: Weitere Nachrichten zu Stellenangeboten können Sie jederzeit mit einem Klick abbestellen:\n{link}",
     "ack": {
       "subject": "Wir haben Ihre Einreichung erhalten",
       "subjectRole": "Wir haben Ihre Einreichung erhalten: {role}",
@@ -1378,6 +1379,9 @@
     "REDISCOVERY_ALERTS_FAILED": "Die Hinweise auf frühere Kandidaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "DATA_LOOKUP_FAILED": "Ihre Daten konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.",
     "DATA_ERASE_FAILED": "Die Löschung konnte gerade nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+    "STOP_LINK_INVALID": "Dieser Abmeldelink ist nicht mehr gültig.",
+    "STOP_LOOKUP_FAILED": "Ihre Kontakteinstellungen konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "STOP_FAILED": "Die Nachrichten konnten gerade nicht gestoppt werden. Bitte versuchen Sie es erneut.",
     "CONSENT_LOOKUP_FAILED": "Die Einwilligungsdetails konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "COMMAND_FAILED": "Dieser Befehl konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
     "BENCHMARK_FAILED": "Der Unternehmens-Benchmark konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -1890,6 +1894,23 @@
     "proposalsPendingBody": "Wir haben Ihre vorgeschlagenen Termine an das Einstellungsteam weitergeleitet. Es bestätigt Ihnen in Kürze einen davon. Sie können diese Seite schließen.",
     "proposalsDeclinedTitle": "Diese Termine ließen sich nicht einrichten",
     "proposalsDeclinedBody": "Das Hiring-Team konnte die von Ihnen vorgeschlagenen Termine nicht berücksichtigen. Es meldet sich direkt bei Ihnen, um einen passenden Termin zu finden."
+  },
+  "stop": {
+    "eyebrow": "Ihre Nachrichten",
+    "title": "Nachrichten zur Stelle {role}",
+    "titleGeneric": "Nachrichten von uns",
+    "loadFailed": "Dieser Abmeldelink ist abgelaufen oder nicht mehr gültig.",
+    "stopFailed": "Die Nachrichten konnten gerade nicht gestoppt werden. Bitte versuchen Sie es erneut.",
+    "explainer": "Ein Klick genügt, und wir senden Ihnen keine Nachrichten zu Stellenangeboten mehr. Kein Formular, keine Anmeldung.",
+    "scopeTitle": "Was das bewirkt und was nicht",
+    "scopeStops": "Es stoppt die Nachrichten, die wir Ihnen zu Stellenangeboten senden.",
+    "scopeKeepsData": "Es löscht nichts. Die Daten, die wir über Sie speichern, bleiben unverändert.",
+    "scopeKeepsApplication": "Es zieht keine Bewerbung zurück. Wenn Sie sich beworben haben, bleiben Sie im Verfahren und wir schreiben Ihnen weiterhin zu dieser Bewerbung.",
+    "cta": "Keine Nachrichten mehr senden",
+    "stopping": "Wird gestoppt",
+    "doneTitle": "Wir kontaktieren Sie nicht mehr",
+    "doneBody": "Ihre Anfrage ist erfasst und gilt ab sofort. Wir senden Ihnen keine weiteren Nachrichten zu Stellenangeboten. Es wurde nichts gelöscht und keine Bewerbung zurückgezogen.",
+    "eraseInstead": "Möchten Sie stattdessen, dass wir Ihre bei uns gespeicherten personenbezogenen Daten löschen? Das ist eine eigene Anfrage, und der Link dazu steht in derselben Nachricht direkt daneben."
   },
   "data": {
     "eyebrow": "Ihre Daten",
@@ -2753,6 +2774,7 @@
       "outreach_sent": "hat eine Ansprache erhalten",
       "outreach_halted": "hat geantwortet (Ansprache gestoppt)",
       "outreach_suppressed": "wurde von der Ansprache ausgenommen",
+      "outreach_opted_out": "hat uns gebeten, nicht mehr zu kontaktieren",
       "acknowledgement_sent": "hat eine Eingangsbestätigung erhalten",
       "rejection_sent": "hat eine Absage erhalten",
       "interview_invite_sent": "hat eine Interview-Einladung erhalten",
@@ -4319,6 +4341,35 @@
           "speaking": "Vorlesen stoppen",
           "speakUnavailable": "Vorlesen ist auf diesem Server nicht eingerichtet.",
           "autoSpeak": "Jede Antwort vorlesen"
+        },
+        "coat": {
+          "label": "Design",
+          "name": {
+            "classic": "Klassisch",
+            "atelier": "Atelier",
+            "console": "Konsole"
+          }
+        },
+        "promoteCaseShort": "Arbeitsprobe",
+        "promoteCaseHint": "die Aufgabe mit der Stellenanzeige entwerfen",
+        "promoteMarketShort": "Gehaltsband",
+        "promoteMarketHint": "den Marktwert recherchieren",
+        "glyph": {
+          "materials": "Materialien",
+          "dictate": "Diktieren",
+          "dictateOff": "Diktat nicht verfügbar",
+          "speak": "Vorlesen",
+          "speakOff": "Vorlesen nicht verfügbar",
+          "autoSpeak": "Jede Antwort vorlesen",
+          "call": "Sprachanruf",
+          "callOff": "Sprache nicht verfügbar",
+          "send": "Senden",
+          "history": "Frühere Runden",
+          "collapse": "Einklappen",
+          "expand": "Ausklappen",
+          "edit": "Brief bearbeiten",
+          "turn": "Aus Runde {turn, number}",
+          "compose": "Nachricht"
         },
         "edit": {
           "start": "Briefing bearbeiten",
@@ -7102,6 +7153,7 @@
         "outreach_sent": "Ansprache gesendet",
         "outreach_halted": "Ansprache gestoppt: Kandidat hat geantwortet",
         "outreach_suppressed": "Ansprache zurückgehalten",
+        "outreach_opted_out": "Kandidat hat sich abgemeldet",
         "rejection_sent": "Absage gesendet",
         "rejected": "Abgelehnt",
         "applied": "Beworben",
@@ -8133,7 +8185,8 @@
     "rail": {
       "brand": "Kandi",
       "language": "App-Sprache",
-      "languageAria": "App-Sprache wählen"
+      "languageAria": "App-Sprache wählen",
+      "stepOf": "Schritt {index} von {total}"
     },
     "steps": {
       "welcome": {
@@ -8188,7 +8241,7 @@
           "body": "Screening, Interviews und Angebote: ein Ablauf, die Entscheidungen treffen Sie."
         }
       },
-      "minutes": "Dauert etwa 3 Minuten"
+      "minutes": "Sechs kurze Schritte. Jeder hat eine funktionierende Voreinstellung."
     },
     "company": {
       "nameLabel": "Unternehmensname",
@@ -8205,7 +8258,8 @@
         "illegibleDark": "Diese Farbe hat keine lesbare Spark-Dark-Variante. Wählen Sie einen helleren oder kräftigeren Ton."
       },
       "logoLabel": "Logo-URL",
-      "logoInvalid": "Geben Sie eine https://-Bild-URL ein."
+      "logoInvalid": "Geben Sie eine https://-Bild-URL ein.",
+      "nameHint": "Diesen Namen sehen Kandidatinnen und Kandidaten in Stellenanzeigen, Angeboten und in jeder Nachricht, die Sie senden."
     },
     "team": {
       "emailPlaceholder": "name@firma.de",
@@ -8286,7 +8340,8 @@
       "soloBody": "Gehen Sie es in Ihrem eigenen Tempo an. Die Demo bleibt einen Klick entfernt, hinter dem runden Candi-Button am unteren Bildschirmrand.",
       "pipelineTitle": "Ihr Board: {count, plural, one {# Schritt} other {# Schritte}}",
       "pipelineChangedBody": "Ihre Änderungen greifen beim Abschließen. Jederzeit anpassbar unter Einstellungen → Hiring-Pipeline.",
-      "pipelineDefaultBody": "Die Spalten, die Kandidaten durchlaufen. Jederzeit änderbar unter Einstellungen → Hiring-Pipeline."
+      "pipelineDefaultBody": "Die Spalten, die Kandidaten durchlaufen. Jederzeit änderbar unter Einstellungen → Hiring-Pipeline.",
+      "recommended": "Empfohlen für einen neuen Arbeitsbereich"
     },
     "footer": {
       "back": "Zurück",
@@ -8329,6 +8384,10 @@
           "body": "Öffnen Sie einen E-Mail-Eingang und empfangen Sie eine Testbewerbung.",
           "listening": "Empfangsbereit. Leiten Sie eine E-Mail an die konfigurierte Adresse weiter (oder nutzen Sie die Simulationsschaltfläche im Channels-Tab) um diesen Schritt zu verifizieren.",
           "listeningSimLink": "Zum Channels-Tab →"
+        },
+        "finishSetup": {
+          "title": "Einrichtung abschließen",
+          "body": "Ihr Unternehmen, Ihr Team, Ihr Board und Candi. Machen Sie dort weiter, wo Sie aufgehört haben."
         }
       }
     },
@@ -8344,6 +8403,12 @@
       "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
       "line": "{part}: {reason}",
       "lineWithAddresses": "{part} ({addresses}): {reason}"
+    },
+    "leave": {
+      "title": "Einrichtung verlassen?",
+      "body": "Es geht nichts verloren. Sie können die Einrichtung jederzeit über die Checkliste „Erste Schritte“ auf Ihrem Board abschließen.",
+      "confirm": "Einrichtung verlassen",
+      "cancel": "Weiter einrichten"
     }
   },
   "devcase": {

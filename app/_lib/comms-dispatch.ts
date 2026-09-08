@@ -3,7 +3,7 @@ import { recordOutbox, type OutboxEntry } from "./db/devcase";
 import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import type { OutboxStatus } from "./comms-status";
 import type { PipelineEntry } from "./db/core";
-import { ensureErasureToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
+import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";
@@ -154,18 +154,55 @@ type CandidateCommTarget = {
   workspaceId?: string | null;
 };
 
-async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator, locale: Locale): Promise<string> {
-  if (entry.anonymizedAt || !entry.id) return ""; // already scrubbed, or no entry to manage
-  const token = ensureErasureToken(entry.id, entry.workspaceId ?? undefined);
-  if (!token) return "";
-  // ?lang= pins the page to the language the LETTER is written in, exactly as the status
-  // link that rides beside it does (proxy.ts turns the param into the NEXT_LOCALE cookie).
-  // Unpinned, the page resolved from a cookie the candidate does not have and then from
-  // Accept-Language — so a cs-locale candidate reading on an English-configured browser
-  // opened the erasure explainer (a legal affordance) in a language they never chose,
-  // while the other link in the same letter opened in Czech.
-  const link = `${await candidateLinkBase()}/data/${encodeURIComponent(token)}?lang=${locale}`;
-  return "\n\n" + t("dataFooter", { link });
+// THE TWO CANDIDATE-FACING LEGAL AFFORDANCES, built together because they must ride
+// together and are constantly mistaken for each other.
+//
+//   dataFooter — GDPR Art. 15/17: "review or erase your data" → /data/<erasureToken>.
+//   stopFooter — ePrivacy Art. 13(4) (and Czech § 7(4)(c) with § 11(2)(a)(4) of zák. č.
+//     480/2004 Sb., a standalone offence up to 10,000,000 Kč; German UWG § 7(2) No. 2):
+//     "stop sending me messages" → /stop/<optOutToken>.
+//
+// THEY ARE NOT INTERCHANGEABLE, and for years this module shipped only the first. A
+// candidate who simply wanted the mail to stop — including the people talent
+// rediscovery contacts who never applied to anything — was offered exactly one lever:
+// erase the entire application. Making the only way to decline further messages the
+// destruction of your own candidacy is the coupling the law forbids, so the opt-out is
+// its own link, its own token and its own page.
+//
+// Both are skipped for an already-anonymized entry (nothing left to manage, and nobody
+// left to mail) or one we cannot mint a token for. Both are ABSOLUTE via
+// candidateLinkBase(), resolved ONCE per letter and shared, so a detached send warns
+// about a missing public origin once rather than twice.
+async function candidateFooters(
+  entry: CandidateCommTarget,
+  t: CommsTranslator,
+  locale: Locale
+): Promise<{ text: string; unsubscribeUrl: string | null }> {
+  if (entry.anonymizedAt || !entry.id) return { text: "", unsubscribeUrl: null };
+  const workspaceId = entry.workspaceId ?? undefined;
+  const erasureToken = ensureErasureToken(entry.id, workspaceId);
+  const optOutToken = ensureOptOutToken(entry.id, workspaceId);
+  if (!erasureToken && !optOutToken) return { text: "", unsubscribeUrl: null };
+  const base = await candidateLinkBase();
+  // ?lang= pins each page to the language the LETTER is written in, exactly as the status
+  // link that rides beside them does (proxy.ts turns the param into the NEXT_LOCALE
+  // cookie). Unpinned, the page resolved from a cookie the candidate does not have and
+  // then from Accept-Language — so a cs-locale candidate reading on an English-configured
+  // browser opened the erasure explainer (a legal affordance) in a language they never
+  // chose, while the other link in the same letter opened in Czech.
+  const lines: string[] = [];
+  if (erasureToken) {
+    lines.push(t("dataFooter", { link: `${base}/data/${encodeURIComponent(erasureToken)}?lang=${locale}` }));
+  }
+  // The RFC 8058 one-click target is the SAME URL without the ?lang= pin: a mail
+  // provider POSTs it unattended, so the language of a page nobody will look at is
+  // noise, while the human-visible link keeps its pin.
+  const stopUrl = optOutToken ? `${base}/stop/${encodeURIComponent(optOutToken)}` : null;
+  if (stopUrl) lines.push(t("stopFooter", { link: `${stopUrl}?lang=${locale}` }));
+  // A BLANK line between the two, not a bare newline: they are two different rights and
+  // two different links, and running them together reads as one paragraph in which the
+  // second URL looks like a continuation of the first.
+  return { text: lines.length > 0 ? "\n\n" + lines.join("\n\n") : "", unsubscribeUrl: stopUrl };
 }
 
 // --- The SIMULATION guard ------------------------------------------------------
@@ -223,15 +260,21 @@ async function sendCandidateComm(
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
 ): Promise<OutboxStatus> {
+  const footers = await candidateFooters(entry, t, locale);
   const recorded = await sendCommUnlessSim({
     to: candidateRecipient(entry),
     subject: msg.subject,
-    body: msg.body + (await dataFooter(entry, t, locale)),
+    body: msg.body + footers.text,
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
     // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
     // ref on an entry-less dispatch). Ignored whenever the entry resolves.
     workspaceId: msg.workspaceId,
+    // The machine-readable half of the opt-out: the relay turns it into the
+    // List-Unsubscribe / List-Unsubscribe-Post mail headers (see comms-envelope.ts for
+    // why kp cannot set those itself). The visible link in the body is the half a
+    // candidate reads; this is the one their mail client offers them.
+    unsubscribeUrl: footers.unsubscribeUrl ?? undefined,
   }, entry.jobTitle);
   return recorded.status;
 }

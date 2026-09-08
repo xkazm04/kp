@@ -165,7 +165,25 @@ const proofText = new Map(proofFiles.map((f) => [path.relative(appDir, f), readF
  *  entry is the preferred end state — this list should only ever shrink. */
 const ORPHAN_PINS: { table: string; source: string; exempt?: RegExp; why?: string }[] = [
   { table: "candidate_nps", source: "candidate-nps-store.ts" },
-  { table: "outreach_state", source: "outreach-state-store.ts" },
+  {
+    table: "outreach_state",
+    source: "outreach-state-store.ts",
+    // The CANDIDATE OPT-OUT READ is deliberately workspace-GLOBAL, and it is the only
+    // statement here that is. A person's objection to being contacted (ePrivacy
+    // Art. 13(4); Czech § 7(4)(c) of zák. č. 480/2004 Sb.) is a property of the PERSON,
+    // not of the team that happens to hold a row about them — the same call
+    // candidateConsentSnapshots already makes for consent and erasure, and for the same
+    // reason: over-suppressing across a rare same-id collision is the lawful direction,
+    // while scoping it would let a second team mail someone who has told this
+    // deployment to stop. It reads only a timestamp's presence — no label, no content,
+    // no counter — so it cannot leak one tenant's data into another's surface.
+    //
+    // Pinned by SHAPE, narrowly: a SELECT filtering on candidate_halt_at. Every WRITE
+    // (including recordCandidateOptOut) still binds workspace_id and is still checked,
+    // and so is every reply/manual/send read.
+    exempt: /^\s*SELECT\b[^;]*\bos\.candidate_halt_at IS NOT NULL\b/i,
+    why: "the candidate opt-out resolves at the durable person, across teams, by design",
+  },
   { table: "ats_links", source: path.join("ats", "links-store.ts") },
   { table: "calendar_connections", source: path.join("calendar", "token-store.ts") },
   {

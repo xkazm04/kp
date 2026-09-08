@@ -221,6 +221,12 @@ export const STORE_ERRORS = {
   // GDPR self-service data/erasure (public token route over the pipeline entry).
   DATA_LOOKUP_FAILED: "Could not load your data right now. Please try again.",
   DATA_ERASE_FAILED: "Could not complete the erasure right now. Please try again.",
+  // The candidate's own unsubscribe door (public opt-out token route over the pipeline
+  // entry + the outreach memory). Read and write get separate codes for the same reason
+  // the status/NPS pair does: a failed stop must never read as "we could not load the
+  // page", or the candidate walks away believing the mail is stopped when it is not.
+  STOP_LOOKUP_FAILED: "Could not load your contact preferences right now. Please try again.",
+  STOP_FAILED: "Could not stop the messages right now. Please try again.",
   // Recruiter-facing consent snapshot + audit trail (drawer Data & consent panel).
   CONSENT_LOOKUP_FAILED: "Could not load consent details. Please try again.",
   // NL pipeline command bar (#7) — parse + preview/execute.
@@ -486,6 +492,13 @@ export const REFUSAL_ERRORS = {
    *  share one refusal because the candidate's next step is the same either way,
    *  and telling them apart would confirm which tokens exist. */
   DATA_LINK_INVALID: "This data link is no longer valid.",
+  /** An unsubscribe link that resolves to nothing (404): never issued, already spent by
+   *  an erasure (anonymizeEntry NULLs the token), or simply not a token we minted. All
+   *  readings share ONE refusal, exactly as DATA_LINK_INVALID and STATUS_LINK_INVALID
+   *  do: telling "no such token" apart from "no such entry" would make the door an
+   *  existence oracle over a set of tokens that name real people, and the candidate's
+   *  next step is identical either way. */
+  STOP_LINK_INVALID: "This unsubscribe link is no longer valid.",
   /** A work-session id presented without, or with the wrong, apply token (403). */
   SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
   /** The apply link does not resolve to a posting that is taking work (404). The two
