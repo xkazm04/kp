@@ -42,6 +42,149 @@ The image is a **slim standalone build** (~465 MB): Next `output:"standalone"` t
 only the server files + the minimal `node_modules` it actually needs, rather than
 shipping the whole source tree and full dependency set.
 
+## 1a. Roles and responsibilities under the EU AI Act
+
+**Read this before §2 if you will run KP on real candidates in the EU.** KP is a
+**high-risk AI system** under Annex III point 4 (employment — recruitment and
+selection): it analyses, filters, scores and ranks job applicants. That
+classification is not a posture KP adopts to be cautious; it is the one the Act
+assigns, and the article-by-article map is
+[`docs/features/compliance/ai-act-conformity.md`](../features/compliance/ai-act-conformity.md).
+The rest of this page tells you how to run KP. This section tells you **which
+duties land on you when you do**, because until 2026-09-08 this guide answered
+that question nowhere.
+
+*This is an engineering artifact, not legal advice. Where a point below is KP's
+own judgement rather than the Act's text, it says so.*
+
+**Timing.** The Annex III obligations apply from **2 December 2027** — Reg. (EU)
+2026/1744 (the AI Omnibus, in force 27 July 2026) moved them from 2 August 2026.
+Three things were **not** deferred and bind you today: the **Art. 5**
+prohibitions, **Art. 50** transparency (candidates must be told they are
+interacting with AI), and **Art. 4** AI literacy. All of GDPR is untouched by any
+of these dates.
+
+### Being open source and free does not change any of this
+
+Art. 2(12) exempts free and open-source AI systems from the Regulation — **but
+that exemption expressly does not reach high-risk systems, Art. 5, or Art. 50**,
+which is all of KP's exposure. And Art. 3(3) defines placing on the market as
+supplying for distribution or use *"whether for payment or free of charge"*, so
+AGPL distribution is placing on the market. The KP vendor is therefore the
+**provider** in every configuration — SaaS, your Docker Compose, your air-gapped
+cluster. Being AGPL and free buys nothing here, and you should not accept a
+claim from any vendor that it does.
+
+### Which role you hold
+
+| You are | When | What binds you |
+|---|---|---|
+| **Deployer** | You run an **unmodified** KP build, under KP's name, for its intended purpose | **Art. 26 only** — see the checklist below |
+| **Provider** | Any one of the three Art. 25(1) triggers below fires | **The whole Art. 16 chain**: Art. 9 risk management, Art. 10 data governance, Art. 11 + Annex IV technical documentation, Art. 12 logging, Art. 13 instructions for use, Art. 14 human oversight, Art. 15 accuracy/robustness/security, Art. 17 QMS, Art. 43 conformity assessment, Art. 47 declaration of conformity, CE marking, Art. 49 registration, Art. 72/73 post-market monitoring |
+
+**Art. 25(1) turns a deployer into a provider on three triggers:**
+
+1. **You put your own name or trademark on it.** Note that **§8b of this very
+   guide** — custom domain and white-label branding — is a documented path to
+   doing exactly that. Setting a display name and logo in Settings → Branding so
+   your recruiters and candidates see *your* product, on *your* domain, is the
+   textbook Art. 25(1)(a) case. That does not make white-labelling wrong; it
+   makes it a decision with a consequence, and this guide previously described
+   the feature without naming the consequence.
+2. **You make a substantial modification.** Art. 3(23) defines this as a change
+   *not foreseen or planned in the provider's initial conformity assessment*.
+3. **You change the intended purpose** — using KP to score existing employees for
+   promotion or termination, for example, rather than candidates for selection.
+
+### KP's foreseen-configuration envelope
+
+Art. 3(23)'s test is drafted so that **the provider's own conformity assessment
+sets the boundary**, and the Commission's Art. 25 value-chain guidelines are
+announced but not published. So KP has to say where the line is, and this is KP's
+statement of it. **It is a judgement call, not a citation** — and KP is bound by
+whatever it declares here, so it is written to be honoured rather than to be
+convenient.
+
+**Foreseen — ordinary configuration. Use these freely; you remain a deployer:**
+
+- **Per-stage automation gates** (`app/_lib/decision-config-schema.ts`) —
+  including setting a stage to `auto`. The shipped default is `human` on every
+  stage, and every unattended step is logged with the plan that allowed it. The
+  behaviour of a delegated gate is designed-in and assessed. *(One caveat that
+  is a truthfulness problem rather than a conformity one: with an `auto` gate,
+  the candidate-facing AI disclosure's claim that a human makes every advance
+  and offer decision becomes false. That is KP's bug — tracked as G16 in the
+  conformity pack — not yours, but you should know it while it is open.)*
+- **Screening thresholds and per-family floors**
+  (`app/_lib/screen-wave.ts` — `rejectBottomPercent`, `maxMatchToReject`,
+  `familyFloors`, the calibration holdout rate). These are parameters the system
+  was built and calibrated to carry; they ride the sealed `policyVersion` on
+  every record, so a changed threshold is evidenced rather than hidden.
+- **Choosing among the shipped model adapters** (`app/_lib/llm-config.ts`:
+  `anthropic`, `openai`, `azure_openai`, `gemini`, `openrouter`, `qwen`,
+  `ollama`, `claude_cli`) — including Azure OpenAI in your own tenant. Each is an
+  integration KP wrote, tested and disclosed.
+- **Locale and JD/comms template choices**, branding colours, retention window
+  (`KP_CONSENT_TTL_DAYS`), `KP_OFFLINE`, and the deployment shape (Compose, Helm,
+  air-gapped).
+
+**Arguably NOT foreseen — KP's judgement is that these can cross into Art. 3(23),
+and you should assume they do:**
+
+- **Editing the scoring or evaluation prompts.** The prompts are the assessed
+  artifact. A rewritten scoring prompt is a different scorer with a different
+  accuracy profile, and KP's calibration, name-neutrality and bilingual-parity
+  evidence no longer describes what you are running.
+- **Pointing the scorer at an arbitrary self-hosted model.** §5 documents
+  `OPENAI_BASE_URL` against vLLM / Ollama / LiteLLM, and that path is genuinely
+  supported for privacy — but a model KP never benchmarked, reached through the
+  `*` wildcard so that *everything* including scoring runs on it, is not a
+  configuration KP assessed. Using a private endpoint for JD drafting or summary
+  text is a much weaker case than using it for the score that rejects people. KP
+  does not claim to have drawn this sub-line precisely; it claims the score is
+  where it matters.
+- **Anything that changes what the score means** — replacing the taxonomy,
+  post-processing scores before they reach the wave, or scripting around the
+  approval token.
+
+If you are inside the first list, you are a deployer. If you are in the second,
+plan on the Art. 16 chain, and note that you cannot inherit KP's conformity
+assessment for a system it does not describe.
+
+### Your duties as a deployer (Art. 26), briefly
+
+Enough to act on. The full quick-sheet is §5 of the conformity pack.
+
+- **Art. 26(2) — assign human oversight to competent people with authority.**
+  Named natural persons, with the standing to actually stop or override a
+  decision. In KP that means giving every reviewer a signed-in account carrying
+  a name, or setting `KP_OPERATOR_NAME` (§3). KP enforces the sharp end of this:
+  a bulk rejection whose approver cannot be named is **refused**, not sealed.
+- **Art. 26(6) — keep the automatically generated logs for at least 6 months.**
+  KP never prunes the decision chain, so the practical duty is on your backups
+  and your SQLite file (§10): do not restore a truncated database over a live
+  one, and keep at least 6 months of decision history.
+- **Art. 26(7) — inform workers' representatives before putting the system into
+  use.** Before, not after, and it applies to workplace deployment generally.
+  In Germany this is much sharper than the Act: BetrVG § 95(2a) makes
+  AI-generated selection criteria **co-determined**, so your works council has a
+  statutory role and will ask you to enumerate the thresholds and family floors
+  above.
+- **Art. 4 — AI literacy for the recruiters who use it.** Softened by the
+  Omnibus to an effort obligation, but enforceable since 2 August 2026. Your
+  recruiters need to understand what the score is and is not.
+- **Art. 50 — candidates must be told.** KP renders this for you on every public
+  candidate surface (`AiDisclosure`); the duty on you is **not to fork it out**.
+
+**Art. 27 (fundamental-rights impact assessment) most likely does not apply to
+you.** It binds deployers that are **public bodies**, or private entities
+**providing public services** — plus a narrow set of creditworthiness and
+insurance-pricing cases. An ordinary private employer hiring for itself is not
+in scope, and this guide will not pretend otherwise to be safe. A **DPIA** under
+GDPR Art. 35, by contrast, **is** required for AI-assisted CV screening, and
+France, Germany and Czechia each name this processing on their Art. 35(4) lists.
+That one you owe regardless of any AI Act date.
+
 ## 2. Quick start (Docker Compose)
 
 ```bash
@@ -342,6 +485,12 @@ your host remain wherever `KP_DB_PATH` lives (§4).
 KP is white-label. Two layers make it *your* product to your recruiters and their
 candidates:
 
+> **Before you brand it, read §1a.** Putting your own name or trademark on a
+> high-risk AI system is an **Art. 25(1)(a)** trigger: it makes you the
+> **provider**, with the full Art. 16 chain, instead of a deployer with Art. 26.
+> That is a real trade, not a formality — and it is the one consequence this
+> section described for months without naming.
+
 1. **Brand identity (in-app).** Settings → **Branding** sets the display name, a
    primary accent color, and a logo. The accent re-skins the whole workspace **and
    the candidate-facing offer/apply/scheduling pages** (they share the app layout);
@@ -569,3 +718,10 @@ your license terms before deploying in production.
 - `docs/architecture/llm-provider-layer.md` — the BYOM model-routing layer.
 - `docs/features/billing/README.md` — Polar billing (leave off for a self-host without billing).
 - `.env.example` — every configuration variable, annotated.
+- `docs/features/compliance/ai-act-conformity.md` — the article-by-article AI Act
+  conformity map and gap register behind §1a, including what KP has **not** built.
+- `docs/features/compliance/README.md` — what the compliance surface actually is
+  (consent, erasure, the sealed decision chain, human-oversight gates) and where.
+- `docs/features/compliance/regulatory-backlog.md` — the wider regulatory work
+  list: Art. 5/50 exposure, GDPR gaps, LLM-provider data terms, and the German /
+  French / Czech employment layer that binds regardless of any AI Act date.

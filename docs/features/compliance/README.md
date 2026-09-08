@@ -18,11 +18,21 @@ open-gap register — this file is the "what exists and where" index.
 | Public compliance summary | `app/api/compliance/route.ts` | Anyone (JSON) |
 | Adverse-impact worksheet | `Decisions → Compliance` tab (`app/_lib/adverse-impact.ts`) | Operator, browser-only |
 
-**`/trust` is currently `robots: { index: false, follow: false }` and marked
-internal-for-now** (`app/trust/page.tsx:10-17`) — it is a working posture board
-used to track what's enforced vs. outstanding, not a published marketing page.
-The plan recorded in the file itself is to delete the route once every row
-reads "enforced." Its content is single-sourced in `app/_lib/trust-posture.ts`
+**`/trust` is PUBLIC and INDEXED**, flipped on 2026-08-05 and reversing the
+2026-07-30 internal-for-now call. `app/trust/page.tsx` records the reasoning in
+its header comment: auditable, verified hiring became the headline claim, and a
+headline claim needs its evidence page indexable. The route carries no `robots`
+override, is listed in `app/sitemap.ts` (`priority: 0.5`, monthly) and on the
+public allow-list in `app/_lib/auth/public-routes.ts`, and is linked from the
+landing footer.
+
+Two consequences the earlier revision of this section got wrong. **The gap rows
+stay** — a page that admits what is outstanding is the differentiator, so the
+old plan of deleting the route once every row reads "enforced" is superseded;
+what ships publicly is `trust-posture.ts`'s projection, which already carries no
+internal evidence paths and no gap ids. And because the page is indexed, **every
+claim on it is a public claim**: a stale row there costs more than a stale row
+here. Its content is single-sourced in `app/_lib/trust-posture.ts`
 (`OBLIGATIONS`, `CLASSIFICATION`, `SUBPROCESSORS`, `DATA_RIGHTS`,
 `DISCLAIMER`) — that module is the live, tested, English-only projection of
 the article map in `ai-act-conformity.md` and should be treated as the
@@ -544,7 +554,7 @@ as of this doc:
 - **G10** — no post-market monitoring or incident-reporting runbook (Art. 72/73).
 - **G12** — **closed.** The decision chain is per-tenant, and `workspace/export` / `workspace/import` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest and gated on `org:manage`. What remains is narrower and documented rather than open: a backup restores in place, into the deployment it came from, and does not carry the six singleton config tables (`ORG_CONFIG_NOT_PORTABLE`).
 - **G13** — the no-demographic-data posture needs to be documented as a deliberate choice (with its limits) rather than left implicit.
-- **G14** — no EU-database registration / CE-marking scaffolding (premature until G1/G2 ship).
+- **G14** — no EU-database registration / declaration of conformity / CE-marking scaffolding. **No longer "premature"**: G1/G2 are still its inputs, but 15 months is the horizon on which a conformity assessment gets planned rather than deferred, and the Omnibus makes an SME/small-mid-cap simplified technical-documentation template available that kp is small enough to use. See the G14 row in `ai-act-conformity.md` §3.
 
 Closed since the conformity pack was last compiled (2026-07-27):
 **G3** (name-neutrality test shipped), **G11** (AI disclosure added to
@@ -552,6 +562,33 @@ Closed since the conformity pack was last compiled (2026-07-27):
 decision-explanation view now exists on `/status/[token]`; the full sealed
 dossier remains operator-only by design).
 
-The AI Act's high-risk obligations apply in full from **2 August 2026** —
-imminent. G1/G2 (the two purely-documentation gaps) are the highest-priority
-remaining work before that date.
+## The dates
+
+**The Annex III high-risk obligations apply from 2 December 2027**, not
+2 August 2026. **Regulation (EU) 2026/1744** (the AI Omnibus) entered into force
+27 July 2026 and moved them; Annex I product-embedded systems move to 2 August
+2028. This section asserted the 2 August 2026 date and called it "imminent"
+until 2026-09-08; the correction is verified against the Commission's own page,
+<https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai>.
+
+**What was not deferred, and binds today:** the **Art. 5** prohibitions (in
+force since 2 Feb 2025, penalties from 2 Aug 2025, €35M/7% — including 5(1)(f)
+emotion inference in the workplace); **Art. 50** transparency (applied 2 Aug
+2026, €15M/3%), whose synthetic-content **marking** grace period for
+pre-existing systems ends **2 December 2026**; and **Art. 4** AI literacy
+(softened by the Omnibus to an effort obligation, enforceable from 2 Aug 2026).
+All of GDPR and the national employment layer are untouched by any AI Act date.
+
+**G1/G2 are still the highest-priority remaining work — but not because a date
+is close.** They are what an auditor, an enterprise legal team and a works
+council ask for first; they are the inputs G14 is assembled from; and **kp
+cannot fall back on Art. 111 grandfathering.** Art. 111 protects a high-risk
+system placed on the market before the applicability date *only until it is
+substantially modified*, and kp ships continuously — any material scoring or
+automation change voids it. Nobody should later propose a grandfathering
+strategy here: there is none available. Treat the deferral as a **15-month
+runway, not a reprieve**, and plan for full applicability on 2 December 2027.
+
+The full work list — Art. 5/50 exposure, the GDPR gaps, provider posture, the
+national layer, and the documentation chain this runway is for — is
+[`regulatory-backlog.md`](./regulatory-backlog.md) in this folder.

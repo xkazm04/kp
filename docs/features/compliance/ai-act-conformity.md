@@ -12,10 +12,31 @@ certified conformance** — the product's own `/trust` page and
 the single-sourced, tested, live projection of this map — prefer it when the
 two disagree.
 
-Clock: the AI Act's high-risk obligations apply in full from **2 August 2026**
-(entered into force 1 Aug 2024; general application 2 Aug 2026, with Annex III
-high-risk systems placed on the market before that date grandfathered only
-until substantially modified). **That date is now three days away.**
+Clock: **the Annex III high-risk obligations apply from 2 December 2027**, not
+2 August 2026. **Regulation (EU) 2026/1744** (the "AI Omnibus") entered into
+force **27 July 2026** and moved the date; Annex I product-embedded systems move
+further, to 2 August 2028. Verified against the Commission's own page on
+2026-09-08:
+<https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai>.
+This pack asserted 2 August 2026 until 2026-09-08 and reasoned from its
+imminence; every such passage has been re-baselined.
+
+**What did not move, and therefore binds today:**
+
+| Regime | Status | Exposure |
+|---|---|---|
+| **Art. 5 prohibitions**, incl. 5(1)(f) emotion inference in the workplace | In force 2 Feb 2025; penalties from 2 Aug 2025 | €35M / 7%. No safeguard cures a breach — oversight and disclosure are irrelevant to a prohibition. |
+| **Art. 50 transparency** — disclosure 50(1), synthetic-content marking 50(2) | Applied 2 Aug 2026; the **marking** grace period for pre-existing systems ends **2 December 2026** | €15M / 3%. The only 2026 deadline kp actually has. |
+| **Art. 4 AI literacy** | In force 2 Feb 2025, enforceable from 2 Aug 2026; softened by the Omnibus to an *effort* obligation | Low, and currently uncovered. |
+
+**The deferral is a 15-month runway, not a reprieve — and grandfathering is not
+available to kp.** Art. 111 grandfathers high-risk systems placed on the market
+before the applicability date *only until they are substantially modified*. kp
+ships continuously, and any material change to scoring or automation voids it.
+No conformity strategy here may rest on Art. 111; plan for full applicability on
+**2 December 2027** and treat the runway as the time in which Tier 6 of
+[`regulatory-backlog.md`](./regulatory-backlog.md) — the documentation chain —
+gets written.
 
 ---
 
@@ -35,6 +56,43 @@ self-employment)**, both limbs:
 - **4(b)** — decisions affecting the promotion/termination and task allocation
   side is out of scope for kp today (candidate-side only), but offer decisions
   and pipeline advancement fall under selection.
+
+**The JD builder and the role-intake flow are inside the system too.** This pack
+omitted them until 2026-09-08, which was the single largest classification error
+in it — Annex III 4(a) names *"to place targeted job advertisements"* in the same
+breath as evaluating candidates, and the components are these:
+
+- `app/_lib/jd-build-run.ts` + `app/_lib/jd-build-start.ts`, entered at
+  `app/api/jds/generate/route.ts`, take a **high-level need description**
+  (`JdBuildInput.needText`) and generate the role's responsibilities and required
+  skills themselves.
+- `app/_lib/intake-brief.ts` projects a conversational `RoleBrief` onto those same
+  inputs — `briefMustSkills` / `briefNiceSkills` / `briefStatedRequirements`
+  produce the graded must-have / nice-to-have requirement set the build consumes.
+- The build then **files a matchable `jd-<slug>` opening into the workspace's
+  corpus** (stated in `jd-build-start.ts`'s own header), which is precisely what
+  `app/_lib/match-score.ts` and the screening wave score CVs against.
+
+Two reasons this is not carved out, both from the **draft** Commission guidelines
+on the Art. 6 classification of high-risk AI systems (19 May 2026 — **still a
+draft, not adopted**; the Art. 6(5) guidelines are targeted for end-2026, and
+this paragraph is re-checked when they land):
+
+1. A JD generator that **derives the required qualifications itself** from a
+   high-level description, *and* feeds a scorer that evaluates CVs against the JD
+   it wrote, is **not** a narrow procedural task under Art. 6(3)(a). It is not
+   formatting or transcribing a requirement a human set; it sets the requirement.
+2. A component that would qualify for the filter **on its own** loses it when it
+   forms part of a complex system whose joint outputs materially influence a
+   decision in a high-risk use case. kp's builder does both things at once, so
+   neither escape is open.
+
+**Product consequence worth recording now:** if kp ever wants to ship the JD
+library as a standalone low-risk product, the paragraph above is the
+specification of what it would have to stop doing — the builder would have to
+stop deriving qualifications (take them only as the recruiter typed them), or
+stop feeding the scorer (no `jd-<slug>` opening in the matchable corpus).
+Doing one is arguably enough; doing neither is not a defensible split.
 
 **Conclusion: kp is a high-risk AI system.** The derogation of Art. 6(3)
 (narrow procedural tasks / preparatory activities) does not apply: the score
@@ -60,7 +118,7 @@ Gap ids (G1…) resolve in §3.
 | **Art. 10** Data & data governance | 🟡 | Consent lifecycle + TTL (`app/_lib/consent.ts` — `consentTtlDays`, `consentExpiresAt`, `consentStatus`), read-time PII gate + outreach suppression (`consent.ts:72` `consentWithholdsPii`), one-transaction erasure incl. transcript/scorecard/outbox/rediscovery scrub (plus the retired onboarding tables where a pre-removal database still has them) (`app/_lib/db/pipeline.ts:1341` `scrubEntryLinkedPii`, `pipeline.ts:1400` `anonymizeEntry`), expiry sweep (`pipeline.ts:1471` `anonymizeExpiredConsents`), no-egress mode both halves (`app/_lib/offline.ts`, `pipeline/jobfit/llm/offline.py`), provider keys encrypted at rest (`app/_lib/db/core.ts` — around line 617, "UI-entered keys encrypted with KP_SECRET"). | G8 (no training/seed-data governance artifact), G12 (whole-DB export/import pre-multi-workspace) |
 | **Art. 11 + Annex IV** Technical documentation | 🔴 | This document's §4 is the skeleton; no model card, no instructions-for-use published. | G2 |
 | **Art. 12** Record-keeping (automatic logs) | 🟢/🟡 | Per-tenant tamper-evident decision chain: HMAC-SHA256 with key rotation + anti-downgrade + atomic seal (`app/_lib/decision-record-store.ts` — `sealDecisionRecord` ~L199, `verifyDecisionChain` ~L350, `heldOutEntryIds` ~L403); each record stamps kind, actor (`auto:scorecard-v5` vs `human:recruiter`), policyVersion, candidateRef, rationale, reasonCode, decisive inputs; the auto-reject and holdout arms of a wave now seal the SAME policyVersion the approval token bound (family-floor map and holdout rate included), so a reject record joins back to its approval; `verifyDecisionChain` re-hashes incrementally from an in-process per-workspace checkpoint with a scheduled full re-hash (`CHAIN_FULL_VERIFY_INTERVAL_MS`), reporting `verifiedFromSeq` / `fullyVerified` so a partial re-hash is never presented as the full proof; operational log `pipeline_events` with honest auto/human attribution (`app/_lib/decision-attribution.ts`); `consent_events` append-only (`app/_lib/db/core.ts`); `llm_usage` ledger incl. `deterministic` source honesty (`core.ts`). | G4 (no `audit_events` for auth/config/PII-read/export), G6 (no retention window config), G7 (no SIEM/signed export) |
-| **Art. 13** Transparency & instructions for use | 🟡 | Provenance dossier "for a compliance review under the EU AI Act" (`app/_lib/provenance-dossier.ts`); jurisdiction regime catalog with explicit not-legal-advice framing (`app/_lib/compliance-regimes.ts`); public compliance endpoint (`app/api/compliance/route.ts`); internal posture board at `/trust` (`app/trust/`, noindexed, see below). | G2 (no deployer instructions-for-use), and — **newly closed** — the candidate dossier gap (previously G9) is now partially addressed, see below |
+| **Art. 13** Transparency & instructions for use | 🟡 | Provenance dossier "for a compliance review under the EU AI Act" (`app/_lib/provenance-dossier.ts`); jurisdiction regime catalog with explicit not-legal-advice framing (`app/_lib/compliance-regimes.ts`); public compliance endpoint (`app/api/compliance/route.ts`); the posture board at `/trust` (`app/trust/`) — **public and indexed since 2026-08-05**, reversing the 2026-07-30 internal-for-now call (`app/trust/page.tsx` records the flip; the route is in `app/sitemap.ts` and `app/_lib/auth/public-routes.ts`). | G2 (no deployer instructions-for-use), and — **newly closed** — the candidate dossier gap (previously G9) is now partially addressed, see below |
 | **Art. 14** Human oversight | 🟢 | Signed human-approval token on auto-reject waves — server recomputes and refuses on cohort drift, client-supplied approver ignored, and the token is **spent on commit** so one review authorizes one wave rather than a 15-minute window of them (`consumeScreenWaveApprovalToken`, `app/_lib/screen-wave-approval.ts`; the 409 carries a machine-readable `reason` from `SCREEN_WAVE_REFUSAL_REASONS`, `app/api/decisions/screen-wave/route.ts`); AUTO1 retired — unattended pass queues rejects for a human, never executes them (`app/_lib/automation-pass.ts:302-308`, comment explicitly titled "AUTO1 RETIRED (UAT M6 / GDPR Art. 22)"); approval-kind taxonomy fails closed on typos (`app/_lib/approval-kinds.ts`); advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`); sticky group-eval governance — governed modes can't downgrade to auto-seal (`app/_lib/group-eval-governance.ts`); autonomy pause, **single-click by design** and scoped to the case-lifecycle orchestrator (`app/_lib/dev-control.ts` `getAutonomy`, read only at `app/_lib/devcase-orchestrator.ts:104`; the arm-then-confirm guard in `app/control/ControlRoom.tsx` is on **Reconcile**, not on pause — `app/control/AutonomyBar.tsx:6-8` states the reasoning); human disposition captured on analyses (`app/_lib/db/core.ts`). | **G5 mostly closed** — `resolveApprover()` names the signed-in person, and the bulk-rejection wave now REFUSES to commit rather than seal an approval it cannot attribute (`isNamedApprover()` at `app/_lib/screen-wave.ts`, commit only); the audit table badges the historical role-only records instead of rewriting them. Residual: single-candidate seals stay role-attributed by design, plus two role-only call sites (see G5 in §3); **G15 closed** — the pause is now a real Art. 14(4)(e) stop control: `instrumentation-node.ts` reads `getAutonomy()` once per tick (`clockIsPaused`) and, while paused, skips every discretionary pass (inbound pull + edge drain, scheduling policy pass, interview reminders, offer lapse, offer reminders), records one `clock_halted` audit row on the transition, and still writes its liveness heartbeat so a pause cannot be mistaken for a wedged clock. The GDPR consent-expiry sweep is the one **documented exemption** (see G15 in §3) |
 | **Art. 15** Accuracy, robustness, cybersecurity | 🟡→ improved | Calibration with honesty floor + Brier (`app/_lib/calibration.ts`); per-source label-leakage disclosure; deterministic clean-arm holdout, sealed and read back (`app/_lib/screen-wave-holdout.ts`, `decision-record-store.ts`); threshold changes sealed as human policy acts (`app/api/analytics/calibration/apply-threshold/route.ts:82` — `kind: "screening_threshold_adjusted"`); unevidenced skill claims discounted for all candidates (`pipeline/jobfit/transform.py`); fail-closed null scores (`app/_lib/match-score.ts`); tie-safe cutoffs + score-staleness flags (`screen-wave.ts`); weighting-robustness matrix (`app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` — path corrected, see below); bilingual-parity eval gates (`pipeline/jobfit/tests/test_tech_bilingual_parity.py`, confirmed present); **name/gender-proxy neutrality eval now exists** (`pipeline/jobfit/tests/test_name_neutrality.py`) — this closes what was G3. | G3 closed; G10 (no post-market drift monitoring beyond display) still open |
 | **Art. 26** Deployer obligations | 🟡 | The product operationalizes the deployer's duties: oversight assignment via `KP_OPERATOR_NAME` (`app/_lib/auth/operator-approver.ts`), logs kept (chain never pruned), candidate information duties via the disclosure layer. | G2 (instructions-for-use is the vehicle for telling deployers *their* duties: worker-representative notification, Art. 27 FRIA for public bodies, log retention ≥ 6 months) |
@@ -80,7 +138,7 @@ Struck-through items closed since 2026-07-27.
 | # | Gap | Art. | By | Effort | Status |
 |---|---|---|---|---|---|
 | G1 | Risk-management document: hazard list (wrongful rejection, disparate impact, hallucinated evidence, automation complacency), mitigations (map to §2 mechanisms), residual risks, review cadence. Fold the DPIA into it. | 9 | Provider | M | **Open** — `docs/RISK_MANAGEMENT.md` not created |
-| G2 | Annex IV technical documentation + deployer instructions-for-use (oversight duties, `KP_OPERATOR_NAME`, log retention ≥ 6 months, worker-info duties, Art. 27 FRIA note). §4 below is the skeleton. | 11, 13, 26 | Provider | M | **Open** — `docs/INSTRUCTIONS_FOR_USE.md` not created; highest-priority remaining doc gap given the 2026-08-02 date |
+| G2 | Annex IV technical documentation + deployer instructions-for-use (oversight duties, `KP_OPERATOR_NAME`, log retention ≥ 6 months, worker-info duties, Art. 27 FRIA note). §4 below is the skeleton. | 11, 13, 26 | Provider | M | **Open** — `docs/INSTRUCTIONS_FOR_USE.md` not created; still the highest-priority remaining doc gap, now on the merits rather than on a date (see §6). The deployer-role half of it is partly discharged already: `docs/architecture/self-hosting.md` §1a now states the provider/deployer split and kp's foreseen-configuration envelope |
 | ~~G3~~ | ~~Name/gender-proxy neutrality test on the scorer.~~ | 10, 15 | Provider | S-M | **Closed** — `pipeline/jobfit/tests/test_name_neutrality.py` asserts byte-identity of the deterministic scorer's output across Czech male/female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated name perturbations |
 | G4 | `audit_events` table (auth, role/config changes, PII reads, exports). | 12 | Provider | M | **Open** — no `audit_events` table anywhere in `app/` or `pipeline/` |
 | G5 | Real reviewer identity on sealed records. | 14, 12 | Provider | S | **Mostly closed.** Three layers now: (1) the E0 identity layer is threaded — `resolveApprover()` / `humanActor()` name the signed-in person (`app/_lib/auth/operator-approver.ts`); (2) **the bulk-rejection wave now REFUSES to commit rather than seal an approval nobody owns** — `isNamedApprover()` + `NAMED_APPROVER_REQUIRED` (same file) gate the seal path at `app/_lib/screen-wave.ts` (commit only; a dry run still previews), so the state that produced the 08-17 host's 66 unattributed records is no longer reachable for the highest-stakes decision, and the refusal names both doors (sign in, or set `KP_OPERATOR_NAME`); (3) sealed records are never rewritten, so the audit table MARKS the historical ones instead — the actor column runs `parseEventActor` and badges a role-only actor (`app/features/insights/analytics/sections/DecisionRecordsTable.tsx`, `analytics.decisionRecords.actorRoleOnly`). Residual: single-candidate seals still fall back to `human:recruiter` by design (refusing them would remove the one-at-a-time human review), and two role-only call sites remain (`app/api/analytics/calibration/apply-threshold/route.ts`; the reinstate/scorecard/schedule seals under `app/api/pipeline/[id]` and `app/api/schedule`). Guards: `app/_lib/screen-wave-guards.test.ts` §5, `app/_lib/trust-posture.test.ts` |
@@ -92,7 +150,7 @@ Struck-through items closed since 2026-07-27.
 | ~~G11~~ | ~~Add `AiDisclosure` to `/status/[token]` and `/onboarding/[token]`.~~ | 50 | Provider | S | **Closed** — both pages rendered `<AiDisclosure />`, each citing this gap by name. `/onboarding/[token]` has since been removed with the post-hire module; `/status/[token]` still renders it |
 | G12 | Per-tenant export/import. | 10 | Provider | M | **Closed** — the decision chain is per-tenant (`app/api/decisions/records/route.ts`: "integrity is PER-TENANT... each team has its own independent chain"), and `app/api/workspace/export/route.ts` / `import/route.ts` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest (`orgExportClass`) and gated on `org:manage`. Round trip pinned by `app/_lib/db-portability-org.test.ts`. Two documented limits remain, both surfaced to the operator rather than silent: the restore is in-place (same deployment), and six singleton config tables carry no `org_id` so a backup cannot carry them (`ORG_CONFIG_NOT_PORTABLE`). |
 | G13 | Document the no-demographic-data posture as the deliberate bias-mitigation choice, its limits, and the deployer-side 4/5ths workflow (`app/_lib/adverse-impact.ts`). | 10 | Provider | S | **Open** |
-| G14 | Registration + declaration-of-conformity scaffolding. Premature before G1/G2; keep on the E-track. | 47-49, 71 | Provider | L | **Open** |
+| G14 | Registration (Art. 49 EU database) + Annex V declaration of conformity + CE marking, off an Art. 43 internal-control assessment. | 43, 47-49, 71 | Provider | L | **Open — and no longer "premature".** It was deferred behind G1/G2 on the reading that a conformity assessment was years out; **15 months is exactly the horizon on which one gets planned**, not deferred. Two things make it cheaper than the old L suggests: the Omnibus makes an **SME / small-mid-cap simplified technical-documentation template** available, and kp is comfortably inside that threshold; and Art. 43 for Annex III point 4 is **internal control** — no notified body. G1/G2 remain the inputs, so the sequence is unchanged; what changed is that G14 now has a date to work back from. |
 | G16 | `AiDisclosure` asserts a human-in-the-loop the config can turn off. The body reads "A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically." The FIRST clause is false whenever a workspace sets an interview-plan gate to `auto`: `app/_lib/automation-run.ts` then ratifies an advance unattended via `actOnPipelineEntry` with `actor: "system"` (decision kind `auto_advanced`, actor `auto:interview-plan`), and the offer branch extends an offer with no human in the loop. The component renders UNCONDITIONALLY on eight public candidate surfaces (`/apply/[id]`, `/apply/[id]/quick`, `/devcase/apply/[token]`, `/interview/[token]`, `/schedule/[token]`, `/status/[token]`, `/offer/[token]`, InterviewSimTab). Scope, honestly: the schema default is `human` (`decision-config-schema.ts`), so a DEFAULT install tells the truth — this is false only where an operator opted into an auto gate. The SECOND clause survives: auto mode never overrides a hold or reject, and auto-reject is human-triggered from Decisions. So the defect is the human-in-the-loop claim, not the adversity claim. | 50, 13 | Provider | M | **Open** — found by the scan-sweep of 2026-08-25 |
 | ~~G15~~ | ~~Widen the autonomy pause into a real Art. 14(4)(e) stop control.~~ | 14 | Provider | M | **Closed (2026-08-22)** — see below |
 
@@ -142,11 +200,13 @@ scope is a stated decision rather than an accident of which module imported
 - **Audited** — one `clock_halted` / `clock_resumed` row in `dev_audit` per transition
   (not per tick: at a 1-minute cadence that would bury the Art. 12 chain).
 
-Follow-up, tracked here rather than left implicit: the public projection in
-`app/_lib/trust-posture.ts` (Art. 14 `gap`) still describes the pre-fix scope. It now
-UNDER-claims the control, which is the safe direction, but it should be updated —
-together with the pinned comment in `app/_lib/trust-posture.test.ts`, whose assertion
-requires the Art. 14 row to keep naming *some* pause-related gap.
+The public projection in `app/_lib/trust-posture.ts` has since caught up: its Art. 14
+`gap` now describes the post-fix scope (every discretionary pass halted, the
+consent-expiry sweep named as the one deliberate exemption). This section previously
+carried a follow-up note saying the projection still described the pre-fix scope; that
+note was stale and is removed. The pinned assertion in `app/_lib/trust-posture.test.ts`
+still requires the Art. 14 row to name *some* pause-related gap, and the exemption is
+what it names.
 
 ---
 
@@ -234,10 +294,32 @@ partially)**. What remains is almost entirely **documentation and process**
 incident runbooks (G10) — plus `audit_events` + reviewer identity (G4/G5) and
 per-tenant export/import (G12, decision-chain half already done). None of the
 remaining code gaps is architecturally hard; the documentation gaps are
-writing work with evidence that already exists in the codebase. With the
-2026-08-02 applicability date now days away, **G1 and G2 are the sequencing
-priority** — they are the documents an auditor or enterprise customer's legal
-team asks for first, and nothing else on this list blocks writing them today.
+writing work with evidence that already exists in the codebase.
+
+**G1 and G2 remain the sequencing priority, but the reason has changed.** Until
+2026-09-08 this verdict rested on an applicability date days away; that date is
+now 2 December 2027 (see the Clock above). The conclusion survives the
+re-baselining on three grounds that never depended on the date:
+
+1. **They are the documents asked for first** — by an auditor, by an enterprise
+   customer's legal team, by a German works council exercising BetrVG § 80(3),
+   and by every RFP that reaches a regulated employer. None of those wait for
+   December 2027.
+2. **They are the inputs to everything downstream.** G14 (registration,
+   declaration of conformity, CE marking) is assembled *from* G1 and G2, and 15
+   months is the horizon on which that assembly gets planned rather than
+   deferred — which is why G14 is no longer marked premature.
+3. **kp cannot buy time with Art. 111.** Grandfathering ends at the first
+   substantial modification, and a continuously-shipped scoring product
+   modifies itself materially several times a quarter. The runway is 15 months
+   of writing, not 15 months of waiting.
+
+What the deferral genuinely changes is the *order of urgency between regimes*,
+not the order within this list: Art. 5, Art. 50 (marking grace ends 2 December
+2026) and the national employment layer bind today and outrank every Annex III
+row above. Those live in Tiers 1–5 of
+[`regulatory-backlog.md`](./regulatory-backlog.md); this pack is the Annex III
+map they sit above.
 
 ---
 

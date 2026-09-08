@@ -15,7 +15,7 @@ up, and delete it here when it closes.
 | D1 | Three shipped features have **no feature doc**: analytics stage-dwell, pool-fit, and the NL command bar. (The onboarding hand-off was on this list too; the module has since been removed.) They were documented only inside the now-archived GDPR extensions doc, which was never the right home for them. | `docs/features/` — needs `analytics/` and `talent-pool/` areas |
 | D2 | No `docs/development/README.md` — the three harness docs (automation eval, case calibration, voice-interview testing) have no shared index explaining when to reach for which. | `docs/development/` |
 | D3 | `docs/architecture/llm-model-matrix.md` is a dated benchmark snapshot. It now carries a "re-run before trusting" banner, but nothing re-runs it. | `docs/architecture/` |
-| D4 | The W0.5 acceptance criteria (competitive coverage plan, maintainer's notes) say `/trust` is public and landing-linked; `app/trust/page.tsx` is deliberately `noindex`, internal-only (2026-07-30 product decision). Criteria and reality disagree — one of them should move. Worth revisiting now that the repo is public: an auditable AI-Act posture is a stronger public claim than an internal one. | `app/trust/page.tsx` |
+| ~~D4~~ | **CLOSED (2026-08-05).** The disagreement was resolved in favour of the acceptance criteria: `/trust` is now public and indexed, linked from the landing footer, listed in `app/sitemap.ts` and on the allow-list in `app/_lib/auth/public-routes.ts`. The `noindex` and the plan to delete the route once every row read "enforced" are both gone — the gap rows are the differentiator. Reasoning recorded in `app/trust/page.tsx`'s header. | `app/trust/page.tsx` |
 | D5 | The visual-uplift plan's remaining phases cite pre-refactor file paths (`JobsTab.tsx:78` style). Anyone picking Phase 2 up must re-locate them first. | `docs/concepts/visual-uplift-plan.md` |
 
 ## Compliance — AI Act gap register (G1–G14)
@@ -27,12 +27,13 @@ design). Still open:
 
 | # | Gap | Note |
 | --- | --- | --- |
-| G2 | **No Annex IV technical documentation / instructions-for-use doc.** | Highest priority — AI Act applicability date is **2026-08-02** |
+| G2 | **No Annex IV technical documentation / instructions-for-use doc.** | Highest priority — but **not** because a date is close. The Annex III applicability date is **2027-12-02**, not 2026-08-02: Reg. (EU) 2026/1744 (the AI Omnibus) entered into force 2026-07-27 and moved it. G2 leads on the merits — it is what auditors, enterprise legal teams and works councils ask for first, and it is the input G14 is built from. The deployer-role half is partly discharged: `docs/architecture/self-hosting.md` §1a now carries the provider/deployer split |
 | G1 | No risk-management doc, DPIA, or residual-risk analysis | Art. 9 |
 | G4 | No `audit_events` table — grepped `app/` and `pipeline/`, zero hits | Art. 12 logging |
 | ~~G5~~ | **CLOSED (item 6).** `operatorApprover()` is now the honest *fallback*, not the answer: `approverIdentity()` / `resolveApprover()` / `humanActor()` (`app/_lib/auth/operator-approver.ts`) derive the named person from `currentUserId()` + `app/_lib/db/users.ts`, `pipeline_events` carries an `actor` column, and the sealed adverse rationale renders „Approved by {who}" — or „Approver not identified" where a deployment genuinely has no named user (never a defaulted person) | Art. 14; UAT evidence `CS-L1-004` rec 2 · `LUC-ANA-4`. Still role-only on two callers not in that change: `app/api/analytics/calibration/apply-threshold/route.ts` and the reinstate/scorecard/schedule seals in `app/api/pipeline/[id]`, `app/api/schedule` — one-line swaps to `resolveApprover()`/`humanActor()` |
 | G12 | `app/api/workspace/{export,import}` are whole-DB dumps. Decision chains are already per-tenant; export/import is the remaining non-tenant-scoped path | Narrowed from the original scope |
-| G6, G7, G8, G10, G13, G14 | Spot-checked, still absent | — |
+| G6, G7, G8, G10, G13 | Spot-checked, still absent | — |
+| G14 | Registration / declaration of conformity / CE marking — still absent, and **no longer parked as "premature"** | Art. 43, 47–49. 15 months to 2027-12-02 is the horizon on which a conformity assessment is planned, not deferred; the Omnibus offers an SME/small-mid-cap simplified technical-documentation template kp qualifies for. G1/G2 stay its inputs |
 | — | DPO sign-off on score retention is still a live pre-production gate | Carried from the archived GDPR doc |
 
 ## Product gaps found while verifying docs
