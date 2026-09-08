@@ -185,6 +185,39 @@ GDPR Art. 35, by contrast, **is** required for AI-assisted CV screening, and
 France, Germany and Czechia each name this processing on their Art. 35(4) lists.
 That one you owe regardless of any AI Act date.
 
+## 1b. If NIS2 binds you, KP is one of your suppliers
+
+Skip this if you are not an essential or important entity. If you are — hospital,
+bank, energy or water utility, digital infrastructure, public administration, or
+whatever your member state's transposition caught (in Czechia, the Cybersecurity
+Act in force since 1 November 2025) — two things follow from running KP. Neither
+of them is a claim that KP makes you compliant.
+
+**Your Art. 21(2) measures have to reach your suppliers, and this is one you can
+evidence.** NIS2 (Directive (EU) 2022/2555) Art. 21(2)(d) requires supply-chain
+security covering the relationship with each direct supplier, and Art. 21(2)(e)
+requires *"vulnerability handling and disclosure"* as part of acquisition,
+development and maintenance. When an auditor asks what happens if your recruiting
+system turns out to have a vulnerability, the artifact to hand them is
+[`SECURITY.md`](../../SECURITY.md): a private reporting channel with a stated
+acknowledgement target, and — the half that matters on your side — a **published
+outbound channel** (a GitHub Security Advisory per fixed vulnerability) with a
+stated publication latency. Read that latency and decide whether you can live
+with it: it is a target set by a small team, not a contractual SLA, and pretending
+otherwise here would be the kind of claim this guide refuses to make.
+
+**Your Art. 23 clock starts when *you* become aware — not when KP publishes.**
+Early warning within 24 hours, incident notification within 72, final report
+within one month. A KP advisory is a *notification source* feeding that clock, not
+a substitute for it, and it only feeds anything if somebody on your side is
+actually subscribed. So assign that to a person. The mechanics are in
+`SECURITY.md`; the short version is Watch → Custom → **Releases** on the
+repository, or its `releases.atom` feed. Note also that **nothing in KP pushes a
+security notice into the product UI** today — there is no in-app banner to wait
+for, which is exactly why the subscription is the control.
+
+*Same caveat as §1a: engineering artifact, not legal advice.*
+
 ## 2. Quick start (Docker Compose)
 
 ```bash
