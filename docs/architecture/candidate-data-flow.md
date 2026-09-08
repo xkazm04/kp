@@ -84,6 +84,7 @@ A data map that only lists tables misses the places a copy lands by accident.
 | The Python child's `argv` | One run | Holds **paths**, not content. The 8 KB spill in `app/api/analyze/route.ts` exists so a large paste cannot end up in a command line (visible in `ps`). |
 | The child's environment | One run | Inherits the parent's env, including provider API keys, plus the `KP_LLM_CONFIG` fragment carrying the configured routing and the decrypted key for the resolved provider. It does **not** carry candidate text. |
 | `llm_usage` ledger (`kp-llm-usage-*.ndjson` → the DB) | Ingested then deleted | Metering only: `ts, use_case, provider, model, input_tokens, output_tokens, cost_usd, source`. **No prompt or response text.** |
+| The observability collector, if `LIGHTTRACK_URL` is set | Yours — it is your own service, not a third party | Off by default. Carries the same shape as the `llm_usage` row above: provider, model, token counts, cost, latency, use-case tags. **No prompt, no response, no candidate reference.** The one field that could ever have carried provider-authored text was the error string; since 2026-09-08 it is reduced to a closed-vocabulary code before it leaves the process, because a provider message can echo the prompt and here a prompt carries a CV. The Python half had always done this; the Node half had not. |
 | Sentry, if `SENTRY_DSN` is set | Per your Sentry retention | Off by default. **Candidate capability tokens are redacted before egress** by a `beforeSend`/`beforeBreadcrumb` pair in `instrumentation.ts` / `instrumentation-client.ts` — without it a single error on `/data/<erasureToken>` shipped a working link to a third party. Keep the token-prefix lists in both files in sync. |
 | `npm run db:dump` output | Yours | A full portable copy of everything in §2. Encrypt it and keep it where you keep the volume; see [`releases.md`](./releases.md#rolling-back). |
 
@@ -141,9 +142,25 @@ Two levels, and they are not the same strength.
      two Gemini call sites that bypass the adapters — `gemini.get_client()` (the
      one that ships the whole file) and `embedding_bridge.GeminiEmbeddingProvider`
      — live there.
-   - A configured `base_url` is not trusted just for being configured:
-     `is_local_url()` seals off any public FQDN, so a stray
-     `OPENAI_BASE_URL=https://api.openai.com/v1` cannot defeat the seal.
+   - A configured endpoint is not trusted just for being configured. Both halves
+     now apply that rule: Python's `is_local_url()` and Node's `isPrivateHost()`
+     admit only a loopback / private-IP / bare service name / `.local` /
+     `.internal` / `.lan` / `.home.arpa` host, so a stray
+     `OPENAI_BASE_URL=https://api.openai.com/v1` cannot defeat the seal from
+     either side. **Until 2026-09-08 the Node half did not apply it** — it
+     allow-listed the host of every configured endpoint, so a public
+     `AZURE_OPENAI_ENDPOINT`, `LIGHTTRACK_URL` or `COMMS_WEBHOOK_URL` stayed
+     reachable under the flag. The observability collector was the sharpest
+     case: pointed at a hosted endpoint it kept telemetry leaving an install
+     whose whole premise is that nothing does.
+   - Two deliberate exceptions, both narrow. The app's **own origin**
+     (`APP_BASE_URL` / `NEXT_PUBLIC_APP_BASE_URL`) stays allowed whatever it
+     looks like, because reaching yourself is not egress and an air-gapped
+     deployment may still be published under an ordinary FQDN that resolves only
+     inside its own network. And `KP_OFFLINE_ALLOW_HOSTS` still admits anything
+     named in it — the escape hatch for a private service answering to a
+     public-looking name, which is a deliberate act rather than a side effect of
+     configuring an inference endpoint.
 
 Both are **application-level backstops**. For a guarantee, enforce a network
 egress policy at the deployment layer as well — `self-hosting.md` §7 says the
