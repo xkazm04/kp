@@ -238,6 +238,15 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "companion_turns",
   "companion_proposals",
   "companion_brain_index",
+  // The posting corpus (db/job-postings.ts): imported job advertisements the intake
+  // studio grounds on. Seeded rows carry the IMPORTING workspace's id — NOT the shared
+  // NULL model `jobs` uses — because the corpus is imported on request, per team, and
+  // `distinctRolePostings` is a per-team sample; a shared tier would put one team's
+  // pasted competitor ad into another team's sample. Every query filters or stamps
+  // workspace_id, point reads included (a leaked posting id must not resolve across
+  // tenants), and the dedupe UNIQUE is (content_hash, workspace_id) so one team's
+  // import cannot suppress another's (job-postings-tenancy.test.ts).
+  "job_postings",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

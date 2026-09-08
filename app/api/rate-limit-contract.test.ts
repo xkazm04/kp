@@ -1683,6 +1683,30 @@ const ROUTES: RouteSpec[] = [
     // line necessarily precedes the limiter.
     expensive: "readJsonWithLimit<Record<string, unknown>>(",
   },
+  // ------------------------------------------------------------------
+  // ADDED with the route (intake studio, posting corpus).
+  {
+    // The posting-import door, and it is two expensive things behind one budget: a
+    // URL import makes an OUTBOUND fetch of an operator-supplied address (an
+    // unmetered door onto arbitrary hosts), and {source:"seed"} writes ~220 corpus
+    // rows in one call. Operator-gated, but open mode (KP_OPERATOR_PASSWORD unset)
+    // makes that gate a documented no-op for the whole API, so the limiter is the
+    // real bound. 20/10min per IP: importing postings is a hand-paced act — paste
+    // one, fetch one — and the seed run is once per workspace by construction.
+    rel: "./job-postings/route.ts",
+    key: "`job-postings-import:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its argument, not the bare name: `fetchPostingText` also
+    // appears in the import line above, which necessarily precedes the limiter.
+    expensive: "fetchPostingText(target.href)",
+    // Every cheap refusal — an unknown source, a paste under the floor, an
+    // unparseable URL, and the OFFLINE decision — is answered before the budget is
+    // charged, so a request that was never going to import costs nothing. The
+    // offline branch is the one pinned here: it is a decision the operator must get
+    // in their own language, never a throttle and never a blocked-fetch accident.
+    servedBefore: 'jsonRefusal("POSTING_OFFLINE", 503)',
+  },
 ];
 
 for (const spec of ROUTES) {

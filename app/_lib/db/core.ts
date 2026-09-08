@@ -1179,6 +1179,37 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_companion_brain_index_ws ON companion_brain_index (workspace_id, created_at);
+
+    -- The posting corpus (db/job-postings.ts, docs/features/intake/README.md): real
+    -- job advertisements a team imported — the two bundled corpora, a pasted ad, or a
+    -- fetched careers page — that the intake studio grounds a brief against.
+    --
+    -- workspace_id is NOT NULL by design: unlike jobs / jd_templates, there is no
+    -- shared org tier here, because a posting arrives by an IMPORT ACT of one team and
+    -- distinctRolePostings is that team's own sample.
+    --
+    -- content_hash is sha256 over the whitespace/case-normalized body, and the UNIQUE
+    -- pair (content_hash, workspace_id) is what makes re-importing idempotent: the same
+    -- ad pasted twice, or fetched after being pasted, is one row. Scoped to the
+    -- workspace so one team's import can never suppress another's.
+    CREATE TABLE IF NOT EXISTS job_postings (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('seed_calibration','seed_jobs','paste','url','crawler')),
+      source_ref TEXT,
+      title TEXT NOT NULL,
+      company TEXT,
+      role_family TEXT,
+      seniority TEXT,
+      lang TEXT,
+      body_text TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      fetched_at TEXT,
+      created_at TEXT NOT NULL,
+      UNIQUE (content_hash, workspace_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_job_postings_ws_family ON job_postings (workspace_id, role_family);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

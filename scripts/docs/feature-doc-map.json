@@ -35,7 +35,9 @@
         "app/_lib/intake-run.ts",
         "app/_lib/intake-brief.ts",
         "app/_lib/db/intakes.ts",
+        "app/_lib/db/job-postings.ts",
         "app/api/intake/**",
+        "app/api/job-postings/**",
         "app/features/library/jds/intake/**",
         "pipeline/jobfit/intake.py",
         "pipeline/jobfit/intake_cli.py",
@@ -515,6 +517,12 @@
         "app/_lib/task-view.ts",
         "app/_lib/tasks-window.ts",
         "app/api/tasks/**"
+      ]
+    },
+    {
+      "doc": "docs/development/recipe-candidates.md",
+      "sourceGlobs": [
+        "pipeline/jobfit/eval/recipe_candidates.py"
       ]
     }
   ]
