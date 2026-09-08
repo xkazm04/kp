@@ -18,6 +18,7 @@ the tooling that only exists in dev builds, and the command-line entry points.
 | [case-calibration.md](case-calibration.md) | Case-generation calibration framework |
 | [voice-interview-testing.md](voice-interview-testing.md) | Testing the voice interview plane |
 | [role-intake-research.md](role-intake-research.md) | Conversation-design research behind the role-intake dialog |
+| [recipe-candidates.md](recipe-candidates.md) | Mapping a JD corpus onto recipe candidates for the AI registry, and the hand-off to `/assay` |
 
 Contributor conventions (staging rules, locale parity, the design-token gate) are in
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and, in full, [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md).
