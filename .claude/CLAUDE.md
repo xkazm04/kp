@@ -231,6 +231,14 @@ The ones that actually bite:
   work that isn't yours, and before committing check `git diff --cached --stat`
   — if the staged count exceeds what you added, another session pre-staged
   files; `git restore --staged` the strangers first.
+- **Commit on the current branch; never push.** The owner pushes after reading
+  the log. Do not push, force-push, or open a pull request unless this session's
+  prompt asks for it. This line exists because the harness's own default for an
+  unattended session is to push and open a draft PR when the file says nothing
+  (measured 2026-09-08: without this line the agent pushed, with it the agent
+  stopped at the commit). The gate bypass is denied to agents at the permission
+  layer (`.claude/settings.json`: `--no-verify`, `KP_SKIP_GATE=1`, force-push) -
+  do not work around it; if the pre-push gate is red, fix the tree.
 - **4-locale message parity.** Every key added to `messages/en.json` must land
   in `cs`/`de`/`fr` in the same change. Enforced by `npm run i18n:check` — do
   not work around it (next-intl keys are also TYPED: a `t("missing.key")` is a
