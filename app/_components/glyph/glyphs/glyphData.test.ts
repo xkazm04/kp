@@ -1,4 +1,4 @@
-// Data contract for the 15 generated /motionize glyph modules in this folder.
+// Data contract for the 13 generated /motionize glyph modules in this folder.
 //
 // These files are machine-traced, and TWO gates deliberately look away from them:
 // `eslint.config.mjs` blanket-ignores `app/_components/glyph/glyphs/**` for the
@@ -34,8 +34,6 @@ import { MATRIX_GLYPH } from "./matrixGlyph.ts";
 import { PROFILE_MATRIX_GLYPH } from "./profileMatrixGlyph.ts";
 import { PROFILE_ROSTER_GLYPH } from "./profileRosterGlyph.ts";
 import { SCHEDULE_GLYPH } from "./scheduleGlyph.ts";
-import { STEP_CHANNELS_GLYPH } from "./stepChannelsGlyph.ts";
-import { STEP_FIRST_ROLE_GLYPH } from "./stepFirstRoleGlyph.ts";
 
 const GLYPHS: Record<string, TracedGlyph> = {
   analyticsGlyph: ANALYTICS_GLYPH,
@@ -51,8 +49,6 @@ const GLYPHS: Record<string, TracedGlyph> = {
   profileMatrixGlyph: PROFILE_MATRIX_GLYPH,
   profileRosterGlyph: PROFILE_ROSTER_GLYPH,
   scheduleGlyph: SCHEDULE_GLYPH,
-  stepChannelsGlyph: STEP_CHANNELS_GLYPH,
-  stepFirstRoleGlyph: STEP_FIRST_ROLE_GLYPH,
 };
 
 /* ── app/globals.css as the source of truth for what a token IS ───────────── */
@@ -77,7 +73,7 @@ const DARK = names(cssBlock('[data-theme="dark"] {'));
 // A gate that quietly matches nothing is worse than no gate (same guard rail as
 // scripts/design/check-design-tokens.mjs).
 test("self-check: the fixtures this file reasons over are actually present", () => {
-  assert.equal(Object.keys(GLYPHS).length, 15);
+  assert.equal(Object.keys(GLYPHS).length, 13);
   assert.ok(LIGHT.size >= 8 && DARK.size >= 8, `parsed ${LIGHT.size} light / ${DARK.size} dark tokens`);
   assert.ok(
     Object.values(GLYPHS).every((g) => g.data.length > 0),

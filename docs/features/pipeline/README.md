@@ -444,15 +444,44 @@ feed the first lane**. The order is a real dependency and lives once in
 | 3 | Open the channels | `channels` | Optional forever — a next choice, never a prerequisite. Marked with a chip on the card, never a dimmed step |
 
 Each card (`empty/PipelineEmptyMoveCard.tsx`) is **one control**: the whole cell is
-a `<button>` whose accessible name is the move, carrying its numeral, the traced
-`/motionize` glyph drawn for it (`STEP_FIRST_ROLE_GLYPH`, `PROFILE_ROSTER_GLYPH`,
-`STEP_CHANNELS_GLYPH` — this is their only render site, which
-`app/_components/glyph/glyphs/glyphsHaveConsumers.test.ts` requires) and its title.
-Hover and keyboard focus produce the **same** reaction — an inset coral outline, a
-wash, the glyph lifted out of its resting opacity, coral numeral/arrow/title — and
-nothing moves; every transition drops under `motion-reduce`. Clicking navigates
-in-document via `empty/useEmptyMoveNav.ts` (`buildTabSwitchUrl` +
-`useShellNavigate`, never `router.push`).
+a `<button>` whose accessible name is the move, carrying — top to bottom — the
+illustration drawn for it, its numeral and its title. Hover and keyboard focus
+produce the **same** reaction — an inset coral outline, a wash, the illustration
+lifted out of its resting opacity, coral numeral/arrow/title — and nothing moves;
+every transition drops under `motion-reduce`. Clicking navigates in-document via
+`empty/useEmptyMoveNav.ts` (`buildTabSwitchUrl` + `useShellNavigate`, never
+`router.push`).
+
+#### The art is drawn, not traced
+
+`empty/PipelineEmptyMoveArt.tsx` holds three hand-written inline SVGs — a posting
+being written, three candidates measured against a role, three channels running
+into one tray — on one 300x110 canvas, one stroke weight, `steel` for structure
+and `coral` for the move itself. Every stroke and fill is `currentColor`
+inherited from a token utility class, so both themes resolve from `globals.css`
+and the card's own background (hover wash included) shows through. The wrapper is
+`w-full` at the canvas's `aspect-[30/11]` with a `max-h` clamp and
+`preserveAspectRatio="xMidYMid slice"`, so the drawing spreads to whatever the
+cell is wide and crops in Y rather than stretching; all content sits inside
+`y ∈ [18, 92]` so the crop is bleed.
+
+The cards used to render three `/motionize` traces here, and that pairing is
+broken by construction rather than by taste — worth knowing before putting a
+trace on any raised surface:
+
+- a trace opens with a **full-canvas rectangle** (`M0 0h606v518H0z`) that
+  `glyphTokens.snapToToken` resolves to `var(--color-paper)`. Paper is the page
+  ground, not a panel, so on a `bg-white` card the drawing carried a cream
+  rectangle in Studio Light and a `#141b24` one in Spark Dark. No gate can see
+  it: the fill is a legitimate token;
+- `GLYPH_SIZE.*` is **square** by construction, and two of the three canvases
+  (606x518, 544x639) were not, so the baked ground letterboxed into a shape that
+  matched neither the art nor the cell.
+
+`stepFirstRoleGlyph` and `stepChannelsGlyph` had no other render site and were
+deleted with the change (`glyphData.test.ts` counts 13 modules now);
+`profileRosterGlyph` stays, because `features/tools/profile/ProfileEmptyStates.tsx`
+renders it on a `text-center` panel where the traced ground is not a problem.
 
 There is no explanatory prose on this surface: the lane strip and the card titles
 say what the sentences used to, and the `body`/`action` catalog entries behind them
