@@ -387,6 +387,24 @@ test("the Art. 5 row rests on the two facts that actually make it true", () => {
   );
 });
 
+test("the Art. 86 claim rests on derivation from the sealed record, not on regeneration", () => {
+  // The whole value of kp's candidate explanation is that it is DERIVED from the
+  // sealed decision record rather than produced separately, so what a candidate
+  // reads and what an auditor reads cannot drift apart. If a future change
+  // regenerates the explanation, the claim on this page stops being true, and the
+  // page would still say it. Pinned by subject so the sentence can be reworded.
+  const art86 = OBLIGATIONS.find((r) => r.article === "Art. 86");
+  assert.ok(art86, "kp ships this control ahead of the obligation and must claim it");
+  assert.match(
+    art86.summary,
+    /sealed|not regenerated|derived/i,
+    "the derivation from the sealed record IS the claim; without it this row is just a status page",
+  );
+  // Under-claiming costs credibility too, so the gap must be the narrow real one
+  // rather than the design choice it sits beside.
+  assert.match(art86.gap!, /attribution|actor/i, "the unresolved-actor rendering is the actual outstanding defect");
+});
+
 test("the Art. 50 row admits the marking gap rather than resting on the disclosure", () => {
   const art50 = OBLIGATIONS.find((r) => r.article === "Art. 50")!;
   assert.notEqual(art50.posture, "enforced", "synthetic-content marking is not implemented");

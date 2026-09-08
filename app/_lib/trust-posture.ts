@@ -158,6 +158,19 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     gap: "Until instructions-for-use ships, deployers must determine their own duties — worker-representative notification, fundamental-rights impact assessment for public bodies, and log retention of at least six months.",
   },
   {
+    // UNDER-claimed, which costs as much credibility as over-claiming. kp ships a
+    // candidate-facing explanation of an individual decision BEFORE the obligation
+    // applies, derived from the sealed record rather than regenerated — so the
+    // explanation and the audit trail cannot drift apart, which is the failure mode
+    // this article exists to prevent. It was not on this page at all.
+    article: "Art. 86",
+    title: "Explanation of an individual decision",
+    posture: "partial",
+    summary:
+      "A candidate who was rejected can read, on their own status link, what kind of decision was recorded, whether a person or an automated actor made it, the reason code, and — where an automated screening threshold decided it — the specific facts that put them the wrong side of it. That view is derived from the sealed decision record itself, not regenerated afterwards, so the explanation a candidate reads and the record an auditor reads cannot diverge. The rejection message a candidate receives is sourced from the same record.",
+    gap: "Two limits. The full sealed dossier stays operator-gated, which is a deliberate design choice rather than an outstanding gap: it carries other people's data and the internal evidence chain. The real gap is narrower — where a record's actor cannot be classified as either a person or an automated system, the status page currently renders no attribution line at all, on the one surface built to answer \"was this decided by a machine?\".",
+  },
+  {
     // Art. 50 was missing from this table while being the one part of the Act with a
     // deadline inside 2026. It is also the article where the OPEN-SOURCE build is the
     // worse case rather than the safer one: a keyless self-hosted install speaks
