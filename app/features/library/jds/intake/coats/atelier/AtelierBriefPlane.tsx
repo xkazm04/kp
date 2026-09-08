@@ -13,7 +13,7 @@ import { ConfidenceNote, ProvenanceDot, ProvenanceLegend, RationaleDisclosure, T
 import { TypedText, useBriefReveal } from "../../BriefRevealAtoms";
 import { ArrivalList, useArrivalDelta } from "../../IntakeArrivalMotion";
 import { buildBriefSections, sectionLineKeys, type BriefSection } from "../../briefSections";
-import { IconAction } from "../IconAction";
+import { IconAction } from "@/app/_components/IconAction";
 import { AtelierGhost } from "./atelierPlane";
 
 // ATELIER — the brief as a LEDGER OF RECORD ROWS, not a bulleted list inside a

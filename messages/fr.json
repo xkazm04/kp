@@ -4270,18 +4270,13 @@
           "appMaster": "Maître d'application"
         },
         "thinking": "Réflexion…",
-        "thinkingSlow": "Nous réfléchissons encore. Une réponse soignée prend généralement 30 à 40 secondes.",
         "composer": {
-          "placeholder": "Répondez avec vos mots. Le flou est permis.",
           "send": "Envoyer",
-          "closed": "Cette session est close.",
           "transcriptLabel": "Conversation de cadrage du poste"
         },
         "degradedNote": "L’AI est hors ligne, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
         "sendError": "Le message n’est pas passé. Veuillez réessayer.",
         "promote": "Créer la fiche de poste",
-        "promoteCase": "Concevoir aussi l’exercice pratique",
-        "promoteMarket": "Rechercher aussi la fourchette salariale",
         "promoting": "Création…",
         "promoted": "Fiche créée. Retrouvez-la parmi les fiches enregistrées.",
         "promoteMissing": {
@@ -4291,7 +4286,6 @@
         "promoteError": "Impossible de créer la fiche. Veuillez réessayer.",
         "brief": {
           "title": "Brief en direct",
-          "empty": "Le brief se construit ici au fil de la conversation.",
           "writing": "Rédaction…",
           "role": "Poste",
           "outcomes": "Accompli en 90 jours",
@@ -4341,14 +4335,6 @@
           "speaking": "Arrêter la lecture",
           "speakUnavailable": "La lecture à voix haute n’est pas configurée sur ce serveur.",
           "autoSpeak": "Lire chaque réponse à voix haute"
-        },
-        "coat": {
-          "label": "Design",
-          "name": {
-            "classic": "Classique",
-            "atelier": "Atelier",
-            "console": "Console"
-          }
         },
         "promoteCaseShort": "Test pratique",
         "promoteCaseHint": "concevoir l’exercice avec l’offre",
@@ -4416,9 +4402,7 @@
           "materials": "Documents"
         },
         "draft": {
-          "workingChip": "brouillon",
           "supersedeNote": "Une fiche existante est jointe. Créer depuis ce brief en produira la version actualisée.",
-          "empty": "Le brouillon apparaît ici dès que le brief a un intitulé ou des exigences.",
           "untitled": "Poste sans titre",
           "level": "niveau {seniority}",
           "aboutRole": "À propos du poste",
@@ -4430,7 +4414,6 @@
         },
         "attachments": {
           "title": "Documents",
-          "empty": "Rien de joint pour l’instant. Ajoutez une note d’un collègue ou une fiche existante. L’assistant s’en servira et vous fera tout confirmer.",
           "addNote": "Coller une note",
           "addJd": "Joindre une fiche enregistrée",
           "noteTitlePlaceholder": "Titre (p. ex. « Note du team lead »)",
@@ -4462,10 +4445,7 @@
             "draftDrafting": "Brouillon commencé, pas encore prêt à créer",
             "draftEmpty": "Brouillon encore vide"
           },
-          "lastOpen": "La dernière colonne ouverte reste ouverte.",
           "materials": {
-            "cue": "Vous avez une charte d’équipe, une ancienne annonce ou des notes ? Elles peuvent être jointes comme documents.",
-            "cueAction": "Ouvrir Documents",
             "reveal": "{count, plural, =0 {Documents : rien de joint pour l’instant} one {Documents : # joint} other {Documents : # joints}}"
           }
         },
@@ -4616,7 +4596,6 @@
         "studio": {
           "dialogLabel": "Studio de cadrage : {title}",
           "eyebrow": "Cadrage du poste",
-          "closedNote": "Cette conversation est terminée. Le brief reste modifiable, ou rouvrez la conversation pour ajouter une précision.",
           "closeBusy": "Une réponse est encore en route. La fermer ne l’arrêtera pas.",
           "closeStay": "Rester",
           "closeAnyway": "Fermer quand même"
@@ -4626,7 +4605,12 @@
           "summaryEmpty": "Ouvrez une session et son résumé s’affiche ici.",
           "summaryOpen": "Ouvrir le studio",
           "summaryJd": "Ouvrir la fiche de poste",
-          "paletteSub": "Cadrer un nouveau poste dans le studio"
+          "paletteSub": "Cadrer un nouveau poste dans le studio",
+          "recordsLabel": "Registre des sessions",
+          "shapeNone": "Type non défini",
+          "protoLabel": "Variante du prototype",
+          "protoCurrent": "Actuelle",
+          "protoLedger": "Registre"
         }
       },
       "buildHeldChip": "Résultat conservé en révision",

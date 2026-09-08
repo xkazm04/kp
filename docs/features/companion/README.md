@@ -910,8 +910,10 @@ rules both rejected in the two earlier shapes.
 
 ### The shared chat primitive
 
-`JdsIntakeChat` was lifted into `app/_components/chat/ChatTranscript.tsx` (+
-`ChatComposer.tsx`), which now serves both surfaces: bubble geometry and both-theme
+The intake studio's chat pane (`JdsIntakeChat`, since deleted — see
+`docs/features/intake/README.md` §*One surface*) was lifted into
+`app/_components/chat/ChatTranscript.tsx` (+ `ChatComposer.tsx`), which serves the
+companion and any future chat surface: bubble geometry and both-theme
 colors, the dark radius bump, reduced-motion-gated presence, `aria-live` polite,
 autoscroll, Enter / Shift+Enter, the `FIELD` + `BTN_PRIMARY` composer, and the
 send-failure draft restore. Which ROLE sits on which side is a caller decision
@@ -919,8 +921,11 @@ send-failure draft restore. Which ROLE sits on which side is a caller decision
 `interviewer | candidate | system` and the companion's `user | assistant` both work
 without the primitive knowing either vocabulary. Every string is a prop — it lives
 under `app/_components`, where `i18n:check` forbids a literal accessible name.
-`JdsIntakeChat` is now the intake ADAPTER; nothing about the rendered intake
-surface changed.
+Intake no longer consumes it: when the studio consolidated to one surface its
+transcript became `AtelierTranscript` (turn BLOCKS on a plane, not bubbles), so the
+primitive's remaining caller is the companion dock. It stays where it is — the
+role-agnostic side() contract and the props-only strings are what a second chat
+surface would need again.
 
 ## Voice mode (settled in round V3)
 

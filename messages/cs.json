@@ -4270,18 +4270,13 @@
           "appMaster": "Správce aplikace"
         },
         "thinking": "Přemýšlíme…",
-        "thinkingSlow": "Ještě přemýšlíme. Pořádná odpověď obvykle zabere 30–40 sekund.",
         "composer": {
-          "placeholder": "Odpovězte vlastními slovy. Klidně i mlhavě.",
           "send": "Odeslat",
-          "closed": "Tento rozhovor je uzavřený.",
           "transcriptLabel": "Konverzace k zadání role"
         },
         "degradedNote": "AI je offline, takže pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
         "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
         "promote": "Vytvořit popis pozice",
-        "promoteCase": "Navrhnout rovnou i praktické zadání",
-        "promoteMarket": "Zjistit i mzdové pásmo",
         "promoting": "Vytváření…",
         "promoted": "Inzerát vytvořen. Najdete ho mezi uloženými.",
         "promoteMissing": {
@@ -4291,7 +4286,6 @@
         "promoteError": "Popis pozice se nepodařilo vytvořit. Zkuste to prosím znovu.",
         "brief": {
           "title": "Živé zadání",
-          "empty": "Zadání se tu skládá samo, jak mluvíte.",
           "writing": "Zapisuji…",
           "role": "Pozice",
           "outcomes": "Hotovo za 90 dní",
@@ -4341,14 +4335,6 @@
           "speaking": "Zastavit čtení",
           "speakUnavailable": "Předčítání není na tomto serveru nastaveno.",
           "autoSpeak": "Předčítat každou odpověď"
-        },
-        "coat": {
-          "label": "Vzhled",
-          "name": {
-            "classic": "Klasický",
-            "atelier": "Ateliér",
-            "console": "Konzole"
-          }
         },
         "promoteCaseShort": "Pracovní úkol",
         "promoteCaseHint": "navrhnout zadání spolu s inzerátem",
@@ -4416,9 +4402,7 @@
           "materials": "Podklady"
         },
         "draft": {
-          "workingChip": "návrh",
           "supersedeNote": "Je přiložený existující inzerát. Vytvořením z tohoto zadání vznikne jeho aktualizovaná verze.",
-          "empty": "Návrh se tu objeví, jakmile má zadání název nebo požadavky.",
           "untitled": "Nepojmenovaná pozice",
           "level": "úroveň {seniority}",
           "aboutRole": "O pozici",
@@ -4430,7 +4414,6 @@
         },
         "attachments": {
           "title": "Podklady",
-          "empty": "Zatím nic. Přiložte poznámku od kolegy nebo existující inzerát. Asistent z nich bude čerpat a nechá si vše potvrdit.",
           "addNote": "Vložit poznámku",
           "addJd": "Přiložit uložený popis pozice",
           "noteTitlePlaceholder": "Název (např. „Poznámka od team leada“)",
@@ -4462,10 +4445,7 @@
             "draftDrafting": "Návrh rozepsaný, zatím ho nelze vytvořit",
             "draftEmpty": "Návrh zatím prázdný"
           },
-          "lastOpen": "Poslední otevřený sloupec zůstává otevřený.",
           "materials": {
-            "cue": "Máte týmovou chartu, starý inzerát nebo poznámky? Dají se přiložit jako podklady.",
-            "cueAction": "Otevřít Podklady",
             "reveal": "{count, plural, =0 {Podklady: zatím nic přiloženo} one {Podklady: # přiložený} few {Podklady: # přiložené} other {Podklady: # přiložených}}"
           }
         },
@@ -4616,7 +4596,6 @@
         "studio": {
           "dialogLabel": "Studio zadání: {title}",
           "eyebrow": "Zadání pozice",
-          "closedNote": "Tento rozhovor je uzavřen. Zadání můžete stále upravit, nebo rozhovor znovu otevřete a doplňte myšlenku.",
           "closeBusy": "Odpověď stále přichází. Zavřením ji nezastavíte.",
           "closeStay": "Zůstat",
           "closeAnyway": "Přesto zavřít"
@@ -4626,7 +4605,12 @@
           "summaryEmpty": "Otevřete rozhovor a jeho souhrn se zobrazí zde.",
           "summaryOpen": "Otevřít studio",
           "summaryJd": "Otevřít popis pozice",
-          "paletteSub": "Proberte novou pozici ve studiu zadání"
+          "paletteSub": "Proberte novou pozici ve studiu zadání",
+          "recordsLabel": "Záznamy zadání",
+          "shapeNone": "Typ není určen",
+          "protoLabel": "Varianta prototypu",
+          "protoCurrent": "Současná",
+          "protoLedger": "Kniha záznamů"
         }
       },
       "buildHeldChip": "Výstup uložen jako revize",

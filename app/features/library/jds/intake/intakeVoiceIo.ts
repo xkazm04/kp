@@ -111,7 +111,7 @@ export function appendDictation(draft: string, text: string): string {
 
 /* ── The preference. Per-BROWSER UX, not workspace data: it describes how this
  *    screen is being used right now and carries nothing another operator needs,
- *    so localStorage, the same call intakeLayoutShared and the companion's
+ *    so localStorage, the same call the desk's studioContract and the companion's
  *    prefs already made. ── */
 
 export const INTAKE_AUTO_SPEAK_KEY = "kp-intake-auto-speak";

@@ -10,7 +10,7 @@ import { briefItemCount } from "../../jdsIntakeBriefModel";
 import { JdsIntakeAppMasterCard } from "../../JdsIntakeAppMasterCard";
 import { JdsIntakeAttachmentsPane } from "../../JdsIntakeAttachmentsPane";
 import { JdsIntakeVoice } from "../../JdsIntakeVoice";
-import { readStoredColumns, storeColumns, toggleColumn, type IntakeColumnKey } from "../../intakeLayoutShared";
+import { readStoredColumns, storeColumns, toggleColumn, type IntakeColumnKey } from "../studioContract";
 import type { useAppMasterLogic } from "../../jdsIntakeAppMaster";
 import type { IntakeLogic, IntakeSession } from "../../jdsIntakeLogic";
 import { AtelierZone } from "./atelierPlane";
@@ -19,22 +19,27 @@ import { AtelierComposer } from "./AtelierComposer";
 import { AtelierDraftSheet } from "./AtelierDraftSheet";
 import { AtelierTranscript } from "./AtelierTranscript";
 
-// THE ATELIER COAT — a designer's desk, not three chat boxes.
+// THE DESK — a designer's plane, not three chat boxes.
+//
+// This was the `atelier` direction of a three-way prototype; it won, and it is
+// now the studio's only working surface (with Console's Job-description sheet
+// fused into AtelierDraftSheet). The comparison below is with the desk it
+// replaced, which no longer exists.
 //
 // The classic desk's dated tell is NESTING: three rounded, bordered cards
 // floating inside another rounded bordered card, with chat bubbles inside those,
 // a sunken panel inside one of them and a bordered disclosure inside another.
 // Five radii deep before the eye reaches a sentence the requestor came to read.
 //
-// Atelier keeps the same three zones, the same information and every behaviour,
+// This desk keeps the same three zones, the same information and every behaviour,
 // and replaces the boxes with PLANES: one continuous white surface, zones
 // separated by a hairline, hierarchy carried by type and space. The zone head is
 // quiet and sticky, its count is a bare tabular numeral rather than a pill, and
 // the fold control only exists while the pointer or the keyboard is inside the
 // zone.
 //
-// NO SENTENCE OCCUPIES LAYOUT (coatKit.ts). What the classic desk said in prose,
-// this coat says with a glyph and a tooltip: the materials cue, the composer
+// NO SENTENCE OCCUPIES LAYOUT (studioContract.ts). What the old desk said in
+// prose, this surface says with a glyph and a tooltip: the materials cue, the composer
 // placeholder, the empty-brief and empty-draft promises, the "dictation is not
 // set up" notices, the "the last open column stays open" title, the slow-thinking
 // beat. An empty region shows the SHAPE of what will fill it; an absent
@@ -222,7 +227,6 @@ export function IntakeAtelierDesk({
                   </summary>
                   <div className="mt-3">
                     <JdsIntakeAttachmentsPane
-                      quietEmpty
                       attachments={attachments}
                       frozen={frozen}
                       saving={logic.savingAttachment}

@@ -1,7 +1,7 @@
 // A per-intake draft of the brief EDIT form, kept in sessionStorage.
 //
 // The edit form is the only copy of the requestor's typed corrections — that is
-// already why a refused save keeps it mounted (JdsIntakeBriefPanel). A reload
+// already why a refused save keeps it mounted (AtelierBriefPlane). A reload
 // took the same work with it: the form seeded from props, so a tab refresh, an
 // accidental navigation or a crash mid-edit dropped every typed row silently.
 //

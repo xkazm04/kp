@@ -37,7 +37,7 @@ import type { BriefLine, BriefSection } from "./briefSections";
 //    while the requestor was talking types itself out, one that was already on
 //    the page fades in once, one that merely survived a re-extraction does not
 //    animate at all. The panel owns that classification — see
-//    JdsIntakeBriefPanel — so the body only asks each line how it should enter.
+//    AtelierBriefPlane — so the body only asks each line how it should enter.
 //
 // The section walk itself lives in briefSections.ts, because a reveal needs a
 // stable identity per line and identity is not a rendering concern.

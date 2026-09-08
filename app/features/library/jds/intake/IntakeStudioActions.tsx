@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { ClipboardList, Scale } from "lucide-react";
-import { IconAction } from "./coats/IconAction";
-import type { IntakeCoatId } from "./coats/coatKit";
+import { IconAction } from "@/app/_components/IconAction";
 import { useTranslations } from "next-intl";
 import { BTN_GHOST, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { briefPromoteBlockers } from "@/app/_lib/intake-brief";
@@ -65,21 +64,8 @@ export function IntakeExportButton({ active }: { active: IntakeSession }) {
   );
 }
 
-export function IntakeStudioActions({
-  active,
-  logic,
-  coat = "classic",
-}: {
-  active: IntakeSession;
-  logic: IntakeLogic;
-  coat?: IntakeCoatId;
-}) {
+export function IntakeStudioActions({ active, logic }: { active: IntakeSession; logic: IntakeLogic }) {
   const t = useTranslations("library.tab.intake");
-  // The classic coat keeps its captioned checkboxes: it is the baseline the new
-  // directions are measured against, so changing it would remove the comparison.
-  // The new coats carry the same two options as pressed glyphs whose meaning
-  // lives in a tooltip — the option is a picture with a name, not a sentence.
-  const glyphOptions = coat !== "classic";
   // Same checklist semantics as the JD builder: the work-sample case is an
   // explicit opt-in; the (Czech-market) salary read is an opt-OUT, so the default
   // preserves the shipped behaviour (UAT L1-HRBP-11).
@@ -110,53 +96,32 @@ export function IntakeStudioActions({
         <span className="text-body text-moss">{t("promoted")}</span>
       ) : (
         <>
-          {glyphOptions ? (
-            <span className="flex items-center gap-0.5">
-              <IconAction
-                icon={ClipboardList}
-                label={t("promoteCaseShort")}
-                hint={t("promoteCaseHint")}
-                on={withCase}
-                toggle
-                side="bottom"
-                disabled={logic.promoting}
-                onClick={() => setWithCase((v) => !v)}
-              />
-              <IconAction
-                icon={Scale}
-                label={t("promoteMarketShort")}
-                hint={t("promoteMarketHint")}
-                on={withMarket}
-                toggle
-                side="bottom"
-                disabled={logic.promoting}
-                onClick={() => setWithMarket((v) => !v)}
-              />
-            </span>
-          ) : (
-            <>
-              <label className="flex cursor-pointer items-center gap-1.5 text-meta text-steel">
-                <input
-                  type="checkbox"
-                  className="accent-coral"
-                  checked={withCase}
-                  onChange={(e) => setWithCase(e.target.checked)}
-                  disabled={logic.promoting}
-                />
-                {t("promoteCase")}
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5 text-meta text-steel">
-                <input
-                  type="checkbox"
-                  className="accent-coral"
-                  checked={withMarket}
-                  onChange={(e) => setWithMarket(e.target.checked)}
-                  disabled={logic.promoting}
-                />
-                {t("promoteMarket")}
-              </label>
-            </>
-          )}
+          {/* Two options, as pressed glyphs whose meaning lives in a tooltip: an
+              option is a picture with a name, not a checkbox beside a sentence
+              (studioContract.ts). What a click buys is unchanged — the case is
+              opt-IN, the salary read opt-OUT (DEFAULT_PROMOTE_OPTIONS). */}
+          <span className="flex items-center gap-0.5">
+            <IconAction
+              icon={ClipboardList}
+              label={t("promoteCaseShort")}
+              hint={t("promoteCaseHint")}
+              on={withCase}
+              toggle
+              side="bottom"
+              disabled={logic.promoting}
+              onClick={() => setWithCase((v) => !v)}
+            />
+            <IconAction
+              icon={Scale}
+              label={t("promoteMarketShort")}
+              hint={t("promoteMarketHint")}
+              on={withMarket}
+              toggle
+              side="bottom"
+              disabled={logic.promoting}
+              onClick={() => setWithMarket((v) => !v)}
+            />
+          </span>
           <button
             type="button"
             className={`${BTN_SECONDARY} h-9 px-4 text-sm`}

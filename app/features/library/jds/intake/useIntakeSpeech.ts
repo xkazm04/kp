@@ -79,7 +79,7 @@ export function useIntakeSpeech({
   const latched = useUnavailableLatch(errorCode, TTS_UNAVAILABLE_CODE);
 
   // Read lazily, the SSR-safe shape its neighbour in this directory already uses
-  // (JdsIntakeLayoutTriptych's stored columns): the reader is `window`-guarded,
+  // (the desk's stored zones, coats/studioContract.ts): the reader is `window`-guarded,
   // so a server render takes the default and the browser takes the stored value
   // on its first paint rather than flipping the control a tick later.
   const [autoSpeak, setAutoSpeakState] = useState<boolean>(readAutoSpeak);

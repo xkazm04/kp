@@ -204,9 +204,6 @@
     "features/library/jds/intake/JdsIntakeAttachmentsPane.tsx": {
       "panel": 1
     },
-    "features/library/jds/intake/JdsIntakeDraftPane.tsx": {
-      "panel": 1
-    },
     "features/library/jds/intake/JdsIntakePanel.tsx": {
       "panel": 1
     },

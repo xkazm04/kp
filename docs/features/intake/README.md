@@ -144,7 +144,7 @@ JD has ever had.
   running scan and no amount of "not sure, we've never had this role" can flip
   the session back to `story` (`detect_shape(turns, app_master=True)`).
 - **While the scan runs** the chat shows the shape's own deterministic opener
-  plus a scan-progress line (`JdsIntakeChat`'s `statusNote`). The clock is the
+  plus a scan-progress line (`AtelierTranscript`'s `statusNote`). The clock is the
   **shared TasksProvider poll** — no second poller: its `tasks` array is
   referentially stable across no-op polls, so `useAppMasterLogic`'s effect fires
   exactly when a task's state moves.
@@ -384,7 +384,7 @@ writes `transcriptWindow(...)`, the same bound. Equal windows are what keeps
 `sourceTurn` citations numbered identically on both sides of the boundary.
 
 Compaction is DISCLOSED, never silent: one leading `system` turn carries the
-machine token `kp:transcript-compacted:<n>`, which `JdsIntakeChat` resolves into
+machine token `kp:transcript-compacted:<n>`, which `AtelierTranscript` resolves into
 the reader's language. A second compaction absorbs the count instead of stacking
 markers. Pinned by `app/_lib/intake-transcript.test.ts`.
 
@@ -425,8 +425,8 @@ anonymous 500 the runner had to guess a code out of.
 | Decision cards: when they are earned | `pipeline/jobfit/intake.py` (`_PERSONA_CHOICES`, `_choices_payload`, `_SCRIPTED_CHOICE_OPTIONS`, `_scripted_choices`) |
 | Decision cards: UI | `app/features/library/jds/intake/JdsIntakeChoiceCards.tsx`, mounted through `ChatTranscript`'s `renderTurnExtras` |
 | UI — ledger | `app/features/library/jds/intake/JdsIntakePanel.tsx` (the tab: session table + summary rail), `JdsIntakeSessionsTable.tsx` |
-| UI — studio | `IntakeStudioOverlay.tsx` (the dialog frame + disclosure + close contract), `IntakeStudioActions.tsx` (export · re-open · promote), `IntakeStudioDesk.tsx` (the Triptych at full size) |
-| UI — panes | `JdsIntakeChat`, `JdsIntakeBriefPanel`, `JdsIntakeDraftPane`, `JdsIntakeAttachmentsPane`, `jdsIntakeLogic` |
+| UI — studio | `IntakeStudioOverlay.tsx` (the dialog frame + disclosure + close contract), `IntakeStudioActions.tsx` (export · re-open · promote), `IntakeStudioDesk.tsx` (the desk, at full size) |
+| UI — zones | `coats/atelier/AtelierTranscript`, `AtelierComposer`, `AtelierBriefPlane`, `AtelierDraftSheet`, `JdsIntakeAttachmentsPane`, `jdsIntakeLogic` |
 | Per-turn arrival (pure + motion) | `intakeDelta.ts` (`diffBrief`, `diffDraft`; `intakeDelta.test.ts`), `IntakeArrivalMotion.tsx` (`useArrivalDelta`, `ArrivalList`) |
 | Tab entry predicates (pure) | `app/features/library/jds/jdsIntakeTabEntry.ts` (`opensOnGenerate`, `opensNewIntake`; `jdsIntakeTabEntry.test.ts`) |
 
@@ -784,7 +784,7 @@ Claude Code read the repo and **0.6** when the heuristic file-walk did, under a
 comment stating that "the confidence the panel chips must say so". The chips
 could not: both readings are provenance `inferred` by construction (never
 "stated" — a machine read this), so the panel rendered the identical chip for
-both and the number had no consumer at all. `JdsIntakeBriefPanel` now renders a
+both and the number had no consumer at all. `JdsIntakeBriefAtoms` now renders a
 quiet confidence chip on a facet row, reusing the existing
 `library.tab.intake.defense.confidence` key (as a bare percentage beside the
 label in the two new bodies). Confidence `1` renders nothing — a
@@ -921,7 +921,7 @@ affordance, not a new kind of transcript turn.
 not on a session column: a reload re-offers exactly the set that was on the
 table, attached to the question it answers. Older sets stay visible as the
 record of what was offered but go quiet — only the newest turn is interactive
-(`JdsIntakeChat` gates on `index !== lastIndex`).
+(`AtelierTranscript` gates on `index !== lastIndex`).
 
 **Trust boundary.** The payload is authored by a model, so `coerceIntakeChoiceSet`
 (`app/_lib/intake-choices.ts`, called in `intake-run.ts`) is the one place that
@@ -969,8 +969,8 @@ longer, reduced motion collapses it to the finished string, and the full text is
 always in the DOM for assistive tech so a screen reader hears the sentence once,
 complete. The header says "writing" only while a line is actually being written.
 
-`JdsIntakeBriefPanel.tsx` is the FRAME — header, edit/frozen states, the
-App-master slot, the empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
+`coats/atelier/AtelierBriefPlane.tsx` is the FRAME — head, edit/frozen states, the
+App-master slot, the ghost empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
 The body is the winner of a `/prototype` round run against the shipped flat
 sections and a ranked "Scorecard"; both losers and the switcher between them were
 deleted at consolidation.
@@ -1061,7 +1061,7 @@ Two smaller corrections on the same surface:
 
 The open conversation is a full-viewport workspace over the ledger:
 `IntakeStudioOverlay.tsx` → `Modal size="full" bare` → a header strip →
-`IntakeStudioDesk.tsx` (the Triptych at full size).
+`IntakeStudioDesk.tsx` (the desk, at full size).
 
 **Why an overlay rather than a second view of the tab.** The desk had to fit in
 whatever was left of the page under the tab header, the mode switcher and the
@@ -1097,58 +1097,50 @@ never went anywhere.
 
 ## Session layout — chat · brief · JD draft · materials
 
-The desk is the **Triptych** (`JdsIntakeLayoutTriptych.tsx` over the shared
-contract in `intakeLayoutShared.ts`): three foldable leaves — JD draft ·
-conversation · live brief — each folding to a clickable spine that still badges
-what THAT leaf holds; materials live in a disclosure at the foot of the draft
-leaf, reachable from the spine and from beside the conversation. Column
-visibility persists per browser in `localStorage`, never server-side.
+The desk is the **Atelier plane** (`coats/atelier/IntakeAtelierDesk.tsx` over
+`AtelierZone` in `atelierPlane.tsx`, with the zone vocabulary and its stored
+preference in `coats/studioContract.ts`): three foldable zones on ONE continuous
+surface — JD draft · conversation · live brief — separated by a hairline rather
+than nested as cards, each folding to a spine that still carries the one numeral
+that zone owes the reader; materials live in a disclosure at the foot of the
+draft zone, reachable from there and from the composer's paperclip. Zone
+visibility persists per browser in `localStorage` (`kp-intake-atelier-cols`),
+never server-side.
 
-**One desk, one height — and two hosts.** The leaves used to size themselves —
-the chat leaf was a fixed 32rem, the brief and the draft grew with their content,
-and `items-stretch` stretched every leaf to the tallest of the three. A long brief
-therefore left a column of dead white space under the conversation and under the
-draft. The DESK now owns the height and the leaves fill it, and WHICH height
-depends on who is hosting it (`fill` on `IntakeLayoutProps`):
+**One desk, one height — one host.** The leaves used to size themselves: the chat
+leaf was a fixed 32rem, the brief and the draft grew with their content, and
+`items-stretch` stretched every leaf to the tallest of the three, so a long brief
+left a column of dead white under the conversation and under the draft. The desk
+now owns the height and takes it from its container — the studio is the only host,
+and the modal body is already bounded at 92dvh, so the desk is `xl:h-full
+xl:flex-1 min-h-0` and never makes a second height claim inside a box that has one.
+Below `xl` it is `shrink-0`, the zones stack with a `max-h-[50dvh]` cap each, and
+the DIALOG is the scroller — a shrinkable desk there would be squeezed with nothing
+to scroll. (The viewport-proportional clamp the old tab-hosted desk used —
+`clamp(28rem, 100dvh - 15rem, 48rem)` — went with the tab.)
 
-- **Unset** — the desk is a block on a scrolling page and has to pick its own
-  height: `clamp(28rem, 100dvh - 15rem, 48rem)` at `xl`, viewport-proportional,
-  with a floor so a short window still shows a usable conversation and a ceiling
-  so a tall one does not stretch a three-line brief down a whole screen.
-- **`fill`** (the studio) — the container IS the height. The modal body is already
-  bounded at 92dvh, so a second height claim inside it would either overflow the
-  dialog or leave a strip of dead white under the leaves; the desk takes
-  `xl:flex-1 min-h-0` instead. Below `xl` it is `shrink-0` and the leaves stack to
-  their natural height with a `max-h-[50dvh]` cap each — the DIALOG is the
-  scroller there, and a shrinkable desk would be squeezed with nothing to scroll.
-
-Each leaf is a bounded flex column with a fixed header and exactly ONE scrolling
-body, so content that overruns scrolls inside its own leaf instead of pushing the
+Each zone is a bounded flex column with a sticky head and exactly ONE scrolling
+body, so content that overruns scrolls inside its own zone instead of pushing the
 desk taller and stranding its neighbours. Two consequences worth knowing before
 touching it:
 
-- The chat leaf is the exception to "the leaf body scrolls": `ChatTranscript`
-  already scrolls its turn list above a composer that must stay pinned, so the
-  leaf hands it `h-full min-h-0` and adds no scroller of its own. The materials
-  cue beside the conversation is `shrink-0` for the same reason — it must not
-  scroll away with the turns.
-- The brief panel is `min-h-full`, not `h-full`: the sunken surface has to cover
-  the whole leaf when the brief is short and grow past it when it is long.
+- The conversation is the exception to "the zone body scrolls": `AtelierTranscript`
+  already scrolls its turn list above a composer that must stay pinned, so the zone
+  passes `scroll={false}` and adds no scroller of its own.
+- Folding is a WIDTH tween, not a swap: the section stays mounted, framer's
+  `layout` animates the width, and the zone's numeral is the shared element that
+  survives the fold (the same `layoutId` on the head numeral and on the spine
+  numeral), so the one fact a folded zone still owes the reader visibly travels
+  instead of blinking out on one side and in on the other.
 
-Stacked (below `xl`) the same bound applies per leaf as a `max-h`, so a leaf may
-still be shorter than the cap when its content is.
+The zone head is quiet by construction — an uppercase mark, a bare tabular
+numeral, and a fold control that only exists while the pointer or the keyboard is
+inside the zone. The draft's numeral is a STATE rather than a count (`✓` promotable
+· `…` started · `·` empty), read from `briefPromoteBlockers`, the same computation
+the disabled **Create JD** button obeys, so the mark can never claim a readiness
+the button contradicts (UAT L2-RC-1).
 
-Each leaf has ONE title row: the leaf's name and, for the draft, its status tag
-(`draftChip` on `IntakeLayoutProps`). The draft pane used to print its own title
-underneath the leaf header — "Job description" over "Job description draft" —
-followed by a two-line explainer of what the pane was, and only then the posting
-inside a SECOND bordered card. That is three chrome layers between the header and
-the words the requestor came to read, so the pane is now document-only: the chip
-moved up into the leaf header, the explainer is gone, and the markdown renders
-straight into the leaf (`Markdown` emits its own root, so the entrance animation
-rides that instead of a wrapper).
-
-The **JD draft** (`JdsIntakeDraftPane.tsx` +
+The **JD draft** (`coats/atelier/AtelierDraftSheet.tsx` +
 `app/_lib/intake-draft.ts`) is a DETERMINISTIC client-side render of the
 current RoleBrief in the posting shape of the real build's `composeMarkdown`
 — it updates after every exchange at zero LLM cost, is tagged a draft (the
@@ -1218,7 +1210,7 @@ and neither animates the other's business.
   non-first ones, restoring the `first:mt-0` margin each block loses by becoming
   the first child of its own root.
 - **The leaf headers say where the work is landing.** While a turn is in flight
-  the brief and draft leaf labels pulse (`busyColumns` on `IntakeLayoutProps`,
+  the brief and draft zone labels pulse (`busy` on `AtelierZone`,
   `animate-pulse` — the one Tailwind animation `globals.css` already stops under
   reduced motion). The conversation is not in the list: it has its own thinking
   bubble.
@@ -1327,40 +1319,45 @@ return the same rows in the same order.
 The limiter sits after every cheap refusal above and before the fetch or the corpus
 write, and is pinned in `app/api/rate-limit-contract.test.ts`.
 
-### Coats — the studio's visual directions (prototype)
+### One surface — how the studio got here (prototype, closed)
 
-The studio's working surface is skinned by a **coat**: a visual direction chosen
-from a switcher in the studio header. A coat owns component design only. What a
-session holds, what a turn does and what a promote costs are identical under
-every coat, so switching is free and reversible.
+The studio's working surface was prototyped as three **coats** behind a header
+switcher: `classic` (the desk as it shipped — bordered leaves, chat bubbles,
+captioned checkboxes), `atelier` (evolution: one continuous plane, hairline zones,
+brief entries as record rows, chat turns as gutter-marked blocks) and `console`
+(redesign: a question stage, a timeline rail, dossier stacks, a typeset page).
 
-| Coat | Direction |
-| --- | --- |
-| `classic` (default) | the desk as it shipped: three bordered leaves, chat bubbles, captioned checkboxes. Kept as the baseline the others are compared against |
-| `atelier` | evolution: one continuous plane, hairline-separated zones, brief entries as record rows, chat turns as gutter-marked blocks, a typeset draft sheet |
-| `console` | redesign: the current question is a large stage above the composer, earlier turns collapse to a timeline rail, the brief becomes a dossier of cards that land on their stack |
+**Atelier won, with ONE element fused in from Console: its Job-description
+sheet.** The switcher, the coat vocabulary, the classic desk and the whole
+`console/` directory are deleted; `IntakeStudioDesk` renders the Atelier desk and
+takes no direction argument. `coats/studioContract.ts` (formerly `coatKit.ts`) is
+what survives: the content rule below, the editability rule, the promote defaults
+the consolidation was not allowed to change, and the zone vocabulary the fold
+preference is written in. `coats/studioContract.test.ts` pins the last two.
 
-Vocabulary and the derivations both new coats share live in
-`app/features/library/jds/intake/coats/coatKit.ts` (JSX-free, so two layouts
-render the same behaviour without importing each other); the switcher is
-`coats/IntakeCoatSwitch.tsx`; `IntakeStudioDesk` is the host and delegates on
-`coat`. The choice persists per browser under `kp-intake-coat` and is read after
-mount, never during render, so the server and the client paint the same coat.
-`coats/coatKit.test.ts` pins the closed vocabulary, the baseline default and the
-promote defaults a coat swap may not change.
+The fusion is `coats/atelier/AtelierDraftSheet.tsx`. The draft is now a PAGE — a
+`bg-paper` article with an edge and a measure it does not exceed however wide the
+desk gets — carrying Atelier's typography (display face and sized headings, a
+reading leading) and Console's unfold: a section the last turn WROTE mounts closed
+and opens to its own height (`Collapse`, the height:auto idiom), so the page grows
+a section instead of flashing one. The correctness property both sheets shared is
+unchanged — the document is split at its blank lines, matched against the previous
+render by `diffDraft`, and only a block holding a new or replaced line animates; an
+untouched block keeps its element, and the first document a sheet ever draws is
+still, so opening a finished session does not replay nineteen turns.
 
-### The content rule the two new coats obey
+### The content rule the surface obeys
 
 **No sentence occupies layout.** A control that needs explaining carries a glyph
 and a tooltip, so the explanation is one hover or one focus away and never takes
-a line of the desk. Three consequences, implemented identically in both:
+a line of the desk. Three consequences:
 
 1. An absent capability is drawn in its **negative state** (a struck microphone,
    a muted speaker) with the reason in its tooltip, rather than a paragraph
    telling the reader to continue in text.
 2. An option is a **togglable glyph** with `aria-pressed`, not a checkbox beside
    a sentence. The promote options are the case study: the same two flags the
-   classic coat spells out in full sentences.
+   old desk spelled out in full sentences.
 3. An empty region shows the **shape** of what will fill it, never a sentence
    promising that it will.
 
@@ -1371,7 +1368,7 @@ different artifact and hiding that would be a lie of omission.
 The primitives are `app/_components/Tooltip.tsx` (hover **and** focus, dismissed
 by Escape, wired as `aria-describedby` — `title=` was the app's previous idiom
 and is invisible to touch and to the keyboard) and
-`coats/IconAction.tsx`, which takes one `label` and uses it as the accessible
+`app/_components/IconAction.tsx`, which takes one `label` and uses it as the accessible
 name, the tooltip and the screen-reader text at once, so a control cannot ship
 as a picture with no meaning.
 

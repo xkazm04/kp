@@ -6,8 +6,8 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { IconAction } from "../IconAction";
-import type { IntakeColumnKey } from "../../intakeLayoutShared";
+import { IconAction } from "@/app/_components/IconAction";
+import type { IntakeColumnKey } from "../studioContract";
 
 // ATELIER — the desk's PLANE, and the zone that lives on it.
 //

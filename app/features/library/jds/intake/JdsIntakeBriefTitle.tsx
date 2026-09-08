@@ -30,7 +30,7 @@ export function JdsIntakeBriefTitle({
   frozen?: boolean;
   saving?: boolean;
   /** Resolves false when the server refused — the field stays open with the
-   *  typed title still in it (see JdsIntakeBriefPanel). */
+   *  typed title still in it (see AtelierBriefPlane). */
   onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
 }) {
   const t = useTranslations("library.tab.intake.edit");

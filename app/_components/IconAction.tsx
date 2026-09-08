@@ -5,8 +5,13 @@ import { Tooltip } from "@/app/_components/Tooltip";
 import type { TooltipSide } from "@/app/_components/Tooltip";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 
-// The one control both new coats use wherever the classic studio wrote a
-// sentence: a glyph that carries its own name.
+// The control a surface uses wherever it would otherwise write a sentence: a
+// glyph that carries its own name.
+//
+// It came out of the intake studio (where the rule is stated —
+// `library/jds/intake/coats/studioContract.ts`) and lives here because the rule
+// is not that surface's: any dense surface that would spend a line of layout on
+// an explanation can spend a hover instead.
 //
 // The name is not decoration and it is not optional — it is the accessible name
 // (`aria-label`), the hover label and the focus label, all from one `label`

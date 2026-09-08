@@ -26,9 +26,8 @@ export function JdsIntakeAttachmentsPane({
   saving,
   onAdd,
   onRemove,
-  // Prototype layouts carry their own column header — suppress the inner title.
+  // The desk carries its own zone header — suppress the inner title.
   showTitle = true,
-  quietEmpty = false,
 }: {
   attachments: IntakeAttachment[];
   frozen: boolean;
@@ -39,10 +38,6 @@ export function JdsIntakeAttachmentsPane({
   onAdd: (input: { kind: "note"; title: string; text: string } | { kind: "jd"; jdSlug: string }) => void | Promise<boolean>;
   onRemove: (index: number) => void;
   showTitle?: boolean;
-  /** Draw the empty state as the SHAPE of what would fill it instead of a
-   *  sentence explaining what materials are for. The coats that refuse
-   *  instructional copy pass this; the classic desk keeps its sentence. */
-  quietEmpty?: boolean;
 }) {
   const t = useTranslations("library.tab.intake.attachments");
   // The refusal is shown from the route's machine CODE, never from its English
@@ -103,17 +98,15 @@ export function JdsIntakeAttachmentsPane({
         <span className={`${CHIP_QUIET} nums`}>{t("countOfMax", { used: attachments.length, max: ATTACHMENT_LIMIT })}</span>
       </div>
       {attachments.length === 0 ? (
-        quietEmpty ? (
-          // The shape of what would sit here: two ruled slots, no promise that
-          // they will fill. A reader who wants the sentence hovers the control
-          // that adds one.
-          <div aria-hidden className="space-y-2">
-            <div className="h-9 rounded-lg border border-dashed border-stone-200 dark:rounded-2xl" />
-            <div className="h-9 rounded-lg border border-dashed border-stone-200 opacity-60 dark:rounded-2xl" />
-          </div>
-        ) : (
-          <p className="text-body text-steel">{t("empty")}</p>
-        )
+        // The shape of what would sit here: two ruled slots, no promise that they
+        // will fill. The sentence this replaced explained what materials are FOR
+        // while standing in the slot where they go; a reader who wants it hovers
+        // the control that adds one (studioContract.ts — no sentence occupies
+        // layout).
+        <div aria-hidden className="space-y-2">
+          <div className="h-9 rounded-lg border border-dashed border-stone-200 dark:rounded-2xl" />
+          <div className="h-9 rounded-lg border border-dashed border-stone-200 opacity-60 dark:rounded-2xl" />
+        </div>
       ) : null}
       <AnimatePresence initial={false}>
         {attachments.map((a, i) => (

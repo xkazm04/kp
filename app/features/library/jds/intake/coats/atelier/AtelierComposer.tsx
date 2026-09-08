@@ -8,7 +8,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useIntakeDictation } from "../../useIntakeDictation";
 import { useIntakeSpeech } from "../../useIntakeSpeech";
 import type { IntakeTurn } from "../../jdsIntakeLogic";
-import { IconAction } from "../IconAction";
+import { IconAction } from "@/app/_components/IconAction";
 
 // ATELIER — the composer as ONE BARE FIELD ON THE PLANE.
 //

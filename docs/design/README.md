@@ -1,5 +1,10 @@
 # KandiDate design system — one product, two moods
 
+> **Composition, not just paint:** this page says which paint is allowed.
+> [`surface-doctrine.md`](./surface-doctrine.md) says how a surface is composed —
+> the seven rules a September 2026 redesign of the job-intake studio was decided
+> by, written to transfer. Read both before building a surface.
+
 This document extracts the design philosophy that emerged on `/landing` (the
 "Spark" direction) and turns it into an explicit, dual-theme design system for
 the whole app. It is the reference for every new component: **write once,

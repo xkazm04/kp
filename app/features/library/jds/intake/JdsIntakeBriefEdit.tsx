@@ -13,7 +13,7 @@ import type { RoleBrief } from "@/app/_lib/rolespec";
 // edit pass can't launder untouched inferred values into "stated".
 //
 // The form is the ONLY copy of what was typed — which is why a refused save
-// keeps it mounted (JdsIntakeBriefPanel) and why a reload no longer empties it:
+// keeps it mounted (AtelierBriefPlane) and why a reload no longer empties it:
 // every keystroke lands in a per-intake sessionStorage draft (intakeBriefDraft.ts)
 // that is restored on mount and discarded once the edit is saved, cancelled, or
 // the row moves under it.

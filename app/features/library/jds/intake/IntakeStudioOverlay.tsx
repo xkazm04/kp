@@ -11,8 +11,6 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { IntakeStudioActions } from "./IntakeStudioActions";
 import { IntakeStudioDesk } from "./IntakeStudioDesk";
-import { IntakeCoatSwitch } from "./coats/IntakeCoatSwitch";
-import { storeCoat, useIntakeCoat } from "./coats/coatKit";
 import type { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import type { IntakeLogic, IntakeSession } from "./jdsIntakeLogic";
 
@@ -65,10 +63,6 @@ export function IntakeStudioOverlay({
   // English `error` string (docs/architecture/api-contracts.md §1.1).
   const resolveError = useErrorMessage();
   const [confirmClose, setConfirmClose] = useState(false);
-  // The coat is read AFTER mount, never during render: localStorage is not
-  // available on the server, and seeding from it would paint one coat on the
-  // server and another on the client.
-  const coat = useIntakeCoat();
 
   const requestClose = () => {
     if (logic.sending) {
@@ -126,8 +120,7 @@ export function IntakeStudioOverlay({
           <span className={CHIP_QUIET}>{t(`status.${active.status}`)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <IntakeCoatSwitch coat={coat} onChange={storeCoat} />
-          <IntakeStudioActions active={active} logic={logic} coat={coat} />
+          <IntakeStudioActions active={active} logic={logic} />
           <button
             type="button"
             onClick={requestClose}
@@ -171,22 +164,10 @@ export function IntakeStudioOverlay({
               </span>
             </motion.div>
           ) : null}
-          {active.status === "complete" && coat === "classic" ? (
-            <motion.p
-              key="closedNote"
-              initial={{ opacity: reduced ? 1 : 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: reduced ? 1 : 0 }}
-              transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
-              className="mt-3 text-meta text-steel"
-            >
-              {/* Classic only. The new coats say the same thing structurally —
-                  the header chip reads "Ready", the composer is gone, and the
-                  Re-open control is the one affordance left — so the sentence
-                  would be the chrome describing itself. */}
-              {t("studio.closedNote")}
-            </motion.p>
-          ) : null}
+          {/* A finished session says so STRUCTURALLY — the header chip reads
+              "Ready", the composer is gone, and Re-open is the one affordance
+              left. The sentence that used to sit here was the chrome describing
+              itself, and it occupied a line of the desk to do it. */}
           {notices.map((n) => (
             <motion.p
               key={n.key}
@@ -203,7 +184,7 @@ export function IntakeStudioOverlay({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col p-5">
-        <IntakeStudioDesk coat={coat} active={active} logic={logic} appMaster={appMaster} />
+        <IntakeStudioDesk active={active} logic={logic} appMaster={appMaster} />
       </div>
     </Modal>
   );
