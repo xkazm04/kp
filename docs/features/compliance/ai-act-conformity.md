@@ -126,7 +126,7 @@ Gap ids (G1…) resolve in §3.
 | **Art. 72/73** Post-market monitoring & serious incidents | 🔴 | Absent — no incident log, no monitoring plan. | G10 |
 | **Art. 86** Explanation of individual decisions | 🟡 (improved) | The sealed per-candidate dossier exists (`GET /api/decisions/records?candidate=…`) but stays operator-gated by design. **New:** `app/_lib/status-decisions.ts` derives a redacted `CandidateDecisionView` (kind, attribution, reasonCode, and — for auto-rejects — the decisive threshold facts) from the same sealed rows and renders it on `/status/[token]`; rejection copy is sourced from this record rather than generated. | G9 now **partially** closed — candidates get a structured explanation of their own decision; they still cannot browse the full sealed chain (by design, not a gap) |
 | **GDPR Art. 22** (adjacent, load-bearing) | 🟢 | The whole oversight layer above is framed in-code as "no solely-automated significant decision" (`screen-wave-approval.ts`); fairness-cleared rejects still queue for a human (`automation-pass.ts`). | — |
-| **Bias / non-discrimination** (Art. 10(2)(f)(g), Recital 56) | 🟡 | Fail-closed fairness gate: early-career AND unknown archetypes never auto-rejected, drift audited (`app/_lib/archetypes.ts` — `isFairnessProtected`, `isEarlyCareer`); defense-in-depth backstop re-derives the sole legitimate reject path (`app/_lib/automation-fairness.ts`); four-fifths primitive with small-cohort floor (`app/_lib/adverse-impact.ts`) — browser-only on pasted counts, nothing persisted; scope-honest copy everywhere ("the app holds no demographic data"); **name-neutrality eval now enforced** (see Art. 15 row). | G13 (document the no-demographic-data posture as the deliberate mitigation choice) |
+| **Bias / non-discrimination** (Art. 10(2)(f)(g), Recital 56) | 🟡 | Fail-closed fairness gate: early-career AND unknown archetypes never auto-rejected, drift audited (`app/_lib/archetypes.ts` — `isFairnessProtected`, `isEarlyCareer`); defense-in-depth backstop re-derives the sole legitimate reject path (`app/_lib/automation-fairness.ts`); four-fifths primitive with small-cohort floor (`app/_lib/adverse-impact.ts`) — browser-only on pasted counts, nothing persisted; scope-honest copy everywhere ("the app holds no demographic data"); **name-neutrality eval now enforced** (see Art. 15 row). | G13 closed |
 
 ---
 
@@ -149,7 +149,7 @@ Struck-through items closed since 2026-07-27.
 | G10 | Post-market monitoring + serious-incident process. | 72, 73 | Provider | M | **Open** |
 | ~~G11~~ | ~~Add `AiDisclosure` to `/status/[token]` and `/onboarding/[token]`.~~ | 50 | Provider | S | **Closed** — both pages rendered `<AiDisclosure />`, each citing this gap by name. `/onboarding/[token]` has since been removed with the post-hire module; `/status/[token]` still renders it |
 | G12 | Per-tenant export/import. | 10 | Provider | M | **Closed** — the decision chain is per-tenant (`app/api/decisions/records/route.ts`: "integrity is PER-TENANT... each team has its own independent chain"), and `app/api/workspace/export/route.ts` / `import/route.ts` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest (`orgExportClass`) and gated on `org:manage`. Round trip pinned by `app/_lib/db-portability-org.test.ts`. Two documented limits remain, both surfaced to the operator rather than silent: the restore is in-place (same deployment), and six singleton config tables carry no `org_id` so a backup cannot carry them (`ORG_CONFIG_NOT_PORTABLE`). |
-| G13 | Document the no-demographic-data posture as the deliberate bias-mitigation choice, its limits, and the deployer-side 4/5ths workflow (`app/_lib/adverse-impact.ts`). | 10 | Provider | S | **Open** |
+| ~~G13~~ | ~~Document the no-demographic-data posture as the deliberate bias-mitigation choice, its limits, and the deployer-side 4/5ths workflow (`app/_lib/adverse-impact.ts`).~~ | 10 | Provider | S | **Closed (2026-09-08)** — written up below ("G13 in detail"). The Omnibus’s tightening of Art. 10(5) / new Art. 4a raised its value: collecting no special-category data means kp owes no exceptional-circumstances justification. The cost — kp cannot measure its own disparate impact — is stated rather than implied. |
 | G14 | Registration (Art. 49 EU database) + Annex V declaration of conformity + CE marking, off an Art. 43 internal-control assessment. | 43, 47-49, 71 | Provider | L | **Open — and no longer "premature".** It was deferred behind G1/G2 on the reading that a conformity assessment was years out; **15 months is exactly the horizon on which one gets planned**, not deferred. Two things make it cheaper than the old L suggests: the Omnibus makes an **SME / small-mid-cap simplified technical-documentation template** available, and kp is comfortably inside that threshold; and Art. 43 for Annex III point 4 is **internal control** — no notified body. G1/G2 remain the inputs, so the sequence is unchanged; what changed is that G14 now has a date to work back from. |
 | ~~G16~~ | ~~`AiDisclosure` asserts a human-in-the-loop the config can turn off.~~ The body read "A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically." The FIRST clause was false whenever a workspace set an interview-plan gate to `auto`: `app/_lib/automation-run.ts` ratifies an advance unattended via `actOnPipelineEntry` with `actor: "system"` (decision kind `auto_advanced`, actor `auto:interview-plan`), and the offer branch extends an offer with no human in the loop. It rendered UNCONDITIONALLY on eight public candidate surfaces (`/apply/[id]`, `/apply/[id]/quick`, `/devcase/apply/[token]`, `/interview/[token]`, `/schedule/[token]`, `/status/[token]`, `/offer/[token]`, InterviewSimTab), in four locales. | 50, 13 | Provider | M | **Closed (2026-09-08)** — the copy now states the one absolute it earns (a rejection is always a person's, and no setting can delegate it) and carries "by default" on advance and offer with the delegation named, in all four catalogs. It is pinned by `app/_components/ai-disclosure-copy.test.ts`, which fails if the retired absolute returns or if the rejection guarantee is dropped. Found by the scan-sweep of 2026-08-25; the landing page had retired the same sentence on 2026-08-28 and the candidate-facing copy outlived it by ten days. |
 | ~~G15~~ | ~~Widen the autonomy pause into a real Art. 14(4)(e) stop control.~~ | 14 | Provider | M | **Closed (2026-08-22)** — see below |
@@ -164,6 +164,60 @@ absolute it earns and hedges the two it does not.
 The Art. 14 oversight layer is adequate on its *decision* gates (nothing adverse
 happens without a human), and since 2026-08-22 also on the pause's REACH — G15 is
 closed.
+
+### G13 in detail — why kp holds no demographic data, and what that costs
+
+Closed 2026-09-08 by writing it down. The posture always existed; what was missing
+was the statement that it is a **choice**, with its price named. An undocumented
+absence reads to a reviewer as an oversight, and this one is the opposite.
+
+**The choice.** kp collects no race, sex, age, disability, religion or union data,
+and derives none. It does not ask for a date of birth, and the CV photo is redacted
+before egress on the blind path. There is no protected-attribute column anywhere in
+the schema for an automated decision to correlate with.
+
+**What that buys, and the Omnibus has just made it worth more.** Art. 10(5) — with
+the new Art. 4a — permits processing special categories *for the purpose of bias
+detection and correction* only "in exceptional circumstances, where strictly
+necessary and subject to safeguards". The Omnibus **restored a stricter standard**
+than the proposal sought. A vendor that collects demographics to measure its own
+fairness now owes an exceptional-circumstances justification, an access-control and
+retention regime around the most sensitive data it holds, and a GDPR Art. 9 basis
+for holding it at all. kp owes none of that, because it processes none. The cheapest
+way to survive a rule about sensitive data is not to have any.
+
+**How fairness is tested instead: perturbation, not collection.**
+`pipeline/jobfit/tests/test_name_neutrality.py` asserts **byte-identity** of the
+deterministic scorer's output across Czech male, Czech female (`-ová`), Vietnamese,
+Ukrainian, Arabic and Roma-associated name variants of the same candidate. That is a
+direct test of the proxy that actually leaks — the name — and it needs no protected
+attribute to run. `test_tech_bilingual_parity.py` does the same for language.
+`app/_lib/archetypes.ts` adds a fail-closed shield: early-career and unknown
+archetypes are never auto-rejected, and `app/_lib/automation-fairness.ts` re-derives
+the sole legitimate reject path as a defence in depth.
+
+**The price, stated plainly.** kp **cannot measure its own disparate impact.** A
+four-fifths analysis needs aggregate counts per protected group, and kp has none, so
+no dashboard in this product can tell a deployer whether their hiring outcomes are
+skewed. Perturbation testing proves the scorer does not react to a name; it does not
+prove that outcomes across a real population are balanced, and those are different
+claims. Anyone who says otherwise is overselling.
+
+**What fills the gap: the deployer's own workflow.** `app/_lib/adverse-impact.ts` is
+a pure, stateless four-fifths primitive with a minimum-cohort floor, deliberately
+browser-only and persisting nothing. A deployer who holds their own aggregate EEO
+counts — from a separate voluntary survey, kept outside kp — can compute the ratio
+against kp's selection outcomes without those counts ever entering the candidate
+store. The module's header carries the same honest ceiling.
+
+**What would reopen this.** A customer obligation to report demographic outcomes
+from the product itself (some public-sector and US federal-contractor regimes do
+require it), or a supervisory authority reading Art. 10(2)(f)/(g) to require
+measured bias detection rather than designed-out bias exposure. Either would mean
+building a separated, consent-based, aggregate-only demographic store — and the
+Art. 10(5) exceptional-circumstances justification to go with it. Neither has
+happened, and until one does, collecting nothing is both the safer and the cheaper
+posture.
 
 ### G15 in detail — what the pause now stops, and the one thing it does not
 

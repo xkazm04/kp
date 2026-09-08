@@ -553,7 +553,7 @@ as of this doc:
 - **G8** — no training/seed-data governance artifact.
 - **G10** — no post-market monitoring or incident-reporting runbook (Art. 72/73).
 - **G12** — **closed.** The decision chain is per-tenant, and `workspace/export` / `workspace/import` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest and gated on `org:manage`. What remains is narrower and documented rather than open: a backup restores in place, into the deployment it came from, and does not carry the six singleton config tables (`ORG_CONFIG_NOT_PORTABLE`).
-- **G13** — the no-demographic-data posture needs to be documented as a deliberate choice (with its limits) rather than left implicit.
+- **G13** — **closed (2026-09-08).** The no-demographic-data posture is written up as a deliberate choice in `ai-act-conformity.md` ("G13 in detail"): what it buys (no Art. 10(5) exceptional-circumstances burden, no Art. 9 special-category holding to defend), how fairness is tested instead (perturbation — byte-identity of the scorer across name variants — rather than collection), and what it costs (kp cannot measure its own disparate impact; the four-fifths primitive is the deployer’s own workflow over counts kp never sees).
 - **G14** — no EU-database registration / declaration of conformity / CE-marking scaffolding. **No longer "premature"**: G1/G2 are still its inputs, but 15 months is the horizon on which a conformity assessment gets planned rather than deferred, and the Omnibus makes an SME/small-mid-cap simplified technical-documentation template available that kp is small enough to use. See the G14 row in `ai-act-conformity.md` §3.
 
 Closed since the conformity pack was last compiled (2026-07-27):
