@@ -168,6 +168,7 @@ def check_dialog(
     done: bool,
     *,
     strict_shape: bool = True,
+    sentinel_on_wire: bool = True,
 ) -> dict[str, bool]:
     agent_turns = [t["text"] for t in turns if t["role"] == "interviewer"]
     brief = coerce_role_brief(brief_payload)
@@ -179,8 +180,14 @@ def check_dialog(
     # The opener + every mid-dialog turn asks at most 2 questions (a reflection
     # may end in a rhetorical '?'; three or more is machine-gunning).
     checks["one_question_per_turn"] = all(t.count("?") <= 2 for t in agent_turns)
-    end_turns = [i for i, t in enumerate(agent_turns) if END_TOKEN in t]
-    checks["no_premature_end"] = end_turns == [len(agent_turns) - 1] if done else len(end_turns) == 0
+    # The <<END>> sentinel is an ENGINE wire contract: the message route strips it
+    # before the reply reaches a client (app/api/intake/reply-sentinel.ts), so a
+    # dialog observed over HTTP cannot carry it and the check would report a
+    # defect that is the contract working. Over HTTP the key is not emitted (the
+    # table shows it as not measured) rather than filled with a false red.
+    if sentinel_on_wire:
+        end_turns = [i for i, t in enumerate(agent_turns) if END_TOKEN in t]
+        checks["no_premature_end"] = end_turns == [len(agent_turns) - 1] if done else len(end_turns) == 0
     if done and agent_turns:
         closing = agent_turns[-1].lower()
         # Token-level grounding: a live agent legitimately paraphrases the
@@ -506,7 +513,9 @@ def run_corpus_eval(
         graded = scenario
         if persona_provider is not None and scenario.get("jd_role_family"):
             graded = {**scenario, "family": scenario["jd_role_family"]}
-        checks = check_dialog(graded, turns, brief, shape, done, strict_shape=persona_provider is None)
+        checks = check_dialog(
+            graded, turns, brief, shape, done, strict_shape=persona_provider is None, sentinel_on_wire=False
+        )
         record(
             index,
             {

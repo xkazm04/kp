@@ -674,3 +674,23 @@ class JdGroundedCorpusTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SentinelOverHttpTest(unittest.TestCase):
+    def test_no_premature_end_is_not_measured_when_the_wire_strips_the_sentinel(self) -> None:
+        from pipeline.jobfit.eval.intake_eval import check_dialog
+
+        turns = [
+            {"role": "interviewer", "text": "Where did the team feel the gap?"},
+            {"role": "requestor", "text": "Reporting."},
+            {"role": "interviewer", "text": "Read-back done. What did I miss?"},
+        ]
+        brief = {"title": "Analyst", "requirements": [{"skill": "sql", "kind": "must_have"}]}
+        in_process = check_dialog({}, turns, brief, "power_unit", True)
+        over_http = check_dialog({}, turns, brief, "power_unit", True, sentinel_on_wire=False)
+        # In-process the sentinel is expected and its absence is a real finding.
+        self.assertIs(in_process["no_premature_end"], False)
+        # Over HTTP the route strips it by contract, so the key is not emitted.
+        self.assertNotIn("no_premature_end", over_http)
+        self.assertTrue(over_http["completed"])
+
