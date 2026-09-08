@@ -410,7 +410,11 @@ explicitly configured. Concretely:
 - **Pipeline (Python):** cloud LLM engines (Gemini, Anthropic, the Claude CLI, and
   OpenAI **without** a `base_url`) report unavailable → the call falls back to
   deterministic output (`pipeline/jobfit/llm/offline.py`). A self-hosted OpenAI
-  endpoint (`OPENAI_BASE_URL`) and Azure (its configured `endpoint`) keep working.
+  endpoint (`OPENAI_BASE_URL`) keeps working **if it names a private host**; so does
+  an Azure endpoint, on the same condition, which means a *hosted*
+  `*.openai.azure.com` deployment is sealed off and only a loopback / in-VPC one
+  stays usable. This line used to say Azure keeps working unconditionally, which is
+  not what `adapters/azure_openai.py` does.
   This covers the two Gemini call sites that bypass the `llm/base` adapters as well:
   `gemini.get_client()` (the flagship multimodal CV analysis + profile extractor —
   the one call that ships the candidate's whole file) and
@@ -420,10 +424,27 @@ explicitly configured. Concretely:
   variable in the service unit does not clear the key.
 - **Billing:** Polar is disabled (billing routes report unconfigured).
 
-The **allowlist** = loopback + the hosts of `OPENAI_BASE_URL`, `AZURE_OPENAI_ENDPOINT`,
-`LIGHTTRACK_URL`, `NEXT_PUBLIC_APP_BASE_URL`/`APP_BASE_URL`, `COMMS_WEBHOOK_URL`,
-plus any extra hosts in **`KP_OFFLINE_ALLOW_HOSTS`** (comma-separated) for a
-same-network gateway.
+The **allowlist** = loopback + your own app origin (`NEXT_PUBLIC_APP_BASE_URL` /
+`APP_BASE_URL`, always, since reaching yourself is not egress) + the hosts of
+`OPENAI_BASE_URL`, `AZURE_OPENAI_ENDPOINT`, `LIGHTTRACK_URL` and
+`COMMS_WEBHOOK_URL` **when those name a private host** — loopback, an RFC1918
+address, a bare container/service name, or a `.local` / `.internal` / `.lan` /
+`.home.arpa` name — plus any extra hosts in **`KP_OFFLINE_ALLOW_HOSTS`**
+(comma-separated) for a same-network gateway.
+
+> **Changed 2026-09-08.** Those four outbound endpoints used to be allow-listed
+> unconditionally, so configuring one admitted its host whatever it was, and a
+> public endpoint therefore stayed reachable under `KP_OFFLINE`. That contradicted
+> the Python half, which has always sealed off a configured `base_url` resolving to
+> a public host on the stated reasoning that an endpoint is not trusted merely
+> because it was configured. The two halves now agree. **This is a behaviour change
+> for one configuration**: a *hosted* Azure OpenAI endpoint (`*.openai.azure.com`)
+> is public, so under `KP_OFFLINE` it is now sealed off rather than silently
+> allowed. If your private service genuinely answers to a public-looking name, list
+> it in `KP_OFFLINE_ALLOW_HOSTS` — a deliberate act, rather than a side effect of
+> naming an inference endpoint. The observability collector is the case that
+> prompted this: pointed at a hosted endpoint it would have kept telemetry leaving
+> a deployment whose whole premise is that nothing does.
 
 > This is an **application-level** backstop. For a hard guarantee, still enforce a
 > **network egress policy** at the deployment layer (Kubernetes NetworkPolicy /

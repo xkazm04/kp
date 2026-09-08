@@ -10,7 +10,7 @@
 // captured body is inspected synchronously after the call returns.
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { trackLlmToLightTrack } from "./llm-lighttrack.ts";
+import { trackLlmToLightTrack, reasonCode } from "./llm-lighttrack.ts";
 
 type Capture = { url: string; body: Record<string, unknown>; headers: Record<string, string> };
 
@@ -92,10 +92,38 @@ test("cached tokens ride as cached_input; null/absent omits the field", () => {
   assert.deepEqual(track({ cachedTokens: null }).body.usage, { input: 1200, output: 300 });
 });
 
-test("an error emits status:error with a bounded message", () => {
-  const body = track({ error: "x".repeat(900) }).body;
+/* CHANGED DELIBERATELY. This used to assert that an error was truncated to 500
+ * characters — i.e. that up to 500 bytes of provider-authored text left the
+ * process. A provider message can echo the prompt, and on this product a prompt
+ * carries a candidate's CV, so a bounded message is still the wrong shape: this
+ * repo answers a failure with a CODE, never with the thrown message. The Python
+ * half already refused it (`monitor._reason_code` collapses a prose line to
+ * `provider_error` before it reaches a durable column) and this half did not, so
+ * the discipline held on one runtime out of two. */
+
+test("an error emits status:error carrying a code, never a message", () => {
+  const body = track({ error: "provider_timeout" }).body;
   assert.equal(body.status, "error");
-  assert.equal((body.error as string).length, 500);
+  assert.equal(body.error, "provider_timeout", "a bare code passes through unchanged");
+});
+
+test("provider prose never leaves the process", () => {
+  // The realistic leak: a provider echoes the prompt back inside its error text.
+  const leak = 'Error: invalid request — content was "Jan Novak, jan@example.com, 10 years at ..."';
+  const body = track({ error: leak }).body;
+  assert.equal(body.error, "provider_error", "anything that is not a code collapses to the catch-all");
+  assert.doesNotMatch(String(body.error), /Novak|example\.com/, "no candidate text may survive");
+});
+
+test("the type half of a thrown error is kept when it names a distinct descent", () => {
+  // "<Type>: <message>" — the type is ours, the message is the provider's. Keeping
+  // the few types that mean something stops a timeout flattening into the catch-all
+  // without ever storing the message half.
+  assert.equal(reasonCode("TimeoutError: upstream took too long"), "provider_timeout");
+  assert.equal(reasonCode("AbortError: signal aborted"), "provider_timeout");
+  assert.equal(reasonCode("SomethingElse: with detail"), "provider_error");
+  assert.equal(reasonCode("  "), null, "an empty reason is not a failure");
+  assert.equal(reasonCode(undefined), null);
 });
 
 test("no LIGHTTRACK_URL is a hard no-op (the default deployment)", () => {
