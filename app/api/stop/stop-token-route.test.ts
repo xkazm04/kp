@@ -290,3 +290,23 @@ test("the write is idempotent — a second click, or a mail client's unattended 
   );
   assert.equal(candidateOptOutHalt(entry.id), "candidate");
 });
+
+test("the RFC 8058 one-click request — the EXACT shape a mail provider sends — records the stop and answers 200", async () => {
+  // The header kp asks the relay to emit (`List-Unsubscribe-Post: List-Unsubscribe=One-Click`)
+  // is a promise about THIS route: a provider POSTs it unattended, with no session, no
+  // cookie and a form body the route must tolerate. Every other write test here posts an
+  // empty body, so the shape the promise is actually about was never exercised.
+  const entry = fixture("stop-c-one-click");
+  const token = ensureOptOutToken(entry.id, entry.workspaceId)!;
+  const res = await POST(
+    new NextRequest(`http://localhost/api/stop/${token}`, {
+      method: "POST",
+      headers: { "x-forwarded-for": "203.0.113.43", "content-type": "application/x-www-form-urlencoded" },
+      body: "List-Unsubscribe=One-Click",
+    }),
+    params(token)
+  );
+  assert.equal(res.status, 200, "RFC 8058 requires a 200 on success — a provider treats anything else as a broken link");
+  assert.deepEqual(await res.json(), { stopped: true });
+  assert.equal(candidateOptOutHalt(entry.id), "candidate", "the unattended POST really recorded the objection");
+});

@@ -194,15 +194,27 @@ async function candidateFooters(
   if (erasureToken) {
     lines.push(t("dataFooter", { link: `${base}/data/${encodeURIComponent(erasureToken)}?lang=${locale}` }));
   }
-  // The RFC 8058 one-click target is the SAME URL without the ?lang= pin: a mail
-  // provider POSTs it unattended, so the language of a page nobody will look at is
-  // noise, while the human-visible link keeps its pin.
-  const stopUrl = optOutToken ? `${base}/stop/${encodeURIComponent(optOutToken)}` : null;
-  if (stopUrl) lines.push(t("stopFooter", { link: `${stopUrl}?lang=${locale}` }));
+  // TWO URLS FOR ONE OPT-OUT, and they are DIFFERENT ROUTES on purpose — this is the
+  // half that shipped wrong, so it is spelled out:
+  //   • the FOOTER link is read by a PERSON. It opens the /stop/<token> explainer page
+  //     (app/stop/[token]/page.tsx), ?lang=-pinned like the erasure link beside it, so
+  //     the page speaks the language the letter was written in.
+  //   • `unsubscribeUrl` is the MACHINE header target. It rides the wire envelope into
+  //     `List-Unsubscribe` beside `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+  //     (RFC 8058), which means a mail provider POSTs it UNATTENDED. Only
+  //     /api/stop/<token> (app/api/stop/[token]/route.ts) exports a POST; the page route
+  //     exports none, so aiming the header at the page answered every provider a 405 and
+  //     the opt-out was never recorded — a legal affordance that looked shipped and did
+  //     nothing. No ?lang= on it: nobody reads a JSON 200, and the route ignores it.
+  const stopToken = optOutToken ? encodeURIComponent(optOutToken) : null;
+  if (stopToken) lines.push(t("stopFooter", { link: `${base}/stop/${stopToken}?lang=${locale}` }));
   // A BLANK line between the two, not a bare newline: they are two different rights and
   // two different links, and running them together reads as one paragraph in which the
   // second URL looks like a continuation of the first.
-  return { text: lines.length > 0 ? "\n\n" + lines.join("\n\n") : "", unsubscribeUrl: stopUrl };
+  return {
+    text: lines.length > 0 ? "\n\n" + lines.join("\n\n") : "",
+    unsubscribeUrl: stopToken ? `${base}/api/stop/${stopToken}` : null,
+  };
 }
 
 // --- The SIMULATION guard ------------------------------------------------------

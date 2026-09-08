@@ -13,17 +13,27 @@
 // the wire envelope.
 //
 // testing/unit-db.ts must stay the FIRST project import (throwaway KP_DB_PATH).
-import { test, after } from "node:test";
+import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { commsSendSuppression } from "./comms.ts";
-import { buildCommEnvelope, LIST_UNSUBSCRIBE_POST_ONE_CLICK } from "./comms-envelope.ts";
-import { createPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
+import { commsSendSuppression, setRelayHostLookupForTests } from "./comms.ts";
+import { buildCommEnvelope, LIST_UNSUBSCRIBE_POST_ONE_CLICK, type CommEnvelope } from "./comms-envelope.ts";
+import { createPipelineEntry, findEntryByOptOutToken, recordEntryConsent } from "./db/pipeline.ts";
 import { recordCandidateOptOut } from "./outreach-state-store.ts";
+import { dispatchRejection } from "./comms-dispatch.ts";
 
 after(() => cleanupUnitDb());
+
+const realFetch = globalThis.fetch;
+afterEach(() => {
+  globalThis.fetch = realFetch;
+  setRelayHostLookupForTests(undefined);
+  delete process.env.COMMS_WEBHOOK_URL;
+  delete process.env.APP_BASE_URL;
+});
 
 function read(rel: string): string {
   // Line endings normalised: a checkout with core.autocrlf=true carries CRLF and a
@@ -127,6 +137,91 @@ test("the wire envelope carries List-Unsubscribe and RFC 8058 one-click, correct
   assert.equal(env.listUnsubscribe, "<https://kp.example/api/stop/ob-abc>");
   assert.equal(env.listUnsubscribePost, LIST_UNSUBSCRIBE_POST_ONE_CLICK);
   assert.equal(LIST_UNSUBSCRIBE_POST_ONE_CLICK, "List-Unsubscribe=One-Click");
+});
+
+// ---- the PRODUCER, end to end ------------------------------------------------------
+//
+// The envelope test above hand-feeds a URL that the producer never produced, so for the
+// life of that assertion the header was pinned and the thing that BUILDS it was not.
+// comms-dispatch.ts aimed `unsubscribeUrl` at `<base>/stop/<token>` — the human PAGE,
+// which exports no POST — while the envelope stamped it into `List-Unsubscribe` beside
+// `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. Every provider that honoured the
+// one-click directive POSTed a page route, got 405, and the opt-out was never recorded.
+// So the assertions below run a REAL dispatcher and read the wire the relay is handed.
+
+/** A resolver answering one ordinary public address — delivery RESOLVES the relay host
+ *  before it posts (SSRF guard), and `relay.example.test` is a fixture no DNS knows. */
+const PUBLIC_LOOKUP = async () => [{ address: "93.184.216.34" }];
+
+/** Install a fake relay and capture the kp.comm.v1 envelopes it is POSTed. */
+function captureEnvelopes(): CommEnvelope[] {
+  const seen: CommEnvelope[] = [];
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setRelayHostLookupForTests(PUBLIC_LOOKUP);
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    seen.push(JSON.parse(String(init.body)) as CommEnvelope);
+    return new Response(null, { status: 200 });
+  }) as unknown as typeof fetch;
+  return seen;
+}
+
+test("the dispatcher aims the List-Unsubscribe header at the POST route and the footer at the page", async () => {
+  process.env.APP_BASE_URL = "https://kp.example.com";
+  // An explicit locale so the ?lang= pin below asserts a value, not the ambient default.
+  const { entry } = createPipelineEntry({
+    candidateId: "gate-c-producer",
+    candidateLabel: "Producer Subject",
+    jobId: "gate-producer-job",
+    jobTitle: "Producer Role",
+    stage: "Applied",
+    contact: "producer@example.com",
+    locale: "en",
+  });
+  recordEntryConsent(entry.id, "test", 365, entry.workspaceId);
+  const envelopes = captureEnvelopes();
+
+  await dispatchRejection(entry);
+
+  assert.equal(envelopes.length, 1, "the letter reached the relay");
+  const env = envelopes[0];
+
+  // THE HEADER TARGET — what a mail provider POSTs unattended.
+  const header = env.listUnsubscribe ?? "";
+  assert.match(
+    header,
+    /^<https:\/\/kp\.example\.com\/api\/stop\/ob-[A-Za-z0-9_~.-]+>$/,
+    "List-Unsubscribe must name /api/stop/<token>, the route that serves POST"
+  );
+  assert.ok(
+    !/^<https:\/\/kp\.example\.com\/stop\//.test(header),
+    "the page route serves no POST: a One-Click provider would get 405 and the opt-out would be lost"
+  );
+  assert.equal(env.listUnsubscribePost, LIST_UNSUBSCRIBE_POST_ONE_CLICK);
+
+  // …and it is a LIVE capability, not a well-shaped string: the token in the header
+  // resolves to this very entry, so the unattended POST opens the right door.
+  const token = header.slice(1, -1).split("/").pop() ?? "";
+  assert.equal(findEntryByOptOutToken(decodeURIComponent(token))?.id, entry.id);
+
+  // THE VISIBLE FOOTER — what a person clicks. The explainer PAGE, ?lang=-pinned like
+  // the erasure link beside it; a candidate must never be sent to a JSON endpoint.
+  assert.match(
+    env.body,
+    /https:\/\/kp\.example\.com\/stop\/ob-[A-Za-z0-9_~.-]+\?lang=en/,
+    "the footer link opens the /stop/<token> page in the letter's language"
+  );
+  assert.ok(!env.body.includes("kp.example.com/api/stop/"), "the API endpoint never appears in prose a candidate reads");
+});
+
+test("the two halves point at DIFFERENT routes, and only one of them answers a POST", () => {
+  // The reason they diverge, asserted against the routes themselves rather than trusted:
+  // collapse them back into one URL and one of these two files stops matching.
+  const here = fileURLToPath(new URL("./", import.meta.url));
+  const api = readFileSync(join(here, "..", "api", "stop", "[token]", "route.ts"), "utf8").replace(/\r\n/g, "\n");
+  const page = readFileSync(join(here, "..", "stop", "[token]", "page.tsx"), "utf8").replace(/\r\n/g, "\n");
+  assert.match(api, /export async function POST\(/, "/api/stop/[token] is the one-click target and must export POST");
+  assert.match(api, /export async function GET\(/, "…and the page's own read goes through the same route");
+  assert.ok(!/export async function POST\(/.test(page), "/stop/[token] is a page — a POST to it 405s, which is the whole defect");
 });
 
 test("a comm with no opt-out link carries NEITHER field — never a One-Click directive with no target", () => {

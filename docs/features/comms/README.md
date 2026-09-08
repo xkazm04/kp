@@ -493,9 +493,17 @@ written in**, exactly like the status link that rides beside it — `proxy.ts` t
 param into the `NEXT_LOCALE` cookie, and without it the page resolved from a cookie the
 candidate does not have and then from `Accept-Language`, opening the erasure explainer
 in a language they never chose. Locked by `comms-dispatch-links.test.ts`. The visible
-unsubscribe link is pinned the same way; the machine-readable copy handed to the relay
-(§7b, `List-Unsubscribe`) deliberately is **not**, since a mail provider POSTs it
-unattended and the language of a page nobody opens is noise.
+unsubscribe link is pinned the same way — and it is a **different route** from the
+machine-readable copy handed to the relay, which is the distinction that matters most
+here: the footer opens the `/stop/<token>` explainer **page** a person reads, while
+`unsubscribeUrl` (§7b, `List-Unsubscribe`) names `/api/stop/<token>`, the only one of the
+two that exports a `POST`. A mail provider honouring `List-Unsubscribe-Post:
+List-Unsubscribe=One-Click` POSTs that address unattended, so aiming it at the page
+answers 405 and the opt-out is silently never recorded. It carries no `?lang=`: nothing
+renders a JSON 200. Locked by `comms-optout-gate.test.ts`, which drives the real
+dispatcher and reads the envelope the relay is POSTed — the earlier assertion hand-fed
+the envelope a URL the producer never produced, which is exactly how the two halves
+diverged unnoticed.
 
 ## 11. Inbound when the studio is off: pull sources and the always-on edge
 
