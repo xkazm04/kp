@@ -4371,6 +4371,9 @@
           "turn": "Aus Runde {turn, number}",
           "compose": "Nachricht"
         },
+        "console": {
+          "answerLabel": "Ihre Antwort"
+        },
         "edit": {
           "start": "Briefing bearbeiten",
           "save": "Änderungen speichern",

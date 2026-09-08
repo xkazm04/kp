@@ -4371,6 +4371,9 @@
           "turn": "Du tour {turn, number}",
           "compose": "Message"
         },
+        "console": {
+          "answerLabel": "Votre réponse"
+        },
         "edit": {
           "start": "Modifier le brief",
           "save": "Enregistrer",

@@ -11,6 +11,9 @@ import { JdsIntakeBriefPanel } from "./JdsIntakeBriefPanel";
 import { JdsIntakeChat } from "./JdsIntakeChat";
 import { JdsIntakeDraftPane } from "./JdsIntakeDraftPane";
 import { JdsIntakeLayoutTriptych } from "./JdsIntakeLayoutTriptych";
+import { IntakeAtelierDesk } from "./coats/atelier/IntakeAtelierDesk";
+import { IntakeConsoleDesk } from "./coats/console/IntakeConsoleDesk";
+import type { IntakeCoatId } from "./coats/coatKit";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import type { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import type { IntakeLogic, IntakeSession } from "./jdsIntakeLogic";
@@ -32,7 +35,9 @@ import type { IntakeLogic, IntakeSession } from "./jdsIntakeLogic";
 // This file is assembly only. Every pane is the component that already drew it;
 // nothing about their contract changed.
 
-export function IntakeStudioDesk({
+// The CLASSIC coat: the desk exactly as it was before the coat lane existed, so
+// a reviewer always has the thing the new directions are being compared against.
+export function IntakeClassicDesk({
   active,
   logic,
   appMaster,
@@ -138,4 +143,20 @@ export function IntakeStudioDesk({
       }}
     />
   );
+}
+
+// The coat host. One line per direction; a coat is deleted by deleting its
+// directory and its arm here.
+export function IntakeStudioDesk({
+  coat,
+  ...props
+}: {
+  coat: IntakeCoatId;
+  active: IntakeSession;
+  logic: IntakeLogic;
+  appMaster: ReturnType<typeof useAppMasterLogic>;
+}) {
+  if (coat === "atelier") return <IntakeAtelierDesk {...props} />;
+  if (coat === "console") return <IntakeConsoleDesk {...props} />;
+  return <IntakeClassicDesk {...props} />;
 }

@@ -4371,6 +4371,9 @@
           "turn": "From turn {turn, number}",
           "compose": "Message"
         },
+        "console": {
+          "answerLabel": "Your answer"
+        },
         "edit": {
           "start": "Edit brief",
           "save": "Save changes",

@@ -4371,6 +4371,9 @@
           "turn": "Z kola {turn, number}",
           "compose": "Zpráva"
         },
+        "console": {
+          "answerLabel": "Vaše odpověď"
+        },
         "edit": {
           "start": "Upravit zadání",
           "save": "Uložit změny",

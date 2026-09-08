@@ -1327,7 +1327,55 @@ return the same rows in the same order.
 The limiter sits after every cheap refusal above and before the fetch or the corpus
 write, and is pinned in `app/api/rate-limit-contract.test.ts`.
 
-### Known gaps (posting corpus)
+### Coats — the studio's visual directions (prototype)
+
+The studio's working surface is skinned by a **coat**: a visual direction chosen
+from a switcher in the studio header. A coat owns component design only. What a
+session holds, what a turn does and what a promote costs are identical under
+every coat, so switching is free and reversible.
+
+| Coat | Direction |
+| --- | --- |
+| `classic` (default) | the desk as it shipped: three bordered leaves, chat bubbles, captioned checkboxes. Kept as the baseline the others are compared against |
+| `atelier` | evolution: one continuous plane, hairline-separated zones, brief entries as record rows, chat turns as gutter-marked blocks, a typeset draft sheet |
+| `console` | redesign: the current question is a large stage above the composer, earlier turns collapse to a timeline rail, the brief becomes a dossier of cards that land on their stack |
+
+Vocabulary and the derivations both new coats share live in
+`app/features/library/jds/intake/coats/coatKit.ts` (JSX-free, so two layouts
+render the same behaviour without importing each other); the switcher is
+`coats/IntakeCoatSwitch.tsx`; `IntakeStudioDesk` is the host and delegates on
+`coat`. The choice persists per browser under `kp-intake-coat` and is read after
+mount, never during render, so the server and the client paint the same coat.
+`coats/coatKit.test.ts` pins the closed vocabulary, the baseline default and the
+promote defaults a coat swap may not change.
+
+### The content rule the two new coats obey
+
+**No sentence occupies layout.** A control that needs explaining carries a glyph
+and a tooltip, so the explanation is one hover or one focus away and never takes
+a line of the desk. Three consequences, implemented identically in both:
+
+1. An absent capability is drawn in its **negative state** (a struck microphone,
+   a muted speaker) with the reason in its tooltip, rather than a paragraph
+   telling the reader to continue in text.
+2. An option is a **togglable glyph** with `aria-pressed`, not a checkbox beside
+   a sentence. The promote options are the case study: the same two flags the
+   classic coat spells out in full sentences.
+3. An empty region shows the **shape** of what will fill it, never a sentence
+   promising that it will.
+
+Two things stay visible and are not chrome: an error the reader must act on, and
+the degraded-engine notice, because a brief built by the fallback script is a
+different artifact and hiding that would be a lie of omission.
+
+The primitives are `app/_components/Tooltip.tsx` (hover **and** focus, dismissed
+by Escape, wired as `aria-describedby` — `title=` was the app's previous idiom
+and is invisible to touch and to the keyboard) and
+`coats/IconAction.tsx`, which takes one `label` and uses it as the accessible
+name, the tooltip and the screen-reader text at once, so a control cannot ship
+as a picture with no meaning.
+
+## Known gaps (posting corpus)
 
 - `htmlToText` reads server-rendered markup only. A JS-only careers page yields a stub,
   which is refused as `POSTING_FETCH_FAILED` rather than stored — honest, but it means
