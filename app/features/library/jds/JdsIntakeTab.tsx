@@ -8,6 +8,7 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
+import { useOptionalSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { switchTab, duplicateToBuilder, type AuthorNavState } from "./jdsLedgerNav";
 import { readBuildIntent } from "./jdsLedgerArtifacts";
 import type { GeneratePrefill } from "./jdsLibrary";
@@ -40,22 +41,45 @@ const LibraryIntakePanel = dynamic(() => import("./intake/JdsIntakePanel").then(
 export function JdsIntakeTab() {
   const t = useTranslations("library.intakeTab");
   const search = useSearchParams();
-  // The entry mode is decided from the URL ONCE, at mount: a deep link carrying a
-  // JD prefill (the guided demo's ?jdTitle=…, a finished build's ?jdTask=, a
-  // Duplicate's ?duplicate=) is asking for the builder, and anything else lands on
-  // the dialog. Read in the state initializer so a later param strip (below)
+  // The guided demo's in-app handoff. The tour is a component handing a JD to
+  // another component inside this same provider, so it does that in state — the
+  // five `?jd*` params it used to write made a 252-character address bar that
+  // carried CONTENT (a whole prose paragraph) rather than state. The deep link
+  // itself is untouched and still read below and in jdsBuilderLogic.ts: a person
+  // linking in from outside has no other channel, the tour did. Null outside the
+  // shell (no provider) and null whenever no run is mid-design-chapter.
+  const simHandoff = useOptionalSimulation()?.jdHandoff ?? null;
+  // The entry mode is decided ONCE, at mount, from both doors: a JD handoff — the
+  // demo's `jdHandoff`, a deep link's ?jdTitle=…, a finished build's ?jdTask=, a
+  // Duplicate's ?duplicate= — is asking for the builder, and anything else lands
+  // on the dialog. Read in the state initializer so a later param strip (below)
   // cannot flip the tab under the reader.
   const [nav, setNav] = useState<AuthorNavState>(() => ({
-    tab: opensOnGenerate(search) ? "generate" : "intake",
+    tab: opensOnGenerate(search, simHandoff) ? "generate" : "intake",
     builderKey: 0,
   }));
-  const [prefill, setPrefill] = useState<GeneratePrefill | null>(null);
+  // Seeded at mount from the handoff, for the same reason the mode is: the builder
+  // reads its own seeds at mount, and it mounts behind a `Defer` well after this
+  // component does — so the value has to be here waiting for it, not arrive later.
+  // Field-by-field rather than a spread: this mapping is where tsc checks that the
+  // shell's handoff shape still says what the builder's prefill expects.
+  const [prefill, setPrefill] = useState<GeneratePrefill | null>(() =>
+    simHandoff
+      ? {
+          title: simHandoff.title,
+          company: simHandoff.company,
+          seniority: simHandoff.seniority,
+          roleFamily: simHandoff.roleFamily,
+          need: simHandoff.need,
+        }
+      : null
+  );
   // `?intake=new` (the command palette's door into the studio). Read ONCE in the
   // state initializer, like the entry mode above, and handed to the panel as a
   // one-shot instruction it reports back on — a param strip alone would not be
   // enough, because the panel mounts behind a `Defer` and may not exist yet at the
   // moment the URL is cleaned.
-  const [autoStartIntake, setAutoStartIntake] = useState(() => opensNewIntake(search));
+  const [autoStartIntake, setAutoStartIntake] = useState(() => opensNewIntake(search, simHandoff));
 
   // Duplicate handoff (?duplicate=<slug>): the ledger no longer shares a page with
   // the builder, so the prefill can't be handed over in memory. The SLUG rides the

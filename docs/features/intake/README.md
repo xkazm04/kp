@@ -37,13 +37,20 @@ the existing JD build. Conversation design is normed by
   href above and is hidden when the tab is locked for this caller
   (`useWorkspaceCommandPaletteItems.ts`). Its label is the intake surface's own
   `library.tab.intake.new`, not a palette copy of it.
-- The tab opens on **Generate** instead of the dialog when the URL carries a JD
-  handoff — `?duplicate=<slug>` (the ledger's Duplicate), `?jdTask=<id>` (a
-  finished background build, from the tasks tray) or the `?jdTitle=/?jdNeed=/…`
-  prefill the guided demo's design step uses. The rule is one pure predicate,
-  `opensOnGenerate` (`jdsIntakeTabEntry.ts` + test), because getting it wrong is
-  silent: the builder reads its seeds at MOUNT, so a handoff that lands on the
-  dialog drops what it was carrying.
+- The tab opens on **Generate** instead of the dialog when a JD handoff arrives.
+  Three of them ride the URL — `?duplicate=<slug>` (the ledger's Duplicate),
+  `?jdTask=<id>` (a finished background build, from the tasks tray) and the
+  `?jdTitle=/?jdNeed=/…` prefill anyone can link in with — and a fourth is not a
+  link at all: the guided demo's `SimState.jdHandoff`, read here through
+  `useOptionalSimulation()`. The tour used to spell its simulated role out in the
+  address bar (five params, 252 characters, one of them a prose paragraph); it
+  hands it across in app state now, since a component handing data to another
+  component inside the same provider never needed the URL to do it. The `?jd*`
+  deep link is unchanged for the reader who really is linking in from outside.
+  The rule is still one pure predicate, `opensOnGenerate` (`jdsIntakeTabEntry.ts`
+  + test), taking both doors, because getting it wrong is silent: the builder
+  reads its seeds at MOUNT, so a handoff that lands on the dialog drops what it
+  was carrying.
 - `?tab=library` — the saved-JD ledger. It is the whole library page now; the
   Saved / Generate / Intake strip that used to sit on top of it is gone.
 - **Duplicate is a navigation, not a prefill.** The ledger and the builder no

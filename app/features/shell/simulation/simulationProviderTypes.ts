@@ -18,6 +18,31 @@ export type ScreenWave = { decisions: ScreenDecision[]; rejected: number; kept: 
 export type Spotlight = { selector: string | null; title: string; caption: string };
 export type LogLine = { at: number; text: string };
 
+/** The simulated role the design chapter hands to the JD builder.
+ *
+ *  It used to travel in the ADDRESS BAR — `?jdTitle=&jdCompany=&jdSeniority=
+ *  &jdFamily=&jdNeed=`, a 252-character URL whose longest field was a prose
+ *  paragraph. That is a URL carrying CONTENT rather than state: unreadable,
+ *  meaningless to anyone who sees it, and bookmarkable into a stale fixture.
+ *  The tour is one component handing data to another inside the same React tree
+ *  and the same provider, so it hands it across in state instead.
+ *
+ *  The `?jd*` deep link is untouched and still works (`jdsBuilderLogic.ts`
+ *  reads it): a human linking in from outside genuinely has no other channel.
+ *  This is only the SIMULATION's transport.
+ *
+ *  Field names are the builder's own (`GeneratePrefill` in
+ *  app/features/library/jds/jdsLibrary.ts) so `JdsIntakeTab` can seed the panel
+ *  from it directly; declared here rather than imported so the shell keeps no
+ *  dependency on the library feature. */
+export type JdBuilderHandoff = {
+  title: string;
+  company: string;
+  seniority: string;
+  roleFamily: string;
+  need: string;
+};
+
 export type SimState = {
   running: boolean;
   paused: boolean;
@@ -29,6 +54,10 @@ export type SimState = {
   frame: { url: string; title: string } | null;
   groupEval: GroupEval | null;
   screenWave: ScreenWave | null;
+  /** The JD fixture the current chapter is handing to the builder, or null.
+   *  Set by the design chapter and nulled by the next one — see JdBuilderHandoff
+   *  for why this is state rather than five query params. */
+  jdHandoff: JdBuilderHandoff | null;
   status: string;
   log: LogLine[];
   targetLabel: string | null;
@@ -90,6 +119,7 @@ export const IDLE_STATE: SimState = {
   frame: null,
   groupEval: null,
   screenWave: null,
+  jdHandoff: null,
   // Empty, not "Idle": this is a module constant with no translator in scope, so
   // the idle wording is resolved at the render boundary (SimControlDockSimFace
   // falls back to `simulation.status.idle`). Every other status the demo shows is
@@ -101,13 +131,17 @@ export const IDLE_STATE: SimState = {
   done: false,
 };
 
-// The transient overlays, cleared together whenever a run ends (done/stop/fail) so
-// no spotlight/frame/modal survives into the next state. Spread into a patch().
-export const CLEAR_OVERLAYS: Pick<SimState, "spotlight" | "frame" | "groupEval" | "screenWave"> = {
+// The transient run surface, cleared together whenever a run ends (done/stop/fail)
+// so no spotlight/frame/modal survives into the next state. Spread into a patch().
+// `jdHandoff` is not an overlay but is exactly as transient — a run that fails
+// DURING the design chapter must not leave the builder prefilling itself from a
+// fixture no run is walking any more.
+export const CLEAR_OVERLAYS: Pick<SimState, "spotlight" | "frame" | "groupEval" | "screenWave" | "jdHandoff"> = {
   spotlight: null,
   frame: null,
   groupEval: null,
   screenWave: null,
+  jdHandoff: null,
 };
 
 export type StepOpts = {
@@ -116,7 +150,11 @@ export type StepOpts = {
   target: string | null;
   title: string;
   caption: string;
-  navExtra?: Record<string, string | null>;
+  /** The JD fixture this chapter hands to the builder (design only). Absent means
+   *  "nothing to hand over", and step() nulls the state accordingly — so the
+   *  handoff lives for exactly the chapter that declares it, the way the `jd*`
+   *  params it replaced were cleared by the chapter after it. */
+  jdHandoff?: JdBuilderHandoff;
   action?: () => Promise<void>;
   readMs?: number;
   settleMs?: number;

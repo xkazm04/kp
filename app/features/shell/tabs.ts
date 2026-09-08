@@ -390,7 +390,8 @@ export function buildUrl(updates: Record<string, string | null>, search: string)
 // inherits the previous tab's selection (Profile's ?edit= or the JD-builder
 // prefill silently leaking onto Jobs). This is the single canonical declaration
 // of which params are tab-scoped — `buildTabSwitchUrl` clears every key here, the
-// simulation reuses it to wipe the JD prefill, and the unit test pins the exact
+// simulation's every chapter clears it too (its walk is a sequence of bare tab
+// switches; it no longer WRITES any of these), and the unit test pins the exact
 // set so adding a deep-link param is a deliberate, reviewed edit rather than a
 // silent leak. Anything NOT listed here survives a tab switch by design.
 export const TAB_SCOPED_PARAM_KEYS = [
