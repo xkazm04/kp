@@ -700,6 +700,10 @@ const ROUTES: RouteSpec[] = [
     rel: "./intake/route.ts",
     key: "`intake-create:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // Same server-env-gated raise as message and promote: the 50-role sweep opens
+    // fifty sessions inside one window.
+    limitSrc: "benchMode ? 600 : 30",
+    limitDef: 'const benchMode = process.env.KP_BENCH_MODE === "1";',
     // Moved onto the refusal chokepoint with the rest of this surface: the
     // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
     // the server's English string (api-contracts.md §1.1).
