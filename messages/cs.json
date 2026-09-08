@@ -1772,7 +1772,21 @@
     "simRunActiveSeconds": "Řízená ukázka tu už běží. Vynulovat půjde přibližně za {seconds} sekund, nebo běh zastavte na kartě, která ho spustila.",
     "simRunNotOwnerSeconds": "Tato řízená ukázka patří jiné kartě. Vynulovat půjde přibližně za {seconds} sekund, nebo ji zastavte tam.",
     "TTS_VOICE_INVALID": "Tento hlas zde nelze použít. Vyberte jiný hlas.",
-    "TTS_TEXT_TOO_LONG": "Tento text je příliš dlouhý na jedno přečtení. Rozdělte ho na kratší části."
+    "TTS_TEXT_TOO_LONG": "Tento text je příliš dlouhý na jedno přečtení. Rozdělte ho na kratší části.",
+    "AGENT_HIRE_FROM_NEED_FAILED": "Roli z této potřeby se nepodařilo sestavit a odeslat. Zkuste to prosím znovu.",
+    "HIRE_AUTOMATION_DISABLED": "Strojové najímání není v této instalaci povoleno.",
+    "HIRE_UNAUTHORIZED": "Neautorizováno.",
+    "HIRE_NEED_REQUIRED": "Popište potřebu: práci, důkaz, že je potřeba, a co bude znamenat hotovo.",
+    "HIRE_POPULATION_UNSUPPORTED": "Tento vstup najímá pouze agenty. Nastavte population na \"agent\".",
+    "HIRE_PROJECT_REQUIRED": "Uveďte projekt: jeho název a kořenovou cestu repozitáře.",
+    "HIRE_ROOT_NOT_ALLOWED": "Tato cesta k repozitáři není v povoleném kořeni, takže ji nelze naskenovat.",
+    "HIRE_SCAN_REFUSED": "Sken repozitáře byl odmítnut.",
+    "HIRE_SCAN_FAILED": "Sken repozitáře selhal, takže nebylo možné sestavit roli.",
+    "HIRE_SCAN_TIMEOUT": "Sken repozitáře nestihl doběhnout. Zopakujte stejný požadavek a připojíte se k němu.",
+    "HIRE_INTAKE_LOST": "Záznam poptávky během sestavování role zmizel.",
+    "HIRE_SPEC_INVALID": "Sestavená role neodpovídá kontraktu App mastera.",
+    "HIRE_HUMAN_POPULATION": "Nástroj vyhodnotil tuto roli jako čistě lidskou, proto nebyl odeslán žádný agent.",
+    "HIRE_NO_AGENT_BLOCK": "Sestavená role neobsahuje blok agenta, takže není co odeslat."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1772,7 +1772,21 @@
     "simRunActiveSeconds": "Une démo guidée est déjà en cours ici. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez la démo dans l'onglet qui l'a lancée.",
     "simRunNotOwnerSeconds": "Cette démo guidée appartient à un autre onglet. La réinitialisation sera possible dans environ {seconds} secondes, ou arrêtez-la depuis cet onglet.",
     "TTS_VOICE_INVALID": "Cette voix ne peut pas être utilisée ici. Choisissez une autre voix.",
-    "TTS_TEXT_TOO_LONG": "Ce texte est trop long pour être lu en une fois. Envoyez-le en parties plus courtes."
+    "TTS_TEXT_TOO_LONG": "Ce texte est trop long pour être lu en une fois. Envoyez-le en parties plus courtes.",
+    "AGENT_HIRE_FROM_NEED_FAILED": "Impossible de composer et d'envoyer un rôle à partir de ce besoin. Veuillez réessayer.",
+    "HIRE_AUTOMATION_DISABLED": "Le recrutement automatisé n'est pas activé sur cette installation.",
+    "HIRE_UNAUTHORIZED": "Non autorisé.",
+    "HIRE_NEED_REQUIRED": "Décrivez le besoin : le travail, la preuve qu'il est nécessaire et ce qui vaudra pour terminé.",
+    "HIRE_POPULATION_UNSUPPORTED": "Cette porte ne recrute que des agents. Définissez population sur \"agent\".",
+    "HIRE_PROJECT_REQUIRED": "Nommez le projet : son nom et le chemin racine de son dépôt.",
+    "HIRE_ROOT_NOT_ALLOWED": "Ce chemin de dépôt ne se trouve pas dans une racine autorisée : il ne peut pas être analysé.",
+    "HIRE_SCAN_REFUSED": "L'analyse du dépôt a été refusée.",
+    "HIRE_SCAN_FAILED": "L'analyse du dépôt a échoué : aucun rôle n'a pu être composé.",
+    "HIRE_SCAN_TIMEOUT": "L'analyse du dépôt ne s'est pas terminée à temps. Relancez la même requête pour la rejoindre.",
+    "HIRE_INTAKE_LOST": "La prise de besoin a disparu pendant la composition du rôle.",
+    "HIRE_SPEC_INVALID": "Le rôle composé ne correspond pas au contrat App master.",
+    "HIRE_HUMAN_POPULATION": "Le compositeur a jugé ce rôle réservé aux humains : aucun agent n'a été envoyé.",
+    "HIRE_NO_AGENT_BLOCK": "Le rôle composé ne comporte aucun bloc agent : il n'y a rien à envoyer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

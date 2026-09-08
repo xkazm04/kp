@@ -493,20 +493,47 @@ const ROUTES: RouteSpec[] = [
   // open mode (no KP_OPERATOR_PASSWORD) makes a documented no-op for the whole API.
   // Neither had a limiter until the 2026-09-03 sweep.
   {
-    rel: "./agents/dispatch/route.ts",
+    // MOVED 2026-09-07, deliberately, not deleted: `mintAndDispatch` was
+    // extracted from `dispatch/route.ts` into `dispatch/mint.ts` so the one-call
+    // hire door (`agents/hire-from-need`) runs the SAME tail instead of a second
+    // copy. The limiter travelled with it, so the pin follows it to the file it
+    // now lives in — pinning `route.ts` would assert a limiter that is no longer
+    // there and pass only because the assertion was weakened.
+    rel: "./agents/dispatch/mint.ts",
     // Per-IP. The limiter sits inside `mintAndDispatch`, which is entered only after
-    // EVERY cheap refusal of both origins (job/intake missing, not composed, spec
+    // EVERY cheap refusal of every origin (job/intake missing, not composed, spec
     // stale, human population, invalid budget) and after the one-live-agent
     // idempotency reuse — so a rejected or idempotent call spends no budget. That
     // ordering is structural, not textual, which is why no `servedBefore` is pinned.
     key: "`agent-dispatch:${clientIpFrom(request.headers)}`",
     limit: 10,
     optsSrc: "DISPATCH_RATE_LIMIT",
-    optsDef: "const DISPATCH_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    optsDef: "export const DISPATCH_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
     // The mint is the first irreversible act: a row, a CSPRNG report token, then the
     // outbound POST.
     expensive: "createHiredAgent(",
+  },
+  {
+    // The ONE-CALL hire door. Its first expensive act is not the mint (that
+    // happens later, inside the shared `mintAndDispatch`, behind its own
+    // limiter) but the REPOSITORY SCAN, which spawns Python — so the limiter
+    // sits ahead of `startRepoScan(` rather than ahead of the mint.
+    //
+    // Tighter than the dispatch door's 10 because this one is a whole pipeline
+    // per call — scan, intake, composer, dispatch — and because a hire is a rare
+    // deliberate act even for a machine caller.
+    rel: "./agents/hire-from-need/route.ts",
+    key: "`agent-hire-from-need:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    optsSrc: "HIRE_RATE_LIMIT",
+    optsDef: "const HIRE_RATE_LIMIT = { limit: 6, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startRepoScan(",
+    // Every cheap refusal — auth, need, population, project, allow-listed root —
+    // must answer BEFORE the limiter, so a malformed or unauthorized call never
+    // consumes a slot the caller's next valid request needs.
+    servedBefore: "HIRE_ROOT_NOT_ALLOWED",
   },
   {
     rel: "./agents/pair/route.ts",

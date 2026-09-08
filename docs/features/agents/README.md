@@ -86,6 +86,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    | `POST /api/agents/pair` | `org:manage` | persists the base URL this deployment points at and redeems the `pk_` key every dispatch authenticates with — installation configuration, the same call `POST /api/edge/pair` makes |
    | `DELETE /api/agents/bridge` | `org:manage` | drops that same key; the destructive half of pairing, and the same class as `POST /api/comms/relay` |
    | `POST /api/agents/dispatch` | `pipeline:write` | mints a hire, commits a monthly USD budget to it, files a card on the board — a recruiter act, not org administration |
+   | `POST /api/agents/hire-from-need` | `pipeline:write` **or** the automation token | the same recruiter act as `dispatch`, plus the repo scan and the composer ahead of it; the token is the alternative for a caller with no session (below), never a widening of any other door |
    | `POST /api/agents/[id]/refresh` | `pipeline:write` | a poll that WRITES: an `active` reply moves the agent's entry into the terminal column, so a viewer must not be able to land a hire by clicking Refresh |
 
    A viewer is refused with `FORBIDDEN_CAPABILITY` carrying the capability as data;
@@ -191,6 +192,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
 | `POST + GET /api/jobs/[id]/agent-fit` | Start the backgrounded transform (returns `{taskId}`) / read the latest stored spec |
 | `POST /api/agents/dispatch` | `{jobId, overrides?}` → merge overrides onto the stored spec, mint the hire, POST the persona request. **Or `{intakeId}`** — the App-master path (below). `pipeline:write` |
+| `POST /api/agents/hire-from-need` | **One call from a need to a persona** — the machine door. `{need, project:{name, rootPath, mainBranch?}, population:"agent", workspace?, budgetUsd?, dryRun?, simulation?, originPersonaId?}` → scan the repo, open an intake seeded with the need, land the dossier, compose the App master, dispatch. Returns `{intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun}`. Auth is EITHER the operator session + `pipeline:write` OR the `x-kp-automation-token` header (below). See "Hiring from a need, with nobody in the loop" |
 | `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path. `pipeline:write` (the poll can move a board entry) |
 | `POST /api/agents/report/[token]` | PUBLIC inbound report route — the CSPRNG token is the capability |
 | `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
@@ -248,6 +250,61 @@ The dispatch payload kp sends:
   "appMaster": { /* AppMasterSpec exactly as schemas:gen defines it */ }
 }
 ```
+
+## Hiring from a need, with nobody in the loop
+
+`POST /api/agents/hire-from-need` is the door **Personas** asks through. An App
+master (or the Architect) that notices one of its own responsibilities has no
+holder posts a need in prose, and kp runs the whole hire unattended.
+
+It is a **sequencer, not a second pipeline**. Every step is the same function
+the interactive surfaces call, in the order `scripts/app-master-bench/run.mjs`
+drives them: start a repo scan → poll it → `createIntake({scanId})` → one
+`runIntakeExchange` carrying the need as the first message → land the dossier →
+`runIntakeAppMasterSync` + `briefToAppMasterSpec` → `mintAndDispatch`. That last
+step is the **shared** tail extracted to `app/api/agents/dispatch/mint.ts`, so
+this route and `POST /api/agents/dispatch` mint, dispatch and file the board
+card through one implementation rather than two that drift.
+
+**Auth — two doors, a caller needs one.**
+
+- The operator session plus `pipeline:write`, like every other `/api/agents/*` route.
+- `x-kp-automation-token`, checked in constant time against the
+  `KP_AUTOMATION_TOKEN` env var (`automation-auth.ts`). **Unset means the door
+  is CLOSED (503), never open** — a route that hires agents and spends money must
+  not be reachable because nobody configured it. A configured token shorter than
+  24 characters is also refused as *disabled*, so a guessable secret answers
+  "not enabled" rather than silently guarding the door. The token travels in a
+  header, never a query string, so it cannot reach an access log or a Referer.
+
+A caller with neither gets **401**; a caller with neither *and* no token
+configured gets **503**, because "your credential was wrong" and "no credential
+would have worked" are different facts and only one of them is the caller's to fix.
+
+**What it deliberately does not do.**
+
+- It does not run the nine-message intake dialog. The need is one message; a
+  caller wanting the dialog's realism has the interactive routes.
+- It does not fall back to the JD-build → agent-fit composer when the repository
+  root is outside `KP_APP_MASTER_REPO_ROOTS`. The App-master composer refuses
+  without a dossier, and a dossier requires a scan, which requires an allow-listed
+  root — so the route refuses **up front** with `HIRE_ROOT_NOT_ALLOWED` naming the
+  env var, rather than three steps later behind a code that talks about intakes.
+
+**Throttle.** 6 per 10 minutes per IP, ahead of the scan (the first expensive
+act) and behind every cheap refusal, so a malformed or unauthorized call never
+consumes a slot. Pinned in `app/api/rate-limit-contract.test.ts`.
+
+**`dryRun`** composes and returns without dispatching: no `hired_agents` row, no
+persona request, nothing across the bridge. The intake IS kept — it is the
+artifact the caller asked to see.
+
+**`simulation` and `originPersonaId`** are passed through to Personas as
+top-level keys beside `appMaster` (`DispatchPassthrough` in `bridge-client.ts`),
+each omitted when it has nothing to say. Personas reads `simulation` to enrol the
+hired App master in its attention loop, and `originPersonaId` to record which
+persona asked for the role. Both are the *caller's* declaration about the
+circumstances of the ask, not properties of the role kp composed.
 
 ## Reporter v2 — the App-master backbone
 
