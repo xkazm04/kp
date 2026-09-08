@@ -7,7 +7,7 @@ design_doc: docs/design/README.md
 screens_source: app/features/shell/tabs.ts   # NAV_GROUPS is the studio inventory; public doors are the app/<dir>/[token]/page.tsx routes listed under ## Screens
 executor: opus
 stops_per_session: 3
-commit_format: "<feat|fix|style>(cx/S<n>): <screen> - <what changed, in the user's words>"   # the repo's commit gate (scripts/release/commit-msg.mjs KNOWN_TYPES) has no `cx` type; the skill's `cx(S<n>):` shape is rejected by the commit-msg hook
+commit_format: "<feat|fix|style>(cx/S<n>): <screen> - <what changed, in the user's words>"   # the repo's commit gate (scripts/release/commit-msg.mjs KNOWN_TYPES) has no `cx` type; the skill's `cx(S<n>):` shape is rejected by the commit-msg hook. The skill adopted this key in v1.2.0 because of this repo.
 ---
 
 # cx overlay - kp
@@ -126,4 +126,7 @@ Added to the practitioner's list for this product:
 | **phone door** | On a candidate door, does the screen work one-handed on a phone with no account? | 390px shot; taps to done; anything that asks for a login |
 
 ## Skill improvement log
+- 2026-09-08 (S1/S2): the owner declined screenshots and asked that EVERY build go to an Opus subagent so the director stays at journey altitude. Both are standing orders in the vault's Patterns/cx-preferences.md - read it before Phase 3.
+- 2026-09-08 (S2): /trust is descoped. Never propose a change to it and never propose a link to it from another page.
+- 2026-09-08 (S2): a walk over a well-made surface is a harvest site - /about's craft became the registry subject `narrative-scroll-surface` (ui-surfaces/published-surfaces). When a read keeps naming craft the corpus cannot cite, file a subject proposal.
 - 2026-09-08 (adoption, v1.0.0): the skill's commit shape `cx(S<n>): ...` fails this repo's commit-msg hook (`cx` is not in `KNOWN_TYPES`); the overlay carries `commit_format` instead. Filed as a method lesson in the registry.
