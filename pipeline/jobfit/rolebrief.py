@@ -141,6 +141,30 @@ def _text_list(value: Any) -> list[str]:
     return [t for t in (_text(v) for v in value) if t]
 
 
+def _prose_list(value: Any) -> list[str]:
+    """A list of prose lines, tolerating the OBJECT form a model reaches for.
+
+    ``success_criteria``/``responsibilities`` are plain strings in the schema,
+    but the extraction contract demands provenance and a sourceTurn for a
+    captured 90-day outcome, so a live model files them as
+    ``{"text": ..., "provenance": "stated", "sourceTurn": 7}`` — which
+    :func:`_text_list` drops entirely, leaving the brief's outcomes empty next
+    to a read-back that recited them. Keep the sentence (the annotations have
+    nowhere to live in this field, and losing the line loses more)."""
+
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for entry in value:
+        if isinstance(entry, dict):
+            text = _text(entry.get("text") or entry.get("value") or entry.get("label") or entry.get("outcome"))
+        else:
+            text = _text(entry)
+        if text:
+            out.append(text)
+    return out
+
+
 def _clamp01(value: Any, default: float) -> float:
     try:
         return min(1.0, max(0.0, float(value)))
@@ -169,7 +193,16 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
     def req(entry: Any) -> BriefRequirement | None:
         if not isinstance(entry, dict):
             return None
-        skill = _text(entry.get("skill"))
+        # The row's NAME field, tolerantly. `skill` is the schema's word, but a
+        # model re-emitting the brief reaches for the vocabulary it can see: the
+        # extraction contract names kind/hardness/weight and never `skill`, and
+        # the neighbouring facet rows carry `label` — so live sessions filed
+        # every dealbreaker as {"label": ..., "kind": "must_have"} and this
+        # coercer dropped the whole row for want of one key, producing the
+        # "eloquent empty brief" (rich facets, requirements[] empty). Reading the
+        # obvious synonyms keeps the requestor's own stated conditions instead of
+        # silently discarding them; nothing is invented — the row is the model's.
+        skill = _text(entry.get("skill") or entry.get("label") or entry.get("name") or entry.get("requirement"))
         if not skill:
             return None
         source_turn = entry.get("source_turn", entry.get("sourceTurn"))
@@ -204,10 +237,16 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
     requirements = pick("requirements")
     facets = pick("facets")
     spine_raw = pick("spine_provenance", "spineProvenance")
+    # The map's INNER keys are camelCase on the wire too. The intake extraction
+    # contract spells the key `roleFamily` (intake.py `_EXTRACTION_RULES`), so a
+    # model that dutifully stamped the family's provenance had that stamp
+    # dropped here for its casing — leaving a correctly classified family
+    # indistinguishable from the "software_engineering" schema default.
+    spine_keys = {"title": "title", "seniority": "seniority", "role_family": "role_family", "roleFamily": "role_family"}
     spine = {
-        key: _vocab(value, BRIEF_PROVENANCE, "default")
+        spine_keys[key]: _vocab(value, BRIEF_PROVENANCE, "default")
         for key, value in (spine_raw.items() if isinstance(spine_raw, dict) else [])
-        if key in ("title", "seniority", "role_family")
+        if key in spine_keys
     }
     return RoleBrief(
         title=_text(pick("title")),
@@ -215,8 +254,8 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
         role_family=_text(pick("role_family", "roleFamily")) or "software_engineering",
         languages=_text_list(pick("languages")),
         summary=_text(pick("summary")),
-        responsibilities=_text_list(pick("responsibilities")),
-        success_criteria=_text_list(pick("success_criteria", "successCriteria")),
+        responsibilities=_prose_list(pick("responsibilities")),
+        success_criteria=_prose_list(pick("success_criteria", "successCriteria")),
         requirements=[r for r in (req(e) for e in (requirements if isinstance(requirements, list) else [])) if r],
         facets=[f for f in (facet(e) for e in (facets if isinstance(facets, list) else [])) if f],
         spine_provenance=spine,

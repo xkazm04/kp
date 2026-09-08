@@ -491,6 +491,37 @@ Native" to "Flutter" still passes; only prose is a miss. This pins the
 tolerating both homes downstream) is deliberate defense in depth, not a licence
 for the extraction to skip the row.
 
+**The rows can also be lost between the model and the brief.** The JD-grounded
+live smoke (`--jd-corpus`, 2026-09-08) produced an "eloquent empty brief" on
+every dialog — a rich summary, five responsibilities, seven `stated` facets,
+and `requirements: []` beside a read-back that recited three named
+dealbreakers. The model was in fact emitting the rows, correctly graded
+(`kind: must_have`, `provenance: stated`, `sourceTurn` set); `coerce_role_brief`
+was discarding them. Three wire shapes, all now read (`rolebrief.py`):
+
+- a requirement row naming the condition **`label`** (or `name`/`requirement`)
+  rather than `skill` — the extraction contract named `kind`/`hardness`/
+  `weight` and never `skill`, and the neighbouring facet rows carry `label`, so
+  the model reached for the vocabulary it could see. `req()` required `skill`
+  and dropped the whole row for want of one key;
+- `successCriteria` / `responsibilities` as **objects** carrying the provenance
+  the contract demands (`{text, provenance, sourceTurn}`) rather than plain
+  strings — `_text_list` dropped every entry, so a session whose 90-day
+  outcomes were recited back landed none of them;
+- `spineProvenance.`**`roleFamily`** — the camelCase key `_EXTRACTION_RULES`
+  itself spells — where the coercer only read `role_family`, so a correctly
+  classified family arrived indistinguishable from the
+  `software_engineering` schema default and `check_dialog`'s `role_family`
+  invariant failed on a family that was right.
+
+The prompt now names `skill` explicitly and says the two string arrays are
+plain strings; the coercer tolerance is the safety net behind it, not a
+substitute. `merge_brief` additionally floors `spine_provenance["role_family"]`
+at `inferred` for any non-default family (the deterministic path already
+stamped it after `classify_role_family`; the LLM path only did when the model
+remembered the key). All three are pinned offline against the captured payload
+in `LiveExtractionRoutingTest` (`tests/test_intake.py`).
+
 **Market-breadth bank**: `intake_scenarios_gen.py` generates a deterministic
 100-scenario bank spanning ALL 16 taxonomy role families × seniority ×
 need shape (backfill vs first-ever-role story) with concrete per-family

@@ -147,9 +147,13 @@ _EXTRACTION_RULES = (
     "requestor inspects and blocked the promote gate): a named skill, tool, technology, "
     "certification, licence, registration, language or qualification that the requestor calls "
     "required, hard, non-negotiable or a dealbreaker MUST become its OWN requirements[] row "
-    "(kind must_have, provenance stated, sourceTurn set) — one row per named condition, the "
+    "— one row per named condition, the "
     "moment it is said; do not wait for the read-back or for a 90-day outcome to justify it. "
-    "A stated outcome for the first 90 days MUST become a successCriteria[] entry. Facets are "
+    "A requirements[] row is {skill, kind, hardness, weight, rationale, provenance, confidence, "
+    "sourceTurn} and the condition itself goes in `skill` — never `label`, `name` or `text`; here "
+    "that means kind must_have, provenance stated, sourceTurn set. "
+    "A stated outcome for the first 90 days MUST become a successCriteria[] entry — successCriteria "
+    "and responsibilities are arrays of PLAIN STRINGS, never objects. Facets are "
     "never an alternative home for either: dealbreaker_context carries only the STORY behind a "
     "condition ('a payment must never run twice'), success_90d only the colour around an "
     "outcome — if you write such a facet, the matching requirements[] / successCriteria[] entry "
@@ -1426,6 +1430,15 @@ def merge_brief(base: RoleBrief, update: RoleBrief) -> RoleBrief:
         return out[:cap]
 
     merged.spine_provenance = {**merged.spine_provenance, **update.spine_provenance}
+    # A classified family with no provenance reads as the schema default, and the
+    # brief panel / promote gate then treat a correct classification as "nobody
+    # ever said". The deterministic path stamps this itself (deterministic_turn,
+    # after classify_role_family); the LLM path only does when the model
+    # remembered the spineProvenance key. Floor it at 'inferred' — never higher —
+    # and only for a family that is NOT the schema default, so a brief nothing
+    # ever classified still reads as defaulted.
+    if merged.role_family and merged.role_family != "software_engineering":
+        merged.spine_provenance.setdefault("role_family", "inferred")
     merged.languages = union(merged.languages, update.languages, 6)
     merged.responsibilities = union(merged.responsibilities, update.responsibilities, 12)
     merged.success_criteria = union(merged.success_criteria, update.success_criteria, 8)
