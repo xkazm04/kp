@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { toast } from "@/app/_components/toast-store";
-import { useGettingStarted, CHECKLIST_HIGHLIGHT_KEY, STEPS, stepDone } from "./setupGettingStartedModel";
+import { useGettingStarted, allStepsDone, CHECKLIST_HIGHLIGHT_KEY, STEPS, stepDone } from "./setupGettingStartedModel";
 import { GettingStartedNextMove } from "./SetupGettingStartedNextMove";
 
 // Getting-started checklist — the wizard's hand-off surface, living on the
@@ -77,11 +77,16 @@ export function GettingStartedCard() {
 
   if (dismissed || !data || sim.running) return null;
 
-  // All four steps done: the surface retires itself. An operator who has set up a
-  // company, built a role, designed a case and wired an intake has done
-  // everything this card teaches, so a congratulation card in the Pipeline
+  // Every step done: the surface retires itself. An operator who has finished
+  // setup, named a company, built a role, designed a case and wired an intake has
+  // done everything this card teaches, so a congratulation card in the Pipeline
   // column would just be furniture standing where their work should be.
-  if (data.allDone) return null;
+  //
+  // allStepsDone(), not the payload's `allDone`: that flag folds the four CORE
+  // steps only, so an operator who skipped the wizard and then did the work by
+  // hand would watch the card — and with it the only way back into the wizard —
+  // disappear while `finishSetup` was still open.
+  if (allStepsDone(data)) return null;
 
   // "Next move": a briefing, not a to-do list — the first unfinished core step is
   // promoted to a full block with one primary action, the rest demoted to a rail.

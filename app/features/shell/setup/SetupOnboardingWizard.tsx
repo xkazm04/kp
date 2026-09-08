@@ -6,11 +6,18 @@ import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
+import { SetupLeaveConfirm } from "./SetupLeaveConfirm";
 import { SetupWizardStepPane } from "./SetupWizardStepPane";
 import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
+
+// The card's ONE body height. Fixed rather than content-driven so the card does not
+// shrink and grow as steps swap (see the right pane below), and shared with the
+// leave-confirmation pane that replaces the whole grid — answering a question must
+// not resize the surface the question is about.
+const CARD_BODY_H = "h-[min(93vh,45.2rem)]";
 
 // Spotlight Wizard — the first-run setup as a centered takeover. A branded left
 // rail carries the vertical stepper AND the language switch (visible for the
@@ -31,7 +38,10 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
   const reduced = useReducedMotion();
   const step = SETUP_STEPS[ctrl.stepIndex];
   const panelRef = useRef<HTMLDivElement>(null);
-  useDialogA11y(panelRef, ctrl.onClose);
+  // Escape backs out of the FRONTMOST thing: the leave confirmation while it is up
+  // (so the reflex that opened it also cancels it), the wizard otherwise — where in
+  // live mode `onClose` now opens that confirmation rather than skipping outright.
+  useDialogA11y(panelRef, ctrl.leaving ? ctrl.cancelLeave : ctrl.onClose);
   const isWelcome = step.id === "welcome";
   const isHandoff = step.id === "handoff";
 
@@ -51,16 +61,24 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
             {t("previewRibbon")}
           </p>
         ) : null}
-        <button
-          type="button"
-          onClick={ctrl.onClose}
-          className="focus-ring absolute right-2.5 top-2.5 z-10 rounded-full p-1.5 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
-          aria-label={t("aria.skip")}
-          title={t("aria.skip")}
-        >
-          <X size={18} aria-hidden />
-        </button>
+        {/* Gone while the leave confirmation is up: the pane below IS the answer to
+            this control, and a live close button beside it would offer a third,
+            unconfirmed exit. */}
+        {ctrl.leaving ? null : (
+          <button
+            type="button"
+            onClick={ctrl.onClose}
+            className="focus-ring absolute right-2.5 top-2.5 z-10 rounded-full p-1.5 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
+            aria-label={t("aria.skip")}
+            title={t("aria.skip")}
+          >
+            <X size={18} aria-hidden />
+          </button>
+        )}
 
+        {ctrl.leaving ? (
+          <SetupLeaveConfirm heightClass={CARD_BODY_H} onConfirm={ctrl.confirmLeave} onCancel={ctrl.cancelLeave} />
+        ) : (
         <div className="grid md:grid-cols-[14.5rem_1fr]">
           {/* Left rail — brand, vertical stepper, language */}
           <div className="hidden flex-col gap-6 border-r border-stone-200 bg-paper p-5 md:flex">
@@ -127,13 +145,29 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
               1fr track grows to the board's full width and the pane — footer
               included — is pushed out past the card's clipped edge instead of
               scrolling inside it. */}
-          <div className="flex h-[min(93vh,45.2rem)] min-w-0 flex-col p-6 sm:p-8">
+          <div className={`flex ${CARD_BODY_H} min-w-0 flex-col p-6 sm:p-8`}>
             {/* Below md the rail is hidden, so the language switch would be too —
                 and it is exactly the reader who can't read the current language
                 who needs it. Repeated here, compact, above the step. */}
             <div className="mb-4 md:hidden">
               <SetupLanguageSwitch ctrl={ctrl} compact />
             </div>
+            {/* …and so would the stepper, which is the only thing on the card that
+                answers "how much of this is left". A phone had NO visible progress
+                at all: a six-step takeover with no end in sight, and the only
+                position marker was the screen-reader announcement below. Restated
+                here, compact, and only where the rail cannot answer it.
+                aria-hidden: the position is already spoken twice — by the live
+                region below and by the sr-only span inside the step's own heading
+                (SetupWizardStepPane) — so this is a purely visual restatement.
+                META_LABEL, not EYEBROW: the step pane opens with its own coral
+                eyebrow ("Set up · Company") two lines down, and a second coral
+                uppercase line stacked on top of it read as a doubled eyebrow
+                rather than as position. The step's NAME is not repeated here for
+                the same reason — that eyebrow already says it. */}
+            <p aria-hidden className={`mb-3 md:hidden ${META_LABEL}`}>
+              {t("rail.stepOf", { index: ctrl.stepIndex + 1, total: SETUP_STEPS.length })}
+            </p>
             {/* Step announcement. A PERSISTENT node, deliberately: a live region that
                 mounts with its own content is usually not announced at all, so the
                 crossfaded pane cannot carry this — it only changes the text here.
@@ -181,6 +215,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
             ) : null}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

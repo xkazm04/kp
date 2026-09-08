@@ -13,6 +13,7 @@ import { languageNative } from "@/app/features/shared/memberUi";
 import { axisEqualsStored } from "@/app/features/shared/pipelineAxisDraft";
 import { useStageDisplayLabel } from "@/app/features/shared/usePipelineAxisCopy";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { Badge } from "@/app/_components/Badge";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { SetupPipelineChain } from "./SetupPipelineChain";
 import type { OnboardingCtrl } from "./setupSteps";
@@ -103,7 +104,16 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
             <Play size={18} aria-hidden className="translate-x-px" />
           </span>
           <span className="min-w-0 flex-1 text-sm">
-            <span className="block font-semibold text-ink">{t("tourTitle")}</span>
+            {/* The two exits are still both real choices, but they are not
+                equally good for someone who has just made a workspace and has
+                no data in it yet — and weighting them neutrally left that
+                judgement to a first-time operator who has no way to make it.
+                The shared Badge carries the mark (both themes, mapped shades)
+                rather than a hand-rolled span with colors of its own. */}
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-semibold text-ink">{t("tourTitle")}</span>
+              <Badge tone="info" label={t("recommended")} />
+            </span>
             <span className="text-steel">{t("tourBody")}</span>
           </span>
           <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />

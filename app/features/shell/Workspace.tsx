@@ -17,6 +17,7 @@ import { CompanionDockProvider } from "./companion/CompanionDockProvider";
 import { WorkspaceNavDrawer } from "./WorkspaceNavDrawer";
 import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
+import { useOnboardingReopen } from "./setup/onboardingReopen";
 import {
   AGENTS_TAB_IN_NAV,
   buildUrl,
@@ -41,6 +42,11 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // Skip/finish dismisses it immediately; persistence (completed/skipped) is the
   // wizard's own POST /api/me/onboarding, which stops the gate re-firing it.
   const [onboardingOpen, setOnboardingOpen] = useState(firstRunOnboarding);
+  // …and the way BACK IN. The '/' gate fires once per principal, so an operator who
+  // left setup (Escape, or the leave confirmation) would otherwise never see the
+  // wizard again. The Getting-started checklist's `finishSetup` step asks for it
+  // from deep inside the tab panel; setup/onboardingReopen.ts carries the request.
+  useOnboardingReopen(() => setOnboardingOpen(true));
   // Translate a nav key (tabs.<id> / groups.<key>) through the catalog, falling
   // back to the English label baked into tabs.ts for any not-yet-translated entry.
   const navText = (key: string, fallback: string): string => navLabel(t, key, fallback);

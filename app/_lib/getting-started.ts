@@ -39,7 +39,24 @@ export type GettingStarted = {
   channels: ChannelsState;
   /** Bonus step — more than one member, or a pending invite. */
   team: boolean;
-  /** The four core steps (team excluded) are complete. */
+  /** The first-run setup wizard was FINISHED — the principal's onboarding stamp
+   *  reads "completed" (`onboardingFinished` in auth/onboarding-gate.ts). A
+   *  "skipped" stamp is deliberately NOT enough: it closes the '/' gate, so an
+   *  operator who pressed Escape on their first load never sees the wizard again,
+   *  and the checklist's `finishSetup` step is the only way back to it.
+   *
+   *  It is the one field here that is a STORED FLAG rather than a fact derived
+   *  from what exists in the workspace, because "did you finish the wizard" leaves
+   *  no artefact behind: the wizard's answers (org name, brand, invites, columns,
+   *  Candi's memory) are all reachable through other doors, so no combination of
+   *  them can tell a finished setup from the same state assembled by hand. The
+   *  stamp is what the server actually tracks, so the step follows the stamp. */
+  setupFinished: boolean;
+  /** The four core steps (team AND setupFinished excluded) are complete. The
+   *  checklist SURFACE retires on `allStepsDone()` in setupGettingStartedModel.ts,
+   *  which also counts `finishSetup`; this field keeps its narrower, older meaning
+   *  — "the workspace can hire" — for callers that ask about the work rather than
+   *  about the wizard. */
   allDone: boolean;
 };
 
@@ -78,7 +95,14 @@ export function companyStep(
   };
 }
 
-export async function computeGettingStarted(workspaceId: string, orgId: string | null): Promise<GettingStarted> {
+export async function computeGettingStarted(
+  workspaceId: string,
+  orgId: string | null,
+  /** The principal's first-run stamp, read by the caller (which already holds the
+   *  session) through `onboardingFinished`. Passed in rather than resolved here so
+   *  this function keeps taking ids and nothing else. */
+  setupFinished: boolean
+): Promise<GettingStarted> {
   const jar = await cookies();
   // "Set" means the operator stored a name — the raw cookie, not resolveOrgName
   // (whose ČS fallback would mark a untouched tenant complete).
@@ -124,6 +148,7 @@ export async function computeGettingStarted(workspaceId: string, orgId: string |
     caseDesigned,
     channels,
     team,
+    setupFinished,
     allDone: company && firstRole === "ready" && caseDesigned && channels === "verified",
   };
 }

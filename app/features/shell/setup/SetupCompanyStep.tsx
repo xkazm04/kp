@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
+import { DEFAULT_ORG_NAME, readClientOrgName } from "@/app/_lib/org-settings";
 import { SETUP_PROSE } from "./setupProse";
 import type { OnboardingCtrl } from "./setupSteps";
 
@@ -27,13 +28,46 @@ const ACCENT_PRESETS = [
   { key: "ink", hex: INK },
 ] as const;
 
+// The hint is wired to the input with aria-describedby, so the id has to be
+// nameable from both ends — same literal-id shape as the field itself.
+const NAME_HINT_ID = "setup-org-name-hint";
+
 export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.company");
+  const { update } = ctrl;
+  const typedName = ctrl.state.orgName;
   // WHICH theme the picked color fails in, or null. The wizard used to ask
   // `accentIsLegible(hex)` — the light grounds only — and then hand the value to a
   // door that now refuses an accent with no Spark Dark twin, so the wizard accepted
   // colors the save would reject and said nothing. Same rule as the Branding tab.
   const [customWarn, setCustomWarn] = useState<"light" | "dark" | null>(null);
+
+  // ONE seed attempt, at the moment this step first paints, and only into an
+  // empty field — so it can never overwrite what the operator typed, and never
+  // fights them if they clear it.
+  //
+  // The only honest source this client has for the workspace's own identity is
+  // the org-name cookie (`kp_org_name`, org-settings.ts) — the value the
+  // Organization tab wrote, i.e. a name a human on this deployment actually
+  // chose. The seed corpus's DEFAULT_ORG_NAME is explicitly NOT that: it is what
+  // `resolveOrgName` falls back to when nothing was ever set, and prefilling it
+  // would put a stranger's company on every generated JD, offer and candidate
+  // mail — worse than the empty required field it replaced. So an unset
+  // deployment still opens blank, deliberately.
+  //
+  // A resumed draft is not at risk: restore() lands the drafted name and the
+  // drafted step index in ONE commit (OnboardingExperience), so by the time this
+  // step mounts the field already holds it and the seed is skipped.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current) return;
+    seeded.current = true;
+    if (typedName.trim() !== "") return;
+    const stored = readClientOrgName();
+    if (stored === DEFAULT_ORG_NAME) return;
+    update({ orgName: stored });
+  }, [typedName, update]);
+
   const logo = ctrl.state.logoUrl.trim();
   const logoInvalid = logo !== "" && sanitizeLogoUrl(logo) === null;
   const isPreset = ACCENT_PRESETS.some((p) => p.hex === ctrl.state.accentColor);
@@ -42,26 +76,39 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
     // No cap on the step: the FIELDS stay at a reading-comfortable max-w-md, the
     // descriptions run to the pane's prose width (setupProse.ts).
     <div className="space-y-5">
-      <div className="max-w-md">
-        <label htmlFor="setup-org-name" className={`${META_LABEL} block`}>
-          {t("nameLabel")}
-          <span aria-hidden className="text-coral">
-            {" *"}
-          </span>
-        </label>
-        <input
-          id="setup-org-name"
-          // No autoFocus: entering a step moves focus to its HEADING
-          // (SetupWizardStepPane), which is what tells a screen-reader user the
-          // screen changed. Two effects racing for focus on the same commit is a
-          // coin flip, and the one that has to win is the announcement.
-          aria-required
-          value={ctrl.state.orgName}
-          onChange={(e) => ctrl.update({ orgName: e.target.value })}
-          onKeyDown={(e) => e.key === "Enter" && ctrl.canAdvance && ctrl.next()}
-          placeholder={t("namePlaceholder")}
-          className={`${FIELD} mt-1 w-full py-2.5 text-lg`}
-        />
+      <div>
+        <div className="max-w-md">
+          <label htmlFor="setup-org-name" className={`${META_LABEL} block`}>
+            {t("nameLabel")}
+            <span aria-hidden className="text-coral">
+              {" *"}
+            </span>
+          </label>
+          <input
+            id="setup-org-name"
+            // No autoFocus: entering a step moves focus to its HEADING
+            // (SetupWizardStepPane), which is what tells a screen-reader user the
+            // screen changed. Two effects racing for focus on the same commit is a
+            // coin flip, and the one that has to win is the announcement.
+            aria-required
+            // The hint is the field's DESCRIPTION, not loose text beside it: it
+            // says where this name is read (job posts, offers, every candidate
+            // mail), which is the reason the step's one required field is
+            // required — and a reason only sighted readers got until now.
+            aria-describedby={NAME_HINT_ID}
+            value={typedName}
+            onChange={(e) => update({ orgName: e.target.value })}
+            onKeyDown={(e) => e.key === "Enter" && ctrl.canAdvance && ctrl.next()}
+            placeholder={t("namePlaceholder")}
+            className={`${FIELD} mt-1 w-full py-2.5 text-lg`}
+          />
+        </div>
+        {/* Outside the field's max-w-md, like every other description on this
+            step: the inputs stay reading-comfortable, the prose runs to the
+            pane's width (setupProse.ts). */}
+        <p id={NAME_HINT_ID} className={`mt-1.5 text-sm text-steel ${SETUP_PROSE}`}>
+          {t("nameHint")}
+        </p>
       </div>
 
       <fieldset>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentOrgId, currentWorkspaceId, DEFAULT_WORKSPACE, DEMO_WORKSPACE } from "@/app/_lib/auth/session";
+import { onboardingFinished } from "@/app/_lib/auth/onboarding-gate";
 import { computeGettingStarted } from "@/app/_lib/getting-started";
 
 // GET /api/me/getting-started — the data-derived state of the first-run
@@ -15,5 +16,10 @@ export async function GET() {
     }
   }
   const workspace = session ? currentWorkspaceId(session) : DEFAULT_WORKSPACE;
-  return NextResponse.json(await computeGettingStarted(workspace, currentOrgId(session)));
+  // The one checklist step that is not derived from workspace artefacts: whether
+  // this principal actually FINISHED the first-run wizard (a skip does not count —
+  // see onboardingFinished).
+  return NextResponse.json(
+    await computeGettingStarted(workspace, currentOrgId(session), onboardingFinished(session, workspace))
+  );
 }

@@ -671,22 +671,90 @@ rail carries the brand, the stepper and the language switch:
 | Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` (reported, see below) |
 | Team | invites (optional) | `POST /api/org/invites` per row |
 | Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
-| Hand-off | how to begin (tour / solo) | stamps `POST /api/me/onboarding` |
+| Hand-off | how to begin (tour / solo — the tour carries a `Recommended for a new workspace` Badge) | stamps `POST /api/me/onboarding` |
+
+**The Company step's one required field says where the name is read, and opens
+prefilled only when that is honest** (`SetupCompanyStep.tsx`). The hint
+(`setup.company.nameHint`) is wired as the input's `aria-describedby`
+description, not loose text beside it: leaving the field empty keeps the seed
+default as the workspace identity on every generated JD, offer and candidate
+mail, and until now only the reachability of that consequence was visual. The
+field is also seeded once, on the step's first paint and only while it is empty,
+from `readClientOrgName()` — the `kp_org_name` cookie, i.e. a name a human on
+this deployment actually chose on Settings → Organization. `DEFAULT_ORG_NAME`
+(the ČS seed corpus's fallback) is deliberately NOT seeded: a wrong company name
+a candidate later reads is worse than a blank required field, so an untouched
+deployment still opens empty. The organization ROW's name — what
+`registerAccount` stores from signup, or its email-domain default — would be the
+better source and is not reachable from the client: nothing puts it on the wire
+(`GET /api/me/getting-started` answers only the boolean `company` plus
+`companySignal`), so seeding from it would take a new read on an existing
+`/api/me/*` route.
 
 Two rules the steps share. **Language lives in the rail**, not in a step — see
 [`localization.md`](./localization.md#choosing-the-app-language). And **no step
 offers a skip button**: `stepSatisfied()` (`setupSteps.ts`) gates only `company`
 (an org name) and the *validity* of the pipeline axis, so on Team and Pipeline
 pressing Continue IS the skip. Leaving the wizard entirely has exactly one
-affordance — the close control on the card. Everything else (a per-step "Skip for
-now", an *Optional* tag under the rail labels, a "Skip setup" ghost button beside
-Continue on Welcome, a "Step 1 of 5" counter under the language switch) was a
-second way to say something the card already says, and is gone. The rail obeys
+affordance — the close control on the card (plus Escape, which means the same
+thing). Everything else (a per-step "Skip for now", an *Optional* tag under the
+rail labels, a "Skip setup" ghost button beside Continue on Welcome, a "Step 1 of
+5" counter beside the rail that already draws one) was a second way to say
+something the card already says, and is gone. **Below `md` the rail is hidden**,
+so there the counter is not a second voice but the only one: a compact
+`setup.rail.stepOf` line sits above the step pane beside the step's label,
+`md:hidden` and `aria-hidden` (the position is already spoken twice — the
+persistent live region and the sr-only span inside the step heading). The rail obeys
 that same gate through ONE number: `OnboardingExperience` hands the wizard a
 high-water mark **capped at the current step whenever its required input is
 unsatisfied**, so clearing the org name after advancing greys the rail back out
 instead of leaving an open door past the field the footer is blocking on.
 Backward navigation is never capped.
+
+**Leaving is confirmed once, and it is reversible.** The close control and Escape
+used to write the skip stamp immediately, and that stamp is permanent: the `/`
+gate never re-fires for a stamped principal, and Settings → "Preview onboarding"
+persists nothing by design — so the reflex Escape on a first load cost the
+operator the whole flow, and company name, brand, invites, board columns and
+Candi's memory had to be rebuilt one screen at a time through Settings. In **live**
+mode both now raise a confirmation (`setup.leave.*`) whose *Leave setup* does
+exactly what the close control used to; *Keep setting up* returns to the step
+untouched. **Preview still closes immediately** — a walkthrough that writes nothing
+has nothing to confirm, and a confirmation there would teach the operator to
+dismiss the one that matters.
+
+The confirmation **replaces the card's body** (`SetupLeaveConfirm.tsx`) rather than
+stacking a `<Modal>` over it, for two reasons that are each sufficient: Modal
+portals to `document.body` at `z-50` while the overlay is `--z-onboarding` = 60, so
+it would paint *underneath* the thing it confirms; and a second `useDialogA11y` on
+the stack gates Escape/Tab but does not make the layer below inert, leaving the
+step's inputs Tab-reachable behind the question. Replacing keeps ONE dialog on the
+stack, puts exactly two buttons inside the trap, and lets Escape keep its meaning
+(`cancelLeave` while the pane is up, `onClose` otherwise). Focus moves to the
+pane's heading on open and back to the step's heading on cancel — the same move
+every step change already makes. The card's body height is one constant shared by
+both panes, so answering the question does not resize the surface.
+
+**The way back in** is the Getting-started checklist's `finishSetup` step
+(`setupGettingStartedModel.ts`, copy at `setup.checklist.steps.finishSetup`). It is
+the first row and the only one that does not route to a tab: it reopens this host
+in live mode through `setup/onboardingReopen.ts` — a named window event, the same
+shape `shell/live-refresh.ts` uses, because `Workspace` owns `onboardingOpen` and
+the checklist renders several tabs deep inside the tab panel. (`?onboarding=1` is
+not that path: `onboardingOpen` is seeded with `useState`, which a re-render with a
+new prop never re-runs, and the param would reopen the wizard on every later
+reload.) Its done-state is the one checklist mark that is a **stored flag** rather
+than a workspace fact — `GettingStarted.setupFinished`, from `onboardingFinished()`
+in `_lib/auth/onboarding-gate.ts`, which reads the "completed" stamp under the same
+user-else-workspace split the gate uses. A **skip does not count**: that is exactly
+the state the row offers a way out of, and skipping first and finishing later reads
+as finished because both stamp writers keep "completed" winning over a later
+"skipped". Nothing derivable could answer this — every answer the wizard collects
+is reachable through other doors, so no combination of artefacts distinguishes a
+finished setup from the same state assembled by hand. The card therefore retires on
+`allStepsDone()` (all five) rather than on the payload's `allDone` (the four core
+steps), or an operator who skipped and then did the work by hand would watch the
+only door back disappear.
 
 **`finish()` is best-effort per step, never silently so**
 (`setupOnboardingFinish.ts`). Each write is allowed to fail without sinking the

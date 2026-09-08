@@ -19,6 +19,12 @@ import { STEP_CHANNELS_GLYPH } from "@/app/_components/glyph/glyphs/stepChannels
 import type { StepKey } from "./setupGettingStartedModel";
 
 export const STEP_GLYPHS: Record<StepKey, TracedGlyph> = {
+  // `finishSetup` reopens the wizard, whose subject is the workspace itself — the
+  // same thing the company glyph draws. It shares that art rather than shipping a
+  // fifth tile off-family: the briefing shows ONE glyph at a time, so the two are
+  // never on screen together, and inventing a new drawing for "the wizard" would
+  // be a picture of a dialog rather than of the thing being set up.
+  finishSetup: STEP_COMPANY_GLYPH,
   company: STEP_COMPANY_GLYPH,
   firstRole: STEP_FIRST_ROLE_GLYPH,
   case: STEP_CASE_GLYPH,

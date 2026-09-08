@@ -163,8 +163,20 @@ export type OnboardingCtrl = {
   /** Replace the board draft (the pipeline step's only writer). No-op before the
    *  stored axis has landed — there is nothing to diff against yet. */
   setPipelineDraft: (draft: AxisDraft) => void;
-  /** Cancel/skip — closes; in live mode this stamps the principal "skipped". */
+  /** The operator asked to leave (close control, Escape). In PREVIEW this closes
+   *  straight away — nothing is at stake in a walkthrough that writes nothing. In
+   *  LIVE it raises `leaving` instead, because leaving is irreversible: the skip
+   *  stamp closes the '/' gate for good. */
   onClose: () => void;
+  /** Live mode only: the leave confirmation is showing, and the wizard is rendering
+   *  it INSTEAD of the step (see SetupLeaveConfirm.tsx for why it replaces rather
+   *  than stacks). */
+  leaving: boolean;
+  /** Confirm the departure — exactly what `onClose` used to do: stamp "skipped",
+   *  drop the draft, close. */
+  confirmLeave: () => void;
+  /** Back to the step the operator was on, untouched. */
+  cancelLeave: () => void;
   /** Complete — PERSISTS the setup (org name, language, brand, invites, and the
    *  board columns when they were changed), then closes. */
   finish: () => void;

@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import type { AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
 import {
@@ -31,8 +32,11 @@ import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 //               so). Finish PERSISTS everything — org name, language, brand,
 //               invites, and the board's columns when the Pipeline step changed
 //               them (POST /api/pipeline/stage-migration) — and stamps the
-//               principal "completed"; Escape / X / Skip stamp "skipped" — either
-//               way the '/' gate never re-fires (KP_FORCE_ONBOARDING=1 excepted).
+//               principal "completed"; Escape / X ASK FIRST (setup.leave.*) and
+//               stamp "skipped" only on confirm — either way the '/' gate never
+//               re-fires (KP_FORCE_ONBOARDING=1 excepted), so the way back is the
+//               Getting-started checklist's `finishSetup` step, which reopens this
+//               same host in live mode (setup/onboardingReopen.ts).
 //               Answers are mirrored into a per-user sessionStorage draft, so a
 //               reload mid-setup resumes instead of starting over (setupDraft.ts).
 //   "preview" — the Settings → Organization walkthrough. NOTHING persists — no
@@ -124,15 +128,19 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   }, [state.pipeline, setPipelineDraft]);
 
   // Stamp the first-run outcome so the '/' gate stops showing the wizard. Fire-
-  // and-forget: a lost stamp only means the wizard offers itself once more.
+  // and-forget: a lost stamp only means the wizard offers itself once more. The
+  // promise is still returned so a caller that has something to do AFTER the stamp
+  // lands (finish, below, tells the checklist to re-read) can wait for it.
   const stamp = useCallback(
-    (status: "completed" | "skipped") => {
-      if (mode !== "live") return;
-      void fetch("/api/me/onboarding", {
+    (status: "completed" | "skipped"): Promise<void> => {
+      if (mode !== "live") return Promise.resolve();
+      return fetch("/api/me/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      }).catch(() => {});
+      })
+        .then(() => {})
+        .catch(() => {});
     },
     [mode]
   );
@@ -141,10 +149,33 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // drop the draft. A dismissal is an answer, not an interruption: resuming a
   // setup the operator walked away from would re-open a decision they closed.
   const dismiss = useCallback(() => {
-    stamp("skipped");
+    // No notifyDataChanged here: a skip changes nothing any open view reads (the
+    // checklist's `finishSetup` was already open and stays open).
+    void stamp("skipped");
     clearDraft();
     onClose();
   }, [stamp, clearDraft, onClose]);
+
+  // …but it is a REVERSIBLE answer now, and the operator is told so before it is
+  // recorded. Escape is the reflex on any modal, and pressing it here used to close
+  // the '/' gate for good: the wizard never re-fired, Settings → "Preview
+  // onboarding" persists nothing, and company name, brand, invites, board columns
+  // and Candi's memory had to be rebuilt one screen at a time. So in live mode the
+  // close control and Escape ask once (`setup.leave.*`), and the Getting-started
+  // checklist's `finishSetup` step is the way back in afterwards either way.
+  //
+  // Preview keeps closing immediately — a walkthrough that writes nothing has
+  // nothing to confirm, and a confirmation there would only teach the operator to
+  // dismiss the one that matters.
+  const [leaving, setLeaving] = useState(false);
+  const requestClose = useCallback(() => {
+    if (mode !== "live") {
+      dismiss();
+      return;
+    }
+    setLeaving(true);
+  }, [mode, dismiss]);
+  const cancelLeave = useCallback(() => setLeaving(false), []);
 
   // The board's real columns, read once on mount (both modes — a walkthrough that
   // showed a made-up board would be teaching the wrong thing).
@@ -189,7 +220,10 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       toast.error(t("toast.partial"));
     } finally {
       clearDraft();
-      stamp("completed");
+      // Tell the open views once the stamp has actually landed — the Getting-started
+      // checklist reads it (`finishSetup`) through its own fetch, so without this it
+      // would keep offering "Finish setting up" until the next 20 s poll tick.
+      void stamp("completed").then(notifyDataChanged);
       router.refresh();
       onClose();
     }
@@ -199,7 +233,12 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // page scroll locked — from the shared implementation every other modal uses, so
   // this takeover joins the same stack instead of running its own bare keydown
   // listener beside an `aria-modal` it never actually enforced.
-  useDialogA11y(dialogRef, dismiss);
+  //
+  // The wizard card registers its OWN useDialogA11y on top of this one, so in
+  // practice Escape reaches that one (the hook gates on top-of-stack). This handler
+  // is kept in step with it anyway — Escape must never bypass the confirmation just
+  // because the stack shifted.
+  useDialogA11y(dialogRef, leaving ? cancelLeave : requestClose);
 
   const ctrl: OnboardingCtrl = {
     mode,
@@ -216,7 +255,10 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     addInvite,
     removeInvite,
     setPipelineDraft,
-    onClose: dismiss,
+    onClose: requestClose,
+    leaving,
+    confirmLeave: dismiss,
+    cancelLeave,
     finish,
     canAdvance,
     isLast: stepIndex === SETUP_STEPS.length - 1,
