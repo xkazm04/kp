@@ -166,7 +166,21 @@ export const AGENTS_TAB_IN_NAV =
 // `label` is the English source/fallback; `key` is the i18n key (under the `nav`
 // catalog: tabs.<id> for items, groups.<key> for group headers) the renderers
 // translate through, falling back to `label` for any not-yet-translated entry.
-export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] };
+/** A door a GROUP owns that is not one of its destinations: it opens a tab AND
+ *  carries a parameter that starts something there. Kept off `items` on purpose —
+ *  an action is not a tab, so it earns no chord, no badge and no active state, and
+ *  the tab vocabulary (and every test that pins it) is untouched by adding one.
+ *  `label` is the English fallback; the catalog key is `nav.actions.<key>`. */
+export type NavGroupAction = {
+  key: string;
+  label: string;
+  tab: WorkspaceTabId;
+  /** Appended to the tab's href. The target surface consumes it and strips it —
+   *  the one-shot inbox `?tab=` already is (see `resolveTabParam`). */
+  params: Readonly<Record<string, string>>;
+};
+
+export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[]; actions?: readonly NavGroupAction[] };
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -200,6 +214,11 @@ export const NAV_GROUPS: NavGroup[] = [
       // they were, and this tab still gets a one-key chord.
       { id: "intake", label: "Job intake", chordPin: "k" },
     ],
+    // Starting a role is an ACTION, not a place, so it lives here rather than on
+    // the intake page: that page is the record of what already happened, and a
+    // ledger with a create button on it is a filing cabinet with a typewriter
+    // bolted to the lid.
+    actions: [{ key: "newIntake", label: "New intake", tab: "intake", params: { intake: "new" } }],
   },
   {
     // The instrument shelf: the archetype taxonomy + candidate roster
@@ -331,6 +350,15 @@ export function tabHref(id: WorkspaceTabId): string {
 // Canonical active/inactive nav treatment, shared by the studio sidebar and the
 // deep-link tab bar so the active state reads the same on both surfaces (was
 // coral-wash on one, ink-pill on the other).
+/** The href a group action navigates to: the tab's own door plus its parameter. */
+export function navActionHref(action: NavGroupAction): string {
+  const params = new URLSearchParams();
+  if (action.tab !== DEFAULT_TAB) params.set("tab", action.tab);
+  for (const [k, v] of Object.entries(action.params)) params.set(k, v);
+  const query = params.toString();
+  return query ? `/?${query}` : "/";
+}
+
 export function navItemClass(isActive: boolean): string {
   return isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-50 hover:text-ink";
 }

@@ -2551,6 +2551,9 @@
       "teamManage": "Správa týmů",
       "pipelineWrite": "Úpravy náboru",
       "read": "Zobrazení"
+    },
+    "actions": {
+      "newIntake": "Nové zadání"
     }
   },
   "enums": {
@@ -4638,7 +4641,7 @@
           "clear": "Zrušit filtry"
         },
         "studio": {
-          "dialogLabel": "Studio zadání: {title}",
+          "dialogLabel": "Zadání role: {title}",
           "eyebrow": "Zadání pozice",
           "closeBusy": "Odpověď stále přichází. Zavřením ji nezastavíte.",
           "closeStay": "Zůstat",
@@ -4647,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Naposledy otevřené",
           "summaryEmpty": "Otevřete rozhovor a jeho souhrn se zobrazí zde.",
-          "summaryOpen": "Otevřít studio",
+          "summaryOpen": "Otevřít konverzaci",
           "summaryJd": "Otevřít popis pozice",
-          "paletteSub": "Proberte novou pozici ve studiu zadání"
+          "paletteSub": "Projít novou roli v rozhovoru"
         }
       },
       "buildHeldChip": "Výstup uložen jako revize",

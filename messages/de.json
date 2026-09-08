@@ -2551,6 +2551,9 @@
       "teamManage": "Teams verwalten",
       "pipelineWrite": "Pipeline bearbeiten",
       "read": "Ansehen"
+    },
+    "actions": {
+      "newIntake": "Neues Intake"
     }
   },
   "enums": {
@@ -4638,7 +4641,7 @@
           "clear": "Filter zurücksetzen"
         },
         "studio": {
-          "dialogLabel": "Aufnahme-Studio: {title}",
+          "dialogLabel": "Rollen-Intake: {title}",
           "eyebrow": "Rollenaufnahme",
           "closeBusy": "Eine Antwort trifft noch ein. Schließen hält sie nicht auf.",
           "closeStay": "Bleiben",
@@ -4647,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Zuletzt geöffnet",
           "summaryEmpty": "Öffnen Sie ein Gespräch, dann steht hier die Zusammenfassung.",
-          "summaryOpen": "Studio öffnen",
+          "summaryOpen": "Gespräch öffnen",
           "summaryJd": "Stellenbeschreibung öffnen",
-          "paletteSub": "Eine neue Position im Aufnahme-Studio besprechen"
+          "paletteSub": "Eine neue Rolle durchsprechen"
         }
       },
       "buildHeldChip": "Ergebnis als Revision abgelegt",

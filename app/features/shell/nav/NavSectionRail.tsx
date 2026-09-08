@@ -40,6 +40,7 @@ import {
 import { railTile } from "@/app/_components/ui/recipes";
 import { SECTION_ICON } from "./navMeta";
 import { NavPanelItem } from "./NavPanelItem";
+import { NavPanelAction } from "./NavPanelAction";
 
 export function NavSectionRail({
   groups,
@@ -200,6 +201,16 @@ export function NavSectionRail({
           aria-label={shownGroup ? groupLabel(shownGroup) : undefined}
           className="animate-fade-in min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3"
         >
+          {/* The group's own doors first, then the places it holds. */}
+          {shownGroup?.actions?.map((action) => (
+            <NavPanelAction
+              key={action.key}
+              action={action}
+              isLink={mode === "link"}
+              label={navText(`actions.${action.key}`, action.label)}
+              onNavigate={onSliceNav}
+            />
+          ))}
           {shownGroup?.items.map((item) => {
             const isActive = item.id === navActive;
             // SHELL2: live queue-depth pill for items that declared a badgeKey.

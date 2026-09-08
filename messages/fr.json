@@ -2551,6 +2551,9 @@
       "teamManage": "Gérer les équipes",
       "pipelineWrite": "Modifier le pipeline",
       "read": "Consulter"
+    },
+    "actions": {
+      "newIntake": "Nouvel entretien de cadrage"
     }
   },
   "enums": {
@@ -4638,7 +4641,7 @@
           "clear": "Effacer les filtres"
         },
         "studio": {
-          "dialogLabel": "Studio de cadrage : {title}",
+          "dialogLabel": "Cadrage du poste : {title}",
           "eyebrow": "Cadrage du poste",
           "closeBusy": "Une réponse est encore en route. La fermer ne l’arrêtera pas.",
           "closeStay": "Rester",
@@ -4647,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Dernière ouverte",
           "summaryEmpty": "Ouvrez une session et son résumé s’affiche ici.",
-          "summaryOpen": "Ouvrir le studio",
+          "summaryOpen": "Ouvrir la conversation",
           "summaryJd": "Ouvrir la fiche de poste",
-          "paletteSub": "Cadrer un nouveau poste dans le studio"
+          "paletteSub": "Cadrer un nouveau poste en discutant"
         }
       },
       "buildHeldChip": "Résultat conservé en révision",

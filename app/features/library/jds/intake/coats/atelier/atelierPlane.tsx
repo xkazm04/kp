@@ -137,7 +137,8 @@ export function AtelierZone({
  *  knowing before the first answer.
  *
  *  The brackets are the placeholder convention, so nothing here can be mistaken
- *  for captured content; the muting does the rest. It is NOT hidden from
+ *  for captured content. Only the SLOT is muted: a heading nobody can read is
+ *  not a heading, and the whole point of the exemplar is that it is read. It is NOT hidden from
  *  assistive tech — the structure is exactly as useful to someone who cannot see
  *  it, and a bracketed slot announces itself as a slot. */
 export function AtelierExemplar({ slots }: { slots: readonly { label: string; slot: string }[] }) {
@@ -146,8 +147,8 @@ export function AtelierExemplar({ slots }: { slots: readonly { label: string; sl
       {slots.map((s) => (
         <div key={s.label} className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-200" />
-            <span className={`${META_LABEL} text-stone-400`}>{s.label}</span>
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" />
+            <span className={META_LABEL}>{s.label}</span>
           </div>
           <p className="pl-3.5 text-body italic text-stone-400">{`<${s.slot}>`}</p>
         </div>

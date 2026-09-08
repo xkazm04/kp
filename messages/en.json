@@ -2551,6 +2551,9 @@
       "teamManage": "Manage teams",
       "pipelineWrite": "Edit the pipeline",
       "read": "View"
+    },
+    "actions": {
+      "newIntake": "New intake"
     }
   },
   "enums": {
@@ -4638,7 +4641,7 @@
           "clear": "Clear filters"
         },
         "studio": {
-          "dialogLabel": "Intake studio: {title}",
+          "dialogLabel": "Job intake: {title}",
           "eyebrow": "Role intake",
           "closeBusy": "A reply is still arriving. Closing now won't stop it.",
           "closeStay": "Stay",
@@ -4647,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Last opened",
           "summaryEmpty": "Open a session and its summary appears here.",
-          "summaryOpen": "Open the studio",
+          "summaryOpen": "Open the conversation",
           "summaryJd": "Open the job description",
-          "paletteSub": "Talk a new role through in the intake studio"
+          "paletteSub": "Talk a new role through"
         }
       },
       "buildHeldChip": "Build held as a revision",

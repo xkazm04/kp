@@ -96,6 +96,9 @@ export function JdsIntakePanel({
     <div className={`${PANEL} animate-fade-in p-5`}>
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-5">
         <div className="min-w-0">
+          {/* No new-intake door on this page: starting a role is a workspace
+              action and lives in the Library menu, next to the surfaces it feeds.
+              A ledger is for what already happened. */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* The lede is a tooltip on the title, not a paragraph under it: it
                 explains the surface to a first-time reader and then repeats itself
@@ -103,14 +106,6 @@ export function JdsIntakePanel({
             <div className={`${META_LABEL} cursor-help underline decoration-stone-300 decoration-dotted underline-offset-4`} title={t("lede")}>
               {t("ledgerTitle")}
             </div>
-            <button
-              type="button"
-              className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
-              disabled={creating}
-              onClick={() => void startNew(intakeLang(locale))}
-            >
-              {creating ? t("starting") : t("new")}
-            </button>
           </div>
           {/* App master (docs/features/app-master/README.md): the third shape does
               not start from a blank conversation — it starts from an APP. */}

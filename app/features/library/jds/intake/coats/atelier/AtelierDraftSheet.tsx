@@ -97,7 +97,10 @@ function SheetBlockView({ block }: { block: SheetBlock }) {
  *  the posting's own headings, in the face and the measure the real document
  *  wears, each holding a bracketed slot. A requestor who has never done this can
  *  read the empty sheet and know what a finished one contains, which is the
- *  question the old grey rules left them holding. */
+ *  question the old grey rules left them holding.
+ *
+ *  The HEADINGS carry the document's own type at full strength — a heading nobody
+ *  can read teaches nothing, so only the bracketed slots are muted. */
 function ExemplarSheet() {
   const t = useTranslations("library.tab.intake.draft");
   const sections: { heading: string; slot: string }[] = [
@@ -107,12 +110,12 @@ function ExemplarSheet() {
     { heading: t("niceToHave"), slot: t("slot.line") },
   ];
   return (
-    <div className="space-y-5 text-stone-400">
-      <p className="font-serif text-h2 italic">{`<${t("slot.title")}>`}</p>
+    <div className="space-y-5">
+      <p className="font-serif text-h2 italic text-stone-400">{`<${t("slot.title")}>`}</p>
       {sections.map((s) => (
         <div key={s.heading} className="space-y-1">
-          <p className="font-serif text-h3">{s.heading}</p>
-          <p className="max-w-[62ch] italic leading-7">{`<${s.slot}>`}</p>
+          <p className="font-serif text-h3 text-ink">{s.heading}</p>
+          <p className="max-w-[62ch] italic leading-7 text-stone-400">{`<${s.slot}>`}</p>
         </div>
       ))}
     </div>
