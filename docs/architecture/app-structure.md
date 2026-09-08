@@ -154,6 +154,24 @@ warms every chunk in its group on hover, focus and click (`prefetchSection`), so
 opening a section starts all of its tabs' downloads at once — 2–7 small chunks
 per group, deduped per document by `prefetchTabChunk`.
 
+### A nav group may own a DOOR as well as its destinations
+
+`NavGroup.actions` (`shell/tabs.ts`) is a group-level affordance that opens a tab
+*and* carries a parameter that starts something there: the Library group declares
+`{ key: "newIntake", tab: "intake", params: { intake: "new" } }`, and the intake
+surface consumes and strips the parameter the way `?tab=` is already consumed.
+
+It is deliberately NOT an entry in `items`. A nav item is a destination, and the
+tab vocabulary is a closed set with derived keyboard chords, badge keys and an
+active state pinned by `tabs.test.ts` and `workspaceChords.test.ts` — so putting a
+create action there would have earned it a chord it should not have and shifted
+every chord after it. `NavPanelAction` renders the row above the group's items,
+in both renderer modes (a real anchor for the link-mode sidebar, the shell's
+existing href-push callback for the SPA).
+
+The reason the affordance moved into the nav at all: starting a role is an action,
+and the page it used to sit on is the record of intakes that already happened.
+
 ### The deep-link sidebar has a public viewer, so it gates on `isOperator()`
 
 `shell/WorkspaceNav.tsx` (`WorkspaceShell`) is the link-mode sidebar for the three
