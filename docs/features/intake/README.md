@@ -46,7 +46,8 @@ the existing JD build. Conversation design is normed by
    (`updateIntakeDialog`, IMMEDIATE transaction). The right-hand **live brief
    panel** renders the brief filling in with per-value provenance chips
    (`stated` = the requestor's words · `inferred` = the agent's reading ·
-   `default` = template assumption).
+   `default` = template assumption). A minority of agent turns also carry
+   **decision cards** — see below.
 3. **Shape triage** — after 1–2 requestor turns the session is classified
    `power_unit` (backfill/clone → short confirm-and-generate path) or `story`
    (exploratory coaching path). Deterministic heuristic floor
@@ -398,6 +399,9 @@ anonymous 500 the runner had to guess a code out of.
 | Export builder (pure) | `app/_lib/intake-export.ts` |
 | Close sentinel strip (pure) | `app/api/intake/reply-sentinel.ts` (`stripEndSentinel`, `voice-close-guard.test.ts`) |
 | Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`); `intake-create:<ip>` 30/10min (the opener spawns Python) and `intake-promote:<ip>` 20/10min (the paid `jd_build`) — both limiters shipped, contract pins still to add; `intake-dossier:<ip>` 20/10min and `intake-compose:<ip>` 30/10min (both spawn Python and can spend on `agent_fit`), pinned in `app/api/intake/app-master-routes.test.ts` |
+| Decision cards: wire contract + clamps (pure) | `app/_lib/intake-choices.ts` (`coerceIntakeChoiceSet`, `choiceMessage`, `toggleChoice`; `intake-choices.test.ts`) |
+| Decision cards: when they are earned | `pipeline/jobfit/intake.py` (`_PERSONA_CHOICES`, `_choices_payload`, `_SCRIPTED_CHOICE_OPTIONS`, `_scripted_choices`) |
+| Decision cards: UI | `app/features/library/jds/intake/JdsIntakeChoiceCards.tsx`, mounted through `ChatTranscript`'s `renderTurnExtras` |
 | UI | `app/features/library/jds/intake/` (`JdsIntakePanel`, `JdsIntakeChat`, `JdsIntakeBriefPanel`, `jdsIntakeLogic`) |
 
 ## Data model
@@ -759,7 +763,96 @@ prefix — a prefix-only test missed an ack-decorated read-back and folded the
 requestor's "ok" into the last scripted slot, inventing a stated
 `budget_band: "ok"` facet and repeating the read-back instead of closing.
 
+## Decision cards — when the agent offers choices instead of asking
+
+Most turns are one open question. A **decision card set** is the exception: the
+agent puts 2–4 concrete options on the table and the requestor answers by
+picking. An open question asks them to PRODUCE vocabulary; cards offer
+vocabulary to react to, which is cheaper — and cheaper is only *better* in two
+situations. Offered anywhere else it anchors the requestor onto our words and
+the session stops being an intake and becomes a form.
+
+**The two triggers** (`_PERSONA_CHOICES` in `pipeline/jobfit/intake.py`):
+
+| Kind | Fires when | What the cards are |
+| --- | --- | --- |
+| `confirm` | the agent has been treating something load-bearing as true that the requestor never said — it sits in the brief as `inferred` | its own reading, plus the alternative(s) it would accept instead. Picking makes the value `stated`; ignoring leaves it an assumption, still labelled as one |
+| `propose` | a part of the brief the requestor has STALLED on — they said they don't know, or already answered this part once, vaguely | 2–4 disposable shapes for that part, each carrying one line of what it would cost or make true |
+
+**What keeps it a conversation**, enforced in the persona rules and clamped at
+the TypeScript boundary:
+
+- Never the first thing said about a topic, never a way to skip the laddering
+  (technique rule 4), and never on the closing read-back — that turn invites ONE
+  open correction by design, and `coerce()` drops a card set from any turn that
+  carries `done`.
+- One set per turn, at most four options. The set IS the turn's single question
+  (technique rule 1), so the reply text still reads as a normal spoken turn and
+  must not re-list the options in prose.
+- The set is escapable from inside itself: a "none of these" line under the
+  cards moves focus back to the composer. A choice you cannot decline is a
+  form field.
+- `multi` follows the underlying part: a LIST (dealbreakers, 90-day outcomes)
+  can take several; an either/or (level, role shape) is single-select and sends
+  on the click.
+
+**Picking sends an ordinary message.** The selected labels become the
+requestor's next message (`choiceMessage`), so the engine, the extraction, the
+read-back and the evals all see the conversation they already understand — and
+the value lands as `stated`, because they did state it. A card is a composer
+affordance, not a new kind of transcript turn.
+
+**Where the set lives.** On the agent turn that made it (`VoiceTurn.choices`),
+not on a session column: a reload re-offers exactly the set that was on the
+table, attached to the question it answers. Older sets stay visible as the
+record of what was offered but go quiet — only the newest turn is interactive
+(`JdsIntakeChat` gates on `index !== lastIndex`).
+
+**Trust boundary.** The payload is authored by a model, so `coerceIntakeChoiceSet`
+(`app/_lib/intake-choices.ts`, called in `intake-run.ts`) is the one place that
+decides what may reach a screen: 2–4 options, prompt/label/detail lengths
+clamped, duplicate labels and ids collapsed, a malformed set DROPPED rather than
+repaired — the turn keeps its own question, which it always carries anyway.
+
+**Keyless.** The scripted path ships cards too, for the one scripted slot that
+is genuinely an either/or: `seniority` (junior · medior · senior · lead, each
+with its consequence line, in all four locales — `_SCRIPTED_CHOICE_OPTIONS`).
+An operator with no API key sees the same affordance filled by the same
+contract, not a feature that exists only when a provider answers. The other
+slots have no menu on purpose: there is no set of options for "what have they
+gotten done in 90 days" that is not a leading question.
+
 ## The live brief is an ANNOTATED document
+
+A second `/prototype` round ran on this panel (**Notepad**, a continuous
+`bg-paper` page with a ruled margin; **Cards**, a desk of paper section cards
+with provenance as the row's left edge) and **Annotated kept the surface** —
+both losing directions, their shared frame and the switcher were deleted at
+consolidation. The round's finding was structural rather than visual: the panel
+was not the problem, the DESK was (see *Session layout* below).
+
+What survived the round is the **reveal**. A brief line now enters according to
+its own history:
+
+| The line | How it enters |
+| --- | --- |
+| landed while the requestor was talking | types itself out, character by character |
+| was already on the page when the panel opened | one linear opacity pass (`animate-arrive-in`) |
+| merely survived a re-extraction | no animation at all |
+
+That third row is the one that makes the other two possible. The engine re-emits
+the WHOLE brief on every sweep, so anything keyed by position re-animates the
+entire panel each time one line lands. Identity is therefore the SENTENCE, not
+the index (`briefSections.ts`): normalized text plus a deterministic counter for
+genuine duplicates, so a re-order by weight, a casing change or a line that
+disappears and comes back are all correctly read as "not news"
+(`briefReveal.test.ts`, 10 cases). The panel — not the body — owns the
+classification, because the edit form unmounts the body and every line would
+otherwise read as brand new when the form closes. Typing is bounded
+(`TYPE_MAX_MS`): a long success criterion types in wider steps rather than for
+longer, reduced motion collapses it to the finished string, and the full text is
+always in the DOM for assistive tech so a screen reader hears the sentence once,
+complete. The header says "writing" only while a line is actually being written.
 
 `JdsIntakeBriefPanel.tsx` is the FRAME — header, edit/frozen states, the
 App-master slot, the empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
@@ -846,6 +939,31 @@ conversation · live brief — each folding to a clickable spine that still badg
 what THAT leaf holds; materials live in a disclosure at the foot of the draft
 leaf, reachable from the spine and from beside the conversation. Column
 visibility persists per browser in `localStorage`, never server-side.
+
+**One desk, one height.** The leaves used to size themselves — the chat leaf was
+a fixed 32rem, the brief and the draft grew with their content, and
+`items-stretch` stretched every leaf to the tallest of the three. A long brief
+therefore left a column of dead white space under the conversation and under the
+draft, and the taller the brief got the more of the desk was empty. The DESK now
+owns the height and the leaves fill it: the row is
+`clamp(28rem, 100dvh - 15rem, 48rem)` at `xl` — viewport-proportional, with a
+floor so a short window still shows a usable conversation and a ceiling so a tall
+one does not stretch a three-line brief down a whole screen. Each leaf is a
+bounded flex column with a fixed header and exactly ONE scrolling body, so
+content that overruns scrolls inside its own leaf instead of pushing the desk
+taller and stranding its neighbours. Two consequences worth knowing before
+touching it:
+
+- The chat leaf is the exception to "the leaf body scrolls": `ChatTranscript`
+  already scrolls its turn list above a composer that must stay pinned, so the
+  leaf hands it `h-full min-h-0` and adds no scroller of its own. The materials
+  cue beside the conversation is `shrink-0` for the same reason — it must not
+  scroll away with the turns.
+- The brief panel is `min-h-full`, not `h-full`: the sunken surface has to cover
+  the whole leaf when the brief is short and grow past it when it is long.
+
+Stacked (below `xl`) the same bound applies per leaf as a `max-h`, so a leaf may
+still be shorter than the cap when its content is.
 
 Each leaf has ONE title row: the leaf's name and, for the draft, its status tag
 (`draftChip` on `IntakeLayoutProps`). The draft pane used to print its own title

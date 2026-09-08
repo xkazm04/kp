@@ -1679,6 +1679,7 @@
     "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+    "CHANNEL_INBOUND_FAILED": "Bei der Verarbeitung der eingehenden Nachricht ist ein Fehler aufgetreten. Bitte erneut versuchen.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen.",
     "INTAKE_TURN_TIMEOUT": "Dieser Beitrag hat zu lange gedauert und wurde abgebrochen. Senden Sie ihn erneut.",
     "DEVCASE_CASE_LIST_FAILED": "Die freigegebenen Cases konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -2462,6 +2463,7 @@
     "openMenu": "Navigationsmenü öffnen",
     "closeMenu": "Navigationsmenü schließen",
     "ariaLabel": "Arbeitsbereich",
+    "sectionRailLabel": "Arbeitsbereiche",
     "attentionBadge": "{count, plural, one {# benötigt Aufmerksamkeit} other {# benötigen Aufmerksamkeit}}",
     "attentionBadgeGo": "{count, plural, one {# benötigt Aufmerksamkeit} other {# benötigen Aufmerksamkeit}}. Anzeigen.",
     "tabSwitched": "Zu {tab} gewechselt",
@@ -4248,6 +4250,7 @@
         "brief": {
           "title": "Live-Briefing",
           "empty": "Das Briefing entsteht hier von selbst, während Sie sprechen.",
+          "writing": "Schreibt…",
           "role": "Rolle",
           "outcomes": "In 90 Tagen erledigt",
           "dealbreakers": "K.-o.-Kriterien",
@@ -4269,6 +4272,12 @@
           "stated": "Ihre Aussage",
           "inferred": "AI-Deutung",
           "default": "Annahme"
+        },
+        "choices": {
+          "eyebrowConfirm": "Eine Annahme prüfen",
+          "eyebrowPropose": "Ein paar Optionen (keine davon ist auch in Ordnung)",
+          "confirmSelection": "{count} ausgewählte übernehmen",
+          "none": "Keine davon. Ich sage es in eigenen Worten"
         },
         "voice": {
           "start": "Lieber sprechen",
@@ -4713,8 +4722,7 @@
       "intro": "Beginnen Sie eine Stelle im Gespräch. Ein kurzer geführter Dialog erfasst, was Sie wirklich brauchen, und entwirft daraus die Stellenbeschreibung. Text schon vorhanden? Übergeben Sie ihn unter „Generieren“.",
       "modeLabel": "Wie starten",
       "modeIntake": "Intake-Dialog",
-      "modeGenerate": "Generieren",
-      "toLibrary": "Stellenbeschreibungen"
+      "modeGenerate": "Generieren"
     }
   },
   "jobs": {
@@ -6591,6 +6599,10 @@
       "colShape": "Form",
       "colLeads": "Leads",
       "colSpend": "Ausgaben",
+      "csvSpendCzk": "Ausgaben (CZK)",
+      "csvPerHireCzk": "Pro Einstellung (CZK)",
+      "csvSpendUpdated": "Ausgaben erfasst (ISO)",
+      "exportBoardTitle": "Die angezeigten Quellen herunterladen, jeweils mit dem Typ, den sie messen",
       "billingNote": "Die Compute-Kosten stehen hier als eine Zahl für den gesamten Workspace. Welcher KI-Arbeit sie zuzuordnen sind, schlüsselt die Abrechnung je Anwendungsfall auf.",
       "billingLink": "Abrechnung öffnen"
     },
@@ -6979,6 +6991,12 @@
       "perHireClosedWindow": "auf {hired, plural, one {# Einstellung} other {# Einstellungen}}, die in den letzten {days, plural, one {# Tag} other {# Tagen}} abgeschlossen wurden"
     },
     "exportCsv": "CSV exportieren",
+    "csvFunnelStage": "Phase",
+    "csvFunnelReached": "Erreicht",
+    "csvFunnelCurrent": "Jetzt hier",
+    "csvFunnelConversion": "Konversion",
+    "csvFunnelGoal": "Ziel",
+    "exportFunnelTitle": "Den Funnel herunterladen: Phase, erreicht, jetzt hier, Konversion und Ihr Ziel",
     "byArchetype": "Nach Archetyp",
     "totalHired": "{total} · {hired} eingestellt",
     "advancedPct": "{pct}% über das Screening hinaus weitergeleitet",
@@ -7693,6 +7711,7 @@
       "usedUnlimited": "{used} genutzt",
       "unlimited": "Unbegrenzt",
       "depleted": "Kontingent erschöpft",
+      "buyMinutesCta": "Mehr Minuten kaufen →",
       "remaining": "{remaining} verbleibend",
       "credits": "{credits, plural, one {+# Paket-Credit} other {+# Paket-Credits}}",
       "empty": "Noch keine Nutzungszähler."
@@ -7730,7 +7749,10 @@
       "minutes": "{qty} Minuten",
       "buy": "Paket kaufen"
     },
-    "checkoutRecheck": "Erneut prüfen"
+    "checkoutRecheck": "Erneut prüfen",
+    "checkoutRefresh": "Tarifstatus aktualisieren",
+    "checkoutSupportLink": "Support kontaktieren, falls das Problem bestehen bleibt",
+    "checkoutSupportSubject": "Zahlungsbestätigung nach dem Checkout verzögert"
   },
   "branding": {
     "eyebrow": "White-Label",
@@ -8143,6 +8165,7 @@
     },
     "team": {
       "emailPlaceholder": "name@firma.de",
+      "emailAria": "E-Mail-Adresse für die Einladung",
       "roleAria": "Rolle für die Einladung",
       "add": "Hinzufügen",
       "empty": "Noch keine Einladungen. Fügen Sie Kollegen per E-Mail hinzu oder überspringen Sie diesen Schritt und laden Sie sie später ein.",
@@ -8236,8 +8259,12 @@
       "title": "Erste Schritte",
       "progress": "{done} von {total} erledigt",
       "dismiss": "Nicht mehr anzeigen",
+      "dismissedToast": "Erste-Schritte-Checkliste ausgeblendet",
+      "dismissedUndo": "Rückgängig",
       "open": "Öffnen",
+      "openStep": "Öffnen: {step}",
       "stepDone": "Erledigt",
+      "stepComplete": "Schritt abgeschlossen: {step}",
       "steps": {
         "company": {
           "title": "Unternehmen einrichten",
@@ -8256,7 +8283,8 @@
         "channels": {
           "title": "Kanäle verbinden",
           "body": "Öffnen Sie einen E-Mail-Eingang und empfangen Sie eine Testbewerbung.",
-          "listening": "Empfangsbereit. Verifizieren Sie mit einer Testbewerbung."
+          "listening": "Empfangsbereit. Leiten Sie eine E-Mail an die konfigurierte Adresse weiter (oder nutzen Sie die Simulationsschaltfläche im Channels-Tab) um diesen Schritt zu verifizieren.",
+          "listeningSimLink": "Zum Channels-Tab →"
         }
       }
     },

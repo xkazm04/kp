@@ -1,24 +1,34 @@
 /*
- * KP installer wizard — shared core.
+ * KP installer wizard — the whole page.
  *
- * ONE state machine, ONE SSE reader, ONE set of card logic, three visual
- * variants (variants.js + studio/spark/guide.css). The rule that keeps the
- * prototyping rig honest: nothing below branches on the active variant except
- * `copy()` (word choice) and `decorate()` (a post-build hook). If a behaviour
- * needs to differ per variant, it is not a variant — it is a second product.
+ * ONE state machine, ONE SSE reader, ONE set of card logic, ONE design. The
+ * three-variant prototyping rig (studio/spark/guide + a switcher + a copy
+ * overlay) served its purpose and is gone: the operator picked Guide as the
+ * baseline and Spark's left rail as the one thing worth carrying across, so
+ * this file now speaks Guide's register directly and wizard.css skins it.
+ *
+ * The layout that survived: a calm left rail carrying the plan (labels, not
+ * dots — dots cannot say "Capability keys"), one centred card at a time on the
+ * stage, everything answered shrinking into the receipt list.
  *
  * The primary surface is "what is happening + what I need from you". Agent
  * prose is NOT the UI: every {type:"narration"} goes to the Activity drawer,
- * closed by default, and the stage carries only the stepper, the status line,
- * live decision cards and the phase panels.
+ * closed by default, and the stage carries only the status line, live decision
+ * cards and the phase panels.
  */
 (() => {
   "use strict";
 
   const TOKEN = new URLSearchParams(location.search).get("t") || "";
-  const VARIANTS = window.KP_VARIANTS || {};
-  const VARIANT_IDS = Object.keys(VARIANTS);
-  const STORE_KEY = "kp-onboard-variant";
+
+  /* The Kandidate logomark, inlined from app/landing/_components/KandidateMark.tsx.
+     Three CSS hooks: currentColor badge, --k-fg letter, --k-accent dot. */
+  const MARK = `<svg class="mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <rect width="48" height="48" rx="12" fill="currentColor"/>
+    <path d="M15 12v24M15.5 25.5 31 12M15.5 24.5 32 36" stroke="var(--k-fg,#fdf8ee)"
+          stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="38.5" cy="36" r="3.4" fill="var(--k-accent,#d65a4a)"/>
+  </svg>`;
 
   /* ---------------------------------------------------------------- phases */
   /* v0.3: the step plan is DECLARED by the agent ({type:"plan"}) once it has
@@ -33,53 +43,67 @@
   const FALLBACK_PHASES = ["assess", "welcome", "mode", "checks", "capabilities", "boot", "voice", "done"];
   const PHASES = FALLBACK_PHASES; // kept under the old name for the mock harness
 
-  const DEFAULT_COPY = {
-    "app.title": "Set up KP",
-    "app.sub": "This runs KP's own setup assistant on your machine, on your Claude subscription. Nothing happens without your say-so.",
-    "phase.assess": "Looking around",
+  /* One voice, Guide's: plain words, second person, nothing that assumes the
+     reader knows what a relay or a provider is. Written through `data-copy`
+     markers rather than typed into the markup so a wording change is one edit
+     here and not a hunt through the builders. */
+  const COPY = {
+    "app.title": "Setting up KP",
+    "app.sub": "We'll go one question at a time. You can stop at any point — nothing is lost.",
+    "rail.title": "Your plan",
+    "phase.assess": "Having a look",
     "phase.__pending": "…then a plan, once I've looked",
-    "phase.welcome": "Welcome",
-    "phase.mode": "Install mode",
-    "phase.checks": "System checks",
-    "phase.capabilities": "Capabilities",
-    "phase.boot": "Boot & verify",
-    "phase.voice": "Spoken output",
-    "phase.done": "Your install",
-    "checks.title": "System checks",
-    "checks.note": "What this machine already has. Nothing here is changed without asking.",
-    "assess.title": "Looking at what's already here…",
-    "assess.note": "Reading this machine before asking you anything. Nothing is changed while I look.",
-    "assess.more": "Show every check",
-    "assess.less": "Hide the detail",
-    "boot.title": "The app",
-    "voice.title": "Spoken output",
-    "voice.note": "Play a sample from each engine that is ready, then pick the default. Skipping is a complete answer — /api/tts answers an honest 503 and nothing else depends on it.",
-    "done.title": "Your install",
-    "done.note": "Any group can be re-run on its own later with /onboarding <group> — nothing here is a one-shot.",
-    "receipts.title": "Answered",
-    "activity.title": "Activity",
-    "act.allow": "Allow",
-    "act.deny": "Deny",
-    "act.always": "Allow for this run",
+    "phase.welcome": "Getting started",
+    "phase.mode": "How will you use it?",
+    "phase.checks": "Checking your computer",
+    "phase.capabilities": "Choosing features",
+    "phase.boot": "Starting the app",
+    "phase.voice": "Testing the voice",
+    "phase.done": "All done",
+    "checks.title": "Checking your computer",
+    "checks.note": "These are things KP needs. A red row means something is missing — the assistant will tell you how to fix it.",
+    "assess.title": "Having a look at your computer…",
+    "assess.note": "Nothing is being changed. This is just a look at what is already installed.",
+    "assess.more": "Show me all the details",
+    "assess.less": "Hide the details",
+    "boot.title": "Starting KP",
+    "voice.title": "Should KP speak out loud?",
+    "voice.note": "Press play to hear each option. If you don't need spoken output, skip this — you can turn it on later.",
+    "done.title": "KP is set up",
+    "done.note": "Nothing here is permanent — any one of these can be set up again later, on its own.",
+    "receipts.title": "What you've answered so far",
+    "activity.title": "Technical details",
+    "act.allow": "Yes, go ahead",
+    "act.deny": "No, skip this",
     "act.continue": "Continue",
     "act.save": "Save",
-    "act.skip": "Skip",
+    "act.skip": "Skip for now",
     "act.keep": "Keep current",
     "act.replace": "Replace",
-    "act.start": "Set up kp",
-    "act.advanced": "Advanced",
-    "act.run": "Run this",
-    "perm.title": "KP setup wants to run:",
-    "adv.note": "A check run asks nothing and changes nothing. A single group re-runs one part of setup on its own.",
-    "adv.label": "Run just",
-    "reward.title": "Nothing else needed",
-    "reward.note": "This install was already configured — the assistant only had to look. Everything below is what it can actually do.",
-    "addon.title": "Want to add something while you're here?",
+    "act.start": "Start setting up",
+    "act.advanced": "Other options",
+    "act.run": "Run just this",
+    "perm.title": "KP setup would like to run a command",
+    "adv.note": "A check run looks at your computer and tells you what it found — it asks nothing and changes nothing. Or pick one feature to set up on its own.",
+    "adv.label": "Set up only",
+    "reward.title": "You're already set up",
+    "reward.note": "Your computer already had everything it needed, so there was nothing to ask you. Here is what KP can do.",
+    "addon.title": "Would you like to add anything else?",
+    "enforce.on": "Commands ask before they run",
+  };
+
+  /* The quiet lines the host writes when its own policy decided something. Each
+     is a fact the operator is entitled to but must not be interrupted by, so
+     they live in the Activity drawer — except `unrequested-run`, which is the
+     one that means the asking contract slipped and gets a visible strip. */
+  const NOTICE_LABELS = {
+    "auto-allowed": "Allowed automatically",
+    "repeat-allowed": "Allowed again",
+    "unrequested-run": "Ran without asking",
   };
 
   /* ----------------------------------------------------------------- state */
   const state = {
-    variant: null,
     started: false,
     running: false,
     finished: null, // {kind:"done"|"stopped"|"error", text}
@@ -98,9 +122,19 @@
     narration: [], // markdown blocks
     unread: 0,
     drawerOpen: false,
+    notices: [], // {kind, text}
     app: null, // {port, alive}
+    /* The highest `seq` this page has processed. Every event carries one, and
+       so does every entry in the `hello` replay block — which is what makes an
+       EventSource auto-reconnect idempotent: the second `hello` replays state
+       this page already rendered, and each entry is dropped on its own seq
+       rather than on a guess about whether this is a first connect. */
+    maxSeq: 0,
+    selfPort: null, // the wizard server's own port, from hello.self
+    studio: false, // hello.studio — is the in-app studio on offer at all?
+    studioOffered: false, // the hand-off is drawn once, not on every health poll
     tts: null, // {loading|error|providers|preferred|allowed|chosen|skipped}
-    matrix: null, // parsed rows
+    matrix: null, // the capability matrix markdown, once it has arrived
   };
 
   /* --------------------------------------------------------------- helpers */
@@ -116,23 +150,17 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
   function copy(key) {
-    const v = state.variant && VARIANTS[state.variant] && VARIANTS[state.variant].copy;
-    return (v && v[key]) || DEFAULT_COPY[key] || key;
+    return COPY[key] || key;
   }
-  function decorate(node, kind, index) {
-    const v = state.variant && VARIANTS[state.variant];
-    if (v && typeof v.decorate === "function") {
-      try { v.decorate(node, kind, index); } catch { /* a decoration must never break the run */ }
-    }
-  }
-  /* Copy is re-applied on every variant switch, so every string that a variant
-     may reword is written through a data-copy marker rather than typed in. */
+  /* `data-copy` is how a string declares which entry in COPY it is. It is set
+     here (and read once at boot for the static shell) so that a label which
+     changes state — assess.more/assess.less — swaps by key, not by literal. */
   function setCopy(node, key) {
     node.dataset.copy = key;
     node.textContent = copy(key);
     return node;
   }
-  function reapplyCopy(root) {
+  function applyCopy(root) {
     (root || document).querySelectorAll("[data-copy]").forEach((n) => {
       n.textContent = copy(n.dataset.copy);
     });
@@ -220,9 +248,11 @@
   }
 
   /* =======================================================================
-     DOM skeleton — built once. Variants restyle it; they never rebuild it.
-     Both steppers (rail + dots) exist in the DOM; CSS picks one, so a live
-     variant swap is a class change and not a re-render.
+     DOM skeleton — built once, never rebuilt.
+
+     Both steppers exist in the DOM at all times: the rail carries the plan with
+     its labels, and the dots are what is left of it once the viewport is too
+     narrow for a rail. CSS picks one; nothing here re-renders on a resize.
      ======================================================================= */
   const root = el("div", "wz");
   root.innerHTML = `
@@ -269,8 +299,15 @@
     </header>
 
     <nav class="wz-rail" aria-label="Setup progress">
+      <div class="wz-railtop">
+        <span class="wz-mark"></span>
+        <span class="wz-railname" data-copy="app.title"></span>
+      </div>
+      <p class="wz-raileyebrow" data-copy="rail.title"></p>
       <ol class="wz-steps" id="wz-steps"></ol>
-      <div class="wz-meta" id="wz-meta" hidden></div>
+      <div class="wz-railfoot">
+        <div class="wz-meta" id="wz-meta" hidden></div>
+      </div>
     </nav>
 
     <main class="wz-main">
@@ -279,7 +316,11 @@
         <span class="wz-pulse" aria-hidden="true"></span>
         <p class="wz-status" id="wz-status" role="status" aria-live="polite">Ready when you are.</p>
       </div>
+      <!-- The host's enforcement posture, shown only when it actually says what
+           it is. See applyEnforcement below for why an absent field is silent. -->
+      <p class="wz-enforce" id="wz-enforce" hidden></p>
       <div class="wz-stage" id="wz-stage">
+        <section class="wz-warnings" id="wz-warnings"></section>
         <section class="wz-asks" id="wz-asks"></section>
         <section class="wz-panels" id="wz-panels"></section>
         <section class="wz-receipts" id="wz-receipts" hidden>
@@ -301,15 +342,16 @@
       </button>
       <div class="wz-activity-body" id="wz-activity-body" hidden></div>
     </aside>
-
-    <div class="wz-switcher" id="wz-switcher" role="group" aria-label="Visual variant"></div>
   `;
   document.body.appendChild(root);
 
-  $(".wz-mark", root).innerHTML = window.KP_MARK || "";
+  // Two marks in the DOM, never two on screen: the rail carries it while there
+  // is a rail, and the header brand takes over below the rail's breakpoint.
+  root.querySelectorAll(".wz-mark").forEach((n) => { n.innerHTML = MARK; });
+  applyCopy(root);
 
-  const stage = $("#wz-stage", root);
   const asksEl = $("#wz-asks", root);
+  const warnEl = $("#wz-warnings", root);
   const panelsEl = $("#wz-panels", root);
   const stepsEl = $("#wz-steps", root);
   const dotsEl = $("#wz-dots", root);
@@ -323,53 +365,13 @@
   const advToggle = $("#wz-adv", root);
   const advPanel = $("#wz-adv-panel", root);
 
-  /* Spark's mascot lives in the DOM for every variant; only spark.css shows it. */
-  const mascot = el("div", "wz-mascot", window.KP_MASCOT || "");
-  mascot.setAttribute("aria-hidden", "true");
-  root.appendChild(mascot);
-
-  /* ------------------------------------------------------------- variants */
-  function applyVariant(id) {
-    if (!VARIANTS[id]) id = VARIANT_IDS[0];
-    state.variant = id;
-    root.dataset.variant = id;
-    document.documentElement.dataset.variant = id;
-    VARIANT_IDS.forEach((v) => {
-      const link = document.getElementById("css-" + v);
-      if (link) link.disabled = v !== id;
-    });
-    try { localStorage.setItem(STORE_KEY, id); } catch { /* private mode */ }
-    reapplyCopy(root);
-    renderSteps();
-    // Re-run decoration over everything already on screen: a variant swap must
-    // not need a re-render, because a re-render would drop half-typed input.
-    let i = 0;
-    root.querySelectorAll(".card").forEach((n) => decorate(n, "card", i++));
-    let j = 0;
-    root.querySelectorAll(".panel").forEach((n) => decorate(n, "panel", j++));
-    $("#wz-switcher", root).querySelectorAll("button").forEach((b) => {
-      b.setAttribute("aria-pressed", String(b.dataset.v === id));
-    });
-  }
-  function buildSwitcher() {
-    const box = $("#wz-switcher", root);
-    VARIANT_IDS.forEach((v) => {
-      const b = el("button", "wz-switch", esc(VARIANTS[v].label));
-      b.type = "button";
-      b.dataset.v = v;
-      b.title = VARIANTS[v].blurb || VARIANTS[v].label;
-      b.onclick = () => applyVariant(v);
-      box.appendChild(b);
-    });
-  }
-
   /* -------------------------------------------------------------- stepper */
   /* The step list is the plan when the agent declared one, and the fixed
      fallback otherwise. Both are the same shape — {id, label} — so exactly one
      renderer exists; a plan-less session is not a special case, it is a
-     different list. A fallback step carries no label of its own because its
-     wording is a variant's to choose (copy("phase.<id>")); a plan step's label
-     came from the agent and is used verbatim. */
+     different list. A fallback step carries no label of its own — its wording
+     is this page's (copy("phase.<id>")) — while a plan step's label came from
+     the agent and is used verbatim. */
   function stepList() {
     if (state.plan && state.plan.length) return state.plan;
     // Recon-first means the rail must not promise a pipeline before one has
@@ -437,6 +439,20 @@
     renderSteps();
   }
 
+  /* ---------------------------------------------------------- enforcement */
+  /* {mode, skipFlagBlocked} on `hello`. The reassurance is shown ONLY when the
+     host affirms that the skip-permissions escape hatch is blocked — an absent
+     field is an older host, and a promise this page cannot verify is worse than
+     silence on a screen whose whole pitch is "it asks before it writes". */
+  function applyEnforcement(enf) {
+    const box = $("#wz-enforce", root);
+    const on = !!(enf && enf.skipFlagBlocked);
+    box.hidden = !on;
+    if (!on) return;
+    box.textContent = copy("enforce.on");
+    if (enf.mode) box.title = "Permission mode: " + String(enf.mode);
+  }
+
   /* --------------------------------------------------------------- status */
   function setStatus(text, isErr) {
     state.status = text;
@@ -445,17 +461,49 @@
   }
 
   /* ------------------------------------------------------------- activity */
+  /* Anything appended to the drawer while it is shut counts against the badge —
+     narration and notices alike. A notice the operator never saw a count for is
+     a policy decision made silently, which is the whole thing notices exist to
+     prevent. */
+  function afterAppend() {
+    if (state.drawerOpen) { activityBody.scrollTop = activityBody.scrollHeight; return; }
+    state.unread += 1;
+    unreadEl.hidden = false;
+    unreadEl.textContent = String(state.unread);
+  }
   function pushNarration(mdText) {
     state.narration.push(mdText);
     const block = el("div", "wz-narr");
     block.innerHTML = md(mdText);
     activityBody.appendChild(block);
-    if (state.drawerOpen) activityBody.scrollTop = activityBody.scrollHeight;
-    else {
-      state.unread += 1;
-      unreadEl.hidden = false;
-      unreadEl.textContent = String(state.unread);
-    }
+    afterAppend();
+  }
+  /* A host-policy line: one quiet row, never a card, never a status takeover.
+     The kind is kept on the node so the drawer can tint the one that matters. */
+  function pushNotice(ev) {
+    const kind = String(ev.kind || "notice");
+    const text = String(ev.text || "");
+    state.notices.push({ kind, text });
+    const line = el("p", "wz-notice");
+    line.dataset.kind = kind;
+    line.innerHTML =
+      `<span class="wz-notice-k">${esc(NOTICE_LABELS[kind] || kind)}</span>` +
+      `<span class="wz-notice-t">${esc(text)}</span>`;
+    activityBody.appendChild(line);
+    afterAppend();
+    // A command that ran without being offered is the one notice the operator
+    // must not have to open a drawer to find. Amber, on the stage, once per
+    // occurrence — visible, but not a modal and not red: nothing is broken, the
+    // asking contract simply did not hold for that command.
+    if (kind === "unrequested-run") stageWarning(text);
+  }
+  function stageWarning(text) {
+    const row = el("div", "wz-warn");
+    row.setAttribute("role", "status");
+    row.innerHTML =
+      `<span class="wz-warn-glyph" aria-hidden="true">!</span>` +
+      `<span class="wz-warn-t"><strong>${esc(NOTICE_LABELS["unrequested-run"])}.</strong> ${esc(text)}</span>`;
+    warnEl.appendChild(row);
   }
   $("#wz-activity-toggle", root).onclick = () => {
     state.drawerOpen = !state.drawerOpen;
@@ -480,7 +528,6 @@
   }
 
   /* ---------------------------------------------------------------- cards */
-  let cardSeq = 0;
   /* Cards are addressed by their server id. The secret flow needs it: when a
      "save" loses a race with a value that appeared in the file after the card
      was drawn, the server answers {state:"exists"} and RE-EMITS the same id with
@@ -489,7 +536,6 @@
   const cardsById = new Map();
   function mountCard(node, id) {
     node.classList.add("card");
-    decorate(node, "card", cardSeq++);
     if (id != null) {
       node.dataset.cardId = String(id);
       const prev = cardsById.get(String(id));
@@ -505,7 +551,7 @@
     focusCard(node);
     return node;
   }
-  // Guide shows one card at a time; CSS does the hiding, this keeps focus sane.
+  // One card at a time; CSS does the hiding, this keeps focus sane.
   function focusCard(node) {
     requestAnimationFrame(() => {
       node.scrollIntoView({ block: "nearest", behavior: prefersReduced() ? "auto" : "smooth" });
@@ -735,40 +781,37 @@
       `<pre class="cmd">${esc(ev.command || "")}</pre>` +
       (ev.description ? `<p class="card-note">${esc(ev.description)}</p>` : "");
 
+    /* TWO buttons, deliberately. The third — "Allow for this run" — was a
+       blanket the operator had to grant before they had seen what it would
+       cover, and it is gone: the host now decides the repeats itself (an exact
+       command already allowed, a safe diagnostic) and SAYS SO with a `notice`.
+       That moves the widening of permission from a promise the operator makes
+       up front to a fact they are told after, which is the honest order. */
     async function answer(action) {
-      settleCard(node,
-        action === "deny" ? "Skipped — nothing ran."
-          : action === "always" ? "Allowed, and allowed for the rest of this run."
-            : "Allowed.");
-      await post("/decision", { id: ev.id, allow: action !== "deny", always: action === "always" });
+      settleCard(node, action === "deny" ? "Skipped — nothing ran." : "Allowed.");
+      await post("/decision", { id: ev.id, allow: action !== "deny" });
     }
     actionBtn(node, "btn-primary", "act.allow", "Allow", () => answer("allow"));
-    const always = actionBtn(node, "btn-outline", "act.always", "Allow for this run", () => answer("always"));
-    // `shape` is the family the host would remember (e.g. `npm run *`) — worth a
-    // tooltip on the button that commits to it, and nothing more.
-    if (ev.shape) always.title = "Won't ask again this run for: " + ev.shape;
     actionBtn(node, "btn-danger", "act.deny", "Deny", () => answer("deny"));
     return mountCard(node, ev.id);
   }
 
   /* ---------------------------------------------------------------- panels */
-  let panelSeq = 0;
   const panels = {};
   function panel(id, titleKey) {
     if (panels[id]) { setCurrentPanel(panels[id]); return panels[id]; }
     const node = el("section", "panel panel-" + id);
     node.innerHTML = `<h3 class="panel-title" data-copy="${titleKey}"></h3><div class="panel-body"></div>`;
     node.querySelector(".panel-title").textContent = copy(titleKey);
-    decorate(node, "panel", panelSeq++);
     panelsEl.appendChild(node);
     panels[id] = node;
     setCurrentPanel(node);
     return node;
   }
-  /* Guide shows one panel at a time. v0.2 keyed that off `data-phase` and a
-     hard-coded list of phase ids — which stops working the moment phase ids are
-     plan-declared slugs. The panel that is current is now simply the one most
-     recently written to, marked here and styled by guide.css alone. */
+  /* One panel at a time. v0.2 keyed that off `data-phase` and a hard-coded list
+     of phase ids — which stops working the moment phase ids are plan-declared
+     slugs. The panel that is current is now simply the one most recently
+     written to, marked here and hidden/shown by CSS alone. */
   function setCurrentPanel(node) {
     panelsEl.querySelectorAll(".panel.is-current").forEach((n) => n.classList.remove("is-current"));
     node.classList.add("is-current");
@@ -840,6 +883,12 @@
     const p = panel("boot", "boot.title");
     const body = p.querySelector(".panel-body");
     body.innerHTML = "";
+    // This panel is rebuilt whenever the port is (re)reported — a rejoin's
+    // `hello.appPort` followed moments later by the agent's own [[wizard:app]]
+    // marker is the ordinary case. Clearing the body takes the hand-off block
+    // with it, so the "already offered" flag has to clear with it or the offer
+    // would be lost for the rest of the run.
+    state.studioOffered = false;
     const url = "http://localhost:" + ev.port;
     const live = el("div", "live");
     live.innerHTML =
@@ -867,6 +916,9 @@
         text.innerHTML = alive
           ? `kp is running at <code>${esc(url)}</code>${r.json.status === 401 ? " (password-protected)" : ""}`
           : `Not answering yet on <code>${esc(url)}</code>${reason || " — it may still be compiling."}`;
+        // "Confirmed up" is this body saying ok, not the HTTP status of the
+        // poll — the same distinction the dot above is careful about.
+        if (alive) offerStudio(body, ev.port);
       } catch {
         dot.dataset.alive = "no";
         text.innerHTML = `Could not reach <code>${esc(url)}</code>.`;
@@ -875,6 +927,53 @@
     poll();
     if (healthTimer) clearInterval(healthTimer);
     healthTimer = setInterval(poll, 4000);
+  }
+
+  /* -- the hand-off into the studio -------------------------------------- *
+     The concept's two-stage split: this page is the BOOTSTRAP face and cannot
+     be replaced, because a page served by the app cannot exist before the app
+     boots. Once it has booted there is a better face — the studio, inside kp,
+     with the design system, both themes and four locales — and this is where
+     that is offered.
+
+     Offered, never taken: no auto-redirect. The operator is mid-run on a page
+     they trust, and moving them without asking would be the installer deciding
+     something on their behalf at exactly the moment it is meant to stop doing
+     that. It opens in a new tab for the same reason the offer is an offer: if
+     `/setup/studio` is not there (an older app, a failed build), the run they
+     are in the middle of is still on screen behind it.
+
+     The token rides in the FRAGMENT. A query string reaches the app's server
+     logs, its access logs and any Referer it sends; a fragment never leaves the
+     browser. The studio reads it from `location.hash`. */
+  function studioUrl(appPort) {
+    return `http://localhost:${appPort}/setup/studio` +
+      `#wizard=${encodeURIComponent(String(state.selfPort))}&t=${encodeURIComponent(TOKEN)}`;
+  }
+  function offerStudio(body, appPort) {
+    // `studio` is the server's flag (KP_ONBOARD_STUDIO=0 withdraws it) and
+    // `selfPort` is how the studio finds its way back to this engine. Without
+    // either, there is nothing honest to offer.
+    if (!state.studio || !state.selfPort) return;
+    // Keyed on the DOM, not on a boolean: the health poll fires every four
+    // seconds, and a rebuild of this panel can race the poll that outlived it.
+    // "Is the block in THIS body" is the only question that cannot be wrong.
+    if (body.querySelector(".wz-studio")) return;
+    state.studioOffered = true;
+    const box = el("section", "wz-studio");
+    box.innerHTML =
+      `<p class="wz-studio-k">Continue in the studio</p>` +
+      `<p class="wz-studio-note">KP is running now, so the rest of this can happen inside the app itself —
+        the same setup session, in KP's own design.</p>`;
+    const go = el("a", "btn btn-primary wz-studio-go", "Continue in the studio");
+    go.href = studioUrl(appPort);
+    go.target = "_blank";
+    go.rel = "noopener noreferrer";
+    box.appendChild(go);
+    const stay = el("p", "wz-studio-stay",
+      "Or carry on here — this page keeps working, and both stay on the same run.");
+    box.appendChild(stay);
+    body.appendChild(box);
   }
 
   /* -- voice / TTS ------------------------------------------------------- */
@@ -1213,13 +1312,13 @@
     again.type = "button";
     again.onclick = () => { resetRun(); start(); };
     node.querySelector(".panel-body").appendChild(again);
-    decorate(node, "panel", panelSeq++);
     panelsEl.appendChild(node);
     node.scrollIntoView({ block: "nearest", behavior: prefersReduced() ? "auto" : "smooth" });
   }
 
   function resetRun() {
     asksEl.innerHTML = "";
+    warnEl.innerHTML = "";
     cardsById.clear();
     panelsEl.innerHTML = "";
     Object.keys(panels).forEach((k) => delete panels[k]);
@@ -1229,6 +1328,7 @@
     state.probes.clear();
     state.receipts = [];
     state.narration = [];
+    state.notices = [];
     state.unread = 0;
     unreadEl.hidden = true;
     state.phase = null;
@@ -1241,6 +1341,10 @@
     state.finished = null;
     state.app = null;
     state.tts = null;
+    state.matrix = null;
+    // The boot panel and the studio offer inside it are gone with the panels;
+    // the flag that says "already offered" has to go with them.
+    state.studioOffered = false;
     delete root.dataset.finished;
     delete root.dataset.planned;
     delete root.dataset.reward;
@@ -1248,8 +1352,48 @@
     renderSteps();
   }
 
+  /* Guide's stage shows ONE thing, so the free-text box to the assistant is not
+     part of it: a chat prompt on an installer invites a question this surface
+     cannot promise to answer. It stays in the DOM because /message is a real
+     channel — the add-on buttons ride it — and one class away from returning. */
+
   /* ---------------------------------------------------------------- events */
+  /* Machine outcome -> the line a settled card shows. The server sends the
+     word, not the copy: it has no business writing this page's English, and a
+     second face (the studio, in four locales) needs the word rather than a
+     sentence. `answered` is the exception — a question's resolution IS what the
+     operator picked, which rides on the event as `answer`. */
+  const RESOLUTION = {
+    saved: "Saved to .env.local.",
+    kept: "Left as it is.",
+    skipped: "Skipped.",
+    allowed: "Allowed.",
+    declined: "Skipped — nothing ran.",
+    withdrawn: "Withdrawn — setup was stopped.",
+  };
+
+  /* Feed replayed events through the live handler, skipping anything this page
+     has already seen (state.maxSeq).
+
+     IN SEQ ORDER, across every list at once. The replay block groups events by
+     kind for readability, but the groups interleave in time — a narration block
+     is emitted between two probe markers of the same message — so replaying
+     group by group would run the stream backwards, and the seq guard would then
+     read the older group as "already seen" and drop it. Sorting first is what
+     makes "replay is the live stream, again" true rather than nearly true. */
+  function replayEvents(...lists) {
+    lists
+      .flatMap((l) => (Array.isArray(l) ? l : []))
+      .filter((ev) => ev && typeof ev === "object")
+      .sort((a, b) => (a.seq || 0) - (b.seq || 0))
+      .forEach((ev) => {
+        if (typeof ev.seq === "number" && ev.seq <= state.maxSeq) return;
+        handle(ev);
+      });
+  }
+
   function handle(ev) {
+    if (typeof ev.seq === "number" && ev.seq > state.maxSeq) state.maxSeq = ev.seq;
     switch (ev.type) {
       /* Sent once on connect. A reloaded page rejoins the session where it is
          instead of showing a blank stage and a Start button for a run that is
@@ -1258,9 +1402,18 @@
         if (ev.repo) {
           const meta = $("#wz-meta", root);
           meta.hidden = false;
-          meta.innerHTML = `<span class="wz-meta-k">Repo</span><code>${esc(ev.repo)}</code>` +
-            (ev.envFileExists ? `<span class="wz-meta-k">.env.local</span><span>already present</span>` : "");
+          meta.innerHTML = `<span class="wz-meta-k">Folder</span><code>${esc(ev.repo)}</code>` +
+            `<span class="wz-meta-k">Settings file</span><span>${
+              ev.envFileExists ? ".env.local is already there" : ".env.local will be created"}</span>`;
         }
+        // Only claim the asking contract when the host says it holds. `mode` is
+        // whatever vocabulary the host uses; the flag is the load-bearing half.
+        applyEnforcement(ev.enforcement);
+        // Where this engine lives and whether it is offering a studio. Both are
+        // the server's to say: only it reads KP_ONBOARD_STUDIO, and only it
+        // knows which port it actually bound (the listener retries on collision).
+        state.selfPort = ev.self && ev.self.port ? ev.self.port : null;
+        state.studio = ev.studio === true;
         // A rejoin may carry a plan-declared phase id this page has never seen —
         // and may carry none at all. Both are fine: the phase is taken at face
         // value and the fallback rail holds until a plan arrives (or doesn't).
@@ -1271,6 +1424,31 @@
           setRunning(true);
           setStatus("Rejoined a setup session that is already running.");
         }
+        /* The replay block: everything a face that was not here needs in order
+           to render the run as it stands. Every entry is a verbatim event, so
+           this page renders a rejoin with exactly the code that renders the
+           live stream, replayed in the order it originally happened, and the
+           seq guard keeps a reconnect from drawing any of it twice. */
+        const rp = ev.replay || {};
+        replayEvents(rp.probes, rp.narration, rp.notices, rp.cards);
+        // The matrix is carried as markdown, not as an event — it has no seq of
+        // its own, so it is guarded on its own content instead.
+        if (rp.matrix && rp.matrix !== state.matrix) handle({ type: "matrix", md: rp.matrix });
+        if (rp.status) setStatus(rp.status);
+        if (rp.terminal) replayEvents([rp.terminal]);
+        break;
+      }
+      /* A card was settled — possibly on the OTHER face. The host has always
+         owned the decision; since v0.6 it also says so, which is what lets two
+         faces on one run agree instead of one of them holding a live-looking
+         control nobody is listening to any more. The face that answered has
+         already settled its own copy optimistically, so this is a no-op there. */
+      case "resolved": {
+        const node = cardsById.get(String(ev.id));
+        if (!node || node.classList.contains("is-settled")) break;
+        settleCard(node, ev.outcome === "answered"
+          ? (ev.answer || "Answered.")
+          : (RESOLUTION[ev.outcome] || "Answered."));
         break;
       }
       case "plan": applyPlan(ev.steps); break;
@@ -1294,12 +1472,13 @@
       }
       case "status": setStatus(ev.text || ""); break;
       case "narration": pushNarration(ev.md || ""); break;
+      case "notice": pushNotice(ev); break;
       case "probe": upsertProbe(ev); break;
       case "question": questionCard(ev); break;
       case "secret": secretCard(ev); break;
       case "permission": permissionCard(ev); break;
       case "app": appPanel(ev); break;
-      case "matrix": matrixPanel(ev.md || ""); break;
+      case "matrix": state.matrix = ev.md || ""; matrixPanel(ev.md || ""); break;
       case "done":
         terminal(ev.exitCode ? "error" : "done",
           ev.exitCode ? "The setup session ended with exit code " + ev.exitCode + "."
@@ -1385,14 +1564,10 @@
   };
 
   /* ----------------------------------------------------------------- boot */
-  buildSwitcher();
-  let stored = null;
-  try { stored = localStorage.getItem(STORE_KEY); } catch { /* private mode */ }
-  applyVariant(stored || VARIANT_IDS[0]);
   setRunning(false);
   renderSteps();
   connect();
 
   // Exposed for the mock harness / DOM assertions. Read-only by convention.
-  window.KPWizard = { state, handle, applyVariant, PHASES, FALLBACK_PHASES, stepList };
+  window.KPWizard = { state, handle, PHASES, FALLBACK_PHASES, stepList };
 })();

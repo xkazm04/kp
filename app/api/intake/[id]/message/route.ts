@@ -78,10 +78,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // reply verbatim) — reply-sentinel.ts.
     const reply = stripEndSentinel(exchange.reply);
     const now = new Date().toISOString();
+    // The card set rides the AGENT TURN THAT MADE IT, not a session column: a
+    // reload then re-offers exactly the set that was on the table, still
+    // attached to the question it answers, and an older turn's cards stay in
+    // the transcript as the record of what was offered (the client only makes
+    // the newest one interactive).
     const transcript = [
       ...intake.transcript,
       { role: "candidate" as const, text: message, at: now },
-      { role: "interviewer" as const, text: reply, at: now },
+      { role: "interviewer" as const, text: reply, at: now, ...(exchange.choices ? { choices: exchange.choices } : {}) },
     ];
     // The brief's evolving title becomes the session title (first write wins
     // via COALESCE only when non-empty — a later rename by the engine sticks).
@@ -112,6 +117,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       shape: exchange.shape,
       done: exchange.done,
       source: exchange.source,
+      // Decision cards for this turn, when the engine judged one earned
+      // (app/_lib/intake-choices.ts). Absent on most turns.
+      ...(exchange.choices ? { choices: exchange.choices } : {}),
       // WHY it degraded, and (for the scripted keyless path) in WHICH language.
       // Both facts were produced by the engine and thrown away at this boundary:
       // the pane could only say "AI is offline", so an operator on a keyless

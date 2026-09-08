@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ChatTranscript, type ChatSide } from "@/app/_components/chat/ChatTranscript";
+import { JdsIntakeChoiceCards } from "./JdsIntakeChoiceCards";
 import { compactedTurnCount } from "@/app/_lib/intake-transcript";
 import type { IntakeTurn } from "./jdsIntakeLogic";
 
@@ -22,6 +23,13 @@ import type { IntakeTurn } from "./jdsIntakeLogic";
 // primitive addresses turns by id, so the transcript INDEX is the id here.
 // System turns (e.g. the re-open note) render as a quiet centered line so the
 // transcript honestly shows its own seams.
+//
+// Decision cards (app/_lib/intake-choices.ts) hang under the agent bubble that
+// offered them, through the primitive's `renderTurnExtras` slot — so they are
+// marginalia on a turn, not a second conversation surface. Only the NEWEST turn
+// is interactive: an older set stays visible as the record of what was offered,
+// but re-answering a question three turns back would send a message the
+// transcript reads as an answer to the current one.
 
 const intakeSide = (role: string): ChatSide =>
   role === "candidate" ? "right" : role === "system" ? "center" : "left";
@@ -84,9 +92,36 @@ export function JdsIntakeChat({
     [t]
   );
   const onDone = useCallback(() => onHighlightDone?.(), [onHighlightDone]);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastIndex = transcript.length - 1;
+  const renderTurnExtras = useCallback(
+    (turn: { id: string }) => {
+      const index = Number(turn.id);
+      const set = transcript[index]?.choices;
+      if (!set) return null;
+      return (
+        <JdsIntakeChoiceCards
+          set={set}
+          disabled={closed || sending || index !== lastIndex}
+          onPick={onSend}
+          // "None of these" is not a no-op: it hands the turn to the composer,
+          // where the requestor answers in their own words — which is what the
+          // card set was an alternative to, never a replacement for.
+          onDecline={() => composerRef.current?.focus()}
+        />
+      );
+    },
+    [transcript, closed, sending, lastIndex, onSend]
+  );
 
   return (
     <ChatTranscript
+      renderTurnExtras={renderTurnExtras}
+      composerRef={composerRef}
+      // The desk owns the height (JdsIntakeLayoutTriptych): the transcript fills
+      // the leaf it is given rather than standing at the primitive's default
+      // 32rem, which is what left dead space beside a taller brief.
+      className="h-full min-h-0"
       turns={turns}
       side={intakeSide}
       labels={labels}

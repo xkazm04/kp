@@ -17,6 +17,8 @@ to be true for it to change?*
 - touch auth, add a candidate-facing route, or put an id on the public wire → [0005](0005-hmac-sessions-and-capability-tokens.md)
 - change the licence, add a proprietary component, or gate a feature on hosting → [0006](0006-agpl-with-cla.md)
 - weaken, skip or reconfigure a repo gate (design tokens, locale parity, tenancy, rate limits) → [0007](0007-repo-laws-are-gates.md)
+- add a new comms delivery path, or change how delivery status is labelled → [0008](0008-row-declares-its-own-outcome.md)
+- add a new ATS webhook event id or promote one from `reserved` to `live` → [0008](0008-row-declares-its-own-outcome.md)
 
 ## Index
 
@@ -29,6 +31,7 @@ to be true for it to change?*
 | [0005](0005-hmac-sessions-and-capability-tokens.md) | HMAC operator sessions; capability tokens for candidates | accepted | 2026-08-26 |
 | [0006](0006-agpl-with-cla.md) | AGPL-3.0-only plus a CLA; hosting is the commercial boundary | accepted | 2026-08-26 |
 | [0007](0007-repo-laws-are-gates.md) | A repo law that isn't a gate isn't a law | accepted | 2026-08-26 |
+| [0008](0008-row-declares-its-own-outcome.md) | A row declares its own outcome — no green lies | accepted | 2026-09-07 |
 
 ## Writing a new one
 
@@ -62,6 +65,8 @@ that `supersedes` / `superseded-by` are reciprocal.
 
 Run it locally with `npm run docs:check`. Fixtures:
 `node scripts/docs/__tests__/check-adrs.test.mjs`.
+
+## Status vocabulary
 
 ## Status vocabulary
 

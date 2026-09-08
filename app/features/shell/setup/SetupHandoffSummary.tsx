@@ -16,6 +16,7 @@ import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { SetupPipelineChain } from "./SetupPipelineChain";
 import type { OnboardingCtrl } from "./setupSteps";
+import { CHECKLIST_HIGHLIGHT_KEY } from "./setupGettingStartedModel";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
@@ -64,15 +65,23 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white p-4">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel">
+      <button
+        type="button"
+        onClick={() => {
+          try { window.sessionStorage.setItem(CHECKLIST_HIGHLIGHT_KEY, "1"); } catch { /* per-browser preference only */ }
+          ctrl.finish();
+        }}
+        className="focus-ring group flex w-full items-center gap-3 rounded-lg border border-stone-200 bg-white p-4 text-left transition-all hover:border-stone-300 hover:shadow-sm"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel transition-colors group-hover:bg-moss/10 group-hover:text-moss">
           <ListChecks size={18} aria-hidden />
         </span>
-        <div className="text-sm">
+        <div className="min-w-0 flex-1 text-sm">
           <p className="font-semibold text-ink">{t("checklistTitle")}</p>
           <p className="text-steel">{t("checklistBody")}</p>
         </div>
-      </div>
+        <ArrowRight size={16} aria-hidden className="shrink-0 text-steel transition-transform group-hover:translate-x-0.5 group-hover:text-moss" />
+      </button>
 
       {/* The step's TWO exit paths, as equal explicit choices (the footer is
           suppressed here so nothing competes with them):

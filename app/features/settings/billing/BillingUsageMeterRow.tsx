@@ -8,7 +8,11 @@ import type { MeterOverview } from "@/app/_lib/billing";
 // One usage meter: name, used-vs-limit progress bar, pack credits, and the
 // over-quota flag. A null limit is the BYOM "unlimited" state — no bar, just
 // the running count. Split out of BillingTab.tsx.
-export function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
+//
+// When meterId === "interview_minutes" and the meter is depleted, an inline
+// anchor link sends the user directly to the minutes top-up pack below — the
+// highest-intent moment for that purchase and previously a dead-end.
+export function MeterRow({ meter, name, meterId }: { meter: MeterOverview; name: string; meterId?: string }) {
   const t = useTranslations("billing.usage");
   const limit = meter.limit;
   const depleted = limit !== null && meter.remaining === 0;
@@ -51,6 +55,11 @@ export function MeterRow({ meter, name }: { meter: MeterOverview; name: string }
           <span className="text-steel">{t("remaining", { remaining: meter.remaining ?? 0 })}</span>
         ) : null}
         {meter.credits > 0 ? <span className="font-medium text-moss">{t("credits", { credits: meter.credits })}</span> : null}
+        {depleted && meterId === "interview_minutes" ? (
+          <a href="#billing-minutes-pack" className="font-medium text-coral underline underline-offset-2">
+            {t("buyMinutesCta")}
+          </a>
+        ) : null}
       </div>
     </div>
   );

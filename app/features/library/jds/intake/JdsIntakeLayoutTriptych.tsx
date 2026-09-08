@@ -25,6 +25,21 @@ import {
 // headers, calm borders, no toolbar chrome. Materials live quietly at the
 // foot of the draft leaf — reference matter belongs with the document it
 // feeds.
+//
+// ONE DESK, ONE HEIGHT. The leaves used to size themselves: the chat leaf was a
+// fixed 32rem, the brief and the draft grew with their content, and
+// `items-stretch` then stretched every leaf to the tallest of the three. A long
+// brief therefore left a column of dead white space under the conversation and
+// under the draft — the taller the brief got, the more of the desk was empty.
+//
+// So the DESK owns the height and the leaves fill it. The row is
+// `clamp(28rem, 100dvh - 15rem, 48rem)`: viewport-proportional, with a floor so
+// a short window still shows a usable conversation and a ceiling so a tall one
+// does not stretch a three-line brief down a whole screen. Each leaf is then a
+// bounded flex column — fixed header, ONE scrolling body — so content that
+// overruns scrolls inside its own leaf instead of pushing the desk taller and
+// stranding its neighbours. Stacked (below xl) the same bound applies per leaf
+// as a `max-h`, so a leaf may still be shorter than the cap when its content is.
 
 const STORAGE_KEY = "kp-intake-triptych-cols";
 const LEAVES: IntakeColumnKey[] = ["draft", "chat", "brief"];
@@ -87,7 +102,7 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
   };
 
   return (
-    <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-stretch">
+    <div className="mt-4 flex flex-col gap-3 xl:h-[clamp(28rem,calc(100dvh-15rem),48rem)] xl:flex-row xl:items-stretch">
       {LEAVES.map((key) => {
         const isOpen = open.includes(key);
         const label = t(`col.${key}`);
@@ -97,7 +112,7 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
             key={key}
             layout={!reduced}
             transition={{ layout: { duration: reduced ? 0 : 0.25, ease: "easeOut" } }}
-            className={`flex min-w-0 flex-col overflow-hidden rounded-lg border border-stone-200 dark:rounded-2xl ${
+            className={`flex min-w-0 flex-col overflow-hidden rounded-lg border border-stone-200 max-h-[34rem] xl:max-h-none dark:rounded-2xl ${
               isOpen
                 ? `bg-white p-4 dark:shadow-sticker-sm ${key === "chat" ? "xl:flex-[1.5]" : "xl:flex-1"}`
                 : "shrink-0 bg-stone-50 xl:w-10"
@@ -131,7 +146,11 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
                       <span aria-hidden>⟨⟩</span>
                     </button>
                   </div>
-                  <div className="min-h-0 flex-1">
+                  {/* The single scroll region per leaf. NOT on the chat leaf:
+                      ChatTranscript already scrolls its turn list above a
+                      composer that must stay pinned, and a second scroller
+                      around it would trap the composer inside it. */}
+                  <div className={`min-h-0 flex-1 ${key === "chat" ? "flex flex-col" : "overflow-y-auto pr-1"}`}>
                     {key === "chat" ? (
                       <div className="flex min-h-0 flex-1 flex-col">
                         {props.chat}
@@ -139,7 +158,7 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
                             named: it sits NEXT TO THE CONVERSATION, where the
                             requestor holding a charter actually is, and it does
                             not depend on the draft leaf being open. */}
-                        <p className="mt-2 text-meta text-steel">
+                        <p className="mt-2 shrink-0 text-meta text-steel">
                           {t("materials.cue")}{" "}
                           <button
                             type="button"

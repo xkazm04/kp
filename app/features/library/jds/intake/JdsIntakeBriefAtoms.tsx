@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { RoleBrief } from "@/app/_lib/rolespec";
 import { provenanceTone, type BriefRequirement, type ProvenanceTone } from "./jdsIntakeBriefModel";
 
 // The leaf pieces the live-brief body draws with, split from
@@ -15,16 +14,6 @@ import { provenanceTone, type BriefRequirement, type ProvenanceTone } from "./jd
 //   default → steel  (template fill; commentary)
 // The vocabulary is stated ONCE by the legend and then carried as a 6px dot,
 // which is what lets a line report its provenance without a word of chrome.
-
-export type BriefBodyProps = {
-  brief: RoleBrief | null;
-  musts: BriefRequirement[];
-  nices: BriefRequirement[];
-  frozen?: boolean;
-  saving?: boolean;
-  onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
-  onJumpToTurn?: (turn: number) => void;
-};
 
 export const PROVENANCE_DOT: Record<ProvenanceTone, string> = {
   stated: "bg-moss",

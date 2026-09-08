@@ -1679,6 +1679,7 @@
     "CHANNEL_PULL_URL_INVALID": "Tato adresa pro stahování není povolená. Použijte veřejnou adresu https://.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
+    "CHANNEL_INBOUND_FAILED": "Při zpracování příchozí zprávy nastala chyba. Zkuste to prosím znovu.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav.",
     "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu.",
     "DEVCASE_CASE_LIST_FAILED": "Schválené případy se nepodařilo načíst. Zkuste to prosím znovu.",
@@ -2462,6 +2463,7 @@
     "openMenu": "Otevřít navigační nabídku",
     "closeMenu": "Zavřít navigační nabídku",
     "ariaLabel": "Pracovní plocha",
+    "sectionRailLabel": "Sekce pracovní plochy",
     "attentionBadge": "{count, plural, one {# vyžaduje pozornost} few {# vyžadují pozornost} other {# vyžaduje pozornost}}",
     "attentionBadgeGo": "{count, plural, one {# vyžaduje pozornost} few {# vyžadují pozornost} other {# vyžaduje pozornost}}. Zobrazit.",
     "tabSwitched": "Přepnuto na {tab}",
@@ -4248,6 +4250,7 @@
         "brief": {
           "title": "Živé zadání",
           "empty": "Zadání se tu skládá samo, jak mluvíte.",
+          "writing": "Zapisuji…",
           "role": "Pozice",
           "outcomes": "Hotovo za 90 dní",
           "dealbreakers": "Nezbytné",
@@ -4269,6 +4272,12 @@
           "stated": "řekli jste",
           "inferred": "úsudek AI",
           "default": "předpoklad"
+        },
+        "choices": {
+          "eyebrowConfirm": "Ověřuji domněnku",
+          "eyebrowPropose": "Pár možností (klidně ani jedna)",
+          "confirmSelection": "Použít vybrané ({count})",
+          "none": "Ani jedna. Řeknu to vlastními slovy"
         },
         "voice": {
           "start": "Raději mluvit",
@@ -4713,8 +4722,7 @@
       "intro": "Pozici začnete rozhovorem. Krátký řízený dialog zachytí, co doopravdy potřebujete, a z toho vznikne popis pozice. Text už máte? Předejte ho v záložce Generovat.",
       "modeLabel": "Jak začít",
       "modeIntake": "Řízený dialog",
-      "modeGenerate": "Generovat",
-      "toLibrary": "Popisy pozic"
+      "modeGenerate": "Generovat"
     }
   },
   "jobs": {
@@ -6591,6 +6599,10 @@
       "colShape": "Tvar",
       "colLeads": "Kontakty",
       "colSpend": "Útrata",
+      "csvSpendCzk": "Útrata (Kč)",
+      "csvPerHireCzk": "Na nábor (Kč)",
+      "csvSpendUpdated": "Útrata zadána (ISO)",
+      "exportBoardTitle": "Stáhnout zobrazené zdroje, každý s typem, který měří",
       "billingNote": "Náklady na výpočty jsou tady jedno číslo za celý workspace. Kterým úlohám patří, rozepisuje Fakturace po jednotlivých případech užití.",
       "billingLink": "Otevřít Fakturaci"
     },
@@ -6979,6 +6991,12 @@
       "perHireClosedWindow": "za {hired, plural, one {# přijetí} few {# přijetí} other {# přijetí}} uzavřených za posledních {days, plural, one {# den} few {# dny} other {# dní}}"
     },
     "exportCsv": "Exportovat CSV",
+    "csvFunnelStage": "Fáze",
+    "csvFunnelReached": "Dosaženo",
+    "csvFunnelCurrent": "Právě tady",
+    "csvFunnelConversion": "Konverze",
+    "csvFunnelGoal": "Cíl",
+    "exportFunnelTitle": "Stáhnout cestu náborem: fáze, dosaženo, právě tady, konverze a váš cíl",
     "byArchetype": "Podle archetypu",
     "totalHired": "{total} · {hired} přijato",
     "advancedPct": "{pct} % postoupilo za screening",
@@ -7693,6 +7711,7 @@
       "usedUnlimited": "Čerpáno {used}",
       "unlimited": "Bez limitu",
       "depleted": "Kvóta vyčerpána",
+      "buyMinutesCta": "Koupit více minut →",
       "remaining": "Zbývá {remaining}",
       "credits": "{credits, plural, one {+# kredit z balíčku} few {+# kredity z balíčku} many {+# kreditu z balíčku} other {+# kreditů z balíčku}}",
       "empty": "Zatím žádné ukazatele čerpání."
@@ -7730,7 +7749,10 @@
       "minutes": "{qty} minut",
       "buy": "Koupit balíček"
     },
-    "checkoutRecheck": "Zkontrolovat znovu"
+    "checkoutRecheck": "Zkontrolovat znovu",
+    "checkoutRefresh": "Obnovit stav tarifu",
+    "checkoutSupportLink": "Kontaktujte podporu, pokud problém přetrvává",
+    "checkoutSupportSubject": "Potvrzení platby se opozdilo po dokončení objednávky"
   },
   "branding": {
     "eyebrow": "White-label",
@@ -8143,6 +8165,7 @@
     },
     "team": {
       "emailPlaceholder": "jmeno@spolecnost.cz",
+      "emailAria": "E-mailová adresa pro pozvánku",
       "roleAria": "Pozice pro pozvánku",
       "add": "Přidat",
       "empty": "Zatím žádné pozvánky. Přidejte kolegy e-mailem, nebo to přeskočte a pozvěte je později.",
@@ -8236,8 +8259,12 @@
       "title": "První kroky",
       "progress": "Hotovo {done} z {total}",
       "dismiss": "Znovu nezobrazovat",
+      "dismissedToast": "Kontrolní seznam prvních kroků byl skryt",
+      "dismissedUndo": "Vrátit zpět",
       "open": "Otevřít",
+      "openStep": "Otevřít: {step}",
       "stepDone": "Hotovo",
+      "stepComplete": "Krok dokončen: {step}",
       "steps": {
         "company": {
           "title": "Nastavte svou společnost",
@@ -8256,7 +8283,8 @@
         "channels": {
           "title": "Napojte své kanály",
           "body": "Otevřete e-mailový příjem a přijměte testovací přihlášku.",
-          "listening": "Nasloucháme. Ověřte to příjmem testovací přihlášky."
+          "listening": "Nasloucháme. Přepošlete jeden e-mail na nakonfigurovanou adresu (nebo použijte tlačítko simulace na kartě Kanály) a tím krok ověřte.",
+          "listeningSimLink": "Přejít na kartu Kanály →"
         }
       }
     },

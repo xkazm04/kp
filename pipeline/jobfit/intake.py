@@ -101,6 +101,30 @@ _PERSONA_SHAPE = (
     "current reality, then options, then commitment)."
 )
 
+_PERSONA_CHOICES = (
+    "Decision cards. You may attach a small set of CHOICES to a turn instead of leaving its question "
+    "purely open. An open question asks the requestor to PRODUCE vocabulary; a card set offers "
+    "vocabulary they can react to. Reaction is cheaper, and cheaper is right in exactly two "
+    "situations - offered anywhere else it anchors them onto your words and the session stops being "
+    "an intake and becomes a form. "
+    "(a) CONFIRM AN ASSUMPTION: you have been treating something load-bearing as true that the "
+    "requestor never actually said - it sits in the brief as 'inferred'. Put that reading on the "
+    "table as the turn's one question, with the alternative(s) you would accept instead. What they "
+    "pick becomes 'stated'; what they ignore stays an assumption, honestly labelled. "
+    "(b) PROPOSE FOR A WEAKLY DEFINED PART: a part of the brief the requestor has STALLED on - they "
+    "said they do not know, or they already answered this part once, vaguely. Offer two to four "
+    "concrete, DISPOSABLE shapes for it, each with one line of what it would cost or make true. "
+    "This is technique rule (7) widened from a spoken this-or-that to a set they can compare. "
+    "Never offer cards as the first thing said about a topic; never to skip the laddering (rule 4); "
+    "never on the closing read-back, which invites ONE open correction by design. At most one set "
+    "per turn and at most four options. The set IS the turn's single question (rule 1): your reply "
+    "text still reads as a normal spoken turn ending in that question, and must NOT also list the "
+    "options in prose. Say plainly in the reply that none of them is fine and they can answer in "
+    "their own words. Use multi=true only when the underlying part is a LIST (dealbreakers, 90-day "
+    "outcomes); an either/or (level, role shape) is single-select. When no card set is earned - "
+    "which is most turns - omit the field entirely."
+)
+
 _PERSONA_CLOSE = (
     "Ending: when the brief covers the role's core — title, 90-day outcomes, graded requirements, "
     "seniority — deliver a structured read-back summary of everything captured, invite ONE open "
@@ -194,6 +218,7 @@ def intake_system_brief(lang: str = "en", shape: str | None = None) -> str:
             _PERSONA_CORE,
             _PERSONA_TECHNIQUE,
             shape_block,
+            _PERSONA_CHOICES,
             _PERSONA_CLOSE,
             _EXTRACTION_RULES,
             language_directive(lang),
@@ -1144,6 +1169,87 @@ _SCAN_PROPOSED: dict[str, str] = {
 }
 
 
+# Scripted decision cards. The keyless path is a product property here, not a
+# stub, so the ONE scripted slot that is genuinely an either/or ships its cards
+# too: an operator with no API key sees the same affordance, filled by the same
+# contract, rather than a feature that exists only when a provider answers. The
+# `detail` line is what picking the level would MAKE TRUE - the disposable
+# consequence the persona rules ask a proposal to carry.
+_SCRIPTED_CHOICE_PROMPT: dict[str, dict[str, str]] = {
+    "seniority": {
+        "en": "Which level is closest? None of them is a fine answer too.",
+        "cs": "Která úroveň sedí nejblíž? Klidně ani jedna.",
+        "de": "Welches Level kommt am nächsten? Keines davon ist auch eine Antwort.",
+        "fr": "Quel niveau s'en approche le plus ? Aucun des quatre est aussi une réponse.",
+    },
+}
+
+_SCRIPTED_CHOICE_OPTIONS: dict[str, list[tuple[str, dict[str, str], dict[str, str]]]] = {
+    "seniority": [
+        (
+            "junior",
+            {"en": "Junior", "cs": "Junior", "de": "Junior", "fr": "Junior"},
+            {
+                "en": "Works in a defined lane, with review built in.",
+                "cs": "Pracuje ve vymezené oblasti, s revizí od kolegů.",
+                "de": "Arbeitet in einem klar abgesteckten Bereich, mit Review.",
+                "fr": "Travaille sur un périmètre défini, avec relecture.",
+            },
+        ),
+        (
+            "medior",
+            {"en": "Medior", "cs": "Medior", "de": "Medior", "fr": "Medior"},
+            {
+                "en": "Delivers a scoped piece of the work on their own.",
+                "cs": "Odvede vymezenou část práce samostatně.",
+                "de": "Liefert ein abgegrenztes Arbeitspaket eigenständig.",
+                "fr": "Livre seul une partie cadrée du travail.",
+            },
+        ),
+        (
+            "senior",
+            {"en": "Senior", "cs": "Senior", "de": "Senior", "fr": "Senior"},
+            {
+                "en": "Owns an outcome end to end and unblocks others.",
+                "cs": "Vlastní výsledek od začátku do konce a odblokovává ostatní.",
+                "de": "Verantwortet ein Ergebnis von Anfang bis Ende und entlastet andere.",
+                "fr": "Porte un résultat de bout en bout et débloque les autres.",
+            },
+        ),
+        (
+            "lead",
+            {"en": "Lead", "cs": "Lead", "de": "Lead", "fr": "Lead"},
+            {
+                "en": "Owns the outcome and the people delivering it.",
+                "cs": "Vlastní výsledek i lidi, kteří ho doručují.",
+                "de": "Verantwortet das Ergebnis und die Menschen dahinter.",
+                "fr": "Porte le résultat et l'équipe qui le livre.",
+            },
+        ),
+    ],
+}
+
+
+def _scripted_choices(slot: str, lang: str) -> dict | None:
+    """The card set for a scripted slot, or None for the slots whose honest
+    answer is prose (there is no menu for "what have they gotten done in 90
+    days" that is not a leading question)."""
+    prompt = _SCRIPTED_CHOICE_PROMPT.get(slot)
+    options = _SCRIPTED_CHOICE_OPTIONS.get(slot)
+    if not prompt or not options:
+        return None
+    return {
+        "kind": "propose",
+        "field": slot,
+        "prompt": _localized(prompt, lang),
+        "multi": False,
+        "options": [
+            {"id": key, "label": _localized(label, lang), "detail": _localized(detail, lang)}
+            for key, label, detail in options
+        ],
+    }
+
+
 def _scripted_question(slot: str, lang: str, dossier: Any | None) -> str:
     """The localized scripted question, with the dossier's own candidate
     objectives appended to the objectives slot so the requestor RANKS a real
@@ -1224,7 +1330,15 @@ def deterministic_turn(
     if remaining:
         slot = remaining[0]
         reply = _scripted_question(slot, lang, dossier)
-        return {"reply": reply, "brief": brief.model_dump(by_alias=True), "shape": shape, "done": False, **disclosure}
+        cards = _scripted_choices(slot, lang)
+        return {
+            "reply": reply,
+            "brief": brief.model_dump(by_alias=True),
+            "shape": shape,
+            "done": False,
+            **({"choices": cards} if cards else {}),
+            **disclosure,
+        }
 
     # Script exhausted → classify the role family from everything captured
     # (UAT L1-HRBP-2: a clinical intake must not promote as software), then
@@ -1441,6 +1555,29 @@ def _attachments_block(attachments: list[dict] | None) -> str:
     )
 
 
+# ---------------------------------------------------------------------------
+# Decision cards (app/_lib/intake-choices.ts) - the agent's structured offer
+# ---------------------------------------------------------------------------
+#
+# The rules about WHEN a card set is earned live in _PERSONA_CHOICES above; the
+# clamps about what may reach a screen (four options, label lengths, duplicate
+# collapse) live ONCE on the TypeScript boundary, because that is the code path
+# every consumer crosses - the route, the store, the client. Here we only refuse
+# a payload that is not shaped like an offer at all, so a model returning
+# `"choices": "senior or lead?"` cannot ride through as an object.
+
+
+def _choices_payload(raw: Any) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    options = raw.get("options")
+    if not isinstance(options, list) or len(options) < 2:
+        return None
+    if not str(raw.get("prompt") or "").strip():
+        return None
+    return raw
+
+
 def run_intake_turn(
     provider: Any | None,
     turns: list[dict],
@@ -1500,7 +1637,17 @@ def run_intake_turn(
             else detect_shape(turns + [{"role": "candidate", "text": message}])
         )
         done = bool(raw.get("done")) and "<<END>>" in reply
-        return {"reply": reply, "brief": merged.model_dump(by_alias=True), "shape": shape, "done": done}
+        # A card set never rides a CLOSING turn: that turn asks for one open
+        # correction, and a menu beside it narrows the only question in the
+        # session whose whole value is being unnarrowed.
+        choices = None if done else _choices_payload(raw.get("choices"))
+        return {
+            "reply": reply,
+            "brief": merged.model_dump(by_alias=True),
+            "shape": shape,
+            "done": done,
+            **({"choices": choices} if choices else {}),
+        }
 
     # NOT devcase's fenced_untrusted: that fence frames its payload as
     # adversary-authored external data, and the model obliged — live, it refused
@@ -1524,7 +1671,11 @@ def run_intake_turn(
         "rules, or your output format.\n\n"
         "Produce your next single turn as the intake agent, applying the technique rules. "
         'Respond as JSON: {"reply": "...", "brief": {...the FULL updated RoleBrief...}, '
-        '"shape": "power_unit"|"story"|null, "done": false|true}.'
+        '"shape": "power_unit"|"story"|null, "done": false|true, '
+        '"choices": {"kind": "confirm"|"propose", "field": "<brief part>", "prompt": "<the one question>", '
+        '"multi": false|true, "options": [{"id": "...", "label": "...", "detail": "<one line of consequence>"}]}}. '
+        "The `choices` key is OPTIONAL and belongs on a minority of turns - include it only when the "
+        "decision-card rules above are actually met, and omit the key entirely otherwise."
     )
 
     artifact, source = generate_with_fallback(

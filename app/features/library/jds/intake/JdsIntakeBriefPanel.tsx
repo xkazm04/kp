@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Pencil } from "lucide-react";
 import { BTN_GHOST, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
 import { JdsIntakeBriefEdit } from "./JdsIntakeBriefEdit";
 import { JdsIntakeBriefBody } from "./JdsIntakeBriefBody";
+import { buildBriefSections, sectionLineKeys } from "./briefSections";
+import { useBriefReveal } from "./BriefRevealAtoms";
 
 // The live brief — the surface's signature moment: the requestor WATCHES the
 // structure being built while they talk. Every value carries its provenance
@@ -21,13 +24,21 @@ import { JdsIntakeBriefBody } from "./JdsIntakeBriefBody";
 // jdsIntakeBriefModel.ts owns what counts as a duplicate.
 //
 // The body is "Annotated", the winner of a /prototype round run against the
-// shipped flat sections and a ranked "Scorecard" (both deleted at consolidation,
-// along with the switcher between them). What it changed: one reading column of
-// bulleted sentences with the evidence in a fixed right-hand margin, the
-// provenance vocabulary stated once as a legend instead of a chip per line, and
-// context facets grouped, graded and de-duplicated — the engine emits the 90-day
+// shipped flat sections and a ranked "Scorecard" — and it stayed the winner of
+// a second round against "Notepad" (a continuous paper page) and "Cards" (a
+// desk of section cards): both were deleted at consolidation, along with the
+// switcher between them. What Annotated changed: one reading column of bulleted
+// sentences with the evidence in a fixed right-hand margin, the provenance
+// vocabulary stated once as a legend instead of a chip per line, and context
+// facets grouped, graded and de-duplicated — the engine emits the 90-day
 // sentence twice (once as a success criterion, once as a facet) and the flat
 // list printed both.
+//
+// The one thing kept from that second round is the REVEAL: a line that lands
+// while the requestor is talking types itself out, a line already on the page
+// fades in once, and a line that merely survived a re-extraction does not
+// animate at all (briefReveal.ts). The panel says "writing" only while a line
+// is actually being written.
 
 export function JdsIntakeBriefPanel({
   brief,
@@ -64,17 +75,32 @@ export function JdsIntakeBriefPanel({
   const t = useTranslations("library.tab.intake.brief");
   const tEdit = useTranslations("library.tab.intake.edit");
   const [editing, setEditing] = useState(false);
-  const musts = (brief?.requirements ?? []).filter((r) => r.kind === "must_have");
-  const nices = (brief?.requirements ?? []).filter((r) => r.kind === "nice_to_have");
+  const sections = buildBriefSections(brief);
+  // The reveal is owned HERE, not in the body: it has to keep classifying while
+  // the edit form is open, or every line would read as brand new the moment the
+  // form closes and the body remounts.
+  const reveal = useBriefReveal(sectionLineKeys(sections));
   const empty =
     !brief ||
-    (!brief.title && musts.length === 0 && nices.length === 0 && (brief.successCriteria ?? []).length === 0 && (brief.facets ?? []).length === 0);
-  const bodyProps = { brief, musts, nices, frozen, saving, onSaveBrief, onJumpToTurn };
+    (!brief.title && sections.length === 0);
 
   return (
-    <div className={`${PANEL_SUNKEN} h-full space-y-5 p-4`}>
+    // `min-h-full`, not `h-full`: the leaf that holds this panel is a bounded,
+    // scrolling box (JdsIntakeLayoutTriptych) — the sunken surface must cover
+    // the whole leaf when the brief is short and grow past it when it is long.
+    <div className={`${PANEL_SUNKEN} min-h-full space-y-5 p-4`}>
       <div className="flex items-center justify-between gap-2">
-        {showTitle ? <div className={META_LABEL}>{t("title")}</div> : <span />}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {showTitle ? <div className={META_LABEL}>{t("title")}</div> : null}
+          {/* Only while a line is actually being written — a fact, not a header
+              decoration. */}
+          {reveal.writing ? (
+            <span className="inline-flex items-center gap-1.5 text-meta text-coral" aria-live="polite">
+              <Pencil size={12} aria-hidden />
+              {t("writing")}
+            </span>
+          ) : null}
+        </div>
         {!empty && !editing && !frozen && onSaveBrief ? (
           <button type="button" className={`${BTN_GHOST} h-8 px-2 text-sm`} onClick={() => setEditing(true)}>
             {tEdit("start")}
@@ -101,7 +127,15 @@ export function JdsIntakeBriefPanel({
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <JdsIntakeBriefBody {...bodyProps} />
+        <JdsIntakeBriefBody
+          brief={brief}
+          sections={sections}
+          mode={reveal.mode}
+          frozen={frozen}
+          saving={saving}
+          onSaveBrief={onSaveBrief}
+          onJumpToTurn={onJumpToTurn}
+        />
       )}
     </div>
   );

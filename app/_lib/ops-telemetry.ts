@@ -1,6 +1,19 @@
-import { closeSync, openSync, readSync, statSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 import { logDir } from "./logger";
+
+/** Write a structured warning to ops-warn.log so failures that must not
+ *  break their caller are still visible to operators.  Never throws. */
+export function opsLog(level: "warn" | "error", event: string, meta: Record<string, unknown>): void {
+  try {
+    const dir = logDir();
+    mkdirSync(dir, { recursive: true });
+    const line = JSON.stringify({ ts: new Date().toISOString(), level, event, ...meta }) + "\n";
+    appendFileSync(path.join(dir, "ops-warn.log"), line, "utf-8");
+  } catch {
+    /* I/O must never break the caller that is already on the error path */
+  }
+}
 
 // DATA2 — readers for the append-only JSONL telemetry the app has always
 // written and never read: analyze.log (cache_hit/duration per run, logger.ts),

@@ -81,6 +81,15 @@ function ToastCard({
     >
       <Icon size={16} className={`mt-0.5 shrink-0 ${tone.iconColor}`} aria-hidden />
       <p className="min-w-0 flex-1 text-sm font-medium text-ink">{item.message}</p>
+      {item.action && (
+        <button
+          type="button"
+          onClick={() => { item.action!.onAction(); toast.dismiss(item.id); }}
+          className="focus-ring shrink-0 rounded-md px-2 py-0.5 text-sm font-medium text-moss hover:bg-moss/10"
+        >
+          {item.action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => toast.dismiss(item.id)}

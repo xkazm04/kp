@@ -31,6 +31,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, X } from "lucide-react";
+import Link from "next/link";
 import { PANEL, EYEBROW, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
@@ -110,12 +111,23 @@ export function GettingStartedNextMove({ data, dismiss }: GettingStartedViewProp
           <button
             type="button"
             onClick={() => open(focused)}
+            aria-label={t("openStep", { step: t(`steps.${focused.key}.title`) })}
             className={`${BTN_PRIMARY} h-9 justify-self-center px-4 text-sm`}
           >
             {t("open")} <ArrowRight size={14} aria-hidden />
           </button>
           {/* pt-1.5 optically centres the first line of prose against the 36px button. */}
-          <p className="min-w-0 max-w-2xl pt-1.5 text-base text-steel">{body}</p>
+          <p className="min-w-0 max-w-2xl pt-1.5 text-base text-steel">
+            {body}
+            {note === "listening" && (
+              <Link
+                href="/?tab=channels"
+                className="ml-2 inline-flex items-center gap-1 font-medium text-coral hover:underline focus-ring rounded"
+              >
+                {t("steps.channels.listeningSimLink")} <ArrowRight size={12} aria-hidden />
+              </Link>
+            )}
+          </p>
         </div>
         {/* self-stretch (the row is items-start) so the done mark below the meter
             has the briefing's full remaining height to grow into. */}

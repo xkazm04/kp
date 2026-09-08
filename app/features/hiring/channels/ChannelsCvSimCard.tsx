@@ -10,6 +10,7 @@ import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
+import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 
 // Simulate a real application ARRIVING WITH A CV on this channel — the loop the plain
 // "receive a test application" button can't show. Upload a PDF/DOCX/TXT/MD; the server
@@ -73,6 +74,10 @@ export function CvSimCard({
         setResult({ error: errMsg(data, t("cvSim.failedStatus", { status: res.status })) });
       } else {
         setResult(data);
+        // Signal the getting-started checklist (and any other live views) to
+        // re-poll immediately — the channel is now "verified" server-side, so
+        // the checklist should flip within milliseconds rather than up to 20 s.
+        notifyDataChanged();
         onDone?.();
       }
     } catch {

@@ -69,6 +69,14 @@ as the `/calibration` reads beside it. That is precisely why it needed a budget.
 | `economics` | What does it cost, what earns it back? | the comparison board, automation ROI, compute cost |
 | `quality` | Can I trust the scoring, and prove what we decided? | trust verdict, calibration, sealed records, decision log |
 
+- **Every export on the tab is one button.** `AnalyticsExportButton.tsx` — a download glyph, a
+  label, a disabled state and `print:hidden` (a printed brief cannot be clicked). Five panels
+  across three sections now offer a file (funnel, by-role, acquisition board, decision-log page,
+  decision-log whole trail) and the class string behind them had been typed out four times
+  before this component existed; six copies is how a hover or disabled state drifts between
+  panels meant to read as one page. Each panel still owns its own row builder — a pure module
+  beside it, with a test — because what can lie in an export is the **absent** case, not the
+  markup.
 - The section vocabulary is one literal array with a derived union and a runtime guard
   (`sections/analyticsSections.ts`) — the `app/features/shell/tabs.ts` shape — so an unknown
   `?sec=` resolves to the default instead of rendering nothing
@@ -222,6 +230,21 @@ call a stage weak.
   — has no cohort, and the server's `hireRatePct: 0` for it is an undefined ratio, not a
   measured one), and the `text-moss` "this converts" colour is reserved for `hired > 0`. The
   CSV carries the same dash, so the file cannot disagree with the screen.
+- **The funnel band exports too** (`analyticsFunnelCsv.ts` → `funnelCsvRows()`, pure, executed
+  by `analyticsFunnelCsv.test.ts`). It is the band a hiring manager is asked to defend upward,
+  and it was the only panel on the tab with no way off the screen while the roles table beside
+  it and the decision log under it both exported. `kp-funnel.csv` is stage · reached · here now
+  · conversion · goal, one row per stage in the band's order, with stage labels resolved through
+  the **same** `enumLabel("stage", …)` the rows render — so a renamed board column reads
+  identically on screen and in the deck the file lands in. Both absent cases travel as the em
+  dash the screen prints: a stage with no predecessor cohort has no conversion, and a stage the
+  org set no goal for has no benchmark. Writing `0%` for either would re-introduce, in the
+  artifact that outlives the screen, exactly the fabricated figure the two rules above remove.
+  The button is offered only on the branches that render the per-stage rows (`no-data` and
+  `no-movement` show a guide, not a table), so the file can never carry a table the reader was
+  not looking at. `current` is the one column on the file but not on the band's rows — the same
+  field the dwell panel directly below renders, so the export adds a number the page already
+  states rather than a measurement it does not.
 
 ## Economics — one comparison board
 
@@ -229,6 +252,18 @@ call a stage weak.
 `byChannel`, per-creative `byVariant`) into one sortable table with the same unit-economics
 columns, **grouped and labelled, never merged**. A dash under Spend means "not measured for
 this kind of surface", not "free", and the rule says so.
+
+- **The board exports as `kp-acquisition-economics.csv`** (`economicsRows.ts` →
+  `economicsCsvRows()`, pure, executed by `economicsRows.test.ts`). Two properties it owes the
+  budget review that opens it. **The taxonomy travels as a column**: the three groups measure
+  different things, which is why the board refuses to merge them on screen, and a file that
+  dropped the group label would be the flat ranking one layer down. **Money stays a raw
+  number** — `money()` renders a grouped, localized "12 000 Kč" that a spreadsheet imports as
+  text and cannot sum, so the currency is named in the header instead (`csvSpendCzk` /
+  `csvPerHireCzk`) and the cell carries the figure. `spendUpdatedAt` rides along as the raw ISO
+  instant, because a per-hire cost is exactly as current as the spend behind it and the screen
+  already says so (`spendAsOf`). The export follows the kind filter and the active sort — the
+  rows on screen, in their order, the same rule the roles table states.
 
 - **The attribution model is FIRST-TOUCH and IMMUTABLE AT INTAKE — and now says so.**
   Every per-source, per-channel and per-creative figure on this board rests on one rule that

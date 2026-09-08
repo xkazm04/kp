@@ -20,7 +20,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { apiErrorPayload, LocalizedFailure, localizedFailureMessage } from "../analyticsFetchError";
@@ -28,6 +27,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel, waveReasonText, type CohortProvenance } from "@/app/_lib/decision-attribution";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
+import { AnalyticsExportButton } from "../AnalyticsExportButton";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
@@ -269,22 +269,12 @@ export function DecisionLogTable({
           {/* UAT LUC-ANA-7 — the clock this table runs on, named once beside the
               count rather than repeated in every cell. */}
           <p className={META_LABEL}>{t("timeZoneNote", { zone })}</p>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={rows.length === 0}
-            className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
-          >
-            <Download size={12} aria-hidden /> {t("exportPage")}
-          </button>
-          <button
-            type="button"
+          <AnalyticsExportButton label={t("exportPage")} onClick={exportCsv} disabled={rows.length === 0} />
+          <AnalyticsExportButton
+            label={trailBusy ? t("exportTrailBusy") : t("exportTrail")}
             onClick={exportTrail}
             disabled={total === 0 || trailBusy}
-            className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
-          >
-            <Download size={12} aria-hidden /> {trailBusy ? t("exportTrailBusy") : t("exportTrail")}
-          </button>
+          />
         </div>
       </div>
       {trailError ? (

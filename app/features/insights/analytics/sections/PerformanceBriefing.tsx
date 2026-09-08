@@ -20,13 +20,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { EYEBROW, META_LABEL } from "@/app/_components/ui/recipes";
 import { DeltaChip } from "../AnalyticsDeltaChip";
+import { AnalyticsExportButton } from "../AnalyticsExportButton";
 import { GoalsEditor } from "../AnalyticsGoalsEditor";
 import { AnalyticsByRoleTable } from "../AnalyticsByRoleTable";
 import { FunnelEmptyGuide } from "../AnalyticsFunnelEmptyGuide";
+import { funnelCsvRows } from "../analyticsFunnelCsv";
 import { funnelBandState, hasUngoaledStage, stageVerdict } from "../analyticsFunnelEmptyState";
 import { StageDwellPanel } from "../AnalyticsStageDwellPanel";
 import { AnalyticsArchetypePanel } from "../AnalyticsArchetypePanel";
@@ -48,6 +51,7 @@ function Band({
   hasData,
   context,
   noDataContext,
+  action,
   children,
 }: {
   /** Which band this is. Resolves the no-data claim from BAND_NO_DATA_CLAIMS —
@@ -64,12 +68,21 @@ function Band({
   /** Optional supporting sentence for the no-data state. Omitted where the panel
    *  below already carries its own body copy: saying it twice is just louder. */
   noDataContext?: string;
+  /** A control that belongs to this band rather than to the page — today only the
+   *  funnel's export. It sits on the eyebrow row, which is the band's header: a
+   *  button below the claim would read as an action the claim is asking for. */
+  action?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   const t = useTranslations("analytics");
   return (
     <section className="border-t border-stone-200 pt-6">
-      <p className={EYEBROW}>{eyebrow}</p>
+      {/* One item and `justify-between` lays out exactly as the bare <p> did, so a
+          band with no action is unchanged. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <p className={EYEBROW}>{eyebrow}</p>
+        {action}
+      </div>
       {/* No max-width on the claim. A band header is one short sentence and the
           measure that keeps BODY copy readable was breaking it onto a second row
           while most of the row sat empty — a two-line heading reads as two ideas.
@@ -121,6 +134,35 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
   // the condition the grey rows below need explained.
   const showNoGoalNote =
     band.kind !== "no-data" && band.kind !== "no-movement" && hasUngoaledStage(data.funnel, data.targets.conversion);
+  // Does this band render the per-stage TABLE at all? `no-data` renders nothing and
+  // `no-movement` renders the guide instead, and both the export button and the
+  // branch below read this one value — so the file can never offer a table the
+  // reader was not looking at, which is the rule the roles table states for its
+  // filter one band down.
+  const showFunnelRows = band.kind !== "no-data" && band.kind !== "no-movement";
+
+  // The band as a file. Sibling of the roles table's export directly below it: the
+  // stage labels are resolved through the SAME `enumLabel` the rows render, so a
+  // renamed board column reads identically on screen and in the deck it lands in.
+  const exportFunnel = () =>
+    downloadFile(
+      "kp-funnel.csv",
+      toCsv(
+        funnelCsvRows(
+          data.funnel,
+          data.targets.conversion,
+          {
+            stage: t("csvFunnelStage"),
+            reached: t("csvFunnelReached"),
+            current: t("csvFunnelCurrent"),
+            conversion: t("csvFunnelConversion"),
+            goal: t("csvFunnelGoal"),
+          },
+          (stage) => enumLabel("stage", stage)
+        )
+      ),
+      "text/csv"
+    );
 
   return (
     <article className="space-y-6">
@@ -178,6 +220,11 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         // and Band resolves briefNoDataClaim from the band key.
         hasData={band.kind !== "no-data"}
         noDataContext={t("briefNoDataContext")}
+        action={
+          showFunnelRows ? (
+            <AnalyticsExportButton label={t("exportCsv")} title={t("exportFunnelTitle")} onClick={exportFunnel} />
+          ) : null
+        }
         claim={
           band.kind === "no-movement"
             ? // The sentence that was already written and translated for exactly
@@ -205,7 +252,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
               undefined
         }
       >
-        {band.kind === "no-data" ? null : band.kind === "no-movement" ? (
+        {band.kind === "no-data" ? null : !showFunnelRows ? (
           <FunnelEmptyGuide
             funnel={data.funnel}
             stageLabel={(stage) => enumLabel("stage", stage)}

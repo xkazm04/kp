@@ -1679,6 +1679,7 @@
     "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
+    "CHANNEL_INBOUND_FAILED": "Something went wrong processing the inbound message. Please try again.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state.",
     "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again.",
     "DEVCASE_CASE_LIST_FAILED": "Could not load the approved cases. Please try again.",
@@ -2462,6 +2463,7 @@
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
     "ariaLabel": "Workspace",
+    "sectionRailLabel": "Workspace sections",
     "attentionBadge": "{count, plural, one {# needs attention} other {# need attention}}",
     "attentionBadgeGo": "{count, plural, one {# needs attention} other {# need attention}}. View them.",
     "tabSwitched": "Switched to {tab}",
@@ -4248,6 +4250,7 @@
         "brief": {
           "title": "Live brief",
           "empty": "The brief builds itself here as you talk.",
+          "writing": "Writing…",
           "role": "Role",
           "outcomes": "Done in 90 days",
           "dealbreakers": "Dealbreakers",
@@ -4269,6 +4272,12 @@
           "stated": "you said",
           "inferred": "AI reading",
           "default": "assumed"
+        },
+        "choices": {
+          "eyebrowConfirm": "Checking an assumption",
+          "eyebrowPropose": "A few options (none of them is fine)",
+          "confirmSelection": "Use {count} selected",
+          "none": "None of these. I'll say it in my own words"
         },
         "voice": {
           "start": "Talk instead",
@@ -4713,8 +4722,7 @@
       "intro": "Start a role by talking it through. A short guided conversation captures what you actually need, then drafts the job description from it. Already have the text? Hand it over in Generate.",
       "modeLabel": "How to start",
       "modeIntake": "Intake dialog",
-      "modeGenerate": "Generate",
-      "toLibrary": "Job descriptions"
+      "modeGenerate": "Generate"
     }
   },
   "jobs": {
@@ -6591,6 +6599,10 @@
       "colShape": "Shape",
       "colLeads": "Leads",
       "colSpend": "Spend",
+      "csvSpendCzk": "Spend (CZK)",
+      "csvPerHireCzk": "Per hire (CZK)",
+      "csvSpendUpdated": "Spend entered (ISO)",
+      "exportBoardTitle": "Download the surfaces shown, each with the type it measures",
       "billingNote": "The compute total here is one figure for the whole workspace. Which AI work it belongs to is broken down per use case in Billing.",
       "billingLink": "Open Billing"
     },
@@ -6979,6 +6991,12 @@
       "perHireClosedWindow": "over {hired, plural, one {# hire} other {# hires}} closed in the last {days, plural, one {# day} other {# days}}"
     },
     "exportCsv": "Export CSV",
+    "csvFunnelStage": "Stage",
+    "csvFunnelReached": "Reached",
+    "csvFunnelCurrent": "Here now",
+    "csvFunnelConversion": "Conversion",
+    "csvFunnelGoal": "Goal",
+    "exportFunnelTitle": "Download the funnel: stage, reached, here now, conversion and your goal",
     "byArchetype": "By archetype",
     "totalHired": "{total} · {hired} hired",
     "advancedPct": "{pct}% advanced past screening",
@@ -7693,6 +7711,7 @@
       "usedUnlimited": "{used} used",
       "unlimited": "Unlimited",
       "depleted": "Quota exhausted",
+      "buyMinutesCta": "Buy more minutes →",
       "remaining": "{remaining} remaining",
       "credits": "{credits, plural, one {+# pack credit} other {+# pack credits}}",
       "empty": "No usage meters yet."
@@ -7730,7 +7749,10 @@
       "minutes": "{qty} minutes",
       "buy": "Buy pack"
     },
-    "checkoutRecheck": "Check again"
+    "checkoutRecheck": "Check again",
+    "checkoutRefresh": "Refresh plan status",
+    "checkoutSupportLink": "Contact support if this persists",
+    "checkoutSupportSubject": "Billing confirmation delayed after checkout"
   },
   "branding": {
     "eyebrow": "White-label",
@@ -8143,6 +8165,7 @@
     },
     "team": {
       "emailPlaceholder": "name@company.com",
+      "emailAria": "Email address for the invite",
       "roleAria": "Role for the invite",
       "add": "Add",
       "empty": "No invites yet. Add teammates by email, or skip and invite them later.",
@@ -8236,8 +8259,12 @@
       "title": "Getting started",
       "progress": "{done} of {total} done",
       "dismiss": "Don't show again",
+      "dismissedToast": "Getting-started checklist hidden",
+      "dismissedUndo": "Undo",
       "open": "Open",
+      "openStep": "Open: {step}",
       "stepDone": "Done",
+      "stepComplete": "Step complete: {step}",
       "steps": {
         "company": {
           "title": "Set up your company",
@@ -8256,7 +8283,8 @@
         "channels": {
           "title": "Connect your channels",
           "body": "Open an email intake and receive a test application.",
-          "listening": "Listening. Receive a test application to verify."
+          "listening": "Listening. Forward one email to the configured address (or use the simulate button on the Channels tab) to verify this step.",
+          "listeningSimLink": "Go to Channels tab →"
         }
       }
     },

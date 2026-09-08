@@ -3,7 +3,7 @@
 import { Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
-import { BTN_SECONDARY, DIVIDER, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, DIVIDER, PANEL } from "@/app/_components/ui/recipes";
 import { salesContactHref } from "@/app/_lib/sales-contact";
 import type { PlanDef } from "@/app/_lib/billing";
 import { PlanPrice } from "./BillingPlanPrice";
@@ -72,7 +72,7 @@ function PlanCard({
         current ? null : (
           <a
             href={salesContactHref(tCommon("salesEnquirySubject"))}
-            className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+            className={`${BTN_PRIMARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
           >
             {t("contactCta")}
           </a>
@@ -84,7 +84,7 @@ function PlanCard({
           type="button"
           onClick={onManage}
           disabled={!configured}
-          className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+          className={`${BTN_PRIMARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
         >
           {t("manageCta")}
         </button>
@@ -93,7 +93,7 @@ function PlanCard({
           type="button"
           onClick={onChoose}
           disabled={!configured || busy}
-          className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+          className={`${BTN_PRIMARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
         >
           {busy ? t("redirecting") : t("cta")}
         </button>
@@ -162,7 +162,7 @@ export function PlanCatalog({
       </div>
 
       {data.catalog.packs.minutes_100 ? (
-        <div className={`${PANEL} mt-3 p-4`}>
+        <div id="billing-minutes-pack" className={`${PANEL} mt-3 p-4`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
               <Timer size={18} className="mt-0.5 shrink-0 text-coral" aria-hidden />

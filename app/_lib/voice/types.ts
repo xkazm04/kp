@@ -3,6 +3,8 @@
 // real API key never reaches the browser; the browser then connects directly to
 // the provider over WebRTC (OpenAI) or the provider SDK (ElevenLabs).
 
+import type { IntakeChoiceSet } from "../intake-choices";
+
 export type VoiceProviderId = "openai" | "elevenlabs";
 
 /** Narrow an untrusted value to a VoiceProviderId — the single source of
@@ -65,7 +67,17 @@ export type VoiceAvailability = Record<VoiceProviderId, boolean>;
  *  or externally-generated transcripts may omit it, so the superset keeps the
  *  compiler honest across every layer without forcing a timestamp that isn't
  *  guaranteed to exist. */
-export type VoiceTurn = { role: "candidate" | "interviewer" | "system"; text: string; at?: string };
+// The cross-plane transcript turn. `choices` is the intake agent's DECISION
+// CARDS for that turn (app/_lib/intake-choices.ts): it rides the stored turn
+// rather than a session column so a reload re-offers exactly the set the agent
+// made, attached to the turn that made it. Always absent on the voice plane —
+// a spoken turn has no cards — and on most typed turns too.
+export type VoiceTurn = {
+  role: "candidate" | "interviewer" | "system";
+  text: string;
+  at?: string;
+  choices?: IntakeChoiceSet;
+};
 
 export interface VoiceAdapter {
   readonly id: VoiceProviderId;

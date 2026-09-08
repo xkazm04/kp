@@ -1679,6 +1679,7 @@
     "CHANNEL_PULL_URL_INVALID": "Cette URL de récupération n’est pas autorisée. Utilisez une URL https:// publique.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
+    "CHANNEL_INBOUND_FAILED": "Une erreur s'est produite lors du traitement du message entrant. Réessayez.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est.",
     "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le.",
     "DEVCASE_CASE_LIST_FAILED": "Impossible de charger les cas validés. Veuillez réessayer.",
@@ -2462,6 +2463,7 @@
     "openMenu": "Ouvrir le menu de navigation",
     "closeMenu": "Fermer le menu de navigation",
     "ariaLabel": "Espace de travail",
+    "sectionRailLabel": "Sections de l'espace de travail",
     "attentionBadge": "{count} à traiter",
     "attentionBadgeGo": "{count} à traiter. Les afficher.",
     "tabSwitched": "Basculé vers {tab}",
@@ -4248,6 +4250,7 @@
         "brief": {
           "title": "Brief en direct",
           "empty": "Le brief se construit ici au fil de la conversation.",
+          "writing": "Rédaction…",
           "role": "Poste",
           "outcomes": "Accompli en 90 jours",
           "dealbreakers": "Indispensables",
@@ -4269,6 +4272,12 @@
           "stated": "vos mots",
           "inferred": "lecture AI",
           "default": "supposé"
+        },
+        "choices": {
+          "eyebrowConfirm": "Je vérifie une hypothèse",
+          "eyebrowPropose": "Quelques options (aucune, c'est bien aussi)",
+          "confirmSelection": "Utiliser la sélection ({count})",
+          "none": "Aucune. Je le dirai avec mes mots"
         },
         "voice": {
           "start": "Parler plutôt",
@@ -4713,8 +4722,7 @@
       "intro": "Commencez un poste par la conversation. Un court dialogue guidé capture ce dont vous avez vraiment besoin, puis en rédige la fiche de poste. Vous avez déjà le texte ? Transmettez-le dans « Générer ».",
       "modeLabel": "Comment démarrer",
       "modeIntake": "Dialogue de cadrage",
-      "modeGenerate": "Générer",
-      "toLibrary": "Fiches de poste"
+      "modeGenerate": "Générer"
     }
   },
   "jobs": {
@@ -6591,6 +6599,10 @@
       "colShape": "Profil",
       "colLeads": "Contacts",
       "colSpend": "Dépense",
+      "csvSpendCzk": "Dépense (CZK)",
+      "csvPerHireCzk": "Par recrutement (CZK)",
+      "csvSpendUpdated": "Dépense saisie (ISO)",
+      "exportBoardTitle": "Télécharger les sources affichées, chacune avec le type qu’elle mesure",
       "billingNote": "Le coût de calcul est ici un seul chiffre pour tout l’espace de travail. La Facturation le ventile par cas d’usage.",
       "billingLink": "Ouvrir la facturation"
     },
@@ -6979,6 +6991,12 @@
       "perHireClosedWindow": "sur {hired, plural, one {# recrutement} other {# recrutements}} clôturés sur les {days, plural, one {# dernier jour} other {# derniers jours}}"
     },
     "exportCsv": "Exporter en CSV",
+    "csvFunnelStage": "Étape",
+    "csvFunnelReached": "Atteints",
+    "csvFunnelCurrent": "Ici actuellement",
+    "csvFunnelConversion": "Conversion",
+    "csvFunnelGoal": "Objectif",
+    "exportFunnelTitle": "Télécharger l’entonnoir : étape, atteints, ici actuellement, conversion et votre objectif",
     "byArchetype": "Par archétype",
     "totalHired": "{total} · {hired} recrutés",
     "advancedPct": "{pct} % ont franchi la présélection",
@@ -7693,6 +7711,7 @@
       "usedUnlimited": "{used} utilisés",
       "unlimited": "Illimité",
       "depleted": "Quota épuisé",
+      "buyMinutesCta": "Acheter des minutes →",
       "remaining": "{remaining} restants",
       "credits": "{credits, plural, one {+# crédit de pack} other {+# crédits de pack}}",
       "empty": "Aucun compteur d’utilisation pour l’instant."
@@ -7730,7 +7749,10 @@
       "minutes": "{qty} minutes",
       "buy": "Acheter le pack"
     },
-    "checkoutRecheck": "Vérifier à nouveau"
+    "checkoutRecheck": "Vérifier à nouveau",
+    "checkoutRefresh": "Actualiser le statut du forfait",
+    "checkoutSupportLink": "Contacter le support si le problème persiste",
+    "checkoutSupportSubject": "Confirmation de paiement retardée après le paiement"
   },
   "branding": {
     "eyebrow": "Marque blanche",
@@ -8143,6 +8165,7 @@
     },
     "team": {
       "emailPlaceholder": "nom@entreprise.fr",
+      "emailAria": "Adresse e-mail pour l’invitation",
       "roleAria": "Rôle pour l’invitation",
       "add": "Ajouter",
       "empty": "Aucune invitation pour l’instant. Ajoutez des collègues par e-mail, ou passez cette étape et invitez-les plus tard.",
@@ -8236,8 +8259,12 @@
       "title": "Premiers pas",
       "progress": "{done} sur {total} terminés",
       "dismiss": "Ne plus afficher",
+      "dismissedToast": "Checklist « Premiers pas » masquée",
+      "dismissedUndo": "Annuler",
       "open": "Ouvrir",
+      "openStep": "Ouvrir : {step}",
       "stepDone": "Terminé",
+      "stepComplete": "Étape terminée : {step}",
       "steps": {
         "company": {
           "title": "Configurez votre entreprise",
@@ -8256,7 +8283,8 @@
         "channels": {
           "title": "Connectez vos canaux",
           "body": "Ouvrez une réception d’e-mails et recevez une candidature test.",
-          "listening": "En écoute. Vérifiez en recevant une candidature test."
+          "listening": "En écoute. Transférez un e-mail à l'adresse configurée (ou utilisez le bouton de simulation dans l'onglet Canaux) pour valider cette étape.",
+          "listeningSimLink": "Aller à l'onglet Canaux →"
         }
       }
     },

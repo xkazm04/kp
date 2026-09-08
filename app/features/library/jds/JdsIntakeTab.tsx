@@ -2,13 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowRight } from "lucide-react";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { BTN_GHOST, PANEL } from "@/app/_components/ui/recipes";
-import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { switchTab, duplicateToBuilder, type AuthorNavState } from "./jdsLedgerNav";
 import { readBuildIntent } from "./jdsLedgerArtifacts";
@@ -41,7 +39,6 @@ const LibraryIntakePanel = dynamic(() => import("./intake/JdsIntakePanel").then(
 
 export function JdsIntakeTab() {
   const t = useTranslations("library.intakeTab");
-  const router = useRouter();
   const search = useSearchParams();
   // The entry mode is decided from the URL ONCE, at mount: a deep link carrying a
   // JD prefill (the guided demo's ?jdTitle=…, a finished build's ?jdTask=, a
@@ -117,21 +114,13 @@ export function JdsIntakeTab() {
 
   return (
     <section className={`${PANEL} stagger-children p-5`}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
-        <div className="min-w-0">
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
-        </div>
-        {/* The other half of the split, one click away — an authored role's
-            destination is the ledger, and the ledger's "write a new one" is here. */}
-        <button
-          type="button"
-          className={`${BTN_GHOST} h-9 shrink-0 px-3 text-sm`}
-          onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
-        >
-          {t("toLibrary")} <ArrowRight size={14} aria-hidden />
-        </button>
+      {/* No cross-link to the ledger here: "Job descriptions" is its own sidebar
+          row one click away, and a second door in the corner bought nothing but a
+          width cap on the intro — which now runs the full tab. */}
+      <header className="min-w-0 border-b border-stone-200 pb-4">
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+        <p className="mt-2 text-body text-steel">{t("intro")}</p>
       </header>
 
       <div className="mt-5">

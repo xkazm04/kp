@@ -84,6 +84,12 @@ export function BillingTab() {
   // derived from the real billing state below, so a timer alone can never assert a
   // plan grant; once this flips, the banner offers a manual re-check.
   const [pollWindowElapsed, setPollWindowElapsed] = useState(false);
+  // Progressive recovery affordances shown while the banner is in the "confirming"
+  // state: a Refresh button after 10 s, a support link after 30 s.  Both are
+  // independent of the poll-window timer — the poll may still be running when they
+  // appear, and they stay visible if the poll window closes without a confirmed plan.
+  const [showCheckoutRefresh, setShowCheckoutRefresh] = useState(false);
+  const [showCheckoutSupport, setShowCheckoutSupport] = useState(false);
   // The banner is bound to the ACTUAL billing state, not the timer: we only claim
   // "your plan is now X" once /api/billing reflects a paid plan (plans-checkout #2).
   const checkout = checkoutBannerState({
@@ -124,6 +130,21 @@ export function BillingTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Progressive recovery: show the Refresh button at 10 s and the support link at
+  // 30 s from the checkout return, so paying customers are never left staring at a
+  // frozen "confirming" message with no resolution path.  Timers are unconditional
+  // on mount so they fire even when the poll finishes early (both checks are cheap
+  // and the banner guards visibility by checkout state).
+  useEffect(() => {
+    if (!checkoutReturn) return;
+    const t10 = setTimeout(() => setShowCheckoutRefresh(true), 10_000);
+    const t30 = setTimeout(() => setShowCheckoutSupport(true), 30_000);
+    return () => {
+      clearTimeout(t10);
+      clearTimeout(t30);
+    };
+  }, [checkoutReturn]);
 
   // On a checkout return, re-poll the overview (the entitlement lands via the
   // webhook a beat after redirect) with a BACKOFF to a stated one-minute cap, then
@@ -207,6 +228,8 @@ export function BillingTab() {
         onRecheck={load}
         hasData={data !== null}
         configured={selfHosted ? true : (data?.configured ?? true)}
+        showCheckoutRefresh={showCheckoutRefresh}
+        showCheckoutSupport={showCheckoutSupport}
       />
 
       {selfHosted ? <BillingSelfHostPanel /> : null}

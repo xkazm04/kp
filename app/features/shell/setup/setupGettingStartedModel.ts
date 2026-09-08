@@ -14,9 +14,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { GettingStarted } from "@/app/_lib/getting-started";
+import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 
 /** Per-browser dismissal preference (the repo's convention for user-scoped UI state). */
 export const DISMISS_KEY = "kp-getting-started-dismissed";
+
+/** Set by the wizard hand-off card when the operator clicks through to the checklist. */
+export const CHECKLIST_HIGHLIGHT_KEY = "kp-checklist-highlight";
 
 /**
  * The four core steps — the ones a workspace genuinely cannot hire without.
@@ -102,6 +106,16 @@ export function useGettingStarted() {
     };
   }, []);
 
+  // Re-poll immediately when a mutation elsewhere (e.g. the simulate-CV card)
+  // signals that server data changed — so the checklist flips to "verified"
+  // within milliseconds rather than waiting up to 20 s for the next tick.
+  useLiveRefresh(() => {
+    fetch("/api/me/getting-started")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setData(d as GettingStarted))
+      .catch(() => {});
+  });
+
   const dismiss = useCallback(() => {
     setDismissed(true);
     try {
@@ -111,7 +125,16 @@ export function useGettingStarted() {
     }
   }, []);
 
-  return { data, dismissed, dismiss };
+  const undismiss = useCallback(() => {
+    setDismissed(false);
+    try {
+      window.localStorage.removeItem(DISMISS_KEY);
+    } catch {
+      /* per-browser preference only */
+    }
+  }, []);
+
+  return { data, dismissed, dismiss, undismiss };
 }
 
 /** Navigate to a step's real tab. */

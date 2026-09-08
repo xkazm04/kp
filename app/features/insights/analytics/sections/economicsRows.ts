@@ -108,3 +108,72 @@ export function economicsRows(
     })),
   ];
 }
+
+/** Column headers, resolved by the caller so this module stays free of next-intl. */
+export type EconomicsCsvLabels = {
+  surface: string;
+  kind: string;
+  leads: string;
+  reachedInterview: string;
+  hired: string;
+  hireRate: string;
+  spend: string;
+  perHire: string;
+  spendUpdated: string;
+};
+
+/** The one marker for "not measured" on this page — the same glyph every cell above
+ *  prints, and the reason `boardSpendNote` exists: a dash under Spend is a
+ *  measurement boundary, not a zero. */
+const ABSENT = "—";
+
+/**
+ * Header row + one row per acquisition surface, in the order the board shows them.
+ *
+ * Two properties the board owes its file:
+ *
+ *  • The TAXONOMY travels as a column. The three groups are genuinely different
+ *    measurements (stored channel / derived first-touch origin / creative within a
+ *    channel), and the board refuses to merge them on screen for that reason. A CSV
+ *    that dropped the group label would be exactly the flat ranking the board's own
+ *    header comment says would make this direction wrong.
+ *  • Money stays a raw number, unformatted. `money()` renders a grouped, localized
+ *    "12 000 Kč" that a spreadsheet imports as text and cannot sum — the one thing a
+ *    budget review opens this file to do. The currency is named in the header
+ *    instead.
+ *
+ * `spendUpdatedAt` rides along as the ISO instant: per-hire cost is exactly as
+ * current as the spend figure behind it, and the screen says so beside the number
+ * (`spendAsOf`). Dropping it here would hand a budget review a six-week-old figure
+ * with nothing to date it.
+ */
+export function economicsCsvRows(
+  rows: EconomicsRow[],
+  labels: EconomicsCsvLabels,
+  kindLabel: (kind: EconomicsKind) => string
+): (string | number)[][] {
+  return [
+    [
+      labels.surface,
+      labels.kind,
+      labels.leads,
+      labels.reachedInterview,
+      labels.hired,
+      labels.hireRate,
+      labels.spend,
+      labels.perHire,
+      labels.spendUpdated,
+    ],
+    ...rows.map((r) => [
+      r.name,
+      kindLabel(r.kind),
+      r.total,
+      r.reachedInterview,
+      r.hired,
+      r.hireRatePct == null ? ABSENT : `${r.hireRatePct}%`,
+      r.spendCzk ?? ABSENT,
+      r.costPerHireCzk ?? ABSENT,
+      r.spendUpdatedAt ?? ABSENT,
+    ]),
+  ];
+}

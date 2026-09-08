@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Download } from "lucide-react";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { AnalyticsExportButton } from "./AnalyticsExportButton";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { AnalyticsEmptyPreview } from "./AnalyticsEmptyPreview";
 import { hasRoleRows } from "./performanceBands";
@@ -49,8 +49,9 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
           {/* ANA5: the role funnel as a file — what a hiring manager asks for.
               Exports exactly the rows on screen: a file that quietly disagreed
               with the visible filter would be the same defect one layer down. */}
-          <button
-            type="button"
+          <AnalyticsExportButton
+            label={t("exportCsv")}
+            disabled={rows.length === 0}
             onClick={() =>
               downloadFile(
                 "kp-roles.csv",
@@ -63,11 +64,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
                 "text/csv"
               )
             }
-            disabled={rows.length === 0}
-            className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
-          >
-            <Download size={12} aria-hidden /> {t("exportCsv")}
-          </button>
+          />
         </div>
       </div>
       <table aria-label={t("byRole")} className="mt-3 w-full text-base">

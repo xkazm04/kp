@@ -159,6 +159,7 @@ friction at zero users.
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
 | UI — usage & cost | `app/features/settings/billing/spend/**` | Consolidated spend section (see below); moved here from the Models tab. |
+| UI — usage meter row | `app/features/settings/billing/BillingUsageMeterRow.tsx` | `MeterRow` renders name, progress bar, remaining count, and depleted badge per meter. When `meterId === "interview_minutes"` and the meter is depleted, an inline "Buy more minutes →" anchor links to `#billing-minutes-pack` in the catalog below — the highest-intent moment for a top-up purchase. |
 
 ```
 checkout:   POST /api/billing/checkout {plan|pack} → gateway → provider URL (redirect)
@@ -468,6 +469,14 @@ by `billingTabState.test.ts`:
   than freezing on "payment received, updating" with a page reload as the only recourse.
   The window is DERIVED from the last shot, so "we gave up" can never again sit half a
   second after "we are still trying".
+- **Progressive recovery in the `confirming` state** — two independent timers fire while
+  the banner is still waiting for the webhook (i.e. not yet `confirmed` or `unconfirmed`):
+  a **"Refresh plan status"** button at **10 s** and a **"Contact support if this persists"**
+  mailto link at **30 s**. Both appear inside the same banner row so a paying customer is
+  never left staring at a frozen confirmation message with no resolution path. The support
+  address comes from `NEXT_PUBLIC_SUPPORT_EMAIL` (falls back to `NEXT_PUBLIC_SALES_EMAIL`,
+  then `support@kandidate.app`). Keys: `billing.checkoutRefresh`, `billing.checkoutSupportLink`,
+  `billing.checkoutSupportSubject`.
 
 ### The Usage & cost section (`app/features/settings/billing/spend/`)
 

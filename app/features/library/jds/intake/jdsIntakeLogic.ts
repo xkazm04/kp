@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoleBrief } from "@/app/_lib/rolespec";
+import type { IntakeChoiceSet } from "@/app/_lib/intake-choices";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
 
@@ -9,7 +10,15 @@ import type { RepoDossier } from "@/app/_lib/schemas.generated";
 // docs/concepts/role-intake-dialog.md). Pure fetch/state — rendering lives in
 // JdsIntakePanel/JdsIntakeChat/JdsIntakeBriefPanel (200-line rule).
 
-export type IntakeTurn = { role: "interviewer" | "candidate" | "system"; text: string; at?: string };
+export type IntakeTurn = {
+  role: "interviewer" | "candidate" | "system";
+  text: string;
+  at?: string;
+  /** The agent's DECISION CARDS for this turn (app/_lib/intake-choices.ts) —
+   *  stored on the turn, so a reload re-offers the set attached to the question
+   *  it answers. Only the newest turn's set is interactive. */
+  choices?: IntakeChoiceSet;
+};
 
 export type IntakeShape = "power_unit" | "story" | "app_master" | null;
 
@@ -445,6 +454,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
           source: "llm" | "deterministic";
           fallbackReason?: string;
           fallbackLang?: string;
+          choices?: IntakeChoiceSet;
         };
         setDegradation(
           data.source === "deterministic"
@@ -459,7 +469,10 @@ export function useIntakeLogic(onPromoted?: () => void) {
           s && s.id === id
             ? {
                 ...s,
-                transcript: [...s.transcript, { role: "interviewer", text: data.reply }],
+                transcript: [
+                  ...s.transcript,
+                  { role: "interviewer", text: data.reply, ...(data.choices ? { choices: data.choices } : {}) },
+                ],
                 brief: data.brief,
                 shape: data.shape,
                 status: data.done ? "complete" : s.status,

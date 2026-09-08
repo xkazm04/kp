@@ -4,19 +4,15 @@ import { useTranslations } from "next-intl";
 import { labelize } from "@/app/_lib/format";
 import { labelOr } from "@/app/_lib/use-enum-label";
 import { META_LABEL } from "@/app/_components/ui/recipes";
+import type { RoleBrief } from "@/app/_lib/rolespec";
 import { JdsIntakeBriefTitle } from "./JdsIntakeBriefTitle";
-import { prepareFacets, sortByWeight, type BriefRequirement } from "./jdsIntakeBriefModel";
-import {
-  ConfidenceNote,
-  ProvenanceDot,
-  ProvenanceLegend,
-  RationaleDisclosure,
-  TurnRef,
-  type BriefBodyProps,
-} from "./JdsIntakeBriefAtoms";
+import { ConfidenceNote, ProvenanceDot, ProvenanceLegend, RationaleDisclosure, TurnRef } from "./JdsIntakeBriefAtoms";
+import { TypedText, type BriefReveal } from "./BriefRevealAtoms";
+import type { BriefLine, BriefSection } from "./briefSections";
 
 // The live brief's body — "Annotated", the direction that won the /prototype
-// round against the shipped flat sections and against a ranked "Scorecard".
+// round against the shipped flat sections and a ranked "Scorecard", and won
+// again against "Notepad" and "Cards" in a second round.
 //
 // Metaphor: a brief someone has marked up. The panel keeps ONE reading column of
 // plain bulleted sentences; every piece of evidence about a line — where it came
@@ -34,8 +30,16 @@ import {
 //    chip repeated on every line (14 times in a live App-master brief).
 //  · BULLETS, not chip rows — the sentences read as sentences.
 //  · Context facets are grouped, de-duplicated and graded by the shared model
-//    (jdsIntakeBriefModel.ts); a `context`-graded line drops to steel, because
-//    background should stay background.
+//    (jdsIntakeBriefModel.ts, via briefSections.ts); a `context`-graded line
+//    drops to steel, because background should stay background.
+//  · A line REVEALS according to its history (briefReveal.ts): one that landed
+//    while the requestor was talking types itself out, one that was already on
+//    the page fades in once, one that merely survived a re-extraction does not
+//    animate at all. The panel owns that classification — see
+//    JdsIntakeBriefPanel — so the body only asks each line how it should enter.
+//
+// The section walk itself lives in briefSections.ts, because a reveal needs a
+// stable identity per line and identity is not a rendering concern.
 
 const HEADING = `flex items-center gap-2 ${META_LABEL}`;
 
@@ -49,47 +53,75 @@ function Heading({ hue, label, count }: { hue: string; label: string; count?: nu
   );
 }
 
-/** One annotated line: the sentence, then the margin. `evidence` is whatever
+/** One annotated line: the sentence, then the margin. The margin is whatever
  *  the line can defend itself with — always in the same lane, always in the
  *  same order. */
-function MarginRow({ children, evidence }: { children: React.ReactNode; evidence: React.ReactNode }) {
+function AnnotatedLine({
+  line,
+  mode,
+  onJump,
+  learnableLabel,
+}: {
+  line: BriefLine;
+  mode: BriefReveal["mode"];
+  onJump?: (turn: number) => void;
+  learnableLabel: string | null;
+}) {
   return (
     <li className="flex items-start justify-between gap-3">
       <div className="flex min-w-0 flex-1 gap-2">
         <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" aria-hidden />
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          {line.label ? <span className="text-meta text-steel">{line.label}<br /></span> : null}
+          <TypedText text={line.text} mode={mode(line.key)} className={`text-body ${line.muted ? "text-steel" : "text-ink"}`} />
+          {learnableLabel ? <span className="ml-1.5 text-meta text-amber-800">{learnableLabel}</span> : null}
+          {/* Weight · confidence · rationale on demand — the defence for a line,
+              not part of the scan. */}
+          {line.requirement ? <RationaleDisclosure r={line.requirement} /> : null}
+        </div>
       </div>
-      <span className="flex shrink-0 items-start gap-1.5 pt-0.5">{evidence}</span>
+      <span className="flex shrink-0 items-start gap-1.5 pt-0.5">
+        <ProvenanceDot provenance={line.provenance} />
+        {/* An uncertain reading says so in the margin (UAT drain §2.2);
+            confidence 1 renders nothing, so the number that survives is the one
+            carrying information. */}
+        <ConfidenceNote confidence={line.confidence} />
+        <TurnRef turn={line.sourceTurn} onJump={onJump} />
+      </span>
     </li>
   );
 }
 
-function RequirementLine({ r, onJump, learnableLabel }: { r: BriefRequirement; onJump?: (turn: number) => void; learnableLabel: string | null }) {
-  return (
-    <MarginRow
-      evidence={
-        <>
-          <ProvenanceDot provenance={r.provenance} />
-          <TurnRef turn={r.sourceTurn} onJump={onJump} />
-        </>
-      }
-    >
-      <span className="text-body text-ink">{r.skill}</span>
-      {learnableLabel ? <span className="ml-1.5 text-meta text-amber-800">{learnableLabel}</span> : null}
-      {/* Weight · confidence · rationale on demand — the defence for a line, not
-          part of the scan (the flat sections carried the same three facts in the
-          same disclosure). */}
-      <RationaleDisclosure r={r} />
-    </MarginRow>
-  );
-}
-
-export function JdsIntakeBriefBody({ brief, musts, nices, frozen, saving, onSaveBrief, onJumpToTurn }: BriefBodyProps) {
+export function JdsIntakeBriefBody({
+  brief,
+  sections,
+  mode,
+  frozen,
+  saving,
+  onSaveBrief,
+  onJumpToTurn,
+}: {
+  brief: RoleBrief | null;
+  /** Built once by the panel, which also owns the reveal classification over
+   *  the same line keys — two walks would be two identities. */
+  sections: BriefSection[];
+  mode: BriefReveal["mode"];
+  frozen?: boolean;
+  saving?: boolean;
+  onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
+  onJumpToTurn?: (turn: number) => void;
+}) {
   const t = useTranslations("library.tab.intake.brief");
   const tGroups = useTranslations("library.tab.intake.brief.groups");
-  const outcomes = brief?.successCriteria ?? [];
   const languages = brief?.languages ?? [];
-  const groups = prepareFacets(brief ?? null);
+
+  const heading = (section: BriefSection): string => {
+    if (section.kind === "outcomes") return t("outcomes");
+    if (section.kind === "musts") return t("dealbreakers");
+    if (section.kind === "nices") return t("niceToHave");
+    const key = section.groupKey ?? "general";
+    return labelOr(tGroups, key, labelize(key));
+  };
 
   return (
     <div className="space-y-5">
@@ -103,65 +135,18 @@ export function JdsIntakeBriefBody({ brief, musts, nices, frozen, saving, onSave
         </div>
       </div>
 
-      {outcomes.length > 0 ? (
-        <div>
-          <Heading hue="bg-moss" label={t("outcomes")} count={outcomes.length} />
+      {sections.map((section) => (
+        <div key={section.key}>
+          <Heading hue={section.hue} label={heading(section)} count={section.lines.length} />
           <ul className="mt-2 space-y-2">
-            {outcomes.map((s, i) => (
-              <MarginRow key={i} evidence={null}>
-                <span className="text-body text-ink">{s}</span>
-              </MarginRow>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {musts.length > 0 ? (
-        <div>
-          <Heading hue="bg-coral" label={t("dealbreakers")} count={musts.length} />
-          <ul className="mt-2 space-y-2">
-            {sortByWeight(musts).map((r, i) => (
-              <RequirementLine key={i} r={r} onJump={onJumpToTurn} learnableLabel={r.hardness === "learnable" ? t("learnable") : null} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {nices.length > 0 ? (
-        <div>
-          <Heading hue="bg-steel" label={t("niceToHave")} count={nices.length} />
-          <ul className="mt-2 space-y-2">
-            {sortByWeight(nices).map((r, i) => (
-              <RequirementLine key={i} r={r} onJump={onJumpToTurn} learnableLabel={null} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {groups.map((group) => (
-        <div key={group.key}>
-          <Heading hue="bg-stone-300" label={labelOr(tGroups, group.key, labelize(group.key))} count={group.items.length} />
-          <ul className="mt-2 space-y-2">
-            {group.items.map((f, i) => (
-              <MarginRow
-                key={i}
-                evidence={
-                  <>
-                    <ProvenanceDot provenance={f.provenance} />
-                    {/* An uncertain reading says so in the margin (UAT drain §2.2);
-                        confidence 1 renders nothing, so the number that survives
-                        is the one carrying information. */}
-                    <ConfidenceNote confidence={f.confidence} />
-                    <TurnRef turn={f.sourceTurn} onJump={onJumpToTurn} />
-                  </>
-                }
-              >
-                <p className={`text-body ${f.importance === "context" ? "text-steel" : "text-ink"}`}>
-                  <span className="text-meta text-steel">{f.label || f.key}</span>
-                  <br />
-                  {f.displayValue}
-                </p>
-              </MarginRow>
+            {section.lines.map((line) => (
+              <AnnotatedLine
+                key={line.key}
+                line={line}
+                mode={mode}
+                onJump={onJumpToTurn}
+                learnableLabel={section.kind === "musts" && line.learnable ? t("learnable") : null}
+              />
             ))}
           </ul>
         </div>

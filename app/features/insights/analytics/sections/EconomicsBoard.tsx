@@ -25,16 +25,18 @@ import { useFormatter, useTranslations } from "next-intl";
 import { ArrowRight, PauseCircle } from "lucide-react";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { labelOr } from "@/app/_lib/use-enum-label";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { Defer } from "@/app/_components/ui/Defer";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { useTableSort } from "@/app/_components/table/useTableSort";
 import { PipelineShapeBar } from "@/app/_components/ui/PipelineShapeBar";
 import { AutomationPanel, ComputeCostPanel } from "./sectionChunks";
+import { AnalyticsExportButton } from "../AnalyticsExportButton";
 import { SpendInput } from "../AnalyticsChannelSpendInput";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import type { EconomicsProps } from "./economicsTypes";
-import { economicsRows, type EconomicsKind, type EconomicsRow } from "./economicsRows";
+import { economicsCsvRows, economicsRows, type EconomicsKind, type EconomicsRow } from "./economicsRows";
 
 // The row model + the one hire-rate rule live in economicsRows.ts, pure, so the
 // three taxonomies' normalization can be driven by a test — see the note there.
@@ -96,6 +98,34 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
   const visible = kindFilter ? sorted.filter((r) => r.kind === kindFilter) : sorted;
   const peak = Math.max(1, ...rows.map((r) => r.total));
 
+  // The board as a file — the "budget review" half of what this section is for, and
+  // until now the only way off it was a screenshot. Exports `visible`: the rows in
+  // the ORDER and under the FILTER on screen, the same rule the roles table states
+  // ("a file that quietly disagreed with the visible filter would be the same defect
+  // one layer down"). The row model, including every absent case, is economicsRows'.
+  const exportCsv = () =>
+    downloadFile(
+      "kp-acquisition-economics.csv",
+      toCsv(
+        economicsCsvRows(
+          visible,
+          {
+            surface: t("colSurface"),
+            kind: t("colKind"),
+            leads: t("colLeads"),
+            reachedInterview: ta("colReachedInterview"),
+            hired: ta("colHired"),
+            hireRate: ta("colHireRate"),
+            spend: t("csvSpendCzk"),
+            perHire: t("csvPerHireCzk"),
+            spendUpdated: t("csvSpendUpdated"),
+          },
+          (kind) => t(`kind_${kind}` as "kind_channel")
+        )
+      ),
+      "text/csv"
+    );
+
   return (
     <div className="animate-arrive-in space-y-6">
       <section className={`${PANEL} p-5`}>
@@ -104,20 +134,28 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
             <h3 className="font-serif text-h2 text-ink">{t("boardTitle")}</h3>
             <p className="mt-1 max-w-2xl text-sm text-steel">{t("boardIntro")}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t("boardFilterLabel")}>
-            {(["", "channel", "source", "variant"] as const).map((k) => (
-              <button
-                key={k || "all"}
-                type="button"
-                onClick={() => setKindFilter(k)}
-                aria-pressed={kindFilter === k}
-                className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-                  kindFilter === k ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
-                }`}
-              >
-                {k === "" ? t("kindAll") : t(`kind_${k}` as "kind_channel")}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t("boardFilterLabel")}>
+              {(["", "channel", "source", "variant"] as const).map((k) => (
+                <button
+                  key={k || "all"}
+                  type="button"
+                  onClick={() => setKindFilter(k)}
+                  aria-pressed={kindFilter === k}
+                  className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
+                    kindFilter === k ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+                  }`}
+                >
+                  {k === "" ? t("kindAll") : t(`kind_${k}` as "kind_channel")}
+                </button>
+              ))}
+            </div>
+            <AnalyticsExportButton
+              label={ta("exportCsv")}
+              title={t("exportBoardTitle")}
+              onClick={exportCsv}
+              disabled={visible.length === 0}
+            />
           </div>
         </div>
 

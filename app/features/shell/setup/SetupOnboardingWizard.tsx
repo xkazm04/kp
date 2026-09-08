@@ -3,9 +3,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRef } from "react";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
 import { SetupWizardStepPane } from "./SetupWizardStepPane";
 import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
@@ -28,12 +30,22 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup");
   const reduced = useReducedMotion();
   const step = SETUP_STEPS[ctrl.stepIndex];
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(panelRef, ctrl.onClose);
   const isWelcome = step.id === "welcome";
   const isHandoff = step.id === "handoff";
 
   return (
     <div className="absolute inset-0 grid place-items-center bg-ink/55 p-4 backdrop-blur-sm dark:bg-paper/90">
-      <div className="relative w-full max-w-[69.6rem] overflow-hidden rounded-xl border-2 border-stone-300 bg-white shadow-pop dark:rounded-2xl">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wizard-title"
+        tabIndex={-1}
+        className="relative w-full max-w-[69.6rem] overflow-hidden rounded-xl border-2 border-stone-300 bg-white shadow-pop dark:rounded-2xl focus:outline-none"
+      >
+        <span id="wizard-title" className="sr-only">{t("rail.brand")}</span>
         {ctrl.mode === "preview" ? (
           <p className="border-b border-dashed border-stone-300 bg-limewash/40 px-4 py-1.5 text-center text-sm text-ink">
             {t("previewRibbon")}

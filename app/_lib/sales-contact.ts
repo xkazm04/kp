@@ -7,6 +7,17 @@
 // but SHOULD be overridden per deploy with your real sales address.
 export const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL?.trim() || "sales@kandidate.app";
 
+/** Support email for billing / checkout issues.  Override per deploy with
+ *  `NEXT_PUBLIC_SUPPORT_EMAIL`; falls back to the sales address. */
+export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || SALES_EMAIL;
+
+/** A `mailto:` link for the billing support path, with a prefilled subject so
+ *  the reply lands in the right queue.  `subject` must come from the caller's
+ *  translator — it is the one string a human reads, so it must be localised. */
+export function supportContactHref(subject: string): string {
+  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+}
+
 /** A `mailto:` for the Enterprise contact-sales path, with a prefilled subject so
  *  the reply lands in the right place. Used by the landing enterprise band and the
  *  Billing tab's Enterprise card.

@@ -119,7 +119,7 @@ export function BillingSpendPanel({
           ) : (
             <div className="mt-3 space-y-4">
               {data.meters.map((meter) => (
-                <MeterRow key={meter.meter} meter={meter} name={meterName(meter.meter)} />
+                <MeterRow key={meter.meter} meter={meter} name={meterName(meter.meter)} meterId={meter.meter} />
               ))}
             </div>
           )}
