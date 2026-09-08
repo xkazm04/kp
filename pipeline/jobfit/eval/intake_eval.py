@@ -63,8 +63,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -284,7 +287,11 @@ DUMP_RUN_FILE = "run.json"
 
 
 def _load_previous(dump: str | None) -> dict[str, dict]:
-    """Rows a previous run recorded as complete, keyed by scenario name."""
+    """Rows a previous run recorded as complete, keyed by scenario name.
+
+    Read from the SAME file the run rewrites after every role, so a killed sweep
+    resumes from its last completed role rather than from zero.
+    """
     if not dump:
         return {}
     path = Path(dump) / DUMP_RUN_FILE
@@ -297,40 +304,62 @@ def _load_previous(dump: str | None) -> dict[str, dict]:
     return {r["name"]: r for r in data.get("rows", []) if isinstance(r, dict) and r.get("complete") and r.get("name")}
 
 
-def _write_dump(dump: str, rows: list[dict], meta: dict[str, Any]) -> None:
+def _row_files(dump: str, row: dict) -> None:
+    """This role's transcript + brief, written the moment the role finishes."""
     root = Path(dump)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
     (root / "briefs").mkdir(parents=True, exist_ok=True)
+    if row.get("turns"):
+        lines = [
+            f"# {row['name']}",
+            "",
+            f"- posting: **{row.get('posting_id') or '—'}** · title: **{row.get('title') or '—'}**",
+            f"- JD family: **{row.get('jd_role_family') or '—'}** · captured family: **{row.get('family') or '—'}**",
+            f"- shape: **{row.get('shape') or '—'}** · agent turns: **{row.get('agent_turns')}** · done: **{row.get('done')}**",
+            "- checks: "
+            + ", ".join(k + "=" + ("PASS" if v else "FAIL") for k, v in (row.get("checks") or {}).items()),
+        ]
+        if row.get("promoted"):
+            lines.append(f"- promoted: **{row['promoted'].get('slug')}** (job {row['promoted'].get('jobId')})")
+        elif row.get("promote_error"):
+            lines.append(f"- promote refused: `{row['promote_error']}`")
+        lines += ["", "## Transcript", ""]
+        for turn in row["turns"]:
+            who = "Interviewer" if turn["role"] == "interviewer" else "Requestor"
+            lines += [f"**{who}:** {turn['text']}", ""]
+        write_text_lf(root / "transcripts" / f"{row['name']}.md", "\n".join(lines))
+    if row.get("brief") is not None:
+        write_text_lf(
+            root / "briefs" / f"{row['name']}.json",
+            json.dumps(row["brief"], indent=2, ensure_ascii=False) + "\n",
+        )
+
+
+def _write_run_json(dump: str, rows: list[dict], meta: dict[str, Any]) -> None:
+    """Rewrite run.json ATOMICALLY (tmp + os.replace).
+
+    Rewritten after EVERY role, not once at the end: a sweep killed at role 34
+    used to leave an empty directory, so `--resume` had nothing to read and hours
+    of live dialog were gone. Atomic because a torn rewrite is worse than no
+    file — `_load_previous` would discard it as unparseable and lose the same
+    hours a different way.
+    """
+    root = Path(dump)
+    root.mkdir(parents=True, exist_ok=True)
     payload = {
         **meta,
         "rows": [{k: v for k, v in row.items() if k not in ("turns", "brief")} for row in rows],
     }
-    write_text_lf(root / DUMP_RUN_FILE, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-    for row in rows:
-        if row.get("turns"):
-            lines = [
-                f"# {row['name']}",
-                "",
-                f"- posting: **{row.get('posting_id') or '—'}** · title: **{row.get('title') or '—'}**",
-                f"- JD family: **{row.get('jd_role_family') or '—'}** · captured family: **{row.get('family') or '—'}**",
-                f"- shape: **{row.get('shape') or '—'}** · agent turns: **{row.get('agent_turns')}** · done: **{row.get('done')}**",
-                "- checks: "
-                + ", ".join(k + "=" + ("PASS" if v else "FAIL") for k, v in (row.get("checks") or {}).items()),
-            ]
-            if row.get("promoted"):
-                lines.append(f"- promoted: **{row['promoted'].get('slug')}** (job {row['promoted'].get('jobId')})")
-            elif row.get("promote_error"):
-                lines.append(f"- promote refused: `{row['promote_error']}`")
-            lines += ["", "## Transcript", ""]
-            for turn in row["turns"]:
-                who = "Interviewer" if turn["role"] == "interviewer" else "Requestor"
-                lines += [f"**{who}:** {turn['text']}", ""]
-            write_text_lf(root / "transcripts" / f"{row['name']}.md", "\n".join(lines))
-        if row.get("brief") is not None:
-            write_text_lf(
-                root / "briefs" / f"{row['name']}.json",
-                json.dumps(row["brief"], indent=2, ensure_ascii=False) + "\n",
-            )
+    tmp = root / (DUMP_RUN_FILE + ".tmp")
+    write_text_lf(tmp, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    os.replace(tmp, root / DUMP_RUN_FILE)
+
+
+def _mode_label(offline: bool, base_url: str, http: bool) -> str:
+    mode = "offline (deterministic agent + JD-derived answers)" if offline else "live"
+    if http:
+        mode += f" · HTTP {base_url}" if base_url else " · HTTP"
+    return mode
 
 
 def run_corpus_eval(
@@ -343,53 +372,129 @@ def run_corpus_eval(
     resume: bool = False,
     http_base: str | None = None,
     wall_minutes: float | None = None,
+    workers: int = 1,
+    client_factory: Any | None = None,
 ) -> tuple[str, bool, int]:
     """Run JD-grounded scenarios. Returns (report, ok, rows_reported).
 
-    ``pairs`` is (Posting, scenario). Both transports produce the same row
-    shape and are graded by the SAME ``check_dialog``; only the ``promoted``
-    column is HTTP-only (there is nothing to promote in-process).
+    ``pairs`` is (Posting, scenario). Both transports produce the same row shape
+    and are graded by the SAME ``check_dialog``; only the ``promoted`` column is
+    HTTP-only (there is nothing to promote in-process).
+
+    Concurrency is HTTP-only and opt-in (``workers``). One role is a long chain
+    of provider calls — ~8 minutes live — so 50 serial roles is most of a day,
+    while the server handles sessions independently and the Claude CLI provider
+    is a subprocess per call. In-process mode stays serial by design: there the
+    agent's own engine runs inside this process.
+
+    The report is composed from the ROWS, and the rows include those restored by
+    ``--resume`` — so a resumed run reports every role, not only the ones this
+    process happened to run.
+
+    ``client_factory`` is a test seam: a zero-argument callable producing the
+    per-worker client, in place of :class:`IntakeHttpClient`.
     """
     st = _make_styler(color)
-    agent_provider = None
-    persona_provider = None
+    http = bool(http_base or client_factory)
+    if not http:
+        workers = 1
+    workers = max(1, int(workers or 1))
+
+    local = threading.local()
+
+    def persona_for_worker() -> Any | None:
+        if no_llm:
+            return None
+        provider = getattr(local, "persona", None)
+        if provider is None:
+            from ..llm.registry import resolve_provider
+
+            # One provider per worker rather than one shared instance: the
+            # registry hands back a stateful adapter and nothing declares it
+            # thread-safe. A CLI provider is a subprocess per call, so the only
+            # cost of per-worker instances is the resolve itself.
+            provider = resolve_provider("role_intake", timeout=120)
+            if provider is not None and not provider.available():
+                provider = None
+            local.persona = provider
+        return provider
+
+    def client_for_worker() -> Any | None:
+        if not http:
+            return None
+        client = getattr(local, "client", None)
+        if client is None:
+            if client_factory is not None:
+                client = client_factory()
+            else:
+                from .intake_http_client import IntakeHttpClient
+
+                client = IntakeHttpClient(http_base)
+            local.client = client
+        return client
+
+    # Live-mode preflight in THIS thread: a missing provider belongs in the
+    # banner, not discovered independently by every worker.
+    live = False
     if not no_llm:
-        from ..llm.registry import resolve_provider
-
-        agent_provider = resolve_provider("role_intake", timeout=120)
-        if agent_provider is not None and not agent_provider.available():
-            agent_provider = None
-        persona_provider = agent_provider
-
-    client = None
-    if http_base:
-        from .intake_http_client import IntakeHttpClient, simulate_http
-
-        client = IntakeHttpClient(http_base)
+        live = persona_for_worker() is not None
 
     previous = _load_previous(dump) if resume else {}
-    rows: list[dict] = []
-    ran = 0
-    skipped = 0
-    stopped_early = False
+    order = {scenario["name"]: index for index, (_p, scenario) in enumerate(pairs)}
+    rows_by_index: dict[int, dict] = {}
+    lock = threading.Lock()
     started = time.monotonic()
     budget = wall_minutes * 60 if wall_minutes else None
+    stopped_early = False
+    base_url = http_base or ""
 
-    for posting, scenario in pairs:
-        name = scenario["name"]
-        if name in previous:
-            rows.append(previous[name])
-            skipped += 1
-            continue
+    def ordered_rows() -> list[dict]:
+        return [rows_by_index[i] for i in sorted(rows_by_index)]
+
+    def meta_now() -> dict[str, Any]:
+        rows = ordered_rows()
+        return {
+            "mode": _mode_label(no_llm or not live, base_url, http),
+            "cap": cap,
+            "workers": workers,
+            "roles": len(pairs),
+            "ran": sum(1 for r in rows if not r.get("resumed")),
+            "resumed": sum(1 for r in rows if r.get("resumed")),
+            "passed": sum(1 for r in rows if all((r.get("checks") or {}).values())),
+            "no_dealbreaker_ground_truth": sum(
+                1 for r in rows if "requirements_captured" not in (r.get("checks") or {})
+            ),
+            "stopped_early": stopped_early,
+        }
+
+    def record(index: int, row: dict) -> None:
+        """Store one finished role AND persist it before the next one starts."""
+        with lock:
+            rows_by_index[index] = row
+            if dump:
+                _row_files(dump, row)
+                _write_run_json(dump, ordered_rows(), meta_now())
+
+    for name, row in previous.items():
+        if name in order:
+            rows_by_index[order[name]] = {**row, "resumed": True}
+
+    def run_role(index: int, posting: Any, scenario: dict) -> None:
+        nonlocal stopped_early
         if budget is not None and time.monotonic() - started > budget:
+            # No NEW role starts past the budget; roles already running finish.
             stopped_early = True
-            break
+            return
+        persona_provider = persona_for_worker()
+        client = client_for_worker()
         if client is not None:
+            from .intake_http_client import simulate_http
+
             result = simulate_http(client, persona_provider, posting, scenario, cap=cap)
             turns, brief, shape, done = result["turns"], result["brief"], result["shape"], result["done"]
             promoted, promote_error = result["promoted"], result["promote_error"]
         else:
-            turns, brief, shape, done = simulate(agent_provider, persona_provider, scenario, cap=cap)
+            turns, brief, shape, done = simulate(persona_provider, persona_provider, scenario, cap=cap)
             promoted, promote_error = None, None
         # GROUND TRUTH for role_family differs by mode, on purpose. Offline the
         # answers ARE the deterministic script, so the truth is what this
@@ -402,10 +507,12 @@ def run_corpus_eval(
         if persona_provider is not None and scenario.get("jd_role_family"):
             graded = {**scenario, "family": scenario["jd_role_family"]}
         checks = check_dialog(graded, turns, brief, shape, done, strict_shape=persona_provider is None)
-        rows.append(
+        record(
+            index,
             {
-                "name": name,
+                "name": scenario["name"],
                 "complete": True,
+                "resumed": False,
                 "posting_id": scenario.get("posting_id"),
                 "title": scenario.get("title"),
                 "company": scenario.get("company"),
@@ -421,24 +528,36 @@ def run_corpus_eval(
                 "promote_error": promote_error,
                 "turns": turns,
                 "brief": brief,
-            }
+            },
         )
-        ran += 1
 
+    todo = [(order[s["name"]], p, s) for p, s in pairs if s["name"] not in previous]
+    if workers > 1 and len(todo) > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(run_role, *item) for item in todo]
+            for future in futures:
+                future.result()  # a real failure propagates; finished roles are already on disk
+    else:
+        for item in todo:
+            run_role(*item)
+
+    rows = ordered_rows()
+    ran = sum(1 for r in rows if not r.get("resumed"))
+    skipped = len(rows) - ran
     passed = sum(1 for r in rows if all((r.get("checks") or {}).values()))
-    ok = bool(rows) and passed == len(rows) and not stopped_early
-    mode = "offline (deterministic agent + JD-derived answers)" if persona_provider is None else "live"
-    if client is not None:
-        mode += f" · HTTP {client.base_url}"
+    ok = bool(rows) and passed == len(rows) and not stopped_early and len(rows) == len(pairs)
+    mode = _mode_label(no_llm or not live, base_url, http)
     keys = sorted({k for r in rows for k in (r.get("checks") or {})})
     lines = ["# JD-grounded role-intake simulation", ""]
     parts = [f"{passed}/{len(rows)} roles PASS", f"{ran} run", mode]
     if skipped:
         parts.append(f"{skipped} resumed")
+    if workers > 1:
+        parts.append(f"{workers} workers")
     if stopped_early:
         parts.append(f"STOPPED at the {wall_minutes:g}-minute budget")
     lines.append(verdict_banner(parts, passed=ok, s=st))
-    header = ["role", "family", "turns"] + keys + (["promoted"] if client is not None else [])
+    header = ["role", "family", "turns"] + keys + (["promoted"] if http else [])
     lines += ["", "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for row in rows:
         checks = row.get("checks") or {}
@@ -448,7 +567,7 @@ def run_corpus_eval(
             str(row.get("agent_turns") or "—"),
             *[glyph(checks.get(k), st) if k in checks else glyph(None) for k in keys],
         ]
-        if client is not None:
+        if http:
             promoted = row.get("promoted") or {}
             cells.append(promoted.get("slug") or (row.get("promote_error") or "—"))
         lines.append("| " + " | ".join(cells) + " |")
@@ -475,20 +594,8 @@ def run_corpus_eval(
     report = "\n".join(lines) + "\n"
 
     if dump:
-        _write_dump(
-            dump,
-            rows,
-            {
-                "mode": mode,
-                "cap": cap,
-                "roles": len(pairs),
-                "ran": ran,
-                "resumed": skipped,
-                "passed": passed,
-                "no_dealbreaker_ground_truth": len(ungrounded),
-                "stopped_early": stopped_early,
-            },
-        )
+        with lock:
+            _write_run_json(dump, rows, meta_now())
     return report, ok, len(rows)
 
 
@@ -556,6 +663,15 @@ def main(argv: list[str] | None = None) -> int:
         "instead of calling the dialog engine in-process. Loopback/private hosts only.",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        metavar="N",
+        help="HTTP mode only: run N roles concurrently (default 1). A live role is ~8 minutes of "
+        "provider calls, so a 50-role sweep is most of a day serially. Each worker gets its own "
+        "client and its own persona provider. In-process mode ignores this and stays serial.",
+    )
+    parser.add_argument(
         "--wall-minutes",
         type=float,
         metavar="M",
@@ -588,6 +704,7 @@ def main(argv: list[str] | None = None) -> int:
                 resume=args.resume,
                 http_base=args.http,
                 wall_minutes=args.wall_minutes,
+                workers=args.workers,
             )
         except Exception as exc:  # noqa: BLE001 — a harness that cannot run exits 2, never 1
             print(f"the JD-grounded run could not start: {exc}", file=sys.stderr)
