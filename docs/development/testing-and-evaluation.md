@@ -444,6 +444,18 @@ Notes that bite:
   `run.json` and skips roles already recorded as complete, which is what makes a
   long live sweep restartable.
 - **`--wall-minutes M`** stops cleanly at the budget and reports the partial run.
+- **A dealbreaker is a short noun phrase or it is nothing.** `requirements_captured`
+  matches the conditions the requestor STATED against the brief's `requirements[]`
+  rows by substring, so its ground truth has to be matchable: 2–5 lowercase words
+  pulled from a credential (`bachelors degree`, `valid drivers license`) or a
+  requirement cue (`experience with …`, `knowledge of …`, `degree in …`), never a
+  heading and never a sentence fragment. A JD that states nothing that clean
+  yields an EMPTY list, `check_dialog` then emits no `requirements_captured` key
+  at all, and the table prints `—` for that role (the same way `role_family` is
+  skipped for a scenario with no declared family). The report and `run.json`
+  (`no_dealbreaker_ground_truth`) say how many roles that was — on the committed
+  50-role selection, **16 of 50**. Never "fix" a red here by widening the
+  matching; widen the extraction or accept the honest `—`.
 - **Exit codes** follow the suite contract above: 0 ran (and passed under
   `--strict`), 1 a gate failed under `--strict`, 2 the run could not be performed
   (unreadable corpus, no usable postings, a server that could not be driven,
@@ -460,27 +472,34 @@ Notes that bite:
   measurement of how much of a JD's family survives being re-elicited through a
   six-question conversation.
 
-**What the first live probe found (2026-09-08, Claude CLI, 2 roles,
-in-process).** Every dialog-reliability invariant held — the sessions completed,
-never machine-gunned questions, never ended early, and closed with a grounded
-read-back that named the role and its conditions (10–11 agent turns). Three
-checks failed on BOTH roles, and each names a different defect on the extraction
-side of `intake.py`:
+**What the live probes found (2026-09-08, Claude CLI, in-process).** Two rounds,
+and the second is the one that matters — between them a sibling change landed on
+the brief coercer and this harness's dealbreaker ground truth was rebuilt.
 
-- `brief_core` / `requirements_captured` — the closing read-back recited the
-  three dealbreakers the requestor had just narrowed down, while the extracted
-  brief came back with **`requirements: []`**. That is the L2-NEW-2 shape (hard
-  conditions living in prose instead of in the brief), reproduced live against
-  real job descriptions.
-- `role_family` — the captured family was **right** (`creative_design` and
-  `customer_support`, both matching the posting) but
-  `spineProvenance.role_family` was never stamped, so the classification is
-  indistinguishable from the schema default. The invariant's anti-vacuous-pass
-  clause is what caught it: the deterministic path stamps `inferred` there, the
-  LLM path does not.
+*Round 1 (2 roles)* — every dialog-reliability invariant held (9–11 agent turns,
+grounded read-backs) while `brief_core`, `requirements_captured` and
+`role_family` failed on both: the extracted brief came back with
+`requirements: []` (the L2-NEW-2 shape, live, on real JDs) and
+`spineProvenance.role_family` was never stamped, so a family that was actually
+right was indistinguishable from the schema default.
 
-Which is exactly what a breadth probe is for — none of the three is visible from
-the written banks.
+*Round 2 (3 roles, `bench/intake-sim/smoke3`)* — **1/3 PASS**, and the table is
+now readable rather than uniformly red:
+
+| role | brief_core | req_captured | role_family | turns |
+| --- | --- | --- | --- | --- |
+| remote-website-designer | ✓ | – | ✓ | 9 |
+| patient-advocate | ✓ | – | ✗ | 8 |
+| career-coach-waitlist | ✓ | ✓ | ✗ | 15 |
+
+`requirements[]` now fills (10, 4 and 22 rows) and `spineProvenance.role_family`
+is stamped `inferred` on all three. The two `–` are roles whose JD states no
+screenable condition. The two `role_family` failures are genuine divergence from
+the CORPUS LABEL, and reading them is instructive: the patient advocate routed
+`healthcare_clinical` where the corpus says `customer_support`, and the career
+coach routed `education_academic` where the corpus says `data_ai`. At least the
+second is the corpus being wrong, not the dialog — which is what the drift list
+is for, and a reason to read a live `role_family` red before believing it.
 
 Beyond the golden set: `eval/matching_eval.py` scores the matching engine,
 `eval/automation_eval.py` scores the automation tasks

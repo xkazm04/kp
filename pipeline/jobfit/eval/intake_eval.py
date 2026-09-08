@@ -452,6 +452,17 @@ def run_corpus_eval(
             promoted = row.get("promoted") or {}
             cells.append(promoted.get("slug") or (row.get("promote_error") or "—"))
         lines.append("| " + " | ".join(cells) + " |")
+    # A role whose JD states no screenable condition carries NO ground truth for
+    # requirements_captured, so the check is not emitted (glyph "—"). Say how many
+    # out loud: an invariant silently absent from a quarter of the table would
+    # otherwise read as coverage it does not have.
+    ungrounded = [r for r in rows if "requirements_captured" not in (r.get("checks") or {})]
+    if ungrounded:
+        lines += [
+            "",
+            f"_{len(ungrounded)}/{len(rows)} roles state no screenable hard condition in the JD — "
+            "`requirements_captured` has no ground truth there and is reported as “—”, not as a pass._",
+        ]
     drifted = [r for r in rows if r.get("jd_role_family") and r.get("family") != r.get("jd_role_family")]
     if drifted:
         lines += [
@@ -474,6 +485,7 @@ def run_corpus_eval(
                 "ran": ran,
                 "resumed": skipped,
                 "passed": passed,
+                "no_dealbreaker_ground_truth": len(ungrounded),
                 "stopped_early": stopped_early,
             },
         )

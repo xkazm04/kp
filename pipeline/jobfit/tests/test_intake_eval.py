@@ -265,6 +265,99 @@ class JdGroundedCorpusTest(unittest.TestCase):
         self.assertEqual(answers, golden_answers_from_jd(posting))  # deterministic
         self.assertIn("Registered Nurse", answers[1])
 
+    @staticmethod
+    def _posting(body: str, title: str = "Registered Nurse"):
+        from pipeline.jobfit.eval.intake_corpus import Posting
+
+        return Posting(
+            id="p", title=title, company="Ward Health", role_family="healthcare_clinical",
+            seniority="medior", lang="en", body=body,
+        )
+
+    def test_dealbreakers_are_short_phrases_never_headings(self) -> None:
+        # The GROUND TRUTH for requirements_captured. The first cut fed
+        # `unrouted_dealbreakers` sentence fragments and literal headings, which
+        # no requirement row can ever contain — every live role failed a check
+        # its brief actually satisfied.
+        from pipeline.jobfit.eval.intake_jd_persona import dealbreakers_from_jd
+
+        found = dealbreakers_from_jd(
+            self._posting(
+                "Job description\n\nRequirements\n\nHigh school diploma and experience with "
+                "patient documentation are required. Qualifications: knowledge of ward rounds."
+            ),
+            limit=3,
+        )
+        self.assertTrue(found)
+        for phrase in found:
+            self.assertEqual(phrase, phrase.lower())
+            self.assertTrue(2 <= len(phrase.split()) <= 5, phrase)
+            for heading in ("job description", "requirement", "qualification", "responsibilit"):
+                self.assertNotIn(heading, phrase)
+        self.assertIn("high school diploma", found)
+
+    def test_dealbreaker_phrases_respect_the_length_bounds(self) -> None:
+        from pipeline.jobfit.eval.intake_jd_persona import dealbreakers_from_jd
+
+        # A cue followed by a long clause is TRUNCATED to a noun phrase, never
+        # carried as a fragment; a one-word capture is dropped (too generic to
+        # match anything meaningfully).
+        long_clause = dealbreakers_from_jd(
+            self._posting(
+                "The successful candidate will have experience with electronic patient "
+                "documentation systems across several wards and shifts."
+            )
+        )
+        self.assertTrue(all(2 <= len(p.split()) <= 5 for p in long_clause), long_clause)
+        self.assertEqual(dealbreakers_from_jd(self._posting("Knowledge of nursing.")), [])
+
+    def test_a_jd_with_nothing_clean_yields_no_ground_truth(self) -> None:
+        # …and the check is then NOT EMITTED, rather than passing vacuously.
+        from pipeline.jobfit.eval.intake_eval import check_dialog, simulate
+        from pipeline.jobfit.eval.intake_jd_persona import dealbreakers_from_jd, scenario_from_posting
+
+        posting = self._posting(
+            "greets visitors and answers telephones and directs the caller to the appropriate "
+            "associate maintains and manages calendars for conference rooms",
+            title="Front Desk Associate",
+        )
+        self.assertEqual(dealbreakers_from_jd(posting), [])
+        scenario = scenario_from_posting(posting)
+        self.assertEqual(scenario["dealbreakers"], [])
+        turns, brief, shape, done = simulate(None, None, scenario)
+        checks = check_dialog(scenario, turns, brief, shape, done)
+        self.assertNotIn("requirements_captured", checks)
+        self.assertTrue(all(checks.values()), checks)
+
+    def test_stated_dealbreakers_land_as_their_own_requirement_rows(self) -> None:
+        # The offline half of the contract the persona prompt states live: each
+        # phrase leads the must-have answer, so it becomes its own row.
+        from pipeline.jobfit.eval.intake_eval import check_dialog, simulate
+        from pipeline.jobfit.eval.intake_jd_persona import scenario_from_posting
+
+        posting = self._posting(
+            "Requirements: high school diploma. Experience with patient documentation is required."
+        )
+        scenario = scenario_from_posting(posting)
+        self.assertTrue(scenario["dealbreakers"])
+        turns, brief, shape, done = simulate(None, None, scenario)
+        skills = [str(r.get("skill", "")).lower() for r in brief["requirements"]]
+        for phrase in scenario["dealbreakers"]:
+            self.assertIn(phrase, skills)
+        self.assertTrue(check_dialog(scenario, turns, brief, shape, done)["requirements_captured"])
+
+    def test_persona_prompt_names_the_non_negotiables(self) -> None:
+        from pipeline.jobfit.eval.intake_jd_persona import dealbreakers_from_jd, requestor_prompt_from_jd
+
+        posting = self._posting("Requirements: high school diploma is required.")
+        prompt = requestor_prompt_from_jd(posting)
+        self.assertIn("NON-NEGOTIABLES", prompt)
+        for phrase in dealbreakers_from_jd(posting):
+            self.assertIn(phrase, prompt)
+        # …and a JD with nothing screenable tells the persona to say so, not invent one.
+        bare = requestor_prompt_from_jd(self._posting("greets visitors and answers telephones"))
+        self.assertIn("rather than inventing", bare)
+
     def test_corpus_run_passes_every_invariant_offline(self) -> None:
         import tempfile
 

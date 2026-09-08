@@ -150,6 +150,98 @@ def must_haves_from_jd(posting: Posting, limit: int = 3) -> list[str]:
     return unique[:limit]
 
 
+# --- dealbreakers: the GROUND TRUTH for requirements_captured ---------------
+#
+# `unrouted_dealbreakers` matches a stated condition against a requirement row
+# by substring, in both directions. That only measures anything if the stated
+# condition is a SHORT NOUN PHRASE. The first cut of this module handed it
+# whatever `must_haves_from_jd` produced — de-punctuated sentence fragments and,
+# on JDs whose text carries its own headings, literal headings ("requirements",
+# "job description") — so no requirement row could ever contain one, and every
+# live role failed the check while its brief held the real conditions. The gate
+# was right; the ground truth was garbage.
+#
+# So: phrases come only from requirement-flavoured contexts, are 2-5 words, and
+# a JD that offers nothing that clean yields an EMPTY list — which makes
+# `check_dialog` emit no `requirements_captured` key at all (the same way it
+# skips `role_family` for a scenario with no family). No ground truth is
+# reported as "—", never as a vacuous ✓.
+
+_CREDENTIAL = re.compile(
+    r"\b(bachelors? degree|masters? degree|associates degree|high school diploma|"
+    r"valid drivers licen[cs]e|nursing licen[cs]e|cpa licen[cs]e|security clearance|"
+    r"forklift licen[cs]e|registered nurse licen[cs]e)\b"
+)
+_REQUIREMENT_PHRASE = re.compile(
+    r"(?:experience (?:with|in|using)|proficien\w* (?:with|in)|knowledge of|expertise in|"
+    r"certification in|certified in|licensed in|degree in|familiarity with|skills? in|"
+    r"background in|fluent in|fluency in)\s+((?:[a-z0-9+#./-]+ ){0,3}[a-z0-9+#./-]+)"
+)
+# Words that make a slice a sentence fragment rather than a noun phrase.
+_PHRASE_STOP = {
+    "and", "or", "with", "to", "in", "of", "for", "the", "a", "an", "our", "your", "their",
+    "you", "we", "is", "are", "be", "as", "at", "on", "that", "this", "it", "its", "will",
+    "must", "other", "all", "any", "etc",
+}
+_PHRASE_TRAILING_BAD = {
+    "including", "such", "based", "within", "preferred", "using", "assists", "high",
+    "significant", "working", "related", "plus", "years", "strong", "excellent",
+    # A JD writes the condition as a sentence ("… is required"); the trailing
+    # verb is not part of the noun phrase a requirement row would carry.
+    "required", "requires", "needed", "essential", "necessary", "desired", "mandatory",
+}
+_PHRASE_LEADING_BAD = {"related", "lieu", "steps", "use", "most", "variety", "annual", "doing", "various", "new", "good"}
+# A JD's own section headings are never a dealbreaker.
+_PHRASE_BANNED = (
+    "job description", "requirement", "qualification", "responsibilit", "benefit",
+    "about us", "equal opportunity", "last updated", "skip to content", "position summary",
+    "essential function", "please", "click", "apply",
+)
+MAX_PHRASE_WORDS = 5
+MIN_PHRASE_WORDS = 2
+
+
+def _phrase(raw: str) -> str:
+    # A real JD is punctuated; the committed corpora are not. Strip the
+    # punctuation the capture may have swallowed ("documentation." → "documentation")
+    # so the phrase is comparable with a requirement row's skill either way.
+    words = [w.strip(".,;:!?()-/") for w in (raw or "").split()]
+    words = [w for w in words if w]
+    while words and (words[-1] in _PHRASE_STOP or words[-1] in _PHRASE_TRAILING_BAD):
+        words.pop()
+    while words and (words[0] in _PHRASE_STOP or words[0] in _PHRASE_LEADING_BAD):
+        words.pop(0)
+    phrase = " ".join(words)
+    if not (MIN_PHRASE_WORDS <= len(words) <= MAX_PHRASE_WORDS):
+        return ""
+    if len(phrase) < 6 or len(phrase) > 48:
+        return ""
+    if "andor" in phrase or any(len(w) < 2 for w in words):
+        return ""
+    if any(banned in phrase for banned in _PHRASE_BANNED):
+        return ""
+    return phrase
+
+
+def dealbreakers_from_jd(posting: Posting, limit: int = 2) -> list[str]:
+    """0-``limit`` lowercase noun phrases the JD states as hard conditions.
+
+    EMPTY is a legitimate answer — many real postings are de-punctuated prose
+    with no requirement-flavoured phrase in them, and inventing one would put a
+    fragment into the ground truth that nothing can ever match.
+    """
+    text = " ".join((posting.body or "").lower().split())
+    found: list[str] = []
+    # Credentials first: they are the least ambiguous hard conditions a JD states.
+    for match in list(_CREDENTIAL.finditer(text)) + list(_REQUIREMENT_PHRASE.finditer(text)):
+        phrase = _phrase(match.group(1))
+        if phrase and phrase not in found:
+            found.append(phrase)
+        if len(found) >= limit:
+            break
+    return found
+
+
 def outcome_from_jd(posting: Posting) -> str:
     """The 90-day outcome line, derived from the first responsibilities sentence."""
     sentences = _sentences(posting.body)
@@ -176,6 +268,17 @@ def _jd_block(posting: Posting) -> str:
 
 def requestor_prompt_from_jd(posting: Posting, lang: str = "en") -> str:
     """The live-mode system prompt for the JD-grounded hiring requestor."""
+    dealbreakers = dealbreakers_from_jd(posting)
+    non_negotiables = (
+        "- Your NON-NEGOTIABLES are exactly these, in these words: "
+        + "; ".join(f'"{d}"' for d in dealbreakers)
+        + ". When you are asked what is required, what is non-negotiable, or what you would "
+        "reject a candidate over, name them using those exact words — they are what the brief "
+        "has to end up carrying.\n"
+        if dealbreakers
+        else "- The document does not pin down a hard, screenable condition. Say so if you are "
+        "pushed for one, rather than inventing a threshold.\n"
+    )
     return (
         "You are the HIRING MANAGER who wants this role filled — the requestor, not an "
         "interviewer and not a candidate. Someone from your talent team is interviewing YOU to "
@@ -189,8 +292,8 @@ def requestor_prompt_from_jd(posting: Posting, lang: str = "en") -> str:
         "- NEVER invent a fact the document does not carry. If the JD is silent — compensation, "
         "budget, team size, start date — say plainly that it is not decided yet.\n"
         "- Never paste or summarise the whole document. Answer the question that was asked.\n"
-        "- When asked what is non-negotiable, name the hard requirements the JD states.\n"
-        "- When the interviewer reads the role back to you, confirm it in one sentence if it is "
+        + non_negotiables
+        + "- When the interviewer reads the role back to you, confirm it in one sentence if it is "
         "right, or correct exactly the part that is wrong.\n"
         f"- Reply in the language of the conversation (dialog language: {lang}).\n"
     )
@@ -205,7 +308,11 @@ def golden_answers_from_jd(posting: Posting, shape: str = "power_unit") -> list[
     urgency, budget (+ confirm). The final "ok" answers the read-back, which is
     a separate exchange by contract (UAT L1-CONV-2).
     """
-    musts = ", ".join(must_haves_from_jd(posting))
+    # The dealbreaker phrases lead the must-have answer so each one lands as its
+    # OWN requirements[] row (the answer is comma-split by `intake._split_items`)
+    # — the offline half of the same contract the prompt states live.
+    items = dealbreakers_from_jd(posting) + must_haves_from_jd(posting, limit=2)
+    musts = ", ".join(items)
     outcome = outcome_from_jd(posting)
     company = posting.company or "the team"
     undecided = "Not decided yet — the job description does not state a band"
@@ -263,7 +370,6 @@ def deterministic_family(answers: list[str], lang: str = "en") -> str:
 def scenario_from_posting(posting: Posting, lang: str = "en", shape: str = "power_unit") -> dict[str, Any]:
     """One intake_eval scenario grounded in ``posting``."""
     answers = golden_answers_from_jd(posting, shape)
-    musts = must_haves_from_jd(posting)
     expect: dict[str, Any] = {"shape": shape}
     if shape == "power_unit":
         expect["max_agent_turns"] = 8
@@ -281,7 +387,9 @@ def scenario_from_posting(posting: Posting, lang: str = "en", shape: str = "powe
         "company": posting.company,
         # The hard conditions the persona STATES — each must land as its own
         # requirements[] row (L2-NEW-2), which is what arms requirements_captured.
-        "dealbreakers": list(musts[:2]),
+        # EMPTY when the JD states nothing screenable: the check is then not
+        # emitted at all rather than passing on a phrase nothing can match.
+        "dealbreakers": dealbreakers_from_jd(posting),
         "requestor_prompt": requestor_prompt_from_jd(posting, lang),
         "golden_answers": answers,
         "expect": expect,

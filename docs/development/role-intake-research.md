@@ -157,6 +157,14 @@ it — and the rules are exactly the registry standard's requestor
 the hard requirements the JD states when asked what is non-negotiable; confirm
 or correct a read-back in one sentence.
 
+Its **non-negotiables are named for it**, not left to improvisation: the harness
+extracts 0–2 short noun phrases the JD actually states as hard conditions (a
+credential, or a requirement cue like "experience with …"), puts them in the
+persona prompt as the exact words to use when asked what is required, and grades
+the brief on whether each got its own `requirements[]` row. A posting that states
+nothing that clean gives the persona nothing to insist on — and the check is then
+not asserted at all rather than passed vacuously.
+
 **It may not:** invent a fact the document does not carry — anything the JD is
 silent about (compensation, budget, team size, start date) is answered
 "not decided yet", which is a real answer and must be captured as such, not
