@@ -11,7 +11,8 @@ import { isOffline } from "@/app/_lib/offline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { POSTING_MAX_CHARS, POSTING_MIN_CHARS } from "./posting-import-limits";
 
 // The posting corpus (db/job-postings.ts, docs/features/intake/README.md).
@@ -54,6 +55,14 @@ const str = (value: unknown): string => (typeof value === "string" ? value.trim(
 export async function POST(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only proves
+  // a trusted session is present — in open mode it is true for everyone — so it is
+  // identity, never authority. Importing postings writes to the team's Library corpus,
+  // the same class of act as saving a JD, so it asks the same seat capability
+  // (`pipeline:write`) and answers the same coded refusal: a viewer seat is refused
+  // rather than silently seeding 220 rows into someone else's workspace.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => ({}))) as ImportBody;
     const source = str(body.source);
