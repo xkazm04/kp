@@ -26,7 +26,7 @@ import {
   subprocessorsVerifiedSince,
   type Posture,
 } from "@/app/_lib/trust-posture";
-import { CARD_PAD, EYEBROW, INTRO, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { CARD_PAD, EYEBROW, INTRO, META_LABEL, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import LegalRow from "@/app/landing/spark/sections/LegalRow";
 
 // W0.5 — the public trust surface. A server component: static claims, no client state.
@@ -170,11 +170,11 @@ export function TrustContent() {
           <table className="w-full min-w-[56rem] text-left">
             <thead>
               <tr className="border-b border-stone-200">
-                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Processor</th>
-                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Handles</th>
-                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Trains on inputs</th>
-                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Retention</th>
-                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">EU region</th>
+                {["Processor", "Handles", "Trains on inputs", "Retention", "EU region"].map((heading) => (
+                  <th key={heading} scope="col" className={`px-4 py-3 ${META_LABEL}`}>
+                    {heading}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
