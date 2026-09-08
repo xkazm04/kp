@@ -732,8 +732,10 @@
       "proof": "Otevřený kód, AGPL-3.0. Běží na vašem stroji, na vašich modelech: celý produkt, zdarma a bez limitů. Placené plány kupují cizí servery.",
       "proofCta": "Rozjeďte si to sami",
       "ctaPrimary": "Začít nabírat zdarma",
+      "ctaPending": "Otevíráme vaše studio…",
       "ctaDemo": "Spustit živou ukázku",
       "pileHint": "vyzkoušejte to: najeďte na hromadu ↓",
+      "pileHintTouch": "vyzkoušejte: klepněte na CV ↓",
       "scoreCardAria": "Ohodnotit CV: {name}",
       "mascotAlt": "Kandi, maskot KandiDate, jásá pod schváleným CV",
       "mascotNote": "seznamte se s Kandi, vaším novým parťákem"

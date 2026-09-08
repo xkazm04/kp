@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import Wordmark from "../Wordmark";
+import { LandingLangSwitch } from "../LandingLangSwitch";
 import MobileNav from "./MobileNav";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { sourceRepoHref } from "@/app/_lib/source-repo";
@@ -17,6 +18,12 @@ import { sourceRepoHref } from "@/app/_lib/source-repo";
  * the rail), which left a phone with no navigation whatsoever — so the same
  * destinations, plus the rail's five section anchors, hang off ./MobileNav's
  * disclosure below `sm`.
+ *
+ * The language switch is repeated here (compact) as well as in the footer. It
+ * is not navigation, so it sits after the destinations and before Sign in — but
+ * a Czech buyer on an English browser should not have to scroll 7 300 px to
+ * discover the page speaks their language. Both instances write the same
+ * NEXT_LOCALE cookie through the same server action, so no shared state.
  */
 export default function Topbar() {
   const t = useTranslations("landing");
@@ -36,6 +43,7 @@ export default function Topbar() {
         <a href={sourceRepoHref()} target="_blank" rel="noopener noreferrer" className="hover:text-[#d65a4a]">
           {t("nav.source")}
         </a>
+        <LandingLangSwitch size="compact" />
         {/* Sign in — the app ships open to all, so this is the single entry
             point. In development it flips the localStorage gate and drops you
             straight into the dashboard; in production it hands off to the real

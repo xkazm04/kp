@@ -732,8 +732,10 @@
       "proof": "Open Source, AGPL-3.0. Läuft auf Ihrer Maschine, mit Ihren Modellen: das ganze Produkt, kostenlos und ohne Limits. Die bezahlten Pläne kaufen fremde Server.",
       "proofCta": "Selbst betreiben",
       "ctaPrimary": "Kostenlos loslegen",
+      "ctaPending": "Ihr Studio wird geöffnet…",
       "ctaDemo": "Live-Demo ansehen",
       "pileHint": "Probieren Sie’s: über den Stapel fahren ↓",
+      "pileHintTouch": "ausprobieren: tippen Sie auf einen Lebenslauf ↓",
       "scoreCardAria": "Lebenslauf von {name} bewerten",
       "mascotAlt": "Kandi, das KandiDate-Maskottchen, jubelt unter einem freigegebenen Lebenslauf",
       "mascotNote": "Das ist Kandi, Ihr neues Teammitglied"

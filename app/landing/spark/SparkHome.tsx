@@ -32,7 +32,12 @@ const hand = Shantell_Sans({
   display: "swap"
 });
 
-export default function SparkHome() {
+/** `signupOpen` is resolved SERVER-SIDE by the caller (app/page.tsx) from
+ *  `workspace-lock.signupEnabled` and threaded straight through to the hero,
+ *  whose primary CTA needs it to pick /signup over /login on a gated deploy.
+ *  A single serializable boolean, so this wrapper stays a server component and
+ *  the env never crosses to the client. */
+export default function SparkHome({ signupOpen = false }: { signupOpen?: boolean }) {
   return (
     <div className={`${TYPE_SCALE} ${display.variable} ${body.variable} ${hand.variable}`}>
       {/* Demo-CTA honesty: /api/demo lands here with ?demo=unavailable when a
@@ -42,7 +47,7 @@ export default function SparkHome() {
       <Suspense fallback={null}>
         <DemoUnavailableNotice />
       </Suspense>
-      <SparkLanding />
+      <SparkLanding signupOpen={signupOpen} />
     </div>
   );
 }

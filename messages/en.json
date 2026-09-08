@@ -732,8 +732,10 @@
       "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
       "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
+      "ctaPending": "Opening your studio…",
       "ctaDemo": "Watch the live demo",
       "pileHint": "try it: hover the pile ↓",
+      "pileHintTouch": "try it: tap a CV ↓",
       "scoreCardAria": "Score the CV of {name}",
       "mascotAlt": "Kandi, the KandiDate mascot, cheering under an approved CV",
       "mascotNote": "meet Kandi, your new teammate"

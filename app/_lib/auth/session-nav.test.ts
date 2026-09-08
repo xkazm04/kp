@@ -14,6 +14,11 @@ const stubWindow = () => {
 const stubFetch = (ok: boolean) => {
   (globalThis as { fetch?: unknown }).fetch = async () => ({ ok }) as Response;
 };
+const stubFetchThrows = () => {
+  (globalThis as { fetch?: unknown }).fetch = async () => {
+    throw new TypeError("Failed to fetch");
+  };
+};
 
 afterEach(() => {
   assigned = "";
@@ -40,4 +45,23 @@ test("a no-plan entry is unchanged (generic sign-in)", async () => {
   stubFetch(true);
   await enterWorkspace();
   assert.equal(assigned, "/", "no plan → no query param, exactly the old behavior");
+});
+
+// The cold prospect the landing CTAs are written for has no account, so a deploy
+// with self-serve signup open hands the refusal to /signup instead of /login
+// (landing hero + closing band pass `{ fallback }`). Both exits from the refusal —
+// the 401 and the network catch — must honour it, or the caller's choice silently
+// depends on whether the request reached the server.
+test("the /signup fallback replaces /login on a refusal, keeping the plan (password mode → 401)", async () => {
+  stubWindow();
+  stubFetch(false);
+  await enterWorkspace("growth", { fallback: "/signup" });
+  assert.equal(assigned, "/signup?plan=growth", "a gated deploy with signup open sends the stranger to /signup");
+});
+
+test("the network-failure path honours the fallback too", async () => {
+  stubWindow();
+  stubFetchThrows();
+  await enterWorkspace(undefined, { fallback: "/signup" });
+  assert.equal(assigned, "/signup", "offline is a refusal too — same surface, not the /login default");
 });

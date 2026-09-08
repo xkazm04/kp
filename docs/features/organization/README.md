@@ -35,6 +35,13 @@ inventing a second scoping dimension.
   shared data through any still-unscoped table. Registration is throttled
   per-IP via the persisted login-throttle store (every attempt counts —
   the bounded side effect is tenant creation itself).
+  The gate is also the landing's routing input: `app/page.tsx` resolves
+  `signupEnabled()` server-side and threads it to the Spark hero as a
+  `signupOpen` prop (SparkHome → SparkLanding → Hero), so on a gated deploy the
+  primary CTA's refused keyless login hands off to `/signup` when signup is open
+  and `/login` when it is not — `enterWorkspace(plan?, { fallback })` in
+  `app/_lib/auth/session-nav.ts`. The env is never mirrored into a
+  `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
 
 ## Identity & auth
 

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { sourceRepoHref } from "@/app/_lib/source-repo";
+import { LandingLangSwitch } from "../LandingLangSwitch";
 import { SECTIONS } from "../SectionRail";
 
 /*
@@ -111,6 +112,14 @@ function MobileNavPanel({
         >
           {t("nav.signIn")}
         </button>
+      </div>
+      {/* The topbar's compact language switch collapses into here with the rest
+          of it. Choosing a locale refreshes the page under the new catalog and
+          leaves the disclosure open, so the reader sees the menu they are
+          standing in change language — the confirmation the footer instance,
+          7 300 px down, could never give. */}
+      <div className="mt-2 flex justify-center border-t-[3px] border-dashed border-[#dce7d0] pt-2">
+        <LandingLangSwitch size="compact" />
       </div>
     </div>
   );
