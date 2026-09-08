@@ -4542,6 +4542,21 @@
           "openSession": "Ouvrir l’entretien de cadrage pour {title}",
           "noMatch": "Aucune session ne correspond à ces filtres.",
           "clear": "Effacer les filtres"
+        },
+        "studio": {
+          "dialogLabel": "Studio de cadrage : {title}",
+          "eyebrow": "Cadrage du poste",
+          "closedNote": "Cette conversation est terminée. Le brief reste modifiable, ou rouvrez la conversation pour ajouter une précision.",
+          "closeBusy": "Une réponse est encore en route. La fermer ne l’arrêtera pas.",
+          "closeStay": "Rester",
+          "closeAnyway": "Fermer quand même"
+        },
+        "ledger": {
+          "summaryTitle": "Dernière ouverte",
+          "summaryEmpty": "Ouvrez une session et son résumé s’affiche ici.",
+          "summaryOpen": "Ouvrir le studio",
+          "summaryJd": "Ouvrir la fiche de poste",
+          "paletteSub": "Cadrer un nouveau poste dans le studio"
         }
       },
       "buildHeldChip": "Résultat conservé en révision",

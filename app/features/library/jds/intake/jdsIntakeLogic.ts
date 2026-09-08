@@ -296,6 +296,12 @@ async function refusalCode(res: Response): Promise<string | null> {
  *  failure to retry: the truth is on the server, so the session is re-read. */
 const MOVED = "INTAKE_BRIEF_MOVED";
 
+/** Everything the surface gets from the hook. Named so the studio's parts can be
+ *  handed the whole seam instead of re-declaring twenty props each — the ledger
+ *  owns the hook (it also owns the App-master watcher's clock), and the overlay
+ *  and the desk are views over it. */
+export type IntakeLogic = ReturnType<typeof useIntakeLogic>;
+
 export function useIntakeLogic(onPromoted?: () => void) {
   const [sessions, setSessions] = useState<IntakeSummary[] | null>(null);
   const [active, setActive] = useState<IntakeSession | null>(null);

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ChatTranscript, type ChatSide } from "@/app/_components/chat/ChatTranscript";
 import { JdsIntakeChoiceCards } from "./JdsIntakeChoiceCards";
+import { IntakeVoiceBar } from "./IntakeVoiceBar";
 import { compactedTurnCount } from "@/app/_lib/intake-transcript";
 import type { IntakeTurn } from "./jdsIntakeLogic";
 
@@ -34,7 +35,40 @@ import type { IntakeTurn } from "./jdsIntakeLogic";
 const intakeSide = (role: string): ChatSide =>
   role === "candidate" ? "right" : role === "system" ? "center" : "left";
 
+/**
+ * Add dictated words to whatever is already typed, THROUGH the composer's own
+ * state.
+ *
+ * The composer keeps its draft privately (`ChatComposer`'s `useState`) and the
+ * shared `ChatTranscript` exposes exactly two seams to a host: a slot beside Send
+ * and a ref to the textarea. There is no "append" prop, and adding one would mean
+ * editing both shared files for one caller — so this drives the controlled input
+ * the way React itself listens to it: set the value through the NATIVE setter
+ * (React installs its own on the element instance, which is why a plain
+ * `el.value = …` is invisible to it) and dispatch the `input` event the composer's
+ * onChange is already subscribed to. The draft that results is the composer's own
+ * state, so Enter, Send and the refused-send restore all behave exactly as if the
+ * words had been typed.
+ *
+ * Dictation APPENDS and never sends: a transcription is a first draft of a
+ * sentence, and a mis-heard word must be fixable before it becomes a turn.
+ */
+function appendToComposer(el: HTMLTextAreaElement | null, text: string): void {
+  const words = text.trim();
+  if (!el || !words) return;
+  const current = el.value.replace(/\s+$/, "");
+  const next = current ? `${current} ${words}` : words;
+  const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+  if (!setValue) return;
+  setValue.call(el, next);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.focus();
+  el.setSelectionRange(next.length, next.length);
+}
+
 export function JdsIntakeChat({
+  intakeId,
+  lang,
   transcript,
   sending,
   closed,
@@ -44,6 +78,10 @@ export function JdsIntakeChat({
   onHighlightDone,
   statusNote,
 }: {
+  /** The open session — the dictation/read-aloud pair is per-intake. */
+  intakeId: string;
+  /** The session's language, for the speech-to-text and text-to-speech calls. */
+  lang: string;
   transcript: IntakeTurn[];
   sending: boolean;
   closed: boolean;
@@ -93,6 +131,18 @@ export function JdsIntakeChat({
   );
   const onDone = useCallback(() => onHighlightDone?.(), [onHighlightDone]);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const onDictated = useCallback((text: string) => appendToComposer(composerRef.current, text), []);
+  // What read-aloud offers to speak: the agent's newest line. Null while a turn is
+  // in flight — the reply on screen is the PREVIOUS one, and speaking it while the
+  // next is being written would read the conversation back out of order.
+  const speakText = useMemo(() => {
+    if (sending) return null;
+    for (let i = transcript.length - 1; i >= 0; i -= 1) {
+      const turn = transcript[i];
+      if (turn?.role === "interviewer" && turn.text.trim()) return turn.text;
+    }
+    return null;
+  }, [transcript, sending]);
   const lastIndex = transcript.length - 1;
   const renderTurnExtras = useCallback(
     (turn: { id: string }) => {
@@ -129,7 +179,19 @@ export function JdsIntakeChat({
       closed={closed}
       onSend={onSend}
       statusNote={statusNote}
-      composerSlot={voiceSlot}
+      composerSlot={
+        <>
+          {voiceSlot}
+          {/* The keyless voice PAIR (WP2 fills it in; it draws nothing until
+              then): dictation into the draft and read-aloud of the agent's line.
+              It sits beside the full-call relay control rather than replacing it —
+              one is "type by speaking", the other is "have the conversation
+              aloud". Hidden on a closed session, which has no composer to fill. */}
+          {!closed ? (
+            <IntakeVoiceBar intakeId={intakeId} lang={lang} onDictated={onDictated} speakText={speakText} disabled={sending} />
+          ) : null}
+        </>
+      }
       highlightId={highlightTurn == null ? null : String(highlightTurn)}
       onHighlightDone={onDone}
     />

@@ -4542,6 +4542,21 @@
           "openSession": "Intake für {title} öffnen",
           "noMatch": "Keine Sitzung entspricht diesen Filtern.",
           "clear": "Filter zurücksetzen"
+        },
+        "studio": {
+          "dialogLabel": "Aufnahme-Studio: {title}",
+          "eyebrow": "Rollenaufnahme",
+          "closedNote": "Dieses Gespräch ist abgeschlossen. Das Briefing lässt sich weiterhin bearbeiten, oder öffnen Sie das Gespräch erneut, um einen Gedanken zu ergänzen.",
+          "closeBusy": "Eine Antwort trifft noch ein. Schließen hält sie nicht auf.",
+          "closeStay": "Bleiben",
+          "closeAnyway": "Trotzdem schließen"
+        },
+        "ledger": {
+          "summaryTitle": "Zuletzt geöffnet",
+          "summaryEmpty": "Öffnen Sie ein Gespräch, dann steht hier die Zusammenfassung.",
+          "summaryOpen": "Studio öffnen",
+          "summaryJd": "Stellenbeschreibung öffnen",
+          "paletteSub": "Eine neue Position im Aufnahme-Studio besprechen"
         }
       },
       "buildHeldChip": "Ergebnis als Revision abgelegt",

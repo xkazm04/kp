@@ -24,3 +24,26 @@ export function opensOnGenerate(params: ParamReader): boolean {
     return typeof value === "string" && value.length > 0;
   });
 }
+
+/** The "start a conversation" handoff: `?intake=new`. The command palette emits
+ *  it, and so can any surface that wants to hand a hiring need straight to the
+ *  studio rather than to a ledger the reader then has to act on again. */
+export const NEW_INTAKE_PARAM = "intake";
+const NEW_INTAKE_VALUE = "new";
+
+/**
+ * Does this URL ask for a fresh intake session?
+ *
+ * Deliberately exact — only the literal `new`, not "any non-empty value". The
+ * param names an ACTION with a side effect (it creates a `role_intakes` row and
+ * spawns the opener), so a future `?intake=<id>` meaning "open this one" must not
+ * be read as "make another"; an unrecognised value lands on the ledger, which is
+ * the harmless answer.
+ *
+ * A builder handoff wins: `opensOnGenerate` decides the tab's mode at mount, and
+ * a URL carrying both would otherwise open a conversation on top of a prefilled
+ * builder the reader can no longer see.
+ */
+export function opensNewIntake(params: ParamReader): boolean {
+  return params.get(NEW_INTAKE_PARAM) === NEW_INTAKE_VALUE && !opensOnGenerate(params);
+}

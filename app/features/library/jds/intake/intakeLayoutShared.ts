@@ -45,6 +45,20 @@ export type IntakeLayoutProps = {
     draftReady: boolean;
     draftPromotable: boolean;
   };
+  /** The desk fills its container instead of sizing itself.
+   *
+   *  Two hosts, two answers, and neither is a preference. In the TAB the desk is
+   *  a block on a scrolling page and has to pick its own height, so it takes the
+   *  viewport-proportional clamp. In the STUDIO overlay the desk IS the modal
+   *  body — a box the Modal has already bounded at 92dvh — so a second height
+   *  claim inside it either overflows the dialog or leaves a strip of dead white
+   *  under the leaves. `fill` hands the height decision to the container. */
+  fill?: boolean;
+  /** Leaves whose header should read as "work is landing here" while a turn is in
+   *  flight. It is a fact about the leaf, not a spinner: the conversation shows
+   *  its own thinking bubble, and the two leaves the reply will actually rewrite
+   *  are the brief and the draft. */
+  busyColumns?: readonly IntakeColumnKey[];
 };
 
 // Per-variant column visibility persisted per browser (session-local UX that

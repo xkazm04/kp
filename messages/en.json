@@ -4542,6 +4542,21 @@
           "openSession": "Open the intake for {title}",
           "noMatch": "No session matches these filters.",
           "clear": "Clear filters"
+        },
+        "studio": {
+          "dialogLabel": "Intake studio: {title}",
+          "eyebrow": "Role intake",
+          "closedNote": "This conversation is finished. The brief can still be edited, or re-open it to add another thought.",
+          "closeBusy": "A reply is still arriving. Closing now won't stop it.",
+          "closeStay": "Stay",
+          "closeAnyway": "Close anyway"
+        },
+        "ledger": {
+          "summaryTitle": "Last opened",
+          "summaryEmpty": "Open a session and its summary appears here.",
+          "summaryOpen": "Open the studio",
+          "summaryJd": "Open the job description",
+          "paletteSub": "Talk a new role through in the intake studio"
         }
       },
       "buildHeldChip": "Build held as a revision",

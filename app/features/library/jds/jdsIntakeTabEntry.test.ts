@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DUPLICATE_PARAM, opensOnGenerate } from "./jdsIntakeTabEntry.ts";
+import { DUPLICATE_PARAM, NEW_INTAKE_PARAM, opensNewIntake, opensOnGenerate } from "./jdsIntakeTabEntry.ts";
 
 const params = (qs: string) => new URLSearchParams(qs);
 
@@ -32,4 +32,25 @@ test("an EMPTY handoff param is not a handoff", () => {
   // with nothing to seed it.
   assert.equal(opensOnGenerate(params(`${DUPLICATE_PARAM}=`)), false);
   assert.equal(opensOnGenerate(params("jdTitle=")), false);
+});
+
+// ?intake=new — the palette's "New intake" door. It has a SIDE EFFECT (a
+// role_intakes row and a spawned opener), so the predicate is exact rather than
+// truthy: a future ?intake=<id> must not be read as "make another one".
+
+test("?intake=new asks for a fresh session; nothing else does", () => {
+  assert.equal(opensNewIntake(params(`${NEW_INTAKE_PARAM}=new`)), true);
+  assert.equal(opensNewIntake(params("tab=intake&intake=new")), true);
+  assert.equal(opensNewIntake(params("")), false);
+  assert.equal(opensNewIntake(params("tab=intake")), false);
+  assert.equal(opensNewIntake(params("intake=")), false, "a cleared param is not a request");
+  assert.equal(opensNewIntake(params("intake=abc123")), false, "an id is not the word new");
+  assert.equal(opensNewIntake(params("intake=NEW")), false, "the value is a literal, not a word to guess at");
+});
+
+test("a builder handoff outranks it — a conversation must not open over a prefill", () => {
+  assert.equal(opensNewIntake(params(`intake=new&${DUPLICATE_PARAM}=my-role`)), false);
+  assert.equal(opensNewIntake(params("intake=new&jdTitle=Staff%20Engineer")), false);
+  // …and the builder still opens, which is the half that would silently break.
+  assert.equal(opensOnGenerate(params("intake=new&jdTask=task_42")), true);
 });

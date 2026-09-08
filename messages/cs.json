@@ -4542,6 +4542,21 @@
           "openSession": "Otevřít vstupní rozhovor pro {title}",
           "noMatch": "Žádný rozhovor neodpovídá filtrům.",
           "clear": "Zrušit filtry"
+        },
+        "studio": {
+          "dialogLabel": "Studio zadání: {title}",
+          "eyebrow": "Zadání pozice",
+          "closedNote": "Tento rozhovor je uzavřen. Zadání můžete stále upravit, nebo rozhovor znovu otevřete a doplňte myšlenku.",
+          "closeBusy": "Odpověď stále přichází. Zavřením ji nezastavíte.",
+          "closeStay": "Zůstat",
+          "closeAnyway": "Přesto zavřít"
+        },
+        "ledger": {
+          "summaryTitle": "Naposledy otevřené",
+          "summaryEmpty": "Otevřete rozhovor a jeho souhrn se zobrazí zde.",
+          "summaryOpen": "Otevřít studio",
+          "summaryJd": "Otevřít popis pozice",
+          "paletteSub": "Proberte novou pozici ve studiu zadání"
         }
       },
       "buildHeldChip": "Výstup uložen jako revize",

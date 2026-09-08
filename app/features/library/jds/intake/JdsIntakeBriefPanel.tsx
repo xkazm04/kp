@@ -9,6 +9,7 @@ import { JdsIntakeBriefEdit } from "./JdsIntakeBriefEdit";
 import { JdsIntakeBriefBody } from "./JdsIntakeBriefBody";
 import { buildBriefSections, sectionLineKeys } from "./briefSections";
 import { useBriefReveal } from "./BriefRevealAtoms";
+import { useArrivalDelta } from "./IntakeArrivalMotion";
 
 // The live brief — the surface's signature moment: the requestor WATCHES the
 // structure being built while they talk. Every value carries its provenance
@@ -80,6 +81,10 @@ export function JdsIntakeBriefPanel({
   // the edit form is open, or every line would read as brand new the moment the
   // form closes and the body remounts.
   const reveal = useBriefReveal(sectionLineKeys(sections));
+  // The row-level half of the same landing, owned here for the same reason: it
+  // must keep classifying while the edit form is open, or closing the form would
+  // read as a whole brief arriving at once.
+  const delta = useArrivalDelta(brief);
   const empty =
     !brief ||
     (!brief.title && sections.length === 0);
@@ -131,6 +136,7 @@ export function JdsIntakeBriefPanel({
           brief={brief}
           sections={sections}
           mode={reveal.mode}
+          delta={delta}
           frozen={frozen}
           saving={saving}
           onSaveBrief={onSaveBrief}

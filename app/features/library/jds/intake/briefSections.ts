@@ -14,6 +14,7 @@
 // Pure and view-free on purpose: two prototype variants and the reveal hook all
 // read the same list, and the test can assert identity without a DOM.
 import type { RoleBrief } from "@/app/_lib/rolespec";
+import { normalizeKey } from "./intakeDelta";
 import { prepareFacets, sortByWeight, type BriefRequirement } from "./jdsIntakeBriefModel";
 
 export type BriefSectionKind = "outcomes" | "musts" | "nices" | "facets";
@@ -21,6 +22,12 @@ export type BriefSectionKind = "outcomes" | "musts" | "nices" | "facets";
 export type BriefLine = {
   /** Stable across re-extractions — see the header. */
   key: string;
+  /** The same row's identity in the BRIEF DIFF (`intakeDelta.ts`), which is not
+   *  `key`: the render key encodes the section and disambiguates duplicates,
+   *  while the diff keys a row by what the engine calls it (a normalized skill or
+   *  sentence, a facet's own key). Carried here so the arrival wiring can ask
+   *  "did this row just land?" without re-deriving either identity. */
+  arrivalId: string;
   /** The sentence itself: the part that types. */
   text: string;
   /** A facet's field name (`Team`, `Budget`); null for the other kinds, whose
@@ -68,6 +75,7 @@ function keyer() {
 function requirementLine(r: BriefRequirement, key: string): BriefLine {
   return {
     key,
+    arrivalId: normalizeKey(r.skill ?? ""),
     text: r.skill ?? "",
     label: null,
     provenance: r.provenance ?? null,
@@ -93,6 +101,7 @@ export function buildBriefSections(brief: RoleBrief | null): BriefSection[] {
       hue: "bg-moss",
       lines: outcomes.map((s) => ({
         key: key("outcome", s),
+        arrivalId: normalizeKey(s),
         text: s,
         label: null,
         provenance: null,
@@ -136,6 +145,7 @@ export function buildBriefSections(brief: RoleBrief | null): BriefSection[] {
       hue: "bg-stone-300",
       lines: group.items.map((f) => ({
         key: key(`facet:${group.key}`, `${f.label || f.key} ${f.displayValue}`),
+        arrivalId: f.key ?? "",
         text: f.displayValue,
         label: f.label || f.key,
         provenance: f.provenance ?? null,

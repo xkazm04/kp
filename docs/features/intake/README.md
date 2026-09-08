@@ -15,6 +15,28 @@ the existing JD build. Conversation design is normed by
   Both panels stay mounted, so switching can never discard a half-typed draft or
   an in-flight dialog (`jdsLedgerNav.ts` pins that; only a Duplicate advances
   `builderKey` and remounts the builder).
+- **The tab is the LEDGER; a session opens the STUDIO.** The intake panel used to
+  be two views in one — a list of conversations that swapped itself out for the
+  conversation. Opening a session now opens a full-viewport dialog over the page
+  (`IntakeStudioOverlay`), so the ledger is still underneath when it closes. See
+  *Intake Studio* below.
+- `?intake=new` — start a conversation in one click: the tab creates a fresh
+  session and the studio opens on it. One-shot, exactly like `?duplicate=`: the
+  predicate is the pure `opensNewIntake` (`jdsIntakeTabEntry.ts` + test), the
+  param is stripped at mount with `history.replaceState`, and the instruction is
+  handed to the panel as a boolean it reports back on — the panel mounts behind a
+  `Defer`, so a strip alone would not be enough. The value is matched EXACTLY
+  (`new`, not "any non-empty"): the param has a side effect (a `role_intakes` row
+  and a spawned opener), so a future `?intake=<id>` must not be read as "make
+  another one". A builder handoff outranks it — a conversation must not open on
+  top of a prefill the reader can no longer see.
+- **Command palette → "New intake"** — the one palette command that CREATES
+  something, so it is a door rather than a jump: the plain *Go to → Job intake*
+  row lands on the ledger, which is right for "show me my conversations" and one
+  click short for "I have a hiring need right now". It emits the `?intake=new`
+  href above and is hidden when the tab is locked for this caller
+  (`useWorkspaceCommandPaletteItems.ts`). Its label is the intake surface's own
+  `library.tab.intake.new`, not a palette copy of it.
 - The tab opens on **Generate** instead of the dialog when the URL carries a JD
   handoff — `?duplicate=<slug>` (the ledger's Duplicate), `?jdTask=<id>` (a
   finished background build, from the tasks tray) or the `?jdTitle=/?jdNeed=/…`
@@ -402,7 +424,11 @@ anonymous 500 the runner had to guess a code out of.
 | Decision cards: wire contract + clamps (pure) | `app/_lib/intake-choices.ts` (`coerceIntakeChoiceSet`, `choiceMessage`, `toggleChoice`; `intake-choices.test.ts`) |
 | Decision cards: when they are earned | `pipeline/jobfit/intake.py` (`_PERSONA_CHOICES`, `_choices_payload`, `_SCRIPTED_CHOICE_OPTIONS`, `_scripted_choices`) |
 | Decision cards: UI | `app/features/library/jds/intake/JdsIntakeChoiceCards.tsx`, mounted through `ChatTranscript`'s `renderTurnExtras` |
-| UI | `app/features/library/jds/intake/` (`JdsIntakePanel`, `JdsIntakeChat`, `JdsIntakeBriefPanel`, `jdsIntakeLogic`) |
+| UI — ledger | `app/features/library/jds/intake/JdsIntakePanel.tsx` (the tab: session table + summary rail), `JdsIntakeSessionsTable.tsx` |
+| UI — studio | `IntakeStudioOverlay.tsx` (the dialog frame + disclosure + close contract), `IntakeStudioActions.tsx` (export · re-open · promote), `IntakeStudioDesk.tsx` (the Triptych at full size) |
+| UI — panes | `JdsIntakeChat`, `JdsIntakeBriefPanel`, `JdsIntakeDraftPane`, `JdsIntakeAttachmentsPane`, `jdsIntakeLogic` |
+| Per-turn arrival (pure + motion) | `intakeDelta.ts` (`diffBrief`, `diffDraft`; `intakeDelta.test.ts`), `IntakeArrivalMotion.tsx` (`useArrivalDelta`, `ArrivalList`) |
+| Tab entry predicates (pure) | `app/features/library/jds/jdsIntakeTabEntry.ts` (`opensOnGenerate`, `opensNewIntake`; `jdsIntakeTabEntry.test.ts`) |
 
 ## Data model
 
@@ -618,6 +644,64 @@ self-hosted raise, because this route mints OpenAI Realtime credentials and
 only those (a locally configured ElevenLabs is unreachable from it, so
 "nothing billable is minted" is false here) — fast turns 60/10min per intake,
 extraction sweeps 20/10min per IP.
+
+## Voice in and out (dictation + read-aloud)
+
+The intake composer carries a voice bar (`app/features/library/jds/intake/IntakeVoiceBar.tsx`,
+mounted in the chat's `composerSlot`). It is **two independent pipelines that share a row and
+nothing else** — the shape the registry's voice-io subject insists on: capture → transcript and
+text → synthesis have different latency, privacy and failure physics.
+
+| Half | Hook | Route | Package |
+| --- | --- | --- | --- |
+| Dictation (in) | `useIntakeDictation.ts` | `POST /api/stt` | `packages/voice-stt` (`useStt`) |
+| Read-aloud (out) | `useIntakeSpeech.ts` | `POST /api/tts` | `packages/voice-tts` (`useTts`) |
+
+The rules that are the surface's own (rather than the packages') are pure and tested in
+`intakeVoiceIo.ts` / `intakeVoiceIo.test.ts` — the unavailability latch, the auto-speak
+decision, and where a transcript lands in a half-typed sentence.
+
+### Dictating
+
+Press the mic (a gesture — capture never starts from navigation). While it is open the bar shows
+a **continuously visible indicator**: the word "Listening…" plus a live level meter, which is the
+only tool a requestor has to debug their own audio. The meter taps its own analyser stream; if the
+device will not give a second reader, the bar is not painted at all — a bar stuck at zero would be
+a false "we cannot hear you" about a working microphone. Under `prefers-reduced-motion` the
+animated bar is replaced by the same number as text.
+
+Pressing again stops and transcribes. **The transcript lands in the composer draft, appended to
+whatever was already typed, and nothing sends** (`onDictated` → `appendDictation`): a transcript is
+an engine's guess, so a mis-heard word is fixed before the agent ever sees it. The append keeps a
+deliberate line break, joins closing punctuation tight (", ideally with Kafka"), and otherwise adds
+exactly one space.
+
+### Reading the agent's turn aloud
+
+The speak control appears whenever there is an agent turn to read. It has three meanings and never a
+fourth: start, stop, or resume a playback the browser refused. **Stop means now** — the package
+aborts pending synthesis and releases the audio element in the same tick, and so does unmounting the
+panel or switching to another intake session. Text passes `speechReady()` before any engine sees it,
+so a reply written for a 30rem column is not voiced as "asterisk asterisk".
+
+**"Read every reply aloud"** is a per-browser opt-in (`localStorage: kp-intake-auto-speak`), **OFF by
+default**. It is primed on mount and on a session switch, so reopening a stored session never speaks
+a week-old answer at somebody who has just arrived; it is de-duped by text identity, so a keystroke
+in the composer cannot restart an utterance; and it stays silent while the tab is hidden. Browsers
+refuse un-gestured audio, and that refusal is a designed state — the control becomes a resume.
+
+### With no engines installed (keyless)
+
+`/api/stt` (whisper.cpp) and `/api/tts` (Piper) need local binaries. Without them each route answers
+503 `STT_UNAVAILABLE` / `TTS_UNAVAILABLE`, and each half of the bar **degrades on its own**: the
+control is replaced by one honest sentence and the other pipeline keeps working. A machine with
+whisper.cpp and no Piper dictates and does not read aloud; a machine with neither leaves the intake
+session entirely reachable by typing. The latch is sticky because the fix is a server config, not
+another press — every *other* failure (a denied microphone, a throttle, an engine fault) leaves the
+control live and says what happened, resolved from the route's code in the reader's language
+(`errors.<CODE>` via `useErrorMessage`).
+
+Keys: `library.tab.intake.voiceIo.*` in all four catalogs.
 
 ## Editable brief + re-openable sessions (UAT drain §2.1)
 
@@ -919,6 +1003,17 @@ would sort every untouched session to the bottom in BOTH directions
 (`compareCells`' missing-value rule), which is right for an unknown and wrong for
 a date we hold.
 
+**The ledger is the whole tab now**, and it gained the rail it needed once it
+stopped being replaced by the session view: a sunken summary panel
+(`lg:grid-cols-[minmax(0,1fr)_20rem]`) describing ONE session — the row the reader
+last opened, or the newest one before they have opened anything. It carries the
+brief title, the shape and status chips, the turn count, the last-updated date, an
+**Open the studio** button, and — for a promoted session — a link to the JD that
+came out of it (`/jds/<slug>`, the door `JobsLifecycleStrip` already uses; the
+library ledger has no per-JD deep-link param to aim at). "What came of this
+conversation" is the question the `promoted` chip raises and a table cell cannot
+answer.
+
 Two smaller corrections on the same surface:
 
 - **The lede is a tooltip on the title**, not a paragraph under it. It explains
@@ -931,27 +1026,74 @@ Two smaller corrections on the same surface:
   chevron) that lifts its border on hover, and the form's primary action is a
   primary button.
 
+## Intake Studio (overlay)
+
+The open conversation is a full-viewport workspace over the ledger:
+`IntakeStudioOverlay.tsx` → `Modal size="full" bare` → a header strip →
+`IntakeStudioDesk.tsx` (the Triptych at full size).
+
+**Why an overlay rather than a second view of the tab.** The desk had to fit in
+whatever was left of the page under the tab header, the mode switcher and the
+intro paragraph — on a 1280px screen roughly half a viewport for three panes that
+are meant to be read together — and the tab was answering two questions at once,
+with the second one silently replacing the first. The dialog is `h-[92dvh]` and
+`max-w-[1920px]`, so the desk gets the screen; closing it returns to a ledger that
+never went anywhere.
+
+- **The a11y contract is the primitive's, not this file's.** `Modal` wires
+  `useDialogA11y` — Escape (top-of-stack gated), the focus trap, the scroll lock
+  and focus restore — and the contract is pinned by `e2e/modal-escape.spec.ts`.
+  `bare` only means the caller draws the chrome, because the header here is the
+  session's identity plus everything that can be done to it, not a title bar.
+- **The header strip**: shape eyebrow · session title (or *Untitled role*) ·
+  status chip on the left; Export, Re-open, the promote checkboxes and **Create
+  JD** (`IntakeStudioActions.tsx`) plus the close control on the right. Below it,
+  in its own band, the session-wide disclosure the panel has always carried — the
+  degraded/stand-in-language notes and the per-affordance refusal lines, each
+  resolved from the server's CODE through `useErrorMessage()`.
+- **Escape is not unconditional.** A reply takes ~30–40 s live and closing the
+  dialog does not cancel it — the exchange lands server-side and the requestor is
+  left on a ledger row that quietly gained a turn they never read. So while
+  `sending` is true, Escape / the backdrop / the close button raise one inline
+  confirm (*a reply is still arriving*) with **Stay** and **Close anyway**. Every
+  other close is immediate.
+- **A closed session is read-only where it must be, and no further.** The
+  composer and the voice controls are hidden (the `closed` branch that already
+  existed), and a `complete` session offers **Re-open**. The brief stays
+  EDITABLE on a complete session — that is the point of the edit mode (fix what
+  was captured without a new session, §*Editable brief*); only a `promoted`
+  session is frozen, because there the JD exists.
+
 ## Session layout — chat · brief · JD draft · materials
 
-The session view is the **Triptych** (`JdsIntakeLayoutTriptych.tsx` over the
-shared contract in `intakeLayoutShared.ts`): three foldable leaves — JD draft ·
+The desk is the **Triptych** (`JdsIntakeLayoutTriptych.tsx` over the shared
+contract in `intakeLayoutShared.ts`): three foldable leaves — JD draft ·
 conversation · live brief — each folding to a clickable spine that still badges
 what THAT leaf holds; materials live in a disclosure at the foot of the draft
 leaf, reachable from the spine and from beside the conversation. Column
 visibility persists per browser in `localStorage`, never server-side.
 
-**One desk, one height.** The leaves used to size themselves — the chat leaf was
-a fixed 32rem, the brief and the draft grew with their content, and
-`items-stretch` stretched every leaf to the tallest of the three. A long brief
+**One desk, one height — and two hosts.** The leaves used to size themselves —
+the chat leaf was a fixed 32rem, the brief and the draft grew with their content,
+and `items-stretch` stretched every leaf to the tallest of the three. A long brief
 therefore left a column of dead white space under the conversation and under the
-draft, and the taller the brief got the more of the desk was empty. The DESK now
-owns the height and the leaves fill it: the row is
-`clamp(28rem, 100dvh - 15rem, 48rem)` at `xl` — viewport-proportional, with a
-floor so a short window still shows a usable conversation and a ceiling so a tall
-one does not stretch a three-line brief down a whole screen. Each leaf is a
-bounded flex column with a fixed header and exactly ONE scrolling body, so
-content that overruns scrolls inside its own leaf instead of pushing the desk
-taller and stranding its neighbours. Two consequences worth knowing before
+draft. The DESK now owns the height and the leaves fill it, and WHICH height
+depends on who is hosting it (`fill` on `IntakeLayoutProps`):
+
+- **Unset** — the desk is a block on a scrolling page and has to pick its own
+  height: `clamp(28rem, 100dvh - 15rem, 48rem)` at `xl`, viewport-proportional,
+  with a floor so a short window still shows a usable conversation and a ceiling
+  so a tall one does not stretch a three-line brief down a whole screen.
+- **`fill`** (the studio) — the container IS the height. The modal body is already
+  bounded at 92dvh, so a second height claim inside it would either overflow the
+  dialog or leave a strip of dead white under the leaves; the desk takes
+  `xl:flex-1 min-h-0` instead. Below `xl` it is `shrink-0` and the leaves stack to
+  their natural height with a `max-h-[50dvh]` cap each — the DIALOG is the
+  scroller there, and a shrinkable desk would be squeezed with nothing to scroll.
+
+Each leaf is a bounded flex column with a fixed header and exactly ONE scrolling
+body, so content that overruns scrolls inside its own leaf instead of pushing the
+desk taller and stranding its neighbours. Two consequences worth knowing before
 touching it:
 
 - The chat leaf is the exception to "the leaf body scrolls": `ChatTranscript`
@@ -988,9 +1130,71 @@ and out, the draft crossfades on brief change —
 all flattened under `prefers-reduced-motion`. Both themes are covered at the
 token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
 
+## Per-turn arrival — what THIS sentence bought
+
+One exchange returns the WHOLE brief, not a patch, so "the three lines your last
+sentence added" is not something the wire says: it has to be derived by comparing
+the snapshot before the turn with the one after it. That is `intakeDelta.ts` —
+pure, no React, pinned by `intakeDelta.test.ts` — and the motion for it is
+`IntakeArrivalMotion.tsx` (`useArrivalDelta` + `ArrivalList`).
+
+**It is not the reveal, and the two do not overlap.** `briefReveal.ts` classifies
+how a line's TEXT enters (type · fade · settled); the delta classifies which ROWS
+moved, which is a different question — a row can change without its sentence
+changing (a re-grading) and change its sentence without being a new row (a
+rename). So: the arrival moves the row, the reveal writes the words inside it,
+and neither animates the other's business.
+
+- **Identity.** Requirements by normalized skill, facets by their own key
+  (`budget_band`, `objective:<kpi>` — the field a correction rewrites is the
+  prose, not the key), 90-day criteria and responsibilities by normalized text,
+  spine scalars by field name (`title`, `seniority`, `roleFamily`, `summary`,
+  `languages` — the last reads as one line, so it diffs as one value). A row's
+  "everything else" is hashed into a signature, so a re-grading is a **change**,
+  not an arrival. `normalizeKey` is shared with the render walk
+  (`briefSections.ts`, which carries the delta identity per line as `arrivalId`),
+  because the two have to agree.
+- **The positional fallback.** A rename destroys the key, and a keyed diff alone
+  reports that as a deletion plus an unrelated arrival — the one story that is
+  definitely wrong. So when a key vanishes at index *i* AND an unseen key appears
+  at index *i*, the two are the same row, changed. It is a heuristic, it applies
+  only at the SAME index (a genuine insert above a genuine delete still reads as
+  both), and it is pinned in the test for exactly that reason.
+- **The first snapshot is history.** Opening a finished session must not animate
+  nineteen turns' worth of work as if it had just landed — the same rule
+  `useBriefReveal` applies. Only a snapshot that REPLACES one is a turn, and the
+  delta clears itself after 1.4 s so a row that landed and then sat there is not
+  permanently marked new.
+- **Motion.** New rows enter `{opacity: 0, y: 6}` → the house spring
+  (`stiffness: 420, damping: 34`), 40 ms apart for the first twelve and instant
+  after that (a twenty-row extraction staggered end to end would hold the last row
+  back most of a second after the reply is already readable). Changed rows replay
+  `animate-arrive-in`; removed rows fade out. A new row carries
+  `data-source-turn`, and clicking it jumps the transcript to the turn it came
+  from — the same `highlightTurn` the row's own turn chip calls, which is the
+  keyboard path.
+- **Reduced motion** collapses all of it to "the row is simply there": no
+  stagger, no transform, zero duration. `useReducedMotion`, one gate, no call site
+  remembering.
+- **The JD draft flashes what moved, not that something moved.** The whole
+  document used to fade on every brief change, which says "this changed" about a
+  posting where two words out of four hundred are new. `diffDraft` (same module,
+  counted rather than set-tested so a legitimately repeated line still reads as
+  new) marks the changed line indexes; the pane splits the markdown at its blank
+  lines into blocks, and only the blocks holding a new or replaced line animate.
+  `Markdown` is untouched — a block is exactly the text it would have seen anyway,
+  one piece at a time — and the blocks live in one wrapper with `mt-2` on the
+  non-first ones, restoring the `first:mt-0` margin each block loses by becoming
+  the first child of its own root.
+- **The leaf headers say where the work is landing.** While a turn is in flight
+  the brief and draft leaf labels pulse (`busyColumns` on `IntakeLayoutProps`,
+  `animate-pulse` — the one Tailwind animation `globals.css` already stops under
+  reduced motion). The conversation is not in the list: it has its own thinking
+  bubble.
+
 ### Per-session state does not survive a session switch
 
-`JdsIntakePanel` is mounted **once** (dynamically, by `JdsSavedLedger`) and swaps
+`JdsIntakePanel` is mounted **once** (dynamically, by `JdsIntakeTab`) and swaps
 `active` underneath itself — there is no `key`, so nothing inside it remounts when
 the requestor goes Back and opens a different intake. The async half of this was
 already handled: every late voice/compose result is folded through the
@@ -1000,6 +1204,111 @@ identity-checked `applySession`, "so a result must name the session it belongs t
 render-phase guard keyed on the intake id (the `jobsTabDeepLink.ts` shape — an effect would let one frame render the
 previous session's claims). `paired` is not reset: the Personas bridge is
 workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
+
+## Posting corpus (`job_postings`)
+
+Real job advertisements a team has imported: the two bundled corpora, an ad pasted
+from anywhere, or a careers page fetched by URL. It is the ground the intake studio
+compares a `RoleBrief` against, and the pool a stratified "one posting per role"
+sample is drawn from.
+
+### Entry points
+
+| Surface | What it does |
+| --- | --- |
+| `GET /api/job-postings?q=&roleFamily=&limit=` | This workspace's posting ledger → `{ postings: JobPostingSummary[] }` (no bodies — `bodyChars` instead). `q` matches title or company, case-insensitively. Default limit 200, ceiling 500. |
+| `POST /api/job-postings` `{source:"seed"}` | Imports the two bundled corpora into this workspace, **once** → `{ inserted, skipped, postings: [] }`. |
+| `POST /api/job-postings` `{source:"paste", title, text, company?, lang?, roleFamily?, seniority?}` | Stores a pasted advertisement → `{ inserted, skipped, postings: [summary] }`. |
+| `POST /api/job-postings` `{source:"url", url}` | Fetches the page, extracts its text, stores it. Same response shape. |
+| `GET /api/job-postings/[id]` | One posting, body included → `{ posting: JobPosting }`. |
+
+All four are operator-gated (`requireOperator`) and are **not** on the public
+allow-list (`app/_lib/auth/public-routes.ts`).
+
+### Library surface
+
+| Module | Holds |
+| --- | --- |
+| `app/_lib/db/job-postings.ts` | The store: `listJobPostings`, `getJobPosting`, `insertJobPosting`, `distinctRolePostings`, `seedJobPostingsCorpus`, plus `postingContentHash` / `normalizeBody`. |
+| `app/_lib/job-posting-fetch.ts` | `htmlToText`, `htmlTitle`, `decodeEntities`, `fetchPostingText` — dependency-free extraction, no DOM library. |
+| `app/api/job-postings/posting-import-limits.ts` | `POSTING_MIN_CHARS` (200) and `POSTING_MAX_CHARS` (60 000). A sibling module because a non-handler `export const` in a route file aborts `next build`. |
+
+### Data model
+
+`job_postings` (DDL in `app/_lib/db/core.ts`):
+
+`id`, `workspace_id`, `source` (`seed_calibration` | `seed_jobs` | `paste` | `url` |
+`crawler`, CHECK-constrained), `source_ref`, `title`, `company`, `role_family`,
+`seniority`, `lang`, `body_text`, `content_hash`, `fetched_at`, `created_at`, with
+`UNIQUE (content_hash, workspace_id)` and an index on `(workspace_id, role_family)`.
+
+`content_hash` is sha256 over the whitespace- and case-normalized body, so the same
+advertisement pasted twice — or pasted and then fetched — is one row. A conflicting
+insert returns `{ inserted: false }` **with the existing id**, not a silent no-op, so
+the caller can still link to the row.
+
+**Tenancy.** `workspace_id` is `NOT NULL` and every query filters or stamps it, point
+reads included; the manifest entry is in `app/_lib/tenancy.ts` and the proof is
+`app/_lib/db/job-postings-tenancy.test.ts` (exemption list empty). This is
+deliberately *not* the dual-tier NULL-means-org-shared model `jobs` and `jd_templates`
+use: a posting arrives by one team's import act, and `distinctRolePostings` is that
+team's own sample. The dedupe UNIQUE is scoped for the same reason — one team's
+import must not suppress another's.
+
+### The bundled corpora
+
+`{source:"seed"}` reads two files from disk:
+
+- `data/seed_calibration/jobs.json` — 100 English real-world job bodies
+  (`jd_text`), stored with `lang: "en"`.
+- `data/seed_jobs/jobs.json` — 120 Czech-market records. The body is
+  `description` followed by `\n\nRequirements:\n- ` and the requirement bullets;
+  `lang` is `languages[0]`, else `cs`.
+
+220 records in, ~219 rows out (the content hash collapses the exact duplicates).
+
+The run is guarded by a **seed mark**, `job_postings_corpus_v1:<workspace_id>` in
+`seed_marks` — never `COUNT(*) > 0`, so a team that imported the corpus and then
+deliberately cleared it does not get it injected back. The mark is per workspace
+because the import is per team: a second team importing is a first run, not a replay.
+A missing or unparseable corpus file leaves the mark **unset**, so a fixed checkout
+still seeds.
+
+### `distinctRolePostings(workspaceId, n)`
+
+One posting per normalized title, taken **round-robin across role families** so a
+sample of 50 over a corpus where `software_engineering` is 60 of 220 rows still spans
+the taxonomy instead of returning fifty flavours of "developer". Deterministic: the
+SQL order and the round-robin are both total, so the same corpus and the same `n`
+return the same rows in the same order.
+
+### Refusals
+
+| Condition | Answer |
+| --- | --- |
+| Unknown `source`, or a paste under 200 characters | `POSTING_TEXT_REQUIRED` (400) |
+| A URL that will not parse, or is not http(s) | `POSTING_FETCH_FAILED` (400) |
+| `KP_OFFLINE` is on and the import is a URL | `POSTING_OFFLINE` (503) — refused **up front**, so the operator gets a decision in their own language rather than a blocked-fetch accident from the global egress guard |
+| Fetch failed, or the page yielded under 200 characters of readable text | `POSTING_FETCH_FAILED` (502) |
+| Over 20 imports from one IP in 10 minutes | `TOO_MANY_REQUESTS` (429) |
+| An id that does not resolve in this workspace | `POSTING_NOT_FOUND` (404) |
+
+The limiter sits after every cheap refusal above and before the fetch or the corpus
+write, and is pinned in `app/api/rate-limit-contract.test.ts`.
+
+### Known gaps (posting corpus)
+
+- `htmlToText` reads server-rendered markup only. A JS-only careers page yields a stub,
+  which is refused as `POSTING_FETCH_FAILED` rather than stored — honest, but it means
+  several large ATS-hosted career sites cannot be imported by URL. Paste works.
+- The `crawler` source value exists in the vocabulary and the CHECK constraint; no
+  crawler writes it yet.
+- The two bundled corpora between them cover **11 of the taxonomy's 16 role families**
+  (`data/taxonomy.json`) — there is no construction/manufacturing, healthcare,
+  education, public-sector or skilled-trades advertisement in either file, so a
+  stratified sample cannot span more than eleven.
+- There is no delete or re-import route: clearing a workspace's postings is a DB
+  operation today, and the seed mark means the corpus does not come back on its own.
 
 ## Known gaps
 

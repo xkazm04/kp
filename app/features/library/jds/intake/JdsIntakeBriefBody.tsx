@@ -8,6 +8,7 @@ import type { RoleBrief } from "@/app/_lib/rolespec";
 import { JdsIntakeBriefTitle } from "./JdsIntakeBriefTitle";
 import { ConfidenceNote, ProvenanceDot, ProvenanceLegend, RationaleDisclosure, TurnRef } from "./JdsIntakeBriefAtoms";
 import { TypedText, type BriefReveal } from "./BriefRevealAtoms";
+import { ArrivalList, type ArrivalDelta } from "./IntakeArrivalMotion";
 import type { BriefLine, BriefSection } from "./briefSections";
 
 // The live brief's body — "Annotated", the direction that won the /prototype
@@ -55,7 +56,10 @@ function Heading({ hue, label, count }: { hue: string; label: string; count?: nu
 
 /** One annotated line: the sentence, then the margin. The margin is whatever
  *  the line can defend itself with — always in the same lane, always in the
- *  same order. */
+ *  same order.
+ *
+ *  It renders the row's CONTENT, not its `<li>`: the list item belongs to
+ *  `ArrivalList`, which is what knows whether this row just landed. */
 function AnnotatedLine({
   line,
   mode,
@@ -68,7 +72,7 @@ function AnnotatedLine({
   learnableLabel: string | null;
 }) {
   return (
-    <li className="flex items-start justify-between gap-3">
+    <>
       <div className="flex min-w-0 flex-1 gap-2">
         <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" aria-hidden />
         <div className="min-w-0">
@@ -88,7 +92,7 @@ function AnnotatedLine({
         <ConfidenceNote confidence={line.confidence} />
         <TurnRef turn={line.sourceTurn} onJump={onJump} />
       </span>
-    </li>
+    </>
   );
 }
 
@@ -96,6 +100,7 @@ export function JdsIntakeBriefBody({
   brief,
   sections,
   mode,
+  delta,
   frozen,
   saving,
   onSaveBrief,
@@ -106,6 +111,9 @@ export function JdsIntakeBriefBody({
    *  the same line keys — two walks would be two identities. */
   sections: BriefSection[];
   mode: BriefReveal["mode"];
+  /** Which rows the last turn added or rewrote (`IntakeArrivalMotion`). The rows
+   *  MOVE on that; the words inside them are still the reveal's job. */
+  delta: ArrivalDelta;
   frozen?: boolean;
   saving?: boolean;
   onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
@@ -139,15 +147,23 @@ export function JdsIntakeBriefBody({
         <div key={section.key}>
           <Heading hue={section.hue} label={heading(section)} count={section.lines.length} />
           <ul className="mt-2 space-y-2">
-            {section.lines.map((line) => (
-              <AnnotatedLine
-                key={line.key}
-                line={line}
-                mode={mode}
-                onJump={onJumpToTurn}
-                learnableLabel={section.kind === "musts" && line.learnable ? t("learnable") : null}
-              />
-            ))}
+            <ArrivalList
+              items={section.lines}
+              keyOf={(line) => line.key}
+              idOf={(line) => line.arrivalId}
+              sourceTurnOf={(line) => line.sourceTurn}
+              delta={delta}
+              onJumpToTurn={onJumpToTurn}
+              itemClassName="flex items-start justify-between gap-3"
+              renderItem={(line) => (
+                <AnnotatedLine
+                  line={line}
+                  mode={mode}
+                  onJump={onJumpToTurn}
+                  learnableLabel={section.kind === "musts" && line.learnable ? t("learnable") : null}
+                />
+              )}
+            />
           </ul>
         </div>
       ))}

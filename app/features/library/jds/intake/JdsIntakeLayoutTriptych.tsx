@@ -102,7 +102,19 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
   };
 
   return (
-    <div className="mt-4 flex flex-col gap-3 xl:h-[clamp(28rem,calc(100dvh-15rem),48rem)] xl:flex-row xl:items-stretch">
+    <div
+      className={`flex flex-col gap-3 xl:flex-row xl:items-stretch ${
+        // `fill`: the container already bounds the desk (the studio overlay's
+        // modal body), so at xl the desk takes all of it and nothing more —
+        // `min-h-0` is what lets the leaves' own scrollers work inside a flex
+        // parent. Below xl it is `shrink-0` instead: the leaves stack to their
+        // natural height and the DIALOG scrolls, and a shrinkable desk there
+        // would be squeezed by its flex parent with nothing to scroll.
+        props.fill
+          ? "min-h-0 shrink-0 xl:h-full xl:flex-1 xl:shrink"
+          : "mt-4 xl:h-[clamp(28rem,calc(100dvh-15rem),48rem)]"
+      }`}
+    >
       {LEAVES.map((key) => {
         const isOpen = open.includes(key);
         const label = t(`col.${key}`);
@@ -112,7 +124,13 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
             key={key}
             layout={!reduced}
             transition={{ layout: { duration: reduced ? 0 : 0.25, ease: "easeOut" } }}
-            className={`flex min-w-0 flex-col overflow-hidden rounded-lg border border-stone-200 max-h-[34rem] xl:max-h-none dark:rounded-2xl ${
+            className={`flex min-w-0 flex-col overflow-hidden rounded-lg border border-stone-200 xl:max-h-none dark:rounded-2xl ${
+              // Stacked (below xl) a leaf caps itself so the three of them do not
+              // become one endless column. In the overlay the cap is half the
+              // viewport — the modal body is the scroller there, and a 34rem leaf
+              // on a phone-height dialog would show almost nothing of the next one.
+              props.fill ? "max-h-[50dvh]" : "max-h-[34rem]"
+            } ${
               isOpen
                 ? `bg-white p-4 dark:shadow-sticker-sm ${key === "chat" ? "xl:flex-[1.5]" : "xl:flex-1"}`
                 : "shrink-0 bg-stone-50 xl:w-10"
@@ -130,7 +148,11 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
                           drops to a second line rebuilds the two-row header this
                           consolidation removed. The label truncates instead — it is
                           the half that also rides the spine when the leaf folds. */}
-                      <span className={`${EYEBROW} truncate`}>{label}</span>
+                      {/* `animate-pulse` is the one Tailwind animation globals.css
+                          already stops under reduced motion (it carries no
+                          information a still frame loses — the thinking bubble in
+                          the conversation is the honest wait). */}
+                      <span className={`${EYEBROW} truncate ${(props.busyColumns ?? []).includes(key) ? "animate-pulse" : ""}`}>{label}</span>
                       {key === "draft" ? props.draftChip : null}
                     </span>
                     <button

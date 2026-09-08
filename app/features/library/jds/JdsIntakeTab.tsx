@@ -11,7 +11,7 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { switchTab, duplicateToBuilder, type AuthorNavState } from "./jdsLedgerNav";
 import { readBuildIntent } from "./jdsLedgerArtifacts";
 import type { GeneratePrefill } from "./jdsLibrary";
-import { DUPLICATE_PARAM, opensOnGenerate } from "./jdsIntakeTabEntry";
+import { DUPLICATE_PARAM, NEW_INTAKE_PARAM, opensNewIntake, opensOnGenerate } from "./jdsIntakeTabEntry";
 
 // JOB INTAKE — the authoring half of the JD surfaces, split out of the library
 // tab. The library page used to carry a Saved / Generate / Intake strip, which
@@ -50,6 +50,12 @@ export function JdsIntakeTab() {
     builderKey: 0,
   }));
   const [prefill, setPrefill] = useState<GeneratePrefill | null>(null);
+  // `?intake=new` (the command palette's door into the studio). Read ONCE in the
+  // state initializer, like the entry mode above, and handed to the panel as a
+  // one-shot instruction it reports back on — a param strip alone would not be
+  // enough, because the panel mounts behind a `Defer` and may not exist yet at the
+  // moment the URL is cleaned.
+  const [autoStartIntake, setAutoStartIntake] = useState(() => opensNewIntake(search));
 
   // Duplicate handoff (?duplicate=<slug>): the ledger no longer shares a page with
   // the builder, so the prefill can't be handed over in memory. The SLUG rides the
@@ -112,6 +118,16 @@ export function JdsIntakeTab() {
     // what makes the one-shot honest rather than asserted by a disabled lint rule.
   }, [search, loadDuplicate]);
 
+  useEffect(() => {
+    if (!opensNewIntake(search)) return;
+    // One-shot, the same raw history write ?duplicate= uses: no setState, so no
+    // nav churn, and a refresh or a shared link can never start a second
+    // conversation. The instruction itself already lives in state above.
+    const url = new URL(window.location.href);
+    url.searchParams.delete(NEW_INTAKE_PARAM);
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  }, [search]);
+
   return (
     <section className={`${PANEL} stagger-children p-5`}>
       {/* No cross-link to the ledger here: "Job descriptions" is its own sidebar
@@ -143,7 +159,11 @@ export function JdsIntakeTab() {
 
       <div className={nav.tab === "intake" ? "animate-fade-in mt-5" : "hidden"}>
         <Defer strategy="idle" placeholder={chunkGap()}>
-          <LibraryIntakePanel onPromoted={notifyDataChanged} />
+          <LibraryIntakePanel
+            onPromoted={notifyDataChanged}
+            autoStart={autoStartIntake}
+            onAutoStarted={() => setAutoStartIntake(false)}
+          />
         </Defer>
       </div>
       {/* `animate-fade-in` on a display-toggled wrapper replays on each show: a CSS

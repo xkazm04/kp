@@ -3,11 +3,12 @@
 // (recents → "Go to" tabs → tour action → search hits) the component used to build
 // inline in its useMemo — verbatim logic, just relocated.
 import { useMemo } from "react";
-import { useLocale, type useTranslations } from "next-intl";
+import { useLocale, useTranslations as useIntlTranslations, type useTranslations } from "next-intl";
 import type { Capability } from "@/app/_lib/auth/roles";
+import { NEW_INTAKE_PARAM } from "@/app/features/library/jds/jdsIntakeTabEntry";
 import { commandAllowed, lockedTabsFor, TOUR_CAPABILITY } from "./navCapabilities";
 import type { RecentItem } from "./recents";
-import { buildTabSwitchUrl, HIRING_FALLBACK_LABEL, navLabel, NAV_GROUPS, sectionOf, type WorkspaceTabId } from "./tabs";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, HIRING_FALLBACK_LABEL, navLabel, NAV_GROUPS, sectionOf, type WorkspaceTabId } from "./tabs";
 import { hitHref, HIT_TYPE_ORDER, type PaletteItem, type SearchHit } from "./workspaceCommandPaletteTypes";
 
 type Translate = ReturnType<typeof useTranslations>;
@@ -49,6 +50,9 @@ export function useWorkspaceCommandPaletteItems({
   // disabled), the palette is a search over things you can act on.
   const locked = lockedTabsFor(capabilities);
   const tourAllowed = commandAllowed(TOUR_CAPABILITY, capabilities);
+  // "New intake" is offered in the intake surface's OWN words — the palette is not
+  // a second place to name a feature, and a copy here would be the one that rots.
+  const intake = useIntlTranslations("library.tab.intake");
 
   return useMemo<PaletteItem[]>(() => {
     const q = query.trim().toLowerCase();
@@ -111,6 +115,23 @@ export function useWorkspaceCommandPaletteItems({
         label: tourLabel,
         sub: t("tourSub"),
         action: simStart,
+      });
+    }
+    // "New intake" — the one command here that CREATES something, so it is a door
+    // and not a jump: the plain "Go to → Job intake" row above lands on the ledger,
+    // which is right for "show me my conversations" and one click short for "I have
+    // a hiring need right now". `?intake=new` is consumed once at the tab
+    // (`opensNewIntake`, jdsIntakeTabEntry.ts) and stripped, so the URL cannot
+    // re-run it. Hidden when the tab is locked — the palette does not offer doors
+    // it knows are shut.
+    const newIntakeLabel = intake("new");
+    if (!locked.has("intake") && (!q || newIntakeLabel.toLowerCase().includes(q) || "intake role new conversation nábor role".includes(q))) {
+      navOut.push({
+        key: "action-new-intake",
+        group: "actions",
+        label: newIntakeLabel,
+        sub: intake("ledger.paletteSub"),
+        href: buildUrl({ ...clearedTabScopedParams(), tab: "intake", [NEW_INTAKE_PARAM]: "new" }, search),
       });
     }
     // "Ask Candi: <query>" — the palette's ONE non-navigation answer to a query
