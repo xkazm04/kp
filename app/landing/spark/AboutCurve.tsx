@@ -7,8 +7,10 @@ import { ArrowRight } from "lucide-react";
 import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
 import { ABOUT_STEP_KEYS, StepArt, type AboutStepKey } from "./about-art";
+import { aboutStepId, aboutStepRailLabel } from "./about-art/shared";
 import { ART_TYPE_SCALE } from "./tokens";
 import { useStillMotion } from "./useStillMotion";
+import SectionRail, { type RailSection } from "./SectionRail";
 import MobileNav, { type NavDestination } from "./sections/MobileNav";
 import LegalRow from "./sections/LegalRow";
 import { useTranslations } from "next-intl";
@@ -84,7 +86,14 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
   const artLeft = index % 2 === 0;
 
   return (
-    <div ref={ref} className="relative grid min-h-[80vh] items-center gap-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-10">
+    /* The anchor the rail and the phone menu jump to. `scroll-mt` keeps the
+       row's own top clear of the topbar when a `#step-07` deep link lands
+       without the rail's smooth glide. */
+    <div
+      id={aboutStepId(index)}
+      ref={ref}
+      className="relative scroll-mt-6 grid min-h-[80vh] items-center gap-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-10"
+    >
       {/* ART_TYPE_SCALE: the step illustrations are mockups of product UI, so
           they were drawn at product text sizes and ended up a full step smaller
           than the copy beside them. One class on the art column lifts every
@@ -124,7 +133,22 @@ export default function AboutCurve() {
   const pathLength = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
   const onSignIn = () => void enterWorkspace();
   const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
+  /*
+   * The eight phases as navigable destinations — "01 Design" … "08 Hired",
+   * built once and spent twice: the desktop rail and the phone menu.
+   *
+   * /about is one 8-step scroll-drawn line and used to be walkable only by
+   * scrolling it: a visitor who came to see what happens at Offer had six
+   * phases to get through before finding out it exists. Labels rather than
+   * catalog keys, because SectionRail reads the `landing` namespace and this
+   * copy lives in `aboutPage`.
+   */
+  const railSections: RailSection[] = STEPS.map((step, i) => ({
+    id: aboutStepId(i),
+    label: aboutStepRailLabel(t(`steps.${step.key}.eyebrow`), i)
+  }));
   const destinations: NavDestination[] = [
+    ...railSections.map((s) => ({ kind: "section" as const, id: s.id, label: s.label })),
     { kind: "page", href: "/", label: t("nav.home") },
     { kind: "page", href: "/market", label: t("nav.market") },
     { kind: "page", href: sourceRepoHref(), label: t("nav.source"), external: true }
@@ -152,9 +176,11 @@ export default function AboutCurve() {
           </button>
         </nav>
         {/* The same disclosure the landing uses, with /about's OWN destinations
-            — this page has no scroll bands, so the list is its sibling pages.
-            Without it a phone visitor arriving from the sitemap could reach
-            nothing but the sign-in button. */}
+            — the eight timeline phases first, then its sibling pages. Without
+            it a phone visitor arriving from the sitemap could reach nothing but
+            the sign-in button; without the phases, nothing but a long scroll.
+            The rail beside it is `lg:block`, so below that breakpoint this
+            disclosure is the only in-page navigation there is. */}
         <MobileNav destinations={destinations} />
       </header>
 
@@ -216,6 +242,14 @@ export default function AboutCurve() {
         </button>
       </section>
 
+      {/* The you-are-here rail, the same component the homepage renders — it
+          reveals past the hero, follows scroll position, and glides rather
+          than jump-cuts. Inside <main> like the landing's (SparkLanding.tsx):
+          it is `fixed`, so the surrounding `overflow-x-clip` does not box it. */}
+      {/* 12.5rem, not the homepage's 9.25rem: the widest label here is a
+          translated phase name ("05 Pracovní ukázka", "05 Travail pratique"),
+          and the clamp is what positions the rail on a 1440px laptop. */}
+      <SectionRail sections={railSections} width="12.5rem" />
     </main>
       {/* Footer: OUTSIDE <main> so it keeps its contentinfo landmark - a footer inside main,
           article or section has no role, and the public-pages spec (and screen readers)

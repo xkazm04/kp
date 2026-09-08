@@ -40,3 +40,31 @@ export const ABOUT_STEP_KEYS = [
 ] as const;
 
 export type AboutStepKey = (typeof ABOUT_STEP_KEYS)[number];
+
+/*
+ * The step's anchor id — stable, page-order-based, and the SAME string the
+ * section rail, the phone menu and a shared `/about#step-07` link all use.
+ * Deliberately not the phase key: the number is what the page shows on the
+ * node and in the eyebrow, so `#step-07` is the id a reader can predict.
+ */
+export function aboutStepId(index: number): string {
+  return `step-${String(index + 1).padStart(2, "0")}`;
+}
+
+/*
+ * The rail's label for a step: "01 Design", "03 Příjem".
+ *
+ * DERIVED from the eyebrow the step already carries ("Step 01 · Design",
+ * "Krok 03 · Příjem") rather than a second set of catalog keys — a nav entry
+ * and the heading it jumps to must not be able to disagree, and eight keys × 4
+ * locales of duplicated copy is exactly how they would. The number is taken
+ * from the page order rather than parsed out of the string, so a locale that
+ * mistypes it in the eyebrow (MarketingClaims.test.ts already fails on that)
+ * still gets a correctly numbered rail. A locale that drops the separator
+ * falls back to the whole eyebrow rather than to an empty label.
+ */
+export function aboutStepRailLabel(eyebrow: string, index: number): string {
+  const short = eyebrow.includes("·") ? eyebrow.slice(eyebrow.lastIndexOf("·") + 1).trim() : "";
+  const n = String(index + 1).padStart(2, "0");
+  return short ? `${n} ${short}` : eyebrow.trim();
+}

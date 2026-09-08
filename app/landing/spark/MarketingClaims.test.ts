@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOCALES } from "../../../i18n/locales.ts";
-import { ABOUT_STEP_KEYS } from "./about-art/shared.ts";
+import { ABOUT_STEP_KEYS, aboutStepId, aboutStepRailLabel } from "./about-art/shared.ts";
 import { INTERVIEW_PLAN_DEFAULT } from "../../_lib/decision-config-schema.ts";
 
 /*
@@ -269,6 +269,39 @@ test("each /about step's eyebrow states its own position on the curve", () => {
         numbersIn(steps[key].eyebrow),
         [i + 1],
         `${locale} aboutPage.steps.${key}.eyebrow ("${steps[key].eyebrow}") is not step ${i + 1}`
+      );
+    });
+  }
+});
+
+test("every /about phase yields a numbered rail label in every locale", () => {
+  /* The section rail and the phone menu label each destination "01 Design" —
+   * DERIVED from the step's own eyebrow rather than from eight more catalog
+   * keys, so the nav and the heading it jumps to cannot disagree. That makes
+   * the eyebrow's SHAPE load-bearing: drop the "·" in one locale and the rail
+   * silently falls back to the full "Krok 03 · Příjem" in a column sized for
+   * two words. The ids are checked here too — they are what a `#step-07` deep
+   * link and the scroll-spy both address. */
+  const MAX_LABEL_CHARS = 22; // the rail reserves 12.5rem; see SectionRail's `width`.
+  for (const locale of LOCALES) {
+    const { steps } = CATALOGS[locale].aboutPage;
+    const ids = ABOUT_STEP_KEYS.map((_, i) => aboutStepId(i));
+    assert.equal(new Set(ids).size, ids.length, "step anchor ids must be unique — they are element ids");
+    ABOUT_STEP_KEYS.forEach((key, i) => {
+      const eyebrow = steps[key].eyebrow;
+      assert.ok(
+        eyebrow.includes("·"),
+        `${locale} aboutPage.steps.${key}.eyebrow ("${eyebrow}") has no "·": the rail cannot take a short name out of it`
+      );
+      const label = aboutStepRailLabel(eyebrow, i);
+      const n = String(i + 1).padStart(2, "0");
+      assert.ok(
+        label.startsWith(`${n} `) && label.length > n.length + 1,
+        `${locale}'s rail label for ${key} is "${label}", not "${n} <phase>"`
+      );
+      assert.ok(
+        label.length <= MAX_LABEL_CHARS,
+        `${locale}'s rail label for ${key} ("${label}") is ${label.length} chars — widen SectionRail's \`width\` on /about or shorten the eyebrow`
       );
     });
   }

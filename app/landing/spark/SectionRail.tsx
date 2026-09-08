@@ -22,7 +22,21 @@ import { useTranslations } from "next-intl";
  * so the five inactive entries were dead weight until you happened to hover
  * them. Inactive entries now sit at reduced opacity — present enough to aim
  * at, quiet enough that the active one still reads as active.
+ *
+ * The rail is no longer the homepage's alone: /about is one eight-step
+ * scroll-drawn line, and a visitor who came to read about Offer or Hired had
+ * to scroll past six phases to find out they exist. So the list of entries is
+ * a PROP (`sections`), defaulting to this file's own SECTIONS — the homepage
+ * renders `<SectionRail />` exactly as before and gets the same five bands, the
+ * same labels and the same reveal. A caller that owns its own copy (AboutCurve
+ * builds its labels out of the step eyebrows) passes LABELS rather than keys,
+ * because the `landing` namespace this file reads is not where their copy
+ * lives. Everything else — the reveal threshold, the scroll-spy band, the
+ * glide, the back-to-top — is shared and stays here.
  */
+
+/** One rail entry: the element id it scrolls to, and the label it shows. */
+export type RailSection = { id: string; label: string };
 
 // Section ids as they appear down the page — the order doubles as the
 // scroll-spy tiebreak when two sections straddle the viewport midline.
@@ -59,7 +73,12 @@ const isScrolledPastHero = () => window.scrollY > REVEAL_AT;
 // The server has no scroll position; the rail starts hidden either way.
 const serverSnapshot = () => false;
 
-export default function SectionRail() {
+export default function SectionRail({
+  sections,
+  // Room the widest label needs; see the `left` style below. The homepage's
+  // widest is "Voice interview" at ~9.25rem.
+  width = "9.25rem"
+}: { sections?: RailSection[]; width?: string } = {}) {
   // The typed catalog only exposes top-level namespaces, so scope to `landing`
   // and reach the nav keys by path.
   const t = useTranslations("landing");
@@ -70,7 +89,18 @@ export default function SectionRail() {
   // single id) so a short section handing off to a tall one can't flicker.
   const visible = useRef(new Set<string>());
 
+  const items: RailSection[] = sections ?? SECTIONS.map((s) => ({ id: s.id, label: t(`nav.${s.key}`) }));
+  // The observer is re-armed when the DESTINATIONS change, not when their
+  // labels do (a locale switch re-renders every label and must not tear down
+  // the scroll-spy). A joined string rather than the array so the dependency
+  // compares by value.
+  const ids = items.map((s) => s.id).join(",");
+
   useEffect(() => {
+    // Page order, which doubles as the tiebreak when two sections straddle
+    // the midline. Read from the dependency so the effect closes over nothing
+    // that can go stale.
+    const order = ids.split(",");
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -78,18 +108,20 @@ export default function SectionRail() {
           if (entry.isIntersecting) visible.current.add(id);
           else visible.current.delete(id);
         }
-        const first = SECTIONS.find((s) => visible.current.has(s.id));
-        setActive(first ? first.id : null);
+        const first = order.find((id) => visible.current.has(id));
+        setActive(first ?? null);
       },
       // Only the middle 10% band of the viewport counts as "you are here".
       { rootMargin: "-45% 0px -45% 0px", threshold: 0 }
     );
-    for (const s of SECTIONS) {
-      const el = document.getElementById(s.id);
+    for (const id of order) {
+      const el = document.getElementById(id);
       if (el) observer.observe(el);
     }
+    // No need to clear `visible` on teardown: the lookup below only ever asks
+    // about ids in the CURRENT `order`, so a stale entry cannot be chosen.
     return () => observer.disconnect();
-  }, []);
+  }, [ids]);
 
   /*
    * Glide to the section instead of teleporting. A bare `href="#id"` jump-cuts
@@ -128,13 +160,17 @@ export default function SectionRail() {
            * 1440px laptop — the bands are `max-w-7xl` (80rem), so the content's
            * right edge is at `50% + 40rem` and the rail can start just past it.
            * The `min()` clamps it back to the viewport on screens too narrow to
-           * have a gutter, where an overlay is the only option left.
+           * have a gutter, where an overlay is the only option left — and on a
+           * 1440px laptop that clamp is the branch that WINS (the gutter there
+           * is 72px), so `width` is the rail's real right-edge position, not a
+           * fallback. A caller with longer labels than the homepage's must say
+           * so or have them cut off at the viewport edge.
            */
-          style={{ left: "min(calc(50% + 40rem + 0.5rem), calc(100% - 9.25rem))" }}
+          style={{ left: `min(calc(50% + 40rem + 0.5rem), calc(100% - ${width}))` }}
           className="fixed top-1/2 z-40 hidden rounded-2xl border-[3px] border-[#17202a] bg-[#fdf8ee] p-1.5 shadow-[6px_6px_0_#17202a] lg:block"
         >
           <ul className="flex flex-col gap-1">
-            {SECTIONS.map((s) => {
+            {items.map((s) => {
               const on = active === s.id;
               return (
                 <li key={s.id}>
@@ -160,7 +196,7 @@ export default function SectionRail() {
                         on ? "opacity-100" : "opacity-55"
                       }`}
                     >
-                      {t(`nav.${s.key}`)}
+                      {s.label}
                     </span>
                   </a>
                 </li>
