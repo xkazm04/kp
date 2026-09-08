@@ -237,6 +237,7 @@ export const STORE_ERRORS = {
   AGENT_CATALOG_FAILED: "Could not load the connector catalog. Please try again.",
   AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
   AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
+  AGENT_HIRE_FROM_NEED_FAILED: "Could not compose and dispatch a role from that need. Please try again.",
   // The LLM usage ledger's row-level read (Insights -> Activity). It sits on
   // better-sqlite3, so a thrown message can carry the DB path and the failing SQL;
   // this route was the one door in the Models/Insights surface still forwarding

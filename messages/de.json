@@ -1779,7 +1779,21 @@
     "simRunActiveSeconds": "Hier läuft bereits eine geführte Demo. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie den Lauf im Tab, der ihn gestartet hat.",
     "simRunNotOwnerSeconds": "Diese geführte Demo gehört einem anderen Tab. Zurücksetzen ist in etwa {seconds} Sekunden möglich, oder beenden Sie sie dort.",
     "TTS_VOICE_INVALID": "Diese Stimme kann dafür nicht verwendet werden. Wählen Sie eine andere Stimme.",
-    "TTS_TEXT_TOO_LONG": "Dieser Text ist zu lang, um am Stück vorgelesen zu werden. Senden Sie ihn in kürzeren Teilen."
+    "TTS_TEXT_TOO_LONG": "Dieser Text ist zu lang, um am Stück vorgelesen zu werden. Senden Sie ihn in kürzeren Teilen.",
+    "AGENT_HIRE_FROM_NEED_FAILED": "Aus diesem Bedarf konnte keine Rolle erstellt und versendet werden. Bitte versuchen Sie es erneut.",
+    "HIRE_AUTOMATION_DISABLED": "Maschinelles Einstellen ist in dieser Installation nicht aktiviert.",
+    "HIRE_UNAUTHORIZED": "Nicht autorisiert.",
+    "HIRE_NEED_REQUIRED": "Beschreiben Sie den Bedarf: die Arbeit, den Nachweis, dass sie nötig ist, und was als erledigt gilt.",
+    "HIRE_POPULATION_UNSUPPORTED": "Dieser Zugang stellt nur Agenten ein. Setzen Sie population auf \"agent\".",
+    "HIRE_PROJECT_REQUIRED": "Nennen Sie das Projekt: seinen Namen und den Wurzelpfad des Repositorys.",
+    "HIRE_ROOT_NOT_ALLOWED": "Dieser Repository-Pfad liegt in keinem erlaubten Wurzelverzeichnis und kann daher nicht gescannt werden.",
+    "HIRE_SCAN_REFUSED": "Der Repository-Scan wurde abgelehnt.",
+    "HIRE_SCAN_FAILED": "Der Repository-Scan ist fehlgeschlagen, daher konnte keine Rolle erstellt werden.",
+    "HIRE_SCAN_TIMEOUT": "Der Repository-Scan wurde nicht rechtzeitig fertig. Wiederholen Sie dieselbe Anfrage, um sich anzuschließen.",
+    "HIRE_INTAKE_LOST": "Die Aufnahme ist verschwunden, während die Rolle erstellt wurde.",
+    "HIRE_SPEC_INVALID": "Die erstellte Rolle entspricht nicht dem App-Master-Vertrag.",
+    "HIRE_HUMAN_POPULATION": "Der Composer hat diese Rolle als rein menschlich eingestuft, daher wurde kein Agent entsandt.",
+    "HIRE_NO_AGENT_BLOCK": "Die erstellte Rolle enthält keinen Agentenblock, es gibt also nichts zu entsenden."
   },
   "resilience": {
     "notFoundEyebrow": "404",

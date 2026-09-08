@@ -1779,7 +1779,21 @@
     "simRunActiveSeconds": "A guided demo is already running here. You can reset in about {seconds} seconds, or stop the run in the tab that started it.",
     "simRunNotOwnerSeconds": "That guided demo belongs to another tab. You can reset in about {seconds} seconds, or stop it there.",
     "TTS_VOICE_INVALID": "That voice cannot be used for this. Pick another voice.",
-    "TTS_TEXT_TOO_LONG": "That text is too long to speak in one go. Send it in shorter pieces."
+    "TTS_TEXT_TOO_LONG": "That text is too long to speak in one go. Send it in shorter pieces.",
+    "AGENT_HIRE_FROM_NEED_FAILED": "Could not compose and dispatch a role from that need. Please try again.",
+    "HIRE_AUTOMATION_DISABLED": "Machine hiring is not enabled on this installation.",
+    "HIRE_UNAUTHORIZED": "Unauthorized.",
+    "HIRE_NEED_REQUIRED": "Describe the need: the work, the evidence that it is needed, and what would count as done.",
+    "HIRE_POPULATION_UNSUPPORTED": "This door hires agents only. Set population to \"agent\".",
+    "HIRE_PROJECT_REQUIRED": "Name the project: its name and its repository root path.",
+    "HIRE_ROOT_NOT_ALLOWED": "That repository path is not inside an allowed root, so it cannot be scanned.",
+    "HIRE_SCAN_REFUSED": "The repository scan was refused.",
+    "HIRE_SCAN_FAILED": "The repository scan failed, so no role could be composed.",
+    "HIRE_SCAN_TIMEOUT": "The repository scan did not finish in time. Retry the same request to join it.",
+    "HIRE_INTAKE_LOST": "The intake disappeared while the role was being composed.",
+    "HIRE_SPEC_INVALID": "The composed role does not match the App master contract.",
+    "HIRE_HUMAN_POPULATION": "The composer judged this role human-only, so no agent was dispatched.",
+    "HIRE_NO_AGENT_BLOCK": "The composed role carries no agent block, so there is nothing to dispatch."
   },
   "resilience": {
     "notFoundEyebrow": "404",
