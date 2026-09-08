@@ -518,3 +518,28 @@ Beyond the golden set: `eval/matching_eval.py` scores the matching engine,
 ([automation-eval.md](automation-eval.md)), and `devcase/lifecycle_eval.py` hardens
 the dev-case design loop (scenario generation, reliability/integrity health checks,
 optional LLM design audits — [case-calibration.md](case-calibration.md)).
+
+### Latest run — 2026-09-08, 50 roles over HTTP
+
+`--jd-corpus data/seed_calibration/jobs.json --roles 50 --http … --cap 24
+--workers 5` against a production build on a throwaway `KP_DB_PATH` with
+`KP_BENCH_MODE=1`, engine and persona both on the Claude CLI. About 100 minutes
+with five workers (a serial run had measured ~8 minutes per role).
+
+| measure | value |
+| --- | --- |
+| dialogs completed | 50 / 50 |
+| promoted to a saved JD | 49 / 50 (one `INTAKE_BRIEF_NOT_READY`, a posting titled by location) |
+| agent turns per dialog | 5–10, median 6 |
+| requirement rows per brief | 0–17, median 8 (zero on every live brief before `f5c7dec0`) |
+| `completed` · `one_question_per_turn` · `grounded_readback` | 50 / 50 each |
+| `brief_core` | 49 / 50 |
+| `requirements_captured` | 19 / 34 measured (16 roles had no clean ground truth) |
+| `role_family` | 29 / 50 — graded against the corpus label, which is often wrong (career coach → data_ai) |
+
+`no_premature_end` is not measured over HTTP: the route strips the `<<END>>`
+sentinel by contract, which this run recorded as a false red before `58aa0ccc`.
+The two red rows are read for what they measure: a paraphrase-blind phrase
+matcher (next step: token overlap, with 19/34 as its baseline) and an
+unreviewed label set. The full per-role table lives in the gitignored
+`docs/harness/intake-sim-2026-09-08/` on the machine that ran it.
