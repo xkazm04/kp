@@ -438,6 +438,18 @@ Notes that bite:
   message/promote rate limits to 600/10min for the sweep; `POST /api/intake`
   (session create) is **not** raised — it stays 30/10min, so a 50-role run meets
   a 429 there and the client waits out its `Retry-After` rather than failing.
+- **One role is ~8 minutes of provider calls**, so 50 serial roles is most of a
+  day. `--workers N` (HTTP mode only) runs N roles concurrently — each worker
+  gets its own client and its own persona provider, and the report is still
+  ordered by the deterministic role order, not by completion time. In-process
+  mode ignores the flag and stays serial: there the agent's own engine runs
+  inside this process. `--wall-minutes` is honoured per worker — no NEW role
+  starts past the budget, running ones finish.
+- **The dump is written as the run goes**, not at the end: after every role its
+  transcript and brief are written and `run.json` is rewritten atomically (tmp +
+  `os.replace`). A sweep killed at role 34 leaves a readable 33-role `run.json`
+  that `--resume` picks up, and the resumed run's report covers ALL roles —
+  before this, a kill lost every finished dialog.
 - **Dumps are run artifacts**, not results: `<DIR>/run.json` (per-role checks,
   turn count, captured vs JD family, promoted slug), `<DIR>/transcripts/<role>.md`
   and `<DIR>/briefs/<role>.json`. `/bench/` is gitignored; `--resume` re-reads

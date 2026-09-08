@@ -176,6 +176,63 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         self.assertTrue(check_dialog(scenario, turns, narrowed, shape, done)["requirements_captured"])
 
 
+class _FakeIntakeServer:
+    """A stand-in for the kp intake API, backed by the deterministic engine.
+
+    Enough of the route surface for `simulate_http`: create seeds the opener,
+    message runs one real `run_intake_turn`, promote hands back a slug. One
+    instance per worker, exactly as `run_corpus_eval` builds real clients.
+    """
+
+    base_url = "http://localhost:3000"
+
+    def __init__(self, on_create=None, fail_on: str | None = None) -> None:
+        self._on_create = on_create
+        self._fail_on = fail_on
+        self._sessions: dict[str, dict] = {}
+        self._next = 0
+
+    def create(self, lang: str = "en") -> dict:
+        from pipeline.jobfit.intake import opening_turn
+
+        if self._on_create is not None:
+            self._on_create()
+        self._next += 1
+        session_id = f"s{self._next}"
+        opener = opening_turn(lang)
+        self._sessions[session_id] = {
+            "turns": [{"role": "interviewer", "text": opener["reply"]}],
+            "brief": opener["brief"],
+        }
+        return {
+            "id": session_id,
+            "transcript": [{"role": "interviewer", "text": opener["reply"]}],
+            "brief": opener["brief"],
+            "shape": opener["shape"],
+        }
+
+    def attach(self, session_id: str, title: str, text: str) -> dict:
+        if self._fail_on and self._fail_on in title:
+            raise RuntimeError(f"simulated kill on {title}")
+        return {"attachments": [{"title": title}]}
+
+    def message(self, session_id: str, text: str) -> dict:
+        from pipeline.jobfit.intake import run_intake_turn
+
+        state = self._sessions[session_id]
+        result = run_intake_turn(None, state["turns"], state["brief"], text, lang="en")
+        state["turns"].append({"role": "candidate", "text": text})
+        state["turns"].append({"role": "interviewer", "text": result["reply"]})
+        state["brief"] = result["brief"]
+        return result
+
+    def promote(self, session_id: str, **_kw) -> dict:
+        return {"slug": f"job-{session_id}", "jobId": f"id-{session_id}", "taskId": "t"}
+
+    def get(self, session_id: str) -> dict:
+        return self._sessions[session_id]
+
+
 class JdGroundedCorpusTest(unittest.TestCase):
     """The JD-grounded simulation: real postings → requestor personas → the same invariants."""
 
@@ -390,6 +447,116 @@ class JdGroundedCorpusTest(unittest.TestCase):
         self.assertEqual(second["ran"], 0, "every recorded role must be skipped on resume")
         self.assertEqual(second["resumed"], 2)
         self.assertEqual([r["name"] for r in second["rows"]], [r["name"] for r in first["rows"]])
+
+    def _pairs(self, tmp: str, roles: int = 3):
+        """Pairs for THREE distinct roles (the class fixture repeats a title)."""
+        import json as _json
+        import os
+
+        from pipeline.jobfit.eval.intake_eval import corpus_pairs
+
+        path = os.path.join(tmp, "jobs3.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            _json.dump(
+                [
+                    *self.FIXTURE[:2],
+                    {
+                        "id": "p4",
+                        "title": "Logistics Planner",
+                        "company": "Depot",
+                        "role_family": "operations_logistics",
+                        "description": "Requirements: high school diploma. Experience with shift planning.",
+                    },
+                ],
+                handle,
+            )
+        pairs = corpus_pairs(path, roles, "en")
+        self.assertEqual(len(pairs), 3)
+        return pairs
+
+    @staticmethod
+    def _report_role_order(report: str) -> list[str]:
+        rows = [ln for ln in report.splitlines() if ln.startswith("| ") and not ln.startswith("| role")]
+        return [ln.split("|")[1].strip() for ln in rows]
+
+    def test_workers_run_every_role_and_report_in_order(self) -> None:
+        # Concurrency must not reorder the report: rows are collected by the
+        # role's index in the deterministic selection, not by completion time.
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_eval import run_corpus_eval
+
+        with tempfile.TemporaryDirectory() as tmp:
+            pairs = self._pairs(tmp)
+            report, ok, reported = run_corpus_eval(
+                pairs, no_llm=True, cap=20, color=False, workers=3,
+                client_factory=lambda: _FakeIntakeServer(),
+            )
+        self.assertEqual(reported, len(pairs))
+        self.assertTrue(ok, report)
+        self.assertEqual(self._report_role_order(report), [s["name"] for _p, s in pairs])
+        self.assertIn("promoted", report)  # the HTTP-only column
+
+    def test_run_json_is_written_after_each_role_not_at_the_end(self) -> None:
+        # The defect this pins: a killed sweep used to leave an EMPTY dump
+        # directory, so --resume had nothing to read.
+        import json as _json
+        import os
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_eval import run_corpus_eval
+
+        seen: list[int] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = os.path.join(tmp, "dump")
+            run_json = os.path.join(dump, "run.json")
+
+            def observe() -> None:
+                if os.path.exists(run_json):
+                    with open(run_json, encoding="utf-8") as handle:
+                        seen.append(len(_json.load(handle)["rows"]))
+                else:
+                    seen.append(0)
+
+            pairs = self._pairs(tmp)
+            run_corpus_eval(
+                pairs, no_llm=True, cap=20, color=False, dump=dump, workers=1,
+                client_factory=lambda: _FakeIntakeServer(on_create=observe),
+            )
+            names = [s["name"] for _p, s in pairs]
+            for index, name in enumerate(names):
+                self.assertTrue(os.path.exists(os.path.join(dump, "transcripts", name + ".md")))
+                self.assertGreaterEqual(len(seen), index + 1)
+        # Role 1 saw no file; every later role saw the ones before it already persisted.
+        self.assertEqual(seen[0], 0)
+        self.assertEqual(seen[1:], list(range(1, len(seen))))
+
+    def test_resume_after_a_kill_finishes_the_remaining_roles(self) -> None:
+        import os
+        import tempfile
+
+        from pipeline.jobfit.eval.intake_eval import run_corpus_eval
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = os.path.join(tmp, "dump")
+            pairs = self._pairs(tmp)
+            doomed = pairs[-1][1]["title"]
+            with self.assertRaises(RuntimeError):
+                run_corpus_eval(
+                    pairs, no_llm=True, cap=20, color=False, dump=dump, workers=1,
+                    client_factory=lambda: _FakeIntakeServer(fail_on=doomed),
+                )
+            # The rows that DID finish survived the crash…
+            self.assertTrue(os.path.exists(os.path.join(dump, "run.json")))
+            report, ok, reported = run_corpus_eval(
+                pairs, no_llm=True, cap=20, color=False, dump=dump, resume=True, workers=1,
+                client_factory=lambda: _FakeIntakeServer(),
+            )
+        # …and the resumed run reports ALL roles, not only the one it ran.
+        self.assertEqual(reported, len(pairs))
+        self.assertTrue(ok, report)
+        self.assertIn("resumed", report)
+        self.assertEqual(self._report_role_order(report), [s["name"] for _p, s in pairs])
 
     def test_http_client_refuses_a_public_host(self) -> None:
         # No network: the guard fires in the constructor, before any request.
