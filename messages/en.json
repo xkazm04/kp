@@ -4302,6 +4302,13 @@
             "budget": "Budget",
             "tenure": "Tenure",
             "role": "Role setup"
+          },
+          "slot": {
+            "role": "Role title",
+            "outcome": "What must be true in 90 days",
+            "dealbreaker": "What rules a candidate out",
+            "nice": "Welcome, not required",
+            "context": "Why now, the team, the budget"
           }
         },
         "provenance": {
@@ -4410,7 +4417,12 @@
           "responsibilities": "Responsibilities",
           "whatBring": "What you'll bring",
           "niceToHave": "Nice to have",
-          "languages": "Languages"
+          "languages": "Languages",
+          "slot": {
+            "title": "Title goes here",
+            "body": "A paragraph on the role",
+            "line": "One line"
+          }
         },
         "attachments": {
           "title": "Reference materials",
@@ -4605,12 +4617,7 @@
           "summaryEmpty": "Open a session and its summary appears here.",
           "summaryOpen": "Open the studio",
           "summaryJd": "Open the job description",
-          "paletteSub": "Talk a new role through in the intake studio",
-          "recordsLabel": "Intake records",
-          "shapeNone": "Shape not set",
-          "protoLabel": "Prototype variant",
-          "protoCurrent": "Current",
-          "protoLedger": "Ledger"
+          "paletteSub": "Talk a new role through in the intake studio"
         }
       },
       "buildHeldChip": "Build held as a revision",

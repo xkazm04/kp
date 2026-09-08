@@ -91,7 +91,7 @@ export function AtelierTranscript({
   return (
     <div
       ref={scrollRef}
-      className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1"
+      className="min-h-0 flex-1 space-y-5 overflow-y-auto pl-0.5 pr-1"
       aria-live="polite"
       aria-label={t("composer.transcriptLabel")}
     >

@@ -14,7 +14,7 @@ import { TypedText, useBriefReveal } from "../../BriefRevealAtoms";
 import { ArrivalList, useArrivalDelta } from "../../IntakeArrivalMotion";
 import { buildBriefSections, sectionLineKeys, type BriefSection } from "../../briefSections";
 import { IconAction } from "@/app/_components/IconAction";
-import { AtelierGhost } from "./atelierPlane";
+import { AtelierExemplar } from "./atelierPlane";
 
 // ATELIER — the brief as a LEDGER OF RECORD ROWS, not a bulleted list inside a
 // sunken card.
@@ -109,7 +109,17 @@ export function AtelierBriefPlane({
       {appMasterSlot}
 
       {empty ? (
-        <AtelierGhost rows={5} />
+        // Not a skeleton: the five sections this conversation exists to fill,
+        // each with the slot its first entry will land in.
+        <AtelierExemplar
+          slots={[
+            { label: t("role"), slot: t("slot.role") },
+            { label: t("outcomes"), slot: t("slot.outcome") },
+            { label: t("dealbreakers"), slot: t("slot.dealbreaker") },
+            { label: t("niceToHave"), slot: t("slot.nice") },
+            { label: t("context"), slot: t("slot.context") },
+          ]}
+        />
       ) : editing && brief && onSaveBrief ? (
         <JdsIntakeBriefEdit
           brief={brief}

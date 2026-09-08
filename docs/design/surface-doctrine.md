@@ -25,7 +25,7 @@ control it explains, and is reached rather than read**:
 | --- | --- |
 | "Holding a team charter, an old posting or notes? They can be attached as materials. Open Materials" | a paperclip glyph with its count; the tooltip names it |
 | "Dictation is not set up on this server; typing works as usual." | a struck microphone; the reason is its tooltip |
-| "The brief builds itself here as you talk." | five ghost record rows in the shape the brief will take |
+| "The brief builds itself here as you talk." | the five sections the session sets out to fill, each holding a bracketed slot |
 | "Also design the work-sample assignment" beside a checkbox | a pressed clipboard glyph |
 
 **Two things stay visible and are not chrome**: an error the reader must act on,
@@ -41,6 +41,27 @@ shows on hover *and* focus, dismisses on Escape, and wires `aria-describedby`.
 `app/_components/IconAction.tsx` takes one `label` and spends it three ways — the
 accessible name, the tooltip, and the screen-reader text — so a glyph cannot ship
 without a meaning.
+
+### An empty state is an exemplar, not a skeleton
+
+The first cut of this rule drew grey rules and dashed boxes — the *shape* of the
+content without saying what the content is. That is a loading skeleton wearing
+an empty state's job, and it leaves a first-time reader holding the question it
+was supposed to answer.
+
+An empty region instead shows **the thing itself, named and unfilled**: the real
+section headings, in the type they will really wear, each holding a bracketed
+slot where its first entry lands. The empty intake brief lists Role, Done in 90
+days, Dealbreakers, Nice to have and Context; the empty job description shows
+`<Title goes here>` above the posting's own headings. Reading the empty surface
+is reading what the work will produce, which is worth more than a promise that
+something will appear.
+
+Two mechanics matter. The brackets are the placeholder convention and belong to
+the **component**, not the catalog: ICU MessageFormat reads `<word>` as a tag, so
+a translator who kept them would break the message. And the exemplar is not
+hidden from assistive technology — the structure is exactly as useful to someone
+who cannot see it.
 
 ## 2. Planes, not nested boxes
 

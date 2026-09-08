@@ -91,13 +91,29 @@ function SheetBlockView({ block }: { block: SheetBlock }) {
   );
 }
 
-/** The empty page: the shape of a document, at the measure it will take. */
-function GhostSheet() {
-  const rules = ["w-1/2 h-4", "w-full h-2", "w-11/12 h-2", "w-4/5 h-2", "w-1/3 h-4", "w-full h-2", "w-3/4 h-2"];
+/** The empty page: the document that will be written, with its slots named.
+ *
+ *  Dashed rules said "a page goes here" and nothing else. This says WHICH page:
+ *  the posting's own headings, in the face and the measure the real document
+ *  wears, each holding a bracketed slot. A requestor who has never done this can
+ *  read the empty sheet and know what a finished one contains, which is the
+ *  question the old grey rules left them holding. */
+function ExemplarSheet() {
+  const t = useTranslations("library.tab.intake.draft");
+  const sections: { heading: string; slot: string }[] = [
+    { heading: t("aboutRole"), slot: t("slot.body") },
+    { heading: t("outcomes"), slot: t("slot.line") },
+    { heading: t("whatBring"), slot: t("slot.line") },
+    { heading: t("niceToHave"), slot: t("slot.line") },
+  ];
   return (
-    <div className="space-y-3" aria-hidden>
-      {rules.map((rule, i) => (
-        <div key={i} className={`${rule} rounded border border-dashed border-stone-200`} />
+    <div className="space-y-5 text-stone-400">
+      <p className="font-serif text-h2 italic">{`<${t("slot.title")}>`}</p>
+      {sections.map((s) => (
+        <div key={s.heading} className="space-y-1">
+          <p className="font-serif text-h3">{s.heading}</p>
+          <p className="max-w-[62ch] italic leading-7">{`<${s.slot}>`}</p>
+        </div>
       ))}
     </div>
   );
@@ -144,7 +160,7 @@ export function AtelierDraftSheet({ brief }: { brief: RoleBrief | null }) {
           rectangle punched into a dark desk. */}
       <article className="w-full max-w-[46rem] rounded-lg border border-stone-200 bg-paper px-7 py-6 shadow-panel dark:rounded-2xl">
         <div className={TYPESET}>
-          {written ? current.blocks.map((block) => <SheetBlockView key={block.key} block={block} />) : <GhostSheet />}
+          {written ? current.blocks.map((block) => <SheetBlockView key={block.key} block={block} />) : <ExemplarSheet />}
         </div>
       </article>
     </div>

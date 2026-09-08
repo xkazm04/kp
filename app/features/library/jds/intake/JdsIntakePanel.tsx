@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, EYEBROW, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { intakeLang } from "@/app/_lib/intake-lang";
@@ -11,7 +10,6 @@ import { shortDate } from "../jdsLibrary";
 import { IntakeStudioOverlay } from "./IntakeStudioOverlay";
 import { JdsIntakeAppMasterStart } from "./JdsIntakeAppMasterStart";
 import { JdsIntakeSessionsTable } from "./JdsIntakeSessionsTable";
-import { IntakeLedgerPlane } from "./ledger/IntakeLedgerPlane";
 import { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import { useIntakeLogic, type IntakeSummary } from "./jdsIntakeLogic";
 
@@ -40,36 +38,6 @@ const SHAPE_KEY = {
   app_master: "shape.appMaster",
 } as const;
 
-/** PROTOTYPE SCAFFOLD (throwaway).
- *
- *  A two-tab host over the same props, so the shipped ledger and the studio-
- *  language one can be compared side by side without forking `JdsIntakeTab`.
- *  `current` is the default, so nothing changes on load; the choice is plain
- *  `useState` — a prototype switcher that persists is a preference nobody asked
- *  to keep. Only one body is mounted at a time: each owns its own
- *  `useIntakeLogic`, so a swap re-reads the session list and can never leave two
- *  studios racing over the same active session. */
-export function JdsIntakePanel(props: IntakePanelProps) {
-  const t = useTranslations("library.tab.intake.ledger");
-  const [variant, setVariant] = useState<"current" | "ledger">("current");
-  return (
-    <div>
-      <SegmentedControl
-        label={t("protoLabel")}
-        value={variant}
-        onChange={(v) => setVariant(v)}
-        options={[
-          { value: "current", label: t("protoCurrent") },
-          { value: "ledger", label: t("protoLedger") },
-        ]}
-      />
-      <div className="mt-4">
-        {variant === "current" ? <JdsIntakePanelBaseline {...props} /> : <IntakeLedgerPlane {...props} />}
-      </div>
-    </div>
-  );
-}
-
 type IntakePanelProps = {
   onPromoted?: () => void;
   /** `?intake=new` arrived: open the studio on a fresh session as soon as this
@@ -79,7 +47,7 @@ type IntakePanelProps = {
   onAutoStarted?: () => void;
 };
 
-function JdsIntakePanelBaseline({
+export function JdsIntakePanel({
   onPromoted,
   autoStart = false,
   onAutoStarted,

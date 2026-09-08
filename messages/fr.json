@@ -4302,6 +4302,13 @@
             "budget": "Budget",
             "tenure": "Durée",
             "role": "Configuration du rôle"
+          },
+          "slot": {
+            "role": "Intitulé du poste",
+            "outcome": "Ce qui doit être vrai à 90 jours",
+            "dealbreaker": "Ce qui élimine une candidature",
+            "nice": "Apprécié, pas exigé",
+            "context": "Pourquoi maintenant, l’équipe, le budget"
           }
         },
         "provenance": {
@@ -4410,7 +4417,12 @@
           "responsibilities": "Responsabilités",
           "whatBring": "Ce que vous apportez",
           "niceToHave": "Atouts",
-          "languages": "Langues"
+          "languages": "Langues",
+          "slot": {
+            "title": "Le titre vient ici",
+            "body": "Un paragraphe sur le poste",
+            "line": "Une ligne"
+          }
         },
         "attachments": {
           "title": "Documents",
@@ -4605,12 +4617,7 @@
           "summaryEmpty": "Ouvrez une session et son résumé s’affiche ici.",
           "summaryOpen": "Ouvrir le studio",
           "summaryJd": "Ouvrir la fiche de poste",
-          "paletteSub": "Cadrer un nouveau poste dans le studio",
-          "recordsLabel": "Registre des sessions",
-          "shapeNone": "Type non défini",
-          "protoLabel": "Variante du prototype",
-          "protoCurrent": "Actuelle",
-          "protoLedger": "Registre"
+          "paletteSub": "Cadrer un nouveau poste dans le studio"
         }
       },
       "buildHeldChip": "Résultat conservé en révision",

@@ -4302,6 +4302,13 @@
             "budget": "Rozpočet",
             "tenure": "Působení",
             "role": "Nastavení role"
+          },
+          "slot": {
+            "role": "Název role",
+            "outcome": "Co má platit za 90 dní",
+            "dealbreaker": "Co kandidáta vyřadí",
+            "nice": "Vítané, ale ne nutné",
+            "context": "Proč teď, tým, rozpočet"
           }
         },
         "provenance": {
@@ -4410,7 +4417,12 @@
           "responsibilities": "Odpovědnosti",
           "whatBring": "Co byste měli mít",
           "niceToHave": "Výhodou",
-          "languages": "Jazyky"
+          "languages": "Jazyky",
+          "slot": {
+            "title": "Sem přijde název",
+            "body": "Odstavec o roli",
+            "line": "Jeden řádek"
+          }
         },
         "attachments": {
           "title": "Podklady",
@@ -4605,12 +4617,7 @@
           "summaryEmpty": "Otevřete rozhovor a jeho souhrn se zobrazí zde.",
           "summaryOpen": "Otevřít studio",
           "summaryJd": "Otevřít popis pozice",
-          "paletteSub": "Proberte novou pozici ve studiu zadání",
-          "recordsLabel": "Záznamy zadání",
-          "shapeNone": "Typ není určen",
-          "protoLabel": "Varianta prototypu",
-          "protoCurrent": "Současná",
-          "protoLedger": "Kniha záznamů"
+          "paletteSub": "Proberte novou pozici ve studiu zadání"
         }
       },
       "buildHeldChip": "Výstup uložen jako revize",

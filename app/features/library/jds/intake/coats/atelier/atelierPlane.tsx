@@ -96,7 +96,15 @@ export function AtelierZone({
               />
             </span>
           </div>
-          <div className={`min-h-0 flex-1 ${scroll ? "overflow-y-auto pr-1" : "flex flex-col"}`}>{children}</div>
+          {/* `pl-0.5` is 2px of breathing room, and it is not decoration: the
+              focus ring is drawn OUTSIDE the control (a 4px box-shadow, see
+              globals.css), so a field sitting flush against a scroll container's
+              left edge has its ring sliced off by the overflow clip. Two pixels
+              is the smallest step that clears it while keeping the zone's left
+              rule reading as one continuous line. */}
+          <div className={`min-h-0 flex-1 ${scroll ? "overflow-y-auto pl-0.5 pr-1" : "flex flex-col pl-0.5"}`}>
+            {children}
+          </div>
         </>
       ) : (
         <button
@@ -118,19 +126,33 @@ export function AtelierZone({
   );
 }
 
-/** An empty region shows the SHAPE of what will fill it — a hairline skeleton of
- *  the rows to come — never a sentence promising that it will. Decorative by
- *  construction, so it is hidden from assistive tech: there is nothing to read. */
-export function AtelierGhost({ rows = 4, gutter = true }: { rows?: number; gutter?: boolean }) {
-  const widths = ["w-4/5", "w-3/5", "w-11/12", "w-2/3", "w-3/4", "w-1/2"];
+/** An empty region shows WHAT WILL FILL IT, named.
+ *
+ *  The first cut of this drew grey rules — the shape of rows without saying what
+ *  a row would hold. That is a skeleton, and a skeleton tells a first-time reader
+ *  nothing about what the conversation is for. So the empty state is an EXEMPLAR:
+ *  the real section headings, in the type they will really wear, each holding a
+ *  bracketed slot where its first entry will land. Reading it top to bottom is
+ *  reading what this session is trying to extract, which is the one thing worth
+ *  knowing before the first answer.
+ *
+ *  The brackets are the placeholder convention, so nothing here can be mistaken
+ *  for captured content; the muting does the rest. It is NOT hidden from
+ *  assistive tech — the structure is exactly as useful to someone who cannot see
+ *  it, and a bracketed slot announces itself as a slot. */
+export function AtelierExemplar({ slots }: { slots: readonly { label: string; slot: string }[] }) {
   return (
-    <div aria-hidden className="space-y-3.5 pt-1">
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex items-center gap-3">
-          {gutter ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-200" /> : null}
-          <span className={`h-px ${widths[i % widths.length]} bg-stone-200`} />
+    <div className="space-y-4 pt-1">
+      {slots.map((s) => (
+        <div key={s.label} className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-200" />
+            <span className={`${META_LABEL} text-stone-400`}>{s.label}</span>
+          </div>
+          <p className="pl-3.5 text-body italic text-stone-400">{`<${s.slot}>`}</p>
         </div>
       ))}
     </div>
   );
 }
+

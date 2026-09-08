@@ -4302,6 +4302,13 @@
             "budget": "Budget",
             "tenure": "Laufzeit",
             "role": "Rollen-Setup"
+          },
+          "slot": {
+            "role": "Rollentitel",
+            "outcome": "Was in 90 Tagen gelten muss",
+            "dealbreaker": "Was eine Bewerbung ausschließt",
+            "nice": "Willkommen, nicht erforderlich",
+            "context": "Warum jetzt, Team, Budget"
           }
         },
         "provenance": {
@@ -4410,7 +4417,12 @@
           "responsibilities": "Aufgaben",
           "whatBring": "Was Sie mitbringen",
           "niceToHave": "Wünschenswert",
-          "languages": "Sprachen"
+          "languages": "Sprachen",
+          "slot": {
+            "title": "Titel kommt hierhin",
+            "body": "Ein Absatz zur Rolle",
+            "line": "Eine Zeile"
+          }
         },
         "attachments": {
           "title": "Unterlagen",
@@ -4605,12 +4617,7 @@
           "summaryEmpty": "Öffnen Sie ein Gespräch, dann steht hier die Zusammenfassung.",
           "summaryOpen": "Studio öffnen",
           "summaryJd": "Stellenbeschreibung öffnen",
-          "paletteSub": "Eine neue Position im Aufnahme-Studio besprechen",
-          "recordsLabel": "Aufnahme-Einträge",
-          "shapeNone": "Art nicht festgelegt",
-          "protoLabel": "Prototyp-Variante",
-          "protoCurrent": "Aktuell",
-          "protoLedger": "Journal"
+          "paletteSub": "Eine neue Position im Aufnahme-Studio besprechen"
         }
       },
       "buildHeldChip": "Ergebnis als Revision abgelegt",
