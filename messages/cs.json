@@ -7796,6 +7796,8 @@
     "notConfigured": "Fakturace není nakonfigurovaná, aplikace proto běží v lokálním vývojovém režimu. Nákupy jsou vypnuté.",
     "selfHost": {
       "eyebrow": "Vlastní instalace",
+      "pageTitle": "Čerpání této instalace",
+      "pageIntro": "Co tato instalace spotřebovala a kolik vás stála její AI. Nic na této stránce není faktura od nás.",
       "title": "Tato instalace nemá žádné limity",
       "body": "Používáte vlastní kopii KandiDate pod licencí AGPL. Není tu žádné předplatné ani co kupovat. Hostované plány jsou pro ty, kdo si aplikaci nechtějí provozovat sami.",
       "meters": "Všechny limity jsou neomezené: zveřejněné pozice, nábory, AI kandidáti, návrhy zadání i minuty pohovorů.",
@@ -7847,7 +7849,8 @@
       "breakdown": "Podle případu užití",
       "engineTitle": "Engine",
       "noSpend": "V tomto období zatím nejsou žádná měřená volání AI.",
-      "breakdownScope": "Napříč všemi pracovními prostory této instalace, na rozdíl od limitu vedle."
+      "breakdownScope": "Napříč všemi pracovními prostory této instalace, na rozdíl od limitu vedle.",
+      "breakdownScopeSelfHost": "Napříč všemi pracovními prostory této instalace."
     },
     "plans": {
       "title": "Tarify",
@@ -8035,12 +8038,16 @@
       "retry": "Zkusit znovu",
       "healthy": "V pořádku",
       "degraded": "Omezený provoz",
-      "seeds": "Ukázková data",
+      "seedsOk": "Výchozí data načtena",
+      "seedsFailed": "Výchozí data se nenačetla",
       "clockTitle": "Tep automatizačních hodin: pohání připomínky pohovorů, vypršení nabídek a kontrolu souhlasů podle GDPR",
-      "scheduler": "Plánovač",
+      "scheduler": "Plánovač běží",
       "schedulerStarting": "Plánovač se spouští",
       "schedulerStalled": "Plánovač uvázl",
+      "engineAvailable": "k dispozici",
+      "engineUnavailable": "není k dispozici",
       "queue": "fronta: běží {running} · čeká {queued}",
+      "catalogEmpty": "zatím žádné pozice v katalogu",
       "cacheHitRate": "Úspěšnost cache",
       "runs7d": "{count, plural, one {# běh · 7 dní} few {# běhy · 7 dní} other {# běhů · 7 dní}}",
       "noRuns": "tento týden žádné běhy",
@@ -8049,7 +8056,8 @@
       "stageTimings": "Průměrné časy fází (7 dní)",
       "deadLetters": "{count, plural, one {# nedoručená zpráva · 7 dní} few {# nedoručené zprávy · 7 dní} other {# nedoručených zpráv · 7 dní}}",
       "reconcileFailures": "{count, plural, one {# selhání synchronizace plánování} few {# selhání synchronizace plánování} other {# selhání synchronizace plánování}}",
-      "bookedStalls": "{count, plural, one {# zablokování kvůli plnému kalendáři} few {# zablokování kvůli plnému kalendáři} other {# zablokování kvůli plnému kalendáři}}"
+      "bookedStalls": "{count, plural, one {# zablokování kvůli plnému kalendáři} few {# zablokování kvůli plnému kalendáři} other {# zablokování kvůli plnému kalendáři}}",
+      "alarmOpen": "Otevřít: {tab}"
     },
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",

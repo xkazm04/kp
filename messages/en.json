@@ -7796,6 +7796,8 @@
     "notConfigured": "Billing isn't configured, so the app is running in local development mode. Purchases are disabled.",
     "selfHost": {
       "eyebrow": "Self-hosted",
+      "pageTitle": "Usage on this install",
+      "pageIntro": "What this install has used, and what its AI has cost you. Nothing on this page is a bill from us.",
       "title": "This install isn't metered",
       "body": "You're running your own copy of KandiDate under the AGPL. There is no subscription here and nothing to buy. The hosted plans exist for people who would rather not run it themselves.",
       "meters": "Every allowance reads unlimited: published roles, hires, AI candidates, assignment designs and interview minutes.",
@@ -7847,7 +7849,8 @@
       "breakdown": "By use case",
       "engineTitle": "Engine",
       "noSpend": "No metered AI calls in this window yet.",
-      "breakdownScope": "Across every workspace on this deployment, unlike the allowance beside it."
+      "breakdownScope": "Across every workspace on this deployment, unlike the allowance beside it.",
+      "breakdownScopeSelfHost": "Across every workspace on this deployment."
     },
     "plans": {
       "title": "Plans",
@@ -8035,12 +8038,16 @@
       "retry": "Retry",
       "healthy": "Healthy",
       "degraded": "Degraded",
-      "seeds": "Seed data",
+      "seedsOk": "Seed data loaded",
+      "seedsFailed": "Seed data failed",
       "clockTitle": "Automation clock heartbeat: drives interview reminders, offer-expiry lapses, and the GDPR consent sweep",
-      "scheduler": "Scheduler",
+      "scheduler": "Scheduler running",
       "schedulerStarting": "Scheduler starting",
       "schedulerStalled": "Scheduler stalled",
+      "engineAvailable": "available",
+      "engineUnavailable": "unavailable",
       "queue": "queue {running} running · {queued} queued",
+      "catalogEmpty": "no jobs in the catalog yet",
       "cacheHitRate": "Cache hit rate",
       "runs7d": "{count, plural, one {# run · 7d} other {# runs · 7d}}",
       "noRuns": "no runs this week",
@@ -8049,7 +8056,8 @@
       "stageTimings": "Avg stage timings (7d)",
       "deadLetters": "{count, plural, one {# dead-lettered message · 7d} other {# dead-lettered messages · 7d}}",
       "reconcileFailures": "{count, plural, one {# schedule reconcile failure} other {# schedule reconcile failures}}",
-      "bookedStalls": "{count, plural, one {# fully-booked stall} other {# fully-booked stalls}}"
+      "bookedStalls": "{count, plural, one {# fully-booked stall} other {# fully-booked stalls}}",
+      "alarmOpen": "Open {tab}"
     },
     "useCases": {
       "match_reasoning": "Match reasoning",

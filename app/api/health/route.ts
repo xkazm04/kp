@@ -42,10 +42,20 @@ import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 //
 // The detail is also no longer COMPUTED for an untrusted caller. `coreTableCounts()`
 // is five unscoped `SELECT COUNT(*)`s and `countActiveTasks()` two more; all seven
-// were run on every anonymous hit and then dropped on the floor. Only the one fact
-// the PUBLIC verdict depends on — is the job catalog empty — is still read, as a
-// single `LIMIT 1` existence probe, so the untrusted response is byte-identical to
-// what it was on this line and costs one query instead of seven.
+// were run on every anonymous hit and then dropped on the floor. The only catalog
+// fact the verdict can still depend on — is the catalog empty BECAUSE its seed
+// failed — is read as a single `LIMIT 1` existence probe, and only when a failed
+// jobs seed makes that question meaningful, so the ordinary untrusted hit now costs
+// no catalog query at all.
+//
+// AN EMPTY CATALOG IS NOT A DEGRADED DEPLOYMENT. This probe used to answer 503 to an
+// uptime monitor because nobody had created a job yet — a brand-new install paging
+// its operator for being brand new. The line between "empty" and "broken" is drawn
+// once, identically here and in /api/ops, and the reasoning is written out there:
+// only an empty catalog whose jobs SEED errored is a fault. `catalog` reports the
+// ordinary state as a fact, and rides the operator gate with `tables` rather than the
+// public verdict — "this deployment holds zero jobs" is business volume, which is the
+// exact class of fact this route stopped handing to anonymous callers.
 export async function GET() {
   const trusted = await isOperator();
   const degradedReasons: string[] = [];
@@ -54,6 +64,7 @@ export async function GET() {
   let tables: Record<string, number> = {};
   let queue = { running: 0, queued: 0 };
   let clock: ReturnType<typeof schedulerLiveness> = "stalled";
+  let catalogEmpty = false;
   let configOk = true;
   let configIssues: ReturnType<typeof getDecisionConfigHealth>["issues"] = [];
   try {
@@ -62,17 +73,24 @@ export async function GET() {
     for (const issue of seed.issues) {
       if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);
     }
-    let jobsEmpty: boolean;
+    // The one catalog question that can still change the verdict (see the header):
+    // an empty catalog is a fault only when its seed ERRORED. Same rule, same
+    // severity, as /api/ops and /api/jobs — a monitor and the operator's own strip
+    // must never disagree about whether this catalog is broken.
+    const jobsSeedFailed = seed.issues.some((i) => i.seed === "jobs" && i.severity === "error");
     if (trusted) {
       tables = coreTableCounts();
       queue = countActiveTasks();
-      jobsEmpty = (tables.jobs ?? 0) === 0;
-    } else {
+      catalogEmpty = (tables.jobs ?? 0) === 0;
+    } else if (jobsSeedFailed) {
       // Same verdict, one query: an untrusted caller never sees the counts, so
-      // counting is pure waste — existence is the whole question.
-      jobsEmpty = ensureDb().prepare(`SELECT 1 AS n FROM jobs LIMIT 1 -- tenancy:global`).get() === undefined;
+      // counting is pure waste — existence is the whole question. And it is only
+      // asked when a failed seed could be the answer.
+      catalogEmpty = ensureDb().prepare(`SELECT 1 AS n FROM jobs LIMIT 1 -- tenancy:global`).get() === undefined;
     }
-    if (jobsEmpty) degradedReasons.push("job catalog is empty");
+    if (catalogEmpty && jobsSeedFailed) {
+      degradedReasons.push("job catalog is empty because its seed data failed to load");
+    }
 
     // Decision-config health (/perfect wave 41). An unreadable stored row falls back to
     // the CODE DEFAULT, so the workspace's auto-reject rules are NOT in force while the
@@ -133,8 +151,18 @@ export async function GET() {
       // DATA4 `engines` is informational and never a degradedReason (a missing
       // Claude CLI is a designed fallback mode), but it is also secret-presence,
       // so it sits behind the same gate as the counts.
+      // `catalog` is a STATE, not a verdict, and it rides the same gate as `tables`
+      // for the same reason: an empty catalog is what a new install looks like, and
+      // how much business a deployment holds is not a public readiness fact.
       ...(trusted
-        ? { engines: engineAvailability(), tables, queue, degradedReasons, configIssues }
+        ? {
+            engines: engineAvailability(),
+            tables,
+            queue,
+            catalog: catalogEmpty ? "empty" : "ok",
+            degradedReasons,
+            configIssues,
+          }
         : {}),
     },
     { status: ok ? 200 : 503 }

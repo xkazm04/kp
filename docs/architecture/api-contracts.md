@@ -261,8 +261,22 @@ door means deleting its line, and a NEW ungated mutating route is red immediatel
 a `claude` CLI installed on this host). The detail is **omitted, never blanked**:
 an empty `degradedReasons` beside a 503 is a confident lie. It is also no longer
 COMPUTED for an untrusted caller — the seven unscoped `COUNT(*)`s collapse to one
-`LIMIT 1` existence probe, the single fact the public verdict depends on.
-Pinned by `app/api/health/health-exposure.test.ts`.
+`LIMIT 1` existence probe, and since 2026-09-08 that probe runs only when a failed
+jobs seed makes the question meaningful, so the ordinary untrusted hit costs no
+catalog read at all. Pinned by `app/api/health/health-exposure.test.ts`.
+
+**A verdict answers "is something broken", not "is anything here yet."** The same
+probe used to answer **503** whenever the jobs table had no rows, so a brand-new
+install paged its own operator for being brand new. Two conditions were sharing one
+verdict, and only one is a fault: a catalog nobody has filled yet is the ordinary
+opening state (and the declared state of a `KP_EMPTY=1` tenant), while a catalog
+empty **because its seed failed to load** is the fault `JOB_SEED_BROKEN` already
+names. `/api/health` and `/api/ops` now degrade only on the second, drawing the line
+where `/api/jobs` draws it — `getSeedHealth()` severity `error`, never `missing`,
+since an absent seed file is a supported self-hosted install. The ordinary state is
+reported as `catalog: "ok" | "empty"`, which rides `isOperator()` with `tables`
+rather than the public verdict: how much business a deployment holds is not a
+readiness fact. Pinned by `app/api/health/seed-catalog-verdict.test.ts`.
 
 ### 1.3 Public token surfaces carry a projection, not a row
 

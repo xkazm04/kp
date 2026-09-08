@@ -46,7 +46,29 @@ export async function GET() {
     }
     const tables = coreTableCounts();
     const queue = countActiveTasks();
-    if ((tables.jobs ?? 0) === 0) degradedReasons.push("job catalog is empty");
+
+    // An empty job catalog is TWO conditions wearing ONE verdict, and only one of
+    // them is a fault. "Nobody has written a role yet" is the ordinary opening
+    // state of every install — and the DECLARED state of a KP_EMPTY=1 tenant
+    // (db/seed-gate.ts) — so pushing it into degradedReasons told a first-run
+    // operator, in red, that their deployment was degraded because it was new.
+    // "The catalog is empty because its SEED failed to load" is a different thing
+    // entirely: a fault someone has to go and fix.
+    //
+    // The honest signal for the second one already exists a few lines up, in
+    // getSeedHealth(), and /api/jobs already draws exactly this line for
+    // JOB_SEED_BROKEN (app/api/jobs/route.ts): severity "error", never "missing" —
+    // a seed file that is simply absent is a supported install (a self-hosted box
+    // that ships no demo corpus), not a break. Same rule here so the two surfaces
+    // cannot disagree about whether the same catalog is broken.
+    //
+    // `catalog` carries the ordinary state instead, as a fact rather than a
+    // verdict, so the strip can say "no jobs yet" without saying "degraded".
+    const catalogEmpty = (tables.jobs ?? 0) === 0;
+    const jobsSeedFailed = seed.issues.some((i) => i.seed === "jobs" && i.severity === "error");
+    if (catalogEmpty && jobsSeedFailed) {
+      degradedReasons.push("job catalog is empty because its seed data failed to load");
+    }
 
     // Decision-config health (/perfect wave 41). /api/health carries the VERDICT for a
     // monitor; this route is operator-gated in full, so it carries the DETAIL the System
@@ -75,6 +97,9 @@ export async function GET() {
       ok: degradedReasons.length === 0,
       seeds: seed.ok ? "ok" : "degraded",
       config: configHealth.ok ? "ok" : "degraded",
+      // A STATE, not a verdict (see the note above): "empty" is what a new install
+      // looks like, and the strip renders it as a neutral fact.
+      catalog: catalogEmpty ? "empty" : "ok",
       // Named sub-check so the panel says WHICH thing is broken, not just "unhealthy".
       clock,
       degradedReasons,

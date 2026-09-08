@@ -22,7 +22,7 @@ import {
   type Purchase,
 } from "./billingTabState";
 import { useBillingPortal } from "./useBillingPortal";
-import type { BillingPayload } from "./billingTypes";
+import { isUnmeteredInstall, type BillingPayload } from "./billingTypes";
 
 // Tier 3 (docs/design/loading-choreography.md): the plan catalog + minutes pack is the
 // heaviest, most-below-the-fold region of this tab (a card grid) — its own
@@ -72,7 +72,10 @@ export function BillingTab() {
   // not-configured note are all replaced by one honest panel — see
   // BillingSelfHostPanel for why it isn't simply hidden. Defaults to metered
   // while `data` is null so a hosted deploy never flashes the self-host panel.
-  const selfHosted = data !== null && !data.metered;
+  // The predicate itself lives in billingTypes.ts (named, tested, quotable) —
+  // it now decides the page header too, and two copies of "is this metered?"
+  // is exactly how the two halves of this tab would drift apart.
+  const selfHosted = isUnmeteredInstall(data);
   // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
   // The flag is captured ONCE via lazy initial state (render-derived and sticky, so
   // it survives the URL cleanup below) rather than a synchronous setState in the
@@ -207,10 +210,28 @@ export function BillingTab() {
     // direct children (stagger-children, globals.css). aria-busy covers the
     // first load only — a later refresh never blanks what is already here.
     <section className="stagger-children space-y-6" aria-busy={!data && loadError === null}>
+      {/* The metered header promises three things — "your subscription, what this
+          period has used, and the plans you can move to" — and on a self-hosted
+          install two of them do not exist: there is no subscription and the plan
+          catalog below is not rendered at all. The panel two lines down already
+          says so in plain words, so the header said the opposite of the page.
+          Self-hosted gets its own title/intro, in the self-host panel's voice.
+
+          The EYEBROW stays "Billing" in both: it is wayfinding — it must keep
+          naming the tab the reader clicked in the nav rail, not the content.
+
+          Tension with loading-choreography law 1 ("chrome renders on the first
+          frame"), stated rather than hidden: the client cannot know the metering
+          mode until GET /api/billing lands, and there is no server-rendered seam
+          on this tab to carry it. isUnmeteredInstall(null) is therefore metered,
+          so the ONE frame of possibly-wrong wording lands on the self-hoster
+          (who is told nothing false about money) and never on the paying
+          customer. The swap is a plain text change in fixed geometry — no
+          reflow, no placeholder, nothing to animate. */}
       <header>
         <p className={EYEBROW}>{t("eyebrow")}</p>
-        <SectionTitle className="mt-1">{t("title")}</SectionTitle>
-        <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
+        <SectionTitle className="mt-1">{selfHosted ? t("selfHost.pageTitle") : t("title")}</SectionTitle>
+        <p className={`mt-2 max-w-2xl ${INTRO}`}>{selfHosted ? t("selfHost.pageIntro") : t("intro")}</p>
       </header>
 
       {/* `configured` drives a "billing isn't configured, purchases disabled" note —

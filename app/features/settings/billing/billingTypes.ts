@@ -31,6 +31,30 @@ export const STATUS_TONE: Record<string, BadgeTone> = {
   none: "neutral",
 };
 
+/** Does this install have a metered plan at all?
+ *
+ *  `metered` is the DEPLOYMENT's answer, computed once on the server by
+ *  `meteringActive` (app/_lib/billing/mode.ts): a payment provider is wired, OR
+ *  this org already carries billing state. False means self-hosted — no
+ *  subscription, no invoice, nobody to upgrade — and, downstream of the same
+ *  flag, `resolvedLimit` returns null for every meter, so every allowance in the
+ *  payload reads "unlimited".
+ *
+ *  That is why this is the honest predicate for "the allowance numbers carry no
+ *  information here", and why the UI must not invent a second flag for it:
+ *  `configured` is a HOSTED-deploy misconfiguration signal (a provider that
+ *  should be wired and isn't), and `plan.id === "free"` is an entitlement that a
+ *  paying customer can also hold mid-dunning. Only `metered` says the meters
+ *  themselves are decorative.
+ *
+ *  Null (the overview has not landed yet) answers FALSE — metered — so a hosted
+ *  deploy never flashes self-hosted chrome on its first frame. The failure
+ *  direction is "a self-hoster reads the subscription wording for one frame",
+ *  never "a paying customer is told they have no subscription". */
+export function isUnmeteredInstall(data: Pick<BillingOverview, "metered"> | null): boolean {
+  return data !== null && !data.metered;
+}
+
 // Stored subscription statuses that mean a LIVE provider subscription exists.
 // MIRROR of SUBSCRIBED_STATUSES in app/_lib/billing/entitlements.ts — the wire
 // payload carries the raw `status`, so the client can reproduce the server's

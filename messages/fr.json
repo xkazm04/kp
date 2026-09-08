@@ -7796,6 +7796,8 @@
     "notConfigured": "La facturation n’est pas configurée, l’application s’exécute donc en mode développement local. Les achats sont désactivés.",
     "selfHost": {
       "eyebrow": "Auto-hébergé",
+      "pageTitle": "Utilisation de cette installation",
+      "pageIntro": "Ce que cette installation a consommé et ce que son IA vous a coûté. Rien sur cette page n’est une facture de notre part.",
       "title": "Cette installation n'est pas facturée",
       "body": "Vous utilisez votre propre copie de KandiDate sous licence AGPL. Il n'y a ici ni abonnement ni rien à acheter. Les offres hébergées s'adressent à celles et ceux qui préfèrent ne pas l'héberger eux-mêmes.",
       "meters": "Tous les quotas sont illimités : postes publiés, recrutements, candidats analysés par l'IA, conceptions d’exercices et minutes d'entretien.",
@@ -7847,7 +7849,8 @@
       "breakdown": "Par cas d’usage",
       "engineTitle": "Moteur",
       "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant.",
-      "breakdownScope": "Sur tous les espaces de travail de ce déploiement, contrairement au quota à côté."
+      "breakdownScope": "Sur tous les espaces de travail de ce déploiement, contrairement au quota à côté.",
+      "breakdownScopeSelfHost": "Sur tous les espaces de travail de ce déploiement."
     },
     "plans": {
       "title": "Forfaits",
@@ -8035,12 +8038,16 @@
       "retry": "Réessayer",
       "healthy": "Opérationnel",
       "degraded": "Dégradé",
-      "seeds": "Données seed",
+      "seedsOk": "Données initiales chargées",
+      "seedsFailed": "Données initiales non chargées",
       "clockTitle": "Battement de l’horloge d’automatisation : pilote les rappels d’entretien, l’expiration des offres et la revue des consentements RGPD",
-      "scheduler": "Planificateur",
+      "scheduler": "Planificateur actif",
       "schedulerStarting": "Planificateur en démarrage",
       "schedulerStalled": "Planificateur bloqué",
+      "engineAvailable": "disponible",
+      "engineUnavailable": "indisponible",
       "queue": "file : {running} en cours · {queued} en attente",
+      "catalogEmpty": "aucun poste dans le catalogue pour l’instant",
       "cacheHitRate": "Taux de succès du cache",
       "runs7d": "{count, plural, one {# exécution · 7 j} other {# exécutions · 7 j}}",
       "noRuns": "aucune exécution cette semaine",
@@ -8049,7 +8056,8 @@
       "stageTimings": "Durée moyenne par étape (7 j)",
       "deadLetters": "{count, plural, one {# message non distribué · 7 j} other {# messages non distribués · 7 j}}",
       "reconcileFailures": "{count, plural, one {# échec de synchronisation de la planification} other {# échecs de synchronisation de la planification}}",
-      "bookedStalls": "{count, plural, one {# blocage pour agenda complet} other {# blocages pour agenda complet}}"
+      "bookedStalls": "{count, plural, one {# blocage pour agenda complet} other {# blocages pour agenda complet}}",
+      "alarmOpen": "Ouvrir : {tab}"
     },
     "useCases": {
       "match_reasoning": "Raisonnement de matching",

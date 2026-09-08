@@ -17,6 +17,12 @@
  * so a real alarm still reaches the only screen that carries it while a healthy
  * system stays quiet.
  *
+ * On an UNMETERED install the rail goes entirely, its grid track with it: every
+ * meter resolves to "unlimited" there, so five rows of "0 used / Unlimited"
+ * beneath a panel that already said so is a reserved column spent on repetition.
+ * The chart and the cost figure are real numbers about real spend and survive
+ * the collapse unchanged.
+ *
  * Chosen over two rejected directions: a "Statement" (one headline figure, then
  * ruled bands of arithmetic — ranks well, explains nothing) and a "Cockpit" (a
  * uniform gauge grid where a plan allowance and a cache-hit rate are the same
@@ -31,7 +37,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import { MeterRow } from "../BillingUsageMeterRow";
-import type { BillingPayload } from "../billingTypes";
+import { isUnmeteredInstall, type BillingPayload } from "../billingTypes";
 import { foldByUseCase, sumTotals, type UseCaseTotals } from "./spendUsageFold";
 import { SpendEngineFacts } from "./SpendEngineFacts";
 import type { SpendData } from "./useSpendData";
@@ -95,6 +101,13 @@ export function BillingSpendPanel({
   const format = useFormatter();
   const labelFor = useUseCaseLabel();
   const { usage, ops } = spend;
+  // On an install with no metered plan every meter resolves to "unlimited"
+  // (`resolvedLimit` returns null downstream of the same flag), so the rail is five
+  // rows of "0 used / Unlimited" directly beneath a panel that has already said
+  // exactly that — a reserved 16rem column spent restating a fact. It collapses
+  // here and is untouched on a metered install, where those numbers ARE the point.
+  // `metered` is the honest predicate and it lives once, in billingTypes.ts.
+  const showAllowance = !isUnmeteredInstall(data);
 
   const totals = usage ? foldByUseCase(usage.rows) : [];
   const sum = sumTotals(totals);
@@ -110,20 +123,24 @@ export function BillingSpendPanel({
       </div>
       <p className="mt-1 max-w-2xl text-sm text-steel">{t("intro")}</p>
 
-      <div className="mt-4 grid gap-5 lg:grid-cols-[16rem_1fr]">
+      {/* The reserved 16rem column goes WITH the rail: keeping the track while
+          dropping its only child would collapse the chart against a void. */}
+      <div className={`mt-4 grid gap-5 ${showAllowance ? "lg:grid-cols-[16rem_1fr]" : ""}`}>
         {/* Rail: the entitlement the chart is spent against. */}
-        <aside className={`${PANEL_SUNKEN} h-fit p-3`}>
-          <p className={META_LABEL}>{t("allowance")}</p>
-          {data.meters.length === 0 ? (
-            <p className="mt-2 text-sm text-steel">{tUsage("empty")}</p>
-          ) : (
-            <div className="mt-3 space-y-4">
-              {data.meters.map((meter) => (
-                <MeterRow key={meter.meter} meter={meter} name={meterName(meter.meter)} meterId={meter.meter} />
-              ))}
-            </div>
-          )}
-        </aside>
+        {showAllowance ? (
+          <aside className={`${PANEL_SUNKEN} h-fit p-3`}>
+            <p className={META_LABEL}>{t("allowance")}</p>
+            {data.meters.length === 0 ? (
+              <p className="mt-2 text-sm text-steel">{tUsage("empty")}</p>
+            ) : (
+              <div className="mt-3 space-y-4">
+                {data.meters.map((meter) => (
+                  <MeterRow key={meter.meter} meter={meter} name={meterName(meter.meter)} meterId={meter.meter} />
+                ))}
+              </div>
+            )}
+          </aside>
+        ) : null}
 
         {/* The chart. */}
         <div className="min-w-0">
@@ -135,10 +152,17 @@ export function BillingSpendPanel({
                 is tenancy-EXEMPT config/metering), so it is deployment-wide. Reading a
                 deployment total as "my team's spend" against a team's allowance is a
                 wrong number presented as a right one. Scoping the aggregate is not
-                available without a schema change, so the surface states its scope. */}
+                available without a schema change, so the surface states its scope.
+                On an unmetered install there is no rail to contrast with, so the
+                self-host variant of the line drops the contrast and keeps the claim. */}
             <div>
               <p className={META_LABEL}>{t("breakdown")}</p>
-              <p className="mt-0.5 text-sm text-steel">{t("breakdownScope")}</p>
+              {/* Not optional: `breakdownScope` ends "unlike the allowance beside
+                  it", which stops being true the moment the rail is gone. The scope
+                  claim itself — deployment-wide, not this org — still has to be made. */}
+              <p className="mt-0.5 text-sm text-steel">
+                {showAllowance ? t("breakdownScope") : t("breakdownScopeSelfHost")}
+              </p>
             </div>
             <div className="text-right">
               <p className={META_LABEL}>{t("statCost")}</p>

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { planChangeVia, STATUS_TONE } from "./billingTypes.ts";
+import { isUnmeteredInstall, planChangeVia, STATUS_TONE } from "./billingTypes.ts";
 import { PLANS, type PlanDef } from "../../../_lib/billing/plans.ts";
 
 // The catalog's "Buy" vs "Change in portal" decision MUST agree with the server-side
@@ -44,6 +44,28 @@ test("a LAPSED cancel-at-period-end is the one relaxed case — checkout, matchi
   assert.equal(planChangeVia(overview("canceled", PLANS.free)), "checkout");
   // Still inside the paid period -> the subscription is live, portal.
   assert.equal(planChangeVia(overview("canceled", PLANS.growth)), "portal");
+});
+
+// The self-hosted predicate. Two surfaces read it now — the page header and the
+// self-host panel — and a second copy of the rule is how they would drift.
+
+test("no metered plan -> unmetered, whatever the entitled plan says", () => {
+  // A self-hosted install still resolves to PLANS.free; the plan id is NOT the
+  // signal, `metered` is (meteringActive, app/_lib/billing/mode.ts).
+  assert.equal(isUnmeteredInstall({ metered: false }), true);
+});
+
+test("a metered deployment is metered even before anyone subscribes", () => {
+  // A provider is wired: the plan catalog is a real offer and the allowance
+  // numbers are real limits, so the metered wording is the true one.
+  assert.equal(isUnmeteredInstall({ metered: true }), false);
+});
+
+test("not-yet-loaded answers METERED, never self-hosted", () => {
+  // The failure direction is deliberate: one frame of subscription wording for a
+  // self-hoster (who is told nothing false about money) beats telling a paying
+  // customer they have no subscription.
+  assert.equal(isUnmeteredInstall(null), false);
 });
 
 test("STATUS_TONE covers every status the webhook reducer can store", () => {

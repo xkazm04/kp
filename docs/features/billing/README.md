@@ -43,6 +43,31 @@ transacted stays metered even if someone flips the flag on. Pinned by
 **Usage is still RECORDED while unmetered.** Unmetered means never refused, not
 never counted — a self-hoster's own analytics still wants the numbers.
 
+### What the Billing tab SAYS on an unmetered install
+
+One predicate decides it, and it is the payload's `metered` flag — not
+`configured` (a hosted-deploy misconfiguration signal) and not `plan.id ===
+"free"` (an entitlement a paying customer also holds mid-dunning). It is named
+and unit-tested as `isUnmeteredInstall()` in
+`app/features/settings/billing/billingTypes.ts`, because more than one part of
+the tab now reads it and two copies of the rule is how they would drift.
+
+| Region | Metered | Unmetered |
+|---|---|---|
+| Page header (`BillingTab.tsx`) | `billing.title` / `billing.intro` — "your subscription… and the plans you can move to" | `billing.selfHost.pageTitle` / `billing.selfHost.pageIntro` — what the install has used and what its AI cost. The header used to promise a subscription and a plan catalog that this install has neither of, two lines above the panel that says so |
+| Eyebrow | `billing.eyebrow` | **the same** — it is wayfinding, and must keep naming the tab in the nav rail |
+| Current-plan card | shown | replaced by `BillingSelfHostPanel` |
+| Plan catalog + minutes pack | shown | not rendered |
+| Usage & cost section | shown | shown — usage is recorded while unmetered, and the AI ledger is the useful half of the tab here |
+
+`isUnmeteredInstall(null)` — the overview has not landed yet — answers
+**metered**, so a hosted deploy never flashes self-hosted chrome. That is a
+deliberate, stated tension with loading-choreography law 1 ("chrome renders on
+the first frame"): the client cannot know the metering mode before
+`GET /api/billing` lands and this tab has no server-rendered seam to carry it, so
+the one frame of possibly-wrong wording is aimed at the self-hoster, who is told
+nothing false about money, rather than at the paying customer.
+
 ### The BYOM tier is withdrawn from sale
 
 BYOM sold "your model keys, our machinery" for 120 Kč, which is exactly what
@@ -63,7 +88,8 @@ outcomes instead.
 ## Entry points
 
 - **Settings → Billing** (`app/features/settings/billing/BillingTab.tsx`) — plan
-  card, usage meters, upgrade/checkout, portal link.
+  card, usage meters, upgrade/checkout, portal link. On an unmetered install the
+  same tab is a different page — see the table above.
 - Landing pricing band (`app/landing/spark/...`) links into checkout.
 
 ## Pricing model
@@ -506,6 +532,19 @@ decision about pre-existing rows), so it is out of scope here; what changed is t
 chart states its scope (`billing.spend.breakdownScope`, four locales) instead of letting
 a deployment total read as one team's spend against that team's allowance.
 
+**On an unmetered install the allowance rail collapses, grid track and all.**
+`isUnmeteredInstall(data)` (`billingTypes.ts`, unit-tested) keys off `metered` — the
+deployment-level flag `meteringActive` computes and the same one `BillingSelfHostPanel`
+reads — because it is downstream of `metered` that `resolvedLimit` returns null and every
+meter reads "unlimited". Five rows of "0 used / Unlimited" directly beneath a panel that
+has just said every allowance is unlimited is a reserved 16rem column spent on repetition,
+so both the `<aside>` and the `lg:grid-cols-[16rem_1fr]` track go (keeping the track would
+leave the chart against a void). The scope line switches with it:
+`breakdownScope` ends "unlike the allowance beside it", which is false once there is no
+allowance beside it, so the unmetered case reads `breakdownScopeSelfHost` — the same
+deployment-wide claim without the contrast. Nothing about the chart, the per-use-case
+bars or the estimated-cost figure changes; a metered install renders exactly as before.
+
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage
 panel on the Models tab that never referenced each other. Metered spend belongs
@@ -526,6 +565,39 @@ allowance and a cache-hit rate as the same instrument).
 `reconcileFailures`, `noSlotStalls`) **only when non-zero**. This footer is the
 only screen in the app carrying the latter two, so hiding them unconditionally
 would delete an alarm rather than quiet it.
+
+**A counter is a door, not a dead end.** Each one navigates to the surface that
+lists the same failures per item: dead letters to the **Channels** ledger
+(`ChannelsCommsTable`), and both schedule counters to the **Schedule** tab's
+attention section (`ScheduleInviteAttentionSection`, which renders the
+`needs_reconcile` / `needs_more_slots` flags the same events set). The move is
+in-shell — `buildTabSwitchUrl` through `useShellNavigate` — so it patches `?tab=`
+onto the history stack instead of re-fetching an RSC payload that does not depend
+on it.
+
+**An empty job catalog is a state, not a fault.** `/api/ops` and `/api/health`
+used to push `"job catalog is empty"` into `degradedReasons` for any jobs table
+with no rows, so this strip opened with a red dot and the word **Degraded** on
+every fresh install — and `/api/health` answered an uptime monitor 503 — because
+nobody had created a job yet. The two routes now draw the line `/api/jobs` already
+draws for `JOB_SEED_BROKEN`: only an empty catalog whose **jobs seed errored**
+(`getSeedHealth()`, severity `error`, never `missing`) is a degradation. The
+ordinary state rides a new `catalog: "ok" | "empty"` field — operator-gated on
+`/api/health` alongside `tables`, since zero jobs is business volume — and the
+strip says it as a neutral line beside the queue. Pinned by
+`app/api/health/seed-catalog-verdict.test.ts` (the broken half, forced against a
+genuinely unreadable seed in a throwaway cwd) plus the empty-but-healthy cases in
+`ops-route.test.ts` and `health-exposure.test.ts`.
+
+**Every dot's state is in its label, not only in its colour.** The dot is
+`aria-hidden` and always was, so a screen reader used to hear a list of nouns with
+the green-or-red meaning parked in a `title` — invisible to touch as well. Each
+label now admits its own state (`Seed data loaded` / `Seed data failed`,
+`Scheduler running` / `starting` / `stalled`), and because the engine names are
+Do-Not-Translate proper nouns (`docs/i18n/glossary.md`) their state rides a
+separate translated word beside them: `Gemini available` / `Claude CLI
+unavailable`. The `title` attributes survive only where they carry something the
+label does not — the env var and the binary on `PATH` a preflight hint needs.
 
 Known gap from the move: the per-use-case **token columns** (in / out / cached)
 and the 7-day **cache-hit rate**, **average analysis duration** and **stage

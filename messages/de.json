@@ -7796,6 +7796,8 @@
     "notConfigured": "Die Abrechnung ist nicht konfiguriert, die App läuft daher im lokalen Entwicklungsmodus. Käufe sind deaktiviert.",
     "selfHost": {
       "eyebrow": "Selbst gehostet",
+      "pageTitle": "Nutzung dieser Installation",
+      "pageIntro": "Was diese Installation verbraucht hat und was ihre KI Sie gekostet hat. Nichts auf dieser Seite ist eine Rechnung von uns.",
       "title": "Diese Installation wird nicht abgerechnet",
       "body": "Sie betreiben Ihre eigene Kopie von KandiDate unter der AGPL. Es gibt hier kein Abonnement und nichts zu kaufen. Die gehosteten Pläne sind für alle, die die Anwendung nicht selbst betreiben möchten.",
       "meters": "Alle Kontingente sind unbegrenzt: veröffentlichte Stellen, Einstellungen, KI-Kandidaten, Aufgaben-Entwürfe und Interviewminuten.",
@@ -7847,7 +7849,8 @@
       "breakdown": "Nach Anwendungsfall",
       "engineTitle": "Engine",
       "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe.",
-      "breakdownScope": "Über alle Arbeitsbereiche dieser Installation hinweg, anders als das Kontingent daneben."
+      "breakdownScope": "Über alle Arbeitsbereiche dieser Installation hinweg, anders als das Kontingent daneben.",
+      "breakdownScopeSelfHost": "Über alle Arbeitsbereiche dieser Installation hinweg."
     },
     "plans": {
       "title": "Tarife",
@@ -8035,12 +8038,16 @@
       "retry": "Erneut versuchen",
       "healthy": "In Ordnung",
       "degraded": "Eingeschränkt",
-      "seeds": "Seed-Daten",
+      "seedsOk": "Startdaten geladen",
+      "seedsFailed": "Startdaten nicht geladen",
       "clockTitle": "Herzschlag der Automatisierungsuhr: steuert Interview-Erinnerungen, das Verfallen von Angeboten und den DSGVO-Einwilligungslauf",
-      "scheduler": "Scheduler",
+      "scheduler": "Scheduler läuft",
       "schedulerStarting": "Scheduler startet",
       "schedulerStalled": "Scheduler steht still",
+      "engineAvailable": "verfügbar",
+      "engineUnavailable": "nicht verfügbar",
       "queue": "Warteschlange: {running} laufen · {queued} warten",
+      "catalogEmpty": "noch keine Stellen im Katalog",
       "cacheHitRate": "Cache-Trefferquote",
       "runs7d": "{count, plural, one {# Lauf · 7 Tage} other {# Läufe · 7 Tage}}",
       "noRuns": "diese Woche keine Läufe",
@@ -8049,7 +8056,8 @@
       "stageTimings": "Ø Phasendauer (7 Tage)",
       "deadLetters": "{count, plural, one {# unzustellbare Nachricht · 7 Tage} other {# unzustellbare Nachrichten · 7 Tage}}",
       "reconcileFailures": "{count, plural, one {# fehlgeschlagener Planungsabgleich} other {# fehlgeschlagene Planungsabgleiche}}",
-      "bookedStalls": "{count, plural, one {# Blockade durch vollen Kalender} other {# Blockaden durch volle Kalender}}"
+      "bookedStalls": "{count, plural, one {# Blockade durch vollen Kalender} other {# Blockaden durch volle Kalender}}",
+      "alarmOpen": "Öffnen: {tab}"
     },
     "useCases": {
       "match_reasoning": "Match-Begründung",
