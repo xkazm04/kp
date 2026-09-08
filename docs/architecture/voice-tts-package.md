@@ -246,6 +246,10 @@ ladder: explicit env → shared home `bin/` → PATH.
   candidate surfaces never show a provider.
 - The conversation plane now honors `KP_VOICE_PROVIDER` (`onboardedVoiceProvider` in
   `app/_lib/voice/index.ts`) between an explicit request and the canonical order.
+- The intake composer's voice bar (`app/features/library/jds/intake/IntakeVoiceBar.tsx` over
+  `useIntakeSpeech.ts`) reads the agent's turn aloud, with a per-browser "read every reply
+  aloud" opt-in that is OFF by default and primed on mount: see
+  [docs/features/intake/README.md](../features/intake/README.md).
 
 ## Keyless / engineless behavior
 

@@ -143,6 +143,11 @@ kp's first consumer is the companion mic (`app/features/shell/companion/Companio
 which dictates into the composer rather than sending: see
 [docs/features/companion/README.md](../features/companion/README.md).
 
+The second is the intake composer's voice bar
+(`app/features/library/jds/intake/IntakeVoiceBar.tsx` over `useIntakeDictation.ts`), which adds
+the live level meter to the same dictate-into-the-composer contract: see
+[docs/features/intake/README.md](../features/intake/README.md).
+
 ### 5. The scratch dir is a privacy control, not a convenience
 
 `withScratchDir` writes the clip to the OS temp folder for the local engine and removes it in
