@@ -6,8 +6,8 @@
 // — brand-store.ts), so the first tenant to set a display name, accent or logo ticked
 // this step for every other tenant on the box; and `kp_org_name` is the CALLER'S OWN
 // cookie, so one tenant read a tick or a blank depending on which browser they opened.
-// The checklist's whole promise is that "every mark reflects a real workspace fact"
-// (setupGettingStartedModel.ts), and this mark reflected another tenant's fact.
+// The derivation's whole promise is that every answer reflects a real workspace
+// fact, and this one reflected another tenant's fact.
 //
 // Pure function, no DB: computeGettingStarted feeds it the org row, the brand and the
 // cookie so the branch itself is testable without a request.

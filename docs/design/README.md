@@ -802,7 +802,7 @@ sees. Each was resolved rather than left standing:
 | Option | Verdict |
 | --- | --- |
 | `entrance="fade-pop"` | **kept** — now used by `AnalyticsEmptyPreview`, whose glyph renders at 80px where a per-path stagger is noise, not a reveal. |
-| `ambient="pulse"` | **kept** — now used by `SetupGettingStartedNextMove` *only* while a step reports `analyzing`. Breathing means work is in flight; on an idle step it would be a lie. |
+| `ambient="pulse"` | **kept, currently unconsumed.** Its one consumer was `SetupGettingStartedNextMove`, which pulsed *only* while a first-run step reported `analyzing`; that surface was deleted with the Getting-started checklist (see [`app-structure.md`](../architecture/app-structure.md)). The rule it demonstrated stands and is the condition for the next consumer: breathing means work is in flight, and on an idle glyph it would be a lie. |
 | `entrance="draw"` | **removed.** A `pathLength` dash sweep traces a filled region's *boundary*; every traced glyph in the repo is filled, so its own docstring already forbade every existing consumer from using it. |
 | `hover="hover-response"` | **removed.** It needs an interactive parent and no glyph in the app sits inside one — all 14 render sites are empty-state illustrations. |
 | `glow` | **removed.** An emissive `feGaussianBlur` that reads well in Spark Dark and, per the motionize skill, is "usually wrong" in Studio Light — i.e. it wants a per-theme fork no consumer had asked for. |

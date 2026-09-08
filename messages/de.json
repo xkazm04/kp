@@ -2990,6 +2990,61 @@
       "bulkTaskIncomplete": "Die Entwurfsaufgabe endete ohne Ergebnis. Weiterhin ausgewählt, bitte erneut versuchen.",
       "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen."
     },
+    "emptyState": {
+      "proto": {
+        "eyebrow": "Prototyp: Richtung wählen",
+        "label": "Richtung des Leerzustands",
+        "stageSet": "Bühnenbild",
+        "stageSetHint": "Das Board erklärt den Funnel, die Schritte füllen ihn",
+        "buildOrder": "Reihenfolge",
+        "buildOrderHint": "Ein Schritt nach dem anderen, in der Reihenfolge, die das Produkt verlangt"
+      },
+      "optional": "Optional",
+      "tour": "Die Recruiting-Story ansehen",
+      "setupTitle": "Einrichtung dieses Workspace abschließen",
+      "setupBody": "Sie haben den Einrichtungsassistenten früh verlassen. Das Nachholen dauert eine Minute: Firmenname, Form der Pipeline und Ihre erste Stelle.",
+      "setupResume": "Einrichtung fortsetzen",
+      "moves": {
+        "role": {
+          "title": "Stellenbeschreibung schreiben",
+          "body": "Besprechen Sie die Stelle im Intake-Dialog oder übergeben Sie eine vorhandene Ausschreibung. Jede Spur auf dem Board hängt an einer Stelle, deshalb kommt das zuerst.",
+          "action": "Stellen-Intake öffnen"
+        },
+        "candidates": {
+          "title": "Kandidat/innen dagegen stellen",
+          "body": "Laden Sie in der Analyse einen Lebenslauf hoch, wählen Sie die gespeicherte Stellenbeschreibung und übernehmen Sie das Ergebnis aufs Board. Die Analyse kann erst jemanden hinzufügen, wenn der Lauf einer Stelle zugeordnet ist.",
+          "action": "Analyse öffnen"
+        },
+        "channels": {
+          "title": "Kanäle öffnen",
+          "body": "Ihre Karriereseite, ein weiterleitendes Postfach und Lead-Formulare legen Bewerbungen von selbst an. Machen Sie das, sobald die Stelle so klingt, wie Sie es wollen.",
+          "action": "Kanäle öffnen"
+        }
+      },
+      "stageSet": {
+        "eyebrow": "Das Board, aufgebaut und leer",
+        "title": "Ihr Funnel, noch ohne Personen",
+        "body": "Das sind die Spuren, die eine Bewerbung durchläuft, in dieser Reihenfolge. Alle treten in der ersten ein, und die drei Türen darunter füllen sie.",
+        "laneStrip": "Pipeline-Phasen",
+        "inflow": "Wie sich die erste Spur füllt"
+      },
+      "stageSlot": {
+        "Accepted": "hier landet ein Lebenslauf",
+        "Screened": "gematcht und bewertet",
+        "Interview": "Termine und Scorecards",
+        "Offer": "das Angebot",
+        "Hired": "unterschrieben, Start folgt"
+      },
+      "stageSlotFallback": "noch nichts",
+      "buildOrder": {
+        "eyebrow": "Noch niemand auf dem Board",
+        "title": "Drei Schritte, in dieser Reihenfolge",
+        "setupLead": "Vor dem ersten Schritt",
+        "stepOf": "Schritt {n} von {total}",
+        "rail": "Schritt wählen",
+        "then": "Dann füllt sich das Board:"
+      }
+    },
     "today": {
       "eyebrow": "Heute",
       "inbound": "{count, plural, =1 {1 neue Bewerbung} other {# neue Bewerbungen}}",
@@ -8325,8 +8380,6 @@
       "readyTitle": "{org} ist startklar",
       "orgFallback": "Ihr Arbeitsbereich",
       "readyMeta": "Sprache: {language} · {invites, plural, =0 {noch keine Einladungen} one {# Person eingeladen} other {# Personen eingeladen}}",
-      "checklistTitle": "Ihre Erste-Schritte-Checkliste",
-      "checklistBody": "Sie liegt auf dem Pipeline-Board und führt Sie durch Veröffentlichung, Kanäle und Ihre ersten Kandidaten.",
       "tourTitle": "Geführte Demo starten",
       "tourBody": "Die ganze Geschichte einer Einstellung, mit Beispieldaten durchgespielt. Etwa 3 Minuten.",
       "chooseLabel": "Wie möchten Sie beginnen?",
@@ -8348,43 +8401,6 @@
       "partial": "Einige Schritte konnten nicht gespeichert werden. Sie können sie in den Einstellungen nachholen",
       "partialLead": "Einige Einrichtungsschritte konnten nicht gespeichert werden:"
     },
-    "checklist": {
-      "title": "Erste Schritte",
-      "progress": "{done} von {total} erledigt",
-      "dismiss": "Nicht mehr anzeigen",
-      "dismissedToast": "Erste-Schritte-Checkliste ausgeblendet",
-      "dismissedUndo": "Rückgängig",
-      "open": "Öffnen",
-      "openStep": "Öffnen: {step}",
-      "stepDone": "Erledigt",
-      "stepComplete": "Schritt abgeschlossen: {step}",
-      "steps": {
-        "company": {
-          "title": "Unternehmen einrichten",
-          "body": "Name, Sprache und Marke: So sehen Kandidaten Sie."
-        },
-        "firstRole": {
-          "title": "Erste Stelle anlegen",
-          "body": "Beschreiben Sie den Bedarf. Kandi entwirft Beschreibung, Gehalt und Aufgabe.",
-          "analyzing": "Wird gerade erstellt. Verfolgen Sie den Bibliotheksverlauf.",
-          "failed": "Der Lauf ist fehlgeschlagen. Wiederholen Sie ihn im Bibliotheksverlauf."
-        },
-        "case": {
-          "title": "Aufgabe als Arbeitsprobe entwerfen",
-          "body": "Eine praktische Aufgabe, die echtes Können prüft."
-        },
-        "channels": {
-          "title": "Kanäle verbinden",
-          "body": "Öffnen Sie einen E-Mail-Eingang und empfangen Sie eine Testbewerbung.",
-          "listening": "Empfangsbereit. Leiten Sie eine E-Mail an die konfigurierte Adresse weiter (oder nutzen Sie die Simulationsschaltfläche im Channels-Tab) um diesen Schritt zu verifizieren.",
-          "listeningSimLink": "Zum Channels-Tab →"
-        },
-        "finishSetup": {
-          "title": "Einrichtung abschließen",
-          "body": "Ihr Unternehmen, Ihr Team, Ihr Board und Candi. Machen Sie dort weiter, wo Sie aufgehört haben."
-        }
-      }
-    },
     "finish": {
       "part": {
         "orgName": "Firmenname",
@@ -8400,7 +8416,7 @@
     },
     "leave": {
       "title": "Einrichtung verlassen?",
-      "body": "Es geht nichts verloren. Sie können die Einrichtung jederzeit über die Checkliste „Erste Schritte“ auf Ihrem Board abschließen.",
+      "body": "Es geht nichts verloren. Sie können jederzeit auf Ihrem Pipeline-Board dort weitermachen, wo Sie aufgehört haben.",
       "confirm": "Einrichtung verlassen",
       "cancel": "Weiter einrichten"
     }

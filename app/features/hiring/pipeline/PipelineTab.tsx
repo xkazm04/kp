@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Play, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { PipelineEmptyFirstCandidate } from "./PipelineEmptyFirstCandidate";
-import { GettingStartedCard } from "@/app/features/shell/setup/GettingStartedCard";
+import { PipelineEmptyState } from "./empty/PipelineEmptyState";
+import { useSetupUnfinished } from "@/app/features/shell/setup/useSetupUnfinished";
+import { requestOnboardingReopen } from "@/app/features/shell/setup/onboardingReopen";
 import { Defer } from "@/app/_components/ui/Defer";
 import { PANEL, SECTION } from "@/app/_components/ui/recipes";
 import { useEventVerb, useRelativeTime } from "./PipelineShared";
@@ -40,6 +41,9 @@ export function PipelineTab() {
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
+  // The setup wizard has no other door since the Getting-started checklist was
+  // deleted: the empty board offers it as step zero when setup is unfinished.
+  const setupUnfinished = useSetupUnfinished();
 
   return (
     <div className={`stagger-children ${SECTION}`} aria-busy={s.entries == null}>
@@ -63,9 +67,8 @@ export function PipelineTab() {
           board and the day's work, not the machinery. */}
 
       {/* The two queues that outrank everything below them, consolidated into one
-          ranked strip and hoisted ABOVE the setup checklist: a stalled application
-          or a decision waiting on you is today's work, the checklist is onboarding.
-          Self-hiding when both are empty. */}
+          ranked strip: a stalled application or a decision waiting on you is
+          today's work. Self-hiding when both are empty. */}
       <PipelineAttentionStrip
         t={s.t}
         degradedCount={s.degradedCount}
@@ -73,11 +76,6 @@ export function PipelineTab() {
         onReviewDegraded={s.focusDegradedCohort}
         onOpenDecisions={s.goToDecisions}
       />
-
-      {/* First-run hand-off: the wizard's Getting-started checklist lives on the
-          default tab. Data-derived + self-hiding (dismiss / all steps done), so
-          established workspaces see it once at most. */}
-      <GettingStartedCard />
 
       {/* 8f8f578d — candidate-driven work narrated with names + destinations,
           on the landing surface (badges only carry counts). The rail's inbound /
@@ -105,30 +103,16 @@ export function PipelineTab() {
       {s.error ? (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{s.error}</p>
       ) : s.entries != null && s.entries.length === 0 ? (
-        /* The empty board rehearses the real stage lanes with a slot waiting in
-           Accepted, so a first-run recruiter sees the funnel's shape, not a hole.
-           It owns the whole surface — no filter header above a board that has
-           nothing to filter. */
-        <PipelineEmptyFirstCandidate
-          title={s.t("emptyTitle")}
-          body={s.t("emptyBody")}
-          links={[
-            { tab: "channels", label: s.t("emptyCtaChannels") },
-            { tab: "archetypes", label: s.t("emptyCtaProfile") },
-          ]}
-          // 5d2e0998 — the empty board is the first-run moment: offer the
-          // guided tour (the simulation walks the whole hiring story live).
-          extraAction={
-            !s.sim.running ? (
-              <button
-                type="button"
-                onClick={s.sim.start}
-                className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
-              >
-                <Play size={13} aria-hidden /> {s.t("emptyCtaTour")}
-              </button>
-            ) : undefined
-          }
+        /* The empty board is the first-run moment, so it carries the three
+           moves in the order the product actually enforces - a role first,
+           candidates onto it, channels as the next choice - and, when the
+           operator left the setup wizard early, the door back to it. Two
+           directional variants behind a switcher while the owner picks
+           (empty/PipelineEmptyState.tsx). */
+        <PipelineEmptyState
+          setupUnfinished={setupUnfinished}
+          onResumeSetup={requestOnboardingReopen}
+          onStartTour={s.sim.running ? undefined : s.sim.start}
         />
       ) : (
         /* ONE panel: the filter header and the lanes it filters are the same

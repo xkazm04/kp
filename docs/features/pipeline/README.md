@@ -402,10 +402,18 @@ The board page is four blocks, in the order the day is worked:
    lede into a `max-w-2xl` column beside the chips.
 2. `PipelineAttentionStrip` — the two queues that outrank the board itself, as one
    ranked list: degraded intakes (red, → *Review*) then awaiting-you approvals
-   (coral, → *Open Decisions*). Self-hiding when both are empty. It sits **above**
-   `GettingStartedCard`: a stalled application outranks a setup checklist. These
-   were previously two separately-styled banners rendered *below* the checklist and
-   *between* the filter row and the board.
+   (coral, → *Open Decisions*). Self-hiding when both are empty. These were
+   previously two separately-styled banners rendered *between* the filter row and
+   the board.
+
+   A `GettingStartedCard` — the first-run setup checklist — used to render between
+   this strip and the board. It is **deleted**: on a fresh workspace it stood
+   directly above the empty board's own actions, so a first-run operator met two
+   competing to-do lists. The empty state is now the single first-run surface, and
+   it carries the one thing the checklist uniquely held — the way back into an
+   unfinished setup wizard (`shell/setup/useSetupUnfinished.ts` +
+   `shell/setup/onboardingReopen.ts`; see
+   [`app-structure.md`](../../architecture/app-structure.md)).
 3. The **board panel** — one `PANEL` holding, top to bottom: `PipelineFilterBar`
    → the select-mode bulk bar and SLA editor when armed → `PipelineSavedViews` →
    `PipelineBoard`. The filter chrome used to float several blocks above the lanes

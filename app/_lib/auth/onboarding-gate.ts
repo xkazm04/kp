@@ -37,12 +37,13 @@ export async function needsOnboarding(): Promise<boolean> {
  *
  * `needsOnboarding` above answers "should the wizard fire?", and a SKIP closes it
  * just as firmly as a finish. That is the whole reason this second reading exists:
- * a skipped principal is done being asked but is not set up, and the
- * Getting-started checklist's `finishSetup` step is the way back in
- * (`shell/setup/setupGettingStartedModel.ts`). Nothing else on the checklist is a
- * stored flag — every other step is derived from what exists in the workspace —
- * but "did you finish the wizard" is not derivable from any artefact, so this
- * reads the one record the app actually keeps.
+ * a skipped principal is done being asked but is not set up, and the empty Pipeline
+ * board's resume affordance is the way back in (`shell/setup/useSetupUnfinished.ts`
+ * decides whether to offer it, `shell/setup/onboardingReopen.ts` opens it). Nothing
+ * else in the first-run derivation is a stored flag — every other field is derived
+ * from what exists in the workspace — but "did you finish the wizard" is not
+ * derivable from any artefact, so this reads the one record the app actually
+ * keeps.
  *
  * Same user-else-workspace identity split as `needsOnboarding`, and both stamp
  * writers keep "completed" winning over a later "skipped" (`markUserOnboarding`

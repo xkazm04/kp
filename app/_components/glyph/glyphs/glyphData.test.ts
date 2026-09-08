@@ -1,4 +1,4 @@
-// Data contract for the 18 generated /motionize glyph modules in this folder.
+// Data contract for the 15 generated /motionize glyph modules in this folder.
 //
 // These files are machine-traced, and TWO gates deliberately look away from them:
 // `eslint.config.mjs` blanket-ignores `app/_components/glyph/glyphs/**` for the
@@ -31,13 +31,10 @@ import { DEV_CASES_GLYPH } from "./devCasesGlyph.ts";
 import { JOBS_GLYPH } from "./jobsGlyph.ts";
 import { LIBRARY_GLYPH } from "./libraryGlyph.ts";
 import { MATRIX_GLYPH } from "./matrixGlyph.ts";
-import { PIPELINE_GLYPH } from "./pipelineGlyph.ts";
 import { PROFILE_MATRIX_GLYPH } from "./profileMatrixGlyph.ts";
 import { PROFILE_ROSTER_GLYPH } from "./profileRosterGlyph.ts";
 import { SCHEDULE_GLYPH } from "./scheduleGlyph.ts";
-import { STEP_CASE_GLYPH } from "./stepCaseGlyph.ts";
 import { STEP_CHANNELS_GLYPH } from "./stepChannelsGlyph.ts";
-import { STEP_COMPANY_GLYPH } from "./stepCompanyGlyph.ts";
 import { STEP_FIRST_ROLE_GLYPH } from "./stepFirstRoleGlyph.ts";
 
 const GLYPHS: Record<string, TracedGlyph> = {
@@ -51,13 +48,10 @@ const GLYPHS: Record<string, TracedGlyph> = {
   jobsGlyph: JOBS_GLYPH,
   libraryGlyph: LIBRARY_GLYPH,
   matrixGlyph: MATRIX_GLYPH,
-  pipelineGlyph: PIPELINE_GLYPH,
   profileMatrixGlyph: PROFILE_MATRIX_GLYPH,
   profileRosterGlyph: PROFILE_ROSTER_GLYPH,
   scheduleGlyph: SCHEDULE_GLYPH,
-  stepCaseGlyph: STEP_CASE_GLYPH,
   stepChannelsGlyph: STEP_CHANNELS_GLYPH,
-  stepCompanyGlyph: STEP_COMPANY_GLYPH,
   stepFirstRoleGlyph: STEP_FIRST_ROLE_GLYPH,
 };
 
@@ -83,7 +77,7 @@ const DARK = names(cssBlock('[data-theme="dark"] {'));
 // A gate that quietly matches nothing is worse than no gate (same guard rail as
 // scripts/design/check-design-tokens.mjs).
 test("self-check: the fixtures this file reasons over are actually present", () => {
-  assert.equal(Object.keys(GLYPHS).length, 18);
+  assert.equal(Object.keys(GLYPHS).length, 15);
   assert.ok(LIGHT.size >= 8 && DARK.size >= 8, `parsed ${LIGHT.size} light / ${DARK.size} dark tokens`);
   assert.ok(
     Object.values(GLYPHS).every((g) => g.data.length > 0),

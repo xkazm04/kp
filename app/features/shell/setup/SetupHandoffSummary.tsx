@@ -2,11 +2,18 @@
 
 // Hand-off — the last onboarding step, split out of SetupOnboardingWizard.tsx so
 // the wizard stays under the 200-line file cap. Reflects everything captured
-// (org, language, invites, the first role's pending build) and points at the
-// Getting-started checklist that takes over inside the app. Deliberately the
-// QUIETEST step: plain panels, plain voice — the marketing register ended at
-// Welcome.
-import { ArrowRight, Check, Columns3, ListChecks, Play, Rocket } from "lucide-react";
+// (org, language, invites, the board as it will be) and then offers the step's two
+// exits. Deliberately the QUIETEST step: plain panels, plain voice — the marketing
+// register ended at Welcome.
+//
+// It used to carry a THIRD affordance above those two — a card promising a
+// "Getting-started checklist" waiting on the Pipeline board. That checklist is
+// gone (it stood beside the empty board's own actions, so a first-run operator met
+// two competing to-do lists), and with it the only thing that card did beyond
+// `ctrl.finish()`: it set a highlight flag for a surface that no longer exists. A
+// button that promises a screen the operator will not find is worse than one fewer
+// exit, so the step now ends where the choice is.
+import { ArrowRight, Check, Columns3, Play, Rocket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { languageNative } from "@/app/features/shared/memberUi";
@@ -17,7 +24,6 @@ import { Badge } from "@/app/_components/Badge";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { SetupPipelineChain } from "./SetupPipelineChain";
 import type { OnboardingCtrl } from "./setupSteps";
-import { CHECKLIST_HIGHLIGHT_KEY } from "./setupGettingStartedModel";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
@@ -65,24 +71,6 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
           </div>
         </div>
       ) : null}
-
-      <button
-        type="button"
-        onClick={() => {
-          try { window.sessionStorage.setItem(CHECKLIST_HIGHLIGHT_KEY, "1"); } catch { /* per-browser preference only */ }
-          ctrl.finish();
-        }}
-        className="focus-ring group flex w-full items-center gap-3 rounded-lg border border-stone-200 bg-white p-4 text-left transition-all hover:border-stone-300 hover:shadow-sm"
-      >
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel transition-colors group-hover:bg-moss/10 group-hover:text-moss">
-          <ListChecks size={18} aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1 text-sm">
-          <p className="font-semibold text-ink">{t("checklistTitle")}</p>
-          <p className="text-steel">{t("checklistBody")}</p>
-        </div>
-        <ArrowRight size={16} aria-hidden className="shrink-0 text-steel transition-transform group-hover:translate-x-0.5 group-hover:text-moss" />
-      </button>
 
       {/* The step's TWO exit paths, as equal explicit choices (the footer is
           suppressed here so nothing competes with them):

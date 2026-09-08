@@ -6,10 +6,10 @@
 // They used to be two independently-styled full-width banners stacked inside
 // PipelinePopulatedBoard, i.e. BELOW the Getting-started checklist and directly on
 // top of the filter row: two different alert idioms (red-wash vs coral-wash, both
-// whole-banner buttons) competing for the same glance, wedged between the setup
+// whole-banner buttons) competing for the same glance, wedged between the first-run
 // content and the board's controls. Consolidated here they read as one ranked list
-// — highest-severity row first — and they sit above Getting started, because a
-// stalled application outranks a setup checklist.
+// — highest-severity row first — and they sit above everything a fresh workspace is
+// shown, because a stalled application outranks onboarding.
 //
 // Renders nothing when both queues are empty; the strip must never be a permanent
 // fixture the eye learns to skip.

@@ -35,8 +35,10 @@ import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 //               principal "completed"; Escape / X ASK FIRST (setup.leave.*) and
 //               stamp "skipped" only on confirm — either way the '/' gate never
 //               re-fires (KP_FORCE_ONBOARDING=1 excepted), so the way back is the
-//               Getting-started checklist's `finishSetup` step, which reopens this
-//               same host in live mode (setup/onboardingReopen.ts).
+//               resume affordance the empty Pipeline board offers an operator whose
+//               setup is unfinished (shell/setup/useSetupUnfinished.ts answers
+//               WHETHER to offer it; setup/onboardingReopen.ts reopens this same
+//               host in live mode when it is taken).
 //               Answers are mirrored into a per-user sessionStorage draft, so a
 //               reload mid-setup resumes instead of starting over (setupDraft.ts).
 //   "preview" — the Settings → Organization walkthrough. NOTHING persists — no
@@ -130,7 +132,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // Stamp the first-run outcome so the '/' gate stops showing the wizard. Fire-
   // and-forget: a lost stamp only means the wizard offers itself once more. The
   // promise is still returned so a caller that has something to do AFTER the stamp
-  // lands (finish, below, tells the checklist to re-read) can wait for it.
+  // lands (finish, below, tells the open views to re-read) can wait for it.
   const stamp = useCallback(
     (status: "completed" | "skipped"): Promise<void> => {
       if (mode !== "live") return Promise.resolve();
@@ -149,8 +151,8 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // drop the draft. A dismissal is an answer, not an interruption: resuming a
   // setup the operator walked away from would re-open a decision they closed.
   const dismiss = useCallback(() => {
-    // No notifyDataChanged here: a skip changes nothing any open view reads (the
-    // checklist's `finishSetup` was already open and stays open).
+    // No notifyDataChanged here: a skip changes nothing any open view reads — the
+    // board's resume affordance was already showing and stays showing.
     void stamp("skipped");
     clearDraft();
     onClose();
@@ -161,8 +163,8 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // the '/' gate for good: the wizard never re-fired, Settings → "Preview
   // onboarding" persists nothing, and company name, brand, invites, board columns
   // and Candi's memory had to be rebuilt one screen at a time. So in live mode the
-  // close control and Escape ask once (`setup.leave.*`), and the Getting-started
-  // checklist's `finishSetup` step is the way back in afterwards either way.
+  // close control and Escape ask once (`setup.leave.*`), and the empty Pipeline
+  // board's resume affordance is the way back in afterwards either way.
   //
   // Preview keeps closing immediately — a walkthrough that writes nothing has
   // nothing to confirm, and a confirmation there would only teach the operator to
@@ -220,9 +222,9 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       toast.error(t("toast.partial"));
     } finally {
       clearDraft();
-      // Tell the open views once the stamp has actually landed — the Getting-started
-      // checklist reads it (`finishSetup`) through its own fetch, so without this it
-      // would keep offering "Finish setting up" until the next 20 s poll tick.
+      // Tell the open views once the stamp has actually landed — the board's resume
+      // affordance reads it (`useSetupUnfinished`) through its own fetch, so without
+      // this it would keep offering "pick up where you left off".
       void stamp("completed").then(notifyDataChanged);
       router.refresh();
       onClose();

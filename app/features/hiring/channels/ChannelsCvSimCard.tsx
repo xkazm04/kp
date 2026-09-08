@@ -74,9 +74,9 @@ export function CvSimCard({
         setResult({ error: errMsg(data, t("cvSim.failedStatus", { status: res.status })) });
       } else {
         setResult(data);
-        // Signal the getting-started checklist (and any other live views) to
-        // re-poll immediately — the channel is now "verified" server-side, so
-        // the checklist should flip within milliseconds rather than up to 20 s.
+        // Signal every open live view to re-read immediately — the channel is
+        // now "verified" server-side, so a view that reports on it should flip
+        // within milliseconds rather than on its own next poll tick.
         notifyDataChanged();
         onDone?.();
       }

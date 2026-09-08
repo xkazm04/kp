@@ -2990,6 +2990,61 @@
       "bulkTaskIncomplete": "The drafting task ended without a result. Still selected, retry.",
       "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why."
     },
+    "emptyState": {
+      "proto": {
+        "eyebrow": "Prototype: pick a direction",
+        "label": "Empty-state direction",
+        "stageSet": "Stage set",
+        "stageSetHint": "The board teaches the funnel, the moves feed it",
+        "buildOrder": "Build order",
+        "buildOrderHint": "One move at a time, in the order the product enforces"
+      },
+      "optional": "Optional",
+      "tour": "Watch the hiring story",
+      "setupTitle": "Finish setting up this workspace",
+      "setupBody": "You left the first-run wizard early. Picking it up takes a minute: the company name, the shape of your pipeline and your first role.",
+      "setupResume": "Resume setup",
+      "moves": {
+        "role": {
+          "title": "Write the job description",
+          "body": "Talk the role through in the intake dialog, or hand over a posting you already have. Every lane on the board is keyed to a job, so this comes first.",
+          "action": "Open job intake"
+        },
+        "candidates": {
+          "title": "Put candidates against it",
+          "body": "Upload a CV in Analyze, pick the saved job description, then add the result to the board. Analyze can only add someone once the run is tagged to a job.",
+          "action": "Open Analyze"
+        },
+        "channels": {
+          "title": "Open the channels",
+          "body": "Your careers page, a forwarding mailbox and lead forms file applications in on their own. Do this once the role reads the way you want it to.",
+          "action": "Open Channels"
+        }
+      },
+      "stageSet": {
+        "eyebrow": "The board, set and empty",
+        "title": "Your funnel, with nobody on it yet",
+        "body": "These are the lanes a candidate walks, in order. Everyone enters at the first one, and the three doors below are what fills it.",
+        "laneStrip": "Pipeline stages",
+        "inflow": "How the first lane fills"
+      },
+      "stageSlot": {
+        "Accepted": "a CV lands here",
+        "Screened": "matched and scored",
+        "Interview": "slots and scorecards",
+        "Offer": "the offer",
+        "Hired": "signed and starting"
+      },
+      "stageSlotFallback": "nothing here yet",
+      "buildOrder": {
+        "eyebrow": "Nobody on the board yet",
+        "title": "Three moves, in this order",
+        "setupLead": "Before the first move",
+        "stepOf": "Move {n} of {total}",
+        "rail": "Pick a move",
+        "then": "Then the board fills:"
+      }
+    },
     "today": {
       "eyebrow": "Today",
       "inbound": "{count, plural, =1 {1 new application} other {# new applications}}",
@@ -8325,8 +8380,6 @@
       "readyTitle": "{org} is ready to go",
       "orgFallback": "Your workspace",
       "readyMeta": "Language: {language} · {invites, plural, =0 {no invites yet} one {# teammate invited} other {# teammates invited}}",
-      "checklistTitle": "Your Getting-started checklist",
-      "checklistBody": "It sits on the Pipeline board and walks you through publishing the role, opening channels, and meeting your first candidates.",
       "tourTitle": "Start the guided demo",
       "tourBody": "The whole hiring story, played on sample data. About 3 minutes.",
       "chooseLabel": "How do you want to begin?",
@@ -8348,43 +8401,6 @@
       "partial": "Some setup steps couldn’t be saved. You can finish them in Settings",
       "partialLead": "Some setup steps couldn’t be saved:"
     },
-    "checklist": {
-      "title": "Getting started",
-      "progress": "{done} of {total} done",
-      "dismiss": "Don't show again",
-      "dismissedToast": "Getting-started checklist hidden",
-      "dismissedUndo": "Undo",
-      "open": "Open",
-      "openStep": "Open: {step}",
-      "stepDone": "Done",
-      "stepComplete": "Step complete: {step}",
-      "steps": {
-        "company": {
-          "title": "Set up your company",
-          "body": "Name, language, and brand: how you appear to candidates."
-        },
-        "firstRole": {
-          "title": "Create your first role",
-          "body": "Describe the need. Kandi drafts the description, salary, and assignment.",
-          "analyzing": "Building now. Watch the Library ledger.",
-          "failed": "The build failed. Retry it from the Library ledger."
-        },
-        "case": {
-          "title": "Design the work-sample assignment",
-          "body": "A practical assignment that screens for real skill."
-        },
-        "channels": {
-          "title": "Connect your channels",
-          "body": "Open an email intake and receive a test application.",
-          "listening": "Listening. Forward one email to the configured address (or use the simulate button on the Channels tab) to verify this step.",
-          "listeningSimLink": "Go to Channels tab →"
-        },
-        "finishSetup": {
-          "title": "Finish setting up",
-          "body": "Your company, your team, your board and Candi. Pick up where you left off."
-        }
-      }
-    },
     "finish": {
       "part": {
         "orgName": "Company name",
@@ -8400,7 +8416,7 @@
     },
     "leave": {
       "title": "Leave setup?",
-      "body": "Nothing is lost. You can finish setting up any time from the Getting-started checklist on your board.",
+      "body": "Nothing is lost. You can pick up where you left off any time from your Pipeline board.",
       "confirm": "Leave setup",
       "cancel": "Keep setting up"
     }

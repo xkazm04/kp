@@ -9,10 +9,17 @@ import { listInvitesForOrg } from "./db/invites";
 import { DEFAULT_ORG_ID, getOrganization } from "./db/organizations";
 import { isRelayConfigured } from "./comms-relay";
 
-// Getting-started checklist derivation (server-side). Every step is DATA-DERIVED
-// from what actually exists — no per-step flags to drift out of sync with
-// reality: doing the work through any door (wizard, Library, API) completes the
-// step. Consumed by GET /api/me/getting-started for the Pipeline-board card.
+// First-run progress derivation (server-side). Every field is DATA-DERIVED from
+// what actually exists — no per-step flags to drift out of sync with reality:
+// doing the work through any door (wizard, Library, API) flips the answer.
+// Consumed by GET /api/me/getting-started.
+//
+// The Getting-started CHECKLIST this once fed is gone — on the Pipeline board it
+// stood beside the empty board's own actions, so a first-run operator met two
+// competing to-do lists. What survived the deletion is `setupFinished`, read
+// through `shell/setup/useSetupUnfinished.ts` by the empty board's resume
+// affordance; the rest of the payload is kept because it is the honest derivation
+// of first-run progress and is what any future surface would have to recompute.
 
 export type FirstRoleState = "none" | "analyzing" | "failed" | "ready";
 export type ChannelsState = "none" | "listening" | "verified";
@@ -43,7 +50,11 @@ export type GettingStarted = {
    *  reads "completed" (`onboardingFinished` in auth/onboarding-gate.ts). A
    *  "skipped" stamp is deliberately NOT enough: it closes the '/' gate, so an
    *  operator who pressed Escape on their first load never sees the wizard again,
-   *  and the checklist's `finishSetup` step is the only way back to it.
+   *  and the empty board's resume affordance is the only way back to it.
+   *
+   *  THIS FIELD IS THE ONE THE PRODUCT STILL DEPENDS ON. `useSetupUnfinished()`
+   *  reads it and nothing else off this payload; removing it strands a skipped
+   *  first run with no door back into the wizard.
    *
    *  It is the one field here that is a STORED FLAG rather than a fact derived
    *  from what exists in the workspace, because "did you finish the wizard" leaves
@@ -52,11 +63,12 @@ export type GettingStarted = {
    *  them can tell a finished setup from the same state assembled by hand. The
    *  stamp is what the server actually tracks, so the step follows the stamp. */
   setupFinished: boolean;
-  /** The four core steps (team AND setupFinished excluded) are complete. The
-   *  checklist SURFACE retires on `allStepsDone()` in setupGettingStartedModel.ts,
-   *  which also counts `finishSetup`; this field keeps its narrower, older meaning
-   *  — "the workspace can hire" — for callers that ask about the work rather than
-   *  about the wizard. */
+  /** The four core steps (team AND setupFinished excluded) are complete — i.e.
+   *  "the workspace can hire". Deliberately NOT folded with `setupFinished`: a
+   *  workspace assembled by hand after a skipped first run can hire while its
+   *  wizard is still unfinished, and conflating the two is what once hid the way
+   *  back into setup. No surface renders this today; it is the derivation's own
+   *  summary, kept beside the fields it folds. */
   allDone: boolean;
 };
 

@@ -2990,6 +2990,61 @@
       "bulkTaskIncomplete": "Úloha psaní skončila bez výsledku. Kandidáti zůstávají vybraní, zkuste to znovu.",
       "bulkInviteItemsRefused": "Některé pozvánky byly odmítnuty. Důvod zjistíte otevřením kandidáta."
     },
+    "emptyState": {
+      "proto": {
+        "eyebrow": "Prototyp: vyberte směr",
+        "label": "Směr prázdného stavu",
+        "stageSet": "Scéna",
+        "stageSetHint": "Nástěnka učí trychtýř, kroky ji plní",
+        "buildOrder": "Pořadí kroků",
+        "buildOrderHint": "Jeden krok po druhém, v pořadí, které produkt vyžaduje"
+      },
+      "optional": "Volitelné",
+      "tour": "Přehrát příběh náboru",
+      "setupTitle": "Dokončete nastavení pracovního prostoru",
+      "setupBody": "Průvodce prvním spuštěním jste opustili dřív. Dokončení zabere minutu: název firmy, podoba náborového procesu a první pozice.",
+      "setupResume": "Pokračovat v nastavení",
+      "moves": {
+        "role": {
+          "title": "Napište popis pozice",
+          "body": "Proberte pozici ve vstupním dialogu, nebo předejte inzerát, který už máte. Každý sloupec nástěnky je navázaný na pozici, takže tohle je první krok.",
+          "action": "Otevřít vstup pozice"
+        },
+        "candidates": {
+          "title": "Přiřaďte k ní kandidáty",
+          "body": "Nahrajte životopis v Analýze, vyberte uložený popis pozice a výsledek přidejte na nástěnku. Analýza umí kandidáta přidat až ve chvíli, kdy je běh navázaný na pozici.",
+          "action": "Otevřít Analýzu"
+        },
+        "channels": {
+          "title": "Otevřete kanály",
+          "body": "Vaše kariérní stránka, přeposílací schránka a inzertní formuláře zakládají přihlášky samy. Udělejte to, až bude pozice znít přesně tak, jak chcete.",
+          "action": "Otevřít Kanály"
+        }
+      },
+      "stageSet": {
+        "eyebrow": "Nástěnka, připravená a prázdná",
+        "title": "Váš trychtýř, zatím bez kandidátů",
+        "body": "Tohle jsou fáze, kterými kandidát projde, v pořadí. Všichni vstupují do první z nich a tři dveře níže jsou to, co ji plní.",
+        "laneStrip": "Fáze náboru",
+        "inflow": "Čím se plní první fáze"
+      },
+      "stageSlot": {
+        "Accepted": "sem dorazí životopis",
+        "Screened": "spárováno a obodováno",
+        "Interview": "termíny a hodnoticí karty",
+        "Offer": "nabídka",
+        "Hired": "podepsáno, nástup"
+      },
+      "stageSlotFallback": "zatím prázdné",
+      "buildOrder": {
+        "eyebrow": "Na nástěnce zatím nikdo není",
+        "title": "Tři kroky, v tomto pořadí",
+        "setupLead": "Před prvním krokem",
+        "stepOf": "Krok {n} z {total}",
+        "rail": "Vyberte krok",
+        "then": "Pak se nástěnka naplní:"
+      }
+    },
     "today": {
       "eyebrow": "Dnes",
       "inbound": "{count, plural, =1 {1 nová přihláška} few {# nové přihlášky} other {# nových přihlášek}}",
@@ -8325,8 +8380,6 @@
       "readyTitle": "{org} může začít",
       "orgFallback": "Váš pracovní prostor",
       "readyMeta": "Jazyk: {language} · {invites, plural, =0 {zatím žádné pozvánky} one {# pozvaný kolega} few {# pozvaní kolegové} other {# pozvaných kolegů}}",
-      "checklistTitle": "Váš checklist prvních kroků",
-      "checklistBody": "Najdete ho na nástěnce Pipeline a provede vás publikováním pozice, otevřením kanálů a prvními kandidáty.",
       "tourTitle": "Spustit řízenou ukázku",
       "tourBody": "Celý příběh náboru na ukázkových datech. Zhruba 3 minuty.",
       "chooseLabel": "Jak chcete začít?",
@@ -8348,43 +8401,6 @@
       "partial": "Některé kroky nastavení se nepodařilo uložit. Dokončíte je v Nastavení",
       "partialLead": "Některé kroky nastavení se nepodařilo uložit:"
     },
-    "checklist": {
-      "title": "První kroky",
-      "progress": "Hotovo {done} z {total}",
-      "dismiss": "Znovu nezobrazovat",
-      "dismissedToast": "Kontrolní seznam prvních kroků byl skryt",
-      "dismissedUndo": "Vrátit zpět",
-      "open": "Otevřít",
-      "openStep": "Otevřít: {step}",
-      "stepDone": "Hotovo",
-      "stepComplete": "Krok dokončen: {step}",
-      "steps": {
-        "company": {
-          "title": "Nastavte svou společnost",
-          "body": "Název, jazyk a značka: tak vás uvidí kandidáti."
-        },
-        "firstRole": {
-          "title": "Vytvořte první pozici",
-          "body": "Popište potřebu. Kandi připraví popis, mzdu i zadání.",
-          "analyzing": "Právě se sestavuje. Sledujte přehled v Knihovně.",
-          "failed": "Sestavení selhalo. Zkuste to znovu z přehledu v Knihovně."
-        },
-        "case": {
-          "title": "Navrhněte praktické zadání",
-          "body": "Praktické zadání, které prověří skutečné dovednosti."
-        },
-        "channels": {
-          "title": "Napojte své kanály",
-          "body": "Otevřete e-mailový příjem a přijměte testovací přihlášku.",
-          "listening": "Nasloucháme. Přepošlete jeden e-mail na nakonfigurovanou adresu (nebo použijte tlačítko simulace na kartě Kanály) a tím krok ověřte.",
-          "listeningSimLink": "Přejít na kartu Kanály →"
-        },
-        "finishSetup": {
-          "title": "Dokončit nastavení",
-          "body": "Vaše firma, tým, nástěnka a Candi. Navažte tam, kde jste skončili."
-        }
-      }
-    },
     "finish": {
       "part": {
         "orgName": "Název firmy",
@@ -8400,7 +8416,7 @@
     },
     "leave": {
       "title": "Opustit nastavení?",
-      "body": "Nic se neztratí. Nastavení můžete kdykoli dokončit ze seznamu Začínáme na vaší nástěnce.",
+      "body": "Nic se neztratí. Kdykoli můžete navázat tam, kde jste skončili, přímo na nástěnce Pipeline.",
       "confirm": "Opustit nastavení",
       "cancel": "Pokračovat v nastavení"
     }

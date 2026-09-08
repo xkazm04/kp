@@ -4,8 +4,8 @@
 //
 // This is what step 4 asks now. It used to ask for a first job description; that
 // belongs in the Library, where a build has a ledger, a retry and honest engine
-// caveats, and the Getting-started checklist walks the operator there
-// (setupGettingStartedModel.ts). The board's shape, by contrast, is a decision
+// caveats, and the Library tab is one nav click away. The board's shape, by
+// contrast, is a decision
 // every later screen depends on, is cheap to make while nothing is on the board,
 // and is asked nowhere else at first run.
 //

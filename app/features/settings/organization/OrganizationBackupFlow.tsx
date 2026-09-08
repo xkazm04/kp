@@ -12,8 +12,8 @@
 // LOOKS different (coral terminal node) rather than merely saying so. The one
 // remaining sentence per lane is the thing a diagram genuinely cannot say.
 //
-// Same principle as SetupGettingStartedNextMove: give the reader a subject they
-// can see before they read, and let the layout carry the ranking.
+// The principle: give the reader a subject they can see before they read, and
+// let the layout carry the ranking.
 import type { ComponentType } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Database, FileJson, ListChecks } from "lucide-react";

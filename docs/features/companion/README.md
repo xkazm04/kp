@@ -156,12 +156,13 @@ GET the wizard made minutes ago — a proposal-time check is a claim, an
 execution-time check is the guarantee — and `birth` runs *before* the stamp, so
 consent is only ever recorded over a brain that exists.
 
-> **No Getting-started checklist item was added.** `STEPS` in
-> `setupGettingStartedModel.ts` is "the four core steps a workspace genuinely
-> cannot hire without", and connecting Candi's memory gates no hiring. `team`
-> was removed from that list for precisely this reason ("the one step that never
-> gated anything"), and re-introducing the shape one step later would undo a
-> decision this repo already made.
+> **No first-run checklist item was added.** The Getting-started checklist that
+> would have carried one is itself gone (it stood beside the empty Pipeline
+> board's own actions — two competing to-do lists), but the reasoning stood
+> before that: its `STEPS` were "the core steps a workspace genuinely cannot hire
+> without", and connecting Candi's memory gates no hiring. `team` had already been
+> removed from that list for precisely this reason ("the one step that never gated
+> anything").
 
 ## Write order — disk first, indexes after
 

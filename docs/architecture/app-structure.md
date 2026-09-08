@@ -735,26 +735,36 @@ pane's heading on open and back to the step's heading on cancel — the same mov
 every step change already makes. The card's body height is one constant shared by
 both panes, so answering the question does not resize the surface.
 
-**The way back in** is the Getting-started checklist's `finishSetup` step
-(`setupGettingStartedModel.ts`, copy at `setup.checklist.steps.finishSetup`). It is
-the first row and the only one that does not route to a tab: it reopens this host
-in live mode through `setup/onboardingReopen.ts` — a named window event, the same
-shape `shell/live-refresh.ts` uses, because `Workspace` owns `onboardingOpen` and
-the checklist renders several tabs deep inside the tab panel. (`?onboarding=1` is
-not that path: `onboardingOpen` is seeded with `useState`, which a re-render with a
-new prop never re-runs, and the param would reopen the wizard on every later
-reload.) Its done-state is the one checklist mark that is a **stored flag** rather
-than a workspace fact — `GettingStarted.setupFinished`, from `onboardingFinished()`
-in `_lib/auth/onboarding-gate.ts`, which reads the "completed" stamp under the same
-user-else-workspace split the gate uses. A **skip does not count**: that is exactly
-the state the row offers a way out of, and skipping first and finishing later reads
-as finished because both stamp writers keep "completed" winning over a later
-"skipped". Nothing derivable could answer this — every answer the wizard collects
-is reachable through other doors, so no combination of artefacts distinguishes a
-finished setup from the same state assembled by hand. The card therefore retires on
-`allStepsDone()` (all five) rather than on the payload's `allDone` (the four core
-steps), or an operator who skipped and then did the work by hand would watch the
-only door back disappear.
+**The way back in** is the **empty Pipeline board's resume affordance**. It reopens
+this host in live mode through `setup/onboardingReopen.ts` — a named window event,
+the same shape `shell/live-refresh.ts` uses, because `Workspace` owns
+`onboardingOpen` and the board renders several tabs deep inside the tab panel.
+(`?onboarding=1` is not that path: `onboardingOpen` is seeded with `useState`, which
+a re-render with a new prop never re-runs, and the param would reopen the wizard on
+every later reload.)
+
+**Whether to offer it** is one boolean, `shell/setup/useSetupUnfinished.ts`: it
+reads `GettingStarted.setupFinished` off `GET /api/me/getting-started` and answers
+`false` until the read lands, so an operator who finished never sees a resume prompt
+blink onto their board. That field is a **stored flag** rather than a workspace
+fact — from `onboardingFinished()` in `_lib/auth/onboarding-gate.ts`, which reads the
+"completed" stamp under the same user-else-workspace split the gate uses. A **skip
+does not count**: that is exactly the state this door exists to undo, and skipping
+first and finishing later reads as finished because both stamp writers keep
+"completed" winning over a later "skipped". Nothing derivable could answer it —
+every answer the wizard collects is reachable through other doors, so no combination
+of artefacts distinguishes a finished setup from the same state assembled by hand.
+The wizard's `finish()` calls `notifyDataChanged()` once the stamp has landed, so
+taking the door and finishing closes it within milliseconds rather than on a poll.
+
+> **A Getting-started checklist used to carry this door** (`GettingStartedCard`,
+> `setupGettingStartedModel.ts`, copy under `setup.checklist.*`) — five derived rows
+> on the Pipeline board, `finishSetup` first. It is **deleted**. On a fresh workspace
+> it rendered directly above the empty board's own upstream links, so a first-run
+> operator met **two competing to-do lists** and had to rank them. The board's own
+> empty state won: it is the surface the operator is already looking at. Only the
+> door moved — the reopen channel, the stamp reading and `setupFinished` are
+> unchanged.
 
 **`finish()` is best-effort per step, never silently so**
 (`setupOnboardingFinish.ts`). Each write is allowed to fail without sinking the
@@ -833,9 +843,8 @@ has to win.
 
 **Step 4 replaced a "First role" step** that collected the inputs of a real
 backgrounded JD build. Authoring a job description belongs in the Library, where a
-build has a ledger, a retry and honest engine caveats; the Getting-started
-checklist walks a new operator there (`setupGettingStartedModel.ts` → the
-`jd-builder` anchor). The board's shape took its place because it is the one
+build has a ledger, a retry and honest engine caveats, and the Library tab is one
+nav click away. The board's shape took its place because it is the one
 decision every later screen depends on, it is cheap while nothing is on the board,
 and nothing else asks about it at first run. Its editing rules are NOT a second
 copy — `shared/pipelineAxisDraft.ts` is the same model Settings → Hiring uses, and

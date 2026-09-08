@@ -7,9 +7,8 @@
 // Step 4 used to be "First role" — the inputs of a real backgrounded JD build.
 // It is gone: authoring a job description is a Library job with its own ledger,
 // retry and engine caveats, and asking for it inside a modal made the wizard the
-// second-best place to do it. The Getting-started checklist now walks the
-// operator there (setupGettingStartedModel.ts STEPS: `firstRole` → the Library's
-// jd-builder anchor). What replaced it is the one shape decision the whole
+// second-best place to do it; the Library's own JD builder is where it lives now.
+// What replaced it is the one shape decision the whole
 // workspace hangs off and that nothing else asks about at first run: the board's
 // columns.
 

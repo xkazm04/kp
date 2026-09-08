@@ -2990,6 +2990,61 @@
       "bulkTaskIncomplete": "La tâche de rédaction s’est terminée sans résultat. Toujours sélectionnés, réessayez.",
       "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison."
     },
+    "emptyState": {
+      "proto": {
+        "eyebrow": "Prototype : choisissez une direction",
+        "label": "Direction de l’état vide",
+        "stageSet": "Le décor",
+        "stageSetHint": "Le tableau enseigne l’entonnoir, les étapes le remplissent",
+        "buildOrder": "Ordre des étapes",
+        "buildOrderHint": "Une étape à la fois, dans l’ordre imposé par le produit"
+      },
+      "optional": "Facultatif",
+      "tour": "Voir le parcours de recrutement",
+      "setupTitle": "Terminez la configuration de cet espace",
+      "setupBody": "Vous avez quitté l’assistant de démarrage en cours de route. Le reprendre prend une minute : le nom de l’entreprise, la forme du pipeline et votre premier poste.",
+      "setupResume": "Reprendre la configuration",
+      "moves": {
+        "role": {
+          "title": "Rédigez la description du poste",
+          "body": "Décrivez le poste dans le dialogue de cadrage, ou fournissez une annonce que vous avez déjà. Chaque colonne du tableau est rattachée à un poste : c’est donc la première étape.",
+          "action": "Ouvrir le cadrage du poste"
+        },
+        "candidates": {
+          "title": "Confrontez-lui des candidats",
+          "body": "Téléversez un CV dans Analyse, choisissez la description de poste enregistrée, puis ajoutez le résultat au tableau. Analyse ne peut ajouter un candidat qu’une fois l’exécution rattachée à un poste.",
+          "action": "Ouvrir Analyse"
+        },
+        "channels": {
+          "title": "Ouvrez les canaux",
+          "body": "Votre page carrières, une boîte mail de transfert et les formulaires publicitaires déposent les candidatures tout seuls. Faites-le une fois que le poste vous convient.",
+          "action": "Ouvrir Canaux"
+        }
+      },
+      "stageSet": {
+        "eyebrow": "Le tableau, monté et vide",
+        "title": "Votre entonnoir, encore sans personne",
+        "body": "Voici les colonnes qu’un candidat traverse, dans l’ordre. Tout le monde entre par la première, et les trois portes ci-dessous sont ce qui la remplit.",
+        "laneStrip": "Étapes du pipeline",
+        "inflow": "Ce qui remplit la première colonne"
+      },
+      "stageSlot": {
+        "Accepted": "un CV arrive ici",
+        "Screened": "apparié et noté",
+        "Interview": "créneaux et grilles",
+        "Offer": "l’offre",
+        "Hired": "signé, arrivée à venir"
+      },
+      "stageSlotFallback": "encore rien",
+      "buildOrder": {
+        "eyebrow": "Personne sur le tableau",
+        "title": "Trois étapes, dans cet ordre",
+        "setupLead": "Avant la première étape",
+        "stepOf": "Étape {n} sur {total}",
+        "rail": "Choisir une étape",
+        "then": "Ensuite le tableau se remplit :"
+      }
+    },
     "today": {
       "eyebrow": "Aujourd’hui",
       "inbound": "{count, plural, =1 {1 nouvelle candidature} other {# nouvelles candidatures}}",
@@ -8325,8 +8380,6 @@
       "readyTitle": "{org} peut démarrer",
       "orgFallback": "Votre espace de travail",
       "readyMeta": "Langue : {language} · {invites, plural, =0 {aucune invitation pour l’instant} one {# collègue invité} other {# collègues invités}}",
-      "checklistTitle": "Votre checklist « Premiers pas »",
-      "checklistBody": "Elle se trouve sur le tableau Pipeline et vous guide : publication du poste, ouverture des canaux, premiers candidats.",
       "tourTitle": "Lancer la démo guidée",
       "tourBody": "Toute l’histoire du recrutement sur des données d’exemple. Environ 3 minutes.",
       "chooseLabel": "Comment voulez-vous commencer ?",
@@ -8348,43 +8401,6 @@
       "partial": "Certaines étapes n’ont pas pu être enregistrées. Vous pourrez les terminer dans les Paramètres",
       "partialLead": "Certaines étapes de la configuration n’ont pas pu être enregistrées :"
     },
-    "checklist": {
-      "title": "Premiers pas",
-      "progress": "{done} sur {total} terminés",
-      "dismiss": "Ne plus afficher",
-      "dismissedToast": "Checklist « Premiers pas » masquée",
-      "dismissedUndo": "Annuler",
-      "open": "Ouvrir",
-      "openStep": "Ouvrir : {step}",
-      "stepDone": "Terminé",
-      "stepComplete": "Étape terminée : {step}",
-      "steps": {
-        "company": {
-          "title": "Configurez votre entreprise",
-          "body": "Nom, langue et marque : l’image que voient les candidats."
-        },
-        "firstRole": {
-          "title": "Créez votre premier poste",
-          "body": "Décrivez le besoin. Kandi rédige la fiche, le salaire et l’exercice.",
-          "analyzing": "Génération en cours. Suivez le registre de la Bibliothèque.",
-          "failed": "La génération a échoué. Relancez-la depuis le registre de la Bibliothèque."
-        },
-        "case": {
-          "title": "Concevez l’exercice pratique",
-          "body": "Un exercice concret qui évalue les compétences réelles."
-        },
-        "channels": {
-          "title": "Connectez vos canaux",
-          "body": "Ouvrez une réception d’e-mails et recevez une candidature test.",
-          "listening": "En écoute. Transférez un e-mail à l'adresse configurée (ou utilisez le bouton de simulation dans l'onglet Canaux) pour valider cette étape.",
-          "listeningSimLink": "Aller à l'onglet Canaux →"
-        },
-        "finishSetup": {
-          "title": "Terminer la configuration",
-          "body": "Votre entreprise, votre équipe, votre tableau et Candi. Reprenez où vous en étiez."
-        }
-      }
-    },
     "finish": {
       "part": {
         "orgName": "Nom de l’entreprise",
@@ -8400,7 +8416,7 @@
     },
     "leave": {
       "title": "Quitter la configuration ?",
-      "body": "Rien n'est perdu. Vous pourrez terminer la configuration à tout moment depuis la liste Premiers pas sur votre tableau.",
+      "body": "Rien n'est perdu. Vous pourrez reprendre là où vous en étiez à tout moment depuis votre tableau Pipeline.",
       "confirm": "Quitter la configuration",
       "cancel": "Continuer la configuration"
     }
