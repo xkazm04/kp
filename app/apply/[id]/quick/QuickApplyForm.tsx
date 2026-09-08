@@ -7,6 +7,7 @@ import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
 // bundle lean — same import discipline as ConversationalApply.
 import { APPLY_EMAIL_RE } from "@/app/_lib/apply-intake";
+import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_lib/apply-session-client";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
@@ -32,11 +33,18 @@ export function QuickApplyForm({
   campaign = "",
   variant = "",
   relayConfigured = false,
+  compliance,
 }: {
   jobId: string;
   koSteps: KoStep[];
   campaign?: string;
   variant?: string;
+  /** The disclosure's regime + consent-retention window, resolved SERVER-side by
+   *  page.tsx from the OPENING's workspace. Threaded because this page is public
+   *  and session-less: AiDisclosure's own fetch of the gated, caller-scoped
+   *  /api/compliance cannot answer for the right tenant (see its header). Both
+   *  mounts below — the done card and the form — carry it. */
+  compliance: DisclosureCompliance;
   /** REC-10 — is a real delivery relay wired (server-read, passed by the page)?
    *  Gates the "we'll email you" promises: without a relay no email ever leaves,
    *  so the copy points at the durable status link instead. */
@@ -215,7 +223,12 @@ export function QuickApplyForm({
             </a>
           ) : null}
         </div>
-        <AiDisclosure className="mt-6" showDataConsent />
+        <AiDisclosure
+          className="mt-6"
+          showDataConsent
+          regimeId={compliance.regimeId}
+          retentionMonths={compliance.retentionMonths}
+        />
       </div>
     );
   }
@@ -342,7 +355,7 @@ export function QuickApplyForm({
         {submitting ? t("sending") : t("quick.submit")}
       </button>
 
-      <AiDisclosure className="mt-6" />
+      <AiDisclosure className="mt-6" regimeId={compliance.regimeId} retentionMonths={compliance.retentionMonths} />
     </form>
   );
 }

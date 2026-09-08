@@ -11,6 +11,7 @@ import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
 import { BTN_AFFIRM, BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
+import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import { classifyOfferResponse, offerRespondAllowed } from "./offer-response";
 import { formatOfferDeadline } from "./offer-deadline";
 
@@ -31,7 +32,14 @@ type OfferView = {
 
 // Public, token-gated offer page. The candidate accepts or declines here; accept
 // drives the Hired transition + onboarding, decline closes the entry.
-export function OfferClient() {
+export function OfferClient({
+  compliance,
+}: {
+  /** The AI disclosure's regime + consent-retention window, resolved SERVER-side
+   *  by page.tsx from the workspace that extended this offer. See the header of
+   *  AiDisclosure.tsx for why a client fetch cannot get this right. */
+  compliance: DisclosureCompliance;
+}) {
   const params = useParams<{ token: string }>();
   const token = params?.token;
   const t = useTranslations("offer");
@@ -394,7 +402,13 @@ export function OfferClient() {
                 )}
               </>
             )}
-            {!result ? <AiDisclosure className="mt-5" /> : null}
+            {!result ? (
+              <AiDisclosure
+                className="mt-5"
+                regimeId={compliance.regimeId}
+                retentionMonths={compliance.retentionMonths}
+              />
+            ) : null}
           </>
         )}
         </div>

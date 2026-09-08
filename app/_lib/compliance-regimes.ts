@@ -92,6 +92,21 @@ export const COMPLIANCE_REGIMES: Record<RegimeId, ComplianceRegime> = {
  *  (GDPR framing), so an unconfigured workspace is unchanged. */
 export const DEFAULT_REGIME_ID: RegimeId = "eu";
 
+/** The pair of facts the candidate-facing disclosure states as law: WHICH regime
+ *  the assessment and the data processing fall under, and HOW LONG the consent is
+ *  retained. Resolved SERVER-side from the surface's own workspace
+ *  (`app/_lib/compliance-disclosure.ts`) and threaded down as props, because a
+ *  browser fetch cannot prove which tenant's job the candidate is looking at.
+ *  Declared HERE, in the pure/dependency-free module, so a client component can
+ *  carry it through without importing the SQLite-backed resolver. */
+export type DisclosureCompliance = {
+  regimeId: RegimeId;
+  /** Whole months, rounded UP from the enforced KP_CONSENT_TTL_DAYS
+   *  (`consentRetentionMonths()`) — the disclosed ceiling must never be shorter
+   *  than what is actually enforced. */
+  retentionMonths: number;
+};
+
 /** Coerce any stored / posted value to a known RegimeId, defaulting unknown or
  *  malformed input to {@link DEFAULT_REGIME_ID}. Used at every read boundary so a
  *  stale or hand-edited config can never surface an undefined regime. */

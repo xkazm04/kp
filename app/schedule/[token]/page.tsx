@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
+import { getScheduleInviteByToken } from "@/app/_lib/schedule-store";
 import { SchedulePicker } from "./SchedulePicker";
 
 
@@ -13,6 +15,14 @@ export const instant = false;
 export default async function SchedulePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslations("schedule");
+  // The disclosure's legal framing belongs to the workspace that MINTED this
+  // invite, not to whoever the (session-less) browser looks like. Resolved here,
+  // where the token is, and handed down as props — the client component cannot
+  // ask for it (see AiDisclosure.tsx). An unknown/expired token has no workspace,
+  // so it degrades to the shipped default; SchedulePicker renders its own invalid
+  // -link card in that case anyway. Nothing but the workspace id is read off the
+  // invite here — the public projection lives in the route (publicInviteView).
+  const compliance = disclosureComplianceFor(getScheduleInviteByToken(token)?.workspaceId);
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
       {/* The candidate's own escape hatch, mirroring the apply / status / offer / data
@@ -29,7 +39,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ token
       <div className="mt-6">
         <SchedulePicker token={token} />
       </div>
-      <AiDisclosure className="mt-6" />
+      <AiDisclosure className="mt-6" regimeId={compliance.regimeId} retentionMonths={compliance.retentionMonths} />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import type { ApplyStep } from "@/app/_lib/apply";
+import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
 import {
@@ -42,10 +43,17 @@ export function ConversationalApply({
   jobId,
   steps,
   prefill,
+  compliance,
 }: {
   jobId: string;
   steps: ApplyStep[];
   prefill?: ApplyPrefill | null;
+  /** The disclosure's regime + consent-retention window, resolved SERVER-side by
+   *  page.tsx from the OPENING's workspace and carried through untouched. This
+   *  page is public and session-less, so AiDisclosure's own fetch of the (gated,
+   *  caller-scoped) /api/compliance could never answer for the right tenant — see
+   *  the header of AiDisclosure.tsx. */
+  compliance: DisclosureCompliance;
 }) {
 
   const t = useTranslations("apply");
@@ -488,7 +496,12 @@ export function ConversationalApply({
         />
       ) : null}
 
-      <AiDisclosure className="mt-6" showDataConsent />
+      <AiDisclosure
+        className="mt-6"
+        showDataConsent
+        regimeId={compliance.regimeId}
+        retentionMonths={compliance.retentionMonths}
+      />
     </div>
   );
 }

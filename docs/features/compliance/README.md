@@ -445,10 +445,45 @@ sealed into `dev_audit` as a human decision for a number nobody confirmed.
 
 **AI disclosure (Art. 50).** `app/_components/AiDisclosure.tsx` is rendered
 on every public candidate-facing surface, including the most recently added
-`/status/[token]` (`StatusClient.tsx:324`), plus quick/conversational apply,
-the voice interview portal, offer, and schedule pages. (`/onboarding/[token]`
-also carried it until the post-hire onboarding module was removed; the surface
-no longer exists, so the obligation no longer attaches to it.)
+`/status/[token]` (`StatusClient.tsx`), plus quick/conversational apply,
+the dev-case apply page, the voice interview portal, offer, and schedule pages.
+(`/onboarding/[token]` also carried it until the post-hire onboarding module was
+removed; the surface no longer exists, so the obligation no longer attaches to
+it.)
+
+**The regime it names is resolved server-side, per tenant (Art. 13 accuracy).**
+The note states two facts as law — the jurisdiction's anti-discrimination
+framework + data law, and the consent-retention window — and both now arrive as
+props (`regimeId`, `retentionMonths`) from `disclosureComplianceFor()`
+(`app/_lib/compliance-disclosure.ts`), called by each surface's own server
+component off the workspace it has *already* established: the invite behind a
+`/schedule` token, the session behind an `/interview` token, the posting behind a
+`/devcase/apply` token, the offer behind an `/offer` token, the status link behind
+a `/status` token (`getWorkspaceByStatusToken`), and `getJobWorkspace(job.id)` for
+both apply paths — the same tenant the applicant is actually filed into.
+
+This replaced a browser fetch of `GET /api/compliance`, which was wrong twice and
+both times toward **under**-disclosure: the route is not on the public allow-list
+(`app/_lib/auth/public-routes.ts`), so on any deployment with
+`KP_OPERATOR_PASSWORD` set the fail-closed proxy 401'd it and the EU/12-month
+pre-fetch default was the *final* state; and it answers for the **caller's**
+workspace, which for a session-less candidate is the default one. A `us` workspace
+therefore told its candidates they were assessed under EU equal-treatment
+directives and processed under GDPR.
+
+`GET /api/compliance` stays **gated** on purpose. Allow-listing it would not fix
+the candidate half — an anonymous request still carries no workspace — and making
+it tenant-aware for a public caller would mean trusting a caller-supplied
+workspace id, i.e. letting anyone enumerate any team's legal posture. Its readers
+are now session-bearing only: the recruiter Decisions compliance card and the
+interview simulator tab, which is the single render site still on the fetch path
+(it lives inside the authenticated shell, so the endpoint is both reachable and
+tenant-correct there). `app/_components/ai-disclosure-props.test.ts` pins the
+arrangement: it enumerates every `<AiDisclosure>` render site in `app/`, fails on
+one that is neither a declared public surface nor a declared session-bearing
+exemption, and requires each public element to carry both props — so a ninth
+candidate surface cannot quietly revert to the EU default. The EU default survives
+as the last-resort fallback only.
 
 **Fairness backstops.** `app/_lib/archetypes.ts` (`isFairnessProtected`,
 `isEarlyCareer`) + `app/_lib/automation-fairness.ts` re-derive the sole
@@ -510,11 +545,11 @@ name variants — this closes what was gap G3 in the original conformity pack.
 | Fairness / adverse impact | `app/_lib/archetypes.ts`, `app/_lib/automation-fairness.ts`, `app/_lib/adverse-impact.ts`, `app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` |
 | Name-neutrality eval | `pipeline/jobfit/tests/test_name_neutrality.py` |
 | Calibration / holdout / accuracy | `app/_lib/calibration.ts`, `app/_lib/screen-wave-holdout.ts`, `app/api/analytics/calibration/apply-threshold/route.ts` |
-| AI disclosure UI | `app/_components/AiDisclosure.tsx` |
+| AI disclosure UI | `app/_components/AiDisclosure.tsx`, per-tenant values from `app/_lib/compliance-disclosure.ts` (`disclosureComplianceFor`), shape in `app/_lib/compliance-regimes.ts` (`DisclosureCompliance`), pinned by `app/_components/ai-disclosure-props.test.ts` |
 | Provenance dossier | `app/_lib/provenance-dossier.ts` |
 | Compliance posture board | `app/trust/page.tsx`, `app/trust/TrustContent.tsx`, `app/_lib/trust-posture.ts` |
 | Recruiter-facing posture block (Decision Rules modal) | `app/features/hiring/decisions/DecisionsComplianceSection.tsx`, state in `decisionsComplianceState.ts`, pure folds in `decisionsComplianceFold.ts` (tested) |
-| Public compliance JSON | `app/api/compliance/route.ts` |
+| Compliance JSON (gated, session-scoped) | `app/api/compliance/route.ts` |
 | Approver identity for sealed approvals | `app/_lib/auth/operator-approver.ts` — `approverIdentity()` / `resolveApprover()` / `humanActor()` over `currentUserId()` + `app/_lib/db/users.ts`, falling back to `operatorApprover()` (env `KP_OPERATOR_NAME`) |
 | Actor on the operational log | `pipeline_events.actor` (`app/_lib/db/core.ts`) — nullable, no backfill; parsed by `parseEventActor()` in `app/_lib/decision-attribution.ts` |
 | Org backup/restore (per-tenant) | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`/`restoreOrg`), scope from `app/_lib/tenancy.ts` `orgExportClass` |

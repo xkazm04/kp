@@ -7,6 +7,7 @@ import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { CHIP } from "@/app/_components/ui/recipes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
 
@@ -28,6 +29,8 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   // not a hardcoded "5 minutes" — older sessions without a stored duration fall
   // back to the documented grounded default.
   const durationMin = session.durationMin ?? GROUNDED_DEFAULT_MIN;
+
+  const compliance = disclosureComplianceFor(session.workspaceId);
 
   if (session.status === "completed") {
     // Not a cul-de-sac: hand the candidate the same durable /status link the
@@ -104,7 +107,15 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
           className="order-2 lg:order-1 lg:sticky lg:top-10"
         />
         <div className="order-1 lg:order-2">
-          <AiDisclosure className="mb-6" />
+          {/* The regime the candidate is assessed under is the one belonging to the
+              workspace that owns THIS session — resolved here, where the token has
+              already been redeemed, because AiDisclosure is a client component on a
+              session-less page and cannot ask (see its header). */}
+          <AiDisclosure
+            className="mb-6"
+            regimeId={compliance.regimeId}
+            retentionMonths={compliance.retentionMonths}
+          />
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
             <VoiceInterviewClient
               token={session.token}

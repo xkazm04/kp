@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { findEntryByLeadToken } from "@/app/_lib/db/pipeline";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { buildApplyScript } from "@/app/_lib/apply";
@@ -97,6 +98,11 @@ export default async function ApplyPage({
           jobId={job.id}
           steps={prefill ? trimSeededSteps(steps, prefill.answers) : steps}
           prefill={prefill}
+          // Same tenant the POST files this applicant into (getJobWorkspace is the
+          // public intake's existing "which team owns this opening?" authority), so
+          // the law the candidate consents under and the law their record is held
+          // under cannot disagree.
+          compliance={disclosureComplianceFor(getJobWorkspace(job.id))}
         />
       </div>
     </main>

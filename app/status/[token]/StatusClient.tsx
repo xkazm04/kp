@@ -9,6 +9,7 @@ import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { BTN_GHOST, BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
 import { StatusNpsCard } from "./StatusNpsCard";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
+import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import {
   CANDIDATE_TIMELINE,
   classifyStatusError,
@@ -31,7 +32,14 @@ type StatusView = {
 // Public, token-gated candidate application-status page (idea-e76a6fb2). Shows
 // where the candidate stands — received → under review → interview → offer →
 // hired — without them having to email the recruiter.
-export function StatusClient() {
+export function StatusClient({
+  compliance,
+}: {
+  /** The AI disclosure's regime + consent-retention window, resolved SERVER-side
+   *  by page.tsx from the workspace that owns this status link. See the header of
+   *  AiDisclosure.tsx for why a client fetch cannot get this right. */
+  compliance: DisclosureCompliance;
+}) {
   const params = useParams<{ token: string }>();
   const token = params?.token;
   const t = useTranslations("status");
@@ -322,7 +330,7 @@ export function StatusClient() {
       )}
       {/* Art. 50 transparency note — same muted footer placement as the sibling
           schedule/offer token pages; the component self-resolves its regime. */}
-      <AiDisclosure className="mt-8" />
+      <AiDisclosure className="mt-8" regimeId={compliance.regimeId} retentionMonths={compliance.retentionMonths} />
     </main>
   );
 }

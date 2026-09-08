@@ -70,6 +70,20 @@ export function getOrCreateStatusLink(entryId: string): string {
   return tx.immediate();
 }
 
+/** The OWNING TEAM behind a status-link token, or null for an unknown token.
+ *
+ *  Returns the workspace and nothing else — deliberately: this is what the public
+ *  /status/[token] page needs to resolve the candidate-facing compliance regime
+ *  server-side (app/_lib/compliance-disclosure.ts), and it must not become a way to
+ *  pull the entry id (the IDOR handle this store exists to keep off the wire) out of
+ *  a token. The stamp is written at mint time from the entry's own workspace. */
+export function getWorkspaceByStatusToken(token: string): string | null {
+  const r = db().prepare(`SELECT workspace_id FROM application_status_links WHERE token = ?`).get(token) as
+    | { workspace_id?: string }
+    | undefined;
+  return r ? r.workspace_id ?? DEFAULT_WORKSPACE_ID : null;
+}
+
 /** Resolve a status-link token to its pipeline entry id, or null for an unknown
  *  token (a guessed/expired link). */
 export function getEntryIdByStatusToken(token: string): string | null {
