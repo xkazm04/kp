@@ -46,7 +46,7 @@ fork.
 | `POST /api/repo-scan` → `{ scanId, taskId }` | **shipped (P2)** | `app/api/repo-scan/route.ts` |
 | `GET /api/repo-scan/[id]` → the scan row | **shipped (P2)** | `app/api/repo-scan/[id]/route.ts` |
 | `repo_scan` background task → `RepoDossier` | **shipped (P2)** | `app/_lib/repo-scan.ts`, `app/_lib/repo-scan-run.ts`, `pipeline/jobfit/repo_scan.py` |
-| Intake shape `app_master` — the **App master** start option on the Intake sub-tab (a job's Agent-fit tab links here) | **shipped (P3)** | `app/features/library/jds/intake/JdsIntakeAppMasterStart.tsx`, `pipeline/jobfit/intake.py` |
+| Intake shape `app_master` — the pipeline is shipped, but its START DOOR was withdrawn from the intake page on 2026-09-09 and not replaced, so no new app-master session can be opened from the UI | **shipped (P3), unreachable** | `app/features/library/jds/intake/jdsIntakeLogic.ts` (`startAppMaster`), `pipeline/jobfit/intake.py` |
 | `codebase_dossier.*` facets on the RoleBrief (7, all `inferred`) | **shipped (P3)** | `pipeline/jobfit/intake.py::dossier_facets` / `merge_dossier`; `POST /api/intake/[id]/dossier` |
 | Population fit `human \| agent \| hybrid \| unassessed` | **shipped (P3)** | `pipeline/jobfit/agentfit.py::assess_population_fit` |
 | Dossier card + fit verdict + composed spec in the brief panel | **shipped (P3)** | `app/features/library/jds/intake/JdsIntakeAppMasterCard.tsx` |

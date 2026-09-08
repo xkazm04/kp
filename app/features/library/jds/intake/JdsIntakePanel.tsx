@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, EYEBROW, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, CHIP_QUIET, EYEBROW, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { shortDate } from "../jdsLibrary";
 import { IntakeStudioOverlay } from "./IntakeStudioOverlay";
-import { JdsIntakeAppMasterStart } from "./JdsIntakeAppMasterStart";
 import { JdsIntakeSessionsTable } from "./JdsIntakeSessionsTable";
 import { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import { useIntakeLogic, type IntakeSummary } from "./jdsIntakeLogic";
@@ -38,14 +37,6 @@ const SHAPE_KEY = {
   app_master: "shape.appMaster",
 } as const;
 
-type IntakePanelProps = {
-  onPromoted?: () => void;
-  /** `?intake=new` arrived: open the studio on a fresh session as soon as this
-   *  panel is alive. One-shot — the tab strips the param and calls
-   *  `onAutoStarted` back, so a re-render can never start a second conversation. */
-  autoStart?: boolean;
-  onAutoStarted?: () => void;
-};
 
 export function JdsIntakePanel({
   onPromoted,
@@ -71,7 +62,7 @@ export function JdsIntakePanel({
   // something useful on a first visit instead of sitting empty next to a list.
   const [lastOpened, setLastOpened] = useState<string | null>(null);
 
-  const { sessions, startNew, openSession, creating } = logic;
+  const { sessions, startNew, openSession } = logic;
   const highlighted = useMemo<IntakeSummary | null>(() => {
     if (!sessions || sessions.length === 0) return null;
     const picked = lastOpened ? sessions.find((s) => s.id === lastOpened) : null;
@@ -107,9 +98,6 @@ export function JdsIntakePanel({
               {t("ledgerTitle")}
             </div>
           </div>
-          {/* App master (docs/features/app-master/README.md): the third shape does
-              not start from a blank conversation — it starts from an APP. */}
-          <JdsIntakeAppMasterStart busy={creating} onStart={(repo) => logic.startAppMaster(intakeLang(locale), repo)} />
           {logic.error && (logic.error.kind === "list" || logic.error.kind === "open" || logic.error.kind === "create" || logic.error.kind === "appMaster") ? (
             <p className="mt-3 text-body text-red-700">
               {resolveError(logic.error, t(logic.error.kind === "appMaster" ? "appMaster.startError" : "error"))}

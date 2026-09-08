@@ -140,8 +140,14 @@ The third shape (contract + rubric:
 start from a blank conversation, it starts from an **app** — the one input no
 JD has ever had.
 
-- **Entry**: the Intake sub-tab's **App master** start option
-  (`JdsIntakeAppMasterStart.tsx`) takes a GitHub URL or a local path, POSTs
+- **Entry**: WITHDRAWN 2026-09-09. The start card that took a GitHub URL or a
+  local path was removed from the intake page along with the page's other
+  create door: starting a role is a menu action now, and the page is the record
+  of what already happened. The shape itself is intact — `startAppMaster` on the
+  intake logic hook still opens a scan-backed session, existing `app_master`
+  sessions render and promote exactly as before, and every route below is
+  unchanged — but nothing in the UI calls it, so a new one cannot be started
+  until a door is put back. The old card POSTed
   `/api/repo-scan` (P2's contract → `{scanId, taskId}`), then POSTs
   `/api/intake` with that `scanId`. A second entry point points here from a
   job's Agent-fit tab (`JobsAgentFitTab.tsx`) — that tab answers "how much of

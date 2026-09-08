@@ -733,7 +733,7 @@
       "proof": "Otevřený kód, AGPL-3.0. Běží na vašem stroji, na vašich modelech: celý produkt, zdarma a bez limitů. Placené plány kupují cizí servery.",
       "proofCta": "Rozjeďte si to sami",
       "ctaPrimary": "Začít nabírat zdarma",
-      "ctaPending": "Otevíráme vaše studio…",
+      "ctaPending": "Otevíráme váš pracovní prostor…",
       "ctaDemo": "Spustit živou ukázku",
       "pileHint": "vyzkoušejte to: najeďte na hromadu ↓",
       "pileHintTouch": "vyzkoušejte: klepněte na CV ↓",
@@ -4641,8 +4641,8 @@
           "clear": "Zrušit filtry"
         },
         "studio": {
-          "dialogLabel": "Zadání role: {title}",
-          "eyebrow": "Zadání pozice",
+          "dialogLabel": "Zadávací rozhovor: {title}",
+          "eyebrow": "Zadávací rozhovor",
           "closeBusy": "Odpověď stále přichází. Zavřením ji nezastavíte.",
           "closeStay": "Zůstat",
           "closeAnyway": "Přesto zavřít"
@@ -4650,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Naposledy otevřené",
           "summaryEmpty": "Otevřete rozhovor a jeho souhrn se zobrazí zde.",
-          "summaryOpen": "Otevřít konverzaci",
+          "summaryOpen": "Otevřít zadávací rozhovor",
           "summaryJd": "Otevřít popis pozice",
-          "paletteSub": "Projít novou roli v rozhovoru"
+          "paletteSub": "Projít novou roli v zadávacím rozhovoru"
         }
       },
       "buildHeldChip": "Výstup uložen jako revize",
@@ -5787,7 +5787,7 @@
       "loadingOlder": "Načítám starší…",
       "beyondWindow": "Starší zprávy existují, ale tento přehled na ně už nedosáhne."
     },
-    "eyebrow": "Studio příjmu",
+    "eyebrow": "Příchozí",
     "title": "Kudy kandidáti přicházejí",
     "statusListening": "Naslouchá",
     "webhooks": {},
@@ -5820,14 +5820,14 @@
     },
     "edge": {
       "title": "Trvale dostupný okraj",
-      "intro": "Kdo odpovídá za toto studio, když je vypnuté. Spárujte bezplatný Cloudflare Worker (edge/README.md) a příchozí webhooky, e-maily od kandidátů i doručenky se podrží v pořadí až do dalšího cyklu, místo aby se ztratily. Nedrží žádné klíče ani databázi; záznamem zůstává tento počítač.",
+      "intro": "Kdo odpovídá za toto pracovní prostor, když je vypnuté. Spárujte bezplatný Cloudflare Worker (edge/README.md) a příchozí webhooky, e-maily od kandidátů i doručenky se podrží v pořadí až do dalšího cyklu, místo aby se ztratily. Nedrží žádné klíče ani databázi; záznamem zůstává tento počítač.",
       "statusPaired": "Spárováno",
       "statusOff": "Nespárováno",
       "statusOffline": "Režim offline",
       "secretSet": "Podpisový klíč nastaven",
       "sealedBadge": "Zapečetěno",
       "envNote": "Nastaveno proměnnou prostředí KP_EDGE_URL. Odeberte ji, chcete-li párování spravovat zde.",
-      "offlineNote": "KP_OFFLINE=1: tato instalace neprovádí žádná odchozí volání, takže se okraj nepoužívá. Příchozí události k němu dorazí jen tehdy, když studio běží.",
+      "offlineNote": "KP_OFFLINE=1: tato instalace neprovádí žádná odchozí volání, takže se okraj nepoužívá. Příchozí události k němu dorazí jen tehdy, když pracovní prostor běží.",
       "urlLabel": "Adresa okraje (https)",
       "secretLabel": "Sdílené tajemství",
       "secretPlaceholder": "Hodnota, kterou jste nastavili jako KP_EDGE_SECRET",
@@ -8347,7 +8347,7 @@
     "companion": {
       "loading": "Hledám v tomto počítači paměť…",
       "loadFailed": "Nepodařilo se mi v tomto počítači paměť vyhledat. Můžete se rozhodnout později, nic se neztratí.",
-      "role": "Vaše společnice ve studiu",
+      "role": "Váš průvodce pracovním prostorem",
       "onTitle": "Candi si tento pracovní prostor už pamatuje.",
       "onBody": "Její paměť je zapnutá, takže tady není co řešit.",
       "foundTitle": "Našla jsem v tomto počítači již existující paměť.",
@@ -8548,7 +8548,7 @@
         "analyzeOnly": "Jen analyzovat potřebu",
         "recent": "Nedávné"
       },
-      "sectionsLabel": "Sekce studia zadání",
+      "sectionsLabel": "Sekce zadání",
       "views": {
         "cases": {
           "label": "Zadání",
@@ -9576,7 +9576,7 @@
       "agentFit": "Vhodnost agenta · {job}",
       "campaign": "Kampaňový balíček · {job}",
       "profileDraft": "AI návrh profilu",
-      "companionDigest": "Přehled studia"
+      "companionDigest": "Přehled pracovního prostoru"
     },
     "filter": {
       "clear": "Zrušit filtry"
@@ -10191,7 +10191,7 @@
     "name": "Candi",
     "dock": {
       "eyebrow": "Společnice",
-      "title": "Candi, společnice vašeho studia",
+      "title": "Candi, vaše průvodkyně pracovním prostorem",
       "open": "Zeptat se Candi",
       "close": "Zavřít Candi",
       "askCandi": "Zeptat se Candi",
@@ -10199,7 +10199,7 @@
       "actions": "Akce Candi"
     },
     "chat": {
-      "placeholder": "Zeptejte se na své studio. Ona navrhuje, vy rozhodujete.",
+      "placeholder": "Zeptejte se na svůj pracovní prostor. Ona navrhuje, vy rozhodujete.",
       "send": "Odeslat",
       "retry": "Odeslat znovu",
       "thinking": "Přemýšlí…",
@@ -10211,7 +10211,7 @@
     "state": {
       "here": "Jsem tu, když budete potřebovat.",
       "clear": "Právě teď na vás nic nečeká.",
-      "thinking": "Prochází stav studia…",
+      "thinking": "Čtu pracovní prostor…",
       "thinkingAbout": "Přemýšlí o {count, plural, one {# rozhodnutí} few {# rozhodnutích} other {# rozhodnutích}}…",
       "watching": "Sleduje {count, plural, one {# věc} few {# věci} other {# věcí}}, které vás potřebují.",
       "proposals": "{count, plural, one {# návrh čeká na vás} few {# návrhy čekají na vás} other {# návrhů čeká na vás}}",
@@ -10229,7 +10229,7 @@
       "recallCount": "{count, plural, one {# vzpomínka} few {# vzpomínky} other {# vzpomínek}}",
       "fallbackFlag": "náhradní odpověď"
     },
-    "greeting": "Jsem Candi. Vím, co vaše studio drží, a pamatuji si naše dřívější rozhovory. Zeptejte se mě, co vás potřebuje nebo co se změnilo. Vždy jen navrhuji: rozhodnutí zůstává vaše.",
+    "greeting": "Jsem Candi. Vím, co vaše pracovní prostor drží, a pamatuji si naše dřívější rozhovory. Zeptejte se mě, co vás potřebuje nebo co se změnilo. Vždy jen navrhuji: rozhodnutí zůstává vaše.",
     "blocks": {
       "table": "Tabulka",
       "chart": "Graf",
@@ -10246,7 +10246,7 @@
     },
     "action": {
       "runAnalysis": "Znovu spustit AI screening pro: {candidate}",
-      "generateDigest": "Sestavit dnešní přehled studia",
+      "generateDigest": "Sestavit dnešní přehled pracovního prostoru",
       "draftJd": "Připravit návrh inzerátu na pozici {title}",
       "draftOutreach": "Připravit oslovení pro: {candidate}",
       "unknown": "Návrh, který už neumím popsat"

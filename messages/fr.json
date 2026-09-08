@@ -733,7 +733,7 @@
       "proof": "Open source, AGPL-3.0. Tourne sur votre machine, avec vos modèles : tout le produit, gratuit et sans aucune limite. Les offres payantes achètent les serveurs de quelqu'un d'autre.",
       "proofCta": "Hébergez-le vous-même",
       "ctaPrimary": "Recruter gratuitement",
-      "ctaPending": "Ouverture de votre studio…",
+      "ctaPending": "Ouverture de votre espace de travail…",
       "ctaDemo": "Voir la démo en direct",
       "pileHint": "essayez : survolez la pile ↓",
       "pileHintTouch": "essayez : touchez un CV ↓",
@@ -4641,8 +4641,8 @@
           "clear": "Effacer les filtres"
         },
         "studio": {
-          "dialogLabel": "Cadrage du poste : {title}",
-          "eyebrow": "Cadrage du poste",
+          "dialogLabel": "Dialogue de cadrage : {title}",
+          "eyebrow": "Dialogue de cadrage",
           "closeBusy": "Une réponse est encore en route. La fermer ne l’arrêtera pas.",
           "closeStay": "Rester",
           "closeAnyway": "Fermer quand même"
@@ -4650,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Dernière ouverte",
           "summaryEmpty": "Ouvrez une session et son résumé s’affiche ici.",
-          "summaryOpen": "Ouvrir la conversation",
+          "summaryOpen": "Ouvrir le dialogue de cadrage",
           "summaryJd": "Ouvrir la fiche de poste",
-          "paletteSub": "Cadrer un nouveau poste en discutant"
+          "paletteSub": "Cadrer un nouveau poste dans le dialogue"
         }
       },
       "buildHeldChip": "Résultat conservé en révision",
@@ -5787,7 +5787,7 @@
       "loadingOlder": "Chargement des plus anciens…",
       "beyondWindow": "Des messages plus anciens existent, mais ils sont hors de portée de cette vue."
     },
-    "eyebrow": "Studio des entrées",
+    "eyebrow": "Entrant",
     "title": "Par où les candidats arrivent",
     "statusListening": "À l’écoute",
     "webhooks": {},
@@ -5820,14 +5820,14 @@
     },
     "edge": {
       "title": "Relais toujours actif",
-      "intro": "Qui répond pour ce studio quand il est éteint. Associez un Worker Cloudflare gratuit (edge/README.md) et les webhooks entrants, les e-mails de candidats et les accusés de livraison sont conservés dans l'ordre jusqu'au prochain cycle, au lieu d'être perdus. Le relais ne détient ni clés ni base de données ; cette machine reste la référence.",
+      "intro": "Qui répond pour cet espace de travail quand il est éteint. Associez un Worker Cloudflare gratuit (edge/README.md) et les webhooks entrants, les e-mails de candidats et les accusés de livraison sont conservés dans l'ordre jusqu'au prochain cycle, au lieu d'être perdus. Le relais ne détient ni clés ni base de données ; cette machine reste la référence.",
       "statusPaired": "Associé",
       "statusOff": "Non associé",
       "statusOffline": "Mode hors ligne",
       "secretSet": "Clé de signature définie",
       "sealedBadge": "Scellé",
       "envNote": "Configuré par la variable d'environnement KP_EDGE_URL. Supprimez-la pour gérer l'association ici.",
-      "offlineNote": "KP_OFFLINE=1 : cette installation n'émet aucun appel sortant, le relais n'est donc pas utilisé. Les événements entrants ne lui parviennent que lorsque le studio tourne.",
+      "offlineNote": "KP_OFFLINE=1 : cette installation n'émet aucun appel sortant, le relais n'est donc pas utilisé. Les événements entrants ne lui parviennent que lorsque le espace de travail tourne.",
       "urlLabel": "Point de terminaison du relais (https)",
       "secretLabel": "Secret partagé",
       "secretPlaceholder": "La valeur définie comme KP_EDGE_SECRET",
@@ -8254,7 +8254,7 @@
         "label": "Candi",
         "eyebrow": "Configuration · Candi",
         "title": "Faites connaissance avec Candi",
-        "blurb": "Candi est la compagne installée à côté de votre studio. Elle peut garder une mémoire de votre travail, et cette mémoire reste sur cet ordinateur."
+        "blurb": "Candi est la compagne installée à côté de votre espace de travail. Elle peut garder une mémoire de votre travail, et cette mémoire reste sur cet ordinateur."
       },
       "handoff": {
         "label": "Terminé",
@@ -8347,7 +8347,7 @@
     "companion": {
       "loading": "Je cherche une mémoire sur cette machine…",
       "loadFailed": "Je n'ai pas pu chercher de mémoire sur cette machine. Vous pourrez décider plus tard, rien n'est perdu.",
-      "role": "Votre compagne de studio",
+      "role": "Votre compagne d’espace de travail",
       "onTitle": "Candi se souvient déjà de cet espace de travail.",
       "onBody": "Sa mémoire est active, il n'y a donc rien à décider ici.",
       "foundTitle": "J'ai trouvé une mémoire déjà présente sur cette machine.",
@@ -8548,7 +8548,7 @@
         "analyzeOnly": "Analyser le besoin seulement",
         "recent": "Récents"
       },
-      "sectionsLabel": "Sections du studio d’exercices",
+      "sectionsLabel": "Sections de l’exercice",
       "views": {
         "cases": {
           "label": "Exercices",
@@ -9576,7 +9576,7 @@
       "agentFit": "Adéquation de l’agent · {job}",
       "campaign": "Pack de campagne · {job}",
       "profileDraft": "Brouillon de profil IA",
-      "companionDigest": "Récapitulatif du studio"
+      "companionDigest": "Synthèse de l’espace de travail"
     },
     "filter": {
       "clear": "Effacer"
@@ -10191,7 +10191,7 @@
     "name": "Candi",
     "dock": {
       "eyebrow": "Companion",
-      "title": "Candi, la companion de votre studio",
+      "title": "Candi, votre compagne d’espace de travail",
       "open": "Demander à Candi",
       "close": "Fermer Candi",
       "askCandi": "Demander à Candi",
@@ -10199,11 +10199,11 @@
       "actions": "Actions de Candi"
     },
     "chat": {
-      "placeholder": "Posez une question sur votre studio. Elle propose, vous décidez.",
+      "placeholder": "Posez vos questions sur votre espace de travail. Elle propose, vous décidez.",
       "send": "Envoyer",
       "retry": "Renvoyer",
       "thinking": "Réflexion…",
-      "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du studio avant de répondre, cela prend quelques secondes.",
+      "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du espace de travail avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
       "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez.",
       "reconnect": "Réessayer la connexion"
@@ -10211,7 +10211,7 @@
     "state": {
       "here": "Je suis là quand vous en avez besoin.",
       "clear": "Rien ne vous attend pour le moment.",
-      "thinking": "Lecture de l'état du studio…",
+      "thinking": "Lecture de l’espace de travail…",
       "thinkingAbout": "Réfléchit à {count, plural, one {# décision} other {# décisions}}…",
       "watching": "Surveille {count, plural, one {# élément} other {# éléments}} qui vous attendent.",
       "proposals": "{count, plural, one {# proposition vous attend} other {# propositions vous attendent}}",
@@ -10229,7 +10229,7 @@
       "recallCount": "{count, plural, one {# souvenir} other {# souvenirs}}",
       "fallbackFlag": "réponse de repli"
     },
-    "greeting": "Je suis Candi. Je sais ce que contient votre studio et je me souviens de nos échanges précédents. Demandez-moi ce qui vous attend ou ce qui a changé. Je ne fais que proposer : la décision reste la vôtre.",
+    "greeting": "Je suis Candi. Je sais ce que contient votre espace de travail et je me souviens de nos échanges précédents. Demandez-moi ce qui vous attend ou ce qui a changé. Je ne fais que proposer : la décision reste la vôtre.",
     "blocks": {
       "table": "Tableau",
       "chart": "Graphique",
@@ -10246,7 +10246,7 @@
     },
     "action": {
       "runAnalysis": "Relancer le screening IA pour {candidate}",
-      "generateDigest": "Préparer le récapitulatif du studio d'aujourd'hui",
+      "generateDigest": "Préparer la synthèse du jour pour l’espace de travail",
       "draftJd": "Rédiger un projet d'offre pour {title}",
       "draftOutreach": "Rédiger une prise de contact pour {candidate}",
       "unknown": "Une proposition que je ne sais plus décrire"

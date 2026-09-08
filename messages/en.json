@@ -733,7 +733,7 @@
       "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
       "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
-      "ctaPending": "Opening your studio…",
+      "ctaPending": "Opening your workspace…",
       "ctaDemo": "Watch the live demo",
       "pileHint": "try it: hover the pile ↓",
       "pileHintTouch": "try it: tap a CV ↓",
@@ -4641,8 +4641,8 @@
           "clear": "Clear filters"
         },
         "studio": {
-          "dialogLabel": "Job intake: {title}",
-          "eyebrow": "Role intake",
+          "dialogLabel": "Intake dialog: {title}",
+          "eyebrow": "Intake dialog",
           "closeBusy": "A reply is still arriving. Closing now won't stop it.",
           "closeStay": "Stay",
           "closeAnyway": "Close anyway"
@@ -4650,9 +4650,9 @@
         "ledger": {
           "summaryTitle": "Last opened",
           "summaryEmpty": "Open a session and its summary appears here.",
-          "summaryOpen": "Open the conversation",
+          "summaryOpen": "Open the intake dialog",
           "summaryJd": "Open the job description",
-          "paletteSub": "Talk a new role through"
+          "paletteSub": "Talk a new role through in the intake dialog"
         }
       },
       "buildHeldChip": "Build held as a revision",
@@ -5787,7 +5787,7 @@
       "loadingOlder": "Loading older…",
       "beyondWindow": "Older messages exist, but they're beyond this view's reach."
     },
-    "eyebrow": "Inbound studio",
+    "eyebrow": "Inbound",
     "title": "Where candidates come in",
     "statusListening": "Listening",
     "webhooks": {},
@@ -5820,14 +5820,14 @@
     },
     "edge": {
       "title": "Always-on edge",
-      "intro": "Who answers for this studio while it is switched off. Pair a free Cloudflare Worker (edge/README.md) and inbound webhooks, candidate email and delivery receipts are held in order until your next tick, instead of being lost. It holds no keys and no database; this machine stays the record.",
+      "intro": "Who answers for this workspace while it is switched off. Pair a free Cloudflare Worker (edge/README.md) and inbound webhooks, candidate email and delivery receipts are held in order until your next tick, instead of being lost. It holds no keys and no database; this machine stays the record.",
       "statusPaired": "Paired",
       "statusOff": "Not paired",
       "statusOffline": "Offline mode",
       "secretSet": "Signing secret set",
       "sealedBadge": "Sealed",
       "envNote": "Configured by the KP_EDGE_URL environment variable. Remove it to manage the pairing here.",
-      "offlineNote": "KP_OFFLINE=1: this install makes no outbound calls, so the edge is not used. Inbound events reach it only while the studio is running.",
+      "offlineNote": "KP_OFFLINE=1: this install makes no outbound calls, so the edge is not used. Inbound events reach it only while the workspace is running.",
       "urlLabel": "Edge endpoint (https)",
       "secretLabel": "Shared secret",
       "secretPlaceholder": "The value you set as KP_EDGE_SECRET",
@@ -8254,7 +8254,7 @@
         "label": "Candi",
         "eyebrow": "Set up · Candi",
         "title": "Meet Candi",
-        "blurb": "Candi is the companion who sits beside your studio. She can keep a memory of your work, and that memory lives on this computer."
+        "blurb": "Candi is the companion who sits beside your workspace. She can keep a memory of your work, and that memory lives on this computer."
       },
       "handoff": {
         "label": "Done",
@@ -8347,7 +8347,7 @@
     "companion": {
       "loading": "Looking on this machine for a memory…",
       "loadFailed": "I could not look on this machine for a memory. You can decide this later; nothing is lost either way.",
-      "role": "Your studio companion",
+      "role": "Your workspace companion",
       "onTitle": "Candi already remembers this workspace.",
       "onBody": "Her memory is on, so there is nothing to decide here.",
       "foundTitle": "I found a memory already on this machine.",
@@ -8548,7 +8548,7 @@
         "analyzeOnly": "Analyze need only",
         "recent": "Recent"
       },
-      "sectionsLabel": "Assignments studio sections",
+      "sectionsLabel": "Assignment sections",
       "views": {
         "cases": {
           "label": "Assignments",
@@ -9576,7 +9576,7 @@
       "agentFit": "Agent fit · {job}",
       "campaign": "Campaign pack · {job}",
       "profileDraft": "AI profile draft",
-      "companionDigest": "Studio digest"
+      "companionDigest": "Workspace digest"
     },
     "filter": {
       "clear": "Clear"
@@ -10191,7 +10191,7 @@
     "name": "Candi",
     "dock": {
       "eyebrow": "Companion",
-      "title": "Candi, your studio companion",
+      "title": "Candi, your workspace companion",
       "open": "Ask Candi",
       "close": "Close Candi",
       "askCandi": "Ask Candi",
@@ -10199,11 +10199,11 @@
       "actions": "Companion actions"
     },
     "chat": {
-      "placeholder": "Ask about your studio. She proposes, you decide.",
+      "placeholder": "Ask about your workspace. She proposes, you decide.",
       "send": "Send",
       "retry": "Send it again",
       "thinking": "Thinking…",
-      "thinkingSlowCalm": "Still with you. She reads the studio before answering, so this takes a few seconds.",
+      "thinkingSlowCalm": "Still with you. She reads the workspace before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
       "errorGeneric": "That message did not go through. Nothing was lost, so try again.",
       "reconnect": "Try connecting again"
@@ -10211,7 +10211,7 @@
     "state": {
       "here": "Here when you need me.",
       "clear": "Nothing is waiting on you right now.",
-      "thinking": "Reading the studio…",
+      "thinking": "Reading the workspace…",
       "thinkingAbout": "Thinking about {count, plural, one {# decision} other {# decisions}}…",
       "watching": "Watching {count, plural, one {# thing} other {# things}} that need you.",
       "proposals": "{count, plural, one {# proposal is waiting on you} other {# proposals are waiting on you}}",
@@ -10229,7 +10229,7 @@
       "recallCount": "{count, plural, one {# memory} other {# memories}}",
       "fallbackFlag": "fallback"
     },
-    "greeting": "I am Candi. I keep track of what your studio holds, and I remember our earlier conversations. Ask me what needs you, or what changed. I only ever propose: every call stays yours.",
+    "greeting": "I am Candi. I keep track of what your workspace holds, and I remember our earlier conversations. Ask me what needs you, or what changed. I only ever propose: every call stays yours.",
     "blocks": {
       "table": "Table",
       "chart": "Chart",
@@ -10246,7 +10246,7 @@
     },
     "action": {
       "runAnalysis": "Re-run the AI screening for {candidate}",
-      "generateDigest": "Put together today's studio digest",
+      "generateDigest": "Put together today's workspace digest",
       "draftJd": "Draft a job description for {title}",
       "draftOutreach": "Draft outreach to {candidate}",
       "unknown": "A proposal I can no longer describe"
