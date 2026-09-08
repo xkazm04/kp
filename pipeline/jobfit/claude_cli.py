@@ -6,6 +6,14 @@ unset the CLI executes under the user's Claude subscription (Pro/Max) rather
 than metered API billing, which makes it the cheap engine for *mass* jobs:
 preparing synthetic test data, bulk fixture generation, and large eval sweeps.
 
+That subscription seat is also the reason this engine REFUSES TO SERVE A
+PRODUCTION DEPLOYMENT unless an operator explicitly unlocks it — see
+:data:`CONSUMER_TERMS_REFUSAL` and :meth:`ClaudeCliProvider.consumer_terms_blocked`.
+"Local/dev only" had been a sentence in docs/architecture/llm-provider-layer.md
+with nothing behind it; it is now a veto in :meth:`availability` (routing
+degrades to the deterministic fallback) and a raise in :meth:`complete` (a call
+actually made must not fail silently).
+
 This is intentionally separate from ``gemini.py``. The production
 single-analysis path stays on Gemini (multimodal CV bytes, grounding); this
 provider is a text-in/text-out batch tool for offline data prep and quality
@@ -41,7 +49,93 @@ from .json_values import extract_json, scan_json_values
 
 # Keys we strip from the child environment so the CLI uses the subscription
 # (interactive auth) instead of falling back to metered API billing.
+#
+# NOTE what stripping these actually DOES to the legal posture, because it is the
+# opposite of what "strip the credential" sounds like: with a key present the child
+# runs under Anthropic's COMMERCIAL terms (a DPA, no training on inputs); with it
+# stripped it runs under CONSUMER terms. Stripping is therefore a cheap-batch
+# choice, correct for the dev/eval lane it was written for and wrong for anything
+# processing a real candidate's data — which is why the registry lane picks the
+# flag deliberately (registry.resolve_provider) rather than inheriting the default.
 _API_KEY_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+
+# --------------------------------------------------------------------------- #
+# The production veto — a consumer subscription is not a processing contract
+# --------------------------------------------------------------------------- #
+#
+# kp's default engine is the Claude Code CLI on a developer's own Claude seat.
+# For seed/synthetic data on one machine that is exactly right. For a customer's
+# production install or a hosted deployment it is not a permitted configuration:
+#
+#   * Anthropic's Consumer Terms cover Free/Pro/Max and forbid commercial use;
+#   * they carry NO DPA, so there is no GDPR Art. 28 processing contract and no
+#     SCC module for candidate personal data;
+#   * since 2025-08-28 those plans — explicitly including Claude Code — default
+#     to training on inputs with 5-year retention;
+#   * the OAuth seat itself is documented as individual use only.
+#
+# So: dev machine yes, customer production no, hosted SaaS never. The escape
+# hatch mirrors KP_ALLOW_OPEN (proxy.ts) — same shape, same spirit: an operator
+# who genuinely means it says so, out loud, in one variable, and the default
+# UNSET state is the one every real deployment should stay in.
+CLI_ENGINE_UNLOCK_ENV = "KP_ALLOW_CLI_ENGINE"
+
+# The descent reason, from llm/base.AVAILABILITY_REASONS' closed vocabulary
+# (llm/test_cli._REASON_HINT carries its operator-facing half). A policy veto
+# named like the one it stands beside, ``offline_policy`` — collapsing it into a
+# bare False would send an operator to reinstall a binary that was never the
+# problem, which is the failure that whole vocabulary exists to prevent.
+CONSUMER_TERMS_REASON = "consumer_terms_policy"
+
+# ONE line, and it names the actual reason rather than "not permitted here".
+CONSUMER_TERMS_REFUSAL = (
+    "Claude CLI engine refused in production: it bills a CONSUMER Claude "
+    "subscription — business use is outside those terms, there is no DPA "
+    "(so no GDPR Art. 28 processing contract for candidate data), and inputs "
+    f"may be used for training. Configure a metered provider, or set "
+    f"{CLI_ENGINE_UNLOCK_ENV}=1 if you own that decision."
+)
+
+# Same tokens KP_OFFLINE accepts (llm/offline._TRUTHY). Spelled again rather than
+# imported: ``llm/__init__`` imports the registry, which imports this module, so a
+# module-level import of anything under ``llm`` here is a cycle (which is why
+# is_offline() is imported lazily inside the methods below).
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in _TRUTHY
+
+
+def is_production_deployment(env: Any = None) -> bool:
+    """True on a production deployment (``next start``, the image, the chart).
+
+    THE one reader of the deployment-mode signal on the Python side. Python has
+    no environment of its own — it learns it from the Node parent that spawned it
+    — and ``NODE_ENV`` is the signal already used for exactly this by
+    ``registry._production_gemini_default``, which now calls this rather than
+    re-reading the variable. A second convention here (KP_ENV, an explicit flag on
+    the spawn) would mean two answers to one question and a guard that is on in
+    one and off in the other.
+    """
+    source = env if env is not None else os.environ
+    return (source.get("NODE_ENV") or "").strip() == "production"
+
+
+def cli_engine_unlocked(env: Any = None) -> bool:
+    """True when the operator has explicitly unlocked the CLI engine in production."""
+    source = env if env is not None else os.environ
+    return _truthy(source.get(CLI_ENGINE_UNLOCK_ENV))
+
+
+def anthropic_api_key_present(env: Any = None) -> bool:
+    """True when a metered Anthropic credential exists in the environment.
+
+    A key that actually reaches the child is what puts the call under Commercial
+    terms; absent (or stripped) it is the consumer seat.
+    """
+    source = env if env is not None else os.environ
+    return any((source.get(key) or "").strip() for key in _API_KEY_ENV)
 
 # Vendor session-nesting markers, stripped UNCONDITIONALLY (session hygiene is
 # not a billing choice, so this is not gated on strip_api_key): kp batch runs
@@ -317,6 +411,11 @@ class ClaudeCliProvider:
     strip_api_key:
         When True (default) remove ``ANTHROPIC_API_KEY`` / ``ANTHROPIC_AUTH_TOKEN``
         from the child env so the call runs on the subscription, not the API.
+        The default serves the DEV/BATCH lane this module was written for (mass
+        fixture and eval runs on synthetic data, where the subscription seat is
+        the whole point). It is NOT the right default for candidate data: see
+        :meth:`billing_lane`, and note that the registry lane passes this flag
+        explicitly instead of inheriting the default.
     extra_args:
         Extra CLI flags appended verbatim (escape hatch for power users).
     mode:
@@ -456,6 +555,32 @@ class ClaudeCliProvider:
         args += list(self.extra_args)
         return args
 
+    # -- terms / billing lane ------------------------------------------------
+
+    def billing_lane(self) -> str:
+        """``"api"`` or ``"subscription"`` — WHICH CONTRACT this provider's calls
+        run under, which is a legal fact and not a cost detail.
+
+        ``"api"`` only when a metered Anthropic credential both exists AND is let
+        through to the child (Commercial terms: a DPA, no training on inputs).
+        Anything else — no key, or a key this provider strips — is the consumer
+        seat. Computed rather than stored so a provider constructed before a key
+        was exported does not claim a contract it does not have.
+        """
+        if not self.strip_api_key and anthropic_api_key_present():
+            return "api"
+        return "subscription"
+
+    def consumer_terms_blocked(self) -> bool:
+        """True when this provider must refuse: the consumer lane, in production,
+        un-unlocked. Dev is never affected (``NODE_ENV`` is not ``production``),
+        and neither is a production box whose key puts it on the API lane."""
+        return (
+            self.billing_lane() == "subscription"
+            and is_production_deployment()
+            and not cli_engine_unlocked()
+        )
+
     # -- discovery ----------------------------------------------------------
 
     def availability(self) -> tuple[bool, str | None]:
@@ -463,16 +588,27 @@ class ClaudeCliProvider:
 
         The bool is exactly :meth:`available`; the reason is a closed set —
         ``"offline_policy"`` (the KP_OFFLINE veto, checked FIRST, before any
-        filesystem lookup) or ``"not_installed"`` — so a fleet living on the
-        deterministic floor is diagnosable: policy-forbidden and binary-missing
-        are repaired differently, and collapsing them into one bare False is
-        how offline flags get "fixed" by reinstalling a binary that was never
-        the problem. Callers thread the reason into
-        ``emit_deterministic(use_case, reason=...)`` so floor serves say why."""
+        filesystem lookup), :data:`CONSUMER_TERMS_REASON` (the production veto)
+        or ``"not_installed"`` — so a fleet living on the deterministic floor is
+        diagnosable: policy-forbidden and binary-missing are repaired
+        differently, and collapsing them into one bare False is how offline flags
+        get "fixed" by reinstalling a binary that was never the problem. Callers
+        thread the reason into ``emit_deterministic(use_case, reason=...)`` so
+        floor serves say why.
+
+        Both policy vetoes precede the filesystem lookup, and offline precedes
+        terms: under KP_OFFLINE this engine cannot reach Anthropic at all, so the
+        seal is the more fundamental answer. Refusing HERE (rather than raising)
+        is what keeps the refusal a graceful degrade — routing sees an
+        unavailable provider and serves its deterministic fallback, exactly as it
+        does for a missing binary; :meth:`complete` raises instead, because a
+        call that was actually made must not fail silently."""
         from .llm.offline import is_offline
 
         if is_offline():
             return False, "offline_policy"
+        if self.consumer_terms_blocked():
+            return False, CONSUMER_TERMS_REASON
         if shutil.which(self.command) is not None or os.path.isfile(self.command):
             return True, None
         return False, "not_installed"
@@ -510,6 +646,16 @@ class ClaudeCliProvider:
                 status=PROBE_POLICY_FORBIDDEN,
                 installed=False,
                 detail="KP_OFFLINE forbids cloud egress; the CLI reaches Anthropic's cloud",
+            )
+        if self.consumer_terms_blocked():
+            # The Test button must answer the question the operator will ask next
+            # ("it's installed and logged in — why won't it serve?"), so the terms
+            # veto reports here too rather than letting a green probe promise a
+            # route that availability() then refuses.
+            return ClaudeCliProbe(
+                status=PROBE_POLICY_FORBIDDEN,
+                installed=False,
+                detail=CONSUMER_TERMS_REFUSAL,
             )
         resolved = shutil.which(self.command) or (
             self.command if os.path.isfile(self.command) else None
@@ -595,6 +741,13 @@ class ClaudeCliProvider:
         """
         if not prompt or not prompt.strip():
             raise ValueError("prompt must be non-empty")
+        if self.consumer_terms_blocked():
+            # The loud half of the veto. availability() degrades (routing falls to
+            # the deterministic answer); a caller that skipped the availability gate
+            # and is about to spawn the child gets the reason as an engine failure —
+            # the same shape as a missing binary or a timeout, so every existing
+            # ClaudeCliError handler already knows what to do with it.
+            raise ClaudeCliError(CONSUMER_TERMS_REFUSAL, subtype=CONSUMER_TERMS_REASON)
 
         full_prompt = prompt
         if system and system.strip():

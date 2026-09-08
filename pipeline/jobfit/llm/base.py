@@ -118,6 +118,9 @@ AVAILABILITY_REASONS: tuple[str, ...] = (
     "missing_endpoint",  # Azure: no resource endpoint (a key alone cannot route)
     "invalid_base_url",  # a configured endpoint that fails the shape check below
     "not_installed",    # claude_cli: the binary is not on PATH
+    # claude_cli: a consumer subscription seat, refused on a production deployment
+    # (no DPA, inputs may be used for training) — KP_ALLOW_CLI_ENGINE=1 unlocks it.
+    "consumer_terms_policy",
 )
 
 

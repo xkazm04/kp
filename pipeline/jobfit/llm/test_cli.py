@@ -44,6 +44,11 @@ _REASON_HINT = {
     "missing_endpoint": "no Azure resource endpoint configured",
     "invalid_base_url": "the configured base URL is not a valid credential-free http(s) endpoint",
     "not_installed": "the Claude CLI is not on PATH",
+    "consumer_terms_policy": (
+        "the Claude CLI runs on a consumer Claude subscription (no DPA, inputs may be "
+        "used for training), which is not a permitted engine for a production "
+        "deployment — configure a metered provider or set KP_ALLOW_CLI_ENGINE=1"
+    ),
 }
 
 
