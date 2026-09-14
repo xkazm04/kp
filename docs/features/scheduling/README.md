@@ -216,6 +216,20 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
+**An idempotent re-confirm means the SAME booking.** `confirmScheduleInvite`
+answers `ok` for a confirm that lands on an already-confirmed invite, so a
+double-submit or a retry after a lost response does not error. It used to answer
+`ok` whatever time the retry named — and the token route reads that `ok` as a
+fresh booking, then advances the pipeline entry (`approve_event`) and composes
+the confirmation from the **requested** slot rather than the invite it got back.
+A retry at a different hour therefore stamped the board and the candidate's
+letter with a time nobody ever held, while the stored invite kept the first one.
+The branch now compares identity — the ISO `slot_at` where the caller supplies
+one, the display label only for the legacy label-only callers — and answers
+`taken` on a mismatch, the same refusal (and the same remedy: pick again) a slot
+collision produces. Pinned by `app/_lib/schedule-store.test.ts` ("a re-confirm at
+a DIFFERENT slot is refused").
+
 **A dated pick must name a day that exists.** The recruiter's week-grid cell
 arrives as a raw `dateSlot` POST field and is resolved by `dateSlotToIso`
 (`app/_lib/schedule-slots.ts`). Its range check is per-field — month ≤ 12,
