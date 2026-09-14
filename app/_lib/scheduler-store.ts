@@ -186,12 +186,35 @@ export function setIntervalMinutes(name: string, minutes: number): Schedule {
     const anchorMs = sched.lastRunAt ? Date.parse(sched.lastRunAt) : Date.now();
     nextDueAt = new Date(Math.max(anchorMs + clamped * 60_000, Date.now())).toISOString();
   }
-  d.prepare(`UPDATE scheduler SET interval_minutes = ?, next_due_at = ?, updated_at = ? WHERE name = ?`).run(
-    clamped,
-    nextDueAt,
-    now,
-    name
+  // COMPENSATING PRECONDITION (a-read-compute-write-either-locks-or-re-checks). The
+  // clock above was computed FROM `sched.enabled`; on `WHERE name = ?` alone a
+  // `setEnabled(name, false)` landing between the read and this write was silently
+  // overwritten, leaving `enabled = 0` beside an armed `next_due_at` — the state the
+  // comment above declares impossible, and the one the ops health surface reads to tell
+  // an operator when the job next runs. This store is explicitly shared with other
+  // connections and processes, so re-asserting the flag in the WHERE (claimDueRun's
+  // shape, ten lines down) is the strategy that holds there; `.immediate()` would only
+  // cover this process. Zero rows changed means the job was toggled under us: skip the
+  // write and answer with the row as it now is, rather than resurrect a stale decision.
+  const write = d.prepare(
+    `UPDATE scheduler SET interval_minutes = ?, next_due_at = ?, updated_at = ? WHERE name = ? AND enabled = ?`
   );
+  const res = write.run(clamped, nextDueAt, now, name, sched.enabled ? 1 : 0);
+  if (res.changes === 0) {
+    // The job was toggled between the read and the write. The CADENCE the operator
+    // asked for is still what they asked for — only the clock derived from the old
+    // flag is stale — so recompute it against the state that actually holds and
+    // re-apply, rather than either overwriting the toggle or dropping the edit. One
+    // retry is enough: a second miss means the row is being toggled continuously, and
+    // the honest answer there is the row as it stands.
+    const fresh = getSchedule(name);
+    const freshNext = fresh.enabled
+      ? new Date(
+          Math.max((fresh.lastRunAt ? Date.parse(fresh.lastRunAt) : Date.now()) + clamped * 60_000, Date.now())
+        ).toISOString()
+      : null;
+    write.run(clamped, freshNext, now, name, fresh.enabled ? 1 : 0);
+  }
   return getSchedule(name);
 }
 
@@ -232,12 +255,16 @@ export function advanceAfterForcedRun(name = POLICY_JOB): void {
   if (!sched.enabled) return;
   const now = new Date().toISOString();
   const next = new Date(Date.now() + sched.intervalMinutes * 60_000).toISOString();
-  d.prepare(`UPDATE scheduler SET last_run_at = ?, next_due_at = ?, updated_at = ? WHERE name = ?`).run(
-    now,
-    next,
-    now,
-    name
-  );
+  // COMPENSATING PRECONDITION, same reason as setIntervalMinutes above and the same
+  // shape claimDueRun uses: the `if (!sched.enabled) return` two lines up is a READ that
+  // this write never re-asserted, so a toggle-off racing a forced tick re-armed the
+  // clock on a job the operator had just switched off. Zero rows changed means exactly
+  // that happened, and the correct action is to leave the disabled job alone — there is
+  // nothing to retry, because the run this was advancing past is no longer wanted.
+  const res = d
+    .prepare(`UPDATE scheduler SET last_run_at = ?, next_due_at = ?, updated_at = ? WHERE name = ? AND enabled = ?`)
+    .run(now, next, now, name, sched.enabled ? 1 : 0);
+  if (res.changes === 0) return; // toggled off under us — "off" stays off
 }
 
 export function recordRun(input: {
