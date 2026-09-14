@@ -1455,6 +1455,47 @@ and is invisible to touch and to the keyboard) and
 name, the tooltip and the screen-reader text at once, so a control cannot ship
 as a picture with no meaning.
 
+## Role rubric store (`role_rubrics`)
+
+The second consumer of a promoted brief (ADR
+[0010](../../architecture/decisions/0010-need-role-slate-one-board.md) §2): per job,
+an ordered list of weighted axes that every candidate on the slate — a person or an
+AI agent — is scored against. **Store only** today: no route, no UI and no caller
+yet; the derivation from a `RoleBrief`, the `GET`/`POST /api/jobs/[id]/rubric`
+routes and the scorer are later increments of
+[`need-to-role-to-slate.md`](../../concepts/need-to-role-to-slate.md).
+
+| Piece | Path |
+| --- | --- |
+| Axis shape (Pydantic-authoritative) | `pipeline/jobfit/rolerubric.py::RubricAxis` → `rubricAxisSchema` in `app/_lib/schemas.generated.ts` |
+| Store | `app/_lib/db/role-rubrics.ts` — `mintRoleRubric`, `getRoleRubric`, `listRoleRubricVersions`, `freezeRoleRubric` |
+| Tenancy proof | `app/_lib/db/role-rubrics-tenancy.test.ts` (source guard, the store's own migration read back from `sqlite_master`, two-workspace drive) |
+| Behaviour | `app/_lib/db/role-rubrics-store.test.ts` |
+
+`role_rubrics` (DDL owned by `role-rubrics.ts`, created on the shared connection the
+first time the store is touched): `id, workspace_id, job_id, intake_id (NULL when not
+derived from an intake), version (≥1), axes_json (RubricAxis[]),
+source(brief|job|manual), created_at, frozen_at`, `UNIQUE (workspace_id, job_id,
+version)`.
+
+- **Versioned, append-only.** `mintRoleRubric` takes the next version inside an
+  `IMMEDIATE` transaction; nothing edits a row. A `BEFORE UPDATE` trigger refuses
+  every change except setting `frozen_at` once, so a score recorded against version
+  *n* always reads back against the axes it was produced under.
+- **The UNIQUE leads with the tenant.** Shared-corpus jobs have `workspace_id NULL` in
+  `jobs`, so two teams can hold rubrics for the same job id; each numbers its own from 1.
+- **Freezing is first-writer-wins.** `freezeRoleRubric(jobId, version)` answers
+  `frozen: true` only for the call that set `frozen_at`; a repeat returns the original
+  time.
+- **Validated on write and on read.** A mint is refused — returned, not thrown — for an
+  empty axis list, an axis that fails `rubricAxisSchema` (closed enums for origin, kind,
+  hardness and both evidence sources), a duplicate or blank key, or a weight outside
+  0..1. A stored column that stops parsing reads back as `axes: null` and is counted in
+  `getRowHealth()`; it never reads as an empty rubric.
+- **Keyless by construction.** No provider is involved anywhere in the store.
+- Erasure: `ERASURE_EXEMPT` in `app/_lib/db/pipeline.ts` — criteria about the role,
+  written before any candidate is scored and never keyed to an entry.
+
 ## Known gaps (posting corpus)
 
 - `htmlToText` reads server-rendered markup only. A JS-only careers page yields a stub,

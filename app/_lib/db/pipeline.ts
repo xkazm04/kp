@@ -2174,6 +2174,7 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
   ["intake_events", "The append-only history of that same role-definition dialogue (db/intake-events.ts): one row per round, holding the requestor's words about a ROLE. Same class as `role_intakes` above and inherits its basis — it is written before any candidate exists and is keyed to an intake, never to a pipeline entry, so this entry-keyed scrub has no path to it and a candidate's Art. 17 request has nothing in it to reach. The requestor is an operator-side employee, not a candidate: their own erasure runs through `eraseIntakeEvents(intakeId, workspaceId)`, the table's only DELETE."],
+  ["role_rubrics", "A role's frozen, versioned scoring axes derived from its brief (ADR-0010) — criteria about the ROLE, written before any candidate is scored and never keyed to an entry."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
   ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
