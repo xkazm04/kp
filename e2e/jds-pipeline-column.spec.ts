@@ -40,10 +40,18 @@ test.describe("JD library — pipeline column", () => {
     // fallback-metric reflow changes every column width, and (b) a width that
     // has stopped moving. Both are observable, so observe them.
     await page.evaluate(() => document.fonts.ready);
+    // A poll that THROWS does not retry — expect.poll propagates the error and
+    // fails the test on the spot. `document.querySelector("table") as HTMLElement`
+    // lied about that: between React commits there is a frame with no table, and
+    // `null.closest` took the whole test down as "Cannot read properties of null".
+    // An absent table is simply "not settled yet", so it is reported as an
+    // overflow that has not resolved — which still fails the poll on timeout if
+    // the table never arrives, rather than passing on a page with no table.
     const measureOverflow = () =>
       page.evaluate(() => {
-        const table = document.querySelector("table") as HTMLElement;
-        const wrap = table.closest("div.overflow-x-auto") as HTMLElement | null;
+        const table = document.querySelector("table");
+        if (!table) return Number.MAX_SAFE_INTEGER;
+        const wrap = table.closest("div.overflow-x-auto");
         return wrap ? table.scrollWidth - wrap.clientWidth : 0;
       });
     // Polled rather than sampled once: a layout still settling reports a
