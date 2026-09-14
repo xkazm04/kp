@@ -7463,6 +7463,7 @@
     "cellAria": "{cand} zu {pos}: {val}{ring}{sel}",
     "blocked": "blockiert",
     "matchVal": "Match {score}",
+    "cellUnassessed": "nicht bewertet",
     "popoverAria": "Warum {cand} für {pos} punktet",
     "closePopover": "Schließen",
     "reasoningLoading": "Eignung wird gelesen…",

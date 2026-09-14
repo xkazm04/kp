@@ -7463,6 +7463,7 @@
     "cellAria": "{cand} vers {pos} : {val}{ring}{sel}",
     "blocked": "bloqué",
     "matchVal": "correspondance {score}",
+    "cellUnassessed": "non évalué",
     "popoverAria": "Pourquoi {cand} obtient ce score pour {pos}",
     "closePopover": "Fermer",
     "reasoningLoading": "Lecture de la correspondance…",
