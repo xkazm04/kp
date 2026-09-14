@@ -216,6 +216,20 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
+**A dated pick must name a day that exists.** The recruiter's week-grid cell
+arrives as a raw `dateSlot` POST field and is resolved by `dateSlotToIso`
+(`app/_lib/schedule-slots.ts`). Its range check is per-field — month ≤ 12,
+day ≤ 31 — and cannot see that the day is absent from *that* month, while
+`Date.UTC` underneath overflows silently rather than refusing: `2026-02-30`
+resolved to 2 March, `2026-06-31` to 1 July. The booking then landed on a
+different calendar day than the one asked for, with a server-derived label
+naming the rolled day, so nothing on either side reported the shift. The
+resolved instant is now round-tripped back through `KP_INTERVIEW_TZ` and
+refused unless year/month/day survive — the same `null` a weekend, a past
+instant or an off-horizon pick already returned. Pinned by
+`app/_lib/schedule-slots.test.ts` ("refuses a calendar date that does not
+exist"). DST is untouched: only the calendar date is compared, never the hour.
+
 **Both writers re-check, on the same rule.** `slotStillFree` runs on the
 candidate confirm (`app/api/schedule/[token]/route.ts`) *and* on the recruiter's
 week-grid book (`POST /api/schedule {action:"book"}`), which refuses a definite
