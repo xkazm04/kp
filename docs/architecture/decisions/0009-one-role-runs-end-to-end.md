@@ -1,7 +1,7 @@
 ---
 id: "0009"
 title: A role runs end to end as a ledger of stage artifacts; only person-affecting decisions gate
-status: proposed
+status: accepted
 date: 2026-09-14
 supersedes: []
 superseded-by: null
