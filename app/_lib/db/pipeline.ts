@@ -1946,6 +1946,7 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
   ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
+  ["role_rubrics", "A role's frozen, versioned scoring axes derived from its brief (ADR-0010) — criteria about the ROLE, written before any candidate is scored and never keyed to an entry."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
   ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
