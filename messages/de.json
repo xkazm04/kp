@@ -835,7 +835,7 @@
       "cardTitle": "Screening der ersten Runde",
       "cardMeta": "live · 4 Min. 12 Sek.",
       "transcript": [
-        "Sie haben für ein Schulprojekt eine React-App live gebracht – was ging als Erstes kaputt, als echte Nutzer draufkamen?",
+        "Sie haben für ein Schulprojekt eine React-App live gebracht. Was ging als Erstes kaputt, als echte Nutzer draufkamen?",
         "Ehrlich? Das State-Management. Ich habe es zweimal neu geschrieben, bevor ich verstand, warum…",
         "Klasse. Erzählen Sie mir von der zweiten Überarbeitung."
       ]

@@ -835,7 +835,7 @@
       "cardTitle": "Présélection du premier tour",
       "cardMeta": "en direct · 4 min 12 s",
       "transcript": [
-        "Vous avez livré une appli React pour un projet scolaire – qu’est-ce qui a cassé en premier quand de vrais utilisateurs sont arrivés ?",
+        "Vous avez livré une appli React pour un projet scolaire. Qu’est-ce qui a cassé en premier quand de vrais utilisateurs sont arrivés ?",
         "Honnêtement ? La gestion de l’état. Je l’ai réécrite deux fois avant de comprendre pourquoi…",
         "J’adore. Expliquez-moi la deuxième réécriture."
       ]

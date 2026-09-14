@@ -835,7 +835,7 @@
       "cardTitle": "First-round screen",
       "cardMeta": "live · 4 min 12 s",
       "transcript": [
-        "You shipped a React app for a school project — what broke first when real users hit it?",
+        "You shipped a React app for a school project. What broke first when real users hit it?",
         "Honestly? The state management. I rewrote it twice before I understood why…",
         "Love it. Walk me through the second rewrite."
       ]
