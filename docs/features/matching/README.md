@@ -377,6 +377,21 @@ permanently, note and all. The run's `workspaceId` is now threaded into
 documents for the background automation pass. Pinned by
 `app/_lib/group-eval-i18n-facts.test.ts`.
 
+**The grid popover's narrative cache is keyed by language.** The "why this
+score" popover fetches one LLM-backed narrative per cell and de-dupes on a ref so
+a second click cannot spend a second Python spawn. Both that ref and the state
+map behind it were keyed `candidate|position`, while the request itself carries
+`lang` — so the cache key did not name the one parameter that changes the answer.
+After a reader switched language, re-opening the same cell hit the de-dupe and
+kept showing the OLD language's text, and `ReasoningProvenance` then compared
+that stale `narrativeLang` against the NEW locale, so the "shown in {language}"
+note was wrong exactly when it mattered. Both the writer (`useMatrixTab`) and the
+reader (`MatrixReasoningPopover`) now build the key through
+`matrixSelection.ts::matrixReasoningKey`, so they cannot drift apart in one
+direction only. The SELECTION key stays language-free by design — a shortlisted
+cell is shortlisted whatever the reader is reading in. Pinned by
+`app/features/insights/matrix/matrixSelection.test.ts`.
+
 **`group_compare` reports its own provenance honestly.** An under-delivered
 model payload (a headline with no `keyPoints`) is replaced *wholesale* by the
 deterministic synthesis, and `generate` used to still return `source="llm"` for
