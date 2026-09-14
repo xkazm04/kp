@@ -940,7 +940,7 @@
         "selfhost": {
           "name": "Auto-hébergé",
           "tagline": "Faites tourner l'ensemble sur votre propre machine.",
-          "price": "0 Kč",
+          "price": "0 CZK",
           "cadence": "pour toujours",
           "usd": "open source, AGPL-3.0",
           "cta": "Obtenir le code source",
@@ -955,7 +955,7 @@
         "free": {
           "name": "Gratuit",
           "tagline": "Testez sur un vrai poste.",
-          "price": "0 Kč",
+          "price": "0 CZK",
           "cadence": "pour toujours",
           "usd": "sans carte, sans compteur",
           "cta": "Commencer gratuitement",
@@ -969,7 +969,7 @@
         "starter": {
           "name": "Starter",
           "tagline": "Un bureau de recrutement qui ne dort jamais.",
-          "price": "240 Kč",
+          "price": "240 CZK",
           "cadence": "/ mois",
           "usd": "≈ 10 $ par mois",
           "cta": "Choisir Starter",
@@ -983,7 +983,7 @@
         "growth": {
           "name": "Growth",
           "tagline": "Pour les pipelines à fort trafic.",
-          "price": "480 Kč",
+          "price": "480 CZK",
           "cadence": "/ mois",
           "usd": "≈ 20 $ par mois",
           "cta": "Choisir Growth",
@@ -996,7 +996,7 @@
         }
       },
       "footnote1": "L'auto-hébergement, c'est le produit complet, pas une version d'essai. Les offres hébergées facturent des résultats : un poste publié et une personne recrutée.",
-      "footnote2": "à court de minutes ? packs de 100 minutes d'entretien · 790 Kč (toute offre hébergée)",
+      "footnote2": "à court de minutes ? packs de 100 minutes d'entretien · 790 CZK (toute offre hébergée)",
       "enterprise": {
         "eyebrow": "À l’échelle de l’organisation",
         "heading": "Vous recrutez dans toute l’organisation ?",

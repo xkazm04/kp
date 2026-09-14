@@ -29,8 +29,15 @@ subject (rule IDs `EN-*`); it cites rules and never restates them. Declared valu
   no-data glyph and code comments are out of scope.
 - **Sentence case.** Only 2% of heading-class strings were Title Case; there is no declared
   title-case element class. The `report.compare.*` titles are drift (EN-CASE warns).
-- **Pricing in CZK.** `landing.pricing.*` renders `Kč` in English (EN-SOURCE-RESIDUE,
-  baselined). How English shows the currency is an open owner decision.
+- **The Czech koruna is `Kč` in Czech only, `CZK` in every other language** (2026-09-14,
+  operator). English puts the ISO code before the amount (`CZK 240`, EN-CURRENCY); German and
+  French put it after, with a no-break space (`240 CZK`), the form `Intl` renders for those
+  locales. Applied the same day to `landing.pricing.*` in en/de/fr (the five
+  EN-SOURCE-RESIDUE `Kč` findings are gone from the baseline) and to the Market Pulse map's
+  region labels, which formatted with the `cs` default whatever the page language. Pinned by
+  `app/landing/spark/PricingSection.test.ts` and `market/regionLabel.test.ts`.
+- **Apostrophes:** straight and curly both stand as they are (2026-09-14, operator); not
+  declared in the contract, not a finding. At adoption: 651 straight, 102 curly.
 
 ## Register and voice
 

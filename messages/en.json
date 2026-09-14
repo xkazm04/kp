@@ -940,7 +940,7 @@
         "selfhost": {
           "name": "Self-hosted",
           "tagline": "Run the whole thing on your own machine.",
-          "price": "0 Kč",
+          "price": "CZK 0",
           "cadence": "forever",
           "usd": "open source, AGPL-3.0",
           "cta": "Get the source",
@@ -955,7 +955,7 @@
         "free": {
           "name": "Free",
           "tagline": "Kick the tires on a real opening.",
-          "price": "0 Kč",
+          "price": "CZK 0",
           "cadence": "forever",
           "usd": "no card, no clock",
           "cta": "Start free",
@@ -969,7 +969,7 @@
         "starter": {
           "name": "Starter",
           "tagline": "A hiring desk that never sleeps.",
-          "price": "240 Kč",
+          "price": "CZK 240",
           "cadence": "/ month",
           "usd": "≈ $10 a month",
           "cta": "Pick Starter",
@@ -983,7 +983,7 @@
         "growth": {
           "name": "Growth",
           "tagline": "For pipelines with traffic.",
-          "price": "480 Kč",
+          "price": "CZK 480",
           "cadence": "/ month",
           "usd": "≈ $20 a month",
           "cta": "Pick Growth",
@@ -996,7 +996,7 @@
         }
       },
       "footnote1": "Self-hosting is the full product, not a trial edition. The hosted plans price outcomes: a role taken to market, and a person hired.",
-      "footnote2": "out of minutes? 100-minute interview packs · 790 Kč (any hosted tier)",
+      "footnote2": "out of minutes? 100-minute interview packs · CZK 790 (any hosted tier)",
       "enterprise": {
         "eyebrow": "At org scale",
         "heading": "Hiring across the whole org?",

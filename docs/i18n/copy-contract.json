@@ -8,6 +8,7 @@
     "Ellipsis: character 260, three dots 0 -> declared char.",
     "Case: 11 of 475 judgeable heading-class strings Title Case (2%) -> sentence. No deliberate title-case element class; the report.compare.* titles are undeclared drift (warn).",
     "Source residue at adoption: Kc currency word in landing.pricing x5, space before % x9 (analytics.*). Error findings, baselined; the CZK rendering is an owner decision.",
+    "Currency ruled 2026-09-14 (operator): the koruna is Kc (Kč) in Czech only, CZK in every other language, ISO code before the amount in English (CZK 240). landing.pricing en/de/fr changed the same day; the 5 Kc residue findings left the baseline. Apostrophes ruled the same day: straight and curly both stand, not declared, not a finding. See style-en.md.",
     "case.buttonKeys widened to kp key names (save, cancel, retry, continue, create) 2026-09-14; terms.accept seeded from contract.md section 6."
   ],
   "variant": "US",
