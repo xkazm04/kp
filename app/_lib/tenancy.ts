@@ -249,6 +249,16 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // shared-corpus jobs carry a NULL workspace and two teams may each freeze their
   // own rubric for the same job (role-rubrics-tenancy.test.ts).
   "role_rubrics",
+  // The role-run ledger (db/role-runs.ts, ADR-0009, docs/features/hiring-pipeline/
+  // role-run-ledger.md): `role_runs` is one row per (job, cycle) and `role_run_stages`
+  // is its append-only log of stage artifacts. Operator-internal with no public token,
+  // so the strict rule applies — EVERY query, point reads included, filters or stamps
+  // workspace_id, with no by-id exemptions (role-runs-tenancy.test.ts). Stricter than
+  // convenience: a stage artifact is the evidence behind a person-affecting decision,
+  // which makes a cross-tenant read of one worse than a leak of a draft. Both take the
+  // "workspace" org-export default — a role run IS the org's hiring record.
+  "role_runs",
+  "role_run_stages",
   // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
   // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
   // reads) + team-private drafts (workspace_id = team). Every read/write filters on
