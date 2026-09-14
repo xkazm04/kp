@@ -19,6 +19,8 @@ to be true for it to change?*
 - weaken, skip or reconfigure a repo gate (design tokens, locale parity, tenancy, rate limits) → [0007](0007-repo-laws-are-gates.md)
 - add a new comms delivery path, or change how delivery status is labelled → [0008](0008-row-declares-its-own-outcome.md)
 - add a new ATS webhook event id or promote one from `reserved` to `live` → [0008](0008-row-declares-its-own-outcome.md)
+- chain hiring stages together, add a human approval gate, or put candidate data in a run record → [0009](0009-one-role-runs-end-to-end.md)
+- add a second funnel, a second candidate board, or a per-population score → [0010](0010-need-role-slate-one-board.md)
 
 ## Index
 
@@ -32,6 +34,8 @@ to be true for it to change?*
 | [0006](0006-agpl-with-cla.md) | AGPL-3.0-only plus a CLA; hosting is the commercial boundary | accepted | 2026-08-26 |
 | [0007](0007-repo-laws-are-gates.md) | A repo law that isn't a gate isn't a law | accepted | 2026-08-26 |
 | [0008](0008-row-declares-its-own-outcome.md) | A row declares its own outcome — no green lies | accepted | 2026-09-07 |
+| [0009](0009-one-role-runs-end-to-end.md) | A role runs end to end as a ledger of stage artifacts; only person-affecting decisions gate | accepted | 2026-09-14 |
+| [0010](0010-need-role-slate-one-board.md) | A need composes a role; the role's slate is one board and one rubric | accepted | 2026-09-14 |
 
 ## Writing a new one
 
