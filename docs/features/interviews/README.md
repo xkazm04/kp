@@ -95,7 +95,18 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
      argument so `micErrorText.ts` can match the real `DOMException.name` and
      show the same localized recovery copy the OpenAI path already showed —
      previously an EL mic denial surfaced the SDK's untranslated
-     `"Permission denied"`.
+     `"Permission denied"`. That same forwarding means the classifier is reached
+     with **provider** text, not only with `getUserMedia` text — so its nameless
+     message fallback must not match a bare "denied". It used to
+     (`/permission|denied|dismiss/`), and an auth or agent-access failure reading
+     `"Agent access denied"` therefore told the candidate to click the microphone
+     icon in their address bar for a failure they cannot fix that way, instead of
+     falling through to the honest session error. The fallback now matches only
+     the phrases `getUserMedia` itself emits (`permission denied` /
+     `permission dismissed`); a real browser denial is classified by
+     `DOMException.name` and is unaffected, on both transports and on the JD
+     intake voice surface that shares the classifier. Pinned by
+     `app/_components/voice/micErrorText.test.ts`.
    - `useTranscriptPersistence.ts` stashes each transcript POST body in
      `sessionStorage` under `kp.iv.<sessionId>` *before* sending it, and
      **replays any stash left over on mount**. A 2xx or a terminal 4xx (already
