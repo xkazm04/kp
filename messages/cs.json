@@ -1694,6 +1694,7 @@
     "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu.",
     "DEVCASE_CASE_LIST_FAILED": "Schválené případy se nepodařilo načíst. Zkuste to prosím znovu.",
     "DEVCASE_SKILL_PROFILE_FAILED": "Profil dovedností se nepodařilo vydat. Zkuste to prosím znovu.",
+    "SKILL_PROFILE_VERIFY_FAILED": "Profil dovedností se nepodařilo ověřit. Zkuste to prosím znovu.",
     "DEVCASE_CASE_FIELDS_REQUIRED": "Ke schválení je potřeba role i případ.",
     "DEVCASE_SUBMISSION_ID_REQUIRED": "Je potřeba odkaz na odevzdání.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",

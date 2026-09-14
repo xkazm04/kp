@@ -1694,6 +1694,7 @@
     "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again.",
     "DEVCASE_CASE_LIST_FAILED": "Could not load the approved cases. Please try again.",
     "DEVCASE_SKILL_PROFILE_FAILED": "Could not issue the skill profile. Please try again.",
+    "SKILL_PROFILE_VERIFY_FAILED": "Could not verify the skill profile. Please try again.",
     "DEVCASE_CASE_FIELDS_REQUIRED": "A role and a case are both required to approve.",
     "DEVCASE_SUBMISSION_ID_REQUIRED": "A submission reference is required.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "That submission can’t be found.",

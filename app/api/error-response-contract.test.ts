@@ -416,7 +416,10 @@ const FORWARD_CEILING = new Map<string, number>([
   ["analytics/calibration/threshold-history/route.ts", 1],
   ["auth/switch-workspace/route.ts", 1],
   ["decisions/records/route.ts", 1],
-  ["skill-profile/[token]/verify/route.ts", 1],
+  // skill-profile/[token]/verify/route.ts stood here at 1 and is FIXED, not ceilinged
+  // (lens-sweep round 2, context api-devcase-2): the PUBLIC token door now answers
+  // safeJsonError(error, "api:skill-profile-verify", "SKILL_PROFILE_VERIFY_FAILED").
+  // Pinned at the site by the colocated route.test.ts so the row cannot re-grow.
   ["workspaces/[id]/route.ts", 1],
   ["workspaces/route.ts", 2],
 ]);
