@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getIntake, markIntakePromoted } from "@/app/_lib/db/intakes";
+import { freezeRoleRubric } from "@/app/_lib/db/role-rubrics";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
@@ -97,7 +98,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
     // stamped now so the back-link exists even while the build is running.
     markIntakePromoted(id, { jdSlug: slug, jobId: jdJobId(slug) }, ws);
-    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId });
+    // ADR-0009 — THIS is where a stated need becomes a role, so this is where
+    // the role freezes the one rubric its candidates will be judged by. Freezing
+    // at promote (rather than at first evaluation) is what makes a later JD edit
+    // an explicit re-version instead of a silent change to the standard already
+    // applied to people on the board.
+    //
+    // BEST-EFFORT, deliberately: the promote's contract is "a JD build started",
+    // and a brief that states no graded requirements is a real, recoverable state
+    // (freezeRoleRubric throws EmptyRubricError for it). Failing the promote over
+    // it would block the need→role leg on a rubric the requestor can still fill
+    // in — the slate simply reports "no rubric frozen" until they do.
+    let rubricVersion: number | null = null;
+    try {
+      rubricVersion = freezeRoleRubric(jdJobId(slug), brief, { workspaceId: ws }).rubric.version;
+    } catch (error) {
+      console.warn(`[intake:promote] no rubric frozen for ${slug}: ${error instanceof Error ? error.message : error}`);
+    }
+    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId, rubricVersion });
   } catch (error) {
     return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
   }

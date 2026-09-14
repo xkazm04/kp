@@ -592,7 +592,20 @@ export function ensureDb(): Database.Database {
       -- otherwise stores no address, so every downstream comm dead-lettered to the
       -- literal "candidate"; when present this is the deliverable recipient
       -- (candidateRecipient prefers it). Optional — recruiter/Match adds omit it.
-      contact TEXT
+      contact TEXT,
+      -- ADR-0009 (need → role → slate): WHICH POPULATION this slate member is,
+      -- 'human' or 'agent'. A hired AI agent is a candidate for the role on the
+      -- SAME board, not a second funnel — so it is a pipeline_entry like anyone
+      -- else and this column is the only thing that distinguishes it. NOT NULL
+      -- DEFAULT 'human' because every row that predates the column IS a person:
+      -- the default is the historical truth, not a placeholder.
+      population TEXT NOT NULL DEFAULT 'human',
+      -- The frozen role rubric version this entry's evaluation was produced
+      -- against (role_rubrics.version). NULL = evaluated before the role froze
+      -- a rubric, or not evaluated yet — read as "unknown standard", never as
+      -- "the current one": that silent re-attribution is the defect the frozen
+      -- rubric exists to remove.
+      rubric_version INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
@@ -1070,6 +1083,31 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_role_intakes_ws ON role_intakes (workspace_id, created_at);
 
+    -- ADR-0009 — the role's ONE FROZEN RUBRIC (app/_lib/role-rubric.ts).
+    -- Append-only and VERSIONED, deliberately not an upsert: an evaluation
+    -- recorded against version 1 must stay readable against the criteria it was
+    -- actually produced against, so editing the JD mints version 2 beside it
+    -- rather than rewriting the standard under decisions already made. Latest
+    -- version per (workspace, job) is the ACTIVE rubric.
+    -- criteria_json is RubricCriterion[]; criteria_hash content-addresses it, so
+    -- "did the standard change?" is answerable without diffing prose. No PII by
+    -- construction: a rubric is about the ROLE, never about a candidate.
+    CREATE TABLE IF NOT EXISTS role_rubrics (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      criteria_json TEXT NOT NULL,
+      criteria_hash TEXT NOT NULL,
+      source TEXT NOT NULL,
+      frozen_at TEXT NOT NULL
+    );
+
+    -- One row per (job, version): a concurrent double-freeze collapses onto the
+    -- first writer rather than minting two "version 2" standards for one role.
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_role_rubrics_version ON role_rubrics (workspace_id, job_id, version);
+    CREATE INDEX IF NOT EXISTS idx_role_rubrics_job ON role_rubrics (workspace_id, job_id, version DESC);
+
     -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
     -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
     -- the source of truth the poller reads, so a scan survives the operator
@@ -1338,6 +1376,15 @@ export function ensureDb(): Database.Database {
     // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
     // real session workspace (so a future multi-tenant enable scopes immediately).
     "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // ADR-0009 — the slate columns. `population` backfills to 'human' on every
+    // existing row, which is not a placeholder but the historical fact: the
+    // board has only ever held people. `rubric_version` stays NULL on those
+    // rows and MUST read as "evaluated against an unknown standard" — mapping
+    // a legacy evaluation onto the role's current rubric would re-attribute a
+    // judgement to criteria it was never made under, which is the exact silent
+    // drift the frozen rubric was introduced to end.
+    "ALTER TABLE pipeline_entries ADD COLUMN population TEXT NOT NULL DEFAULT 'human'",
+    "ALTER TABLE pipeline_entries ADD COLUMN rubric_version INTEGER",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is
@@ -2695,7 +2742,31 @@ export type PipelineEntry = {
   // projects explicit fields rather than serializing a row (see the erasure-token
   // note above, and publicInviteView in api/schedule/[token]).
   workspaceId: string;
+  // ADR-0009 — which population this slate member belongs to. 'human' on every
+  // row that predates the slate work (that IS what those rows are), 'agent' for
+  // an AI-agent candidate sharing the role's board. The board renders ONE list
+  // and branches on this only for the identity affordances (a persona has no
+  // CV, a person has no connector budget) — never for the EVALUATION, which is
+  // the same frozen rubric for both.
+  population: SlatePopulation;
+  // The frozen rubric version this entry's evaluation was produced against, or
+  // null when it was evaluated before the role froze one. Null is "unknown
+  // standard", NOT "the current standard".
+  rubricVersion: number | null;
 };
+
+/** ADR-0009 — the two populations that can appear on one role's slate. */
+export const SLATE_POPULATIONS = ["human", "agent"] as const;
+export type SlatePopulation = (typeof SLATE_POPULATIONS)[number];
+
+/** Narrow the free-form TEXT column at the read boundary. An unrecognized value
+ *  reads as 'human' rather than throwing: a board that refuses to render because
+ *  one row carries a future population value is worse than one that shows that
+ *  row as a person, and the column's own NOT NULL DEFAULT already makes 'human'
+ *  the value every unstamped row carries. */
+export function coerceSlatePopulation(value: unknown): SlatePopulation {
+  return value === "agent" ? "agent" : "human";
+}
 
 export function recordEvent(
   db: Database.Database,

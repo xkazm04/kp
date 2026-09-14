@@ -244,6 +244,8 @@ export const STORE_ERRORS = {
   AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
   AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
   AGENT_HIRE_FROM_NEED_FAILED: "Could not compose and dispatch a role from that need. Please try again.",
+  // ADR-0009 — the role slate read (people + AI agents on one board).
+  ROLE_SLATE_FAILED: "Could not load this role's candidate slate. Please try again.",
   // The LLM usage ledger's row-level read (Insights -> Activity). It sits on
   // better-sqlite3, so a thrown message can carry the DB path and the failing SQL;
   // this route was the one door in the Models/Insights surface still forwarding
@@ -467,6 +469,8 @@ export const REFUSAL_ERRORS = {
   SCHEDULE_INTERVAL_INVALID: "The automation interval must be a number of minutes.",
   /** A submission arrived for a posting whose intake is closed (410). */
   POSTING_CLOSED: "This role's intake has closed and is no longer accepting submissions.",
+  // ADR-0009 — a slate was asked for against a role id that names nothing here.
+  ROLE_NOT_FOUND: "That role could not be found.",
   /** The offer link is past its deadline (410). */
   OFFER_EXPIRED: "This offer has expired.",
   /** No offer for this token (404). */
