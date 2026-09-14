@@ -1460,14 +1460,17 @@ as a picture with no meaning.
 The second consumer of a promoted brief (ADR
 [0010](../../architecture/decisions/0010-need-role-slate-one-board.md) §2): per job,
 an ordered list of weighted axes that every candidate on the slate — a person or an
-AI agent — is scored against. **Store only** today: no route, no UI and no caller
-yet; the derivation from a `RoleBrief`, the `GET`/`POST /api/jobs/[id]/rubric`
-routes and the scorer are later increments of
+AI agent — is scored against. **Store + derivation** today, with no route, no UI
+and no caller yet: nothing mints a rubric on promotion. The
+`GET`/`POST /api/jobs/[id]/rubric` routes, promote deriving v1, and the scorer are
+later increments of
 [`need-to-role-to-slate.md`](../../concepts/need-to-role-to-slate.md).
 
 | Piece | Path |
 | --- | --- |
 | Axis shape (Pydantic-authoritative) | `pipeline/jobfit/rolerubric.py::RubricAxis` → `rubricAxisSchema` in `app/_lib/schemas.generated.ts` |
+| Brief → axes derivation (pure, keyless) | `pipeline/jobfit/rolerubric.py::derive_role_rubric`, mirrored by `app/_lib/role-rubric.ts::deriveRoleRubric` |
+| Derivation parity | `pipeline/jobfit/tests/fixtures/role_rubric_cases.json`, read by BOTH `pipeline/jobfit/tests/test_rolerubric.py` and `app/_lib/role-rubric.test.ts` (weights compared exactly) |
 | Store | `app/_lib/db/role-rubrics.ts` — `mintRoleRubric`, `getRoleRubric`, `listRoleRubricVersions`, `freezeRoleRubric` |
 | Tenancy proof | `app/_lib/db/role-rubrics-tenancy.test.ts` (source guard, the store's own migration read back from `sqlite_master`, two-workspace drive) |
 | Behaviour | `app/_lib/db/role-rubrics-store.test.ts` |
@@ -1492,7 +1495,18 @@ version)`.
   hardness and both evidence sources), a duplicate or blank key, or a weight outside
   0..1. A stored column that stops parsing reads back as `axes: null` and is counted in
   `getRowHealth()`; it never reads as an empty rubric.
-- **Keyless by construction.** No provider is involved anywhere in the store.
+- **Derived, deterministically.** Every graded requirement becomes a `req:<skill>`
+  axis (a skill named twice collapses to one axis at its strongest grading and
+  largest weight). Every `core` facet with a value becomes a `facet:<name>` axis, and
+  `budget_band` becomes `cost:budget_band`. `valuable` and `context` facets never
+  become axes. Weights are shares of `brief weight (floored at 0.05) × kind factor
+  (must_have 1, nice_to_have 0.5)`, with a fixed 0.5 for a core facet, so the axes sum
+  to 1. `blocking` is must_have × prerequisite only. Each axis names its evidence per
+  population, from ADR-0010 §3's table: requirement coverage is `analysis` for a person
+  and `agent_fit` for an agent, demonstrated work is `devcase`/`trial_run`, conversation
+  is `scorecard`/`mandate_exchange`, cost is `salary_band`/`budget`. The full rules are
+  the `rolerubric.py` module docstring.
+- **Keyless by construction.** No provider is involved in the derivation or the store.
 - Erasure: `ERASURE_EXEMPT` in `app/_lib/db/pipeline.ts` — criteria about the role,
   written before any candidate is scored and never keyed to an entry.
 
