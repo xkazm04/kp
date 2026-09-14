@@ -366,6 +366,17 @@ workspace that fell back holds English prose in a **shared, persisted** record â
 does, instead of every later reader being told the text is in their language.
 Evals saved before the field carry no `comparisonLang` and render no note.
 
+The language it is asked for is **the evaluating team's own** default, not a
+fixed tenant's. `runGroupCompare` used to call `getWorkspaceDefaultLocale()` with
+no argument, which reads `DEFAULT_WORKSPACE_ID` â€” so a team that had set its own
+language received a persisted, team-shared comparison written in the default
+team's language, and `comparisonLang` then recorded that wrong language
+permanently, note and all. The run's `workspaceId` is now threaded into
+`runGroupCompare` as a parameter (so no call site can omit it) and passed as
+`--lang`. This is the same untenanted-locale defect `app/_lib/automation-run.ts`
+documents for the background automation pass. Pinned by
+`app/_lib/group-eval-i18n-facts.test.ts`.
+
 **`group_compare` reports its own provenance honestly.** An under-delivered
 model payload (a headline with no `keyPoints`) is replaced *wholesale* by the
 deterministic synthesis, and `generate` used to still return `source="llm"` for
