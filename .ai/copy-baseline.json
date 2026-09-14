@@ -1,8 +1,8 @@
 {
   "version": 1,
   "checker": "native-copy/copy-check 1.1.0",
-  "generatedAt": "2026-09-14T10:22:40.122Z",
-  "count": 155,
+  "generatedAt": "2026-09-14T10:47:44.884Z",
+  "count": 150,
   "fingerprints": [
     "EN-AMPERSAND|app/_lib/trust-posture.ts|OBLIGATIONS[2].title|400e2956f6c4e273ba0ecc8b36df5c515e7e0aa0",
     "EN-AMPERSAND|messages/en.json|analytics.goals.title|e4b1a50d69571ace8b0ed821a043552f02cb488f",
@@ -124,11 +124,6 @@
     "EN-SOURCE-RESIDUE|messages/en.json|analytics.calibration.skillValue|64c57adceaa9dc3234ff35e549935fc29b8bdff8",
     "EN-SOURCE-RESIDUE|messages/en.json|analytics.calibration.srBaseRate|7b054a05f392235b4a4ff17057518b19f59a5f61",
     "EN-SOURCE-RESIDUE|messages/en.json|analytics.quality.skillValue|64c57adceaa9dc3234ff35e549935fc29b8bdff8",
-    "EN-SOURCE-RESIDUE|messages/en.json|landing.pricing.footnote2|b8d9803221332dc84437397b84b94a8e6763bec7",
-    "EN-SOURCE-RESIDUE|messages/en.json|landing.pricing.tiers.free.price|37c02bb794991cc16b9ab30c85ea5050ad6fc6ef",
-    "EN-SOURCE-RESIDUE|messages/en.json|landing.pricing.tiers.growth.price|6aa2138345531c52449230f3ba15e6b5de2532e0",
-    "EN-SOURCE-RESIDUE|messages/en.json|landing.pricing.tiers.selfhost.price|37c02bb794991cc16b9ab30c85ea5050ad6fc6ef",
-    "EN-SOURCE-RESIDUE|messages/en.json|landing.pricing.tiers.starter.price|53ac1653c3ff8f9e093b63f865949fd4944d05ec",
     "EN-SPACING|messages/en.json|integrations.webhook.secretPlaceholderSet|1ec322cdba56cf9e4bd9576216ecd2507cd0357b",
     "EN-SPELLING|app/_lib/trust-posture.ts|OBLIGATIONS[0].summary|ffacf7d2f57b273003da55aa6ac3359f3ffb2822",
     "EN-SPELLING|messages/en.json|aboutPage.steps.assignment.body|9b39c3be457eaa7fad4950e4ce3e816068fc3103",
