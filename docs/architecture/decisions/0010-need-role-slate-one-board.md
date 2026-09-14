@@ -1,7 +1,7 @@
 ---
-id: "0009"
+id: "0010"
 title: A need composes a role; the role's slate is one board and one rubric
-status: proposed
+status: accepted
 date: 2026-09-14
 supersedes: []
 superseded-by: null
@@ -91,6 +91,22 @@ populations.
 
 `population` is a NEW column whose default is true of every existing row — no
 persisted field changes meaning, and no backfill is required.
+
+**Where this meets the role run.** ADR
+[0009](0009-one-role-runs-end-to-end.md) makes a role run an append-only ledger
+of stage artifacts and gives stage **S1 (Sourcing)** a `slate` producer whose
+artifact is `candidates[]` of
+`{ candidateRef, origin: "inbound" | "pool" | "rediscovery" | "agent", priorOutcomeRef? }`.
+That `origin: "agent"` value is this decision's agent population, and the two
+records must be read as one: S1 is *where* an agent candidate enters a run, and
+`population = 'agent'` is *what it is* once it is on the board. Concretely —
+an S1 candidate with `origin: "agent"` becomes a `pipeline_entries` row with
+`population = 'agent'` and `agent_ref` set to its `agent_fit_specs` row; every
+stage after S1 fans out over it on the same terms as a person, scored against
+the same frozen rubric (§2, §3) through the agent evidence adapter. ADR-0009's
+three gates — rejection, interview invite, offer — gate both populations, which
+is the same rule as the mandatory human approval on a `terminal` move above.
+Neither record adds a gate the other does not have.
 
 ### 2. The role's rubric is a frozen, versioned artifact of the role.
 

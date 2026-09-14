@@ -1,7 +1,7 @@
 # Need → role → slate — the breakdown
 
 Status: **design, not built** (2026-09-14). The decision this enacts is
-[ADR 0009](../architecture/decisions/0009-need-role-slate-one-board.md); the
+[ADR 0010](../architecture/decisions/0010-need-role-slate-one-board.md); the
 need→role leg it builds on is [`role-intake-dialog.md`](role-intake-dialog.md).
 Goal served: *Hire-from-need composes a role from a stated need — a stated need
 becomes a role, the role becomes a candidate slate (an AI agent or a person),
