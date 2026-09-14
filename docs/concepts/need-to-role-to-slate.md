@@ -1,6 +1,10 @@
 # Need → role → slate — the breakdown
 
-Status: **design, not built** (2026-09-14). The decision this enacts is
+Status: **design; increments 1 and 2 built** (2026-09-14) — the `RubricAxis`
+shape + deterministic derivation and the `role_rubrics` store. Where the as-built
+shape differs from the sketches below, the code and
+[`docs/features/intake/README.md`](../features/intake/README.md#role-rubric-store-role_rubrics)
+are authoritative. The decision this enacts is
 [ADR 0010](../architecture/decisions/0010-need-role-slate-one-board.md); the
 need→role leg it builds on is [`role-intake-dialog.md`](role-intake-dialog.md).
 Goal served: *Hire-from-need composes a role from a stated need — a stated need
@@ -50,6 +54,10 @@ role_rubrics
   frozen_at TEXT                      -- set when the first candidate is scored against it
 ```
 
+As built: the UNIQUE is `(workspace_id, job_id, version)` — a shared-corpus job has a
+NULL workspace in `jobs`, so two teams each number their own versions — and a
+`BEFORE UPDATE` trigger makes every column but a once-only `frozen_at` immutable.
+
 `RubricAxis` (Pydantic-authoritative in `pipeline/jobfit/`, codegen'd to Zod
 like `RoleBrief` — the brief's graded requirements are the input, so the shape
 belongs next to them):
@@ -61,6 +69,11 @@ belongs next to them):
   humanEvidence: 'analysis' | 'scorecard' | 'devcase' | 'salary_band',
   agentEvidence:  'agent_fit' | 'trial_run' | 'mandate_exchange' | 'budget' }
 ```
+
+As built (`pipeline/jobfit/rolerubric.py`): no `requirementRef`/`facetKey` — the axis
+`key` carries its origin (`req:<skill>`, `facet:<name>`, `cost:budget_band`) — and the
+axis also records `kind`, `hardness`, `blocking`, `provenance`, `rationale` and the
+`evidenceClass` (ADR-0010 §3's row) its two evidence sources are taken from.
 
 **Two columns on `pipeline_entries`** (added by the pipeline store, not
 `core.ts`, same one-owner-per-table reason):
