@@ -144,7 +144,8 @@ effective. Details in
 
 Before a push to `main`, `.githooks/pre-push` runs the fast core of the table
 (both review lenses, then `typecheck`, `lint`, `lint:ts-ratchet`, `design:check`,
-`build`). Everything else is CI's, and CI is the teeth.
+the local-only `copy:check` when its registry skill is installed, then `build`).
+Everything else is CI's, and CI is the teeth.
 
 ## Before you reverse something surprising
 
