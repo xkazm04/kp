@@ -2,15 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ROLE_RUN_STAGES,
+  ROLE_RUN_TRANSITIONS,
   RUN_WIDE_STAGES,
   STAGE_GATE,
   assertStagePayloadPiiFree,
+  completedStagesFor,
+  findRoleRunTransitionViolations,
   findStagePayloadPii,
   isRunWideStage,
   nextRoleRunStage,
+  nextStageFor,
+  replayRoleRunChain,
   RoleRunPiiError,
   roleRunStageIndex,
   stageIsGated,
+  type RoleRunArtifactRow,
 } from "./role-run-stages.ts";
 import { APPROVAL_KINDS } from "./approval-kinds.ts";
 
@@ -162,4 +168,200 @@ test("PII nested arbitrarily deep is still found", () => {
   const violations = findStagePayloadPii(deep);
   assert.equal(violations.length, 1);
   assert.equal(violations[0].path, "$.a[0].b.c[0].candidateEmail");
+});
+
+// --- the transition table and the resume read (ADR-0009 §1) -------------------
+
+type Row = RoleRunArtifactRow;
+let seqClock = 0;
+const row = (kind: Row["kind"], status: Row["status"], branchRef: string | null = null): Row => ({
+  kind,
+  status,
+  branchRef,
+  seq: (seqClock += 1),
+});
+/** The run-wide chain up to the fan-out. */
+const fannedOut = (): Row[] => [row("role_spec", "complete"), row("slate", "complete")];
+
+test("the transition table agrees with the stage order and the gate list — it cannot drift from either", () => {
+  for (const kind of ROLE_RUN_STAGES) {
+    const next = nextRoleRunStage(kind);
+    const afterComplete = [...ROLE_RUN_TRANSITIONS[`${kind}:complete`]];
+
+    // Forward edge: a completed stage leads to exactly the next stage's first artifact,
+    // and that artifact is a PROPOSAL exactly when the next stage gates.
+    if (next === null) {
+      assert.deepEqual(afterComplete, [], "nothing follows an approved offer on the ledger");
+    } else if (isRunWideStage(next)) {
+      assert.deepEqual(afterComplete, [`${next}:complete`, `${next}:terminal`], `${kind}:complete → ${next}`);
+    } else {
+      assert.deepEqual(afterComplete, [`${next}:${stageIsGated(next) ? "awaiting_approval" : "complete"}`], `${kind}:complete → ${next}`);
+    }
+
+    // A parked position exists exactly for the three gated stages, and it resolves only
+    // into its own kind.
+    const afterParked = [...ROLE_RUN_TRANSITIONS[`${kind}:awaiting_approval`]];
+    assert.deepEqual(afterParked, stageIsGated(kind) ? [`${kind}:complete`, `${kind}:terminal`] : [], `${kind}:awaiting_approval`);
+
+    assert.deepEqual([...ROLE_RUN_TRANSITIONS[`${kind}:terminal`]], [], `${kind}:terminal ends its chain`);
+  }
+  assert.deepEqual([...ROLE_RUN_TRANSITIONS.start], ["role_spec:complete", "role_spec:terminal"]);
+
+  // The gate claim, read off the whole table rather than per row: a gated stage is only
+  // ever entered as a proposal, and only ever resolved from its own proposal.
+  for (const [from, targets] of Object.entries(ROLE_RUN_TRANSITIONS)) {
+    for (const to of targets) {
+      const [toKind, toStatus] = to.split(":") as [Row["kind"], Row["status"]];
+      if (stageIsGated(toKind) && toStatus !== "awaiting_approval") {
+        assert.equal(from, `${toKind}:awaiting_approval`, `${from} → ${to} would resolve a gate nobody was asked`);
+      }
+      if (toStatus === "terminal" && !isRunWideStage(toKind)) {
+        assert.ok(stageIsGated(toKind), `${from} → ${to} ends a candidacy without a gate`);
+      }
+    }
+  }
+});
+
+test("nextStageFor walks an empty run to the fan-out from rows alone", () => {
+  assert.deepEqual(nextStageFor([]), { action: "produce", kind: "role_spec" });
+  assert.deepEqual(nextStageFor([row("role_spec", "complete")]), { action: "produce", kind: "slate" });
+  assert.deepEqual(nextStageFor(fannedOut()), { action: "done", reason: "fanned_out" });
+  assert.deepEqual(nextStageFor([row("role_spec", "terminal")]), { action: "done", reason: "run_terminal" });
+  // A branch asked about before the slate has nothing to run — not `role_spec`.
+  assert.deepEqual(nextStageFor([row("role_spec", "complete")], "m-1"), { action: "await_fan_out" });
+  assert.deepEqual(nextStageFor([row("role_spec", "terminal")], "m-1"), { action: "done", reason: "run_terminal" });
+});
+
+test("nextStageFor carries one branch JD → offer, parking at exactly the three gates", () => {
+  const ledger = fannedOut();
+  const walk: string[] = [];
+  for (let i = 0; i < 20; i += 1) {
+    const next = nextStageFor(ledger, "m-1");
+    if (next.action === "produce") {
+      walk.push(`produce ${next.kind}`);
+      ledger.push(row(next.kind, stageIsGated(next.kind) ? "awaiting_approval" : "complete", "m-1"));
+    } else if (next.action === "await_gate") {
+      walk.push(`gate ${next.kind} (${next.approvalKind})`);
+      ledger.push(row(next.kind, "complete", "m-1"));
+    } else {
+      walk.push(next.action === "done" ? `done ${next.reason}` : next.action);
+      break;
+    }
+  }
+
+  assert.deepEqual(walk, [
+    "produce screen",
+    "gate screen (rejection_review)",
+    "produce case_assignment",
+    "produce interview",
+    "gate interview (calendar)",
+    "produce scorecard",
+    "produce offer_draft",
+    "gate offer_draft (offer_review)",
+    "done offer_approved",
+  ]);
+  // A different branch in the same run is untouched by all of that.
+  assert.deepEqual(nextStageFor(ledger, "m-2"), { action: "produce", kind: "screen" });
+});
+
+test("a gate resolved as terminal ends the branch at each of the three gates", () => {
+  const before: Record<"screen" | "interview" | "offer_draft", [Row["kind"], Row["status"]][]> = {
+    screen: [],
+    interview: [
+      ["screen", "awaiting_approval"],
+      ["screen", "complete"],
+      ["case_assignment", "complete"],
+    ],
+    offer_draft: [
+      ["screen", "awaiting_approval"],
+      ["screen", "complete"],
+      ["case_assignment", "complete"],
+      ["interview", "awaiting_approval"],
+      ["interview", "complete"],
+      ["scorecard", "complete"],
+    ],
+  };
+  for (const kind of ["screen", "interview", "offer_draft"] as const) {
+    const ledger = [...fannedOut(), ...before[kind].map(([k, s]) => row(k, s, "b")), row(kind, "awaiting_approval", "b")];
+    assert.equal(nextStageFor(ledger, "b").action, "await_gate", `${kind} parks`);
+    ledger.push(row(kind, "terminal", "b"));
+    assert.deepEqual(nextStageFor(ledger, "b"), { action: "done", reason: "branch_terminal" }, `${kind} resolved terminal ends the branch`);
+  }
+});
+
+test("the read orders by seq, never by the order the rows were handed over", () => {
+  const ledger = [...fannedOut(), row("screen", "awaiting_approval", "m-1"), row("screen", "complete", "m-1")];
+  const reversed = [...ledger].reverse();
+  assert.deepEqual(nextStageFor(reversed, "m-1"), { action: "produce", kind: "case_assignment" });
+  assert.deepEqual(findRoleRunTransitionViolations(reversed), []);
+});
+
+test("a row the table forbids is reported, and the chain it sits on is never advanced", () => {
+  const cases: { name: string; ledger: Row[]; branch: string | null; reason: string; state: string }[] = [
+    {
+      name: "a gated stage written straight to complete (the gate skipped)",
+      ledger: [...fannedOut(), row("screen", "complete", "m-1")],
+      branch: "m-1",
+      reason: "unreachable",
+      state: "screen:complete",
+    },
+    {
+      name: "an ungated stage ending a candidacy on its own",
+      ledger: [...fannedOut(), row("screen", "awaiting_approval", "m-1"), row("screen", "complete", "m-1"), row("case_assignment", "terminal", "m-1")],
+      branch: "m-1",
+      reason: "unreachable",
+      state: "case_assignment:terminal",
+    },
+    {
+      name: "a stage skipped",
+      ledger: [...fannedOut(), row("screen", "awaiting_approval", "m-1"), row("screen", "complete", "m-1"), row("interview", "awaiting_approval", "m-1")],
+      branch: "m-1",
+      reason: "unreachable",
+      state: "interview:awaiting_approval",
+    },
+    {
+      name: "a branch artifact appended before the slate completed",
+      ledger: [row("role_spec", "complete"), row("screen", "awaiting_approval", "m-1"), row("slate", "complete")],
+      branch: "m-1",
+      reason: "before_fan_out",
+      state: "screen:awaiting_approval",
+    },
+    {
+      name: "a run-wide kind on a candidate branch",
+      ledger: [...fannedOut(), row("role_spec", "complete", "m-1")],
+      branch: "m-1",
+      reason: "wrong_chain",
+      state: "role_spec:complete",
+    },
+    {
+      name: "a second slate on the run-wide chain",
+      ledger: [...fannedOut(), row("slate", "complete")],
+      branch: null,
+      reason: "unreachable",
+      state: "slate:complete",
+    },
+  ];
+  for (const c of cases) {
+    const violations = findRoleRunTransitionViolations(c.ledger);
+    assert.equal(violations.length, 1, `${c.name}: exactly one violation`);
+    assert.equal(violations[0].reason, c.reason, c.name);
+    assert.equal(violations[0].state, c.state, c.name);
+    assert.equal(nextStageFor(c.ledger, c.branch).action, "invalid", `${c.name}: the resume read refuses to advance it`);
+  }
+  // A corrupt run-wide chain poisons every branch, not only its own.
+  assert.equal(nextStageFor([...fannedOut(), row("slate", "complete")], "m-9").action, "invalid");
+});
+
+test("a stage reads complete only when a legal complete row backs it", () => {
+  assert.deepEqual(completedStagesFor([], null), [], "no rows, nothing complete");
+  assert.deepEqual(completedStagesFor(fannedOut(), "m-1"), ["role_spec", "slate"], "a branch inherits the stages it fanned out from");
+
+  const parked = [...fannedOut(), row("screen", "awaiting_approval", "m-1")];
+  assert.deepEqual(completedStagesFor(parked, "m-1"), ["role_spec", "slate"], "a proposal is not a completed stage");
+
+  // An ILLEGAL complete row is a row, not a completion: the gate-skipped screen below
+  // exists in the ledger and still does not read as done.
+  const skipped = [...fannedOut(), row("screen", "complete", "m-1")];
+  assert.deepEqual(completedStagesFor(skipped, "m-1"), ["role_spec", "slate"]);
+  assert.equal(replayRoleRunChain(skipped, "m-1").head, "slate:complete");
 });

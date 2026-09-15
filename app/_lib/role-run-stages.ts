@@ -100,6 +100,243 @@ export function isRoleRunStageStatus(value: unknown): value is RoleRunStageStatu
   return typeof value === "string" && (ROLE_RUN_STAGE_STATUSES as readonly string[]).includes(value);
 }
 
+// --- THE TRANSITION TABLE AND THE RESUME READ (ADR-0009 §1) ------------------
+//
+// "Resuming a run is re-reading its last artifact." This section is that sentence as
+// code: which artifact may legally follow which, and — given nothing but the artifact
+// rows the store holds — what a chain is owed next. It is pure on purpose. A resume
+// rule that needs the engine's memory, or even a database handle, is a rule a restart
+// can disagree with; one that reads rows alone makes a crash, a `next start`, the
+// 20-minute pass ceiling and a candidate who answers on Thursday the same case.
+
+/** One artifact's position on its chain: its kind and what it said. */
+export type RoleRunStageState = `${RoleRunStageKind}:${RoleRunStageStatus}`;
+
+/** Where a chain stands. `start` is the run-wide chain before its first artifact; a
+ *  candidate branch with no artifacts stands at the run-wide `slate:complete`, which is
+ *  the fan-out. */
+export type RoleRunChainHead = "start" | RoleRunStageState;
+
+/** The legal transition table: for each position, the states that may be appended
+ *  next on the same chain. Written out rather than derived, so the rule a reviewer
+ *  reads is the rule that runs; role-run-stages.test.ts pins it against ROLE_RUN_STAGES
+ *  and STAGE_GATE so it cannot drift from either.
+ *
+ *  Keyed by every (kind, status) pair, so adding a stage or a status without deciding
+ *  what may follow it is a compile error. Three rules shape it:
+ *   - A GATED stage's first artifact is `awaiting_approval`, and only a resolution of
+ *     the same kind (`complete` or `terminal`) may follow it. A gated stage written
+ *     straight to `complete` is the gate skipped, so it is unreachable.
+ *   - An UNGATED per-candidate stage is only ever `complete`. Ending a candidacy is felt
+ *     by the candidate (ADR-0009 §3: "any later stage that would end a candidacy"), so
+ *     it happens at a gate, never as a side effect of a case or a scorecard.
+ *   - A run-wide stage may be `terminal` (the job is gone). That ends the run, and it
+ *     is a fact about an opening, not a decision about a person. */
+export const ROLE_RUN_TRANSITIONS: Readonly<Record<RoleRunChainHead, readonly RoleRunStageState[]>> = {
+  start: ["role_spec:complete", "role_spec:terminal"],
+  "role_spec:complete": ["slate:complete", "slate:terminal"],
+  "role_spec:awaiting_approval": [],
+  "role_spec:terminal": [],
+  // The fan-out. After the slate the run-wide chain is over, and every candidate branch
+  // chains off this position instead of `start`.
+  "slate:complete": ["screen:awaiting_approval"],
+  "slate:awaiting_approval": [],
+  "slate:terminal": [],
+  "screen:awaiting_approval": ["screen:complete", "screen:terminal"],
+  "screen:complete": ["case_assignment:complete"],
+  "screen:terminal": [],
+  "case_assignment:complete": ["interview:awaiting_approval"],
+  "case_assignment:awaiting_approval": [],
+  "case_assignment:terminal": [],
+  "interview:awaiting_approval": ["interview:complete", "interview:terminal"],
+  "interview:complete": ["scorecard:complete"],
+  "interview:terminal": [],
+  "scorecard:complete": ["offer_draft:awaiting_approval"],
+  "scorecard:awaiting_approval": [],
+  "scorecard:terminal": [],
+  "offer_draft:awaiting_approval": ["offer_draft:complete", "offer_draft:terminal"],
+  // An approved offer gate. Nothing follows it on the ledger: the run drafts, and the
+  // gate commit is what mints.
+  "offer_draft:complete": [],
+  "offer_draft:terminal": [],
+};
+
+export function stageStateOf(artifact: { kind: RoleRunStageKind; status: RoleRunStageStatus }): RoleRunStageState {
+  return `${artifact.kind}:${artifact.status}`;
+}
+
+export function isLegalRoleRunTransition(from: RoleRunChainHead, to: RoleRunStageState): boolean {
+  return ROLE_RUN_TRANSITIONS[from].includes(to);
+}
+
+/** The fields of an artifact row the resume read needs. Structural, so the store's
+ *  RoleRunStageArtifact satisfies it and this module stays DB-free. */
+export type RoleRunArtifactRow = {
+  kind: RoleRunStageKind;
+  status: RoleRunStageStatus;
+  /** null = the run-wide chain; an entry id = that candidate's branch. */
+  branchRef: string | null;
+  /** The run's own clock (db/role-runs.ts). The read orders by it, never by array order. */
+  seq: number;
+};
+
+export type RoleRunTransitionViolation = {
+  seq: number;
+  branchRef: string | null;
+  state: RoleRunStageState;
+  /** Where the chain stood when this artifact was appended. */
+  after: RoleRunChainHead;
+  reason:
+    | "unreachable" // the table has no edge from `after` to `state`
+    | "wrong_chain" // a run-wide kind on a branch, or a per-candidate kind on the run-wide chain
+    | "before_fan_out"; // a branch artifact appended before the run-wide slate completed
+};
+
+export type RoleRunChainReplay = {
+  /** Where the chain stands after every legal artifact. */
+  head: RoleRunChainHead;
+  /** The legal states the chain passed through, oldest first. */
+  states: RoleRunStageState[];
+  violations: RoleRunTransitionViolation[];
+};
+
+function chainRows(artifacts: readonly RoleRunArtifactRow[], branchRef: string | null): RoleRunArtifactRow[] {
+  return artifacts.filter((a) => a.branchRef === branchRef).sort((a, b) => a.seq - b.seq);
+}
+
+function replayRows(
+  rows: readonly RoleRunArtifactRow[],
+  branchRef: string | null,
+  initial: RoleRunChainHead,
+  fanOutSeq: number | null
+): RoleRunChainReplay {
+  const replay: RoleRunChainReplay = { head: initial, states: [], violations: [] };
+  for (const row of rows) {
+    const state = stageStateOf(row);
+    const violation = (reason: RoleRunTransitionViolation["reason"]) =>
+      replay.violations.push({ seq: row.seq, branchRef, state, after: replay.head, reason });
+    // An illegal row is reported and SKIPPED, so the rows after it are still judged
+    // against the last position the chain legally reached rather than all cascading.
+    if (isRunWideStage(row.kind) !== (branchRef === null)) {
+      violation("wrong_chain");
+    } else if (branchRef !== null && (fanOutSeq === null || row.seq < fanOutSeq)) {
+      violation("before_fan_out");
+    } else if (!isLegalRoleRunTransition(replay.head, state)) {
+      violation("unreachable");
+    } else {
+      replay.head = state;
+      replay.states.push(state);
+    }
+  }
+  return replay;
+}
+
+function replayRunWide(artifacts: readonly RoleRunArtifactRow[]): RoleRunChainReplay & { fanOutSeq: number | null } {
+  const rows = chainRows(artifacts, null);
+  const replay = replayRows(rows, null, "start", null);
+  const fanOut = replay.head === "slate:complete" ? rows.find((r) => stageStateOf(r) === "slate:complete") : undefined;
+  return { ...replay, fanOutSeq: fanOut?.seq ?? null };
+}
+
+/** Replay one chain — `branchRef` null for the run-wide chain — from artifact rows alone.
+ *  A branch is judged against the run-wide chain it fanned out from, so a branch row
+ *  appended before the slate completed is a violation even if the slate completed later. */
+export function replayRoleRunChain(artifacts: readonly RoleRunArtifactRow[], branchRef: string | null): RoleRunChainReplay {
+  const runWide = replayRunWide(artifacts);
+  if (branchRef === null) return { head: runWide.head, states: runWide.states, violations: runWide.violations };
+  return replayRows(chainRows(artifacts, branchRef), branchRef, "slate:complete", runWide.fanOutSeq);
+}
+
+/** Every artifact in a run that the transition table says could not exist, across the
+ *  run-wide chain and every branch. Empty = the ledger is a chain the engine could have
+ *  written. The contract test runs this over real runs; a caller can run it over a
+ *  ledger before trusting it. */
+export function findRoleRunTransitionViolations(artifacts: readonly RoleRunArtifactRow[]): RoleRunTransitionViolation[] {
+  const branches = [...new Set(artifacts.map((a) => a.branchRef).filter((b): b is string => b !== null))];
+  return [
+    ...replayRoleRunChain(artifacts, null).violations,
+    ...branches.flatMap((b) => replayRoleRunChain(artifacts, b).violations),
+  ].sort((a, b) => a.seq - b.seq);
+}
+
+/** The stages a chain has completed, read from its rows and nothing else. A branch
+ *  counts the run-wide stages it fanned out from. This is the only answer to "has this
+ *  stage completed" — a stage with no `complete` row on the legal replay has not. */
+export function completedStagesFor(artifacts: readonly RoleRunArtifactRow[], branchRef: string | null): RoleRunStageKind[] {
+  const own = replayRoleRunChain(artifacts, branchRef).states;
+  const inherited = branchRef === null ? [] : replayRoleRunChain(artifacts, null).states;
+  return [...inherited, ...own].filter((s) => s.endsWith(":complete")).map((s) => s.slice(0, s.indexOf(":")) as RoleRunStageKind);
+}
+
+/** What a chain is owed next. */
+export type RoleRunNextStage =
+  /** Run this stage's runner and append what it returns. */
+  | { action: "produce"; kind: RoleRunStageKind }
+  /** Parked on a human: nothing runs until the gate commit appends the resolution. */
+  | { action: "await_gate"; kind: RoleRunStageKind; approvalKind: ApprovalKind }
+  /** A branch asked about before the run-wide chain reached the slate. */
+  | { action: "await_fan_out" }
+  | { action: "done"; reason: "run_terminal" | "fanned_out" | "branch_terminal" | "offer_approved" }
+  /** The ledger holds a row the transition table forbids. Nothing is advanced over a
+   *  chain whose history cannot be true — ADR-0008: a state the rows cannot back is not
+   *  read as progress. */
+  | { action: "invalid"; violations: RoleRunTransitionViolation[] };
+
+/** THE RESUME READ. Turns "what artifacts exist" into "what runs next", from the rows
+ *  alone — no cursor column, no in-memory progress, no database handle. `branchRef`
+ *  null asks about the run-wide chain (role spec, slate); an entry id asks about that
+ *  candidate's branch. Pass every artifact of the run: the function selects the chain. */
+export function nextStageFor(artifacts: readonly RoleRunArtifactRow[], branchRef: string | null = null): RoleRunNextStage {
+  const runWide = replayRunWide(artifacts);
+  // A corrupt run-wide chain makes every branch's premise unknown, so it poisons them all.
+  if (runWide.violations.length > 0) return { action: "invalid", violations: runWide.violations };
+  if (runWide.head.endsWith(":terminal")) return { action: "done", reason: "run_terminal" };
+
+  if (branchRef === null) {
+    if (runWide.head === "slate:complete") return { action: "done", reason: "fanned_out" };
+    return headAction(runWide.head);
+  }
+
+  if (runWide.head !== "slate:complete") return { action: "await_fan_out" };
+  const branch = replayRows(chainRows(artifacts, branchRef), branchRef, "slate:complete", runWide.fanOutSeq);
+  if (branch.violations.length > 0) return { action: "invalid", violations: branch.violations };
+  if (branch.head.endsWith(":terminal")) return { action: "done", reason: "branch_terminal" };
+  if (branch.head === "offer_draft:complete") return { action: "done", reason: "offer_approved" };
+  return headAction(branch.head);
+}
+
+function headAction(head: RoleRunChainHead): RoleRunNextStage {
+  if (head !== "start" && head.endsWith(":awaiting_approval")) {
+    const kind = head.slice(0, head.indexOf(":")) as RoleRunStageKind;
+    const approvalKind = STAGE_GATE[kind];
+    // Unreachable on a legal chain — only a gated stage can be parked — but a missing
+    // gate must never read as "produce": that would advance a branch nobody approved.
+    if (approvalKind === null) throw new Error(`role run stage "${kind}" is parked but has no gate`);
+    return { action: "await_gate", kind, approvalKind };
+  }
+  // Every successor of a non-parked position shares one kind (pinned by the test), so
+  // the first one names the stage to produce.
+  const successor = ROLE_RUN_TRANSITIONS[head][0];
+  if (!successor) throw new Error(`role run chain at "${head}" has no successor and is not terminal`);
+  return { action: "produce", kind: successor.slice(0, successor.indexOf(":")) as RoleRunStageKind };
+}
+
+/** Thrown when a runner returns a status the transition table forbids at that
+ *  position — for example a gated stage returned as `complete`, which is the gate
+ *  skipped. Raised before the append, so the forbidden row is never written. */
+export class RoleRunTransitionError extends Error {
+  readonly from: RoleRunChainHead;
+  readonly to: RoleRunStageState;
+  constructor(from: RoleRunChainHead, to: RoleRunStageState, branchRef: string | null) {
+    super(
+      `role run transition ${from} → ${to} is not in the transition table (branch ${branchRef ?? "run-wide"}; ADR-0009)`
+    );
+    this.name = "RoleRunTransitionError";
+    this.from = from;
+    this.to = to;
+  }
+}
+
 // --- THE PII RULE (ADR-0009 §5) ----------------------------------------------
 //
 // "A role_run_stage payload may contain identifiers, scores, codes and hashes. It may

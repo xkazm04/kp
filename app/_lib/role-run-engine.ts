@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
 import {
-  ROLE_RUN_STAGES,
-  isRunWideStage,
-  nextRoleRunStage,
+  RoleRunTransitionError,
+  isLegalRoleRunTransition,
+  nextStageFor,
+  replayRoleRunChain,
   stageIsGated,
+  stageStateOf,
   type CaseAssignmentPayload,
   type InterviewPayload,
   type OfferDraftPayload,
+  type RoleRunNextStage,
   type RoleRunStageKind,
   type RoleRunStageStatus,
   type RoleSpecPayload,
@@ -20,6 +23,7 @@ import {
   getRoleRun,
   latestBranchArtifact,
   latestStageArtifact,
+  listStageArtifacts,
   setRoleRunStatus,
   type RoleRun,
   type RoleRunStageArtifact,
@@ -305,16 +309,11 @@ function branchesOf(run: RoleRun, workspaceId: string): string[] {
   return (payload?.candidates ?? []).map((c) => c.candidateRef).filter(Boolean);
 }
 
-/** What a branch is owed next, or null when it owes nothing (parked, terminal, or it
- *  has produced every stage). This is the ENTIRE resume rule — one read, no bookkeeping
- *  column, no in-memory cursor. */
-function nextStageForBranch(run: RoleRun, branchRef: string, workspaceId: string): RoleRunStageKind | null {
-  const latest = latestBranchArtifact(run.id, branchRef, workspaceId);
-  // No per-candidate artifact yet: the branch starts at the first non-run-wide stage.
-  if (!latest) return ROLE_RUN_STAGES.find((k) => !isRunWideStage(k)) ?? null;
-  // Parked on a human, or over. Either way this pass does not touch it.
-  if (latest.status !== "complete") return null;
-  return nextRoleRunStage(latest.kind);
+/** What a chain is owed next — `branchRef` null for the run-wide chain. The resume rule
+ *  itself is nextStageFor in role-run-stages.ts, a pure read over the artifact rows;
+ *  this only hands it the ledger. No bookkeeping column, no in-memory cursor. */
+function resumeRead(run: RoleRun, branchRef: string | null, workspaceId: string): RoleRunNextStage {
+  return nextStageFor(listStageArtifacts(run.id, workspaceId), branchRef);
 }
 
 /** Advance a run by up to `maxStages` artifacts and return. Idempotent in the sense that
@@ -336,6 +335,14 @@ export async function advanceRoleRun(
 
   const runStage = async (kind: RoleRunStageKind, branchRef: string | null, previous: RoleRunStageArtifact | null) => {
     const outcome = await runners[kind]({ run, kind, branchRef, previous, workspaceId, now });
+    // The runner seam is where the richer engines attach, so it is also where a gate
+    // could be skipped: a screen runner that returns `complete` has rejected nobody and
+    // advanced everybody without a human. The transition table is checked against the
+    // chain as it stands NOW (re-read, not remembered) and a forbidden row is never
+    // written.
+    const { head } = replayRoleRunChain(listStageArtifacts(run.id, workspaceId), branchRef);
+    const state = stageStateOf({ kind, status: outcome.status });
+    if (!isLegalRoleRunTransition(head, state)) throw new RoleRunTransitionError(head, state, branchRef);
     const artifact = appendStageArtifact(
       { runId: run.id, kind, branchRef, status: outcome.status, payload: outcome.payload },
       workspaceId
@@ -344,29 +351,24 @@ export async function advanceRoleRun(
     return artifact;
   };
 
+  const cancelled = (): AdvanceResult => {
+    // A terminal run-wide artifact (no job, for instance) ends the run: there are no
+    // branches to fan out to, and re-running S0 every pass would just re-fail.
+    setRoleRunStatus(run.id, "cancelled", workspaceId);
+    return { runId: run.id, status: "cancelled", produced, awaiting: [], ceilingHit };
+  };
+
   if (run.status === "running") {
     // --- run-wide stages, in order, at most once each -------------------------
-    for (const kind of ROLE_RUN_STAGES.filter(isRunWideStage)) {
+    for (let next = resumeRead(run, null, workspaceId); ; next = resumeRead(run, null, workspaceId)) {
+      if (next.action === "done" && next.reason === "run_terminal") return cancelled();
+      if (next.action !== "produce") break;
       if (produced.length >= maxStages) {
         ceilingHit = true;
         break;
       }
-      const existing = latestStageArtifact(run.id, kind, null, workspaceId);
-      if (existing) {
-        // A terminal run-wide artifact (no job, for instance) ends the run: there are no
-        // branches to fan out to and re-running S0 every pass would just re-fail.
-        if (existing.status === "terminal") {
-          setRoleRunStatus(run.id, "cancelled", workspaceId);
-          return { runId: run.id, status: "cancelled", produced, awaiting: [], ceilingHit };
-        }
-        continue;
-      }
-      const previous = kind === "slate" ? latestStageArtifact(run.id, "role_spec", null, workspaceId) : null;
-      const artifact = await runStage(kind, null, previous);
-      if (artifact.status === "terminal") {
-        setRoleRunStatus(run.id, "cancelled", workspaceId);
-        return { runId: run.id, status: "cancelled", produced, awaiting: [], ceilingHit };
-      }
+      const previous = next.kind === "slate" ? latestStageArtifact(run.id, "role_spec", null, workspaceId) : null;
+      await runStage(next.kind, null, previous);
     }
 
     // --- per-candidate branches ----------------------------------------------
@@ -384,34 +386,33 @@ export async function advanceRoleRun(
           ceilingHit = true;
           break;
         }
-        const kind = nextStageForBranch(run, branchRef, workspaceId);
-        if (!kind) continue;
+        const next = resumeRead(run, branchRef, workspaceId);
+        // Parked, over, or a chain whose rows cannot be true: this pass does not touch it.
+        if (next.action !== "produce") continue;
         const previous = latestBranchArtifact(run.id, branchRef, workspaceId) ?? latestStageArtifact(run.id, "slate", null, workspaceId);
-        await runStage(kind, branchRef, previous);
+        await runStage(next.kind, branchRef, previous);
         movedThisRound = true;
       }
     }
   }
 
   // --- where the run stands now ----------------------------------------------
+  // Read through the same resume rule the pass used, so "where a branch stands" and
+  // "what a branch is owed" can never be two answers.
   const branches = branchesOf(run, workspaceId);
+  const artifacts = listStageArtifacts(run.id, workspaceId);
   const awaiting: AdvanceResult["awaiting"] = [];
   let allTerminal = branches.length > 0;
   for (const branchRef of branches) {
-    const latest = latestBranchArtifact(run.id, branchRef, workspaceId);
-    if (!latest) {
-      allTerminal = false;
-      continue;
-    }
-    if (latest.status === "awaiting_approval") {
-      allTerminal = false;
-      const gate = gateForStage(latest.kind);
+    const next = nextStageFor(artifacts, branchRef);
+    if (next.action === "await_gate") {
+      const gate = gateForStage(next.kind);
       if (gate) awaiting.push({ branchRef, gate });
-    } else if (latest.status === "complete") {
-      // A branch that has produced every stage and is not parked has nowhere to go; it
-      // is only terminal once the offer gate resolves it. `nextRoleRunStage` null with
-      // status complete means the offer gate was APPROVED, which is a hired branch.
-      if (nextRoleRunStage(latest.kind) !== null) allTerminal = false;
+    }
+    // Terminal means the candidacy is over: resolved at a gate that ended it, or an
+    // approved offer (a hired branch). Anything else is still owed something.
+    if (!(next.action === "done" && (next.reason === "branch_terminal" || next.reason === "offer_approved"))) {
+      allTerminal = false;
     }
   }
 
@@ -459,7 +460,11 @@ export function commitRoleRunStageGate(
 
   const kind = GATE_STAGE[input.gate];
   const parked = latestStageArtifact(input.runId, kind, input.branchRef, workspaceId);
-  if (!parked || parked.status !== "awaiting_approval") {
+  // The branch's HEAD must be this gate, not merely some artifact of this kind: the
+  // resolution is only a legal next row from `<kind>:awaiting_approval`. Checked before
+  // the approval is spent, so a refused commit does not burn the recruiter's token.
+  const { head } = replayRoleRunChain(listStageArtifacts(input.runId, workspaceId), input.branchRef);
+  if (!parked || parked.status !== "awaiting_approval" || head !== stageStateOf(parked)) {
     throw new Error(`branch ${input.branchRef} is not parked at the ${input.gate} gate`);
   }
 
