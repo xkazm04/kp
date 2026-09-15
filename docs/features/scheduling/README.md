@@ -320,7 +320,7 @@ End-to-end coverage (real routes, stubbed Google edge):
 ## What the week grid says about a time
 
 The recruiter grid (`app/features/hiring/schedule/ScheduleCalendar.tsx`) renders
-wall-clock cells in the interview zone. Three things it now states, and used to
+wall-clock cells in the interview zone. Four things it now states, and used to
 leave to inference:
 
 - **Which zone.** A note under the pager reads "All times in the interview
@@ -330,6 +330,11 @@ leave to inference:
   silently report the `Europe/Prague` default on an install configured otherwise,
   which is worse than saying nothing. The short label (`GMT+2`) is derived from a
   real instant in the visible week, so it is DST-correct.
+- **Which calendar day.** The grid's Confirm posts a dated cell
+  (`YYYY-MM-DD HH:MM`) through `dateSlotToIso`; that resolver only accepts an
+  exact calendar date in the interview zone. Impossible dates such as
+  `2026-04-31` return the same unresolved-slot refusal as malformed picks instead
+  of rolling into the next real day.
 - **Whether the time is agreed.** A cell is seeded from a **confirmed invite**,
   else the legacy free-text `approvalDetail`, else a flat `Tue 14:00` guess — and
   all three used to render identically. The provenance now rides with the pick
