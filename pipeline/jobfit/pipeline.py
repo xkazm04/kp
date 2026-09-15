@@ -40,7 +40,7 @@ from .models import (
 )
 from .market_config import ACTIVE_MARKET, MarketConfig
 from .profiling import build_profile
-from .salary_band import SALARY_PLAUSIBILITY_CEILING, round_salary
+from .salary_band import round_salary
 from .taxonomy import (
     DEFAULT_FAMILY,
     ROLE_FAMILY_SET,

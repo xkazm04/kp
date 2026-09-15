@@ -24,7 +24,7 @@ from ...claude_cli import ClaudeCliProvider
 from . import app_client, audio
 from .el_ws import ElVoiceSession
 from .seal import refuse_if_offline
-from .wer import WerResult, corpus_entity_fidelity, corpus_wer, entity_fidelity, normalize, wer
+from .wer import WerResult, corpus_entity_fidelity, corpus_wer, normalize, wer
 
 # Speech streams at REAL-TIME pace, so every word costs ElevenLabs seconds. A written-style answer
 # ran 25 s in the first V0 run.

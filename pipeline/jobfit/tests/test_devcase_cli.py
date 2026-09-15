@@ -261,7 +261,7 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
                     ["design-artifacts", "--no-llm", "--need-json", str(need), "--analysis-json", str(analysis)]
                 )
             self.assertEqual(code, 0)
-            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(rows), 2)  # one per deterministic step: role, case
         for row in rows:
             self.assertEqual(row["source"], "deterministic")
@@ -287,7 +287,7 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
             self._assert_envelope(payload)
             self.assertEqual(set(payload["result"]), {"role"}, "case must be skipped")
             self.assertEqual(set(payload["perStepSources"]), {"role"})
-            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(rows), 1)  # only the role step ran
 
 
