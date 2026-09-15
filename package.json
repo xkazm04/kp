@@ -45,6 +45,8 @@
     "test:eval:ci": "npm run test:eval:match && npm run test:eval:automation && npm run test:eval:fault",
     "i18n:check": "node scripts/i18n-check.mjs",
     "copy:check": "node .claude/skills/native-copy/scripts/copy-check.mjs",
+    "kpi:role-run-anchors": "node scripts/kpi/role-run-anchors.mjs",
+    "kpi:explainability": "node scripts/kpi/explainability-reason-coverage.mjs",
     "docs:check": "node scripts/docs/check-adrs.mjs",
     "docs:check:diff": "node scripts/docs/check-doc-sync-diff.mjs",
     "guidance:check": "node scripts/docs/check-guidance.mjs",
