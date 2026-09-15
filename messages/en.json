@@ -1972,7 +1972,8 @@
       "human": "Human decision",
       "humanReviewNote": "You can request a human review of any decision at any time. Just reply to any message from the hiring team.",
       "reasons": {
-        "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}."
+        "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}.",
+        "rubric": "The decisive facts, by competency:"
       },
       "kinds": {
         "auto_rejected": "Application not progressed at automated screening",

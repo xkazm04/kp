@@ -1972,7 +1972,8 @@
       "human": "Décision humaine",
       "humanReviewNote": "Vous pouvez à tout moment demander un réexamen humain de toute décision. Il vous suffit de répondre à n’importe quel message de l’équipe de recrutement.",
       "reasons": {
-        "reject": "Les éléments décisifs : votre score de correspondance de {score} était inférieur au seuil de présélection de {threshold}."
+        "reject": "Les éléments décisifs : votre score de correspondance de {score} était inférieur au seuil de présélection de {threshold}.",
+        "rubric": "Les éléments décisifs, par compétence :"
       },
       "kinds": {
         "auto_rejected": "Candidature non retenue lors de la présélection automatisée",
