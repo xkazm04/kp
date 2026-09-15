@@ -498,7 +498,7 @@ protocol is small enough to state in full.
 
 | Direction | Shape |
 | --- | --- |
-| in | `argv`. Large inputs are written to a temp workdir and passed as `--input-json <path>` (`createWorkdir` / `persistFile`), never on the command line |
+| in | `argv`. Large inputs are written to a temp workdir and passed as `--input-json <path>` (`createWorkdir` / `persistFile`), never on the command line. Spawned with `shell: false`, so no element is ever re-split. A short value that came from a request, a candidate or a stored row travels as ONE `--flag=value` element built by `flagArg`, so argparse cannot read a leading `-` as an option; `assertSpawnArgs` rejects a non-string or NUL-bearing element before a slot is taken (`app/_lib/python-runner-option-injection.test.ts`) |
 | in | env: `KP_LLM_CONFIG` (the routing from [`app/_lib/llm-config.ts`](../../app/_lib/llm-config.ts)), plus a per-call LLM-usage sidecar path |
 | out, success | **one** `json.dumps` line on **stdout**, an object or array |
 | out, failure | a JSON object on the **last non-empty stderr line**: `{ error, status, code }` |
