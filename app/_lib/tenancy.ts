@@ -195,6 +195,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // filters/stamps workspace_id; a leaked intake id never resolves across
   // tenants (intakes-tenancy.test.ts).
   "role_intakes",
+  // A role's frozen, versioned rubric (db/role-rubrics.ts, ADR-0010 §2): operator-
+  // internal, no public token, so every statement — point reads included — binds
+  // workspace_id. The version UNIQUE is (workspace_id, job_id, version) because
+  // shared-corpus jobs carry a NULL workspace and two teams may each freeze their
+  // own rubric for the same job (role-rubrics-tenancy.test.ts).
+  "role_rubrics",
   // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
   // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
   // reads) + team-private drafts (workspace_id = team). Every read/write filters on

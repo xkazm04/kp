@@ -28,7 +28,7 @@ done
 
 [ "$targets_main" = "1" ] || exit 0
 
-echo "pre-push: push targets main — running the gate (constitution, agent review, typecheck, lint, ts-ratchet, design, build)..." >&2
+echo "pre-push: push targets main — running the gate (constitution, agent review, typecheck, lint, ts-ratchet, design, copy, build)..." >&2
 
 # Both lenses compare against `origin/main`, and nothing here ever fetched it.
 # In a clone whose remote-tracking ref was stale the range was wrong; in one where
@@ -90,6 +90,15 @@ npm run lint      || { echo "pre-push: lint failed — push blocked." >&2; exit 
 # direct push, and a gate that reports after the fact is not the gate.
 npm run lint:ts-ratchet || { echo "pre-push: ts-ratchet failed — a suppression has no declared ceiling or grew past it. See ts-debt.json." >&2; exit 1; }
 npm run design:check || { echo "pre-push: design:check failed — push blocked. See docs/design/README.md." >&2; exit 1; }
+# The English copy gate (docs/i18n/style-en.md, docs/i18n/copy-contract.json). It blocks
+# only NEW error-level findings; today's debt is in .ai/copy-baseline.json. The checker
+# is the registry's native-copy skill, a gitignored link, so a fresh clone does not have
+# it: skip LOUDLY rather than read the absence as a pass. Not in CI for the same reason.
+if [ -f .claude/skills/native-copy/scripts/copy-check.mjs ]; then
+  npm run copy:check -- --errors-only || { echo "pre-push: copy:check found new copy errors — push blocked. See docs/i18n/style-en.md." >&2; exit 1; }
+else
+  echo "pre-push: native-copy checker not installed - copy gate SKIPPED (run ai-registry/scripts/link-registry.mjs)" >&2
+fi
 npm run build     || { echo "pre-push: build failed — push blocked." >&2; exit 1; }
 
 echo "pre-push: gate green — pushing." >&2

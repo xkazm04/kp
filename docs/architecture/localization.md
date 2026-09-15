@@ -398,6 +398,15 @@ per-locale style guides now defer for dash policy. It applies to catalog values
 only: code comments, `docs/`, and commit messages are not user-facing and are out
 of scope.
 
+`npm run i18n:check` enforces it over every string at any depth, including list
+items and objects inside lists (addressed as `landing.voice.transcript[0]`), and
+the same walk feeds the ICU compile, placeholder parity and a list-length parity
+check (`scripts/i18n/catalog-check.mjs`). The gate prints how many strings it
+checked beside an independent count of the strings in the catalogs, and fails if
+they differ. Until 2026-09-14 it stored a list as one opaque value and printed a
+key count, so 62 list strings per locale sat outside all of these checks, and the
+output could not show it.
+
 ## Two readers: the UI user and the document reader
 
 Every string belongs on one of two sides, and the side decides the mechanism.
