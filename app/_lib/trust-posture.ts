@@ -261,6 +261,22 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
     providers: ["claude_cli"],
   },
   {
+    // A loopback hop, not a processor of its own: lt-gateway forwards the prompt to the
+    // Claude Code CLI and to the Codex CLI (a ChatGPT seat), failing over between them on a
+    // usage limit, so this row inherits the consumer-seat posture of the CLI row above.
+    name: "LightTrack gateway (Claude Code CLI + Codex CLI)",
+    purpose: "The same consumer-seat engines reached through a local routing gateway that picks the seat per use case and fails over on a usage limit",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "depends_on_tier",
+    retention: "As the seat behind the route: 30 days on a business plan; five years on a personal plan with training left on",
+    euRegion: "not_offered",
+    transferBasis: "unknown",
+    verifiedOn: "2026-09-15",
+    note: "Runs under the operator's own Anthropic and OpenAI accounts. Refused on a production deployment unless KP_ALLOW_CLI_ENGINE=1, and sealed under KP_OFFLINE, exactly like the Claude Code CLI row.",
+    providers: ["gateway"],
+  },
+  {
     name: "OpenAI",
     purpose: "Text model; realtime voice interviews",
     optional: true,

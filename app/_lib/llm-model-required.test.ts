@@ -42,10 +42,18 @@ test("capabilities.py still declares DEFAULT_MODELS in the shape this test reads
 test("MODEL_REQUIRED_PROVIDERS matches the Python providers with no default model", () => {
   const defaults = defaultModelsFromPython();
   const expected = Object.entries(defaults)
-    .filter(([provider, hasDefault]) => !hasDefault && provider !== "claude_cli")
+    // claude_cli and gateway are the two Nones that mean a DERIVED default, not a
+    // missing one (the CLI's own configured model; the route named after the use case).
+    .filter(([provider, hasDefault]) => !hasDefault && provider !== "claude_cli" && provider !== "gateway")
     .map(([provider]) => provider)
     .sort();
   assert.deepEqual([...MODEL_REQUIRED_PROVIDERS].sort(), expected);
+});
+
+test("gateway is excluded deliberately: its None means the route named after the use case", () => {
+  const defaults = defaultModelsFromPython();
+  assert.equal(defaults["gateway"], false, "gateway should still be None in DEFAULT_MODELS");
+  assert.ok(!(MODEL_REQUIRED_PROVIDERS as readonly string[]).includes("gateway"));
 });
 
 test("claude_cli is excluded deliberately: its None means the CLI's own default", () => {
