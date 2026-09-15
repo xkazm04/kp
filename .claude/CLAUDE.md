@@ -92,8 +92,9 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   alternates, no theme flash — filtered as
                               #   `shell.spec`, not `shell`)
                               # + journey-role-to-schedule + journey-one-thread
-                              # + activity-detail (Insights → Activity row detail,
-                              #   incl. the null-request_id degraded case)
+                              # + activity-detail (Insights → Activity row detail:
+                              #   drives one keyless campaign task so the ledger
+                              #   has a row linked to its run — no empty-ledger skip)
                               # + analytics-sections (the ?sec= switcher, its
                               #   fallback, and that it writes nothing to the URL)
                               # + jds-pipeline-column (the JD ledger's merged
