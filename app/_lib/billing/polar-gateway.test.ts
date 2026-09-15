@@ -14,6 +14,7 @@ const CFG = {
   accessToken: "unit-token",
   server: "sandbox" as const,
   webhookSecret: null,
+  apiVersion: null,
   products: { starter: "prod_starter", growth: null, byom: null, minutePack: "prod_pack" },
 };
 

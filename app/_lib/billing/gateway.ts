@@ -36,6 +36,12 @@ export type BillingEvent = {
   // pre-org subscriptions and hand-built test events — the ingest then falls
   // back to the stored-state lookup, then the default org (sync.resolveBillingOrg).
   orgId?: string | null;
+  // The provider contract version this payload was serialized under, as the
+  // delivery declared it. Optional so hand-built events and providers that publish
+  // no versions may omit it; null/absent means "not declared", never "current".
+  // Provenance only — no decision reads it, it is what makes a field whose meaning
+  // moved between contracts diagnosable after the fact.
+  apiVersion?: string | null;
   raw: unknown;
 };
 
