@@ -12,7 +12,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
 import { BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
 import { canStart, voiceStartGate, type AvailabilityProbe } from "./availability-gate";
-import { createTimerRegistry } from "./timer-registry";
+import { armConnectTimeout, createTimerRegistry } from "./timer-registry";
 // Default + fallback provider order, single-sourced in voice/types (browser-safe
 // pure data) so the picker can't default to a different provider than the server's
 // pickDefaultProvider — they previously kept inverted copies.
@@ -231,8 +231,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     providerRef.current = provider;
   }, [provider]);
 
+  // cancelAll, never clearAll: clearAll latches the registry for teardown, and a
+  // latched registry drops every later timer — the connect timeout included.
   const clearConnectTimer = useCallback(() => {
-    timersRef.current.clearAll();
+    timersRef.current.cancelAll();
   }, []);
 
   const pushTurn = useCallback((role: VoiceTurn["role"], text: string) => {
@@ -504,6 +506,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
 
   // Teardown on unmount.
   useEffect(() => {
+    // A remount after a teardown (StrictMode's mount → unmount → mount in dev)
+    // finds the registry latched; every timer it scheduled would be dropped.
+    if (timersRef.current.cleared) timersRef.current = createTimerRegistry();
     // Copied inside the effect: the cleanup must clear THIS call's registry, not
     // whatever the ref points at by the time React runs the teardown.
     const timers = timersRef.current;
@@ -606,8 +611,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     sessionTokenRef.current = null;
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
-    clearConnectTimer();
-    timersRef.current.set(() => {
+    armConnectTimeout(timersRef.current, () => {
       finalizedRef.current = true; // don't POST a transcript for a failed connect
       teardownOpenAi();
       try {
