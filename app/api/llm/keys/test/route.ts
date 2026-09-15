@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildProviderKeyProbeEnv, isKeyableProvider, providerNeedsExplicitModel } from "@/app/_lib/llm-config";
-import { spawnPython } from "@/app/_lib/python-runner";
+import { flagArg, spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const { result } = spawnPython(
-      ["-m", "pipeline.jobfit.llm.test_cli", "--provider", provider, ...(model ? ["--model", model] : [])],
+      // `model` is free text from the request body: = form (flagArg in python-runner.ts).
+      ["-m", "pipeline.jobfit.llm.test_cli", "--provider", provider, ...(model ? [flagArg("--model", model)] : [])],
       { signal: request.signal, timeoutMs: 90_000, env: configEnv }
     );
     const { stdout, stderr, exitCode } = await result;

@@ -5,7 +5,7 @@ import { lookupPromptCache, storePromptCache } from "./db/analyses";
 import { getJob, listCorpusJobs } from "./db/jobs";
 import { buildLlmConfigEnv } from "./llm-config";
 import { resolveMatchInput, materializeMatchInput, type MatchInputBody } from "./match-input";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, flagArg, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning, narrativeLangFor } from "./reasoning-cache-policy";
@@ -138,8 +138,8 @@ export async function runReasoning(
       "-m",
       "pipeline.jobfit.reasoning_cli",
       ...inputArgs,
-      "--job-id",
-      String(body.jobId),
+      // Straight from the request body: = form (flagArg in python-runner.ts).
+      flagArg("--job-id", String(body.jobId)),
       "--lang",
       engineLang,
     ];
