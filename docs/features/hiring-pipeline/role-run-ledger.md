@@ -20,7 +20,7 @@ alternatives, and what would change our mind.
 
 | File | What it owns |
 | --- | --- |
-| `app/_lib/role-run-stages.ts` | The seven artifact kinds, their order, which stages gate, and the PII rule. Pure, DB-free. |
+| `app/_lib/role-run-stages.ts` | The seven artifact kinds, their order, which stages gate, the transition table, the resume read (`nextStageFor`), and the PII rule. Pure, DB-free. |
 | `app/_lib/role-run-gates.ts` | The three gates, as the screen-wave approval protocol scoped to a run. Pure, DB-free. |
 | `app/_lib/db/role-runs.ts` | `role_runs` + `role_run_stages`: the append-only ledger. Owns its own DDL. |
 | `app/_lib/role-run-engine.ts` | The resumable pass, the per-candidate fan-out, the default stage runners, and the gate commit. |
@@ -48,6 +48,32 @@ last artifact per branch*. There is no cursor column and no in-memory progress �
 `advanceRoleRun()` works out what each branch is owed from the ledger alone, produces
 at most `maxStages` artifacts, and returns. Call it again and it picks up exactly
 where it stopped.
+
+### The resume read and the transition table
+
+"What runs next" has exactly one answer, and it is a pure function of the rows:
+`nextStageFor(artifacts, branchRef)` in `role-run-stages.ts`. Given every artifact of
+the run, it replays one chain (`branchRef` null for the run-wide chain, an entry id for a
+candidate's branch) in `seq` order and answers `produce <kind>`, `await_gate` (with the
+approval kind), `await_fan_out` (a branch asked about before the slate), `done` (run
+terminal, fanned out, branch terminal, or offer approved), or `invalid`. The engine
+calls nothing else to decide a pass, and reports where the run stands through the same
+read, so "where a branch stands" and "what it is owed" cannot disagree.
+
+The replay is held to `ROLE_RUN_TRANSITIONS`, a written-out table of which
+`kind:status` may follow which. It encodes three rules:
+
+- a **gated** stage enters only as `awaiting_approval` and is resolved only from its own
+  proposal — a gated stage written straight to `complete` is the gate skipped;
+- an **ungated** per-candidate stage is only ever `complete` — ending a candidacy
+  happens at a gate, never as a side effect of a case or a scorecard;
+- a **run-wide** stage may be `terminal` (the job is gone), which ends the run.
+
+A row the table forbids makes its chain `invalid`, and nothing is advanced over it
+(`findRoleRunTransitionViolations` names each one). The engine checks every runner's
+outcome against the table before the append and throws `RoleRunTransitionError` — so a
+richer engine attached through the runner seam cannot skip a gate — and a gate commit
+checks the branch's head is that gate *before* spending the approval token.
 
 An artifact **references** store rows (`entryId`, `devcaseId`, `inviteRef`); it never
 copies them. `jobs`, `pipeline_entries`, `dev_cases`, `schedule_invites` and `offers`
@@ -109,8 +135,19 @@ waited), reported separately.
 
 ## Tests
 
-- `app/_lib/role-run-stages.test.ts` — the stage order, the three-gate list, the PII rule both directions (including that a hex hash is not read as a phone number)
+- `app/_lib/role-run-stages.test.ts` — the stage order, the three-gate list, the transition table pinned against both, `nextStageFor` over every position and every forbidden-row shape, the PII rule both directions (including that a hex hash is not read as a phone number)
+- `app/_lib/role-run-contract.test.ts` — the ledger contract both directions over real runs: every report a pass makes is backed by a row, every row a run writes (hire, declines at each gate, a cancelled run, one-artifact passes) is reachable; a run reconstructed across a closed-and-reopened connection; a gate-skipping runner refused with nothing written
 - `app/_lib/role-run-gates.test.ts` — the signed set, the window, the single spend, and that a rejection token cannot approve an offer
 - `app/_lib/db/role-runs-store.test.ts` — the real schema: the unique index, `seq` ordering, tenancy in both directions, append-only history
 - `app/_lib/db/role-runs-tenancy.test.ts` — source guard: every ledger query is workspace-scoped, and nothing updates or deletes an artifact
 - `app/_lib/role-run-engine.test.ts` — the full JD → offer-draft run against real `jobs` and `pipeline_entries` rows, resume at a ceiling, the fan-out, and that no artifact carries a name the board row does carry
+
+## Known gaps
+
+- **The table is enforced by the engine, not by the store.** `appendStageArtifact` still
+  accepts any kind/status a direct caller hands it; the engine and the gate commit are
+  the only writers today, and both check. Moving the check to the write door is a
+  follow-up.
+- **A withdrawn or lapsed candidate has no ungated way to end a branch.** The status
+  vocabulary cannot tell "the candidate left" from "we ended it", so the table routes
+  every branch end through a gate.
