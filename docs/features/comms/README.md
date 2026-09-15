@@ -327,6 +327,23 @@ also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earl
 the route's own 422 missing-fields check; expired consent is the case the gate answers.)
 Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
+**The outreach body is cleaned and capped at the same handoff.** An outreach body is
+the model's draft, and the model read the candidate's CV, so it used to reach the outbox
+and the relay exactly as generated — any length, any markup. For `kind: "outreach"`,
+`sendComm` now runs `cleanOutreachBody` (`app/_lib/outreach-body.ts`) first: CRLF is
+normalized, invisible/bidi code points are removed (the `INVISIBLE` set shared with
+`text-sanitize.ts`), HTML tags are stripped with their words kept (`<script>`/`<style>`
+lose their contents too, and the strip repeats until stable so a split tag cannot
+reassemble), and blank-line runs are folded. Newlines survive, because they are the
+formatting of a plain-text letter. The stored row and the relay payload are the same
+cleaned text. A cleaned message (body plus footers) over `OUTREACH_BODY_MAX_LENGTH`
+(20,000 characters) is **refused, not truncated**: `CommsBodyRejectedError` is thrown and
+no row is written. Truncating could cut off the opt-out footer. It is deliberately not a
+`CommsSuppressedError`, because the resend door would render that as "this candidate can
+no longer be contacted". The outreach route answers it with its generic
+`OUTREACH_FAILED`. Other kinds pass through untouched: an offer, or a brief carrying an
+ICS block, is kp's own template. Locked by `outreach-body.test.ts`.
+
 ## 7b. The candidate's own stop (unsubscribe)
 
 Until this shipped there was **no unsubscribe anywhere**. Every candidate comm carried
