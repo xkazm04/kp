@@ -63,6 +63,7 @@ deliberate bench run to pick metered default models, org-level (per-tenant)
 | Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only — and now enforced, not asserted**: it refuses to serve a production deployment unless `KP_ALLOW_CLI_ENGINE=1`. See "The CLI engine is refused in production" below. |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
 | Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. **Keyless but configurable from Settings → Models** (see "Local model servers" below); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
+| LightTrack gateway | `gateway.py` | `lt-gateway` on loopback (`http://127.0.0.1:8792/v1`, `LIGHTTRACK_GATEWAY_URL`): one route per use case in front of the **seat-metered CLIs** (`claude -p`, `codex exec`) with usage-limit failover between them, chosen per use case by a difficulty-graded benchmark (`docs/LLM_ROUTES.md`). Keyless; the `model` is the use-case key; `response_format: json_schema` from `USE_CASE_SCHEMAS`. Does **not** emit its own LightTrack event (the gateway records every attempt) and writes the ledger **unpriced** with `model` = the seat that answered. The hop is local, the seats are not: sealed under `KP_OFFLINE`, and refused in production like `claude_cli` unless `KP_ALLOW_CLI_ENGINE=1`. Contract: <https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md>. |
 | Qwen Cloud | `qwen.py` | qwencloud.com / DashScope-intl **compatible mode** (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, override `QWEN_BASE_URL`). One key (`QWEN_API_KEY`/`DASHSCOPE_API_KEY`) serves the Qwen family plus hosted third-party models (`deepseek-v4-flash-0731`) by explicit slug — an OpenRouter-style gateway that IS a production routing target. |
 
 Every call site already has a deterministic fallback and an envelope
@@ -181,6 +182,10 @@ ran every heavy-output use case at the 2048 cost cap and shipped the
 deterministic fallback after two truncated, paid calls.
 
 ### The CLI engine is refused in production
+
+The `gateway` adapter is a second route to the same consumer seats (plus a ChatGPT
+seat behind `codex exec`) and meets the same veto with the same reason
+(`consumer_terms_policy`) and the same unlock — see the adapter table.
 
 "Local/dev only" was a sentence in this document with **nothing behind it**: the
 line above describes a keyless self-hosted `next start` resolving to the Claude

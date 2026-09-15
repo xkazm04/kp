@@ -37,6 +37,10 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     # Qwen Cloud (DashScope-intl compatible mode) — Qwen family + hosted
     # third-party models by slug, one key. Text/JSON only here.
     "qwen": frozenset({CAP_JSON}),
+    # LightTrack's lt-gateway on localhost: a route per use case in front of the
+    # seat-metered CLIs, with seat failover. Text/JSON only. Contract:
+    # https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md
+    "gateway": frozenset({CAP_JSON}),
 }
 
 # The use-case catalog (docs/architecture/llm-provider-layer.md). Unknown use cases default
@@ -101,6 +105,10 @@ DEFAULT_MODELS: dict[str, str | None] = {
     "ollama": None,
     # Qwen Cloud models are addressed by slug — always explicit, like OpenRouter.
     "qwen": None,
+    # The gateway's model is a ROUTE named after the use case — default_model()
+    # answers with the use-case key, so None here means "derived", not "required"
+    # (the same reading claude_cli's None gets; llm-model-required.test.ts excludes both).
+    "gateway": None,
 }
 
 # Heavy-output use cases: the payload is structurally LARGE (a proposal per
@@ -277,6 +285,10 @@ USE_CASE_MODEL_OVERRIDES: dict[tuple[str, str], str] = {
 
 
 def default_model(use_case: str, provider: str) -> str | None:
+    if provider == "gateway":
+        # The route is the use case (gateway.toml `[routes.<use_case>]`); an override
+        # can still pin a literal `provider/model@effort` the gateway also accepts.
+        return USE_CASE_MODEL_OVERRIDES.get((use_case, provider)) or use_case
     return USE_CASE_MODEL_OVERRIDES.get((use_case, provider)) or DEFAULT_MODELS.get(provider)
 
 
