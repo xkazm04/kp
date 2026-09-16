@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ExternalLink, Pause, Play, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ExternalLink, Pause, Play, ShieldCheck, SlidersHorizontal, Timer } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
+import { IconAction } from "@/app/_components/IconAction";
 import { Tooltip } from "@/app/_components/Tooltip";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
@@ -83,6 +84,12 @@ export function SourceCard({ source, entry, onChange }: { source: JobseekerSourc
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-semibold text-ink">{label}</span>
           <span className="truncate text-steel">{source.host}</span>
+          {/* The cadence note is a SENTENCE, and a sentence does not occupy layout
+              (surface-doctrine §1). Tier B already folds it into the terms disclosure;
+              for every other tier it rides here as a reachable hint, so an enabled
+              EURES row stays one line high instead of carrying "Twice daily is plenty…"
+              underneath it. */}
+          {!hasEvidence && entry?.cadenceNote ? <IconAction icon={Timer} label={t("cadence")} hint={entry.cadenceNote} side="bottom" size={16} /> : null}
           <span className={CHIP_QUIET}>{t(`kind.${source.kind}`)}</span>
           <span className={CHIP_QUIET}>{t("tierChip", { tier: source.tier })}</span>
         </span>
@@ -159,8 +166,6 @@ export function SourceCard({ source, entry, onChange }: { source: JobseekerSourc
             <dd className="text-steel">{entry?.cadenceNote || t("cadenceDefault")}</dd>
           </dl>
         </Collapse>
-      ) : entry?.cadenceNote ? (
-        <p className="px-3 pb-2.5 text-sm text-steel">{entry.cadenceNote}</p>
       ) : null}
 
       <Collapse show={ack !== null}>
