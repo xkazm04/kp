@@ -4,10 +4,12 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowLeft, ExternalLink, Loader2, MessageSquareText, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, MessageSquareText, RotateCcw, Sparkles, XCircle } from "lucide-react";
 import { Badge, FitTierBadge } from "@/app/_components/Badge";
+import { IconAction } from "@/app/_components/IconAction";
 import { ScoreDial } from "@/app/_components/ScoreDial";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { Collapse } from "@/app/features/hiring/pipeline/PipelineMotion";
 import { formatGrouped, scoreTone } from "@/app/_lib/format";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { DismissReason, FitArtifact, JobseekerDialog, PostingStatus, SalaryFloor } from "@/app/_lib/jobseeker/types";
@@ -29,6 +31,12 @@ import { usePostingActions } from "./usePostingActions";
 // match is the store's projection; the reasoning is shown when the posting was
 // deep-dived, else a "Deep-dive" door (POST .../deepdive) whose keyless answer says
 // `deterministic` and is shown, not stored (deepdive.ts's rule).
+
+// ONE HEADING VOICE PER LEVEL. Five `<h2>`s on this page were styled as `META_LABEL`
+// — the uppercase FIELD-label voice — while their siblings were `font-serif text-h3`,
+// so two type registers claimed the same rank and the eye could not tell a section from
+// a field. Sections are the serif voice; `META_LABEL` goes back to labelling fields.
+const SECTION_H2 = "font-serif text-h3 text-ink";
 
 const SCORE_BAR: Record<ReturnType<typeof scoreTone>, string> = {
   strong: "bg-score-strong",
@@ -175,17 +183,23 @@ export function PostingDetail({
   const paragraphs = view.bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
   return (
-    <div className="space-y-6">
+    <div className={`stagger-children ${SECTION}`}>
       <Link href="/me/jobs" className={`${BTN_GHOST} h-8 px-2 text-sm`}>
         <ArrowLeft size={14} aria-hidden /> {t("back")}
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      {/* PAGE_HEADER, the recipe six headers in this tree had already hand-rolled: the
+          title trio left, the actions right, ruled off from the page. The four-button
+          cluster is now graded — ONE primary (the conversation this page exists to
+          start), two secondaries, and the destructive/undo move as an `IconAction` that
+          carries its own name instead of spending a caption on it. */}
+      <header className={PAGE_HEADER}>
         <div className="min-w-0">
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{view.title}</h1>
-          <p className="mt-2 text-sm text-steel">
-            {[view.company, view.location, view.workMode ? tJobs(`workMode.${view.workMode}`) : null].filter(Boolean).join(" · ")}
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-steel">
+            <Badge tone={status === "applied" ? "positive" : status === "shortlisted" ? "info" : status === "new" ? "neutral" : "caution"} label={tJobs(`status.${status}`)} />
+            <span>{[view.company, view.location, view.workMode ? tJobs(`workMode.${view.workMode}`) : null].filter(Boolean).join(" · ")}</span>
           </p>
           <p className="mt-1 text-sm text-steel">
             {t("meta.source", { label: view.sourceLabel })}
@@ -195,28 +209,23 @@ export function PostingDetail({
           {view.attribution ? <p className="mt-1 text-sm text-steel">{view.attribution}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={status === "applied" ? "positive" : status === "shortlisted" ? "info" : status === "new" ? "neutral" : "caution"} label={tJobs(`status.${status}`)} />
-          <a href={view.url} target="_blank" rel="noopener noreferrer" className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
-            <ExternalLink size={14} aria-hidden /> {t("openSource")}
-          </a>
           {profileId ? (
             <button type="button" className={`${BTN_PRIMARY} h-9 px-3 text-sm`} disabled={opening} onClick={() => void openStudio()}>
               {opening ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <MessageSquareText size={14} aria-hidden />} {t("discuss")}
             </button>
           ) : null}
+          <a href={view.url} target="_blank" rel="noopener noreferrer" className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+            <ExternalLink size={14} aria-hidden /> {t("openSource")}
+          </a>
           {live && status !== "applied" ? (
             <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={busy} onClick={applyAndOpen}>
               {tJobs("action.applied")}
             </button>
           ) : null}
           {live ? (
-            <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} disabled={busy} aria-expanded={dismissing} onClick={() => setDismissing((v) => !v)}>
-              <XCircle size={14} aria-hidden /> {tJobs("action.dismiss")}
-            </button>
+            <IconAction icon={XCircle} label={tJobs("action.dismiss")} on={dismissing} toggle disabled={busy} side="bottom" size={16} onClick={() => setDismissing((v) => !v)} />
           ) : status === "dismissed" ? (
-            <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={busy} onClick={() => write({ status: "new" })}>
-              {tJobs("action.restore")}
-            </button>
+            <IconAction icon={RotateCcw} label={tJobs("action.restore")} disabled={busy} side="bottom" size={16} onClick={() => write({ status: "new" })} />
           ) : null}
         </div>
       </header>
@@ -238,41 +247,58 @@ export function PostingDetail({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className={`${PANEL} p-5`} aria-labelledby="posting-text">
-          <h2 id="posting-text" className={META_LABEL}>
+          <h2 id="posting-text" className={SECTION_H2}>
             {t("text.title")}
           </h2>
-          <div className="mt-3 space-y-3 text-body leading-7 text-ink">
+          {/* THE MEASURE. This is the longest prose in the product and it was running the
+              full panel width — ~110ch at 1440px, roughly a line and a half of what a
+              reader can track without losing their place. `max-w-prose` is the same
+              measure every other reading surface here holds. */}
+          <div className="mt-3 max-w-prose space-y-3 text-body leading-7 text-ink">
             {paragraphs.length > 0 ? paragraphs.map((p, i) => <p key={i}>{p}</p>) : <p className="text-sm text-steel">{t("text.none")}</p>}
           </div>
         </section>
 
         <div className="space-y-6">
           <section className={`${PANEL} p-5`} aria-labelledby="posting-salary">
-            <h2 id="posting-salary" className={META_LABEL}>
+            <h2 id="posting-salary" className={SECTION_H2}>
               {t("salary.title")}
             </h2>
-            <p className="mt-2 text-sm text-ink">{salaryRange ?? t("salary.unstated")}</p>
+            <p className="nums mt-2 text-sm text-ink">{salaryRange ?? t("salary.unstated")}</p>
             {salary.kind === "no_floor" ? (
               <p className="mt-1 text-sm text-steel">{t("salary.noFloor")}</p>
             ) : salary.kind === "not_comparable" ? (
               <p className="mt-1 text-sm text-steel">{t("salary.notComparable", { posting: salary.posting, floor: salary.floor })}</p>
             ) : salary.kind === "compared" ? (
-              <p className={`mt-1 text-sm ${salary.verdict === "below_floor" ? "text-amber-700" : "text-moss"}`}>{t(`salary.${salary.verdict}`, { pct: salary.pct })}</p>
+              // A VERDICT IS A BADGE, not a hand-painted sentence. It was a raw
+              // `text-amber-700` / `text-moss` fork — a status color spelled by hand,
+              // and the one place on this page a caution tone had no shared token
+              // behind it. `Badge` owns both tones in both themes.
+              <p className="mt-1.5">
+                <Badge tone={salary.verdict === "below_floor" ? "caution" : "positive"} label={t(`salary.${salary.verdict}`, { pct: salary.pct })} />
+              </p>
             ) : null}
           </section>
 
           <section className={`${PANEL} p-5`} aria-labelledby="posting-match">
-            <h2 id="posting-match" className={META_LABEL}>
+            <h2 id="posting-match" className={SECTION_H2}>
               {t("match.title")}
             </h2>
             {view.match ? (
               <div className="mt-3 space-y-4">
+                {/* The dial gets a RESERVED box at its documented size (`ScoreDial` is
+                    `w-44 aspect-square`). It used to sit bare in a `flex flex-wrap`, so
+                    the tier badge and the confidence band beside it reflowed under the
+                    dial while it drew itself in — the one element on the page that moved
+                    after the page had settled. */}
                 <div className="flex flex-wrap items-center gap-4">
-                  <ScoreDial score={view.match.total} />
+                  <div className="h-44 w-44 shrink-0">
+                    <ScoreDial score={view.match.total} />
+                  </div>
                   <div className="space-y-2">
                     <FitTierBadge tier={view.match.fitTier} labels={tierLabels} />
                     {view.match.confidence ? (
-                      <p className="text-sm text-steel">
+                      <p className="nums text-sm text-steel">
                         {tJobs("card.confidence", {
                           level: tJobs(`confidenceLevel.${view.match.confidence.level}`),
                           low: Math.round(view.match.confidence.low),
@@ -292,7 +318,14 @@ export function PostingDetail({
                           <span className="nums text-ink">{Math.round(d.percent)}</span>
                         </div>
                         <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-stone-100" aria-hidden>
-                          <div className={`h-full rounded-full ${SCORE_BAR[scoreTone(d.percent)]}`} style={{ width: `${Math.max(0, Math.min(100, d.percent))}%` }} />
+                          {/* The width is an inline style because it is DATA, but it
+                              arrives as a jump: a transition makes the bar grow to its
+                              figure the way the dial's arc does, and reduced motion
+                              turns it off rather than shortening it. */}
+                          <div
+                            className={`h-full rounded-full transition-[width] duration-300 ease-out motion-reduce:transition-none ${SCORE_BAR[scoreTone(d.percent)]}`}
+                            style={{ width: `${Math.max(0, Math.min(100, d.percent))}%` }}
+                          />
                         </div>
                       </li>
                     ))}
@@ -324,25 +357,49 @@ export function PostingDetail({
             )}
           </section>
 
-          {settledFit ? (
-            <section className={`${PANEL} p-5`} aria-labelledby="posting-fit">
-              <h2 id="posting-fit" className={META_LABEL}>
-                {t("fit.title")}
-              </h2>
-              <p className="mt-1 text-sm text-steel">{t("fit.settled", { when: rel(settledFit.at) })}</p>
-              <FitVerdictRow verdict={settledFit.artifact.verdict} applied={status === "applied"} onMarkApplied={applyAndOpen} />
-              <div className="mt-4 space-y-6">
-                <FitArtifactSections artifact={settledFit.artifact} closed />
-              </div>
-            </section>
-          ) : null}
+          {/* A verdict settled in the overlay lands here with the overlay still closing
+              over it, so the section used to simply BE there on the next frame. Collapse
+              grows it from zero height, pushing what is below rather than replacing it;
+              a verdict that came from the SERVER read mounts with the page and does not
+              animate (AnimatePresence `initial={false}`), which is right — nothing
+              arrived, it was always there. The `role="status"` line is spoken only when
+              the verdict settled in THIS session, for the same reason. */}
+          <Collapse show={settledFit !== null}>
+            {settledFit ? (
+              <section className={`${PANEL} p-5`} aria-labelledby="posting-fit">
+                <h2 id="posting-fit" className={SECTION_H2}>
+                  {t("fit.title")}
+                </h2>
+                <p className="mt-1 text-sm text-steel" role={settledFit !== fit ? "status" : undefined}>
+                  {t("fit.settled", { when: rel(settledFit.at) })}
+                </p>
+                <FitVerdictRow verdict={settledFit.artifact.verdict} applied={status === "applied"} onMarkApplied={applyAndOpen} />
+                <div className="mt-4 space-y-6">
+                  <FitArtifactSections artifact={settledFit.artifact} closed />
+                </div>
+              </section>
+            ) : null}
+          </Collapse>
 
           <section className={`${PANEL} p-5`} aria-labelledby="posting-reasoning">
-            <h2 id="posting-reasoning" className={META_LABEL}>
+            <h2 id="posting-reasoning" className={SECTION_H2}>
               {t("reasoning.title")}
             </h2>
-            {reasoning || templateNote ? (
+            {/* The deep-dive's answer arrives 20-plus seconds after the click, into a
+                panel that was showing a button. Collapse grows it in — and the Collapse
+                is mounted UNCONDITIONALLY, toggled by `show`, because a Collapse that
+                only mounts when its content exists carries `initial={false}` into its
+                first frame and would never animate the one arrival it is here for. When
+                the rationale came from THIS session's dive it also says so out loud: a
+                reader who cannot see the panel open gets no other signal that the wait
+                ended. */}
+            <Collapse show={Boolean(reasoning || templateNote)}>
               <div className="mt-3 space-y-3 text-sm">
+                {dive ? (
+                  <p className="sr-only" role="status">
+                    {t("reasoning.arrived")}
+                  </p>
+                ) : null}
                 {templateNote ? <p className="text-sm text-steel">{templateNote}</p> : null}
                 {reasoning ? (
                   <>
@@ -353,7 +410,8 @@ export function PostingDetail({
                   </>
                 ) : null}
               </div>
-            ) : (
+            </Collapse>
+            {!reasoning && !templateNote ? (
               <div className="mt-2 space-y-2">
                 <p className="text-sm text-steel">{t("reasoning.none")}</p>
                 {view.match ? (
@@ -363,7 +421,7 @@ export function PostingDetail({
                 ) : null}
                 {diveError ? <FailureNotice failure={diveError} fallback={t("reasoning.error")} onRetry={() => void deepDive()} retrying={diving} /> : null}
               </div>
-            )}
+            ) : null}
           </section>
         </div>
       </div>

@@ -545,7 +545,26 @@ could not be loaded" is not what a reader whose server is down needs to read.
 store (`getPosting`; there is no `GET /api/jobseeker/postings/[id]`), handing the client
 a projection (`postingView.ts`: body text, skill lists, breakdown, confidence,
 eligibility, reasoning; never the raw JSON-LD or the structured Job). The ad renders
-as plain paragraphs, never as HTML. Pay is compared with the seeker's floor through
+as plain paragraphs, never as HTML — in a `max-w-prose` column, because it is the
+longest prose in the product and was running the full panel width (~110ch at 1440px).
+The page wears `PAGE_HEADER` + `SECTION` like every other header in the studio: the
+title trio left, and right a GRADED action row — one `BTN_PRIMARY` (Discuss fit, the
+conversation the page exists to start), two `BTN_SECONDARY` (Open posting, "I applied")
+and dismiss/restore as an `IconAction` that carries its own name instead of spending a
+caption on it. One heading voice per level: section `<h2>`s are `font-serif text-h3`,
+`META_LABEL` goes back to labelling fields — five `<h2>`s were styled as `META_LABEL`
+beside serif siblings, so two type registers claimed the same rank. The `ScoreDial` sits
+in a reserved `h-44 w-44` box (its documented size) so the tier badge and confidence band
+beside it stop reflowing while the arc draws; the breakdown bars animate their width
+(`transition-[width] duration-300 ease-out motion-reduce:transition-none`) instead of
+jumping; the salary verdict is a `Badge` (`caution`/`positive`) rather than a
+hand-painted `text-amber-700`/`text-moss` sentence. The settled-fit section and the
+deep-dive result are wrapped in `Collapse` (PipelineMotion) and each carries a
+`role="status"` line spoken ONLY when the thing arrived in this session — a verdict read
+from the server mounts with the page and neither animates nor announces, because nothing
+arrived. Both Collapses are mounted unconditionally and toggled by `show`: a Collapse
+that mounts with its content carries `initial={false}` into its first frame and would
+never animate the one arrival it exists for. Pay is compared with the seeker's floor through
 `compareSalary` (`feedModel.ts`): never across currencies (no FX anywhere), and across
 month/year by restating the floor ×12 to the posting's period (`periodConverted` on the
 result; the same rule the Python flag applies in `matching._salary_flag`, matching
