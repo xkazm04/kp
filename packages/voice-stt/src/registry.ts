@@ -63,16 +63,34 @@ export function defaultProviders(host: SttHost): SttProvider[] {
   return [new WhisperCppStt(host), new AssemblyAiStt(host)];
 }
 
+/** An unregistered id in a PRESENT variable is a misconfiguration, never an absence. */
+function checkedIds(host: { env(name: string): string | undefined }, name: string, tokens: string[]): void {
+  const bad = tokens.filter((t) => !isSttProviderId(t));
+  if (bad.length) {
+    throw new Error(
+      `${name}=${JSON.stringify(host.env(name))}: unknown provider id ${bad.map((b) => JSON.stringify(b)).join(", ")}; expected a comma list of ${STT_PROVIDER_IDS.join(" | ")}`,
+    );
+  }
+}
+
 /** Read the host's preference from two variables it names: the preferred id and
- *  a comma list of ids the UI may offer. Unknown ids are dropped, not thrown —
- *  a stored preference pointing at a retired provider normalizes on read. */
+ *  a comma list of ids the UI may offer. ABSENT (unset or empty) takes the
+ *  default; PRESENT must name registered providers, or this throws naming the
+ *  variable, the token and the registered set. Dropping an unknown id used to
+ *  turn a typo into a different working mode: `KP_STT_PROVIDER=assembly` served the
+ *  first allowed engine with no fallback event, and a residency list whose only
+ *  id was misspelled refused as "no provider is allowed", because the
+ *  preference was already null before resolution could see what was asked.
+ *  No id has ever been retired; if one is, map it here by name, never by drop. */
 export function preferenceFromEnv(host: SttHost, vars: { preferred: string; allowed: string }): SttPreference {
   const preferredRaw = host.env(vars.preferred)?.trim().toLowerCase() || null;
+  if (preferredRaw) checkedIds(host, vars.preferred, [preferredRaw]);
   const preferred = isSttProviderId(preferredRaw) ? preferredRaw : null;
   const allowedRaw = (host.env(vars.allowed) || "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
+  checkedIds(host, vars.allowed, allowedRaw);
   const allowed = allowedRaw.length ? allowedRaw.filter(isSttProviderId) : preferred ? [preferred] : [...STT_PROVIDER_IDS];
   return { preferred, allowed: preferred && !allowed.includes(preferred) ? [preferred, ...allowed] : allowed };
 }
