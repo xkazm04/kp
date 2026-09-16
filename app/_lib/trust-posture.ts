@@ -299,7 +299,7 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
     euRegion: "not_offered",
     transferBasis: "dpf",
     verifiedOn: "2026-09-08",
-    note: "Read this row before uploading a real CV. On a FREE API key Google may use submitted content — including the CV file — to improve its products, and human reviewers may read it; operators in the EEA, Switzerland and the UK are covered by the paid terms even on a free key, and everyone else is not. KandiDate cannot tell the two kinds of key apart. This is also the one route that carries the whole CV file, and the web-grounded lookups on that path cannot be placed under a zero-retention agreement.",
+    note: "Read this row before uploading a real CV. On a FREE API key Google may use submitted content, including the CV file, to improve its products, and human reviewers may read it; operators in the EEA, Switzerland and the UK are covered by the paid terms even on a free key, and everyone else is not. KandiDate cannot tell the two kinds of key apart. This is also the one route that carries the whole CV file, and the web-grounded lookups on that path cannot be placed under a zero-retention agreement.",
     providers: ["gemini"],
   },
   {

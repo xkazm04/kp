@@ -10734,7 +10734,7 @@
         "education": "your highest completed study"
       },
       "unreadableTitle": "What I could not read",
-      "unreadableBody": "These blocks of your CV did not fit a section I recognise. They are kept here, never counted against you.",
+      "unreadableBody": "These blocks of your CV did not fit a section I recognize. They are kept here, never counted against you.",
       "suggestionsTitle": "Suggestions",
       "suggestionsNone": "No open suggestions. Anything you change in the conversation shows up in the CV on the left.",
       "suggestionBefore": "Before:",
@@ -11123,12 +11123,12 @@
       "termsUnknown": "Not in the catalog: read this board's terms yourself before enabling it.",
       "termsLink": "Read the terms",
       "cadence": "Our cadence",
-      "cadenceDefault": "Twice a day at most, one request at a time, with the site's crawl delay honoured.",
+      "cadenceDefault": "Twice a day at most, one request at a time, with the site's crawl delay honored.",
       "ack": {
         "title": "Your acknowledgement",
         "body": "This board's terms forbid automated processing. Enabling it means this install fetches its pages on your behalf, politely, and the exposure is yours.",
         "changed": "The terms summary changed since you last acknowledged it. Read it again before continuing.",
-        "reason1": "Requests identify this install and honour robots.txt and the crawl delay.",
+        "reason1": "Requests identify this install and honor robots.txt and the crawl delay.",
         "reason2": "A refusal from the site pauses the source; only you resume it.",
         "reason3": "Postings are read for your own search and are never republished.",
         "checkbox": "I own this install and accept this exposure",
