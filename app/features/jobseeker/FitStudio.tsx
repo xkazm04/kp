@@ -39,6 +39,7 @@ export function FitStudio({
   initialDegradation,
   applied,
   onDialogChange,
+  onDone,
   onMarkApplied,
   onClose,
 }: {
@@ -47,6 +48,9 @@ export function FitStudio({
   initialDegradation: StudioDegradation | null;
   applied: boolean;
   onDialogChange(dialog: JobseekerDialog): void;
+  /** The conversation settled: the verdict leaves the overlay and lands on the posting
+   *  page, CvStudio's `done` twin (which re-reads the profile). */
+  onDone(artifact: FitArtifact): void;
   onMarkApplied(): void;
   onClose(): void;
 }) {
@@ -96,8 +100,12 @@ export function FitStudio({
           { role: "candidate", text, at: now },
           { role: "interviewer", text: body.reply, at: now, ...(body.choices ? { choices: body.choices } : {}) },
         ];
-        onDialogChange({ ...dialog, transcript: [...dialog.transcript, ...turns], artifact: body.artifact ?? dialog.artifact, status: body.done ? "closed" : "open" });
+        const settled = body.artifact ?? dialog.artifact;
+        onDialogChange({ ...dialog, transcript: [...dialog.transcript, ...turns], artifact: settled, status: body.done ? "closed" : "open" });
         setDegradation(body.source === "deterministic" ? { reason: body.fallbackReason ?? null, lang: body.fallbackLang ?? null } : null);
+        // The close is the only moment this verdict becomes the posting's: the detail
+        // page behind the overlay reads a CLOSED dialog, and it is not re-fetching.
+        if (body.done && settled && "verdict" in settled) onDone(settled as FitArtifact);
         return true;
       } catch {
         if (ctrl.signal.aborted) return false;
@@ -108,7 +116,7 @@ export function FitStudio({
         setSending(false);
       }
     },
-    [sending, closed, dialog, onDialogChange, reload]
+    [sending, closed, dialog, onDialogChange, onDone, reload]
   );
 
   const speakText = useMemo(() => {
@@ -194,7 +202,7 @@ export function FitStudio({
               <StudioComposer
                 ns={NS}
                 onSend={send}
-                disabled={false}
+                disabled={sending || closed}
                 sending={sending}
                 draftKey={`kp-me-fit-draft:${dialog.id}`}
                 focusRef={composerRef}

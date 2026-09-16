@@ -10825,6 +10825,11 @@
         "no_sources": {
           "title": "Žádný zdroj není zapnutý",
           "body": "Váš profil je připraven, ale nic se nečte. Zapněte alespoň jeden zdroj a příští sken tuto stránku naplní.",
+          "euresCta": "Zapnout EURES pro {countries}",
+          "euresNote": "EURES je databáze volných míst Evropského úřadu práce, právně čistá s uvedením zdroje, takže není co odsouhlasovat. Jedno kliknutí ji zapne a spustí první prohledání zemí {countries}.",
+          "euresDefault": "V předvolbách zatím nemáte nastavenou zemi, proto se zapne EURES a prohledá se {countries}.",
+          "euresPrefs": "Změnit země",
+          "euresError": "EURES se nepodařilo zapnout.",
           "cta": "Vybrat zdroje"
         },
         "no_scan": {

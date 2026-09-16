@@ -10825,6 +10825,11 @@
         "no_sources": {
           "title": "Keine Quelle ist eingeschaltet",
           "body": "Ihr Profil ist bereit, aber nichts wird gelesen. Schalten Sie mindestens eine Quelle ein; der nächste Scan füllt diese Seite.",
+          "euresCta": "EURES für {countries} aktivieren",
+          "euresNote": "EURES ist die Stellenbörse der Europäischen Arbeitsbehörde, rechtlich unbedenklich mit Quellenangabe, es gibt also nichts zu bestätigen. Ein Klick schaltet sie ein und startet den ersten Scan für {countries}.",
+          "euresDefault": "In Ihren Einstellungen ist noch kein Land hinterlegt, deshalb wird EURES eingeschaltet und {countries} durchsucht.",
+          "euresPrefs": "Länder ändern",
+          "euresError": "EURES konnte nicht eingeschaltet werden.",
           "cta": "Quellen wählen"
         },
         "no_scan": {

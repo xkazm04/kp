@@ -223,7 +223,7 @@ export function CvStudio({
               <StudioComposer
                 ns={NS}
                 onSend={send}
-                disabled={false}
+                disabled={sending || closed}
                 sending={sending}
                 draftKey={`kp-me-cv-draft:${dialog.id}`}
                 focusRef={composerRef}

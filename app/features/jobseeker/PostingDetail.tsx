@@ -4,18 +4,19 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowLeft, ExternalLink, Loader2, MessageSquareText, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, MessageSquareText, Sparkles, X, XCircle } from "lucide-react";
 import { Badge, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { formatGrouped, scoreTone } from "@/app/_lib/format";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import type { JobseekerDialog, SalaryFloor } from "@/app/_lib/jobseeker/types";
+import type { FitArtifact, JobseekerDialog, SalaryFloor } from "@/app/_lib/jobseeker/types";
 import { useFitTierLabels } from "@/app/features/shared/matchLabels";
 import { DismissPicker } from "./DismissPicker";
 import { EligibilityChips } from "./EligibilityChips";
 import { compareSalary } from "./feedModel";
+import { FitArtifactSections, FitVerdictRow } from "./FitSheet";
 import { FitStudio } from "./FitStudio";
 import { diveOutcome, reasoningView, type DiveOutcome, type PostingDetailView } from "./postingView";
 import type { StudioDegradation } from "./CvStudio";
@@ -39,8 +40,22 @@ type StudioState = { dialog: JobseekerDialog; degradation: StudioDegradation | n
 /** A deep-dive that ANSWERED. `failed` never lands here — it is the error line. */
 type DeepDive = { reasoning: PostingDetailView["reasoning"]; outcome: Exclude<DiveOutcome, "failed"> } | null;
 
-export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingDetailView; salaryFloor: SalaryFloor | null; profileId: string | null }) {
+export type SettledFit = { artifact: FitArtifact; at: string };
+
+export function PostingDetail({
+  view,
+  salaryFloor,
+  profileId,
+  fit,
+}: {
+  view: PostingDetailView;
+  salaryFloor: SalaryFloor | null;
+  profileId: string | null;
+  /** The latest CLOSED fit dialog's verdict for this posting, read on the server. */
+  fit: SettledFit | null;
+}) {
   const t = useTranslations("me.posting");
+  const tCommon = useTranslations("common");
   const tJobs = useTranslations("me.jobs");
   const tPrefs = useTranslations("me.preferences");
   const locale = useLocale();
@@ -56,6 +71,9 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
   const [diving, setDiving] = useState(false);
   const [dive, setDive] = useState<DeepDive>(null);
   const [diveError, setDiveError] = useState<{ code: string | null } | null>(null);
+  // The server read is the initial value; a verdict settled in the overlay lands here
+  // without a reload (the page behind it is a server component and is not re-fetching).
+  const [settledFit, setSettledFit] = useState<SettledFit | null>(fit);
 
   const actions = usePostingActions((row) => {
     setStatus(row.status);
@@ -194,8 +212,11 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
         />
       ) : null}
       {actions.error ? (
-        <p className="text-sm text-red-700" role="alert">
-          {resolveError(actions.error, tJobs("actionError"))}
+        <p className="flex items-start gap-2 text-sm text-red-700" role="alert">
+          <span>{resolveError(actions.error, tJobs("actionError"))}</span>
+          <button type="button" onClick={actions.clearError} aria-label={tCommon("dismissNotification")} className="focus-ring rounded-md p-0.5 text-steel hover:text-ink">
+            <X size={14} aria-hidden />
+          </button>
         </p>
       ) : null}
       {openError ? (
@@ -292,6 +313,19 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
             )}
           </section>
 
+          {settledFit ? (
+            <section className={`${PANEL} p-5`} aria-labelledby="posting-fit">
+              <h2 id="posting-fit" className={META_LABEL}>
+                {t("fit.title")}
+              </h2>
+              <p className="mt-1 text-sm text-steel">{t("fit.settled", { when: rel(settledFit.at) })}</p>
+              <FitVerdictRow verdict={settledFit.artifact.verdict} applied={status === "applied"} onMarkApplied={() => void actions.markApplied(view)} />
+              <div className="mt-4 space-y-6">
+                <FitArtifactSections artifact={settledFit.artifact} closed />
+              </div>
+            </section>
+          ) : null}
+
           <section className={`${PANEL} p-5`} aria-labelledby="posting-reasoning">
             <h2 id="posting-reasoning" className={META_LABEL}>
               {t("reasoning.title")}
@@ -333,6 +367,7 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
           posting={view}
           initialDegradation={studio.degradation}
           onDialogChange={(dialog) => setStudio((s) => (s ? { ...s, dialog } : s))}
+          onDone={(artifact) => setSettledFit({ artifact, at: new Date().toISOString() })}
           onMarkApplied={() => void actions.markApplied(view)}
           applied={status === "applied"}
           onClose={() => setStudio(null)}

@@ -4,7 +4,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
-import { appendDialogTurns, closeDialog, createDialog, getDialog, listDialogs } from "./jobseeker-dialogs.ts";
+import { appendDialogTurns, closeDialog, createDialog, getDialog, latestFitDialogForPosting, listDialogs } from "./jobseeker-dialogs.ts";
 
 after(() => cleanupUnitDb());
 
@@ -51,4 +51,31 @@ test("closeDialog is idempotent and a dialog is missing across workspaces", () =
   assert.equal(closeDialog(dialog.id), false);
   assert.equal(listDialogs("jsp-2").map((d) => d.id).includes(dialog.id), true);
   assert.equal(listDialogs("jsp-2", "another-workspace").length, 0);
+});
+
+test("latestFitDialogForPosting: the newest CLOSED fit verdict for that posting, and nothing else", () => {
+  const artifact = { verdict: "apply" as const, gaps: [], coverNoteMd: null, questionsToAsk: [] };
+  const posting = "jpo-verdict";
+
+  const open = createDialog({ profileId: "jsp-3", kind: "fit", postingId: posting, lang: "en", opening });
+  assert.equal(latestFitDialogForPosting(posting), null, "an OPEN conversation has not settled on anything yet");
+
+  assert.equal(appendDialogTurns(open.id, open.updatedAt, [{ role: "interviewer", text: "Go for it." }], artifact, true), "ok");
+  const settled = latestFitDialogForPosting(posting);
+  assert.equal(settled?.id, open.id);
+  assert.deepEqual(settled?.artifact, artifact, "the artifact is what the page shows");
+
+  // The neighbours this query must not answer with.
+  const otherPosting = createDialog({ profileId: "jsp-3", kind: "fit", postingId: "jpo-other", lang: "en", opening });
+  closeDialog(otherPosting.id);
+  const cvKind = createDialog({ profileId: "jsp-3", kind: "cv_polish", postingId: posting, lang: "en", opening });
+  closeDialog(cvKind.id);
+  assert.equal(latestFitDialogForPosting(posting)?.id, open.id, "another posting or another kind is not this posting's verdict");
+  assert.equal(latestFitDialogForPosting(posting, "another-workspace"), null, "and never another workspace's");
+
+  // A second fit conversation on the same posting: the newest closed one wins.
+  const again = createDialog({ profileId: "jsp-3", kind: "fit", postingId: posting, lang: "en", opening });
+  assert.equal(appendDialogTurns(again.id, again.updatedAt, [{ role: "interviewer", text: "On reflection, skip." }], { ...artifact, verdict: "skip" }, true), "ok");
+  assert.equal(latestFitDialogForPosting(posting)?.id, again.id);
+  assert.equal((latestFitDialogForPosting(posting)?.artifact as { verdict: string }).verdict, "skip");
 });

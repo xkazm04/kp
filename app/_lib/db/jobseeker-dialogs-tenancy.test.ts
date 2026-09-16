@@ -27,7 +27,7 @@ function isInsert(sql: string): boolean {
 
 test("every SELECT/UPDATE/DELETE/INSERT on the jobseeker_dialogs table carries workspace_id", () => {
   const touching = sqlBlocks.filter((s) => /\b(from|into|update|delete\s+from)\s+jobseeker_dialogs\b/i.test(s));
-  assert.ok(touching.length >= 7, `expected >=7 jobseeker_dialogs queries, found ${touching.length}`);
+  assert.ok(touching.length >= 8, `expected >=8 jobseeker_dialogs queries, found ${touching.length}`);
   for (const sql of touching) {
     const required = isInsert(sql) ? STAMPS_SCOPE : BOUND_SCOPE;
     assert.ok(

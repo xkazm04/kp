@@ -21,8 +21,6 @@ import type { PostingDetailView } from "./postingView";
 export function FitSheet({ posting, artifact, closed, applied, onMarkApplied }: { posting: PostingDetailView; artifact: FitArtifact | null; closed: boolean; applied: boolean; onMarkApplied(): void }) {
   const t = useTranslations("me.fit");
   const tierLabels = useFitTierLabels();
-  const { state: copyState, copy } = useCopyState();
-  const verdictTone = artifact?.verdict === "apply" ? "positive" : artifact?.verdict === "skip" ? "caution" : "neutral";
   return (
     <div className="space-y-6 pb-2">
       <section>
@@ -39,21 +37,41 @@ export function FitSheet({ posting, artifact, closed, applied, onMarkApplied }: 
 
       <section className="border-t border-stone-200 pt-4">
         <p className={META_LABEL}>{t("verdict.title")}</p>
-        {artifact ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge tone={verdictTone} label={t(`verdict.${artifact.verdict}`)} />
-            {artifact.verdict === "apply" && !applied ? (
-              <button type="button" className={`${BTN_AFFIRM} h-8 px-3 text-sm`} onClick={onMarkApplied}>
-                {t("markApplied")}
-              </button>
-            ) : null}
-            {applied ? <Badge tone="positive" label={t("appliedAlready")} /> : null}
-          </div>
-        ) : (
-          <Skeleton className="mt-2 h-5 w-24" />
-        )}
+        {artifact ? <FitVerdictRow verdict={artifact.verdict} applied={applied} onMarkApplied={onMarkApplied} /> : <Skeleton className="mt-2 h-5 w-24" />}
       </section>
 
+      <FitArtifactSections artifact={artifact} closed={closed} />
+    </div>
+  );
+}
+
+/** The verdict word, and the applied door it opens: a settled `apply` is the one verdict
+ *  with a next step, and it is offered wherever the verdict is shown. */
+export function FitVerdictRow({ verdict, applied, onMarkApplied }: { verdict: FitArtifact["verdict"]; applied: boolean; onMarkApplied(): void }) {
+  const t = useTranslations("me.fit");
+  const tone = verdict === "apply" ? "positive" : verdict === "skip" ? "caution" : "neutral";
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <Badge tone={tone} label={t(`verdict.${verdict}`)} />
+      {verdict === "apply" && !applied ? (
+        <button type="button" className={`${BTN_AFFIRM} h-8 px-3 text-sm`} onClick={onMarkApplied}>
+          {t("markApplied")}
+        </button>
+      ) : null}
+      {applied ? <Badge tone="positive" label={t("appliedAlready")} /> : null}
+    </div>
+  );
+}
+
+// The artifact's own three regions, extracted because the posting page shows the SAME
+// verdict outside the overlay (PostingDetail): the studio is where a verdict is reached,
+// not where it has to be kept. `artifact === null` is the studio's pending state — the
+// detail page renders this only once there is something to render.
+export function FitArtifactSections({ artifact, closed }: { artifact: FitArtifact | null; closed: boolean }) {
+  const t = useTranslations("me.fit");
+  const { state: copyState, copy } = useCopyState();
+  return (
+    <>
       <section className="border-t border-stone-200 pt-4">
         <p className={META_LABEL}>{t("gaps.title")}</p>
         {!artifact ? (
@@ -107,6 +125,6 @@ export function FitSheet({ posting, artifact, closed, applied, onMarkApplied }: 
           <p className="mt-1 text-sm text-steel">{t("questions.none")}</p>
         )}
       </section>
-    </div>
+    </>
   );
 }

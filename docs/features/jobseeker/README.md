@@ -404,7 +404,19 @@ only answer that triggers `router.refresh()`), `no_provider` and `template` (bot
 honest keyless states, both rendering the fixed-template note, with the template text
 under it when one arrived and the note alone when it did not), `failed` (the only red
 line). A keyless deep-dive is therefore never an error and never a silent no-op.
-"Discuss fit" opens the fit studio; "I applied" / dismiss as on the feed.
+"Discuss fit" opens the fit studio; "I applied" / dismiss as on the feed, and a failed
+action's line carries a dismiss (`usePostingActions.clearError`).
+
+**The fit verdict lives on the posting, not only in the overlay.** The page reads the
+latest CLOSED fit dialog for the row — `latestFitDialogForPosting(postingId, workspaceId)`
+in `app/_lib/db/jobseeker-dialogs.ts` (workspace-bound, `kind = 'fit'`, `status =
+'closed'`, newest first; `jobseeker-dialogs.test.ts`) — and renders its artifact under the
+match: the verdict word, the applied door when the verdict is `apply` and the posting is
+not applied yet, the gaps with severity, the cover note with its copy control and the
+questions to ask. The regions are the SAME components the studio's sheet uses
+(`FitVerdictRow`, `FitArtifactSections`, exported from `FitSheet.tsx`). Settling a verdict
+inside the overlay updates this panel without a reload: `FitStudio` calls `onDone(artifact)`
+on the closing turn (`CvStudio`'s twin, which re-reads the profile).
 
 **Fit dialog (UC3)** (`FitStudio.tsx` + `FitSheet.tsx`): the Studio kit's second seeker
 variant, CvStudio's twin in composition (`ns="me"`, zones `chat | fit`,
@@ -415,7 +427,9 @@ resumed. The create and message routes read `fitTurnContext`
 MatchResult and the seeker's last ten dismissals (reason + title) ride every turn, so a
 mid-conversation dismissal is seen. The sheet: verdict, gaps with severity + mitigation,
 the cover note (Markdown, copy control with a visible failure state), questions to ask;
-a verdict of `apply` offers "Mark applied". Engine: `pipeline/jobfit/jobseeker.py`
+a verdict of `apply` offers "Mark applied", and the closing turn hands the artifact to
+the posting page through `onDone` so the verdict outlives the overlay. Engine:
+`pipeline/jobfit/jobseeker.py`
 (`FIT_PROMPT_VERSION = "fit-dialog-v1"`, use case `fit_dialog`), a candid coach that
 reasons only from the posting, the match, the profile and the dismissals ("you
 dismissed 3 recent postings for pay; this one states no pay"). **Hypothesis, not

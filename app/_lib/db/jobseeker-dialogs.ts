@@ -91,6 +91,21 @@ export function listDialogs(profileId: string, workspaceId: string = DEFAULT_WOR
   return rows.map(fromRow);
 }
 
+/** The verdict the seeker SETTLED ON for one posting: the most recently touched CLOSED
+ *  fit dialog. Closed only — an open conversation has no settled verdict, and the
+ *  overlay is where an in-flight one belongs; the posting page reads this one so the
+ *  fit artifact does not live exclusively inside a modal nobody reopened. */
+export function latestFitDialogForPosting(postingId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerDialog | null {
+  const row = ensureDb()
+    .prepare(
+      `SELECT * FROM jobseeker_dialogs
+       WHERE posting_id = ? AND workspace_id = ? AND kind = 'fit' AND status = 'closed'
+       ORDER BY updated_at DESC, id DESC LIMIT 1`
+    )
+    .get(postingId, workspaceId) as DialogRow | undefined;
+  return row ? fromRow(row) : null;
+}
+
 /** One exchange landed: append `turns`, replace the artifact (null = leave as stored),
  *  and close when `done`. The transcript is re-read INSIDE the write transaction and
  *  appended to, and the version the caller computed against is re-asserted — so a

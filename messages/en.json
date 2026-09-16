@@ -10825,6 +10825,11 @@
         "no_sources": {
           "title": "No source is switched on",
           "body": "Your profile is ready, but nothing is being read. Enable at least one source and the next scan fills this page.",
+          "euresCta": "Enable EURES for {countries}",
+          "euresNote": "EURES is the European Labour Authority's own vacancy feed, rights-clean with attribution, so there is nothing to acknowledge. One click switches it on and runs the first scan of {countries}.",
+          "euresDefault": "No country is set in your preferences yet, so this switches EURES on and scans {countries}.",
+          "euresPrefs": "Change countries",
+          "euresError": "EURES could not be switched on.",
           "cta": "Choose sources"
         },
         "no_scan": {

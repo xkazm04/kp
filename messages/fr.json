@@ -10825,6 +10825,11 @@
         "no_sources": {
           "title": "Aucune source n'est activée",
           "body": "Votre profil est prêt, mais rien n'est lu. Activez au moins une source et la prochaine analyse remplira cette page.",
+          "euresCta": "Activer EURES pour {countries}",
+          "euresNote": "EURES est la base d'offres de l'Autorité européenne du travail, libre de droits avec attribution : il n'y a donc rien à accepter. Un clic l'active et lance la première analyse pour {countries}.",
+          "euresDefault": "Aucun pays n'est encore défini dans vos préférences : EURES est activé et la recherche portera sur {countries}.",
+          "euresPrefs": "Changer de pays",
+          "euresError": "EURES n'a pas pu être activé.",
           "cta": "Choisir des sources"
         },
         "no_scan": {
