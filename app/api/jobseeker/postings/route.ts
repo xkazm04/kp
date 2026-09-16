@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { listPostings, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
+import { listJobseekerPostings, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
 import { isPostingStatus } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -72,7 +72,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     const parsed = parseListQuery(new URL(request.url).searchParams);
     if ("field" in parsed) return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: parsed.field });
     const ws = await currentWorkspace();
-    const { rows, nextCursor } = listPostings(parsed.opts, ws);
+    const { rows, nextCursor } = listJobseekerPostings(parsed.opts, ws);
     return NextResponse.json({ rows, nextCursor });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings", "JOBSEEKER_STORE_FAILED");

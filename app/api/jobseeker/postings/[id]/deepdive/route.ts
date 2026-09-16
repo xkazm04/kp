@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { getPosting, getPostingSummary } from "@/app/_lib/db/jobseeker-postings";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { getJobseekerPosting, getPostingSummary } from "@/app/_lib/db/jobseeker-postings";
 import { getWorkspaceJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { deepDivePosting } from "@/app/_lib/jobseeker/deepdive";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -27,13 +28,17 @@ export const maxDuration = 120;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   if (!rateLimit(`jobseeker-deepdive:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
     const { id } = await params;
     const ws = await currentWorkspace();
-    const posting = getPosting(id, ws);
+    const posting = getJobseekerPosting(id, ws);
     if (!posting) return jsonRefusal("POSTING_NOT_FOUND", 404);
     const profile = getWorkspaceJobseekerProfile(ws);
     if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);

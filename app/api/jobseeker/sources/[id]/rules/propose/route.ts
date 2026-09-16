@@ -2,9 +2,10 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerSource } from "@/app/_lib/db/jobseeker-sources";
 import { listingPages } from "@/app/_lib/jobseeker/adapters/boardRules";
 import { politeFetch } from "@/app/_lib/jobseeker/fetch/politeFetch";
@@ -30,6 +31,10 @@ const PREVIEW_ITEMS = 5;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   // THROTTLE before the fetch AND the LLM spend. 10/10min per IP.
   if (!rateLimit(`jobseeker-rules-propose:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);

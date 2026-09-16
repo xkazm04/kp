@@ -7,7 +7,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import type { RawPosting } from "../jobseeker/types.ts";
-import { getPosting, listPostings, markAbsent, setPostingMatch, setPostingStatus, upsertPosting } from "./jobseeker-postings.ts";
+import { getJobseekerPosting, listJobseekerPostings, markAbsent, setPostingMatch, setJobseekerPostingStatus, upsertPosting } from "./jobseeker-postings.ts";
 
 after(() => cleanupUnitDb());
 
@@ -47,7 +47,7 @@ test("upsertPosting: new, then unchanged (whitespace-only drift), then changed (
   const b = upsertPosting(source, { ...first, bodyText: first.bodyText.toUpperCase().replace(/\s+/g, "   ") }, T1);
   assert.equal(b.outcome, "unchanged");
   assert.equal(b.id, a.id);
-  const afterUnchanged = getPosting(a.id)!;
+  const afterUnchanged = getJobseekerPosting(a.id)!;
   assert.equal(afterUnchanged.lastSeenAt, T1, "unchanged bumps last_seen_at");
   assert.equal(afterUnchanged.firstSeenAt, T0, "…and only last_seen_at");
 
@@ -56,7 +56,7 @@ test("upsertPosting: new, then unchanged (whitespace-only drift), then changed (
   const c = upsertPosting(source, { ...first, bodyText: "A different advertisement entirely." }, T2);
   assert.equal(c.outcome, "changed");
   assert.equal(c.id, a.id, "same (source, external_key) is the same row");
-  const afterChanged = getPosting(a.id)!;
+  const afterChanged = getJobseekerPosting(a.id)!;
   assert.equal(afterChanged.bodyText, "A different advertisement entirely.");
   assert.equal(afterChanged.matchTotal, null, "a changed body invalidates the match projection");
   assert.equal(afterChanged.match, null);
@@ -69,24 +69,24 @@ test("markAbsent: a single miss is not gone; two consecutive misses are; a re-si
   const kept = upsertPosting(source, raw(), T0);
 
   // Scan at T1 sees only `kept`.
-  upsertPosting(source, raw({ externalKey: getPosting(kept.id)!.externalKey }), T1);
+  upsertPosting(source, raw({ externalKey: getJobseekerPosting(kept.id)!.externalKey }), T1);
   assert.equal(markAbsent(source, T1), 0, "first miss moves nothing to gone");
-  let row = getPosting(seen.id)!;
+  let row = getJobseekerPosting(seen.id)!;
   assert.equal(row.status, "new");
   assert.ok(row.goneAt, "first miss stamps gone_at as the marker");
-  assert.equal(getPosting(kept.id)!.goneAt, null, "a seen posting is not marked");
+  assert.equal(getJobseekerPosting(kept.id)!.goneAt, null, "a seen posting is not marked");
 
   // Scan at T2 again sees only `kept`.
-  upsertPosting(source, raw({ externalKey: getPosting(kept.id)!.externalKey }), T2);
+  upsertPosting(source, raw({ externalKey: getJobseekerPosting(kept.id)!.externalKey }), T2);
   assert.equal(markAbsent(source, T2), 1, "second consecutive miss moves exactly one to gone");
-  row = getPosting(seen.id)!;
+  row = getJobseekerPosting(seen.id)!;
   assert.equal(row.status, "gone");
-  assert.equal(getPosting(kept.id)!.status, "new");
+  assert.equal(getJobseekerPosting(kept.id)!.status, "new");
 
   // The posting is back at T3: revived to 'new', marker cleared.
   const back = upsertPosting(source, raw({ externalKey: row.externalKey, bodyText: `We are hiring for role ${row.externalKey}.` }), T3);
   assert.equal(back.id, seen.id);
-  row = getPosting(seen.id)!;
+  row = getJobseekerPosting(seen.id)!;
   assert.equal(row.status, "new");
   assert.equal(row.goneAt, null);
   assert.equal(row.lastSeenAt, T3);
@@ -98,14 +98,14 @@ test("markAbsent: a single miss is not gone; two consecutive misses are; a re-si
 test("markAbsent leaves the seeker's own statuses alone except the terminal move to gone", () => {
   const source = "src-absent-status";
   const p = upsertPosting(source, raw(), T0);
-  setPostingStatus(p.id, "shortlisted", null);
+  setJobseekerPostingStatus(p.id, "shortlisted", null);
   markAbsent(source, T1);
-  assert.equal(getPosting(p.id)!.status, "shortlisted", "first miss does not touch status");
+  assert.equal(getJobseekerPosting(p.id)!.status, "shortlisted", "first miss does not touch status");
   markAbsent(source, T2);
-  assert.equal(getPosting(p.id)!.status, "gone", "second miss does — a withdrawn opening cannot stay shortlisted");
+  assert.equal(getJobseekerPosting(p.id)!.status, "gone", "second miss does — a withdrawn opening cannot stay shortlisted");
 });
 
-test("listPostings: keyset paging by total walks every row once, nulls last; minTotal filters", () => {
+test("listJobseekerPostings: keyset paging by total walks every row once, nulls last; minTotal filters", () => {
   const source = "src-list";
   const totals: (number | null)[] = [90, 70, 70, 50, null, 30, null];
   const ids: string[] = [];
@@ -119,7 +119,7 @@ test("listPostings: keyset paging by total walks every row once, nulls last; min
   let cursor: string | null = null;
   let pages = 0;
   do {
-    const page = listPostings({ sourceId: source, sort: "total", limit: 3, cursor }, undefined);
+    const page = listJobseekerPostings({ sourceId: source, sort: "total", limit: 3, cursor }, undefined);
     pages += 1;
     for (const row of page.rows) seen.push(row.id);
     cursor = page.nextCursor;
@@ -128,11 +128,11 @@ test("listPostings: keyset paging by total walks every row once, nulls last; min
   assert.equal(seen.length, 7, "every row handed out exactly once");
   assert.deepEqual([...new Set(seen)].length, 7, "no repeats across page boundaries");
   // Order: totals descending, then the two unmatched rows at the tail.
-  const totalsSeen = seen.map((id) => getPosting(id)!.matchTotal);
+  const totalsSeen = seen.map((id) => getJobseekerPosting(id)!.matchTotal);
   assert.deepEqual(totalsSeen.slice(0, 5), [90, 70, 70, 50, 30]);
   assert.deepEqual(totalsSeen.slice(5), [null, null]);
 
-  const filtered = listPostings({ sourceId: source, minTotal: 60, limit: 50 });
+  const filtered = listJobseekerPostings({ sourceId: source, minTotal: 60, limit: 50 });
   assert.deepEqual(
     filtered.rows.map((r) => r.matchTotal),
     [90, 70, 70],
@@ -149,10 +149,10 @@ test("listPostings: keyset paging by total walks every row once, nulls last; min
   assert.equal(row.confidence, null);
 });
 
-test("listPostings: a garbage cursor starts from the top instead of throwing", () => {
+test("listJobseekerPostings: a garbage cursor starts from the top instead of throwing", () => {
   const source = "src-cursor";
   upsertPosting(source, raw(), T0);
-  const page = listPostings({ sourceId: source, cursor: "not-a-cursor" });
+  const page = listJobseekerPostings({ sourceId: source, cursor: "not-a-cursor" });
   assert.equal(page.rows.length, 1);
 });
 
@@ -160,7 +160,7 @@ test("upsertPosting persists the adapter's salary parse and clears it when a re-
   const source = "src-salary";
   const first = raw({ salary: { min: 70000, max: 95000, currency: "czk", period: "month" }, salaryText: "70 000 – 95 000 Kč" });
   const a = upsertPosting(source, first, T0);
-  const stored = getPosting(a.id)!;
+  const stored = getJobseekerPosting(a.id)!;
   assert.equal(stored.salaryMin, 70000);
   assert.equal(stored.salaryMax, 95000);
   assert.equal(stored.salaryCurrency, "CZK", "currency is stored upper-cased");
@@ -168,13 +168,13 @@ test("upsertPosting persists the adapter's salary parse and clears it when a re-
   // The body changes and the pay is no longer stated: the columns follow the posting, never a stale figure.
   const b = upsertPosting(source, { ...first, bodyText: "Rewritten without pay.", salary: null }, T1);
   assert.equal(b.outcome, "changed");
-  const after = getPosting(a.id)!;
+  const after = getJobseekerPosting(a.id)!;
   assert.equal(after.salaryMin, null);
   assert.equal(after.salaryCurrency, null);
   assert.equal(after.salaryPeriod, null);
   // A salary without a currency, or with a period outside the vocabulary, is not a salary.
   const c = upsertPosting(source, raw({ salary: { min: 10, max: 20, currency: "", period: "month" } }), T0);
-  assert.equal(getPosting(c.id)!.salaryMin, null);
+  assert.equal(getJobseekerPosting(c.id)!.salaryMin, null);
   const d = upsertPosting(source, raw({ salary: { min: 10, max: 20, currency: "EUR", period: "hour" as unknown as "month" } }), T0);
-  assert.equal(getPosting(d.id)!.salaryMin, null);
+  assert.equal(getJobseekerPosting(d.id)!.salaryMin, null);
 });

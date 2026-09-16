@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mergePreferences, parsePreferences, parsePreferencesPatch, parseSalaryFloor } from "./profile.ts";
+import { mergePreferencePatch, parsePreferences, parsePreferencesPatch, parseSalaryFloor } from "./profile.ts";
 import { EMPTY_PREFERENCES } from "./types.ts";
 
 // The boundary every preference payload crosses. Two facts are load-bearing: a
@@ -47,9 +47,9 @@ test("the full read always yields a complete, valid record", () => {
 
 test("merge: unsent and empty members never erase a stated value; an explicit null does", () => {
   const base = { ...EMPTY_PREFERENCES, locations: ["Praha"], salaryFloor: { amount: 1, currency: "CZK", period: "month" as const } };
-  const merged = mergePreferences(base, { locations: [], targetTitles: ["Dev"], salaryFloor: undefined });
+  const merged = mergePreferencePatch(base, { locations: [], targetTitles: ["Dev"], salaryFloor: undefined });
   assert.deepEqual(merged.locations, ["Praha"], "an empty list from a later turn keeps the stated places");
   assert.deepEqual(merged.targetTitles, ["Dev"]);
   assert.deepEqual(merged.salaryFloor, base.salaryFloor);
-  assert.equal(mergePreferences(base, { salaryFloor: null }).salaryFloor, null, "clearing is an explicit null");
+  assert.equal(mergePreferencePatch(base, { salaryFloor: null }).salaryFloor, null, "clearing is an explicit null");
 });

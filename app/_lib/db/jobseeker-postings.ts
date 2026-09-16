@@ -343,7 +343,7 @@ export function setPostingReasoning(id: string, reasoning: Record<string, unknow
 
 /** The seeker's own status move. `dismiss` is required by shape when the status is
  *  'dismissed' (the reason is what the feed learns from); any other status clears it. */
-export function setPostingStatus(
+export function setJobseekerPostingStatus(
   id: string,
   status: PostingStatus,
   dismiss: { reason: DismissReason; note: string | null } | null,
@@ -356,7 +356,7 @@ export function setPostingStatus(
   return res.changes > 0;
 }
 
-export function getPosting(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerPosting | null {
+export function getJobseekerPosting(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerPosting | null {
   const row = ensureDb()
     .prepare(`SELECT * FROM jobseeker_postings WHERE id = ? AND workspace_id = ?`)
     .get(id, workspaceId) as PostingRow | undefined;
@@ -402,7 +402,7 @@ const SORT_COLUMN: Record<NonNullable<ListPostingsOptions["sort"]>, string> = {
   seen: "last_seen_at",
 };
 
-export function listPostings(
+export function listJobseekerPostings(
   opts: ListPostingsOptions = {},
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { rows: JobseekerPostingSummary[]; nextCursor: string | null } {

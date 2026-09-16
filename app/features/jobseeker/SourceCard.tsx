@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, ExternalLink, Loader2, Pause, Play, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
-import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL, NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { JobseekerSource } from "@/app/_lib/jobseeker/types";
@@ -154,7 +154,7 @@ function AckBlock({ changed, busy, onConfirm, onCancel }: { changed: boolean; bu
   const [checked, setChecked] = useState(false);
   useDialogA11y(ref, onCancel, { trap: true, lockScroll: false });
   return (
-    <div ref={ref} role="alertdialog" aria-modal="true" aria-label={t("title")} tabIndex={-1} className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4" data-testid="source-ack">
+    <div ref={ref} role="alertdialog" aria-modal="true" aria-label={t("title")} tabIndex={-1} className={`mt-3 ${NOTICE("amber")}`} data-testid="source-ack">
       <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-amber-700">
         <ShieldCheck size={13} aria-hidden /> {t("title")}
       </p>

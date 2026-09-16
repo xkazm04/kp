@@ -121,7 +121,7 @@ export function parsePreferences(raw: unknown): JobseekerPreferences {
 /** Shallow merge, `undefined` members never overwrite (the store's own rule). An
  *  empty list from the patch does not erase a stated one — a turn that did not
  *  mention places must not delete the places stated two turns earlier. */
-export function mergePreferences(base: JobseekerPreferences, partial: Partial<JobseekerPreferences>): JobseekerPreferences {
+export function mergePreferencePatch(base: JobseekerPreferences, partial: Partial<JobseekerPreferences>): JobseekerPreferences {
   const merged: JobseekerPreferences = { ...base };
   for (const [key, value] of Object.entries(partial) as [keyof JobseekerPreferences, unknown][]) {
     if (value === undefined) continue;

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { createDialog, listDialogs } from "@/app/_lib/db/jobseeker-dialogs";
 import { getJobseekerProfile, getJobseekerProfileById } from "@/app/_lib/db/jobseeker-profiles";
@@ -44,6 +45,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => ({}))) as { kind?: unknown; postingId?: unknown; lang?: unknown };
     // An absent kind is the one persona this page opens; a kind outside the closed

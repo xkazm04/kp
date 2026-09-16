@@ -189,12 +189,12 @@ export function ScansPage() {
                       <table className="mt-3 w-full text-sm">
                         <thead>
                           <tr className="text-left text-sm text-steel">
-                            <th className="py-1 pr-3 font-medium">{t("table.source")}</th>
-                            <th className="py-1 pr-3 font-medium">{t("table.outcome")}</th>
-                            <th className="py-1 pr-3 font-medium nums">{t("table.new")}</th>
-                            <th className="py-1 pr-3 font-medium nums">{t("table.changed")}</th>
-                            <th className="py-1 pr-3 font-medium nums">{t("table.absent")}</th>
-                            <th className="py-1 font-medium">{t("table.reason")}</th>
+                            <th scope="col" className="py-1 pr-3 font-medium">{t("table.source")}</th>
+                            <th scope="col" className="py-1 pr-3 font-medium">{t("table.outcome")}</th>
+                            <th scope="col" className="py-1 pr-3 font-medium nums">{t("table.new")}</th>
+                            <th scope="col" className="py-1 pr-3 font-medium nums">{t("table.changed")}</th>
+                            <th scope="col" className="py-1 pr-3 font-medium nums">{t("table.absent")}</th>
+                            <th scope="col" className="py-1 font-medium">{t("table.reason")}</th>
                           </tr>
                         </thead>
                         <tbody>

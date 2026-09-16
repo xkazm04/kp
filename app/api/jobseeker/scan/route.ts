@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { SCAN_TASK_KIND } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { startTask } from "@/app/_lib/tasks";
@@ -23,6 +24,10 @@ import { startTask } from "@/app/_lib/tasks";
 export async function POST(request: Request): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   if (!rateLimit(`jobseeker-scan:${clientIpFrom(request.headers)}`, { limit: 6, windowMs: 10 * 60_000 })) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }

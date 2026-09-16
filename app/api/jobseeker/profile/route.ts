@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { getJobseekerProfile, upsertJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
-import { mergePreferences, parsePreferencesPatch } from "@/app/_lib/jobseeker/profile";
+import { mergePreferencePatch, parsePreferencesPatch } from "@/app/_lib/jobseeker/profile";
 import { EMPTY_PREFERENCES } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
@@ -50,6 +51,10 @@ export async function GET(): Promise<NextResponse> {
 export async function PUT(request: Request): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   if (!rateLimit(`jobseeker-profile:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
@@ -63,7 +68,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
     const existing = getJobseekerProfile(userId, ws);
     const profile: ProfilePayload =
       body.profile && typeof body.profile === "object" ? (body.profile as ProfilePayload) : existing?.profile ?? ({} as ProfilePayload);
-    const preferences = mergePreferences(existing?.preferences ?? EMPTY_PREFERENCES, parsePreferencesPatch(body.preferences));
+    const preferences = mergePreferencePatch(existing?.preferences ?? EMPTY_PREFERENCES, parsePreferencesPatch(body.preferences));
     const cvSourceText =
       body.cvSourceText === null ? null : typeof body.cvSourceText === "string" ? body.cvSourceText.slice(0, MAX_CV_SOURCE_CHARS) : undefined;
     const saved = upsertJobseekerProfile({ userId, profile, preferences, cvSourceText }, ws);

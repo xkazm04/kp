@@ -8,7 +8,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
-import { getPosting, setPostingMatch, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
+import { getJobseekerPosting, setPostingMatch, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
 import type { JobseekerPostingSummary, RawPosting } from "../../../_lib/jobseeker/types.ts";
 import { GET } from "./route.ts";
 import { PATCH } from "./[id]/route.ts";
@@ -125,7 +125,7 @@ test("PATCH: shortlisted moves the row and answers the summary; dismissed withou
   const body = (await ok.json()) as { posting: JobseekerPostingSummary };
   assert.equal(body.posting.id, ids[0]);
   assert.equal(body.posting.status, "shortlisted");
-  assert.equal(getPosting(ids[0])!.status, "shortlisted");
+  assert.equal(getJobseekerPosting(ids[0])!.status, "shortlisted");
 
   const noReason = await patch(ids[1], { status: "dismissed" });
   assert.equal(noReason.status, 400);
@@ -133,14 +133,14 @@ test("PATCH: shortlisted moves the row and answers the summary; dismissed withou
   assert.equal(nr.code, "APPLY_SELECTION_INVALID");
   assert.equal(nr.field, "dismissReason");
   assert.ok(nr.options.includes("salary"));
-  assert.equal(getPosting(ids[1])!.status, "new", "a refused dismiss writes nothing");
+  assert.equal(getJobseekerPosting(ids[1])!.status, "new", "a refused dismiss writes nothing");
 
   const badReason = await patch(ids[1], { status: "dismissed", dismissReason: "vibes" });
   assert.equal(badReason.status, 400);
 
   const dismissed = await patch(ids[1], { status: "dismissed", dismissReason: "salary", note: "  under floor  " });
   assert.equal(dismissed.status, 200);
-  const row = getPosting(ids[1])!;
+  const row = getJobseekerPosting(ids[1])!;
   assert.equal(row.status, "dismissed");
   assert.equal(row.dismissReason, "salary");
   assert.equal(row.dismissNote, "under floor");

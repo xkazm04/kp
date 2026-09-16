@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { appendDialogTurns, getDialog } from "@/app/_lib/db/jobseeker-dialogs";
 import { getJobseekerProfileById, mergePreferences, setPolishedCv } from "@/app/_lib/db/jobseeker-profiles";
 import { fitTurnContext } from "@/app/_lib/jobseeker-fit-context";
@@ -27,6 +28,10 @@ const MAX_MESSAGE_CHARS = 4_000;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const { id } = await params;
     const ws = await currentWorkspace();

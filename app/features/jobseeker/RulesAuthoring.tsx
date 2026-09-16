@@ -141,10 +141,10 @@ export function RulesAuthoring({ source, onSaved }: { source: JobseekerSource; o
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-sm text-steel">
-                  <th className="py-1 pr-3 font-medium">{t("preview.field")}</th>
-                  <th className="py-1 pr-3 font-medium">{t("preview.matched")}</th>
-                  <th className="py-1 pr-3 font-medium">{t("preview.verdict")}</th>
-                  <th className="py-1 font-medium">{t("preview.samples")}</th>
+                  <th scope="col" className="py-1 pr-3 font-medium">{t("preview.field")}</th>
+                  <th scope="col" className="py-1 pr-3 font-medium">{t("preview.matched")}</th>
+                  <th scope="col" className="py-1 pr-3 font-medium">{t("preview.verdict")}</th>
+                  <th scope="col" className="py-1 font-medium">{t("preview.samples")}</th>
                 </tr>
               </thead>
               <tbody>

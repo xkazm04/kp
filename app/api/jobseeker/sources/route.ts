@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createJobseekerSource, listJobseekerSources } from "@/app/_lib/db/jobseeker-sources";
 import { hostForAdapter } from "@/app/_lib/jobseeker/adapters/registry";
 import { catalogEntry, sourcesCatalog, tierForHost } from "@/app/_lib/jobseeker/sources-catalog";
@@ -36,6 +37,10 @@ function kindFor(adapter: string): SourceKind {
 export async function POST(request: Request): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   // THROTTLE before the body is read: a source row is a write, and open mode makes
   // the operator gate a no-op. 60/10min per IP — the Sources page creates one at a time.
   if (!rateLimit(`jobseeker-sources-write:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {

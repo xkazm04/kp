@@ -1,4 +1,4 @@
-import { getPosting, listPostings } from "./db/jobseeker-postings";
+import { getJobseekerPosting, listJobseekerPostings } from "./db/jobseeker-postings";
 import type { JobseekerTurnInput } from "./jobseeker-run";
 
 // What a `fit` dialog turn carries beside the profile (WP5): the posting the seeker is
@@ -18,9 +18,9 @@ export type FitTurnContext = Pick<JobseekerTurnInput, "posting" | "match" | "dis
 
 export function fitTurnContext(postingId: string | null, workspaceId: string): FitTurnContext | null {
   if (!postingId) return null;
-  const posting = getPosting(postingId, workspaceId);
+  const posting = getJobseekerPosting(postingId, workspaceId);
   if (!posting) return null;
-  const dismissals = listPostings({ status: "dismissed", sort: "seen", limit: DISMISSALS }, workspaceId).rows.map((r) => ({
+  const dismissals = listJobseekerPostings({ status: "dismissed", sort: "seen", limit: DISMISSALS }, workspaceId).rows.map((r) => ({
     reason: r.dismissReason ?? "other",
     note: r.dismissNote,
     title: r.title,

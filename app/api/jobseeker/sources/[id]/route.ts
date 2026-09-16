@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerSource, pauseSource, resumeSource, setSourceEnabled, setSourceRules } from "@/app/_lib/db/jobseeker-sources";
 import { isRulesError, validateRules } from "@/app/_lib/jobseeker/rules/dsl";
 import { termsHashForSource } from "@/app/_lib/jobseeker/sources-catalog";
@@ -24,6 +25,10 @@ function isPauseReason(v: unknown): v is PauseReason {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
+  // feed, not spend a scan, a model turn or a source acknowledgement (route-capability-coverage).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   if (!rateLimit(`jobseeker-sources-write:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
