@@ -10,8 +10,12 @@ import sys
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit.cv_draft import deterministic_draft
+from pipeline.jobfit.cv_draft import _ROLE_WORD_TERMS, deterministic_draft, is_role_word
 from pipeline.jobfit.profile_draft_cli import build_draft
+
+TAXONOMY_TERMS = json.loads(
+    (Path(__file__).resolve().parents[3] / "data" / "taxonomy.json").read_text(encoding="utf-8")
+)["terms"]
 
 CV = """Jan Novák
 Praha, Czech Republic · jan@example.com · +420 777 123 456
@@ -44,6 +48,33 @@ class DeterministicDraftTest(unittest.TestCase):
         self.assertIsNone(d["location"])
         for claim in deterministic_draft(CV)["skill_claims"]:
             self.assertEqual(claim["provenance"], "self_declared")
+
+    def test_role_words_inform_the_family_but_are_never_skill_claims(self) -> None:
+        """"Senior backend engineer" is a job title. The taxonomy files backend /
+        engineer / developer under ``skill``, so they used to land as self-declared
+        SKILL claims beside java and postgresql — telling a reviewer nothing and
+        diluting every real claim. They still vote on the role family."""
+        d = deterministic_draft(CV)
+        claimed = [c["skill"].strip().lower() for c in d["skill_claims"]]
+        for role_word in ("backend", "engineer", "developer"):
+            self.assertNotIn(role_word, claimed, "a role word is not a skill claim")
+        for real in ("java", "spring", "postgresql"):
+            self.assertIn(real, claimed, "…while every real skill survives")
+        self.assertEqual(d["role_family"], "software_engineering", "the family still hears the role words")
+        # The Summary experience carries the same filtered list, not the raw detection.
+        self.assertFalse([s for s in d["experiences"][0]["skills"] if is_role_word(s)])
+
+    def test_the_role_word_set_still_names_real_taxonomy_terms(self) -> None:
+        """A renamed or re-categorised term would silently switch the filter off."""
+        by_id = {t["id"]: t for t in TAXONOMY_TERMS}
+        for term_id in _ROLE_WORD_TERMS:
+            self.assertIn(term_id, by_id, "role word no longer in the taxonomy")
+            self.assertIn("skill", by_id[term_id].get("categories") or [],
+                          "term left the skill category — the filter is now dead weight")
+            self.assertTrue(any(is_role_word(s) for s in by_id[term_id]["match"]),
+                            "no surface of the term resolves back to it")
+        self.assertFalse(is_role_word("java"), "a real skill is never filtered")
+        self.assertFalse(is_role_word("devops"), "a named specialty is a skill, not a role word")
 
     def test_build_draft_routes_the_twin_like_a_model_payload(self) -> None:
         draft = build_draft(deterministic_draft(CV))

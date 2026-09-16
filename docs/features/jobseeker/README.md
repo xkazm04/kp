@@ -223,7 +223,11 @@ the matcher scores) → `PUT /api/jobseeker/profile { profile, cvSourceText }`. 
 three stages tick as a checklist; every refusal renders from its code
 (`useErrorMessage`). The summary (`ProfileSummary.tsx`) shows what was read (name,
 role family, years, skills, location, languages, education) and **what could not be
-read** as a list of gaps to fill, never a score.
+read** as a list of gaps to fill, never a score. The keyless twin
+(`pipeline/jobfit/cv_draft.py`) drops the taxonomy's role WORDS — backend, frontend,
+fullstack, developer, engineer, architect, vývoj — from the skill claims it writes
+(they say what a person is, not what they can do, and every job title in the history
+fires them) while still letting them vote on `role_family`.
 
 **What ended a hop** is classified in `importOutcome.ts` (`classifyExtract` /
 `classifyDraft` / `classifySave` → one closed vocabulary: `coded · noTextLayer ·
