@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { Check, Lightbulb, HelpCircle } from "lucide-react";
 import { BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
-import { choiceMessage, toggleChoice, type IntakeChoiceSet } from "@/app/_lib/intake-choices";
+import type { StudioChoiceSet } from "@/app/_lib/jobseeker/types";
+import { choiceMessage, toggleChoice } from "./choiceMessage";
+import { useStudioTranslations } from "./useStudioTranslations";
 
-// DECISION CARDS — the agent's offer, under the bubble that made it.
+// DECISION CARDS — the agent's offer, under the turn that made it.
 //
 // The design constraint the shape comes from: this must not read as a form.
 // A form asks; a card set PROPOSES, and proposing carries an obligation the
@@ -14,11 +15,11 @@ import { choiceMessage, toggleChoice, type IntakeChoiceSet } from "@/app/_lib/in
 // as easy as accepting. So:
 //
 //  · Each card carries its consequence line (`detail`), because that is what
-//    turns "Senior" from a label into a decision the requestor can weigh.
+//    turns "Senior" from a label into a decision the reader can weigh.
 //  · The kind is stated, not implied: a `confirm` set says the agent is
 //    checking its own assumption (and its eyebrow reads that way), a `propose`
 //    set says these are disposable suggestions. The two ask for different
-//    things and a requestor who cannot tell them apart will treat both as the
+//    things and a reader who cannot tell them apart will treat both as the
 //    system's opinion.
 //  · The escape is IN THE CARD SET, not only in the composer: an explicit
 //    "none of these" line under the cards, which just moves focus back to
@@ -27,27 +28,28 @@ import { choiceMessage, toggleChoice, type IntakeChoiceSet } from "@/app/_lib/in
 //    record of what was offered — the transcript above them is the record of
 //    what was picked — but nothing about them invites a second click.
 //
-// Selecting sends the labels as an ORDINARY MESSAGE (intake-choices.ts): the
-// engine, the extraction and the read-back all see the requestor's words, and
+// Selecting sends the labels as an ORDINARY MESSAGE (choiceMessage.ts): the
+// engine, the extraction and the read-back all see the reader's words, and
 // the value lands as `stated` because they did state it.
+//
+// Strings: `<ns>.choices.*`.
 
-export function JdsIntakeChoiceCards({
-  set,
-  disabled,
-  onPick,
-  onDecline,
-}: {
-  set: IntakeChoiceSet;
+export type StudioChoiceCardsProps = {
+  set: StudioChoiceSet;
+  /** Sends the selection as the reader's next message. A consumer whose send
+   *  resolves `false` (the exchange did not land) keeps the selection on screen
+   *  to retry — the return value is read when there is one. */
+  onPick(message: string): void;
+  /** "None of these" — hands the turn back to the composer. */
+  onDecline(): void;
   /** The turn is no longer the live one, the session closed, or a send is in
    *  flight — the cards are then a record, not an offer. */
   disabled: boolean;
-  /** Sends the selection as the requestor's next message. Resolves false when
-   *  the exchange did not land, so the selection stays on screen to retry. */
-  onPick: (message: string) => void | Promise<boolean>;
-  /** "None of these" — hands the turn back to the composer. */
-  onDecline?: () => void;
-}) {
-  const t = useTranslations("library.tab.intake.choices");
+  ns: string;
+};
+
+export function StudioChoiceCards({ set, disabled, onPick, onDecline, ns }: StudioChoiceCardsProps) {
+  const t = useStudioTranslations(ns);
   const [selected, setSelected] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const busy = sending || disabled;
@@ -58,11 +60,12 @@ export function JdsIntakeChoiceCards({
     if (!message || busy) return;
     setSending(true);
     try {
-      const ok = await onPick(message);
-      // Keep the selection when the send was refused — the requestor's pick is
-      // the only copy of what they decided, exactly as the composer keeps a
-      // refused draft.
-      if (ok !== false) setSelected([]);
+      // The contract declares `void`; a consumer may still hand back a
+      // Promise<boolean> (intake's `logic.send` does), and `false` there means
+      // "refused" — keep the selection, it is the only copy of what they decided,
+      // exactly as the composer keeps a refused draft.
+      const outcome: unknown = await (onPick(message) as unknown);
+      if (outcome !== false) setSelected([]);
     } finally {
       setSending(false);
     }
@@ -72,7 +75,7 @@ export function JdsIntakeChoiceCards({
     <div className="mt-2 space-y-2">
       <div className={`flex items-center gap-1.5 ${META_LABEL}`}>
         <Icon size={12} aria-hidden />
-        {t(set.kind === "confirm" ? "eyebrowConfirm" : "eyebrowPropose")}
+        {t(set.kind === "confirm" ? "choices.eyebrowConfirm" : "choices.eyebrowPropose")}
       </div>
       <p className="text-body text-ink">{set.prompt}</p>
       {/* A radiogroup would be a lie for a multi-select and an over-claim for a
@@ -118,7 +121,7 @@ export function JdsIntakeChoiceCards({
             disabled={busy || selected.length === 0}
             onClick={() => void commit(selected)}
           >
-            {t("confirmSelection", { count: selected.length })}
+            {t("choices.confirmSelection", { count: selected.length })}
           </button>
         ) : null}
         {/* Declining is a first-class answer, so it is on the card set rather
@@ -129,7 +132,7 @@ export function JdsIntakeChoiceCards({
           disabled={busy}
           onClick={onDecline}
         >
-          {t("none")}
+          {t("choices.none")}
         </button>
       </div>
     </div>

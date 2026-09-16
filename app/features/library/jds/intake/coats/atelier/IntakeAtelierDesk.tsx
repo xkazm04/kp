@@ -1,55 +1,44 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Paperclip } from "lucide-react";
+import { IconAction } from "@/app/_components/IconAction";
+import { StudioComposer, StudioDesk, StudioTranscript, StudioVoiceBar, useStudioComposerDraft } from "@/app/_components/studio";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
 import { briefPromoteBlockers } from "@/app/_lib/intake-brief";
 import { briefItemCount } from "../../jdsIntakeBriefModel";
+import { INTAKE_AUTO_SPEAK_KEY } from "../../intakeVoiceIo";
 import { JdsIntakeAppMasterCard } from "../../JdsIntakeAppMasterCard";
 import { JdsIntakeAttachmentsPane } from "../../JdsIntakeAttachmentsPane";
 import { JdsIntakeVoice } from "../../JdsIntakeVoice";
-import { readStoredColumns, storeColumns, toggleColumn, type IntakeColumnKey } from "../studioContract";
+import { INTAKE_COLUMNS_STORAGE_KEY, readStoredColumns, storeColumns, toggleColumn, type IntakeColumnKey } from "../studioContract";
 import type { useAppMasterLogic } from "../../jdsIntakeAppMaster";
-import type { IntakeLogic, IntakeSession } from "../../jdsIntakeLogic";
-import { AtelierZone } from "./atelierPlane";
+import type { IntakeLogic, IntakeSession, IntakeTurn } from "../../jdsIntakeLogic";
 import { AtelierBriefPlane } from "./AtelierBriefPlane";
-import { AtelierComposer } from "./AtelierComposer";
 import { AtelierDraftSheet } from "./AtelierDraftSheet";
-import { AtelierTranscript } from "./AtelierTranscript";
 
-// THE DESK — a designer's plane, not three chat boxes.
+// THE INTAKE DESK — the Studio kit, with intake's plane on it.
 //
-// This was the `atelier` direction of a three-way prototype; it won, and it is
-// now the studio's only working surface (with Console's Job-description sheet
-// fused into AtelierDraftSheet). The comparison below is with the desk it
-// replaced, which no longer exists.
+// This was the `atelier` direction of a three-way prototype; it won, became the
+// studio's only working surface, and in WP1 the surface itself — the zones, the
+// fold, the transcript blocks, the bare composer, the voice pair, the decision
+// cards — was extracted into `app/_components/studio` so the job-seeker dialogs
+// can stand on the same desk. What is left here is COMPOSITION: which zones
+// intake has and in what order, what its plane is (the live brief, with the
+// App-master card when the session has that shape), what its extra zone holds
+// (the JD draft over the materials disclosure), what each zone's numeral means,
+// and the wiring from `IntakeLogic` into the kit's props. Nothing in this file
+// draws chrome; if it needs to, the kit is where the drawing belongs.
 //
-// The classic desk's dated tell is NESTING: three rounded, bordered cards
-// floating inside another rounded bordered card, with chat bubbles inside those,
-// a sunken panel inside one of them and a bordered disclosure inside another.
-// Five radii deep before the eye reaches a sentence the requestor came to read.
-//
-// This desk keeps the same three zones, the same information and every behaviour,
-// and replaces the boxes with PLANES: one continuous white surface, zones
-// separated by a hairline, hierarchy carried by type and space. The zone head is
-// quiet and sticky, its count is a bare tabular numeral rather than a pill, and
-// the fold control only exists while the pointer or the keyboard is inside the
-// zone.
-//
-// NO SENTENCE OCCUPIES LAYOUT (studioContract.ts). What the old desk said in
-// prose, this surface says with a glyph and a tooltip: the materials cue, the composer
-// placeholder, the empty-brief and empty-draft promises, the "dictation is not
-// set up" notices, the "the last open column stays open" title, the slow-thinking
-// beat. An empty region shows the SHAPE of what will fill it; an absent
-// capability is drawn struck, with the reason one hover away. Errors and the
-// degraded-engine disclosure stay exactly where they were — the overlay owns
-// them, and they are not chrome.
+// The variant is PROPS, not a coat: `ns` is intake's catalog branch, the storage
+// keys are intake's, the plane is a ReactNode. The doctrine the surface obeys —
+// NO SENTENCE OCCUPIES LAYOUT — is stated in the kit (studioZones.ts).
 
-const STORAGE_KEY = "kp-intake-atelier-cols";
-const ZONES: IntakeColumnKey[] = ["draft", "chat", "brief"];
+const ZONES = ["draft", "chat", "brief"] as const satisfies readonly IntakeColumnKey[];
 const DEFAULT_OPEN: IntakeColumnKey[] = ["draft", "chat", "brief"];
+const NS = "library.tab.intake";
 
 export function IntakeAtelierDesk({
   active,
@@ -62,7 +51,9 @@ export function IntakeAtelierDesk({
 }) {
   const t = useTranslations("library.tab.intake");
   const tCols = useTranslations("library.tab.intake.columns");
-  const [open, setOpen] = useState<IntakeColumnKey[]>(() => readStoredColumns(STORAGE_KEY, DEFAULT_OPEN));
+  // Controlled: the paperclip glyph opens the draft zone from OUTSIDE the desk,
+  // so intake holds the open set and persists it with the kit's own helpers.
+  const [open, setOpen] = useState<IntakeColumnKey[]>(() => readStoredColumns(INTAKE_COLUMNS_STORAGE_KEY, DEFAULT_OPEN));
   // Deliberately not persisted: the fold state is a preference, "show me the
   // materials now" is an intent.
   const [materialsOpen, setMaterialsOpen] = useState(false);
@@ -81,12 +72,9 @@ export function IntakeAtelierDesk({
   const hasJdAttachment = attachments.some((a) => a.kind === "jd");
   const materialsHint = tCols("materials.reveal", { count: attachments.length });
 
-  const flip = (key: IntakeColumnKey) => {
-    setOpen((prev) => {
-      const next = toggleColumn(prev, key);
-      storeColumns(STORAGE_KEY, next);
-      return next;
-    });
+  const persist = (next: IntakeColumnKey[]) => {
+    setOpen(next);
+    storeColumns(INTAKE_COLUMNS_STORAGE_KEY, next);
   };
 
   // One intent, reachable from the composer glyph and from the folded zone: show
@@ -94,153 +82,182 @@ export function IntakeAtelierDesk({
   // irrelevant here.
   const revealMaterials = () => {
     setMaterialsOpen(true);
-    setOpen((prev) => {
-      if (prev.includes("draft")) return prev;
-      const next = toggleColumn(prev, "draft");
-      storeColumns(STORAGE_KEY, next);
-      return next;
-    });
+    if (!open.includes("draft")) persist(toggleColumn(open, "draft"));
   };
 
   // Each zone reports its OWN content — the numeral is the one fact a folded
   // zone still owes the reader, and the draft is a document, so it gets a state
   // mark rather than a meaningless number.
-  const countOf = (key: IntakeColumnKey): { count: string; hint: string } => {
-    if (key === "chat") return { count: String(active.transcript.length), hint: tCols("badge.turns", { count: active.transcript.length }) };
-    if (key === "brief") {
-      const n = briefItemCount(active.brief ?? null);
-      return { count: String(n), hint: tCols("badge.briefItems", { count: n }) };
-    }
-    if (promotable) return { count: "✓", hint: tCols("badge.draftReady") };
-    if (started) return { count: "…", hint: tCols("badge.draftDrafting") };
-    return { count: "·", hint: tCols("badge.draftEmpty") };
+  const draftMark = promotable
+    ? { count: "✓", countHint: tCols("badge.draftReady") }
+    : started
+      ? { count: "…", countHint: tCols("badge.draftDrafting") }
+      : { count: "·", countHint: tCols("badge.draftEmpty") };
+  const briefCount = briefItemCount(active.brief ?? null);
+  const meta = {
+    chat: { count: String(active.transcript.length), countHint: tCols("badge.turns", { count: active.transcript.length }) },
+    brief: { count: String(briefCount), countHint: tCols("badge.briefItems", { count: briefCount }) },
+    draft: draftMark,
   };
 
+  // The agent's newest line, for read-aloud. Null while a turn is in flight —
+  // the reply on screen is the PREVIOUS one, and speaking it while the next is
+  // being written would read the conversation back out of order.
+  const speakText = useMemo(() => latestAgentLine(active.transcript, logic.sending), [active.transcript, logic.sending]);
+
   return (
-    // ONE PLANE. The overlay's modal body already bounds the height (92dvh), so
-    // the desk fills it and never claims one of its own; below xl the zones stack
-    // and the dialog scrolls.
-    <div className="flex min-h-0 shrink-0 flex-col xl:h-full xl:flex-1 xl:shrink xl:flex-row xl:items-stretch">
-      {ZONES.map((key, i) => {
-        const isOpen = open.includes(key);
-        const { count, hint } = countOf(key);
-        return (
-          <AtelierZone
-            key={key}
-            zoneKey={key}
-            label={tCols(`col.${key}`)}
-            count={count}
-            countHint={hint}
-            open={isOpen}
-            canFold={!(isOpen && open.length === 1)}
-            onToggle={() => flip(key)}
-            busy={logic.sending && key !== "chat"}
-            first={i === 0}
-            grow={key === "chat" ? "xl:flex-[1.5]" : "xl:flex-1"}
-            scroll={key !== "chat"}
-          >
-            {key === "chat" ? (
-              <>
-                <AtelierTranscript
-                  transcript={active.transcript}
-                  sending={logic.sending}
-                  closed={closed}
-                  onSend={logic.send}
-                  onDeclineChoices={() => composerRef.current?.focus()}
-                  highlightTurn={logic.highlightTurn}
-                  onHighlightDone={logic.clearHighlight}
-                  statusNote={scanNote}
-                />
-                {/* A closed session has no composer at all — the classic coat
-                    printed a placeholder sentence into a dead field instead. */}
-                {!closed ? (
-                  <AtelierComposer
-                    intakeId={active.id}
-                    lang={active.lang ?? "en"}
-                    transcript={active.transcript}
-                    sending={logic.sending}
-                    onSend={logic.send}
-                    onOpenMaterials={revealMaterials}
-                    materialsHint={materialsHint}
-                    focusRef={composerRef}
-                    voiceSlot={
-                      <JdsIntakeVoice
-                        intakeId={active.id}
-                        disabled={logic.sending}
-                        transcript={active.transcript}
-                        onExchange={logic.applyVoiceExchange}
-                        onSweep={logic.applyVoiceResult}
-                      />
-                    }
-                  />
-                ) : null}
-              </>
-            ) : key === "brief" ? (
-              <AtelierBriefPlane
-                brief={active.brief}
+    <StudioDesk<IntakeColumnKey>
+      ns={NS}
+      zones={{ keys: ZONES, storageKey: INTAKE_COLUMNS_STORAGE_KEY, pinned: [] }}
+      open={open}
+      onOpenChange={persist}
+      transcriptZone="chat"
+      planeZone="brief"
+      sending={logic.sending}
+      meta={meta}
+      transcript={
+        <StudioTranscript
+          ns={NS}
+          turns={active.transcript}
+          latestIndex={active.transcript.length > 0 ? active.transcript.length - 1 : null}
+          sending={logic.sending}
+          closed={closed}
+          onPick={logic.send}
+          onDecline={() => composerRef.current?.focus()}
+          highlightTurn={logic.highlightTurn}
+          onHighlightDone={logic.clearHighlight}
+          statusNote={scanNote}
+        />
+      }
+      composer={
+        // A closed session has no composer at all — the classic coat printed a
+        // placeholder sentence into a dead field instead.
+        !closed ? (
+          <StudioComposer
+            ns={NS}
+            onSend={logic.send}
+            disabled={false}
+            sending={logic.sending}
+            draftKey={`kp-intake-draft:${active.id}`}
+            focusRef={composerRef}
+            leading={<IconAction icon={Paperclip} label={t("glyph.materials")} hint={materialsHint} onClick={revealMaterials} />}
+            voiceSlot={<IntakeDictationSlot lang={active.lang ?? "en"} sessionKey={active.id} speakText={speakText} disabled={logic.sending} />}
+            actions={
+              <JdsIntakeVoice
                 intakeId={active.id}
-                updatedAt={active.updatedAt}
-                frozen={frozen}
-                saving={logic.savingBrief}
-                onSaveBrief={frozen ? undefined : logic.saveBrief}
-                onJumpToTurn={logic.jumpToTurn}
-                appMasterSlot={
-                  active.shape === "app_master" ? (
-                    <JdsIntakeAppMasterCard
-                      dossier={active.dossier}
-                      appMaster={active.appMaster}
-                      specVintage={appMaster.specVintage}
-                      scanNote={scanNote}
-                      fenceNote={fenceNote}
-                      objectiveCount={objectiveCount}
-                      composing={appMaster.composing}
-                      composeError={appMaster.composeError}
-                      onCompose={frozen ? undefined : appMaster.composeAppMaster}
-                      onCancelCompose={appMaster.cancelCompose}
-                      onCancelScan={appMaster.cancelScan ?? undefined}
-                      frozen={frozen}
-                      paired={appMaster.paired}
-                      dispatchState={appMaster.dispatchState}
-                      onDispatch={frozen ? undefined : appMaster.dispatchAppMaster}
-                    />
-                  ) : null
-                }
+                disabled={logic.sending}
+                transcript={active.transcript}
+                onExchange={logic.applyVoiceExchange}
+                onSweep={logic.applyVoiceResult}
               />
-            ) : (
-              <div className="space-y-5 pb-2">
-                {/* A consequence, not chrome: promoting over an attached JD
-                    replaces it, and the requestor must know that before the
-                    click. */}
-                {hasJdAttachment ? <p className="text-meta text-steel">{t("draft.supersedeNote")}</p> : null}
-                <AtelierDraftSheet brief={active.brief} />
-                {/* Reference matter folds under the document it feeds — a
-                    hairline and a glyph, not a bordered card inside a card. */}
-                <details
-                  open={materialsOpen}
-                  onToggle={(e) => setMaterialsOpen(e.currentTarget.open)}
-                  className="border-t border-stone-200 pt-2"
-                >
-                  <summary className={`focus-ring flex cursor-pointer list-none items-center gap-2 ${META_LABEL} transition-colors hover:text-ink`}>
-                    <Paperclip size={13} aria-hidden />
-                    {tCols("col.materials")}
-                    <span className="text-sm text-stone-400 nums">{attachments.length}</span>
-                  </summary>
-                  <div className="mt-3">
-                    <JdsIntakeAttachmentsPane
-                      attachments={attachments}
-                      frozen={frozen}
-                      saving={logic.savingAttachment}
-                      onAdd={logic.addAttachment}
-                      onRemove={logic.removeAttachment}
-                      showTitle={false}
-                    />
-                  </div>
-                </details>
+            }
+          />
+        ) : null
+      }
+      plane={
+        <AtelierBriefPlane
+          brief={active.brief}
+          intakeId={active.id}
+          updatedAt={active.updatedAt}
+          frozen={frozen}
+          saving={logic.savingBrief}
+          onSaveBrief={frozen ? undefined : logic.saveBrief}
+          onJumpToTurn={logic.jumpToTurn}
+          appMasterSlot={
+            active.shape === "app_master" ? (
+              <JdsIntakeAppMasterCard
+                dossier={active.dossier}
+                appMaster={active.appMaster}
+                specVintage={appMaster.specVintage}
+                scanNote={scanNote}
+                fenceNote={fenceNote}
+                objectiveCount={objectiveCount}
+                composing={appMaster.composing}
+                composeError={appMaster.composeError}
+                onCompose={frozen ? undefined : appMaster.composeAppMaster}
+                onCancelCompose={appMaster.cancelCompose}
+                onCancelScan={appMaster.cancelScan ?? undefined}
+                frozen={frozen}
+                paired={appMaster.paired}
+                dispatchState={appMaster.dispatchState}
+                onDispatch={frozen ? undefined : appMaster.dispatchAppMaster}
+              />
+            ) : null
+          }
+        />
+      }
+      extra={{
+        draft: (
+          <div className="space-y-5 pb-2">
+            {/* A consequence, not chrome: promoting over an attached JD
+                replaces it, and the requestor must know that before the
+                click. */}
+            {hasJdAttachment ? <p className="text-meta text-steel">{t("draft.supersedeNote")}</p> : null}
+            <AtelierDraftSheet brief={active.brief} />
+            {/* Reference matter folds under the document it feeds — a
+                hairline and a glyph, not a bordered card inside a card. */}
+            <details
+              open={materialsOpen}
+              onToggle={(e) => setMaterialsOpen(e.currentTarget.open)}
+              className="border-t border-stone-200 pt-2"
+            >
+              <summary className={`focus-ring flex cursor-pointer list-none items-center gap-2 ${META_LABEL} transition-colors hover:text-ink`}>
+                <Paperclip size={13} aria-hidden />
+                {tCols("col.materials")}
+                <span className="text-sm text-stone-400 nums">{attachments.length}</span>
+              </summary>
+              <div className="mt-3">
+                <JdsIntakeAttachmentsPane
+                  attachments={attachments}
+                  frozen={frozen}
+                  saving={logic.savingAttachment}
+                  onAdd={logic.addAttachment}
+                  onRemove={logic.removeAttachment}
+                  showTitle={false}
+                />
               </div>
-            )}
-          </AtelierZone>
-        );
-      })}
-    </div>
+            </details>
+          </div>
+        ),
+      }}
+    />
+  );
+}
+
+/** The newest agent turn with text, or null while a reply is in flight. */
+function latestAgentLine(transcript: IntakeTurn[], sending: boolean): string | null {
+  if (sending) return null;
+  for (let i = transcript.length - 1; i >= 0; i -= 1) {
+    const turn = transcript[i];
+    if (turn?.role === "interviewer" && turn.text.trim()) return turn.text;
+  }
+  return null;
+}
+
+/** Intake's dictation pair, wired into the kit composer's draft: dictated words
+ *  APPEND through the composer's own handle and never send. Lives inside the
+ *  composer's slot, which is what gives it `useStudioComposerDraft()`. */
+function IntakeDictationSlot({
+  lang,
+  sessionKey,
+  speakText,
+  disabled,
+}: {
+  lang: string;
+  sessionKey: string;
+  speakText: string | null;
+  disabled: boolean;
+}) {
+  const draft = useStudioComposerDraft();
+  return (
+    <StudioVoiceBar
+      ns={NS}
+      lang={lang}
+      sessionKey={sessionKey}
+      speakText={speakText}
+      disabled={disabled}
+      autoSpeakStorageKey={INTAKE_AUTO_SPEAK_KEY}
+      onDictation={draft.append}
+    />
   );
 }

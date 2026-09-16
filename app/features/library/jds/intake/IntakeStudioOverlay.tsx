@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 import { X } from "lucide-react";
-import { Modal } from "@/app/_components/Modal";
-import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, EYEBROW, NOTICE } from "@/app/_components/ui/recipes";
+import { StudioOverlay, useStudioOverlayClose } from "@/app/_components/studio";
+import { CHIP_QUIET, EYEBROW } from "@/app/_components/ui/recipes";
 import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
@@ -25,17 +24,13 @@ import type { IntakeLogic, IntakeSession } from "./jdsIntakeLogic";
 // second one silently replacing the first. The tab is now the LEDGER, and opening
 // a session opens this.
 //
-// It is `Modal size="full" bare`: the shared dialog primitive owns Escape, the
-// focus trap, the scroll lock and the Escape stack (`useDialogA11y`; the contract
-// is pinned by e2e/modal-escape.spec.ts), and `bare` means this file draws the
-// chrome — because the header here is not a title bar, it is the session's
-// identity plus everything the requestor can do to it.
-//
-// ESCAPE IS NOT UNCONDITIONAL. A reply takes ~30–40 seconds live, and closing the
-// dialog mid-turn does not cancel it — the exchange lands server-side and the
-// requestor is left on a ledger row that quietly gained a turn they never read.
-// So while a turn is in flight the close asks once. Everything else about the
-// dialog's a11y contract is the primitive's and is not re-implemented here.
+// The dialog itself — `Modal size="full" bare`, the Escape stack, and the
+// "a reply is still arriving" confirm that gates every close while a turn is in
+// flight — is the Studio kit's `StudioOverlay` since WP1, shared with the
+// job-seeker dialogs. What is intake's is the HEADER (the session's identity plus
+// everything the requestor can do to it) and the session-wide disclosure band
+// under it: the degraded/stand-in-language notes and the per-affordance refusal
+// lines, each resolved from the server's CODE.
 
 const SHAPE_KEY = {
   power_unit: "shape.powerUnit",
@@ -56,21 +51,11 @@ export function IntakeStudioOverlay({
   appMaster: ReturnType<typeof useAppMasterLogic>;
 }) {
   const t = useTranslations("library.tab.intake");
-  const tCommon = useTranslations("common");
   const locale = useLocale();
   const reduced = useReducedMotion();
   // An API failure is shown from its machine `code`, never from the server's
   // English `error` string (docs/architecture/api-contracts.md §1.1).
   const resolveError = useErrorMessage();
-  const [confirmClose, setConfirmClose] = useState(false);
-
-  const requestClose = () => {
-    if (logic.sending) {
-      setConfirmClose(true);
-      return;
-    }
-    logic.closeSession();
-  };
 
   // The degraded line says WHICH degradation: "no model configured" is a settings
   // trip, "the model did not answer" is worth one retry, and an unrecognised
@@ -112,62 +97,34 @@ export function IntakeStudioOverlay({
   const heading = active.title || t("untitled");
 
   return (
-    <Modal size="full" bare title={t("studio.dialogLabel", { title: heading })} onClose={requestClose}>
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-stone-200 px-5 py-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <span className={EYEBROW}>{active.shape ? t(SHAPE_KEY[active.shape]) : t("studio.eyebrow")}</span>
-          <span className="min-w-0 truncate font-serif text-h3 text-ink">{heading}</span>
-          <span className={CHIP_QUIET}>{t(`status.${active.status}`)}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <IntakeStudioActions active={active} logic={logic} />
-          <button
-            type="button"
-            onClick={requestClose}
-            aria-label={tCommon("close")}
-            className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100 hover:text-ink"
-          >
-            <X size={18} aria-hidden />
-          </button>
-        </div>
-      </header>
-
-      {/* Disclosure sits between the identity and the work: it is about the whole
-          session, and inside a leaf it would belong to that leaf. */}
+    <StudioOverlay
+      open
+      ns="library.tab.intake"
+      titleId="studio.dialogLabel"
+      titleValues={{ title: heading }}
+      sending={logic.sending}
+      onClose={logic.closeSession}
+      header={
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-stone-200 px-5 py-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+            <span className={EYEBROW}>{active.shape ? t(SHAPE_KEY[active.shape]) : t("studio.eyebrow")}</span>
+            <span className="min-w-0 truncate font-serif text-h3 text-ink">{heading}</span>
+            <span className={CHIP_QUIET}>{t(`status.${active.status}`)}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <IntakeStudioActions active={active} logic={logic} />
+            <CloseControl />
+          </div>
+        </header>
+      }
+    >
+      {/* Session-wide disclosure, under the kit's confirm band and above the work.
+          A finished session says so STRUCTURALLY — the header chip reads "Ready",
+          the composer is gone, and Re-open is the one affordance left. The
+          sentence that used to sit here was the chrome describing itself, and it
+          occupied a line of the desk to do it. */}
       <div className="shrink-0 px-5">
         <AnimatePresence initial={false}>
-          {confirmClose ? (
-            <motion.div
-              key="confirmClose"
-              initial={{ opacity: reduced ? 1 : 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: reduced ? 1 : 0 }}
-              transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
-              role="alert"
-              className={`${NOTICE("amber")} mt-3 flex flex-wrap items-center justify-between gap-3 px-3 py-2 text-sm`}
-            >
-              <span>{t("studio.closeBusy")}</span>
-              <span className="flex items-center gap-2">
-                <button type="button" className={`${BTN_SECONDARY} h-8 bg-white px-3 text-sm`} onClick={() => setConfirmClose(false)}>
-                  {t("studio.closeStay")}
-                </button>
-                <button
-                  type="button"
-                  className={`${BTN_GHOST} h-8 px-3 text-sm`}
-                  onClick={() => {
-                    setConfirmClose(false);
-                    logic.closeSession();
-                  }}
-                >
-                  {t("studio.closeAnyway")}
-                </button>
-              </span>
-            </motion.div>
-          ) : null}
-          {/* A finished session says so STRUCTURALLY — the header chip reads
-              "Ready", the composer is gone, and Re-open is the one affordance
-              left. The sentence that used to sit here was the chrome describing
-              itself, and it occupied a line of the desk to do it. */}
           {notices.map((n) => (
             <motion.p
               key={n.key}
@@ -186,6 +143,23 @@ export function IntakeStudioOverlay({
       <div className="flex min-h-0 flex-1 flex-col p-5">
         <IntakeStudioDesk active={active} logic={logic} appMaster={appMaster} />
       </div>
-    </Modal>
+    </StudioOverlay>
+  );
+}
+
+/** The header's close glyph — the kit's GATED close, so a click here asks the
+ *  same "a reply is still arriving" question Escape does. */
+function CloseControl() {
+  const tCommon = useTranslations("common");
+  const requestClose = useStudioOverlayClose();
+  return (
+    <button
+      type="button"
+      onClick={requestClose}
+      aria-label={tCommon("close")}
+      className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100 hover:text-ink"
+    >
+      <X size={18} aria-hidden />
+    </button>
   );
 }

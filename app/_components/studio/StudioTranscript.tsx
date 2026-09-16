@@ -2,23 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useTranslations } from "next-intl";
+import { Square, Volume2 } from "lucide-react";
+import { IconAction } from "@/app/_components/IconAction";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { compactedTurnCount } from "@/app/_lib/intake-transcript";
-import { JdsIntakeChoiceCards } from "../../JdsIntakeChoiceCards";
-import type { IntakeTurn } from "../../jdsIntakeLogic";
-import { ATELIER_SPRING, ATELIER_EASE } from "./atelierPlane";
+import type { StudioTurn } from "@/app/_lib/jobseeker/types";
+import { StudioChoiceCards } from "./StudioChoiceCards";
+import { STUDIO_EASE, STUDIO_SPRING } from "./StudioZone";
+import { useStudioTranslations } from "./useStudioTranslations";
 
-// ATELIER — the conversation as TURN BLOCKS on the plane.
+// THE CONVERSATION AS TURN BLOCKS ON THE PLANE.
 //
-// This is the single biggest change the coat makes, because the bubble is what
-// made a working document read as a chat toy: two rounded lozenges alternating
-// left and right, each one a little box inside the leaf that was already a box.
-// A block keeps every fact the bubble carried and spends no geometry on it —
-// a 2px rule in the gutter says WHO (coral = the agent, steel = the requestor,
-// stone = the seam the system reports), a tiny uppercase mark repeats it in
-// words for anyone the colour does not reach, and the sentence gets the full
-// measure and a reading leading instead of 85% of the column and a lozenge.
+// The bubble is what makes a working document read as a chat toy: two rounded
+// lozenges alternating left and right, each one a little box inside the zone
+// that was already a box. A block keeps every fact the bubble carried and
+// spends no geometry on it — a 2px rule in the gutter says WHO (coral = the
+// agent, steel = the reader, stone = the seam the system reports), a tiny
+// uppercase mark repeats it in words for anyone the colour does not reach, and
+// the sentence gets the full measure and a reading leading instead of 85% of
+// the column and a lozenge.
 //
 // THINKING MORPHS INTO THE ANSWER. The waiting mark and the turn that replaces
 // it share a `layoutId` — `atelier-turn-<index>`, the index the reply will
@@ -29,6 +31,9 @@ import { ATELIER_SPRING, ATELIER_EASE } from "./atelierPlane";
 // AUTOSCROLL DOES NOT YANK. The list follows the newest turn only while the
 // reader is already at the foot of it; scroll up to re-read an earlier answer
 // and a landing reply leaves the viewport where you put it.
+//
+// Strings: `<ns>.composer.transcriptLabel`, `<ns>.roles.*`, `<ns>.compactedNote`,
+// `<ns>.thinking`, `<ns>.glyph.speak` (read-aloud, when a consumer wires it).
 
 const GUTTER: Record<string, string> = {
   interviewer: "bg-coral",
@@ -45,27 +50,43 @@ const ROLE_KEY: Record<string, "agent" | "requestor" | "system"> = {
 /** Within this many pixels of the foot counts as "reading the newest turn". */
 const FOLLOW_SLACK_PX = 96;
 
-export function AtelierTranscript({
-  transcript,
+export type StudioTranscriptProps = {
+  turns: StudioTurn[];
+  /** Turn index of the latest reply, for the arrival animation and read-aloud.
+   *  Only this turn's choice cards are live. */
+  latestIndex: number | null;
+  /** A choice-card pick sends an ordinary message; "none of these" hands focus back. */
+  onPick(message: string): void;
+  onDecline(): void;
+  sending: boolean;
+  ns: string;
+  /** Read-aloud button per interviewer turn (null hides it). */
+  onSpeak?: ((text: string, turnIndex: number) => void) | null;
+  speakingIndex?: number | null;
+  /** The session is finished: cards are a record, never an offer. */
+  closed?: boolean;
+  /** A cited turn to scroll to and flash (1.6 s), then `onHighlightDone`. */
+  highlightTurn?: number | null;
+  onHighlightDone?: () => void;
+  /** A quiet line under the newest turn — what a background job is doing. */
+  statusNote?: string | null;
+};
+
+export function StudioTranscript({
+  turns,
+  latestIndex,
+  onPick,
+  onDecline,
   sending,
-  closed,
-  onSend,
-  onDeclineChoices,
+  ns,
+  onSpeak = null,
+  speakingIndex = null,
+  closed = false,
   highlightTurn,
   onHighlightDone,
   statusNote,
-}: {
-  transcript: IntakeTurn[];
-  sending: boolean;
-  closed: boolean;
-  onSend: (message: string) => void | Promise<boolean>;
-  /** "None of these" — the composer takes the turn back. */
-  onDeclineChoices?: () => void;
-  highlightTurn?: number | null;
-  onHighlightDone?: () => void;
-  statusNote?: string | null;
-}) {
-  const t = useTranslations("library.tab.intake");
+}: StudioTranscriptProps) {
+  const t = useStudioTranslations(ns);
   const reduced = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const turnRefs = useRef(new Map<number, HTMLDivElement>());
@@ -76,17 +97,17 @@ export function AtelierTranscript({
     if (!el) return;
     const atFoot = el.scrollHeight - el.scrollTop - el.clientHeight < FOLLOW_SLACK_PX;
     if (atFoot) el.scrollTo({ top: el.scrollHeight });
-  }, [transcript.length, sending]);
+  }, [turns.length, sending]);
 
   useEffect(() => {
     if (flash == null) return;
     turnRefs.current.get(flash)?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [flash]);
 
-  const lastIndex = transcript.length - 1;
+  const lastIndex = latestIndex ?? -1;
   // The slot the reply will land in — shared by the waiting mark and, once it
   // lands, by the turn itself.
-  const pendingId = `atelier-turn-${transcript.length}`;
+  const pendingId = `atelier-turn-${turns.length}`;
 
   return (
     <div
@@ -95,11 +116,12 @@ export function AtelierTranscript({
       aria-live="polite"
       aria-label={t("composer.transcriptLabel")}
     >
-      {transcript.map((turn, index) => {
-        const compacted = compactedTurnCount(turn);
+      {turns.map((turn, index) => {
+        const compacted = compactedTurnCount({ role: turn.role, text: turn.text });
         const role = ROLE_KEY[turn.role] ?? "system";
         const choices = turn.choices;
         const morph = index === lastIndex && turn.role === "interviewer";
+        const speakable = onSpeak && turn.role === "interviewer" && turn.text.trim() ? turn.text : null;
         return (
           <motion.div
             key={index}
@@ -109,16 +131,30 @@ export function AtelierTranscript({
             }}
             initial={{ opacity: reduced ? 1 : 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: reduced ? 0 : 0.22, ease: ATELIER_EASE }}
+            transition={{ duration: reduced ? 0 : 0.22, ease: STUDIO_EASE }}
             className="relative pl-4"
           >
             <motion.span
               layoutId={morph ? `atelier-turn-${index}` : undefined}
-              transition={reduced ? { duration: 0 } : ATELIER_SPRING}
+              transition={reduced ? { duration: 0 } : STUDIO_SPRING}
               className={`absolute inset-y-0 left-0 w-0.5 rounded-full ${flash === index ? "bg-coral" : GUTTER[turn.role] ?? GUTTER.system}`}
               aria-hidden
             />
-            <div className="text-meta uppercase text-stone-400">{t(`roles.${role}`)}</div>
+            {/* The block shape when no consumer wires read-aloud — the first
+                consumer's exact markup; the flex row only exists for the glyph. */}
+            <div className={`text-meta uppercase text-stone-400 ${speakable ? "flex items-center gap-1" : ""}`}>
+              {t(`roles.${role}`)}
+              {speakable ? (
+                <IconAction
+                  icon={speakingIndex === index ? Square : Volume2}
+                  label={speakingIndex === index ? t("voiceIo.speaking") : t("glyph.speak")}
+                  toggle
+                  on={speakingIndex === index}
+                  size={13}
+                  onClick={() => onSpeak?.(speakable, index)}
+                />
+              ) : null}
+            </div>
             <p
               className={`mt-1 whitespace-pre-wrap text-body leading-7 ${
                 turn.role === "system" ? "text-steel" : "text-ink"
@@ -127,11 +163,12 @@ export function AtelierTranscript({
               {compacted > 0 ? t("compactedNote", { count: compacted }) : turn.text}
             </p>
             {choices ? (
-              <JdsIntakeChoiceCards
+              <StudioChoiceCards
                 set={choices}
                 disabled={closed || sending || index !== lastIndex}
-                onPick={onSend}
-                onDecline={onDeclineChoices}
+                onPick={onPick}
+                onDecline={onDecline}
+                ns={ns}
               />
             ) : null}
           </motion.div>
@@ -145,12 +182,12 @@ export function AtelierTranscript({
             initial={{ opacity: reduced ? 1 : 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: reduced ? 0 : 0.18, ease: ATELIER_EASE }}
+            transition={{ duration: reduced ? 0 : 0.18, ease: STUDIO_EASE }}
             className="relative pl-4"
           >
             <motion.span
               layoutId={pendingId}
-              transition={reduced ? { duration: 0 } : ATELIER_SPRING}
+              transition={reduced ? { duration: 0 } : STUDIO_SPRING}
               className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-coral"
               aria-hidden
             />
@@ -167,7 +204,7 @@ export function AtelierTranscript({
             initial={{ opacity: reduced ? 1 : 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: reduced ? 0 : 0.18, ease: ATELIER_EASE }}
+            transition={{ duration: reduced ? 0 : 0.18, ease: STUDIO_EASE }}
             className="pl-4 text-meta text-steel"
           >
             {statusNote}
@@ -179,8 +216,8 @@ export function AtelierTranscript({
 }
 
 /** Scroll-to + a short flash for a cited turn, then control returns to the
- *  caller. Same 1.6 s contract the shared transcript used, kept so a brief
- *  citation behaves identically under every coat. */
+ *  caller. The 1.6 s contract every studio shares, so a citation behaves
+ *  identically under every consumer. */
 function useFlash(turn: number | null | undefined, onDone?: () => void): number | null {
   const [flash, setFlash] = useState<number | null>(null);
   useEffect(() => {
