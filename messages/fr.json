@@ -1844,7 +1844,12 @@
     "JOBSEEKER_DIALOG_MOVED": "La conversation a changé pendant le calcul ; elle a été relue plutôt qu'écrasée.",
     "JOBSEEKER_TURN_TIMEOUT": "La réponse a pris trop de temps. Votre conversation est enregistrée ; réessayez.",
     "JOBSEEKER_OFFLINE": "Cette installation est hors ligne ; les sources d'offres ne peuvent pas être récupérées.",
-    "JOBSEEKER_SCAN_UNVERIFIED": "Lancez d'abord une analyse à la main ; le minuteur s'activera dès qu'une analyse aura réussi."
+    "JOBSEEKER_SCAN_UNVERIFIED": "Lancez d'abord une analyse à la main ; le minuteur s'activera dès qu'une analyse aura réussi.",
+    "JOB_TRANSLATIONS_FAILED": "Impossible de charger les versions de cette annonce dans d'autres langues. Veuillez réessayer.",
+    "JOB_TRANSLATE_FAILED": "Impossible de traduire cette annonce. Veuillez réessayer.",
+    "JOB_TARGET_HIRES_INVALID": "Un poste s'ouvre pour 1 à 50 recrutements.",
+    "JOB_TRANSLATION_LANG_INVALID": "Cette annonce ne peut pas être traduite dans cette langue.",
+    "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5044,7 +5049,8 @@
       "colSeniority": "Séniorité",
       "colFamily": "Famille",
       "colSalary": "Salaire (CZK/mois)",
-      "colEntry": "Débutant"
+      "colEntry": "Débutant",
+      "colStatus": "Statut"
     },
     "shared": {
       "skippedSummary": "{count, plural, one {# candidat n’a pas pu être évalué (profil mal formé). Les autres ont été classés normalement.} other {# candidats n’ont pas pu être évalués (profil mal formé). Les autres ont été classés normalement.}}",
@@ -5166,7 +5172,13 @@
         "earlyWelcome": "Profils débutants bienvenus",
         "earlyDefault": "Ce poste est ouvert aux profils débutants. Les projets pertinents et le potentiel comptent.",
         "trainable": "Peut s’apprendre en poste :"
-      }
+      },
+      "langOpenedIn": "Ce poste est diffusé dans cette langue",
+      "noTranslationTitle": "Pas encore de version en {lang}",
+      "noTranslationBody": "Cette annonce est rédigée en {source}. Une version dans cette langue est rédigée par l'IA ; l'original reste inchangé.",
+      "generateTranslation": "Générer la traduction",
+      "generatingTranslation": "Traduction en cours…",
+      "translateFailed": "Impossible de traduire cette annonce. Réessayez."
     },
     "coach": {
       "loadFailed": "Impossible d'évaluer ce poste.",
@@ -5379,6 +5391,26 @@
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
       "dismiss": "Fermer"
+    },
+    "roleStatus": {
+      "draft": "Brouillon",
+      "open": "Ouvert",
+      "filled": "Pourvu",
+      "closed": "Clos",
+      "progress": "{hired} / {target}",
+      "aria": "Statut du poste : {status}, {hired} sur {target} recrutés"
+    },
+    "publishDialog": {
+      "title": "Ouvrir ce poste",
+      "titleReopen": "Rouvrir ce poste",
+      "cancel": "Annuler",
+      "confirm": "Ouvrir le poste",
+      "confirmReopen": "Rouvrir le poste",
+      "targetLabel": "Candidats à recruter",
+      "targetHelp": "Le poste se clôt de lui-même dès que ce nombre de candidats est recruté.",
+      "targetInvalid": "Saisissez un nombre entier entre 1 et {max}.",
+      "langsLabel": "Diffuser en",
+      "langsHelp": "Les langues autres que celle de l'annonce sont rédigées par l'IA une fois le poste ouvert. Sans modèle configuré, aucune n'est rédigée, et vous pourrez en générer une plus tard depuis l'onglet Annonce."
     }
   },
   "scoreProvenance": {
@@ -8335,7 +8367,8 @@
       "devcase_judge": "Le second modèle indépendant qui juge les évaluations d'exercices.",
       "devcase_tooling": "Réservé à l’évaluation de l’outillage. Pas encore d’appel actif.",
       "devcase_transfer": "Réservé à l’évaluation du transfert. Pas encore d’appel actif.",
-      "assistant": "Tours de conversation du compagnon de l'opérateur."
+      "assistant": "Tours de conversation du compagnon de l'opérateur.",
+      "posting_translate": "Traduit une annonce de poste publiée dans une autre langue."
     }
   },
   "jdPublic": {

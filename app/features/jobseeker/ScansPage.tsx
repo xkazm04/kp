@@ -1,17 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, History } from "lucide-react";
+import { History } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { EYEBROW, FIELD, INTRO, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { ArrivalList } from "@/app/features/library/jds/intake/IntakeArrivalMotion";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import { SCAN_JOB_NAME, type JobseekerSource, type ScanSummary, type SourceRunSummary } from "@/app/_lib/jobseeker/types";
+import { SCAN_JOB_NAME, type JobseekerSource, type ScanSummary } from "@/app/_lib/jobseeker/types";
 import type { SchedulerJobView } from "@/app/features/hiring/pipeline/SchedulerSummaryBadges";
 import { FailureNotice } from "./FailureNotice";
 import { nearestScanInterval, SCAN_INTERVALS } from "./feedModel";
 import { ScanNowButton } from "./ScanNowButton";
+import { ScanRunTable } from "./ScanRunTable";
+import { useIdArrival } from "./sourceArrival";
+import { SourceSwitch } from "./SourceSwitch";
 import { callJson, entryForSource, type ApiFailure, type SourcesPayload } from "./sourcesApi";
 import { useScanTask } from "./useScanTask";
 
@@ -34,15 +37,6 @@ import { useScanTask } from "./useScanTask";
 // control is a free minutes field and its history is the policy pass's decision list;
 // this surface wants a three-option select and a per-source table.
 
-const OUTCOME_TONE: Record<SourceRunSummary["outcome"], "positive" | "caution" | "critical" | "neutral"> = {
-  succeeded: "positive",
-  collapsed: "caution",
-  blocked: "caution",
-  offline: "neutral",
-  failed: "critical",
-  skipped: "neutral",
-};
-
 function isScanSummary(v: unknown): v is ScanSummary {
   return !!v && typeof v === "object" && Array.isArray((v as { sources?: unknown }).sources);
 }
@@ -60,7 +54,6 @@ export function ScansPage({
 }) {
   const t = useTranslations("me.scans");
   const tSched = useTranslations("pipeline.scheduler");
-  const tSources = useTranslations("me.sources");
   const rel = useRelativeTime();
   const [job, setJob] = useState<SchedulerJobView>(initialJob);
   const [sources, setSources] = useState<JobseekerSource[]>(initialSources);
@@ -130,6 +123,7 @@ export function ScansPage({
   const scan = useScanTask(() => void load());
   const pausedById = useMemo(() => new Map(sources.filter((s) => s.pausedReason).map((s) => [s.id, s.pausedReason!])), [sources]);
   const locked = job.requiresVerifiedRun && !job.verified;
+  const runArrival = useIdArrival(job.runs.map((r) => String(r.id)));
 
   return (
     // Tier 1: the header, the clock and the history are the direct children that
@@ -149,18 +143,22 @@ export function ScansPage({
           {t("clock.title")}
         </h2>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={job.schedule.enabled}
-            disabled={busy || locked}
-            title={locked ? tSched("unverified") : t("clock.toggleTitle")}
-            onClick={() => void write({ enabled: !job.schedule.enabled })}
-            className={`focus-ring inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold disabled:opacity-60 ${job.schedule.enabled ? "bg-moss/15 text-moss" : "bg-stone-200 text-steel"}`}
-            data-testid="scan-clock-toggle"
-          >
-            {job.schedule.enabled ? t("clock.on") : t("clock.off")}
-          </button>
+          {/* The house switch, shared with a source row. It was the SAME hand-rolled
+              literal in two files, with no dark half; and its only explanation of why
+              it is locked was a `title=`, which never reaches a keyboard or touch
+              reader — the hint is now the switch's own tooltip, so the paragraph that
+              repeated it below the row could go (surface-doctrine §1). */}
+          <SourceSwitch
+            on={job.schedule.enabled}
+            label={t("clock.toggleTitle")}
+            hint={locked ? tSched("unverified") : null}
+            onLabel={t("clock.on")}
+            offLabel={t("clock.off")}
+            disabled={locked}
+            busy={busy}
+            onToggle={() => void write({ enabled: !job.schedule.enabled })}
+            testId="scan-clock-toggle"
+          />
           <label className="flex items-center gap-1.5 text-sm text-steel">
             {t("clock.every")}
             <select className={`${FIELD} h-8 w-20 py-0`} value={nearestScanInterval(job.schedule.intervalMinutes)} disabled={busy} onChange={(e) => void write({ intervalMinutes: Number(e.target.value) })} aria-label={t("clock.intervalAria")}>
@@ -173,7 +171,6 @@ export function ScansPage({
           </label>
           <span className="text-sm text-steel">{job.schedule.lastRunAt ? t("clock.lastRun", { when: rel(job.schedule.lastRunAt) }) : t("clock.never")}</span>
         </div>
-        {locked ? <p className="mt-2 text-sm text-steel">{tSched("unverified")}</p> : null}
         {writeError ? <FailureNotice failure={writeError} fallback={t("updateError")} className="mt-2" onDismiss={() => setWriteError(null)} /> : null}
         {/* A failed background refresh of the schedule: the clock above is still the
             last truth the server gave us, so this reports staleness, not emptiness. */}
@@ -193,72 +190,42 @@ export function ScansPage({
           {job.runs.length === 0 ? (
             <p className="text-sm text-steel">{t("history.none")}</p>
           ) : (
+            // The runs cascade once on first paint; after that only a run that just
+            // landed animates, and the rest keep their elements (surface-doctrine §5).
             <ol className="space-y-3">
-              {job.runs.map((run) => {
-                const summary = isScanSummary(run.summary) ? run.summary : null;
-                return (
-                  <li key={run.id} className={`${PANEL} p-4`}>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-medium text-ink">{rel(run.startedAt)}</span>
-                      <Badge tone={run.status === "error" ? "critical" : run.status === "skipped" ? "neutral" : "positive"} label={t(`history.status.${run.status === "error" ? "error" : run.status === "skipped" ? "skipped" : "ok"}`)} />
-                      <span className="text-steel">{t(`history.trigger.${run.trigger === "clock" ? "clock" : "manual"}`)}</span>
-                      {summary ? (
-                        <span className="text-steel">
-                          {t("history.matched", { n: summary.matched })}
-                          {" · "}
-                          {summary.deepDiveSkipped === "no_provider" ? t("history.deepDiveSkipped") : t("history.deepDived", { n: summary.deepDived })}
-                        </span>
+              <ArrivalList
+                items={job.runs}
+                keyOf={(run) => String(run.id)}
+                idOf={(run) => String(run.id)}
+                delta={runArrival}
+                itemClassName={`${PANEL} p-4`}
+                renderItem={(run) => {
+                  const summary = isScanSummary(run.summary) ? run.summary : null;
+                  return (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-medium text-ink">{rel(run.startedAt)}</span>
+                        <Badge tone={run.status === "error" ? "critical" : run.status === "skipped" ? "neutral" : "positive"} label={t(`history.status.${run.status === "error" ? "error" : run.status === "skipped" ? "skipped" : "ok"}`)} />
+                        <span className="text-steel">{t(`history.trigger.${run.trigger === "clock" ? "clock" : "manual"}`)}</span>
+                        {summary ? (
+                          <span className="nums text-steel">
+                            {t("history.matched", { n: summary.matched })}
+                            {" · "}
+                            {summary.deepDiveSkipped === "no_provider" ? t("history.deepDiveSkipped") : t("history.deepDived", { n: summary.deepDived })}
+                          </span>
+                        ) : null}
+                      </div>
+                      {/* A failed run is the surface's one failure block, not a bare red
+                          span: the sentence is localized and the detail rides inside it
+                          (the persisted error has no machine code to resolve). */}
+                      {run.status === "error" ? (
+                        <FailureNotice fallback={run.error ? tSched("runFailedMsg", { msg: run.error }) : tSched("runFailed")} className="mt-2" />
                       ) : null}
-                      {run.status === "error" ? <span className="text-red-700">{run.error ? tSched("runFailedMsg", { msg: run.error }) : tSched("runFailed")}</span> : null}
-                    </div>
-                    {summary && summary.sources.length > 0 ? (
-                      <table className="mt-3 w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-sm text-steel">
-                            <th scope="col" className="py-1 pr-3 font-medium">{t("table.source")}</th>
-                            <th scope="col" className="py-1 pr-3 font-medium">{t("table.outcome")}</th>
-                            <th scope="col" className="py-1 pr-3 font-medium nums">{t("table.new")}</th>
-                            <th scope="col" className="py-1 pr-3 font-medium nums">{t("table.changed")}</th>
-                            <th scope="col" className="py-1 pr-3 font-medium nums">{t("table.absent")}</th>
-                            <th scope="col" className="py-1 font-medium">{t("table.reason")}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {summary.sources.map((s) => {
-                            const attention = s.outcome === "blocked" || s.outcome === "collapsed";
-                            const paused = pausedById.get(s.sourceId);
-                            return (
-                              <tr key={s.sourceId} className="border-t border-stone-200 align-top">
-                                <td className="py-1 pr-3 text-ink">{labels.get(s.sourceId) ?? s.sourceId}</td>
-                                <td className="py-1 pr-3">
-                                  <Badge tone={OUTCOME_TONE[s.outcome]} label={tSources(`outcome.${s.outcome}`)} />
-                                </td>
-                                <td className="py-1 pr-3 nums text-ink">{s.new}</td>
-                                <td className="py-1 pr-3 nums text-ink">{s.changed}</td>
-                                <td className="py-1 pr-3 nums text-ink">{s.absent}</td>
-                                <td className={`py-1 ${attention ? "text-amber-700" : "text-steel"}`}>
-                                  {attention ? (
-                                    <span className="inline-flex flex-wrap items-center gap-1">
-                                      <AlertTriangle size={12} aria-hidden />
-                                      {s.reason ?? ""}
-                                      {paused ? ` · ${tSources("pausedShort", { reason: tSources(`pauseReason.${paused}`) })}` : ""}
-                                      <Link href="/me/sources" className="focus-ring rounded underline">
-                                        {t("table.resumeLink")}
-                                      </Link>
-                                    </span>
-                                  ) : (
-                                    (s.reason ?? "")
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    ) : null}
-                  </li>
-                );
-              })}
+                      {summary && summary.sources.length > 0 ? <ScanRunTable rows={summary.sources} labels={labels} pausedById={pausedById} /> : null}
+                    </>
+                  );
+                }}
+              />
             </ol>
           )}
         </div>

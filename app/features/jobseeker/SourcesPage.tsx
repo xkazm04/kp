@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus } from "lucide-react";
-import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, EYEBROW, INTRO, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { Info, Loader2, Plus } from "lucide-react";
+import { Badge } from "@/app/_components/Badge";
+import { IconAction } from "@/app/_components/IconAction";
+import { Tooltip } from "@/app/_components/Tooltip";
+import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { Collapse } from "@/app/features/hiring/pipeline/PipelineMotion";
+import { ArrivalList } from "@/app/features/library/jds/intake/IntakeArrivalMotion";
+import { useIdArrival } from "./sourceArrival";
 import { SOURCE_TIERS, type JobseekerSource, type SourceTier } from "@/app/_lib/jobseeker/types";
 import { AddSourceForm } from "./AddSourceForm";
 import { FailureNotice } from "./FailureNotice";
@@ -135,43 +140,73 @@ function TierSection({
   onChange(next: JobseekerSource): void;
 }) {
   const t = useTranslations("me.sources");
+  const tCommon = useTranslations("me.common");
+  // The rows cascade once on first paint and then only a source that was just added
+  // animates — an untouched row keeps its element (surface-doctrine §5).
+  const arrival = useIdArrival(sources.map((s) => s.id));
+  const refusedArrival = useIdArrival(offered.map((e) => e.id));
   return (
     <section aria-labelledby={`tier-${tier}`} data-tier={tier} className="space-y-3">
       {/* ONE heading voice at this level: every section head on this page and on
           /me/scans is the serif h3. The page used to mix it with META_LABEL-styled
-          h2s, so two headings of the same rank read as different ranks. */}
-      <h2 id={`tier-${tier}`} className="font-serif text-h3 text-ink">
+          h2s, so two headings of the same rank read as different ranks.
+          The tier's explanation used to be a max-w-prose paragraph under EVERY one of
+          the three headings. It is now REACHED rather than read: the glyph carries it
+          on hover and on focus (surface-doctrine §1) and spends no layout. */}
+      <h2 id={`tier-${tier}`} className="flex items-center gap-1 font-serif text-h3 text-ink">
         {t(`tier.${tier}.title`)}
+        <IconAction icon={Info} label={tCommon("explain")} hint={t(`tier.${tier}.body`)} side="bottom" size={16} />
       </h2>
-      <p className="max-w-prose text-sm text-steel">{t(`tier.${tier}.body`)}</p>
       {tier === "C" ? (
-        <ul className="space-y-2">
-          {offered.map((e) => (
-            <li key={e.id} className={`${PANEL} flex flex-wrap items-center justify-between gap-2 p-3`} data-refused>
-              <div className="min-w-0">
-                <span className="font-semibold text-ink">{e.label}</span> <span className="text-sm text-steel">{e.host}</span>
+        // Refused sources are a MUTED ledger: present, legible, plainly not available.
+        // The reason is the pill's tooltip, not a chip full of prose.
+        <ul className={`${PANEL} overflow-hidden`}>
+          <ArrivalList
+            items={offered}
+            keyOf={(e) => e.id}
+            idOf={(e) => e.id}
+            delta={refusedArrival}
+            itemClassName="border-b border-stone-100 last:border-0"
+            renderItem={(e) => (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2.5 text-sm opacity-70" data-refused>
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
+                  <span className="font-semibold text-ink">{e.label}</span>
+                  <span className="truncate text-steel">{e.host}</span>
+                </span>
+                <Tooltip label={t("refused", { reason: e.refusedReason ?? "" })} side="left">
+                  <Badge tone="neutral" label={t("refusedPill")} />
+                </Tooltip>
               </div>
-              <span className={CHIP_QUIET}>{t("refused", { reason: e.refusedReason ?? "" })}</span>
-            </li>
-          ))}
+            )}
+          />
         </ul>
       ) : (
         <>
           {sources.length === 0 && offered.length === 0 ? <p className="text-sm text-steel">{t(`tier.${tier}.empty`)}</p> : null}
           {sources.length > 0 ? (
-            <ul className="space-y-3">
-              {sources.map((s) => (
-                <SourceCard key={s.id} source={s} entry={entryForSource(catalog, s)} onChange={onChange} />
-              ))}
+            // ONE panel per tier, rows parted by a hairline — planes, not a stack of
+            // eight bordered cards (surface-doctrine §2).
+            <ul className={`${PANEL} overflow-hidden`}>
+              <ArrivalList
+                items={sources}
+                keyOf={(s) => s.id}
+                idOf={(s) => s.id}
+                delta={arrival}
+                renderItem={(s) => <SourceCard source={s} entry={entryForSource(catalog, s)} onChange={onChange} />}
+              />
             </ul>
           ) : null}
           {offered.length > 0 ? (
             <ul className="flex flex-wrap gap-2" aria-label={t("available")}>
               {offered.map((e) => (
                 <li key={e.id} className="flex flex-col gap-1">
-                  <button type="button" className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`} disabled={adding !== null} onClick={() => onAdd(e)} title={e.host}>
-                    {adding === e.id ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <Plus size={13} aria-hidden />} {t("addEntry", { label: e.label })}
-                  </button>
+                  {/* The host was the button's `title=`, which never reaches a keyboard
+                      or a touch reader. A real tooltip does both. */}
+                  <Tooltip label={e.host}>
+                    <button type="button" className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`} disabled={adding !== null} onClick={() => onAdd(e)}>
+                      {adding === e.id ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Plus size={14} aria-hidden />} {t("addEntry", { label: e.label })}
+                    </button>
+                  </Tooltip>
                   {addError?.id === e.id ? <FailureNotice failure={addError.fail} fallback={t("add.error")} /> : null}
                 </li>
               ))}

@@ -1844,7 +1844,12 @@
     "JOBSEEKER_DIALOG_MOVED": "The conversation changed while that was being computed, so it was re-read rather than overwritten.",
     "JOBSEEKER_TURN_TIMEOUT": "That reply took too long. Your conversation is saved; try again.",
     "JOBSEEKER_OFFLINE": "This install is offline, so job sources cannot be fetched.",
-    "JOBSEEKER_SCAN_UNVERIFIED": "Run one scan by hand first; the timer arms once a scan has succeeded."
+    "JOBSEEKER_SCAN_UNVERIFIED": "Run one scan by hand first; the timer arms once a scan has succeeded.",
+    "JOB_TRANSLATIONS_FAILED": "Couldn't load this role's postings in other languages. Please try again.",
+    "JOB_TRANSLATE_FAILED": "Couldn't translate this posting. Please try again.",
+    "JOB_TARGET_HIRES_INVALID": "A role is opened for between 1 and 50 hires.",
+    "JOB_TRANSLATION_LANG_INVALID": "That is not a language this posting can be translated into.",
+    "JOB_TRANSLATION_UNAVAILABLE": "No AI model is configured, so this posting was not translated."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5044,7 +5049,8 @@
       "colSeniority": "Seniority",
       "colFamily": "Family",
       "colSalary": "Salary (CZK/mo)",
-      "colEntry": "Entry"
+      "colEntry": "Entry",
+      "colStatus": "Status"
     },
     "shared": {
       "skippedSummary": "{count, plural, one {# candidate couldn't be scored (malformed profile). The rest ranked normally.} other {# candidates couldn't be scored (malformed profile). The rest ranked normally.}}",
@@ -5166,7 +5172,13 @@
         "earlyWelcome": "Early-career welcome",
         "earlyDefault": "This role is open to early-career candidates. Relevant projects and potential count.",
         "trainable": "Trainable on the job:"
-      }
+      },
+      "langOpenedIn": "This role is advertised in this language",
+      "noTranslationTitle": "No {lang} version yet",
+      "noTranslationBody": "This posting is written in {source}. A version in this language is written by the AI; the original is left unchanged.",
+      "generateTranslation": "Generate translation",
+      "generatingTranslation": "Translating…",
+      "translateFailed": "Couldn't translate this posting. Try again."
     },
     "coach": {
       "loadFailed": "Couldn't grade this role.",
@@ -5379,6 +5391,26 @@
     "deeplink": {
       "notFound": "That role isn't in your catalog. It may have been removed, or it belongs to another team.",
       "dismiss": "Dismiss"
+    },
+    "roleStatus": {
+      "draft": "Draft",
+      "open": "Open",
+      "filled": "Filled",
+      "closed": "Closed",
+      "progress": "{hired} / {target}",
+      "aria": "Role status: {status}, {hired} of {target} hired"
+    },
+    "publishDialog": {
+      "title": "Open this role",
+      "titleReopen": "Reopen this role",
+      "cancel": "Cancel",
+      "confirm": "Open role",
+      "confirmReopen": "Reopen role",
+      "targetLabel": "Candidates to hire",
+      "targetHelp": "The role closes itself once this many candidates are hired.",
+      "targetInvalid": "Enter a whole number between 1 and {max}.",
+      "langsLabel": "Advertise in",
+      "langsHelp": "Languages beyond the posting's own are written by the AI after the role goes live. With no model configured none are written, and you can generate one later from the Posting tab."
     }
   },
   "scoreProvenance": {
@@ -8335,7 +8367,8 @@
       "devcase_judge": "The independent second-model judge over assignment evaluations.",
       "devcase_tooling": "Reserved for the assignment tooling evaluator. No live call site yet.",
       "devcase_transfer": "Reserved for the assignment transfer evaluator. No live call site yet.",
-      "assistant": "Operator companion chat turns."
+      "assistant": "Operator companion chat turns.",
+      "posting_translate": "Translates a published role posting into another language."
     }
   },
   "jdPublic": {

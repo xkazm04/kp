@@ -1844,7 +1844,12 @@
     "JOBSEEKER_DIALOG_MOVED": "Konverzace se během výpočtu změnila, proto byla znovu načtena a nic se nepřepsalo.",
     "JOBSEEKER_TURN_TIMEOUT": "Odpověď trvala příliš dlouho. Konverzace je uložená, zkuste to znovu.",
     "JOBSEEKER_OFFLINE": "Tato instalace je offline, zdroje nabídek proto nelze načítat.",
-    "JOBSEEKER_SCAN_UNVERIFIED": "Nejdřív spusťte jeden sken ručně; časovač se zapne, až sken proběhne úspěšně."
+    "JOBSEEKER_SCAN_UNVERIFIED": "Nejdřív spusťte jeden sken ručně; časovač se zapne, až sken proběhne úspěšně.",
+    "JOB_TRANSLATIONS_FAILED": "Nepodařilo se načíst verze tohoto inzerátu v jiných jazycích. Zkuste to prosím znovu.",
+    "JOB_TRANSLATE_FAILED": "Inzerát se nepodařilo přeložit. Zkuste to prosím znovu.",
+    "JOB_TARGET_HIRES_INVALID": "Roli lze otevřít pro 1 až 50 přijatých kandidátů.",
+    "JOB_TRANSLATION_LANG_INVALID": "Do tohoto jazyka tento inzerát přeložit nelze.",
+    "JOB_TRANSLATION_UNAVAILABLE": "Není nastavený žádný model AI, inzerát se proto nepřeložil."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5044,7 +5049,8 @@
       "colSeniority": "Seniorita",
       "colFamily": "Obor",
       "colSalary": "Mzda (Kč/měs)",
-      "colEntry": "Junior"
+      "colEntry": "Junior",
+      "colStatus": "Stav"
     },
     "shared": {
       "skippedSummary": "{count, plural, one {# kandidáta se nepodařilo ohodnotit (poškozený profil). Ostatní byli seřazeni běžně.} few {# kandidáty se nepodařilo ohodnotit (poškozený profil). Ostatní byli seřazeni běžně.} many {# kandidáta se nepodařilo ohodnotit (poškozený profil). Ostatní byli seřazeni běžně.} other {# kandidátů se nepodařilo ohodnotit (poškozený profil). Ostatní byli seřazeni běžně.}}",
@@ -5166,7 +5172,13 @@
         "earlyWelcome": "Vítáme začínající talenty",
         "earlyDefault": "Tato pozice je otevřená i začínajícím kandidátům. Záleží na relevantních projektech a potenciálu.",
         "trainable": "Dá se doučit při práci:"
-      }
+      },
+      "langOpenedIn": "Role je inzerována v tomto jazyce",
+      "noTranslationTitle": "Verze v jazyce {lang} zatím neexistuje",
+      "noTranslationBody": "Inzerát je napsaný v jazyce {source}. Verzi v tomto jazyce napíše AI; původní text zůstane beze změny.",
+      "generateTranslation": "Vytvořit překlad",
+      "generatingTranslation": "Překládám…",
+      "translateFailed": "Inzerát se nepodařilo přeložit. Zkuste to znovu."
     },
     "coach": {
       "loadFailed": "Tuto pozici se nepodařilo ohodnotit.",
@@ -5379,6 +5391,26 @@
     "deeplink": {
       "notFound": "Tuto pozici ve svém katalogu nemáte. Mohla být odstraněna, nebo patří jinému týmu.",
       "dismiss": "Zavřít"
+    },
+    "roleStatus": {
+      "draft": "Koncept",
+      "open": "Otevřená",
+      "filled": "Obsazená",
+      "closed": "Uzavřená",
+      "progress": "{hired} / {target}",
+      "aria": "Stav role: {status}, přijato {hired} z {target}"
+    },
+    "publishDialog": {
+      "title": "Otevřít roli",
+      "titleReopen": "Znovu otevřít roli",
+      "cancel": "Zrušit",
+      "confirm": "Otevřít roli",
+      "confirmReopen": "Znovu otevřít",
+      "targetLabel": "Počet kandidátů k přijetí",
+      "targetHelp": "Role se uzavře sama, jakmile přijmete tento počet kandidátů.",
+      "targetInvalid": "Zadejte celé číslo od 1 do {max}.",
+      "langsLabel": "Inzerovat v jazycích",
+      "langsHelp": "Jazyky nad rámec vlastního jazyka inzerátu píše AI po zveřejnění role. Bez nastaveného modelu nevznikne žádný a překlad můžete vytvořit později na kartě Inzerát."
     }
   },
   "scoreProvenance": {
@@ -8335,7 +8367,8 @@
       "devcase_judge": "Nezávislý druhý model, který posuzuje hodnocení zadání.",
       "devcase_tooling": "Rezervováno pro vyhodnocení použitých nástrojů. Zatím bez živého volání.",
       "devcase_transfer": "Rezervováno pro vyhodnocení přenositelnosti. Zatím bez živého volání.",
-      "assistant": "Konverzační tahy operátorova společníka."
+      "assistant": "Konverzační tahy operátorova společníka.",
+      "posting_translate": "Překládá zveřejněný inzerát role do dalšího jazyka."
     }
   },
   "jdPublic": {

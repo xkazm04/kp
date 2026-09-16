@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus } from "lucide-react";
+import { Info, Loader2, Plus } from "lucide-react";
+import { IconAction } from "@/app/_components/IconAction";
 import { BTN_PRIMARY, FIELD, PANEL } from "@/app/_components/ui/recipes";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { JobseekerSource, SourceAdapterName } from "@/app/_lib/jobseeker/types";
+import { FailureNotice } from "./FailureNotice";
 import { callJson, type ApiFailure } from "./sourcesApi";
 
 // Two ways to add a source the catalog does not list by name: an ATS by company slug
@@ -27,7 +28,7 @@ const ATS_VENDORS: { adapter: SourceAdapterName; label: string }[] = [
 
 export function AddSourceForm({ onCreated }: { onCreated(source: JobseekerSource): void }) {
   const t = useTranslations("me.sources.add");
-  const resolveError = useErrorMessage();
+  const tCommon = useTranslations("me.common");
   const [slug, setSlug] = useState("");
   const [vendor, setVendor] = useState<SourceAdapterName>("ats_greenhouse");
   const [host, setHost] = useState("");
@@ -75,14 +76,12 @@ export function AddSourceForm({ onCreated }: { onCreated(source: JobseekerSource
             </select>
             <input className={`${FIELD} h-9 min-w-0 flex-1`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={t("ats.slugPlaceholder")} aria-label={t("ats.slug")} maxLength={80} />
             <button type="submit" className={`${BTN_PRIMARY} h-9 px-3 text-sm`} disabled={busy !== null || !slug.trim()}>
-              {busy === "ats" ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <Plus size={13} aria-hidden />} {t("ats.cta")}
+              {busy === "ats" ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Plus size={14} aria-hidden />} {t("ats.cta")}
             </button>
           </div>
-          {error?.form === "ats" ? (
-            <p className="text-sm text-red-700" role="alert">
-              {resolveError(error.fail, t("error"))}
-            </p>
-          ) : null}
+          {/* One failure block, resolved by CODE (FailureNotice), not a bare red line
+              the reader cannot act on. */}
+          {error?.form === "ats" ? <FailureNotice failure={error.fail} fallback={t("error")} onDismiss={() => setError(null)} /> : null}
         </form>
         <form
           className="space-y-2"
@@ -91,19 +90,19 @@ export function AddSourceForm({ onCreated }: { onCreated(source: JobseekerSource
             if (host.trim()) void create("board", { adapter: "board_sitemap_jsonld", config: {}, host: host.trim() });
           }}
         >
-          <p className="text-sm font-medium text-ink">{t("board.label")}</p>
+          <p className="flex items-center gap-1 text-sm font-medium text-ink">
+            {t("board.label")}
+            {/* The tier-B caveat used to be a line of prose under the field. It now
+                rides on the label as a reachable hint (surface-doctrine §1). */}
+            <IconAction icon={Info} label={tCommon("explain")} hint={t("board.hint")} side="bottom" size={16} />
+          </p>
           <div className="flex flex-wrap gap-2">
             <input className={`${FIELD} h-9 min-w-0 flex-1`} value={host} onChange={(e) => setHost(e.target.value)} placeholder={t("board.hostPlaceholder")} aria-label={t("board.host")} maxLength={120} />
             <button type="submit" className={`${BTN_PRIMARY} h-9 px-3 text-sm`} disabled={busy !== null || !host.trim()}>
-              {busy === "board" ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <Plus size={13} aria-hidden />} {t("board.cta")}
+              {busy === "board" ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Plus size={14} aria-hidden />} {t("board.cta")}
             </button>
           </div>
-          <p className="text-sm text-steel">{t("board.hint")}</p>
-          {error?.form === "board" ? (
-            <p className="text-sm text-red-700" role="alert">
-              {resolveError(error.fail, t("error"))}
-            </p>
-          ) : null}
+          {error?.form === "board" ? <FailureNotice failure={error.fail} fallback={t("error")} onDismiss={() => setError(null)} /> : null}
         </form>
       </div>
     </section>

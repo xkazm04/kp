@@ -652,19 +652,30 @@ so the header and the three tiers paint on the first frame; the client re-reads 
 GET in the background and owns every write. There is no skeleton branch — the page used
 to mount empty and flash three grey cards on every navigation. The Add form opens from
 the header's primary action as a `Collapse`, not from a panel below the tiers. Three
-sections from `GET /api/jobseeker/sources`. Tier A cards:
-label, host, kind, enable toggle (`role="switch"`), last run outcome, pause reason +
-since when, resume. Tier B cards add robots summary, the terms clause summary with its
-URL and our cadence; the toggle is the ACKNOWLEDGEMENT door: the first enable answers
+sections from `GET /api/jobseeker/sources`, each ONE panel of hairline-parted LEDGER
+rows (`ProfileRosterRow` density, `hover:bg-paper/70`, a trailing action cell) rendered
+through `ArrivalList` + `sourceArrival.ts` — the rows cascade once on first paint and
+after that only a source that was just added animates. The tier's explanation rides on
+an `IconAction` beside its heading instead of a `max-w-prose` paragraph under each of
+the three (surface-doctrine §1). Tier A rows:
+label, host, kind, the `SourceSwitch` (`role="switch"`, the ONE on/off control this
+module has — the recruiter panel's `SchedulerJobRow` toggle is the unrecipe'd literal it
+replaces), last run outcome, a `Badge tone="caution"` "Paused" pill whose reason is its
+tooltip, resume. Tier B rows fold robots summary, the terms clause summary with its URL
+and our cadence behind a disclosure (`Collapse`), force-opened whenever the
+acknowledgement block is up; the switch is the ACKNOWLEDGEMENT door: the first enable answers
 409 `JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED` with `termsHash`, the card shows the block
 (DevPublishConfirm's shape: `alertdialog`, three enumerated reasons, the checkbox FIRST
 in focus order, the CTA disabled until ticked) and re-sends `{enabled: true,
 acknowledge: true}`; a hash that differs from `acknowledgedTermsHash` says the terms
-changed. Tier C rows: label + `refusedReason`, no control. Boards get a "Preview" /
+changed. Tier C rows: a muted ledger row with a `Badge tone="neutral"` "Refused" pill whose
+`refusedReason` is its tooltip, no control. Boards get a "Preview" /
 "Rules and preview" panel: `POST …/preview` renders the per-rule verdict table and the
 first items; `board_rules` adds "Author rules" (`POST …/rules/propose`, marked AI /
 without AI) and "Save rules" (`PATCH {rules, rulesBaseline}`), offered only after a
-preview that passed. Catalog entries not yet added appear in their tier with "Add"
+preview that passed — with the precondition on a `Tooltip`, not a `title=`. The per-rule
+table goes through the shared table kit (`ColumnHead` + `useTableSort` + `TableStatus`
++ `STICKY_HEAD`), and the well is `PANEL_SUNKEN`. Catalog entries not yet added appear in their tier with "Add"
 (`POST {catalogId}`); the form adds an ATS by vendor + company slug (`{adapter, config:
 {slug}}`) or a board by host (tier B by rule). Every refusal renders from its code.
 
@@ -680,9 +691,12 @@ filters `jobs[]` to `jobseeker_scan`: the toggle (disabled with
 write with `JOBSEEKER_SCAN_UNVERIFIED`), the cadence as 6 h / 12 h / 24 h (a stored
 interval outside the three snaps to the nearest for display), last run, "Scan now"
 with live progress, and the run history unrolled per source from the stored
-`ScanSummary` (outcome word + new / changed / absent + reason); `blocked` / `collapsed`
-in amber with the pause reason and a link to `/me/sources`, because only the owner
-clears those. `SchedulerJobRow` is not reused (free minutes field, policy-pass history).
+`ScanSummary` (`ScanRunTable.tsx` — `ColumnHead` + `useTableSort` + `TableStatus` +
+`STICKY_HEAD`, `nums` on the body cells; outcome word + new / changed / absent +
+reason); `blocked` / `collapsed` are a `Badge tone="caution"` with the pause reason in
+its tooltip and a link to `/me/sources`, because only the owner clears those. Every red
+or amber line on both pages is now `FailureNotice` (an error), `NOTICE()` (a caveat) or
+a `Badge` (a state) — no surface writes its own `text-red-700`. `SchedulerJobRow` is not reused (free minutes field, policy-pass history).
 
 **e2e.** `e2e/jobseeker-keyless.spec.ts` is declared against the throwaway DB (feed
 empty state = `no_profile`, three tiers, tier C without a control, tier B toggle →

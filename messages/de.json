@@ -1844,7 +1844,12 @@
     "JOBSEEKER_DIALOG_MOVED": "Die Unterhaltung hat sich während der Berechnung geändert; sie wurde neu geladen statt überschrieben.",
     "JOBSEEKER_TURN_TIMEOUT": "Die Antwort hat zu lange gedauert. Ihre Unterhaltung ist gespeichert, versuchen Sie es erneut.",
     "JOBSEEKER_OFFLINE": "Diese Installation ist offline, Stellenquellen können nicht abgerufen werden.",
-    "JOBSEEKER_SCAN_UNVERIFIED": "Starten Sie zuerst einen Scan von Hand; der Timer wird aktiv, sobald ein Scan erfolgreich war."
+    "JOBSEEKER_SCAN_UNVERIFIED": "Starten Sie zuerst einen Scan von Hand; der Timer wird aktiv, sobald ein Scan erfolgreich war.",
+    "JOB_TRANSLATIONS_FAILED": "Die Fassungen dieses Inserats in anderen Sprachen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JOB_TRANSLATE_FAILED": "Das Inserat konnte nicht übersetzt werden. Bitte versuchen Sie es erneut.",
+    "JOB_TARGET_HIRES_INVALID": "Eine Stelle wird für 1 bis 50 Einstellungen eröffnet.",
+    "JOB_TRANSLATION_LANG_INVALID": "In diese Sprache lässt sich dieses Inserat nicht übersetzen.",
+    "JOB_TRANSLATION_UNAVAILABLE": "Es ist kein KI-Modell konfiguriert, daher wurde dieses Inserat nicht übersetzt."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5044,7 +5049,8 @@
       "colSeniority": "Seniorität",
       "colFamily": "Familie",
       "colSalary": "Gehalt (CZK/Mon.)",
-      "colEntry": "Einstieg"
+      "colEntry": "Einstieg",
+      "colStatus": "Status"
     },
     "shared": {
       "skippedSummary": "{count, plural, one {# Kandidat/in konnte nicht bewertet werden (fehlerhaftes Profil). Die Übrigen wurden normal gereiht.} other {# Kandidat/innen konnten nicht bewertet werden (fehlerhaftes Profil). Die Übrigen wurden normal gereiht.}}",
@@ -5166,7 +5172,13 @@
         "earlyWelcome": "Berufseinsteiger willkommen",
         "earlyDefault": "Diese Stelle steht auch Berufseinsteiger/innen offen. Relevante Projekte und Potenzial zählen.",
         "trainable": "Im Job erlernbar:"
-      }
+      },
+      "langOpenedIn": "Diese Stelle wird in dieser Sprache ausgeschrieben",
+      "noTranslationTitle": "Noch keine Fassung auf {lang}",
+      "noTranslationBody": "Dieses Inserat ist auf {source} verfasst. Eine Fassung in dieser Sprache schreibt die KI; das Original bleibt unverändert.",
+      "generateTranslation": "Übersetzung erzeugen",
+      "generatingTranslation": "Wird übersetzt…",
+      "translateFailed": "Das Inserat konnte nicht übersetzt werden. Versuchen Sie es erneut."
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
@@ -5379,6 +5391,26 @@
     "deeplink": {
       "notFound": "Diese Stelle ist nicht in Ihrem Katalog. Sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
       "dismiss": "Schließen"
+    },
+    "roleStatus": {
+      "draft": "Entwurf",
+      "open": "Offen",
+      "filled": "Besetzt",
+      "closed": "Geschlossen",
+      "progress": "{hired} / {target}",
+      "aria": "Status der Stelle: {status}, {hired} von {target} eingestellt"
+    },
+    "publishDialog": {
+      "title": "Stelle eröffnen",
+      "titleReopen": "Stelle wieder eröffnen",
+      "cancel": "Abbrechen",
+      "confirm": "Stelle eröffnen",
+      "confirmReopen": "Wieder eröffnen",
+      "targetLabel": "Einzustellende Kandidaten",
+      "targetHelp": "Die Stelle schließt sich selbst, sobald so viele Kandidaten eingestellt sind.",
+      "targetInvalid": "Geben Sie eine ganze Zahl zwischen 1 und {max} ein.",
+      "langsLabel": "Ausschreiben in",
+      "langsHelp": "Sprachen über die des Inserats hinaus schreibt die KI, nachdem die Stelle live ist. Ohne konfiguriertes Modell entsteht keine, und Sie können sie später im Tab Inserat erzeugen."
     }
   },
   "scoreProvenance": {
@@ -8335,7 +8367,8 @@
       "devcase_judge": "Das unabhängige Zweitmodell, das Aufgabenbewertungen beurteilt.",
       "devcase_tooling": "Reserviert für die Tooling-Auswertung. Noch ohne aktiven Aufruf.",
       "devcase_transfer": "Reserviert für die Transfer-Auswertung. Noch ohne aktiven Aufruf.",
-      "assistant": "Chat-Turns des Operator-Begleiters."
+      "assistant": "Chat-Turns des Operator-Begleiters.",
+      "posting_translate": "Übersetzt ein veröffentlichtes Stelleninserat in eine andere Sprache."
     }
   },
   "jdPublic": {
