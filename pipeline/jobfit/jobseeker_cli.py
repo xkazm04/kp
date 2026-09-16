@@ -54,6 +54,11 @@ from .jobseeker import PROMPT_VERSIONS  # noqa: F401 - public re-export
 # own budget (JOBSEEKER_DIALOG_TIMEOUT_MS) a little later, so this is the inner bound.
 PROVIDER_TIMEOUT_S = 100
 
+# Dialog kind -> routed use case. A *USE_CASE* map is what the BYOM coverage scan
+# (tests/test_byom_coverage.py) reads when a module routes a variable, so both use
+# cases stay pinnable in the Models tab.
+_USE_CASE_BY_KIND = {"cv_polish": "cv_polish", "fit": "fit_dialog"}
+
 
 def _read_input(path: str | None) -> dict[str, Any]:
     raw = Path(path).read_text(encoding="utf-8") if path else sys.stdin.read()
@@ -96,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
         if req.get("message") is None or not req.get("transcript"):
             result = opening_turn(req)
         else:
-            use_case = "cv_polish" if req["kind"] == "cv_polish" else "fit_dialog"
+            use_case = _USE_CASE_BY_KIND[req["kind"]]
             provider = None if args.no_llm else _resolve_provider(use_case)
             result = run_turn(provider, req)
     except Exception as exc:  # noqa: BLE001 - the envelope is the contract

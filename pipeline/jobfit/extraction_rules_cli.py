@@ -189,7 +189,7 @@ def propose(req: dict[str, Any]) -> dict[str, Any]:
     lang = req.get("lang") if req.get("lang") in LANGS else "en"
     fallback_reason: str | None = None
     try:
-        provider = resolve_provider(USE_CASE, timeout=90)
+        provider = resolve_provider("extraction_rules", timeout=90)  # literal: the BYOM coverage scan reads call sites by text
         if provider is not None and provider.available():
             payload = provider.complete_json(
                 _PROMPT.format(url=url, lang=lang, fields=list(RULE_FIELDS), kinds=list(LOCATOR_KINDS), ops=list(POST_OPS), html=html),
