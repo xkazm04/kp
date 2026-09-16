@@ -50,6 +50,9 @@ export function PipelineBoardSubway({
   axis = DEFAULT_BOARD_AXIS,
   retiredStages = [],
   plan = null,
+  rejectedByLane = {},
+  onLineAction,
+  onOpenRejected,
   openPositionRanking,
   openProfile,
   openJob,
@@ -97,6 +100,7 @@ export function PipelineBoardSubway({
           />
           {positions.map((pos) => {
             const attention = attentionByLane.get(pos.id) ?? { human: 0, ai: 0 };
+            const rejectedCount = rejectedByLane[pos.id] ?? 0;
             return (
             <LineRow
               key={pos.id}
@@ -117,7 +121,11 @@ export function PipelineBoardSubway({
                 openJd: t("board.openJd"),
                 rank: t("board.rankCandidates"),
                 waiting: `${t("board.waitingHuman", { count: attention.human })} · ${t("board.waitingAi", { count: attention.ai })}`,
+                rejected: t("board.rejectedCount", { count: rejectedCount, position: pos.title }),
               }}
+              rejectedCount={rejectedCount}
+              onOpenRejected={(origin) => onOpenRejected(pos, origin)}
+              onLineAction={onLineAction ? (action) => onLineAction(pos, action) : undefined}
               beadTitle={titleOf}
               beadLabel={labelOf}
               onOpenCell={onOpenCell}

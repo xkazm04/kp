@@ -102,6 +102,12 @@ export type JdRow = {
   // (hasAdvancedPastScreening), so the two surfaces cannot report different
   // numbers for the same role.
   pipeline?: JdPipelineStats | null;
+  // May THIS reader delete this description — the server's fold of "you created it,
+  // or you hold an owner/admin seat" (app/_lib/jds-delete-access.ts). A boolean, not
+  // the author's id and not the reader's role: the ledger only needs to know whether
+  // to draw the trash icon. Absent on an older payload, which reads as "no", so a
+  // stale client silently hides the door rather than offering one the route refuses.
+  canDelete?: boolean;
 };
 
 export type JdPipelineStats = {
@@ -242,6 +248,10 @@ export function facetCounts(rows: JdRow[], pick: (r: JdRow) => string | null | u
 
 export const STATUS_FILTERS = [
   { value: "all", label: "All" },
+  // The library's default: every draft regardless of liveness EXCEPT the roles that
+  // are live — those are the Roles tab's business; here they are noise on a shelf
+  // of descriptions a recruiter reuses.
+  { value: "notLive", label: "All but live" },
   { value: "analyzing", label: "Analyzing" },
   { value: "live", label: "Live" },
   { value: "draft", label: "Draft" },
@@ -262,16 +272,13 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 //
 // Kept alongside the accessor map below so the map and the header cells can never
 // name a column the other doesn't have.
-export const JD_SORT_COLS = ["pipeline", "analyzed", "saved"] as const;
+export const JD_SORT_COLS = ["analyzed", "saved"] as const;
 export type JdSortCol = (typeof JD_SORT_COLS)[number];
 
-/** What each sortable column contributes to the ordering. Null means "no value"
- *  and sorts LAST in both directions (see useTableSort/compareCells) — which is
- *  the point for `pipeline`: an analysis-only JD has no linked job, so it has no
- *  pipeline at all. Ranking it as a zero would bury real but quiet roles beneath
- *  JDs that were never even ingested. */
+/** What each sortable column contributes to the ordering. The pipeline column
+ *  used to sort here too; it left with the 2026-09 split — a role's live state is
+ *  the Roles tab's business, this ledger is the shelf of descriptions. */
 export const JD_SORT_ACCESSORS: Record<JdSortCol, (r: JdRow) => string | number | null> = {
-  pipeline: (r) => r.pipeline?.total ?? null,
   analyzed: (r) => r.analysisCount ?? 0,
   saved: (r) => r.created_at,
 };
@@ -285,7 +292,8 @@ export function filterAndSortJds(
 ): JdRow[] {
   const q = opts.query.trim().toLowerCase();
   const filtered = rows.filter((r) => {
-    if (opts.status !== "all" && statusCategory(r) !== opts.status) return false;
+    const cat = statusCategory(r);
+    if (opts.status === "notLive" ? cat === "live" : opts.status !== "all" && cat !== opts.status) return false;
     if (opts.field && (r.roleFamily ?? "") !== opts.field) return false;
     if (opts.seniority && (r.seniority ?? "").trim().toLowerCase() !== opts.seniority.toLowerCase()) return false;
     if (!q) return true;
@@ -304,9 +312,10 @@ export function filterAndSortJds(
 // Per-status counts for the facet rail / filter badges — computed once per render
 // from the full row set (not the filtered view) so the facet totals stay stable.
 export function statusCounts(rows: JdRow[]): Record<StatusFilter, number> {
-  const counts: Record<StatusFilter, number> = { all: rows.length, analyzing: 0, live: 0, draft: 0, unlinked: 0 };
+  const counts: Record<StatusFilter, number> = { all: rows.length, notLive: 0, analyzing: 0, live: 0, draft: 0, unlinked: 0 };
   for (const r of rows) {
     const c = statusCategory(r);
+    if (c !== "live") counts.notLive += 1;
     if (c === "analyzing") counts.analyzing += 1;
     else if (c === "live") counts.live += 1;
     else if (c === "draft") counts.draft += 1;

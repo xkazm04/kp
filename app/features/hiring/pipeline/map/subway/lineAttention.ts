@@ -37,7 +37,8 @@ export function waitingOn(
     const round = plan ? planStep(plan, stage.id)?.rounds[0] : undefined;
     return round?.kind === "human" ? "human" : "ai";
   }
-  if (stage.role === "scoring" || stage.role === "screening") return "ai";
+  // A homework column: the case is generated, sent and evaluated by the AI.
+  if (stage.role === "scoring" || stage.role === "screening" || stage.role === "homework") return "ai";
   // The entry column is screened by the AI too (it is a pre-gate column).
   if (screeningStageIds(axis).includes(stage.id) && stage.role !== "terminal") return "ai";
   return null;

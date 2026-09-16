@@ -888,7 +888,13 @@ class AdverseActionBoundaryTest(unittest.TestCase):
             skills=["HTML"], seniority="junior", role_family="software_engineering",
             languages=["English"], archetype="bau",
         )
-        result, source = automation.screen_candidate(weak_bau, job, score_job(weak_bau, job), provider=None)
+        # pipeline_size is DENSE here so the volume gate permits the reject at all:
+        # this candidate shares the role's family, and in a sparse/moderate pipeline
+        # `volume_allows_reject` holds them for a human (ScreeningVolumeTest below).
+        # The property under test is the ROUTE, which is "hold" either way.
+        result, source = automation.screen_candidate(
+            weak_bau, job, score_job(weak_bau, job), provider=None, pipeline_size=200
+        )
         self.assertEqual(source, "deterministic")
         self.assertEqual(result["recommendation"], "reject")
         self.assertEqual(result["route"], "hold")

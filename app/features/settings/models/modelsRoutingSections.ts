@@ -25,7 +25,10 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // `repo_scan` belongs here rather than under "profiles": it reads a CODEBASE to
   // compose an App-master role (docs/features/app-master/README.md), so it is a way
   // a role gets into the system — the third one, beside a parsed JD and a dialog.
-  { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice", "repo_scan"] },
+  // `posting_translate` belongs here and not under "automation": it renders the
+  // ROLE's own posting into the languages the role was opened in, so it is part of
+  // getting a role into the system rather than a message sent to a candidate.
+  { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice", "repo_scan", "posting_translate"] },
   // Reading candidates: CVs, profiles, public footprint.
   { key: "profiles", useCases: ["cv_analysis", "profile_extract", "profile_draft", "github_analysis"] },
   // Interview outputs.

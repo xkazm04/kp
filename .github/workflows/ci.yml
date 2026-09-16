@@ -601,7 +601,6 @@ jobs:
           journey-one-thread
           activity-detail
           analytics-sections
-          jds-pipeline-column
           quality-tables
           shell-tab-state
           locale-smoke

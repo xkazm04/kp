@@ -44,6 +44,7 @@ const REQUIRED_ROLES: readonly PipelineStageRoleWire[] = ["entry", "terminal"];
 export const ASSIGNABLE_ROLES: readonly PipelineStageRoleWire[] = [
   "entry",
   "screening",
+  "homework",
   "interview",
   "scoring",
   "offer",

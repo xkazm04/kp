@@ -25,7 +25,6 @@ import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, sta
 import { knownStageIds } from "../pipeline-axis";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
-import { afterResponse } from "../after-response";
 
 /** POST-COMMIT seam: "this entry now STANDS on stage X".
  *
@@ -37,14 +36,17 @@ import { afterResponse } from "../after-response";
  *
  *  Called AFTER `tx.immediate()` has returned, never inside it: the hooks do LLM
  *  and comms work, and an `await` between BEGIN and COMMIT would silently destroy
- *  the transaction's atomicity. `afterResponse` keeps the work off the request's
- *  critical path (and alive on serverless, where a detached promise would be
- *  killed with the invocation); it logs a throwing task rather than letting it
- *  become an unhandled rejection, so a failing hook can never fail the move.
+ *  the transaction's atomicity. The scheduling itself (`afterResponse`, which keeps
+ *  the work off the request's critical path and alive on serverless) lives in
+ *  stage-hooks.ts, and the whole module is reached through a LAZY import for two
+ *  reasons: it imports back into this store — and into the billing, comms and
+ *  interview layers — so a static edge would make a cycle out of what is really a
+ *  one-way notification; and it pulls in `next/server`, which this store must stay
+ *  free of so the node:test suite can load it outside a Next runtime.
  *
- *  The hook module is imported LAZILY: it reaches back into this store (and into
- *  the billing, comms and interview layers that import it), so a static import
- *  would make a cycle out of what is really a one-way notification.
+ *  Fire-and-forget by construction: `scheduleStageEnteredHook` never throws and
+ *  `afterResponse` logs a throwing task rather than letting it become an unhandled
+ *  rejection, so a failing hook can never fail a move that already committed.
  *
  *  A no-op when the stage did not actually change — an approval-clearing accept at
  *  the terminal column, or a `set_stage` to where the entry already stands, is not
@@ -52,10 +54,13 @@ import { afterResponse } from "../after-response";
 function notifyStageEntered(entry: PipelineEntry | null, fromStage: string | null, actorRef?: string | null): void {
   if (!entry || fromStage === null || entry.stage === fromStage) return;
   const { id, stage, workspaceId } = entry;
-  afterResponse("stage-entered", async () => {
-    const { runStageEnteredHook } = await import("../stage-hooks");
-    await runStageEnteredHook({ entryId: id, stage, workspaceId, actorRef: actorRef ?? null });
-  });
+  void import("../stage-hooks")
+    .then(({ scheduleStageEnteredHook }) =>
+      scheduleStageEnteredHook({ entryId: id, stage, workspaceId, actorRef: actorRef ?? null })
+    )
+    .catch((error) => {
+      console.error("[pipeline] stage-entered hook could not be scheduled", error instanceof Error ? error.message : error);
+    });
 }
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------
@@ -314,6 +319,44 @@ export function listPipelineEventsForEntry(entryId: string, limit = 50, workspac
  *  the OLDEST pending events and advances its cursor to the last id returned,
  *  catching up across polls — a newest-first LIMIT would silently drop the
  *  middle of the burst, which is exactly the bug this replaces. */
+/** The board's activity feed: every event since `fromIso` (a time bound, so the
+ *  feed is "this week" rather than "the newest N"), newest first, capped. Full
+ *  labels — the caller is the operator-gated feed route, never the public one. */
+export function listRecentPipelineEvents(fromIso: string, limit = 500, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor
+       FROM pipeline_events WHERE workspace_id = ? AND created_at >= ? ORDER BY id DESC LIMIT ?`
+    )
+    .all(workspaceId, fromIso, limit) as Array<{
+    id: number;
+    entry_id: string | null;
+    candidate_label: string | null;
+    job_title: string | null;
+    archetype: string | null;
+    kind: string;
+    from_stage: string | null;
+    to_stage: string | null;
+    detail: string | null;
+    created_at: string;
+    actor: string | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    entryId: r.entry_id,
+    candidateLabel: r.candidate_label,
+    jobTitle: r.job_title,
+    archetype: r.archetype,
+    kind: r.kind,
+    fromStage: r.from_stage,
+    toStage: r.to_stage,
+    detail: r.detail,
+    createdAt: r.created_at,
+    actor: r.actor,
+  }));
+}
+
 export function listPipelineEventsSince(sinceId: number, limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
   const db = ensureDb();
   const rows = db

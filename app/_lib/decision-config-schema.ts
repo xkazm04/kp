@@ -147,7 +147,10 @@ export type InterviewPlanRule = {
 export const INTERVIEW_PLAN_MAX_ROUNDS = 3;
 /** Columns a plan may govern. Entry and terminal are arrival and outcome, not
  *  decisions, so a step naming one is dropped rather than silently kept. */
-const PLANNABLE_ROLES: readonly StageRole[] = ["screening", "interview", "scoring", "offer", "custom"];
+/** `homework` carries a plan step for one decision: WHO approves sending the case.
+ *  The executor is never in question (the product generates and evaluates it) and
+ *  there are no rounds, so its step is a gate and an empty round list. */
+const PLANNABLE_ROLES: readonly StageRole[] = ["screening", "homework", "interview", "scoring", "offer", "custom"];
 
 /** This column's policy, or null when the plan says nothing about it. Null is a
  *  real answer — a column added after the plan was saved has no gate, and
@@ -229,6 +232,9 @@ export type LegacyInterviewPlanRule = {
  *  - rounds with nowhere to land (a plan with rounds on an axis with no
  *    interview column) are DROPPED, which is what the board already showed —
  *    there is no column to run them at.
+ *  - a `homework` column gets NO step. The legacy vocabulary had no case step, so
+ *    there is nothing to convert; absence stays absence rather than a fabricated
+ *    gate. The presets that WANT one append it after the conversion.
  */
 export function migrateLegacyInterviewPlan(
   legacy: LegacyInterviewPlanRule,
@@ -297,7 +303,7 @@ export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = migrateLegacyInterviewP
 // `pipeline_events` rows and analytics buckets referencing it still resolve to a
 // label instead of rendering a raw id — and so a candidate found sitting on it
 // can be named in the migration prompt. The board renders only `stages`.
-export type PipelineStageRoleWire = "entry" | "screening" | "interview" | "scoring" | "offer" | "terminal" | "custom";
+export type PipelineStageRoleWire = "entry" | "screening" | "homework" | "interview" | "scoring" | "offer" | "terminal" | "custom";
 export type PipelineStageWire = {
   id: string;
   label: string;
@@ -322,10 +328,11 @@ export const PIPELINE_STAGES_DEFAULT: PipelineStagesRule = {
   retired: [],
 };
 
-const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "interview", "scoring", "offer", "terminal", "custom"];
+const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "homework", "interview", "scoring", "offer", "terminal", "custom"];
 /** Roles that may appear AT MOST once: they answer "where does the funnel start /
- *  end / close", which cannot have two answers. `screening`, `interview` and
- *  `custom` repeat freely. */
+ *  end / close", which cannot have two answers. `screening`, `homework`,
+ *  `interview` and `custom` repeat freely — a funnel may legitimately set a short
+ *  take-home and a longer one, exactly as it may screen twice. */
 const UNIQUE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "terminal", "offer"];
 /** Roles an axis MUST carry, because product rules resolve through them: a funnel
  *  needs somewhere to enter and somewhere to end. */

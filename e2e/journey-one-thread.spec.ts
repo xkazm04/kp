@@ -413,13 +413,18 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
 
   await page.goto("/?tab=decisions");
   await expect(page.getByText("Your decision queue")).toBeVisible({ timeout: 30_000 });
-  // Scoped to the ONE card (DecisionsAiReviewCard renders an <article>), so the
-  // tag and the actions are asserted on this candidate's card and not merely
-  // somewhere on a queue that holds other people's.
-  const card = page.getByRole("article").filter({ hasText: CANDIDATE });
-  await expect(card).toHaveCount(1);
-  await expect(card.getByText("AI screening")).toBeVisible();
-  await expect(card.getByRole("button", { name: "Reject" })).toBeVisible();
+  // Scoped to the ONE ledger row (ledger/DecisionsLedger.tsx renders a table row
+  // per recommendation), so the tag is asserted on this candidate's row and not
+  // merely somewhere on a queue that holds other people's. The verdict buttons live
+  // in the candidate modal the row's Decide opens.
+  const row = page.getByRole("row").filter({ hasText: CANDIDATE });
+  await expect(row).toHaveCount(1);
+  await expect(row.getByText("AI screening")).toBeVisible();
+  await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).click();
+  const modal = page.getByRole("dialog", { name: CANDIDATE, exact: true });
+  await expect(modal.getByRole("button", { name: "Reject" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(modal).toBeHidden();
 
   // Seal it. Reject rather than Advance: advancing a scorecard-reviewed entry can
   // route to a human interview round instead of sealing (pipeline-entry-action.ts),

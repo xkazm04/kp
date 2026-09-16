@@ -6,6 +6,7 @@ import type { Job, Stats } from "./JobsTypes";
 import { jsonFetchFailure, type JsonFetchFailure } from "@/app/_lib/useJsonFetch";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { mergeJobStatus, type JobLifecycleStatus } from "./jobsStatusMerge";
+import { roleStatusOf } from "./jobsRoleStatus";
 
 // The filter bar + debounced corpus fetch in one place. The fetch is driven
 // entirely by the filter values, so they live together: every filter change
@@ -80,11 +81,19 @@ export function useJobsList() {
   const [roleFamily, setRoleFamilyState] = useState("");
   const [seniority, setSeniorityState] = useState("");
   const [workMode, setWorkModeState] = useState("");
-  const [entryOnly, setEntryOnlyState] = useState(false);
+  // The Status column's filter. CLIENT-side, unlike every other filter on this
+  // table, and deliberately so: "filled" is not a fact the jobs query can express —
+  // it is the role's target compared against the PIPELINE's hired count, which lives
+  // in another table on another axis. Asking the server for it would mean either a
+  // join the browse read does not have or a second, private definition of "filled"
+  // that could disagree with the badge in the row. So the predicate runs here, over
+  // the page the query returned, from the same `roleStatusOf` the badge draws.
+  const [roleStatus, setRoleStatusState] = useState("");
   // Open-for-applications only (NULL/'published' status) — hides drafts and
-  // closed roles. Default OFF: the corpus view keeps showing the full catalog
-  // unless the recruiter opts in, mirroring entryOnly.
-  const [openOnly, setOpenOnlyState] = useState(false);
+  // closed roles. Default ON since the 2026-09 split: the Roles tab is the desk of
+  // open and historical roles, and the open ones are what a recruiter works; the
+  // history is one toggle away (an ingest clears it so the new draft can surface).
+  const [openOnly, setOpenOnlyState] = useState(true);
   const [q, setQState] = useState("");
   // Zero-based index for the shared TablePager. It lives HERE, beside the filters,
   // because every filter change re-cuts the result set: staying on page 3 of a
@@ -103,7 +112,7 @@ export function useJobsList() {
   const setRoleFamily = resetPage(setRoleFamilyState);
   const setSeniority = resetPage(setSeniorityState);
   const setWorkMode = resetPage(setWorkModeState);
-  const setEntryOnly = resetPage(setEntryOnlyState);
+  const setRoleStatus = resetPage(setRoleStatusState);
   const setOpenOnly = resetPage(setOpenOnlyState);
   const setQ = resetPage(setQState);
   // Bumped to force a re-fetch with the current filters unchanged — e.g. after a
@@ -120,7 +129,12 @@ export function useJobsList() {
     // "does this attempt still own the state?" flag, so there is exactly one
     // cancellation mechanism instead of a boolean beside a comment.
     const controller = new AbortController();
-    const query = jobsListQuery({ roleFamily, seniority, workMode, entryOnly, openOnly, q });
+    // `entryOnly` is pinned false here, not dropped from the query mapping: the
+    // route still supports `entryEligible` (the JD library and the analytics pack
+    // read it) and jobsListQuery is its one definition. What went away is the
+    // CONTROL — the Entry column it lived in is now the Status column, and a filter
+    // with no way to turn it on is not a filter.
+    const query = jobsListQuery({ roleFamily, seniority, workMode, entryOnly: false, openOnly, q });
     const handle = setTimeout(() => {
       setFetching(true);
       setFailure(null);
@@ -156,21 +170,28 @@ export function useJobsList() {
       controller.abort();
       clearTimeout(handle);
     };
-  }, [roleFamily, seniority, workMode, entryOnly, openOnly, q, reloadKey]);
+  }, [roleFamily, seniority, workMode, openOnly, q, reloadKey]);
 
-  const anyFilter = Boolean(roleFamily || seniority || workMode || entryOnly || openOnly || q.trim());
+  const anyFilter = Boolean(roleFamily || seniority || workMode || roleStatus || openOnly || q.trim());
   const clearAll = () => {
     setRoleFamilyState("");
     setSeniorityState("");
     setWorkModeState("");
-    setEntryOnlyState(false);
+    setRoleStatusState("");
     setOpenOnlyState(false);
     setQState("");
     setPageIndex(0);
   };
 
+  // The rows the TABLE renders: the server's answer narrowed by the one client-side
+  // predicate. `allJobs` below stays the unnarrowed answer, because the deep-link
+  // resolver (?job=) must find a role the reader has filtered out of view — hiding
+  // it would turn a valid link into "that role no longer exists".
+  const visible = jobs === null || !roleStatus ? jobs : jobs.filter((job) => roleStatusOf(job) === roleStatus);
+
   return {
-    jobs,
+    jobs: visible,
+    allJobs: jobs,
     stats,
     page,
     error: failure ? resolveError({ code: failure.code }, t("loadFailed")) : null,
@@ -181,8 +202,8 @@ export function useJobsList() {
     setSeniority,
     workMode,
     setWorkMode,
-    entryOnly,
-    setEntryOnly,
+    roleStatus,
+    setRoleStatus,
     openOnly,
     setOpenOnly,
     q,

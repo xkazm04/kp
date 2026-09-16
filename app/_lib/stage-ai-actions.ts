@@ -16,7 +16,6 @@
 import {
   DEFAULT_STAGE_AXIS,
   roleOf,
-  screenedLandingStage,
   screeningStageIds,
   STAGE_AI_ACTIONS,
   stagesWithRole,
@@ -32,12 +31,31 @@ type StageScope = "all" | ((axis: readonly StageDef[]) => string[]);
 const nonTerminalStages = (axis: readonly StageDef[]): string[] =>
   axis.filter((s) => s.role !== "terminal").map((s) => s.id);
 
+/** Columns where a conversation is what comes NEXT: every interview column, and
+ *  whatever sits immediately before one. That is what "prep" means, and reading it
+ *  off the axis's SHAPE rather than off "the last column before the screening gate"
+ *  is what keeps it true on a funnel with a case step in the middle — there the
+ *  last pre-gate column IS the case, and a candidate who has not sent the
+ *  assignment back yet has nothing to prep from. A homework column is therefore
+ *  excluded even when an interview follows it. */
+const beforeAnInterview = (axis: readonly StageDef[]): string[] =>
+  axis.filter((s, i) => axis[i + 1]?.role === "interview" && s.role !== "homework").map((s) => s.id);
+
 const DEFAULT_SCOPE: Record<StageAiAction, StageScope> = {
-  // Screening is the triage gate for every pre-gate column: at the entry column it
-  // screens a fresh applicant in, at the last pre-gate column it advances or holds.
-  screen: (axis) => screeningStageIds(axis),
-  // Prep: once through screening and while they interview.
-  prep: (axis) => [screenedLandingStage(axis), ...stagesWithRole("interview", axis)].filter(Boolean),
+  // Screening is the triage gate for every pre-gate column — at the entry column it
+  // screens a fresh applicant in, at the last pre-gate column it advances or holds —
+  // PLUS any column the workspace explicitly marked `screening`, wherever it sits.
+  // The enterprise funnel puts its human triage AFTER the AI round, and a column
+  // whose whole declared job is screening must still offer the screen; what changes
+  // past the gate is only the EFFECT (screenStageOutcome answers "advisory" there,
+  // so a late screen informs and moves nobody).
+  //
+  // `screeningStageIds` excludes homework columns, so a case step's default set comes
+  // out as exactly outreach + rejection + rematch — you can chase the candidate, drop
+  // them, or look elsewhere, but you cannot "screen" them past the assignment the
+  // column exists to give them.
+  screen: (axis) => [...new Set([...screeningStageIds(axis), ...stagesWithRole("screening", axis)])],
+  prep: (axis) => [...beforeAnInterview(axis), ...stagesWithRole("interview", axis)],
   scorecard: (axis) => stagesWithRole("interview", axis),
   offer: (axis) => stagesWithRole("offer", axis),
   outreach: "all",

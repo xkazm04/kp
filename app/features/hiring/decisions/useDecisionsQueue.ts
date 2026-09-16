@@ -23,6 +23,8 @@ import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { createTicketGate } from "./decisionsLatestWins";
 import { foldQueueLoadThrow, readQueueResponse } from "./decisionsQueueLoad";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
 import {
   applyReinstateOutcome,
@@ -68,6 +70,9 @@ export function useDecisionsQueue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [entries, setEntries] = useState<Entry[] | null>(null);
+  // The board's columns, as GET /api/pipeline resolves them for this workspace —
+  // the candidate modal opened from the ledger reads the route across them.
+  const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_BOARD_AXIS);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
   // Candidates whose screening was accepted THIS sitting — accepting silently
@@ -206,6 +211,8 @@ export function useDecisionsQueue() {
         }
         setError(null); // a good read clears a previous failure
         setEntries(read.entries);
+        const stages = (p as { stages?: StageDef[] }).stages;
+        if (Array.isArray(stages) && stages.length > 0) setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(stages) ? cur : stages));
       })
       .catch((e) => {
         if (ticket !== loadTicket.current) return;
@@ -770,7 +777,7 @@ export function useDecisionsQueue() {
     relayConfigured,
     jobFilter, setJobFilter,
     armIds, armJobId,
-    entries, error,
+    entries, error, axis,
     resolving, leavingWrapClass,
     queuedLabels, setQueuedLabels,
     sentOffers, setSentOffers,

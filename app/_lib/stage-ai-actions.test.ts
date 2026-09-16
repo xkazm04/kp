@@ -35,6 +35,29 @@ test("a renamed axis keeps every action — resolved by role, not by name", () =
   assert.deepEqual(ids("Placed", RENAMED), ["outreach"]);
 });
 
+test("a homework column offers outreach, rejection and rematch — never `screen`", () => {
+  // The enterprise funnel: the case sits BEFORE the AI interview, so it is pre-gate
+  // — but nothing triages a CV there, and a "Screen with AI" run at a case column
+  // would advance the candidate past the very assignment the column exists to give
+  // them. `prep` is out for the same reason: there is nothing to prep from until
+  // the case comes back.
+  const funnel: readonly StageDef[] = [
+    { id: "In", label: "In", role: "entry" },
+    { id: "Case", label: "Homework", role: "homework" },
+    { id: "AI", label: "AI interview", role: "interview" },
+    { id: "Triage", label: "Screened", role: "screening" },
+    { id: "Panel", label: "Human interview", role: "interview" },
+    { id: "Package", label: "Offer", role: "offer" },
+    { id: "Placed", label: "Hired", role: "terminal" },
+  ];
+  assert.deepEqual(ids("Case", funnel), ["outreach", "rejection", "rematch"]);
+  // The columns around it are unchanged: the entry column still screens, and the
+  // post-gate screening column keeps its own triage run.
+  assert.deepEqual(ids("In", funnel), ["screen", "outreach", "rejection"]);
+  assert.deepEqual(ids("Triage", funnel), ["screen", "prep", "outreach", "rejection", "rematch"]);
+  assert.deepEqual(ids("AI", funnel), ["prep", "scorecard", "outreach", "rejection", "rematch"]);
+});
+
 test("a stage off the axis resolves no role, so only the unconditional actions show", () => {
   assert.deepEqual(ids("Retired column", RENAMED), ["outreach"]);
 });

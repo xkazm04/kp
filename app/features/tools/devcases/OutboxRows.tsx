@@ -26,6 +26,7 @@ const KIND_STYLE: Record<string, string> = {
   acknowledgement: "bg-moss/15 text-moss",
   schedule_invite: "bg-moss/15 text-moss",
   interview_invite: "bg-moss/15 text-moss",
+  case_invite: "bg-moss/15 text-moss",
   interview_confirmation: "bg-moss/15 text-moss",
   interview_reminder: "bg-moss/15 text-moss",
   offer: "bg-moss/15 text-moss",

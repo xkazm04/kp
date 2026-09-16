@@ -19,6 +19,43 @@ auto) and the cohort reducer into each round (top-N), up to
 org-complexity presets (Solo-lean / Team-hybrid / Enterprise-governance) sit above
 it.
 
+### Presets: Enterprise rewrites the COLUMNS, not just the policy
+
+A preset is an intent bound to the board (`preset()` in `pipelineComposerModel.ts`).
+Lean and Hybrid keep whatever columns the workspace has and set only the gates and
+rounds. **Enterprise carries an `axis` builder as well**, because the funnel it
+describes needs columns the shipped five do not have — different functionality is
+bound to each name, so the axis has to say so:
+
+```
+Accepted → Homework → AI interview → Screened → Human interview → Offer → Hired
+ entry     homework    interview     screening    interview        offer   terminal
+```
+
+The case precedes the AI round on purpose: the round's questions are grounded in
+the marked homework, and `Screened` is the **human triage after** that round rather
+than a pre-interview read.
+
+Mechanics worth knowing before changing it:
+
+- It is an **edit of the loaded axis**, never a fresh board. Columns are reused by
+  role, so every stored id (`Accepted`, `Screened`, `Interview`, `Offer`, `Hired`)
+  survives and only `Homework` / `Human interview` are minted — from fixed ASCII
+  seeds, so the stored key does not differ per locale. Labels come in localized
+  from `hiringPlan.presetAxis.*`; the model has no translator and must not write
+  English onto a Czech board.
+- Columns the target funnel has no place for **are dropped** — that is the rewrite.
+  Nobody is stranded by it: the preset only edits the DRAFT, and the host's existing
+  refusal (`useHiringComposer` → `composerState.deriveComposerState`) blocks Save
+  until each dropped column with occupants has a destination, shipping the moves in
+  the same `/api/pipeline/stage-migration` request as the axis write.
+- The plan is built against the **new** axis (`p.plan(next.stages)`), so a round can
+  never be keyed to a column the same click removed.
+- `matchesPreset()` compares the axis's role signature when a preset declares one
+  (`axisRoles`). Without it, Enterprise clipped onto five columns yields the same
+  policy as Team hybrid, and both would light up; `activePresetId()` therefore checks
+  presets in reverse declaration order, most specific first.
+
 It was two tables until the plan became stage-keyed: this one, and a Station /
 Mode / Approval / Cohort matrix (`PipelineComposerMatrix`, deleted) that listed
 the same columns again in its own order with its own words, so the recruiter had
@@ -165,6 +202,7 @@ down the table. What fills them is decided by the column's TYPE, never its posit
 | --- | --- | --- | --- |
 | entry, terminal | — | — | — (arrival and outcome are not decisions) |
 | screening | — | AI, stated | who signs the screen off |
+| homework | — | AI, stated (it writes the case and marks it) | who approves **sending** it |
 | interview | who reaches this round | AI or a person | who ratifies the verdict |
 | scoring | — | AI, stated | who signs the score off |
 | offer | — | AI drafts it, stated | who sends it |
@@ -234,7 +272,12 @@ recruiter can run from the candidate modal on someone standing in that step — 
 Prep, Scorecard, Draft offer, Outreach, Rejection, Explore alternatives. Until someone
 picks otherwise a step offers **our default for its type** (screening steps screen,
 interview rounds prep and score, the offer step drafts the offer, rejection and
-alternatives before the outcome, outreach everywhere); each default action is marked
+alternatives before the outcome, outreach everywhere). A **homework** step is the
+one type defined by what it does *not* offer: outreach, rejection and alternatives
+only. `Screen` is withheld because a screen run there would advance the candidate
+past the assignment the column exists to give them (`screeningStageIds` excludes
+homework columns even though they are pre-gate), and `Prep` because there is nothing
+to prep from until the case comes back. Each default action is marked
 "Default" in the list and the button reads "Default" or "Custom".
 
 A selection is stored on the stage as `actions` in the same `pipelineStages` config the
@@ -252,7 +295,7 @@ The board's amber "aging" dot, the `?quick=aging` filter, the header's Aging
 chip and the sidebar's Pipeline badge all read one threshold function,
 `slaForStage(stage, overrides, axis)` (`app/features/shared/pipelineTypes.ts`).
 The default is keyed by the **role** a column plays on this workspace's axis
-(`ROLE_SLA_DEFAULTS`: entry 14 d, screening 7 d, interview 5 d, scoring 5 d,
+(`ROLE_SLA_DEFAULTS`: entry 14 d, screening 7 d, homework 7 d, interview 5 d, scoring 5 d,
 offer 3 d, terminal never, `custom` the flat legacy 10 d), so a composed
 "Tech round" ages like an interview instead of falling through to the flat
 cut, and a renamed column keeps its threshold. Resolution order: the

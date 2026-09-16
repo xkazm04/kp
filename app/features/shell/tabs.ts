@@ -205,7 +205,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Library",
     key: "library",
     items: [
-      { id: "jobs", label: "Jobs", badgeKey: "jobs" },
+      { id: "jobs", label: "Roles", badgeKey: "jobs" },
       { id: "library", label: "Job descriptions" },
       // The authoring surface (intake dialog + manual JD builder). chordPin, not
       // chordOverflow, and the difference is worth a line: this id sits in an EARLY

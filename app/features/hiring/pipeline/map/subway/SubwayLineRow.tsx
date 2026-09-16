@@ -4,16 +4,18 @@
 // rank action), a 2px track across the stage columns, and per station a cell whose
 // underlay button opens the orchard while its beads open the candidate detail.
 
+import { useState } from "react";
 import { ListOrdered } from "lucide-react";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { Entry, Position } from "@/app/features/shared/pipelineTypes";
-import type { CellSelection } from "../mapTypes";
+import type { CellSelection, LineAction } from "../mapTypes";
 import type { LineAttention as LineCounts } from "./lineAttention";
+import { LineContextMenu } from "./LineContextMenu";
 import { Bead, BeadOverflow } from "./SubwayBeads";
-import { LineAttention, Station } from "./SubwayMarks";
+import { LineAttention, RejectedMark, Station } from "./SubwayMarks";
 import { BEAD_LIMIT, LINE_COL } from "./subwayGeometry";
 
-export type LineLabels = { active: string; openJd: string; rank: string; waiting: string };
+export type LineLabels = { active: string; openJd: string; rank: string; waiting: string; rejected: string };
 
 export function LineRow({
   position,
@@ -33,12 +35,19 @@ export function LineRow({
   openJob,
   openPositionRanking,
   openCandidate,
+  rejectedCount,
+  onOpenRejected,
+  onLineAction,
 }: {
   position: Position;
   axis: readonly StageDef[];
   cells: Entry[][];
   /** Who this line's candidates are waiting on — a person, the AI. */
   attention: LineCounts;
+  rejectedCount: number;
+  onOpenRejected: (origin: CellSelection["origin"]) => void;
+  /** Absent = no context menu (the board's consumer did not wire batch actions). */
+  onLineAction?: (action: LineAction) => void;
   gridStyle: React.CSSProperties;
   openCell: { positionId: string; stageId: string } | null;
   terminal: boolean;
@@ -53,8 +62,15 @@ export function LineRow({
   openPositionRanking: (jobId: string) => void;
   openCandidate: (entry: Entry, cohort: readonly Entry[]) => void;
 }) {
+  // The row menu acts on the ENTRY column's active candidates (lineActions.ts).
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const entryAt = axis.findIndex((s) => s.role === "entry");
+  const entryCount = entryAt >= 0 ? (cells[entryAt] ?? []).filter((e) => e.status === "active").length : 0;
   return (
     <div className="relative grid border-b border-stone-200 last:border-0" style={gridStyle} role="row">
+      {menuAt && onLineAction ? (
+        <LineContextMenu at={menuAt} count={entryCount} onPick={onLineAction} onClose={() => setMenuAt(null)} />
+      ) : null}
       {/* The track itself — one 2px rule running the width of the stage columns. */}
       <div
         aria-hidden
@@ -69,6 +85,15 @@ export function LineRow({
       ) : null}
       <div
         role="rowheader"
+        aria-haspopup={onLineAction ? "menu" : undefined}
+        onContextMenu={
+          onLineAction
+            ? (ev) => {
+                ev.preventDefault();
+                setMenuAt({ x: ev.clientX, y: ev.clientY });
+              }
+            : undefined
+        }
         className="sticky left-0 z-10 flex h-10 items-center gap-2 border-r border-stone-200 bg-white px-3"
       >
         <LineAttention counts={attention} label={labels.waiting} />
@@ -83,6 +108,11 @@ export function LineRow({
         <span className="ml-auto shrink-0 text-sm text-steel nums" title={labels.active} aria-label={labels.active}>
           {position.count}
         </span>
+        <RejectedMark
+          count={rejectedCount}
+          label={labels.rejected}
+          onOpen={(r) => onOpenRejected({ x: r.x, y: r.y, width: r.width, height: r.height })}
+        />
         <button
           type="button"
           onClick={() => openPositionRanking(position.id)}

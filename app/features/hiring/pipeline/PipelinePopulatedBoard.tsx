@@ -20,6 +20,7 @@ import { PipelineSavedViews } from "./PipelineSavedViews";
 import { PipelineViewDialog, type ViewDialogState } from "./PipelineViewDialog";
 import { Collapse, FadeSwap } from "./PipelineMotion";
 import type { PipelineTabState } from "./usePipelineTabState";
+import { useLineActions } from "./useLineActions";
 
 export function PipelinePopulatedBoard({
   s,
@@ -29,6 +30,8 @@ export function PipelinePopulatedBoard({
   enumLabel: (kind: string, value: string) => string;
 }) {
   const noMatch = s.filtering && s.filteredEntries.length === 0;
+  // The row context menu (Accept all / Reject all / AI evaluate on the entry column).
+  const onLineAction = useLineActions({ entries: s.entries, axis: s.axis, reload: s.load });
   return (
     <>
       {/* PIPE1: the batch action bar — pairs with the filters above (filter
@@ -130,6 +133,8 @@ export function PipelinePopulatedBoard({
               axis={s.axis}
               retiredStages={s.retiredStages}
               plan={s.plan}
+              rejectedByLane={s.rejectedByLane}
+              onLineAction={onLineAction}
               isStale={s.isStale}
               openPositionRanking={s.openPositionRanking}
               openProfile={s.openProfile}

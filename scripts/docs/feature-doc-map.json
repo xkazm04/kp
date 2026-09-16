@@ -25,6 +25,7 @@
         "app/_lib/interview-recommendation.ts",
         "app/_lib/pipeline-stages.ts",
         "app/_lib/pipeline-entry-action.ts",
+        "app/_lib/stage-hooks*.ts",
         "app/features/hiring/decisions/**",
         "app/features/hiring/pipeline/**"
       ]
@@ -52,11 +53,15 @@
         "app/_lib/jd-lint.ts",
         "app/_lib/jd-limits.ts",
         "app/_lib/db/jobs.ts",
+        "app/_lib/db/job-translations.ts",
+        "app/_lib/job-translate-run.ts",
+        "app/_lib/stage-hooks-role-fill.ts",
         "app/api/jds/**",
         "app/api/jobs/**",
         "app/jds/**",
         "pipeline/jobfit/campaign.py",
         "pipeline/jobfit/campaign_cli.py",
+        "pipeline/jobfit/posting_translate_cli.py",
         "app/features/library/jobs/**",
         "app/features/library/jds/**",
         "app/api/templates/**",

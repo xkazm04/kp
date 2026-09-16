@@ -27,7 +27,8 @@ import {
   type InterviewPlanRule,
   type InterviewPlanStep,
 } from "@/app/_lib/decision-config-schema";
-import { DEFAULT_STAGE_AXIS, stagesWithRole, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, stagesWithRole, stageWithRole, type StageDef, type StageRole } from "@/app/_lib/pipeline-stages";
+import { mintStageId, type AxisDraft, type DraftStage } from "@/app/features/shared/pipelineAxisDraft";
 
 export type GateMode = InterviewPlanGate;
 export type RoundKind = InterviewPlanRound["kind"];
@@ -53,7 +54,31 @@ export const newRound = (kind: RoundKind, gate: GateMode = "human", topN: number
 export const roundKey = (stageId: string, index: number): string => `${stageId}:${index}`;
 
 export type PresetId = "lean" | "hybrid" | "enterprise";
-export type Preset = { id: PresetId; plan: (axis?: readonly StageDef[]) => PipelinePlan };
+
+/** The labels a preset needs for the columns it INVENTS or re-purposes. Passed in
+ *  localized by the editor: a preset must never mint English column names into a
+ *  Czech workspace's board, and it must never mint an id from a localized string
+ *  either (ids are storage keys — see `mintStageId`). */
+export type PresetAxisLabels = {
+  homework: string;
+  aiInterview: string;
+  screened: string;
+  humanInterview: string;
+  offer: string;
+};
+
+export type Preset = {
+  id: PresetId;
+  plan: (axis?: readonly StageDef[]) => PipelinePlan;
+  /** A preset that rewrites the BOARD, not just the policy on it. Absent ⇒ the
+   *  preset keeps whatever columns the workspace has. */
+  axis?: (base: AxisDraft, labels: PresetAxisLabels) => AxisDraft;
+  /** The role signature the rewritten axis has. Read by `matchesPreset` so an
+   *  axis-rewriting preset only reads as ACTIVE on the board it actually describes
+   *  — otherwise its plan, clipped onto a five-column board, is indistinguishable
+   *  from the next preset down. */
+  axisRoles?: readonly StageRole[];
+};
 
 /**
  * Build a preset: the INTENT, bound to whatever axis the workspace actually has.
@@ -70,14 +95,95 @@ export type Preset = { id: PresetId; plan: (axis?: readonly StageDef[]) => Pipel
  * than the board has interview columns drops the extras rather than doubling them
  * up — the operator adds an Interview step and applies the preset again.
  */
-function preset(id: PresetId, screeningGate: GateMode, rounds: PlanRound[], offerGate: GateMode): Preset {
+function preset(
+  id: PresetId,
+  screeningGate: GateMode,
+  rounds: PlanRound[],
+  offerGate: GateMode,
+  shape?: Pick<Preset, "axis" | "axisRoles">
+): Preset {
   return {
     id,
-    plan: (axis = DEFAULT_STAGE_AXIS) =>
-      migrateLegacyInterviewPlan(
+    plan: (axis = DEFAULT_STAGE_AXIS) => {
+      const migrated = migrateLegacyInterviewPlan(
         { screeningGate, rounds: rounds.slice(0, stagesWithRole("interview", axis).length), offerGate },
         axis
-      ),
+      );
+      // A case step is not in the legacy vocabulary, so the migration emits nothing
+      // for it. Every preset gives one a HUMAN gate: sending a candidate an
+      // assignment costs them hours of unpaid work, and "nobody chose" must not
+      // resolve to "the machine sends it unattended".
+      const homework = stagesWithRole("homework", axis);
+      if (homework.length === 0) return migrated;
+      return sortPlanToAxis(
+        { steps: [...migrated.steps, ...homework.map((stageId) => ({ stageId, gate: "human" as GateMode, rounds: [] }))] },
+        axis
+      );
+    },
+    ...shape,
+  };
+}
+
+/** The Enterprise funnel's columns, in order, as ROLES. Declared once: the builder
+ *  below produces it and `matchesPreset` recognises it. */
+export const ENTERPRISE_AXIS_ROLES: readonly StageRole[] = [
+  "entry",
+  "homework",
+  "interview",
+  "screening",
+  "interview",
+  "offer",
+  "terminal",
+];
+
+/** Locale-independent seeds for the two columns this preset may have to MINT. Ids
+ *  are storage keys (`pipeline_entries.stage`, the ATS field map), so they must not
+ *  differ per locale — the same rule the wizard's work-sample preset works under. */
+const ENTERPRISE_ID_SEEDS = { homework: "Homework", humanInterview: "Human interview" } as const;
+
+/**
+ * Enterprise governance, as a BOARD rather than as policy on somebody else's board.
+ *
+ * "Rewrite the columns if different functionality is bound to them": the two-
+ * interview funnel needs a case step (the devcase module runs there), an AI round
+ * grounded in that case, a HUMAN triage after it, and a human round — which is a
+ * different axis, not a different set of gates on the shipped five.
+ *
+ * It is an EDIT of the loaded axis, never a fresh board: every column that can be
+ * reused by role keeps its stored id, so applying the preset strands nobody who is
+ * standing on Accepted / Interview / Screened / Offer / Hired. Columns the target
+ * funnel has no place for ARE dropped — deliberately, that is the rewrite — and the
+ * host's existing stranded-mapping refusal is what stops anybody vanishing with them
+ * (see useHiringComposer / composerState: a dropped column with occupants blocks Save
+ * until the reader names a destination, and the move ships in the same request).
+ */
+function enterpriseAxis(base: AxisDraft, labels: PresetAxisLabels): AxisDraft {
+  const taken = [...base.stages.map((s) => s.id), ...base.retired.map((s) => s.id)];
+  const used = new Set<string>();
+  /** Reuse the first unclaimed column with this role, else mint one. */
+  const column = (role: StageRole, seed: string, label: string | null): DraftStage => {
+    const found = base.stages.find((s) => s.role === role && !used.has(s.id));
+    if (found) {
+      used.add(found.id);
+      return { ...found, role, ...(label ? { label } : {}) };
+    }
+    const id = mintStageId(seed, taken);
+    taken.push(id);
+    return { id, label: label ?? id, role, saved: false };
+  };
+  return {
+    ...base,
+    stages: [
+      // Entry and terminal keep their own names: they are the two columns every
+      // axis already has, and a preset has no business renaming "Accepted".
+      column("entry", "Accepted", null),
+      column("homework", ENTERPRISE_ID_SEEDS.homework, labels.homework),
+      column("interview", "Interview", labels.aiInterview),
+      column("screening", "Screened", labels.screened),
+      column("interview", ENTERPRISE_ID_SEEDS.humanInterview, labels.humanInterview),
+      column("offer", "Offer", labels.offer),
+      column("terminal", "Hired", null),
+    ],
   };
 }
 
@@ -89,7 +195,8 @@ export const PRESETS: Preset[] = [
     "enterprise",
     "human",
     [newRound("ai", "human"), newRound("human", "human", 5), newRound("human", "human", 2)],
-    "human"
+    "human",
+    { axis: enterpriseAxis, axisRoles: ENTERPRISE_AXIS_ROLES }
   ),
 ];
 
@@ -198,7 +305,7 @@ export type PlanImpact = {
   /** The Overview board's columns, in board order, annotated per station. */
   overview: PlanOverviewStation[];
   /** Human queues appearing in Decisions, in pipeline order. */
-  decisions: ("screening_review" | "ai_scorecard_review" | "human_scorecard_review" | "offer_review")[];
+  decisions: ("screening_review" | "homework_review" | "ai_scorecard_review" | "human_scorecard_review" | "offer_review")[];
   /** Which Schedule surfaces are in play. */
   schedule: { aiRound: boolean; humanRound: boolean };
   /** Human decision points per candidate who goes the distance. */
@@ -234,6 +341,9 @@ export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEF
     const step = planStep(live, stage.id);
     if (!step) continue;
     if (stage.role === "screening" && step.gate === "human") decisions.push("screening_review");
+    // Sending a case is a real human decision — it spends the candidate's unpaid
+    // hours — so a human-gated homework column is a touchpoint like any other.
+    if (stage.role === "homework" && step.gate === "human") decisions.push("homework_review");
     for (const r of step.rounds) {
       if (r.kind === "human") decisions.push("human_scorecard_review");
       else if (r.gate === "human") decisions.push("ai_scorecard_review");
@@ -288,5 +398,16 @@ export function planEqualsStored(plan: PipelinePlan, stored: PipelinePlan): bool
  *  active blueprint after fine-tuning. Compared against the preset built for the
  *  SAME axis — a preset is an intent, and its shape depends on the board. */
 export function matchesPreset(plan: PipelinePlan, preset: Preset, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): boolean {
+  // A preset that rewrites the BOARD is only itself on that board. Without this,
+  // Enterprise clipped onto the shipped five columns produces the same policy as
+  // Team hybrid — the two would light up together and the reader could not tell
+  // which shape they were looking at.
+  if (preset.axisRoles && axis.map((s) => s.role).join(">") !== preset.axisRoles.join(">")) return false;
   return planEqualsStored(plan, preset.plan(axis));
+}
+
+/** Which preset this board+plan IS, or null. Checked in REVERSE declaration order
+ *  so the most specific shape (the one that pins an axis) is asked first. */
+export function activePresetId(plan: PipelinePlan, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): PresetId | null {
+  return [...PRESETS].reverse().find((p) => matchesPreset(plan, p, axis))?.id ?? null;
 }

@@ -51,6 +51,7 @@ export const LLM_USE_CASES = [
   "role_intake",
   "role_intake_voice",
   "assistant",
+  "posting_translate",
   "github_analysis",
   "cv_analysis",
   "profile_extract",

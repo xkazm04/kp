@@ -744,6 +744,55 @@ export async function dispatchInterviewInvite(
   return status;
 }
 
+/** Deliver a work-sample ASSIGNMENT to one named candidate on the board.
+ *
+ *  THE GAP THIS CLOSES. A dev case was published as a POSTING — a shareable apply
+ *  token candidates had to find — and sourced candidates were seeded straight onto the
+ *  board at Accepted. Nothing ever put the two together: no code path sent the case to
+ *  a specific person, so a candidate standing in a homework column was waiting for a
+ *  letter the product could not write. `dispatchCaseInvite` is that letter, and the
+ *  homework arrival hook (stage-hooks-homework.ts) is its caller.
+ *
+ *  It is modelled on `dispatchInterviewInvite` line for line — same recipient contract,
+ *  same consent/suppression path through `sendCandidateComm`, same GDPR footer, same
+ *  locale resolution against the candidate's OWN team, and the same truthful delivery
+ *  claim handed straight back to the caller (`queued` with no relay configured,
+ *  `failed` when the relay threw; never a blanket "sent").
+ *
+ *  ONE DIFFERENCE, deliberate: it records NO pipeline event. The event vocabulary is
+ *  pinned by set equality across `decision-attribution.ts`, the feed's
+ *  `pipelineEventCatalog.ts` and a localized label per kind in all four catalogs, and
+ *  the arrival hooks introduce no kind of their own (stage-hooks.ts states the same
+ *  rule for the interview invite). The durable record is the OUTBOX row this writes —
+ *  which the Comms Center and the candidate drawer's Messages section already read by
+ *  `ref` — and that row, not an event, is also the hook's idempotence key.
+ *
+ *  `link` must be ABSOLUTE: the candidate opens the apply surface outside the app, so
+ *  the caller resolves it through publicBaseUrl. */
+export async function dispatchCaseInvite(
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
+  link: string,
+  // Same structural-subtype reasoning as the interview invite: the caller supplies the
+  // tenant, because an entry-shaped argument is not guaranteed to carry one.
+  opts?: { workspaceId?: string | null }
+): Promise<OutboxStatus> {
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const subject = t("caseInvite.subject", { role });
+  // The apply surface is a public page rendered in the reader's language, so the link
+  // is pinned to the letter's locale exactly as the offer/nudge links are.
+  const body = t("caseInvite.body", { name, role, link: pinLinkLocale(link, locale), team: t("team") });
+  return sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "case_invite",
+    ref: entry.id ?? link,
+    workspaceId: opts?.workspaceId,
+  }, locale);
+}
+
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
  *  (offers in the reminder window always carry one; the guard keeps the body clean). */
 /** The slot line a LETTER states, formatted from the absolute `slot_at` in the

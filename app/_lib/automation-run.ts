@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { lookupPromptCache, storePromptCache } from "./db/analyses";
 import { listCorpusJobs } from "./db/jobs";
-import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, hasEvent, recordAutomationEvent, rematchSourceEntry, setApproval } from "./db/pipeline";
+import { actOnPipelineEntry, countActiveEntriesForJob, createPipelineEntry, getPipelineEntry, hasEvent, recordAutomationEvent, rematchSourceEntry, setApproval } from "./db/pipeline";
 import { getProfileRecord } from "./db/profiles";
 import { latestInterviewByEntry } from "./db/interviews";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
@@ -55,7 +55,13 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // the previous language's screening rationale for the full 168h TTL. The locale
   // is now a key axis (UI_LANG_TASKS); bumped so the wrongly-shared v1 entries
   // self-invalidate. Kept in lockstep with automation.SCREENING_PROMPT_VERSION.
-  screen: "screening-v3",
+  // v4 — the screening prompt now states the role's PIPELINE VOLUME and the
+  // strictness rule that rides on it (a related-area near-miss is held for a human
+  // while the pipeline is sparse/moderate; a dense role may be screened strictly).
+  // The bucket is a new cache axis, and every cached v3 verdict was formed without
+  // knowing whether it judged 1 of 3 candidates or 1 of 300 — bumped so they
+  // self-invalidate. Lockstep with automation.SCREENING_PROMPT_VERSION.
+  screen: "screening-v4",
   // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
   // resolved comms locale) and their prompts carry the gender-neutral-Czech +
   // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
@@ -398,6 +404,15 @@ export async function runAutomationTask(
   // route passes currentWorkspace(), the batch sweep the entry's own team) — not
   // the default workspace's, which used to decide it for every tenant alike.
   const degraded = !meterAllows("ai_candidates", { workspace: workspaceId });
+  // PIPELINE VOLUME — how many ACTIVE candidates sit on this role, which sets the AI
+  // screener's strictness tier (automation.py::screening_volume_tier): a related-area
+  // near-miss in a handful-of-candidates pipeline is held for a human, a dense role
+  // may be screened strictly. Computed for `screen` ONLY (no other prompt reads it,
+  // so it must not split their keys) and for an entry that HAS a job — null means
+  // "could not count", which both sides resolve to the lenient tier rather than 0.
+  // One COUNT, scoped to the entry's own tenant like every other read here.
+  const pipelineSize =
+    task === "screen" && entry.jobId ? countActiveEntriesForJob(entry.jobId, workspaceId) : null;
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -418,6 +433,9 @@ export async function runAutomationTask(
     // Tasks in neither set (rematch) ignore it.
     lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
+    // Bucketed inside computeAutomationCacheKey (small/medium/large), so the key is
+    // stable as candidates trickle in but a verdict computed at 3 is never served at 80.
+    pipelineSize,
     degraded,
   });
 
@@ -444,6 +462,8 @@ export async function runAutomationTask(
         await writeFile(jobsPath, JSON.stringify(corpusJobs ?? []), "utf-8");
         args.push("--jobs", jobsPath);
       } else args.push("--job-id", entry.jobId ?? "");
+      // The SAME count folded (bucketed) into the cache key above — screen only.
+      if (pipelineSize !== null) args.push("--pipeline-size", String(pipelineSize));
       if (task === "rejection") args.push("--stage", entry.stage);
       // The interview the letter follows from (rejection/offer). Written like
       // profile.json/github.json — the SAME bytes folded into the cache key above,

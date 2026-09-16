@@ -25,6 +25,8 @@ import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { CandidateModalBody } from "./CandidateModalBody";
 import type { CandidateTab, CandidateView } from "./candidateView";
+import type { CandidateDecision } from "./decision/candidateDecision";
+import { CandidateDecisionPanel } from "./decision/CandidateDecisionPanel";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const TITLE_ID = "candidate-modal-title";
@@ -42,6 +44,9 @@ export type CandidateModalProps = {
   onOpenEntry: (entryId: string) => void;
   onNavigate: (entry: Entry) => void;
   onTab: (tab: CandidateTab) => void;
+  /** Opened from the decisions ledger: the recommendation to rule on, its ladder
+   *  as a side panel, and the reviewer's verdicts. Absent from the board. */
+  decision?: CandidateDecision | null;
 };
 
 export function CandidateModal(props: CandidateModalProps) {
@@ -80,13 +85,21 @@ export function CandidateModal(props: CandidateModalProps) {
           aria-modal="true"
           aria-labelledby={TITLE_ID}
           tabIndex={-1}
-          className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[1000px] flex-col overflow-hidden rounded-t-2xl border border-stone-200 bg-paper shadow-overlay focus:outline-none sm:max-h-full sm:rounded-xl"
+          // With a decision attached the ladder docks to the right, so the dialog widens.
+          className={`pointer-events-auto flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-stone-200 bg-paper shadow-overlay focus:outline-none sm:max-h-full sm:rounded-xl ${
+            props.decision ? "max-w-[1320px]" : "max-w-[1000px]"
+          }`}
           initial={hidden}
           animate={{ opacity: 1, y: 0 }}
           exit={hidden}
           transition={{ duration: reduced ? 0 : 0.24, ease: EASE }}
         >
-          <CandidateModalBody key={view.entry.id} {...props} titleId={TITLE_ID} />
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <CandidateModalBody key={view.entry.id} {...props} titleId={TITLE_ID} />
+            </div>
+            {props.decision ? <CandidateDecisionPanel decision={props.decision} /> : null}
+          </div>
         </motion.div>
       </div>
     </>,

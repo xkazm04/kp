@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSeedHealth } from "@/app/_lib/db/core";
 import { countJobs, jobStats, listJobsPage, type JobFilter } from "@/app/_lib/db/jobs";
+import { listJobPipelineStats } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -45,7 +46,15 @@ export async function GET(request: NextRequest) {
     // only `stats.total` (a real, UNFILTERED count) the truncation was invisible:
     // a workspace of 340 roles rendered "Showing 300 of 340" and the 40 missing roles
     // read as filtered-out rather than as a page the UI offers no way to advance past.
-    const { jobs, truncated, limit } = listJobsPage(filter, ws);
+    const { jobs: page, truncated, limit } = listJobsPage(filter, ws);
+    // The Roles desk's Status column reads "hired / target". The target is a jobs
+    // COLUMN (decorated by the store); the hired count is the PIPELINE's own
+    // terminal-stage count, which needs this workspace's board axis — so it is
+    // decorated here, from the same rollup the JD library reads, rather than
+    // duplicated as a second counter that could disagree with the board. ONE GROUP BY
+    // for the whole page, not one query per role.
+    const pipelineStats = listJobPipelineStats(ws);
+    const jobs = page.map((job) => ({ ...job, hired: pipelineStats[job.id]?.hired ?? 0 }));
     const matching = countJobs(filter, ws);
     const stats = jobStats(ws);
     // An empty corpus caused by a corrupt seed used to be invisible — surface it

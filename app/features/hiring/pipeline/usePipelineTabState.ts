@@ -230,7 +230,7 @@ export function usePipelineTabState() {
     slaOverrides, setStageSla, editingSla, setEditingSla,
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
-    axis: board.axis, retiredStages: board.retiredStages, plan: board.plan,
+    axis: board.axis, retiredStages: board.retiredStages, plan: board.plan, rejectedByLane: board.rejectedByLane,
     isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
     openCandidate: nav.openCandidate, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,

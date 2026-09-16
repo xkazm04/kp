@@ -20,9 +20,22 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 
 ## Flows
 
+0. **Automatic creation on stage entry.** A candidate who *enters* a board column
+   whose hiring-plan round is run by the AI no longer waits for a recruiter to
+   press "Create link" — see [Automatic invites on stage
+   entry](#automatic-invites-on-stage-entry) below. The mint itself is the same
+   door in both cases.
 1. **Session creation.** A real candidate session is minted via
    `app/api/interview/create/route.ts` (entry-backed, `mode="candidate"`,
-   produces a scorecard on completion). A recruiter demo/simulation goes
+   produces a scorecard on completion). The route owns the transport half —
+   the cheap `interview_minutes` pre-gate, body validation, the per-IP throttle,
+   `submissionId` → entry resolution — and hands the work to
+   **`mintAndInviteVoiceScreen` (`app/_lib/interview-invite.ts`)**, the one
+   server-side door that holds the live-call guard, the grounded build, the
+   authoritative billing reservation, revoke-then-create and the truthful invite
+   dispatch. That door is shared verbatim with the stage hook, so the recruiter's
+   button and the automatic path can never disagree about reissue semantics,
+   spend, or what `delivery` claims. A recruiter demo/simulation goes
    through `app/api/interview/simulate/route.ts` (`mode: "student" |
    "student-case" | "regular"` picks the brief and run-of-show); both are
    billing-metered the same way (`interview_minutes`).
@@ -121,6 +134,115 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    carries `briefIntentSummary(promotedBriefForJob(jobId, …))` (90-day
    outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
    deliberately omits it). See `docs/features/intake/README.md`.
+
+## Automatic invites on stage entry
+
+**The one manual step left in the AI-interview loop is gone.** When a candidate
+comes to *stand* on a board column whose hiring-plan round is run by the AI, the
+system mints the voice screen and invites them — immediately when that column's
+gate is `auto`, parked for a human when it is `human`.
+
+**Where it hangs.** `app/_lib/stage-hooks.ts`, called from the two writers in
+`app/_lib/db/pipeline.ts` that are the *only* places a pipeline entry's stage
+changes — `actOnPipelineEntry` (accept / approve_event / the automation pass /
+the offer finalizer) and `setPipelineEntryStage` (the recruiter's manual override,
+the drag move, the batch route). Both call `notifyStageEntered` **after**
+`tx.immediate()` has returned, never inside it: minting does an LLM grounding
+build and a comms round trip, and better-sqlite3 transactions are synchronous, so
+an `await` between BEGIN and COMMIT would silently destroy the move's atomicity.
+Scheduling goes through `afterResponse`, so the work is off the request's critical
+path and survives on serverless.
+
+**When it applies.** All three must hold, asked of *this workspace's* axis by role
+rather than of a column named "Interview":
+
+1. the entry now stands on a column with `role: "interview"`;
+2. the hiring plan's step for that column exists and its **first round is
+   `kind: "ai"`** (a human round is somebody else's job — a person books it on the
+   Schedule tab's calendar);
+3. no invite has already been dealt with for this (entry, stage).
+
+**The gate.** `auto` → mint + dispatch now. `human` → hold: no link, no mail, no
+spend; the entry is parked on the existing **`calendar`** approval, which *is* the
+Schedule tab's AI-round docket — the candidate appears under "Awaiting link"
+beside the button that calls the same mint door. No new approval kind was
+introduced: the human surface for "this candidate is waiting for their interview
+link" already existed and was already wired to the right action. The park is
+CAS'd on `approval_kind IS NULL`, so an entry already waiting on a human
+(a scorecard or offer review) never has its gate overwritten.
+
+### The unsaved-gate asymmetry — read this before "fixing" it
+
+The shipped default plan (`INTERVIEW_PLAN_DEFAULT`) gates its one AI interview
+round as **`human`**, and the plan editor (`PipelineStepPolicy.tsx`) paints an
+untouched step as `human` for the same reason. The product decision for this hook
+is the opposite: *an AI step nobody has configured should run unattended.*
+
+`effectiveInterviewGate` resolves it narrowly — an **explicitly saved** plan's gate
+is honored exactly as saved, and only a workspace that has **never saved a hiring
+plan at all** falls to `auto` for an AI round.
+`getDecisionConfigVersion("interviewPlan", ws) === null` is the discriminator.
+
+**Known inconsistency, deliberately left:** on a never-saved workspace the editor
+*shows* "human" while the hook *acts* "auto". Closing it properly means changing
+either the shipped default (a behaviour change for every existing install) or the
+editor's unsaved paint — both decisions for the owner, not for this hook.
+
+### Idempotence — at most one link per (entry, stage)
+
+Entering the same column twice, a retried poll and a bulk move that touches the
+same row twice all resolve to the same pair and are caught by two reads, which
+cover different races:
+
+- **the event half** — a `interview_invite_sent` row in `pipeline_events` whose
+  `to_stage` is this stage. That row is written by `dispatchInterviewInvite`, so
+  it is the *same* row the board's Create-link button and the Schedule docket
+  write: a recruiter who already handed out the link while the candidate stood
+  here never gets a second one mailed over the top of it;
+- **the session half** — any interview session for the entry that is not
+  `revoked`. This catches what the event cannot: a link minted moments ago whose
+  dispatch has not recorded yet. A *revoked* session does not block — the
+  recruiter pulled that credential, and a later arrival may legitimately mint a
+  fresh one.
+
+Beneath both, `mintAndInviteVoiceScreen` still revokes-then-creates, so even a
+defeated guard yields one live link rather than two.
+
+### Best-effort, and it fails towards the human
+
+A failure to mint or dispatch **never fails the stage move** — the move has
+already committed. When the hook cannot act (no deliverable contact address, an
+exhausted `interview_minutes` allowance, a call already in progress, an
+unexpected error) it *fails open towards the human*: nothing is minted, nothing is
+sent, nothing anywhere claims an invite went out, and the candidate is left on the
+`calendar` gate exactly where a `human`-gated step would have left them — visible
+in the AI-round docket under "Awaiting link". The reason goes to the server log
+(`[stage-hooks] <entry>: AI interview link not minted (<reason>) — <why>`).
+
+The unaddressable check runs **before** the mint, not after: minting burns an LLM
+grounding build and reserves voice minutes for a link nobody can receive. It uses
+`isDeliverableAddress(candidateRecipient(entry))`, the same predicate the comms
+layer itself uses, so "unaddressable" means here exactly what it means in the
+Outbox.
+
+The automatic path reserves budget exactly as the manual one does: the cheap
+`interview_minutes` pre-gate before the grounded build, then the authoritative
+`maxBillableInterviewMin(bookedMin)` reservation inside the shared door. It never
+passes `force`, so a candidate mid-call can never have their session revoked and a
+second invite mailed over the top of it by an automatic move.
+
+**Known gap.** The hook emits **no event kinds of its own**. The event vocabulary
+is pinned by set equality across three registries — `app/_lib/decision-attribution.ts`,
+the feed's `app/features/hiring/pipeline/pipelineEventCatalog.ts`, and a localized
+label per kind in all four catalogs — and a kind present in one but not the others
+is a red build or an UNKNOWN badge in the candidate's history. So the *sent* case
+rides the dispatcher's existing `interview_invite_sent` row and the *held* and
+*failed* cases are visible as state (the `calendar` gate) plus a server log line,
+rather than as timeline rows. Turning held/failed into first-class timeline rows
+(`interview_invite_held` / `interview_invite_failed`) is a good follow-up and needs
+all three registries updated in one change.
+
+Tests: `app/_lib/stage-hooks.test.ts`.
 
 ## Link lifecycle
 
@@ -783,8 +905,9 @@ deciding whether to run another screen could not see what the last one cost.
 `InterviewSessionSummary` now carries `costUsd`, read in the same query that builds
 the AI-round docket (a correlated `SUM(cost_usd)` over `llm_usage` keyed by request
 id **and** use case — no extra round trip, and the left side is already
-workspace-scoped). The completed card in `ScheduleAiDocket` renders it beside the
-provider that served the call, in all four locales.
+workspace-scoped). The Schedule tab's AI ledger no longer lists completed calls
+(2026-09), so the figure's reader is Insights → Activity: the `interview_realtime`
+row carries the cost, and its detail opens the conversation.
 
 The answer has **three** states and the third is the one that had no way to be said
 before:
@@ -833,10 +956,9 @@ event (`recordAutomationEvent`, actor `auto:interview-connect`, best-effort with
 loud log on failure), so the swap is answerable from the candidate's timeline months
 later rather than from rotated server logs.
 
-The completed docket card renders the pair as a single amber line — `"2 attempts ·
-fell back from Openai"` — and **only when there is something to say**: an ordinary
-one-attempt call on the chosen provider stays quiet rather than carrying a "1 attempt"
-badge. Four locales.
+The pair rides `InterviewSessionSummary` (`attempts`, `failoverFrom`); the completed
+docket card that rendered it as an amber line is gone with the docket (2026-09), so
+the timeline event is currently its only reader.
 
 `app/_lib/db/interview-failover-attempts.test.ts` pins the columns on a fresh DB, the
 first-connect-does-not-increment rule, the refused-connect case, the COALESCE'd first

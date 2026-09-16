@@ -5,6 +5,8 @@ import { jdLibraryStats, listJdsPage, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
+import { currentUser } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
@@ -46,12 +48,21 @@ export async function GET(request: Request) {
     // `analysisCount` is a different fact and stays: CVs analyzed AGAINST the JD,
     // which includes people who were never filed into the pipeline.
     const pipelineStats = listJobPipelineStats(ws);
+    // Who this reader may delete. Resolved ONCE per request (it reads the session
+    // and one membership row), then folded per row into a boolean. The authoring
+    // user id and the reader's own role stay server-side: the ledger needs to know
+    // whether to draw a trash icon, not who wrote what or what seat it holds.
+    const actor = await jdDeleteActor();
     const jds = rows.map((row) => {
       const jobId = jdJobId(row.slug);
       const meta = roleMeta[jobId];
       const p = pipelineStats[jobId];
+      // `created_by` is dropped from the payload and replaced by the verdict it
+      // feeds — the authority answer travels, the identity does not.
+      const { created_by, ...listRow } = row;
       return {
-        ...row,
+        ...listRow,
+        canDelete: canDeleteJd(actor, created_by),
         jobStatus: statuses[jobId] ?? null,
         analysisCount: counts[row.slug] ?? 0,
         roleFamily: meta?.roleFamily ?? null,
@@ -94,7 +105,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: fields.error }, { status: 400 });
   }
   try {
-    const saved = saveJd({ title: fields.title, body: fields.body }, await currentWorkspace());
+    // Stamp the author at INSERT — it is the only moment the identity is known for
+    // certain, and the delete door has nothing else to match on. Null in open dev
+    // and for an operator-password session (neither carries a user id); those
+    // callers already resolve as admin, so the door still works for them.
+    const saved = saveJd({ title: fields.title, body: fields.body }, await currentWorkspace(), (await currentUser()).userId);
     return NextResponse.json({ ...saved, title: fields.title, body: fields.body });
   } catch (error) {
     // Never forward raw SQLite text (e.g. "UNIQUE constraint failed: jds.slug")

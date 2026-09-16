@@ -37,6 +37,25 @@ export function LineAttention({ counts, label }: { counts: LineCounts; label: st
   );
 }
 
+/** The first column's rejected count — a small red mark after the head-count that
+ *  opens the lane's rejected shelf. Absent when the lane has rejected nobody. */
+export function RejectedMark({ count, label, onOpen }: { count: number; label: string; onOpen: (rect: DOMRect) => void }) {
+  if (count === 0) return null;
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-haspopup="dialog"
+      onClick={(ev) => onOpen(ev.currentTarget.getBoundingClientRect())}
+      className="focus-ring nums inline-flex h-5 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-red-50 px-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+    >
+      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-700" />
+      {count}
+    </button>
+  );
+}
+
 function WaitingPip({ count, fill }: { count: number; fill: string }) {
   const on = count > 0;
   return (

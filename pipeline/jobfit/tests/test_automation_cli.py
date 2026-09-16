@@ -220,9 +220,15 @@ class TestAutomationCliAdverseActionBoundary(unittest.TestCase):
     }
 
     def test_screen_over_a_reject_scoring_candidate_routes_to_hold(self):
+        # --pipeline-size is DENSE so the volume gate permits the reject verdict at
+        # all: this candidate shares the posting's role family, and in a sparse or
+        # moderate pipeline `volume_allows_reject` holds them for a human
+        # (tests/test_screening_volume.py). The property pinned here is the ROUTE,
+        # which is "hold" at every volume.
         with _fixture(candidate=self._WEAK) as (cand, jobs):
             code, out, _err = _run(
-                ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID, "--jobs", str(jobs)]
+                ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                 "--jobs", str(jobs), "--pipeline-size", "200"]
             )
         self.assertEqual(code, 0)
         result = _last_json(out)["result"]
@@ -294,6 +300,32 @@ class TestRematchReadsLang(unittest.TestCase):
         self.assertEqual(_last_json(out)["source"], "deterministic")
         self.assertIsNotNone(seen.get("reason"), "a deterministic serve with no reason at all")
         self.assertIn("provider exploded", seen["reason"])
+
+
+class TestScreenPipelineSizeFlag(unittest.TestCase):
+    """`--pipeline-size` is the CLI half of the volume rule — it must reach
+    ``screen_candidate`` and appear in the verdict, or the TS seam passes a number
+    into a void and the tier silently defaults."""
+
+    def _screen(self, *extra: str) -> dict:
+        with _fixture() as (cand, jobs):
+            code, out, err = _run(
+                ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID, "--jobs", str(jobs), *extra]
+            )
+        self.assertEqual(code, 0, err)
+        return _last_json(out)
+
+    def test_the_flag_sets_the_tier_on_the_verdict(self):
+        for size, tier in ((0, "sparse"), (5, "sparse"), (6, "moderate"), (30, "moderate"), (31, "dense")):
+            with self.subTest(size=size):
+                payload = self._screen("--pipeline-size", str(size))
+                self.assertEqual(payload["result"]["screeningVolume"], tier)
+                self.assertEqual(payload["result"]["pipelineSize"], size)
+
+    def test_an_omitted_flag_is_unknown_not_zero(self):
+        payload = self._screen()
+        self.assertEqual(payload["result"]["screeningVolume"], automation.SCREENING_VOLUME_FALLBACK)
+        self.assertIsNone(payload["result"]["pipelineSize"])
 
 
 if __name__ == "__main__":

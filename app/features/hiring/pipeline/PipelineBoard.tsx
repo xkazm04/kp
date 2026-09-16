@@ -23,7 +23,9 @@ import { PipelineBoardSubway } from "./map/PipelineBoardSubway";
 import { CellOverlaySpectrum } from "./map/CellOverlaySpectrum";
 import { useCellMatchData } from "./map/useCellMatchData";
 import { bucketLaneEntries } from "./pipelineBoardLayout";
-import type { CellSelection, PipelineBoardProps } from "./map/mapTypes";
+import { REJECTED_SHELF_ID, type CellSelection, type PipelineBoardProps, type RejectedTag } from "./map/mapTypes";
+import type { Entry, Position } from "@/app/features/shared/pipelineTypes";
+import { useTranslations } from "next-intl";
 
 const noSubscription = () => () => undefined;
 
@@ -34,18 +36,46 @@ export function PipelineBoard(props: PipelineBoardProps) {
   const enumLabel = useEnumLabel();
   const { matchByCandidate, matchLoading, matchError } = useCellMatchData(selection?.position.id ?? null);
 
+  const t = useTranslations("pipeline");
   const onOpenCell = useCallback((sel: CellSelection) => setSelection(sel), []);
   const onClose = useCallback(() => setSelection(null), []);
+  // The lane's REJECTED shelf: fetched on demand (the board payload excludes closed
+  // rows) and opened as a synthetic column whose tickets carry the rejection column.
+  const onOpenRejected = useCallback(
+    async (position: Position, origin: CellSelection["origin"]) => {
+      try {
+        const r = await fetch(`/api/pipeline/rejected?lane=${encodeURIComponent(position.id)}`);
+        if (!r.ok) return;
+        const d = (await r.json()) as { rejected?: { entry: Entry; rejectedStage: string | null; auto: boolean }[] };
+        const rejected: Record<string, RejectedTag> = {};
+        for (const row of d.rejected ?? []) rejected[row.entry.id] = { stage: row.rejectedStage ?? row.entry.stage, auto: row.auto };
+        setSelection({
+          position,
+          stage: { id: REJECTED_SHELF_ID, label: t("board.rejectedShelf"), role: "custom" },
+          stageIndex: -1,
+          entries: (d.rejected ?? []).map((row) => row.entry),
+          origin,
+          rejected,
+        });
+      } catch {
+        /* a failed shelf read leaves the board as it is; the count stays visible to retry */
+      }
+    },
+    [t],
+  );
   const openCell = useMemo(
     () => (selection ? { positionId: selection.position.id, stageId: selection.stage.id } : null),
     [selection],
   );
   // A workspace-renamed column shows its own label, a shipped one the enum catalog.
-  const stageLabel = selection
-    ? selection.stage.label === selection.stage.id
-      ? enumLabel("stage", selection.stage.id)
-      : selection.stage.label
-    : "";
+  const labelOf = useCallback(
+    (id: string) => {
+      const def = axis.find((s) => s.id === id);
+      return def && def.label !== def.id ? def.label : enumLabel("stage", id);
+    },
+    [axis, enumLabel],
+  );
+  const stageLabel = selection ? (selection.rejected ? selection.stage.label : labelOf(selection.stage.id)) : "";
 
   // The overlay reads the cell LIVE, not the click-time snapshot: a stage move made
   // in the candidate modal on top of it reloads the board, and the ticket must leave
@@ -54,8 +84,10 @@ export function PipelineBoard(props: PipelineBoardProps) {
   // tallies and rings alike; until then the snapshot stands.
   const overlaySelection = useMemo<CellSelection | null>(() => {
     if (!selection) return null;
-    const cells = bucketLaneEntries(positions, entries, axis.map((s) => s.id)).get(selection.position.id);
-    const live = cells?.[selection.stageIndex] ?? [];
+    // The rejected shelf is a snapshot by construction — its rows are not on the board.
+    const live = selection.rejected
+      ? selection.entries
+      : (bucketLaneEntries(positions, entries, axis.map((s) => s.id)).get(selection.position.id)?.[selection.stageIndex] ?? []);
     return {
       ...selection,
       entries:
@@ -74,7 +106,7 @@ export function PipelineBoard(props: PipelineBoardProps) {
 
   return (
     <>
-      <PipelineBoardSubway {...props} onOpenCell={onOpenCell} openCell={openCell} />
+      <PipelineBoardSubway {...props} onOpenCell={onOpenCell} openCell={openCell} onOpenRejected={onOpenRejected} />
       {portalRoot
         ? createPortal(
             <AnimatePresence>
@@ -89,6 +121,17 @@ export function PipelineBoard(props: PipelineBoardProps) {
                   openCandidate={openCandidate}
                   stageLabel={stageLabel}
                   enumLabel={enumLabel}
+                  // Each rejected ticket names the column it was rejected at, and by whom.
+                  ticketTag={
+                    overlaySelection.rejected
+                      ? (e) => {
+                          const tag = overlaySelection.rejected?.[e.id];
+                          return tag
+                            ? t(tag.auto ? "board.rejectedAtByAi" : "board.rejectedAt", { stage: labelOf(tag.stage) })
+                            : null;
+                        }
+                      : undefined
+                  }
                 />
               ) : null}
             </AnimatePresence>,

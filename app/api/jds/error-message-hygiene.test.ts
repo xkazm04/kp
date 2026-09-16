@@ -79,6 +79,9 @@ test("the stable-code catalogue covers every JD/template failure path", () => {
     "JD_LIST_FAILED",
     "JD_LOAD_FAILED",
     "JD_SAVE_FAILED",
+    // The Ledger's trash door: a store failure under DELETE /api/jds/[slug] answers
+    // with this code, never with the thrown SQLite text.
+    "JD_DELETE_FAILED",
     "JD_ANALYSES_FAILED",
     "TEMPLATE_LIST_FAILED",
     "TEMPLATE_LOAD_FAILED",

@@ -1046,6 +1046,23 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "canWriteJobLifecycle(id, ws)",
   },
   {
+    // ADDED with the route (the Roles desk's open/close review system): POST here
+    // spawns posting_translate_cli, i.e. ONE whole-document LLM call that re-emits
+    // the entire posting in another language. Same 20/10min budget and shape as
+    // /publish — a deliberate act a recruiter performs a handful of times per role.
+    rel: "./jobs/[id]/translations/route.ts",
+    key: "`jobs-translate:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its arguments: `runPostingTranslation(` also appears in
+    // the import line, which precedes the limiter.
+    expensive: "await runPostingTranslation(id, lang, {",
+    // The visibility 404 AND the "nothing to translate" refusal keep their
+    // semantics ahead of the throttle, so a call that was never going to spend
+    // consumes no budget.
+    servedBefore: "jobVisibleToWorkspace(id, ws)",
+  },
+  {
     rel: "./jobs/[id]/candidates/outreach/route.ts",
     key: "`jobs-outreach:${clientIpFrom(request.headers)}`",
     limit: 60,

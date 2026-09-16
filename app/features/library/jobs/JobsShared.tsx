@@ -2,8 +2,9 @@ import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Select as UiSelect } from "@/app/_components/Select";
 import { StatusChip } from "@/app/_components/StatusChip";
-import { jobStatusTone } from "@/app/_lib/status-tone";
-import type { JobRequirement, SkippedCandidate } from "./JobsTypes";
+import { roleStatusTone } from "@/app/_lib/status-tone";
+import { hiredCountOf, roleStatusOf, targetHiresOf } from "./jobsRoleStatus";
+import type { Job, JobRequirement, SkippedCandidate } from "./JobsTypes";
 
 // Amber disclosure listing candidates the ranker couldn't score (malformed
 // profile). Shared by RecruiterCandidates and RediscoverPanel so both surfaces
@@ -44,26 +45,41 @@ export function ReqChip({ req }: { req: JobRequirement }) {
   );
 }
 
-// Lifecycle chip for a catalog row or job surface. Quiet by design: a live job
-// (NULL/'published' status) renders nothing — only the two states whose apply
-// links are dead get badged, and that restraint is the point of the surface, not
-// an accident of styling.
+// THE ROLE'S STATUS, as the Roles desk's own column reads it.
 //
-// ONE THREAD (gap 8): the TONE now comes from the shared axis table
-// (app/_lib/status-tone.ts) and is drawn by the shared StatusChip, so "draft" and
-// "closed" read the same as their counterparts on the assignment, the board, the
-// voice screen and the submission list. It used to paint closed AMBER, which is
-// the colour the very next surface on the thread uses for "waiting for you to
-// approve" — a retired job and an unmet obligation looked alike.
-export function JobStatusBadge({ status }: { status?: string | null }) {
-  const t = useTranslations("jobs.shared");
-  if (status !== "draft" && status !== "closed") return null;
+// It replaced `JobStatusBadge`, which was quiet by design — it rendered NOTHING for
+// a live role and badged only the two dead-apply-link states. That restraint was
+// right when the badge was a decoration on the title; it is wrong for a column,
+// where an empty cell reads as missing data rather than as "this one is fine". So
+// every role gets a chip here, and the one state a recruiter is actually working —
+// `open` — additionally carries its progress.
+//
+// ONE THREAD (gap 8): the TONE comes from the shared axis table
+// (app/_lib/status-tone.ts `roleStatusTone`) and is drawn by the shared StatusChip,
+// so `filled` reads as the same "reached its successful end" as a completed
+// assignment and `closed` as the same "stopped short" as a revoked interview.
+//
+// The progress fraction is NOT rendered for draft / filled / closed. On a draft it
+// would be "0 / 3" for a role nothing has happened to; on a filled or closed role
+// the fraction is the chip's own word restated. It earns its width on exactly one
+// status, which is the one it answers a question about: how far along is this?
+export function RoleStatusCell({ job }: { job: Pick<Job, "status" | "targetHires" | "hired"> }) {
+  const t = useTranslations("jobs.roleStatus");
+  const status = roleStatusOf(job);
+  const hired = hiredCountOf(job);
+  const target = targetHiresOf(job);
   return (
-    <StatusChip
-      tone={jobStatusTone(status)}
-      label={status === "draft" ? t("statusDraft") : t("statusClosed")}
-      className="shrink-0 uppercase"
-    />
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <StatusChip
+        tone={roleStatusTone(status)}
+        label={t(status)}
+        ariaLabel={t("aria", { status: t(status), hired, target })}
+        className="shrink-0 uppercase"
+      />
+      {status === "open" ? (
+        <span className="nums text-sm text-steel">{t("progress", { hired, target })}</span>
+      ) : null}
+    </span>
   );
 }
 

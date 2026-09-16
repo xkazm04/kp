@@ -373,8 +373,8 @@ strands nobody, and moving them would rewrite closed history.
    approval payload it writes (screening / scorecard / offer), and passes the
    engine as the pipeline event's **actor** (`auto:automation-llm` /
    `auto:automation-template`) rather than into a `detail` several kinds already
-   parse. The Decisions review card
-   (`DecisionsAiReviewCard` + `decisionsAiReviewCardLogic`) discloses a template
+   parse. The candidate modal's decision bar
+   (`CandidateDecisionBar` + `decisionsAiReviewCardLogic`) discloses a template
    verdict in amber above the body and names the provider beside a model one; an
    approval persisted before this shipped carries no provenance and discloses
    **nothing**, never a guessed engine. Until this, a keyless or
@@ -542,7 +542,14 @@ The board page is four blocks, in the order the day is worked:
    and the map prints them in the chosen unit — the koruna as "Kč" in Czech only,
    the ISO code elsewhere, code-first in English (`withCurrency`).
 4. `PipelineActivityFeed`, wrapped in `<Defer strategy="visible">` — history, not
-   today's work, so it stays off the first commit until it nears the viewport.
+   today's work, so it stays off the first commit until it nears the viewport. It
+   shows the **last seven days** of events, newest first, **twenty to a page**
+   (`TablePager`), with the candidate's **full name**: the feed reads the
+   operator-gated, workspace-scoped `GET /api/pipeline/events/recent` (the last 7
+   days capped at 500, plus the same `?since=<id>` delta poll within the window),
+   because the public `GET /api/pipeline/events` serves the initials projection by
+   design (`pipeline-events-public.ts`) and stays as it was. The client keeps a
+   bounded tail and drops what has aged past its week.
 
 ### The candidate modal
 
@@ -1092,11 +1099,27 @@ this store and into the billing, comms and interview layers, so a static edge wo
 make a cycle out of a one-way notification (and would pull `next/server` into a
 store the node:test suite must be able to load outside a Next runtime).
 
-Today there is exactly one hook: entering a column whose hiring-plan round is run
-by the AI mints the voice screen and invites the candidate, or parks them for a
-human. Its rules, its idempotence key and the unsaved-gate asymmetry are documented
-in [`docs/features/interviews/README.md` → Automatic invites on stage
-entry](../interviews/README.md#automatic-invites-on-stage-entry).
+There are two hooks, both dispatched by **stage role** rather than by column name, so
+a team that renamed or reordered its board gets the same behaviour:
+
+- **`interview`** — entering a column whose hiring-plan round is run by the AI mints
+  the voice screen and invites the candidate, or parks them for a human. Its rules,
+  its idempotence key and the unsaved-gate asymmetry are documented in
+  [`docs/features/interviews/README.md` → Automatic invites on stage
+  entry](../interviews/README.md#automatic-invites-on-stage-entry).
+- **`homework`** — entering a work-sample column gets the candidate their assignment:
+  it finds (or designs) the job's case, ensures it is live on an apply token, and
+  mails that candidate the link exactly once. `app/_lib/stage-hooks-homework.ts`;
+  full rules in [`docs/features/dev-case/README.md` → The homework column sends the
+  assignment](../dev-case/README.md#the-homework-column-sends-the-assignment).
+
+Both hold the same three rules (post-commit, best-effort, never claim more than
+happened) and both deliberately introduce **no new pipeline event kind** — the event
+vocabulary is pinned by set equality across `decision-attribution.ts`, the feed's
+`pipelineEventCatalog.ts` and a localized label per kind in all four catalogs, so an
+arrival hook reports itself through state the recruiter's surfaces already read (the
+dispatcher's own outbox row, an approval gate, a server log line) instead of through
+a vocabulary only it understands.
 
 ### A refused move says why, where it happened
 
@@ -1386,7 +1409,43 @@ candidates with the current candidate's row pinned. Layout:
 salary band rail, coverage meter): `DecisionsPeerViz.tsx`. All copy is in the
 `decisions.summary` catalog (4-locale parity).
 
-The AI-review cards ship the **"Ladder" body** (winner of the same round):
+**The decisions ledger (2026-09).** The AI-recommendations card grid is gone: the
+section renders a LEDGER — one row per recommendation waiting on a human
+(`decisions/ledger/`), the winner of a three-variant prototype round: rows grouped
+**by role** under a sticky header (how many wait there, the best fit), fused with the
+quick-decide mechanism. Columns: candidate · role · **pipeline** (the board-stage
+chip, the one place the row says where the person stands) · the ONE canonical fit
+score · what the AI proposes (its verdict, or the offer amount — an unpriced draft says
+so) · **decision**. The decision column is three icon doors: accept ✓ and reject ✕
+apply the proposal from the row (an offer accept uses the default deadline), and the
+third opens the candidate modal for a considered call; in select mode only the modal
+door remains — the batch bar decides. Rows read one model
+(`decisionsLedgerModel.ts`, pinned by its test) and share their cells
+(`LedgerCells.tsx`); the batch bar (`DecisionsBatchBar.tsx`) is unchanged. The table
+takes the shared table kit's grammar (`app/_components/table`): sortable heads on
+every column but Decision, a candidate search and selects on role / pipeline stage /
+the AI's proposal, twenty rows to a page, and a live-region status. **Groups stay
+whole under any sort** (`decisionsLedgerTable.ts`, pinned by its test): the rows are
+sorted by the active column, then folded by role in the order each role first
+appears — sorting by score ranks the roles by their best row and keeps each
+shortlist together, sorting by role orders the groups A→Z — and the pager slices the
+flat grouped sequence, so a page never splits a role's header from its rows.
+
+**Decide opens the candidate modal** — the board's own modal
+(`pipeline/candidate/CandidateModal.tsx`) with a `decision` attached, so a candidate
+is looked at in ONE place whether reached from the board or the queue. The old card's
+header and actions became the modal's **decision bar** (`candidate/decision/
+CandidateDecisionBar.tsx`: kind tag, verdict or offer amount with band + deadline,
+engine disclosure, JD-staleness chip, Accept / Reject) above the general footer, and
+the card's Ladder became a **side panel** docked to the modal's right
+(`CandidateDecisionPanel.tsx`; it takes the modal's full height and scrolls only when the ladder is taller; folds under the tabs below `md`). The modal's pager
+walks the visible reviews; a verdict that lands closes it, and a recommendation
+resolved elsewhere (another window, the batch bar) closes it too rather than
+offering a stale verdict. `useDecisionsCandidate.ts` holds that state; the queue
+hook now also carries the workspace axis off the same `/api/pipeline` read.
+
+The AI-review cards shipped the **"Ladder" body** (winner of the same round; now the
+modal's side panel):
 screening/scorecard cards replaced the AI's prose with the role's ranked
 same-job active peers (self row highlighted, stage chips, canonical scores),
 the salary expectation plotted against the role band, and — on scorecards —

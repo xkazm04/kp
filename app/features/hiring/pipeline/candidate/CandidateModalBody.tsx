@@ -24,6 +24,7 @@ import { CandidateModalTabs, tabIds } from "./CandidateModalTabs";
 import { CandidateOverviewTab } from "./CandidateOverviewTab";
 import { CandidateRecordTab } from "./CandidateRecordTab";
 import { schedEntryOf, type CandidateTab } from "./candidateView";
+import { CandidateDecisionBar } from "./decision/CandidateDecisionBar";
 import { CandidateFooter } from "./footer/CandidateFooter";
 import { candidateDetailModel } from "./scorecard/candidateDetailModel";
 import { useCandidateState } from "./state/useCandidateState";
@@ -37,6 +38,7 @@ export function CandidateModalBody({
   onOpenEntry,
   onNavigate,
   onTab,
+  decision,
   titleId,
 }: CandidateModalProps & { titleId: string }) {
   const { entry, tab } = view;
@@ -102,6 +104,9 @@ export function CandidateModalBody({
           <CandidateRecordTab entry={entry} st={st} />
         </div>
       </div>
+      {/* The decision to rule on (from the ledger) sits between the tabs and the
+          general action footer: the verdict first, the tools underneath. */}
+      {decision ? <CandidateDecisionBar decision={decision} /> : null}
       <CandidateFooter
         entry={entry}
         axis={axis}

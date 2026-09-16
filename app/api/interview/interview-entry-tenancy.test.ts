@@ -109,9 +109,19 @@ test("every entry-keyed interview route threads the caller's tenant", () => {
     assert.match(src, /currentWorkspace\(\)/, `${name} must resolve the caller's team`);
   }
 
-  assert.match(create, /liveInterviewByEntry\(entryId,\s*workspace\)/, "create's reissue guard is scoped");
-  assert.match(create, /revokeOpenInterviewSessions\(entryId,\s*workspace\)/, "create's revoke-first is scoped");
-  assert.match(create, /buildGroundedInterview\(entryId,\s*workspace\)/, "a foreign entry must 404 out of the brief build");
+  // /create's own mint sequence moved into the SHARED door (app/_lib/interview-invite.ts)
+  // so the pipeline stage hook could reuse it instead of re-implementing it. The
+  // invariant is unchanged and is asserted where the calls now live: the route still
+  // resolves the caller's team (above) and hands it in as `workspaceId`, and every
+  // entry-keyed store call inside the door is scoped to that argument — a foreign
+  // entry still 404s out of the brief build, still cannot have its live call revoked,
+  // and still cannot have a screen minted on it.
+  const mint = read("..", "..", "_lib", "interview-invite.ts");
+  assert.match(create, /mintAndInviteVoiceScreen\(\{[\s\S]*?workspaceId:\s*workspace,/, "create hands the caller's team to the mint door");
+  assert.match(mint, /liveInterviewByEntry\(entryId,\s*workspaceId\)/, "the reissue guard is scoped");
+  assert.match(mint, /revokeOpenInterviewSessions\(entryId,\s*workspaceId\)/, "the revoke-first is scoped");
+  assert.match(mint, /buildGroundedInterview\(entryId,\s*workspaceId\)/, "a foreign entry must 404 out of the brief build");
+  assert.match(mint, /getPipelineEntry\(entryId,\s*workspaceId\)/, "the invite-locale read is scoped");
   assert.match(revoke, /revokeOpenInterviewSessions\(entryId,\s*await currentWorkspace\(\)\)/, "revoke is scoped");
   assert.match(byEntry, /latestInterviewByEntry\(entry,\s*workspace\)/, "the ?entry= read is scoped");
   assert.match(byEntry, /latestInterviewByEntry\(linked\.id,\s*workspace\)/, "the ?submission= read is scoped");

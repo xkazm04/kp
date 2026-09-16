@@ -44,6 +44,7 @@ export function CellOverlaySpectrum({
   onClose,
   openCandidate,
   stageLabel,
+  ticketTag,
 }: CellOverlayProps) {
   const tierLabels = useFitTierLabels();
   const money = useMapMoney();
@@ -68,8 +69,8 @@ export function CellOverlaySpectrum({
   // action), and the pager walks the same score-sorted order the orchard reads in.
   const openDetail = useCallback((e: Entry) => openCandidate(e, sorted), [openCandidate, sorted]);
   const deps = useMemo<TicketDeps>(
-    () => ({ salaryById, matchByCandidate, matchLoading, openDetail, tierLabels, money }),
-    [salaryById, matchByCandidate, matchLoading, openDetail, tierLabels, money],
+    () => ({ salaryById, matchByCandidate, matchLoading, openDetail, tierLabels, money, tag: ticketTag }),
+    [salaryById, matchByCandidate, matchLoading, openDetail, tierLabels, money, ticketTag],
   );
 
   return (

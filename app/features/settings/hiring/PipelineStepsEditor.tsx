@@ -46,7 +46,7 @@ import {
 import { POLICY_SLOT } from "./PipelineComposerBits";
 import { PipelineStepPolicy } from "./PipelineStepPolicy";
 import { StageActionsPicker } from "./StageActionsPicker";
-import { PRESETS, matchesPreset, type PipelinePlan, type PresetId } from "./pipelineComposerModel";
+import { PRESETS, activePresetId, type PipelinePlan, type PresetAxisLabels, type PresetId } from "./pipelineComposerModel";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import {
   addStage,
@@ -102,7 +102,18 @@ export function PipelineStepsEditor({
     role: s.role,
     ...(s.actions ? { actions: s.actions } : {}),
   }));
-  const activePreset: PresetId | null = PRESETS.find((p) => matchesPreset(plan, p, axis))?.id ?? null;
+  const activePreset: PresetId | null = activePresetId(plan, axis);
+  // The names a preset gives the columns it mints or re-purposes. Localized here,
+  // never inside the model: a preset must not write English onto a Czech board, and
+  // the model has no translator. The stored IDS are minted from fixed ASCII seeds,
+  // so they are the same in every locale.
+  const presetLabels: PresetAxisLabels = {
+    homework: tp("presetAxis.homework"),
+    aiInterview: tp("presetAxis.aiInterview"),
+    screened: tp("presetAxis.screened"),
+    humanInterview: tp("presetAxis.humanInterview"),
+    offer: tp("presetAxis.offer"),
+  };
   // Rounds are counted in BOARD order, so a column knows whether anything ran
   // before it — which is what decides if a cohort reducer means anything there.
   let seen = 0;
@@ -121,8 +132,9 @@ export function PipelineStepsEditor({
       <p className="mt-1 text-sm text-steel">{t("intro")}</p>
 
       {/* Blueprints, above the table they rewrite. They set the WHOLE plan — every
-          column's mode, approval and cohort at once — so they belong to the table
-          as a header, not to any one row. */}
+          column's mode, approval and cohort at once — and one of them (Enterprise)
+          sets the COLUMNS too, so they belong to the table as a header, not to any
+          one row. */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className={META_LABEL}>{tp("startFrom")}</span>
         {PRESETS.map((p) => (
@@ -130,7 +142,18 @@ export function PipelineStepsEditor({
             key={p.id}
             type="button"
             aria-pressed={activePreset === p.id}
-            onClick={() => onPlan(p.plan(axis))}
+            onClick={() => {
+              // A preset may rewrite the COLUMNS, not just the policy on them
+              // (Enterprise does: the two-interview funnel needs a case step and a
+              // human triage after the AI round, which is a different board). The
+              // plan is then built against the NEW axis, so a round can never be
+              // keyed to a column this click just removed. Nothing is saved here —
+              // the host holds both drafts, and its stranded-mapping refusal is what
+              // stops a dropped column taking its candidates with it.
+              const next = p.axis ? p.axis(draft, presetLabels) : null;
+              if (next) onChange(next);
+              onPlan(p.plan(next ? next.stages : axis));
+            }}
             className={`focus-ring rounded-full border px-2.5 py-0.5 text-sm font-semibold transition-colors ${
               activePreset === p.id
                 ? "border-ink bg-ink text-white"

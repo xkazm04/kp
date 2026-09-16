@@ -109,7 +109,7 @@ fn --> ui : ranked + bands`,
   },
   screen: {
     status: "live",
-    files: ["app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
+    files: ["app/features/hiring/pipeline/candidate/footer/CandidateFooter.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
     puml: `[CandidateModal\\n"Screen with AI"] <<auto>> as ui
 [runAutomationTask\\nscreen] as fn
 [automation_cli screen\\nClaude CLI + fallback] as cli
@@ -132,7 +132,7 @@ fn --> db : UPDATE stage`,
   },
   engage: {
     status: "live",
-    files: ["app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx", "app/_lib/automation-run.ts", "app/_lib/comms-dispatch.ts", "app/_lib/comms.ts"],
+    files: ["app/features/hiring/pipeline/candidate/footer/CandidateFooter.tsx", "app/_lib/automation-run.ts", "app/_lib/comms-dispatch.ts", "app/_lib/comms.ts"],
     puml: `[CandidateModal\\n"Draft outreach"] <<auto>> as ui
 [runAutomationTask\\noutreach] as fn
 [dispatchOutreach\\ncomms-dispatch.ts] as disp
@@ -148,7 +148,7 @@ send ..> rcpt`,
   interview: {
     status: "live",
     files: [
-      "app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx",
+      "app/features/hiring/pipeline/candidate/footer/CandidateFooter.tsx",
       "app/api/interview/*",
       "app/_lib/interview-run.ts",
       "app/_lib/voice/*",
@@ -183,7 +183,7 @@ slot --> si : confirmed slot`,
   },
   offer: {
     status: "gate",
-    files: ["app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx", "app/_lib/automation-run.ts", "app/_lib/offers-store.ts", "app/_lib/comms-dispatch.ts"],
+    files: ["app/features/hiring/pipeline/candidate/footer/CandidateFooter.tsx", "app/_lib/automation-run.ts", "app/_lib/offers-store.ts", "app/_lib/comms-dispatch.ts"],
     puml: `[CandidateModal\\n"Draft offer"] <<auto>> as ui
 [runAutomationTask\\noffer] as fn
 [setApproval\\noffer_review] as ap

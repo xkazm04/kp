@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_227 routes, 300 handlers._
+_230 routes, 306 handlers._
 
 ### `/api/agents`
 
@@ -363,7 +363,7 @@ _227 routes, 300 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/jds` | GET, POST | gated |
-| `/api/jds/[slug]` | GET, PATCH | gated |
+| `/api/jds/[slug]` | GET, PATCH, DELETE | gated |
 | `/api/jds/[slug]/analyses` | GET | gated |
 | `/api/jds/[slug]/ingest-job` | POST | gated |
 | `/api/jds/[slug]/retry-analysis` | POST | gated |
@@ -390,8 +390,10 @@ _227 routes, 300 handlers._
 | `/api/jobs/[id]/candidates` | GET | gated |
 | `/api/jobs/[id]/candidates/outreach` | POST | gated |
 | `/api/jobs/[id]/close` | POST | gated |
+| `/api/jobs/[id]/priorities` | GET, PUT | gated |
 | `/api/jobs/[id]/publish` | POST | gated |
 | `/api/jobs/[id]/rediscover` | GET | gated |
+| `/api/jobs/[id]/translations` | GET, POST | gated |
 | `/api/jobs/[id]/winnability` | GET | gated |
 | `/api/jobs/ingest` | POST | gated |
 | `/api/jobs/status` | GET | gated |
@@ -485,6 +487,7 @@ _227 routes, 300 handlers._
 | `/api/pipeline/batch` | POST | gated |
 | `/api/pipeline/command` | POST | gated |
 | `/api/pipeline/events` | GET | gated |
+| `/api/pipeline/events/recent` | GET | gated |
 | `/api/pipeline/outcomes` | GET, POST | gated |
 | `/api/pipeline/rejected` | GET | gated |
 | `/api/pipeline/stage-impact` | GET | gated |

@@ -4,7 +4,7 @@ import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { ingestStructuredJob } from "./ingest-job";
 
@@ -80,7 +80,9 @@ export async function POST(request: NextRequest) {
       }
       slug = body.slug;
     } else {
-      slug = saveJd({ title: fields.title, body: fields.body }, ws).slug;
+      // The author is stamped so the library's delete door can tell creator from
+      // colleague (app/_lib/jds-delete-rule.ts); open dev mode stamps null.
+      slug = saveJd({ title: fields.title, body: fields.body }, ws, (await currentUser()).userId).slug;
     }
     const role = body.role ?? {};
 

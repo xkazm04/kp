@@ -52,6 +52,7 @@ export const KNOWN_COMM_KINDS = [
   "interview_confirmation",
   "interview_reminder",
   "interview_invite",
+  "case_invite",
   "interviewer_brief",
   "schedule_invite",
 ] as const;

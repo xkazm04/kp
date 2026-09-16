@@ -42,6 +42,7 @@ export const STORE_ERRORS = {
   JD_LIST_FAILED: "Could not load the JD library. Please try again.",
   JD_LOAD_FAILED: "Could not load the JD. Please try again.",
   JD_SAVE_FAILED: "Could not save the JD. Please try again.",
+  JD_DELETE_FAILED: "Could not delete the JD. Please try again.",
   JD_GENERATE_FAILED: "Could not start the AI build. Please try again.",
   // Role-intake dialog routes (docs/concepts/role-intake-dialog.md): all sit on
   // better-sqlite3 + the spawned intake engine, whose thrown errors embed
@@ -91,8 +92,11 @@ export const STORE_ERRORS = {
   JOB_CANDIDATES_FAILED: "Could not rank candidates for this role. Please try again.",
   JOB_REDISCOVER_FAILED: "Could not look through past candidates for this role. Please try again.",
   JOB_WINNABILITY_FAILED: "Could not grade this role against the candidate pool. Please try again.",
+  JOB_PRIORITIES_FAILED: "Could not save the pattern priorities for this role. Please try again.",
   JOB_CAMPAIGN_FAILED: "Could not generate the campaign pack. Please try again.",
   JOB_ASSIGNMENTS_FAILED: "Could not load the work samples for this role. Please try again.",
+  JOB_TRANSLATIONS_FAILED: "Could not load this role's postings in other languages. Please try again.",
+  JOB_TRANSLATE_FAILED: "Could not translate this posting. Please try again.",
   // The automation clock's control surface (/perfect 2026-09-03, pipeline-board-3).
   // POST here writes the schedule row and can force a full policy pass, so its catch
   // can surface better-sqlite3 constraint text, the db path, and the spawned pass's
@@ -474,6 +478,10 @@ export const REFUSAL_ERRORS = {
   AUTOMATION_ENTRY_REQUIRED: "Name the candidate this step should run for.",
   /** GET /api/pipeline/rejected arrived without the board lane to list (400). */
   PIPELINE_LANE_REQUIRED: "Name the position whose rejected candidates to list.",
+  /** GET /api/pipeline/events/recent?since= carried a cursor that is not an event id (400). */
+  PIPELINE_EVENTS_CURSOR_INVALID: "The activity cursor is not valid.",
+  /** GET /api/interview/sessions/[id]: no such session on this team (404). */
+  INTERVIEW_SESSION_NOT_FOUND: "That interview isn't on this team's record.",
   /** A recruiter asked for an AI action the candidate's column does not offer (409) —
    *  the workspace's per-step list in Settings → Hiring, or the product default. */
   AUTOMATION_TASK_NOT_OFFERED: "That AI action isn't available at this candidate's step.",
@@ -1423,6 +1431,22 @@ export const REFUSAL_ERRORS = {
    *  the honest answer is “we stopped waiting, try again”, which the coach panel’s
    *  existing retry affordance already offers. */
   JOB_WINNABILITY_TIMEOUT: "Grading this role took too long and was stopped. Try again.",
+  /** The number of hires a role is opened for was outside 1..50 (POST
+   *  /api/jobs/[id]/publish). A DECISION about the caller's own input, not a fault:
+   *  the wizard's own number field already holds the range, so this door is what
+   *  makes the range true for anything that is not the wizard. */
+  JOB_TARGET_HIRES_INVALID: "A role is opened for between 1 and 50 hires.",
+  /** The requested posting language is not one of the app's locales, or it is the
+   *  language the posting is already written in (POST
+   *  /api/jobs/[id]/translations). A DECISION: there is nothing to translate. */
+  JOB_TRANSLATION_LANG_INVALID: "That is not a language this posting can be translated into.",
+  /** No AI model answered, so the posting was NOT translated and nothing was stored
+   *  (pipeline.jobfit.posting_translate_cli refused). A DECISION, and the one place
+   *  in the app where keyless means "no output" rather than "a deterministic
+   *  output": a translation has no deterministic twin, and a stub posting presented
+   *  as a German advertisement would be worse than none — it is the document a
+   *  candidate applies against. The empty state stays and offers the retry. */
+  JOB_TRANSLATION_UNAVAILABLE: "No AI model is configured, so this posting was not translated.",
   /** The comms channel refused a send because the candidate may not be contacted —
    *  they were ANONYMIZED, their processing consent EXPIRED, or (for an outreach
    *  message only) the sequence was stopped. A DECISION, not a fault: `sendComm`
@@ -1648,6 +1672,14 @@ export const REFUSAL_ERRORS = {
   /** The periodic scan cannot be armed before one manual scan succeeded (409): a new
    *  schedule is disabled until first verification. */
   JOBSEEKER_SCAN_UNVERIFIED: "Run one scan by hand first; the timer arms once a scan has succeeded.",
+  /** DELETE /api/jds/[slug] on a description whose role is live (409). The library
+   *  is the shelf of drafts; a live opening is the Roles tab's object and closing
+   *  it there is the move that comes first. Deliberately not a 403: the caller has
+   *  the authority, the ROW is not in a deletable state. */
+  JD_LIVE_CANNOT_DELETE: "This description belongs to a live role. Close the role first, then delete it.",
+  /** DELETE /api/jds/[slug] by someone who neither authored the JD nor holds an
+   *  admin seat (403). See app/_lib/jds-delete-access.ts for the rule. */
+  JD_DELETE_FORBIDDEN: "Only the person who created this description, or an admin, can delete it.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

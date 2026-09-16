@@ -31,6 +31,8 @@ export type TicketDeps = {
   openDetail: (e: Entry) => void;
   tierLabels: ReturnType<typeof useFitTierLabels>;
   money: MapMoney;
+  /** An optional caption under the name (the rejected shelf's "Rejected at …"). */
+  tag?: (e: Entry) => string | null;
 };
 
 export const TICKET_WIDTH: Record<CardTier, number> = {
@@ -58,6 +60,7 @@ export function Ticket({ entry, tier, deps }: { entry: Entry; tier: CardTier; de
   const dims = (match?.scoreBreakdown ?? []).slice(0, 5);
   const missing = match?.missingSkills?.length ?? 0;
   const loadingBars = deps.matchLoading && !match;
+  const tag = deps.tag?.(entry) ?? null;
 
   return (
     <article className={`${PANEL} relative flex flex-col overflow-hidden`} style={{ width: TICKET_WIDTH[tier] }}>
@@ -81,6 +84,9 @@ export function Ticket({ entry, tier, deps }: { entry: Entry; tier: CardTier; de
             {score ?? "—"}
           </span>
         </span>
+        {tag ? (
+          <span className="inline-flex w-fit rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">{tag}</span>
+        ) : null}
         {salaryText || (roomy && tier === "spacious") ? (
           <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             {salaryText ? <span className="nums text-xs text-steel">~{salaryText}</span> : null}

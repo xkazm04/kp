@@ -85,6 +85,12 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # role_intake_voice: one plain-text reply per turn, no JSON contract, so it
     # requires no capability at all and every provider can serve it.
     "assistant": frozenset(),
+    # Rendering a published role posting into another language
+    # (posting_translate_cli.py). PROSE in, prose out — a Markdown document, not a
+    # JSON contract — so like role_intake_voice and assistant it requires no
+    # capability and every provider can serve it. There is deliberately NO
+    # deterministic twin: a machine that cannot translate refuses instead.
+    "posting_translate": frozenset(),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
     "profile_extract": frozenset({CAP_FILE_INPUT}),
@@ -191,6 +197,14 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # in ONE shot from a finished voice call. Same "re-emit the whole structured
     # artifact each call" shape as `jd_ingest`, and sized with it.
     "role_intake": 6144,
+    # A translation re-emits the WHOLE posting: the source document is already a
+    # full career-page ad (description, two requirement lists, a details table),
+    # and the answer is that document again in another language. Sized with
+    # jd_ingest, which carries the same "re-emit the whole ad" shape — the base
+    # 2048 truncates a long posting mid-requirement, and a posting that stops in
+    # the middle of a requirement list is exactly the artifact this use case must
+    # never produce.
+    "posting_translate": 6144,
 }
 
 # Use cases DELIBERATELY left on the base cap. A row here is a decision with a

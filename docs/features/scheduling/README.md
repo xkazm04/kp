@@ -712,13 +712,20 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   view, and a human-only plan hides the "Start AI interview" launcher on
   pending cards. Best-effort config read — a fetch failure shows both surfaces.
 - **The tab has a Human round / AI round switcher.** Human = the calendar
-  surface described above. AI = the **"Docket"** (winner of the /prototype
-  round): three stations — Awaiting link (Generate interview link mints +
-  emails the tokenized `/interview/<token>` URL and copies it) → Link out /
-  live → Completed, whose cards open the compact `ScheduleAiEvalPreview`
-  (verdict + confidence + rubric dots) with the full transcript & scorecard
-  modal one click deeper. Files: `ScheduleAiRound.tsx` + `ScheduleAiDocket.tsx`
-  + `ScheduleAiEvalPreview.tsx`; fed by `GET /api/interview/sessions`
+  surface described above. AI = a **ledger** (2026-09; it replaced the
+  three-station "Docket"): one row per candidate in the loop, in the two states a
+  recruiter can act on — **Awaiting link** (the row's Generate interview link
+  mints + emails the tokenized `/interview/<token>` URL and copies it) and
+  **Link out / live** (when the link went out; a pulsing "live" chip while the
+  candidate is on the call). Columns: candidate · role · state · link sent ·
+  action — the action is an icon-only link button on awaiting rows (its accessible
+  name carries the words). The table takes the shared kit's grammar
+  (`app/_components/table`): sortable heads, a candidate search and selects on
+  role / state, twenty rows to a page, a live-region status. **Completed interviews are out of this ledger's scope**: the verdict is
+  a scorecard review in Decisions, and the conversation is logged in Insights →
+  Activity as the `interview_realtime` use case, whose row detail opens the
+  transcript and verdict (`GET /api/interview/sessions/[id]`). Files:
+  `ScheduleAiRound.tsx` + `ScheduleAiLedger.tsx`; fed by `GET /api/interview/sessions`
   (`listRecentInterviewSessions` in `db/interviews.ts`); copy in the
   `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
   wider AI/Human/Hybrid mechanism design lives in

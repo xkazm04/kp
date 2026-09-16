@@ -46,6 +46,11 @@ test("with no plan (not loaded, or never saved) an interview step is the default
   assert.equal(waitingOn(e("Panel"), AXIS, null), "ai");
 });
 
+test("a homework column waits on the AI (case generated, sent, evaluated)", () => {
+  const axis: StageDef[] = [AXIS[0], { id: "Case", label: "Case", role: "homework" }, ...AXIS.slice(2)];
+  assert.equal(waitingOn(e("Case"), axis, null), "ai");
+});
+
 test("entry and screening columns are screened by the AI; scoring is the AI's", () => {
   assert.equal(waitingOn(e("New"), AXIS, PLAN), "ai");
   assert.equal(waitingOn(e("Triage"), AXIS, PLAN), "ai");

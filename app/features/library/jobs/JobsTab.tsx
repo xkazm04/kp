@@ -23,9 +23,13 @@ export function JobsTab() {
   const td = useTranslations("jobs.deeplink");
   const enumLabel = useEnumLabel();
   const list = useJobsList();
-  const { jobs, stats, error, openOnly, setOpenOnly, reload, patchJobStatus } = list;
+  const { jobs, allJobs, stats, error, openOnly, setOpenOnly, reload, patchJobStatus } = list;
 
-  const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(jobs);
+  // The deep link resolves against the UNFILTERED answer (`allJobs`), not the rows
+  // the table is showing: the Status column's filter is client-side, so a ?job=
+  // link to a role the reader has filtered out of view would otherwise report "that
+  // role no longer exists" about a role that plainly does.
+  const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(allJobs);
 
   // Import lives in the header (the action) and under it (the form it opens), so
   // its state is held HERE and handed to both — see JobsIngestAdPanel.

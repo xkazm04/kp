@@ -583,8 +583,9 @@ stays in the Models tab's daily rollup).
 the row that opened it). The daily rollup does NOT follow the reader: `substr(ts,
 1, 10)` cuts `aggregateLlmUsage`'s buckets on UTC midnights, so a late-evening call
 in Prague sits in "today" on Activity and in tomorrow's cost column on Models.
-Every rollup bucket now carries `tz: "UTC"` (`LLM_USAGE_DAY_TZ`) and the Activity
-header says which clock it keeps (`activity.tzNote`, 4 locales). Re-cutting the
+Every rollup bucket now carries `tz: "UTC"` (`LLM_USAGE_DAY_TZ`). The Activity
+header no longer prints a which-clock sentence (removed 2026-09, with its four
+catalog entries); the UTC bucketing stands and is stated here. Re-cutting the
 buckets in an operator's zone is a separate decision — it needs an operator zone to
 exist first.
 
@@ -597,6 +598,16 @@ actions **this workspace** ran" — a claim, not an omission, and a wrong one on
 install with more than one team.
 
 #### Row detail: from "what it cost" to "what it produced"
+
+**The voice interview is a use case with its own detail (2026-09).** An
+`interview_realtime` row's `request_id` is the interview SESSION id (the completion
+route writes it so), not a background run — so the task lookup used to answer "run
+gone" for a transcript sitting in `interview_sessions`. The detail now resolves it
+through `GET /api/interview/sessions/[id]` (operator-gated, workspace-scoped,
+consent-redacted, never carrying the bearer token) and renders the conversation
+turn by turn with the verdict on top (`ActivityInterviewRun.tsx`). With the Schedule
+tab's AI ledger no longer listing completed calls, this is where a finished interview
+is read.
 
 `llm_usage` stores meters, never content — so a row cannot carry the model's
 answer. It can carry the *run* that produced it. `request_id` had been in the

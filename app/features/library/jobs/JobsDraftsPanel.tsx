@@ -9,6 +9,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { notifyDataChanged, useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { PublishFlightNote, PublishSentences, usePublishSentenceText } from "./JobsPublishNote";
+import { JobsPublishDialog, type PublishTerms } from "./JobsPublishDialog";
 import {
   publishNoteSentences,
   rememberPublishResult,
@@ -80,14 +81,27 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
     loadDrafts();
   }, []);
   useLiveRefresh(loadDrafts); // a JD saved elsewhere (e.g. the simulation) shows up here
-  const sourceDraft = async (id: string) => {
+  // The draft whose terms dialog is open (JobsPublishDialog) — the SAME dialog the
+  // posting modal's footer opens, because this is the same act through the same
+  // route. Publishing from a row used to be one click with no terms; a role now
+  // opens for a number of hires and in a set of languages, and both surfaces have
+  // to ask, or the one that does not would silently open every role for one hire.
+  const [pendingDraft, setPendingDraft] = useState<string | null>(null);
+  const sourceDraft = async (id: string, terms?: PublishTerms) => {
     setSourcingId(id);
     setDraftNote(null);
     setPublishOutcome(null);
     const controller = new AbortController();
     publishAbort.current = controller;
     try {
-      const r = await fetch(`/api/jobs/${id}/publish`, { method: "POST", signal: controller.signal });
+      const r = await fetch(`/api/jobs/${id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // An absent field means "do not change it" at the route, so a publish with
+        // no terms keeps whatever the role already carried.
+        body: JSON.stringify(terms ? { targetHires: terms.targetHires, langs: terms.langs } : {}),
+        signal: controller.signal,
+      });
       const p = (await r.json().catch(() => null)) as (PublishResponse & { code?: string }) | null;
       if (!r.ok || !p) {
         // Plan's active-job cap (402): distinct upgrade prompt, not a sourcing-failed warn.
@@ -160,7 +174,7 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
             <button
               type="button"
               data-sim-click="publish"
-              onClick={() => sourceDraft(d.id)}
+              onClick={() => setPendingDraft(d.id)}
               disabled={sourcingId === d.id}
               title={t("sourceTitle")}
               className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
@@ -175,6 +189,16 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
       </ul>
       {sourcingId ? <PublishFlightNote className="mt-2 flex" onStop={() => publishAbort.current?.abort()} /> : null}
       {!sourcingId && publishOutcome ? <PublishSentences className="mt-2 block" note={publishOutcome.note} /> : null}
+      {pendingDraft ? (
+        <JobsPublishDialog
+          onCancel={() => setPendingDraft(null)}
+          onConfirm={(terms) => {
+            const id = pendingDraft;
+            setPendingDraft(null);
+            void sourceDraft(id, terms);
+          }}
+        />
+      ) : null}
       {draftNote ? (
         draftNote.tone === "quota" ? (
           <div

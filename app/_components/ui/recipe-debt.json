@@ -85,13 +85,10 @@
     "features/hiring/channels/ChannelsSetupGuide.tsx": {
       "panel": 1
     },
-    "features/hiring/decisions/DecisionsAiReviewCard.tsx": {
-      "rawDate": 2
-    },
     "features/hiring/decisions/DecisionsAiReviewCardLadder.tsx": {
       "metaLabel": 1
     },
-    "features/hiring/decisions/DecisionsAiReviewsSection.tsx": {
+    "features/hiring/decisions/DecisionsBatchBar.tsx": {
       "noticeAmber": 1
     },
     "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
@@ -132,9 +129,6 @@
     },
     "features/hiring/pipeline/SchedulerToolbar.tsx": {
       "noticeAmber": 1
-    },
-    "features/hiring/schedule/ScheduleAiEvalPreview.tsx": {
-      "chipQuiet": 1
     },
     "features/hiring/schedule/ScheduleCalendar.tsx": {
       "metaLabel": 1
@@ -204,14 +198,6 @@
     "features/library/jobs/JobsAgentFitCoverage.tsx": {
       "noticeAmber": 1
     },
-    "features/library/jobs/JobsCampaignTab.tsx": {
-      "metaLabel": 1,
-      "noticeAmber": 1
-    },
-    "features/library/jobs/JobsCampaignTabVariantCard.tsx": {
-      "metaLabel": 2,
-      "chipQuiet": 1
-    },
     "features/library/jobs/JobsCompareInterviews.tsx": {
       "metaLabel": 1
     },
@@ -227,12 +213,6 @@
     },
     "features/library/jobs/JobsPostingModal.tsx": {
       "metaLabel": 1
-    },
-    "features/library/jobs/JobsRecruiterCandidates.tsx": {
-      "noticeAmber": 1
-    },
-    "features/library/jobs/JobsRecruiterCandidatesFairness.tsx": {
-      "noticeAmber": 1
     },
     "features/library/jobs/JobsShared.tsx": {
       "noticeAmber": 2

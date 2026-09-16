@@ -42,12 +42,17 @@ const BOUNDARIES: Boundary[] = [
   {
     file: "./jobsRecruiterCandidatesLogic.ts",
     marker: "const orderRows = useCallback(",
-    why: "a re-sort per column per render, and an unstable identity would defeat the column memo below",
+    why: "a re-sort of the whole pool per render, and an unstable identity would defeat the memo below it",
+  },
+  {
+    file: "./jobsRecruiterCandidatesLogic.ts",
+    marker: "const shownOrdered = useMemo(",
+    why: "the array the active layout renders, and the input buildLadderRows is memoized on — an unstable identity rebuilds the whole row model every render",
   },
   {
     file: "./jobsRecruiterCandidatesLogic.ts",
     marker: "const fairLookup = useMemo(",
-    why: "the columns' `fair` prop was an inline arrow re-created every render — one per column, each defeating the memo it is passed to",
+    why: "the row model's `fair` lookup was an inline arrow re-created every render, defeating the memo it is passed to",
   },
   {
     file: "./jobsRecruiterCandidatesLogic.ts",
@@ -65,24 +70,14 @@ const BOUNDARIES: Boundary[] = [
     why: "the audit panel is memoized; its onExport must be stable",
   },
   {
-    file: "./JobsRecruiterCandidatesColumn.tsx",
-    marker: "export const CandidateColumn = memo(function CandidateColumn(",
-    why: "a column re-renders only when ITS rows or lookups change — an add in the other column must not repaint this one",
+    file: "./JobsRecruiterCandidates.tsx",
+    marker: "const rows = useMemo(",
+    why: "the shared row model (rank, band, strength/gap strips) is ONE pass over the ranked pool, not one per layout per render",
   },
   {
-    file: "./JobsRecruiterCandidatesCard.tsx",
-    marker: "export const JobsRecruiterCandidatesCard = memo(function JobsRecruiterCandidatesCard(",
-    why: "the per-row boundary: adding one candidate repaints one card, not the whole pool",
-  },
-  {
-    file: "./JobsRecruiterCandidatesFairness.tsx",
-    marker: "export const NotEligibleSection = memo(function NotEligibleSection(",
-    why: "a collapsed <details> over the whole KO cohort, re-sorted in render on every unrelated state change",
-  },
-  {
-    file: "./JobsRecruiterCandidatesFairness.tsx",
-    marker: "const sorted = useMemo(",
-    why: "the KO near-miss ordering is a sort over the whole not-eligible cohort",
+    file: "./JobsRecruiterCandidates.tsx",
+    marker: "const notEligible = useMemo(",
+    why: "the KO cohort's near-miss ordering is a sort over the whole not-eligible set",
   },
   {
     file: "./JobsRecruiterCandidatesFairness.tsx",
@@ -131,4 +126,23 @@ test("the fairness audit repeats the capped-sample caveat, in the panel and in t
     logic.includes('t("auditPoolTruncated")'),
     "the exported CSV must carry the same caveat as the panel it is exported from"
   );
+});
+
+// THE FAIRNESS-LENS SURVIVAL CONTRACT. Three layouts over one pool is an invitation
+// to let a caveat fall out of one of them — the KO-filtered cohort is the easiest
+// thing in the world to leave out of a "compact card grid". Each variant must
+// receive the cohort AND render it; the frame owns the cap note and the audit.
+test("every Candidates layout carries the KO-filtered cohort", () => {
+  for (const file of ["./candidates/CandidatesLadder.tsx", "./candidates/CandidatesRungs.tsx", "./candidates/CandidatesGrid.tsx"]) {
+    const src = read(file);
+    assert.ok(src.includes("notEligible"), `${file} must take the not-eligible cohort`);
+    assert.ok(src.includes("koReasons"), `${file} must show WHY a candidate was filtered, not just that they were`);
+  }
+});
+
+test("the frame keeps the capped-pool note and the fairness audit above the layouts", () => {
+  const frame = read("./JobsRecruiterCandidates.tsx");
+  assert.ok(frame.includes('t("poolTruncatedNote")'), "the cap note must live on the frame, not inside one layout");
+  assert.ok(frame.includes("<FairnessAuditPanel"), "the cross-scheme audit must render for every layout");
+  assert.ok(frame.includes('t("fairnessShielded")'), "the early-career fairness guarantee outlived its column and must still be stated");
 });

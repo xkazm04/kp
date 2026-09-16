@@ -15,6 +15,13 @@ import type { Entry, Position } from "@/app/features/shared/pipelineTypes";
 import type { MatchResultView } from "@/app/features/shared/matchTypes";
 import type { CandidateTab } from "../candidate/candidateView";
 
+/** The row context menu's verbs (subway/LineContextMenu.tsx → useLineActions). */
+export type LineAction = "acceptAll" | "rejectAll" | "aiEvaluate";
+
+/** Why a candidate sits on the rejected shelf: the column they were rejected at and
+ *  whether the AI screener (true) or a recruiter (false) decided it. */
+export type RejectedTag = { stage: string; auto: boolean };
+
 /** Open the candidate modal: `cohort` is what its pager walks (null / omitted = the
  *  board's visible order), `tab` the section to land on (default Overview). */
 export type OpenCandidate = (entry: Entry, cohort?: readonly Entry[] | null, tab?: CandidateTab) => void;
@@ -33,6 +40,10 @@ export type PipelineBoardProps = {
   /** The hiring plan in force (Settings → Hiring) — each step's executor decides who
    *  a candidate standing there waits on (subway/lineAttention.ts). Null while loading. */
   plan?: InterviewPlanRule | null;
+  /** Rejected candidates per lane key (`entryLaneKey`) — the rows are off the payload. */
+  rejectedByLane?: Record<string, number>;
+  /** A row's context menu: act on the position's ENTRY-column candidates at once. */
+  onLineAction?: (position: Position, action: LineAction) => void;
   isStale: (e: Entry) => boolean;
   openPositionRanking: (jobId: string) => void;
   openProfile: (e: Entry) => void;
@@ -58,11 +69,19 @@ export type CellSelection = {
   /** The clicked cell's viewport rect at click time — null when opened by keyboard
    *  without a measurable target. Overlays animate from it; never lay out on it. */
   origin: { x: number; y: number; width: number; height: number } | null;
+  /** The REJECTED shelf of a lane rather than a live cell: `stage` is a synthetic
+   *  column, the entries are closed, and each carries the column it was rejected at. */
+  rejected?: Record<string, RejectedTag>;
 };
+
+/** The synthetic column the rejected shelf opens under (never on any axis). */
+export const REJECTED_SHELF_ID = "__rejected";
 
 export type MapBoardProps = PipelineBoardProps & {
   /** Layer-1 → layer-2 hand-off. */
   onOpenCell: (sel: CellSelection) => void;
+  /** The first column's rejected count → the lane's rejected shelf in the overlay. */
+  onOpenRejected: (position: Position, origin: CellSelection["origin"]) => void;
   /** The cell currently open in the overlay (to keep it highlighted underneath). */
   openCell?: { positionId: string; stageId: string } | null;
 };
@@ -81,6 +100,8 @@ export type CellOverlayProps = {
   /** Stage label as the board header shows it (localized / workspace-renamed). */
   stageLabel: string;
   enumLabel: (group: string, value: string | null | undefined) => string;
+  /** A per-ticket caption (the rejected shelf: "Rejected at Screened"). */
+  ticketTag?: (e: Entry) => string | null;
 };
 
 /** How much room each card gets, from how many cards share the screen. */

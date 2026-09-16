@@ -1520,6 +1520,100 @@ resolution, the non-collapse of a provider-only wildcard row, the pinned-same-mo
 and the three emission states) and `app/_lib/devcase-judge-independence.test.ts` (the
 panel state, including that a legacy bundle never starts reading as self-graded).
 
+### The homework column sends the assignment
+
+Until this landed, **nothing in the product ever sent an assignment to a named
+candidate.** A case was published as a *posting* — a shareable apply token candidates
+had to find — while sourced candidates were seeded straight onto the board. Two halves
+of one step, joined by a recruiter remembering to copy a link. A `homework` column (the
+Enterprise funnel's Accepted → **Homework** → AI interview → Screened → Human interview
+→ Offer → Hired) therefore did nothing on arrival, and the AI interview that follows had
+no submission to be grounded in.
+
+`app/_lib/stage-hooks-homework.ts` is the arrival hook that closes it. It is reached from
+`app/_lib/stage-hooks.ts` by **stage role**, never by a column literally named
+"Homework", and it holds the same three rules the interview hook does: it runs after the
+stage write has committed (never inside the transaction), it is best-effort (no failure
+may turn a completed move into a failed one), and it never claims more than happened.
+
+On arrival, for the entry's job:
+
+1. **The job's newest approved case** (`listDevCasesForJob`, workspace-scoped, status
+   `approved`) is the assignment to send.
+2. **No case yet?** The column's plan step gate decides. `auto` creates a lifecycle from
+   a need built off the job's **saved JD** (`need.jdSlug`, which is what
+   `resolveCaseJobId` re-derives so the designed case is linked back to this job and the
+   next arrival finds it rather than designing a second one), runs it, and comes back
+   around to send the result. `human` creates the lifecycle with `auto: false`, so it
+   parks at its own `awaiting_approval` gate — **the column's gate governs the
+   lifecycle's own human gate rather than adding a second one** — and the recruiter
+   approves it in Dev → Cases, the same Approve button
+   `POST /api/devcase/lifecycle/[id]/approve` is behind. Nothing is sent until then.
+   The gate is resolved by exactly the rule `effectiveInterviewGate` states: a saved
+   hiring plan is honored as saved, and only a workspace that has never saved one falls
+   to `auto`. A saved plan with **no** step for the column resolves to `human` — the safe
+   reading of silence on a step that spends a design run and mails a candidate.
+3. **The case goes live once.** An existing open posting is reused verbatim
+   (`getOpenPosting`); otherwise `getAdapter("local").publish` mints one. Two candidates
+   on one case must be handed the identical materials and the identical submit channel,
+   so a second token for one case is never the right answer.
+4. **`dispatchCaseInvite`** (`app/_lib/comms-dispatch.ts`) mails
+   `/devcase/apply/<token>` in the candidate's own language, through the same
+   `sendCandidateComm` path as every other candidate comm: the recipient contract,
+   consent suppression, the GDPR footer, and the outbox's **real** delivery claim
+   (`queued` with no relay configured, `failed` when the relay threw) handed straight
+   back to the caller. Comms kind `case_invite`, in `KNOWN_COMM_KINDS`.
+
+**The seam for "re-run once the case is published"** is that the hook awaits the
+orchestrator in place and re-enters once (bounded at one re-entry). `startTask` is
+fire-and-forget — it returns a task row, not a promise, and `tasks.ts` exposes no
+completion callback — so chaining onto it would mean polling a task row from a
+post-commit hook or adding a completion notification to a module several features
+share. The hook is already a background task with its own lifetime (`afterResponse`),
+so it calls the same `runLifecycle` the `lifecycle` task kind wraps, with the same
+tenant assertion. The cost: this design run does not appear in the task tray; it is
+recorded on the lifecycle itself, which the Dev/Cases control room lists.
+
+**Idempotence is (entry, posting), read off the outbox.** One `case_invite` row for this
+entry whose body carries this posting's token means the letter has already gone out, so
+re-entry, a bulk move touching the row twice and a retried poll all resolve to the same
+pair. The hook adds **no pipeline event kind** — the event vocabulary is pinned by set
+equality across `decision-attribution.ts`, `pipelineEventCatalog.ts` and four catalogs,
+and `stage-hooks.ts` states the same constraint for the interview invite. The durable
+record is the outbox row, which the Comms Center and the candidate drawer's Messages
+section already read by `ref`.
+
+**Refusals never claim a send.** An unaddressable candidate is refused *before* anything
+is published (minting a live token for a letter with nowhere to go is a side effect
+nobody asked for); an exhausted `case_designs` allowance, a lifecycle that finished with
+no approved case, and any thrown error all log and stop. In every case the stage move
+stands and the candidate simply waits in the column, where a recruiter sees them. No
+approval gate is armed, unlike the interview hook's fail-open: the `calendar` approval
+means "waiting for an interview link", which would be a false claim about someone waiting
+for an assignment.
+
+**Binding back.** When the invited candidate hands their work in through that link,
+`resolvePromotedCandidate` (`app/_lib/devcase-run.ts`) now asks the invite ledger first
+(`app/_lib/devcase-invite-binding.ts`): the outbox row's `ref` is the invited entry, its
+`recipient` is what `candidateRecipient` resolved for that entry, and its body carries
+the posting token — so a submitter presenting that address (or that name) resolves to the
+entry's **own** profile id. `createPipelineEntry` then dedups on (candidate, job) and
+backfills `dev_submission_id` onto the existing row instead of minting a second entry for
+a person the board was already tracking. That link is what
+`buildGroundedInterview` reads the submission through (`submissionFollowups` →
+`entry.devSubmissionId`), so the AI interview that follows is grounded in the work they
+actually did. Nothing about this puts an internal id on the public wire: the join is
+server-side and reads only what the invite already recorded, and an ambiguous match
+(more than one invited entry, or none) resolves to *null* and falls back to the existing
+resolution — attaching one candidate's work to another's hiring record is the one failure
+worse than promoting a stranger.
+
+Pinned in `app/_lib/stage-hooks-homework.test.ts`: one invite with the outbox's own
+claim, no second invite on re-entry, a second candidate reusing the same posting, the
+unaddressable refusal (nothing sent, nothing published, the move stands), the human gate
+parking at `awaiting_approval`, the auto gate designing-then-sending, and both binding
+cases (invited → their entry; uninvited → the old resolution).
+
 ### The voice screen is reachable from the assignment
 
 The evaluation's minted follow-up questions exist to be asked **out loud**: an artifact

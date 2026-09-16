@@ -1211,6 +1211,35 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_job_postings_ws_family ON job_postings (workspace_id, role_family);
 
+    -- The role posting in a language other than the one it was written in
+    -- (db/job-translations.ts, docs/features/jobs/README.md). Opening a role names
+    -- the languages it is advertised in; the LLM layer renders the posting into each
+    -- of them AFTER the publish has committed, and each rendering lands here.
+    --
+    -- A TABLE OF ITS OWN rather than a job_postings row: that table is the IMPORT
+    -- corpus (ads a team pasted, fetched or seeded), its source column is a CHECK-pinned
+    -- import vocabulary with no value that means "we wrote this", and its dedupe
+    -- UNIQUE is (content_hash, workspace_id) — which would make two roles whose
+    -- postings happen to render identically one row. The key here is the one this
+    -- surface actually asks by: (workspace_id, job_id, lang), so re-generating a
+    -- language REPLACES its body instead of accumulating drafts.
+    --
+    -- workspace_id is NOT NULL and every read binds it, point reads included: a
+    -- translation is written on a team's own order and against a team's own spend,
+    -- even for a role from the shared (workspace_id NULL) corpus, so there is no
+    -- shared tier here (job-translations-tenancy.test.ts).
+    CREATE TABLE IF NOT EXISTS job_translations (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      lang TEXT NOT NULL,
+      source_lang TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body_md TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (workspace_id, job_id, lang)
+    );
+
     -- Job-seeker module (app/_lib/jobseeker/types.ts, stores in db/jobseeker-*.ts): the
     -- SEEKER's own record — the flip side of the recruiter tables above. Four tables,
     -- every one workspace-scoped with NO by-id carve-out (a leaked id must not resolve
@@ -1667,6 +1696,20 @@ export function ensureDb(): Database.Database {
     // 'published' and left alone afterwards, so a close/republish keeps the
     // original cycle start. NULL = seeded corpus, or authored before this column.
     "ALTER TABLE jobs ADD COLUMN published_at TEXT",
+    // How many candidates this role has to HIRE before it is filled (the
+    // open/close review system, docs/features/jobs/README.md). NULL = 1 — the
+    // overwhelming default and the value every row that predates the column
+    // carries, so the reader (roleTargetHires) folds NULL to 1 rather than
+    // backfilling the whole corpus. Written by POST /api/jobs/[id]/publish; the
+    // role auto-closes once its hired count reaches this number.
+    "ALTER TABLE jobs ADD COLUMN target_hires INTEGER",
+    // The languages the posting was opened in: a JSON array of app locale codes
+    // (["en","cs"]). NULL/absent = never stated, which the posting modal reads as
+    // "the source language only". It is the ORDER for a translation, not a
+    // translation: the bodies themselves live in job_translations, one row per
+    // (job, lang), so a role whose LLM translation never ran still records which
+    // languages were asked for and can be retried.
+    "ALTER TABLE jobs ADD COLUMN posting_langs TEXT",
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
@@ -1769,6 +1812,13 @@ export function ensureDb(): Database.Database {
     // re-seed from intent (not the rendered output) and Retry replay even after the
     // task row is pruned. NULL on legacy rows (draft saves + pre-migration builds).
     "ALTER TABLE jds ADD COLUMN build_input_json TEXT",
+    // Who authored this JD — the user id from the session that created the row
+    // (saveJd / insertAnalyzingJd stamp it). NULL on legacy rows, on an open-dev
+    // install with no identity, and on any path that saves without a session. It
+    // is authorization INPUT for exactly one door: DELETE /api/jds/[slug] is open
+    // to the creator or to an owner/admin, and a NULL here simply means "no
+    // creator claim", never "anyone" (see app/_lib/jds-delete-access.ts).
+    "ALTER TABLE jds ADD COLUMN created_by TEXT",
     // DEVP5 — the candidate-facing language for this role's case artifacts
     // (brief/tasks, seed README+DECISIONS, interview narration), captured at
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
@@ -2544,6 +2594,17 @@ export type JobRecord = {
   // 'draft' is not publicly live, 'closed' no longer accepts applications
   // (isJobOpenForApplications in job-ingest.ts is the one open-for-apply gate).
   status?: "draft" | "published" | "closed" | null;
+  // The open/close review system, decorated from the jobs COLUMNS beside `status`
+  // (never payload_json). `targetHires` is how many candidates the role has to hire
+  // before it is filled — always a number on a decorated row, because the stored
+  // NULL means 1. `postingLangs` is the locales the role was opened in, [] when the
+  // role predates the column or was never published through the wizard.
+  targetHires?: number;
+  postingLangs?: string[];
+  // How many candidates this role has actually hired — NOT a jobs column: it is the
+  // pipeline's own terminal-stage count, decorated by the route that has the axis
+  // (listJobPipelineStats). Absent when the caller did not ask for it.
+  hired?: number;
 };
 
 const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.normalized.json");
