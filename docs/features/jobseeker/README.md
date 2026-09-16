@@ -35,6 +35,7 @@ Four workspace-scoped tables (all in `TENANCY_SCOPED_TABLES`, each with a coloca
 
 ## Keyless behaviour (product property)
 
+- The CV import's draft step (`/api/profile/draft` -> `profile_draft_cli`) degrades to `pipeline/jobfit/cv_draft.py` when no provider can serve (no key, `KP_OFFLINE`, a refused route): taxonomy skill terms, the years / city / seniority readers and the language aliases produce a thin, `self_declared` profile, and the CLI answers `source: "deterministic"` so the page can say what read the CV.
 - Dialog turns come from `pipeline/jobfit/jobseeker_cli.py`; without a provider the
   scripted `deterministic_turn` answers with `source: "deterministic"` and a
   `fallbackReason` — never an empty reply.
