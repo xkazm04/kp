@@ -600,6 +600,10 @@
       "length": " It takes about {minutes} minutes.",
       "body": "Hi {name},\n\nYou're invited to a short AI-guided first-round screen for {role}.{length} You can take it whenever you're ready using your secure link:\n{link}\n\nIt runs right in your browser. Just allow microphone access when prompted.\n\nLooking forward to it,\n{team}"
     },
+    "caseInvite": {
+      "subject": "Your work-sample assignment: {role}",
+      "body": "Hi {name},\n\nWe'd like you to try a short work-sample assignment for {role}. The brief, the starting materials and the place to hand your work in are all on your secure link:\n{link}\n\nStart whenever you're ready. Using AI tools is expected and never counts against you. What we look at is the reasoning behind your choices.\n\nGood luck,\n{team}"
+    },
     "devcaseFeedback": {
       "subject": "Your take-home exercise: a few notes",
       "subjectRole": "Your {role} exercise: a few notes",
@@ -1827,6 +1831,7 @@
     "JOBSEEKER_SOURCE_COLLAPSED": "The page layout changed and nothing could be read. Re-check the extraction rules.",
     "JOBSEEKER_RULES_INVALID": "These extraction rules are not valid.",
     "JOBSEEKER_PREVIEW_FAILED": "Could not preview the rules against the live page.",
+    "JOBSEEKER_SOURCE_NOT_FOUND": "That job source does not exist.",
     "JOBSEEKER_DIALOG_NOT_FOUND": "That conversation does not exist.",
     "JOBSEEKER_DIALOG_CLOSED": "This conversation is closed.",
     "JOBSEEKER_DIALOG_MOVED": "The conversation changed while that was being computed, so it was re-read rather than overwritten.",
@@ -2676,6 +2681,7 @@
       "schedule_invite": "Scheduling invite",
       "interview_reminder": "Interview reminder",
       "interview_invite": "Interview invite",
+      "case_invite": "Assignment invite",
       "offer_reminder": "Offer reminder"
     },
     "provenance": {
@@ -8783,6 +8789,7 @@
       "interview_confirmation": "interview confirmation",
       "interview_reminder": "interview reminder",
       "interview_invite": "interview invite",
+      "case_invite": "assignment invite",
       "interviewer_brief": "interviewer brief",
       "schedule_invite": "scheduling invite"
     },

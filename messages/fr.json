@@ -595,6 +595,10 @@
       "subject": "Rappel : votre offre pour {role} est toujours ouverte",
       "body": "Bonjour {name},\n\nPetit rappel : votre offre pour {role} est toujours ouverte et attend votre décision. Pour la conserver, merci de nous répondre avant le {deadline}.\n\nConsultez les détails et répondez ici :\n{link}\n\nSi vous avez des questions avant de décider, répondez simplement. Nous sommes là pour aider.\n\n{team}"
     },
+    "caseInvite": {
+      "subject": "Votre test pratique : {role}",
+      "body": "Bonjour {name},\n\nNous aimerions vous proposer un court test pratique pour {role}. L’énoncé, les matériaux de départ et le lieu de remise se trouvent tous sur votre lien sécurisé :\n{link}\n\nVous pouvez commencer quand vous le souhaitez. L’usage d’outils AI est attendu et ne vous sera jamais reproché. Ce qui compte, c’est le raisonnement derrière vos choix.\n\nBonne chance,\n{team}"
+    },
     "interviewInvite": {
       "subject": "Votre présélection AI de premier tour : {role}",
       "length": " Cela prend environ {minutes} minutes.",
@@ -1827,6 +1831,7 @@
     "JOBSEEKER_SOURCE_COLLAPSED": "La mise en page a changé et rien n'a pu être lu. Vérifiez les règles d'extraction.",
     "JOBSEEKER_RULES_INVALID": "Ces règles d'extraction ne sont pas valides.",
     "JOBSEEKER_PREVIEW_FAILED": "Impossible de tester les règles sur la page en ligne.",
+    "JOBSEEKER_SOURCE_NOT_FOUND": "Cette source d'offres n'existe pas.",
     "JOBSEEKER_DIALOG_NOT_FOUND": "Cette conversation n'existe pas.",
     "JOBSEEKER_DIALOG_CLOSED": "Cette conversation est terminée.",
     "JOBSEEKER_DIALOG_MOVED": "La conversation a changé pendant le calcul ; elle a été relue plutôt qu'écrasée.",
@@ -2676,6 +2681,7 @@
       "schedule_invite": "Invitation à planifier",
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
+      "case_invite": "Invitation au test pratique",
       "offer_reminder": "Rappel d’offre"
     },
     "provenance": {
@@ -8783,6 +8789,7 @@
       "interview_confirmation": "Confirmation d’entretien",
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
+      "case_invite": "Invitation au test pratique (envoi)",
       "interviewer_brief": "Brief de l’intervieweur",
       "schedule_invite": "Invitation à planifier"
     },

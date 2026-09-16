@@ -155,3 +155,26 @@ test("listPostings: a garbage cursor starts from the top instead of throwing", (
   const page = listPostings({ sourceId: source, cursor: "not-a-cursor" });
   assert.equal(page.rows.length, 1);
 });
+
+test("upsertPosting persists the adapter's salary parse and clears it when a re-seen posting drops the figure", () => {
+  const source = "src-salary";
+  const first = raw({ salary: { min: 70000, max: 95000, currency: "czk", period: "month" }, salaryText: "70 000 – 95 000 Kč" });
+  const a = upsertPosting(source, first, T0);
+  const stored = getPosting(a.id)!;
+  assert.equal(stored.salaryMin, 70000);
+  assert.equal(stored.salaryMax, 95000);
+  assert.equal(stored.salaryCurrency, "CZK", "currency is stored upper-cased");
+  assert.equal(stored.salaryPeriod, "month");
+  // The body changes and the pay is no longer stated: the columns follow the posting, never a stale figure.
+  const b = upsertPosting(source, { ...first, bodyText: "Rewritten without pay.", salary: null }, T1);
+  assert.equal(b.outcome, "changed");
+  const after = getPosting(a.id)!;
+  assert.equal(after.salaryMin, null);
+  assert.equal(after.salaryCurrency, null);
+  assert.equal(after.salaryPeriod, null);
+  // A salary without a currency, or with a period outside the vocabulary, is not a salary.
+  const c = upsertPosting(source, raw({ salary: { min: 10, max: 20, currency: "", period: "month" } }), T0);
+  assert.equal(getPosting(c.id)!.salaryMin, null);
+  const d = upsertPosting(source, raw({ salary: { min: 10, max: 20, currency: "EUR", period: "hour" as unknown as "month" } }), T0);
+  assert.equal(getPosting(d.id)!.salaryMin, null);
+});

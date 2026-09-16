@@ -600,6 +600,10 @@
       "length": " Trvá přibližně {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
       "body": "Dobrý den, {name},\n\nzveme vás na krátké první kolo s AI na pozici {role}.{length} Můžete jej absolvovat, kdykoli budete připraveni, přes svůj zabezpečený odkaz:\n{link}\n\nProbíhá přímo ve vašem prohlížeči. Po vyzvání jen povolte přístup k mikrofonu.\n\nTěšíme se,\n{team}"
     },
+    "caseInvite": {
+      "subject": "Vaše praktické zadání: {role}",
+      "body": "Dobrý den, {name},\n\nrádi bychom vás pozvali ke krátkému praktickému zadání na pozici {role}. Zadání, výchozí materiály i místo, kam práci odevzdáte, najdete na svém zabezpečeném odkazu:\n{link}\n\nZačít můžete, kdykoli budete připraveni. Používání nástrojů s AI očekáváme a nijak vám neuškodí. Sledujeme, jak svá rozhodnutí zdůvodníte.\n\nHodně štěstí,\n{team}"
+    },
     "devcaseFeedback": {
       "subject": "Váš úkol domů: pár poznámek",
       "subjectRole": "Váš úkol na pozici {role}: pár poznámek",
@@ -1827,6 +1831,7 @@
     "JOBSEEKER_SOURCE_COLLAPSED": "Rozvržení stránky se změnilo a nepodařilo se nic přečíst. Zkontrolujte pravidla extrakce.",
     "JOBSEEKER_RULES_INVALID": "Tato pravidla extrakce nejsou platná.",
     "JOBSEEKER_PREVIEW_FAILED": "Náhled pravidel na živé stránce se nepodařil.",
+    "JOBSEEKER_SOURCE_NOT_FOUND": "Tento zdroj nabídek neexistuje.",
     "JOBSEEKER_DIALOG_NOT_FOUND": "Tato konverzace neexistuje.",
     "JOBSEEKER_DIALOG_CLOSED": "Tato konverzace je uzavřená.",
     "JOBSEEKER_DIALOG_MOVED": "Konverzace se během výpočtu změnila, proto byla znovu načtena a nic se nepřepsalo.",
@@ -2676,6 +2681,7 @@
       "schedule_invite": "Pozvánka k výběru termínu",
       "interview_reminder": "Připomenutí pohovoru",
       "interview_invite": "Pozvánka na pohovor",
+      "case_invite": "Pozvánka k zadání",
       "offer_reminder": "Připomenutí nabídky"
     },
     "provenance": {
@@ -8783,6 +8789,7 @@
       "interview_confirmation": "Potvrzení pohovoru",
       "interview_reminder": "Připomenutí pohovoru",
       "interview_invite": "Pozvánka na pohovor",
+      "case_invite": "Pozvánka k praktickému zadání",
       "interviewer_brief": "Podklady pro tazatele",
       "schedule_invite": "Pozvánka k naplánování"
     },

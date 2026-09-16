@@ -171,11 +171,22 @@ export function postingContentHash(bodyText: string): string {
 
 export type UpsertOutcome = "new" | "changed" | "unchanged";
 
+/** The salary columns from RawPosting.salary — what the ADAPTER parsed (JSON-LD
+ *  baseSalary, a feed's structured pay), or all null when the posting did not state
+ *  pay. The store never derives a figure from salaryText: unknown stays unknown. */
+function salaryColumns(raw: RawPosting): [number | null, number | null, string | null, SalaryPeriod | null] {
+  const s = raw.salary;
+  if (!s || (s.min === null && s.max === null) || !s.currency || !(SALARY_PERIODS as readonly string[]).includes(s.period)) {
+    return [null, null, null, null];
+  }
+  return [s.min, s.max, s.currency.toUpperCase().slice(0, 8), s.period];
+}
+
 /** Reconcile one raw posting into the dataset. `unchanged` bumps last_seen_at only;
  *  `changed` (a moved content hash) rewrites the content columns and clears the
  *  structured job + match so the matcher re-scores it; a posting the scan had marked
- *  gone (or was on its first miss) is revived either way. Salary columns are NOT set
- *  here: RawPosting carries salaryText, and parsing it is the salary-band step's job. */
+ *  gone (or was on its first miss) is revived either way. The salary columns are the
+ *  adapter's parse of the posting (RawPosting.salary), written with the content. */
 export function upsertPosting(
   sourceId: string,
   raw: RawPosting,
@@ -184,6 +195,7 @@ export function upsertPosting(
 ): { id: string; outcome: UpsertOutcome } {
   const d = ensureDb();
   const contentHash = postingContentHash(raw.bodyText);
+  const [salaryMin, salaryMax, salaryCurrency, salaryPeriod] = salaryColumns(raw);
   const run = d.transaction((): { id: string; outcome: UpsertOutcome } => {
     const existing = d
       .prepare(
@@ -196,8 +208,9 @@ export function upsertPosting(
       d.prepare(
         `INSERT INTO jobseeker_postings
            (id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode, posted_at,
+            salary_min, salary_max, salary_currency, salary_period,
             body_text, jsonld_json, content_hash, status, first_seen_at, last_seen_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`
       ).run(
         id,
         workspaceId,
@@ -210,6 +223,10 @@ export function upsertPosting(
         raw.country,
         raw.workMode,
         raw.postedAt,
+        salaryMin,
+        salaryMax,
+        salaryCurrency,
+        salaryPeriod,
         raw.bodyText,
         raw.jsonld ? JSON.stringify(raw.jsonld) : null,
         contentHash,
@@ -233,6 +250,7 @@ export function upsertPosting(
     d.prepare(
       `UPDATE jobseeker_postings
        SET url = ?, title = ?, company = ?, location = ?, country = ?, work_mode = ?, posted_at = ?,
+           salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?,
            body_text = ?, jsonld_json = ?, content_hash = ?,
            job_json = NULL, job_source = NULL, match_json = NULL, match_total = NULL, fit_tier = NULL,
            match_version = NULL, matched_at = NULL, reasoning_json = NULL,
@@ -246,6 +264,10 @@ export function upsertPosting(
       raw.country,
       raw.workMode,
       raw.postedAt,
+      salaryMin,
+      salaryMax,
+      salaryCurrency,
+      salaryPeriod,
       raw.bodyText,
       raw.jsonld ? JSON.stringify(raw.jsonld) : null,
       contentHash,

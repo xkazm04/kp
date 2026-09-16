@@ -600,6 +600,10 @@
       "length": " Es dauert etwa {minutes} Minuten.",
       "body": "Hallo {name},\n\nwir laden Sie zu einem kurzen, AI-geführten Screening der ersten Runde für {role} ein.{length} Sie können es jederzeit über Ihren sicheren Link absolvieren, sobald Sie bereit sind:\n{link}\n\nEs läuft direkt in Ihrem Browser. Erlauben Sie einfach den Mikrofonzugriff, wenn Sie dazu aufgefordert werden.\n\nWir freuen uns darauf,\n{team}"
     },
+    "caseInvite": {
+      "subject": "Ihre Arbeitsprobe: {role}",
+      "body": "Hallo {name},\n\nwir möchten Sie zu einer kurzen Arbeitsprobe für {role} einladen. Die Aufgabenstellung, die Ausgangsmaterialien und der Ort für die Abgabe finden sich alle über Ihren sicheren Link:\n{link}\n\nSie können beginnen, sobald Sie bereit sind. Der Einsatz von AI-Werkzeugen wird erwartet und wird Ihnen nie angelastet. Uns interessiert die Begründung Ihrer Entscheidungen.\n\nViel Erfolg,\n{team}"
+    },
     "devcaseFeedback": {
       "subject": "Ihre Übungsaufgabe: ein paar Anmerkungen",
       "subjectRole": "Ihre Aufgabe für {role}: ein paar Anmerkungen",
@@ -1827,6 +1831,7 @@
     "JOBSEEKER_SOURCE_COLLAPSED": "Das Seitenlayout hat sich geändert, es konnte nichts gelesen werden. Prüfen Sie die Extraktionsregeln.",
     "JOBSEEKER_RULES_INVALID": "Diese Extraktionsregeln sind ungültig.",
     "JOBSEEKER_PREVIEW_FAILED": "Die Regeln konnten nicht gegen die Live-Seite getestet werden.",
+    "JOBSEEKER_SOURCE_NOT_FOUND": "Diese Stellenquelle gibt es nicht.",
     "JOBSEEKER_DIALOG_NOT_FOUND": "Diese Unterhaltung gibt es nicht.",
     "JOBSEEKER_DIALOG_CLOSED": "Diese Unterhaltung ist abgeschlossen.",
     "JOBSEEKER_DIALOG_MOVED": "Die Unterhaltung hat sich während der Berechnung geändert; sie wurde neu geladen statt überschrieben.",
@@ -2676,6 +2681,7 @@
       "schedule_invite": "Terminplanungseinladung",
       "interview_reminder": "Interview-Erinnerung",
       "interview_invite": "Interview-Einladung",
+      "case_invite": "Arbeitsprobe-Einladung",
       "offer_reminder": "Angebotserinnerung"
     },
     "provenance": {
@@ -8783,6 +8789,7 @@
       "interview_confirmation": "Interviewbestätigung",
       "interview_reminder": "Interviewerinnerung",
       "interview_invite": "Interview-Einladung",
+      "case_invite": "Einladung zur Arbeitsprobe",
       "interviewer_brief": "Interviewer-Briefing",
       "schedule_invite": "Termin-Einladung"
     },

@@ -694,9 +694,14 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "CREATE_RATE_LIMIT",
     optsDef: "const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    // The grounding is the LLM-backed half; the limiter must also precede
-    // resolveEntryForSubmission, which PROMOTES a candidate onto the board.
-    expensive: "await buildGroundedInterview(entryId, workspace)",
+    // The mint door (interview-invite.ts) holds the LLM-backed grounding build, the
+    // billing reservation, the session row AND the outbound invite — it is the whole
+    // expensive half in one call, and it is shared verbatim with the stage hook. The
+    // limiter must also precede resolveEntryForSubmission, which PROMOTES a candidate
+    // onto the board. (Was `await buildGroundedInterview(entryId, workspace)` while
+    // that call was still inlined in this handler; the guarded work did not change,
+    // only where it lives.)
+    expensive: "await mintAndInviteVoiceScreen({",
     // The cheap refusals keep serving freely ahead of the budget: the billing 402
     // and the "you named no candidate" 400 spend nothing and must not be masked.
     servedBefore: 'const quota = meterGate("interview_minutes"',
@@ -1768,6 +1773,44 @@ const ROUTES: RouteSpec[] = [
     // offline branch is the one pinned here: it is a decision the operator must get
     // in their own language, never a throttle and never a blocked-fetch accident.
     servedBefore: 'jsonRefusal("POSTING_OFFLINE", 503)',
+  },
+  // The job-seeker acquisition doors (WP3, ADR 0009). Operator-gated, but open mode
+  // makes that a no-op, and three of the four either write a source row or send a
+  // request to a THIRD-PARTY host under our politeness budget — the limiter is what
+  // keeps one caller from spending that budget (and a board's patience) for everyone.
+  {
+    // Creating a source is a write; 60/10min per IP — the Sources page adds one at a time.
+    rel: "./jobseeker/sources/route.ts",
+    key: "`jobseeker-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createJobseekerSource(",
+  },
+  {
+    // The PATCH shares the write bucket: enabling, acknowledging, pausing and saving
+    // rules are all writes on the same table.
+    rel: "./jobseeker/sources/[id]/route.ts",
+    key: "`jobseeker-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setSourceRules(",
+  },
+  {
+    // Every preview is a request to the board's listing page; 10/10min per IP is a
+    // rule-authoring session. The limiter sits BEFORE the fetch.
+    rel: "./jobseeker/sources/[id]/preview/route.ts",
+    key: "`jobseeker-preview:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "politeFetch(",
+  },
+  {
+    // A fetch AND an LLM call (extraction_rules) per request; the same 10/10min.
+    rel: "./jobseeker/sources/[id]/rules/propose/route.ts",
+    key: "`jobseeker-rules-propose:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "politeFetch(",
   },
 ];
 

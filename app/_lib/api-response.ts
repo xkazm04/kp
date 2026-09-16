@@ -1626,6 +1626,9 @@ export const REFUSAL_ERRORS = {
   JOBSEEKER_RULES_INVALID: "These extraction rules are not valid.",
   /** The dry-run preview could not fetch or run against the live page (502). */
   JOBSEEKER_PREVIEW_FAILED: "Could not preview the rules against the live page.",
+  /** The source id in the URL (or the catalog id in the body) is not one this
+   *  workspace knows (404). */
+  JOBSEEKER_SOURCE_NOT_FOUND: "That job source does not exist.",
   /** The dialog in the URL does not exist in this workspace (404). */
   JOBSEEKER_DIALOG_NOT_FOUND: "That conversation does not exist.",
   /** The dialog is closed; reopen or start a new one (409). */
