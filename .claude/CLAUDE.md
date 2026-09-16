@@ -9,7 +9,7 @@ AI job-description builds, CV analysis and job-fit scoring, a pipeline board
 with automation, candidate self-scheduling, AI voice interviews, work-sample
 "devcase" assessments, comms outbox, analytics, and Polar prepaid billing.
 
-Stack, in one breath: **Next 16 (canary) + React 19 + TypeScript**, Tailwind 4,
+Stack, in one breath: **Next 16.3 (pinned exactly, instant-navigations line — ADR 0001) + React 19 + TypeScript**, Tailwind 4,
 **better-sqlite3** at `data/kp.sqlite` (override with `KP_DB_PATH`; a fresh DB
 self-seeds the demo corpus from `data/seed_*`), custom **HMAC session auth**
 (`KP_OPERATOR_PASSWORD` unset = open dev mode; production **fails closed**
@@ -32,7 +32,7 @@ npm run dev:empty           # second, isolated empty-DB dev server (.next-empty 
 npm run typecheck           # GOTCHA: runs schemas:gen (python -m pipeline.jobfit.codegen)
                             # BEFORE tsc — Python + repo deps must be installed
 npm run lint                # eslint
-npm run test:unit           # node:test over app/**/*.test.ts (process isolation)
+npm run test:unit           # node:test over {app,packages,edge,i18n}/**/*.test.ts (process isolation)
 npm run test:python         # Python unit tests
 npm run test:python:gate    # gated Python suite (CI gate)
 npm run design:check        # design-token lint (no raw hex outside app/landing/)
@@ -222,7 +222,7 @@ ignore it silently. The dismiss path is the deliberate trade-off for catching dr
 per-session instead of via periodic cleanups.
 
 The hook honors `stop_hook_active`, so it cannot loop. Fixtures:
-`node scripts/docs/__tests__/check-doc-sync.test.mjs` (19 checks, no deps) — they also
+`node scripts/docs/__tests__/check-doc-sync.test.mjs` (25 checks, no deps) — they also
 validate the map itself: every mapped doc must exist and every glob root must resolve.
 
 ### Writing a feature doc
@@ -277,7 +277,7 @@ The ones that actually bite:
   `no-restricted-syntax` in `eslint.config.mjs`.
 - **A catch body is never empty — an intentional drop says why, inside the
   block.** `catch { /* best-effort: the ledger is telemetry, never the request */ }`
-  is the house shape (164 sites); a bare `catch {}` is how `core.ts`'s migrator
+  is the house shape; a bare `catch {}` is how `core.ts`'s migrator
   once booted a structurally-broken DB silently. Enforced at `error` by
   `no-empty` (`allowEmptyCatch: false`) in `eslint.config.mjs`. The comment is
   the declaration, not a door: a failure an operator would act on still needs
@@ -337,7 +337,8 @@ The ones that actually bite:
 This repo is wired to the organization's AI registry - ONE local checkout, at the path in
 `.ai/manifest.yaml` under `registry.local` (default `../ai-registry`).
 
-- **The knowledge is already loaded.** `.claude/rules/ai-registry-*.md` are links to the
+- **The knowledge is already loaded** — once linked. `.claude/rules/ai-registry-*.md` are
+  gitignored links (absent in a fresh checkout until `link-registry.mjs` runs) to the
   registry's generated rules: the access contract, plus a subject map for every domain in
   `.ai/manifest.yaml` `knowledge.domains`. Rules load in every session, so the corpus is in
   front of you without invoking anything. Before a design, architecture or product decision

@@ -151,8 +151,8 @@ Everything else is CI's, and CI is the teeth.
 
 ## Before you reverse something surprising
 
-Several choices here look wrong until you know why they were made: a pinned
-canary Next line, one SQLite file instead of a database server, a Python
+Several choices here look wrong until you know why they were made: a Next line
+pinned to one exact version, one SQLite file instead of a database server, a Python
 pipeline **spawned per request** rather than run as a service, deterministic
 fallbacks that exist even though "everyone has an API key".
 
