@@ -365,11 +365,28 @@ URL in a new tab, then PATCHes `applied`) / dismiss (`DismissPicker.tsx`: a reas
 `DISMISS_REASONS`, required, plus an optional note) / restore. An unscored posting
 says "Not scored", never 0. **Empty states are chain-aware**
 (`feedModel.ts: resolveFeedEmptyState`, pinned by `feedModel.test.ts`): the FIRST
-missing link wins: no profile → link to `/me`; no enabled source → link to
-`/me/sources`; no scan yet → "Scan now" (`ScanNowButton.tsx` over `useScanTask.ts`,
+missing link wins: no profile → link to `/me`; no enabled source → **one click to first
+results** (`EnableEuresButton.tsx`, below) beside the link to `/me/sources`; no scan yet
+→ "Scan now" (`ScanNowButton.tsx` over `useScanTask.ts`,
 which polls `GET /api/tasks/[id]` because /me mounts no TasksProvider); scanned but
 nothing above the min fit → says how many rows the filter dropped; nothing live → scan
 again or check Dismissed.
+
+**One click to first results** (`EnableEuresButton.tsx`). A seeker who has just imported
+a CV was three pages from a scored feed. EURES is the one source that needs no
+deliberation — tier A, the European Labour Authority's own vacancy API, rights-clean
+with attribution and NO acknowledgement — so the `no_sources` state offers "Enable EURES
+for CZ" and the button does the whole chain: it READS `GET /api/jobseeker/sources` first
+and enables the existing EURES row rather than duplicating it (the POST creates a row
+every time; there is no upsert), then `PATCH {enabled: true}`, then `useScanTask.start()`
+with its progress inline; the finish path already held (`onFinished` → the chain flips,
+the feed reloads). The countries come from the CHAIN (`app/me/jobs/page.tsx` passes
+`preferences.countries`) because the button has to name them before it is pressed;
+`feedModel.ts: euresCountries` defaults an empty list to `cz` — the EURES search takes
+location codes and an empty list is a query for nothing — and the button then WRITES that
+default through `PUT /api/jobseeker/profile` before scanning, so the sentence on the
+button is what the scan actually does. A link beside it goes to the preferences that own
+the choice, and every refusal renders through `FailureNotice` from its code.
 
 **Failure is spelled apart from empty** (`FailureNotice.tsx` + `apiFailure.ts`). One
 block serves all three seeker surfaces: a `NOTICE("critical")` with `role="alert"`, the

@@ -8,6 +8,7 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
+import { EnableEuresButton } from "./EnableEuresButton";
 import { FailureNotice } from "./FailureNotice";
 import { resolveFeedEmptyState, shouldFetchRows, type FeedEmptyState } from "./feedModel";
 import { PostingCard } from "./PostingCard";
@@ -25,7 +26,7 @@ import { useScanTask } from "./useScanTask";
 // is the route's keyset cursor: "load more" appends, a filter change starts over.
 
 export type FeedSource = { id: string; label: string };
-export type FeedChain = { hasProfile: boolean; enabledSources: number; hasScanned: boolean };
+export type FeedChain = { hasProfile: boolean; enabledSources: number; hasScanned: boolean; countries: string[] };
 
 const STATUS_FILTERS = ["live", "new", "shortlisted", "applied", "dismissed"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -58,6 +59,9 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
   const [loadError, setLoadError] = useState<ClassifiedFailure | null>(null);
   const [droppedByMin, setDroppedByMin] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(chain.hasScanned);
+  // The chain links the page can flip without a server round-trip: the one-click EURES
+  // door enables a source, and the feed must start reading rows from that moment.
+  const [enabledSources, setEnabledSources] = useState(chain.enabledSources);
   const generation = useRef(0);
 
   // Every setState lives in a promise callback, never synchronously: the mount effect
@@ -103,7 +107,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
 
   // A broken chain is answered from the server's own facts: no request is made, so a
   // failed read can never be painted as an empty feed (feedModel.shouldFetchRows).
-  const fetchRows = shouldFetchRows(chain);
+  const fetchRows = shouldFetchRows({ hasProfile: chain.hasProfile, enabledSources });
 
   useEffect(() => {
     if (!fetchRows) return;
@@ -130,7 +134,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
   const sourceLabel = useMemo(() => new Map(sources.map((s) => [s.id, s.label])), [sources]);
   const emptyState: FeedEmptyState = resolveFeedEmptyState({
     hasProfile: chain.hasProfile,
-    enabledSources: chain.enabledSources,
+    enabledSources,
     hasScanned,
     rows: rows?.length ?? 0,
     liveTotal: droppedByMin ?? 0,
@@ -144,7 +148,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
           <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
         </div>
-        {chain.hasProfile && chain.enabledSources > 0 && rows && rows.length > 0 ? <ScanNowButton scan={scan} variant="secondary" /> : null}
+        {chain.hasProfile && enabledSources > 0 && rows && rows.length > 0 ? <ScanNowButton scan={scan} variant="secondary" /> : null}
       </header>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -193,7 +197,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
       {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
 
       {!fetchRows ? (
-        <EmptyState state={emptyState} droppedByMin={0} scan={scan} />
+        <EmptyState state={emptyState} droppedByMin={0} scan={scan} countries={chain.countries} onSourceEnabled={() => setEnabledSources((n) => n + 1)} />
       ) : rows === null ? (
         loadError ? null : (
         <ul className="space-y-3" aria-busy="true" aria-label={t("loading")}>
@@ -241,14 +245,26 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
       ) : loadError ? null : (
         // Zero rows and no failure: the chain-aware empty state, never the failure's
         // stand-in and never beside it.
-        <EmptyState state={emptyState} droppedByMin={droppedByMin ?? 0} scan={scan} />
+        <EmptyState state={emptyState} droppedByMin={droppedByMin ?? 0} scan={scan} countries={chain.countries} onSourceEnabled={() => setEnabledSources((n) => n + 1)} />
       )}
     </div>
   );
 }
 
 /** One panel per missing link of the chain, each with the ONE next step that fixes it. */
-function EmptyState({ state, droppedByMin, scan }: { state: FeedEmptyState; droppedByMin: number; scan: ReturnType<typeof useScanTask> }) {
+function EmptyState({
+  state,
+  droppedByMin,
+  scan,
+  countries,
+  onSourceEnabled,
+}: {
+  state: FeedEmptyState;
+  droppedByMin: number;
+  scan: ReturnType<typeof useScanTask>;
+  countries: string[];
+  onSourceEnabled(): void;
+}) {
   const t = useTranslations("me.jobs.empty");
   if (state === "ok") return null;
   const cta =
@@ -257,9 +273,15 @@ function EmptyState({ state, droppedByMin, scan }: { state: FeedEmptyState; drop
         {t("no_profile.cta")}
       </Link>
     ) : state === "no_sources" ? (
-      <Link href="/me/sources" className={`${BTN_PRIMARY} h-10 px-4`}>
-        {t("no_sources.cta")}
-      </Link>
+      // One click to first results: EURES is tier A (no acknowledgement), so the whole
+      // chain — create-or-find the source, switch it on, run the first scan — fits
+      // behind one button. The full list stays a step away for everyone else.
+      <div className="space-y-3">
+        <EnableEuresButton countries={countries} scan={scan} onEnabled={onSourceEnabled} />
+        <Link href="/me/sources" className={`${BTN_SECONDARY} inline-flex h-9 px-4 text-sm`}>
+          {t("no_sources.cta")}
+        </Link>
+      </div>
     ) : state === "no_scan" || state === "nothing_live" ? (
       <ScanNowButton scan={scan} />
     ) : null;

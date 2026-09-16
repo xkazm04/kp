@@ -22,5 +22,18 @@ export default async function JobsPage() {
   // "A scan ran" is per workspace: a source of THIS workspace carries a lastRunAt, or
   // the manual scan task recorded a run (which it does only when a source ran).
   const hasScanned = sources.some((s) => s.lastRunAt !== null) || listRuns(1, SCAN_JOB_NAME, { workspace: ws }).length > 0;
-  return <JobsFeed chain={{ hasProfile: profile !== null, enabledSources: sources.filter((s) => s.enabled).length, hasScanned }} sources={feedSources} />;
+  // `countries` rides with the chain (not a client fetch): the `no_sources` state offers
+  // one click that enables EURES for the seeker's OWN markets, and the button has to be
+  // able to NAME them before it is pressed.
+  return (
+    <JobsFeed
+      chain={{
+        hasProfile: profile !== null,
+        enabledSources: sources.filter((s) => s.enabled).length,
+        hasScanned,
+        countries: profile?.preferences.countries ?? [],
+      }}
+      sources={feedSources}
+    />
+  );
 }
