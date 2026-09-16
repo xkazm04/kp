@@ -409,22 +409,61 @@ The server page reads the CHAIN FACTS (a profile exists · a source is enabled �
 ever ran, and WHEN it ran — the later of the newest `jobseeker_scan` scheduler run and
 the newest source run, shown in the header and silent when neither exists) and the
 source labels; the client feed reads `GET /api/jobseeker/postings`
-(keyset cursor, "Load more" appends, a filter change starts over). Filters: status
-(live · new · shortlisted · applied · dismissed), min fit (any/50/65/80), source, sort
-(best fit · newest posted · last seen). A card (`PostingCard.tsx`) leads with the fit
-total + the shared `FitTierBadge`, then confidence band, eligibility chips
-(`EligibilityChips.tsx`: `flag` amber, `ok` moss, `unknown` neutral, the detail as
-title), source + last seen, status; actions shortlist / "I applied" (opens the source
-URL in a new tab, then PATCHes `applied`) / dismiss (`DismissPicker.tsx`: a reason from
-`DISMISS_REASONS`, required, plus an optional note) / restore. An unscored posting
-says "Not scored", never 0. **Empty states are chain-aware**
+(keyset cursor, "Load more" appends, a filter change starts over).
+
+**The feed is a LEDGER, and it arrives** (2026-09-16). It was thirty stacked
+`${PANEL} p-4` cards in a `space-y-3`; it is now the studio's table register — the same
+one `ProfileRosterRow` and `JdsIntakeSessionsTable` wear. Columns: fit · role · source ·
+posted · last seen · status · one trailing action cell, with `hidden md:/lg:/sm:`
+responsive hiding on the four a phone cannot afford. Headers are the shared
+`ColumnHead` (which owns `aria-sort`), and the sort is **the ROUTE's**, not a client
+comparator: `useTableSort` would be a lie over a keyset-paged list, so the three
+sortable columns are exactly `sort=total|posted|seen` (all DESC in the store's
+`ORDER BY`), the `SortState` is derived from the query, and the columns the route
+cannot order declare no `sortCol` and therefore claim no sortability. One row is
+`PostingRow.tsx` — the fit numeral `nums` and right-aligned beside the shared
+`FitTierBadge`, the confidence band as figures under it, the title cell
+`max-w-0 truncate font-semibold text-ink` linking to the detail, eligibility chips
+(`EligibilityChips.tsx`: `flag` amber, `ok` moss, `unknown` neutral, the engine's detail
+sentence revealed on hover AND focus through the shared `Tooltip`, never as `title=`), a
+status `Badge` whose tooltip carries the one fact the pill cannot show (when the seeker
+applied, or why they dropped it), and `IconAction` glyphs for shortlist / "I applied"
+(opens the source URL in a new tab, then PATCHes `applied`) / dismiss / restore.
+`DismissPicker.tsx` (a reason from `DISMISS_REASONS`, required, plus an optional note)
+has two surfaces from one dialog: `POPOVER` hung off the row's action cell in the feed —
+a ledger row must not grow a panel underneath it — and a `PANEL_SUNKEN` well inline on
+the posting page. An unscored posting says "Not scored", never 0.
+
+Rows ARRIVE rather than appear. `useRowArrival` diffs by posting id and mirrors
+`ArrivalList`'s contract (`IntakeArrivalMotion.tsx`: the same spring, 40 ms stagger
+capped at 12, reduced-motion collapse, cascade on FIRST appearance and never a replay) —
+`PostingRow` is a `motion.tr` because a table row cannot be wrapped in `ArrivalList`'s
+`motion.li`. So the first settled page cascades whole, "Load more" cascades only what it
+appended, and a filter change cascades only the ids that were not on screen a moment
+ago: the rows that survive the filter do not move. Loading follows
+`docs/design/loading-choreography.md` — `stagger-children` on the page wrapper,
+`PAGE_HEADER` and the filter bar and the table's own `<thead>` on the first frame, and a
+named `LoadingGap` (never a skeleton) holding 18rem in the table body. Filters: status
+and min fit are `SegmentedControl`s (a closed four-value vocabulary is a rail, not a
+dropdown), source is the app's own `Select` (its options resolve through the theme
+tokens; a native `<select>` opens an OS menu). The **scan door is chrome**: `ScanNowButton`
+sits in the header actions whenever a scan is a thing this chain can do (a profile and at
+least one enabled source), rather than appearing once the feed happens to be non-empty.
+
+**Empty states are chain-aware**
 (`feedModel.ts: resolveFeedEmptyState`, pinned by `feedModel.test.ts`): the FIRST
 missing link wins: no profile → link to `/me`; no enabled source → **one click to first
 results** (`EnableEuresButton.tsx`, below) beside the link to `/me/sources`; no scan yet
 → "Scan now" (`ScanNowButton.tsx` over `useScanTask.ts`,
 which polls `GET /api/tasks/[id]` because /me mounts no TasksProvider); scanned but
 nothing above the min fit → says how many rows the filter dropped; nothing live → scan
-again or check Dismissed.
+again or check Dismissed. All five render through `FeedEmptyState.tsx`, which is
+`ChainEmptyState`'s layout — recessed `PANEL_SUNKEN` well, the traced `JOBS_GLYPH`
+drawing itself through `MotionizedGlyph`, one semibold line, one quiet body line, the ONE
+next step underneath — but not that component: it navigates by `WorkspaceTabId` through
+`buildTabSwitchUrl`, and /me is not the workspace SPA, so the CTA is a slot and the
+layout is inherited rather than re-invented. `data-empty-state` stays on the outer
+element; it is what the keyless e2e spec reads to assert WHICH link is being named.
 
 **"New since your last visit"** is derived from ONE durable anchor per profile, never a
 maintained counter. `jobseeker_profiles.feed_seen_at` + `feed_seen_id` hold the ordering
@@ -476,8 +515,14 @@ and the chain is idempotent, so a Retry re-runs it safely. The countries come fr
 `feedModel.ts: euresCountries` defaults an empty list to `cz` — the EURES search takes
 location codes and an empty list is a query for nothing — and the button then WRITES that
 default through `PUT /api/jobseeker/profile` before scanning, so the sentence on the
-button is what the scan actually does. A link beside it goes to the preferences that own
-the choice, and every refusal renders through `FailureNotice` from its code.
+button is what the scan actually does. The two-clause paragraph that explained EURES —
+what it is, that it is rights-clean, which countries the first scan reads — now rides ON
+the control as a `Tooltip` (surface-doctrine §1: no sentence occupies layout on a surface
+whose job is to name one next step); only the link to the preferences that own the
+country choice stays in the flow, because a destination cannot live inside a label
+surface. The progress line is `NOTICE("info")` and the unreachable caveat `NOTICE("amber")`
+— both were hand-typed status colors beside the recipe written for them — and every
+refusal renders through `FailureNotice` from its code.
 
 **Failure is spelled apart from empty** (`FailureNotice.tsx` + `apiFailure.ts`). One
 block serves all three seeker surfaces: a `NOTICE("critical")` with `role="alert"`, the

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Loader2, Radar } from "lucide-react";
-import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { Tooltip } from "@/app/_components/Tooltip";
+import { BTN_PRIMARY, NOTICE } from "@/app/_components/ui/recipes";
 import type { JobseekerSource } from "@/app/_lib/jobseeker/types";
 import { FailureNotice } from "./FailureNotice";
 import { euresCountries } from "./feedModel";
@@ -128,23 +129,31 @@ export function EnableEuresButton({
 
   return (
     <div className="space-y-2">
-      <button type="button" className={`${BTN_PRIMARY} h-10 gap-2 px-4`} disabled={busy} aria-busy={busy || undefined} onClick={() => void enable()}>
-        {busy ? <Loader2 size={15} aria-hidden className="animate-spin" /> : <Radar size={15} aria-hidden />}
-        {scan.starting || scan.active ? tScan("running") : t("euresCta", { countries: label })}
-      </button>
-      <p className="max-w-prose text-sm text-steel">
-        {defaulted ? t("euresDefault", { countries: label }) : t("euresNote", { countries: label })}{" "}
+      {/* THE EXPLANATION RIDES ON THE CONTROL (surface-doctrine §1). The two-clause
+          paragraph under this button — what EURES is, that it is rights-clean, which
+          countries the first scan will read — was the longest sentence on an empty
+          state whose whole job is to name ONE next step. It is the button's tooltip
+          now: reachable on hover AND on focus, costing no layout. Only the link out to
+          the preferences that own the country choice stays in the flow, because a
+          destination cannot live inside a label surface. */}
+      <Tooltip label={defaulted ? t("euresDefault", { countries: label }) : t("euresNote", { countries: label })} side="bottom">
+        <button type="button" className={`${BTN_PRIMARY} h-10 gap-2 px-4`} disabled={busy} aria-busy={busy || undefined} onClick={() => void enable()}>
+          {busy ? <Loader2 size={15} aria-hidden className="animate-spin" /> : <Radar size={15} aria-hidden />}
+          {scan.starting || scan.active ? tScan("running") : t("euresCta", { countries: label })}
+        </button>
+      </Tooltip>
+      <p className="text-sm text-steel">
         <Link href="/me" className="focus-ring rounded underline">
           {t("euresPrefs")}
         </Link>
       </p>
       {busy && progress ? (
-        <p className="text-sm text-steel" role="status">
+        <p className={`${NOTICE("info")} px-3 py-1.5 text-sm`} role="status">
           {progress}
         </p>
       ) : null}
       {scan.unreachable ? (
-        <p className="text-sm text-amber-700" role="status">
+        <p className={`${NOTICE("amber")} px-3 py-1.5 text-sm`} role="status">
           {tScan("unreachable")}
         </p>
       ) : null}

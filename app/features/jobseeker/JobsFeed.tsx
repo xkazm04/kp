@@ -1,18 +1,36 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { ColumnHead } from "@/app/_components/table/ColumnHead";
+import type { SortState } from "@/app/_components/table/useTableSort";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP, EYEBROW, FIELD, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { Select } from "@/app/_components/Select";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  CHIP,
+  EYEBROW,
+  INTRO,
+  META_LABEL,
+  PAGE_HEADER,
+  SECTION,
+  TITLE_DISPLAY,
+} from "@/app/_components/ui/recipes";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { FeedNewSince, JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
+import { FadeInline } from "@/app/features/hiring/pipeline/PipelineMotion";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
 import { EnableEuresButton } from "./EnableEuresButton";
 import { FailureNotice } from "./FailureNotice";
-import { isNewerThanAnchor, renderedAnchor, resolveFeedEmptyState, shouldFetchRows, type FeedEmptyState, type FeedTuple } from "./feedModel";
-import { PostingCard } from "./PostingCard";
+import { FeedEmptyState } from "./FeedEmptyState";
+import { isNewerThanAnchor, renderedAnchor, resolveFeedEmptyState, shouldFetchRows, type FeedEmptyState as FeedEmptyStateName, type FeedTuple } from "./feedModel";
+import { PostingRow } from "./PostingRow";
 import { ScanNowButton } from "./ScanNowButton";
 import { usePostingActions } from "./usePostingActions";
 import { useScanTask } from "./useScanTask";
@@ -25,6 +43,21 @@ import { useScanTask } from "./useScanTask";
 // Filters are client state, not URL state (the same call the workspace tab made:
 // a bookmark to "dismissed, sorted by seen" is not a thing a seeker asks for). Paging
 // is the route's keyset cursor: "load more" appends, a filter change starts over.
+//
+// THE FEED IS A LEDGER (2026-09-16). It was thirty stacked `${PANEL} p-4` cards with a
+// four-branch ternary above them that unmounted three skeleton `<li>`s of a shape the
+// cards never had. It is now the studio's table register — `ColumnHead` headers that
+// own `aria-sort`, `PostingRow`'s `<tr>`, one trailing action cell — under the loading
+// choreography every other tab obeys: chrome on the first frame, `LoadingGap` (never a
+// skeleton) in the reserved table body, rows arriving in a capped stagger.
+//
+// THE SORT LIVES IN THE HEADERS, and it is the ROUTE's sort, not a client comparator.
+// `useTableSort` would be a lie here: the list is keyset-paged, so ordering the thirty
+// rows in hand is not ordering the dataset. The three sortable columns are exactly the
+// three the route offers (`sort=total|posted|seen`, all DESC in the store's ORDER BY),
+// so `sort` is a derived `SortState` and `onSort` re-issues the query. Columns the
+// route cannot order (role, source, status) declare no `sortCol` and therefore claim
+// no sortability — which is the whole reason `ColumnHead` owns the `<th>`.
 
 export type FeedSource = { id: string; label: string };
 export type FeedChain = {
@@ -41,9 +74,14 @@ export type FeedChain = {
 const STATUS_FILTERS = ["live", "new", "shortlisted", "applied", "dismissed"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 const MIN_FIT_OPTIONS = [0, 50, 65, 80] as const;
-const SORTS = ["total", "posted", "seen"] as const;
-type Sort = (typeof SORTS)[number];
+/** The route's three orderings, verbatim (`app/api/jobseeker/postings/route.ts`'s
+ *  `SORTS`). It is a type and no longer an array: the vocabulary used to feed a
+ *  `<select>`, and its consumers are now the three sortable `ColumnHead`s, which name
+ *  their column one at a time. A value outside it is a 400, so tsc is the guard. */
+type Sort = "total" | "posted" | "seen";
 const PAGE = 30;
+/** Every column the table declares, so a full-width `<td>` can span them honestly. */
+const COLUMNS = 7;
 
 type Query = { status: StatusFilter; minTotal: number; sourceId: string; sort: Sort };
 
@@ -59,9 +97,46 @@ function queryString(q: Query, cursor: string | null, minTotalOverride?: number)
   return p.toString();
 }
 
+/** How long a row stays marked "just arrived". Past this the set clears, so a row that
+ *  landed and then sat there is not permanently new and no unrelated re-render can
+ *  replay the cascade (`IntakeArrivalMotion.ts`'s ARRIVAL_WINDOW_MS, same number). */
+const ARRIVAL_WINDOW_MS = 1400;
+
+/**
+ * Which rows are ARRIVING, diffed by posting id.
+ *
+ * The rule inherited from `ArrivalList`: a row cascades on its FIRST appearance and
+ * never again. So the first settled page cascades whole, "load more" cascades only
+ * what it appended, and a filter change cascades only the ids that were not on screen
+ * a moment ago — the rows that survive the filter do not move at all, which is the
+ * difference between a list that re-cut itself and a list that repainted.
+ */
+function useRowArrival(rows: JobseekerPostingSummary[] | null): (id: string) => number {
+  const seen = useRef<Set<string> | null>(null);
+  const [arriving, setArriving] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (!rows) return;
+    const ids = rows.map((r) => r.id);
+    const previous = seen.current;
+    seen.current = new Set(ids);
+    const fresh = previous === null ? ids : ids.filter((id) => !previous.has(id));
+    if (fresh.length === 0) {
+      setArriving((prev) => (prev.size === 0 ? prev : new Map()));
+      return;
+    }
+    setArriving(new Map(fresh.map((id, i) => [id, i])));
+    const timer = window.setTimeout(() => setArriving(new Map()), ARRIVAL_WINDOW_MS);
+    return () => window.clearTimeout(timer);
+  }, [rows]);
+
+  return useCallback((id: string) => arriving.get(id) ?? -1, [arriving]);
+}
+
 export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSource[] }) {
   const t = useTranslations("me.jobs");
   const rel = useRelativeTime();
+  const reduced = useReducedMotion();
   const [query, setQuery] = useState<Query>({ status: "live", minTotal: 0, sourceId: "", sort: "total" });
   const [rows, setRows] = useState<JobseekerPostingSummary[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -79,7 +154,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
   // Every setState lives in a promise callback, never synchronously: the mount effect
   // calls this, and a synchronous setState there is the cascade
   // react-hooks/set-state-in-effect forbids (useChannelsData's shape). The initial
-  // skeleton is `rows === null`; "load more" sets `loading` in its click handler.
+  // wait is `rows === null`; "load more" sets `loading` in its click handler.
   const load = useCallback((q: Query, after: string | null): Promise<void> => {
     const gen = ++generation.current;
     type Page = { rows?: JobseekerPostingSummary[]; nextCursor?: string | null; newSince?: FeedNewSince; code?: string };
@@ -138,6 +213,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
     setRows((prev) => (prev ? prev.map((r) => (r.id === row.id ? row : r)) : prev));
   }, []);
   const actions = usePostingActions(replaceRow);
+  const orderOf = useRowArrival(rows);
 
   // ── the last-seen anchor ──────────────────────────────────────────────────────────
   //
@@ -214,7 +290,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
     const i = rows.findIndex((row) => !isNewerThanAnchor({ at: row.firstSeenAt, id: row.id }, anchor));
     return i > 0 ? i : null;
   }, [newSince, newCount, query.sort, rows]);
-  const emptyState: FeedEmptyState = resolveFeedEmptyState({
+  const emptyState: FeedEmptyStateName = resolveFeedEmptyState({
     hasProfile: chain.hasProfile,
     enabledSources,
     hasScanned,
@@ -222,146 +298,197 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
     liveTotal: droppedByMin ?? 0,
   });
 
+  // The route sorts DESC on every one of its three keys (jobseeker-postings.ts's
+  // ORDER BY), so the header's direction is a fact about the query, not a toggle.
+  const sort: SortState<Sort> = { col: query.sort, dir: "desc" };
+  const onSort = (col: Sort) => setQuery((q) => (q.sort === col ? q : { ...q, sort: col }));
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div className={`stagger-children ${SECTION}`} aria-busy={fetchRows && rows === null ? true : undefined}>
+      <header className={PAGE_HEADER}>
+        <div className="min-w-0">
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
           <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
           {/* What the seeker came back to: when the crawler last looked, and — only once
-              an anchor exists — how much arrived since they last did. A first visit has
-              no anchor and says neither, which is the quiet first run. */}
+              an anchor exists — how much arrived since they last did. `lastScanAt` is a
+              server fact and paints on the first frame; the count is not, so it blinks
+              in through FadeInline rather than shoving the line as it lands. */}
           {chain.lastScanAt || newCount > 0 ? (
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-steel">
               {chain.lastScanAt ? <span>{t("lastScan", { when: rel(chain.lastScanAt) })}</span> : null}
-              {newCount > 0 ? (
-                <>
+              <FadeInline show={newCount > 0}>
+                <span className="flex flex-wrap items-center gap-x-2">
                   {chain.lastScanAt ? <span aria-hidden>·</span> : null}
                   {/* With `sort=seen` the divider below carries the count in place. */}
                   {query.sort === "seen" ? null : <span className="font-medium text-ink">{t("newSince", { count: newCount })}</span>}
                   <button type="button" className={`${BTN_GHOST} h-7 px-2 text-sm`} onClick={markAllSeen}>
                     {t("markAllSeen")}
                   </button>
-                </>
-              ) : null}
+                </span>
+              </FadeInline>
             </p>
           ) : null}
         </div>
-        {chain.hasProfile && enabledSources > 0 && rows && rows.length > 0 ? <ScanNowButton scan={scan} variant="secondary" /> : null}
+        {/* The scan door is CHROME, not a reward for having rows: it used to appear only
+            once the feed was non-empty, so the page grew a button under the reader as
+            the first page landed. It renders whenever a scan is a thing this chain can
+            do (a profile and at least one enabled source) — before that, the empty
+            state's own CTA is the honest next step and a "Scan now" here would be a
+            button that cannot help. */}
+        {fetchRows ? <ScanNowButton scan={scan} variant="secondary" /> : null}
       </header>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         <SegmentedControl
           label={t("filter.status")}
           options={STATUS_FILTERS.map((s) => ({ value: s, label: t(`filter.statusOption.${s}`) }))}
           value={query.status}
           onChange={(status) => setQuery((q) => ({ ...q, status }))}
         />
-        <label className="flex items-center gap-1.5 text-sm text-steel">
-          {t("filter.minFit")}
-          <select className={`${FIELD} h-9 w-24 py-0`} value={query.minTotal} onChange={(e) => setQuery((q) => ({ ...q, minTotal: Number(e.target.value) }))}>
-            {MIN_FIT_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n === 0 ? t("filter.minFitAny") : t("filter.minFitValue", { n })}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Four fixed options is a segmented control, not a dropdown: the whole
+            vocabulary fits on the rail, and the three raw `<select className={FIELD}>`
+            beside the one shared-layout pill were the filter bar's loudest seam. */}
+        <SegmentedControl
+          label={t("filter.minFit")}
+          options={MIN_FIT_OPTIONS.map((n) => ({ value: String(n), label: n === 0 ? t("filter.minFitAny") : t("filter.minFitValue", { n }) }))}
+          value={String(query.minTotal)}
+          onChange={(v) => setQuery((q) => ({ ...q, minTotal: Number(v) }))}
+        />
         {sources.length > 1 ? (
-          <label className="flex items-center gap-1.5 text-sm text-steel">
-            {t("filter.source")}
-            <select className={`${FIELD} h-9 py-0`} value={query.sourceId} onChange={(e) => setQuery((q) => ({ ...q, sourceId: e.target.value }))}>
-              <option value="">{t("filter.allSources")}</option>
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+          // An open-ended list IS a select — but the app's own `Select`, whose options
+          // resolve through the theme tokens, not the OS menu a native one opens.
+          <label className="flex flex-col gap-1">
+            <span className={META_LABEL}>{t("filter.source")}</span>
+            <Select
+              value={query.sourceId}
+              onChange={(sourceId) => setQuery((q) => ({ ...q, sourceId }))}
+              options={sources.map((s) => ({ value: s.id, label: s.label }))}
+              placeholder={t("filter.allSources")}
+              ariaLabel={t("filter.source")}
+              sizeVariant="sm"
+              clearable
+              clearLabel={t("filter.allSources")}
+              className="w-44"
+            />
           </label>
         ) : null}
-        <label className="flex items-center gap-1.5 text-sm text-steel">
-          {t("sort.label")}
-          <select className={`${FIELD} h-9 w-44 py-0`} value={query.sort} onChange={(e) => setQuery((q) => ({ ...q, sort: e.target.value as Sort }))}>
-            {SORTS.map((s) => (
-              <option key={s} value={s}>
-                {t(`sort.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {actions.error ? <FailureNotice failure={actions.error} fallback={t("actionError")} /> : null}
       {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
 
-      {!fetchRows ? (
-        <EmptyState state={emptyState} droppedByMin={0} scan={scan} countries={chain.countries} onSourceEnabled={() => setEnabledSources((n) => n + 1)} />
-      ) : rows === null ? (
-        loadError ? null : (
-        <ul className="space-y-3" aria-busy="true" aria-label={t("loading")}>
-          {[0, 1, 2].map((i) => (
-            <li key={i} className={`${PANEL} p-4`}>
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="mt-2 h-3 w-1/2" />
-              <Skeleton className="mt-2 h-3 w-1/3" />
-            </li>
-          ))}
-        </ul>
-        )
-      ) : rows.length > 0 ? (
-        <>
-          <ul className="space-y-3">
-            {rows.map((row, i) => (
-              <Fragment key={row.id}>
-                {/* Sorted by last seen, the boundary is a place on the page, so the count
-                    is rendered AS that place. `dividerAt` is null for every other sort. */}
-                {i === dividerAt ? (
-                  <li className="flex items-center gap-3 pt-1" aria-hidden={false}>
-                    <span className="h-px flex-1 bg-coral/40" />
-                    <span className={`${CHIP} shrink-0 font-medium text-ink`}>{t("newSince", { count: newCount })}</span>
-                    <span className="h-px flex-1 bg-coral/40" />
-                  </li>
-                ) : null}
-                <PostingCard
-                  row={row}
-                  sourceLabel={sourceLabel.get(row.sourceId) ?? row.sourceId}
-                  busy={actions.busyId === row.id}
-                  onShortlist={(next) => void actions.setStatus(row.id, next ? "shortlisted" : "new")}
-                  onApplied={() => void actions.markApplied(row)}
-                  onDismiss={(reason, note) => void actions.setStatus(row.id, "dismissed", { reason, note })}
-                  onRestore={() => void actions.setStatus(row.id, "new")}
-                />
-              </Fragment>
-            ))}
-          </ul>
-          {cursor ? (
-            <div className="flex justify-center">
-              <button
-                type="button"
-                className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
-                disabled={loading}
-                onClick={() => {
-                  setLoading(true);
-                  void load(query, cursor);
-                }}
-              >
-                {loading ? t("loading") : t("loadMore")}
-              </button>
+      <section aria-label={t("title")}>
+        {!fetchRows || (rows !== null && rows.length === 0 && !loadError) ? (
+          <EmptyState
+            state={emptyState}
+            droppedByMin={fetchRows ? (droppedByMin ?? 0) : 0}
+            scan={scan}
+            countries={chain.countries}
+            onSourceEnabled={() => setEnabledSources((n) => n + 1)}
+          />
+        ) : rows === null && loadError ? null : (
+          // Tier 2 (loading-choreography.md): the region resolves later, so it fades in
+          // where it stands. Keyed on settled-vs-waiting so the class plays on the swap
+          // — `animate-arrive-in` only animates on element creation — and nested one
+          // level below the staggered container, never as a direct child of it.
+          <div key={rows === null ? "waiting" : "settled"} className="animate-arrive-in space-y-3">
+            <div className="overflow-x-auto rounded-lg border border-stone-200">
+              <table className="w-full min-w-[40rem] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-stone-200 bg-paper/60">
+                    <ColumnHead title={t("table.fit")} sortCol="total" sort={sort} onSort={onSort} align="right" className="px-3 pt-2" />
+                    <ColumnHead title={t("table.role")} sort={sort} onSort={onSort} className="px-3 pt-2" />
+                    <ColumnHead title={t("table.source")} sort={sort} onSort={onSort} className="hidden px-3 pt-2 md:table-cell" />
+                    <ColumnHead title={t("table.posted")} sortCol="posted" sort={sort} onSort={onSort} className="hidden px-3 pt-2 lg:table-cell" />
+                    <ColumnHead title={t("table.seen")} sortCol="seen" sort={sort} onSort={onSort} className="hidden px-3 pt-2 sm:table-cell" />
+                    <ColumnHead title={t("table.status")} sort={sort} onSort={onSort} className="px-3 pt-2" />
+                    <th scope="col" className={`px-3 pb-2 pt-2 text-right ${META_LABEL}`}>
+                      <span className="sr-only">{t("table.actions")}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows === null ? (
+                    // NO SKELETON. A reserved, quiet, NAMED box the height of a first
+                    // page, so the table's chrome is already the page the rows land in.
+                    <tr>
+                      <td colSpan={COLUMNS} className="p-0">
+                        <LoadingGap className="min-h-[18rem]" label={t("loading")} />
+                      </td>
+                    </tr>
+                  ) : (
+                    // FLAT, not fragments: AnimatePresence tracks its DIRECT children by
+                    // key, and a keyed Fragment wrapping a row hides that row from it —
+                    // so the divider and the rows are emitted into one flat list.
+                    <AnimatePresence initial={false}>
+                      {rows.flatMap((row, i) => [
+                        ...(i === dividerAt
+                          ? [
+                              // Sorted by last seen, the boundary is a place on the page,
+                              // so the count is rendered AS that place. The cell's content
+                              // grows from zero height (Collapse's shape, inlined because
+                              // a `<tr>` cannot host Collapse's own wrapper div), so the
+                              // rows below are pushed rather than jumped.
+                              <motion.tr key="new-divider" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                <td colSpan={COLUMNS} className="p-0">
+                                  <motion.div
+                                    className="overflow-hidden"
+                                    initial={reduced ? false : { height: 0 }}
+                                    animate={{ height: "auto" }}
+                                    transition={{ duration: reduced ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+                                  >
+                                    <span className="flex items-center gap-3 px-3 py-2">
+                                      <span className="h-px flex-1 bg-coral/40" />
+                                      <span className={`${CHIP} shrink-0 font-medium text-ink`}>{t("newSince", { count: newCount })}</span>
+                                      <span className="h-px flex-1 bg-coral/40" />
+                                    </span>
+                                  </motion.div>
+                                </td>
+                              </motion.tr>,
+                            ]
+                          : []),
+                        <PostingRow
+                          key={row.id}
+                          row={row}
+                          sourceLabel={sourceLabel.get(row.sourceId) ?? row.sourceId}
+                          busy={actions.busyId === row.id}
+                          arrivalOrder={orderOf(row.id)}
+                          onShortlist={(next) => void actions.setStatus(row.id, next ? "shortlisted" : "new")}
+                          onApplied={() => void actions.markApplied(row)}
+                          onDismiss={(reason, note) => void actions.setStatus(row.id, "dismissed", { reason, note })}
+                          onRestore={() => void actions.setStatus(row.id, "new")}
+                        />,
+                      ])}
+                    </AnimatePresence>
+                  )}
+                </tbody>
+              </table>
             </div>
-          ) : null}
-        </>
-      ) : loadError ? null : (
-        // Zero rows and no failure: the chain-aware empty state, never the failure's
-        // stand-in and never beside it.
-        <EmptyState state={emptyState} droppedByMin={droppedByMin ?? 0} scan={scan} countries={chain.countries} onSourceEnabled={() => setEnabledSources((n) => n + 1)} />
-      )}
+            {cursor ? (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
+                  disabled={loading}
+                  onClick={() => {
+                    setLoading(true);
+                    void load(query, cursor);
+                  }}
+                >
+                  {loading ? t("loading") : t("loadMore")}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-/** One panel per missing link of the chain, each with the ONE next step that fixes it. */
+/** One empty state per missing link of the chain, each with the ONE next step that
+ *  fixes it — in the house empty-state register (FeedEmptyState.tsx). */
 function EmptyState({
   state,
   droppedByMin,
@@ -369,7 +496,7 @@ function EmptyState({
   countries,
   onSourceEnabled,
 }: {
-  state: FeedEmptyState;
+  state: FeedEmptyStateName;
   droppedByMin: number;
   scan: ReturnType<typeof useScanTask>;
   countries: string[];
@@ -386,20 +513,21 @@ function EmptyState({
       // One click to first results: EURES is tier A (no acknowledgement), so the whole
       // chain — create-or-find the source, switch it on, run the first scan — fits
       // behind one button. The full list stays a step away for everyone else.
-      <div className="space-y-3">
+      <>
         <EnableEuresButton countries={countries} scan={scan} onEnabled={onSourceEnabled} />
         <Link href="/me/sources" className={`${BTN_SECONDARY} inline-flex h-9 px-4 text-sm`}>
           {t("no_sources.cta")}
         </Link>
-      </div>
+      </>
     ) : state === "no_scan" || state === "nothing_live" ? (
       <ScanNowButton scan={scan} />
     ) : null;
   return (
-    <section className={`${PANEL} p-6`} data-empty-state={state}>
-      <h2 className="font-serif text-h3 text-ink">{t(`${state}.title`)}</h2>
-      <p className="mt-2 max-w-prose text-sm text-steel">{state === "below_min" ? t("below_min.body", { count: droppedByMin }) : t(`${state}.body`)}</p>
-      {cta ? <div className="mt-4">{cta}</div> : null}
-    </section>
+    <FeedEmptyState
+      state={state}
+      title={t(`${state}.title`)}
+      body={state === "below_min" ? t("below_min.body", { count: droppedByMin }) : t(`${state}.body`)}
+      cta={cta}
+    />
   );
 }

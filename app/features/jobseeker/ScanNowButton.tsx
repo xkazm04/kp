@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Loader2, Radar } from "lucide-react";
-import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { FailureNotice } from "./FailureNotice";
 import type { ScanTaskState } from "./useScanTask";
 
@@ -25,12 +25,17 @@ export function ScanNowButton({ scan, variant = "primary" }: { scan: ScanTaskSta
         {busy ? t("running") : t("cta")}
       </button>
       {busy && progress ? (
-        <p className="text-sm text-steel" role="status">
+        // The live line is neutral CONTEXT, not a caveat: `NOTICE("info")`, the same
+        // advisory shape every other surface in the studio uses, rather than a bare
+        // paragraph that reads as body copy under a button.
+        <p className={`${NOTICE("info")} px-3 py-1.5 text-sm`} role="status">
           {progress}
         </p>
       ) : null}
       {scan.unreachable ? (
-        <p className="text-sm text-amber-700" role="status">
+        // …and the caveat is the amber one. It was a raw `text-amber-700` line, which
+        // is a status color spelled by hand beside the recipe written for it.
+        <p className={`${NOTICE("amber")} px-3 py-1.5 text-sm`} role="status">
           {t("unreachable")}
         </p>
       ) : null}

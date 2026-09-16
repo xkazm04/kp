@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
-import { BTN_PRIMARY, BTN_SECONDARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_TOGGLE, FIELD, META_LABEL, PANEL_SUNKEN, POPOVER } from "@/app/_components/ui/recipes";
 import type { DismissReason } from "@/app/_lib/jobseeker/types";
 import { DISMISS_PICKER_REASONS } from "./feedModel";
 
@@ -11,17 +11,38 @@ import { DISMISS_PICKER_REASONS } from "./feedModel";
 // route) and an optional note. The reason is what the feed LEARNS from: the fit
 // dialog reads the last ten dismissals as the seeker's taste ("you dismissed three
 // roles for salary; this one states no pay"), so the picker refuses to dismiss
-// without one. Inline panel under the card, the DevPublishConfirm shape: alertdialog,
-// focus trapped, Escape cancels, the first radio takes focus.
+// without one. The DevPublishConfirm shape: alertdialog, focus trapped, Escape
+// cancels, the first radio takes focus.
+//
+// TWO SURFACES, one dialog. On the posting page it is an inline well under the header
+// (`PANEL_SUNKEN`, the recipe the shell used to re-type by hand); in the feed's ledger
+// it hangs off the row's action cell as the anchored pop layer (`POPOVER`), because a
+// ledger row must not grow a panel underneath it. The reason buttons compose
+// `CHIP_TOGGLE` rather than re-implementing the pill — the hand-rolled version was
+// `border-ink bg-ink text-white`, an active state no other filter pill in the product
+// wears, and it carried none of the Spark Dark structure the recipe owns.
 
-export function DismissPicker({ title, busy, onConfirm, onCancel }: { title: string; busy: boolean; onConfirm(reason: DismissReason, note: string): void; onCancel(): void }) {
+export function DismissPicker({
+  title,
+  busy,
+  surface = "inline",
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  busy: boolean;
+  surface?: "inline" | "popover";
+  onConfirm(reason: DismissReason, note: string): void;
+  onCancel(): void;
+}) {
   const t = useTranslations("me.jobs.dismiss");
   const ref = useRef<HTMLDivElement | null>(null);
   const [reason, setReason] = useState<DismissReason | null>(null);
   const [note, setNote] = useState("");
   useDialogA11y(ref, onCancel, { trap: true, lockScroll: false });
+  const shell = surface === "popover" ? `${POPOVER} p-3` : `${PANEL_SUNKEN} mt-3 p-3`;
   return (
-    <div ref={ref} role="alertdialog" aria-modal="true" aria-label={t("title", { title })} tabIndex={-1} className="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+    <div ref={ref} role="alertdialog" aria-modal="true" aria-label={t("title", { title })} tabIndex={-1} className={shell}>
       <p className={META_LABEL}>{t("reasonLabel")}</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("reasonLabel")}>
         {DISMISS_PICKER_REASONS.map((r) => (
@@ -31,7 +52,7 @@ export function DismissPicker({ title, busy, onConfirm, onCancel }: { title: str
             role="radio"
             aria-checked={reason === r}
             onClick={() => setReason(r)}
-            className={`focus-ring rounded-full border px-3 py-1 text-sm transition-colors ${reason === r ? "border-ink bg-ink text-white" : "border-stone-200 bg-white text-steel hover:text-ink"}`}
+            className={CHIP_TOGGLE(reason === r)}
           >
             {t(`reason.${r}`)}
           </button>
