@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, History } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
-import { Skeleton } from "@/app/_components/Skeleton";
-import { EYEBROW, FIELD, INTRO, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { EYEBROW, FIELD, INTRO, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { SCAN_JOB_NAME, type JobseekerSource, type ScanSummary, type SourceRunSummary } from "@/app/_lib/jobseeker/types";
 import type { SchedulerJobView } from "@/app/features/hiring/pipeline/SchedulerSummaryBadges";
@@ -18,12 +17,18 @@ import { useScanTask } from "./useScanTask";
 
 // /me/scans — the clock job as the seeker sees it. ONE row of the shared registry
 // (GET /api/automation/schedule `jobs[]`, filtered to `jobseeker_scan`): on/off (the
-// toggle is disabled with `pipeline.scheduler.unverified` as its title until one manual
-// scan succeeded, and the route refuses the same write with JOBSEEKER_SCAN_UNVERIFIED),
-// the cadence as three honest choices (6 h / 12 h / 24 h), the "Scan now" door with its
-// live progress, and the run history unrolled per source: outcome word + counts, with
-// `blocked` / `collapsed` in amber beside the pause reason and a link to /me/sources,
-// because only the owner clears those.
+// switch is disabled until one manual scan succeeded, and the route refuses the same
+// write with JOBSEEKER_SCAN_UNVERIFIED), the cadence as three honest choices
+// (6 h / 12 h / 24 h), the "Scan now" door with its live progress, and the run history
+// unrolled per source: outcome word + counts, with `blocked` / `collapsed` beside the
+// pause reason and a link to /me/sources, because only the owner clears those.
+//
+// SERVER-FIRST (loading-choreography.md). `initialJob` / `initialSources` are what
+// app/me/scans/page.tsx read on the server, so the header, the clock frame and the
+// history paint on the FIRST frame. This page used to mount empty and flash a grey
+// panel skeleton whose shape did not mirror the clock it stood in for. The client still
+// owns every write and re-reads both endpoints in the background; a refresh settles
+// behind what is on screen rather than blanking it.
 //
 // SchedulerJobRow (the recruiter panel's generic row) is not reused: its cadence
 // control is a free minutes field and its history is the policy pass's decision list;
@@ -42,14 +47,24 @@ function isScanSummary(v: unknown): v is ScanSummary {
   return !!v && typeof v === "object" && Array.isArray((v as { sources?: unknown }).sources);
 }
 
-export function ScansPage() {
+export function ScansPage({
+  initialJob,
+  initialSources,
+  initialLabels,
+}: {
+  /** The registry's `jobseeker_scan` row as the server read it. */
+  initialJob: SchedulerJobView;
+  initialSources: JobseekerSource[];
+  /** [sourceId, catalog label] pairs — a Map is not serializable across the boundary. */
+  initialLabels: [string, string][];
+}) {
   const t = useTranslations("me.scans");
   const tSched = useTranslations("pipeline.scheduler");
   const tSources = useTranslations("me.sources");
   const rel = useRelativeTime();
-  const [job, setJob] = useState<SchedulerJobView | null>(null);
-  const [sources, setSources] = useState<JobseekerSource[]>([]);
-  const [labels, setLabels] = useState<Map<string, string>>(new Map());
+  const [job, setJob] = useState<SchedulerJobView>(initialJob);
+  const [sources, setSources] = useState<JobseekerSource[]>(initialSources);
+  const [labels, setLabels] = useState<Map<string, string>>(() => new Map(initialLabels));
   const [loadError, setLoadError] = useState<ApiFailure | null>(null);
   // The source list is a SECOND read and it fails on its own: without it the history
   // table can only name a source by its opaque id, and the reader has to be told that
@@ -58,9 +73,13 @@ export function ScansPage() {
   const [writeError, setWriteError] = useState<ApiFailure | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Whether the history region has been replaced by a live read yet. Tier 2 of the
+  // choreography: the server's rows are on screen from frame one, and the region wears
+  // `animate-arrive-in` once only, when the background read swaps them.
+  const [refreshed, setRefreshed] = useState(false);
 
   // Every setState sits in the promise callback (the mount effect calls this; see
-  // react-hooks/set-state-in-effect): the skeleton is `job === null`.
+  // react-hooks/set-state-in-effect).
   const load = useCallback(
     () =>
       Promise.all([callJson<{ jobs?: SchedulerJobView[] }>("/api/automation/schedule"), callJson<SourcesPayload>("/api/jobseeker/sources")]).then(([sched, src]) => {
@@ -68,7 +87,9 @@ export function ScansPage() {
         // brought back, and the clock the page already holds stays on screen.
         if (sched.ok) {
           setLoadError(null);
-          setJob(sched.body.jobs?.find((j) => j.name === SCAN_JOB_NAME) ?? null);
+          const next = sched.body.jobs?.find((j) => j.name === SCAN_JOB_NAME);
+          if (next) setJob(next);
+          setRefreshed(true);
         } else {
           setLoadError(sched.fail);
         }
@@ -102,16 +123,19 @@ export function ScansPage() {
       setWriteError(r.fail);
       return;
     }
-    setJob(r.body.jobs?.find((j) => j.name === SCAN_JOB_NAME) ?? null);
+    const next = r.body.jobs?.find((j) => j.name === SCAN_JOB_NAME);
+    if (next) setJob(next);
   };
 
   const scan = useScanTask(() => void load());
   const pausedById = useMemo(() => new Map(sources.filter((s) => s.pausedReason).map((s) => [s.id, s.pausedReason!])), [sources]);
-  const locked = !!job && job.requiresVerifiedRun && !job.verified;
+  const locked = job.requiresVerifiedRun && !job.verified;
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    // Tier 1: the header, the clock and the history are the direct children that
+    // cascade in. None of them waits on a fetch.
+    <div className={`stagger-children ${SECTION}`}>
+      <header className={PAGE_HEADER}>
         <div>
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
@@ -120,58 +144,52 @@ export function ScansPage() {
         <ScanNowButton scan={scan} />
       </header>
 
-      {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
-
-      {!job && !loadError ? (
-        <div className={`${PANEL} p-4`} aria-busy="true" aria-label={t("loading")}>
-          <Skeleton className="h-5 w-1/3" />
-          <Skeleton className="mt-2 h-3 w-1/2" />
+      <section className={`${PANEL} p-4`} aria-labelledby="scan-clock">
+        <h2 id="scan-clock" className="font-serif text-h3 text-ink">
+          {t("clock.title")}
+        </h2>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={job.schedule.enabled}
+            disabled={busy || locked}
+            title={locked ? tSched("unverified") : t("clock.toggleTitle")}
+            onClick={() => void write({ enabled: !job.schedule.enabled })}
+            className={`focus-ring inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold disabled:opacity-60 ${job.schedule.enabled ? "bg-moss/15 text-moss" : "bg-stone-200 text-steel"}`}
+            data-testid="scan-clock-toggle"
+          >
+            {job.schedule.enabled ? t("clock.on") : t("clock.off")}
+          </button>
+          <label className="flex items-center gap-1.5 text-sm text-steel">
+            {t("clock.every")}
+            <select className={`${FIELD} h-8 w-20 py-0`} value={nearestScanInterval(job.schedule.intervalMinutes)} disabled={busy} onChange={(e) => void write({ intervalMinutes: Number(e.target.value) })} aria-label={t("clock.intervalAria")}>
+              {SCAN_INTERVALS.map((m) => (
+                <option key={m} value={m}>
+                  {t("clock.hours", { hours: m / 60 })}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="text-sm text-steel">{job.schedule.lastRunAt ? t("clock.lastRun", { when: rel(job.schedule.lastRunAt) }) : t("clock.never")}</span>
         </div>
-      ) : null}
+        {locked ? <p className="mt-2 text-sm text-steel">{tSched("unverified")}</p> : null}
+        {writeError ? <FailureNotice failure={writeError} fallback={t("updateError")} className="mt-2" onDismiss={() => setWriteError(null)} /> : null}
+        {/* A failed background refresh of the schedule: the clock above is still the
+            last truth the server gave us, so this reports staleness, not emptiness. */}
+        {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} className="mt-2" /> : null}
+      </section>
 
-      {job ? (
-        <section className={`${PANEL} p-4`} aria-labelledby="scan-clock">
-          <h2 id="scan-clock" className={META_LABEL}>
-            {t("clock.title")}
-          </h2>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={job.schedule.enabled}
-              disabled={busy || locked}
-              title={locked ? tSched("unverified") : t("clock.toggleTitle")}
-              onClick={() => void write({ enabled: !job.schedule.enabled })}
-              className={`focus-ring inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold disabled:opacity-60 ${job.schedule.enabled ? "bg-moss/15 text-moss" : "bg-stone-200 text-steel"}`}
-              data-testid="scan-clock-toggle"
-            >
-              {job.schedule.enabled ? t("clock.on") : t("clock.off")}
-            </button>
-            <label className="flex items-center gap-1.5 text-sm text-steel">
-              {t("clock.every")}
-              <select className={`${FIELD} h-8 w-20 py-0`} value={nearestScanInterval(job.schedule.intervalMinutes)} disabled={busy} onChange={(e) => void write({ intervalMinutes: Number(e.target.value) })} aria-label={t("clock.intervalAria")}>
-                {SCAN_INTERVALS.map((m) => (
-                  <option key={m} value={m}>
-                    {t("clock.hours", { hours: m / 60 })}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="text-sm text-steel">{job.schedule.lastRunAt ? t("clock.lastRun", { when: rel(job.schedule.lastRunAt) }) : t("clock.never")}</span>
-          </div>
-          {locked ? <p className="mt-2 text-sm text-steel">{tSched("unverified")}</p> : null}
-          {writeError ? <FailureNotice failure={writeError} fallback={t("updateError")} className="mt-2" /> : null}
-        </section>
-      ) : null}
-
-      {job ? (
-        <section className="space-y-3" aria-labelledby="scan-history">
-          <h2 id="scan-history" className="flex items-center gap-1.5 font-serif text-h3 text-ink">
-            <History size={16} aria-hidden /> {t("history.title")}
-          </h2>
-          {/* The per-source table below names a source by its catalog label; when that
-              read failed it can only print the stored id, and it says so. */}
-          {sourcesError ? <FailureNotice failure={sourcesError} fallback={t("sourcesError")} onRetry={retry} retrying={retrying} /> : null}
+      <section className="space-y-3" aria-labelledby="scan-history">
+        <h2 id="scan-history" className="flex items-center gap-1.5 font-serif text-h3 text-ink">
+          <History size={16} aria-hidden /> {t("history.title")}
+        </h2>
+        {/* The per-source table below names a source by its catalog label; when that
+            read failed it can only print the stored id, and it says so. */}
+        {sourcesError ? <FailureNotice failure={sourcesError} fallback={t("sourcesError")} onRetry={retry} retrying={retrying} /> : null}
+        {/* Tier 2: the rows are here from the first frame (the server read them); the
+            fade plays once, when the live read replaces them. */}
+        <div className={refreshed ? "animate-arrive-in" : ""}>
           {job.runs.length === 0 ? (
             <p className="text-sm text-steel">{t("history.none")}</p>
           ) : (
@@ -243,8 +261,8 @@ export function ScansPage() {
               })}
             </ol>
           )}
-        </section>
-      ) : null}
+        </div>
+      </section>
     </div>
   );
 }

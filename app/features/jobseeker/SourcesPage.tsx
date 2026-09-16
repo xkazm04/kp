@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus } from "lucide-react";
-import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_SECONDARY, CHIP_QUIET, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, EYEBROW, INTRO, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { Collapse } from "@/app/features/hiring/pipeline/PipelineMotion";
 import { SOURCE_TIERS, type JobseekerSource, type SourceTier } from "@/app/_lib/jobseeker/types";
 import { AddSourceForm } from "./AddSourceForm";
 import { FailureNotice } from "./FailureNotice";
@@ -12,23 +12,32 @@ import { SourceCard } from "./SourceCard";
 import { callJson, entryForSource, type ApiFailure, type CatalogEntryView, type SourcesPayload } from "./sourcesApi";
 
 // /me/sources — the owner-confirmed acquisition list in its three tiers (ADR 0009 §3).
-// Tier A: rights-clean feeds and ATS endpoints, a plain toggle. Tier B: boards whose
+// Tier A: rights-clean feeds and ATS endpoints, a plain switch. Tier B: boards whose
 // robots.txt permits the pages but whose terms forbid automated processing, so the
-// toggle is an acknowledgement door. Tier C: refused, listed with the reason, no
+// switch is an acknowledgement door. Tier C: refused, listed with the reason, no
 // control at all. Catalog entries the workspace has not added yet appear in their
-// tier with an "Add" button (except per-company ATS vendors, which the form below
-// covers by slug).
+// tier with an "Add" button (except per-company ATS vendors, which the header's Add
+// form covers by slug).
+//
+// SERVER-FIRST (loading-choreography.md). `initial` is the snapshot app/me/sources/
+// page.tsx read on the server, so the tier sections and the header paint on the first
+// frame — this page used to mount empty and flash a three-card grey skeleton on every
+// navigation while /me and /me/jobs beside it were server-rendered. There is no
+// skeleton branch left: the chrome renders unconditionally, and the background re-read
+// below settles behind what is already on screen rather than blanking it.
 
-export function SourcesPage() {
+export function SourcesPage({ initial }: { initial: SourcesPayload }) {
   const t = useTranslations("me.sources");
-  const [data, setData] = useState<SourcesPayload | null>(null);
+  const [data, setData] = useState<SourcesPayload>(initial);
   const [loadError, setLoadError] = useState<ApiFailure | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [addError, setAddError] = useState<{ id: string; fail: ApiFailure } | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   // Every setState sits in the promise callback (the mount effect calls this; see
-  // react-hooks/set-state-in-effect): the skeleton is `data === null`.
+  // react-hooks/set-state-in-effect). A failed refresh is a NOTICE over data that is
+  // still true, never an empty page: the server already handed us a full snapshot.
   const load = useCallback(
     () =>
       callJson<SourcesPayload>("/api/jobseeker/sources").then((r) => {
@@ -52,13 +61,8 @@ export function SourcesPage() {
     void load().finally(() => setRetrying(false));
   }, [load]);
 
-  const replace = (next: JobseekerSource) => setData((d) => (d ? { ...d, sources: d.sources.map((s) => (s.id === next.id ? next : s)) } : d));
-  const append = (next: JobseekerSource) => {
-    setData((d) => (d ? { ...d, sources: [...d.sources, next] } : d));
-    // Nothing is held (the catalog read failed and the form was used anyway): re-read,
-    // so the source that was just created is visible instead of silently absent.
-    if (!data) void load();
-  };
+  const replace = (next: JobseekerSource) => setData((d) => ({ ...d, sources: d.sources.map((s) => (s.id === next.id ? next : s)) }));
+  const append = (next: JobseekerSource) => setData((d) => ({ ...d, sources: [...d.sources, next] }));
 
   const addFromCatalog = async (entry: CatalogEntryView) => {
     setAdding(entry.id);
@@ -73,39 +77,40 @@ export function SourcesPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <header>
-        <p className={EYEBROW}>{t("eyebrow")}</p>
-        <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
-        <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
+    // Tier 1 of the choreography: the header, the Add door and the three tier sections
+    // are the direct children that cascade in (40/90/140/190ms).
+    <div className={`stagger-children ${SECTION}`}>
+      <header className={PAGE_HEADER}>
+        <div>
+          <p className={EYEBROW}>{t("eyebrow")}</p>
+          <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
+          <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
+        </div>
+        {/* The surface's primary action belongs in the header, not in a panel at the
+            bottom of the page the reader has to scroll past three tiers to find. */}
+        <button type="button" className={`${addOpen ? BTN_SECONDARY : BTN_PRIMARY} h-10 px-4`} aria-expanded={addOpen} aria-controls="add-source-panel" onClick={() => setAddOpen((v) => !v)}>
+          <Plus size={16} aria-hidden /> {t("add.title")}
+        </button>
       </header>
 
-      {/* The failure sits where the list would be; the page's chrome and the Add form
-          below it stay on screen, because a failed read of the catalog does not stop
-          the owner adding a source by host or by company slug. */}
-      {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
+      <div id="add-source-panel">
+        {/* Opens INSIDE the page flow and pushes the tiers down rather than covering
+            them — the house Collapse (PipelineMotion), reduced-motion gated. */}
+        <Collapse show={addOpen}>
+          <AddSourceForm onCreated={append} />
+        </Collapse>
+        {/* A failed background refresh sits under the header: the tiers below are the
+            server's snapshot and stay readable, so this reports a stale view, not an
+            empty one. */}
+        {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} onDismiss={() => setLoadError(null)} className={addOpen ? "mt-4" : ""} /> : null}
+      </div>
 
-      {!data && !loadError ? (
-        <div className="space-y-3" aria-busy="true" aria-label={t("loading")}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} className={`${PANEL} p-4`}>
-              <Skeleton className="h-5 w-1/3" />
-              <Skeleton className="mt-2 h-3 w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {data
-        ? SOURCE_TIERS.map((tier) => {
-            const mine = data.sources.filter((s) => s.tier === tier);
-            const addedHosts = new Set(data.sources.map((s) => s.host));
-            const offered = data.catalog.filter((e) => e.tier === tier && (tier === "C" || (!e.needsCompanyConfig && !addedHosts.has(e.host))));
-            return <TierSection key={tier} tier={tier} sources={mine} catalog={data.catalog} offered={offered} adding={adding} addError={addError} onAdd={addFromCatalog} onChange={replace} />;
-          })
-        : null}
-
-      <AddSourceForm onCreated={append} />
+      {SOURCE_TIERS.map((tier) => {
+        const mine = data.sources.filter((s) => s.tier === tier);
+        const addedHosts = new Set(data.sources.map((s) => s.host));
+        const offered = data.catalog.filter((e) => e.tier === tier && (tier === "C" || (!e.needsCompanyConfig && !addedHosts.has(e.host))));
+        return <TierSection key={tier} tier={tier} sources={mine} catalog={data.catalog} offered={offered} adding={adding} addError={addError} onAdd={addFromCatalog} onChange={replace} />;
+      })}
     </div>
   );
 }
@@ -132,12 +137,13 @@ function TierSection({
   const t = useTranslations("me.sources");
   return (
     <section aria-labelledby={`tier-${tier}`} data-tier={tier} className="space-y-3">
-      <div>
-        <h2 id={`tier-${tier}`} className="font-serif text-h3 text-ink">
-          {t(`tier.${tier}.title`)}
-        </h2>
-        <p className="mt-1 max-w-prose text-sm text-steel">{t(`tier.${tier}.body`)}</p>
-      </div>
+      {/* ONE heading voice at this level: every section head on this page and on
+          /me/scans is the serif h3. The page used to mix it with META_LABEL-styled
+          h2s, so two headings of the same rank read as different ranks. */}
+      <h2 id={`tier-${tier}`} className="font-serif text-h3 text-ink">
+        {t(`tier.${tier}.title`)}
+      </h2>
+      <p className="max-w-prose text-sm text-steel">{t(`tier.${tier}.body`)}</p>
       {tier === "C" ? (
         <ul className="space-y-2">
           {offered.map((e) => (

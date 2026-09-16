@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus } from "lucide-react";
-import { BTN_PRIMARY, FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, FIELD, PANEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { JobseekerSource, SourceAdapterName } from "@/app/_lib/jobseeker/types";
 import { callJson, type ApiFailure } from "./sourcesApi";
@@ -50,7 +50,10 @@ export function AddSourceForm({ onCreated }: { onCreated(source: JobseekerSource
 
   return (
     <section className={`${PANEL} p-4`} aria-labelledby="add-source">
-      <h2 id="add-source" className={META_LABEL}>
+      {/* ONE heading voice per level across the seeker's sources/scans surfaces: the
+          serif h3. This was a META_LABEL-styled h2 sitting beside serif h2s of the
+          same rank. */}
+      <h2 id="add-source" className="font-serif text-h3 text-ink">
         {t("title")}
       </h2>
       <div className="mt-3 grid gap-4 md:grid-cols-2">
