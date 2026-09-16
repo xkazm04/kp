@@ -476,12 +476,11 @@ store (`getPosting`; there is no `GET /api/jobseeker/postings/[id]`), handing th
 a projection (`postingView.ts`: body text, skill lists, breakdown, confidence,
 eligibility, reasoning; never the raw JSON-LD or the structured Job). The ad renders
 as plain paragraphs, never as HTML. Pay is compared with the seeker's floor through
-`compareSalary` (`feedModel.ts`): `salaryBandPosition` ONLY when `isSameCurrency` and
-the periods agree, else "not comparable (X vs Y)"; an unstated pay is unknown, never
-low. **Known gap:** the Python salary FLAG now restates a month↔year difference ×12
-(`matching._salary_flag`, matching README §7), so a CZK/year posting reads `ok`/`flag`
-on the chip while this TS panel still calls the same posting "not comparable" on the
-period alone — `compareSalary` owes the same ×12. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
+`compareSalary` (`feedModel.ts`): never across currencies (no FX anywhere), and across
+month/year by restating the floor ×12 to the posting's period (`periodConverted` on the
+result; the same rule the Python flag applies in `matching._salary_flag`, matching
+README §7); an hourly rate stays "not comparable"; an unstated pay is unknown, never
+low. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
 missing / unproven skills, eligibility with details. Reasoning shows when deep-dived;
 else a "Deep-dive" door (`POST /api/jobseeker/postings/[id]/deepdive`, WP4c). The door
 answers `{source, reasoning, fallbackReason}` and the page turns that into ONE word,
