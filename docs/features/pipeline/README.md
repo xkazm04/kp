@@ -48,8 +48,34 @@ Each stage therefore carries a **role**, and the rules read that instead:
 
 ```ts
 StageDef = { id, label, role }
-StageRole = "entry" | "screening" | "interview" | "offer" | "terminal" | "custom"
+StageRole = "entry" | "screening" | "homework" | "interview" | "scoring" | "offer" | "terminal" | "custom"
 ```
+
+Five stages ship; the role vocabulary is wider than the shipped axis on purpose —
+`homework` and `scoring` are roles a workspace composes rather than columns the
+default board draws (Settings → Hiring, and the Enterprise preset, which rewrites
+the axis to a seven-column two-interview funnel).
+
+**`homework`** is the work-sample / case step: the product generates an assignment
+for whoever stands there, sends it, and marks what comes back; the interview that
+follows grounds its questions in the result. It is a role and not a `custom` column
+precisely because functionality binds to it. Its placement rule, which every helper
+below follows:
+
+- it sits **before** the screening gate (a case precedes the first conversation), so
+  `hasAdvancedPastScreening` is `false` there — nobody has had a real look yet;
+- but it is **not a screening column**. `screeningStageIds()` and `isScreeningStage()`
+  filter it out, so the manual "Screen with AI" action is not offered there and
+  `screenStageOutcome()` answers `advisory` for it. Those two helpers now mean
+  "pre-gate columns that actually screen", which is narrower than "pre-gate columns";
+  `hasAdvancedPastScreening` stays purely ordinal and is unaffected;
+- `screenedLandingStage()` (the last pre-gate column — where an already-assessed
+  candidate is filed) **can** be a homework column, and on the Enterprise funnel it
+  is. That is the right answer: an ATS import or a rematch redirect that arrives
+  already screened belongs at the case step, which is genuinely their next move.
+- multiple homework columns are **allowed**, like screening and interview. Only
+  `entry` / `terminal` / `offer` are unique — they answer "where does the funnel
+  start / end / close", and "where is work assigned" is not that kind of question.
 
 | | |
 |---|---|
@@ -68,8 +94,8 @@ first `interview` stage, falling back to `offer`, then `terminal`, then "nobody
 is past it". So `hasAdvancedPastScreening` keeps meaning "got a real look" on an
 axis with three interview rounds, none at all, or five renamed columns.
 `SCREENING_STAGES` (the positions where a manual AI screen is meaningful) is now
-*everything before that gate*, so the two can no longer drift apart — they are
-computed from the same index. Pinned by `app/_lib/pipeline-stage-roles.test.ts`,
+*everything before that gate except the homework columns*, so the two can no longer
+drift apart — they are computed from the same index. Pinned by `app/_lib/pipeline-stage-roles.test.ts`,
 which asserts both that the role layer reproduces today's answers byte-for-byte
 on the default axis and that it stays correct on axes the default one cannot
 express.
@@ -90,7 +116,7 @@ Every rule that used to read a stage NAME to ask a question about MEANING:
 | `application-status.ts` | name→status map only | role→status map when the caller can resolve one; the name map remains the shipped-axis fallback |
 | `analytics-momentum.ts`, `pipeline-command.ts`, `ats/field-map.ts` | literals | an injected terminal stage / axis / allowlist, defaulting to the shipped one |
 | `cv-intake.ts`, `lead-intake.ts` | filed at `"Accepted"` | filed at the axis's `entry` column |
-| the candidate modal's AI actions (`candidate/footer/CandidateFooter.tsx`) | each action gated on literal stage names (`"Screened"`, `"Interview"`, `"Offer"`) | `app/_lib/stage-ai-actions.ts` resolves the default from roles (a step's own list from Settings → Hiring replaces it): screening columns for **Screen**, the pre-gate column + interview rounds for **Prep**, interview rounds for **Scorecard**, the offer column for **Draft offer**, every non-terminal column for **Rejection**, every non-terminal non-entry column for **Rematch** |
+| the candidate modal's AI actions (`candidate/footer/CandidateFooter.tsx`) | each action gated on literal stage names (`"Screened"`, `"Interview"`, `"Offer"`) | `app/_lib/stage-ai-actions.ts` resolves the default from roles (a step's own list from Settings → Hiring replaces it): pre-gate columns *plus* every column explicitly roled `screening` for **Screen** (so the Enterprise funnel's post-round triage still screens, advisorily), every column immediately before an interview round + the rounds themselves for **Prep**, interview rounds for **Scorecard**, the offer column for **Draft offer**, every non-terminal column for **Rejection**, every non-terminal non-entry column for **Rematch**. A `homework` column is excluded from Screen and Prep, so it defaults to outreach + rejection + rematch |
 
 `analytics-custom-axis.test.ts` is the proof: it stores a fully renamed six-column
 axis and asserts the funnel reports *those* columns, that candidates on renamed
@@ -197,6 +223,29 @@ strands nobody, and moving them would rewrite closed history.
    `advance` + `confidence ≥ 80` + a non-early-career archetype auto-advances
    to `Screened` — everything else lands in the Decisions queue. Never an
    automatic reject.
+
+   **Strictness scales with pipeline VOLUME.** How strict the screener may be
+   depends on how many *active* candidates the role holds
+   (`countActiveEntriesForJob`, passed to the CLI as `--pipeline-size` by
+   `automation-run.ts` for the `screen` task only). `screening_volume_tier()`
+   buckets that count against the `POLICY` thresholds — **sparse** (≤ 5),
+   **moderate** (6–30), **dense** (> 30) — and `volume_allows_reject()` is the
+   single predicate both the prompt and the deterministic keyless fallback obey:
+   a candidate from a **related area** (the same `role_family`, or a
+   career-switcher whose `domain_distance` is `adjacent` — the matcher's own
+   signals, no new classifier) is recommended `hold`, never `reject`, while the
+   role is sparse or moderate; once it is dense the screener may recommend
+   `reject`. A **clear area mismatch** stays rejectable at every volume. The rule
+   is stated in the prompt *and* re-applied to the model's verdict afterwards,
+   exactly like the early-career gate, so no engine can talk past it — and the
+   early-career gate itself is untouched and absolute at every volume. The
+   verdict carries `screeningVolume` / `pipelineSize` / `relatedArea` so the
+   decision audit can explain a hold the volume rule produced. An unknown count
+   (an entry with no job, a direct CLI call) resolves to the lenient tier, never
+   to 0. The bucket is a cache-key axis (`automation-cache-key.ts`), so a verdict
+   formed at 3 candidates is never served at 80, while an arrival inside the same
+   bucket is still a hit; the two languages' thresholds are pinned by
+   `tests/test_automation_constant_sync.py`.
 2. **Policy pass (deterministic, no LLM).** `evaluate_entry()` in
    `automation.py` batch-evaluates active entries ("Run automation pass" button
    or `/api/automation/run`) against a `POLICY` dict (advance/hold/reject
@@ -369,11 +418,13 @@ strands nobody, and moving them would rewrite closed history.
 | Module / route | Purpose |
 |---|---|
 | `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `draft_rejection` / `draft_offer` additionally take the entry’s stored scorecard and ground themselves in it through `interview_evidence` (candidate-safe projection) + `_match_competency` (the checked `decisiveCompetency`). `POLICY` dict holds the hard-coded defaults. Every task renders its fact base through `context_block`, which puts the candidate-authored half behind an untrusted fence and leaves the job/match half plain (see [Every automation prompt fences the candidate's own words](#every-automation-prompt-fences-the-candidates-own-words)); `screen_candidate` additionally shows the scorer's `unproven_facts`, and `rematch_candidate` takes `lang` + stamps `narrativeLang`. `interview_scorecard` additionally fences its transcript and the candidate's name, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
-| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). `--lang` reaches every narrative sub-command, `rematch` included since 2026-09-05. |
+| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). `--lang` reaches every narrative sub-command, `rematch` included since 2026-09-05. `--pipeline-size N` (the `screen` sub-command only) is the role's active-candidate count and sets the screening strictness tier; omitted = unknown, which resolves to the most lenient tier. |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
 | `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. |
-| `app/api/automation/schedule/route.ts` | The automation clock's control surface: `GET` returns the schedule, the reminders job, recent runs (decision rows workspace-filtered), `scheduleScope: "global"`, and — since /perfect 2026-09-03 — the clock's **liveness** (`liveness`/`livenessReason`/`lastTickAt`, from `schedulerLiveness()` over the `scheduler_heartbeat` row, the same verdict `/api/health` and `/api/ops` render). `POST` toggles the clock, sets the cadence, pauses reminders, or forces a tick. Operator-only. The malformed-interval 400 answers `jsonRefusal("SCHEDULE_INTERVAL_INVALID")` and the catch answers `safeJsonError(..., "SCHEDULE_UPDATE_FAILED")`, so the dock renders both in the reader's language. `{"tick": true}` — a full policy pass — is throttled per IP (`schedule-tick:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`); the GET and the cheap config writes are not. |
-| `app/features/hiring/pipeline/Scheduler*.tsx` + `useSchedulerControlState.ts` | The dock's clock control. The ON/OFF pill renders the stored **armed** flag; a chip beside it renders **liveness** (ticking / starting / not ticking) and an armed-but-stalled clock tones the pill amber instead of moss — the pure mapping (`livenessChip`, `enabledPillTone`) plus `describeTick`, `clampInterval` and the poll's backoff curve live in `schedulerRunState.ts` and are unit-pinned by `schedulerRunState.test.ts`. The 30s poll skips a hidden tab, refreshes once on becoming visible, and backs off 30s → 60s → 2m → 4m → 5m on consecutive read failures. Run-history actions render through `useEnumLabel("recommendation")` rather than the raw wire enum. |
+| `app/_lib/scheduler-jobs.ts` | **The scheduler job registry** (WP4a) — the one list of named clock jobs the clock loop, the schedule route and the control panel iterate: `policy_pass` (15 min, off), `reminders` (1 min, on) and `jobseeker_scan` (720 min, off, `requiresVerifiedRun`). Each entry carries its defaults, its fan-out and whether it must be verified by one manual `ok` run before its clock may be armed. Store-free (the browser imports it for labels); `scheduler-store.ts` reads it through `ensureRegisteredSchedule(def)`. `policy_pass` is the one job still named literally — `tickScheduler` owns its run path and the payload keeps its legacy fields. Pinned by `scheduler-jobs.test.ts` (unique names, a label in all four catalogs, `jobseeker_scan` disabled by default). |
+| `app/api/automation/schedule/route.ts` | The automation clock's control surface. `GET` returns the **legacy fields unchanged** — `schedule`/`runs` (the policy pass, decision rows workspace-filtered), `reminders`/`reminderRuns`, `scheduleScope: "global"`, and the clock's **liveness** (`liveness`/`livenessReason`/`lastTickAt`, from `schedulerLiveness()` over the `scheduler_heartbeat` row, the same verdict `/api/health` and `/api/ops` render) — **plus `jobs[]`**: one entry per registry job (`name`, `labelKey`, `schedule`, `runs`, `requiresVerifiedRun`, `verified` = the store holds at least one `ok` run for it). `POST` accepts `{ job?, enabled?, intervalMinutes?, tick? }`; a body with no `job` means the policy pass and `remindersEnabled` means `{ job: "reminders", enabled }`, so every older caller still works. Operator-only. Refusals are existing codes: a malformed interval `SCHEDULE_INTERVAL_INVALID` (400), a name the registry lacks `AUTOMATION_TASK_UNKNOWN` (400), `tick` for any job but the policy pass `AUTOMATION_TASK_NOT_OFFERED` (400), and arming a `requiresVerifiedRun` job before an `ok` run exists `JOBSEEKER_SCAN_UNVERIFIED` (409); the catch answers `safeJsonError(..., "SCHEDULE_UPDATE_FAILED")`. `{"tick": true}` — a full policy pass — is throttled per IP (`schedule-tick:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`); the GET and the cheap config writes are not. The payload's key set and both body shapes are pinned by `route.test.ts` beside it. |
+| `instrumentation-node.ts` (the clock) | `tickScheduler()` runs the policy pass; every OTHER registry job runs through one loop under it — `ensureRegisteredSchedule(job)`, `claimDueRun(job.name)`, then `JOB_HANDLERS[job.name]()` (a typed map, so a job registered without a handler is a compile error). `reminders` is the historical sweep verbatim (a zero-send sweep records no row); `jobseeker_scan` is a placeholder until WP4c that records a claimed run as `skipped` — never `ok`, because an `ok` row is what verifies the job. Each job keeps its own bookkeeping `try/catch`; the autonomy-pause ordering is unchanged. |
+| `app/features/hiring/pipeline/Scheduler*.tsx` + `useSchedulerControlState.ts` | The dock's clock control. The policy pass keeps its toolbar: the ON/OFF pill renders the stored **armed** flag; a chip beside it renders **liveness** (ticking / starting / not ticking) and an armed-but-stalled clock tones the pill amber instead of moss — the pure mapping (`livenessChip`, `enabledPillTone`) plus `describeTick`, `clampInterval` and the poll's backoff curve live in `schedulerRunState.ts` and are unit-pinned by `schedulerRunState.test.ts`; "Run now" and the no-CLI notice stay on this row. Every other registry job renders **one generic `SchedulerJobRow`** (label from `pipeline.scheduler.job.<labelKey>`, on/off, an editable cadence, last check, latest run, a collapsible history) — the reminders row keeps its historical copy ("checked …", "{n} sent", "{n} queued in Outbox") as an override, and a job with `requiresVerifiedRun && !verified` renders its toggle disabled titled `pipeline.scheduler.unverified`. The hook holds `jobs[]` and writes through `setJob(name, patch)` (the new POST shape); the 30s poll skips a hidden tab, refreshes once on becoming visible, and backs off 30s → 60s → 2m → 4m → 5m on consecutive read failures. Run-history actions render through `useEnumLabel("recommendation")` rather than the raw wire enum. |
 | `app/api/tasks` (kind `"automation"`) | Hardened/background path sharing `runAutomationTask` with the synchronous route above — tracked, deduped, refresh-safe. |
 | `app/_lib/automation-run.ts` | `runAutomationTask` — shared dispatcher both routes call into. |
 | `app/_lib/automation-pass.ts` | Applies Task 7 policy-pass decisions to the DB in one transaction. |
@@ -442,7 +493,8 @@ The board page is four blocks, in the order the day is worked:
      Hiring, which `GET /api/pipeline` now carries as `plan` (pruned to the axis):
      a pending approval → a person, on any step; an interview step → its round's
      executor (a person's round → person, an AI round or no plan yet → AI);
-     screening, the entry column and scoring → AI; an unflagged offer, the outcome,
+     screening, the entry column, scoring and a **homework** column (the case is
+     generated, sent and evaluated by the AI) → AI; an unflagged offer, the outcome,
      custom columns and closed entries → neither (the board row cannot tell "not
      drafted" from "sent, waiting on the candidate", so it claims nothing). The board
      has no legend footer. A **bead is a button** named `Actions for {name}` (the same name the
@@ -658,6 +710,29 @@ The **State** and **Source** menus list their options by displayed name, ascendi
 in the reader's locale (`localeCompare`) — the labels are translated, so a fixed code
 order only reads alphabetically in one language. Score keeps its band order and Sort
 its own.
+
+**The row menu.** Right-clicking a position's row header opens a context menu
+(`map/subway/LineContextMenu.tsx`) with three actions on that position's **entry
+column** — the CVs that arrived and nobody has looked at (`lineActions.ts`,
+`entryColumnCohort`: active candidates on the axis's `entry`-role column, resolved by
+role, so a renamed board still works). *Accept all* moves them to the next column and
+*Reject all* rejects them, both through `POST /api/pipeline/batch` with per-item
+`expectedStage` guards (a candidate moved since the board was read is skipped, never
+acted on blindly); *Reject all* needs a second click, because it emails everyone. *AI
+evaluate* starts ONE `batch_screen` background task over the named cohort — that task
+now takes an optional `entryIds` and, without one, sweeps every pre-gate column by role
+rather than the literal "Screened" it used to. Outcomes arrive as a toast in the
+reader's language and the board reloads. The scope is deliberately the entry column
+only: a row menu that reached every column would make "Reject all" a way to empty a
+role in one click.
+
+**The rejected shelf.** The board payload excludes rejected rows, so `GET /api/pipeline`
+carries `rejectedByLane` (a count per lane key) and the row header shows it as a red
+mark after the head-count. Clicking it fetches `GET /api/pipeline/rejected?lane=…`
+(operator-gated; the rows with the column they were rejected at, from the latest
+`rejected` / `auto_rejected` event) and opens the Orchard under a synthetic "Rejected"
+column: every ticket carries "Rejected at {column}" (or "… by the AI"), and the shelf
+is a snapshot — the live re-derivation the Orchard does for a real cell is skipped.
 
 **Full page** (`PipelineBoardPanel.tsx`) opens the whole panel — this header, the
 select / SLA / saved-view modes and the Subway board — as a full-viewport section to
@@ -991,6 +1066,37 @@ somebody else moved the row, so the board's own view is the suspect one.
 Pinned by `pipelineBoardProjection.test.ts` (the allowlist and the nine omissions by
 name) and `pipelineMovePath.test.ts` (the success branch applies the returned row, the
 refusal branch reconciles, the route projects).
+
+### What happens AFTER a stage move commits
+
+`actOnPipelineEntry` and `setPipelineEntryStage` (`app/_lib/db/pipeline.ts`) are the
+only two places a pipeline entry's stage changes — the per-entry route, the batch
+route, the drag move, the automation pass, the scheduler and the offer finalizer
+all go through one of them. That makes them the choke point for **arrival hooks**:
+what the system does on its own once an entry *stands* on a stage, as opposed to
+what the write itself does.
+
+Both call `notifyStageEntered` immediately **after** `tx.immediate()` returns, and
+never inside the transaction — the hooks do LLM and comms work, better-sqlite3
+transactions are synchronous, and an `await` between BEGIN and COMMIT silently
+destroys the move's atomicity. The stage the entry came *from* is captured inside
+the transaction (the only place that read is authoritative) so an approval-clearing
+accept at the terminal column, or a `set_stage` to where the entry already stands,
+is correctly not an arrival. Scheduling goes through `afterResponse`, so a hook can
+never sit on the recruiter's critical path, and a hook that throws is logged rather
+than becoming an unhandled rejection — **a failing hook can never fail a move that
+already committed.**
+
+`app/_lib/stage-hooks.ts` is reached through a *lazy* import: it reaches back into
+this store and into the billing, comms and interview layers, so a static edge would
+make a cycle out of a one-way notification (and would pull `next/server` into a
+store the node:test suite must be able to load outside a Next runtime).
+
+Today there is exactly one hook: entering a column whose hiring-plan round is run
+by the AI mints the voice screen and invites the candidate, or parks them for a
+human. Its rules, its idempotence key and the unsaved-gate asymmetry are documented
+in [`docs/features/interviews/README.md` → Automatic invites on stage
+entry](../interviews/README.md#automatic-invites-on-stage-entry).
 
 ### A refused move says why, where it happened
 

@@ -3307,7 +3307,6 @@
       "nothingDue": "rien à faire",
       "fallbackEngine": "Repli déterministe",
       "fallbackEngineTitle": "Le CLI claude n’est pas dans le PATH. Les brouillons d’automatisation sont des replis déterministes, pas des sorties AI.",
-      "remindersJob": "Rappels d’entretien",
       "remindersToggleTitle": "Mettre en pause ou reprendre les rappels d’entretien aux candidats",
       "remindersOn": "Activé",
       "remindersOff": "En pause",
@@ -3351,7 +3350,27 @@
       "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre.",
       "liveHealthy": "en marche",
       "liveStarting": "démarrage…",
-      "liveStalled": "à l'arrêt"
+      "liveStalled": "à l'arrêt",
+      "job": {
+        "policyPass": "Passage des règles",
+        "reminders": "Rappels d’entretien",
+        "jobseekerScan": "Analyse du marché de l’emploi"
+      },
+      "unverified": "Lancez d’abord une analyse à la main. Le minuteur pourra être activé dès qu’une analyse aura réussi.",
+      "jobToggleTitle": "Mettre en pause ou reprendre : {job}",
+      "jobOn": "Activé",
+      "jobOff": "En pause",
+      "jobChecked": "vérifié {time}",
+      "jobNever": "pas encore exécuté",
+      "jobLastOk": "exécuté {time}",
+      "jobLastSkipped": "ignoré {time} (rien à faire pour l’instant)",
+      "jobIntervalAria": "Intervalle de {job} en minutes (1–1440)",
+      "jobHistoryTitle": "Dernières exécutions de {job}",
+      "jobStatus": {
+        "ok": "ok",
+        "error": "échec",
+        "skipped": "ignoré"
+      }
     },
     "result": {
       "claudeCli": "Claude CLI",

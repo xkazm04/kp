@@ -3307,7 +3307,6 @@
       "nothingDue": "nic na řadě",
       "fallbackEngine": "Deterministická záloha",
       "fallbackEngineTitle": "CLI claude není na PATH. Návrhy automatizace jsou deterministické zálohy, ne výstup AI.",
-      "remindersJob": "Připomenutí pohovorů",
       "remindersToggleTitle": "Pozastavit nebo obnovit připomenutí pohovorů kandidátům",
       "remindersOn": "Zapnuto",
       "remindersOff": "Pozastaveno",
@@ -3351,7 +3350,27 @@
       "scopeGlobalTitle": "Pro celou instalaci běží jediné hodiny: zapnutí či vypnutí spustí nebo zastaví automatizaci pro všechny týmy, nejen pro váš.",
       "liveHealthy": "tiká",
       "liveStarting": "spouští se…",
-      "liveStalled": "netiká"
+      "liveStalled": "netiká",
+      "job": {
+        "policyPass": "Průchod pravidel",
+        "reminders": "Připomenutí pohovorů",
+        "jobseekerScan": "Sken pracovního trhu"
+      },
+      "unverified": "Nejdřív spusťte jeden sken ručně. Časovač lze zapnout, až sken proběhne úspěšně.",
+      "jobToggleTitle": "Pozastavit nebo obnovit: {job}",
+      "jobOn": "Zapnuto",
+      "jobOff": "Pozastaveno",
+      "jobChecked": "kontrola {time}",
+      "jobNever": "zatím neproběhlo",
+      "jobLastOk": "proběhlo {time}",
+      "jobLastSkipped": "přeskočeno {time} (zatím není co dělat)",
+      "jobIntervalAria": "Interval úlohy {job} v minutách (1–1440)",
+      "jobHistoryTitle": "Poslední běhy úlohy {job}",
+      "jobStatus": {
+        "ok": "ok",
+        "error": "selhalo",
+        "skipped": "přeskočeno"
+      }
     },
     "result": {
       "claudeCli": "Claude CLI",

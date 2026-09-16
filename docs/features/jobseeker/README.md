@@ -55,9 +55,21 @@ every code has four catalog entries under `errors.*`.
 
 ## Scheduler
 
-`app/_lib/scheduler-jobs.ts` is the registry of named clock jobs. WP4 adds
-`jobseeker_scan` (default 12 h, disabled until a manual scan succeeded) and makes
-`/api/automation/schedule` and `SchedulerControl` iterate the registry.
+`app/_lib/scheduler-jobs.ts` is the registry of named clock jobs, and since WP4a
+the clock loop (`instrumentation-node.ts`), `/api/automation/schedule` and
+`SchedulerControl` iterate it instead of naming jobs. `jobseeker_scan` is
+registered there: 720 min (twice a day — a board changes on a human cadence),
+`defaultEnabled: false`, `fanOut: "per-workspace"`, `requiresVerifiedRun: true`.
+That last flag is the gate: the route refuses `POST { job: "jobseeker_scan",
+enabled: true }` with `JOBSEEKER_SCAN_UNVERIFIED` (409) until `scheduler_runs`
+holds one `ok` row for the job (`hasVerifiedRun`), and the panel renders the
+toggle disabled with `pipeline.scheduler.unverified` as its title. Disabling and
+re-timing are never gated — only arming is. The clock's handler for the job is a
+**WP4c placeholder**: a claimed run records `{ skipped: "not_wired" }` with status
+`skipped`, which does not verify the job (only `ok` does). WP4c replaces it with
+the real per-workspace source scan and the manual "scan now" door whose first
+success is what arms the timer. Pinned by `app/_lib/scheduler-jobs.test.ts` and
+`app/api/automation/schedule/route.test.ts`.
 
 ## Sources and politeness
 

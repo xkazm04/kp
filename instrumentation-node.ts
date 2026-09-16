@@ -11,6 +11,29 @@
 // free leaf module — safe for the edge/client tree-shake) so the clock's cadence
 // and the liveness staleness threshold share ONE source and can never drift.
 import { SCHEDULER_TICK_MS } from "./app/_lib/scheduler-health.ts";
+import type { SchedulerJobName } from "./app/_lib/scheduler-jobs.ts";
+
+// --- The registered jobs' WORK (WP4a) ---------------------------------------------
+// One handler per registry entry except `policy_pass`, whose run path (single-flight
+// pass, forced "Run now", off-means-off) is tickScheduler's. The clock loop below
+// iterates SCHEDULER_JOBS and looks the handler up here, so a job registered without
+// a handler is a TYPE error at this map, not a silent no-op at 3am. A handler answers
+// what to RECORD: `null` for "nothing worth a row" (a zero-send sweep), otherwise the
+// status the store should write and the summary that goes with it. Throwing records
+// an `error` row — the loop does that, handlers don't.
+type JobOutcome = { status: "ok" | "skipped"; summary: unknown; log?: string } | null;
+const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promise<JobOutcome>> = {
+  // Interview reminders (AUTO6) — verbatim the body the hand-written block ran.
+  reminders: async () => {
+    const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+    const n = await sendDueInterviewReminders();
+    return n ? { status: "ok", summary: { sent: n }, log: `interview reminders sent: ${n}` } : null;
+  },
+  // WP4c wires the real per-workspace source scan here (app/_lib/jobseeker/**). Until
+  // then a claimed run is recorded as SKIPPED — never `ok`, because an ok row is what
+  // verifies the job (hasVerifiedRun) and lets the operator arm its clock.
+  jobseeker_scan: async () => ({ status: "skipped", summary: { skipped: "not_wired" } }),
+};
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
 // The Control Room's autonomy pause is presented to the operator as "Pause to halt
@@ -179,37 +202,52 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] tick failed:", e);
     }
+    // The REGISTERED jobs (scheduler-jobs.ts) other than the policy pass, which
+    // tickScheduler above owns. WP4a generalized the hand-written reminders block
+    // into this loop: for each job, its row is created with the registry's defaults,
+    // claimDueRun gates the work (one caller per due window, durable across
+    // restarts, and pausing it from the UI actually pauses it), last_run_at proves
+    // the job is alive, and outcomes land in scheduler_runs instead of only in
+    // server logs. Each job keeps its own bookkeeping try/catch so one job's broken
+    // import cannot take the others down with it.
+    //
     // Interview reminders — independent of the policy schedule (time-sensitive,
-    // no auto-advance opt-in required) but, since AUTO6, a REGISTERED scheduler
-    // job: claimDueRun gates the sweep (its row defaults ON at the historical
-    // every-minute cadence, and pausing it from the UI actually pauses sends),
-    // last_run_at proves the sweep is alive, and sends/failures land in
-    // scheduler_runs instead of living only in server logs. Zero-send sweeps
-    // record no run row — at a 1-minute cadence that would be pure noise.
+    // no auto-advance opt-in required) — is the first of them: its row defaults ON
+    // at the historical every-minute cadence. Zero-send sweeps record no run row —
+    // at a 1-minute cadence that would be pure noise. `jobseeker_scan` is registered
+    // DISABLED and, until WP4c wires the real scan, records any claimed run as
+    // `skipped` so the log never claims work that did not happen.
     try {
-      const { ensureReminderJob, claimDueRun, recordRun, REMINDERS_JOB } = await import("./app/_lib/scheduler-store");
-      ensureReminderJob();
-      if (claimDueRun(REMINDERS_JOB)) {
-        const startedAt = new Date().toISOString();
+      const { SCHEDULER_JOBS } = await import("./app/_lib/scheduler-jobs");
+      const { ensureRegisteredSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+      for (const job of SCHEDULER_JOBS) {
+        if (job.name === "policy_pass") continue; // tickScheduler's — see above
         try {
-          const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
-          const n = await sendDueInterviewReminders();
-          if (n) {
-            recordRun({ job: REMINDERS_JOB, status: "ok", summary: { sent: n }, startedAt });
-            console.log("[clock] interview reminders sent:", n);
+          ensureRegisteredSchedule(job);
+          if (claimDueRun(job.name)) {
+            const startedAt = new Date().toISOString();
+            try {
+              const outcome = await JOB_HANDLERS[job.name]();
+              if (outcome) {
+                recordRun({ job: job.name, status: outcome.status, summary: outcome.summary, startedAt });
+                if (outcome.log) console.log(`[clock] ${outcome.log}`);
+              }
+            } catch (e) {
+              recordRun({
+                job: job.name,
+                status: "error",
+                error: e instanceof Error ? e.message : String(e),
+                startedAt,
+              });
+              console.error(`[clock] ${job.name} run failed:`, e);
+            }
           }
         } catch (e) {
-          recordRun({
-            job: REMINDERS_JOB,
-            status: "error",
-            error: e instanceof Error ? e.message : String(e),
-            startedAt,
-          });
-          console.error("[clock] reminder sweep failed:", e);
+          console.error(`[clock] ${job.name} job bookkeeping failed:`, e);
         }
       }
     } catch (e) {
-      console.error("[clock] reminder job bookkeeping failed:", e);
+      console.error("[clock] scheduler job registry unavailable:", e);
     }
     // Lapse expired offers (idea-29361408) — independent, best-effort, idempotent.
     // The candidate read/respond paths also lazily lapse on access; this sweep is

@@ -3307,7 +3307,6 @@
       "nothingDue": "nothing due",
       "fallbackEngine": "Deterministic fallback",
       "fallbackEngineTitle": "The claude CLI is not on PATH. Automation drafts are deterministic fallbacks, not AI output.",
-      "remindersJob": "Interview reminders",
       "remindersToggleTitle": "Pause or resume candidate interview reminders",
       "remindersOn": "On",
       "remindersOff": "Paused",
@@ -3351,7 +3350,27 @@
       "scopeGlobalTitle": "One clock runs for the whole installation: turning it on or off starts or stops automation for every team, not just yours.",
       "liveHealthy": "ticking",
       "liveStarting": "starting…",
-      "liveStalled": "not ticking"
+      "liveStalled": "not ticking",
+      "job": {
+        "policyPass": "Policy pass",
+        "reminders": "Interview reminders",
+        "jobseekerScan": "Job-market scan"
+      },
+      "unverified": "Run one scan by hand first. The timer can be switched on once a scan has succeeded.",
+      "jobToggleTitle": "Pause or resume {job}",
+      "jobOn": "On",
+      "jobOff": "Paused",
+      "jobChecked": "checked {time}",
+      "jobNever": "not yet run",
+      "jobLastOk": "ran {time}",
+      "jobLastSkipped": "skipped {time} (nothing to do yet)",
+      "jobIntervalAria": "{job} interval in minutes (1–1440)",
+      "jobHistoryTitle": "Recent runs of {job}",
+      "jobStatus": {
+        "ok": "ok",
+        "error": "failed",
+        "skipped": "skipped"
+      }
     },
     "result": {
       "claudeCli": "Claude CLI",

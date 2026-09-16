@@ -3307,7 +3307,6 @@
       "nothingDue": "nichts fällig",
       "fallbackEngine": "Deterministischer Fallback",
       "fallbackEngineTitle": "Die claude CLI ist nicht im PATH. Automatik-Entwürfe sind deterministische Fallbacks, keine AI-Ausgabe.",
-      "remindersJob": "Interview-Erinnerungen",
       "remindersToggleTitle": "Interview-Erinnerungen an Kandidat/innen pausieren oder fortsetzen",
       "remindersOn": "Ein",
       "remindersOff": "Pausiert",
@@ -3351,7 +3350,27 @@
       "scopeGlobalTitle": "Für die gesamte Installation läuft ein einziger Timer: Ein- oder Ausschalten startet bzw. stoppt die Automatisierung für alle Teams, nicht nur für Ihres.",
       "liveHealthy": "läuft",
       "liveStarting": "startet…",
-      "liveStalled": "steht still"
+      "liveStalled": "steht still",
+      "job": {
+        "policyPass": "Regel-Durchlauf",
+        "reminders": "Interview-Erinnerungen",
+        "jobseekerScan": "Stellenmarkt-Scan"
+      },
+      "unverified": "Starten Sie zuerst einen Scan von Hand. Der Timer lässt sich einschalten, sobald ein Scan erfolgreich war.",
+      "jobToggleTitle": "{job} pausieren oder fortsetzen",
+      "jobOn": "Ein",
+      "jobOff": "Pausiert",
+      "jobChecked": "geprüft {time}",
+      "jobNever": "noch nicht gelaufen",
+      "jobLastOk": "gelaufen {time}",
+      "jobLastSkipped": "übersprungen {time} (noch nichts zu tun)",
+      "jobIntervalAria": "Intervall für {job} in Minuten (1–1440)",
+      "jobHistoryTitle": "Letzte Läufe von {job}",
+      "jobStatus": {
+        "ok": "ok",
+        "error": "fehlgeschlagen",
+        "skipped": "übersprungen"
+      }
     },
     "result": {
       "claudeCli": "Claude CLI",

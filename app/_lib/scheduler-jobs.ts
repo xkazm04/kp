@@ -6,12 +6,16 @@
 // meant editing all four and hoping they agreed. The registry is the wizard-flows
 // rule applied to automations: navigation, indicator and commit derive from one list.
 //
-// WP0 pre-seed: the registry carries exactly today's two jobs so behaviour is
-// unchanged; WP4 adds `jobseeker_scan` here and makes the route + panel iterate the
-// list instead of naming jobs. Store-free on purpose (the browser bundle imports it
-// for labels): the store is app/_lib/scheduler-store.ts.
+// WP4a: the route (/api/automation/schedule), the clock loop (instrumentation-node.ts)
+// and the SchedulerControl panel iterate THIS list; the only job named literally
+// anywhere is `policy_pass`, because tickScheduler owns its run path (the forced
+// "Run now" tick, the single-flight pass) and the legacy payload fields keep their
+// names for old callers. `jobseeker_scan` is registered here DISABLED and unwired —
+// WP4c hands it a real handler; until then the clock records its (never-due) run as
+// `skipped`. Store-free on purpose (the browser bundle imports it for labels): the
+// store is app/_lib/scheduler-store.ts.
 
-export const SCHEDULER_JOB_NAMES = ["policy_pass", "reminders"] as const;
+export const SCHEDULER_JOB_NAMES = ["policy_pass", "reminders", "jobseeker_scan"] as const;
 export type SchedulerJobName = (typeof SCHEDULER_JOB_NAMES)[number];
 
 export function isSchedulerJobName(v: unknown): v is SchedulerJobName {
@@ -37,6 +41,11 @@ export type SchedulerJobDef = {
 export const SCHEDULER_JOBS: readonly SchedulerJobDef[] = [
   { name: "policy_pass", labelKey: "policyPass", defaultIntervalMinutes: 15, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: false },
   { name: "reminders", labelKey: "reminders", defaultIntervalMinutes: 1, defaultEnabled: true, fanOut: "per-workspace", requiresVerifiedRun: false },
+  // Twice a day: a job board changes on a human cadence, and a crawler that asks more
+  // often is discourteous to the source without learning anything new. OFF until one
+  // manual scan succeeded (requiresVerifiedRun) — the route refuses to arm it before
+  // that with JOBSEEKER_SCAN_UNVERIFIED (409).
+  { name: "jobseeker_scan", labelKey: "jobseekerScan", defaultIntervalMinutes: 720, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: true },
 ];
 
 export function schedulerJob(name: SchedulerJobName): SchedulerJobDef {
