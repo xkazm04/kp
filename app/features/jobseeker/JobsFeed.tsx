@@ -393,7 +393,10 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
           // — `animate-arrive-in` only animates on element creation — and nested one
           // level below the staggered container, never as a direct child of it.
           <div key={rows === null ? "waiting" : "settled"} className="animate-arrive-in space-y-3">
-            <div className="overflow-x-auto rounded-lg border border-stone-200">
+            {/* `relative` makes this scroll box the containing block for the sr-only
+                column heading below: position:absolute escapes overflow clipping
+                otherwise, and at phone width the whole document scrolled sideways. */}
+            <div className="relative overflow-x-auto rounded-lg border border-stone-200">
               <table className="w-full min-w-[40rem] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-stone-200 bg-paper/60">
