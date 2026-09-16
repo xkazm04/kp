@@ -293,6 +293,22 @@ pinned), the plane is `CvSheet.tsx` (the polished Markdown through
 **Apply**, which sends the ordinary message `me.cv.applyMessage`), the composer carries
 `StudioVoiceBar` (`kp-me-auto-speak`). A closed dialog reopens read-only.
 
+**The planes are exemplars that arrive.** An empty plane is not a skeleton
+(`docs/design/surface-doctrine.md` 1): `CvSheet` draws the intake studio's own
+`AtelierExemplar` over four named sections (`me.cv.section.*`) each holding a bracketed
+slot (`me.cv.slot.*`), and `FitSheet` — whose headings are already real — draws one
+bracketed `SlotLine` per waiting region (`me.fit.slot.*`). The brackets belong to the
+COMPONENT, never the catalog: ICU MessageFormat reads `<word>` as a tag.
+
+Suggestions and gaps render through the intake studio's `ArrivalList` over a delta from
+`useSheetArrival.ts` (a flat-row twin of `useArrivalDelta`, which diffs a RoleBrief), so
+a turn's new rows cascade in on the shared stagger and every row already on the plane
+keeps its element. Both studios' chrome lines — the degraded notice, the stand-in
+language, a send failure — are `NOTICE(...)` inside the shared `Fade`; the failure is
+`critical` with `role="alert"`, never a hand-painted red string. The Markdown columns
+carry `max-w-prose`, and the cover-note copy control announces through a SIBLING
+`role="status"` span rather than an `aria-live` on the button itself.
+
 | Door | Method | What |
 | --- | --- | --- |
 | `/api/jobseeker/profile` | GET / PUT | the seeker's row; PUT merges a preferences patch through `app/_lib/jobseeker/profile.ts` (`parsePreferencesPatch`: unknown fields dropped, a floor without currency is not a floor) |

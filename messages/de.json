@@ -1372,6 +1372,7 @@
     "JOB_CANDIDATES_FAILED": "Die Kandidaten für diese Stelle konnten nicht bewertet werden. Bitte versuchen Sie es erneut.",
     "JOB_REDISCOVER_FAILED": "Frühere Kandidaten für diese Stelle konnten nicht durchsucht werden. Bitte versuchen Sie es erneut.",
     "JOB_WINNABILITY_FAILED": "Diese Stelle konnte nicht gegen den Kandidatenpool bewertet werden. Bitte versuchen Sie es erneut.",
+    "JOB_PRIORITIES_FAILED": "Die Musterprioritäten für diese Stelle konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "JOB_CAMPAIGN_FAILED": "Das Kampagnenpaket konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
     "JOB_ASSIGNMENTS_FAILED": "Die Arbeitsproben für diese Stelle konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "INTERVIEW_CREATE_FAILED": "Das Interview konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
@@ -5170,30 +5171,62 @@
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
       "retry": "Erneut versuchen",
-      "grading": "Diese Stelle wird anhand Ihres Kandidat/innen-Pools bewertet…",
-      "emptyPoolTitle": "Noch keine Kandidat/innen zum Abgleich",
-      "emptyPoolBody": "Fügen Sie Kandidat/innen hinzu oder importieren Sie welche, dann schätzt der Coach vor der Veröffentlichung, wie viele die Hürden dieser Stelle nehmen würden.",
-      "verdict": {
-        "unfillable": "<b>So nicht besetzbar</b>: {eligible} von {pool} Kandidat/innen nehmen die Hürden, aber niemand erreicht einen Score für die Shortlist. Lockern Sie die Anforderungen unten, bevor Sie sourcen.",
-        "thin": "<b>Dünne Pipeline</b>: Nur <b>{qualified}</b> von {pool} Kandidat/innen kämen für {jobTitle} auf die Shortlist. Vor der Veröffentlichung lohnt es sich, eine Anforderung zu lockern.",
-        "healthy": "<b>{qualified} bereit für die Shortlist</b> von {pool}. {jobTitle} dürfte sich besetzen lassen. Veröffentlichen Sie mit Zuversicht."
+      "saveFailed": "Diese Priorität konnte nicht gespeichert werden.",
+      "grading": "Diese Stelle wird gegen Ihren Kandidatenpool bewertet…",
+      "emptyPoolTitle": "Noch keine Kandidaten, gegen die bewertet werden könnte",
+      "emptyPoolBody": "Fügen Sie Kandidaten hinzu oder importieren Sie welche, dann zeigt der Coach die Muster, auf die diese Stelle trifft.",
+      "noPatternsTitle": "Nichts hält diese Stelle auf",
+      "noPatternsBody": "Keine Anforderung hier kostet Sie Kandidaten, und das Gehalt liegt im Markt. Es gibt nichts zu gewichten.",
+      "intro": "Was Ihr Kandidatenpool gegen {jobTitle} zeigt. Setzen Sie bei jedem Muster eine Priorität, und Kandi gewichtet es entsprechend.",
+      "variant": {
+        "label": "Layout des Registers",
+        "ledger": "Register",
+        "stack": "Sortierung",
+        "dial": "Regler"
       },
-      "stat": {
-        "pool": "Im Pool",
-        "eligible": "Hürden genommen",
-        "qualified": "Shortlist-bereit"
+      "col": {
+        "pattern": "Muster",
+        "share": "Anteil am Pool",
+        "affected": "Kandidaten",
+        "priority": "Priorität",
+        "action": "Aktion"
       },
-      "loosenHeading": "Lockern, um die Pipeline zu verbreitern",
-      "gateLanguage": "<b>{value}</b> zu verlangen schließt <b>{n}</b> sonst geeignete {n, plural, one {Kandidat/in} other {Kandidat/innen}} aus. Machen Sie es zu einer Kann-Anforderung.",
-      "gateEducation": "Die Bildungsuntergrenze <b>{value}</b> schließt <b>{n}</b> {n, plural, one {Kandidat/in} other {Kandidat/innen}} aus. Entfernen Sie sie, um den Pool zu erweitern.",
-      "mustHave": "Bei <b>{missing}</b> geeigneten {missing, plural, one {Kandidat/in} other {Kandidat/innen}} fehlt <b>{skill}</b>. Stufen Sie es zur Kann-Anforderung herab.",
-      "salaryBelow": "Das Gehalt <b>{job}</b> liegt unter dem Marktband <b>{market}</b> für diese Stelle. Erhöhen Sie es, um konkurrenzfähig zu bleiben.",
-      "salaryOk": "Das Gehalt entspricht dem Marktband <b>{market}</b> für diese Stelle.",
-      "salaryUnset": "(kein Band festgelegt)",
-      "notAssessed": "{n, plural, one {# Kandidat/in konnte nicht bewertet werden} other {# Kandidat/innen konnten nicht bewertet werden}} und {n, plural, one {wird} other {werden}} oben nicht mitgezählt. Prüfen Sie das Profil.",
-      "footnote": "Die Prognosen lassen kps Live-Scoring-Engine erneut über Ihre gespeicherten Kandidat/innen laufen, sodass sie dem entsprechen, was eine Veröffentlichung zutage fördern würde.",
-      "stageEdit": "Änderung vormerken",
-      "stageEditAria": "Beschreibungseditor mit vorgemerkter Änderung für {value} öffnen"
+      "level": {
+        "critical": "Entscheidend",
+        "important": "Wichtig",
+        "minor": "Nebensächlich"
+      },
+      "setLevelAria": "{pattern} auf {level} setzen",
+      "clearLevelAria": "Priorität für {pattern} entfernen",
+      "pattern": {
+        "language": "{value} erforderlich",
+        "education": "Mindestabschluss {value}",
+        "skill": "{value} fehlt",
+        "salary": "Gehalt {job} liegt unter dem Marktband {market}"
+      },
+      "measure": "{affected} von {denominator} Kandidaten",
+      "pct": "{pct} %",
+      "shareAria": "{pct} % des Pools",
+      "noShare": "Nicht zählbar",
+      "gain": "+{n}",
+      "lane": {
+        "inbox": "Noch nicht gewichtet ({n})",
+        "inboxEmpty": "Jedes Muster hat eine Priorität.",
+        "empty": "Hier ist noch nichts."
+      },
+      "laneWeight": "Gewicht {n}",
+      "moveLeftAria": "Priorität von {pattern} senken",
+      "moveRightAria": "Priorität von {pattern} erhöhen",
+      "dial": {
+        "projectedLabel": "Erwartete Auswahlliste",
+        "untouched": "Heute stehen {base} auf der Auswahlliste. Setzen Sie bei einem Muster eine Priorität, um zu sehen, was ein Lockern bringen würde.",
+        "upperBound": "Heute {base}. Gewichtete Muster: {n}. Eine Obergrenze: jeder Zugewinn wird für sich gemessen, zwei Lockerungen können also denselben Kandidaten doppelt freigeben."
+      },
+      "salaryUnset": "(kein Band gesetzt)",
+      "notAssessed": "{n, plural, one {# Kandidat konnte nicht bewertet werden} other {# Kandidaten konnten nicht bewertet werden}} und {n, plural, one {ist} other {sind}} oben nicht mitgezählt. Prüfen Sie das Profil.",
+      "stageEdit": "Diese Änderung vorbereiten",
+      "stageEditAria": "Den Beschreibungseditor mit der vorbereiteten Änderung {value} öffnen",
+      "footnote": "Die Bewertung lässt Kandis Scoring-Engine erneut über Ihre gespeicherten Kandidaten laufen. Ihre Prioritäten werden für diese Stelle und Ihr Team gespeichert; die Bewertung liest sie noch nicht, sie wiegen also nichts, bis das nachgezogen ist."
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
@@ -5340,7 +5373,8 @@
       "previewKo": "Vom KO-Check ausgefiltert: {reasons}",
       "strengths": "Stärken",
       "gaps": "Lücken",
-      "noneListed": "Keine angegeben"
+      "noneListed": "Keine angegeben",
+      "earlyCareerChip": "Berufseinstieg"
     },
     "deeplink": {
       "notFound": "Diese Stelle ist nicht in Ihrem Katalog. Sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
@@ -10613,7 +10647,8 @@
     "common": {
       "retry": "Erneut versuchen",
       "retrying": "Wird wiederholt…",
-      "unreachable": "Der Server ist nicht erreichbar. Prüfen Sie, ob die App läuft, und versuchen Sie es erneut."
+      "unreachable": "Der Server ist nicht erreichbar. Prüfen Sie, ob die App läuft, und versuchen Sie es erneut.",
+      "explain": "Was das bedeutet"
     },
     "title": "Meine Jobsuche",
     "nav": {
@@ -10684,6 +10719,18 @@
         "closed": "Abgeschlossen"
       },
       "sheetEmpty": "Hier erscheint Ihr überarbeiteter Lebenslauf.",
+      "section": {
+        "summary": "Kurzprofil",
+        "experience": "Berufserfahrung",
+        "skills": "Kenntnisse",
+        "education": "Ausbildung"
+      },
+      "slot": {
+        "summary": "ein Satz dazu, was Sie tun und für wen",
+        "experience": "Ihre letzte Position und was sich durch Sie verändert hat",
+        "skills": "die Werkzeuge und Sprachen, die Ihr Lebenslauf belegen kann",
+        "education": "Ihr höchster abgeschlossener Bildungsweg"
+      },
       "unreadableTitle": "Was ich nicht lesen konnte",
       "unreadableBody": "Diese Blöcke Ihres Lebenslaufs passten in keinen Abschnitt, den ich erkenne. Sie bleiben hier und werden nie gegen Sie gewertet.",
       "suggestionsTitle": "Vorschläge",
@@ -10987,6 +11034,10 @@
       "markApplied": "Als beworben markieren",
       "appliedAlready": "Beworben",
       "sheetEmpty": "Lücken und Urteil erscheinen hier während des Gesprächs.",
+      "slot": {
+        "verdict": "bewerben, überspringen oder noch unentschieden",
+        "gap": "was diese Stelle verlangt und Ihr Lebenslauf noch nicht zeigt"
+      },
       "gaps": {
         "title": "Lücken",
         "none": "Keine Lücke fällt auf. Anzeige und Profil passen bei den Anforderungen zusammen."
@@ -11139,7 +11190,9 @@
           "cta": "Hinzufügen",
           "hint": "Ein Host außerhalb des Katalogs ist Stufe B: Sie lesen die Bedingungen und bestätigen sie beim Einschalten."
         }
-      }
+      },
+      "refusedPill": "Abgelehnt",
+      "pausedPill": "Pausiert"
     },
     "scans": {
       "eyebrow": "Jobsuche",

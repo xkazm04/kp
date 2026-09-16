@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { StudioComposer, StudioDesk, StudioOverlay, StudioTranscript, StudioVoiceBar, useStudioComposerDraft, useStudioOverlayClose } from "@/app/_components/studio";
-import { CHIP_QUIET, EYEBROW } from "@/app/_components/ui/recipes";
+import { CHIP_QUIET, EYEBROW, NOTICE } from "@/app/_components/ui/recipes";
+import { Fade } from "@/app/features/hiring/pipeline/PipelineMotion";
 import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { DialogReply, FitArtifact, JobseekerDialog, StudioTurn } from "@/app/_lib/jobseeker/types";
 import type { StudioDegradation } from "./CvStudio";
 import { FitSheet } from "./FitSheet";
@@ -58,7 +57,6 @@ export function FitStudio({
   const tCv = useTranslations("me.cv");
   const tCols = useTranslations("me.columns");
   const locale = useLocale();
-  const reduced = useReducedMotion();
   const resolveError = useErrorMessage();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<SendError | null>(null);
@@ -134,11 +132,12 @@ export function FitStudio({
     degradation?.lang && degradation.lang !== locale
       ? tCv("standInLanguage", { language: new Intl.DisplayNames([locale], { type: "language" }).of(degradation.lang) ?? degradation.lang })
       : null;
-  const notices = [
-    degradation ? { key: "degraded", cls: "text-meta text-steel", text: degradedText } : null,
-    standIn ? { key: "standIn", cls: "text-meta text-steel", text: standIn } : null,
-    error ? { key: "send", cls: "text-body text-red-700", text: resolveError(error, tCv("sendError")) } : null,
-  ].filter((n): n is { key: string; cls: string; text: string } => n !== null);
+  // The three chrome lines a studio can owe its reader, on the shared NOTICE recipe
+  // and the shared `Fade` presence shape (PipelineMotion) instead of hand-painted
+  // colour strings. Two of them are honesty notices about what produced what is being
+  // read and must stay visible (surface-doctrine.md 1); the third is a failure the
+  // reader has to act on, so it is `critical` with role="alert", never text-red-700.
+  const sendErrorText = error ? resolveError(error, tCv("sendError")) : "";
 
   const gapCount = artifact?.gaps.length ?? 0;
   const meta = {
@@ -169,13 +168,21 @@ export function FitStudio({
       }
     >
       <div className="shrink-0 px-5">
-        <AnimatePresence initial={false}>
-          {notices.map((n) => (
-            <motion.p key={n.key} initial={{ opacity: reduced ? 1 : 0 }} animate={{ opacity: 1 }} exit={{ opacity: reduced ? 1 : 0 }} transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }} className={`mt-2 ${n.cls}`}>
-              {n.text}
-            </motion.p>
-          ))}
-        </AnimatePresence>
+        <Fade show={Boolean(degradation)} className="mt-2">
+          <p className={`${NOTICE("amber")} px-3 py-1.5 text-meta`} role="status">
+            {degradedText}
+          </p>
+        </Fade>
+        <Fade show={Boolean(standIn)} className="mt-2">
+          <p className={`${NOTICE("info")} px-3 py-1.5 text-meta`} role="status">
+            {standIn}
+          </p>
+        </Fade>
+        <Fade show={Boolean(error)} className="mt-2">
+          <p className={`${NOTICE("critical")} px-3 py-1.5 text-sm`} role="alert">
+            {sendErrorText}
+          </p>
+        </Fade>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col p-5">

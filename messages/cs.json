@@ -1372,6 +1372,7 @@
     "JOB_CANDIDATES_FAILED": "Kandidáty pro tuto pozici se nepodařilo seřadit. Zkuste to prosím znovu.",
     "JOB_REDISCOVER_FAILED": "Dřívější kandidáty pro tuto pozici se nepodařilo projít. Zkuste to prosím znovu.",
     "JOB_WINNABILITY_FAILED": "Pozici se nepodařilo porovnat s databází kandidátů. Zkuste to prosím znovu.",
+    "JOB_PRIORITIES_FAILED": "Priority vzorců pro tuto pozici se nepodařilo uložit. Zkuste to prosím znovu.",
     "JOB_CAMPAIGN_FAILED": "Kampaň se nepodařilo vygenerovat. Zkuste to prosím znovu.",
     "JOB_ASSIGNMENTS_FAILED": "Pracovní ukázky pro tuto pozici se nepodařilo načíst. Zkuste to prosím znovu.",
     "INTERVIEW_CREATE_FAILED": "Nepodařilo se vytvořit pohovor. Zkuste to prosím znovu.",
@@ -5168,32 +5169,64 @@
       }
     },
     "coach": {
-      "loadFailed": "Pozici se nepodařilo vyhodnotit.",
+      "loadFailed": "Tuto pozici se nepodařilo ohodnotit.",
       "retry": "Zkusit znovu",
-      "grading": "Pozice se vyhodnocuje vůči vašemu fondu kandidátů…",
-      "emptyPoolTitle": "Zatím žádní kandidáti pro srovnání",
-      "emptyPoolBody": "Přidejte nebo importujte kandidáty a kouč ještě před publikací odhadne, kolik z nich projde branami této pozice.",
-      "verdict": {
-        "unfillable": "<b>Takto neobsaditelné</b>: branami projde {eligible} z {pool} kandidátů, ale nikdo neskóruje dost na užší výběr. Než začnete oslovovat, uvolněte níže uvedené požadavky.",
-        "thin": "<b>Slabá pipeline</b>: do užšího výběru pro {jobTitle} by se dostali jen <b>{qualified}</b> z {pool} kandidátů. Před publikací stojí za to nějaký požadavek uvolnit.",
-        "healthy": "<b>{qualified} připraveno do užšího výběru</b> z {pool}. Pozice {jobTitle} by se měla obsadit. Můžete publikovat."
+      "saveFailed": "Prioritu se nepodařilo uložit.",
+      "grading": "Hodnotíme tuto pozici vůči vašemu poolu kandidátů…",
+      "emptyPoolTitle": "Zatím není vůči komu pozici hodnotit",
+      "emptyPoolBody": "Přidejte nebo naimportujte kandidáty a kouč vám ukáže, na jaké vzorce tato pozice naráží.",
+      "noPatternsTitle": "Tuto pozici nic nebrzdí",
+      "noPatternsBody": "Žádný zdejší požadavek vás nestojí kandidáty a mzda odpovídá trhu. Není co vážit.",
+      "intro": "Co váš pool kandidátů ukazuje vůči pozici {jobTitle}. U každého vzorce nastavte prioritu a Kandi ji tak zváží.",
+      "variant": {
+        "label": "Rozvržení přehledu",
+        "ledger": "Přehled",
+        "stack": "Třídění",
+        "dial": "Regulátor"
       },
-      "stat": {
-        "pool": "Ve fondu",
-        "eligible": "Projde branami",
-        "qualified": "Do výběru"
+      "col": {
+        "pattern": "Vzorec",
+        "share": "Podíl poolu",
+        "affected": "Kandidáti",
+        "priority": "Priorita",
+        "action": "Akce"
       },
-      "loosenHeading": "Uvolněte požadavky a rozšiřte pipeline",
-      "gateLanguage": "Požadavek na <b>{value}</b> vyřazuje <b>{n}</b> {n, plural, one {jinak vhodného kandidáta} few {jinak vhodné kandidáty} other {jinak vhodných kandidátů}}. Udělejte z něj výhodu.",
-      "gateEducation": "Minimální vzdělání <b>{value}</b> vyřazuje <b>{n}</b> {n, plural, one {kandidáta} few {kandidáty} other {kandidátů}}. Zrušte je a rozšiřte fond kandidátů.",
-      "mustHave": "<b>{missing}</b> {missing, plural, one {vhodnému kandidátovi chybí} few {vhodným kandidátům chybí} other {vhodným kandidátům chybí}} <b>{skill}</b>. Přesuňte ji mezi výhody.",
-      "salaryBelow": "Mzda <b>{job}</b> je pod tržním pásmem <b>{market}</b> pro tuto pozici. Zvyšte ji, abyste byli konkurenceschopní.",
-      "salaryOk": "Mzda odpovídá tržnímu pásmu <b>{market}</b> pro tuto pozici.",
-      "salaryUnset": "(pásmo neuvedeno)",
-      "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a {n, plural, one {není započítán} few {nejsou započítáni} other {není započítáno}} výše. Zkontrolujte jejich profil.",
-      "footnote": "Odhady znovu spouští živý skórovací engine Kandi proti vašim uloženým kandidátům, takže odpovídají tomu, co by ukázala publikace.",
-      "stageEdit": "Připravit úpravu",
-      "stageEditAria": "Otevřít editor popisu s připravenou úpravou pro {value}"
+      "level": {
+        "critical": "Zásadní",
+        "important": "Důležité",
+        "minor": "Okrajové"
+      },
+      "setLevelAria": "Nastavit u {pattern} prioritu {level}",
+      "clearLevelAria": "Zrušit prioritu u {pattern}",
+      "pattern": {
+        "language": "Vyžadováno {value}",
+        "education": "Minimální vzdělání {value}",
+        "skill": "Chybí {value}",
+        "salary": "Mzda {job} je pod tržním pásmem {market}"
+      },
+      "measure": "{affected} z {denominator} kandidátů",
+      "pct": "{pct} %",
+      "shareAria": "{pct} % poolu",
+      "noShare": "Nelze spočítat",
+      "gain": "+{n}",
+      "lane": {
+        "inbox": "Zatím nezvážené ({n})",
+        "inboxEmpty": "Každý vzorec má prioritu.",
+        "empty": "Zatím tu nic není."
+      },
+      "laneWeight": "Váha {n}",
+      "moveLeftAria": "Snížit prioritu u {pattern}",
+      "moveRightAria": "Zvýšit prioritu u {pattern}",
+      "dial": {
+        "projectedLabel": "Odhadovaný užší výběr",
+        "untouched": "Dnes je v užším výběru {base}. Nastavte u některého vzorce prioritu a uvidíte, co by jeho uvolnění přineslo.",
+        "upperBound": "Dnes {base}. Zvážených vzorců: {n}. Jde o horní odhad: každý přínos je měřen zvlášť, takže dvě uvolnění mohou uvolnit téhož kandidáta dvakrát."
+      },
+      "salaryUnset": "(pásmo není nastaveno)",
+      "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a není {n, plural, one {započten} other {započteni}} výše. Zkontrolujte jejich profil.",
+      "stageEdit": "Připravit tuto úpravu",
+      "stageEditAria": "Otevřít editor popisu s připravenou změnou {value}",
+      "footnote": "Hodnocení znovu spouští živý scoring engine Kandi nad vašimi uloženými kandidáty. Vaše priority se ukládají pro tuto pozici a váš tým; scoring je zatím nečte, takže do doby, než se to dodělá, nic neváží."
     },
     "rediscover": {
       "loadFailed": "Znovuobjevení se nepodařilo spustit.",
@@ -5340,7 +5373,8 @@
       "previewKo": "Vyřazen KO filtrem: {reasons}",
       "strengths": "Silné stránky",
       "gaps": "Mezery",
-      "noneListed": "Nic uvedeno"
+      "noneListed": "Nic uvedeno",
+      "earlyCareerChip": "Začátek kariéry"
     },
     "deeplink": {
       "notFound": "Tuto pozici ve svém katalogu nemáte. Mohla být odstraněna, nebo patří jinému týmu.",
@@ -10613,7 +10647,8 @@
     "common": {
       "retry": "Zkusit znovu",
       "retrying": "Zkouším znovu…",
-      "unreachable": "Server není dostupný. Zkontrolujte, že aplikace běží, a zkuste to znovu."
+      "unreachable": "Server není dostupný. Zkontrolujte, že aplikace běží, a zkuste to znovu.",
+      "explain": "Co to znamená"
     },
     "title": "Moje hledání práce",
     "nav": {
@@ -10684,6 +10719,18 @@
         "closed": "Dokončená"
       },
       "sheetEmpty": "Zde se objeví vaše upravené CV.",
+      "section": {
+        "summary": "Shrnutí",
+        "experience": "Praxe",
+        "skills": "Dovednosti",
+        "education": "Vzdělání"
+      },
+      "slot": {
+        "summary": "jedna věta o tom, co děláte a pro koho",
+        "experience": "vaše poslední pozice a co se díky vám změnilo",
+        "skills": "nástroje a jazyky, které váš životopis doloží",
+        "education": "vaše nejvyšší dokončené vzdělání"
+      },
       "unreadableTitle": "Co jsem nedokázal přečíst",
       "unreadableBody": "Tyto části vašeho CV se nevešly do žádné sekce, kterou rozpoznávám. Zůstávají zde a nikdy se nepočítají proti vám.",
       "suggestionsTitle": "Návrhy",
@@ -10987,6 +11034,10 @@
       "markApplied": "Označit jako přihlášeno",
       "appliedAlready": "Přihlášeno",
       "sheetEmpty": "Rozdíly a verdikt se tu objeví během rozhovoru.",
+      "slot": {
+        "verdict": "přihlásit se, přeskočit, nebo zatím nerozhodnuto",
+        "gap": "co tato pozice požaduje a váš životopis to zatím neukazuje"
+      },
       "gaps": {
         "title": "Rozdíly",
         "none": "Žádný rozdíl nevyčnívá. Nabídka a váš profil se v požadavcích shodují."
@@ -11139,7 +11190,9 @@
           "cta": "Přidat",
           "hint": "Doména mimo katalog je úroveň B: podmínky si přečtete a při zapnutí je potvrdíte."
         }
-      }
+      },
+      "refusedPill": "Odmítnuto",
+      "pausedPill": "Pozastaveno"
     },
     "scans": {
       "eyebrow": "Hledání práce",

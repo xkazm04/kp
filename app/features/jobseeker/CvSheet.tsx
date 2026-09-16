@@ -3,9 +3,11 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { Markdown } from "@/app/_components/Markdown";
-import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, DIVIDER, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { ArrivalList } from "@/app/features/library/jds/intake/IntakeArrivalMotion";
+import { AtelierExemplar } from "@/app/features/library/jds/intake/coats/atelier/atelierPlane";
 import type { CvPolishArtifact } from "@/app/_lib/jobseeker/types";
+import { useSheetArrival } from "./useSheetArrival";
 
 // The studio's PLANE for a seeker: the polished CV as it stands, the blocks the
 // pipeline could not place (shown, never scored), and the grounded suggestions —
@@ -13,8 +15,22 @@ import type { CvPolishArtifact } from "@/app/_lib/jobseeker/types";
 // ORDINARY MESSAGE ("Apply suggestion: <section>"), so the engine, the transcript
 // and the read-aloud all see the seeker's own words, exactly as a choice card does.
 //
-// An empty region shows the SHAPE of what will fill it (skeleton lines), not a
-// sentence promising that it will (studioZones.ts doctrine).
+// An empty region is an EXEMPLAR, not a skeleton (docs/design/surface-doctrine.md
+// §1): six grey bars drew the SHAPE of a CV without saying what a CV holds, which
+// leaves a first-time reader with the question the empty state existed to answer.
+// `AtelierExemplar` — the intake studio's own empty-brief component, generic over its
+// slots — draws the four sections this conversation sets out to fill, each with a
+// bracketed slot where its first line lands. (Its right home is the shared Studio
+// kit; it is imported rather than copied because a second copy is how the two drift.)
+//
+// The suggestion and unreadable lists ARRIVE: `useSheetArrival` diffs the rows a turn
+// produced and `ArrivalList` staggers only those, so a new suggestion cascades in and
+// every row already on the plane keeps its element and stays still.
+
+/** The sections a polished CV sets out with. Labels and slots are catalog copy; the
+ *  ANGLE BRACKETS belong to the component (ICU MessageFormat reads `<word>` as a tag,
+ *  so a translator who kept them would break the message). */
+const EXEMPLAR_SECTIONS = ["summary", "experience", "skills", "education"] as const;
 
 export function CvSheet({
   artifact,
@@ -35,28 +51,36 @@ export function CvSheet({
   const suggestions = artifact?.suggestions ?? [];
   const unreadable = artifact?.unreadable ?? [];
 
+  // Identity for the delta: a suggestion IS its section plus the sentence it rewrites
+  // (both survive a re-grading); what it currently proposes is the fingerprint, so a
+  // rewritten suggestion reads as changed rather than as a new arrival.
+  const rows = suggestions.map((s, i) => ({
+    ...s,
+    key: `${s.section}-${i}`,
+    id: `${s.section}\u0000${s.before}`,
+    fingerprint: `${s.after}\u0000${s.why}`,
+  }));
+  const delta = useSheetArrival(rows);
+
   return (
     <div className="space-y-6 pb-2">
       {markdown ? (
-        <Markdown content={markdown} className="text-body leading-7 text-ink" />
+        // A document reads as a column, not as a wall: the plane is as wide as the
+        // zone, the prose is not.
+        <Markdown content={markdown} className="max-w-prose text-body leading-7 text-ink" />
       ) : (
-        <div className="space-y-2" aria-label={t("sheetEmpty")} role="img">
-          <Skeleton className="h-6 w-2/3" />
-          <Skeleton className="h-3 w-1/2" />
-          <Skeleton className="mt-4 h-4 w-1/3" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-11/12" />
-          <Skeleton className="h-3 w-4/5" />
-        </div>
+        <AtelierExemplar
+          slots={EXEMPLAR_SECTIONS.map((key) => ({ label: t(`section.${key}`), slot: t(`slot.${key}`) }))}
+        />
       )}
 
       {unreadable.length > 0 ? (
-        <section className="border-t border-stone-200 pt-4">
+        <section className={`${DIVIDER} pt-4`}>
           <p className={META_LABEL}>{t("unreadableTitle")}</p>
           <p className="mt-1 text-sm text-steel">{t("unreadableBody")}</p>
           <ul className="mt-2 space-y-1.5">
             {unreadable.map((block, i) => (
-              <li key={i} className="rounded-md bg-stone-50 px-2.5 py-1.5 text-sm text-ink">
+              <li key={i} className={`${PANEL_SUNKEN} px-2.5 py-1.5 text-sm text-ink`}>
                 {block}
               </li>
             ))}
@@ -64,36 +88,47 @@ export function CvSheet({
         </section>
       ) : null}
 
-      <section className="border-t border-stone-200 pt-4">
+      <section className={`${DIVIDER} pt-4`}>
         <p className={META_LABEL}>{t("suggestionsTitle")}</p>
         {suggestions.length === 0 ? (
           <p className="mt-1 text-sm text-steel">{t("suggestionsNone")}</p>
         ) : (
-          <ul className="mt-3 space-y-4">
-            {suggestions.map((s, i) => (
-              <li key={`${s.section}-${i}`} className="space-y-2">
-                <p className="text-sm font-semibold text-ink">{s.section}</p>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
-                  <blockquote className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-sm text-steel line-through decoration-stone-400">
-                    <span className="sr-only">{t("suggestionBefore")} </span>
-                    {s.before}
-                  </blockquote>
-                  <ArrowRight size={14} aria-hidden className="hidden text-steel sm:mt-2 sm:block" />
-                  <p className="rounded-md border border-moss/30 bg-moss/5 px-2.5 py-1.5 text-sm text-ink">
-                    <span className="sr-only">{t("suggestionAfter")} </span>
-                    {s.after}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-meta text-steel">{s.why}</p>
-                  {!closed ? (
-                    <button type="button" className={`${BTN_SECONDARY} h-8 px-3 text-sm`} disabled={sending} onClick={() => onApply(s.section)}>
-                      {t("apply")}
-                    </button>
-                  ) : null}
-                </div>
-              </li>
-            ))}
+          <ul className="mt-3">
+            <ArrivalList
+              items={rows}
+              keyOf={(s) => s.key}
+              idOf={(s) => s.id}
+              delta={delta}
+              itemClassName="space-y-2 pb-4"
+              renderItem={(s) => (
+                <>
+                  <p className="text-sm font-semibold text-ink">{s.section}</p>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
+                    <blockquote className={`${PANEL_SUNKEN} px-2.5 py-1.5 text-sm text-steel line-through decoration-stone-400`}>
+                      <span className="sr-only">{t("suggestionBefore")} </span>
+                      {s.before}
+                    </blockquote>
+                    <ArrowRight size={14} aria-hidden className="hidden text-steel sm:mt-2 sm:block" />
+                    {/* The improved line. Moss is the affirmative accent and there is
+                        no moss NOTICE tone, so the tint is explicit — and carries its
+                        own dark values, because moss/5 over ink is not a tint, it is
+                        nothing. Sticker radius in Spark Dark like every other block. */}
+                    <p className="rounded-md border border-moss/40 bg-moss/10 px-2.5 py-1.5 text-sm text-ink dark:rounded-2xl dark:border-moss/60 dark:bg-moss/20">
+                      <span className="sr-only">{t("suggestionAfter")} </span>
+                      {s.after}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-meta text-steel">{s.why}</p>
+                    {!closed ? (
+                      <button type="button" className={`${BTN_SECONDARY} h-8 px-3 text-sm`} disabled={sending} onClick={() => onApply(s.section)}>
+                        {t("apply")}
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            />
           </ul>
         )}
       </section>

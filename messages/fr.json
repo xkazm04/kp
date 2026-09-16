@@ -1372,6 +1372,7 @@
     "JOB_CANDIDATES_FAILED": "Impossible de classer les candidats pour ce poste. Veuillez réessayer.",
     "JOB_REDISCOVER_FAILED": "Impossible de parcourir les anciens candidats pour ce poste. Veuillez réessayer.",
     "JOB_WINNABILITY_FAILED": "Impossible d'évaluer ce poste face au vivier de candidats. Veuillez réessayer.",
+    "JOB_PRIORITIES_FAILED": "Impossible d'enregistrer les priorités de motifs pour ce poste. Veuillez réessayer.",
     "JOB_CAMPAIGN_FAILED": "Impossible de générer le pack de campagne. Veuillez réessayer.",
     "JOB_ASSIGNMENTS_FAILED": "Impossible de charger les mises en situation pour ce poste. Veuillez réessayer.",
     "INTERVIEW_CREATE_FAILED": "Impossible de créer l’entretien. Veuillez réessayer.",
@@ -5168,32 +5169,64 @@
       }
     },
     "coach": {
-      "loadFailed": "Impossible d’évaluer ce poste.",
+      "loadFailed": "Impossible d'évaluer ce poste.",
       "retry": "Réessayer",
-      "grading": "Évaluation de ce poste au regard de votre vivier de candidats…",
-      "emptyPoolTitle": "Pas encore de candidats pour la comparaison",
-      "emptyPoolBody": "Ajoutez ou importez des candidats et le coach estimera combien franchiraient les critères éliminatoires de ce poste avant publication.",
-      "verdict": {
-        "unfillable": "<b>Impossible à pourvoir en l’état</b> : {eligible} candidats sur {pool} franchissent les critères, mais aucun n’obtient un score suffisant pour la présélection. Assouplissez les exigences ci-dessous avant de sourcer.",
-        "thin": "<b>Pipeline mince</b> : seuls <b>{qualified}</b> candidats sur {pool} seraient présélectionnés pour {jobTitle}. Il vaut la peine d’assouplir une exigence avant de publier.",
-        "healthy": "<b>{qualified} prêts pour la présélection</b> sur {pool}. {jobTitle} devrait se pourvoir. Publiez en toute confiance."
+      "saveFailed": "Impossible d'enregistrer cette priorité.",
+      "grading": "Évaluation de ce poste face à votre vivier de candidats…",
+      "emptyPoolTitle": "Aucun candidat face auquel évaluer pour l'instant",
+      "emptyPoolBody": "Ajoutez ou importez des candidats et le coach vous montrera les motifs que ce poste rencontre.",
+      "noPatternsTitle": "Rien ne freine ce poste",
+      "noPatternsBody": "Aucune exigence ici ne vous coûte de candidats, et le salaire est aligné sur le marché. Il n'y a rien à pondérer.",
+      "intro": "Ce que votre vivier de candidats révèle sur {jobTitle}. Définissez une priorité pour chaque motif et Kandi la prend comme pondération.",
+      "variant": {
+        "label": "Disposition du registre",
+        "ledger": "Registre",
+        "stack": "Tri",
+        "dial": "Molette"
       },
-      "stat": {
-        "pool": "Dans le vivier",
-        "eligible": "Critères franchis",
-        "qualified": "Présélectionnables"
+      "col": {
+        "pattern": "Motif",
+        "share": "Part du vivier",
+        "affected": "Candidats",
+        "priority": "Priorité",
+        "action": "Action"
       },
-      "loosenHeading": "Assouplir pour élargir le pipeline",
-      "gateLanguage": "Exiger <b>{value}</b> écarte <b>{n}</b> {n, plural, one {candidat pourtant éligible} other {candidats pourtant éligibles}}. Passez-le en souhaitable.",
-      "gateEducation": "Le niveau d’études minimum <b>{value}</b> écarte <b>{n}</b> {n, plural, one {candidat} other {candidats}}. Supprimez-le pour élargir le vivier.",
-      "mustHave": "<b>{missing}</b> {missing, plural, one {candidat éligible ne possède pas} other {candidats éligibles ne possèdent pas}} <b>{skill}</b>. Rétrogradez-la en souhaitable.",
-      "salaryBelow": "Le salaire <b>{job}</b> est en dessous de la fourchette du marché <b>{market}</b> pour ce poste. Augmentez-le pour rester compétitif.",
-      "salaryOk": "Le salaire est aligné sur la fourchette du marché <b>{market}</b> pour ce poste.",
+      "level": {
+        "critical": "Déterminant",
+        "important": "Important",
+        "minor": "Secondaire"
+      },
+      "setLevelAria": "Définir {pattern} sur {level}",
+      "clearLevelAria": "Retirer la priorité de {pattern}",
+      "pattern": {
+        "language": "{value} exigé",
+        "education": "Niveau d'études minimum {value}",
+        "skill": "{value} manquant",
+        "salary": "Le salaire {job} est sous la fourchette du marché {market}"
+      },
+      "measure": "{affected} candidats sur {denominator}",
+      "pct": "{pct} %",
+      "shareAria": "{pct} % du vivier",
+      "noShare": "Non chiffrable",
+      "gain": "+{n}",
+      "lane": {
+        "inbox": "Pas encore pondérés ({n})",
+        "inboxEmpty": "Chaque motif a une priorité.",
+        "empty": "Rien ici pour l'instant."
+      },
+      "laneWeight": "Poids {n}",
+      "moveLeftAria": "Baisser la priorité de {pattern}",
+      "moveRightAria": "Augmenter la priorité de {pattern}",
+      "dial": {
+        "projectedLabel": "Présélection projetée",
+        "untouched": "{base} en présélection aujourd'hui. Définissez une priorité sur un motif pour voir ce qu'un assouplissement apporterait.",
+        "upperBound": "Contre {base} aujourd'hui. Motifs pondérés : {n}. Une borne haute : chaque gain est mesuré séparément, donc deux assouplissements peuvent libérer le même candidat deux fois."
+      },
       "salaryUnset": "(aucune fourchette définie)",
-      "notAssessed": "{n, plural, one {# candidat n’a pas pu être évalué} other {# candidats n’ont pas pu être évalués}} et {n, plural, one {n’est pas compté} other {ne sont pas comptés}} ci-dessus. Vérifiez leur profil.",
-      "footnote": "Les projections réexécutent le moteur de scoring en direct de Kandi sur vos candidats enregistrés, de sorte qu’elles reflètent ce que la publication ferait ressortir.",
+      "notAssessed": "{n, plural, one {# candidat n'a pas pu être évalué} other {# candidats n'ont pas pu être évalués}} et {n, plural, one {n'est} other {ne sont}} pas compté ci-dessus. Vérifiez leur profil.",
       "stageEdit": "Préparer cette modification",
-      "stageEditAria": "Ouvrir l’éditeur de description avec la modification préparée pour {value}"
+      "stageEditAria": "Ouvrir l'éditeur de description avec la modification {value} préparée",
+      "footnote": "L'évaluation relance le moteur de scoring de Kandi sur vos candidats enregistrés. Vos priorités sont enregistrées pour ce poste et votre équipe ; le moteur ne les lit pas encore, elles ne pèsent donc rien tant que ce n'est pas branché."
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
@@ -5340,7 +5373,8 @@
       "previewKo": "Écarté par le filtre KO : {reasons}",
       "strengths": "Atouts",
       "gaps": "Manques",
-      "noneListed": "Rien d’indiqué"
+      "noneListed": "Rien d’indiqué",
+      "earlyCareerChip": "Début de carrière"
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
@@ -10613,7 +10647,8 @@
     "common": {
       "retry": "Réessayer",
       "retrying": "Nouvelle tentative…",
-      "unreachable": "Le serveur est injoignable. Vérifiez que l'application est lancée, puis réessayez."
+      "unreachable": "Le serveur est injoignable. Vérifiez que l'application est lancée, puis réessayez.",
+      "explain": "Ce que cela signifie"
     },
     "title": "Ma recherche d'emploi",
     "nav": {
@@ -10684,6 +10719,18 @@
         "closed": "Terminée"
       },
       "sheetEmpty": "Votre CV retravaillé apparaîtra ici.",
+      "section": {
+        "summary": "Profil",
+        "experience": "Expérience",
+        "skills": "Compétences",
+        "education": "Formation"
+      },
+      "slot": {
+        "summary": "une phrase sur ce que vous faites et pour qui",
+        "experience": "votre poste le plus récent, et ce qui a changé grâce à vous",
+        "skills": "les outils et langages que votre CV peut étayer",
+        "education": "votre plus haut diplôme obtenu"
+      },
       "unreadableTitle": "Ce que je n'ai pas pu lire",
       "unreadableBody": "Ces blocs de votre CV n'entraient dans aucune rubrique que je reconnais. Ils restent ici et ne comptent jamais contre vous.",
       "suggestionsTitle": "Suggestions",
@@ -10987,6 +11034,10 @@
       "markApplied": "Marquer comme postulé",
       "appliedAlready": "Candidature envoyée",
       "sheetEmpty": "Les écarts et le verdict apparaissent ici au fil de la conversation.",
+      "slot": {
+        "verdict": "postuler, passer, ou encore indécis",
+        "gap": "ce que ce poste demande et que votre CV ne montre pas encore"
+      },
       "gaps": {
         "title": "Écarts",
         "none": "Aucun écart ne ressort. L'annonce et votre profil concordent sur ce qui est demandé."
@@ -11139,7 +11190,9 @@
           "cta": "Ajouter",
           "hint": "Un hôte hors catalogue est de niveau B : vous lisez ses conditions et les acceptez à l'activation."
         }
-      }
+      },
+      "refusedPill": "Refusée",
+      "pausedPill": "En pause"
     },
     "scans": {
       "eyebrow": "Recherche d'emploi",

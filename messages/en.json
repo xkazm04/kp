@@ -1372,6 +1372,7 @@
     "JOB_CANDIDATES_FAILED": "Could not rank candidates for this role. Please try again.",
     "JOB_REDISCOVER_FAILED": "Could not look through past candidates for this role. Please try again.",
     "JOB_WINNABILITY_FAILED": "Could not grade this role against the candidate pool. Please try again.",
+    "JOB_PRIORITIES_FAILED": "Could not save the pattern priorities for this role. Please try again.",
     "JOB_CAMPAIGN_FAILED": "Could not generate the campaign pack. Please try again.",
     "JOB_ASSIGNMENTS_FAILED": "Could not load the work samples for this role. Please try again.",
     "INTERVIEW_CREATE_FAILED": "Could not create the interview. Please try again.",
@@ -5170,30 +5171,62 @@
     "coach": {
       "loadFailed": "Couldn't grade this role.",
       "retry": "Retry",
+      "saveFailed": "Couldn't save that priority.",
       "grading": "Grading this role against your candidate pool…",
       "emptyPoolTitle": "No candidates to grade against yet",
-      "emptyPoolBody": "Add or import candidates and the coach will project how many would clear this role's gates before you publish.",
-      "verdict": {
-        "unfillable": "<b>Unfillable as written</b>: {eligible} of {pool} candidates clear the gates, but none score well enough to shortlist. Loosen the requirements below before you source.",
-        "thin": "<b>Thin pipeline</b>: only <b>{qualified}</b> of {pool} candidates would shortlist for {jobTitle}. Worth loosening a requirement before you publish.",
-        "healthy": "<b>{qualified} ready to shortlist</b> out of {pool}. {jobTitle} should fill. Publish with confidence."
+      "emptyPoolBody": "Add or import candidates and the coach will show you the patterns this role runs into.",
+      "noPatternsTitle": "Nothing is holding this role back",
+      "noPatternsBody": "No requirement here costs you candidates, and the salary is in line with the market. There is nothing to weigh.",
+      "intro": "What your candidate pool shows against {jobTitle}. Set a priority on each pattern and Kandi weighs it that way.",
+      "variant": {
+        "label": "Ledger layout",
+        "ledger": "Ledger",
+        "stack": "Stack",
+        "dial": "Dial"
       },
-      "stat": {
-        "pool": "In pool",
-        "eligible": "Clear gates",
-        "qualified": "Shortlist-ready"
+      "col": {
+        "pattern": "Pattern",
+        "share": "Share of pool",
+        "affected": "Candidates",
+        "priority": "Priority",
+        "action": "Action"
       },
-      "loosenHeading": "Loosen to widen the pipeline",
-      "gateLanguage": "Requiring <b>{value}</b> drops <b>{n}</b> otherwise-eligible {n, plural, one {candidate} other {candidates}}. Make it nice-to-have.",
-      "gateEducation": "The <b>{value}</b> education floor drops <b>{n}</b> {n, plural, one {candidate} other {candidates}}. Drop it to widen the pool.",
-      "mustHave": "<b>{missing}</b> eligible {missing, plural, one {candidate lacks} other {candidates lack}} <b>{skill}</b>. Demote it to nice-to-have.",
-      "salaryBelow": "Salary <b>{job}</b> sits below the market band <b>{market}</b> for this role. Raise it to compete.",
-      "salaryOk": "Salary is in line with the market band <b>{market}</b> for this role.",
+      "level": {
+        "critical": "Critical",
+        "important": "Important",
+        "minor": "Minor"
+      },
+      "setLevelAria": "Set {pattern} to {level}",
+      "clearLevelAria": "Clear the priority on {pattern}",
+      "pattern": {
+        "language": "{value} required",
+        "education": "{value} education floor",
+        "skill": "{value} missing",
+        "salary": "Salary {job} sits under the market band {market}"
+      },
+      "measure": "{affected} of {denominator} candidates",
+      "pct": "{pct}%",
+      "shareAria": "{pct}% of the pool",
+      "noShare": "Not countable",
+      "gain": "+{n}",
+      "lane": {
+        "inbox": "Not weighed yet ({n})",
+        "inboxEmpty": "Every pattern has a priority.",
+        "empty": "Nothing here yet."
+      },
+      "laneWeight": "Weight {n}",
+      "moveLeftAria": "Lower the priority of {pattern}",
+      "moveRightAria": "Raise the priority of {pattern}",
+      "dial": {
+        "projectedLabel": "Projected shortlist",
+        "untouched": "{base} shortlist today. Set a priority on a pattern to see what loosening it would buy.",
+        "upperBound": "Up from {base} today. Weighted patterns: {n}. An upper bound: each gain is measured on its own, so two loosenings can free the same candidate twice."
+      },
       "salaryUnset": "(no band set)",
       "notAssessed": "{n, plural, one {# candidate couldn't be scored} other {# candidates couldn't be scored}} and {n, plural, one {is} other {are}} not counted above. Check their profile.",
-      "footnote": "Projections re-run Kandi's live scoring engine against your saved candidates, so they match what publishing would surface.",
       "stageEdit": "Stage this edit",
-      "stageEditAria": "Open the description editor with the {value} change staged"
+      "stageEditAria": "Open the description editor with the {value} change staged",
+      "footnote": "The grade re-runs Kandi's live scoring engine against your saved candidates. Your priorities are saved for this role and your team; the scorer does not read them yet, so they weigh nothing until that lands."
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",
@@ -5340,7 +5373,8 @@
       "previewKo": "Filtered out by the KO check: {reasons}",
       "strengths": "Strengths",
       "gaps": "Gaps",
-      "noneListed": "None listed"
+      "noneListed": "None listed",
+      "earlyCareerChip": "Early career"
     },
     "deeplink": {
       "notFound": "That role isn't in your catalog. It may have been removed, or it belongs to another team.",
@@ -10613,7 +10647,8 @@
     "common": {
       "retry": "Try again",
       "retrying": "Retrying…",
-      "unreachable": "Could not reach the server. Check that the app is running, then retry."
+      "unreachable": "Could not reach the server. Check that the app is running, then retry.",
+      "explain": "What this means"
     },
     "title": "My job search",
     "nav": {
@@ -10684,6 +10719,18 @@
         "closed": "Finished"
       },
       "sheetEmpty": "Your polished CV will appear here.",
+      "section": {
+        "summary": "Summary",
+        "experience": "Experience",
+        "skills": "Skills",
+        "education": "Education"
+      },
+      "slot": {
+        "summary": "one line on what you do and who for",
+        "experience": "your most recent role, and what changed because of you",
+        "skills": "the tools and languages your CV can back up",
+        "education": "your highest completed study"
+      },
       "unreadableTitle": "What I could not read",
       "unreadableBody": "These blocks of your CV did not fit a section I recognise. They are kept here, never counted against you.",
       "suggestionsTitle": "Suggestions",
@@ -10987,6 +11034,10 @@
       "markApplied": "Mark applied",
       "appliedAlready": "Applied",
       "sheetEmpty": "The gaps and the verdict appear here as you talk.",
+      "slot": {
+        "verdict": "apply, skip, or still undecided",
+        "gap": "what this posting asks for that your CV does not show yet"
+      },
       "gaps": {
         "title": "Gaps",
         "none": "No gap stands out. The posting and your profile line up on what it asks for."
@@ -11139,7 +11190,9 @@
           "cta": "Add",
           "hint": "A host outside the catalog is tier B: you read its terms and acknowledge them when you enable it."
         }
-      }
+      },
+      "refusedPill": "Refused",
+      "pausedPill": "Paused"
     },
     "scans": {
       "eyebrow": "Job search",
