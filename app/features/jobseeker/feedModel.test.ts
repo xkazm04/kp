@@ -62,14 +62,15 @@ test("the dismiss picker's reasons are DISMISS_REASONS, in order", () => {
 });
 
 // Salary comparability: same currency compares, anything else says so, never converts.
-test("salary comparison happens only in one currency and one period", () => {
+test("salary comparison happens in one currency; month and year are restated by x12", () => {
   const floor = { amount: 60_000, currency: "CZK", period: "month" as const };
   const meets = compareSalary({ min: 70_000, max: 90_000, currency: "czk", period: "month" }, floor);
   assert.equal(meets.kind === "compared" && meets.verdict, "meets_floor");
-  assert.deepEqual(compareSalary({ min: 40_000, max: 50_000, currency: "CZK", period: "month" }, floor), { kind: "compared", verdict: "below_floor", pct: 20 });
-  assert.deepEqual(compareSalary({ min: 50_000, max: 70_000, currency: "CZK", period: "month" }, floor), { kind: "compared", verdict: "spans_floor", pct: 0 });
+  assert.deepEqual(compareSalary({ min: 40_000, max: 50_000, currency: "CZK", period: "month" }, floor), { kind: "compared", verdict: "below_floor", pct: 20 , periodConverted: false });
+  assert.deepEqual(compareSalary({ min: 50_000, max: 70_000, currency: "CZK", period: "month" }, floor), { kind: "compared", verdict: "spans_floor", pct: 0 , periodConverted: false });
   assert.deepEqual(compareSalary({ min: 3_000, max: 4_000, currency: "EUR", period: "month" }, floor), { kind: "not_comparable", posting: "EUR/month", floor: "CZK/month" });
-  assert.deepEqual(compareSalary({ min: 900_000, max: null, currency: "CZK", period: "year" }, floor), { kind: "not_comparable", posting: "CZK/year", floor: "CZK/month" });
+  const yearly = compareSalary({ min: 900_000, max: null, currency: "CZK", period: "year" }, floor);
+  assert.equal(yearly.kind === "compared" && yearly.periodConverted, true, "a yearly posting is restated to the monthly floor by x12");
   assert.deepEqual(compareSalary({ min: null, max: null, currency: null, period: null }, floor), { kind: "unstated" });
   assert.deepEqual(compareSalary({ min: 1, max: 2, currency: "CZK", period: "month" }, null), { kind: "no_floor" });
 });
@@ -110,4 +111,18 @@ test("renderedAnchor is the newest tuple the page showed, not its first row", ()
     "same instant: the larger id wins, exactly as the cursor orders"
   );
   assert.equal(renderedAnchor([]), null, "an empty page advances nothing");
+});
+
+test("compareSalary restates a monthly floor against a yearly posting by x12, and refuses an hourly one", () => {
+  const floor = { amount: 60_000, currency: "CZK", period: "month" as const };
+  const yearly = compareSalary({ min: 600_000, max: 900_000, currency: "CZK", period: "year" }, floor);
+  assert.equal(yearly.kind, "compared", "month vs year is comparable by x12");
+  if (yearly.kind === "compared") {
+    assert.equal(yearly.periodConverted, true);
+    assert.notEqual(yearly.verdict, "below_floor", "720k/year covers a 60k/month floor");
+  }
+  const hourly = compareSalary({ min: 400, max: 500, currency: "CZK", period: "hour" as never }, floor);
+  assert.equal(hourly.kind, "not_comparable", "an hourly rate is never restated");
+  const eur = compareSalary({ min: 3_000, max: 4_000, currency: "EUR", period: "month" }, floor);
+  assert.equal(eur.kind, "not_comparable", "a different currency is never converted");
 });

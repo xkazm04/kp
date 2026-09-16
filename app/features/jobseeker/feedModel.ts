@@ -79,7 +79,8 @@ export type SalaryComparison =
   | { kind: "no_floor" }
   /** Different currencies (or periods): say so with both codes; never convert. */
   | { kind: "not_comparable"; posting: string; floor: string }
-  | { kind: "compared"; verdict: SalaryVerdict; pct: number };
+  /** `periodConverted`: the floor was restated month<->year (x12) to the posting's period. */
+  | { kind: "compared"; verdict: SalaryVerdict; pct: number; periodConverted?: boolean };
 
 /** From the SEEKER's side: `below_floor` = the posting's whole range is under the floor
  *  (`pct` = how far under its max), `meets_floor` = the range starts at or above the
@@ -97,15 +98,28 @@ const VERDICT_FOR: Record<SalaryBandPosition, SalaryVerdict> = {
 export function compareSalary(pay: PostingPay, floor: SalaryFloor | null): SalaryComparison {
   if (!pay.currency || (pay.min === null && pay.max === null)) return { kind: "unstated" };
   if (!floor) return { kind: "no_floor" };
-  const periodMismatch = pay.period !== null && pay.period !== floor.period;
-  if (!isSameCurrency(pay.currency, floor.currency) || periodMismatch) {
-    const label = (c: string, p: SalaryPeriod | null) => (p ? `${c}/${p}` : c);
+  // Currency is never converted (no FX anywhere). PERIOD is: month <-> year is x12, the
+  // one arithmetic the matcher also allows (matching._salary_flag), and it is STATED on the
+  // result so the panel can say the floor was restated. Anything else (an hourly rate, an
+  // unknown period on either side) stays "not comparable" with both units named.
+  const label = (c: string, p: SalaryPeriod | null) => (p ? `${c}/${p}` : c);
+  if (!isSameCurrency(pay.currency, floor.currency)) {
     return { kind: "not_comparable", posting: label(pay.currency.toUpperCase(), pay.period), floor: label(floor.currency.toUpperCase(), floor.period) };
+  }
+  let floorAmount = floor.amount;
+  let periodConverted = false;
+  if (pay.period !== null && pay.period !== floor.period) {
+    const monthly = new Set<SalaryPeriod>(["month", "year"]);
+    if (!monthly.has(pay.period) || !monthly.has(floor.period)) {
+      return { kind: "not_comparable", posting: label(pay.currency.toUpperCase(), pay.period), floor: label(floor.currency.toUpperCase(), floor.period) };
+    }
+    floorAmount = pay.period === "year" ? floor.amount * 12 : floor.amount / 12;
+    periodConverted = true;
   }
   const lo = pay.min ?? pay.max ?? 0;
   const hi = pay.max ?? pay.min ?? 0;
-  const { position, pct } = salaryBandPosition(floor.amount, lo, hi);
-  return { kind: "compared", verdict: VERDICT_FOR[position], pct };
+  const { position, pct } = salaryBandPosition(floorAmount, lo, hi);
+  return { kind: "compared", verdict: VERDICT_FOR[position], pct, periodConverted };
 }
 
 // ── the last-seen anchor ────────────────────────────────────────────────────────────
