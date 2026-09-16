@@ -20,6 +20,14 @@
     "tipKindHuman": "Toto kolo vede člověk. Kliknutím z něj uděláte pohovor s AI.",
     "tipModeScreening": "Prověření vždy dělá AI. Vy volíte, kdo ho potvrdí.",
     "tipModeScoring": "Skórování dělá AI. Vy volíte, kdo skóre potvrdí.",
+    "tipModeHomework": "Zadání připraví a vyhodnotí AI. Vy volíte, kdo schválí jeho odeslání.",
+    "presetAxis": {
+      "homework": "Praktická úloha",
+      "aiInterview": "Pohovor s AI",
+      "screened": "Prověřeno",
+      "humanInterview": "Pohovor s člověkem",
+      "offer": "Nabídka"
+    },
     "stackedRounds": "{count, plural, one {# kolo zde} few {# kola zde} other {# kol zde}}",
     "tipStackedRounds": "Tento sloupec byl uložen s {count, plural, one {# kolem} few {# koly} other {# koly}} pohovoru. Novější plány dávají každému kolu vlastní krok. Přidejte krok typu Pohovor a jedno kolo přesuňte. Dokud neuložíte, nic se nemění.",
     "tipModeOffer": "Nabídku připraví AI. Vy volíte, kdo ji odešle.",
@@ -105,6 +113,7 @@
     "roles": {
       "entry": "Sem přicházejí",
       "screening": "Screening",
+      "homework": "Praktická úloha",
       "interview": "Pohovor",
       "scoring": "Skórování",
       "offer": "Nabídka",
@@ -114,6 +123,7 @@
     "roleMeaning": {
       "entry": "Sem přijde každý, kdo se přihlásí.",
       "screening": "Přečtete si, co poslali, a vyberete, s kým chcete mluvit.",
+      "homework": "AI připraví zadání, pošle ho a vyhodnotí, co přijde zpět.",
       "interview": "Mluvíte s těmi, kdo stojí za váš čas.",
       "scoring": "AI převede to, co slyšela, na porovnatelné skóre.",
       "offer": "Pošlete nabídku a čekáte na odpověď.",
@@ -1743,6 +1753,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Tento kandidát není na této nástěnce.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
     "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit.",
+    "PIPELINE_LANE_REQUIRED": "Uveďte pozici, jejíž zamítnuté kandidáty chcete zobrazit.",
     "AUTOMATION_TASK_NOT_OFFERED": "Tuto akci AI nelze v této fázi kandidáta spustit.",
     "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
     "APPLY_SESSION_INVALID": "Tento pokus o přihlášku se nepodařilo zahájit. Načtěte stránku znovu a zkuste to prosím ještě jednou.",
@@ -1807,7 +1818,21 @@
     "HIRE_INTAKE_LOST": "Záznam poptávky během sestavování role zmizel.",
     "HIRE_SPEC_INVALID": "Sestavená role neodpovídá kontraktu App mastera.",
     "HIRE_HUMAN_POPULATION": "Nástroj vyhodnotil tuto roli jako čistě lidskou, proto nebyl odeslán žádný agent.",
-    "HIRE_NO_AGENT_BLOCK": "Sestavená role neobsahuje blok agenta, takže není co odeslat."
+    "HIRE_NO_AGENT_BLOCK": "Sestavená role neobsahuje blok agenta, takže není co odeslat.",
+    "JOBSEEKER_STORE_FAILED": "Hledání práce se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu.",
+    "JOBSEEKER_PROFILE_MISSING": "Začněte svým CV: profil pro hledání práce ještě neexistuje.",
+    "JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED": "Než tento zdroj zapnete, přečtěte si jeho podmínky a potvrďte, že riziko přijímáte.",
+    "JOBSEEKER_SOURCE_REFUSED": "Tento zdroj automatizovaný přístup blokuje nebo zakazuje, proto ho nelze zapnout.",
+    "JOBSEEKER_SOURCE_BLOCKED": "Tento zdroj naše požadavky odmítl a byl pozastaven. Obnovte ho, jen pokud rozumíte proč.",
+    "JOBSEEKER_SOURCE_COLLAPSED": "Rozvržení stránky se změnilo a nepodařilo se nic přečíst. Zkontrolujte pravidla extrakce.",
+    "JOBSEEKER_RULES_INVALID": "Tato pravidla extrakce nejsou platná.",
+    "JOBSEEKER_PREVIEW_FAILED": "Náhled pravidel na živé stránce se nepodařil.",
+    "JOBSEEKER_DIALOG_NOT_FOUND": "Tato konverzace neexistuje.",
+    "JOBSEEKER_DIALOG_CLOSED": "Tato konverzace je uzavřená.",
+    "JOBSEEKER_DIALOG_MOVED": "Konverzace se během výpočtu změnila, proto byla znovu načtena a nic se nepřepsalo.",
+    "JOBSEEKER_TURN_TIMEOUT": "Odpověď trvala příliš dlouho. Konverzace je uložená, zkuste to znovu.",
+    "JOBSEEKER_OFFLINE": "Tato instalace je offline, zdroje nabídek proto nelze načítat.",
+    "JOBSEEKER_SCAN_UNVERIFIED": "Nejdřív spusťte jeden sken ručně; časovač se zapne, až sken proběhne úspěšně."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2710,7 +2735,24 @@
       "cellEmpty": "Žádní kandidáti",
       "dropHint": "Přetažením sem přesunete kandidáta do této fáze.",
       "waitingHuman": "{count, plural, one {# kandidát čeká na člověka} few {# kandidáti čekají na člověka} other {# kandidátů čeká na člověka}}",
-      "waitingAi": "{count, plural, one {# kandidát čeká na AI} few {# kandidáti čekají na AI} other {# kandidátů čeká na AI}}"
+      "waitingAi": "{count, plural, one {# kandidát čeká na AI} few {# kandidáti čekají na AI} other {# kandidátů čeká na AI}}",
+      "rejectedCount": "{count, plural, one {# zamítnutý kandidát} few {# zamítnutí kandidáti} other {# zamítnutých kandidátů}} u pozice {position}",
+      "rejectedShelf": "Zamítnutí",
+      "rejectedAt": "Zamítnuto ve fázi {stage}",
+      "rejectedAtByAi": "Zamítnuto AI ve fázi {stage}",
+      "lineMenu": {
+        "aria": "Akce pro {count, plural, one {# nového kandidáta} few {# nové kandidáty} other {# nových kandidátů}}",
+        "scope": "{count, plural, =0 {Žádní noví kandidáti} one {# nový kandidát} few {# noví kandidáti} other {# nových kandidátů}}",
+        "acceptAll": "Přijmout všechny",
+        "rejectAll": "Zamítnout všechny…",
+        "confirmRejectAll": "Zamítnout {count, plural, one {# kandidáta} few {# kandidáty} other {# kandidátů}}, klikněte znovu",
+        "aiEvaluate": "Vyhodnotit AI",
+        "nothingToDo": "Na této pozici nejsou žádní noví kandidáti.",
+        "evaluating": "Na pozadí se vyhodnocuje {count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}}.",
+        "accepted": "Přijato {ok} z {total}.",
+        "rejected": "Zamítnuto {ok} z {total}.",
+        "failed": "Akci se nepodařilo na pozici použít."
+      }
     },
     "stageHelp": {
       "Accepted": "Přijatý životopis: příchozí přihláška nebo aktivně vyhledaný kandidát čekající na prověření.",
@@ -8074,7 +8116,8 @@
         "interviews": "Pohovory",
         "assignments": "Zadání",
         "other": "Ostatní",
-        "companion": "Společník"
+        "companion": "Společník",
+        "jobseeker": "Hledání práce"
       }
     },
     "usage": {
@@ -10504,5 +10547,15 @@
       "nice1": "Práce s dbt nebo obdobným nástrojem",
       "nice2": "Ochota procházet dotazy ostatních"
     }
+  },
+  "me": {
+    "title": "Moje hledání práce",
+    "nav": {
+      "profile": "Profil a CV",
+      "jobs": "Nabídky",
+      "sources": "Zdroje",
+      "scans": "Skeny"
+    },
+    "placeholder": "Pracovní prostor pro hledání práce se připravuje. Až bude stránka profilu hotová, začněte svým CV."
   }
 }

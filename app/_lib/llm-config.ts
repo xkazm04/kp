@@ -54,6 +54,9 @@ export const LLM_USE_CASES = [
   "github_analysis",
   "cv_analysis",
   "profile_extract",
+  "cv_polish",
+  "fit_dialog",
+  "extraction_rules",
 ] as const;
 export type LlmUseCase = (typeof LLM_USE_CASES)[number];
 

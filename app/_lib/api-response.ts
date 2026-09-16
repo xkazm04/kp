@@ -422,6 +422,11 @@ export const STORE_ERRORS = {
   /** The recruiter read of a work session faulted (500). Operator-facing, but it
    *  sits under the public session prefix and shared the candidate responder. */
   DEVCASE_SESSION_READ_FAILED: "Could not load the work session. Please try again.",
+  /** Job-seeker module: a store-backed read/write on the seeker's own profile, sources,
+   *  postings or dialogs faulted (500). One code for the whole module — the seeker's
+   *  next step (retry) is the same whichever table broke, and which one is operator
+   *  detail for the log. */
+  JOBSEEKER_STORE_FAILED: "Could not save or load your job search right now. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -461,6 +466,8 @@ export const REFUSAL_ERRORS = {
   AUTOMATION_ENTRY_NO_PROFILE: "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
   /** The POST arrived without an entry to act on (400). */
   AUTOMATION_ENTRY_REQUIRED: "Name the candidate this step should run for.",
+  /** GET /api/pipeline/rejected arrived without the board lane to list (400). */
+  PIPELINE_LANE_REQUIRED: "Name the position whose rejected candidates to list.",
   /** A recruiter asked for an AI action the candidate's column does not offer (409) —
    *  the workspace's per-step list in Settings → Hiring, or the product default. */
   AUTOMATION_TASK_NOT_OFFERED: "That AI action isn't available at this candidate's step.",
@@ -1601,6 +1608,37 @@ export const REFUSAL_ERRORS = {
   DEVCASE_SESSION_ALREADY_SUBMITTED: "This work session has already been submitted.",
   /** A chat turn arrived empty, or as something that is not text (400). */
   DEVCASE_CHAT_MESSAGE_REQUIRED: "Write a message before sending it.",
+  // --- Job-seeker module (/me) ---------------------------------------------------
+  /** No seeker profile exists yet for this workspace/user (404): upload a CV first. */
+  JOBSEEKER_PROFILE_MISSING: "Start with your CV: there is no job-search profile yet.",
+  /** A tier-B board was enabled without the owner's acknowledgement (409). The card
+   *  states the robots posture and the terms clause; enabling is a decision, not a click. */
+  JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED: "Read this source's terms and confirm you accept the exposure before enabling it.",
+  /** A tier-C source (blocks or forbids automated access) can never be enabled (403). */
+  JOBSEEKER_SOURCE_REFUSED: "This source blocks or forbids automated access, so it cannot be enabled.",
+  /** The source answered a denial (403/429/interstitial) and was paused (423). Only the
+   *  owner resumes it — a block is a relationship signal, never something to retry. */
+  JOBSEEKER_SOURCE_BLOCKED: "This source declined our requests and was paused. Resume it only if you understand why.",
+  /** Every required extraction rule missed on a page that fetched fine: the page shape
+   *  changed (502). Zero rows is not success here. */
+  JOBSEEKER_SOURCE_COLLAPSED: "The page layout changed and nothing could be read. Re-check the extraction rules.",
+  /** The submitted rule set fails the DSL's validation (400). */
+  JOBSEEKER_RULES_INVALID: "These extraction rules are not valid.",
+  /** The dry-run preview could not fetch or run against the live page (502). */
+  JOBSEEKER_PREVIEW_FAILED: "Could not preview the rules against the live page.",
+  /** The dialog in the URL does not exist in this workspace (404). */
+  JOBSEEKER_DIALOG_NOT_FOUND: "That conversation does not exist.",
+  /** The dialog is closed; reopen or start a new one (409). */
+  JOBSEEKER_DIALOG_CLOSED: "This conversation is closed.",
+  /** The dialog changed while the turn was computed; the turn was dropped, not merged (409). */
+  JOBSEEKER_DIALOG_MOVED: "The conversation changed while that was being computed, so it was re-read rather than overwritten.",
+  /** The model turn exceeded its budget (504); the transcript is intact. */
+  JOBSEEKER_TURN_TIMEOUT: "That reply took too long. Your conversation is saved; try again.",
+  /** The deployment is sealed offline (KP_OFFLINE), so no source can be fetched (503). */
+  JOBSEEKER_OFFLINE: "This install is offline, so job sources cannot be fetched.",
+  /** The periodic scan cannot be armed before one manual scan succeeded (409): a new
+   *  schedule is disabled until first verification. */
+  JOBSEEKER_SCAN_UNVERIFIED: "Run one scan by hand first; the timer arms once a scan has succeeded.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

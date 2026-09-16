@@ -1210,6 +1210,120 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_job_postings_ws_family ON job_postings (workspace_id, role_family);
+
+    -- Job-seeker module (app/_lib/jobseeker/types.ts, stores in db/jobseeker-*.ts): the
+    -- SEEKER's own record — the flip side of the recruiter tables above. Four tables,
+    -- every one workspace-scoped with NO by-id carve-out (a leaked id must not resolve
+    -- another workspace's seeker, source, posting or dialog).
+    --
+    -- One profile per (workspace, user). user_id is nullable for the single-operator
+    -- install with no user rows, and SQLite treats NULL as distinct in a UNIQUE, so the
+    -- null-user upsert is a SELECT-then-write inside an IMMEDIATE transaction in the
+    -- store rather than ON CONFLICT.
+    CREATE TABLE IF NOT EXISTS jobseeker_profiles (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT,
+      profile_json TEXT NOT NULL,
+      preferences_json TEXT NOT NULL,
+      cv_source_text TEXT,
+      cv_polished_md TEXT,
+      cv_hash TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (workspace_id, user_id)
+    );
+
+    -- A source is owner-CONFIRMED acquisition: enabled starts at 0 and a tier-B board
+    -- flips it only together with acknowledged_at/acknowledged_terms_hash, so a changed
+    -- terms clause (new hash) re-asks. paused_reason 'blocked' is set by the fetcher and
+    -- cleared by nobody but the owner (resumeSource).
+    CREATE TABLE IF NOT EXISTS jobseeker_sources (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('feed','ats','board')),
+      adapter TEXT NOT NULL,
+      tier TEXT NOT NULL CHECK(tier IN ('A','B','C')),
+      host TEXT NOT NULL,
+      config_json TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      acknowledged_at TEXT,
+      acknowledged_terms_hash TEXT,
+      paused_reason TEXT,
+      paused_at TEXT,
+      rules_json TEXT,
+      rules_baseline_json TEXT,
+      last_run_at TEXT,
+      last_outcome TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_sources_ws_enabled ON jobseeker_sources (workspace_id, enabled);
+
+    -- The reconciled dataset: one row per real-world posting per source, keyed by the
+    -- source's own external key so a re-scan UPDATES instead of duplicating. content_hash
+    -- (sha256 over the normalized body, as job_postings) is what decides "changed";
+    -- gone_at is the first-miss marker — a posting is 'gone' only after TWO consecutive
+    -- scans failed to see it (one miss is a flaky page, not a withdrawn opening), and a
+    -- re-seen posting comes back to 'new' with gone_at cleared.
+    CREATE TABLE IF NOT EXISTS jobseeker_postings (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      external_key TEXT NOT NULL,
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      company TEXT,
+      location TEXT,
+      country TEXT,
+      work_mode TEXT,
+      posted_at TEXT,
+      salary_min REAL,
+      salary_max REAL,
+      salary_currency TEXT,
+      salary_period TEXT,
+      body_text TEXT NOT NULL,
+      jsonld_json TEXT,
+      content_hash TEXT NOT NULL,
+      job_json TEXT,
+      job_source TEXT CHECK(job_source IN ('deterministic','llm')),
+      match_json TEXT,
+      match_total REAL,
+      fit_tier TEXT,
+      match_version TEXT,
+      matched_at TEXT,
+      reasoning_json TEXT,
+      status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','shortlisted','applied','dismissed','gone')),
+      dismiss_reason TEXT,
+      dismiss_note TEXT,
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      gone_at TEXT,
+      UNIQUE (workspace_id, source_id, external_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_postings_ws_status_total ON jobseeker_postings (workspace_id, status, match_total DESC);
+
+    -- The Studio kit's two seeker dialogs (cv_polish, fit). transcript_json is replaced
+    -- whole on every exchange under a compare-and-swap on updated_at (intakes.ts shape):
+    -- a turn computed during a long LLM call lands on the version it read or answers
+    -- "moved", never splices.
+    CREATE TABLE IF NOT EXISTS jobseeker_dialogs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      profile_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('cv_polish','fit')),
+      posting_id TEXT,
+      transcript_json TEXT NOT NULL,
+      artifact_json TEXT,
+      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
+      lang TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_dialogs_ws_profile ON jobseeker_dialogs (workspace_id, profile_id, updated_at DESC);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

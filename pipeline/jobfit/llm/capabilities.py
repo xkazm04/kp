@@ -88,6 +88,11 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
     "profile_extract": frozenset({CAP_FILE_INPUT}),
+    # Job-seeker module (/me): the CV polish and fit dialogs, and the one-off
+    # extraction-rule authoring for a board without JSON-LD. All plain JSON turns.
+    "cv_polish": frozenset({CAP_JSON}),
+    "fit_dialog": frozenset({CAP_JSON}),
+    "extraction_rules": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -148,6 +153,14 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # 6 objectives in one object — past the base 2048 cap, at which point the JSON
     # truncates and the identical heuristic dossier ships instead.
     "repo_scan": 6144,
+    # A CV polish turn re-emits the whole polished CV as Markdown plus per-section
+    # suggestions; a two-page CV alone is ~1500 tokens, so the base cap truncates
+    # the JSON and the deterministic script ships instead.
+    "cv_polish": 6144,
+    "fit_dialog": 4096,
+    # A rule set is ~7 rules x locator + samples; the authoring prompt also asks for
+    # the reasoning per rule, which is what the reviewer reads before saving.
+    "extraction_rules": 4096,
     # agent_fit re-emits the WHOLE judgement in one object: up to
     # _MAX_COVERAGE_ITEMS=12 {item, coverage, rationale} rows, then a spec whose
     # `systemPromptDraft` is asked for at <=1200 chars and ACCEPTED by the coercer

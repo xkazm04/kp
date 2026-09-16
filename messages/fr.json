@@ -20,6 +20,14 @@
     "tipKindHuman": "Une personne mène ce tour. Cliquez pour en faire un entretien IA.",
     "tipModeScreening": "La présélection est toujours faite par l’IA. Vous choisissez qui la valide.",
     "tipModeScoring": "La notation est faite par l’IA. Vous choisissez qui valide le score.",
+    "tipModeHomework": "Le cas est rédigé et corrigé par l’IA. Vous choisissez qui autorise son envoi.",
+    "presetAxis": {
+      "homework": "Cas pratique",
+      "aiInterview": "Entretien avec l’IA",
+      "screened": "Présélectionné",
+      "humanInterview": "Entretien humain",
+      "offer": "Offre"
+    },
     "stackedRounds": "{count, plural, one {# tour ici} other {# tours ici}}",
     "tipStackedRounds": "Cette colonne a été enregistrée avec {count, plural, one {# tour} other {# tours}} d’entretien derrière elle. Les plans récents donnent à chaque tour son propre step. Ajoutez un step Entretien et déplacez-en un. Rien ne change tant que vous n’enregistrez pas.",
     "tipModeOffer": "L’offre est rédigée par l’IA. Vous choisissez qui l’envoie.",
@@ -105,6 +113,7 @@
     "roles": {
       "entry": "Point d’entrée",
       "screening": "Présélection",
+      "homework": "Cas pratique",
       "interview": "Entretien",
       "scoring": "Notation",
       "offer": "Offre",
@@ -114,6 +123,7 @@
     "roleMeaning": {
       "entry": "Toute candidature arrive d’abord ici.",
       "screening": "Vous lisez les dossiers et choisissez qui rencontrer.",
+      "homework": "L’IA rédige un cas, l’envoie et corrige ce qui revient.",
       "interview": "Vous parlez à ceux qui méritent votre temps.",
       "scoring": "L’IA transforme ce qu’elle a entendu en un score comparable.",
       "offer": "Vous faites une offre et vous attendez la réponse.",
@@ -1743,6 +1753,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
     "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
+    "PIPELINE_LANE_REQUIRED": "Indiquez le poste dont vous voulez lister les candidatures refusées.",
     "AUTOMATION_TASK_NOT_OFFERED": "Cette action IA n’est pas disponible à cette étape.",
     "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
     "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
@@ -1807,7 +1818,21 @@
     "HIRE_INTAKE_LOST": "La prise de besoin a disparu pendant la composition du rôle.",
     "HIRE_SPEC_INVALID": "Le rôle composé ne correspond pas au contrat App master.",
     "HIRE_HUMAN_POPULATION": "Le compositeur a jugé ce rôle réservé aux humains : aucun agent n'a été envoyé.",
-    "HIRE_NO_AGENT_BLOCK": "Le rôle composé ne comporte aucun bloc agent : il n'y a rien à envoyer."
+    "HIRE_NO_AGENT_BLOCK": "Le rôle composé ne comporte aucun bloc agent : il n'y a rien à envoyer.",
+    "JOBSEEKER_STORE_FAILED": "Impossible d'enregistrer ou de charger votre recherche d'emploi pour le moment. Veuillez réessayer.",
+    "JOBSEEKER_PROFILE_MISSING": "Commencez par votre CV : il n'existe pas encore de profil de recherche d'emploi.",
+    "JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED": "Lisez les conditions de cette source et confirmez que vous en acceptez le risque avant de l'activer.",
+    "JOBSEEKER_SOURCE_REFUSED": "Cette source bloque ou interdit l'accès automatisé ; elle ne peut donc pas être activée.",
+    "JOBSEEKER_SOURCE_BLOCKED": "Cette source a refusé nos requêtes et a été mise en pause. Ne la reprenez que si vous comprenez pourquoi.",
+    "JOBSEEKER_SOURCE_COLLAPSED": "La mise en page a changé et rien n'a pu être lu. Vérifiez les règles d'extraction.",
+    "JOBSEEKER_RULES_INVALID": "Ces règles d'extraction ne sont pas valides.",
+    "JOBSEEKER_PREVIEW_FAILED": "Impossible de tester les règles sur la page en ligne.",
+    "JOBSEEKER_DIALOG_NOT_FOUND": "Cette conversation n'existe pas.",
+    "JOBSEEKER_DIALOG_CLOSED": "Cette conversation est terminée.",
+    "JOBSEEKER_DIALOG_MOVED": "La conversation a changé pendant le calcul ; elle a été relue plutôt qu'écrasée.",
+    "JOBSEEKER_TURN_TIMEOUT": "La réponse a pris trop de temps. Votre conversation est enregistrée ; réessayez.",
+    "JOBSEEKER_OFFLINE": "Cette installation est hors ligne ; les sources d'offres ne peuvent pas être récupérées.",
+    "JOBSEEKER_SCAN_UNVERIFIED": "Lancez d'abord une analyse à la main ; le minuteur s'activera dès qu'une analyse aura réussi."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2710,7 +2735,24 @@
       "cellEmpty": "Aucun candidat",
       "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape.",
       "waitingHuman": "{count, plural, one {# candidature attend une personne} other {# candidatures attendent une personne}}",
-      "waitingAi": "{count, plural, one {# candidature attend l’IA} other {# candidatures attendent l’IA}}"
+      "waitingAi": "{count, plural, one {# candidature attend l’IA} other {# candidatures attendent l’IA}}",
+      "rejectedCount": "{count, plural, one {# candidature refusée} other {# candidatures refusées}} pour {position}",
+      "rejectedShelf": "Refusées",
+      "rejectedAt": "Refusée à l’étape {stage}",
+      "rejectedAtByAi": "Refusée par l’IA à l’étape {stage}",
+      "lineMenu": {
+        "aria": "Actions pour {count, plural, one {# nouvelle candidature} other {# nouvelles candidatures}}",
+        "scope": "{count, plural, =0 {Aucune nouvelle candidature} one {# nouvelle candidature} other {# nouvelles candidatures}}",
+        "acceptAll": "Tout accepter",
+        "rejectAll": "Tout refuser…",
+        "confirmRejectAll": "Refuser {count, plural, one {# candidature} other {# candidatures}} : cliquez à nouveau",
+        "aiEvaluate": "Évaluer par l’IA",
+        "nothingToDo": "Aucune nouvelle candidature pour ce poste.",
+        "evaluating": "Évaluation de {count, plural, one {# candidature} other {# candidatures}} en arrière-plan.",
+        "accepted": "{ok} sur {total} acceptées.",
+        "rejected": "{ok} sur {total} refusées.",
+        "failed": "Impossible d’appliquer l’action à ce poste."
+      }
     },
     "stageHelp": {
       "Accepted": "CV reçu : une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",
@@ -8074,7 +8116,8 @@
         "interviews": "Entretiens",
         "assignments": "Exercices",
         "other": "Autres",
-        "companion": "Compagnon"
+        "companion": "Compagnon",
+        "jobseeker": "Recherche d'emploi"
       }
     },
     "usage": {
@@ -10504,5 +10547,15 @@
       "nice1": "Expérience de dbt ou d'un équivalent",
       "nice2": "À l'aise pour relire les requêtes des autres"
     }
+  },
+  "me": {
+    "title": "Ma recherche d'emploi",
+    "nav": {
+      "profile": "Profil et CV",
+      "jobs": "Offres",
+      "sources": "Sources",
+      "scans": "Analyses"
+    },
+    "placeholder": "L'espace de recherche d'emploi est en construction. Commencez par votre CV dès que la page de profil sera disponible."
   }
 }

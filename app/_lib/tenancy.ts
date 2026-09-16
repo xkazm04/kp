@@ -247,6 +247,22 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // tenants), and the dedupe UNIQUE is (content_hash, workspace_id) so one team's
   // import cannot suppress another's (job-postings-tenancy.test.ts).
   "job_postings",
+  // The job-seeker module (db/jobseeker-*.ts): the SEEKER's own record, the flip side of
+  // the recruiter tables. Every read and write binds `workspace_id = ?`, and there is
+  // NO carve-out — by-id reads also bind the workspace, because a leaked id must not
+  // resolve another workspace's seeker, source, posting or dialog.
+  // Profile: one row per (workspace, user) — CV text, preferences, the polished CV
+  // (jobseeker-profiles-tenancy.test.ts).
+  "jobseeker_profiles",
+  // Sources: the owner's confirmed acquisition list, incl. terms acknowledgements
+  // (jobseeker-sources-tenancy.test.ts).
+  "jobseeker_sources",
+  // Postings: the reconciled dataset per source, with match projections; UNIQUE is
+  // (workspace_id, source_id, external_key) so one workspace's scan never touches
+  // another's rows (jobseeker-postings-tenancy.test.ts).
+  "jobseeker_postings",
+  // Dialogs: the seeker's CV-polish / fit conversations (jobseeker-dialogs-tenancy.test.ts).
+  "jobseeker_dialogs",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

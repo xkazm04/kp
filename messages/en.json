@@ -20,6 +20,14 @@
     "tipKindHuman": "A person runs this round. Click to make it an AI interview.",
     "tipModeScreening": "Screening is always done by AI. What you choose is who signs it off.",
     "tipModeScoring": "Scoring is done by AI. What you choose is who signs the score off.",
+    "tipModeHomework": "The case is written and marked by AI. What you choose is who approves sending it.",
+    "presetAxis": {
+      "homework": "Homework",
+      "aiInterview": "AI interview",
+      "screened": "Screened",
+      "humanInterview": "Human interview",
+      "offer": "Offer"
+    },
     "stackedRounds": "{count} rounds here",
     "tipStackedRounds": "This column was saved with {count} interview rounds behind it. Newer plans give each round its own step. Add an Interview step and move one across; nothing is changed until you save.",
     "tipModeOffer": "The offer is drafted by AI. What you choose is who sends it.",
@@ -105,6 +113,7 @@
     "roles": {
       "entry": "Arrives here",
       "screening": "Screening",
+      "homework": "Homework",
       "interview": "Interview",
       "scoring": "Scoring",
       "offer": "Offer",
@@ -114,6 +123,7 @@
     "roleMeaning": {
       "entry": "Everyone who applies lands here first.",
       "screening": "You read what they sent and pick who to talk to.",
+      "homework": "The AI writes a case, sends it, and marks what comes back.",
       "interview": "You talk to the ones worth your time.",
       "scoring": "The AI turns what it heard into a score you can compare.",
       "offer": "You make an offer and wait for the answer.",
@@ -1743,6 +1753,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "That candidate is not on this board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
     "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
+    "PIPELINE_LANE_REQUIRED": "Name the position whose rejected candidates to list.",
     "AUTOMATION_TASK_NOT_OFFERED": "That AI action isn’t available at this candidate’s step.",
     "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
     "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
@@ -1807,7 +1818,21 @@
     "HIRE_INTAKE_LOST": "The intake disappeared while the role was being composed.",
     "HIRE_SPEC_INVALID": "The composed role does not match the App master contract.",
     "HIRE_HUMAN_POPULATION": "The composer judged this role human-only, so no agent was dispatched.",
-    "HIRE_NO_AGENT_BLOCK": "The composed role carries no agent block, so there is nothing to dispatch."
+    "HIRE_NO_AGENT_BLOCK": "The composed role carries no agent block, so there is nothing to dispatch.",
+    "JOBSEEKER_STORE_FAILED": "Could not save or load your job search right now. Please try again.",
+    "JOBSEEKER_PROFILE_MISSING": "Start with your CV: there is no job-search profile yet.",
+    "JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED": "Read this source's terms and confirm you accept the exposure before enabling it.",
+    "JOBSEEKER_SOURCE_REFUSED": "This source blocks or forbids automated access, so it cannot be enabled.",
+    "JOBSEEKER_SOURCE_BLOCKED": "This source declined our requests and was paused. Resume it only if you understand why.",
+    "JOBSEEKER_SOURCE_COLLAPSED": "The page layout changed and nothing could be read. Re-check the extraction rules.",
+    "JOBSEEKER_RULES_INVALID": "These extraction rules are not valid.",
+    "JOBSEEKER_PREVIEW_FAILED": "Could not preview the rules against the live page.",
+    "JOBSEEKER_DIALOG_NOT_FOUND": "That conversation does not exist.",
+    "JOBSEEKER_DIALOG_CLOSED": "This conversation is closed.",
+    "JOBSEEKER_DIALOG_MOVED": "The conversation changed while that was being computed, so it was re-read rather than overwritten.",
+    "JOBSEEKER_TURN_TIMEOUT": "That reply took too long. Your conversation is saved; try again.",
+    "JOBSEEKER_OFFLINE": "This install is offline, so job sources cannot be fetched.",
+    "JOBSEEKER_SCAN_UNVERIFIED": "Run one scan by hand first; the timer arms once a scan has succeeded."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2710,7 +2735,24 @@
       "cellEmpty": "No candidates",
       "dropHint": "Drop a candidate here to move them to this stage.",
       "waitingHuman": "{count, plural, one {# candidate waits for a person} other {# candidates wait for a person}}",
-      "waitingAi": "{count, plural, one {# candidate waits for the AI} other {# candidates wait for the AI}}"
+      "waitingAi": "{count, plural, one {# candidate waits for the AI} other {# candidates wait for the AI}}",
+      "rejectedCount": "{count, plural, one {# candidate rejected} other {# candidates rejected}} for {position}",
+      "rejectedShelf": "Rejected",
+      "rejectedAt": "Rejected at {stage}",
+      "rejectedAtByAi": "Rejected at {stage} by the AI",
+      "lineMenu": {
+        "aria": "Actions for {count, plural, one {# new candidate} other {# new candidates}}",
+        "scope": "{count, plural, =0 {No new candidates} one {# new candidate} other {# new candidates}}",
+        "acceptAll": "Accept all",
+        "rejectAll": "Reject all…",
+        "confirmRejectAll": "Reject {count, plural, one {# candidate} other {# candidates}}: click again",
+        "aiEvaluate": "AI evaluate",
+        "nothingToDo": "No new candidates on this position.",
+        "evaluating": "Evaluating {count, plural, one {# candidate} other {# candidates}} in the background.",
+        "accepted": "Accepted {ok} of {total}.",
+        "rejected": "Rejected {ok} of {total}.",
+        "failed": "Couldn’t apply that to the position."
+      }
     },
     "stageHelp": {
       "Accepted": "CV received: an inbound application or a proactively-sourced candidate, waiting to be screened.",
@@ -8074,7 +8116,8 @@
         "interviews": "Interviews",
         "assignments": "Assignments",
         "other": "Other",
-        "companion": "Companion"
+        "companion": "Companion",
+        "jobseeker": "Job search"
       }
     },
     "usage": {
@@ -10504,5 +10547,15 @@
       "nice1": "Worked with dbt or an equivalent",
       "nice2": "Comfortable reviewing other people's queries"
     }
+  },
+  "me": {
+    "title": "My job search",
+    "nav": {
+      "profile": "Profile & CV",
+      "jobs": "Jobs",
+      "sources": "Sources",
+      "scans": "Scans"
+    },
+    "placeholder": "The job-search workspace is being built. Start with your CV once the profile page lands."
   }
 }

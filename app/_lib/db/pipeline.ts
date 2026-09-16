@@ -25,6 +25,38 @@ import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, sta
 import { knownStageIds } from "../pipeline-axis";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
+import { afterResponse } from "../after-response";
+
+/** POST-COMMIT seam: "this entry now STANDS on stage X".
+ *
+ *  The two writers below (`actOnPipelineEntry` and `setPipelineEntryStage`) are the
+ *  only places in the app where a pipeline entry's stage changes — the per-entry
+ *  route, the batch route, the drag move, the automation pass, the scheduler and
+ *  the offer finalizer all go through one of them — so this is where an arrival
+ *  hook belongs, and the smallest set that no move can dodge.
+ *
+ *  Called AFTER `tx.immediate()` has returned, never inside it: the hooks do LLM
+ *  and comms work, and an `await` between BEGIN and COMMIT would silently destroy
+ *  the transaction's atomicity. `afterResponse` keeps the work off the request's
+ *  critical path (and alive on serverless, where a detached promise would be
+ *  killed with the invocation); it logs a throwing task rather than letting it
+ *  become an unhandled rejection, so a failing hook can never fail the move.
+ *
+ *  The hook module is imported LAZILY: it reaches back into this store (and into
+ *  the billing, comms and interview layers that import it), so a static import
+ *  would make a cycle out of what is really a one-way notification.
+ *
+ *  A no-op when the stage did not actually change — an approval-clearing accept at
+ *  the terminal column, or a `set_stage` to where the entry already stands, is not
+ *  an arrival. */
+function notifyStageEntered(entry: PipelineEntry | null, fromStage: string | null, actorRef?: string | null): void {
+  if (!entry || fromStage === null || entry.stage === fromStage) return;
+  const { id, stage, workspaceId } = entry;
+  afterResponse("stage-entered", async () => {
+    const { runStageEnteredHook } = await import("../stage-hooks");
+    await runStageEnteredHook({ entryId: id, stage, workspaceId, actorRef: actorRef ?? null });
+  });
+}
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------
 
@@ -900,6 +932,29 @@ export function listEntriesForJob(jobId: string, workspaceId: string = DEFAULT_W
   return rows.map(rowToEntry);
 }
 
+/** How many ACTIVE candidates a single role currently holds, in this workspace.
+ *
+ *  The AI screener's strictness scales with this number (automation.py's
+ *  `screening_volume_tier`): a near-miss in a 4-candidate pipeline is held for a
+ *  human, while a role with hundreds of applicants may be screened strictly. A
+ *  single COUNT — the screen task runs per entry, so it must not pull rows.
+ *
+ *  ACTIVE, off the status taxonomy (TERMINAL_STATUS_SQL_LIST), for the same reason
+ *  `countPipelineByStage` uses it: a role that rejected 300 people last quarter and
+ *  holds 3 today is a SPARSE pipeline, and counting the closed-out rows would make
+ *  the screener strict on a role nobody is standing in. */
+export function countActiveEntriesForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n
+         FROM pipeline_entries
+        WHERE job_id = ? AND workspace_id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
+    )
+    .get(jobId, workspaceId) as { n: number } | undefined;
+  return row?.n ?? 0;
+}
+
 /** Per-job pipeline rollup: how many candidates a role holds, how many cleared
  *  screening, and how many were hired. One GROUP BY for every job, so the JD
  *  library can show each role's pipeline state without N queries or pulling the
@@ -1064,6 +1119,67 @@ export function migratePipelineStages(
 // email. A recruiter who spots a borderline case (just under the threshold, a
 // comms failure, a stale skip) needs a safety valve to put them back. These two
 // functions back the "Reconsider" queue + one-click reinstate.
+
+/** How many candidates each board LANE has rejected (recruiter or auto), keyed by
+ *  the lane key the board uses (`entryLaneKey`: job id, else job title). The board
+ *  payload excludes rejected rows, so the Subway's first column asks this instead. */
+export function countRejectedByLane(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, number> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT COALESCE(job_id, job_title, '?') AS lane, COUNT(*) AS n
+         FROM pipeline_entries
+        WHERE status = 'rejected' AND workspace_id = ?
+        GROUP BY lane`
+    )
+    .all(workspaceId) as { lane: string; n: number }[];
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.lane] = r.n;
+  return out;
+}
+
+export type RejectedItem = {
+  entry: PipelineEntry;
+  /** The column the candidate stood on when rejected (the rejection event's `to_stage`). */
+  rejectedStage: string | null;
+  rejectedAt: string | null;
+  /** True when the AI screener rejected them, false for a recruiter's decision. */
+  auto: boolean;
+};
+
+/** Every rejected candidate on one board lane, newest rejection first, with the
+ *  column they were rejected at. Both event kinds count — a recruiter's `rejected`
+ *  and the screener's `auto_rejected` — because the board's rejected shelf is the
+ *  lane's whole history, not the reconsider queue. Latest event per entry wins. */
+export function listRejectedForLane(lane: string, workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 200): RejectedItem[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
+              e.stage, e.match_score, e.status, e.approval_kind, e.approval_detail, e.created_at, e.stage_changed_at,
+              e.intake_degraded, e.intake_degraded_reason, e.workspace_id,
+              ev.to_stage AS rejected_stage, ev.created_at AS rejected_at, ev.kind AS rejected_kind
+         FROM pipeline_entries e
+         LEFT JOIN pipeline_events ev
+           ON ev.id = (SELECT id FROM pipeline_events
+                        WHERE entry_id = e.id AND kind IN ('rejected', 'auto_rejected')
+                        ORDER BY created_at DESC, id DESC LIMIT 1)
+        WHERE e.status = 'rejected' AND e.workspace_id = ? AND COALESCE(e.job_id, e.job_title, '?') = ?
+        ORDER BY ev.created_at DESC, e.updated_at DESC
+        LIMIT ?`
+    )
+    .all(workspaceId, lane, Math.min(Math.max(limit, 1), 500)) as (PipelineRow & {
+    rejected_stage: string | null;
+    rejected_at: string | null;
+    rejected_kind: string | null;
+  })[];
+  return rows.map((r) => ({
+    entry: rowToEntry(r),
+    rejectedStage: r.rejected_stage ?? r.stage ?? null,
+    rejectedAt: r.rejected_at ?? null,
+    auto: r.rejected_kind === "auto_rejected",
+  }));
+}
 
 export type ReconsiderItem = { entry: PipelineEntry; rejectedAt: string | null };
 
@@ -1945,6 +2061,15 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["dev_cases", "The work-sample assignment itself (scenario, seed tree), authored before any candidate exists."],
   ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
   ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],
+  // Job-seeker module (/me): the SEEKER's own record, held for the seeker as the person
+  // running the install - a different controller relationship from a recruiter-side
+  // candidate, so a candidate's Art. 17 request routed through pipeline_entries has
+  // nothing in these tables to reach. Seeker erasure is its own door (delete the
+  // profile and cascade to dialogs) - a follow-up in docs/features/jobseeker/README.md.
+  ["jobseeker_profiles", "The seeker's OWN profile, CV text and preferences - the operator's data about themselves, reached by the seeker's own delete, never by a candidate scrub."],
+  ["jobseeker_dialogs", "The seeker's own CV-polish and fit conversations; same controller relationship as jobseeker_profiles."],
+  ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
+  ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
@@ -2678,6 +2803,10 @@ export function actOnPipelineEntry(
   // decision-config store is a separate connection — rematchSourceEntry does the
   // same). Every stage move below walks it instead of the compile-time list.
   const axis = getPipelineAxis(workspaceId).stages;
+  // The stage this entry stood on when the transaction opened, captured from
+  // INSIDE the tx (the only place that read is authoritative) and consumed by
+  // notifyStageEntered after the commit. Stays null when nothing was written.
+  let fromStage: string | null = null;
   const tx = db.transaction((): PipelineEntry | null => {
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (!row) return null;
@@ -2714,6 +2843,7 @@ export function actOnPipelineEntry(
     return null;
   }
   const now = new Date().toISOString();
+  fromStage = row.stage;
   const meta = {
     entryId: id,
     candidateLabel: row.candidate_label,
@@ -2821,6 +2951,10 @@ export function actOnPipelineEntry(
       console.error("[pipeline:act] interview-link revoke failed", error);
     }
   }
+  // POST-COMMIT arrival hook (see notifyStageEntered). A reject never "arrives"
+  // anywhere — it closes the candidate out at the stage they were already on — and
+  // the helper's own from/to comparison covers the approval-clearing no-ops.
+  if (action !== "reject") notifyStageEntered(result, fromStage, opts?.actorRef ?? null);
   return result;
 }
 
@@ -2851,6 +2985,8 @@ export function setPipelineEntryStage(
   // migration can still move somebody OFF one.
   if (!knownStageIds(getPipelineAxis(workspaceId)).has(toStage)) return null;
   const db = ensureDb();
+  // See actOnPipelineEntry: captured inside the tx, consumed after the commit.
+  let fromStage: string | null = null;
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row) return null;
@@ -2865,6 +3001,7 @@ export function setPipelineEntryStage(
     // candidate). The board only lists active entries, so this is belt-and-braces.
     if (isTerminalEntryStatus(row.status)) return null;
     if (row.stage === toStage) return rowToEntry(row); // no-op: already there
+    fromStage = row.stage;
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
@@ -2883,7 +3020,10 @@ export function setPipelineEntryStage(
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
     return rowToEntry(updated);
   });
-  return tx.immediate();
+  const result = tx.immediate();
+  // POST-COMMIT arrival hook — the manual/drag half of the choke point.
+  notifyStageEntered(result, fromStage, opts?.actorRef ?? null);
+  return result;
 }
 
 // What `rematchSourceEntry` did to the source entry, so the caller can label the

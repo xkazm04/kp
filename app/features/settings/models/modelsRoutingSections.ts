@@ -36,6 +36,11 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // outreach" or "Roles & intake" would mislabel it in the one place an operator
   // goes to decide which model reads what.
   { key: "companion", useCases: ["assistant"] },
+  // The job-seeker module (/me): the seeker's own CV polish and fit dialogs, and
+  // the one-off authoring of extraction rules for a board without JSON-LD. Serves
+  // the person LOOKING for a job, so it is neither a hiring artifact nor the
+  // operator companion.
+  { key: "jobseeker", useCases: ["cv_polish", "fit_dialog", "extraction_rules"] },
   // The work-sample (dev-case) assignment lifecycle, design → evaluation.
   {
     key: "assignments",

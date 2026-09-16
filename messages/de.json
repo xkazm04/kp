@@ -20,6 +20,14 @@
     "tipKindHuman": "Eine Person führt diese Runde. Klicken, um daraus ein KI-Interview zu machen.",
     "tipModeScreening": "Das Screening macht immer die KI. Sie wählen, wer es abzeichnet.",
     "tipModeScoring": "Die Bewertung macht die KI. Sie wählen, wer den Score abzeichnet.",
+    "tipModeHomework": "Die Aufgabe wird von der KI erstellt und bewertet. Sie wählen, wer den Versand freigibt.",
+    "presetAxis": {
+      "homework": "Arbeitsprobe",
+      "aiInterview": "KI-Interview",
+      "screened": "Geprüft",
+      "humanInterview": "Interview mit Menschen",
+      "offer": "Angebot"
+    },
     "stackedRounds": "{count, plural, one {# Runde hier} other {# Runden hier}}",
     "tipStackedRounds": "Diese Spalte wurde mit {count, plural, one {# Interviewrunde} other {# Interviewrunden}} dahinter gespeichert. Neuere Pläne geben jeder Runde einen eigenen Schritt. Fügen Sie einen Interview-Schritt hinzu und verschieben Sie eine Runde. Bis zum Speichern ändert sich nichts.",
     "tipModeOffer": "Das Angebot entwirft die KI. Sie wählen, wer es versendet.",
@@ -105,6 +113,7 @@
     "roles": {
       "entry": "Eingang",
       "screening": "Screening",
+      "homework": "Arbeitsprobe",
       "interview": "Interview",
       "scoring": "Bewertung",
       "offer": "Angebot",
@@ -114,6 +123,7 @@
     "roleMeaning": {
       "entry": "Hier landet jede eingehende Bewerbung.",
       "screening": "Sie lesen die Unterlagen und wählen aus, mit wem Sie sprechen.",
+      "homework": "Die KI schreibt eine Aufgabe, verschickt sie und bewertet, was zurückkommt.",
       "interview": "Sie sprechen mit denen, die Ihre Zeit wert sind.",
       "scoring": "Die KI macht aus dem Gehörten einen vergleichbaren Score.",
       "offer": "Sie machen ein Angebot und warten auf die Antwort.",
@@ -1743,6 +1753,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
     "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
+    "PIPELINE_LANE_REQUIRED": "Geben Sie die Stelle an, deren abgelehnte Bewerbungen aufgelistet werden sollen.",
     "AUTOMATION_TASK_NOT_OFFERED": "Diese KI-Aktion ist in diesem Schritt nicht verfügbar.",
     "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
     "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
@@ -1807,7 +1818,21 @@
     "HIRE_INTAKE_LOST": "Die Aufnahme ist verschwunden, während die Rolle erstellt wurde.",
     "HIRE_SPEC_INVALID": "Die erstellte Rolle entspricht nicht dem App-Master-Vertrag.",
     "HIRE_HUMAN_POPULATION": "Der Composer hat diese Rolle als rein menschlich eingestuft, daher wurde kein Agent entsandt.",
-    "HIRE_NO_AGENT_BLOCK": "Die erstellte Rolle enthält keinen Agentenblock, es gibt also nichts zu entsenden."
+    "HIRE_NO_AGENT_BLOCK": "Die erstellte Rolle enthält keinen Agentenblock, es gibt also nichts zu entsenden.",
+    "JOBSEEKER_STORE_FAILED": "Ihre Jobsuche konnte gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut.",
+    "JOBSEEKER_PROFILE_MISSING": "Beginnen Sie mit Ihrem Lebenslauf: Es gibt noch kein Jobsuche-Profil.",
+    "JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED": "Lesen Sie die Bedingungen dieser Quelle und bestätigen Sie, dass Sie das Risiko tragen, bevor Sie sie aktivieren.",
+    "JOBSEEKER_SOURCE_REFUSED": "Diese Quelle blockiert oder verbietet automatisierten Zugriff und kann daher nicht aktiviert werden.",
+    "JOBSEEKER_SOURCE_BLOCKED": "Diese Quelle hat unsere Anfragen abgelehnt und wurde pausiert. Setzen Sie sie nur fort, wenn Sie den Grund verstehen.",
+    "JOBSEEKER_SOURCE_COLLAPSED": "Das Seitenlayout hat sich geändert, es konnte nichts gelesen werden. Prüfen Sie die Extraktionsregeln.",
+    "JOBSEEKER_RULES_INVALID": "Diese Extraktionsregeln sind ungültig.",
+    "JOBSEEKER_PREVIEW_FAILED": "Die Regeln konnten nicht gegen die Live-Seite getestet werden.",
+    "JOBSEEKER_DIALOG_NOT_FOUND": "Diese Unterhaltung gibt es nicht.",
+    "JOBSEEKER_DIALOG_CLOSED": "Diese Unterhaltung ist abgeschlossen.",
+    "JOBSEEKER_DIALOG_MOVED": "Die Unterhaltung hat sich während der Berechnung geändert; sie wurde neu geladen statt überschrieben.",
+    "JOBSEEKER_TURN_TIMEOUT": "Die Antwort hat zu lange gedauert. Ihre Unterhaltung ist gespeichert, versuchen Sie es erneut.",
+    "JOBSEEKER_OFFLINE": "Diese Installation ist offline, Stellenquellen können nicht abgerufen werden.",
+    "JOBSEEKER_SCAN_UNVERIFIED": "Starten Sie zuerst einen Scan von Hand; der Timer wird aktiv, sobald ein Scan erfolgreich war."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2710,7 +2735,24 @@
       "cellEmpty": "Keine Kandidaten",
       "dropHint": "Ziehen Sie eine Karte hierher, um den Kandidaten in diese Phase zu verschieben.",
       "waitingHuman": "{count, plural, one {# Bewerbung wartet auf eine Person} other {# Bewerbungen warten auf eine Person}}",
-      "waitingAi": "{count, plural, one {# Bewerbung wartet auf die KI} other {# Bewerbungen warten auf die KI}}"
+      "waitingAi": "{count, plural, one {# Bewerbung wartet auf die KI} other {# Bewerbungen warten auf die KI}}",
+      "rejectedCount": "{count, plural, one {# abgelehnte Bewerbung} other {# abgelehnte Bewerbungen}} für {position}",
+      "rejectedShelf": "Abgelehnt",
+      "rejectedAt": "Abgelehnt in {stage}",
+      "rejectedAtByAi": "Von der KI abgelehnt in {stage}",
+      "lineMenu": {
+        "aria": "Aktionen für {count, plural, one {# neue Bewerbung} other {# neue Bewerbungen}}",
+        "scope": "{count, plural, =0 {Keine neuen Bewerbungen} one {# neue Bewerbung} other {# neue Bewerbungen}}",
+        "acceptAll": "Alle annehmen",
+        "rejectAll": "Alle ablehnen …",
+        "confirmRejectAll": "{count, plural, one {# Bewerbung} other {# Bewerbungen}} ablehnen, erneut klicken",
+        "aiEvaluate": "KI-Bewertung",
+        "nothingToDo": "Keine neuen Bewerbungen für diese Stelle.",
+        "evaluating": "{count, plural, one {# Bewerbung wird} other {# Bewerbungen werden}} im Hintergrund bewertet.",
+        "accepted": "{ok} von {total} angenommen.",
+        "rejected": "{ok} von {total} abgelehnt.",
+        "failed": "Die Aktion konnte nicht angewendet werden."
+      }
     },
     "stageHelp": {
       "Accepted": "Lebenslauf erhalten: eine eingehende Bewerbung oder ein/e proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",
@@ -8074,7 +8116,8 @@
         "interviews": "Interviews",
         "assignments": "Aufgaben",
         "other": "Sonstiges",
-        "companion": "Begleiter"
+        "companion": "Begleiter",
+        "jobseeker": "Jobsuche"
       }
     },
     "usage": {
@@ -10504,5 +10547,15 @@
       "nice1": "Erfahrung mit dbt oder Vergleichbarem",
       "nice2": "Bereitschaft, die Abfragen anderer zu prüfen"
     }
+  },
+  "me": {
+    "title": "Meine Jobsuche",
+    "nav": {
+      "profile": "Profil & Lebenslauf",
+      "jobs": "Stellen",
+      "sources": "Quellen",
+      "scans": "Scans"
+    },
+    "placeholder": "Der Jobsuche-Arbeitsbereich wird gerade gebaut. Beginnen Sie mit Ihrem Lebenslauf, sobald die Profilseite da ist."
   }
 }

@@ -1,0 +1,457 @@
+import { createHash } from "node:crypto";
+import {
+  isDismissReason,
+  isPostingStatus,
+  isWorkMode,
+  FIT_TIERS,
+  SALARY_PERIODS,
+  type DismissReason,
+  type EligibilityFlag,
+  type FitTier,
+  type JobseekerPosting,
+  type JobseekerPostingSummary,
+  type PostingStatus,
+  type RawPosting,
+  type SalaryPeriod,
+} from "../jobseeker/types";
+import { randomId } from "../random-id";
+import { ensureDb, safeRowParse } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+
+// The reconciled posting dataset (app/_lib/jobseeker/types.ts): one row per real-world
+// posting per source, keyed by (workspace, source, external_key) so a re-scan updates a
+// row instead of duplicating it, and the match/deep-dive projections hang off that row.
+//
+// Tenancy: every statement binds `workspace_id = ?`, point reads included
+// (jobseeker-postings-tenancy.test.ts). No carve-out.
+//
+// Lifecycle a scan drives:
+//   upsertPosting  — new / changed (content hash moved) / unchanged (only last_seen_at)
+//   markAbsent     — TWO consecutive misses before status = 'gone' (gone_at is the
+//                    first-miss marker); a re-seen posting revives to 'new'.
+// The seeker drives status otherwise (shortlisted / applied / dismissed).
+
+type PostingRow = {
+  id: string;
+  workspace_id: string;
+  source_id: string;
+  external_key: string;
+  url: string;
+  title: string;
+  company: string | null;
+  location: string | null;
+  country: string | null;
+  work_mode: string | null;
+  posted_at: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
+  salary_period: string | null;
+  body_text: string;
+  jsonld_json: string | null;
+  content_hash: string;
+  job_json: string | null;
+  job_source: string | null;
+  match_json: string | null;
+  match_total: number | null;
+  fit_tier: string | null;
+  match_version: string | null;
+  matched_at: string | null;
+  reasoning_json: string | null;
+  status: string;
+  dismiss_reason: string | null;
+  dismiss_note: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  gone_at: string | null;
+};
+
+/** The list projection: no body, no JSON-LD, no structured job, no reasoning — only
+ *  match_json rides along because eligibility/confidence are read out of it. */
+type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "reasoning_json" | "content_hash"> & {
+  body_chars: number;
+  deep_dived: number;
+};
+
+const SUMMARY_COLUMNS = `id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode,
+     posted_at, salary_min, salary_max, salary_currency, salary_period, match_json, match_total, fit_tier,
+     match_version, matched_at, job_source, status, dismiss_reason, dismiss_note, first_seen_at, last_seen_at, gone_at,
+     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived`;
+
+function coerceFitTier(value: string | null): FitTier | null {
+  return value !== null && (FIT_TIERS as readonly string[]).includes(value) ? (value as FitTier) : null;
+}
+
+function coerceSalaryPeriod(value: string | null): SalaryPeriod | null {
+  return value !== null && (SALARY_PERIODS as readonly string[]).includes(value) ? (value as SalaryPeriod) : null;
+}
+
+function coerceJobSource(value: string | null): "deterministic" | "llm" | null {
+  return value === "deterministic" || value === "llm" ? value : null;
+}
+
+/** The columns shared by the full row and the summary row. */
+function baseFromRow(row: PostingRow | SummaryRow) {
+  return {
+    id: row.id,
+    sourceId: row.source_id,
+    externalKey: row.external_key,
+    url: row.url,
+    title: row.title,
+    company: row.company,
+    location: row.location,
+    country: row.country,
+    workMode: isWorkMode(row.work_mode) ? row.work_mode : null,
+    postedAt: row.posted_at,
+    salaryMin: row.salary_min,
+    salaryMax: row.salary_max,
+    salaryCurrency: row.salary_currency,
+    salaryPeriod: coerceSalaryPeriod(row.salary_period),
+    jobSource: coerceJobSource(row.job_source),
+    matchTotal: row.match_total,
+    fitTier: coerceFitTier(row.fit_tier),
+    matchVersion: row.match_version,
+    matchedAt: row.matched_at,
+    status: isPostingStatus(row.status) ? row.status : "new",
+    dismissReason: isDismissReason(row.dismiss_reason) ? row.dismiss_reason : null,
+    dismissNote: row.dismiss_note,
+    firstSeenAt: row.first_seen_at,
+    lastSeenAt: row.last_seen_at,
+    goneAt: row.gone_at,
+  };
+}
+
+function parseMatch(json: string | null, id: string): Record<string, unknown> | null {
+  const match = safeRowParse<Record<string, unknown>>(json, "jobseekerPosting.match", id);
+  return match && typeof match === "object" ? match : null;
+}
+
+function fromRow(row: PostingRow): JobseekerPosting {
+  const jsonld = safeRowParse<Record<string, unknown>>(row.jsonld_json, "jobseekerPosting.jsonld", row.id);
+  const job = safeRowParse<Record<string, unknown>>(row.job_json, "jobseekerPosting.job", row.id);
+  const reasoning = safeRowParse<Record<string, unknown>>(row.reasoning_json, "jobseekerPosting.reasoning", row.id);
+  return {
+    ...baseFromRow(row),
+    bodyText: row.body_text,
+    jsonld: jsonld && typeof jsonld === "object" ? jsonld : null,
+    contentHash: row.content_hash,
+    job: job && typeof job === "object" ? job : null,
+    match: parseMatch(row.match_json, row.id),
+    reasoning: reasoning && typeof reasoning === "object" ? reasoning : null,
+  };
+}
+
+/** Eligibility + confidence are PROJECTIONS of the stored MatchResult: read defensively,
+ *  because the match schema is the pipeline's (codegen) and this store must not break
+ *  when a field is renamed there — an unreadable projection is empty, never a throw. */
+function projectMatch(match: Record<string, unknown> | null): Pick<JobseekerPostingSummary, "eligibility" | "confidence"> {
+  const eligibility = Array.isArray(match?.eligibility) ? (match.eligibility as EligibilityFlag[]) : [];
+  const raw = match?.confidence;
+  const confidence =
+    raw && typeof raw === "object" && typeof (raw as { low?: unknown }).low === "number" && typeof (raw as { high?: unknown }).high === "number"
+      ? (raw as JobseekerPostingSummary["confidence"])
+      : null;
+  return { eligibility, confidence };
+}
+
+function fromSummaryRow(row: SummaryRow): JobseekerPostingSummary {
+  return {
+    ...baseFromRow(row),
+    ...projectMatch(parseMatch(row.match_json, row.id)),
+    bodyChars: row.body_chars,
+    deepDived: row.deep_dived === 1,
+  };
+}
+
+/** Same normalization as job-postings.ts: whitespace and case are not content, so a
+ *  board that re-renders its template does not register every posting as changed. */
+export function postingContentHash(bodyText: string): string {
+  return createHash("sha256").update(bodyText.replace(/\s+/g, " ").trim().toLowerCase(), "utf8").digest("hex");
+}
+
+export type UpsertOutcome = "new" | "changed" | "unchanged";
+
+/** Reconcile one raw posting into the dataset. `unchanged` bumps last_seen_at only;
+ *  `changed` (a moved content hash) rewrites the content columns and clears the
+ *  structured job + match so the matcher re-scores it; a posting the scan had marked
+ *  gone (or was on its first miss) is revived either way. Salary columns are NOT set
+ *  here: RawPosting carries salaryText, and parsing it is the salary-band step's job. */
+export function upsertPosting(
+  sourceId: string,
+  raw: RawPosting,
+  seenAt: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; outcome: UpsertOutcome } {
+  const d = ensureDb();
+  const contentHash = postingContentHash(raw.bodyText);
+  const run = d.transaction((): { id: string; outcome: UpsertOutcome } => {
+    const existing = d
+      .prepare(
+        `SELECT id, content_hash, status FROM jobseeker_postings
+         WHERE source_id = ? AND external_key = ? AND workspace_id = ?`
+      )
+      .get(sourceId, raw.externalKey, workspaceId) as Pick<PostingRow, "id" | "content_hash" | "status"> | undefined;
+    if (!existing) {
+      const id = randomId("jpo");
+      d.prepare(
+        `INSERT INTO jobseeker_postings
+           (id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode, posted_at,
+            body_text, jsonld_json, content_hash, status, first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`
+      ).run(
+        id,
+        workspaceId,
+        sourceId,
+        raw.externalKey,
+        raw.url,
+        raw.title.trim().slice(0, 300) || "Untitled posting",
+        raw.company,
+        raw.location,
+        raw.country,
+        raw.workMode,
+        raw.postedAt,
+        raw.bodyText,
+        raw.jsonld ? JSON.stringify(raw.jsonld) : null,
+        contentHash,
+        seenAt,
+        seenAt
+      );
+      return { id, outcome: "new" };
+    }
+    // A seen posting is present, whatever the scan had concluded before: the first-miss
+    // marker clears, and a 'gone' row comes back as 'new' (the seeker's own statuses —
+    // shortlisted / applied / dismissed — are untouched).
+    const revive = `status = CASE WHEN status = 'gone' THEN 'new' ELSE status END, gone_at = NULL`;
+    if (existing.content_hash === contentHash) {
+      d.prepare(`UPDATE jobseeker_postings SET last_seen_at = ?, ${revive} WHERE id = ? AND workspace_id = ?`).run(
+        seenAt,
+        existing.id,
+        workspaceId
+      );
+      return { id: existing.id, outcome: "unchanged" };
+    }
+    d.prepare(
+      `UPDATE jobseeker_postings
+       SET url = ?, title = ?, company = ?, location = ?, country = ?, work_mode = ?, posted_at = ?,
+           body_text = ?, jsonld_json = ?, content_hash = ?,
+           job_json = NULL, job_source = NULL, match_json = NULL, match_total = NULL, fit_tier = NULL,
+           match_version = NULL, matched_at = NULL, reasoning_json = NULL,
+           last_seen_at = ?, ${revive}
+       WHERE id = ? AND workspace_id = ?`
+    ).run(
+      raw.url,
+      raw.title.trim().slice(0, 300) || "Untitled posting",
+      raw.company,
+      raw.location,
+      raw.country,
+      raw.workMode,
+      raw.postedAt,
+      raw.bodyText,
+      raw.jsonld ? JSON.stringify(raw.jsonld) : null,
+      contentHash,
+      seenAt,
+      existing.id,
+      workspaceId
+    );
+    return { id: existing.id, outcome: "changed" };
+  });
+  return run.immediate();
+}
+
+/** After a source's scan: every posting of the source NOT seen in it (last_seen_at
+ *  before the scan started) takes one step toward gone. First miss stamps gone_at;
+ *  a second consecutive miss sets status = 'gone'. Returns how many moved to gone.
+ *  Two statements in one IMMEDIATE transaction, second-miss FIRST — otherwise the
+ *  first-miss stamp written a moment earlier would count as the second. */
+export function markAbsent(sourceId: string, seenBefore: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const d = ensureDb();
+  const now = new Date().toISOString();
+  const run = d.transaction((): number => {
+    const gone = d
+      .prepare(
+        `UPDATE jobseeker_postings SET status = 'gone'
+         WHERE source_id = ? AND workspace_id = ? AND last_seen_at < ? AND gone_at IS NOT NULL AND status != 'gone'`
+      )
+      .run(sourceId, workspaceId, seenBefore);
+    d.prepare(
+      `UPDATE jobseeker_postings SET gone_at = ?
+       WHERE source_id = ? AND workspace_id = ? AND last_seen_at < ? AND gone_at IS NULL`
+    ).run(now, sourceId, workspaceId, seenBefore);
+    return gone.changes;
+  });
+  return run.immediate();
+}
+
+/** The structured Job the extractor produced (deterministic or LLM). */
+export function setPostingStructure(
+  id: string,
+  job: Record<string, unknown>,
+  jobSource: "deterministic" | "llm",
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE jobseeker_postings SET job_json = ?, job_source = ? WHERE id = ? AND workspace_id = ?`)
+    .run(JSON.stringify(job), jobSource, id, workspaceId);
+  return res.changes > 0;
+}
+
+/** The MatchResult verbatim plus its indexed projection — written together so the sort
+ *  column and the payload can never disagree. */
+export function setPostingMatch(
+  id: string,
+  match: Record<string, unknown>,
+  projection: { total: number; fitTier: FitTier; version: string; matchedAt: string },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE jobseeker_postings SET match_json = ?, match_total = ?, fit_tier = ?, match_version = ?, matched_at = ?
+       WHERE id = ? AND workspace_id = ?`
+    )
+    .run(JSON.stringify(match), projection.total, projection.fitTier, projection.version, projection.matchedAt, id, workspaceId);
+  return res.changes > 0;
+}
+
+export function setPostingReasoning(id: string, reasoning: Record<string, unknown>, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE jobseeker_postings SET reasoning_json = ? WHERE id = ? AND workspace_id = ?`)
+    .run(JSON.stringify(reasoning), id, workspaceId);
+  return res.changes > 0;
+}
+
+/** The seeker's own status move. `dismiss` is required by shape when the status is
+ *  'dismissed' (the reason is what the feed learns from); any other status clears it. */
+export function setPostingStatus(
+  id: string,
+  status: PostingStatus,
+  dismiss: { reason: DismissReason; note: string | null } | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const applied = status === "dismissed" ? dismiss : null;
+  const res = ensureDb()
+    .prepare(`UPDATE jobseeker_postings SET status = ?, dismiss_reason = ?, dismiss_note = ? WHERE id = ? AND workspace_id = ?`)
+    .run(status, applied?.reason ?? null, applied?.note?.trim() ? applied.note.trim().slice(0, 1000) : null, id, workspaceId);
+  return res.changes > 0;
+}
+
+export function getPosting(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerPosting | null {
+  const row = ensureDb()
+    .prepare(`SELECT * FROM jobseeker_postings WHERE id = ? AND workspace_id = ?`)
+    .get(id, workspaceId) as PostingRow | undefined;
+  return row ? fromRow(row) : null;
+}
+
+export type ListPostingsOptions = {
+  status?: PostingStatus;
+  minTotal?: number;
+  sourceId?: string;
+  sort?: "total" | "posted" | "seen";
+  limit?: number;
+  cursor?: string | null;
+};
+
+// Keyset paging. The cursor is the (sort key, id) pair of the last row handed out,
+// base64url-encoded so the client treats it as opaque; a page never repeats or skips a
+// row when postings land between requests, which an OFFSET pager cannot promise while
+// a scan is writing. Sort keys are nullable (unmatched rows have no total, feeds often
+// omit posted_at), so nulls sort LAST and the cursor carries an explicit null.
+type CursorPayload = { k: string | number | null; id: string };
+
+function encodeCursor(payload: CursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+function decodeCursor(cursor: string | null | undefined): CursorPayload | null {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Partial<CursorPayload>;
+    if (typeof parsed.id !== "string") return null;
+    const k = parsed.k;
+    return { k: typeof k === "string" || typeof k === "number" ? k : null, id: parsed.id };
+  } catch {
+    // A malformed cursor is a client error, not a crash: the list starts from the top.
+    return null;
+  }
+}
+
+const SORT_COLUMN: Record<NonNullable<ListPostingsOptions["sort"]>, string> = {
+  total: "match_total",
+  posted: "posted_at",
+  seen: "last_seen_at",
+};
+
+export function listPostings(
+  opts: ListPostingsOptions = {},
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { rows: JobseekerPostingSummary[]; nextCursor: string | null } {
+  const limit = Math.max(1, Math.min(200, Math.trunc(opts.limit ?? 50) || 50));
+  const sort = opts.sort ?? "total";
+  const col = SORT_COLUMN[sort];
+  // The tenant predicate is LITERAL in the SQL below, never assembled into `clauses`
+  // (job-postings.ts: a scoping the source guard cannot see is not a scoping).
+  const clauses: string[] = [];
+  const args: (string | number)[] = [workspaceId];
+  if (opts.status) {
+    clauses.push("status = ?");
+    args.push(opts.status);
+  } else {
+    // The default feed is the LIVE one: what the seeker can still act on.
+    clauses.push("status NOT IN ('dismissed', 'gone')");
+  }
+  if (typeof opts.minTotal === "number" && Number.isFinite(opts.minTotal)) {
+    clauses.push("match_total >= ?");
+    args.push(opts.minTotal);
+  }
+  if (opts.sourceId) {
+    clauses.push("source_id = ?");
+    args.push(opts.sourceId);
+  }
+  const cursor = decodeCursor(opts.cursor);
+  if (cursor) {
+    if (cursor.k === null) {
+      // Already inside the null tail: only the id order remains.
+      clauses.push(`${col} IS NULL AND id < ?`);
+      args.push(cursor.id);
+    } else {
+      // Rows strictly after (k DESC, id DESC): a smaller key, the same key with a smaller
+      // id, or the null tail that sorts after every non-null key.
+      clauses.push(`(${col} < ? OR (${col} = ? AND id < ?) OR ${col} IS NULL)`);
+      args.push(cursor.k, cursor.k, cursor.id);
+    }
+  }
+  args.push(limit + 1);
+  const rows = ensureDb()
+    .prepare(
+      `SELECT ${SUMMARY_COLUMNS} FROM jobseeker_postings
+       WHERE workspace_id = ? ${clauses.map((c) => `AND ${c}`).join(" ")}
+       ORDER BY (${col} IS NULL) ASC, ${col} DESC, id DESC
+       LIMIT ?`
+    )
+    .all(...args) as SummaryRow[];
+  const page = rows.slice(0, limit);
+  const last = rows.length > limit ? page[page.length - 1] : null;
+  const nextCursor = last
+    ? encodeCursor({
+        k: sort === "total" ? last.match_total : sort === "posted" ? last.posted_at : last.last_seen_at,
+        id: last.id,
+      })
+    : null;
+  return { rows: page.map(fromSummaryRow), nextCursor };
+}
+
+/** What the matcher scores: every structured, still-live posting of the workspace. */
+export function listPostingsForMatching(workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; job: Record<string, unknown> }[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, job_json FROM jobseeker_postings
+       WHERE workspace_id = ? AND job_json IS NOT NULL AND status NOT IN ('dismissed', 'gone')
+       ORDER BY first_seen_at DESC, id DESC`
+    )
+    .all(workspaceId) as Pick<PostingRow, "id" | "job_json">[];
+  const out: { id: string; job: Record<string, unknown> }[] = [];
+  for (const row of rows) {
+    const job = safeRowParse<Record<string, unknown>>(row.job_json, "jobseekerPosting.job", row.id);
+    if (job && typeof job === "object") out.push({ id: row.id, job });
+  }
+  return out;
+}
