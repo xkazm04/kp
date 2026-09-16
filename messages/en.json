@@ -1354,6 +1354,9 @@
     "JD_LIST_FAILED": "Could not load the JD library. Please try again.",
     "JD_LOAD_FAILED": "Could not load the JD. Please try again.",
     "JD_SAVE_FAILED": "Could not save the JD. Please try again.",
+    "JD_DELETE_FAILED": "Could not delete the JD. Please try again.",
+    "JD_LIVE_CANNOT_DELETE": "This description belongs to a live role. Close the role first, then delete it.",
+    "JD_DELETE_FORBIDDEN": "Only the person who created this description, or an admin, can delete it.",
     "JD_GENERATE_FAILED": "Could not start the AI build. Please try again.",
     "JD_ANALYSES_FAILED": "Could not load candidates for this JD. Please try again.",
     "TEMPLATE_LIST_FAILED": "Could not load templates. Please try again.",
@@ -1758,6 +1761,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
     "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
     "PIPELINE_LANE_REQUIRED": "Name the position whose rejected candidates to list.",
+    "PIPELINE_EVENTS_CURSOR_INVALID": "The activity cursor is not valid.",
     "INTERVIEW_SESSION_NOT_FOUND": "That interview isn’t on this team’s record.",
     "AUTOMATION_TASK_NOT_OFFERED": "That AI action isn’t available at this candidate’s step.",
     "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
@@ -2559,7 +2563,7 @@
       "channels": "Channels",
       "decisions": "Decisions",
       "schedule": "Schedule",
-      "jobs": "Jobs",
+      "jobs": "Roles",
       "library": "Job descriptions",
       "archetypes": "Archetypes",
       "analyze": "Analyze",
@@ -3057,7 +3061,8 @@
       "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why.",
       "expandBoard": "Full page",
       "collapseBoard": "Exit full page",
-      "boardFullPageAria": "Positions board, full page"
+      "boardFullPageAria": "Positions board, full page",
+      "activityWindow": "Last 7 days"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3991,7 +3996,8 @@
       "decisionTitle": "Your decision",
       "colPipeline": "Pipeline",
       "quickAccept": "Accept the AI's proposal for {name}",
-      "quickReject": "Reject {name}"
+      "quickReject": "Reject {name}",
+      "proposalOffer": "Offer"
     }
   },
   "scheduleTab": {
@@ -4285,7 +4291,7 @@
     "tab": {
       "eyebrow": "Workspace",
       "title": "Job description library",
-      "intro": "Describe a hiring need and let AI draft a job description. It clarifies the need, designs the role, and researches market salary on the web. Save it as a draft, then <strong>source it into your Pipeline</strong> to pull in matching candidates.",
+      "intro": "Describe a hiring need and let AI draft a job description.",
       "savedJds": "Saved JDs",
       "entryCount": "{count, plural, one {# entry} other {# entries}}",
       "loadFailed": "Load failed.",
@@ -4336,6 +4342,7 @@
       "filterBy": "Filter by {name}",
       "filterActive": "{name}: {value}",
       "filterAll": "All",
+      "filterNotLive": "All but live",
       "filterNoValues": "No values yet",
       "analyzingLabel": "Analyzing",
       "analyzingAria": "AI analysis in progress",
@@ -4347,6 +4354,13 @@
       "ingestAsJobBrief": "Ingest as a matchable job",
       "ingestRetryBrief": "Couldn't ingest. Retry.",
       "ingestRowAria": "Ingest {title} as a matchable job",
+      "deleteJd": "Delete description",
+      "deleteJdAria": "Delete {title}",
+      "deleteJdFailed": "Could not delete this description.",
+      "deleteConfirmTitle": "Delete this description?",
+      "deleteConfirmBody": "{title} and its edit history will be removed for good. Candidate analyses stay on record, and a linked draft role is left untouched.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel",
       "detailOpenPublic": "Open public page",
       "detailAnalyzeCv": "Analyze a CV",
       "detailLoadError": "Couldn't load this description right now.",
@@ -5129,12 +5143,9 @@
       },
       "tabPosting": "Job",
       "tabCoach": "Coach",
-      "tabCampaign": "Campaign",
       "tabCandidates": "Candidates",
       "tabRediscover": "Rediscover",
       "tabCompare": "Compare",
-      "createCampaignPack": "Create campaign pack",
-      "viewCampaignPack": "View campaign pack",
       "withdrawFailed": "Role closed, but its in-flight candidates couldn't be withdrawn. Check the Pipeline.",
       "tabAgentFit": "Agent fit",
       "doc": {
@@ -5183,40 +5194,6 @@
       "footnote": "Projections re-run Kandi's live scoring engine against your saved candidates, so they match what publishing would surface.",
       "stageEdit": "Stage this edit",
       "stageEditAria": "Open the description editor with the {value} change staged"
-    },
-    "campaign": {
-      "intro": "Feed-ready ad copy and 15-second video scripts for this role: the 4-beat formula (hook · offer · proof · CTA), grounded only in the job's stated facts. Every CTA links the 30-second quick-apply form.",
-      "language": "Pack language",
-      "generate": "Generate pack",
-      "regenerate": "Regenerate",
-      "generating": "Generating…",
-      "empty": "No campaign pack for this language yet. Generate one to get ad variants and video scripts.",
-      "generatedAt": "Generated {when}",
-      "sourceLlm": "AI-generated",
-      "sourceDeterministic": "Rule-based fallback (no AI engine available)",
-      "copy": "Copy",
-      "copied": "Copied",
-      "copyAll": "Copy all (Markdown)",
-      "trackedLink": "Tracked apply link",
-      "copyLink": "Copy link",
-      "analyticsCue": "See how each variant is performing",
-      "scriptTitle": "15s video script",
-      "beatHook": "Hook (0–1.5s)",
-      "beatOffer": "Offer (1.5–6s)",
-      "beatProof": "Proof (6–11s)",
-      "beatCta": "CTA (11–15s)",
-      "hookNumber": "Number",
-      "hookLocation": "Location",
-      "hookProblem": "Problem",
-      "hookSkills": "Stack",
-      "warnTitle": "Missing facts limited this pack",
-      "warnNoSalary": "No stated salary band, so pay hooks were skipped. A concrete number is the strongest-converting hook.",
-      "warnNoLocation": "No stated location or work mode, so location hooks were skipped.",
-      "warnNoSkills": "No extracted skills, so stack hooks were skipped.",
-      "applyUrlNote": "CTA links to the quick-apply form:",
-      "loadFailed": "Couldn't load the campaign pack.",
-      "generateFailed": "Couldn't generate the campaign pack.",
-      "warnUnknown": "A fact the pack had to do without ({code})."
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",
@@ -10760,6 +10737,7 @@
       "cta": "Read my CV",
       "cancel": "Keep the current one",
       "privacy": "Stays on this server. Nothing is sent to a job board.",
+      "privacyLabel": "Where your CV goes",
       "stage": {
         "extracting": "Reading the file",
         "drafting": "Building your profile",
@@ -10772,6 +10750,8 @@
     },
     "print": {
       "title": "Print your CV",
+      "eyebrow": "Your CV",
+      "intro": "Your polished CV, laid out for A4. Print it, or save it as a PDF.",
       "back": "Back to my job search",
       "print": "Print / save as PDF",
       "none": "There is no polished CV yet. Finish a CV conversation first."
@@ -10909,7 +10889,17 @@
       },
       "lastScan": "Last scan {when}",
       "newSince": "{count, plural, one {# new since your last visit} other {# new since your last visit}}",
-      "markAllSeen": "Mark all as seen"
+      "markAllSeen": "Mark all as seen",
+      "table": {
+        "fit": "Fit",
+        "role": "Role",
+        "source": "Source",
+        "posted": "Posted",
+        "seen": "Last seen",
+        "status": "Status",
+        "actions": "Actions",
+        "range": "{low}–{high}"
+      }
     },
     "posting": {
       "back": "Back to jobs",
@@ -10961,7 +10951,8 @@
         "templateOnly": "No model answered, so this rationale is a fixed template. It is shown, not saved.",
         "strengths": "Strengths",
         "gaps": "Gaps",
-        "probes": "Questions to expect"
+        "probes": "Questions to expect",
+        "arrived": "The deep-dive rationale is ready."
       }
     },
     "fit": {

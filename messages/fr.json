@@ -1354,6 +1354,9 @@
     "JD_LIST_FAILED": "Impossible de charger la bibliothèque d’offres. Veuillez réessayer.",
     "JD_LOAD_FAILED": "Impossible de charger l’offre. Veuillez réessayer.",
     "JD_SAVE_FAILED": "Impossible d’enregistrer l’offre. Veuillez réessayer.",
+    "JD_DELETE_FAILED": "Impossible de supprimer l’offre. Veuillez réessayer.",
+    "JD_LIVE_CANNOT_DELETE": "Cette description appartient à un poste en ligne. Fermez d’abord le poste, puis supprimez-la.",
+    "JD_DELETE_FORBIDDEN": "Seule la personne qui a créé cette description, ou un administrateur, peut la supprimer.",
     "JD_GENERATE_FAILED": "Impossible de lancer la rédaction par l’AI. Veuillez réessayer.",
     "JD_ANALYSES_FAILED": "Impossible de charger les candidats de cette offre. Veuillez réessayer.",
     "TEMPLATE_LIST_FAILED": "Impossible de charger les modèles. Veuillez réessayer.",
@@ -1758,6 +1761,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
     "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
     "PIPELINE_LANE_REQUIRED": "Indiquez le poste dont vous voulez lister les candidatures refusées.",
+    "PIPELINE_EVENTS_CURSOR_INVALID": "Le curseur d’activité n’est pas valide.",
     "INTERVIEW_SESSION_NOT_FOUND": "Cet entretien ne figure pas dans les dossiers de cette équipe.",
     "AUTOMATION_TASK_NOT_OFFERED": "Cette action IA n’est pas disponible à cette étape.",
     "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
@@ -3057,7 +3061,8 @@
       "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison.",
       "expandBoard": "Pleine page",
       "collapseBoard": "Quitter la pleine page",
-      "boardFullPageAria": "Tableau des postes, pleine page"
+      "boardFullPageAria": "Tableau des postes, pleine page",
+      "activityWindow": "7 derniers jours"
     },
     "emptyState": {
       "optional": "Facultatif",
@@ -3991,7 +3996,8 @@
       "decisionTitle": "Votre décision",
       "colPipeline": "Pipeline",
       "quickAccept": "Accepter la proposition de l’IA pour {name}",
-      "quickReject": "Refuser {name}"
+      "quickReject": "Refuser {name}",
+      "proposalOffer": "Offre"
     }
   },
   "scheduleTab": {
@@ -4285,7 +4291,7 @@
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Bibliothèque de fiches de poste",
-      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste. Elle clarifie le besoin, conçoit le poste et recherche le salaire du marché sur le web. Enregistrez-la comme brouillon, puis <strong>sourcez-la dans votre pipeline</strong> pour attirer les candidats correspondants.",
+      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste.",
       "savedJds": "Fiches enregistrées",
       "entryCount": "{count, plural, one {# entrée} other {# entrées}}",
       "loadFailed": "Échec du chargement.",
@@ -4336,6 +4342,7 @@
       "filterBy": "Filtrer par {name}",
       "filterActive": "{name} : {value}",
       "filterAll": "Tous",
+      "filterNotLive": "Tout sauf en ligne",
       "filterNoValues": "Aucune valeur pour l’instant",
       "analyzingLabel": "Analyse en cours",
       "analyzingAria": "Analyse AI en cours",
@@ -4347,6 +4354,13 @@
       "ingestAsJobBrief": "Convertir en poste exploitable pour le matching",
       "ingestRetryBrief": "Échec de la conversion. Réessayer.",
       "ingestRowAria": "Convertir {title} en poste exploitable pour le matching",
+      "deleteJd": "Supprimer la description",
+      "deleteJdAria": "Supprimer {title}",
+      "deleteJdFailed": "Impossible de supprimer cette description.",
+      "deleteConfirmTitle": "Supprimer cette description ?",
+      "deleteConfirmBody": "{title} et son historique de modifications seront supprimés définitivement. Les analyses de candidats sont conservées et le poste brouillon associé reste intact.",
+      "deleteConfirm": "Supprimer",
+      "deleteCancel": "Annuler",
       "detailOpenPublic": "Ouvrir la page publique",
       "detailAnalyzeCv": "Analyser un CV",
       "detailLoadError": "Impossible de charger cette description pour le moment.",
@@ -5129,12 +5143,9 @@
       },
       "tabPosting": "Poste",
       "tabCoach": "Coach",
-      "tabCampaign": "Campagne",
       "tabCandidates": "Candidats",
       "tabRediscover": "Redécouvrir",
       "tabCompare": "Comparer",
-      "createCampaignPack": "Créer le pack de campagne",
-      "viewCampaignPack": "Voir le pack de campagne",
       "withdrawFailed": "Poste fermé, mais ses candidats en cours n’ont pas pu être retirés. Vérifiez le pipeline.",
       "tabAgentFit": "Adéquation agent",
       "doc": {
@@ -5183,40 +5194,6 @@
       "footnote": "Les projections réexécutent le moteur de scoring en direct de Kandi sur vos candidats enregistrés, de sorte qu’elles reflètent ce que la publication ferait ressortir.",
       "stageEdit": "Préparer cette modification",
       "stageEditAria": "Ouvrir l’éditeur de description avec la modification préparée pour {value}"
-    },
-    "campaign": {
-      "intro": "Des textes publicitaires prêts pour les fils d’actualité et des scripts vidéo de 15 secondes pour ce poste : la formule en 4 temps (accroche · offre · preuve · CTA), fondée uniquement sur les faits déclarés du poste. Chaque CTA renvoie au formulaire de candidature express de 30 secondes.",
-      "language": "Langue du pack",
-      "generate": "Générer le pack",
-      "regenerate": "Régénérer",
-      "generating": "Génération…",
-      "empty": "Aucun pack de campagne pour cette langue pour l’instant. Générez-en un pour obtenir des variantes d’annonce et des scripts vidéo.",
-      "generatedAt": "Généré {when}",
-      "sourceLlm": "Généré par AI",
-      "sourceDeterministic": "Repli basé sur des règles (aucun moteur AI disponible)",
-      "copy": "Copier",
-      "copied": "Copié",
-      "copyAll": "Tout copier (Markdown)",
-      "trackedLink": "Lien de candidature suivi",
-      "copyLink": "Copier le lien",
-      "analyticsCue": "Voyez la performance de chaque variante",
-      "scriptTitle": "Script vidéo 15 s",
-      "beatHook": "Accroche (0–1,5 s)",
-      "beatOffer": "Offre (1,5–6 s)",
-      "beatProof": "Preuve (6–11 s)",
-      "beatCta": "CTA (11–15 s)",
-      "hookNumber": "Chiffre",
-      "hookLocation": "Lieu",
-      "hookProblem": "Problème",
-      "hookSkills": "Stack",
-      "warnTitle": "Des faits manquants ont limité ce pack",
-      "warnNoSalary": "Aucune fourchette salariale déclarée, les accroches sur la rémunération ont donc été ignorées. Un chiffre concret est l’accroche qui convertit le mieux.",
-      "warnNoLocation": "Aucun lieu ni mode de travail déclaré, les accroches sur le lieu ont donc été ignorées.",
-      "warnNoSkills": "Aucune compétence extraite, les accroches sur la stack ont donc été ignorées.",
-      "applyUrlNote": "Le CTA renvoie au formulaire de candidature express :",
-      "loadFailed": "Impossible de charger le pack de campagne.",
-      "generateFailed": "Impossible de générer le pack de campagne.",
-      "warnUnknown": "Une information dont le pack ne disposait pas ({code})."
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
@@ -10760,6 +10737,7 @@
       "cta": "Lire mon CV",
       "cancel": "Garder l'actuel",
       "privacy": "Reste sur ce serveur. Rien n'est envoyé à un site d'emploi.",
+      "privacyLabel": "Où va votre CV",
       "stage": {
         "extracting": "Lecture du fichier",
         "drafting": "Construction du profil",
@@ -10772,6 +10750,8 @@
     },
     "print": {
       "title": "Imprimer votre CV",
+      "eyebrow": "Votre CV",
+      "intro": "Votre CV peaufiné, mis en page pour le format A4. Imprimez-le ou enregistrez-le en PDF.",
       "back": "Retour à ma recherche d'emploi",
       "print": "Imprimer / enregistrer en PDF",
       "none": "Il n'y a pas encore de CV retravaillé. Terminez d'abord une conversation sur le CV."
@@ -10909,7 +10889,17 @@
       },
       "lastScan": "Dernière recherche {when}",
       "newSince": "{count, plural, one {# nouvelle offre depuis votre dernière visite} other {# nouvelles offres depuis votre dernière visite}}",
-      "markAllSeen": "Tout marquer comme vu"
+      "markAllSeen": "Tout marquer comme vu",
+      "table": {
+        "fit": "Adéquation",
+        "role": "Poste",
+        "source": "Source",
+        "posted": "Publié",
+        "seen": "Vu pour la dernière fois",
+        "status": "Statut",
+        "actions": "Actions",
+        "range": "{low}–{high}"
+      }
     },
     "posting": {
       "back": "Retour aux offres",
@@ -10961,7 +10951,8 @@
         "templateOnly": "Aucun modèle n'a répondu, cette justification est donc un gabarit fixe. Elle est affichée, pas enregistrée.",
         "strengths": "Points forts",
         "gaps": "Écarts",
-        "probes": "Questions à prévoir"
+        "probes": "Questions à prévoir",
+        "arrived": "L’analyse approfondie est prête."
       }
     },
     "fit": {

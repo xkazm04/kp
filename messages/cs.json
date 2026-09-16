@@ -1354,6 +1354,9 @@
     "JD_LIST_FAILED": "Nepodařilo se načíst knihovnu inzerátů. Zkuste to prosím znovu.",
     "JD_LOAD_FAILED": "Nepodařilo se načíst inzerát. Zkuste to prosím znovu.",
     "JD_SAVE_FAILED": "Nepodařilo se uložit inzerát. Zkuste to prosím znovu.",
+    "JD_DELETE_FAILED": "Nepodařilo se smazat inzerát. Zkuste to prosím znovu.",
+    "JD_LIVE_CANNOT_DELETE": "Tento popis patří k živé pozici. Nejdřív pozici uzavřete a pak popis smažte.",
+    "JD_DELETE_FORBIDDEN": "Smazat popis může jen ten, kdo jej vytvořil, nebo správce.",
     "JD_GENERATE_FAILED": "Nepodařilo se spustit AI sestavení. Zkuste to prosím znovu.",
     "JD_ANALYSES_FAILED": "Nepodařilo se načíst kandidáty k tomuto inzerátu. Zkuste to prosím znovu.",
     "TEMPLATE_LIST_FAILED": "Nepodařilo se načíst šablony. Zkuste to prosím znovu.",
@@ -1758,6 +1761,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
     "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit.",
     "PIPELINE_LANE_REQUIRED": "Uveďte pozici, jejíž zamítnuté kandidáty chcete zobrazit.",
+    "PIPELINE_EVENTS_CURSOR_INVALID": "Kurzor aktivity není platný.",
     "INTERVIEW_SESSION_NOT_FOUND": "Tento pohovor v záznamech týmu není.",
     "AUTOMATION_TASK_NOT_OFFERED": "Tuto akci AI nelze v této fázi kandidáta spustit.",
     "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
@@ -3057,7 +3061,8 @@
       "bulkInviteItemsRefused": "Některé pozvánky byly odmítnuty. Důvod zjistíte otevřením kandidáta.",
       "expandBoard": "Celá stránka",
       "collapseBoard": "Zavřít celou stránku",
-      "boardFullPageAria": "Nástěnka pozic na celou stránku"
+      "boardFullPageAria": "Nástěnka pozic na celou stránku",
+      "activityWindow": "Posledních 7 dní"
     },
     "emptyState": {
       "optional": "Volitelné",
@@ -3991,7 +3996,8 @@
       "decisionTitle": "Vaše rozhodnutí",
       "colPipeline": "Pipeline",
       "quickAccept": "Přijmout návrh AI pro kandidáta {name}",
-      "quickReject": "Zamítnout kandidáta {name}"
+      "quickReject": "Zamítnout kandidáta {name}",
+      "proposalOffer": "Nabídka"
     }
   },
   "scheduleTab": {
@@ -4285,7 +4291,7 @@
     "tab": {
       "eyebrow": "Pracovní prostor",
       "title": "Knihovna popisů pozic",
-      "intro": "Popište potřebu náboru a nechte AI vytvořit popis pozice. Vyjasní potřebu, navrhne pozici a vyhledá tržní mzdu na webu. Uložte jej jako koncept a potom jej <strong>nasaďte do své Pipeline</strong>, aby přivedl odpovídající kandidáty.",
+      "intro": "Popište potřebu náboru a nechte AI vytvořit popis pozice.",
       "savedJds": "Uložené popisy pozic",
       "entryCount": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
       "loadFailed": "Načtení selhalo.",
@@ -4336,6 +4342,7 @@
       "filterBy": "Filtrovat podle {name}",
       "filterActive": "{name}: {value}",
       "filterAll": "Vše",
+      "filterNotLive": "Vše kromě aktivních",
       "filterNoValues": "Zatím žádné hodnoty",
       "analyzingLabel": "Analyzuje se",
       "analyzingAria": "Probíhá analýza AI",
@@ -4347,6 +4354,13 @@
       "ingestAsJobBrief": "Převést na párovatelnou pozici",
       "ingestRetryBrief": "Nepodařilo se převést. Zkuste znovu.",
       "ingestRowAria": "Převést {title} na párovatelnou pozici",
+      "deleteJd": "Smazat popis",
+      "deleteJdAria": "Smazat {title}",
+      "deleteJdFailed": "Tento popis se nepodařilo smazat.",
+      "deleteConfirmTitle": "Smazat tento popis?",
+      "deleteConfirmBody": "{title} i historie úprav budou nenávratně odstraněny. Analýzy kandidátů zůstanou v záznamech a propojená rozpracovaná pozice zůstane beze změny.",
+      "deleteConfirm": "Smazat",
+      "deleteCancel": "Zrušit",
       "detailOpenPublic": "Otevřít veřejnou stránku",
       "detailAnalyzeCv": "Analyzovat CV",
       "detailLoadError": "Tento popis se teď nepodařilo načíst.",
@@ -5127,14 +5141,11 @@
         "offers": "{count, plural, =1 {1 otevřená nabídka} few {# otevřené nabídky} other {# otevřených nabídek}}",
         "hired": "{count, plural, =1 {1 přijat/a} few {# přijati} other {# přijato}}"
       },
-      "tabCampaign": "Kampaň",
       "tabPosting": "Pozice",
       "tabCoach": "Kouč",
       "tabCandidates": "Kandidáti",
       "tabRediscover": "Znovuobjevení",
       "tabCompare": "Porovnání",
-      "createCampaignPack": "Vytvořit balíček kampaně",
-      "viewCampaignPack": "Zobrazit balíček kampaně",
       "withdrawFailed": "Pozice byla uzavřena, ale její kandidáty v procesu se nepodařilo stáhnout. Zkontrolujte Pipeline.",
       "tabAgentFit": "Vhodnost agenta",
       "doc": {
@@ -5183,40 +5194,6 @@
       "footnote": "Odhady znovu spouští živý skórovací engine Kandi proti vašim uloženým kandidátům, takže odpovídají tomu, co by ukázala publikace.",
       "stageEdit": "Připravit úpravu",
       "stageEditAria": "Otevřít editor popisu s připravenou úpravou pro {value}"
-    },
-    "campaign": {
-      "intro": "Reklamní texty do feedu a scénáře 15sekundových videí pro tuto pozici: formule čtyř dob (háček · nabídka · důkaz · výzva), postavená výhradně na uvedených faktech pozice. Každá výzva odkazuje na 30sekundovou rychlou přihlášku.",
-      "language": "Jazyk balíčku",
-      "generate": "Vygenerovat balíček",
-      "regenerate": "Vygenerovat znovu",
-      "generating": "Generování…",
-      "empty": "Pro tento jazyk zatím žádný balíček není. Vygenerujte si varianty inzerátů a scénáře videí.",
-      "generatedAt": "Vygenerováno {when}",
-      "sourceLlm": "Generováno AI",
-      "sourceDeterministic": "Pravidlová záloha (AI engine není k dispozici)",
-      "copy": "Kopírovat",
-      "copied": "Zkopírováno",
-      "copyAll": "Kopírovat vše (Markdown)",
-      "trackedLink": "Sledovaný odkaz na přihlášku",
-      "copyLink": "Kopírovat odkaz",
-      "analyticsCue": "Podívejte se, jak si jednotlivé varianty vedou",
-      "scriptTitle": "Scénář videa (15 s)",
-      "beatHook": "Háček (0–1,5 s)",
-      "beatOffer": "Nabídka (1,5–6 s)",
-      "beatProof": "Důkaz (6–11 s)",
-      "beatCta": "Výzva (11–15 s)",
-      "hookNumber": "Číslo",
-      "hookLocation": "Lokalita",
-      "hookProblem": "Problém",
-      "hookSkills": "Stack",
-      "warnTitle": "Balíček omezila chybějící fakta",
-      "warnNoSalary": "Pozice nemá uvedené mzdové rozpětí, takže háčky se mzdou jsme vynechali. Konkrétní číslo je háček s nejvyšší konverzí.",
-      "warnNoLocation": "Chybí lokalita i režim práce, takže háčky s místem jsme vynechali.",
-      "warnNoSkills": "Žádné extrahované dovednosti, takže háčky se stackem jsme vynechali.",
-      "applyUrlNote": "Výzva odkazuje na rychlou přihlášku:",
-      "loadFailed": "Balíček kampaně se nepodařilo načíst.",
-      "generateFailed": "Balíček kampaně se nepodařilo vygenerovat.",
-      "warnUnknown": "Údaj, který balíček neměl k dispozici ({code})."
     },
     "rediscover": {
       "loadFailed": "Znovuobjevení se nepodařilo spustit.",
@@ -10760,6 +10737,7 @@
       "cta": "Přečíst moje CV",
       "cancel": "Ponechat současné",
       "privacy": "Zůstává na tomto serveru. Nic se neposílá na pracovní portály.",
+      "privacyLabel": "Kam se váš životopis dostane",
       "stage": {
         "extracting": "Čtení souboru",
         "drafting": "Sestavení profilu",
@@ -10772,6 +10750,8 @@
     },
     "print": {
       "title": "Tisk CV",
+      "eyebrow": "Váš životopis",
+      "intro": "Váš vylepšený životopis ve formátu A4. Vytiskněte si ho, nebo uložte jako PDF.",
       "back": "Zpět na moje hledání práce",
       "print": "Tisknout / uložit jako PDF",
       "none": "Zatím žádné upravené CV neexistuje. Nejdřív dokončete konverzaci o CV."
@@ -10909,7 +10889,17 @@
       },
       "lastScan": "Poslední kontrola {when}",
       "newSince": "{count, plural, one {# nová nabídka od vaší poslední návštěvy} few {# nové nabídky od vaší poslední návštěvy} many {# nové nabídky od vaší poslední návštěvy} other {# nových nabídek od vaší poslední návštěvy}}",
-      "markAllSeen": "Označit vše jako přečtené"
+      "markAllSeen": "Označit vše jako přečtené",
+      "table": {
+        "fit": "Shoda",
+        "role": "Pozice",
+        "source": "Zdroj",
+        "posted": "Zveřejněno",
+        "seen": "Naposledy viděno",
+        "status": "Stav",
+        "actions": "Akce",
+        "range": "{low}–{high}"
+      }
     },
     "posting": {
       "back": "Zpět na nabídky",
@@ -10961,7 +10951,8 @@
         "templateOnly": "Žádný model neodpověděl, takže toto zdůvodnění je pevná šablona. Zobrazuje se, neukládá.",
         "strengths": "Silné stránky",
         "gaps": "Rozdíly",
-        "probes": "Otázky, které čekejte"
+        "probes": "Otázky, které čekejte",
+        "arrived": "Podrobný rozbor je připravený."
       }
     },
     "fit": {

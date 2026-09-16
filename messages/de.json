@@ -1354,6 +1354,9 @@
     "JD_LIST_FAILED": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JD_LOAD_FAILED": "Die Stellenbeschreibung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JD_SAVE_FAILED": "Die Stellenbeschreibung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "JD_DELETE_FAILED": "Die Stellenbeschreibung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+    "JD_LIVE_CANNOT_DELETE": "Diese Beschreibung gehört zu einer aktiven Stelle. Schließen Sie zuerst die Stelle und löschen Sie sie dann.",
+    "JD_DELETE_FORBIDDEN": "Nur die Person, die diese Beschreibung erstellt hat, oder ein Administrator kann sie löschen.",
     "JD_GENERATE_FAILED": "Der AI-Aufbau konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
     "JD_ANALYSES_FAILED": "Die Kandidaten zu dieser Stellenbeschreibung konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "TEMPLATE_LIST_FAILED": "Die Vorlagen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -1758,6 +1761,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
     "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
     "PIPELINE_LANE_REQUIRED": "Geben Sie die Stelle an, deren abgelehnte Bewerbungen aufgelistet werden sollen.",
+    "PIPELINE_EVENTS_CURSOR_INVALID": "Der Aktivitätscursor ist ungültig.",
     "INTERVIEW_SESSION_NOT_FOUND": "Dieses Interview steht nicht in den Unterlagen dieses Teams.",
     "AUTOMATION_TASK_NOT_OFFERED": "Diese KI-Aktion ist in diesem Schritt nicht verfügbar.",
     "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
@@ -3057,7 +3061,8 @@
       "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen.",
       "expandBoard": "Ganze Seite",
       "collapseBoard": "Ganze Seite verlassen",
-      "boardFullPageAria": "Positions-Board, ganze Seite"
+      "boardFullPageAria": "Positions-Board, ganze Seite",
+      "activityWindow": "Letzte 7 Tage"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3991,7 +3996,8 @@
       "decisionTitle": "Ihre Entscheidung",
       "colPipeline": "Pipeline",
       "quickAccept": "KI-Vorschlag für {name} annehmen",
-      "quickReject": "{name} ablehnen"
+      "quickReject": "{name} ablehnen",
+      "proposalOffer": "Angebot"
     }
   },
   "scheduleTab": {
@@ -4285,7 +4291,7 @@
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Bibliothek der Stellenbeschreibungen",
-      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen. Sie klärt den Bedarf, gestaltet die Position und recherchiert das Marktgehalt im Web. Speichern Sie sie als Entwurf und <strong>sourcen Sie sie in Ihre Pipeline</strong>, um passende Kandidat/innen zu gewinnen.",
+      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen.",
       "savedJds": "Gespeicherte Stellenbeschreibungen",
       "entryCount": "{count, plural, one {# Eintrag} other {# Einträge}}",
       "loadFailed": "Laden fehlgeschlagen.",
@@ -4336,6 +4342,7 @@
       "filterBy": "Filtern nach {name}",
       "filterActive": "{name}: {value}",
       "filterAll": "Alle",
+      "filterNotLive": "Alle außer aktive",
       "filterNoValues": "Noch keine Werte",
       "analyzingLabel": "Analyse läuft",
       "analyzingAria": "AI-Analyse läuft",
@@ -4347,6 +4354,13 @@
       "ingestAsJobBrief": "In eine matchbare Stelle umwandeln",
       "ingestRetryBrief": "Übernahme fehlgeschlagen. Erneut versuchen.",
       "ingestRowAria": "{title} in eine matchbare Stelle umwandeln",
+      "deleteJd": "Beschreibung löschen",
+      "deleteJdAria": "{title} löschen",
+      "deleteJdFailed": "Diese Beschreibung konnte nicht gelöscht werden.",
+      "deleteConfirmTitle": "Diese Beschreibung löschen?",
+      "deleteConfirmBody": "{title} und der Bearbeitungsverlauf werden endgültig entfernt. Kandidatenanalysen bleiben erhalten, und eine verknüpfte Entwurfsstelle bleibt unberührt.",
+      "deleteConfirm": "Löschen",
+      "deleteCancel": "Abbrechen",
       "detailOpenPublic": "Öffentliche Seite öffnen",
       "detailAnalyzeCv": "Lebenslauf analysieren",
       "detailLoadError": "Diese Beschreibung konnte gerade nicht geladen werden.",
@@ -5129,12 +5143,9 @@
       },
       "tabPosting": "Stelle",
       "tabCoach": "Coach",
-      "tabCampaign": "Kampagne",
       "tabCandidates": "Kandidat/innen",
       "tabRediscover": "Wiederentdecken",
       "tabCompare": "Vergleichen",
-      "createCampaignPack": "Kampagnenpaket erstellen",
-      "viewCampaignPack": "Kampagnenpaket ansehen",
       "withdrawFailed": "Stelle geschlossen, aber die laufenden Kandidat/innen konnten nicht zurückgezogen werden. Prüfen Sie die Pipeline.",
       "tabAgentFit": "Agenten-Eignung",
       "doc": {
@@ -5183,40 +5194,6 @@
       "footnote": "Die Prognosen lassen kps Live-Scoring-Engine erneut über Ihre gespeicherten Kandidat/innen laufen, sodass sie dem entsprechen, was eine Veröffentlichung zutage fördern würde.",
       "stageEdit": "Änderung vormerken",
       "stageEditAria": "Beschreibungseditor mit vorgemerkter Änderung für {value} öffnen"
-    },
-    "campaign": {
-      "intro": "Feed-fertige Anzeigentexte und 15-Sekunden-Videoskripte für diese Stelle: die 4-Beat-Formel (Hook · Angebot · Beleg · CTA), ausschließlich auf den genannten Fakten der Stelle beruhend. Jeder CTA verlinkt das 30-Sekunden-Schnellbewerbungsformular.",
-      "language": "Paketsprache",
-      "generate": "Paket generieren",
-      "regenerate": "Neu generieren",
-      "generating": "Wird generiert…",
-      "empty": "Noch kein Kampagnenpaket für diese Sprache. Generieren Sie eines, um Anzeigenvarianten und Videoskripte zu erhalten.",
-      "generatedAt": "Generiert {when}",
-      "sourceLlm": "AI-generiert",
-      "sourceDeterministic": "Regelbasierter Fallback (keine AI-Engine verfügbar)",
-      "copy": "Kopieren",
-      "copied": "Kopiert",
-      "copyAll": "Alles kopieren (Markdown)",
-      "trackedLink": "Nachverfolgbarer Bewerbungslink",
-      "copyLink": "Link kopieren",
-      "analyticsCue": "Sehen Sie, wie jede Variante abschneidet",
-      "scriptTitle": "15-Sek.-Videoskript",
-      "beatHook": "Hook (0–1,5 Sek.)",
-      "beatOffer": "Angebot (1,5–6 Sek.)",
-      "beatProof": "Beleg (6–11 Sek.)",
-      "beatCta": "CTA (11–15 Sek.)",
-      "hookNumber": "Zahl",
-      "hookLocation": "Standort",
-      "hookProblem": "Problem",
-      "hookSkills": "Stack",
-      "warnTitle": "Fehlende Fakten haben dieses Paket eingeschränkt",
-      "warnNoSalary": "Kein angegebenes Gehaltsband, deshalb wurden Gehalts-Hooks übersprungen. Eine konkrete Zahl ist der Hook mit der höchsten Conversion.",
-      "warnNoLocation": "Kein angegebener Standort und kein Arbeitsmodell, deshalb wurden Standort-Hooks übersprungen.",
-      "warnNoSkills": "Keine extrahierten Skills, deshalb wurden Stack-Hooks übersprungen.",
-      "applyUrlNote": "CTA verlinkt das Schnellbewerbungsformular:",
-      "loadFailed": "Kampagnenpaket konnte nicht geladen werden.",
-      "generateFailed": "Kampagnenpaket konnte nicht generiert werden.",
-      "warnUnknown": "Eine Angabe, die dem Paket fehlte ({code})."
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
@@ -10760,6 +10737,7 @@
       "cta": "Meinen Lebenslauf lesen",
       "cancel": "Aktuellen behalten",
       "privacy": "Bleibt auf diesem Server. Nichts wird an eine Jobbörse gesendet.",
+      "privacyLabel": "Wohin Ihr Lebenslauf geht",
       "stage": {
         "extracting": "Datei lesen",
         "drafting": "Profil erstellen",
@@ -10772,6 +10750,8 @@
     },
     "print": {
       "title": "Lebenslauf drucken",
+      "eyebrow": "Ihr Lebenslauf",
+      "intro": "Ihr überarbeiteter Lebenslauf im A4-Layout. Drucken Sie ihn aus oder speichern Sie ihn als PDF.",
       "back": "Zurück zu meiner Jobsuche",
       "print": "Drucken / als PDF speichern",
       "none": "Es gibt noch keinen überarbeiteten Lebenslauf. Schließen Sie zuerst ein Lebenslauf-Gespräch ab."
@@ -10909,7 +10889,17 @@
       },
       "lastScan": "Letzte Suche {when}",
       "newSince": "{count, plural, one {# neue Stelle seit Ihrem letzten Besuch} other {# neue Stellen seit Ihrem letzten Besuch}}",
-      "markAllSeen": "Alle als gesehen markieren"
+      "markAllSeen": "Alle als gesehen markieren",
+      "table": {
+        "fit": "Passung",
+        "role": "Rolle",
+        "source": "Quelle",
+        "posted": "Veröffentlicht",
+        "seen": "Zuletzt gesehen",
+        "status": "Status",
+        "actions": "Aktionen",
+        "range": "{low}–{high}"
+      }
     },
     "posting": {
       "back": "Zurück zu den Stellen",
@@ -10961,7 +10951,8 @@
         "templateOnly": "Kein Modell hat geantwortet, daher ist diese Begründung eine feste Vorlage. Sie wird angezeigt, nicht gespeichert.",
         "strengths": "Stärken",
         "gaps": "Lücken",
-        "probes": "Zu erwartende Fragen"
+        "probes": "Zu erwartende Fragen",
+        "arrived": "Die ausführliche Begründung liegt vor."
       }
     },
     "fit": {

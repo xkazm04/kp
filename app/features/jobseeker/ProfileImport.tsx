@@ -2,12 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { BTN_GHOST, BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
+import { IconAction } from "@/app/_components/IconAction";
 import { Skeleton } from "@/app/_components/Skeleton";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { AnalyzeFileDropZone } from "@/app/features/tools/analyze/AnalyzeFileDropZone";
+import { FailureNotice } from "./FailureNotice";
 import {
   classifyDraft,
   classifyExtract,
@@ -51,9 +52,7 @@ export function ProfileImport({
   onCancel?: () => void;
 }) {
   const t = useTranslations("me.import");
-  const tCommon = useTranslations("me.common");
   const tProfile = useTranslations("me.profile");
-  const resolveError = useErrorMessage();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [failure, setFailure] = useState<ImportFailure | null>(null);
@@ -123,15 +122,14 @@ export function ProfileImport({
     drafting: t("errDraft"),
     saving: t("errSave"),
   };
-  const errorLine = !failure
-    ? null
-    : failure.reason === "noTextLayer"
-      ? t("errNoTextLayer")
-      : failure.reason === "transport"
-        ? // ONE transport sentence for the whole seeker module: the hop that failed does
-          // not change what a reader whose server is unreachable has to do about it.
-          tCommon("unreachable")
-        : resolveError({ code: failure.code }, stageFallback[failure.stage]);
+  // The failure is painted by the seeker module's ONE failure block (FailureNotice):
+  // a critical NOTICE with role="alert" and a Retry that re-runs the same import,
+  // never a bare red line. `transport` is handed across as a KIND so that block's own
+  // sentence is used — the hop that failed does not change what a reader whose server
+  // is unreachable has to do about it — and `noTextLayer`, which carries no code, is
+  // handed across as the fallback sentence its own remedy needs.
+  const failureKind = failure?.reason === "transport" ? ("transport" as const) : undefined;
+  const failureFallback = !failure ? "" : failure.reason === "noTextLayer" ? t("errNoTextLayer") : stageFallback[failure.stage];
 
   const reached = (s: (typeof STAGES)[number]) => STAGES.indexOf(s) <= STAGES.indexOf(stage as (typeof STAGES)[number]);
 
@@ -150,7 +148,7 @@ export function ProfileImport({
             const done = stage === "saved" || STAGES.indexOf(s) < STAGES.indexOf(stage as (typeof STAGES)[number]);
             const active = stage === s;
             return (
-              <li key={s} className={`flex items-center gap-2 text-sm ${done ? "text-moss" : active ? "text-ink" : "text-stone-400"}`}>
+              <li key={s} className={`flex items-center gap-2 text-sm ${done ? "text-moss" : active ? "text-ink" : "text-steel"}`}>
                 <span className="grid h-5 w-5 shrink-0 place-items-center">
                   {done ? <Check size={14} aria-hidden /> : active ? <Skeleton className="h-3 w-3 rounded-full" /> : <span className="h-1.5 w-1.5 rounded-full bg-stone-300" aria-hidden />}
                 </span>
@@ -168,10 +166,8 @@ export function ProfileImport({
         </div>
       ) : null}
 
-      {errorLine ? (
-        <p className="text-sm text-coral" role="alert">
-          {errorLine}
-        </p>
+      {failure ? (
+        <FailureNotice failure={{ kind: failureKind, code: failure.code }} fallback={failureFallback} retrying={busy} onRetry={() => void run()} />
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -183,7 +179,10 @@ export function ProfileImport({
             {t("cancel")}
           </button>
         ) : null}
-        <span className="text-sm text-steel">{t("privacy")}</span>
+        {/* "Stays on this server. Nothing is sent to a job board." is an
+            explanation, and an explanation lives ON the control it explains rather
+            than on a line of the page (surface-doctrine.md §1). */}
+        <IconAction icon={ShieldCheck} label={t("privacyLabel")} hint={t("privacy")} tone="muted" size={16} />
       </div>
     </section>
   );

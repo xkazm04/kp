@@ -226,14 +226,29 @@ slides in as an off-canvas drawer with a scrim and a `useDialogA11y` focus trap
 fork** (`docs/architecture/app-structure.md`, "shell/setup/"): "I'm looking for a job"
 skips company/team/pipeline/companion and `finish()` routes to `/me`.
 
+**The page opens like every other page**: a `PAGE_HEADER` carrying the
+`EYEBROW` / `TITLE_DISPLAY` / `INTRO` trio with **Polish my CV** as the header's
+primary action (it used to be the fifth control down inside the summary card), `SECTION`
+for the rhythm below it and `stagger-children` so header and body arrive in tiers.
+`/me/cv/print` inherits the same trio, all of it `print:hidden`. Explanations live on
+the control they explain rather than on a line of the page (surface-doctrine.md 1):
+the import's privacy sentence and the "what I could not read" note are `IconAction`
+hints, and no control is named by a bare `title=`. Failures are the module's one
+`FailureNotice` block with a Retry, never a red paragraph; figures carry `nums`.
+
 **Import** (`ProfileImport.tsx`): drop a CV (the shared `AnalyzeFileDropZone`, same
 8 MB / PDF·DOCX·TXT·MD contract) → `POST /api/extract-text` → `POST /api/profile/draft`
 (the recruiter-side `profile_draft`, so a seeker's profile IS the `CandidateProfileV2`
 the matcher scores) → `PUT /api/jobseeker/profile { profile, cvSourceText }`. The
-three stages tick as a checklist; every refusal renders from its code
-(`useErrorMessage`). The summary (`ProfileSummary.tsx`) shows what was read (name,
+three stages tick as a checklist in three tones that survive both themes
+(moss / ink / steel); every refusal renders from its code (`useErrorMessage`) inside
+`FailureNotice`, which offers the retry. The summary (`ProfileSummary.tsx`) shows what was read (name,
 role family, years, skills, location, languages, education) and **what could not be
-read** as a list of gaps to fill, never a score. The keyless twin
+read** as a list of gaps to fill, never a score. The "read without AI" honesty notice
+is the card's LAST block, wrapped in `Fade`: it can only appear after hydration
+(sessionStorage has no server snapshot), so landing there it grows the card downwards
+and shifts nothing the reader was already looking at, while reserving no empty strip
+when it never comes. The keyless twin
 (`pipeline/jobfit/cv_draft.py`) drops the taxonomy's role WORDS — backend, frontend,
 fullstack, developer, engineer, architect, vývoj — from the skill claims it writes
 (they say what a person is, not what they can do, and every job title in the history
@@ -551,7 +566,13 @@ request. Pinned by `pipeline/jobfit/tests/test_jobseeker_dialog.py::FitDialogTes
 openings).
 
 **Sources** (`/me/sources`, `SourcesPage.tsx` + `SourceCard.tsx` + `RulesAuthoring.tsx`
-+ `AddSourceForm.tsx`). Three sections from `GET /api/jobseeker/sources`. Tier A cards:
++ `AddSourceForm.tsx`). SERVER-FIRST like `/me` and `/me/jobs`: `app/me/sources/page.tsx`
+reads `sourcesCatalog()` + `listJobseekerSources(ws)` and hands them down as `initial`,
+so the header and the three tiers paint on the first frame; the client re-reads the same
+GET in the background and owns every write. There is no skeleton branch — the page used
+to mount empty and flash three grey cards on every navigation. The Add form opens from
+the header's primary action as a `Collapse`, not from a panel below the tiers. Three
+sections from `GET /api/jobseeker/sources`. Tier A cards:
 label, host, kind, enable toggle (`role="switch"`), last run outcome, pause reason +
 since when, resume. Tier B cards add robots summary, the terms clause summary with its
 URL and our cadence; the toggle is the ACKNOWLEDGEMENT door: the first enable answers
@@ -567,7 +588,13 @@ preview that passed. Catalog entries not yet added appear in their tier with "Ad
 (`POST {catalogId}`); the form adds an ATS by vendor + company slug (`{adapter, config:
 {slug}}`) or a board by host (tier B by rule). Every refusal renders from its code.
 
-**Scans** (`/me/scans`, `ScansPage.tsx`). Reads `GET /api/automation/schedule` and
+**Scans** (`/me/scans`, `ScansPage.tsx`). SERVER-FIRST: `app/me/scans/page.tsx` builds
+the `jobseeker_scan` job view itself (`ensureRegisteredSchedule` for the registry's own
+defaults, `listRuns(5, …, {workspace})`, `hasVerifiedRun`) plus the source labels the
+history names, and hands them down as `initialJob` / `initialSources` / `initialLabels`,
+so the clock frame and the run list paint on the first frame instead of a grey panel
+whose shape did not mirror them. The client re-reads `GET /api/automation/schedule` and
+`GET /api/jobseeker/sources` in the background and owns every write; it
 filters `jobs[]` to `jobseeker_scan`: the toggle (disabled with
 `pipeline.scheduler.unverified` as its title until `verified`; the route refuses the
 write with `JOBSEEKER_SCAN_UNVERIFIED`), the cadence as 6 h / 12 h / 24 h (a stored

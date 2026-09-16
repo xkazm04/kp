@@ -3,8 +3,11 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Download, MessageSquareText, Printer, RefreshCw, Sparkles } from "lucide-react";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
+import { Download, Info, MessageSquareText, Printer, RefreshCw } from "lucide-react";
+import { BTN_GHOST, BTN_SECONDARY, CARD_PAD, CHIP, CHIP_QUIET, DIVIDER, EYEBROW, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
+import { IconAction } from "@/app/_components/IconAction";
+import { Tooltip } from "@/app/_components/Tooltip";
+import { Fade } from "@/app/features/hiring/pipeline/PipelineMotion";
 import type { JobseekerDialog, JobseekerPreferences, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -70,17 +73,13 @@ export function preferenceChips(
 export function ProfileSummary({
   profile,
   opening,
-  openError,
   studioOpen,
-  onOpenStudio,
   onOpenDialog,
   onReimport,
 }: {
   profile: JobseekerProfile;
   opening: boolean;
-  openError: string | null;
   studioOpen: boolean;
-  onOpenStudio(): void;
   onOpenDialog(dialog: JobseekerDialog): void;
   onReimport(): void;
 }) {
@@ -136,7 +135,7 @@ export function ProfileSummary({
             <p className="mt-1 text-sm text-steel">{t("updated", { when: formatRelativeTime(profile.updatedAt, locale) })}</p>
           </div>
           <button type="button" className={`${BTN_GHOST} h-9 px-3`} onClick={onReimport}>
-            <RefreshCw size={14} aria-hidden /> {t("reimport")}
+            <RefreshCw size={16} aria-hidden /> {t("reimport")}
           </button>
         </div>
 
@@ -146,23 +145,18 @@ export function ProfileSummary({
             .map((f) => (
               <div key={f.key}>
                 <dt className={META_LABEL}>{t(`field.${f.key}`)}</dt>
-                <dd className="mt-0.5 text-body text-ink">{f.value}</dd>
+                {/* Years and skill counts are FIGURES: tabular numerals so a column
+                    of them lines up and a changing count does not jitter. */}
+                <dd className={`mt-0.5 text-body text-ink${f.key === "years" || f.key === "skills" ? " nums" : ""}`}>{f.value}</dd>
               </div>
             ))}
         </dl>
-
-        {draftSource === "deterministic" ? (
-          <div className={`${NOTICE("amber")} px-3 py-2`} role="status">
-            <p className="text-sm font-semibold">{t("readWithoutAiTitle")}</p>
-            <p className="mt-0.5 text-sm">{t("readWithoutAiBody")}</p>
-          </div>
-        ) : null}
 
         {/* Each claim carries WHERE IT CAME FROM. A deterministic read mints
             `self_declared` for everything, and a chip that shows only the skill
             presents a claim the CV made as a fact the app checked. */}
         {skills.length > 0 ? (
-          <div className="border-t border-stone-200 pt-4">
+          <div className={`${DIVIDER} pt-4`}>
             <p className={META_LABEL}>{t("skillsTitle")}</p>
             <ul className="mt-2 flex flex-wrap gap-1.5">
               {skills.map((s, i) => {
@@ -174,7 +168,10 @@ export function ProfileSummary({
                     ? t("skillSelfDeclared", { skill })
                     : t("skillProvenance", { skill, provenance: enumLabel("provenance", s.provenance ?? prov.key) });
                 return (
-                  <li key={`${skill}:${i}`} className={CHIP_QUIET} title={label} aria-label={label}>
+                  // The provenance is the chip's ACCESSIBLE NAME, never a `title=`:
+                  // the native attribute never appears on keyboard focus and is
+                  // invisible to touch (surface-doctrine.md §1).
+                  <li key={`${skill}:${i}`} className={CHIP_QUIET} aria-label={label}>
                     {skill}
                   </li>
                 );
@@ -184,13 +181,20 @@ export function ProfileSummary({
         ) : null}
 
         {/* What the pipeline could not read — a list to fill, never a score. */}
-        <div className="border-t border-stone-200 pt-4">
-          <p className={META_LABEL}>{t("couldNotReadTitle")}</p>
+        <div className={`${DIVIDER} pt-4`}>
+          <div className="flex items-center gap-1">
+            <p className={META_LABEL}>{t("couldNotReadTitle")}</p>
+            {/* "These are gaps in what the CV states, not marks against you" is an
+                explanation, and an explanation lives ON the thing it explains rather
+                than occupying a line of the page (surface-doctrine.md §1). */}
+            {missing.length > 0 ? (
+              <IconAction icon={Info} label={t("couldNotReadTitle")} hint={t("couldNotReadBody")} tone="muted" size={15} />
+            ) : null}
+          </div>
           {missing.length === 0 ? (
             <p className="mt-1 text-sm text-steel">{t("couldNotReadNone")}</p>
           ) : (
             <>
-              <p className="mt-1 text-sm text-steel">{t("couldNotReadBody")}</p>
               <ul className="mt-2 flex flex-wrap gap-1.5">
                 {missing.map((f) => (
                   <li key={f.key} className={CHIP_QUIET}>
@@ -202,18 +206,22 @@ export function ProfileSummary({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4">
-          <button type="button" className={`${BTN_PRIMARY} h-10 px-5`} disabled={opening} onClick={onOpenStudio}>
-            <Sparkles size={16} aria-hidden /> {tCv("open")}
-          </button>
+        {/* "Polish my CV" is the PAGE's primary action and lives in its header; what
+            is left here are the two doors onto the artifact this card describes. */}
+        <div className={`flex flex-wrap items-center gap-2 ${DIVIDER} pt-4`}>
           {hasCv ? (
             <a href="/api/jobseeker/cv.md" download="cv.md" className={`${BTN_SECONDARY} h-10 px-4`}>
               <Download size={16} aria-hidden /> {tCv("download")}
             </a>
           ) : (
-            <span className={`${BTN_SECONDARY} h-10 cursor-not-allowed px-4 opacity-50`} aria-disabled title={tCv("downloadUnavailable")}>
-              <Download size={16} aria-hidden /> {tCv("download")}
-            </span>
+            // `aria-disabled` on a real button rather than `disabled` on a span: the
+            // control stays focusable, so the reason it cannot be used is reachable
+            // by keyboard through the tooltip's aria-describedby.
+            <Tooltip label={tCv("downloadUnavailable")}>
+              <button type="button" aria-disabled className={`${BTN_SECONDARY} h-10 cursor-not-allowed px-4 opacity-50`} onClick={(e) => e.preventDefault()}>
+                <Download size={16} aria-hidden /> {tCv("download")}
+              </button>
+            </Tooltip>
           )}
           {hasCv ? (
             <Link href="/me/cv/print" target="_blank" rel="noopener" className={`${BTN_SECONDARY} h-10 px-4`}>
@@ -221,11 +229,19 @@ export function ProfileSummary({
             </Link>
           ) : null}
         </div>
-        {openError ? (
-          <p className="text-sm text-coral" role="alert">
-            {openError}
-          </p>
-        ) : null}
+
+        {/* WHO READ THE CV — an honesty notice, not chrome, so it stays visible
+            (surface-doctrine.md §1). It is the panel's LAST block because it can only
+            appear after hydration (sessionStorage has no server snapshot): arriving
+            here it grows the card downwards and moves nothing the reader was already
+            looking at. `Fade` renders no DOM at all while hidden, so it reserves no
+            empty strip either. */}
+        <Fade show={draftSource === "deterministic"}>
+          <div className={`${NOTICE("amber")} px-3 py-2`} role="status">
+            <p className="text-sm font-semibold">{t("readWithoutAiTitle")}</p>
+            <p className="mt-0.5 text-sm">{t("readWithoutAiBody")}</p>
+          </div>
+        </Fade>
       </section>
 
       <div className="space-y-6">
@@ -236,7 +252,7 @@ export function ProfileSummary({
           ) : (
             <ul className="mt-3 flex flex-wrap gap-1.5">
               {chips.map((c) => (
-                <li key={c.key} className={CHIP}>
+                <li key={c.key} className={`${CHIP}${c.key === "floor" ? " nums" : ""}`}>
                   {c.label}
                 </li>
               ))}
@@ -254,7 +270,7 @@ export function ProfileSummary({
               {dialogs.map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-3 py-2">
                   <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
-                    <MessageSquareText size={14} aria-hidden className="shrink-0 text-steel" />
+                    <MessageSquareText size={16} aria-hidden className="shrink-0 text-steel" />
                     <span className="truncate">{formatRelativeTime(d.updatedAt, locale)}</span>
                     <span className={CHIP_QUIET}>{tCv(`status.${d.status}`)}</span>
                   </span>
