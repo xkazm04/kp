@@ -403,6 +403,12 @@ export const STORE_ERRORS = {
   PROFILE_UPDATE_FAILED: "Could not save your changes to that profile. Please try again.",
   PROFILE_DELETE_FAILED: "Could not delete that profile. Please try again.",
   PROFILE_CANDIDATES_FAILED: "Could not load the candidate matrix. Please try again.",
+  /** POST /api/profile/draft — the drafting door beside them, and the last of the
+   *  family still answering prose with no code at all. It spawns profile_draft_cli,
+   *  so the thrown message carries a Python traceback, the temp workdir path and
+   *  provider stderr; both the recruiter's notes panel and the seeker's CV import
+   *  read it, and neither could localize a sentence. */
+  PROFILE_DRAFT_FAILED: "Could not turn that text into a profile. Please try again.",
   /** The text extractor faulted (500): a non-zero exit with no client-fixable code, a
    *  wedged workdir, an ENOENT on PYTHON_CMD, or non-JSON stdout — whose diagnostic
    *  dump embeds stdout, stderr and the temp workdir path by construction. */

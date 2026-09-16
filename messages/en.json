@@ -10924,6 +10924,10 @@
       "openSource": "Open posting",
       "discuss": "Discuss fit",
       "discussError": "The fit conversation could not be opened.",
+      "fit": {
+        "title": "Your fit verdict",
+        "settled": "You settled this in the fit conversation {when}."
+      },
       "text": {
         "title": "The posting",
         "none": "The source published no text for this posting."

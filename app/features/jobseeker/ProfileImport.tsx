@@ -3,12 +3,22 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Check } from "lucide-react";
-import { BTN_GHOST, BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { AnalyzeFileDropZone } from "@/app/features/tools/analyze/AnalyzeFileDropZone";
-import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import {
+  classifyDraft,
+  classifyExtract,
+  classifySave,
+  rememberDraftSource,
+  IMPORT_STAGES,
+  type DraftSource,
+  type ImportFailure,
+  type ImportStage,
+  type ResponseLike,
+} from "./importOutcome";
 
 // The import: a CV file → text (POST /api/extract-text, the extractor the CV
 // pipeline uses) → a structured profile draft (POST /api/profile/draft, the SAME
@@ -17,12 +27,18 @@ import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 // the raw text kept as the polish dialog's source).
 //
 // Five states, drawn as a checklist rather than a spinner: each stage is a line that
-// ticks, so a stall says WHERE. Every refusal is rendered from its CODE
-// (useErrorMessage); the draft route still answers English prose with no code, so
-// its fallback is this page's own localized line.
+// ticks, so a stall says WHERE. WHAT ended a hop is decided in importOutcome.ts and
+// only painted here: a coded refusal renders from its CODE (useErrorMessage), a PDF
+// that extracted to nothing gets the sentence its own remedy needs, and an
+// unreachable server says so instead of blaming the file.
+//
+// The drafting line also says WHO READ THE CV. `profile_draft_cli` answers
+// `source: "deterministic"` when no model could serve, and the fixed parser records
+// skills exactly as the CV states them — a materially different reading that used to
+// be invisible. It is an amber caveat, never an error: the import succeeded.
 
-type Stage = "idle" | "extracting" | "drafting" | "saving" | "saved" | "error";
-const STAGES = ["extracting", "drafting", "saving"] as const;
+type Stage = "idle" | ImportStage | "saved" | "error";
+const STAGES = IMPORT_STAGES;
 
 export function ProfileImport({
   existing,
@@ -35,52 +51,84 @@ export function ProfileImport({
   onCancel?: () => void;
 }) {
   const t = useTranslations("me.import");
+  const tProfile = useTranslations("me.profile");
   const resolveError = useErrorMessage();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ImportFailure | null>(null);
+  const [source, setSource] = useState<DraftSource>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const busy = stage === "extracting" || stage === "drafting" || stage === "saving";
 
-  async function run() {
-    if (!file || busy) return;
-    setError(null);
+  /** One JSON hop. A rejected fetch and a body that is not JSON arrive at the
+   *  classifier the same way — as `null` — because they are the same fact: nothing
+   *  the server said reached us. */
+  async function postJson(url: string, init: RequestInit): Promise<{ res: ResponseLike; body: Record<string, unknown> | null }> {
     try {
-      setStage("extracting");
-      const form = new FormData();
-      form.append("file", file);
-      const extracted = await fetch("/api/extract-text", { method: "POST", body: form });
-      const extractedBody = (await extracted.json().catch(() => null)) as { text?: string; code?: string } | null;
-      if (!extracted.ok || !extractedBody?.text?.trim()) {
-        throw { code: extractedBody?.code ?? null, fallback: t("errExtract") };
-      }
-      const text = extractedBody.text;
-
-      setStage("drafting");
-      const drafted = await fetch("/api/profile/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const draft = (await drafted.json().catch(() => null)) as { profile?: ProfilePayload; code?: string } | null;
-      if (!drafted.ok || !draft?.profile) throw { code: draft?.code ?? null, fallback: t("errDraft") };
-
-      setStage("saving");
-      const saved = await fetch("/api/jobseeker/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: draft.profile, cvSourceText: text }),
-      });
-      const profile = (await saved.json().catch(() => null)) as (JobseekerProfile & { code?: string }) | null;
-      if (!saved.ok || !profile?.id) throw { code: profile?.code ?? null, fallback: t("errSave") };
-      setStage("saved");
-      onSaved(profile);
-    } catch (err) {
-      const e = (err ?? {}) as { code?: string | null; fallback?: string };
-      setError(resolveError({ code: e.code ?? null }, e.fallback ?? t("errSave")));
-      setStage("error");
+      const res = await fetch(url, init);
+      const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      return { res, body };
+    } catch {
+      /* offline, DNS, a killed tab: not a verdict on the file, so it is classified
+         as transport rather than folded into "that file could not be read" */
+      return { res: { ok: false }, body: null };
     }
   }
+
+  async function run() {
+    if (!file || busy) return;
+    setFailure(null);
+    setSource(null);
+    const stop = (f: ImportFailure) => {
+      setFailure(f);
+      setStage("error");
+    };
+
+    setStage("extracting");
+    const form = new FormData();
+    form.append("file", file);
+    const extracted = await postJson("/api/extract-text", { method: "POST", body: form });
+    const extract = classifyExtract(extracted.res, extracted.body);
+    if (!extract.ok) return stop(extract);
+
+    setStage("drafting");
+    const drafted = await postJson("/api/profile/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: extract.text }),
+    });
+    const draft = classifyDraft(drafted.res, drafted.body);
+    if (!draft.ok) return stop(draft);
+    setSource(draft.source);
+
+    setStage("saving");
+    const saved = await postJson("/api/jobseeker/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: draft.profile, cvSourceText: extract.text }),
+    });
+    const stored = classifySave(saved.res, saved.body);
+    if (!stored.ok) return stop(stored);
+
+    // Which reader produced the draft is a property of the RUN, so it is kept for
+    // the profile it produced before the page swaps to the summary.
+    rememberDraftSource(stored.profile.id, draft.source);
+    setStage("saved");
+    onSaved(stored.profile);
+  }
+
+  const stageFallback: Record<ImportStage, string> = {
+    extracting: t("errExtract"),
+    drafting: t("errDraft"),
+    saving: t("errSave"),
+  };
+  const errorLine = !failure
+    ? null
+    : failure.reason === "noTextLayer"
+      ? t("errNoTextLayer")
+      : failure.reason === "transport"
+        ? t("errTransport")
+        : resolveError({ code: failure.code }, stageFallback[failure.stage]);
 
   const reached = (s: (typeof STAGES)[number]) => STAGES.indexOf(s) <= STAGES.indexOf(stage as (typeof STAGES)[number]);
 
@@ -110,9 +158,16 @@ export function ProfileImport({
         </ol>
       ) : null}
 
-      {error ? (
+      {source === "deterministic" && (busy || stage === "saved") ? (
+        <div className={`${NOTICE("amber")} px-3 py-2`} role="status">
+          <p className="text-sm font-semibold">{tProfile("readWithoutAiTitle")}</p>
+          <p className="mt-0.5 text-sm">{tProfile("readWithoutAiBody")}</p>
+        </div>
+      ) : null}
+
+      {errorLine ? (
         <p className="text-sm text-coral" role="alert">
-          {error}
+          {errorLine}
         </p>
       ) : null}
 

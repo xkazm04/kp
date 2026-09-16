@@ -10924,6 +10924,10 @@
       "openSource": "Otevřít nabídku",
       "discuss": "Probrat shodu",
       "discussError": "Rozhovor o shodě se nepodařilo otevřít.",
+      "fit": {
+        "title": "Váš závěr o shodě",
+        "settled": "Uzavřeli jste to v rozhovoru o shodě {when}."
+      },
       "text": {
         "title": "Text nabídky",
         "none": "Zdroj u této nabídky nezveřejnil žádný text."

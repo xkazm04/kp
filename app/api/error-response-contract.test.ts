@@ -380,7 +380,13 @@ const LEAK_CEILING = new Map<string, number>([
   // workdir path and PYTHON_CMD as well as SQLITE_* text, on a door any signed-in user
   // reaches. The rows are DELETED so the win is locked and a regression reads as
   // `undeclared` rather than as budget already granted.
-  ["profile/draft/route.ts", 1],
+  // profile/draft/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect,
+  // jobseeker import-provenance): its catch forwarded ProfileDraftError's message —
+  // parseStderrError's text, i.e. profile_draft_cli's traceback, the temp workdir
+  // path and provider stderr — and its catch-all forwarded whatever fs/spawn threw.
+  // It answers jsonRefusal("INTAKE_TEXT_REQUIRED") for the one deliberate 400 and
+  // safeJsonError(..., "PROFILE_DRAFT_FAILED") for the rest, so the row is deleted
+  // and a regression reads as `undeclared` rather than as budget already granted.
   // schedule/invite/bulk/route.ts was here at 1 and is FIXED, not ceilinged — the
   // entry is deleted so the win is locked and a regression reads as `undeclared`.
   // It is worth naming because it is the reason this file is a scan rather than a

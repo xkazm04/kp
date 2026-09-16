@@ -10924,6 +10924,10 @@
       "openSource": "Ouvrir l'offre",
       "discuss": "Discuter de l'adéquation",
       "discussError": "La conversation sur l'adéquation n'a pas pu s'ouvrir.",
+      "fit": {
+        "title": "Votre verdict d'adéquation",
+        "settled": "Vous avez tranché dans la conversation sur l'adéquation {when}."
+      },
       "text": {
         "title": "L'annonce",
         "none": "La source n'a publié aucun texte pour cette offre."

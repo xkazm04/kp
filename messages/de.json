@@ -10924,6 +10924,10 @@
       "openSource": "Stelle öffnen",
       "discuss": "Passung besprechen",
       "discussError": "Das Passungsgespräch konnte nicht geöffnet werden.",
+      "fit": {
+        "title": "Ihr Passungsurteil",
+        "settled": "Sie haben das im Passungsgespräch {when} entschieden."
+      },
       "text": {
         "title": "Die Stellenanzeige",
         "none": "Die Quelle hat zu dieser Stelle keinen Text veröffentlicht."

@@ -221,6 +221,35 @@ three stages tick as a checklist; every refusal renders from its code
 role family, years, skills, location, languages, education) and **what could not be
 read** as a list of gaps to fill, never a score.
 
+**What ended a hop** is classified in `importOutcome.ts` (`classifyExtract` /
+`classifyDraft` / `classifySave` → one closed vocabulary: `coded · noTextLayer ·
+transport · unknown`; fixtures in `importOutcome.test.ts`), and the page only paints
+it. That splits three failures the first hop used to render identically: a coded
+refusal (`EXTRACT_TEXT_UNREADABLE`, resolved in the reader's language), a PDF that
+extracted cleanly to nothing — `200 {text: ""}`, a scan with no text layer, whose
+remedy is its own sentence (`me.import.errNoTextLayer`) — and a body that was not
+JSON at all, which is transport and says nothing about the file
+(`me.import.errTransport`).
+
+**What read the CV** is disclosed. `POST /api/profile/draft` answers
+`source: "llm" | "deterministic"` (from `profile_draft_cli`); on `deterministic` both
+the drafting stage line and the saved summary carry an amber `NOTICE("amber")` —
+`me.profile.readWithoutAi{Title,Body}` — saying no model was configured or reachable,
+that skills are exactly as the CV states them, and where to add a model. It has no
+column: the import writes it to `sessionStorage` under `kp-me-draft-source:<profileId>`
+(`rememberDraftSource` / `recallDraftSource`, read through `useSyncExternalStore` so
+the server snapshot is `null`), so it survives a reload of `/me` for the tab's life and
+a fresh tab claims nothing rather than claiming stale. The summary also lists the skill
+claims as chips whose `title`/`aria-label` name their `provenance`
+(`me.profile.skillSelfDeclared` for `self_declared` — a claim the CV made is never
+presented as one the app checked).
+
+`POST /api/profile/draft` answers by CODE like the rest of the family:
+`INTAKE_TEXT_REQUIRED` (400, the one deliberate refusal — empty text, the same code
+the dialog door uses) and `safeJsonError(..., "PROFILE_DRAFT_FAILED")` for the rest,
+at the engine's own status. Its row in `app/api/error-response-contract.test.ts` is
+deleted rather than lowered.
+
 **The CV studio** (`CvStudio.tsx`) is the Studio kit's first seeker variant
 (`app/_components/studio`, `ns="me"`): zones `chat | sheet` (`kp-me-cv-cols`, chat
 pinned), the plane is `CvSheet.tsx` (the polished Markdown through

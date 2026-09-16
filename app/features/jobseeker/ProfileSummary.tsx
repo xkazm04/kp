@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Download, MessageSquareText, Printer, RefreshCw, Sparkles } from "lucide-react";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import type { JobseekerDialog, JobseekerPreferences, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { formatRelativeTime } from "@/app/_lib/format";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { provLabel } from "@/app/features/shared/matchTypes";
+import { recallDraftSource } from "./importOutcome";
 
 // The seeker's profile as a card: WHAT WAS READ (name, role family, years, skills,
 // location, languages), WHAT COULD NOT BE READ (shown as gaps to fill in the studio,
@@ -15,6 +18,11 @@ import { formatRelativeTime } from "@/app/_lib/format";
 // doors: polish, download, print.
 
 const FIELD_KEYS = ["name", "roleFamily", "years", "skills", "location", "languages", "education"] as const;
+
+/** The draft's reader is written once, at import, and never changes under the open
+ *  page — so the store has nothing to subscribe to. */
+const noDraftSourceSubscription = () => () => undefined;
+
 type FieldKey = (typeof FIELD_KEYS)[number];
 
 function readField(profile: JobseekerProfile["profile"], key: FieldKey): string | null {
@@ -84,6 +92,21 @@ export function ProfileSummary({
   const missing = read.filter((f) => f.value === null);
   const chips = preferenceChips(profile.preferences, locale, (k, v) => tPrefs(k as Parameters<typeof tPrefs>[0], v));
   const hasCv = Boolean(profile.cvPolishedMd);
+  const enumLabel = useEnumLabel();
+  const skills = profile.profile.skillClaims ?? [];
+
+  // WHO READ THE CV, carried across a reload of /me. The stored row has no column
+  // for it (see importOutcome.ts), so the import leaves it in sessionStorage under
+  // this profile's id; a tab that never ran the import shows no claim at all, which
+  // is the safe direction — the assertion we must never make is "a model read this".
+  // Read through useSyncExternalStore, not an effect: sessionStorage is a browser
+  // API the server snapshot cannot have, so the server renders `null` and the client
+  // reads the real value on hydration without a cascading setState.
+  const draftSource = useSyncExternalStore(
+    noDraftSourceSubscription,
+    () => recallDraftSource(profile.id),
+    () => null
+  );
 
   // The conversation ledger: newest first, so a closed polish can be reopened
   // read-only (its transcript is the record of what was suggested and why).
@@ -127,6 +150,38 @@ export function ProfileSummary({
               </div>
             ))}
         </dl>
+
+        {draftSource === "deterministic" ? (
+          <div className={`${NOTICE("amber")} px-3 py-2`} role="status">
+            <p className="text-sm font-semibold">{t("readWithoutAiTitle")}</p>
+            <p className="mt-0.5 text-sm">{t("readWithoutAiBody")}</p>
+          </div>
+        ) : null}
+
+        {/* Each claim carries WHERE IT CAME FROM. A deterministic read mints
+            `self_declared` for everything, and a chip that shows only the skill
+            presents a claim the CV made as a fact the app checked. */}
+        {skills.length > 0 ? (
+          <div className="border-t border-stone-200 pt-4">
+            <p className={META_LABEL}>{t("skillsTitle")}</p>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {skills.map((s, i) => {
+                const skill = s.skill?.trim();
+                if (!skill) return null;
+                const prov = provLabel(s.provenance ?? "self_declared");
+                const label =
+                  prov.key === "self_declared"
+                    ? t("skillSelfDeclared", { skill })
+                    : t("skillProvenance", { skill, provenance: enumLabel("provenance", s.provenance ?? prov.key) });
+                return (
+                  <li key={`${skill}:${i}`} className={CHIP_QUIET} title={label} aria-label={label}>
+                    {skill}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
 
         {/* What the pipeline could not read — a list to fill, never a score. */}
         <div className="border-t border-stone-200 pt-4">
