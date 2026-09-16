@@ -13,6 +13,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | --- | --- | --- |
 | Jobs & JD lifecycle | [jobs/README.md](jobs/README.md) | `app/_lib/job-ingest.ts`, `app/_lib/jd-lint.ts`, `app/api/jobs`, `app/api/jds`, `app/features/library/jobs`, `pipeline/jobfit/campaign.py` |
 | Candidate intake & CV analysis | [candidates/README.md](candidates/README.md) | `app/_lib/apply*.ts`, `app/_lib/analyze-run.ts`, `app/api/apply`, `app/features/tools/{analyze,profile}`, `pipeline/jobfit/profile.py` |
+| Job seeker (`/me`) | [jobseeker/README.md](jobseeker/README.md) | `app/me`, `app/features/jobseeker`, `app/api/jobseeker`, `app/_lib/jobseeker`, `app/_lib/db/jobseeker-*.ts`, `pipeline/jobfit/jobseeker*.py`, `pipeline/jobfit/posting_structure*.py` |
 | Matching & scoring | [matching/README.md](matching/README.md) | `pipeline/jobfit/{matching,taxonomy,transform,transferable,weight_proposal}.py`, `app/features/insights/matrix` |
 | Pipeline & automation | [pipeline/README.md](pipeline/README.md) | `app/_lib/{pipeline-stages,automation-run,screen-wave,decision-config-store}.ts`, `app/api/automation`, `app/features/hiring/{pipeline,decisions}`, `pipeline/jobfit/automation.py` |
 | Dev cases | [dev-case/README.md](dev-case/README.md) | `app/_lib/devcase-*.ts`, `app/api/devcase`, `app/features/tools/devcases`, `app/devcase/apply`, `pipeline/jobfit/devcase/**` |
