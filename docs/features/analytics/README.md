@@ -1106,25 +1106,24 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   *zero* where there were a few too thin to compare. Strictly better than the „100 % before"
   it replaces, but it needs a fourth string ("too few earlier in-band decisions") in all four
   catalogs; `thresholdEffectClaim` already returns the branch that would carry it.
-- **`/apply-threshold` is a read-modify-write with no transaction around it — the store-side
-  primitive now exists, the route has not adopted it.** It reads the screening rule, spends two
-  full-table calibration scans re-deriving the recommendation, then writes
-  `{…screening, familyFloors: {…}}` through `setDecisionConfig`. Two applies for two different
-  families that interleave inside that window both merge onto the same stale map, so the first
-  family's freshly-applied floor is silently dropped — a lost update on the live auto-reject
-  gate, sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop does not
+- **`/apply-threshold` was a read-modify-write with no transaction around it. CLOSED
+  2026-08-21 (`0e4dc7e2`).** It used to read the screening rule, spend two full-table
+  calibration scans re-deriving the recommendation, then write `{…screening, familyFloors:
+  {…}}` through `setDecisionConfig`. Two applies for two different families that interleaved
+  inside that window both merged onto the same stale map, so the first family's
+  freshly-applied floor was silently dropped — a lost update on the live auto-reject gate,
+  sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop could not
   cover it: that only fires when the written config omits the key, and a family apply always
-  includes it.) **Half closed**: `updateDecisionConfig(phase, mutate, ws, scope)`
+  includes it.) `updateDecisionConfig(phase, mutate, ws, scope)`
   (`app/_lib/decision-config-store.ts`) is the transactional read-modify-write — an IMMEDIATE
   transaction that RE-READS the tier, applies the caller's mutation to that fresh value and
-  writes, the `actOnPipelineEntry` discipline. `decision-config-isolation.test.ts` pins the
-  freshness property (better-sqlite3 is synchronous, so the interleaving itself is not
-  reproducible in-process; what is pinned is that the mutation lands on a re-read, and that the
-  stale-snapshot shape the route still uses loses the other family's floor). **Open**: the route
-  must pass only the mutation —
-  `updateDecisionConfig<ScreeningRule>("screening", (cur) => roleFamily ? { …cur, familyFloors: { …(cur.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } } : { …cur, maxMatchToReject: rec.suggestedThreshold }, ws, "team")`
-  in place of the `const next = …; setDecisionConfig(…)` pair. Re-reading later in the route
-  narrows the window without closing it.
+  writes, the `actOnPipelineEntry` discipline — and the route now passes only the mutation
+  (`updateDecisionConfig<ScreeningRule>("screening", (cur) => roleFamily ? { …cur,
+  familyFloors: { …(cur.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } } : {
+  …cur, maxMatchToReject: rec.suggestedThreshold }, ws, "team")`) rather than writing a
+  snapshot taken before the scans. `decision-config-isolation.test.ts` pins the freshness
+  property (better-sqlite3 is synchronous, so the interleaving itself is not reproducible
+  in-process; what is pinned is that the mutation lands on a re-read).
 - **The metric pack's `recruiter_capacity` counts the shared reference corpus as the team's open
   reqs.** `openRoles` is `listCorpusJobs(ws).length`, whose tenant predicate is `workspace_id IS
   NULL OR workspace_id = ?` — the same dual-tier read every jobs surface uses, so the ~100
@@ -1181,8 +1180,11 @@ either half is dropped. Adding a candidate surface means adding its prefix there
 - **`manual_hours_per_hire` is settable via the API but has no input in the UI**, so the ROI
   percentage is still measured against the shipped 42-hour constant. It belongs beside the
   recruiter-hourly field in `AnalyticsAutomationPanel.tsx`.
-- **The log's *who* column still renders a class, not a person** — it derives `auto`/`human` from
-  `DECISION_META`, and `parseEventActor()` has no UI consumer.
+- **The log's *who* column still renders a class, not a person** — `DecisionLogTable.tsx`
+  derives `auto`/`human` from `DECISION_META` for its Attribution column.
+  `parseEventActor()` now has a UI consumer (`DecisionRecordsTable.tsx`'s Actor column, added
+  since this gap was written), but only for the per-candidate records table, not the
+  workspace-wide log — the log's who column is still the class, not the name.
 - **`byJob` is volume-capped server-side** (`BY_JOB_CAP = 12`); the search filters the 12 rows the
   payload carries, and row 13 is reachable only via the board link. Any design that RANKS roles
   here needs the cap lifted or the ranking done server-side, or it can hide its own leader.
@@ -1190,8 +1192,13 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   `decisions.aiReview.confidenceLabel` / `confidencePct` / `confidenceAria`,
   `analytics.decisionRecords.export`, and `SCREENING_CONFIDENCE_BAND` in
   `app/features/shared/decisionsTypes.ts`. Parity-safe (`i18n:check` gates parity, not usage).
-- **The i18n em-dash gate only inspects scalar leaves.** `flatten()` in `scripts/i18n-check.mjs`
-  stores an array as one value and `dashError()` returns null for non-strings, so array-valued
-  messages escape the rule.
+- **The i18n em-dash gate only inspected scalar leaves. CLOSED 2026-09-14
+  (`8450dbb1`).** `stringUnits()` (`scripts/i18n/catalog-check.mjs`, the module
+  `scripts/i18n-check.mjs` delegates to) used to flatten a nested object to dotted keys but
+  store an array as one leaf value, so `dashError()`'s non-string early-return let 14 lists
+  holding 62 strings per locale skip the em-dash ban, the ICU compile and placeholder parity.
+  It now walks objects, arrays and objects inside arrays, addressing each item
+  (`landing.voice.transcript[0]`) as its own string unit, plus list-length parity across
+  locales and an independent recursive string count the walker is held to.
 - Per-tenant `llm_usage` attribution is not built, so compute cost is account-wide (see
   `docs/architecture/llm-provider-layer.md`).
