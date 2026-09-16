@@ -1877,7 +1877,7 @@ const ROUTES: RouteSpec[] = [
     key: "`jobseeker-postings:${clientIpFrom(request.headers)}`",
     limit: 120,
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "listPostings(",
+    expensive: "listJobseekerPostings(",
   },
   {
     // One status write per card click; 120/10min per IP.
@@ -1885,7 +1885,7 @@ const ROUTES: RouteSpec[] = [
     key: "`jobseeker-postings-write:${clientIpFrom(request.headers)}`",
     limit: 120,
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "setPostingStatus(",
+    expensive: "setJobseekerPostingStatus(",
   },
   {
     // jd_ingest + match_reasoning for one posting, synchronously; 20/10min per IP.
