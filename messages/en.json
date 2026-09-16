@@ -8358,8 +8358,8 @@
       "welcome": {
         "label": "Welcome",
         "eyebrow": "Welcome",
-        "title": "Let's get you hiring",
-        "blurb": "A few quick steps: your company, your team, your hiring board. Then Kandi takes it from there."
+        "title": "Let's get you started",
+        "blurb": "First, tell us what brings you here. Then a few quick steps, every one with a working default."
       },
       "company": {
         "label": "Company",
@@ -8389,7 +8389,10 @@
         "label": "Done",
         "eyebrow": "Welcome aboard",
         "title": "You're all set",
-        "blurb": "Your workspace is ready. Here’s what happens next."
+        "blurb": "Your workspace is ready. Here’s what happens next.",
+        "seekEyebrow": "Welcome aboard",
+        "seekTitle": "Your job search starts with your CV",
+        "seekBlurb": "Everything else (places, pay, titles) comes out of one conversation about it."
       }
     },
     "welcome": {
@@ -8407,7 +8410,8 @@
           "body": "Screening, interviews, and offers: one flow, with you making the calls."
         }
       },
-      "minutes": "Six short steps. Every one has a working default."
+      "minutes": "Six short steps. Every one has a working default.",
+      "minutesSeek": "Two short steps. Your CV does the rest."
     },
     "company": {
       "nameLabel": "Company name",
@@ -8507,7 +8511,16 @@
       "pipelineTitle": "Your board: {count, plural, one {# step} other {# steps}}",
       "pipelineChangedBody": "Your changes apply when you finish. Adjust them any time in Settings → Hiring pipeline.",
       "pipelineDefaultBody": "The columns candidates move through. Change them any time in Settings → Hiring pipeline.",
-      "recommended": "Recommended for a new workspace"
+      "recommended": "Recommended for a new workspace",
+      "seek": {
+        "readyTitle": "You're set up as a job seeker",
+        "readyMeta": "Language: {language}",
+        "cvTitle": "Next: your CV",
+        "cvBody": "Drop it in on the next screen. We read it into a profile, then a short conversation polishes it and sets what to search for.",
+        "chooseLabel": "Ready?",
+        "goTitle": "Go to my job search",
+        "goBody": "Your own workspace: profile and CV, matching jobs, the sources they come from."
+      }
     },
     "footer": {
       "back": "Back",
@@ -8539,6 +8552,17 @@
       "body": "Nothing is lost. You can pick up where you left off any time from your Pipeline board.",
       "confirm": "Leave setup",
       "cancel": "Keep setting up"
+    },
+    "intent": {
+      "title": "What brings you here?",
+      "hire": {
+        "label": "I'm hiring",
+        "blurb": "Set up your company, your team and your hiring board. A few quick steps."
+      },
+      "seek": {
+        "label": "I'm looking for a job",
+        "blurb": "Bring your CV, set what you are looking for, and let the search run for you."
+      }
     }
   },
   "devcase": {
@@ -10582,6 +10606,147 @@
       "sources": "Sources",
       "scans": "Scans"
     },
-    "placeholder": "The job-search workspace is being built. Start with your CV once the profile page lands."
+    "studio": {
+      "closeBusy": "A reply is still arriving. Closing now won't stop it.",
+      "closeStay": "Stay",
+      "closeAnyway": "Close anyway"
+    },
+    "columns": {
+      "col": {
+        "chat": "Conversation",
+        "sheet": "Your CV"
+      },
+      "hide": "Hide: {column}",
+      "show": "Show: {column}",
+      "badge": {
+        "turns": "{count, plural, one {# message} other {# messages}}",
+        "suggestions": "{count, plural, =0 {No open suggestions} one {# open suggestion} other {# open suggestions}}"
+      }
+    },
+    "composer": {
+      "transcriptLabel": "CV conversation"
+    },
+    "roles": {
+      "agent": "Editor",
+      "requestor": "You",
+      "system": "System"
+    },
+    "compactedNote": "{count} earlier turns rolled off this transcript. What was said in them is kept in your CV and preferences.",
+    "thinking": "Thinking…",
+    "error": "Something went wrong. Please try again.",
+    "choices": {
+      "eyebrowConfirm": "Checking an assumption",
+      "eyebrowPropose": "A few options (none of them is fine)",
+      "confirmSelection": "Use {count} selected",
+      "none": "None of these. I'll say it in my own words"
+    },
+    "glyph": {
+      "compose": "Message",
+      "send": "Send",
+      "dictate": "Dictate",
+      "dictateOff": "Dictation unavailable",
+      "speak": "Read aloud",
+      "speakOff": "Read-aloud unavailable",
+      "autoSpeak": "Read every reply"
+    },
+    "voiceIo": {
+      "dictating": "Listening… tap to stop",
+      "speaking": "Stop reading"
+    },
+    "cv": {
+      "dialogLabel": "CV studio: {name}",
+      "eyebrow": "CV studio",
+      "untitled": "Your CV",
+      "open": "Polish my CV",
+      "resume": "Continue",
+      "openReadOnly": "Open (read-only)",
+      "status": {
+        "open": "Open",
+        "closed": "Finished"
+      },
+      "sheetEmpty": "Your polished CV will appear here.",
+      "unreadableTitle": "What I could not read",
+      "unreadableBody": "These blocks of your CV did not fit a section I recognise. They are kept here, never counted against you.",
+      "suggestionsTitle": "Suggestions",
+      "suggestionsNone": "No open suggestions. Anything you change in the conversation shows up in the CV on the left.",
+      "suggestionBefore": "Before:",
+      "suggestionAfter": "After:",
+      "apply": "Apply",
+      "applyMessage": "Apply suggestion: {section}",
+      "degradedNoProvider": "No AI model is configured on this server, so the editor follows a fixed checklist. Your CV and preferences are still saved.",
+      "degradedProviderFailed": "The AI model did not answer, so the editor followed its fixed checklist for this reply. Try again in a moment.",
+      "degradedNote": "The editor is answering from its fixed checklist for this reply.",
+      "standInLanguage": "The checklist is not written in your language yet; it is answering in {language}.",
+      "sendError": "That message could not be sent. Please try again.",
+      "createError": "The CV studio could not be opened. Please try again.",
+      "past": "Conversations",
+      "download": "Download CV (.md)",
+      "downloadUnavailable": "Finish a CV conversation first; the download appears once a polished CV exists.",
+      "print": "Print / PDF"
+    },
+    "profile": {
+      "eyebrow": "Job search",
+      "intro": "What your CV told us, the preferences that steer the search, and the studio that polishes both.",
+      "readTitle": "What I read from your CV",
+      "unknownName": "Your profile",
+      "updated": "Updated {when}",
+      "reimport": "Import another CV",
+      "field": {
+        "name": "Name",
+        "roleFamily": "Role family",
+        "years": "Years of experience",
+        "skills": "Skills found",
+        "location": "Location",
+        "languages": "Languages",
+        "education": "Education"
+      },
+      "couldNotReadTitle": "What I could not read",
+      "couldNotReadBody": "These are gaps in what the CV states, not marks against you. The studio will ask about them.",
+      "couldNotReadNone": "Every field I look for was there."
+    },
+    "preferences": {
+      "title": "Search preferences",
+      "empty": "Nothing set yet. The CV studio asks about places, pay and titles as you go.",
+      "workMode": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onsite": "On site"
+      },
+      "salaryFloor": "From {amount} {currency} {period}",
+      "period": {
+        "month": "per month",
+        "year": "per year"
+      },
+      "seniority": {
+        "junior": "Junior",
+        "medior": "Mid-level",
+        "senior": "Senior",
+        "lead": "Lead"
+      },
+      "languages": "Languages: {list}"
+    },
+    "import": {
+      "eyebrow": "Start here",
+      "title": "Import your CV",
+      "titleAgain": "Import a newer CV",
+      "blurb": "Your job search starts with your CV. Drop it in and we read it into a profile you can polish.",
+      "cta": "Read my CV",
+      "cancel": "Keep the current one",
+      "privacy": "Stays on this server. Nothing is sent to a job board.",
+      "stage": {
+        "extracting": "Reading the file",
+        "drafting": "Building your profile",
+        "saving": "Saving"
+      },
+      "errExtract": "That file could not be read.",
+      "errDraft": "Your CV could not be turned into a profile. Try a file with more text, or try again.",
+      "errSave": "Your profile could not be saved. Please try again."
+    },
+    "print": {
+      "title": "Print your CV",
+      "back": "Back to my job search",
+      "print": "Print / save as PDF",
+      "none": "There is no polished CV yet. Finish a CV conversation first."
+    }
   }
 }

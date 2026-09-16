@@ -14,13 +14,34 @@ import {
   foldSetupOutcome,
   inviteBatchResult,
   type SetupFinishOutcome,
+  type SetupFinishPart,
   type SetupInviteResult,
   type SetupPartResult,
 } from "./setupFinishOutcome";
-import type { SetupInvite, SetupState } from "./setupSteps";
+import { relevantSteps, type SetupInvite, type SetupState, type SetupStepId } from "./setupSteps";
+
+/**
+ * Which finish parts THIS run may write — the parts of the steps it walked.
+ *
+ * The intent fork (setupSteps.ts): a seeker's run is Welcome → Hand-off, so the
+ * company (org name, currency, brand), team, pipeline and companion writers must not
+ * run — not "skip because empty" but "never asked", and a writer that never asked
+ * must never fire. The language is the one answer every run gives (it lives on the
+ * rail), so it is always written. Pure, so setupOnboardingFinish.test.ts pins it.
+ */
+export function finishPartsFor(state: SetupState): SetupFinishPart[] {
+  const walked = new Set<SetupStepId>(relevantSteps(state).map((s) => s.id));
+  const parts: SetupFinishPart[] = ["language"];
+  if (walked.has("company")) parts.push("orgName", "currency", "brand");
+  if (walked.has("team")) parts.push("invites");
+  if (walked.has("pipeline")) parts.push("pipeline");
+  if (walked.has("companion")) parts.push("companion");
+  return parts;
+}
 
 export async function persistOnboardingSetup(state: SetupState): Promise<SetupFinishOutcome> {
   const results: SetupPartResult[] = [];
+  const parts = new Set(finishPartsFor(state));
 
   // Both org settings are REFUSABLE, not merely failable: since the org:manage
   // gate landed on them (org-actions.ts), a recruiter finishing the wizard gets
@@ -29,23 +50,24 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
   // default as its identity on every generated JD, offer and candidate mail while
   // the wizard closed green.
   const name = state.orgName.trim();
-  if (!name) results.push({ part: "orgName", status: "skipped" });
+  if (!parts.has("orgName") || !name) results.push({ part: "orgName", status: "skipped" });
   else {
     const res = await setOrgName(name);
     results.push(res.ok ? { part: "orgName", status: "landed" } : { part: "orgName", status: "refused", code: res.code });
   }
   const lang = await setOrgLanguage(state.language);
   results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
-  // Same refusable org setting as the two above; always written, because the
-  // wizard seeds it from the cookie and a default pick is still an answer.
-  const money = await setOrgCurrency(state.currency);
-  results.push(money.ok ? { part: "currency", status: "landed" } : { part: "currency", status: "refused", code: money.code });
+  // Same refusable org setting as the two above; always written on a hiring run,
+  // because the wizard seeds it from the cookie and a default pick is still an answer.
+  if (parts.has("currency")) {
+    const money = await setOrgCurrency(state.currency);
+    results.push(money.ok ? { part: "currency", status: "landed" } : { part: "currency", status: "refused", code: money.code });
+  } else results.push({ part: "currency", status: "skipped" });
 
-  results.push(await persistSetupBrand(state));
-
-  results.push(inviteBatchResult(await sendSetupInvites(state.invites)));
-  results.push(await persistPipelineAxis(state));
-  results.push(await persistCompanionConsent(state));
+  results.push(parts.has("brand") ? await persistSetupBrand(state) : { part: "brand", status: "skipped" });
+  results.push(parts.has("invites") ? inviteBatchResult(await sendSetupInvites(state.invites)) : { part: "invites", status: "skipped" });
+  results.push(parts.has("pipeline") ? await persistPipelineAxis(state) : { part: "pipeline", status: "skipped" });
+  results.push(parts.has("companion") ? await persistCompanionConsent(state) : { part: "companion", status: "skipped" });
   return foldSetupOutcome(results);
 }
 

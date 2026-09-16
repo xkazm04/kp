@@ -686,6 +686,31 @@ One overlay, two modes (`OnboardingExperience.tsx`): **live** on a first run
 steps and a hand-off, crossfaded one at a time inside a centred card whose left
 rail carries the brand, the stepper and the language switch:
 
+**The intent fork (2026-09-16).** Welcome asks one question before the pitch —
+"I'm hiring" / "I'm looking for a job" (`SetupWelcomeStep.tsx`, two `aria-pressed`
+cards writing `state.intent`; Continue stays disabled until one is picked,
+`stepSatisfied("welcome")`). Branching is a **declared predicate on the step**:
+each `SETUP_STEPS` entry may carry `relevant(state)`, and company/team/pipeline/
+companion declare themselves irrelevant for `intent === "seek"`. `relevantSteps(state)`
+(`setupSteps.ts`) is the ONE authority — the rail, the phone counter, the live
+announcement, `canAdvance`, the reachable ceiling and the finish fold all index into
+it (positions are positions in the relevant sequence; identity is the id). A seeker
+walks Welcome → Hand-off (the seek variant of `SetupHandoffSummary.tsx`: "your job
+search starts with your CV", one exit), `finishPartsFor(state)` lets `finish()` write
+only the language (`setupOnboardingFinish.ts`), and after the stamp the host
+`router.push("/me")` instead of refreshing the recruiter workspace. The draft persists
+the intent and restores it FIRST, since the step count a restored position clamps to
+depends on it (`setupDraft.ts`). The hire path is byte-for-byte what it was;
+`setupSteps.test.ts` pins both sequences.
+
+**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route with its own
+rail (`app/features/jobseeker/MeNav.tsx` — brand mark, four links, the shared
+appearance/language preferences, `print:hidden`), gated by `isOperator()` else 404
+exactly like `/control`, `instant = false`, a `TranslatedErrorBoundary` around the
+page and no Companion dock. It reuses the root layout's providers and nothing from
+`Workspace.tsx`. The profile & CV studio it hosts is documented in
+[`docs/features/jobseeker/README.md`](../features/jobseeker/README.md).
+
 | Step | Asks for | Persisted by `finish()` |
 | --- | --- | --- |
 | Welcome | nothing (the pitch) | — |

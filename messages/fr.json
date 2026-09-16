@@ -8358,8 +8358,8 @@
       "welcome": {
         "label": "Bienvenue",
         "eyebrow": "Bienvenue",
-        "title": "Lancez vos recrutements",
-        "blurb": "Quelques étapes rapides : votre entreprise, votre équipe, votre tableau de recrutement. Ensuite, Kandi s’occupe du reste."
+        "title": "Commençons",
+        "blurb": "Dites-nous d'abord ce qui vous amène. Puis quelques étapes rapides, chacune avec un réglage par défaut qui fonctionne."
       },
       "company": {
         "label": "Entreprise",
@@ -8389,7 +8389,10 @@
         "label": "Terminé",
         "eyebrow": "Bienvenue à bord",
         "title": "Tout est prêt",
-        "blurb": "Votre espace de travail est prêt. Voici la suite."
+        "blurb": "Votre espace de travail est prêt. Voici la suite.",
+        "seekEyebrow": "Bienvenue à bord",
+        "seekTitle": "Votre recherche d'emploi commence par votre CV",
+        "seekBlurb": "Tout le reste (lieux, salaire, intitulés) découle d'une seule conversation à son sujet."
       }
     },
     "welcome": {
@@ -8407,7 +8410,8 @@
           "body": "Présélection, entretiens et offres : un seul flux, et c’est vous qui décidez."
         }
       },
-      "minutes": "Six étapes courtes. Chacune a une valeur par défaut qui fonctionne."
+      "minutes": "Six étapes courtes. Chacune a un réglage par défaut qui fonctionne.",
+      "minutesSeek": "Deux étapes courtes. Votre CV fait le reste."
     },
     "company": {
       "nameLabel": "Nom de l’entreprise",
@@ -8507,7 +8511,16 @@
       "pipelineTitle": "Votre tableau : {count, plural, one {# étape} other {# étapes}}",
       "pipelineChangedBody": "Vos modifications s’appliquent à la fin. Ajustez-les à tout moment dans Paramètres → Pipeline de recrutement.",
       "pipelineDefaultBody": "Les colonnes que traversent les candidats. Modifiez-les à tout moment dans Paramètres → Pipeline de recrutement.",
-      "recommended": "Recommandé pour un nouvel espace de travail"
+      "recommended": "Recommandé pour un nouvel espace de travail",
+      "seek": {
+        "readyTitle": "Vous êtes configuré comme chercheur d'emploi",
+        "readyMeta": "Langue : {language}",
+        "cvTitle": "Ensuite : votre CV",
+        "cvBody": "Déposez-le sur l'écran suivant. Nous le lisons pour en faire un profil, puis une courte conversation le retravaille et fixe ce qu'il faut chercher.",
+        "chooseLabel": "Prêt ?",
+        "goTitle": "Aller à ma recherche d'emploi",
+        "goBody": "Votre propre espace : profil et CV, offres correspondantes, et les sources dont elles proviennent."
+      }
     },
     "footer": {
       "back": "Retour",
@@ -8539,6 +8552,17 @@
       "body": "Rien n'est perdu. Vous pourrez reprendre là où vous en étiez à tout moment depuis votre tableau Pipeline.",
       "confirm": "Quitter la configuration",
       "cancel": "Continuer la configuration"
+    },
+    "intent": {
+      "title": "Qu'est-ce qui vous amène ?",
+      "hire": {
+        "label": "Je recrute",
+        "blurb": "Configurez votre entreprise, votre équipe et votre tableau de recrutement. Quelques étapes rapides."
+      },
+      "seek": {
+        "label": "Je cherche un emploi",
+        "blurb": "Apportez votre CV, précisez ce que vous cherchez et laissez la recherche travailler pour vous."
+      }
     }
   },
   "devcase": {
@@ -10582,6 +10606,147 @@
       "sources": "Sources",
       "scans": "Analyses"
     },
-    "placeholder": "L'espace de recherche d'emploi est en construction. Commencez par votre CV dès que la page de profil sera disponible."
+    "studio": {
+      "closeBusy": "Une réponse est encore en route. Fermer maintenant ne l'arrêtera pas.",
+      "closeStay": "Rester",
+      "closeAnyway": "Fermer quand même"
+    },
+    "columns": {
+      "col": {
+        "chat": "Conversation",
+        "sheet": "Votre CV"
+      },
+      "hide": "Masquer : {column}",
+      "show": "Afficher : {column}",
+      "badge": {
+        "turns": "{count, plural, one {# message} other {# messages}}",
+        "suggestions": "{count, plural, =0 {Aucune suggestion en attente} one {# suggestion en attente} other {# suggestions en attente}}"
+      }
+    },
+    "composer": {
+      "transcriptLabel": "Conversation sur le CV"
+    },
+    "roles": {
+      "agent": "Éditeur",
+      "requestor": "Vous",
+      "system": "Système"
+    },
+    "compactedNote": "{count} échanges plus anciens ont quitté cette transcription. Ce qui y a été dit reste dans votre CV et vos préférences.",
+    "thinking": "Réflexion…",
+    "error": "Une erreur s'est produite. Veuillez réessayer.",
+    "choices": {
+      "eyebrowConfirm": "Vérification d'une hypothèse",
+      "eyebrowPropose": "Quelques options (aucune n'est obligatoire)",
+      "confirmSelection": "Utiliser la sélection ({count})",
+      "none": "Aucune de celles-ci. Je le dis avec mes mots"
+    },
+    "glyph": {
+      "compose": "Message",
+      "send": "Envoyer",
+      "dictate": "Dicter",
+      "dictateOff": "Dictée indisponible",
+      "speak": "Lire à voix haute",
+      "speakOff": "Lecture à voix haute indisponible",
+      "autoSpeak": "Lire chaque réponse"
+    },
+    "voiceIo": {
+      "dictating": "À l'écoute… touchez pour arrêter",
+      "speaking": "Arrêter la lecture"
+    },
+    "cv": {
+      "dialogLabel": "Studio CV : {name}",
+      "eyebrow": "Studio CV",
+      "untitled": "Votre CV",
+      "open": "Retravailler mon CV",
+      "resume": "Continuer",
+      "openReadOnly": "Ouvrir (lecture seule)",
+      "status": {
+        "open": "Ouverte",
+        "closed": "Terminée"
+      },
+      "sheetEmpty": "Votre CV retravaillé apparaîtra ici.",
+      "unreadableTitle": "Ce que je n'ai pas pu lire",
+      "unreadableBody": "Ces blocs de votre CV n'entraient dans aucune rubrique que je reconnais. Ils restent ici et ne comptent jamais contre vous.",
+      "suggestionsTitle": "Suggestions",
+      "suggestionsNone": "Aucune suggestion en attente. Tout ce que vous changez dans la conversation apparaît dans le CV à gauche.",
+      "suggestionBefore": "Avant :",
+      "suggestionAfter": "Après :",
+      "apply": "Appliquer",
+      "applyMessage": "Appliquer la suggestion : {section}",
+      "degradedNoProvider": "Aucun modèle d'IA n'est configuré sur ce serveur ; l'éditeur suit donc une liste fixe. Votre CV et vos préférences sont tout de même enregistrés.",
+      "degradedProviderFailed": "Le modèle d'IA n'a pas répondu ; l'éditeur a suivi sa liste fixe pour cette réponse. Réessayez dans un instant.",
+      "degradedNote": "Pour cette réponse, l'éditeur s'appuie sur sa liste fixe.",
+      "standInLanguage": "La liste n'existe pas encore dans votre langue ; elle répond en {language}.",
+      "sendError": "Ce message n'a pas pu être envoyé. Veuillez réessayer.",
+      "createError": "Le studio CV n'a pas pu s'ouvrir. Veuillez réessayer.",
+      "past": "Conversations",
+      "download": "Télécharger le CV (.md)",
+      "downloadUnavailable": "Terminez d'abord une conversation sur le CV ; le téléchargement apparaît dès qu'un CV retravaillé existe.",
+      "print": "Imprimer / PDF"
+    },
+    "profile": {
+      "eyebrow": "Recherche d'emploi",
+      "intro": "Ce que votre CV nous a appris, les préférences qui orientent la recherche, et le studio qui affine les deux.",
+      "readTitle": "Ce que j'ai lu dans votre CV",
+      "unknownName": "Votre profil",
+      "updated": "Mis à jour {when}",
+      "reimport": "Importer un autre CV",
+      "field": {
+        "name": "Nom",
+        "roleFamily": "Famille de métiers",
+        "years": "Années d'expérience",
+        "skills": "Compétences trouvées",
+        "location": "Lieu",
+        "languages": "Langues",
+        "education": "Formation"
+      },
+      "couldNotReadTitle": "Ce que je n'ai pas pu lire",
+      "couldNotReadBody": "Ce sont des lacunes dans ce que le CV indique, pas des points en moins. Le studio vous posera la question.",
+      "couldNotReadNone": "Tous les champs que je recherche étaient présents."
+    },
+    "preferences": {
+      "title": "Préférences de recherche",
+      "empty": "Rien de défini pour l'instant. Le studio CV vous demandera les lieux, le salaire et les intitulés au fil de la conversation.",
+      "workMode": {
+        "remote": "Télétravail",
+        "hybrid": "Hybride",
+        "onsite": "Sur site"
+      },
+      "salaryFloor": "À partir de {amount} {currency} {period}",
+      "period": {
+        "month": "par mois",
+        "year": "par an"
+      },
+      "seniority": {
+        "junior": "Junior",
+        "medior": "Confirmé",
+        "senior": "Senior",
+        "lead": "Lead"
+      },
+      "languages": "Langues : {list}"
+    },
+    "import": {
+      "eyebrow": "Commencez ici",
+      "title": "Importez votre CV",
+      "titleAgain": "Importer un CV plus récent",
+      "blurb": "Votre recherche d'emploi commence par votre CV. Déposez-le et nous le lisons pour en faire un profil que vous pourrez retravailler.",
+      "cta": "Lire mon CV",
+      "cancel": "Garder l'actuel",
+      "privacy": "Reste sur ce serveur. Rien n'est envoyé à un site d'emploi.",
+      "stage": {
+        "extracting": "Lecture du fichier",
+        "drafting": "Construction du profil",
+        "saving": "Enregistrement"
+      },
+      "errExtract": "Ce fichier n'a pas pu être lu.",
+      "errDraft": "Votre CV n'a pas pu être transformé en profil. Essayez un fichier avec plus de texte, ou réessayez.",
+      "errSave": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
+    },
+    "print": {
+      "title": "Imprimer votre CV",
+      "back": "Retour à ma recherche d'emploi",
+      "print": "Imprimer / enregistrer en PDF",
+      "none": "Il n'y a pas encore de CV retravaillé. Terminez d'abord une conversation sur le CV."
+    }
   }
 }

@@ -1812,6 +1812,52 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "politeFetch(",
   },
+  // jobseeker — WP2 (docs/features/jobseeker/README.md, "Profile and CV studio").
+  // Every /me door is operator-gated, and in open mode that gate is a no-op, so each
+  // self-limits per IP at a budget a human never meets.
+  {
+    // A store write per CV import; the import flow writes once per file.
+    rel: "./jobseeker/profile/route.ts",
+    key: "`jobseeker-profile:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "PROFILE_RATE_LIMIT",
+    optsDef: "const PROFILE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "upsertJobseekerProfile(",
+  },
+  {
+    // A create spawns one Python child for the deterministic opening. The cheap
+    // refusals (no profile yet) run first so a rejected call never consumes budget.
+    rel: "./jobseeker/dialogs/route.ts",
+    key: "`jobseeker-dialogs-create:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "CREATE_RATE_LIMIT",
+    optsDef: "const CREATE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runJobseekerOpening(",
+    servedBefore: 'jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404)',
+  },
+  {
+    // Every accepted message is a potentially-paid LLM exchange — the intake
+    // message budget, for the same human pace. The 404/409/400 lifecycle refusals
+    // come first (a closed dialog costs nothing), the spawn comes after.
+    rel: "./jobseeker/dialogs/[id]/message/route.ts",
+    key: "`jobseeker-dialog-message:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runJobseekerExchange(",
+    servedBefore: 'dialog.status !== "open"',
+  },
+  {
+    // A read that streams a whole document per hit.
+    rel: "./jobseeker/cv.md/route.ts",
+    key: "`jobseeker-cv-export:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "EXPORT_RATE_LIMIT",
+    optsDef: "const EXPORT_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getJobseekerProfile(",
+  },
 ];
 
 for (const spec of ROUTES) {

@@ -22,7 +22,7 @@ import type { AppLanguage } from "@/app/features/shared/memberUi";
 import { isMemberRole } from "@/app/_lib/auth/roles";
 import { isOrgCurrency, type OrgCurrency } from "@/app/_lib/org-settings";
 import type { CompanionBrainChoice } from "@/app/_lib/companion-brain-probe";
-import type { SetupInvite, SetupState } from "./setupSteps";
+import { isSetupIntent, type SetupIntent, type SetupInvite, type SetupState } from "./setupSteps";
 
 export const SETUP_DRAFT_PREFIX = "kp-setup-draft";
 
@@ -48,6 +48,9 @@ export function setupDraftKey(scope: string | null): string {
  * be dropped to make it serialize.
  */
 export type SetupDraft = {
+  /** The fork answered on Welcome — restored FIRST, because the step count the
+   *  restored position is clamped to depends on it (relevantSteps). */
+  intent: SetupIntent | null;
   orgName: string;
   language: AppLanguage;
   currency: OrgCurrency;
@@ -62,6 +65,7 @@ export type SetupDraft = {
 
 export function draftFromState(state: SetupState, stepIndex: number, maxVisited: number): SetupDraft {
   return {
+    intent: state.intent,
     orgName: state.orgName,
     language: state.language,
     currency: state.currency,
@@ -79,6 +83,7 @@ export function draftFromState(state: SetupState, stepIndex: number, maxVisited:
  *  nothing, so a reload of an untouched first run behaves exactly as before. */
 export function draftIsEmpty(draft: SetupDraft): boolean {
   return (
+    draft.intent === null &&
     draft.orgName.trim() === "" &&
     draft.accentColor === null &&
     draft.logoUrl.trim() === "" &&
@@ -120,6 +125,7 @@ export function parseSetupDraft(raw: string | null, base: SetupState): SetupDraf
     : [];
   const choice = d.companionChoice;
   return {
+    intent: isSetupIntent(d.intent) ? d.intent : null,
     orgName: typeof d.orgName === "string" ? d.orgName : base.orgName,
     language: typeof d.language === "string" ? (d.language as AppLanguage) : base.language,
     currency: isOrgCurrency(d.currency) ? d.currency : base.currency,
@@ -158,6 +164,7 @@ export function mergeSetupDraft(base: SetupState, draft: SetupDraft | null, init
   if (!draft) return base;
   return {
     ...base,
+    intent: base.intent === initial.intent ? draft.intent : base.intent,
     orgName: base.orgName === initial.orgName ? draft.orgName : base.orgName,
     // `language` is seeded from the running locale, not from INITIAL_SETUP, so the
     // caller passes the seeded value as `initial` — an operator who switched the

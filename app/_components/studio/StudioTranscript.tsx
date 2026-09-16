@@ -55,8 +55,12 @@ export type StudioTranscriptProps = {
   /** Turn index of the latest reply, for the arrival animation and read-aloud.
    *  Only this turn's choice cards are live. */
   latestIndex: number | null;
-  /** A choice-card pick sends an ordinary message; "none of these" hands focus back. */
-  onPick(message: string): void;
+  /** A choice-card pick sends an ordinary message; "none of these" hands focus back.
+   *  A consumer whose send resolves `false` (the exchange did not land) may return
+   *  it — the cards keep the selection to retry (StudioChoiceCards reads the
+   *  outcome when there is one). Widened in WP2 so the seeker's `send` (which
+   *  answers `Promise<boolean>`) types without a wrapper. */
+  onPick(message: string): void | boolean | Promise<boolean | void>;
   onDecline(): void;
   sending: boolean;
   ns: string;

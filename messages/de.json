@@ -8358,8 +8358,8 @@
       "welcome": {
         "label": "Willkommen",
         "eyebrow": "Willkommen",
-        "title": "Starten wir Ihr Recruiting",
-        "blurb": "Ein paar schnelle Schritte: Ihr Unternehmen, Ihr Team, Ihr Hiring-Board. Den Rest übernimmt Kandi."
+        "title": "Legen wir los",
+        "blurb": "Sagen Sie uns zuerst, was Sie hierherbringt. Dann ein paar schnelle Schritte, jeder mit einer funktionierenden Voreinstellung."
       },
       "company": {
         "label": "Unternehmen",
@@ -8389,7 +8389,10 @@
         "label": "Fertig",
         "eyebrow": "Willkommen an Bord",
         "title": "Alles bereit",
-        "blurb": "Ihr Arbeitsbereich ist eingerichtet. So geht es weiter."
+        "blurb": "Ihr Arbeitsbereich ist eingerichtet. So geht es weiter.",
+        "seekEyebrow": "Willkommen an Bord",
+        "seekTitle": "Ihre Jobsuche beginnt mit Ihrem Lebenslauf",
+        "seekBlurb": "Alles andere (Orte, Gehalt, Titel) ergibt sich aus einem Gespräch darüber."
       }
     },
     "welcome": {
@@ -8407,7 +8410,8 @@
           "body": "Screening, Interviews und Angebote: ein Ablauf, die Entscheidungen treffen Sie."
         }
       },
-      "minutes": "Sechs kurze Schritte. Jeder hat eine funktionierende Voreinstellung."
+      "minutes": "Sechs kurze Schritte. Jeder hat eine funktionierende Voreinstellung.",
+      "minutesSeek": "Zwei kurze Schritte. Den Rest erledigt Ihr Lebenslauf."
     },
     "company": {
       "nameLabel": "Unternehmensname",
@@ -8507,7 +8511,16 @@
       "pipelineTitle": "Ihr Board: {count, plural, one {# Schritt} other {# Schritte}}",
       "pipelineChangedBody": "Ihre Änderungen greifen beim Abschließen. Jederzeit anpassbar unter Einstellungen → Hiring-Pipeline.",
       "pipelineDefaultBody": "Die Spalten, die Kandidaten durchlaufen. Jederzeit änderbar unter Einstellungen → Hiring-Pipeline.",
-      "recommended": "Empfohlen für einen neuen Arbeitsbereich"
+      "recommended": "Empfohlen für einen neuen Arbeitsbereich",
+      "seek": {
+        "readyTitle": "Sie sind als Jobsuchende:r eingerichtet",
+        "readyMeta": "Sprache: {language}",
+        "cvTitle": "Als Nächstes: Ihr Lebenslauf",
+        "cvBody": "Legen Sie ihn auf dem nächsten Bildschirm ab. Wir lesen ihn in ein Profil ein, dann schärft ihn ein kurzes Gespräch und legt fest, wonach gesucht wird.",
+        "chooseLabel": "Bereit?",
+        "goTitle": "Zu meiner Jobsuche",
+        "goBody": "Ihr eigener Arbeitsbereich: Profil und Lebenslauf, passende Stellen, die Quellen, aus denen sie stammen."
+      }
     },
     "footer": {
       "back": "Zurück",
@@ -8539,6 +8552,17 @@
       "body": "Es geht nichts verloren. Sie können jederzeit auf Ihrem Pipeline-Board dort weitermachen, wo Sie aufgehört haben.",
       "confirm": "Einrichtung verlassen",
       "cancel": "Weiter einrichten"
+    },
+    "intent": {
+      "title": "Was bringt Sie hierher?",
+      "hire": {
+        "label": "Ich stelle ein",
+        "blurb": "Richten Sie Ihr Unternehmen, Ihr Team und Ihr Hiring-Board ein. Ein paar schnelle Schritte."
+      },
+      "seek": {
+        "label": "Ich suche einen Job",
+        "blurb": "Bringen Sie Ihren Lebenslauf mit, legen Sie fest, was Sie suchen, und lassen Sie die Suche für sich laufen."
+      }
     }
   },
   "devcase": {
@@ -10582,6 +10606,147 @@
       "sources": "Quellen",
       "scans": "Scans"
     },
-    "placeholder": "Der Jobsuche-Arbeitsbereich wird gerade gebaut. Beginnen Sie mit Ihrem Lebenslauf, sobald die Profilseite da ist."
+    "studio": {
+      "closeBusy": "Eine Antwort ist noch unterwegs. Schließen stoppt sie nicht.",
+      "closeStay": "Bleiben",
+      "closeAnyway": "Trotzdem schließen"
+    },
+    "columns": {
+      "col": {
+        "chat": "Gespräch",
+        "sheet": "Ihr Lebenslauf"
+      },
+      "hide": "Ausblenden: {column}",
+      "show": "Einblenden: {column}",
+      "badge": {
+        "turns": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+        "suggestions": "{count, plural, =0 {Keine offenen Vorschläge} one {# offener Vorschlag} other {# offene Vorschläge}}"
+      }
+    },
+    "composer": {
+      "transcriptLabel": "Gespräch über den Lebenslauf"
+    },
+    "roles": {
+      "agent": "Editor",
+      "requestor": "Sie",
+      "system": "System"
+    },
+    "compactedNote": "{count} frühere Beiträge sind aus diesem Verlauf herausgefallen. Was dort gesagt wurde, bleibt in Ihrem Lebenslauf und Ihren Präferenzen erhalten.",
+    "thinking": "Denke nach…",
+    "error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "choices": {
+      "eyebrowConfirm": "Eine Annahme prüfen",
+      "eyebrowPropose": "Ein paar Optionen (keine davon ist Pflicht)",
+      "confirmSelection": "{count} Ausgewählte verwenden",
+      "none": "Keine davon. Ich sage es in eigenen Worten"
+    },
+    "glyph": {
+      "compose": "Nachricht",
+      "send": "Senden",
+      "dictate": "Diktieren",
+      "dictateOff": "Diktat nicht verfügbar",
+      "speak": "Vorlesen",
+      "speakOff": "Vorlesen nicht verfügbar",
+      "autoSpeak": "Jede Antwort vorlesen"
+    },
+    "voiceIo": {
+      "dictating": "Höre zu… zum Stoppen tippen",
+      "speaking": "Vorlesen stoppen"
+    },
+    "cv": {
+      "dialogLabel": "Lebenslauf-Studio: {name}",
+      "eyebrow": "Lebenslauf-Studio",
+      "untitled": "Ihr Lebenslauf",
+      "open": "Meinen Lebenslauf überarbeiten",
+      "resume": "Fortsetzen",
+      "openReadOnly": "Öffnen (nur lesen)",
+      "status": {
+        "open": "Offen",
+        "closed": "Abgeschlossen"
+      },
+      "sheetEmpty": "Hier erscheint Ihr überarbeiteter Lebenslauf.",
+      "unreadableTitle": "Was ich nicht lesen konnte",
+      "unreadableBody": "Diese Blöcke Ihres Lebenslaufs passten in keinen Abschnitt, den ich erkenne. Sie bleiben hier und werden nie gegen Sie gewertet.",
+      "suggestionsTitle": "Vorschläge",
+      "suggestionsNone": "Keine offenen Vorschläge. Alles, was Sie im Gespräch ändern, erscheint links im Lebenslauf.",
+      "suggestionBefore": "Vorher:",
+      "suggestionAfter": "Nachher:",
+      "apply": "Übernehmen",
+      "applyMessage": "Vorschlag übernehmen: {section}",
+      "degradedNoProvider": "Auf diesem Server ist kein KI-Modell konfiguriert, daher folgt der Editor einer festen Checkliste. Ihr Lebenslauf und Ihre Präferenzen werden trotzdem gespeichert.",
+      "degradedProviderFailed": "Das KI-Modell hat nicht geantwortet, daher ist der Editor für diese Antwort seiner festen Checkliste gefolgt. Versuchen Sie es gleich noch einmal.",
+      "degradedNote": "Der Editor antwortet hier aus seiner festen Checkliste.",
+      "standInLanguage": "Die Checkliste liegt noch nicht in Ihrer Sprache vor; sie antwortet auf {language}.",
+      "sendError": "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+      "createError": "Das Lebenslauf-Studio konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
+      "past": "Gespräche",
+      "download": "Lebenslauf herunterladen (.md)",
+      "downloadUnavailable": "Schließen Sie zuerst ein Lebenslauf-Gespräch ab; der Download erscheint, sobald ein überarbeiteter Lebenslauf vorliegt.",
+      "print": "Drucken / PDF"
+    },
+    "profile": {
+      "eyebrow": "Jobsuche",
+      "intro": "Was Ihr Lebenslauf uns gesagt hat, die Präferenzen, die die Suche steuern, und das Studio, das beides schärft.",
+      "readTitle": "Was ich aus Ihrem Lebenslauf gelesen habe",
+      "unknownName": "Ihr Profil",
+      "updated": "Aktualisiert {when}",
+      "reimport": "Anderen Lebenslauf importieren",
+      "field": {
+        "name": "Name",
+        "roleFamily": "Rollenfamilie",
+        "years": "Jahre Erfahrung",
+        "skills": "Gefundene Kenntnisse",
+        "location": "Ort",
+        "languages": "Sprachen",
+        "education": "Ausbildung"
+      },
+      "couldNotReadTitle": "Was ich nicht lesen konnte",
+      "couldNotReadBody": "Das sind Lücken in dem, was der Lebenslauf nennt, keine Minuspunkte. Das Studio fragt danach.",
+      "couldNotReadNone": "Jedes Feld, nach dem ich suche, war da."
+    },
+    "preferences": {
+      "title": "Suchpräferenzen",
+      "empty": "Noch nichts festgelegt. Das Lebenslauf-Studio fragt nach und nach nach Orten, Gehalt und Titeln.",
+      "workMode": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onsite": "Vor Ort"
+      },
+      "salaryFloor": "Ab {amount} {currency} {period}",
+      "period": {
+        "month": "pro Monat",
+        "year": "pro Jahr"
+      },
+      "seniority": {
+        "junior": "Junior",
+        "medior": "Mittleres Level",
+        "senior": "Senior",
+        "lead": "Lead"
+      },
+      "languages": "Sprachen: {list}"
+    },
+    "import": {
+      "eyebrow": "Hier beginnen",
+      "title": "Lebenslauf importieren",
+      "titleAgain": "Neueren Lebenslauf importieren",
+      "blurb": "Ihre Jobsuche beginnt mit Ihrem Lebenslauf. Legen Sie ihn ab, und wir lesen ihn in ein Profil ein, das Sie überarbeiten können.",
+      "cta": "Meinen Lebenslauf lesen",
+      "cancel": "Aktuellen behalten",
+      "privacy": "Bleibt auf diesem Server. Nichts wird an eine Jobbörse gesendet.",
+      "stage": {
+        "extracting": "Datei lesen",
+        "drafting": "Profil erstellen",
+        "saving": "Speichern"
+      },
+      "errExtract": "Diese Datei konnte nicht gelesen werden.",
+      "errDraft": "Aus Ihrem Lebenslauf konnte kein Profil erstellt werden. Versuchen Sie eine Datei mit mehr Text, oder versuchen Sie es erneut.",
+      "errSave": "Ihr Profil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+    },
+    "print": {
+      "title": "Lebenslauf drucken",
+      "back": "Zurück zu meiner Jobsuche",
+      "print": "Drucken / als PDF speichern",
+      "none": "Es gibt noch keinen überarbeiteten Lebenslauf. Schließen Sie zuerst ein Lebenslauf-Gespräch ab."
+    }
   }
 }

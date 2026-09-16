@@ -10,8 +10,8 @@ import { BTN_GHOST, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
 import { SetupLeaveConfirm } from "./SetupLeaveConfirm";
-import { SetupWizardStepPane } from "./SetupWizardStepPane";
-import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
+import { SetupWizardStepPane, stepTitleKey } from "./SetupWizardStepPane";
+import type { OnboardingCtrl } from "./setupSteps";
 
 // The card's ONE body height. Fixed rather than content-driven so the card does not
 // shrink and grow as steps swap (see the right pane below), and shared with the
@@ -36,7 +36,9 @@ const CARD_BODY_H = "h-[min(93vh,45.2rem)]";
 export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup");
   const reduced = useReducedMotion();
-  const step = SETUP_STEPS[ctrl.stepIndex];
+  // The steps THIS run walks (the intent fork, setupSteps.ts) — never the full list.
+  const steps = ctrl.steps;
+  const step = steps[ctrl.stepIndex];
   const panelRef = useRef<HTMLDivElement>(null);
   // Escape backs out of the FRONTMOST thing: the leave confirmation while it is up
   // (so the reflex that opened it also cancels it), the wizard otherwise — where in
@@ -87,7 +89,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
               <span className="font-serif text-h3 text-ink">{t("rail.brand")}</span>
             </div>
             <ol className="space-y-1">
-              {SETUP_STEPS.map((p, i) => {
+              {steps.map((p, i) => {
                 const done = ctrl.stepIndex > i;
                 const active = ctrl.stepIndex === i;
                 // Mirrors the host's goTo gate: back to anything reached, forward
@@ -166,7 +168,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                 rather than as position. The step's NAME is not repeated here for
                 the same reason — that eyebrow already says it. */}
             <p aria-hidden className={`mb-3 md:hidden ${META_LABEL}`}>
-              {t("rail.stepOf", { index: ctrl.stepIndex + 1, total: SETUP_STEPS.length })}
+              {t("rail.stepOf", { index: ctrl.stepIndex + 1, total: steps.length })}
             </p>
             {/* Step announcement. A PERSISTENT node, deliberately: a live region that
                 mounts with its own content is usually not announced at all, so the
@@ -175,8 +177,8 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
             <p aria-live="polite" className="sr-only">
               {t("aria.stepAnnounce", {
                 index: ctrl.stepIndex + 1,
-                total: SETUP_STEPS.length,
-                title: t(`steps.${step.id}.title`),
+                total: steps.length,
+                title: t(stepTitleKey(step.id, ctrl.state.intent)),
               })}
             </p>
             <div className="-mx-3 -my-1 min-w-0 flex-1 overflow-y-auto px-3 py-1">

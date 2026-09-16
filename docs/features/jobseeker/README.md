@@ -198,7 +198,63 @@ malformed input).
 
 ## Profile and CV studio
 
-_WP2._
+**Entry.** `/me` (`app/me/page.tsx`, server: reads the seeker's row once and hands it
+to `app/features/jobseeker/ProfilePage.tsx`). The shell is `app/me/layout.tsx`: brand
+mark, four links (`MeNav.tsx`, active state from the pathname), the appearance +
+language preferences, a `TranslatedErrorBoundary` around the page, no Companion dock;
+the rail is `print:hidden`. A seeker arrives here from the first-run wizard's **intent
+fork** (`docs/architecture/app-structure.md`, "shell/setup/"): "I'm looking for a job"
+skips company/team/pipeline/companion and `finish()` routes to `/me`.
+
+**Import** (`ProfileImport.tsx`): drop a CV (the shared `AnalyzeFileDropZone`, same
+8 MB / PDF·DOCX·TXT·MD contract) → `POST /api/extract-text` → `POST /api/profile/draft`
+(the recruiter-side `profile_draft`, so a seeker's profile IS the `CandidateProfileV2`
+the matcher scores) → `PUT /api/jobseeker/profile { profile, cvSourceText }`. The
+three stages tick as a checklist; every refusal renders from its code
+(`useErrorMessage`). The summary (`ProfileSummary.tsx`) shows what was read (name,
+role family, years, skills, location, languages, education) and **what could not be
+read** as a list of gaps to fill, never a score.
+
+**The CV studio** (`CvStudio.tsx`) is the Studio kit's first seeker variant
+(`app/_components/studio`, `ns="me"`): zones `chat | sheet` (`kp-me-cv-cols`, chat
+pinned), the plane is `CvSheet.tsx` (the polished Markdown through
+`app/_components/Markdown`, the unreadable blocks, per-suggestion before/after with
+**Apply**, which sends the ordinary message `me.cv.applyMessage`), the composer carries
+`StudioVoiceBar` (`kp-me-auto-speak`). A closed dialog reopens read-only.
+
+| Door | Method | What |
+| --- | --- | --- |
+| `/api/jobseeker/profile` | GET / PUT | the seeker's row; PUT merges a preferences patch through `app/_lib/jobseeker/profile.ts` (`parsePreferencesPatch`: unknown fields dropped, a floor without currency is not a floor) |
+| `/api/jobseeker/dialogs` | GET `?profileId=` / POST `{kind, lang}` | list; create with the **deterministic** opening turn (`runJobseekerOpening`) |
+| `/api/jobseeker/dialogs/[id]` | GET | one dialog (the client re-reads after a `moved`) |
+| `/api/jobseeker/dialogs/[id]/message` | POST `{message}` | one exchange → `DialogReply`; CAS `appendDialogTurns` → 409 `JOBSEEKER_DIALOG_MOVED`; on `done` the artifact's preferences merge into the profile and `cvMarkdown` becomes `cvPolishedMd`. Empty body → `INTAKE_TEXT_REQUIRED` (the existing generic "nothing to send"); oversized is cut at 4 000 chars |
+| `/api/jobseeker/cv.md` | GET | `text/markdown`, `Content-Disposition: attachment; filename="cv.md"`; 404 until a polished CV exists |
+| `/me/cv/print` | page | the polished CV at 210 mm with `window.print()` |
+
+Limiters (pinned in `app/api/rate-limit-contract.test.ts`): profile 60/10 min,
+dialog create 30, message 30 (after the 404/409/400 refusals, before the spawn),
+export 60.
+
+**Engine.** `app/_lib/jobseeker-run.ts` spawns `pipeline/jobfit/jobseeker_cli.py`
+(`--input-json`; `JOBSEEKER_DIALOG_TIMEOUT_MS = 120 s`, opening 30 s, `buildLlmConfigEnv`
+on turns only) and coerces the reply at the boundary (`coerceDialogReply`: reply capped,
+malformed cards dropped, an artifact that does not match its kind → null, `source` ∈
+`llm | deterministic`). `pipeline/jobfit/jobseeker.py` (`CV_POLISH_PROMPT_VERSION =
+"cv-polish-v1"`, use case `cv_polish`) is a calm career editor that elicits preferences
+one or two at a time (decision cards for work modes and seniority) and critiques the CV
+**grounded** in `soft_signals.build_soft_signal_panel` + `authenticity.authenticity_checks`;
+a suggestion is kept only when its `before` is a sentence that occurs in the source.
+`done` = places-or-countries + salary floor WITH currency + ≥1 target, confirmed on a
+read-back.
+
+**Keyless.** `deterministic_turn` is scripted slot-filling in en/cs/de/fr (locations →
+salary floor, parsing "60 000 Kč měsíčně" / "60k CZK" / "3000 EUR/month" and re-asking
+once for a missing currency, never guessing → titles → work modes card → seniority card →
+read-back → confirm), template suggestions from the same critics, and `reflow_cv`: a
+sectioned Markdown re-flow where **no source line is lost** — every non-empty line lands
+in `cvMarkdown` or in `unreadable` (pinned by
+`pipeline/jobfit/tests/test_jobseeker_dialog.py`). A locale outside the four is
+disclosed as `fallbackLang`. The `fit` kind is accepted with its stub opening until WP5.
 
 ## Scan and scoring
 

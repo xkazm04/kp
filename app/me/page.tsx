@@ -1,15 +1,18 @@
-import { getTranslations } from "next-intl/server";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { currentSession } from "@/app/_lib/auth/current-user";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { currentUserId } from "@/app/_lib/auth/session";
+import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import { ProfilePage } from "@/app/features/jobseeker/ProfilePage";
 
-// WP0 placeholder: the profile & CV studio page lands in WP2. Kept as a server
-// component so the layout's gate is the only gate and nothing renders client-side
-// before the profile store exists.
+// /me — Profile & CV studio (docs/features/jobseeker/README.md, "Profile and CV
+// studio"). The layout is the gate; this page reads the seeker's row once on the
+// server (the same identity split the API uses: user id when the session has one,
+// else the workspace's single seeker) and hands it to the client page, which owns
+// the import flow, the summary and the studio from there.
+export const instant = false;
+
 export default async function MeHomePage() {
-  const t = await getTranslations("me");
-  return (
-    <section className={`${PANEL} p-6`}>
-      <h1 className="text-xl font-semibold text-ink">{t("title")}</h1>
-      <p className="mt-2 text-sm text-steel">{t("placeholder")}</p>
-    </section>
-  );
+  const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+  const profile = getJobseekerProfile(currentUserId(session), ws);
+  return <ProfilePage initial={profile} />;
 }

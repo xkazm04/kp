@@ -8358,8 +8358,8 @@
       "welcome": {
         "label": "Vítejte",
         "eyebrow": "Vítejte",
-        "title": "Pojďme začít nabírat",
-        "blurb": "Pár rychlých kroků: vaše společnost, váš tým, vaše náborová nástěnka. O zbytek se postará Kandi."
+        "title": "Pojďme začít",
+        "blurb": "Nejdřív nám řekněte, co vás sem přivádí. Pak pár rychlých kroků, každý s funkčním výchozím nastavením."
       },
       "company": {
         "label": "Společnost",
@@ -8389,7 +8389,10 @@
         "label": "Hotovo",
         "eyebrow": "Vítejte na palubě",
         "title": "Vše je připraveno",
-        "blurb": "Váš pracovní prostor je připravený. Tady je, co bude dál."
+        "blurb": "Váš pracovní prostor je připravený. Tady je, co bude dál.",
+        "seekEyebrow": "Vítejte na palubě",
+        "seekTitle": "Vaše hledání práce začíná u CV",
+        "seekBlurb": "Všechno ostatní (místa, mzda, pozice) vyplyne z jedné konverzace o něm."
       }
     },
     "welcome": {
@@ -8407,7 +8410,8 @@
           "body": "Screening, pohovory a nabídky: jeden proces, rozhodnutí zůstávají na vás."
         }
       },
-      "minutes": "Šest krátkých kroků. Každý má funkční výchozí nastavení."
+      "minutes": "Šest krátkých kroků. Každý má funkční výchozí nastavení.",
+      "minutesSeek": "Dva krátké kroky. O zbytek se postará vaše CV."
     },
     "company": {
       "nameLabel": "Název společnosti",
@@ -8507,7 +8511,16 @@
       "pipelineTitle": "Vaše nástěnka: {count, plural, one {# krok} few {# kroky} other {# kroků}}",
       "pipelineChangedBody": "Vaše změny se uloží po dokončení. Kdykoli je upravíte v Nastavení → Náborová pipeline.",
       "pipelineDefaultBody": "Sloupce, kterými kandidáti procházejí. Kdykoli je změníte v Nastavení → Náborová pipeline.",
-      "recommended": "Doporučeno pro nový pracovní prostor"
+      "recommended": "Doporučeno pro nový pracovní prostor",
+      "seek": {
+        "readyTitle": "Jste nastaveni jako uchazeč o práci",
+        "readyMeta": "Jazyk: {language}",
+        "cvTitle": "Další krok: vaše CV",
+        "cvBody": "Na další obrazovce ho vložte. Přečteme ho do profilu a krátká konverzace ho vylepší a nastaví, co hledat.",
+        "chooseLabel": "Připraveni?",
+        "goTitle": "Přejít na moje hledání práce",
+        "goBody": "Váš vlastní pracovní prostor: profil a CV, odpovídající nabídky a zdroje, ze kterých přicházejí."
+      }
     },
     "footer": {
       "back": "Zpět",
@@ -8539,6 +8552,17 @@
       "body": "Nic se neztratí. Kdykoli můžete navázat tam, kde jste skončili, přímo na nástěnce Pipeline.",
       "confirm": "Opustit nastavení",
       "cancel": "Pokračovat v nastavení"
+    },
+    "intent": {
+      "title": "Co vás sem přivádí?",
+      "hire": {
+        "label": "Nabírám lidi",
+        "blurb": "Nastavte svou společnost, tým a náborovou nástěnku. Pár rychlých kroků."
+      },
+      "seek": {
+        "label": "Hledám práci",
+        "blurb": "Přineste své CV, nastavte, co hledáte, a nechte hledání pracovat za vás."
+      }
     }
   },
   "devcase": {
@@ -10582,6 +10606,147 @@
       "sources": "Zdroje",
       "scans": "Skeny"
     },
-    "placeholder": "Pracovní prostor pro hledání práce se připravuje. Až bude stránka profilu hotová, začněte svým CV."
+    "studio": {
+      "closeBusy": "Odpověď ještě přichází. Zavření ji nezastaví.",
+      "closeStay": "Zůstat",
+      "closeAnyway": "Přesto zavřít"
+    },
+    "columns": {
+      "col": {
+        "chat": "Konverzace",
+        "sheet": "Vaše CV"
+      },
+      "hide": "Skrýt: {column}",
+      "show": "Zobrazit: {column}",
+      "badge": {
+        "turns": "{count, plural, one {# zpráva} few {# zprávy} other {# zpráv}}",
+        "suggestions": "{count, plural, =0 {Žádné otevřené návrhy} one {# otevřený návrh} few {# otevřené návrhy} other {# otevřených návrhů}}"
+      }
+    },
+    "composer": {
+      "transcriptLabel": "Konverzace o CV"
+    },
+    "roles": {
+      "agent": "Editor",
+      "requestor": "Vy",
+      "system": "Systém"
+    },
+    "compactedNote": "{count} dřívějších zpráv z tohoto přepisu odpadlo. Co v nich zaznělo, zůstává ve vašem CV a preferencích.",
+    "thinking": "Přemýšlím…",
+    "error": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "choices": {
+      "eyebrowConfirm": "Ověřuji předpoklad",
+      "eyebrowPropose": "Několik možností (žádná není povinná)",
+      "confirmSelection": "Použít vybrané ({count})",
+      "none": "Žádná z nich. Řeknu to vlastními slovy"
+    },
+    "glyph": {
+      "compose": "Zpráva",
+      "send": "Odeslat",
+      "dictate": "Diktovat",
+      "dictateOff": "Diktování není dostupné",
+      "speak": "Přečíst nahlas",
+      "speakOff": "Předčítání není dostupné",
+      "autoSpeak": "Předčítat každou odpověď"
+    },
+    "voiceIo": {
+      "dictating": "Poslouchám… klepnutím zastavíte",
+      "speaking": "Zastavit předčítání"
+    },
+    "cv": {
+      "dialogLabel": "Studio CV: {name}",
+      "eyebrow": "Studio CV",
+      "untitled": "Vaše CV",
+      "open": "Vylepšit moje CV",
+      "resume": "Pokračovat",
+      "openReadOnly": "Otevřít (jen ke čtení)",
+      "status": {
+        "open": "Otevřená",
+        "closed": "Dokončená"
+      },
+      "sheetEmpty": "Zde se objeví vaše upravené CV.",
+      "unreadableTitle": "Co jsem nedokázal přečíst",
+      "unreadableBody": "Tyto části vašeho CV se nevešly do žádné sekce, kterou rozpoznávám. Zůstávají zde a nikdy se nepočítají proti vám.",
+      "suggestionsTitle": "Návrhy",
+      "suggestionsNone": "Žádné otevřené návrhy. Cokoli změníte v konverzaci, se projeví v CV vlevo.",
+      "suggestionBefore": "Před:",
+      "suggestionAfter": "Po:",
+      "apply": "Použít",
+      "applyMessage": "Použít návrh: {section}",
+      "degradedNoProvider": "Na tomto serveru není nastaven žádný AI model, editor proto postupuje podle pevného seznamu. Vaše CV a preference se přesto ukládají.",
+      "degradedProviderFailed": "AI model neodpověděl, editor proto u této odpovědi postupoval podle pevného seznamu. Zkuste to za chvíli znovu.",
+      "degradedNote": "Editor u této odpovědi vychází z pevného seznamu.",
+      "standInLanguage": "Seznam otázek zatím není ve vašem jazyce; odpovídá v jazyce {language}.",
+      "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
+      "createError": "Studio CV se nepodařilo otevřít. Zkuste to prosím znovu.",
+      "past": "Konverzace",
+      "download": "Stáhnout CV (.md)",
+      "downloadUnavailable": "Nejdřív dokončete konverzaci o CV; stažení se objeví, jakmile existuje upravené CV.",
+      "print": "Tisk / PDF"
+    },
+    "profile": {
+      "eyebrow": "Hledání práce",
+      "intro": "Co nám řeklo vaše CV, preference, které řídí hledání, a studio, které vylepší obojí.",
+      "readTitle": "Co jsem z vašeho CV přečetl",
+      "unknownName": "Váš profil",
+      "updated": "Aktualizováno {when}",
+      "reimport": "Nahrát jiné CV",
+      "field": {
+        "name": "Jméno",
+        "roleFamily": "Oblast rolí",
+        "years": "Roky praxe",
+        "skills": "Nalezené dovednosti",
+        "location": "Místo",
+        "languages": "Jazyky",
+        "education": "Vzdělání"
+      },
+      "couldNotReadTitle": "Co jsem nedokázal přečíst",
+      "couldNotReadBody": "Jde o mezery v tom, co CV uvádí, ne o body proti vám. Studio se na ně zeptá.",
+      "couldNotReadNone": "Všechna pole, která hledám, tam byla."
+    },
+    "preferences": {
+      "title": "Preference hledání",
+      "empty": "Zatím nic nenastaveno. Studio CV se postupně zeptá na místa, mzdu a pozice.",
+      "workMode": {
+        "remote": "Na dálku",
+        "hybrid": "Hybridně",
+        "onsite": "V kanceláři"
+      },
+      "salaryFloor": "Od {amount} {currency} {period}",
+      "period": {
+        "month": "měsíčně",
+        "year": "ročně"
+      },
+      "seniority": {
+        "junior": "Junior",
+        "medior": "Medior",
+        "senior": "Senior",
+        "lead": "Lead / vedoucí"
+      },
+      "languages": "Jazyky: {list}"
+    },
+    "import": {
+      "eyebrow": "Začněte zde",
+      "title": "Nahrajte své CV",
+      "titleAgain": "Nahrát novější CV",
+      "blurb": "Vaše hledání práce začíná u CV. Vložte ho a my z něj vytvoříme profil, který můžete vylepšovat.",
+      "cta": "Přečíst moje CV",
+      "cancel": "Ponechat současné",
+      "privacy": "Zůstává na tomto serveru. Nic se neposílá na pracovní portály.",
+      "stage": {
+        "extracting": "Čtení souboru",
+        "drafting": "Sestavení profilu",
+        "saving": "Ukládání"
+      },
+      "errExtract": "Soubor se nepodařilo přečíst.",
+      "errDraft": "Z vašeho CV se nepodařilo vytvořit profil. Zkuste soubor s více textem, nebo to zkuste znovu.",
+      "errSave": "Profil se nepodařilo uložit. Zkuste to prosím znovu."
+    },
+    "print": {
+      "title": "Tisk CV",
+      "back": "Zpět na moje hledání práce",
+      "print": "Tisknout / uložit jako PDF",
+      "none": "Zatím žádné upravené CV neexistuje. Nejdřív dokončete konverzaci o CV."
+    }
   }
 }

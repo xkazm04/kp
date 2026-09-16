@@ -20,6 +20,7 @@ const EN: SetupState = { ...INITIAL_SETUP };
 
 function draft(over: Partial<SetupDraft> = {}): SetupDraft {
   return {
+    intent: "hire",
     orgName: "Acme",
     language: "cs",
     currency: "EUR",
@@ -85,6 +86,28 @@ test("no draft is a no-op, and the server-owned pipeline is never merged", () =>
   const withBoard: SetupState = { ...EN, pipelineLoad: "ready" };
   assert.equal(mergeSetupDraft(withBoard, draft(), EN).pipeline, null);
   assert.equal(mergeSetupDraft(withBoard, draft(), EN).pipelineLoad, "ready");
+});
+
+/* ── the intent fork ──────────────────────────────────────────────────────── */
+
+test("the intent round-trips, and an unanswered fork stores nothing", () => {
+  const parsed = parseSetupDraft(JSON.stringify(draftFromState({ ...EN, intent: "seek" }, 1, 1)), EN);
+  assert.equal(parsed?.intent, "seek");
+  assert.equal(draftIsEmpty(draftFromState(EN, 0, 0)), true, "intent null + nothing typed = empty");
+  assert.equal(draftIsEmpty(draftFromState({ ...EN, intent: "seek" }, 0, 0)), false, "a picked intent is worth keeping");
+});
+
+test("a nonsense intent reads as unanswered, never as a third path", () => {
+  assert.equal(parseSetupDraft(JSON.stringify({ intent: "both" }), EN)?.intent, null);
+  assert.equal(parseSetupDraft(JSON.stringify({ intent: "hire" }), EN)?.intent, "hire");
+  // A draft from before the fork existed has no field at all: it is a hire draft
+  // whose fork is simply unanswered, and Welcome asks it.
+  assert.equal(parseSetupDraft(JSON.stringify({ orgName: "Acme" }), EN)?.intent, null);
+});
+
+test("TYPING WINS for the intent too: a pick made in this mount survives the restore", () => {
+  assert.equal(mergeSetupDraft(EN, draft({ intent: "seek" }), EN).intent, "seek");
+  assert.equal(mergeSetupDraft({ ...EN, intent: "hire" }, draft({ intent: "seek" }), EN).intent, "hire");
 });
 
 /* ── parse ────────────────────────────────────────────────────────────────── */
