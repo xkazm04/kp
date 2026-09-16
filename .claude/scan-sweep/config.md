@@ -145,3 +145,33 @@ claim and an untrue one.
   if it is over the cap and the app has not drained it, say in the report that the
   round's findings are very likely unrecorded rather than reporting them as
   emitted.
+
+- **2026-09-16 — This checkout cannot serve the app, so e2e is not a reachable
+  rung here.** `node_modules` is a link to another checkout's tree
+  (`-> /c/Users/kazda/kiro/kp/node_modules`). `next dev` (Turbopack) refuses it
+  ("Symlink [project]/node_modules is invalid, it points out of the filesystem
+  root"), and `next dev --webpack` boots but 500s every route (better-sqlite3's
+  `fs` gets bundled through the out-of-root path). A Playwright spec written
+  as a fix's pin can only be typechecked and linted here; CI's keyless job is
+  where it first runs, and the round must say so and mark itself degraded.
+  The dev attempt also rewrites `next-env.d.ts` (`.next/dev/types`) and
+  creates `.next/` and `data/kp-e2e.sqlite*`: restore and remove them.
+
+- **2026-09-16 — Next's own metadata resolver is a runnable `experiment` rung
+  for any `generateMetadata` claim, with no server.** `accumulateMetadata`
+  from `next/dist/lib/metadata/resolve-metadata.js` takes
+  `[[metadataOrResolver, staticFilesMetadata], ...]` per segment. Two shims are
+  needed: resolve `server-only` to any file, and set `fn.$$original = fn` on a
+  function item (it reads `getUseCacheFunctionInfo`). It measured /about's
+  shallow-merge loss (0/7 share tags per locale) and the fix (7/7) before
+  any commit. Page modules themselves cannot be imported by node:test (no JSX
+  transform), so the page's shape has to be mirrored in the experiment.
+
+- **2026-09-16 — Proposal (not applied: the skill is a pinned install).** A
+  one-file context gets a finding budget of 24 and a "10-16 per round" yield
+  expectation written for contexts of ten files or more. `about-page` (1 file,
+  38 lines) produced 2 in-scope builds and 5 real findings, all but two of them
+  outside its paths (veto 1). The yield clause could scale by declared file
+  count, and say that a thin route shell is swept through its PAIRS (the
+  layout it merges with, sibling routes, the catalog it reads), where most of
+  its findings will be veto 1.
