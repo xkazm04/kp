@@ -1591,6 +1591,23 @@ const ROUTES: RouteSpec[] = [
     expensive: "listDecisionRecords({ candidateRef: policyRef, workspaceId: ws })",
   },
   // ------------------------------------------------------------------
+  // ADDED /explorer 2026-09-16 (analytics-reporting sweep). The write sibling of
+  // threshold-history above: /apply-threshold runs the SAME full-table calibration
+  // scan plus a holdout read on every accepted POST, and additionally writes the
+  // live auto-reject floor - yet carried no limiter while its read-only sibling did.
+  // Operator + pipeline:write gated, so the limiter sits after those cheap refusals
+  // and after the two 400s, ahead of the first calibration scan.
+  {
+    rel: "./analytics/calibration/apply-threshold/route.ts",
+    key: "`apply-threshold:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "APPLY_THRESHOLD_RATE_LIMIT",
+    optsDef: "const APPLY_THRESHOLD_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getDecisionConfig<ScreeningRule>(\"screening\", ws)",
+    servedBefore: 'jsonRefusal("CALIBRATION_SUGGESTION_REQUIRED", 400)',
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (decisions-ui-1), with the limiter itself.
   {
     // The screening auto-reject WAVE - the one door in the Decisions tab that queues

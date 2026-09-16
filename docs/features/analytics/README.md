@@ -47,12 +47,12 @@ had become. The four outcomes are now distinct codes rather than one prose sente
 "the recommendation changed under you" and "the write fell over" no longer render the
 same red line. Pinned by `app/api/analytics/analytics-writes-authority.test.ts`.
 
-### Three expensive reads carry a per-IP budget
+### Four expensive doors carry a per-IP budget
 
 `metric-pack`, `decisions` and `calibration/threshold-history` spend CPU and the shared
 SQLite connection rather than provider credit, which is why they had no limiter — and the
 metric pack hangs off a **download link**, which a browser or a prefetcher can pull with
-no click. Each now calls `rateLimit()` after its cheap refusals, answering
+no click. Each calls `rateLimit()` after its cheap refusals, answering
 `TOO_MANY_REQUESTS` (429): metric-pack 30/10 min, decisions 120/10 min (the log pages 20
 at a time on scroll), threshold-history 60/10 min. Pinned in
 `app/api/rate-limit-contract.test.ts`.
@@ -60,6 +60,13 @@ at a time on scroll), threshold-history 60/10 min. Pinned in
 `threshold-history` stays ungated by role deliberately — it returns policy-level seals
 (`policy:screening:*`, no candidate PII) and aggregate band rates, the same exposure class
 as the `/calibration` reads beside it. That is precisely why it needed a budget.
+
+**`apply-threshold` runs the same expensive scan and had no budget at all. CLOSED
+2026-09-16.** The write sibling of `threshold-history` — every accepted POST re-derives the
+recommendation from two full-table calibration scans plus a holdout read, the identical work
+its read-only sibling was rate-limited for, and this one additionally writes the live
+auto-reject floor. Operator- and `pipeline:write`-gated already, so `rateLimit()` now runs
+after those checks and the two cheap 400s, ahead of the first scan: 20/10 min per IP.
 
 ## Three sections, not one scroll
 
