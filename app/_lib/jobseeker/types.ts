@@ -380,7 +380,12 @@ export type ScanSummary = {
   startedAt: string;
   finishedAt: string;
   sources: SourceRunSummary[];
+  /** Rows the matcher scored THIS run. */
   matched: number;
+  /** Live structured rows the matcher did NOT rescore because their stored match is
+   *  still the truth (same MATCH_VERSION, written after the profile last changed).
+   *  Optional: a caller that does not scope the match phase reports nothing here. */
+  skippedUpToDate?: number;
   deepDived: number;
   /** `no_provider` when the deep-dive was skipped keyless. */
   deepDiveSkipped: string | null;

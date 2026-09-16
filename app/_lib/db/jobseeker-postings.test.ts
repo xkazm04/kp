@@ -7,7 +7,16 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import type { RawPosting } from "../jobseeker/types.ts";
-import { getJobseekerPosting, listJobseekerPostings, markAbsent, setPostingMatch, setJobseekerPostingStatus, upsertPosting } from "./jobseeker-postings.ts";
+import {
+  getJobseekerPosting,
+  listJobseekerPostings,
+  listPostingsForMatching,
+  markAbsent,
+  setPostingMatch,
+  setPostingStructure,
+  setJobseekerPostingStatus,
+  upsertPosting,
+} from "./jobseeker-postings.ts";
 
 after(() => cleanupUnitDb());
 
@@ -177,4 +186,39 @@ test("upsertPosting persists the adapter's salary parse and clears it when a re-
   assert.equal(getJobseekerPosting(c.id)!.salaryMin, null);
   const d = upsertPosting(source, raw({ salary: { min: 10, max: 20, currency: "EUR", period: "hour" as unknown as "month" } }), T0);
   assert.equal(getJobseekerPosting(d.id)!.salaryMin, null);
+});
+
+test("listPostingsForMatching: scoped, it returns only the rows that still owe a score", () => {
+  const source = "src-incremental";
+  const ws = "ws-incremental";
+  const a = upsertPosting(source, raw(), T0, ws);
+  const b = upsertPosting(source, raw(), T0, ws);
+  const c = upsertPosting(source, raw(), T0, ws);
+  for (const id of [a.id, b.id, c.id]) setPostingStructure(id, { title: "x" }, "deterministic", ws);
+
+  const scope = { upToDateVersion: "jobseeker-match-v1", profileUpdatedAt: T1 };
+  // Nothing matched yet: all three owe a score and none is skipped.
+  const none = listPostingsForMatching(ws, scope);
+  assert.equal(none.rows.length, 3, "a never-matched row is never skipped (the NULL trap)");
+  assert.equal(none.skippedUpToDate, 0);
+
+  // a: current. b: the older matcher. c: scored BEFORE the profile last changed.
+  setPostingMatch(a.id, { jobId: a.id }, { total: 70, fitTier: "strong", version: "jobseeker-match-v1", matchedAt: T2 }, ws);
+  setPostingMatch(b.id, { jobId: b.id }, { total: 70, fitTier: "strong", version: "jobseeker-match-v0", matchedAt: T2 }, ws);
+  setPostingMatch(c.id, { jobId: c.id }, { total: 70, fitTier: "strong", version: "jobseeker-match-v1", matchedAt: T0 }, ws);
+
+  const scoped = listPostingsForMatching(ws, scope);
+  assert.deepEqual(scoped.rows.map((r) => r.id).sort(), [b.id, c.id].sort(), "an older version and a pre-profile score both come back");
+  assert.equal(scoped.skippedUpToDate, 1, "only the row matched by this version after the profile moved is skipped");
+
+  // Unscoped is the pre-incremental sweep: every live structured row, nothing skipped.
+  const all = listPostingsForMatching(ws);
+  assert.equal(all.rows.length, 3);
+  assert.equal(all.skippedUpToDate, 0);
+
+  // A dismissed row leaves the matching set whatever its match state is.
+  setJobseekerPostingStatus(a.id, "dismissed", { reason: "salary", note: null }, ws);
+  assert.equal(listPostingsForMatching(ws, scope).skippedUpToDate, 0);
+  // …and another workspace sees none of it.
+  assert.equal(listPostingsForMatching("ws-other", scope).rows.length, 0);
 });

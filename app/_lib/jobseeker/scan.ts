@@ -16,7 +16,9 @@
 //     it never reached; sources not reached are recorded `skipped` with reason
 //     `wall_budget`, not omitted;
 //   - `matched` counts rows the matcher returned this run; KO'd postings are not scored 0,
-//     they stay unmatched and the count goes to the log;
+//     they stay unmatched and the count goes to the log; `skippedUpToDate` counts the rows
+//     whose stored match was still the truth, so a re-scan that changed nothing says "0
+//     scored, N already current" instead of quietly re-spending on the whole dataset;
 //   - the deep-dive stops at the FIRST keyless / deterministic answer, `deepDiveSkipped:
 //     "no_provider"` — one cheap spawn per scan without a key, never maxPerScan of them.
 
@@ -135,6 +137,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
     finishedAt: startedAt,
     sources: [],
     matched: 0,
+    skippedUpToDate: 0,
     deepDived: 0,
     deepDiveSkipped: null,
   };
@@ -216,7 +219,17 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
     // ── 3. Match (deterministic, one spawn per 500) ────────────────────────────
     progress(done, total, "match");
     if (!signal.aborted) {
-      const structured: StructuredPosting[] = deps.listPostingsForMatching(workspaceId);
+      // INCREMENTAL: a row whose match carries this MATCH_VERSION and was written after
+      // the profile last moved is already the truth — the store skips it and says how
+      // many. Everything else comes back: never matched, nulled by a content change
+      // (upsertPosting), scored under an older version, or scored before the seeker
+      // changed their preferences.
+      const pending = deps.listPostingsForMatching(workspaceId, {
+        upToDateVersion: MATCH_VERSION,
+        profileUpdatedAt: profile.updatedAt,
+      });
+      const structured: StructuredPosting[] = pending.rows;
+      summary.skippedUpToDate = pending.skippedUpToDate;
       const outcome = await matchPostings(profile, structured, {
         runCli: deps.runCli,
         signal,

@@ -527,19 +527,66 @@ export function listDeepDiveCandidates(
   return rows.map(fromRow);
 }
 
-/** What the matcher scores: every structured, still-live posting of the workspace. */
-export function listPostingsForMatching(workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; job: Record<string, unknown> }[] {
-  const rows = ensureDb()
-    .prepare(
-      `SELECT id, job_json FROM jobseeker_postings
-       WHERE workspace_id = ? AND job_json IS NOT NULL AND status NOT IN ('dismissed', 'gone')
-       ORDER BY first_seen_at DESC, id DESC`
-    )
-    .all(workspaceId) as Pick<PostingRow, "id" | "job_json">[];
+/** Skip predicate for the matcher: a row whose stored score is still the truth.
+ *
+ *  Both halves must hold — the score was written by THIS matcher version AND after the
+ *  seeker last changed their profile/preferences. Everything else comes back: never
+ *  matched, matched under an older version, matched before the profile moved, or nulled
+ *  by upsertPosting when the posting's content changed. NULL-safe by construction: a
+ *  `NOT (match_version = ?)` over a NULL column yields NULL and would silently drop the
+ *  never-matched rows, which is why the predicate is written as an OR of positive
+ *  "still owes a score" cases. */
+export type MatchingScope = {
+  /** MATCH_VERSION (match.ts) — a row stamped with anything else is re-scored. */
+  upToDateVersion: string;
+  /** The profile's `updatedAt`: a score older than the inputs is not a score. */
+  profileUpdatedAt: string;
+};
+
+/** What the matcher scores: the structured, still-live postings of the workspace whose
+ *  stored match is stale (or absent). `skippedUpToDate` is what the scan reports as work
+ *  it did NOT redo — counted with the mirrored predicate, so the number and the rows
+ *  partition the same live set. Without a scope every live row is returned (the
+ *  pre-incremental behaviour) and `skippedUpToDate` is 0. Every statement writes its own
+ *  literal `workspace_id = ?` (the source guard reads the SQL, not a shared constant). */
+export function listPostingsForMatching(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  scope?: MatchingScope
+): { rows: { id: string; job: Record<string, unknown> }[]; skippedUpToDate: number } {
+  const d = ensureDb();
+  const rows = (
+    scope
+      ? d
+          .prepare(
+            `SELECT id, job_json FROM jobseeker_postings
+             WHERE workspace_id = ? AND job_json IS NOT NULL AND status NOT IN ('dismissed', 'gone')
+               AND (match_version IS NULL OR match_version != ? OR matched_at IS NULL OR matched_at < ?)
+             ORDER BY first_seen_at DESC, id DESC`
+          )
+          .all(workspaceId, scope.upToDateVersion, scope.profileUpdatedAt)
+      : d
+          .prepare(
+            `SELECT id, job_json FROM jobseeker_postings
+             WHERE workspace_id = ? AND job_json IS NOT NULL AND status NOT IN ('dismissed', 'gone')
+             ORDER BY first_seen_at DESC, id DESC`
+          )
+          .all(workspaceId)
+  ) as Pick<PostingRow, "id" | "job_json">[];
+  const skippedUpToDate = scope
+    ? (
+        d
+          .prepare(
+            `SELECT COUNT(*) AS n FROM jobseeker_postings
+             WHERE workspace_id = ? AND job_json IS NOT NULL AND status NOT IN ('dismissed', 'gone')
+               AND match_version = ? AND matched_at >= ?`
+          )
+          .get(workspaceId, scope.upToDateVersion, scope.profileUpdatedAt) as { n: number }
+      ).n
+    : 0;
   const out: { id: string; job: Record<string, unknown> }[] = [];
   for (const row of rows) {
     const job = safeRowParse<Record<string, unknown>>(row.job_json, "jobseekerPosting.job", row.id);
     if (job && typeof job === "object") out.push({ id: row.id, job });
   }
-  return out;
+  return { rows: out, skippedUpToDate };
 }

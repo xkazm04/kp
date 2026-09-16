@@ -164,7 +164,18 @@ function makeStore() {
         r.jobSource = jobSource;
         return true;
       },
-      listPostingsForMatching: () => [...rows.values()].filter((r) => r.job !== null).map((r) => ({ id: r.id, job: r.job! })),
+      // Mirrors the store's incremental predicate (jobseeker-postings.ts): an up-to-date
+      // row is one stamped with THIS match version and scored at or after the profile's
+      // last write; everything else still owes a score.
+      listPostingsForMatching: (_ws, scope) => {
+        const live = [...rows.values()].filter((r) => r.job !== null && r.status !== "dismissed" && r.status !== "gone");
+        const upToDate = (r: Row) =>
+          scope !== undefined && r.matchVersion === scope.upToDateVersion && r.matchedAt !== null && r.matchedAt >= scope.profileUpdatedAt;
+        return {
+          rows: live.filter((r) => !upToDate(r)).map((r) => ({ id: r.id, job: r.job! })),
+          skippedUpToDate: live.filter(upToDate).length,
+        };
+      },
       setPostingMatch: (id, match, projection) => {
         const r = rows.get(id);
         if (!r) return false;
@@ -245,10 +256,16 @@ function runnerFor(script: Script, calls: CliCall[]): CliRunner {
   };
 }
 
-function depsFor(store: ReturnType<typeof makeStore>, runCli: CliRunner, sources: JobseekerSource[], withProfile = true): Partial<ScanDeps> {
+function depsFor(
+  store: ReturnType<typeof makeStore>,
+  runCli: CliRunner,
+  sources: JobseekerSource[],
+  withProfile = true,
+  seeker: JobseekerProfile = profile
+): Partial<ScanDeps> {
   return {
     now: () => NOW,
-    getProfile: () => (withProfile ? profile : null),
+    getProfile: () => (withProfile ? seeker : null),
     listSources: () => sources,
     adapterFor: () => fixtureAdapter,
     fetch: async () => {
@@ -394,7 +411,17 @@ test("(e) the summary is the ScanSummary shape, and an aborted budget records un
     signal: controller.signal,
     deps: depsFor(store, runCli, [source("alpha", { postings: [raw(1, "alpha")] }), source("beta", { postings: [raw(1, "beta")] })]),
   });
-  const expectedKeys: (keyof ScanSummary)[] = ["workspaceId", "trigger", "startedAt", "finishedAt", "sources", "matched", "deepDived", "deepDiveSkipped"];
+  const expectedKeys: (keyof ScanSummary)[] = [
+    "workspaceId",
+    "trigger",
+    "startedAt",
+    "finishedAt",
+    "sources",
+    "matched",
+    "skippedUpToDate",
+    "deepDived",
+    "deepDiveSkipped",
+  ];
   assert.deepEqual(Object.keys(summary).sort(), [...expectedKeys].sort());
   assert.equal(summary.workspaceId, WS);
   assert.equal(summary.trigger, "clock");
@@ -410,4 +437,57 @@ test("(e) the summary is the ScanSummary shape, and an aborted budget records un
   );
   assert.equal(calls.length, 0, "an aborted scan spawns nothing");
   assert.equal(summary.deepDiveSkipped, null);
+});
+
+test("(f) incremental matching: an unchanged second scan scores nothing, a moved profile re-scores all, a changed posting re-scores itself", async () => {
+  const store = makeStore();
+  const postings = Array.from({ length: 4 }, (_, i) => raw(i + 1, "alpha"));
+  const sources = [source("alpha", { postings })];
+  const matchSpawns = (calls: CliCall[]) => calls.filter((c) => c.module === "match_cli").length;
+
+  // First scan: nothing is stored, so all four are scored.
+  const first: CliCall[] = [];
+  const one = await runJobseekerScan(WS, { trigger: "manual", deps: depsFor(store, scriptedRunner({ totals: () => 60 }, first), sources) });
+  assert.equal(one.matched, 4);
+  assert.equal(one.skippedUpToDate, 0);
+  assert.equal(matchSpawns(first), 1);
+
+  // Second scan, nothing changed: every row is stamped with this version at or after the
+  // profile's updated_at, so the matcher is never spawned.
+  const second: CliCall[] = [];
+  const two = await runJobseekerScan(WS, { trigger: "clock", deps: depsFor(store, scriptedRunner({ totals: () => 60 }, second), sources) });
+  assert.equal(two.matched, 0, "no row owed a score");
+  assert.equal(two.skippedUpToDate, 4, "and the scan says so rather than reporting an empty dataset");
+  assert.equal(matchSpawns(second), 0, "a no-change re-scan spawns the matcher zero times");
+
+  // The seeker edits their preferences: every stored score predates the inputs it was
+  // computed from, so all four come back.
+  const moved: JobseekerProfile = { ...profile, updatedAt: "2026-09-16T12:00:00.000Z" };
+  const third: CliCall[] = [];
+  const withMovedProfile = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: depsFor(store, scriptedRunner({ totals: () => 60 }, third), sources, true, moved),
+  });
+  assert.equal(withMovedProfile.matched, 4, "a changed profile invalidates every stored score");
+  assert.equal(withMovedProfile.skippedUpToDate, 0);
+  assert.equal(matchSpawns(third), 1);
+  // …and the rows are now stamped at NOW again, which is BEFORE the moved profile's
+  // updated_at — so scan five below uses the original profile, whose updated_at they clear.
+
+  // A posting whose content moved: upsertPosting nulls its structure and match, and only
+  // that row is re-structured and re-scored.
+  const changed = [...store.rows.values()][1];
+  changed.job = null;
+  changed.jobSource = null;
+  changed.match = null;
+  changed.matchTotal = null;
+  changed.fitTier = null;
+  changed.matchVersion = null;
+  changed.matchedAt = null;
+  const fourth: CliCall[] = [];
+  const four = await runJobseekerScan(WS, { trigger: "clock", deps: depsFor(store, scriptedRunner({ totals: () => 60 }, fourth), sources) });
+  assert.equal(four.matched, 1, "only the posting whose content changed is re-scored");
+  assert.equal(four.skippedUpToDate, 3);
+  const matchCall = fourth.find((c) => c.module === "match_cli")!;
+  assert.deepEqual((matchCall.files["jobs.json"] as { id: string }[]).map((j) => j.id), [changed.id]);
 });

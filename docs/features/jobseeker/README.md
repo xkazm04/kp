@@ -304,8 +304,23 @@ adapters and a scripted runner with no network, no interpreter and no DB
 | --- | --- | --- |
 | Acquire | `reconcileSource` per enabled, unpaused source, creation order; a `blocked`/`collapsed` source is paused by reconcile and the scan moves on | `SCAN_LIMITS { maxRefs: 300, maxDetailFetches: 60 }` per source; 8-min wall budget (`SCAN_WALL_BUDGET_MS`) joined with the caller's signal — stops BETWEEN sources, and a source not reached is recorded `skipped` / `wall_budget`, never omitted |
 | Structure | `listPostingsNeedingStructure` (job_json NULL) → `posting_structure_cli` → `setPostingStructure(id, job, "deterministic")` | one spawn per 200 |
-| Match | `listPostingsForMatching` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n` → `setPostingMatch` with `match_version = "jobseeker-match-v1"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
+| Match | `listPostingsForMatching(ws, {upToDateVersion, profileUpdatedAt})` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n` → `setPostingMatch` with `match_version = "jobseeker-match-v1"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
 | Deep-dive | `listDeepDiveCandidates({threshold, limit: maxPerScan})` (match_total ≥ `preferences.deepDive.threshold`, live, `reasoning_json IS NULL`, best first) → `deepDivePosting` | `deepDive.maxPerScan`; stops at the FIRST keyless answer |
+
+**Matching is incremental.** The match phase asks the store only for the rows that still
+owe a score: `listPostingsForMatching(workspaceId, {upToDateVersion, profileUpdatedAt})`
+skips a row whose `match_version` is the current `MATCH_VERSION` **and** whose
+`matched_at` is at or after the profile's `updated_at`. Everything else comes back —
+never matched, nulled by a content change (`upsertPosting` clears `job_json`/`match_*`
+when the content hash moves), scored under an older matcher, or scored before the seeker
+last edited their profile or preferences. The predicate is written as positive "still
+owes a score" cases rather than a `NOT (...)`, because a `NOT` over a NULL column yields
+NULL and would drop exactly the never-matched rows. `ScanSummary.matched` counts rows
+scored THIS run and the optional `skippedUpToDate` counts the rows that were already
+current, so a re-scan that changed nothing reports `matched: 0, skippedUpToDate: N` and
+spawns `match_cli` zero times instead of re-scoring the whole dataset. The deep-dive
+shortlist is unaffected: it selects on `match_total` and `reasoning_json`, not on
+freshness.
 
 KO'd postings are NOT scored 0: the matcher returns only survivors (`meta.koFiltered`,
 aggregated `meta.koReasons`), so a posting that failed the hard filter stays unmatched
