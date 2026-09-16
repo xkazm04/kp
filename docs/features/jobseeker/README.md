@@ -195,9 +195,13 @@ else onsite), seniority from the TITLE only, `role_family` via `classify_role_fa
 requirements = taxonomy skill terms (whole-token) tagged `must_have` when they sit under a
 requirements header (požadujeme / requirements / Anforderungen / exigences …) and
 `nice_to_have` otherwise or when the line says "výhodou / is a plus", a salary only when
-stated (`raw.salary` first, then a currency-anchored regex; hourly dropped; a currency or
-period the active market cannot compare is a `salary_not_comparable:` note, never a
-converted number), `min_years_experience` from "N+ years/let/Jahre/ans", languages from the
+stated (`raw.salary` first, then a currency-anchored regex; the stated units always travel
+on `Job.salary_currency` / `Job.salary_period`, so a **foreign currency** is a
+`salary_not_comparable:` note with no band — never a converted number — while an **hourly**
+rate is read as `salary_period="hour"` with no band, and a **yearly** figure in the market's
+own currency is restated ×12 for the BAND only, noted `salary_period_converted:year->month`,
+so the seeker is never told "posting states no pay" about an ad that stated its pay),
+`min_years_experience` from "N+ years/let/Jahre/ans", languages from the
 taxonomy alias table plus de/fr ad-side forms. `posting_structure_cli.py` takes
 `[{id, raw}]` and answers `{jobs, notes}` (one bad posting is skipped and named; exit 2 for
 malformed input).
@@ -228,8 +232,11 @@ it. That splits three failures the first hop used to render identically: a coded
 refusal (`EXTRACT_TEXT_UNREADABLE`, resolved in the reader's language), a PDF that
 extracted cleanly to nothing — `200 {text: ""}`, a scan with no text layer, whose
 remedy is its own sentence (`me.import.errNoTextLayer`) — and a body that was not
-JSON at all, which is transport and says nothing about the file
-(`me.import.errTransport`).
+JSON at all, which is transport and says nothing about the file. Transport has ONE
+sentence in the whole module, `me.common.unreachable` — the same one `FailureNotice`
+paints on the feed, the sources and the scans (the import's own near-duplicate,
+`me.import.errTransport`, was removed): which hop failed does not change what a reader
+whose server is unreachable has to do about it.
 
 **What read the CV** is disclosed. `POST /api/profile/draft` answers
 `source: "llm" | "deterministic"` (from `profile_draft_cli`); on `deterministic` both
@@ -394,8 +401,14 @@ with attribution and NO acknowledgement — so the `no_sources` state offers "En
 for CZ" and the button does the whole chain: it READS `GET /api/jobseeker/sources` first
 and enables the existing EURES row rather than duplicating it (the POST creates a row
 every time; there is no upsert), then `PATCH {enabled: true}`, then `useScanTask.start()`
-with its progress inline; the finish path already held (`onFinished` → the chain flips,
-the feed reloads). The countries come from the CHAIN (`app/me/jobs/page.tsx` passes
+with its progress inline. The PARENT IS TOLD LAST: `onEnabled()` flips the feed's chain
+and unmounts the empty state with it, so it fires only when the scan TASK reaches a
+terminal state — not when `start()` resolves, which only means the POST returned a task
+id with the whole scan still ahead — and not at all when the start was refused, because
+then the notice and its Retry are the only thing left to act on. The button's progress
+line, its `startError` and its EURES Retry therefore stay on screen for the whole run;
+a busy flag (its own plus `scan.starting || scan.active`) still forbids a second submit,
+and the chain is idempotent, so a Retry re-runs it safely. The countries come from the CHAIN (`app/me/jobs/page.tsx` passes
 `preferences.countries`) because the button has to name them before it is pressed;
 `feedModel.ts: euresCountries` defaults an empty list to `cz` — the EURES search takes
 location codes and an empty list is a query for nothing — and the button then WRITES that
@@ -427,7 +440,10 @@ eligibility, reasoning; never the raw JSON-LD or the structured Job). The ad ren
 as plain paragraphs, never as HTML. Pay is compared with the seeker's floor through
 `compareSalary` (`feedModel.ts`): `salaryBandPosition` ONLY when `isSameCurrency` and
 the periods agree, else "not comparable (X vs Y)"; an unstated pay is unknown, never
-low. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
+low. **Known gap:** the Python salary FLAG now restates a month↔year difference ×12
+(`matching._salary_flag`, matching README §7), so a CZK/year posting reads `ok`/`flag`
+on the chip while this TS panel still calls the same posting "not comparable" on the
+period alone — `compareSalary` owes the same ×12. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
 missing / unproven skills, eligibility with details. Reasoning shows when deep-dived;
 else a "Deep-dive" door (`POST /api/jobseeker/postings/[id]/deepdive`, WP4c). The door
 answers `{source, reasoning, fallbackReason}` and the page turns that into ONE word,

@@ -165,7 +165,12 @@ _YEAR_RE = re.compile(r"(ro[čc]n[ěe]|per (year|annum)|p\.\s?a\.|annual\w*|year
 _HOUR_RE = re.compile(r"(hodin\w*|hod\.?(?!\w)|/\s?h(?!\w)|per hour|hourly|st[üu]ndl\w*|/\s?heure|hodinov\w*)", re.IGNORECASE)
 _SALARY_WINDOW = 48
 _MIN_PLAUSIBLE = 1_000
+# An hourly rate lives two orders of magnitude below a monthly one (250 Kč/hod), so the
+# monthly floor would reject every one of them. Only applied inside a window that
+# already matched _HOUR_RE, so it never loosens the monthly/yearly reading.
+_MIN_PLAUSIBLE_HOUR = 50
 _MAX_PLAUSIBLE = 10_000_000
+_MONTHS_PER_YEAR = 12
 
 
 def _to_amount(number: str, suffix: str | None) -> float | None:
@@ -186,11 +191,17 @@ def _to_amount(number: str, suffix: str | None) -> float | None:
 def detect_salary(raw: dict[str, Any], body: str) -> dict[str, Any] | None:
     """``raw["salary"]`` (the adapter's JSON-LD / feed parse) wins. Otherwise a regex
     over salaryText then the body: a currency token with one or two amounts within a
-    short window; monthly unless a yearly marker sits in the window; an hourly figure
-    is dropped (outside the vocabulary). Never invents one."""
+    short window; monthly unless a yearly marker sits in the window; an hourly figure is
+    read as ``period="hour"`` but only as a LAST resort, after every monthly/yearly
+    mention in the text has been tried. Never invents one.
+
+    An hourly figure used to be dropped entirely, which reached the seeker's salary flag
+    as "posting states no pay" — a falsehood about an ad that stated its pay per hour.
+    No band is built from it (:func:`structure_posting`); the period is what carries the
+    truth."""
     given = raw.get("salary")
     if isinstance(given, dict) and given.get("currency") and (given.get("min") is not None or given.get("max") is not None):
-        period = given.get("period") if given.get("period") in ("month", "year") else "month"
+        period = given.get("period") if given.get("period") in ("month", "year", "hour") else "month"
         return {"min": given.get("min"), "max": given.get("max"), "currency": str(given["currency"]).upper(), "period": period}
     for text in (raw.get("salaryText") or "", body or ""):
         if not text:
@@ -202,6 +213,7 @@ def detect_salary(raw: dict[str, Any], body: str) -> dict[str, Any] | None:
 
 
 def _salary_in_text(text: str) -> dict[str, Any] | None:
+    hourly: dict[str, Any] | None = None
     for cur in _CURRENCY_RE.finditer(text):
         token = cur.group(1).lower().rstrip(".")
         currency = None
@@ -214,19 +226,25 @@ def _salary_in_text(text: str) -> dict[str, Any] | None:
         lo = max(0, cur.start() - _SALARY_WINDOW)
         hi = min(len(text), cur.end() + _SALARY_WINDOW)
         window = text[lo:hi]
-        if _HOUR_RE.search(window):
-            continue
+        is_hourly = bool(_HOUR_RE.search(window))
+        floor = _MIN_PLAUSIBLE_HOUR if is_hourly else _MIN_PLAUSIBLE
         amounts = []
         for m in _NUMBER_RE.finditer(window):
             value = _to_amount(m.group(1), m.group(2))
-            if value is not None and _MIN_PLAUSIBLE <= value <= _MAX_PLAUSIBLE:
+            if value is not None and floor <= value <= _MAX_PLAUSIBLE:
                 amounts.append(value)
         if not amounts:
             continue
-        period = "year" if _YEAR_RE.search(window) else "month"
         low, high = min(amounts), max(amounts)
+        if is_hourly:
+            # Held back, not returned: an ad that quotes an hourly rate AND a monthly
+            # range must be read as the monthly one.
+            if hourly is None:
+                hourly = {"min": low, "max": high, "currency": currency, "period": "hour"}
+            continue
+        period = "year" if _YEAR_RE.search(window) else "month"
         return {"min": low, "max": high, "currency": currency, "period": period}
-    return None
+    return hourly
 
 
 # --- experience + languages -----------------------------------------------------------------
@@ -292,10 +310,30 @@ def detect_languages(text: str) -> list[str]:
 # --- the entry point -------------------------------------------------------------------------
 
 
+def _to_market_period(amount: float | None, period: str) -> float | None:
+    """``amount`` restated in the ACTIVE market's pay period, or None when the two
+    periods are not a x12 apart (an hourly figure, or an exotic market period).
+
+    The ONLY arithmetic this module does to a stated figure, and it exists so a
+    CZK/year ad in a CZK/month market yields a band instead of a shrug. It touches the
+    BAND only — ``Job.salary_period`` keeps the period the ad wrote."""
+    if amount is None:
+        return None
+    if period == ACTIVE_MARKET.period:
+        return amount
+    if period == "year" and ACTIVE_MARKET.period == "month":
+        return amount / _MONTHS_PER_YEAR
+    if period == "month" and ACTIVE_MARKET.period == "year":
+        return amount * _MONTHS_PER_YEAR
+    return None
+
+
 def structure_posting(raw: dict[str, Any], *, job_id: str | None = None) -> tuple[Job, list[str]]:
-    """RawPosting dict → (Job, notes). Notes name what was NOT taken (a salary in a
-    currency the market cannot compare, an hourly figure) so the caller can show
-    "unknown" honestly instead of a converted or invented number."""
+    """RawPosting dict → (Job, notes). Notes name what was NOT taken as a band (a salary
+    in a currency the market cannot compare, an hourly figure) and what was restated to
+    reach one (``salary_period_converted:year->month``), so the caller can show
+    "unknown" honestly instead of a converted or invented number. The stated
+    currency/period always survive on the Job."""
     if not isinstance(raw, dict):
         raise ValueError("raw posting must be an object")
     title = str(raw.get("title") or "").strip()
@@ -324,18 +362,36 @@ def structure_posting(raw: dict[str, Any], *, job_id: str | None = None) -> tupl
         "source": "posting",
     }
     if salary:
-        # salary_band is in the ACTIVE market's currency per month; anything else is
-        # "not comparable" (types.ts SalaryFloor contract: no conversion, ever).
-        if salary["currency"] == ACTIVE_MARKET.currency and salary["period"] == ACTIVE_MARKET.period:
+        # What the ad STATED travels on the Job itself, always — even when no band can
+        # be built from it. The reader is then told "hourly pay stated" or "not
+        # comparable: CZK vs EUR" instead of the falsehood "posting states no pay".
+        record["salary_currency"] = salary["currency"]
+        record["salary_period"] = salary["period"]
+        # salary_band stays denominated in the ACTIVE market's currency AND period, so
+        # every consumer (the plausibility ceiling, market stats, the matcher's salary
+        # flag) reads one unit. A foreign currency is still "not comparable" — no FX,
+        # ever (types.ts SalaryFloor contract). A foreign PERIOD in the market's own
+        # currency is comparable: x12 is arithmetic, not a rate, and it is applied to
+        # the BAND only; ``salary_period`` keeps what the ad actually said.
+        if salary["currency"] != ACTIVE_MARKET.currency:
+            notes.append(f"salary_not_comparable:{salary['currency']}/{salary['period']}")
+        elif salary["period"] == "hour":
+            notes.append(f"salary_hourly:{salary['currency']}")
+        else:
             lo = salary.get("min")
             hi = salary.get("max")
             if lo is None:
                 lo = hi
             if hi is None:
                 hi = lo
-            record["salary_min"] = lo
-            record["salary_max"] = hi
-        else:
-            notes.append(f"salary_not_comparable:{salary['currency']}/{salary['period']}")
+            lo = _to_market_period(lo, salary["period"])
+            hi = _to_market_period(hi, salary["period"])
+            if lo is None or hi is None:
+                notes.append(f"salary_not_comparable:{salary['currency']}/{salary['period']}")
+            else:
+                if salary["period"] != ACTIVE_MARKET.period:
+                    notes.append(f"salary_period_converted:{salary['period']}->{ACTIVE_MARKET.period}")
+                record["salary_min"] = lo
+                record["salary_max"] = hi
     job = normalize_job(record, job_id=job_id)
     return job, notes

@@ -469,11 +469,24 @@ preferences)` / `apply_preferences`) maps the TS `JobseekerPreferences` shape
   a band `normalize_job` stamped from the market anchor and recorded in
   `defaulted_fields` — reads `unknown` ("posting states no pay"); so does a seeker
   with no expectation, and a `location` the ad never stated.
-- **Same currency only, no FX.** `Job` carries no currency of its own — its
-  `salary_band` is read in `market_config.ACTIVE_MARKET`'s currency/period
-  (CZK/month for the Czech default) and the detail says so. A seeker floor in
-  another currency is `unknown` with `not comparable: <cur> vs <cur>`. The only
-  conversion is month↔year ×12, and the detail states it.
+- **The posting's own units first.** `Job.salary_currency` / `Job.salary_period`
+  (`month | year | hour`, both optional and never defaulted) carry what the ad
+  actually stated; `posting_structure.structure_posting` fills them whenever it
+  detected a salary. The salary flag reads those, and falls back to
+  `market_config.ACTIVE_MARKET`'s currency only for a `Job` that carries none —
+  saying so in the detail (`… (cz market units — the posting stated no currency)`).
+- **Same currency only, no FX.** A seeker floor in a currency other than the
+  posting's is `unknown` with `not comparable: <cur> vs <cur>` — including a
+  posting whose own currency the market cannot hold, which used to reach the
+  reader as "posting states no pay" while the seeker's detail panel called the
+  same posting "not comparable".
+- **Period is arithmetic, not a rate.** `salary_band` stays denominated in the
+  market's period, so a CZK/year ad is restated ×12 for the *band only*
+  (`salary_period_converted:year->month` in `structure_posting`'s notes) while
+  `salary_period` keeps `"year"`; the flag's detail states the restatement. The
+  expectation is converted month↔year ×12 the same way. An **hourly** ad builds no
+  band but reads `unknown` with `hourly pay stated (<cur>/hour)` — never "no pay".
+  Pinned by `tests/test_matching_eligibility.py::StatedPeriodAndCurrencyTest`.
 - **Location** is a soft text match, case- and diacritics-insensitive ("plzen"
   hits "Plzeň"); a stated `remote` work mode is `ok` anywhere; a preferred country
   can match only as a token of the location text (the `Job` model has no country

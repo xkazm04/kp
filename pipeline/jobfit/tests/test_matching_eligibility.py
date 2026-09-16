@@ -26,6 +26,7 @@ from pipeline.jobfit.matching import (
     match,
     score_job,
 )
+from pipeline.jobfit.posting_structure import structure_posting
 from pipeline.jobfit.profile import CandidateProfileV2, SkillClaim
 from pipeline.jobfit.tests._helpers import mkjob
 from pipeline.jobfit.transform import apply_preferences, build_match_candidate
@@ -38,6 +39,24 @@ def _cand(**over) -> MatchCandidate:
     base = dict(skills=["Python"], seniority="medior", languages=["English"], education_level="bachelor")
     base.update(over)
     return MatchCandidate(**base)
+
+
+def _structured_job(**over):
+    """A Job built the way a harvested posting really reaches the matcher — through
+    ``structure_posting``, so the stated currency/period are on the Job."""
+    base = {
+        "externalKey": "k", "url": "https://x.example/j/1", "title": "Finanční analytik",
+        "company": "Firma", "location": "Praha", "country": "cz", "workMode": None,
+        "postedAt": None, "salaryText": None, "salary": None, "jsonld": None, "lang": None,
+        "bodyText": "Analýza rozpočtů a reporting. Excel, SQL.",
+    }
+    base.update(over)
+    job, _notes = structure_posting(base)
+    return job
+
+
+def _annual_job():
+    return _structured_job(salary={"min": 900_000, "max": 1_200_000, "currency": "CZK", "period": "year"})
 
 
 def _flag(candidate: MatchCandidate, job, key: str):
@@ -166,8 +185,74 @@ class MirroredKoFlagsTest(unittest.TestCase):
             self.assertEqual(by_key[key].state, "ok", key)
 
 
+class StatedPeriodAndCurrencyTest(unittest.TestCase):
+    """The flag reads the posting's OWN currency/period (WP: salary honesty across periods).
+
+    A harvested ad states its pay in whatever units it likes. Reading every ad in the
+    active market's units answered a CZK/year posting "posting states no pay" and an
+    hourly one the same — while the seeker's detail panel, which does read the posting's
+    units, called them "not comparable". Chip and panel disagreed about one posting.
+    """
+
+    def test_annual_posting_is_compared_not_shrugged_at(self) -> None:
+        if CUR != "CZK" or PERIOD != "month":
+            self.skipTest("pin is written for the CZK/month product default")
+        job = _annual_job()
+        self.assertEqual(job.salary_period, "year", "the raw statement survives")
+        self.assertEqual(job.salary_band, [75_000, 100_000], "…while the band is restated x12 for the market")
+        # 80 000 CZK/month sits inside the restated band → ok, never unknown.
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=80_000, currency=CUR, period=PERIOD)), job, "salary")
+        self.assertEqual(f.state, "ok")
+        self.assertIn("year", f.detail)
+        self.assertIn("x12", f.detail)
+        # 150 000 CZK/month is above it → flag, still never unknown.
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=150_000, currency=CUR, period=PERIOD)), job, "salary")
+        self.assertEqual(f.state, "flag")
+
+    def test_hourly_posting_says_hourly_never_no_pay(self) -> None:
+        job = _structured_job(bodyText="Práce na směny. Hodinová sazba 250 Kč/hod.")
+        self.assertEqual(job.salary_period, "hour")
+        self.assertIn("salary_band", job.defaulted_fields, "an hourly rate never becomes a band")
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=60_000, currency=CUR, period=PERIOD)), job, "salary")
+        self.assertEqual(f.state, "unknown")
+        self.assertIn("hourly", f.detail)
+        self.assertNotIn("no pay", f.detail)
+
+    def test_foreign_currency_posting_says_not_comparable_never_no_pay(self) -> None:
+        if CUR == "EUR":
+            self.skipTest("the fixture's foreign currency is the market's own")
+        job = _structured_job(salary={"min": 4_500, "max": 6_000, "currency": "EUR", "period": "month"})
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=60_000, currency=CUR, period=PERIOD)), job, "salary")
+        self.assertEqual(f.state, "unknown")
+        self.assertIn("not comparable", f.detail)
+        self.assertIn("EUR", f.detail)
+        self.assertNotIn("no pay", f.detail)
+
+    def test_a_posting_with_no_units_still_reads_in_the_market_and_says_so(self) -> None:
+        job = mkjob(salary_min=50_000, salary_max=70_000)
+        self.assertIsNone(job.salary_currency)
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=60_000, currency=CUR, period=PERIOD)), job, "salary")
+        self.assertEqual(f.state, "ok")
+        self.assertIn(ACTIVE_MARKET.market_id, f.detail)
+
+
 class NeverAGateNeverAScoreTest(unittest.TestCase):
     """Preferences change the flags and NOTHING else."""
+
+    def test_totals_identical_for_an_annual_posting_too(self) -> None:
+        """The x12 restatement moves the BAND and the flag — never the score."""
+        if CUR != "CZK" or PERIOD != "month":
+            self.skipTest("pin is written for the CZK/month product default")
+        job = _annual_job()
+        plain = _cand()
+        with_prefs = _cand(salary_expectation=SalaryExpectation(amount=500_000, currency=CUR), preferred_locations=["Ostrava"])
+        a, b = score_job(plain, job), score_job(with_prefs, job)
+        self.assertEqual(a.total, b.total)
+        self.assertEqual(a.fit_tier, b.fit_tier)
+        self.assertEqual(a.score_breakdown, b.score_breakdown)
+        self.assertEqual(a.confidence, b.confidence)
+        self.assertEqual({f.key: f.state for f in b.eligibility}["salary"], "flag")
+        self.assertEqual({f.key: f.state for f in a.eligibility}["salary"], "unknown", "no expectation set")
 
     def test_totals_identical_with_and_without_preferences(self) -> None:
         job = mkjob(salary_min=50_000, salary_max=70_000, location="Brno", seniority="medior")

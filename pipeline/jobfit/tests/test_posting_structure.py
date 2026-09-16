@@ -96,6 +96,17 @@ DE_DEV = raw(
     ),
 )
 
+CZ_ANNUAL = raw(
+    title="Finanční analytik",
+    location="Praha",
+    bodyText=(
+        "Analýza rozpočtů a reporting v Excelu.\n"
+        "Nabízíme\n"
+        "Roční mzda 900 000 – 1 200 000 Kč."
+    ),
+    salary={"min": 900000, "max": 1200000, "currency": "CZK", "period": "year"},
+)
+
 JSONLD_SALARY = raw(
     title="Lead Platform Engineer",
     location="Praha",
@@ -130,14 +141,16 @@ class StructurePosting(unittest.TestCase):
         self.assertEqual(notes, [])
         self.assertIn("seniority", job.defaulted_fields, "the title names no level → the default is recorded as such")
 
-    def test_czech_junior_remote_hourly_dropped(self):
+    def test_czech_junior_remote_hourly_stated_but_never_banded(self):
         job, _ = posting_structure.structure_posting(CZ_JUNIOR)
         self.assertEqual(job.seniority, "junior")
         self.assertEqual(job.work_mode, "remote", "práce z domova")
         r = reqs(job)
         self.assertEqual(r.get("sql"), "must_have")
         self.assertEqual(r.get("selenium"), "nice_to_have")
-        self.assertIn("salary_band", job.defaulted_fields, "an hourly figure is outside the vocabulary — no stated band")
+        self.assertIn("salary_band", job.defaulted_fields, "an hourly figure never becomes a band")
+        self.assertEqual(job.salary_period, "hour", "…but the ad DID state its pay, per hour")
+        self.assertEqual(job.salary_currency, "CZK")
 
     def test_english_senior_eur_not_comparable(self):
         job, notes = posting_structure.structure_posting(EN_SENIOR)
@@ -153,6 +166,8 @@ class StructurePosting(unittest.TestCase):
         if ACTIVE_MARKET.currency == "CZK":
             self.assertIn("salary_not_comparable:EUR/month", notes)
             self.assertIn("salary_band", job.defaulted_fields)
+            self.assertEqual((job.salary_currency, job.salary_period), ("EUR", "month"),
+                             "a currency the market cannot compare still travels on the Job")
 
     def test_english_remote_yearly(self):
         job, notes = posting_structure.structure_posting(EN_REMOTE)
@@ -187,12 +202,41 @@ class StructurePosting(unittest.TestCase):
         self.assertEqual(notes, [])
         self.assertEqual(job.source, "posting")
 
+    def test_czech_annual_is_banded_x12_keeping_the_stated_period(self):
+        """A CZK/year ad is the market's own currency — x12 is arithmetic, not an FX rate,
+        so it yields a band (in the market's month) while salary_period keeps "year"."""
+        if ACTIVE_MARKET.currency != "CZK" or ACTIVE_MARKET.period != "month":
+            self.skipTest("pin is written for the CZK/month product default")
+        job, notes = posting_structure.structure_posting(CZ_ANNUAL)
+        self.assertEqual(job.salary_band, [75000, 100000], "900 000–1 200 000 CZK/year restated per month")
+        self.assertNotIn("salary_band", job.defaulted_fields, "a stated band is never a phantom")
+        self.assertEqual((job.salary_currency, job.salary_period), ("CZK", "year"))
+        self.assertIn("salary_period_converted:year->month", notes)
+        self.assertFalse([n for n in notes if n.startswith("salary_not_comparable")])
+
+    def test_a_monthly_range_wins_over_an_hourly_mention(self):
+        job, _ = posting_structure.structure_posting(
+            raw(
+                title="Operátor",
+                bodyText=(
+                    "Příplatek za noční směnu 150 Kč/hod nad rámec základní mzdy.\n"
+                    "Práce ve třísměnném provozu v moderním výrobním závodě.\n"
+                    "Mzda 45 000 – 55 000 Kč měsíčně."
+                ),
+            )
+        )
+        self.assertEqual(job.salary_period, "month")
+        if ACTIVE_MARKET.currency == "CZK":
+            self.assertEqual(job.salary_band, [45000, 55000])
+
     def test_never_invents(self):
         job, _ = posting_structure.structure_posting(raw(title="Účetní", bodyText="Vedení účetnictví. Znalost Pohody."))
         self.assertIn("salary_band", job.defaulted_fields)
         self.assertIsNone(job.min_years_experience)
         self.assertIsNone(posting_structure.detect_salary(raw(), "we pay well in EUR"), "a currency with no amount is not a salary")
-        self.assertIsNone(posting_structure.detect_salary(raw(), "budget 250 Kč / hod"), "hourly is dropped")
+        hourly = posting_structure.detect_salary(raw(), "budget 250 Kč / hod")
+        self.assertEqual(hourly, {"min": 250.0, "max": 250.0, "currency": "CZK", "period": "hour"},
+                         "an hourly rate is READ (no band is built from it) so the reader is never told 'no pay'")
         self.assertIsNone(posting_structure.detect_seniority("Software Engineer"))
         with self.assertRaises(ValueError):
             posting_structure.structure_posting(raw(title="  "))

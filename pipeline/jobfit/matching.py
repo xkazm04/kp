@@ -438,22 +438,40 @@ def _salary_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
     exp = candidate.salary_expectation
     if exp is None:
         return EligibilityFlag(key="salary", state="unknown", detail="no expectation set")
-    # A band normalize_job stamped from the market anchor is a PHANTOM the ad never
-    # asserted (recorded in defaulted_fields) — the same rule the KO filter applies
-    # to work_mode. Missing pay is UNKNOWN, never "under".
-    if not job.salary_band or "salary_band" in job.defaulted_fields:
-        return EligibilityFlag(key="salary", state="unknown", detail="posting states no pay")
-    # Job carries no currency/period of its own: the band is read in the active
-    # market's units (CZK/month for the Czech default) and the detail says so.
-    job_cur = _norm_currency(ACTIVE_MARKET.currency)
-    job_period = ACTIVE_MARKET.period
+    # The POSTING's own currency when it stated one (posting_structure records it on the
+    # Job); only an ad that stated none is read in the active market's units, and the
+    # detail says which of the two happened. Answering every ad in the market's currency
+    # is how a EUR posting reached the reader as "no pay" while the detail panel, which
+    # does read the posting's own units, called the same posting "not comparable".
+    stated_cur = _norm_currency(job.salary_currency) if job.salary_currency else ""
+    job_cur = stated_cur or _norm_currency(ACTIVE_MARKET.currency)
+    units_note = "" if stated_cur else f" ({ACTIVE_MARKET.market_id} market units — the posting stated no currency)"
     cand_cur = _norm_currency(exp.currency)
     if cand_cur != job_cur:
         return EligibilityFlag(
             key="salary",
             state="unknown",
-            detail=f"not comparable: {cand_cur or '?'} vs {job_cur} (posting read in the {ACTIVE_MARKET.market_id} market's currency)",
+            detail=f"not comparable: {cand_cur or '?'} vs {job_cur}{units_note}",
         )
+    # An hourly ad DID state its pay; no band is built from it (the market band is
+    # monthly), so the honest answer names the period rather than claiming silence.
+    if job.salary_period == "hour":
+        return EligibilityFlag(
+            key="salary",
+            state="unknown",
+            detail=f"hourly pay stated ({job_cur}/hour): no comparable {ACTIVE_MARKET.period} band",
+        )
+    # A band normalize_job stamped from the market anchor is a PHANTOM the ad never
+    # asserted (recorded in defaulted_fields) — the same rule the KO filter applies
+    # to work_mode. Missing pay is UNKNOWN, never "under".
+    if not job.salary_band or "salary_band" in job.defaulted_fields:
+        return EligibilityFlag(key="salary", state="unknown", detail="posting states no pay")
+    # The band is ALWAYS denominated in the market's period (posting_structure restates
+    # a yearly figure x12 for the band alone), so that — not job.salary_period — is the
+    # unit the expectation is converted into; the detail states it when the two differ.
+    job_period = ACTIVE_MARKET.period
+    if job.salary_period and job.salary_period != job_period:
+        units_note += f" (posting states {job.salary_period}; band restated as {job_period} x12)"
     job_max = float(max(job.salary_band))
     floor = float(exp.amount)
     converted = ""
@@ -468,12 +486,12 @@ def _salary_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
         return EligibilityFlag(
             key="salary",
             state="flag",
-            detail=f"posting max {job_max:g} {job_cur}/{job_period} below expectation {floor:g}{converted}",
+            detail=f"posting max {job_max:g} {job_cur}/{job_period} below expectation {floor:g}{converted}{units_note}",
         )
     return EligibilityFlag(
         key="salary",
         state="ok",
-        detail=f"posting max {job_max:g} {job_cur}/{job_period} meets expectation {floor:g}{converted}",
+        detail=f"posting max {job_max:g} {job_cur}/{job_period} meets expectation {floor:g}{converted}{units_note}",
     )
 
 
