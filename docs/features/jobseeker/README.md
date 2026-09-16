@@ -244,7 +244,11 @@ three stages tick as a checklist in three tones that survive both themes
 (moss / ink / steel); every refusal renders from its code (`useErrorMessage`) inside
 `FailureNotice`, which offers the retry. The summary (`ProfileSummary.tsx`) shows what was read (name,
 role family, years, skills, location, languages, education) and **what could not be
-read** as a list of gaps to fill, never a score. The "read without AI" honesty notice
+read** as a list of gaps to fill, never a score. The two CANONICAL enum fields - role
+family and education level - are resolved through `useEnumLabel` (`enums.family.*`,
+`enums.education.*`), the same labeller every recruiter surface reads them under, so
+the seeker never sees a wire value like `software_engineering`; the stored value stays
+canonical. The "read without AI" honesty notice
 is the card's LAST block, wrapped in `Fade`: it can only appear after hydration
 (sessionStorage has no server snapshot), so landing there it grows the card downwards
 and shifts nothing the reader was already looking at, while reserving no empty strip

@@ -28,12 +28,23 @@ const noDraftSourceSubscription = () => () => undefined;
 
 type FieldKey = (typeof FIELD_KEYS)[number];
 
-function readField(profile: JobseekerProfile["profile"], key: FieldKey): string | null {
+/** The recruiter side's labeller (`useEnumLabel`), passed in rather than called here
+ *  so this stays a pure function. Two of these fields hold CANONICAL enum values the
+ *  pipeline branches on - the role family and the education level - and both were
+ *  being printed raw ("software_engineering"). The wire value stays canonical; only
+ *  the label is resolved, through `enums.<group>.<slug>` in the reader's language,
+ *  and a slug with no catalog entry degrades to `labelize(slug)` rather than throwing
+ *  - the same contract every recruiter surface already reads them under. */
+type EnumLabel = (group: string, slug: string | null | undefined) => string;
+
+function readField(profile: JobseekerProfile["profile"], key: FieldKey, enumLabel: EnumLabel): string | null {
   switch (key) {
     case "name":
       return profile.displayName?.trim() || null;
-    case "roleFamily":
-      return profile.roleFamily?.trim() || null;
+    case "roleFamily": {
+      const family = profile.roleFamily?.trim() || null;
+      return family ? enumLabel("family", family) : null;
+    }
     case "years":
       return typeof profile.yearsExperience === "number" ? String(profile.yearsExperience) : null;
     case "skills":
@@ -43,7 +54,7 @@ function readField(profile: JobseekerProfile["profile"], key: FieldKey): string 
     case "languages":
       return profile.languages?.length ? profile.languages.join(", ") : null;
     case "education":
-      return profile.educationLevel && profile.educationLevel !== "unknown" ? profile.educationLevel : null;
+      return profile.educationLevel && profile.educationLevel !== "unknown" ? enumLabel("education", profile.educationLevel) : null;
   }
 }
 
@@ -87,11 +98,11 @@ export function ProfileSummary({
   const tPrefs = useTranslations("me.preferences");
   const tCv = useTranslations("me.cv");
   const locale = useLocale();
-  const read = FIELD_KEYS.map((key) => ({ key, value: readField(profile.profile, key) }));
+  const enumLabel = useEnumLabel();
+  const read = FIELD_KEYS.map((key) => ({ key, value: readField(profile.profile, key, enumLabel) }));
   const missing = read.filter((f) => f.value === null);
   const chips = preferenceChips(profile.preferences, locale, (k, v) => tPrefs(k as Parameters<typeof tPrefs>[0], v));
   const hasCv = Boolean(profile.cvPolishedMd);
-  const enumLabel = useEnumLabel();
   const skills = profile.profile.skillClaims ?? [];
 
   // WHO READ THE CV, carried across a reload of /me. The stored row has no column
