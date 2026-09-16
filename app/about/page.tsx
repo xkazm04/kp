@@ -4,13 +4,16 @@ import AboutHome from "@/app/landing/spark/AboutHome";
 
 /*
  * /about — "About the app", not about us. The page explains what the product
- * does (the pipeline phases, end to end), so every entry point labels it
- * that way: "About the app" / "O aplikaci" / "Über die App" / "À propos de
- * l'app" (landing.nav.about, jobMarket.nav.about). It is the public,
+ * does (the pipeline phases, end to end), so the marketing navigation labels
+ * it that way: "About the app" / "O aplikaci" / "Über die App" / "À propos de
+ * l'app" (landing.nav.about in Topbar + MobileNav, jobMarket.nav.about in
+ * MarketPulseApp). The one other inbound link does not: /skill/[token] labels
+ * it skillProfile.methodologyLink, "How this is measured". It is the public,
  * user-facing concept introduction (marketing tone, Spark art direction);
- * unlike the old /landing (noindexed) this is meant to be found, and unlike the
- * dev-only About workspace tab it explains the *why* for users, not the
- * architecture for engineers. Thin route shell: metadata + AboutHome.
+ * unlike the old /landing (noindexed) this is meant to be found. The in-app
+ * About tab (app/features/insights/about/) is the signed-in companion: it
+ * explains the scoring and filtering mechanisms, where this page walks the
+ * phases. Thin route shell: metadata + AboutHome.
  */
 
 // The page renders in four languages, so its title and description must too —
