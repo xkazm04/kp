@@ -1065,14 +1065,15 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   (`cost_per_hire` is windowed-aware in the honest direction: spend is lifetime, so the route
   returns `null` and the pack says `not_measurable` rather than dividing a lifetime numerator by
   a windowed denominator.)
-- **The metric-pack route's capacity comment argues the wrong way round.**
-  `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would understate
-  capacity, which is the direction that flatters us."* A capacity metric is roles **per**
-  recruiter, so a larger denominator gives a **lower** ratio — the *un*flattering direction —
-  and the narrow `CARRYING_ROLES` set is therefore the flattering choice, not the cautious one
-  the comment claims. The same sentence also mis-names the set: it says *"Owners and admins"*
-  while the code is `new Set(["owner", "recruiter"])`, which excludes `admin` and includes
-  `recruiter` (`MEMBER_ROLES` in `app/_lib/auth/roles.ts`). The numbers are unaffected; the
+- **The metric-pack route's capacity comment argued the wrong way round. CLOSED
+  2026-09-16.** `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would
+  understate capacity, which is the direction that flatters us."* A capacity metric is roles
+  **per** recruiter, so a larger denominator gives a **lower** ratio — the *un*flattering
+  direction — and the narrow `CARRYING_ROLES` set was therefore the flattering choice, not
+  the cautious one the comment claimed. The same sentence also mis-named the set: it said
+  *"Owners and admins"* while the code is `new Set(["owner", "recruiter"])`, which excludes
+  `admin` and includes `recruiter` (`MEMBER_ROLES` in `app/_lib/auth/roles.ts`). The comment
+  now names the actual set and states the direction correctly. The numbers are unaffected; the
   stated reasoning is not.
 - **Quality presents the auto-reject floor as *in force* — the payload now says otherwise, the
   panels still do not read it.** `/api/analytics/calibration` ships `currentThreshold =
