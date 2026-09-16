@@ -94,6 +94,41 @@ test("/about has phone navigation, keyboard-dismissible like the landing's", asy
   await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
 });
 
+// A shared /about link unfurls from these tags. Next merges metadata SHALLOWLY, so a
+// page that sets its own `openGraph` replaces the root layout's whole object: /about
+// once shipped og:title and og:description and nothing else, losing og:type,
+// og:site_name, og:locale and the opengraph-image, while twitter:* kept the SITE's
+// title under the page's own og:title. The site-wide values are read off '/', not
+// typed here, so the assertion follows the layout rather than a copy of it. No `head`
+// in the selector, like shell.spec's hreflang check: metadata may stream into <body>.
+test("/about's share tags keep the site's OpenGraph and a matching Twitter card", async ({ page }) => {
+  const KEYS = [
+    "og:type", "og:site_name", "og:locale", "og:image", "og:title", "og:description",
+    "twitter:title", "twitter:description", "twitter:image"
+  ] as const;
+  const tagsOf = async (path: string) => {
+    await page.goto(path);
+    const out: Record<string, string | null> = {};
+    for (const key of KEYS) {
+      const attr = key.startsWith("og:") ? "property" : "name";
+      const tag = page.locator(`meta[${attr}="${key}"]`).first();
+      out[key] = (await tag.count()) ? await tag.getAttribute("content") : null;
+    }
+    return out;
+  };
+  const site = await tagsOf("/");
+  const about = await tagsOf("/about");
+
+  for (const key of ["og:type", "og:site_name", "og:locale", "og:image"] as const) {
+    expect(site[key], `'/' no longer emits ${key}; this test has nothing to compare against`).toBeTruthy();
+    expect(about[key], `/about dropped ${key}`).toBe(site[key]);
+  }
+  expect(about["og:title"], "/about must carry its own og:title").not.toBe(site["og:title"]);
+  expect(about["twitter:title"]).toBe(about["og:title"]);
+  expect(about["twitter:description"]).toBe(about["og:description"]);
+  expect(about["twitter:image"], "/about's summary_large_image card has no image").toBeTruthy();
+});
+
 for (const path of PAGES) {
   test(`${path} passes axe beyond its recorded holdouts`, async ({ page }) => {
     await page.goto(path);

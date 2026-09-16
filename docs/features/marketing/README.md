@@ -215,6 +215,15 @@ build in `generateMetadata` via `getTranslations` (the pattern
 `app/jds/[slug]/page.tsx` established). Those were the last hardcoded English on
 these pages, and they are the copy a search result and a shared link show.
 
+A page's `openGraph` / `twitter` **replace** the root layout's (Next merges
+metadata shallowly), so `/about` extends the parent's resolved objects —
+`generateMetadata(_props, parent)` spreads `(await parent).openGraph` and
+`.twitter` under its own title and description. Without that a shared `/about`
+link lost og:type, og:site_name, og:locale and the image, and its Twitter card
+kept the site title. `e2e/public-pages.spec.ts` pins the tags against `/`.
+`/market`, `/privacy`, `/terms` and `/trust` still return a bare `openGraph` and
+have the same gap.
+
 Three things deliberately do **not** go through the catalog, and each is held as
 a named constant rather than JSX text so the lint can tell them apart from copy:
 

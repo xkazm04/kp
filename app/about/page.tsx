@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, ResolvingMetadata } from "next";
 import { getTranslations } from "next-intl/server";
 import AboutHome from "@/app/landing/spark/AboutHome";
 
@@ -17,14 +17,23 @@ import AboutHome from "@/app/landing/spark/AboutHome";
 // they are the copy a search result and a shared link show, and they were the
 // last strings on this page still hardcoded English. Same server-side
 // getTranslations pattern as app/jds/[slug]/page.tsx.
-export async function generateMetadata(): Promise<Metadata> {
+//
+// Next merges metadata SHALLOWLY: an `openGraph` set here replaces the root
+// layout's whole object, so the bare `{ title, description }` this page used to
+// return dropped og:type, og:site_name, og:locale and the opengraph-image, and
+// twitter:* kept the SITE's title under this page's og:title. Extend the parent's
+// resolved objects instead; e2e/public-pages.spec.ts pins the tags against '/'.
+export async function generateMetadata(_props: unknown, parent: ResolvingMetadata): Promise<Metadata> {
   const t = await getTranslations("aboutPage.meta");
+  const { openGraph, twitter } = await parent;
   const title = t("title");
   const description = t("description");
+  const shareDescription = t("ogDescription");
   return {
     title,
     description,
-    openGraph: { title, description: t("ogDescription") }
+    openGraph: { ...openGraph, title, description: shareDescription },
+    twitter: { ...twitter, title, description: shareDescription }
   };
 }
 
