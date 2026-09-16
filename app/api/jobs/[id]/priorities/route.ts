@@ -3,6 +3,7 @@ import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getRolePriorities, setRolePriorities } from "@/app/_lib/role-priorities-store";
 
 // The role coach's PATTERN PRIORITIES — the three-level weight (critical / important /
@@ -28,6 +29,9 @@ async function resolve(id: string): Promise<{ ws: string } | null> {
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   try {
     const scope = await resolve(id);
@@ -39,6 +43,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   // AUTHORIZATION (write-routes-check-a-capability): a recruiter operation, so the
   // seat is asked for `pipeline:write` and a viewer is refused with a code rather

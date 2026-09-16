@@ -5,6 +5,7 @@ import { listJobTranslations } from "@/app/_lib/db/job-translations";
 import { postingSourceLang, runPostingTranslation } from "@/app/_lib/job-translate-run";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
 
@@ -28,6 +29,9 @@ import { isLocale } from "@/i18n/locales";
 export const maxDuration = 180;
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   try {
     const ws = await currentWorkspace();
@@ -49,6 +53,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   // AUTHORIZATION (write-routes-check-a-capability): a recruiter operation, so the
   // seat is asked for `pipeline:write` and a viewer is refused with a code rather
