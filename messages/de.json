@@ -1758,6 +1758,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
     "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
     "PIPELINE_LANE_REQUIRED": "Geben Sie die Stelle an, deren abgelehnte Bewerbungen aufgelistet werden sollen.",
+    "INTERVIEW_SESSION_NOT_FOUND": "Dieses Interview steht nicht in den Unterlagen dieses Teams.",
     "AUTOMATION_TASK_NOT_OFFERED": "Diese KI-Aktion ist in diesem Schritt nicht verfügbar.",
     "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
     "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
@@ -3977,27 +3978,20 @@
     "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen.",
     "evalCacheProbeFailed": "Wir konnten nicht prüfen, ob für diese Auswahl bereits ein gespeicherter Vergleich vorliegt. Neu ausführen startet einen neuen KI-Durchlauf.",
     "ledger": {
-      "prototype": "Prototyp",
-      "variantGroup": "Layout der Übersicht",
-      "variant": {
-        "flat": "Übersicht",
-        "grouped": "Nach Stelle",
-        "inline": "Schnell entscheiden"
-      },
       "colName": "Bewerbung",
       "colRole": "Stelle",
       "colScore": "Score",
       "colRecommended": "KI empfiehlt",
       "colDecide": "Entscheidung",
-      "colQuick": "Schnellentscheidung",
       "decide": "Entscheiden",
       "decideAria": "Über {name} entscheiden",
       "groupCount": "{count, plural, one {# wartet} other {# warten}}",
       "groupBest": "beste",
-      "expand": "Rangliste für {name} anzeigen",
-      "collapse": "Rangliste für {name} ausblenden",
       "ladderTitle": "Rangliste",
-      "decisionTitle": "Ihre Entscheidung"
+      "decisionTitle": "Ihre Entscheidung",
+      "colPipeline": "Pipeline",
+      "quickAccept": "KI-Vorschlag für {name} annehmen",
+      "quickReject": "{name} ablehnen"
     }
   },
   "scheduleTab": {
@@ -4117,22 +4111,13 @@
       "live": "live",
       "linkOut": "Link versendet",
       "sent": "gesendet {when}",
-      "doneTitle": "Abgeschlossen (zu prüfen)",
-      "doneEmpty": "Beendete Interviews landen hier mit ihrem Urteil.",
-      "noScorecard": "keine Scorecard",
-      "review": "prüfen",
-      "competencies": "{count, plural, one {# Kompetenz} other {# Kompetenzen}}",
       "verdictNote": "Verdikte fließen als Scorecard-Reviews in die Entscheidungs-Queue. Dieses Board ist die Interview-Schleife, nicht die Entscheidung.",
-      "fullTranscript": "Volles Transkript & Scorecard",
-      "noScorecardHelp": "Für dieses Interview wurde keine Scorecard erzeugt. Öffnen Sie die Vollansicht, um das rohe Transkript zu lesen.",
-      "costUnknown": "Kosten unbekannt",
-      "costFree": "keine Minutenkosten",
-      "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
-      "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
-      "confidence": "Konfidenz: {level}",
-      "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
-      "failedOverFrom": "gewechselt von {provider}",
-      "attemptsTitle": "Wie dieses Gespräch lief: erneute Verbindungen und ein Anbieterwechsel, falls der gewählte nicht verfügbar war"
+      "colCandidate": "Bewerbung",
+      "colRole": "Stelle",
+      "colState": "Status",
+      "colSent": "Link gesendet",
+      "colAction": "Aktion",
+      "stateAwaiting": "Wartet auf Link"
     },
     "calendar": {
       "calendarAria": "Interview-Wochenkalender: Tage waagerecht, Zeiten senkrecht",
@@ -10172,11 +10157,15 @@
     "runUnlinked": "Diese Aktion lief außerhalb eines erfassten Hintergrundlaufs, daher wurde kein Ergebnis gespeichert.",
     "runGone": "Der Lauf, der dies erzeugt hat, ist aus der Aufgabenhistorie herausgefallen.",
     "runNoOutput": "Dieser Lauf endete, ohne ein Ergebnis zu speichern.",
-    "tzNote": "Zeiten erscheinen in Ihrer eigenen Zeitzone. Das Protokoll speichert UTC, und die tägliche Kostenübersicht im Tab „Modelle“ bildet Tage nach UTC.",
     "companionTurn": "Ein Austausch mit Candi im Gespräch: {thread}",
     "companionThreadUntitled": "ein unbenanntes Gespräch",
     "companionOpen": "Gespräch öffnen",
-    "companionThreadGone": "Dieses Gespräch ist nicht mehr im Verzeichnis."
+    "companionThreadGone": "Dieses Gespräch ist nicht mehr im Verzeichnis.",
+    "interviewConversation": "Das Voice-Interview mit {name} für {role}.",
+    "interviewGone": "Dieses Interview ist nicht mehr hinterlegt.",
+    "interviewNoTranscript": "Zu diesem Interview wurde kein Transkript gespeichert.",
+    "turnCandidate": "Bewerber:in",
+    "turnInterviewer": "Interviewer"
   },
   "readout": {
     "empty": "Nichts erfasst",
@@ -10634,7 +10623,8 @@
       "profile": "Profil & Lebenslauf",
       "jobs": "Stellen",
       "sources": "Quellen",
-      "scans": "Scans"
+      "scans": "Scans",
+      "jobsNew": "{count, plural, one {# neue Stelle} other {# neue Stellen}}"
     },
     "studio": {
       "closeBusy": "Eine Antwort ist noch unterwegs. Schließen stoppt sie nicht.",
@@ -10778,7 +10768,6 @@
       "errExtract": "Diese Datei konnte nicht gelesen werden.",
       "errDraft": "Aus Ihrem Lebenslauf konnte kein Profil erstellt werden. Versuchen Sie eine Datei mit mehr Text, oder versuchen Sie es erneut.",
       "errNoTextLayer": "Dieses PDF hat keine Textebene (ein Scan oder ein Bild). Exportieren Sie es als Text oder PDF/A und versuchen Sie es erneut.",
-      "errTransport": "Der Server war nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "errSave": "Ihr Profil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
     },
     "print": {
@@ -10851,7 +10840,8 @@
         "source": "Quelle: {label}",
         "seen": "Gesehen {when}",
         "confidence": "Konfidenz {level} ({low} bis {high})",
-        "dismissed": "Verworfen: {reason}"
+        "dismissed": "Verworfen: {reason}",
+        "applied": "Beworben {when}"
       },
       "confidenceLevel": {
         "tight": "eng",
@@ -10916,7 +10906,10 @@
         "failed": "Der Scan ist fehlgeschlagen.",
         "failedMsg": "Der Scan ist fehlgeschlagen: {msg}",
         "startError": "Der Scan konnte nicht gestartet werden."
-      }
+      },
+      "lastScan": "Letzte Suche {when}",
+      "newSince": "{count, plural, one {# neue Stelle seit Ihrem letzten Besuch} other {# neue Stellen seit Ihrem letzten Besuch}}",
+      "markAllSeen": "Alle als gesehen markieren"
     },
     "posting": {
       "back": "Zurück zu den Stellen",

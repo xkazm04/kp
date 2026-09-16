@@ -1758,6 +1758,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
     "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
     "PIPELINE_LANE_REQUIRED": "Indiquez le poste dont vous voulez lister les candidatures refusées.",
+    "INTERVIEW_SESSION_NOT_FOUND": "Cet entretien ne figure pas dans les dossiers de cette équipe.",
     "AUTOMATION_TASK_NOT_OFFERED": "Cette action IA n’est pas disponible à cette étape.",
     "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
     "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
@@ -3977,27 +3978,20 @@
     "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",
     "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA.",
     "ledger": {
-      "prototype": "Prototype",
-      "variantGroup": "Disposition du registre",
-      "variant": {
-        "flat": "Registre",
-        "grouped": "Par poste",
-        "inline": "Décision rapide"
-      },
       "colName": "Candidature",
       "colRole": "Poste",
       "colScore": "Score",
       "colRecommended": "L’IA recommande",
       "colDecide": "Décision",
-      "colQuick": "Décision rapide",
       "decide": "Décider",
       "decideAria": "Décider pour {name}",
       "groupCount": "{count, plural, one {# en attente} other {# en attente}}",
       "groupBest": "meilleur",
-      "expand": "Afficher le classement pour {name}",
-      "collapse": "Masquer le classement pour {name}",
       "ladderTitle": "Classement",
-      "decisionTitle": "Votre décision"
+      "decisionTitle": "Votre décision",
+      "colPipeline": "Pipeline",
+      "quickAccept": "Accepter la proposition de l’IA pour {name}",
+      "quickReject": "Refuser {name}"
     }
   },
   "scheduleTab": {
@@ -4116,22 +4110,13 @@
       "live": "en direct",
       "linkOut": "lien envoyé",
       "sent": "envoyé {when}",
-      "doneTitle": "Terminé (à examiner)",
-      "doneEmpty": "Les entretiens terminés arrivent ici avec leur verdict.",
-      "noScorecard": "pas de scorecard",
-      "review": "examiner",
-      "competencies": "{count, plural, one {# compétence} other {# compétences}}",
       "verdictNote": "Les verdicts rejoignent la file Décisions comme revues de scorecard. Ce tableau est la boucle d’entretien, pas la décision.",
-      "fullTranscript": "Transcription complète et scorecard",
-      "noScorecardHelp": "Aucune scorecard n’a été produite pour cet entretien. Ouvrez la vue complète pour lire la transcription brute.",
-      "costUnknown": "coût inconnu",
-      "costFree": "sans coût à la minute",
-      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
-      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
-      "confidence": "confiance : {level}",
-      "attempts": "{count, plural, one {# tentative} other {# tentatives}}",
-      "failedOverFrom": "bascule depuis {provider}",
-      "attemptsTitle": "Déroulé de l'appel : reconnexions et bascule de fournisseur si celui choisi était indisponible"
+      "colCandidate": "Candidature",
+      "colRole": "Poste",
+      "colState": "État",
+      "colSent": "Lien envoyé",
+      "colAction": "Action",
+      "stateAwaiting": "En attente du lien"
     },
     "interviewerTitle": "Intervieweur : {name}",
     "calendar": {
@@ -10172,11 +10157,15 @@
     "runUnlinked": "Cette action s’est exécutée hors d’un traitement en arrière-plan suivi ; aucun résultat n’a donc été conservé.",
     "runGone": "Le traitement à l’origine de ce résultat est sorti de l’historique des tâches.",
     "runNoOutput": "Ce traitement s’est terminé sans conserver de résultat.",
-    "tzNote": "Les heures s’affichent dans votre propre fuseau horaire. Le journal enregistre en UTC, et le récapitulatif quotidien des coûts de l’onglet Modèles découpe les jours en UTC.",
     "companionTurn": "Un échange avec Candi dans la conversation : {thread}",
     "companionThreadUntitled": "une conversation sans titre",
     "companionOpen": "Ouvrir la conversation",
-    "companionThreadGone": "Cette conversation ne figure plus dans le registre."
+    "companionThreadGone": "Cette conversation ne figure plus dans le registre.",
+    "interviewConversation": "L’entretien vocal avec {name} pour {role}.",
+    "interviewGone": "Cet entretien n’est plus au dossier.",
+    "interviewNoTranscript": "Aucune transcription n’a été conservée pour cet entretien.",
+    "turnCandidate": "Candidat",
+    "turnInterviewer": "Intervieweur"
   },
   "readout": {
     "empty": "Rien d’enregistré",
@@ -10634,7 +10623,8 @@
       "profile": "Profil et CV",
       "jobs": "Offres",
       "sources": "Sources",
-      "scans": "Analyses"
+      "scans": "Analyses",
+      "jobsNew": "{count, plural, one {# nouvelle offre} other {# nouvelles offres}}"
     },
     "studio": {
       "closeBusy": "Une réponse est encore en route. Fermer maintenant ne l'arrêtera pas.",
@@ -10778,7 +10768,6 @@
       "errExtract": "Ce fichier n'a pas pu être lu.",
       "errDraft": "Votre CV n'a pas pu être transformé en profil. Essayez un fichier avec plus de texte, ou réessayez.",
       "errNoTextLayer": "Ce PDF n'a pas de couche de texte (un scan ou une image). Exportez-le en texte ou en PDF/A, puis réessayez.",
-      "errTransport": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
       "errSave": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
     },
     "print": {
@@ -10851,7 +10840,8 @@
         "source": "Source : {label}",
         "seen": "Vue {when}",
         "confidence": "Confiance {level} ({low} à {high})",
-        "dismissed": "Écartée : {reason}"
+        "dismissed": "Écartée : {reason}",
+        "applied": "Candidature envoyée {when}"
       },
       "confidenceLevel": {
         "tight": "élevée",
@@ -10916,7 +10906,10 @@
         "failed": "L'analyse a échoué.",
         "failedMsg": "L'analyse a échoué : {msg}",
         "startError": "L'analyse n'a pas pu démarrer."
-      }
+      },
+      "lastScan": "Dernière recherche {when}",
+      "newSince": "{count, plural, one {# nouvelle offre depuis votre dernière visite} other {# nouvelles offres depuis votre dernière visite}}",
+      "markAllSeen": "Tout marquer comme vu"
     },
     "posting": {
       "back": "Retour aux offres",

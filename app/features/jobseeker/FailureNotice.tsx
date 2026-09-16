@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Loader2, RotateCw } from "lucide-react";
+import { AlertTriangle, Loader2, RotateCw, X } from "lucide-react";
 import { BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { ApiFailureKind } from "./apiFailure";
@@ -21,6 +21,7 @@ export function FailureNotice({
   failure,
   fallback,
   onRetry,
+  onDismiss,
   retrying = false,
   className = "",
 }: {
@@ -29,10 +30,14 @@ export function FailureNotice({
   /** The surface's own already-localized sentence for a failure with no usable code. */
   fallback: string;
   onRetry?: () => void;
+  /** A failure the reader may put away without acting on it (a write that left the
+   *  page where it was). Absent = the notice stays until the next attempt clears it. */
+  onDismiss?: () => void;
   retrying?: boolean;
   className?: string;
 }) {
   const t = useTranslations("me.common");
+  const tCommon = useTranslations("common");
   const resolveError = useErrorMessage();
   const sentence = failure?.kind === "transport" ? t("unreachable") : resolveError(failure, fallback);
   return (
@@ -40,6 +45,11 @@ export function FailureNotice({
       <p className="flex items-start gap-1.5">
         <AlertTriangle size={14} aria-hidden className="mt-0.5 shrink-0" />
         <span>{sentence}</span>
+        {onDismiss ? (
+          <button type="button" onClick={onDismiss} aria-label={tCommon("dismissNotification")} className="focus-ring ml-auto shrink-0 rounded-md p-0.5 opacity-70 hover:opacity-100">
+            <X size={14} aria-hidden />
+          </button>
+        ) : null}
       </p>
       {onRetry ? (
         <button type="button" className={`${BTN_SECONDARY} mt-2 h-8 gap-1.5 px-3 text-sm`} disabled={retrying} aria-busy={retrying || undefined} onClick={onRetry}>

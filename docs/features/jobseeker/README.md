@@ -450,10 +450,19 @@ answers `{source, reasoning, fallbackReason}` and the page turns that into ONE w
 `diveOutcome()` in `postingView.ts` (`postingView.test.ts`): `llm` (persisted, and the
 only answer that triggers `router.refresh()`), `no_provider` and `template` (both
 honest keyless states, both rendering the fixed-template note, with the template text
-under it when one arrived and the note alone when it did not), `failed` (the only red
-line). A keyless deep-dive is therefore never an error and never a silent no-op.
-"Discuss fit" opens the fit studio; "I applied" / dismiss as on the feed, and a failed
-action's line carries a dismiss (`usePostingActions.clearError`).
+under it when one arrived and the note alone when it did not), `failed` (the only
+failure). A keyless deep-dive is therefore never an error and never a silent no-op.
+"Discuss fit" opens the fit studio; "I applied" / dismiss as on the feed. All THREE of
+this page's failures — the status write, the deep-dive, opening the dialog — render the
+same `FailureNotice` the other seeker surfaces do, classified through
+`classifyApiFailure`, each with a Retry that re-issues its OWN request: the deep-dive
+re-POSTs, "Discuss fit" re-creates, and a failed status move re-PATCHes the write the
+reader last asked for (the PATCH alone — the source tab "I applied" opens is a side
+effect of the first click, not of a retry). `usePostingActions` still returns
+`{code}` only, so a transport fault on that hop resolves to the action's fallback
+sentence rather than to `me.common.unreachable`; the two hops this page owns classify
+fully. The write notice keeps its dismiss (`usePostingActions.clearError`) through
+`FailureNotice`'s optional `onDismiss`.
 
 **The fit verdict lives on the posting, not only in the overlay.** The page reads the
 latest CLOSED fit dialog for the row — `latestFitDialogForPosting(postingId, workspaceId)`

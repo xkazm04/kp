@@ -51,6 +51,7 @@ export function ProfileImport({
   onCancel?: () => void;
 }) {
   const t = useTranslations("me.import");
+  const tCommon = useTranslations("me.common");
   const tProfile = useTranslations("me.profile");
   const resolveError = useErrorMessage();
   const [file, setFile] = useState<File | null>(null);
@@ -127,7 +128,9 @@ export function ProfileImport({
     : failure.reason === "noTextLayer"
       ? t("errNoTextLayer")
       : failure.reason === "transport"
-        ? t("errTransport")
+        ? // ONE transport sentence for the whole seeker module: the hop that failed does
+          // not change what a reader whose server is unreachable has to do about it.
+          tCommon("unreachable")
         : resolveError({ code: failure.code }, stageFallback[failure.stage]);
 
   const reached = (s: (typeof STAGES)[number]) => STAGES.indexOf(s) <= STAGES.indexOf(stage as (typeof STAGES)[number]);

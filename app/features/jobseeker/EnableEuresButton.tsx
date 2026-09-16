@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Loader2, Radar } from "lucide-react";
@@ -22,6 +22,16 @@ import type { ScanTaskState } from "./useScanTask";
 // IDEMPOTENT by construction: the sources list is read FIRST and an existing EURES row
 // is enabled rather than duplicated (POST /api/jobseeker/sources creates a row every
 // time it is called; there is no upsert). Already enabled = straight to the scan.
+//
+// THE PARENT IS TOLD LAST. `onEnabled()` flips the feed's chain, and the feed unmounts
+// this empty state with it — so calling it before the scan settles takes this button's
+// own progress line, its `startError` and its Retry off the screen mid-run, and the
+// EURES-specific Retry can never be reached. It is therefore fired when the scan TASK
+// reaches a terminal state (not merely when `scan.start()` resolves — that only means
+// the POST returned a task id, with the whole scan still ahead), and never at all when
+// the start itself failed: then the notice and its Retry are the only thing left to act
+// on. The source stays enabled on the server either way, and the chain is idempotent,
+// so a Retry re-runs it safely.
 //
 // TRUTHFUL COPY: the EURES search takes location codes from the seeker's OWN
 // preferences (adapters/eures.ts: `ctx.preferences.countries`), and an empty list is a
@@ -47,6 +57,15 @@ export function EnableEuresButton({
   const tScan = useTranslations("me.jobs.scan");
   const [working, setWorking] = useState(false);
   const [failure, setFailure] = useState<ApiFailure | null>(null);
+  // This button started a scan, and the parent has not been told yet.
+  const startedRef = useRef(false);
+  const notifiedRef = useRef(false);
+  // Kept current in an effect, not during render: the watcher below must call the
+  // latest callback without re-arming on every render.
+  const onEnabledRef = useRef(onEnabled);
+  useEffect(() => {
+    onEnabledRef.current = onEnabled;
+  });
 
   const wanted = euresCountries(countries);
   const defaulted = countries.filter((c) => c.trim()).length === 0;
@@ -89,12 +108,23 @@ export function EnableEuresButton({
           return;
         }
       }
-      onEnabled();
+      startedRef.current = true;
       await scan.start();
     } finally {
       setWorking(false);
     }
   };
+
+  // The scan settled: the lines this button owns have said everything they can, so the
+  // chain is reported and the empty state may go. `scan.status` is null while no task
+  // id exists — which is exactly the "the POST was refused" case, where `startError`
+  // and its Retry stay on screen instead.
+  useEffect(() => {
+    if (!startedRef.current || notifiedRef.current) return;
+    if (!scan.status || scan.starting || scan.active) return;
+    notifiedRef.current = true;
+    onEnabledRef.current();
+  }, [scan.status, scan.starting, scan.active]);
 
   return (
     <div className="space-y-2">
@@ -118,7 +148,7 @@ export function EnableEuresButton({
           {tScan("unreachable")}
         </p>
       ) : null}
-      {scan.startError ? <FailureNotice failure={scan.startError} fallback={tScan("startError")} /> : null}
+      {scan.startError ? <FailureNotice failure={scan.startError} fallback={tScan("startError")} onRetry={() => void scan.start()} retrying={busy} /> : null}
       {failure ? <FailureNotice failure={failure} fallback={t("euresError")} onRetry={() => void enable()} retrying={busy} /> : null}
     </div>
   );

@@ -1758,6 +1758,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
     "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
     "PIPELINE_LANE_REQUIRED": "Name the position whose rejected candidates to list.",
+    "INTERVIEW_SESSION_NOT_FOUND": "That interview isn’t on this team’s record.",
     "AUTOMATION_TASK_NOT_OFFERED": "That AI action isn’t available at this candidate’s step.",
     "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
     "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
@@ -3977,27 +3978,20 @@
     "reinstateFailed": "Couldn't put this candidate back. Try again.",
     "evalCacheProbeFailed": "We couldn't check whether a saved comparison already exists for this selection. Re-run to compare fresh; that starts a new AI run.",
     "ledger": {
-      "prototype": "Prototype",
-      "variantGroup": "Ledger layout",
-      "variant": {
-        "flat": "Ledger",
-        "grouped": "By role",
-        "inline": "Quick decide"
-      },
       "colName": "Candidate",
       "colRole": "Role",
       "colScore": "Score",
       "colRecommended": "AI recommends",
       "colDecide": "Decision",
-      "colQuick": "Quick decision",
       "decide": "Decide",
       "decideAria": "Decide on {name}",
       "groupCount": "{count, plural, one {# waiting} other {# waiting}}",
       "groupBest": "best",
-      "expand": "Show the ladder for {name}",
-      "collapse": "Hide the ladder for {name}",
       "ladderTitle": "Ladder",
-      "decisionTitle": "Your decision"
+      "decisionTitle": "Your decision",
+      "colPipeline": "Pipeline",
+      "quickAccept": "Accept the AI's proposal for {name}",
+      "quickReject": "Reject {name}"
     }
   },
   "scheduleTab": {
@@ -4117,22 +4111,13 @@
       "live": "live",
       "linkOut": "link out",
       "sent": "sent {when}",
-      "doneTitle": "Completed (to review)",
-      "doneEmpty": "Finished interviews land here with their verdict.",
-      "noScorecard": "no scorecard",
-      "review": "review",
-      "competencies": "{count, plural, one {# competency} other {# competencies}}",
       "verdictNote": "Verdicts flow to the Decisions queue as scorecard reviews. This docket is the interview loop, not the decision.",
-      "fullTranscript": "Full transcript & scorecard",
-      "noScorecardHelp": "No scorecard was produced for this interview. Open the full view to read the raw transcript.",
-      "costUnknown": "cost unknown",
-      "costFree": "no per-minute cost",
-      "costTitle": "Estimated cost of this call, from the usage ledger",
-      "providerTitle": "The voice provider that served this call",
-      "confidence": "confidence: {level}",
-      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
-      "failedOverFrom": "fell back from {provider}",
-      "attemptsTitle": "How this call ran: reconnects, and a provider swap if the chosen one was unavailable"
+      "colCandidate": "Candidate",
+      "colRole": "Role",
+      "colState": "State",
+      "colSent": "Link sent",
+      "colAction": "Action",
+      "stateAwaiting": "Awaiting link"
     },
     "calendar": {
       "calendarAria": "Interview week calendar: days across, times down",
@@ -10172,11 +10157,15 @@
     "runUnlinked": "This action ran outside a tracked background run, so no output was stored for it.",
     "runGone": "The run that produced this has aged out of the task history.",
     "runNoOutput": "This run finished without storing any output.",
-    "tzNote": "Times are shown in your own time zone. The ledger stores UTC, and the daily cost rollup on the Models tab buckets by UTC day.",
     "companionTurn": "A turn with Candi, in the conversation: {thread}",
     "companionThreadUntitled": "an untitled conversation",
     "companionOpen": "Open the conversation",
-    "companionThreadGone": "That conversation is no longer in the ledger."
+    "companionThreadGone": "That conversation is no longer in the ledger.",
+    "interviewConversation": "The voice interview with {name} for {role}.",
+    "interviewGone": "This interview is no longer on the record.",
+    "interviewNoTranscript": "No transcript was kept for this interview.",
+    "turnCandidate": "Candidate",
+    "turnInterviewer": "Interviewer"
   },
   "readout": {
     "empty": "Nothing recorded",
@@ -10634,7 +10623,8 @@
       "profile": "Profile & CV",
       "jobs": "Jobs",
       "sources": "Sources",
-      "scans": "Scans"
+      "scans": "Scans",
+      "jobsNew": "{count, plural, one {# new job} other {# new jobs}}"
     },
     "studio": {
       "closeBusy": "A reply is still arriving. Closing now won't stop it.",
@@ -10778,7 +10768,6 @@
       "errExtract": "That file could not be read.",
       "errDraft": "Your CV could not be turned into a profile. Try a file with more text, or try again.",
       "errNoTextLayer": "This PDF has no text layer (a scan or an image). Export it as text or PDF/A and try again.",
-      "errTransport": "Could not reach the server. Check your connection and try again.",
       "errSave": "Your profile could not be saved. Please try again."
     },
     "print": {
@@ -10851,7 +10840,8 @@
         "source": "Source: {label}",
         "seen": "Seen {when}",
         "confidence": "Confidence {level} ({low} to {high})",
-        "dismissed": "Dismissed: {reason}"
+        "dismissed": "Dismissed: {reason}",
+        "applied": "Applied {when}"
       },
       "confidenceLevel": {
         "tight": "tight",
@@ -10916,7 +10906,10 @@
         "failed": "The scan failed.",
         "failedMsg": "The scan failed: {msg}",
         "startError": "The scan could not be started."
-      }
+      },
+      "lastScan": "Last scan {when}",
+      "newSince": "{count, plural, one {# new since your last visit} other {# new since your last visit}}",
+      "markAllSeen": "Mark all as seen"
     },
     "posting": {
       "back": "Back to jobs",

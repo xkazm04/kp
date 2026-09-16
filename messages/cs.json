@@ -1758,6 +1758,7 @@
     "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
     "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit.",
     "PIPELINE_LANE_REQUIRED": "Uveďte pozici, jejíž zamítnuté kandidáty chcete zobrazit.",
+    "INTERVIEW_SESSION_NOT_FOUND": "Tento pohovor v záznamech týmu není.",
     "AUTOMATION_TASK_NOT_OFFERED": "Tuto akci AI nelze v této fázi kandidáta spustit.",
     "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
     "APPLY_SESSION_INVALID": "Tento pokus o přihlášku se nepodařilo zahájit. Načtěte stránku znovu a zkuste to prosím ještě jednou.",
@@ -3977,27 +3978,20 @@
     "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu.",
     "evalCacheProbeFailed": "Nepodařilo se ověřit, zda pro tento výběr už existuje uložené srovnání. Spusťte znovu pro nové srovnání; tím začne nový běh AI.",
     "ledger": {
-      "prototype": "Prototyp",
-      "variantGroup": "Rozvržení přehledu",
-      "variant": {
-        "flat": "Přehled",
-        "grouped": "Podle pozice",
-        "inline": "Rychlé rozhodnutí"
-      },
       "colName": "Kandidát",
       "colRole": "Pozice",
       "colScore": "Skóre",
       "colRecommended": "Doporučení AI",
       "colDecide": "Rozhodnutí",
-      "colQuick": "Rychlé rozhodnutí",
       "decide": "Rozhodnout",
       "decideAria": "Rozhodnout o kandidátovi {name}",
       "groupCount": "{count, plural, one {# čeká} few {# čekají} other {# čeká}}",
       "groupBest": "nejlepší",
-      "expand": "Zobrazit žebříček pro {name}",
-      "collapse": "Skrýt žebříček pro {name}",
       "ladderTitle": "Žebříček",
-      "decisionTitle": "Vaše rozhodnutí"
+      "decisionTitle": "Vaše rozhodnutí",
+      "colPipeline": "Pipeline",
+      "quickAccept": "Přijmout návrh AI pro kandidáta {name}",
+      "quickReject": "Zamítnout kandidáta {name}"
     }
   },
   "scheduleTab": {
@@ -4110,22 +4104,13 @@
       "live": "živě",
       "linkOut": "odkaz odeslán",
       "sent": "odesláno {when}",
-      "doneTitle": "Dokončeno (k posouzení)",
-      "doneEmpty": "Dokončené pohovory se tady objeví i se svým verdiktem.",
-      "noScorecard": "bez hodnoticí karty",
-      "review": "posoudit",
-      "competencies": "{count, plural, one {# kompetence} few {# kompetence} other {# kompetencí}}",
       "verdictNote": "Verdikty putují do fronty Rozhodnutí jako hodnoticí karty. Tento přehled je smyčka pohovorů, ne rozhodnutí.",
-      "fullTranscript": "Celý přepis a hodnoticí karta",
-      "noScorecardHelp": "K tomuto pohovoru nevznikla hodnoticí karta. Otevřete plné zobrazení a přečtěte si samotný přepis.",
-      "costUnknown": "cena neznámá",
-      "costFree": "bez minutových nákladů",
-      "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
-      "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
-      "confidence": "jistota: {level}",
-      "attempts": "{count, plural, one {# pokus} few {# pokusy} other {# pokusů}}",
-      "failedOverFrom": "přepnuto z {provider}",
-      "attemptsTitle": "Jak hovor proběhl: opětovná připojení a případné přepnutí poskytovatele, když zvolený nebyl dostupný"
+      "colCandidate": "Kandidát",
+      "colRole": "Pozice",
+      "colState": "Stav",
+      "colSent": "Odkaz odeslán",
+      "colAction": "Akce",
+      "stateAwaiting": "Čeká na odkaz"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
     "slotSuggested": "návrh",
@@ -10172,11 +10157,15 @@
     "runUnlinked": "Tato akce proběhla mimo sledovaný běh na pozadí, takže se pro ni neuložil žádný výstup.",
     "runGone": "Běh, který to vytvořil, už vypadl z historie úloh.",
     "runNoOutput": "Tento běh skončil, aniž by uložil jakýkoli výstup.",
-    "tzNote": "Časy se zobrazují ve vašem časovém pásmu. Záznamy se ukládají v UTC a denní přehled nákladů na kartě Modely se dělí podle dnů v UTC.",
     "companionTurn": "Výměna s Candi v rozhovoru: {thread}",
     "companionThreadUntitled": "nepojmenovaný rozhovor",
     "companionOpen": "Otevřít rozhovor",
-    "companionThreadGone": "Tento rozhovor už v záznamech není."
+    "companionThreadGone": "Tento rozhovor už v záznamech není.",
+    "interviewConversation": "Hlasový pohovor s kandidátem {name} na pozici {role}.",
+    "interviewGone": "Tento pohovor už v záznamech není.",
+    "interviewNoTranscript": "K tomuto pohovoru nebyl uchován přepis.",
+    "turnCandidate": "Kandidát",
+    "turnInterviewer": "Tazatel"
   },
   "readout": {
     "empty": "Nic zaznamenáno",
@@ -10634,7 +10623,8 @@
       "profile": "Profil a CV",
       "jobs": "Nabídky",
       "sources": "Zdroje",
-      "scans": "Skeny"
+      "scans": "Skeny",
+      "jobsNew": "{count, plural, one {# nová nabídka} few {# nové nabídky} many {# nové nabídky} other {# nových nabídek}}"
     },
     "studio": {
       "closeBusy": "Odpověď ještě přichází. Zavření ji nezastaví.",
@@ -10778,7 +10768,6 @@
       "errExtract": "Soubor se nepodařilo přečíst.",
       "errDraft": "Z vašeho CV se nepodařilo vytvořit profil. Zkuste soubor s více textem, nebo to zkuste znovu.",
       "errNoTextLayer": "Toto PDF nemá textovou vrstvu (je to sken nebo obrázek). Exportujte je jako text nebo PDF/A a zkuste to znovu.",
-      "errTransport": "Server se nepodařilo kontaktovat. Zkontrolujte připojení a zkuste to znovu.",
       "errSave": "Profil se nepodařilo uložit. Zkuste to prosím znovu."
     },
     "print": {
@@ -10851,7 +10840,8 @@
         "source": "Zdroj: {label}",
         "seen": "Viděno {when}",
         "confidence": "Spolehlivost {level} ({low} až {high})",
-        "dismissed": "Odloženo: {reason}"
+        "dismissed": "Odloženo: {reason}",
+        "applied": "Přihlášeno {when}"
       },
       "confidenceLevel": {
         "tight": "vysoká",
@@ -10916,7 +10906,10 @@
         "failed": "Sken selhal.",
         "failedMsg": "Sken selhal: {msg}",
         "startError": "Sken se nepodařilo spustit."
-      }
+      },
+      "lastScan": "Poslední kontrola {when}",
+      "newSince": "{count, plural, one {# nová nabídka od vaší poslední návštěvy} few {# nové nabídky od vaší poslední návštěvy} many {# nové nabídky od vaší poslední návštěvy} other {# nových nabídek od vaší poslední návštěvy}}",
+      "markAllSeen": "Označit vše jako přečtené"
     },
     "posting": {
       "back": "Zpět na nabídky",

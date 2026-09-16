@@ -4,17 +4,18 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowLeft, ExternalLink, Loader2, MessageSquareText, Sparkles, X, XCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, MessageSquareText, Sparkles, XCircle } from "lucide-react";
 import { Badge, FitTierBadge } from "@/app/_components/Badge";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP, CHIP_QUIET, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { formatGrouped, scoreTone } from "@/app/_lib/format";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import type { FitArtifact, JobseekerDialog, SalaryFloor } from "@/app/_lib/jobseeker/types";
+import type { DismissReason, FitArtifact, JobseekerDialog, PostingStatus, SalaryFloor } from "@/app/_lib/jobseeker/types";
 import { useFitTierLabels } from "@/app/features/shared/matchLabels";
+import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
 import { DismissPicker } from "./DismissPicker";
 import { EligibilityChips } from "./EligibilityChips";
+import { FailureNotice } from "./FailureNotice";
 import { compareSalary } from "./feedModel";
 import { FitArtifactSections, FitVerdictRow } from "./FitSheet";
 import { FitStudio } from "./FitStudio";
@@ -37,6 +38,8 @@ const SCORE_BAR: Record<ReturnType<typeof scoreTone>, string> = {
 };
 
 type StudioState = { dialog: JobseekerDialog; degradation: StudioDegradation | null } | null;
+/** A status move the page asked for, kept so the failure notice can re-issue it. */
+type PostingWrite = { status: Exclude<PostingStatus, "gone">; dismiss?: { reason: DismissReason; note: string } };
 /** A deep-dive that ANSWERED. `failed` never lands here — it is the error line. */
 type DeepDive = { reasoning: PostingDetailView["reasoning"]; outcome: Exclude<DiveOutcome, "failed"> } | null;
 
@@ -55,22 +58,22 @@ export function PostingDetail({
   fit: SettledFit | null;
 }) {
   const t = useTranslations("me.posting");
-  const tCommon = useTranslations("common");
   const tJobs = useTranslations("me.jobs");
   const tPrefs = useTranslations("me.preferences");
   const locale = useLocale();
   const router = useRouter();
   const rel = useRelativeTime();
-  const resolveError = useErrorMessage();
   const tierLabels = useFitTierLabels();
   const [status, setStatus] = useState(view.status);
   const [dismissing, setDismissing] = useState(false);
   const [studio, setStudio] = useState<StudioState>(null);
   const [opening, setOpening] = useState(false);
-  const [openError, setOpenError] = useState<{ code: string | null } | null>(null);
+  const [openError, setOpenError] = useState<ClassifiedFailure | null>(null);
   const [diving, setDiving] = useState(false);
   const [dive, setDive] = useState<DeepDive>(null);
-  const [diveError, setDiveError] = useState<{ code: string | null } | null>(null);
+  const [diveError, setDiveError] = useState<ClassifiedFailure | null>(null);
+  // The write the reader last asked for, so the failure notice can re-issue THAT one.
+  const [lastWrite, setLastWrite] = useState<PostingWrite | null>(null);
   // The server read is the initial value; a verdict settled in the overlay lands here
   // without a reload (the page behind it is a server component and is not re-fetching).
   const [settledFit, setSettledFit] = useState<SettledFit | null>(fit);
@@ -79,6 +82,20 @@ export function PostingDetail({
     setStatus(row.status);
     router.refresh();
   });
+
+  // Every status move on this page goes through one of these two, so a failed write
+  // always leaves behind the request that failed.
+  const write = (next: PostingWrite) => {
+    setLastWrite(next);
+    void actions.setStatus(view.id, next.status, next.dismiss);
+  };
+  const applyAndOpen = () => {
+    setLastWrite({ status: "applied" });
+    void actions.markApplied(view);
+  };
+  // Retry re-issues the PATCH alone: the source tab "Applied" opens is a side effect
+  // of the reader's first click, and a second one is not what a failed write asks for.
+  const retryWrite = lastWrite ? () => void actions.setStatus(view.id, lastWrite.status, lastWrite.dismiss) : undefined;
 
   const deepDive = useCallback(async () => {
     if (diving) return;
@@ -91,7 +108,10 @@ export function PostingDetail({
       // cannot read is an error. `no_provider` and `template` both render the honest note.
       const outcome = res.ok ? diveOutcome(body) : "failed";
       if (outcome === "failed") {
-        setDiveError({ code: body?.code ?? null });
+        // Classified, not `code ?? null`: a server that never answered in JSON is a
+        // transport fault, and "check that the app is running" is a different
+        // sentence from "the deep dive could not be run".
+        setDiveError(classifyApiFailure(res, body));
         return;
       }
       setDive({ reasoning: reasoningView(body?.reasoning && typeof body.reasoning === "object" ? body.reasoning : null), outcome });
@@ -99,7 +119,7 @@ export function PostingDetail({
       // template was not stored, so there is nothing on the server to go and fetch.
       if (outcome === "llm") router.refresh();
     } catch {
-      setDiveError({ code: null });
+      setDiveError(TRANSPORT_FAILURE);
     } finally {
       setDiving(false);
     }
@@ -125,12 +145,12 @@ export function PostingDetail({
       });
       const body = (await res.json().catch(() => null)) as { dialog?: JobseekerDialog; fallbackReason?: string | null; fallbackLang?: string | null; code?: string } | null;
       if (!res.ok || !body?.dialog) {
-        setOpenError({ code: body?.code ?? null });
+        setOpenError(classifyApiFailure(res, body));
         return;
       }
       setStudio({ dialog: body.dialog, degradation: body.fallbackReason ? { reason: body.fallbackReason, lang: body.fallbackLang ?? null } : null });
     } catch {
-      setOpenError({ code: null });
+      setOpenError(TRANSPORT_FAILURE);
     } finally {
       setOpening(false);
     }
@@ -185,7 +205,7 @@ export function PostingDetail({
             </button>
           ) : null}
           {live && status !== "applied" ? (
-            <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={busy} onClick={() => void actions.markApplied(view)}>
+            <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={busy} onClick={applyAndOpen}>
               {tJobs("action.applied")}
             </button>
           ) : null}
@@ -194,7 +214,7 @@ export function PostingDetail({
               <XCircle size={14} aria-hidden /> {tJobs("action.dismiss")}
             </button>
           ) : status === "dismissed" ? (
-            <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={busy} onClick={() => void actions.setStatus(view.id, "new")}>
+            <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={busy} onClick={() => write({ status: "new" })}>
               {tJobs("action.restore")}
             </button>
           ) : null}
@@ -206,24 +226,15 @@ export function PostingDetail({
           busy={busy}
           onConfirm={(reason, note) => {
             setDismissing(false);
-            void actions.setStatus(view.id, "dismissed", { reason, note });
+            write({ status: "dismissed", dismiss: { reason, note } });
           }}
           onCancel={() => setDismissing(false)}
         />
       ) : null}
       {actions.error ? (
-        <p className="flex items-start gap-2 text-sm text-red-700" role="alert">
-          <span>{resolveError(actions.error, tJobs("actionError"))}</span>
-          <button type="button" onClick={actions.clearError} aria-label={tCommon("dismissNotification")} className="focus-ring rounded-md p-0.5 text-steel hover:text-ink">
-            <X size={14} aria-hidden />
-          </button>
-        </p>
+        <FailureNotice failure={actions.error} fallback={tJobs("actionError")} onRetry={retryWrite} retrying={busy} onDismiss={actions.clearError} />
       ) : null}
-      {openError ? (
-        <p className="text-sm text-red-700" role="alert">
-          {resolveError(openError, t("discussError"))}
-        </p>
-      ) : null}
+      {openError ? <FailureNotice failure={openError} fallback={t("discussError")} onRetry={() => void openStudio()} retrying={opening} /> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className={`${PANEL} p-5`} aria-labelledby="posting-text">
@@ -319,7 +330,7 @@ export function PostingDetail({
                 {t("fit.title")}
               </h2>
               <p className="mt-1 text-sm text-steel">{t("fit.settled", { when: rel(settledFit.at) })}</p>
-              <FitVerdictRow verdict={settledFit.artifact.verdict} applied={status === "applied"} onMarkApplied={() => void actions.markApplied(view)} />
+              <FitVerdictRow verdict={settledFit.artifact.verdict} applied={status === "applied"} onMarkApplied={applyAndOpen} />
               <div className="mt-4 space-y-6">
                 <FitArtifactSections artifact={settledFit.artifact} closed />
               </div>
@@ -350,11 +361,7 @@ export function PostingDetail({
                     {diving ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Sparkles size={14} aria-hidden />} {diving ? t("reasoning.running") : t("reasoning.cta")}
                   </button>
                 ) : null}
-                {diveError ? (
-                  <p className="text-sm text-red-700" role="alert">
-                    {resolveError(diveError, t("reasoning.error"))}
-                  </p>
-                ) : null}
+                {diveError ? <FailureNotice failure={diveError} fallback={t("reasoning.error")} onRetry={() => void deepDive()} retrying={diving} /> : null}
               </div>
             )}
           </section>
@@ -368,7 +375,7 @@ export function PostingDetail({
           initialDegradation={studio.degradation}
           onDialogChange={(dialog) => setStudio((s) => (s ? { ...s, dialog } : s))}
           onDone={(artifact) => setSettledFit({ artifact, at: new Date().toISOString() })}
-          onMarkApplied={() => void actions.markApplied(view)}
+          onMarkApplied={applyAndOpen}
           applied={status === "applied"}
           onClose={() => setStudio(null)}
         />
