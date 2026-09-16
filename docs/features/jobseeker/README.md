@@ -259,7 +259,7 @@ read-back → confirm), template suggestions from the same critics, and `reflow_
 sectioned Markdown re-flow where **no source line is lost** — every non-empty line lands
 in `cvMarkdown` or in `unreadable` (pinned by
 `pipeline/jobfit/tests/test_jobseeker_dialog.py`). A locale outside the four is
-disclosed as `fallbackLang`. The `fit` kind is accepted with its stub opening until WP5.
+disclosed as `fallbackLang`. The `fit` kind is the section below.
 
 ## Scan and scoring
 
@@ -322,11 +322,104 @@ has no session, so it reads the workspace's newest profile),
 
 ## Feed, fit dialog, sources UI
 
-_WP5._
+**Feed** (`/me/jobs`, `app/me/jobs/page.tsx` → `app/features/jobseeker/JobsFeed.tsx`).
+The server page reads the CHAIN FACTS (a profile exists · a source is enabled · a scan
+ever ran) and the source labels; the client feed reads `GET /api/jobseeker/postings`
+(keyset cursor, "Load more" appends, a filter change starts over). Filters: status
+(live · new · shortlisted · applied · dismissed), min fit (any/50/65/80), source, sort
+(best fit · newest posted · last seen). A card (`PostingCard.tsx`) leads with the fit
+total + the shared `FitTierBadge`, then confidence band, eligibility chips
+(`EligibilityChips.tsx`: `flag` amber, `ok` moss, `unknown` neutral, the detail as
+title), source + last seen, status; actions shortlist / "I applied" (opens the source
+URL in a new tab, then PATCHes `applied`) / dismiss (`DismissPicker.tsx`: a reason from
+`DISMISS_REASONS`, required, plus an optional note) / restore. An unscored posting
+says "Not scored", never 0. **Empty states are chain-aware**
+(`feedModel.ts: resolveFeedEmptyState`, pinned by `feedModel.test.ts`): the FIRST
+missing link wins: no profile → link to `/me`; no enabled source → link to
+`/me/sources`; no scan yet → "Scan now" (`ScanNowButton.tsx` over `useScanTask.ts`,
+which polls `GET /api/tasks/[id]` because /me mounts no TasksProvider); scanned but
+nothing above the min fit → says how many rows the filter dropped; nothing live → scan
+again or check Dismissed.
+
+**Detail** (`/me/jobs/[id]`, `app/me/jobs/[id]/page.tsx`). A SERVER page over the
+store (`getPosting`; there is no `GET /api/jobseeker/postings/[id]`), handing the client
+a projection (`postingView.ts`: body text, skill lists, breakdown, confidence,
+eligibility, reasoning; never the raw JSON-LD or the structured Job). The ad renders
+as plain paragraphs, never as HTML. Pay is compared with the seeker's floor through
+`compareSalary` (`feedModel.ts`): `salaryBandPosition` ONLY when `isSameCurrency` and
+the periods agree, else "not comparable (X vs Y)"; an unstated pay is unknown, never
+low. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
+missing / unproven skills, eligibility with details. Reasoning shows when deep-dived;
+else a "Deep-dive" door (`POST /api/jobseeker/postings/[id]/deepdive`, WP4c) whose
+keyless answer is labelled deterministic and shown, not stored. "Discuss fit" opens the
+fit studio; "I applied" / dismiss as on the feed.
+
+**Fit dialog (UC3)** (`FitStudio.tsx` + `FitSheet.tsx`): the Studio kit's second seeker
+variant, CvStudio's twin in composition (`ns="me"`, zones `chat | fit`,
+`kp-me-fit-cols`, the shared `kp-me-auto-speak`). Created with
+`POST /api/jobseeker/dialogs {kind: "fit", postingId}`; the open one for the posting is
+resumed. The create and message routes read `fitTurnContext`
+(`app/_lib/jobseeker-fit-context.ts`): a compact posting projection, the stored
+MatchResult and the seeker's last ten dismissals (reason + title) ride every turn, so a
+mid-conversation dismissal is seen. The sheet: verdict, gaps with severity + mitigation,
+the cover note (Markdown, copy control with a visible failure state), questions to ask;
+a verdict of `apply` offers "Mark applied". Engine: `pipeline/jobfit/jobseeker.py`
+(`FIT_PROMPT_VERSION = "fit-dialog-v1"`, use case `fit_dialog`), a candid coach that
+reasons only from the posting, the match, the profile and the dismissals ("you
+dismissed 3 recent postings for pay; this one states no pay"). **Hypothesis, not
+verdict:** every gap cites its source, a posting sentence or a match field
+(`missingSkills`, `unprovenSkills`, `eligibility.<key>`), names a benign reading beside
+the risk, and rides the wire with the citation inside `mitigation` (`Cited: …`); the
+coerce step drops a model gap with no grounded `source`. **Keyless twin**
+(`deterministic_fit_turn`, four locales): the opening states the fit and offers the top
+three gaps as a choice card; each pick answers one gap (statement · benign reading ·
+mitigation · citation); after two gaps, on "decide", or when nothing stands out, the
+verdict card (apply · skip · undecided); a verdict closes the dialog; the cover note is
+at most four sentences of profile facts (`fit_cover_note`), written on `apply` or on
+request. Pinned by `pipeline/jobfit/tests/test_jobseeker_dialog.py::FitDialogTest`
+(verdict in ≤ 6 turns, every gap cited, dismissals in `build_fit_prompt`, four
+openings).
+
+**Sources** (`/me/sources`, `SourcesPage.tsx` + `SourceCard.tsx` + `RulesAuthoring.tsx`
++ `AddSourceForm.tsx`). Three sections from `GET /api/jobseeker/sources`. Tier A cards:
+label, host, kind, enable toggle (`role="switch"`), last run outcome, pause reason +
+since when, resume. Tier B cards add robots summary, the terms clause summary with its
+URL and our cadence; the toggle is the ACKNOWLEDGEMENT door: the first enable answers
+409 `JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED` with `termsHash`, the card shows the block
+(DevPublishConfirm's shape: `alertdialog`, three enumerated reasons, the checkbox FIRST
+in focus order, the CTA disabled until ticked) and re-sends `{enabled: true,
+acknowledge: true}`; a hash that differs from `acknowledgedTermsHash` says the terms
+changed. Tier C rows: label + `refusedReason`, no control. Boards get a "Preview" /
+"Rules and preview" panel: `POST …/preview` renders the per-rule verdict table and the
+first items; `board_rules` adds "Author rules" (`POST …/rules/propose`, marked AI /
+without AI) and "Save rules" (`PATCH {rules, rulesBaseline}`), offered only after a
+preview that passed. Catalog entries not yet added appear in their tier with "Add"
+(`POST {catalogId}`); the form adds an ATS by vendor + company slug (`{adapter, config:
+{slug}}`) or a board by host (tier B by rule). Every refusal renders from its code.
+
+**Scans** (`/me/scans`, `ScansPage.tsx`). Reads `GET /api/automation/schedule` and
+filters `jobs[]` to `jobseeker_scan`: the toggle (disabled with
+`pipeline.scheduler.unverified` as its title until `verified`; the route refuses the
+write with `JOBSEEKER_SCAN_UNVERIFIED`), the cadence as 6 h / 12 h / 24 h (a stored
+interval outside the three snaps to the nearest for display), last run, "Scan now"
+with live progress, and the run history unrolled per source from the stored
+`ScanSummary` (outcome word + new / changed / absent + reason); `blocked` / `collapsed`
+in amber with the pause reason and a link to `/me/sources`, because only the owner
+clears those. `SchedulerJobRow` is not reused (free minutes field, policy-pass history).
+
+**e2e.** `e2e/jobseeker-keyless.spec.ts` is declared against the throwaway DB (feed
+empty state = `no_profile`, three tiers, tier C without a control, tier B toggle →
+acknowledgement with the CTA disabled until ticked, scans toggle locked) and is NOT in
+`KEYLESS_SPECS`: enrolling it means the ci.yml step and `.claude/CLAUDE.md` in the same
+change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
 
 ## Known gaps
 
-- Everything above marked with a work-package number is not built yet.
+- Everything above marked with a work-package number is not built yet. WP5 (feed, detail,
+  fit dialog, sources, scans) is built; the MeNav badge (a count of new postings) is not:
+  the feed response carries no total, so the count would be a second list read per paint.
+- `/me/jobs/[id]` reads the store directly; a `GET /api/jobseeker/postings/[id]` would let
+  the page become a client reader like the other three, but nothing needs it yet.
 - `ScanSummary` has no `koFiltered` / `structured` counts and `RECONCILE_REASONS` has no
   `wall_budget`: the scan logs the KO count and records an unreached source with
   `reason: "wall_budget"` (a string the type allows) — both are counter-proposals for

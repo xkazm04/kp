@@ -10615,13 +10615,15 @@
     "columns": {
       "col": {
         "chat": "Conversation",
-        "sheet": "Votre CV"
+        "sheet": "Votre CV",
+        "fit": "Fiche d'adéquation"
       },
       "hide": "Masquer : {column}",
       "show": "Afficher : {column}",
       "badge": {
         "turns": "{count, plural, one {# message} other {# messages}}",
-        "suggestions": "{count, plural, =0 {Aucune suggestion en attente} one {# suggestion en attente} other {# suggestions en attente}}"
+        "suggestions": "{count, plural, =0 {Aucune suggestion en attente} one {# suggestion en attente} other {# suggestions en attente}}",
+        "gaps": "{count, plural, =0 {Aucun écart} one {# écart} other {# écarts}}"
       }
     },
     "composer": {
@@ -10748,6 +10750,393 @@
       "back": "Retour à ma recherche d'emploi",
       "print": "Imprimer / enregistrer en PDF",
       "none": "Il n'y a pas encore de CV retravaillé. Terminez d'abord une conversation sur le CV."
+    },
+    "jobs": {
+      "eyebrow": "Recherche d'emploi",
+      "title": "Offres",
+      "intro": "Chaque offre trouvée par vos sources, notée selon votre profil. Présélectionnez, postulez ou écartez avec une raison dont le coach apprend.",
+      "filter": {
+        "status": "Statut",
+        "statusOption": {
+          "live": "Actives",
+          "new": "Nouvelles",
+          "shortlisted": "Présélection",
+          "applied": "Candidature envoyée",
+          "dismissed": "Écartées"
+        },
+        "minFit": "Adéquation min.",
+        "minFitAny": "Toutes",
+        "minFitValue": "{n}+",
+        "source": "Source",
+        "allSources": "Toutes les sources"
+      },
+      "sort": {
+        "label": "Trier",
+        "total": "Meilleure adéquation",
+        "posted": "Publiées récemment",
+        "seen": "Vues récemment"
+      },
+      "actionError": "La modification n'a pas pu être enregistrée. Veuillez réessayer.",
+      "loadError": "Le flux n'a pas pu être chargé.",
+      "retry": "Réessayer",
+      "loading": "Chargement",
+      "loadMore": "Charger la suite",
+      "empty": {
+        "no_profile": {
+          "title": "Commencez par votre CV",
+          "body": "Le flux note les offres selon votre profil, et il n'y en a pas encore. Importez d'abord votre CV.",
+          "cta": "Aller à Profil et CV"
+        },
+        "no_sources": {
+          "title": "Aucune source n'est activée",
+          "body": "Votre profil est prêt, mais rien n'est lu. Activez au moins une source et la prochaine analyse remplira cette page.",
+          "cta": "Choisir des sources"
+        },
+        "no_scan": {
+          "title": "Rien n'a encore été analysé",
+          "body": "Vos sources sont activées. Lancez la première analyse maintenant ; une fois réussie, le minuteur de la page Analyses pourra prendre le relais."
+        },
+        "below_min": {
+          "title": "Rien au-dessus de votre adéquation minimale",
+          "body": "{count, plural, one {# offre se situe} other {# offres se situent}} sous l'adéquation demandée. Abaissez le minimum pour les voir."
+        },
+        "nothing_live": {
+          "title": "Rien d'actif pour le moment",
+          "body": "La dernière analyse n'a rien trouvé de nouveau, ou tout a été écarté. Relancez une analyse, ou consultez le filtre Écartées."
+        }
+      },
+      "card": {
+        "unscored": "Non notée",
+        "deepDived": "Analyse approfondie",
+        "source": "Source : {label}",
+        "seen": "Vue {when}",
+        "confidence": "Confiance {level} ({low} à {high})",
+        "dismissed": "Écartée : {reason}"
+      },
+      "confidenceLevel": {
+        "tight": "élevée",
+        "moderate": "moyenne",
+        "wide": "faible"
+      },
+      "workMode": {
+        "remote": "Télétravail",
+        "hybrid": "Hybride",
+        "onsite": "Sur site"
+      },
+      "status": {
+        "new": "Nouvelle",
+        "shortlisted": "Présélection",
+        "applied": "Candidature envoyée",
+        "dismissed": "Écartée",
+        "gone": "Disparue"
+      },
+      "action": {
+        "shortlist": "Présélectionner",
+        "unshortlist": "Retirer de la présélection",
+        "applied": "J'ai postulé",
+        "dismiss": "Écarter",
+        "restore": "Rétablir"
+      },
+      "dismiss": {
+        "title": "Écarter {title}",
+        "reasonLabel": "Pourquoi ? (le coach en tient compte)",
+        "noteLabel": "Note (facultative)",
+        "notePlaceholder": "Une ligne, pour vous",
+        "confirm": "Écarter",
+        "cancel": "Garder",
+        "reason": {
+          "salary": "Salaire",
+          "location": "Lieu",
+          "stack": "Technologies",
+          "seniority": "Séniorité",
+          "company": "Entreprise",
+          "other": "Autre"
+        }
+      },
+      "eligibility": {
+        "title": "Éligibilité",
+        "key": {
+          "salary": "Salaire",
+          "location": "Lieu",
+          "seniority": "Séniorité",
+          "language": "Langue",
+          "work_mode": "Mode de travail"
+        },
+        "state": {
+          "ok": "correspond",
+          "flag": "écart",
+          "unknown": "non précisé"
+        }
+      },
+      "scan": {
+        "cta": "Analyser maintenant",
+        "running": "Analyse en cours",
+        "progress": "{done} sur {total}",
+        "unreachable": "L'analyse tourne encore sur le serveur, mais sa progression n'a pas pu être lue. Rechargez la page dans un instant.",
+        "failed": "L'analyse a échoué.",
+        "failedMsg": "L'analyse a échoué : {msg}",
+        "startError": "L'analyse n'a pas pu démarrer."
+      }
+    },
+    "posting": {
+      "back": "Retour aux offres",
+      "eyebrow": "Offre",
+      "meta": {
+        "source": "Source : {label}",
+        "posted": "publiée {when}",
+        "seen": "vue {when}"
+      },
+      "openSource": "Ouvrir l'offre",
+      "discuss": "Discuter de l'adéquation",
+      "discussError": "La conversation sur l'adéquation n'a pas pu s'ouvrir.",
+      "text": {
+        "title": "L'annonce",
+        "none": "La source n'a publié aucun texte pour cette offre."
+      },
+      "salary": {
+        "title": "Salaire",
+        "unstated": "L'annonce n'indique pas de salaire. C'est inconnu, pas bas.",
+        "noFloor": "Définissez un salaire minimum dans le studio CV pour comparer.",
+        "notComparable": "Non comparable : l'annonce est en {posting}, votre minimum en {floor}. Rien n'est converti.",
+        "below_floor": "Sous votre minimum de {pct} %.",
+        "meets_floor": "Respecte votre minimum sur toute la fourchette.",
+        "spans_floor": "Votre minimum se situe dans la fourchette indiquée."
+      },
+      "match": {
+        "title": "Votre adéquation",
+        "notScored": "Non notée : l'offre n'a pas passé les filtres stricts, ou l'analyse ne l'a pas encore comparée.",
+        "matched": "Compétences correspondantes",
+        "missing": "Compétences manquantes",
+        "unproven": "Déclarées, non prouvées",
+        "none": "Aucune",
+        "jobSource": {
+          "deterministic": "Lue sans IA",
+          "llm": "Lue avec l'IA"
+        }
+      },
+      "reasoning": {
+        "title": "Raisonnement",
+        "none": "Pas encore de justification écrite.",
+        "cta": "Analyse approfondie",
+        "running": "Lecture",
+        "error": "L'analyse approfondie n'a pas pu s'exécuter.",
+        "deterministic": "Aucun modèle d'IA n'est configuré, cette justification est donc un gabarit fixe. Elle est affichée, pas enregistrée.",
+        "strengths": "Points forts",
+        "gaps": "Écarts",
+        "probes": "Questions à prévoir"
+      }
+    },
+    "fit": {
+      "dialogLabel": "Vérification d'adéquation : {title}",
+      "eyebrow": "Vérification d'adéquation",
+      "verdict": {
+        "title": "Verdict",
+        "apply": "Postuler",
+        "skip": "Passer",
+        "undecided": "Indécis"
+      },
+      "markApplied": "Marquer comme postulé",
+      "appliedAlready": "Candidature envoyée",
+      "sheetEmpty": "Les écarts et le verdict apparaissent ici au fil de la conversation.",
+      "gaps": {
+        "title": "Écarts",
+        "none": "Aucun écart ne ressort. L'annonce et votre profil concordent sur ce qui est demandé."
+      },
+      "severity": {
+        "blocking": "Bloquant",
+        "notable": "Notable",
+        "minor": "Mineur"
+      },
+      "coverNote": {
+        "title": "Note de motivation",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyFailed": "La copie a échoué. Sélectionnez le texte et copiez-le vous-même.",
+        "none": "Aucune note de motivation n'a été rédigée.",
+        "pending": "Demandez une note de motivation quand vous êtes prêt ; elle ne s'appuie que sur les faits de votre CV."
+      },
+      "questions": {
+        "title": "Questions à leur poser",
+        "none": "Aucune pour l'instant."
+      },
+      "degradedNoProvider": "Aucun modèle d'IA n'est configuré sur ce serveur, le coach suit donc une liste fixe sur l'adéquation. Votre verdict est tout de même enregistré."
+    },
+    "sources": {
+      "eyebrow": "Recherche d'emploi",
+      "title": "Sources",
+      "intro": "D'où viennent les offres. Les flux et les portails d'entreprise sont un simple interrupteur ; les sites d'emploi dont les conditions interdisent l'automatisation demandent votre accord ; les sites refusés sont listés pour que vous sachiez pourquoi.",
+      "loadError": "Les sources n'ont pas pu être chargées.",
+      "retry": "Réessayer",
+      "loading": "Chargement",
+      "available": "Disponibles à l'ajout",
+      "addEntry": "Ajouter {label}",
+      "refused": "Refusé : {reason}",
+      "tier": {
+        "A": {
+          "title": "Niveau A : flux et portails d'entreprise",
+          "body": "Publiés pour réutilisation ou par l'entreprise elle-même. Un simple interrupteur.",
+          "empty": "Rien pour l'instant. Ajoutez un portail d'entreprise ci-dessous."
+        },
+        "B": {
+          "title": "Niveau B : sites avec leurs propres conditions",
+          "body": "robots.txt autorise les pages ; les conditions du site interdisent le traitement automatisé. Vous les activez en tant que propriétaire de cette installation, en connaissance de cause.",
+          "empty": "Aucun site ajouté. Ajoutez-en un par hôte ci-dessous."
+        },
+        "C": {
+          "title": "Niveau C : refusés",
+          "body": "Ces sites bloquent ou interdisent expressément l'exploration. Ils ne sont jamais consultés, et il n'y a pas d'interrupteur."
+        }
+      },
+      "kind": {
+        "feed": "Flux",
+        "ats": "Portail d'entreprise",
+        "board": "Site d'emploi"
+      },
+      "tierChip": "Niveau {tier}",
+      "lastRun": "dernière exécution {when}",
+      "neverRun": "Jamais exécuté",
+      "paused": "En pause ({reason}) depuis {when}",
+      "pausedShort": "en pause : {reason}",
+      "pauseReason": {
+        "blocked": "le site nous a refusés",
+        "collapsed": "la structure de la page a changé",
+        "owner": "par vous",
+        "terms_review": "conditions en révision"
+      },
+      "outcome": {
+        "succeeded": "réussi",
+        "collapsed": "vide",
+        "blocked": "bloqué",
+        "offline": "hors ligne",
+        "failed": "échoué",
+        "skipped": "ignoré"
+      },
+      "toggleLabel": "Activer {label}",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "resume": "Reprendre",
+      "pause": "Mettre en pause",
+      "updateError": "La source n'a pas pu être modifiée.",
+      "robots": "robots.txt",
+      "robotsUnknown": "Non vérifié pour cet hôte.",
+      "terms": "Conditions",
+      "termsUnknown": "Absent du catalogue : lisez vous-même les conditions de ce site avant de l'activer.",
+      "termsLink": "Lire les conditions",
+      "cadence": "Notre cadence",
+      "cadenceDefault": "Au plus deux fois par jour, une requête à la fois, en respectant le délai d'exploration du site.",
+      "ack": {
+        "title": "Votre accord",
+        "body": "Les conditions de ce site interdisent le traitement automatisé. En l'activant, cette installation consulte ses pages en votre nom, avec courtoisie, et l'exposition est la vôtre.",
+        "changed": "Le résumé des conditions a changé depuis votre dernier accord. Relisez-le avant de continuer.",
+        "reason1": "Les requêtes identifient cette installation et respectent robots.txt et le délai d'exploration.",
+        "reason2": "Un refus du site met la source en pause ; vous seul la reprenez.",
+        "reason3": "Les offres sont lues pour votre propre recherche et ne sont jamais republiées.",
+        "checkbox": "Je suis propriétaire de cette installation et j'accepte cette exposition",
+        "cta": "Activer la source",
+        "cancel": "Pas maintenant"
+      },
+      "rules": {
+        "open": "Règles et aperçu",
+        "author": "Rédiger les règles",
+        "proposing": "Rédaction",
+        "save": "Enregistrer les règles",
+        "saving": "Enregistrement",
+        "saved": "Enregistré",
+        "saveHint": "Lancez d'abord un aperçu concluant ; les règles sont enregistrées avec ce qu'il a mesuré.",
+        "source": {
+          "llm": "Proposées par l'IA",
+          "deterministic": "Proposées sans IA"
+        },
+        "invalid": "Les règles proposées ne peuvent pas s'exécuter. Réessayez ou rédigez-les à la main.",
+        "proposedCount": "{count, plural, one {# règle proposée} other {# règles proposées}}",
+        "title": "Règles",
+        "required": "obligatoire"
+      },
+      "preview": {
+        "open": "Aperçu",
+        "cta": "Aperçu",
+        "running": "Récupération",
+        "error": "L'aperçu n'a pas pu s'exécuter.",
+        "outcome": {
+          "ok": "Extrait",
+          "empty": "Rien d'extrait",
+          "collapsed": "La structure de la page ne correspond pas"
+        },
+        "itemCount": "{count, plural, =0 {aucun élément} one {# élément} other {# éléments}}",
+        "field": "Champ",
+        "matched": "Trouvés",
+        "verdict": "Verdict",
+        "samples": "Exemples",
+        "ruleVerdict": {
+          "hit": "trouvé",
+          "miss-required": "manquant, obligatoire",
+          "miss-optional": "manquant, facultatif",
+          "ambiguous": "ambigu"
+        }
+      },
+      "add": {
+        "title": "Ajouter une source",
+        "error": "La source n'a pas pu être ajoutée.",
+        "ats": {
+          "label": "Un portail d'entreprise par éditeur et identifiant",
+          "vendor": "Éditeur",
+          "slug": "Identifiant de l'entreprise",
+          "slugPlaceholder": "identifiant-entreprise",
+          "cta": "Ajouter"
+        },
+        "board": {
+          "label": "Un site d'emploi par hôte",
+          "host": "Hôte",
+          "hostPlaceholder": "emplois.exemple.fr",
+          "cta": "Ajouter",
+          "hint": "Un hôte hors catalogue est de niveau B : vous lisez ses conditions et les acceptez à l'activation."
+        }
+      }
+    },
+    "scans": {
+      "eyebrow": "Recherche d'emploi",
+      "title": "Analyses",
+      "intro": "Une analyse lit chaque source activée, note ce qu'elle trouve et approfondit la présélection. Lancez-en une à la main ; après le premier succès, le minuteur peut prendre le relais.",
+      "loadError": "La planification n'a pas pu être chargée.",
+      "retry": "Réessayer",
+      "loading": "Chargement",
+      "updateError": "La planification n'a pas pu être modifiée.",
+      "clock": {
+        "title": "Minuteur",
+        "toggleTitle": "Lancer l'analyse selon le minuteur",
+        "on": "Activé",
+        "off": "Désactivé",
+        "every": "toutes les",
+        "hours": "{hours} h",
+        "intervalAria": "Intervalle d'analyse",
+        "lastRun": "dernière vérification {when}",
+        "never": "pas encore lancée par le minuteur"
+      },
+      "history": {
+        "title": "Analyses récentes",
+        "none": "Aucune analyse n'a encore eu lieu.",
+        "status": {
+          "ok": "ok",
+          "error": "échouée",
+          "skipped": "ignorée"
+        },
+        "trigger": {
+          "clock": "minuteur",
+          "manual": "à la main"
+        },
+        "matched": "{n} comparées",
+        "deepDived": "{n} approfondies",
+        "deepDiveSkipped": "approfondissement ignoré : aucun modèle d'IA"
+      },
+      "table": {
+        "source": "Source",
+        "outcome": "Résultat",
+        "new": "Nouvelles",
+        "changed": "Modifiées",
+        "absent": "Absentes",
+        "reason": "Raison",
+        "resumeLink": "Reprendre dans Sources"
+      }
     }
   }
 }

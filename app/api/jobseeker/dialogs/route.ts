@@ -7,12 +7,13 @@ import { currentUserId } from "@/app/_lib/auth/session";
 import { createDialog, listDialogs } from "@/app/_lib/db/jobseeker-dialogs";
 import { getJobseekerProfile, getJobseekerProfileById } from "@/app/_lib/db/jobseeker-profiles";
 import { intakeLang } from "@/app/_lib/intake-lang";
+import { fitTurnContext } from "@/app/_lib/jobseeker-fit-context";
 import { JobseekerInputError, JobseekerTimeoutError, runJobseekerOpening } from "@/app/_lib/jobseeker-run";
 import { isDialogKind, type StudioTurn } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The seeker's Studio dialogs: POST opens one (cv_polish over the stored CV, or fit
-// about one posting — WP5 writes that persona), GET lists a profile's.
+// about one posting), GET lists a profile's.
 //
 // The opening turn is DETERMINISTIC Python (identical keyless and keyed), so a
 // create never waits on a model; the spend starts at the first message.
@@ -57,6 +58,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     const lang = intakeLang(body.lang);
     const postingId = typeof body.postingId === "string" && body.postingId ? body.postingId.slice(0, 64) : null;
+    // A fit dialog is ABOUT one posting of this workspace (WP5): the opening lists its
+    // gaps, so the posting, its match and the seeker's dismissals ride the first turn
+    // too. A fit request naming no posting, or a foreign one, is a posting not found.
+    const fit = kind === "fit" ? fitTurnContext(postingId, ws) : null;
+    if (kind === "fit" && !fit) return jsonRefusal("POSTING_NOT_FOUND", 404);
     const opening = await runJobseekerOpening(
       {
         kind,
@@ -65,6 +71,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         preferences: profile.preferences,
         cvSourceText: profile.cvSourceText,
         artifact: null,
+        ...(fit ?? {}),
       },
       request.signal
     );

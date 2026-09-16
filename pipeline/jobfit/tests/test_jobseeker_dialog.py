@@ -15,7 +15,11 @@ import unittest
 
 from pipeline.jobfit.jobseeker import (
     CV_POLISH_PROMPT_VERSION,
+    FIT_PROMPT_VERSION,
+    build_fit_prompt,
+    deterministic_fit_turn,
     deterministic_turn,
+    fit_gaps,
     opening_turn,
     parse_locations,
     parse_salary,
@@ -248,18 +252,156 @@ class DeterministicDialogTest(unittest.TestCase):
         self.assertEqual(result["artifact"]["suggestions"], [])
         self.assertIn("Summary", result["reply"])
 
-    def test_fit_kind_is_accepted_with_its_stub_opening(self) -> None:
-        result = opening_turn(_req(kind="fit"))
-        self.assertTrue(result["reply"])
-        self.assertIsNone(result["artifact"])
-        self.assertFalse(result["done"])
-
     def test_run_turn_without_provider_is_the_twin(self) -> None:
         turns, _ = _drive(["Praha"])
         result = run_turn(None, _req(transcript=turns, message="3000 EUR/month", artifact=None))
         self.assertEqual(result["source"], "deterministic")
         self.assertEqual(result["fallbackReason"], "no provider available")
         self.assertEqual(result["artifact"]["preferences"]["salaryFloor"]["currency"], "EUR")
+
+
+POSTING = {
+    "id": "p1",
+    "title": "Senior Backend Engineer",
+    "company": "Acme s.r.o.",
+    "location": "Praha",
+    "workMode": "hybrid",
+    "salaryMin": None,
+    "salaryMax": None,
+    "salaryCurrency": None,
+    "salaryPeriod": None,
+    "bodyText": "We build the payments platform. You will own services in Python and Go. Experience with Kafka is required. Terraform is a plus. Fluent Czech and English.",
+    "url": "https://example.com/jobs/1",
+    "matchTotal": 71,
+    "fitTier": "promising",
+    "reasoning": None,
+}
+
+MATCH = {
+    "total": 71,
+    "fitTier": "promising",
+    "matchedSkills": ["Python", "Go"],
+    "missingSkills": ["Kafka", "Terraform"],
+    "unprovenSkills": ["Kubernetes"],
+    "eligibility": [
+        {"key": "salary", "state": "unknown", "detail": "The posting states no pay."},
+        {"key": "location", "state": "ok", "detail": "Praha is one of your places."},
+    ],
+    "confidence": {"low": 64, "high": 78, "level": "moderate", "drivers": []},
+}
+
+DISMISSALS = [
+    {"reason": "salary", "note": None, "title": "Backend Developer"},
+    {"reason": "salary", "note": "too low", "title": "Platform Engineer"},
+    {"reason": "salary", "note": None, "title": "Go Developer"},
+    {"reason": "location", "note": None, "title": "SRE"},
+]
+
+
+def _fit_req(lang: str = "en", **over):
+    base = _req(lang, kind="fit", posting=POSTING, match=MATCH, dismissals=DISMISSALS)
+    base.update(over)
+    return base
+
+
+def _drive_fit(answers: list[str], lang: str = "en") -> tuple[list[dict], dict]:
+    turns: list[dict] = []
+    result = opening_turn(_fit_req(lang))
+    turns.append({"role": "interviewer", "text": result["reply"]})
+    artifact = result["artifact"]
+    for answer in answers:
+        result = deterministic_fit_turn(_fit_req(lang, transcript=turns, message=answer, artifact=artifact))
+        turns.append({"role": "candidate", "text": answer})
+        turns.append({"role": "interviewer", "text": result["reply"]})
+        artifact = result["artifact"]
+        if result["done"]:
+            break
+    return turns, result
+
+
+class FitDialogTest(unittest.TestCase):
+    def test_openings_in_four_locales_carry_the_gap_card(self) -> None:
+        for lang in ("en", "cs", "de", "fr"):
+            result = opening_turn(_fit_req(lang))
+            self.assertTrue(result["reply"].strip(), lang)
+            self.assertEqual(result["source"], "deterministic")
+            self.assertEqual(result["promptVersion"], FIT_PROMPT_VERSION)
+            self.assertNotIn("fallbackLang", result)
+            self.assertEqual(result["artifact"]["verdict"], "undecided")
+            self.assertIsNotNone(result["choices"], lang)
+            self.assertEqual(result["choices"]["field"], "gap")
+            self.assertLessEqual(len(result["choices"]["options"]), 3)
+            self.assertIn("71", result["reply"])
+
+    def test_every_gap_cites_a_posting_sentence_or_a_match_field(self) -> None:
+        gaps = fit_gaps(_fit_req())
+        self.assertTrue(gaps)
+        for g in gaps:
+            self.assertTrue(g["source"], g)
+            self.assertTrue(g["source"] in POSTING["bodyText"] or g["source"] in ("missingSkills", "unprovenSkills") or g["source"].startswith("eligibility."), g)
+        # Kafka is named by a posting sentence, so THAT sentence is the citation.
+        kafka = next(g for g in gaps if g["skill"] == "Kafka")
+        self.assertIn("Kafka is required", kafka["source"])
+        # On the wire the citation rides inside the mitigation.
+        result = opening_turn(_fit_req())
+        for g in result["artifact"]["gaps"]:
+            self.assertIn("Cited:", g["mitigation"], g)
+
+    def test_keyless_flow_reaches_a_verdict_in_at_most_six_turns(self) -> None:
+        turns, result = _drive_fit(["Kafka", "Terraform", "Apply"])
+        self.assertTrue(result["done"], result["reply"])
+        self.assertEqual(result["artifact"]["verdict"], "apply")
+        seeker_turns = [t for t in turns if t["role"] == "candidate"]
+        self.assertLessEqual(len(seeker_turns), 6)
+        # After two gaps the verdict card was on the table.
+        mid = deterministic_fit_turn(_fit_req(transcript=turns[:3], message="Terraform", artifact=result["artifact"]))
+        self.assertEqual(mid["choices"]["field"], "verdict")
+        # The gap answer states a benign reading beside the risk.
+        self.assertIn("benign reading", turns[2]["text"])
+        for turn in turns:
+            self.assertTrue(turn["text"].strip())
+
+    def test_cover_note_is_profile_facts_only(self) -> None:
+        _turns, result = _drive_fit(["Kafka", "Terraform", "Apply"])
+        note = result["artifact"]["coverNoteMd"]
+        self.assertTrue(note)
+        self.assertLessEqual(note.count(". "), 4)
+        self.assertIn("Senior Backend Engineer", note)
+        self.assertIn("Acme s.r.o.", note)
+        self.assertIn("Praha", note)
+        self.assertIn("Python", note)
+        # Nothing the profile does not state: no invented employer, no invented number.
+        self.assertNotIn("Kafka", note)
+
+    def test_skip_and_undecided_close_without_a_cover_note(self) -> None:
+        _turns, result = _drive_fit(["Kafka", "Skip"])
+        self.assertTrue(result["done"])
+        self.assertEqual(result["artifact"]["verdict"], "skip")
+        self.assertIsNone(result["artifact"]["coverNoteMd"])
+
+    def test_dismissals_reach_the_prompt_and_the_opening(self) -> None:
+        prompt = build_fit_prompt(_fit_req(), "hello")
+        self.assertIn("RECENT DISMISSALS", prompt)
+        self.assertIn("Platform Engineer: salary (too low)", prompt)
+        self.assertIn("<<<POSTING_TEXT>>>", prompt)
+        # The taste line: three dismissals for pay, and this posting states no pay.
+        opening = opening_turn(_fit_req())
+        self.assertIn("dismissed 3 recent postings for pay", opening["reply"])
+        self.assertIn("states no pay", opening["reply"])
+
+    def test_no_gaps_offers_the_verdict_card_at_once(self) -> None:
+        clean = {**MATCH, "missingSkills": [], "unprovenSkills": [], "eligibility": []}
+        result = opening_turn(_fit_req(match=clean))
+        self.assertEqual(result["choices"]["field"], "verdict")
+        self.assertEqual(result["artifact"]["gaps"], [])
+
+    def test_run_turn_without_provider_is_the_fit_twin(self) -> None:
+        turns, _ = _drive_fit(["Kafka"])
+        result = run_turn(None, _fit_req(transcript=turns, message="Terraform", artifact=None))
+        self.assertEqual(result["source"], "deterministic")
+        self.assertEqual(result["fallbackReason"], "no provider available")
+        self.assertEqual(result["promptVersion"], FIT_PROMPT_VERSION)
+        self.assertTrue(result["artifact"]["gaps"])
 
 
 class CliTest(unittest.TestCase):

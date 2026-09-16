@@ -10615,13 +10615,15 @@
     "columns": {
       "col": {
         "chat": "Conversation",
-        "sheet": "Your CV"
+        "sheet": "Your CV",
+        "fit": "Fit sheet"
       },
       "hide": "Hide: {column}",
       "show": "Show: {column}",
       "badge": {
         "turns": "{count, plural, one {# message} other {# messages}}",
-        "suggestions": "{count, plural, =0 {No open suggestions} one {# open suggestion} other {# open suggestions}}"
+        "suggestions": "{count, plural, =0 {No open suggestions} one {# open suggestion} other {# open suggestions}}",
+        "gaps": "{count, plural, =0 {No gaps listed} one {# gap} other {# gaps}}"
       }
     },
     "composer": {
@@ -10748,6 +10750,393 @@
       "back": "Back to my job search",
       "print": "Print / save as PDF",
       "none": "There is no polished CV yet. Finish a CV conversation first."
+    },
+    "jobs": {
+      "eyebrow": "Job search",
+      "title": "Jobs",
+      "intro": "Every posting your sources found, scored against your profile. Shortlist, apply, or dismiss with a reason the coach learns from.",
+      "filter": {
+        "status": "Status",
+        "statusOption": {
+          "live": "Live",
+          "new": "New",
+          "shortlisted": "Shortlisted",
+          "applied": "Applied",
+          "dismissed": "Dismissed"
+        },
+        "minFit": "Min fit",
+        "minFitAny": "Any",
+        "minFitValue": "{n}+",
+        "source": "Source",
+        "allSources": "All sources"
+      },
+      "sort": {
+        "label": "Sort",
+        "total": "Best fit",
+        "posted": "Newest posted",
+        "seen": "Last seen"
+      },
+      "actionError": "That change could not be saved. Please try again.",
+      "loadError": "The feed could not be loaded.",
+      "retry": "Try again",
+      "loading": "Loading",
+      "loadMore": "Load more",
+      "empty": {
+        "no_profile": {
+          "title": "Start with your CV",
+          "body": "The feed scores postings against your profile, and there is no profile yet. Import your CV first.",
+          "cta": "Go to Profile & CV"
+        },
+        "no_sources": {
+          "title": "No source is switched on",
+          "body": "Your profile is ready, but nothing is being read. Enable at least one source and the next scan fills this page.",
+          "cta": "Choose sources"
+        },
+        "no_scan": {
+          "title": "Nothing has been scanned yet",
+          "body": "Your sources are on. Run the first scan now; once it succeeds, the timer on the Scans page can take over."
+        },
+        "below_min": {
+          "title": "Nothing above your minimum fit",
+          "body": "{count, plural, one {# posting sits} other {# postings sit}} below the fit you asked for. Lower the minimum to see them."
+        },
+        "nothing_live": {
+          "title": "Nothing live right now",
+          "body": "The last scan found nothing new, or everything has been dismissed. Scan again, or check the Dismissed filter."
+        }
+      },
+      "card": {
+        "unscored": "Not scored",
+        "deepDived": "Deep-dived",
+        "source": "Source: {label}",
+        "seen": "Seen {when}",
+        "confidence": "Confidence {level} ({low} to {high})",
+        "dismissed": "Dismissed: {reason}"
+      },
+      "confidenceLevel": {
+        "tight": "tight",
+        "moderate": "moderate",
+        "wide": "wide"
+      },
+      "workMode": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onsite": "On site"
+      },
+      "status": {
+        "new": "New",
+        "shortlisted": "Shortlisted",
+        "applied": "Applied",
+        "dismissed": "Dismissed",
+        "gone": "Gone"
+      },
+      "action": {
+        "shortlist": "Shortlist",
+        "unshortlist": "Unshortlist",
+        "applied": "I applied",
+        "dismiss": "Dismiss",
+        "restore": "Restore"
+      },
+      "dismiss": {
+        "title": "Dismiss {title}",
+        "reasonLabel": "Why? (the coach learns from this)",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "One line, for you",
+        "confirm": "Dismiss",
+        "cancel": "Keep it",
+        "reason": {
+          "salary": "Pay",
+          "location": "Location",
+          "stack": "Stack",
+          "seniority": "Seniority",
+          "company": "Company",
+          "other": "Other"
+        }
+      },
+      "eligibility": {
+        "title": "Eligibility",
+        "key": {
+          "salary": "Pay",
+          "location": "Location",
+          "seniority": "Seniority",
+          "language": "Language",
+          "work_mode": "Work mode"
+        },
+        "state": {
+          "ok": "matches",
+          "flag": "mismatch",
+          "unknown": "not stated"
+        }
+      },
+      "scan": {
+        "cta": "Scan now",
+        "running": "Scanning",
+        "progress": "{done} of {total}",
+        "unreachable": "The scan is still running on the server, but its progress could not be read. Reload the page in a moment.",
+        "failed": "The scan failed.",
+        "failedMsg": "The scan failed: {msg}",
+        "startError": "The scan could not be started."
+      }
+    },
+    "posting": {
+      "back": "Back to jobs",
+      "eyebrow": "Posting",
+      "meta": {
+        "source": "Source: {label}",
+        "posted": "posted {when}",
+        "seen": "seen {when}"
+      },
+      "openSource": "Open posting",
+      "discuss": "Discuss fit",
+      "discussError": "The fit conversation could not be opened.",
+      "text": {
+        "title": "The posting",
+        "none": "The source published no text for this posting."
+      },
+      "salary": {
+        "title": "Pay",
+        "unstated": "The posting states no pay. That is unknown, not low.",
+        "noFloor": "Set a salary floor in the CV studio to compare.",
+        "notComparable": "Not comparable: the posting is in {posting}, your floor is in {floor}. Nothing is converted.",
+        "below_floor": "Below your floor by {pct}%.",
+        "meets_floor": "Meets your floor across the whole range.",
+        "spans_floor": "Your floor falls inside the stated range."
+      },
+      "match": {
+        "title": "Your match",
+        "notScored": "Not scored: the posting did not pass the hard filters, or the scan has not matched it yet.",
+        "matched": "Matched skills",
+        "missing": "Missing skills",
+        "unproven": "Claimed, unproven",
+        "none": "None",
+        "jobSource": {
+          "deterministic": "Parsed without AI",
+          "llm": "Parsed with AI"
+        }
+      },
+      "reasoning": {
+        "title": "Reasoning",
+        "none": "No written rationale yet.",
+        "cta": "Deep-dive",
+        "running": "Reading",
+        "error": "The deep-dive could not run.",
+        "deterministic": "No AI model is configured, so this rationale is a fixed template. It is shown, not saved.",
+        "strengths": "Strengths",
+        "gaps": "Gaps",
+        "probes": "Questions to expect"
+      }
+    },
+    "fit": {
+      "dialogLabel": "Fit check: {title}",
+      "eyebrow": "Fit check",
+      "verdict": {
+        "title": "Verdict",
+        "apply": "Apply",
+        "skip": "Skip",
+        "undecided": "Undecided"
+      },
+      "markApplied": "Mark applied",
+      "appliedAlready": "Applied",
+      "sheetEmpty": "The gaps and the verdict appear here as you talk.",
+      "gaps": {
+        "title": "Gaps",
+        "none": "No gap stands out. The posting and your profile line up on what it asks for."
+      },
+      "severity": {
+        "blocking": "Blocking",
+        "notable": "Notable",
+        "minor": "Minor"
+      },
+      "coverNote": {
+        "title": "Cover note",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "Copy failed. Select the text and copy it yourself.",
+        "none": "No cover note was written.",
+        "pending": "Ask for a cover note when you are ready; it is built only from facts in your CV."
+      },
+      "questions": {
+        "title": "Questions to ask them",
+        "none": "None yet."
+      },
+      "degradedNoProvider": "No AI model is configured on this server, so the coach follows a fixed checklist over the match. Your verdict is still saved."
+    },
+    "sources": {
+      "eyebrow": "Job search",
+      "title": "Sources",
+      "intro": "Where postings come from. Feeds and company boards are a switch; job boards whose terms forbid automation need your acknowledgement; refused boards are listed so you know why.",
+      "loadError": "The sources could not be loaded.",
+      "retry": "Try again",
+      "loading": "Loading",
+      "available": "Available to add",
+      "addEntry": "Add {label}",
+      "refused": "Refused: {reason}",
+      "tier": {
+        "A": {
+          "title": "Tier A: feeds and company boards",
+          "body": "Published for reuse or by the company itself. A plain switch.",
+          "empty": "Nothing here yet. Add a company board below."
+        },
+        "B": {
+          "title": "Tier B: boards under their own terms",
+          "body": "robots.txt allows the pages; the site's terms forbid automated processing. You enable these as the owner of this install, on the record.",
+          "empty": "No board added. Add one by host below."
+        },
+        "C": {
+          "title": "Tier C: refused",
+          "body": "These block or forbid crawling outright. They are never fetched, and there is no switch."
+        }
+      },
+      "kind": {
+        "feed": "Feed",
+        "ats": "Company board",
+        "board": "Job board"
+      },
+      "tierChip": "Tier {tier}",
+      "lastRun": "last run {when}",
+      "neverRun": "Not run yet",
+      "paused": "Paused ({reason}) since {when}",
+      "pausedShort": "paused: {reason}",
+      "pauseReason": {
+        "blocked": "the site refused us",
+        "collapsed": "the page shape changed",
+        "owner": "by you",
+        "terms_review": "terms under review"
+      },
+      "outcome": {
+        "succeeded": "succeeded",
+        "collapsed": "collapsed",
+        "blocked": "blocked",
+        "offline": "offline",
+        "failed": "failed",
+        "skipped": "skipped"
+      },
+      "toggleLabel": "Enable {label}",
+      "enabled": "On",
+      "disabled": "Off",
+      "resume": "Resume",
+      "pause": "Pause",
+      "updateError": "The source could not be updated.",
+      "robots": "robots.txt",
+      "robotsUnknown": "Not checked for this host.",
+      "terms": "Terms",
+      "termsUnknown": "Not in the catalog: read this board's terms yourself before enabling it.",
+      "termsLink": "Read the terms",
+      "cadence": "Our cadence",
+      "cadenceDefault": "Twice a day at most, one request at a time, with the site's crawl delay honoured.",
+      "ack": {
+        "title": "Your acknowledgement",
+        "body": "This board's terms forbid automated processing. Enabling it means this install fetches its pages on your behalf, politely, and the exposure is yours.",
+        "changed": "The terms summary changed since you last acknowledged it. Read it again before continuing.",
+        "reason1": "Requests identify this install and honour robots.txt and the crawl delay.",
+        "reason2": "A refusal from the site pauses the source; only you resume it.",
+        "reason3": "Postings are read for your own search and are never republished.",
+        "checkbox": "I own this install and accept this exposure",
+        "cta": "Enable source",
+        "cancel": "Not now"
+      },
+      "rules": {
+        "open": "Rules and preview",
+        "author": "Author rules",
+        "proposing": "Authoring",
+        "save": "Save rules",
+        "saving": "Saving",
+        "saved": "Saved",
+        "saveHint": "Run a preview that passes first; the rules are saved with what it measured.",
+        "source": {
+          "llm": "Proposed by AI",
+          "deterministic": "Proposed without AI"
+        },
+        "invalid": "The proposed rules cannot run. Try again or author them by hand.",
+        "proposedCount": "{count, plural, one {# rule} other {# rules}} proposed",
+        "title": "Rules",
+        "required": "required"
+      },
+      "preview": {
+        "open": "Preview",
+        "cta": "Preview",
+        "running": "Fetching",
+        "error": "The preview could not run.",
+        "outcome": {
+          "ok": "Extracts",
+          "empty": "Nothing extracted",
+          "collapsed": "Page shape does not match"
+        },
+        "itemCount": "{count, plural, =0 {no items} one {# item} other {# items}}",
+        "field": "Field",
+        "matched": "Matched",
+        "verdict": "Verdict",
+        "samples": "Samples",
+        "ruleVerdict": {
+          "hit": "hit",
+          "miss-required": "missing, required",
+          "miss-optional": "missing, optional",
+          "ambiguous": "ambiguous"
+        }
+      },
+      "add": {
+        "title": "Add a source",
+        "error": "The source could not be added.",
+        "ats": {
+          "label": "A company's board by vendor and slug",
+          "vendor": "Vendor",
+          "slug": "Company slug",
+          "slugPlaceholder": "company-slug",
+          "cta": "Add"
+        },
+        "board": {
+          "label": "A job board by host",
+          "host": "Host",
+          "hostPlaceholder": "jobs.example.com",
+          "cta": "Add",
+          "hint": "A host outside the catalog is tier B: you read its terms and acknowledge them when you enable it."
+        }
+      }
+    },
+    "scans": {
+      "eyebrow": "Job search",
+      "title": "Scans",
+      "intro": "A scan reads every enabled source, scores what it finds and deep-dives the shortlist. Run one by hand; after the first success the timer can take over.",
+      "loadError": "The schedule could not be loaded.",
+      "retry": "Try again",
+      "loading": "Loading",
+      "updateError": "The schedule could not be updated.",
+      "clock": {
+        "title": "Timer",
+        "toggleTitle": "Run the scan on a timer",
+        "on": "On",
+        "off": "Off",
+        "every": "every",
+        "hours": "{hours} h",
+        "intervalAria": "Scan interval",
+        "lastRun": "last checked {when}",
+        "never": "not yet run by the timer"
+      },
+      "history": {
+        "title": "Recent scans",
+        "none": "No scan has run yet.",
+        "status": {
+          "ok": "ok",
+          "error": "failed",
+          "skipped": "skipped"
+        },
+        "trigger": {
+          "clock": "timer",
+          "manual": "by hand"
+        },
+        "matched": "{n} matched",
+        "deepDived": "{n} deep-dived",
+        "deepDiveSkipped": "deep-dive skipped: no AI model"
+      },
+      "table": {
+        "source": "Source",
+        "outcome": "Outcome",
+        "new": "New",
+        "changed": "Changed",
+        "absent": "Absent",
+        "reason": "Reason",
+        "resumeLink": "Resume on Sources"
+      }
     }
   }
 }

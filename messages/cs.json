@@ -10615,13 +10615,15 @@
     "columns": {
       "col": {
         "chat": "Konverzace",
-        "sheet": "Vaše CV"
+        "sheet": "Vaše CV",
+        "fit": "List shody"
       },
       "hide": "Skrýt: {column}",
       "show": "Zobrazit: {column}",
       "badge": {
         "turns": "{count, plural, one {# zpráva} few {# zprávy} other {# zpráv}}",
-        "suggestions": "{count, plural, =0 {Žádné otevřené návrhy} one {# otevřený návrh} few {# otevřené návrhy} other {# otevřených návrhů}}"
+        "suggestions": "{count, plural, =0 {Žádné otevřené návrhy} one {# otevřený návrh} few {# otevřené návrhy} other {# otevřených návrhů}}",
+        "gaps": "{count, plural, =0 {Žádné rozdíly} one {# rozdíl} few {# rozdíly} other {# rozdílů}}"
       }
     },
     "composer": {
@@ -10748,6 +10750,393 @@
       "back": "Zpět na moje hledání práce",
       "print": "Tisknout / uložit jako PDF",
       "none": "Zatím žádné upravené CV neexistuje. Nejdřív dokončete konverzaci o CV."
+    },
+    "jobs": {
+      "eyebrow": "Hledání práce",
+      "title": "Nabídky",
+      "intro": "Každá nabídka, kterou vaše zdroje našly, ohodnocená podle vašeho profilu. Dejte ji do užšího výběru, přihlaste se nebo ji odložte s důvodem, ze kterého se kouč učí.",
+      "filter": {
+        "status": "Stav",
+        "statusOption": {
+          "live": "Aktivní",
+          "new": "Nové",
+          "shortlisted": "Užší výběr",
+          "applied": "Přihlášeno",
+          "dismissed": "Odložené"
+        },
+        "minFit": "Min. shoda",
+        "minFitAny": "Libovolná",
+        "minFitValue": "{n}+",
+        "source": "Zdroj",
+        "allSources": "Všechny zdroje"
+      },
+      "sort": {
+        "label": "Řadit",
+        "total": "Nejlepší shoda",
+        "posted": "Nejnověji zveřejněné",
+        "seen": "Naposledy viděné"
+      },
+      "actionError": "Změnu se nepodařilo uložit. Zkuste to prosím znovu.",
+      "loadError": "Přehled se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "loading": "Načítání",
+      "loadMore": "Načíst další",
+      "empty": {
+        "no_profile": {
+          "title": "Začněte svým CV",
+          "body": "Přehled hodnotí nabídky podle vašeho profilu a ten zatím neexistuje. Nejdřív importujte své CV.",
+          "cta": "Přejít na Profil a CV"
+        },
+        "no_sources": {
+          "title": "Žádný zdroj není zapnutý",
+          "body": "Váš profil je připraven, ale nic se nečte. Zapněte alespoň jeden zdroj a příští sken tuto stránku naplní.",
+          "cta": "Vybrat zdroje"
+        },
+        "no_scan": {
+          "title": "Zatím nic nebylo prohledáno",
+          "body": "Vaše zdroje jsou zapnuté. Spusťte první sken teď; jakmile proběhne, může se na stránce Skeny zapnout časovač."
+        },
+        "below_min": {
+          "title": "Nic nad vaší minimální shodou",
+          "body": "{count, plural, one {# nabídka je} few {# nabídky jsou} other {# nabídek je}} pod shodou, kterou jste nastavili. Snižte minimum a uvidíte je."
+        },
+        "nothing_live": {
+          "title": "Právě nic aktivního",
+          "body": "Poslední sken nenašel nic nového, nebo jste všechno odložili. Spusťte sken znovu, nebo se podívejte do filtru Odložené."
+        }
+      },
+      "card": {
+        "unscored": "Bez hodnocení",
+        "deepDived": "Podrobně prověřeno",
+        "source": "Zdroj: {label}",
+        "seen": "Viděno {when}",
+        "confidence": "Spolehlivost {level} ({low} až {high})",
+        "dismissed": "Odloženo: {reason}"
+      },
+      "confidenceLevel": {
+        "tight": "vysoká",
+        "moderate": "střední",
+        "wide": "nízká"
+      },
+      "workMode": {
+        "remote": "Na dálku",
+        "hybrid": "Hybridně",
+        "onsite": "V kanceláři"
+      },
+      "status": {
+        "new": "Nové",
+        "shortlisted": "Užší výběr",
+        "applied": "Přihlášeno",
+        "dismissed": "Odloženo",
+        "gone": "Zmizelo"
+      },
+      "action": {
+        "shortlist": "Do užšího výběru",
+        "unshortlist": "Vyřadit z výběru",
+        "applied": "Přihlásil(a) jsem se",
+        "dismiss": "Odložit",
+        "restore": "Obnovit"
+      },
+      "dismiss": {
+        "title": "Odložit {title}",
+        "reasonLabel": "Proč? (kouč se z toho učí)",
+        "noteLabel": "Poznámka (nepovinná)",
+        "notePlaceholder": "Jeden řádek, jen pro vás",
+        "confirm": "Odložit",
+        "cancel": "Ponechat",
+        "reason": {
+          "salary": "Plat",
+          "location": "Místo",
+          "stack": "Technologie",
+          "seniority": "Seniorita",
+          "company": "Firma",
+          "other": "Jiné"
+        }
+      },
+      "eligibility": {
+        "title": "Způsobilost",
+        "key": {
+          "salary": "Plat",
+          "location": "Místo",
+          "seniority": "Seniorita",
+          "language": "Jazyk",
+          "work_mode": "Režim práce"
+        },
+        "state": {
+          "ok": "odpovídá",
+          "flag": "neshoda",
+          "unknown": "neuvedeno"
+        }
+      },
+      "scan": {
+        "cta": "Prohledat teď",
+        "running": "Prohledávání",
+        "progress": "{done} z {total}",
+        "unreachable": "Sken na serveru stále běží, ale jeho průběh se nepodařilo přečíst. Za chvíli stránku obnovte.",
+        "failed": "Sken selhal.",
+        "failedMsg": "Sken selhal: {msg}",
+        "startError": "Sken se nepodařilo spustit."
+      }
+    },
+    "posting": {
+      "back": "Zpět na nabídky",
+      "eyebrow": "Nabídka",
+      "meta": {
+        "source": "Zdroj: {label}",
+        "posted": "zveřejněno {when}",
+        "seen": "viděno {when}"
+      },
+      "openSource": "Otevřít nabídku",
+      "discuss": "Probrat shodu",
+      "discussError": "Rozhovor o shodě se nepodařilo otevřít.",
+      "text": {
+        "title": "Text nabídky",
+        "none": "Zdroj u této nabídky nezveřejnil žádný text."
+      },
+      "salary": {
+        "title": "Plat",
+        "unstated": "Nabídka plat neuvádí. To je neznámé, ne nízké.",
+        "noFloor": "Nastavte si v CV studiu minimální mzdu a porovnáme ji.",
+        "notComparable": "Nelze porovnat: nabídka je v {posting}, vaše minimum v {floor}. Nic se nepřepočítává.",
+        "below_floor": "Pod vaším minimem o {pct} %.",
+        "meets_floor": "Splňuje vaše minimum v celém rozpětí.",
+        "spans_floor": "Vaše minimum leží uvnitř uvedeného rozpětí."
+      },
+      "match": {
+        "title": "Vaše shoda",
+        "notScored": "Bez hodnocení: nabídka neprošla tvrdými filtry, nebo ji sken ještě neporovnal.",
+        "matched": "Odpovídající dovednosti",
+        "missing": "Chybějící dovednosti",
+        "unproven": "Uvedené, nedoložené",
+        "none": "Žádné",
+        "jobSource": {
+          "deterministic": "Zpracováno bez AI",
+          "llm": "Zpracováno s AI"
+        }
+      },
+      "reasoning": {
+        "title": "Zdůvodnění",
+        "none": "Zatím žádné písemné zdůvodnění.",
+        "cta": "Podrobně prověřit",
+        "running": "Čtení",
+        "error": "Podrobné prověření se nepodařilo spustit.",
+        "deterministic": "Není nastaven žádný AI model, takže toto zdůvodnění je pevná šablona. Zobrazuje se, neukládá.",
+        "strengths": "Silné stránky",
+        "gaps": "Rozdíly",
+        "probes": "Otázky, které čekejte"
+      }
+    },
+    "fit": {
+      "dialogLabel": "Ověření shody: {title}",
+      "eyebrow": "Ověření shody",
+      "verdict": {
+        "title": "Verdikt",
+        "apply": "Přihlásit se",
+        "skip": "Vynechat",
+        "undecided": "Nerozhodnuto"
+      },
+      "markApplied": "Označit jako přihlášeno",
+      "appliedAlready": "Přihlášeno",
+      "sheetEmpty": "Rozdíly a verdikt se tu objeví během rozhovoru.",
+      "gaps": {
+        "title": "Rozdíly",
+        "none": "Žádný rozdíl nevyčnívá. Nabídka a váš profil se v požadavcích shodují."
+      },
+      "severity": {
+        "blocking": "Zásadní",
+        "notable": "Významný",
+        "minor": "Drobný"
+      },
+      "coverNote": {
+        "title": "Průvodní dopis",
+        "copy": "Kopírovat",
+        "copied": "Zkopírováno",
+        "copyFailed": "Kopírování selhalo. Označte text a zkopírujte ho sami.",
+        "none": "Průvodní dopis nebyl napsán.",
+        "pending": "Až budete chtít, řekněte si o průvodní dopis; vzniká jen z faktů ve vašem CV."
+      },
+      "questions": {
+        "title": "Na co se jich zeptat",
+        "none": "Zatím nic."
+      },
+      "degradedNoProvider": "Na tomto serveru není nastaven žádný AI model, takže kouč postupuje podle pevného seznamu nad shodou. Váš verdikt se přesto uloží."
+    },
+    "sources": {
+      "eyebrow": "Hledání práce",
+      "title": "Zdroje",
+      "intro": "Odkud nabídky přicházejí. Feedy a firemní kariérní stránky jsou jen přepínač; pracovní portály, jejichž podmínky automatizaci zakazují, vyžadují vaše potvrzení; odmítnuté portály jsou uvedeny, abyste věděli proč.",
+      "loadError": "Zdroje se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "loading": "Načítání",
+      "available": "K dispozici k přidání",
+      "addEntry": "Přidat {label}",
+      "refused": "Odmítnuto: {reason}",
+      "tier": {
+        "A": {
+          "title": "Úroveň A: feedy a firemní stránky",
+          "body": "Zveřejněné k dalšímu využití nebo přímo firmou. Obyčejný přepínač.",
+          "empty": "Zatím nic. Přidejte firemní kariérní stránku níže."
+        },
+        "B": {
+          "title": "Úroveň B: portály s vlastními podmínkami",
+          "body": "robots.txt stránky povoluje; podmínky webu automatizované zpracování zakazují. Zapínáte je jako vlastník této instalace, s vědomím důsledků.",
+          "empty": "Žádný portál nepřidán. Přidejte ho níže podle domény."
+        },
+        "C": {
+          "title": "Úroveň C: odmítnuté",
+          "body": "Tyto weby procházení blokují nebo výslovně zakazují. Nikdy se nestahují a žádný přepínač nemají."
+        }
+      },
+      "kind": {
+        "feed": "Feed",
+        "ats": "Firemní stránka",
+        "board": "Pracovní portál"
+      },
+      "tierChip": "Úroveň {tier}",
+      "lastRun": "naposledy {when}",
+      "neverRun": "Zatím neběželo",
+      "paused": "Pozastaveno ({reason}) od {when}",
+      "pausedShort": "pozastaveno: {reason}",
+      "pauseReason": {
+        "blocked": "web nás odmítl",
+        "collapsed": "změnila se struktura stránky",
+        "owner": "vámi",
+        "terms_review": "podmínky v revizi"
+      },
+      "outcome": {
+        "succeeded": "úspěch",
+        "collapsed": "bez výsledků",
+        "blocked": "zablokováno",
+        "offline": "offline",
+        "failed": "selhalo",
+        "skipped": "přeskočeno"
+      },
+      "toggleLabel": "Zapnout {label}",
+      "enabled": "Zapnuto",
+      "disabled": "Vypnuto",
+      "resume": "Obnovit",
+      "pause": "Pozastavit",
+      "updateError": "Zdroj se nepodařilo upravit.",
+      "robots": "robots.txt",
+      "robotsUnknown": "U této domény neověřeno.",
+      "terms": "Podmínky",
+      "termsUnknown": "Není v katalogu: podmínky tohoto portálu si před zapnutím přečtěte sami.",
+      "termsLink": "Přečíst podmínky",
+      "cadence": "Naše frekvence",
+      "cadenceDefault": "Nejvýše dvakrát denně, jeden požadavek najednou, s respektem k prodlevě, kterou web požaduje.",
+      "ack": {
+        "title": "Vaše potvrzení",
+        "body": "Podmínky tohoto portálu automatizované zpracování zakazují. Zapnutím tato instalace stahuje jeho stránky vaším jménem, ohleduplně, a odpovědnost nesete vy.",
+        "changed": "Shrnutí podmínek se od vašeho posledního potvrzení změnilo. Než budete pokračovat, přečtěte si ho znovu.",
+        "reason1": "Požadavky identifikují tuto instalaci a respektují robots.txt i požadovanou prodlevu.",
+        "reason2": "Odmítnutí ze strany webu zdroj pozastaví; obnovíte ho jen vy.",
+        "reason3": "Nabídky se čtou pouze pro vaše hledání a nikdy se nezveřejňují dál.",
+        "checkbox": "Jsem vlastníkem této instalace a tuto odpovědnost přijímám",
+        "cta": "Zapnout zdroj",
+        "cancel": "Teď ne"
+      },
+      "rules": {
+        "open": "Pravidla a náhled",
+        "author": "Navrhnout pravidla",
+        "proposing": "Navrhování",
+        "save": "Uložit pravidla",
+        "saving": "Ukládání",
+        "saved": "Uloženo",
+        "saveHint": "Nejdřív spusťte náhled, který projde; pravidla se ukládají s tím, co naměřil.",
+        "source": {
+          "llm": "Navrženo AI",
+          "deterministic": "Navrženo bez AI"
+        },
+        "invalid": "Navržená pravidla nelze spustit. Zkuste to znovu, nebo je napište ručně.",
+        "proposedCount": "{count, plural, one {# pravidlo navrženo} few {# pravidla navržena} other {# pravidel navrženo}}",
+        "title": "Pravidla",
+        "required": "povinné"
+      },
+      "preview": {
+        "open": "Náhled",
+        "cta": "Náhled",
+        "running": "Stahování",
+        "error": "Náhled se nepodařilo spustit.",
+        "outcome": {
+          "ok": "Extrahuje",
+          "empty": "Nic neextrahováno",
+          "collapsed": "Struktura stránky neodpovídá"
+        },
+        "itemCount": "{count, plural, =0 {žádné položky} one {# položka} few {# položky} other {# položek}}",
+        "field": "Pole",
+        "matched": "Nalezeno",
+        "verdict": "Verdikt",
+        "samples": "Ukázky",
+        "ruleVerdict": {
+          "hit": "nalezeno",
+          "miss-required": "chybí, povinné",
+          "miss-optional": "chybí, nepovinné",
+          "ambiguous": "nejednoznačné"
+        }
+      },
+      "add": {
+        "title": "Přidat zdroj",
+        "error": "Zdroj se nepodařilo přidat.",
+        "ats": {
+          "label": "Firemní kariérní stránka podle dodavatele a slugu",
+          "vendor": "Dodavatel",
+          "slug": "Slug firmy",
+          "slugPlaceholder": "slug-firmy",
+          "cta": "Přidat"
+        },
+        "board": {
+          "label": "Pracovní portál podle domény",
+          "host": "Doména",
+          "hostPlaceholder": "prace.priklad.cz",
+          "cta": "Přidat",
+          "hint": "Doména mimo katalog je úroveň B: podmínky si přečtete a při zapnutí je potvrdíte."
+        }
+      }
+    },
+    "scans": {
+      "eyebrow": "Hledání práce",
+      "title": "Skeny",
+      "intro": "Sken přečte každý zapnutý zdroj, ohodnotí, co našel, a užší výběr podrobně prověří. Spusťte ho ručně; po prvním úspěchu může převzít časovač.",
+      "loadError": "Plán se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "loading": "Načítání",
+      "updateError": "Plán se nepodařilo upravit.",
+      "clock": {
+        "title": "Časovač",
+        "toggleTitle": "Spouštět sken podle časovače",
+        "on": "Zapnuto",
+        "off": "Vypnuto",
+        "every": "každých",
+        "hours": "{hours} h",
+        "intervalAria": "Interval skenu",
+        "lastRun": "naposledy ověřeno {when}",
+        "never": "časovač zatím neběžel"
+      },
+      "history": {
+        "title": "Poslední skeny",
+        "none": "Žádný sken zatím neproběhl.",
+        "status": {
+          "ok": "ok",
+          "error": "selhalo",
+          "skipped": "přeskočeno"
+        },
+        "trigger": {
+          "clock": "časovač",
+          "manual": "ručně"
+        },
+        "matched": "{n} porovnáno",
+        "deepDived": "{n} podrobně prověřeno",
+        "deepDiveSkipped": "podrobné prověření vynecháno: žádný AI model"
+      },
+      "table": {
+        "source": "Zdroj",
+        "outcome": "Výsledek",
+        "new": "Nové",
+        "changed": "Změněné",
+        "absent": "Chybějící",
+        "reason": "Důvod",
+        "resumeLink": "Obnovit ve Zdrojích"
+      }
     }
   }
 }

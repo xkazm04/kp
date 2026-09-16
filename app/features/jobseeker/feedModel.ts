@@ -1,0 +1,97 @@
+// Pure decisions the /me/jobs, /me/jobs/[id] and /me/scans surfaces make — no React,
+// no fetch, so `node --test` pins them (feedModel.test.ts).
+//
+// CHAIN-AWARE EMPTY STATES. An empty feed has four different causes and each one has
+// a different next step; painting one "No jobs yet" over all of them sends the seeker
+// to the wrong page. The chain is profile → enabled source → a scan that ran → rows
+// above the minimum fit, and the FIRST missing link is the state the page shows.
+//
+// SALARY COMPARISON. A posting's pay is compared with the seeker's floor ONLY when
+// both carry the same currency (salary-band.ts contract: no FX anywhere); a mismatch
+// is rendered as "not comparable (X vs Y)", never as a converted number.
+
+import { isSameCurrency, salaryBandPosition, type SalaryBandPosition } from "@/app/_lib/salary-band";
+import { DISMISS_REASONS, type DismissReason, type SalaryFloor, type SalaryPeriod } from "@/app/_lib/jobseeker/types";
+
+export type FeedChainFacts = {
+  hasProfile: boolean;
+  enabledSources: number;
+  /** A scan has completed at least once for this workspace (any outcome). */
+  hasScanned: boolean;
+  /** Rows the current filter returned. */
+  rows: number;
+  /** Rows the LIVE feed holds regardless of the min-fit filter (what the filter dropped). */
+  liveTotal: number;
+};
+
+export const FEED_EMPTY_STATES = ["no_profile", "no_sources", "no_scan", "below_min", "nothing_live", "ok"] as const;
+export type FeedEmptyState = (typeof FEED_EMPTY_STATES)[number];
+
+export function resolveFeedEmptyState(f: FeedChainFacts): FeedEmptyState {
+  if (f.rows > 0) return "ok";
+  if (!f.hasProfile) return "no_profile";
+  if (f.enabledSources === 0) return "no_sources";
+  if (!f.hasScanned) return "no_scan";
+  // Scanned, nothing shown: either the filter dropped everything (say how many), or
+  // the live feed is genuinely empty (the scan found nothing, or all was dismissed).
+  return f.liveTotal > 0 ? "below_min" : "nothing_live";
+}
+
+/** The dismiss picker's vocabulary IS the wire vocabulary — one list, re-exported so
+ *  the component cannot drift from the route's `isDismissReason`. */
+export const DISMISS_PICKER_REASONS: readonly DismissReason[] = DISMISS_REASONS;
+
+export type PostingPay = {
+  min: number | null;
+  max: number | null;
+  currency: string | null;
+  period: SalaryPeriod | null;
+};
+
+export type SalaryComparison =
+  /** The posting states no pay: unknown, never "under". */
+  | { kind: "unstated" }
+  /** The seeker has no floor: nothing to compare against. */
+  | { kind: "no_floor" }
+  /** Different currencies (or periods): say so with both codes; never convert. */
+  | { kind: "not_comparable"; posting: string; floor: string }
+  | { kind: "compared"; verdict: SalaryVerdict; pct: number };
+
+/** From the SEEKER's side: `below_floor` = the posting's whole range is under the floor
+ *  (`pct` = how far under its max), `meets_floor` = the range starts at or above the
+ *  floor, `spans_floor` = the floor falls inside the stated range. */
+export type SalaryVerdict = "below_floor" | "meets_floor" | "spans_floor";
+
+const VERDICT_FOR: Record<SalaryBandPosition, SalaryVerdict> = {
+  // salaryBandPosition places the FLOOR against the posting's band: the floor "over"
+  // the band's max means the role pays less than the seeker will take.
+  over: "below_floor",
+  under: "meets_floor",
+  within: "spans_floor",
+};
+
+export function compareSalary(pay: PostingPay, floor: SalaryFloor | null): SalaryComparison {
+  if (!pay.currency || (pay.min === null && pay.max === null)) return { kind: "unstated" };
+  if (!floor) return { kind: "no_floor" };
+  const periodMismatch = pay.period !== null && pay.period !== floor.period;
+  if (!isSameCurrency(pay.currency, floor.currency) || periodMismatch) {
+    const label = (c: string, p: SalaryPeriod | null) => (p ? `${c}/${p}` : c);
+    return { kind: "not_comparable", posting: label(pay.currency.toUpperCase(), pay.period), floor: label(floor.currency.toUpperCase(), floor.period) };
+  }
+  const lo = pay.min ?? pay.max ?? 0;
+  const hi = pay.max ?? pay.min ?? 0;
+  const { position, pct } = salaryBandPosition(floor.amount, lo, hi);
+  return { kind: "compared", verdict: VERDICT_FOR[position], pct };
+}
+
+/** The cadence choices the Scans page offers for the clock job, in minutes. */
+export const SCAN_INTERVALS = [360, 720, 1440] as const;
+export type ScanInterval = (typeof SCAN_INTERVALS)[number];
+
+/** The select must show SOME option: an interval the registry set that is not one of
+ *  the three (a hand-edited row) snaps to the nearest offered value for display only. */
+export function nearestScanInterval(minutes: number): ScanInterval {
+  let best: ScanInterval = SCAN_INTERVALS[0];
+  for (const v of SCAN_INTERVALS) if (Math.abs(v - minutes) < Math.abs(best - minutes)) best = v;
+  return best;
+}

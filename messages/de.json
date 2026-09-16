@@ -10615,13 +10615,15 @@
     "columns": {
       "col": {
         "chat": "Gespräch",
-        "sheet": "Ihr Lebenslauf"
+        "sheet": "Ihr Lebenslauf",
+        "fit": "Passungsblatt"
       },
       "hide": "Ausblenden: {column}",
       "show": "Einblenden: {column}",
       "badge": {
         "turns": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
-        "suggestions": "{count, plural, =0 {Keine offenen Vorschläge} one {# offener Vorschlag} other {# offene Vorschläge}}"
+        "suggestions": "{count, plural, =0 {Keine offenen Vorschläge} one {# offener Vorschlag} other {# offene Vorschläge}}",
+        "gaps": "{count, plural, =0 {Keine Lücken} one {# Lücke} other {# Lücken}}"
       }
     },
     "composer": {
@@ -10748,6 +10750,393 @@
       "back": "Zurück zu meiner Jobsuche",
       "print": "Drucken / als PDF speichern",
       "none": "Es gibt noch keinen überarbeiteten Lebenslauf. Schließen Sie zuerst ein Lebenslauf-Gespräch ab."
+    },
+    "jobs": {
+      "eyebrow": "Jobsuche",
+      "title": "Stellen",
+      "intro": "Jede Stelle, die Ihre Quellen gefunden haben, bewertet an Ihrem Profil. In die Auswahl nehmen, bewerben oder mit einem Grund verwerfen, aus dem der Coach lernt.",
+      "filter": {
+        "status": "Status",
+        "statusOption": {
+          "live": "Aktiv",
+          "new": "Neu",
+          "shortlisted": "Auswahl",
+          "applied": "Beworben",
+          "dismissed": "Verworfen"
+        },
+        "minFit": "Min. Passung",
+        "minFitAny": "Beliebig",
+        "minFitValue": "{n}+",
+        "source": "Quelle",
+        "allSources": "Alle Quellen"
+      },
+      "sort": {
+        "label": "Sortieren",
+        "total": "Beste Passung",
+        "posted": "Zuletzt veröffentlicht",
+        "seen": "Zuletzt gesehen"
+      },
+      "actionError": "Die Änderung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "loadError": "Die Liste konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "loading": "Wird geladen",
+      "loadMore": "Mehr laden",
+      "empty": {
+        "no_profile": {
+          "title": "Beginnen Sie mit Ihrem Lebenslauf",
+          "body": "Die Liste bewertet Stellen an Ihrem Profil, und noch gibt es keines. Importieren Sie zuerst Ihren Lebenslauf.",
+          "cta": "Zu Profil und Lebenslauf"
+        },
+        "no_sources": {
+          "title": "Keine Quelle ist eingeschaltet",
+          "body": "Ihr Profil ist bereit, aber nichts wird gelesen. Schalten Sie mindestens eine Quelle ein; der nächste Scan füllt diese Seite.",
+          "cta": "Quellen wählen"
+        },
+        "no_scan": {
+          "title": "Noch nichts gescannt",
+          "body": "Ihre Quellen sind eingeschaltet. Starten Sie jetzt den ersten Scan; sobald er gelingt, kann der Timer auf der Seite Scans übernehmen."
+        },
+        "below_min": {
+          "title": "Nichts über Ihrer Mindestpassung",
+          "body": "{count, plural, one {# Stelle liegt} other {# Stellen liegen}} unter der gewünschten Passung. Senken Sie das Minimum, um sie zu sehen."
+        },
+        "nothing_live": {
+          "title": "Gerade nichts Aktives",
+          "body": "Der letzte Scan fand nichts Neues, oder alles wurde verworfen. Scannen Sie erneut oder prüfen Sie den Filter Verworfen."
+        }
+      },
+      "card": {
+        "unscored": "Nicht bewertet",
+        "deepDived": "Vertieft geprüft",
+        "source": "Quelle: {label}",
+        "seen": "Gesehen {when}",
+        "confidence": "Konfidenz {level} ({low} bis {high})",
+        "dismissed": "Verworfen: {reason}"
+      },
+      "confidenceLevel": {
+        "tight": "eng",
+        "moderate": "mittel",
+        "wide": "weit"
+      },
+      "workMode": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onsite": "Vor Ort"
+      },
+      "status": {
+        "new": "Neu",
+        "shortlisted": "Auswahl",
+        "applied": "Beworben",
+        "dismissed": "Verworfen",
+        "gone": "Verschwunden"
+      },
+      "action": {
+        "shortlist": "In die Auswahl",
+        "unshortlist": "Aus der Auswahl",
+        "applied": "Ich habe mich beworben",
+        "dismiss": "Verwerfen",
+        "restore": "Wiederherstellen"
+      },
+      "dismiss": {
+        "title": "{title} verwerfen",
+        "reasonLabel": "Warum? (der Coach lernt daraus)",
+        "noteLabel": "Notiz (optional)",
+        "notePlaceholder": "Eine Zeile, nur für Sie",
+        "confirm": "Verwerfen",
+        "cancel": "Behalten",
+        "reason": {
+          "salary": "Gehalt",
+          "location": "Ort",
+          "stack": "Stack",
+          "seniority": "Seniorität",
+          "company": "Unternehmen",
+          "other": "Sonstiges"
+        }
+      },
+      "eligibility": {
+        "title": "Eignung",
+        "key": {
+          "salary": "Gehalt",
+          "location": "Ort",
+          "seniority": "Seniorität",
+          "language": "Sprache",
+          "work_mode": "Arbeitsform"
+        },
+        "state": {
+          "ok": "passt",
+          "flag": "Abweichung",
+          "unknown": "nicht angegeben"
+        }
+      },
+      "scan": {
+        "cta": "Jetzt scannen",
+        "running": "Scan läuft",
+        "progress": "{done} von {total}",
+        "unreachable": "Der Scan läuft noch auf dem Server, sein Fortschritt konnte aber nicht gelesen werden. Laden Sie die Seite gleich neu.",
+        "failed": "Der Scan ist fehlgeschlagen.",
+        "failedMsg": "Der Scan ist fehlgeschlagen: {msg}",
+        "startError": "Der Scan konnte nicht gestartet werden."
+      }
+    },
+    "posting": {
+      "back": "Zurück zu den Stellen",
+      "eyebrow": "Stelle",
+      "meta": {
+        "source": "Quelle: {label}",
+        "posted": "veröffentlicht {when}",
+        "seen": "gesehen {when}"
+      },
+      "openSource": "Stelle öffnen",
+      "discuss": "Passung besprechen",
+      "discussError": "Das Passungsgespräch konnte nicht geöffnet werden.",
+      "text": {
+        "title": "Die Stellenanzeige",
+        "none": "Die Quelle hat zu dieser Stelle keinen Text veröffentlicht."
+      },
+      "salary": {
+        "title": "Gehalt",
+        "unstated": "Die Anzeige nennt kein Gehalt. Das ist unbekannt, nicht niedrig.",
+        "noFloor": "Legen Sie im Lebenslauf-Studio eine Gehaltsuntergrenze fest, um zu vergleichen.",
+        "notComparable": "Nicht vergleichbar: die Anzeige ist in {posting}, Ihre Untergrenze in {floor}. Nichts wird umgerechnet.",
+        "below_floor": "Um {pct} % unter Ihrer Untergrenze.",
+        "meets_floor": "Erfüllt Ihre Untergrenze über die ganze Spanne.",
+        "spans_floor": "Ihre Untergrenze liegt innerhalb der genannten Spanne."
+      },
+      "match": {
+        "title": "Ihre Passung",
+        "notScored": "Nicht bewertet: die Stelle hat die harten Filter nicht bestanden, oder der Scan hat sie noch nicht abgeglichen.",
+        "matched": "Passende Kenntnisse",
+        "missing": "Fehlende Kenntnisse",
+        "unproven": "Genannt, unbelegt",
+        "none": "Keine",
+        "jobSource": {
+          "deterministic": "Ohne KI ausgelesen",
+          "llm": "Mit KI ausgelesen"
+        }
+      },
+      "reasoning": {
+        "title": "Begründung",
+        "none": "Noch keine schriftliche Begründung.",
+        "cta": "Vertieft prüfen",
+        "running": "Wird gelesen",
+        "error": "Die vertiefte Prüfung konnte nicht laufen.",
+        "deterministic": "Kein KI-Modell ist konfiguriert, daher ist diese Begründung eine feste Vorlage. Sie wird angezeigt, nicht gespeichert.",
+        "strengths": "Stärken",
+        "gaps": "Lücken",
+        "probes": "Zu erwartende Fragen"
+      }
+    },
+    "fit": {
+      "dialogLabel": "Passungscheck: {title}",
+      "eyebrow": "Passungscheck",
+      "verdict": {
+        "title": "Urteil",
+        "apply": "Bewerben",
+        "skip": "Auslassen",
+        "undecided": "Unentschieden"
+      },
+      "markApplied": "Als beworben markieren",
+      "appliedAlready": "Beworben",
+      "sheetEmpty": "Lücken und Urteil erscheinen hier während des Gesprächs.",
+      "gaps": {
+        "title": "Lücken",
+        "none": "Keine Lücke fällt auf. Anzeige und Profil passen bei den Anforderungen zusammen."
+      },
+      "severity": {
+        "blocking": "Blockierend",
+        "notable": "Erheblich",
+        "minor": "Gering"
+      },
+      "coverNote": {
+        "title": "Anschreiben",
+        "copy": "Kopieren",
+        "copied": "Kopiert",
+        "copyFailed": "Kopieren fehlgeschlagen. Markieren Sie den Text und kopieren Sie ihn selbst.",
+        "none": "Es wurde kein Anschreiben verfasst.",
+        "pending": "Bitten Sie um ein Anschreiben, wenn Sie so weit sind; es entsteht nur aus Fakten Ihres Lebenslaufs."
+      },
+      "questions": {
+        "title": "Fragen an das Unternehmen",
+        "none": "Noch keine."
+      },
+      "degradedNoProvider": "Auf diesem Server ist kein KI-Modell konfiguriert, daher folgt der Coach einer festen Checkliste über die Passung. Ihr Urteil wird trotzdem gespeichert."
+    },
+    "sources": {
+      "eyebrow": "Jobsuche",
+      "title": "Quellen",
+      "intro": "Woher die Stellen kommen. Feeds und Firmenportale sind ein Schalter; Jobbörsen, deren Bedingungen Automatisierung verbieten, brauchen Ihre Bestätigung; abgelehnte Börsen sind aufgeführt, damit Sie wissen warum.",
+      "loadError": "Die Quellen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "loading": "Wird geladen",
+      "available": "Zum Hinzufügen verfügbar",
+      "addEntry": "{label} hinzufügen",
+      "refused": "Abgelehnt: {reason}",
+      "tier": {
+        "A": {
+          "title": "Stufe A: Feeds und Firmenportale",
+          "body": "Zur Weiterverwendung veröffentlicht oder vom Unternehmen selbst. Ein einfacher Schalter.",
+          "empty": "Noch nichts hier. Fügen Sie unten ein Firmenportal hinzu."
+        },
+        "B": {
+          "title": "Stufe B: Börsen mit eigenen Bedingungen",
+          "body": "robots.txt erlaubt die Seiten; die Bedingungen der Website verbieten automatisierte Verarbeitung. Sie schalten diese als Eigentümer dieser Installation ein, nachvollziehbar.",
+          "empty": "Keine Börse hinzugefügt. Fügen Sie unten eine per Host hinzu."
+        },
+        "C": {
+          "title": "Stufe C: abgelehnt",
+          "body": "Diese blockieren oder verbieten Crawling ausdrücklich. Sie werden nie abgerufen, und es gibt keinen Schalter."
+        }
+      },
+      "kind": {
+        "feed": "Feed",
+        "ats": "Firmenportal",
+        "board": "Jobbörse"
+      },
+      "tierChip": "Stufe {tier}",
+      "lastRun": "zuletzt {when}",
+      "neverRun": "Noch nicht gelaufen",
+      "paused": "Pausiert ({reason}) seit {when}",
+      "pausedShort": "pausiert: {reason}",
+      "pauseReason": {
+        "blocked": "die Website hat uns abgewiesen",
+        "collapsed": "die Seitenstruktur hat sich geändert",
+        "owner": "durch Sie",
+        "terms_review": "Bedingungen in Prüfung"
+      },
+      "outcome": {
+        "succeeded": "erfolgreich",
+        "collapsed": "leer",
+        "blocked": "blockiert",
+        "offline": "offline",
+        "failed": "fehlgeschlagen",
+        "skipped": "übersprungen"
+      },
+      "toggleLabel": "{label} einschalten",
+      "enabled": "An",
+      "disabled": "Aus",
+      "resume": "Fortsetzen",
+      "pause": "Pausieren",
+      "updateError": "Die Quelle konnte nicht geändert werden.",
+      "robots": "robots.txt",
+      "robotsUnknown": "Für diesen Host nicht geprüft.",
+      "terms": "Bedingungen",
+      "termsUnknown": "Nicht im Katalog: lesen Sie die Bedingungen dieser Börse selbst, bevor Sie sie einschalten.",
+      "termsLink": "Bedingungen lesen",
+      "cadence": "Unser Rhythmus",
+      "cadenceDefault": "Höchstens zweimal täglich, eine Anfrage nach der anderen, mit der Crawl-Verzögerung der Website.",
+      "ack": {
+        "title": "Ihre Bestätigung",
+        "body": "Die Bedingungen dieser Börse verbieten automatisierte Verarbeitung. Mit dem Einschalten ruft diese Installation ihre Seiten in Ihrem Auftrag ab, rücksichtsvoll, und das Risiko tragen Sie.",
+        "changed": "Die Zusammenfassung der Bedingungen hat sich seit Ihrer letzten Bestätigung geändert. Lesen Sie sie erneut, bevor Sie fortfahren.",
+        "reason1": "Anfragen identifizieren diese Installation und halten robots.txt und die Crawl-Verzögerung ein.",
+        "reason2": "Eine Abweisung durch die Website pausiert die Quelle; nur Sie setzen sie fort.",
+        "reason3": "Stellen werden nur für Ihre eigene Suche gelesen und nie weiterveröffentlicht.",
+        "checkbox": "Ich bin Eigentümer dieser Installation und akzeptiere dieses Risiko",
+        "cta": "Quelle einschalten",
+        "cancel": "Jetzt nicht"
+      },
+      "rules": {
+        "open": "Regeln und Vorschau",
+        "author": "Regeln erstellen",
+        "proposing": "Wird erstellt",
+        "save": "Regeln speichern",
+        "saving": "Wird gespeichert",
+        "saved": "Gespeichert",
+        "saveHint": "Führen Sie zuerst eine erfolgreiche Vorschau aus; die Regeln werden mit deren Messung gespeichert.",
+        "source": {
+          "llm": "Von KI vorgeschlagen",
+          "deterministic": "Ohne KI vorgeschlagen"
+        },
+        "invalid": "Die vorgeschlagenen Regeln lassen sich nicht ausführen. Versuchen Sie es erneut oder schreiben Sie sie von Hand.",
+        "proposedCount": "{count, plural, one {# Regel} other {# Regeln}} vorgeschlagen",
+        "title": "Regeln",
+        "required": "erforderlich"
+      },
+      "preview": {
+        "open": "Vorschau",
+        "cta": "Vorschau",
+        "running": "Wird abgerufen",
+        "error": "Die Vorschau konnte nicht laufen.",
+        "outcome": {
+          "ok": "Extrahiert",
+          "empty": "Nichts extrahiert",
+          "collapsed": "Seitenstruktur passt nicht"
+        },
+        "itemCount": "{count, plural, =0 {keine Einträge} one {# Eintrag} other {# Einträge}}",
+        "field": "Feld",
+        "matched": "Treffer",
+        "verdict": "Urteil",
+        "samples": "Beispiele",
+        "ruleVerdict": {
+          "hit": "Treffer",
+          "miss-required": "fehlt, erforderlich",
+          "miss-optional": "fehlt, optional",
+          "ambiguous": "mehrdeutig"
+        }
+      },
+      "add": {
+        "title": "Quelle hinzufügen",
+        "error": "Die Quelle konnte nicht hinzugefügt werden.",
+        "ats": {
+          "label": "Firmenportal nach Anbieter und Slug",
+          "vendor": "Anbieter",
+          "slug": "Firmen-Slug",
+          "slugPlaceholder": "firmen-slug",
+          "cta": "Hinzufügen"
+        },
+        "board": {
+          "label": "Jobbörse nach Host",
+          "host": "Host",
+          "hostPlaceholder": "jobs.beispiel.de",
+          "cta": "Hinzufügen",
+          "hint": "Ein Host außerhalb des Katalogs ist Stufe B: Sie lesen die Bedingungen und bestätigen sie beim Einschalten."
+        }
+      }
+    },
+    "scans": {
+      "eyebrow": "Jobsuche",
+      "title": "Scans",
+      "intro": "Ein Scan liest jede eingeschaltete Quelle, bewertet die Funde und prüft die Auswahl vertieft. Starten Sie einen von Hand; nach dem ersten Erfolg kann der Timer übernehmen.",
+      "loadError": "Der Zeitplan konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "loading": "Wird geladen",
+      "updateError": "Der Zeitplan konnte nicht geändert werden.",
+      "clock": {
+        "title": "Timer",
+        "toggleTitle": "Den Scan per Timer ausführen",
+        "on": "An",
+        "off": "Aus",
+        "every": "alle",
+        "hours": "{hours} h",
+        "intervalAria": "Scan-Intervall",
+        "lastRun": "zuletzt geprüft {when}",
+        "never": "vom Timer noch nicht ausgeführt"
+      },
+      "history": {
+        "title": "Letzte Scans",
+        "none": "Noch kein Scan gelaufen.",
+        "status": {
+          "ok": "ok",
+          "error": "fehlgeschlagen",
+          "skipped": "übersprungen"
+        },
+        "trigger": {
+          "clock": "Timer",
+          "manual": "von Hand"
+        },
+        "matched": "{n} abgeglichen",
+        "deepDived": "{n} vertieft geprüft",
+        "deepDiveSkipped": "vertiefte Prüfung übersprungen: kein KI-Modell"
+      },
+      "table": {
+        "source": "Quelle",
+        "outcome": "Ergebnis",
+        "new": "Neu",
+        "changed": "Geändert",
+        "absent": "Fehlend",
+        "reason": "Grund",
+        "resumeLink": "Unter Quellen fortsetzen"
+      }
     }
   }
 }

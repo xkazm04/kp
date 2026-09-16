@@ -4,6 +4,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { appendDialogTurns, getDialog } from "@/app/_lib/db/jobseeker-dialogs";
 import { getJobseekerProfileById, mergePreferences, setPolishedCv } from "@/app/_lib/db/jobseeker-profiles";
+import { fitTurnContext } from "@/app/_lib/jobseeker-fit-context";
 import { JobseekerInputError, JobseekerTimeoutError, runJobseekerExchange } from "@/app/_lib/jobseeker-run";
 import type { DialogReply, StudioTurn } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -54,6 +55,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         artifact: dialog.artifact,
         transcript: dialog.transcript,
         message,
+        // fit (WP5): the posting, its match and the seeker's last ten dismissals ride
+        // every turn, read fresh so a dismissal made mid-conversation is seen.
+        ...(dialog.kind === "fit" ? (fitTurnContext(dialog.postingId, ws) ?? {}) : {}),
       },
       // The seeker's cancel is a real cancel: a closed overlay must not leave a Python
       // child (and a paid completion) running for a screen nobody is watching.
