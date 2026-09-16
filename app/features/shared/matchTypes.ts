@@ -1,3 +1,4 @@
+import type { EligibilityFlag } from "@/app/_lib/jobseeker/types";
 import { APP_CURRENCY, formatGrouped } from "@/app/_lib/format";
 
 export type AnalysisRow = {
@@ -64,6 +65,10 @@ export type MatchResult = {
   personalScore: number;
   scoreBreakdown?: ScoreDimension[];
   confidence: Confidence;
+  // Seeker-side eligibility FLAGS (salary / location / seniority / language /
+  // work_mode) — honesty on the card, never an input to total or tier. Additive;
+  // absent means the engine did not read them (pre-WP4b payloads, recruiter paths).
+  eligibility?: EligibilityFlag[];
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
   // Per-matched-skill strength in (0,1]: 1.0 exact, lower = taxonomy/sibling or

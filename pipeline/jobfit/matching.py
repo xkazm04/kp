@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import math
-import re
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
@@ -26,6 +26,7 @@ from pydantic import Field, field_validator
 
 from . import registry
 from .jobs import Job
+from .market_config import ACTIVE_MARKET
 from .models import _Base
 from .taxonomy import (
     DEFAULT_PROVENANCE,
@@ -90,6 +91,23 @@ def fit_tier_for(total: int) -> FitTier:
     return "partial"
 
 
+SalaryPeriod = Literal["month", "year"]
+
+
+class SalaryExpectation(_Base):
+    """The seeker's pay floor, carrying its OWN currency and period.
+
+    There is no FX anywhere in the matcher: a comparison happens only when both
+    sides share a currency, otherwise the answer is "not comparable" (see
+    :func:`eligibility_flags`). Mirrors the TS ``SalaryFloor`` in
+    app/_lib/jobseeker/types.ts.
+    """
+
+    amount: float
+    currency: str
+    period: SalaryPeriod = "month"
+
+
 class MatchCandidate(_Base):
     skills: list[str] = Field(default_factory=list)
     seniority: str = "medior"
@@ -115,6 +133,16 @@ class MatchCandidate(_Base):
     domain_distance: str | None = None
     # preferences (optional KO inputs)
     preferred_work_modes: list[str] = Field(default_factory=list)
+    # Seeker-side eligibility inputs (WP4b). These feed ONLY ``MatchResult.eligibility``
+    # — a set of FLAGS the reader sees — and never the KO filter, the weights or the
+    # total. All default-empty so every existing caller scores byte-identically.
+    salary_expectation: SalaryExpectation | None = None
+    # Free-text places the seeker would work ("Praha", "Brno"), matched softly
+    # (case- and diacritics-insensitive) against the job's location text.
+    preferred_locations: list[str] = Field(default_factory=list)
+    # ISO-3166-1 alpha-2, lower-case ("cz", "de"). The Job model carries no country
+    # field today, so these match on location text only (see eligibility_flags).
+    preferred_countries: list[str] = Field(default_factory=list)
     label: str = "Candidate"
     # Compact CV-derived context for the reasoning layer (Layer C) so the rationale
     # can cite a concrete, candidate-specific fact instead of generic boilerplate.
@@ -206,6 +234,26 @@ class Confidence(_Base):
     driver_codes: list[LabelCode] = Field(default_factory=list)
 
 
+EligibilityKey = Literal["salary", "location", "seniority", "language", "work_mode"]
+EligibilityState = Literal["ok", "flag", "unknown"]
+
+
+class EligibilityFlag(_Base):
+    """One seeker-facing eligibility read on a (candidate, job) pair.
+
+    ``flag`` is a MEASURED mismatch the reader should see; ``unknown`` means one
+    side did not say (a posting with no pay, a seeker with no preference, two
+    currencies the matcher will not convert) and is never a penalty. A flag NEVER
+    moves ``total``/``fit_tier`` and never KO's a job — it is honesty on the card,
+    not a hidden score multiplier. Mirrors the TS ``EligibilityFlag`` in
+    app/_lib/jobseeker/types.ts.
+    """
+
+    key: EligibilityKey
+    state: EligibilityState
+    detail: str
+
+
 class MatchResult(_Base):
     job_id: str
     title: str
@@ -245,6 +293,10 @@ class MatchResult(_Base):
     unproven_skill_reason: dict[str, str] = Field(default_factory=dict)
     is_entry_eligible: bool = False
     graduate_friendliness: float = 0.0
+    # Seeker-side eligibility FLAGS (salary / location / seniority / language /
+    # work_mode). ADDITIVE and back-compatible: absent or empty means "not read".
+    # Never an input to total, fit_tier or the KO filter — see eligibility_flags.
+    eligibility: list[EligibilityFlag] = Field(default_factory=list)
 
 
 class MatchResponse(_Base):
@@ -358,6 +410,122 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
             reasons.append(KoReason(key="work_mode", detail=f"work mode {job.work_mode} not preferred"))
 
     return (len(reasons) == 0, reasons)
+
+
+# -- Seeker-side eligibility flags (never a gate) ----------------------------
+
+# Symbols a seeker (or a harvested posting) may write instead of the ISO code.
+# Deliberately tiny: the matcher normalizes spelling, it never converts value.
+_CURRENCY_ALIASES = {"KČ": "CZK", "KC": "CZK", "€": "EUR", "$": "USD", "£": "GBP", "ZŁ": "PLN", "ZL": "PLN"}
+_MONTHS_PER_YEAR = 12
+
+
+def _norm_currency(code: str | None) -> str:
+    """Case/whitespace-insensitive ISO code (mirrors winnability._same_currency and
+    the TS ``isSameCurrency``), plus the handful of native symbols above."""
+    cur = (code or "").strip().upper()
+    return _CURRENCY_ALIASES.get(cur, cur)
+
+
+def _fold(text: str) -> str:
+    """Case- AND diacritics-insensitive fold ("Praha" == "praha", "Brno" in "Brno-střed",
+    "plzen" == "Plzeň") so a seeker's free-text place matches the ad's spelling."""
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold().strip()
+
+
+def _salary_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
+    exp = candidate.salary_expectation
+    if exp is None:
+        return EligibilityFlag(key="salary", state="unknown", detail="no expectation set")
+    # A band normalize_job stamped from the market anchor is a PHANTOM the ad never
+    # asserted (recorded in defaulted_fields) — the same rule the KO filter applies
+    # to work_mode. Missing pay is UNKNOWN, never "under".
+    if not job.salary_band or "salary_band" in job.defaulted_fields:
+        return EligibilityFlag(key="salary", state="unknown", detail="posting states no pay")
+    # Job carries no currency/period of its own: the band is read in the active
+    # market's units (CZK/month for the Czech default) and the detail says so.
+    job_cur = _norm_currency(ACTIVE_MARKET.currency)
+    job_period = ACTIVE_MARKET.period
+    cand_cur = _norm_currency(exp.currency)
+    if cand_cur != job_cur:
+        return EligibilityFlag(
+            key="salary",
+            state="unknown",
+            detail=f"not comparable: {cand_cur or '?'} vs {job_cur} (posting read in the {ACTIVE_MARKET.market_id} market's currency)",
+        )
+    job_max = float(max(job.salary_band))
+    floor = float(exp.amount)
+    converted = ""
+    if exp.period != job_period:
+        # The ONLY conversion the matcher does: month <-> year, x12, stated in the detail.
+        if exp.period == "year" and job_period == "month":
+            floor = floor / _MONTHS_PER_YEAR
+        elif exp.period == "month" and job_period == "year":
+            floor = floor * _MONTHS_PER_YEAR
+        converted = f"; expectation converted {exp.period}->{job_period} x12"
+    if job_max < floor:
+        return EligibilityFlag(
+            key="salary",
+            state="flag",
+            detail=f"posting max {job_max:g} {job_cur}/{job_period} below expectation {floor:g}{converted}",
+        )
+    return EligibilityFlag(
+        key="salary",
+        state="ok",
+        detail=f"posting max {job_max:g} {job_cur}/{job_period} meets expectation {floor:g}{converted}",
+    )
+
+
+def _location_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
+    if not candidate.preferred_locations and not candidate.preferred_countries:
+        return EligibilityFlag(key="location", state="unknown", detail="no location preference set")
+    # A remote role is reachable from anywhere the seeker named — but only when the ad
+    # STATED remote; a defaulted work_mode is a phantom (see ko_filter).
+    if job.work_mode == "remote" and "work_mode" not in job.defaulted_fields:
+        return EligibilityFlag(key="location", state="ok", detail="remote")
+    loc = _fold(job.location)
+    # A location normalize_job stamped from DEFAULT_POLICY ("Praha") is a phantom
+    # the ad never asserted — read it as "did not say", never as a mismatch.
+    if not loc or "location" in job.defaulted_fields:
+        return EligibilityFlag(key="location", state="unknown", detail="posting states no location")
+    for pref in candidate.preferred_locations:
+        needle = _fold(pref)
+        if needle and needle in loc:
+            return EligibilityFlag(key="location", state="ok", detail=f"location matches {pref.strip()}")
+    # Job has no country field: a preferred country can only match as a token in
+    # the location text ("Brno, CZ" / "Berlin, DE" spelled with its code).
+    loc_tokens = set(WORD_RE.findall(loc))
+    for country in candidate.preferred_countries:
+        code = _fold(country)
+        if code and code in loc_tokens:
+            return EligibilityFlag(key="location", state="ok", detail=f"location matches country {code}")
+    wanted = ", ".join(candidate.preferred_locations + candidate.preferred_countries)
+    return EligibilityFlag(key="location", state="flag", detail=f"{job.location} is not among {wanted}")
+
+
+def eligibility_flags(candidate: MatchCandidate, job: Job) -> list[EligibilityFlag]:
+    """Seeker-facing eligibility read of one pair, as FLAGS — never a gate.
+
+    salary and location are new reads driven by the seeker's preferences; seniority,
+    language and work_mode MIRROR ko_filter's verdict so the seeker UI shows every
+    axis uniformly without the KO behaviour itself changing. A missing input on
+    either side is ``unknown``, never ``flag``. Nothing here reaches ``total``,
+    ``fit_tier``, the weights or the KO filter — pinned by
+    tests/test_matching_eligibility.py.
+    """
+    flags = [_salary_flag(candidate, job), _location_flag(candidate, job)]
+    _passed, reasons = ko_filter(candidate, job)
+    by_key = {r.key: r.detail for r in reasons}
+    for key in ("seniority", "language", "work_mode"):
+        # early_career is the early-career cohort's REPLACEMENT for the seniority
+        # floor (see ko_filter), so it reads on the seniority axis.
+        detail = by_key.get(key) or (by_key.get("early_career") if key == "seniority" else None)
+        if detail:
+            flags.append(EligibilityFlag(key=key, state="flag", detail=detail))
+        else:
+            flags.append(EligibilityFlag(key=key, state="ok", detail=f"{key.replace('_', ' ')} gate passed"))
+    return flags
 
 
 # -- Layer B: multi-factor scorer -------------------------------------------
@@ -921,6 +1089,8 @@ def score_job(
         unproven_skill_reason={k: v["reason"] for k, v in unproven.items()},
         is_entry_eligible=bool(ep and ep.is_entry_eligible),
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
+        # Computed AFTER total/tier so it cannot feed them; a pure read of the pair.
+        eligibility=eligibility_flags(candidate, job),
     )
 
 

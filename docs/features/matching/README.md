@@ -447,6 +447,38 @@ extraction prompt (`jobs.py`) gained fidelity rules in the same round: duties
 never filed as requirements, `min_education` consistent with the stated
 requirements, company/location/work-mode never guessed.
 
+### 7. Eligibility flags (seeker side)
+
+The job-seeker module scores the seeker's own profile against harvested
+postings, so `MatchResult.eligibility` (`matching.eligibility_flags`) carries
+five `EligibilityFlag { key, state, detail }` rows per pair — one per axis
+`salary | location | seniority | language | work_mode`, states
+`ok | flag | unknown`. The inputs ride on `MatchCandidate` as
+`salary_expectation` (`SalaryExpectation { amount, currency, period }`),
+`preferred_locations` and `preferred_countries`, all default-empty; the
+`match_cli --preferences-json <path>` flag (and `transform.build_match_candidate(profile,
+preferences)` / `apply_preferences`) maps the TS `JobseekerPreferences` shape
+(`salaryFloor`, `locations`, `countries`, `workModes`, `seniority`) onto them.
+
+- **Never a KO, never a multiplier.** A flag is honesty on the card: it does not
+  move `total`, `fit_tier`, the weights or the KO filter. `seniority` /
+  `language` / `work_mode` only *mirror* `ko_filter`'s verdict so the seeker UI
+  shows every axis uniformly. Pinned by `tests/test_matching_eligibility.py`
+  (identical totals with and without preferences; `koFiltered` stays 0).
+- **Missing is `unknown`, never `flag`.** A posting with no stated pay — including
+  a band `normalize_job` stamped from the market anchor and recorded in
+  `defaulted_fields` — reads `unknown` ("posting states no pay"); so does a seeker
+  with no expectation, and a `location` the ad never stated.
+- **Same currency only, no FX.** `Job` carries no currency of its own — its
+  `salary_band` is read in `market_config.ACTIVE_MARKET`'s currency/period
+  (CZK/month for the Czech default) and the detail says so. A seeker floor in
+  another currency is `unknown` with `not comparable: <cur> vs <cur>`. The only
+  conversion is month↔year ×12, and the detail states it.
+- **Location** is a soft text match, case- and diacritics-insensitive ("plzen"
+  hits "Plzeň"); a stated `remote` work mode is `ok` anywhere; a preferred country
+  can match only as a token of the location text (the `Job` model has no country
+  field).
+
 ## Surface
 
 | Concern | Files |
