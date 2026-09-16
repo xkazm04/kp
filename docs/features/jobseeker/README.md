@@ -342,6 +342,23 @@ which polls `GET /api/tasks/[id]` because /me mounts no TasksProvider); scanned 
 nothing above the min fit → says how many rows the filter dropped; nothing live → scan
 again or check Dismissed.
 
+**Failure is spelled apart from empty** (`FailureNotice.tsx` + `apiFailure.ts`). One
+block serves all three seeker surfaces: a `NOTICE("critical")` with `role="alert"`, the
+sentence resolved by CODE, and a Retry that re-issues exactly the request that failed
+(busy while it runs) — the filters, the sort and the scroll position survive it. Three
+rules hold around it: a BROKEN CHAIN is answered without a request at all
+(`feedModel.ts: shouldFetchRows` — no profile or no enabled source means the page
+already knows what it will show, so a failed read can never be painted as an empty
+feed), a failure and an empty state are never rendered together, and the page's chrome
+stays — `/me/sources` keeps the Add form and whatever tiers it already holds, `/me/scans`
+keeps the "Scan now" door, the clock and the history, and its SECOND read (the source
+list) fails on its own with its own line above the per-source table rather than leaving
+the table to print opaque ids unexplained. `classifyApiFailure(res, body)`
+(`apiFailure.test.ts`) separates a TRANSPORT fault (the fetch threw, or the body was not
+JSON — a dev server that is not running answers an HTML 404) from a coded REFUSAL and a
+`*_FAILED` STORE fault; only transport gets `me.common.unreachable`, because "the feed
+could not be loaded" is not what a reader whose server is down needs to read.
+
 **Detail** (`/me/jobs/[id]`, `app/me/jobs/[id]/page.tsx`). A SERVER page over the
 store (`getPosting`; there is no `GET /api/jobseeker/postings/[id]`), handing the client
 a projection (`postingView.ts`: body text, skill lists, breakdown, confidence,

@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import { Loader2, Plus } from "lucide-react";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_SECONDARY, CHIP_QUIET, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { SOURCE_TIERS, type JobseekerSource, type SourceTier } from "@/app/_lib/jobseeker/types";
 import { AddSourceForm } from "./AddSourceForm";
+import { FailureNotice } from "./FailureNotice";
 import { SourceCard } from "./SourceCard";
 import { callJson, entryForSource, type ApiFailure, type CatalogEntryView, type SourcesPayload } from "./sourcesApi";
 
@@ -21,9 +21,9 @@ import { callJson, entryForSource, type ApiFailure, type CatalogEntryView, type 
 
 export function SourcesPage() {
   const t = useTranslations("me.sources");
-  const resolveError = useErrorMessage();
   const [data, setData] = useState<SourcesPayload | null>(null);
   const [loadError, setLoadError] = useState<ApiFailure | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [addError, setAddError] = useState<{ id: string; fail: ApiFailure } | null>(null);
 
@@ -45,8 +45,20 @@ export function SourcesPage() {
     void load();
   }, [load]);
 
+  // Retry re-issues the SAME read; what is already held (the tier sections, the form's
+  // typed state) stays on screen while it runs.
+  const retry = useCallback(() => {
+    setRetrying(true);
+    void load().finally(() => setRetrying(false));
+  }, [load]);
+
   const replace = (next: JobseekerSource) => setData((d) => (d ? { ...d, sources: d.sources.map((s) => (s.id === next.id ? next : s)) } : d));
-  const append = (next: JobseekerSource) => setData((d) => (d ? { ...d, sources: [...d.sources, next] } : d));
+  const append = (next: JobseekerSource) => {
+    setData((d) => (d ? { ...d, sources: [...d.sources, next] } : d));
+    // Nothing is held (the catalog read failed and the form was used anyway): re-read,
+    // so the source that was just created is visible instead of silently absent.
+    if (!data) void load();
+  };
 
   const addFromCatalog = async (entry: CatalogEntryView) => {
     setAdding(entry.id);
@@ -68,14 +80,10 @@ export function SourcesPage() {
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
-      {loadError ? (
-        <div className={`${PANEL} p-4`} role="alert">
-          <p className="text-sm text-red-700">{resolveError(loadError, t("loadError"))}</p>
-          <button type="button" className={`${BTN_SECONDARY} mt-2 h-8 px-3 text-sm`} onClick={() => void load()}>
-            {t("retry")}
-          </button>
-        </div>
-      ) : null}
+      {/* The failure sits where the list would be; the page's chrome and the Add form
+          below it stay on screen, because a failed read of the catalog does not stop
+          the owner adding a source by host or by company slug. */}
+      {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
 
       {!data && !loadError ? (
         <div className="space-y-3" aria-busy="true" aria-label={t("loading")}>
@@ -97,7 +105,7 @@ export function SourcesPage() {
           })
         : null}
 
-      {data ? <AddSourceForm onCreated={append} /> : null}
+      <AddSourceForm onCreated={append} />
     </div>
   );
 }
@@ -122,7 +130,6 @@ function TierSection({
   onChange(next: JobseekerSource): void;
 }) {
   const t = useTranslations("me.sources");
-  const resolveError = useErrorMessage();
   return (
     <section aria-labelledby={`tier-${tier}`} data-tier={tier} className="space-y-3">
       <div>
@@ -159,11 +166,7 @@ function TierSection({
                   <button type="button" className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`} disabled={adding !== null} onClick={() => onAdd(e)} title={e.host}>
                     {adding === e.id ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <Plus size={13} aria-hidden />} {t("addEntry", { label: e.label })}
                   </button>
-                  {addError?.id === e.id ? (
-                    <span className="text-sm text-red-700" role="alert">
-                      {resolveError(addError.fail, t("add.error"))}
-                    </span>
-                  ) : null}
+                  {addError?.id === e.id ? <FailureNotice failure={addError.fail} fallback={t("add.error")} /> : null}
                 </li>
               ))}
             </ul>

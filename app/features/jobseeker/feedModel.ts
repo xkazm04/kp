@@ -37,6 +37,30 @@ export function resolveFeedEmptyState(f: FeedChainFacts): FeedEmptyState {
   return f.liveTotal > 0 ? "below_min" : "nothing_live";
 }
 
+/** Whether the feed should ask the route for rows at all.
+ *
+ *  A broken chain is not a failed read: with no profile, or with no enabled source,
+ *  the page ALREADY knows what it will show (the chain-aware empty state), and the
+ *  list route cannot know why it is empty. Fetching anyway spends a request whose
+ *  only possible outcomes are an empty page the reader must not be shown as "empty"
+ *  and a failure the reader must not be shown at all. */
+export function shouldFetchRows(chain: Pick<FeedChainFacts, "hasProfile" | "enabledSources">): boolean {
+  return chain.hasProfile && chain.enabledSources > 0;
+}
+
+/** The markets EURES is asked for, from the seeker's preferences.
+ *
+ *  Empty preferences are not "every country": the EURES search takes location codes
+ *  and an empty list is a query for nothing. `cz` is the default this install is for
+ *  (the Czech market), stated in the button's own copy so the seeker can see which
+ *  country the one-click scan will search and change it on /me. */
+export const DEFAULT_EURES_COUNTRY = "cz";
+
+export function euresCountries(countries: readonly string[] | null | undefined): string[] {
+  const named = (countries ?? []).map((c) => c.trim().toLowerCase()).filter(Boolean);
+  return named.length > 0 ? [...new Set(named)] : [DEFAULT_EURES_COUNTRY];
+}
+
 /** The dismiss picker's vocabulary IS the wire vocabulary — one list, re-exported so
  *  the component cannot drift from the route's `isDismissReason`. */
 export const DISMISS_PICKER_REASONS: readonly DismissReason[] = DISMISS_REASONS;

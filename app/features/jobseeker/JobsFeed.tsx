@@ -6,9 +6,10 @@ import { useTranslations } from "next-intl";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
-import { resolveFeedEmptyState, type FeedEmptyState } from "./feedModel";
+import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
+import { FailureNotice } from "./FailureNotice";
+import { resolveFeedEmptyState, shouldFetchRows, type FeedEmptyState } from "./feedModel";
 import { PostingCard } from "./PostingCard";
 import { ScanNowButton } from "./ScanNowButton";
 import { usePostingActions } from "./usePostingActions";
@@ -49,12 +50,12 @@ function queryString(q: Query, cursor: string | null, minTotalOverride?: number)
 
 export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSource[] }) {
   const t = useTranslations("me.jobs");
-  const resolveError = useErrorMessage();
   const [query, setQuery] = useState<Query>({ status: "live", minTotal: 0, sourceId: "", sort: "total" });
   const [rows, setRows] = useState<JobseekerPostingSummary[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<{ code: string | null } | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [loadError, setLoadError] = useState<ClassifiedFailure | null>(null);
   const [droppedByMin, setDroppedByMin] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(chain.hasScanned);
   const generation = useRef(0);
@@ -71,7 +72,10 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
       .then(async ({ res, body }) => {
         if (gen !== generation.current) return;
         if (!res.ok || !body?.rows) {
-          setLoadError({ code: body?.code ?? null });
+          // Classified, not `code ?? null`: a dev server that is not running answers an
+          // HTML 404, and "check that the app is running" is a different sentence from
+          // "the feed could not be loaded".
+          setLoadError(classifyApiFailure(res, body));
           return;
         }
         const rows = body.rows;
@@ -90,16 +94,28 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
         }
       })
       .catch(() => {
-        if (gen === generation.current) setLoadError({ code: null });
+        if (gen === generation.current) setLoadError(TRANSPORT_FAILURE);
       })
       .finally(() => {
         if (gen === generation.current) setLoading(false);
       });
   }, []);
 
+  // A broken chain is answered from the server's own facts: no request is made, so a
+  // failed read can never be painted as an empty feed (feedModel.shouldFetchRows).
+  const fetchRows = shouldFetchRows(chain);
+
   useEffect(() => {
+    if (!fetchRows) return;
     void load(query, null);
-  }, [query, load]);
+  }, [query, load, fetchRows]);
+
+  // Retry re-issues exactly the failed request — the same query, from the first page —
+  // and keeps the filters, the sort and the scroll position the reader had.
+  const retry = useCallback(() => {
+    setRetrying(true);
+    void load(query, null).finally(() => setRetrying(false));
+  }, [load, query]);
 
   const replaceRow = useCallback((row: JobseekerPostingSummary) => {
     setRows((prev) => (prev ? prev.map((r) => (r.id === row.id ? row : r)) : prev));
@@ -173,21 +189,13 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
         </label>
       </div>
 
-      {actions.error ? (
-        <p className="text-sm text-red-700" role="alert">
-          {resolveError(actions.error, t("actionError"))}
-        </p>
-      ) : null}
-      {loadError ? (
-        <div className={`${PANEL} p-4`} role="alert">
-          <p className="text-sm text-red-700">{resolveError(loadError, t("loadError"))}</p>
-          <button type="button" className={`${BTN_SECONDARY} mt-2 h-8 px-3 text-sm`} onClick={() => void load(query, null)}>
-            {t("retry")}
-          </button>
-        </div>
-      ) : null}
+      {actions.error ? <FailureNotice failure={actions.error} fallback={t("actionError")} /> : null}
+      {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
 
-      {rows === null && !loadError ? (
+      {!fetchRows ? (
+        <EmptyState state={emptyState} droppedByMin={0} scan={scan} />
+      ) : rows === null ? (
+        loadError ? null : (
         <ul className="space-y-3" aria-busy="true" aria-label={t("loading")}>
           {[0, 1, 2].map((i) => (
             <li key={i} className={`${PANEL} p-4`}>
@@ -197,7 +205,8 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
             </li>
           ))}
         </ul>
-      ) : rows && rows.length > 0 ? (
+        )
+      ) : rows.length > 0 ? (
         <>
           <ul className="space-y-3">
             {rows.map((row) => (
@@ -229,9 +238,11 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
             </div>
           ) : null}
         </>
-      ) : rows && !loadError ? (
+      ) : loadError ? null : (
+        // Zero rows and no failure: the chain-aware empty state, never the failure's
+        // stand-in and never beside it.
         <EmptyState state={emptyState} droppedByMin={droppedByMin ?? 0} scan={scan} />
-      ) : null}
+      )}
     </div>
   );
 }

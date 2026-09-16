@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, History } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_SECONDARY, EYEBROW, FIELD, INTRO, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { EYEBROW, FIELD, INTRO, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { SCAN_JOB_NAME, type JobseekerSource, type ScanSummary, type SourceRunSummary } from "@/app/_lib/jobseeker/types";
 import type { SchedulerJobView } from "@/app/features/hiring/pipeline/SchedulerSummaryBadges";
+import { FailureNotice } from "./FailureNotice";
 import { nearestScanInterval, SCAN_INTERVALS } from "./feedModel";
 import { ScanNowButton } from "./ScanNowButton";
 import { callJson, entryForSource, type ApiFailure, type SourcesPayload } from "./sourcesApi";
@@ -47,12 +47,16 @@ export function ScansPage() {
   const tSched = useTranslations("pipeline.scheduler");
   const tSources = useTranslations("me.sources");
   const rel = useRelativeTime();
-  const resolveError = useErrorMessage();
   const [job, setJob] = useState<SchedulerJobView | null>(null);
   const [sources, setSources] = useState<JobseekerSource[]>([]);
   const [labels, setLabels] = useState<Map<string, string>>(new Map());
   const [loadError, setLoadError] = useState<ApiFailure | null>(null);
+  // The source list is a SECOND read and it fails on its own: without it the history
+  // table can only name a source by its opaque id, and the reader has to be told that
+  // is what they are looking at rather than left to guess.
+  const [sourcesError, setSourcesError] = useState<ApiFailure | null>(null);
   const [writeError, setWriteError] = useState<ApiFailure | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Every setState sits in the promise callback (the mount effect calls this; see
@@ -60,21 +64,33 @@ export function ScansPage() {
   const load = useCallback(
     () =>
       Promise.all([callJson<{ jobs?: SchedulerJobView[] }>("/api/automation/schedule"), callJson<SourcesPayload>("/api/jobseeker/sources")]).then(([sched, src]) => {
-        if (!sched.ok) {
+        // The two reads are independent: one failing must not blank what the other
+        // brought back, and the clock the page already holds stays on screen.
+        if (sched.ok) {
+          setLoadError(null);
+          setJob(sched.body.jobs?.find((j) => j.name === SCAN_JOB_NAME) ?? null);
+        } else {
           setLoadError(sched.fail);
-          return;
         }
-        setLoadError(null);
-        setJob(sched.body.jobs?.find((j) => j.name === SCAN_JOB_NAME) ?? null);
         if (src.ok) {
+          setSourcesError(null);
           setSources(src.body.sources);
           setLabels(new Map(src.body.sources.map((s) => [s.id, entryForSource(src.body.catalog, s)?.label ?? s.host])));
+        } else {
+          setSourcesError(src.fail);
         }
       }),
     []
   );
   useEffect(() => {
     void load();
+  }, [load]);
+
+  // Retry re-issues both reads; the clock, the history and the "Scan now" door that
+  // are already on screen stay where they are while it runs.
+  const retry = useCallback(() => {
+    setRetrying(true);
+    void load().finally(() => setRetrying(false));
   }, [load]);
 
   const write = async (body: Record<string, unknown>) => {
@@ -104,14 +120,7 @@ export function ScansPage() {
         <ScanNowButton scan={scan} />
       </header>
 
-      {loadError ? (
-        <div className={`${PANEL} p-4`} role="alert">
-          <p className="text-sm text-red-700">{resolveError(loadError, t("loadError"))}</p>
-          <button type="button" className={`${BTN_SECONDARY} mt-2 h-8 px-3 text-sm`} onClick={() => void load()}>
-            {t("retry")}
-          </button>
-        </div>
-      ) : null}
+      {loadError ? <FailureNotice failure={loadError} fallback={t("loadError")} onRetry={retry} retrying={retrying} /> : null}
 
       {!job && !loadError ? (
         <div className={`${PANEL} p-4`} aria-busy="true" aria-label={t("loading")}>
@@ -151,11 +160,7 @@ export function ScansPage() {
             <span className="text-sm text-steel">{job.schedule.lastRunAt ? t("clock.lastRun", { when: rel(job.schedule.lastRunAt) }) : t("clock.never")}</span>
           </div>
           {locked ? <p className="mt-2 text-sm text-steel">{tSched("unverified")}</p> : null}
-          {writeError ? (
-            <p className="mt-2 text-sm text-red-700" role="alert">
-              {resolveError(writeError, t("updateError"))}
-            </p>
-          ) : null}
+          {writeError ? <FailureNotice failure={writeError} fallback={t("updateError")} className="mt-2" /> : null}
         </section>
       ) : null}
 
@@ -164,6 +169,9 @@ export function ScansPage() {
           <h2 id="scan-history" className="flex items-center gap-1.5 font-serif text-h3 text-ink">
             <History size={16} aria-hidden /> {t("history.title")}
           </h2>
+          {/* The per-source table below names a source by its catalog label; when that
+              read failed it can only print the stored id, and it says so. */}
+          {sourcesError ? <FailureNotice failure={sourcesError} fallback={t("sourcesError")} onRetry={retry} retrying={retrying} /> : null}
           {job.runs.length === 0 ? (
             <p className="text-sm text-steel">{t("history.none")}</p>
           ) : (

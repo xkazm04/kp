@@ -1,6 +1,7 @@
 "use client";
 
 import type { ExtractionRule, JobseekerSource, RuleDryRunResult } from "@/app/_lib/jobseeker/types";
+import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
 
 // The Sources page's view of the API (app/api/jobseeker/sources/**). The catalog entry
 // type mirrors sources-catalog.ts's CatalogEntry minus nothing: the route serves it
@@ -45,17 +46,19 @@ export type ProposeResult = PreviewResult & {
   invalid?: string;
 };
 
-export type ApiFailure = { code: string | null; termsHash?: string; reason?: string | null };
+/** A failed call, classified (apiFailure.ts) so the reader is told the truth about a
+ *  server that never answered, plus the 409's termsHash. */
+export type ApiFailure = ClassifiedFailure & { termsHash?: string; reason?: string | null };
 
-/** One JSON call; `ok` carries the parsed body, `fail` the code (plus the 409's termsHash). */
+/** One JSON call; `ok` carries the parsed body, `fail` the classified failure. */
 export async function callJson<T>(url: string, init?: RequestInit): Promise<{ ok: true; body: T } | { ok: false; fail: ApiFailure; status: number }> {
   try {
     const res = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
     const body = (await res.json().catch(() => null)) as (T & { code?: string; termsHash?: string; reason?: string | null }) | null;
-    if (!res.ok || body === null) return { ok: false, fail: { code: body?.code ?? null, termsHash: body?.termsHash, reason: body?.reason }, status: res.status };
+    if (!res.ok || body === null) return { ok: false, fail: { ...classifyApiFailure(res, body), termsHash: body?.termsHash, reason: body?.reason }, status: res.status };
     return { ok: true, body };
   } catch {
-    return { ok: false, fail: { code: null }, status: 0 };
+    return { ok: false, fail: { ...TRANSPORT_FAILURE }, status: 0 };
   }
 }
 

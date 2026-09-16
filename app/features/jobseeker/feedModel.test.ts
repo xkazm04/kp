@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DISMISS_REASONS, isDismissReason } from "@/app/_lib/jobseeker/types";
-import { compareSalary, DISMISS_PICKER_REASONS, nearestScanInterval, resolveFeedEmptyState, SCAN_INTERVALS } from "./feedModel";
+import { compareSalary, DISMISS_PICKER_REASONS, euresCountries, nearestScanInterval, resolveFeedEmptyState, SCAN_INTERVALS, shouldFetchRows } from "./feedModel";
 
 // The empty-state chain: the FIRST missing link wins, and rows always win over the chain.
 test("empty state resolves to the first missing link of the chain", () => {
@@ -15,6 +15,33 @@ test("empty state resolves to the first missing link of the chain", () => {
 
 test("rows present is `ok` whatever the chain says", () => {
   assert.equal(resolveFeedEmptyState({ hasProfile: false, enabledSources: 0, hasScanned: false, rows: 3, liveTotal: 3 }), "ok");
+});
+
+// A broken chain is answered from what the server already knows: no request is made,
+// so a failed read and an empty feed can never be confused with each other.
+test("rows are fetched only when the chain can produce them", () => {
+  assert.equal(shouldFetchRows({ hasProfile: false, enabledSources: 0 }), false);
+  assert.equal(shouldFetchRows({ hasProfile: false, enabledSources: 2 }), false);
+  assert.equal(shouldFetchRows({ hasProfile: true, enabledSources: 0 }), false);
+  assert.equal(shouldFetchRows({ hasProfile: true, enabledSources: 1 }), true);
+});
+
+// Failure is not empty: a chain that CAN produce rows plus zero rows is an empty
+// state, and the same chain plus a failed read is a failure — resolveFeedEmptyState
+// is asked only in the first case (the component never passes it a failed read).
+test("an intact chain with no rows is `nothing_live`, which a failure must not borrow", () => {
+  const intact = { hasProfile: true, enabledSources: 1, hasScanned: true, rows: 0, liveTotal: 0 };
+  assert.equal(shouldFetchRows(intact), true);
+  assert.equal(resolveFeedEmptyState(intact), "nothing_live");
+});
+
+// EURES takes location codes; an empty preference list is a query for nothing.
+test("EURES countries default to cz and are normalized", () => {
+  assert.deepEqual(euresCountries([]), ["cz"]);
+  assert.deepEqual(euresCountries(null), ["cz"]);
+  assert.deepEqual(euresCountries(undefined), ["cz"]);
+  assert.deepEqual(euresCountries(["  "]), ["cz"]);
+  assert.deepEqual(euresCountries(["DE", "de", " at "]), ["de", "at"]);
 });
 
 // The dismiss picker offers exactly the wire vocabulary the route validates with.
