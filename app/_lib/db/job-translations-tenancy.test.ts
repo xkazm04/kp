@@ -23,6 +23,7 @@ import {
   listJobTranslationLangs,
   listJobTranslations,
   saveJobTranslation,
+  deleteJobTranslations,
 } from "./job-translations.ts";
 import { TENANCY_SCOPED_TABLES } from "../tenancy.ts";
 
@@ -83,4 +84,14 @@ test("re-generating a language REPLACES its body rather than accumulating drafts
   assert.equal(all[0].title, "V2");
   // …and the replacement stayed inside the tenant.
   assert.equal(getJobTranslation("role-2", "fr", B), null);
+});
+
+test("a re-ingest drops ONE team's renderings of a role, never the other team's", () => {
+  saveJobTranslation({ jobId: "role-3", lang: "cs", sourceLang: "en", title: "A cs", bodyMd: "Tym A" }, A);
+  saveJobTranslation({ jobId: "role-3", lang: "de", sourceLang: "en", title: "A de", bodyMd: "Team A" }, A);
+  saveJobTranslation({ jobId: "role-3", lang: "cs", sourceLang: "en", title: "B cs", bodyMd: "Tym B" }, B);
+  assert.equal(deleteJobTranslations("role-3", A), 2);
+  assert.deepEqual(listJobTranslationLangs("role-3", A), []);
+  assert.deepEqual(listJobTranslationLangs("role-3", B), ["cs"]);
+  assert.equal(deleteJobTranslations("role-3", A), 0);
 });

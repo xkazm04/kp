@@ -5190,16 +5190,9 @@
       "noPatternsTitle": "Nichts hält diese Stelle auf",
       "noPatternsBody": "Keine Anforderung hier kostet Sie Kandidaten, und das Gehalt liegt im Markt. Es gibt nichts zu gewichten.",
       "intro": "Was Ihr Kandidatenpool gegen {jobTitle} zeigt. Setzen Sie bei jedem Muster eine Priorität, und Kandi gewichtet es entsprechend.",
-      "variant": {
-        "label": "Layout des Registers",
-        "ledger": "Register",
-        "stack": "Sortierung",
-        "dial": "Regler"
-      },
       "col": {
         "pattern": "Muster",
         "share": "Anteil am Pool",
-        "affected": "Kandidaten",
         "priority": "Priorität",
         "action": "Aktion"
       },
@@ -5220,20 +5213,6 @@
       "pct": "{pct} %",
       "shareAria": "{pct} % des Pools",
       "noShare": "Nicht zählbar",
-      "gain": "+{n}",
-      "lane": {
-        "inbox": "Noch nicht gewichtet ({n})",
-        "inboxEmpty": "Jedes Muster hat eine Priorität.",
-        "empty": "Hier ist noch nichts."
-      },
-      "laneWeight": "Gewicht {n}",
-      "moveLeftAria": "Priorität von {pattern} senken",
-      "moveRightAria": "Priorität von {pattern} erhöhen",
-      "dial": {
-        "projectedLabel": "Erwartete Auswahlliste",
-        "untouched": "Heute stehen {base} auf der Auswahlliste. Setzen Sie bei einem Muster eine Priorität, um zu sehen, was ein Lockern bringen würde.",
-        "upperBound": "Heute {base}. Gewichtete Muster: {n}. Eine Obergrenze: jeder Zugewinn wird für sich gemessen, zwei Lockerungen können also denselben Kandidaten doppelt freigeben."
-      },
       "salaryUnset": "(kein Band gesetzt)",
       "notAssessed": "{n, plural, one {# Kandidat konnte nicht bewertet werden} other {# Kandidaten konnten nicht bewertet werden}} und {n, plural, one {ist} other {sind}} oben nicht mitgezählt. Prüfen Sie das Profil.",
       "stageEdit": "Diese Änderung vorbereiten",
@@ -5361,10 +5340,6 @@
       "auditUnder": "nach Gewichtung von {label}",
       "auditPoolTruncated": "Begrenzte Stichprobe: Der Kandidatenbestand überschreitet die Ranking-Obergrenzen, daher deckt dieses Audit nur die bewertete Teilmenge ab, nicht den gesamten Pool.",
       "malformedResponse": "Der Server hat eine unlesbare Antwort geschickt. Bitte die Kandidaten erneut laden.",
-      "layoutLabel": "Layout",
-      "layout_ladder": "Leiter",
-      "layout_rungs": "Sprossen",
-      "layout_grid": "Raster",
       "colRank": "#",
       "colCandidate": "Kandidat/in",
       "colScore": "Passung",
@@ -5372,13 +5347,7 @@
       "colStage": "Phase",
       "notFiled": "Nicht in dieser Rolle",
       "noneMatch": "Keine passenden Kandidat/innen.",
-      "band_strong": "Starke Passung",
-      "band_mid": "Vielversprechend",
-      "band_weak": "Schwache Passung",
-      "band_notEligible": "Nicht geeignet",
-      "bandCount": "{count, plural, one {# Kandidat/in} other {# Kandidat/innen}}",
       "gapsInline": "Fehlt: {gaps}",
-      "gridMore": "{count, plural, one {# weitere/r Kandidat/in steht darunter im Ranking} other {# weitere Kandidat/innen stehen darunter im Ranking}}. Wechseln Sie zur Leiter, um den ganzen Pool zu lesen.",
       "noGaps": "Keine fehlenden Muss-Kriterien",
       "previewSubtitle": "Für diese Rolle bewertet, noch nicht in ihrer Pipeline",
       "previewNotFiled": "Diese Person hat keinen Eintrag für diese Rolle, daher gibt es noch keine Phase, keinen Verlauf und keine Entscheidung zu zeigen. Nehmen Sie sie auf, dann öffnet sich hier die vollständige Kandidatenansicht.",

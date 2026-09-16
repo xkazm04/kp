@@ -6,38 +6,31 @@
 // early-career), which spent a screen on a dozen people and had no way into the
 // one place a candidate is actually read. It is now a THIN frame: the honest
 // facts of the surface (the cap note, the toggles and their consequences, the
-// skipped-candidate note, the fairness audit) plus a switcher over three layouts
-// of the SAME rows, and a row click opens the candidate modal.
-//
-// The layouts live in candidates/ and share one row model (candidatesModel.ts),
-// so a variant is a shape and never a different claim. The bridge from a ranked
-// row to the entry-shaped modal is documented in candidates/useCandidateBridge.ts.
+// skipped-candidate note, the fairness audit) over ONE ranked ladder
+// (candidates/CandidatesLadder.tsx, the 2026-09 prototype round's winner over a
+// banded "rungs" list and a card grid), and a row click opens the candidate modal.
+// The bridge from a ranked row to the entry-shaped modal is documented in
+// candidates/useCandidateBridge.ts.
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Scale, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, CHIP_TOGGLE, NOTICE, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, CHIP_TOGGLE, NOTICE } from "@/app/_components/ui/recipes";
 import { CandidateModal } from "@/app/features/hiring/pipeline/candidate/CandidateModal";
 import { isEarlyCareer } from "./JobsTypes";
 import { SkippedCandidatesNote } from "./JobsShared";
 import { useRecruiterCandidatesLogic } from "./jobsRecruiterCandidatesLogic";
 import { FairnessAuditPanel } from "./JobsRecruiterCandidatesFairness";
-import { CandidatesGrid } from "./candidates/CandidatesGrid";
 import { CandidatesLadder } from "./candidates/CandidatesLadder";
-import { CandidatesRungs } from "./candidates/CandidatesRungs";
 import { CandidatePreviewModal } from "./candidates/CandidatePreviewModal";
 import { useCandidateBridge } from "./candidates/useCandidateBridge";
-import {
-  buildLadderRows,
-  CANDIDATE_VARIANTS,
-  orderNotEligible,
-  readVariant,
-  writeVariant,
-  type CandidateVariant,
-} from "./candidates/candidatesModel";
+import { buildLadderRows, orderNotEligible } from "./candidates/candidatesModel";
 
-const LAYOUTS = { ladder: CandidatesLadder, rungs: CandidatesRungs, grid: CandidatesGrid } as const;
+// The modal's "something changed" callback: the board is re-read on the next open
+// and the entry refreshes in place through openEntryById, so there is nothing to
+// invalidate here. A stable no-op keeps the modal's effect deps quiet.
+const noChange = () => {};
 
 export function RecruiterCandidates({
   jobId,
@@ -53,8 +46,6 @@ export function RecruiterCandidates({
   const t = useTranslations("jobs.candidates");
   const logic = useRecruiterCandidatesLogic({ jobId, jobTitle, roleFamily, autoLoad });
   const bridge = useCandidateBridge(jobId);
-  // Lazy initializer: localStorage is read once, on mount, not on every render.
-  const [variant, setVariant] = useState<CandidateVariant>(() => readVariant());
 
   const rows = useMemo(
     () => buildLadderRows(logic.shownOrdered, { fair: logic.fairLookup, early: (c) => isEarlyCareer(c.archetype) }),
@@ -64,11 +55,6 @@ export function RecruiterCandidates({
     () => orderNotEligible(buildLadderRows(logic.notEligibleRows)),
     [logic.notEligibleRows],
   );
-
-  const pick = (next: CandidateVariant) => {
-    setVariant(next);
-    writeVariant(next);
-  };
 
   if (!logic.data) {
     return (
@@ -86,7 +72,6 @@ export function RecruiterCandidates({
     );
   }
 
-  const Layout = LAYOUTS[variant];
   return (
     <div className="rounded-md border border-stone-200 p-3">
       <p role="status" aria-live="polite" className="sr-only">
@@ -118,19 +103,6 @@ export function RecruiterCandidates({
             </button>
           ) : null}
           <span className="text-sm text-steel">{t("notEligible", { count: logic.notEligible })}</span>
-          <span className={TOGGLE_GROUP} role="group" aria-label={t("layoutLabel")}>
-            {CANDIDATE_VARIANTS.map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => pick(v)}
-                aria-pressed={variant === v}
-                className={`${toggleBtn(variant === v)} cursor-pointer`}
-              >
-                {t(`layout_${v}`)}
-              </button>
-            ))}
-          </span>
         </div>
       </div>
 
@@ -142,13 +114,13 @@ export function RecruiterCandidates({
       {/* The pool was capped (route's `poolTruncated`): say so where the ranking,
           the KO count and the Pool-Fit count are read. A cut slice presented as
           the whole pool is the shape this tab must never take — so the note is on
-          the FRAME, above whichever layout is showing, not inside one of them. */}
+          the FRAME, above the ladder, not inside it. */}
       {logic.poolTruncated ? (
         <p role="note" className={`${NOTICE("amber")} mt-2 px-2.5 py-1.5 text-sm`}>{t("poolTruncatedNote")}</p>
       ) : null}
 
       <div className="mt-3">
-        <Layout rows={rows} notEligible={notEligible} opening={bridge.opening} onOpen={bridge.open} />
+        <CandidatesLadder rows={rows} notEligible={notEligible} opening={bridge.opening} onOpen={bridge.open} />
       </div>
 
       {logic.hasFairness ? (
@@ -182,7 +154,7 @@ export function RecruiterCandidates({
             boardCohort={[]}
             axis={bridge.axis}
             onClose={bridge.close}
-            onChanged={bridge.invalidate}
+            onChanged={noChange}
             onOpenEntry={bridge.openEntryById}
             onNavigate={bridge.navigate}
             onTab={bridge.setTab}

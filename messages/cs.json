@@ -5190,16 +5190,9 @@
       "noPatternsTitle": "Tuto pozici nic nebrzdí",
       "noPatternsBody": "Žádný zdejší požadavek vás nestojí kandidáty a mzda odpovídá trhu. Není co vážit.",
       "intro": "Co váš pool kandidátů ukazuje vůči pozici {jobTitle}. U každého vzorce nastavte prioritu a Kandi ji tak zváží.",
-      "variant": {
-        "label": "Rozvržení přehledu",
-        "ledger": "Přehled",
-        "stack": "Třídění",
-        "dial": "Regulátor"
-      },
       "col": {
         "pattern": "Vzorec",
         "share": "Podíl poolu",
-        "affected": "Kandidáti",
         "priority": "Priorita",
         "action": "Akce"
       },
@@ -5220,20 +5213,6 @@
       "pct": "{pct} %",
       "shareAria": "{pct} % poolu",
       "noShare": "Nelze spočítat",
-      "gain": "+{n}",
-      "lane": {
-        "inbox": "Zatím nezvážené ({n})",
-        "inboxEmpty": "Každý vzorec má prioritu.",
-        "empty": "Zatím tu nic není."
-      },
-      "laneWeight": "Váha {n}",
-      "moveLeftAria": "Snížit prioritu u {pattern}",
-      "moveRightAria": "Zvýšit prioritu u {pattern}",
-      "dial": {
-        "projectedLabel": "Odhadovaný užší výběr",
-        "untouched": "Dnes je v užším výběru {base}. Nastavte u některého vzorce prioritu a uvidíte, co by jeho uvolnění přineslo.",
-        "upperBound": "Dnes {base}. Zvážených vzorců: {n}. Jde o horní odhad: každý přínos je měřen zvlášť, takže dvě uvolnění mohou uvolnit téhož kandidáta dvakrát."
-      },
       "salaryUnset": "(pásmo není nastaveno)",
       "notAssessed": "{n, plural, one {# kandidáta se nepodařilo ohodnotit} few {# kandidáty se nepodařilo ohodnotit} other {# kandidátů se nepodařilo ohodnotit}} a není {n, plural, one {započten} other {započteni}} výše. Zkontrolujte jejich profil.",
       "stageEdit": "Připravit tuto úpravu",
@@ -5361,10 +5340,6 @@
       "auditUnder": "podle vah: {label}",
       "auditPoolTruncated": "Omezený vzorek: korpus kandidátů překračuje limity hodnocení, takže tento audit pokrývá pouze ohodnocenou podmnožinu, nikoli celý fond.",
       "malformedResponse": "Server vrátil odpověď, kterou nelze přečíst. Zkuste kandidáty načíst znovu.",
-      "layoutLabel": "Rozvržení",
-      "layout_ladder": "Žebřík",
-      "layout_rungs": "Příčky",
-      "layout_grid": "Mřížka",
       "colRank": "#",
       "colCandidate": "Kandidát",
       "colScore": "Shoda",
@@ -5372,13 +5347,7 @@
       "colStage": "Fáze",
       "notFiled": "Není v této roli",
       "noneMatch": "Žádní kandidáti neodpovídají.",
-      "band_strong": "Silná shoda",
-      "band_mid": "Slibní",
-      "band_weak": "Slabá shoda",
-      "band_notEligible": "Nevhodní",
-      "bandCount": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}}",
       "gapsInline": "Chybí: {gaps}",
-      "gridMore": "{count, plural, one {Pod nimi je v pořadí ještě # kandidát} few {Pod nimi jsou v pořadí ještě # kandidáti} other {Pod nimi je v pořadí ještě # kandidátů}}. Celou databázi si přečtete v rozvržení Žebřík.",
       "noGaps": "Nechybí žádné nutné dovednosti",
       "previewSubtitle": "Ohodnocen pro tuto roli, zatím není v její pipeline",
       "previewNotFiled": "Tento kandidát nemá pro tuto roli záznam, takže zatím není co ukázat z fáze, historie ani rozhodnutí. Přidejte ho a otevře se tu plný pohled na kandidáta.",

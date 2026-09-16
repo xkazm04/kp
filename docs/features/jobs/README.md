@@ -1468,35 +1468,31 @@ path (`startJdBuild` accepts a `createdBy`) and `POST /api/jds/save` still pass
 nothing, so JDs created there are admin-deletable only until their doors thread
 `(await currentUser()).userId` through.
 
-## The role's Candidates tab: three layouts over one ranked pool
+## The role's Candidates tab: one ranked ladder over the pool
 
 The Candidates tab inside the posting modal (`RecruiterCandidates`,
 `app/features/library/jobs/JobsRecruiterCandidates.tsx`) is the fair-comparison
 lens over the saved pool, scored against this role by
 `GET /api/jobs/[id]/candidates`. It used to be two columns of nine-badge cards
 (experienced / early-career) that spent a screen on a dozen people and had no way
-into the one place a candidate is actually read. It is now a thin **frame** plus a
-switcher over **three layouts**, all in `app/features/library/jobs/candidates/`:
+into the one place a candidate is actually read. It is now a thin **frame** over
+ONE layout, the **Ladder** (`app/features/library/jobs/candidates/CandidatesLadder.tsx`):
+a dense ranked table on the shared table kit (`ColumnHead` sort, `ColumnFilter` by
+name and stage, `TablePager` at 20/page, `TableStatus`), where the KO-filtered rows
+sit in the same table as the rest, wearing their reason, and the whole row is the
+click target into the candidate modal. It won the 2026-09 prototype round over a
+banded "rungs" list and a card grid; both are deleted, along with the layout
+switcher and its `localStorage` memory.
 
-| Layout | File | What it is for |
-| --- | --- | --- |
-| **Ladder** | `CandidatesLadder.tsx` | One dense ranked table on the shared table kit (`ColumnHead` sort, `ColumnFilter` by name and stage, `TablePager` at 20/page, `TableStatus`). The only layout the reader can re-order, and the only one where the KO-filtered rows sit in the same table as the rest, wearing their reason. |
-| **Rungs** | `CandidatesRungs.tsx` | The ladder as a ladder: rungs grouped into score bands (strong / promising / weak / not eligible), each band wearing its count and a share bar, so the pool's SHAPE is read first. One line per candidate; the not-eligible band starts collapsed. |
-| **Grid** | `CandidatesGrid.tsx` | A scannable card grid (1 col on a phone, up to 4 on a wide desktop): name, score, two gap chips, stage. Capped at 36 cards with the remainder counted, never silently dropped. |
-
-The switcher is a `TOGGLE_GROUP` / `toggleBtn` segmented control on the frame; the
-choice is remembered per reader in `localStorage` under `kp.jobs.candidates.variant`
-(every access wrapped, so blocked site data degrades to the default).
-
-**One row model, three shapes.** All three read `LadderRow[]` built once by
+**One row model.** The ladder reads `LadderRow[]` built once by
 `candidates/candidatesModel.ts` (`buildLadderRows`) — rank, the displayed score
 (the robust cross-scheme mean under Fair Rank, the own-weight total otherwise),
 band, the capped strength/gap strips, the near-miss flag, and the stage of this
-candidate's active entry for this role. A variant is therefore a LAYOUT and never a
-different claim; the pure half is pinned by `candidatesModel.test.ts` and the
-"every layout carries the KO cohort" contract by `jobsCandidatesMemo.test.ts`.
+candidate's active entry for this role. The pure half is pinned by
+`candidatesModel.test.ts` and the "the ladder carries the KO cohort" contract by
+`jobsCandidatesMemo.test.ts`.
 
-**The fairness facts live on the frame**, above whichever layout is showing: the
+**The fairness facts live on the frame**, above the ladder: the
 capped-pool note (`poolTruncated`), the early-career shielding sentence, the Pool
 Fit and Fair Rank toggles with their consequences, the skipped-candidate note, and
 the cross-scheme `FairnessAuditPanel` with its CSV export. Each layout carries the
@@ -1525,12 +1521,14 @@ while `CandidateModal` is built around a pipeline ENTRY — so
 A lookup that finds nothing (the entry closed or moved between the ranking and the
 click) falls back to the preview rather than to an empty modal.
 
-Known gaps: the Grid's 36-card cap is a layout limit, not a pager — the Ladder is
-the tool for a pool larger than that, and the footer says so. The board read the
-bridge caches is not refreshed while the tab stays open; a stage move made inside
-the modal invalidates it, but one made elsewhere is picked up on the next mount.
+The bridge reads `GET /api/pipeline` on EVERY open rather than caching it for the
+tab's lifetime: a stage move made on the board while this tab stays open must not
+hand the modal a stale entry, and one small GET per click is the cheaper honesty
+(the cache and its "invalidate on change" bookkeeping were the 2026-09 known gap).
 
-## The Coach tab is a ledger of patterns, weighed in three levels
+Known gaps: none recorded.
+
+## The Coach tab is a ledger of patterns, weighed on a three-notch dial
 
 The Coach tab no longer paints a winnability verdict. The grade underneath is the
 same one it always ran (`GET /api/jobs/[id]/winnability` → `winnability_cli`, the
@@ -1551,21 +1549,19 @@ costs are the ones who never applied, so a `0 of 34` there would read as "this c
 nobody". A silenced salary verdict (`belowMarket === null`, the cross-currency case
 with no FX) produces no row at all.
 
-### Three variants behind one switcher
+### One layout: the Ledger, fused with the Dial's control
 
-All three read ONE hook (`coach/useRolePatterns.ts`) and ONE derivation, so they can
-differ in layout but never in what they are looking at. The choice is remembered in
-`localStorage` under `kp.coach.variant` (a lazy initializer, `window`-guarded and
-wrapped in try/catch — a blocked storage jar costs the memory, never the panel).
-
-- **Ledger** (`coach/CoachLedger.tsx`) — the dense, auditable reading. The shared
-  table kit (`ColumnHead` sort, `TablePager` at 20/page, `TableStatus`), a share bar,
-  the priority chips in the cell, and the "stage this edit" hand-off per row.
-- **Stack** (`coach/CoachStack.tsx`) — sorting rather than reading. Patterns start in
-  an inbox strip and move between three lanes with ← / →; each lane header carries its
-  summed weight, so "I have made nine things critical" is visible without counting.
-- **Dial** (`coach/CoachDial.tsx`) — one consequence held at the top. A projected
-  shortlist number recomputes as the dials turn (`projectPool`, pure and tested).
+`coach/CoachLedger.tsx` is the surviving layout of the 2026-09 prototype round —
+the Ledger as the baseline (the shared table kit: `ColumnHead` sort on pattern /
+share / priority, `TablePager` at 20/page, `TableStatus`), simplified to ONE line
+per pattern: the headline with its measure inline ("Kubernetes missing · 23 of 34"),
+the share bar with its percent, the priority control, and one icon-only action (the
+"stage this edit" hand-off into the JD editor, `jobsCoachApply.ts`). The priority
+control is the Dial variant's three-notch dial (`coach/CoachPriorityDial.tsx`): one
+control with three positions rather than three chips, the active notch painted in
+the level's token. The Stack (lanes) and Dial (projected shortlist) layouts, their
+switcher, the `projectPool` projection and the lane helpers are deleted; the panel
+reads one hook (`coach/useRolePatterns.ts`) and one derivation (`rolePatterns.ts`).
 
 ### The priority vocabulary
 
@@ -1573,8 +1569,8 @@ wrapped in try/catch — a blocked storage jar costs the memory, never the panel
 1**. The words are about WEIGHT, not requirement kind: the role already carries a
 must_have / nice_to_have axis and a second must/nice control beside it would read as
 the same field spelled twice. A pattern with **no** entry is untagged, which is a
-distinct state from `minor` — "not yet judged" is not "drop it", and the projection
-claims nothing for it.
+distinct state from `minor` — "not yet judged" is not "drop it"; clicking the
+active notch clears back to it.
 
 ### Where the tags persist
 
@@ -1605,11 +1601,8 @@ server-side; the remaining seam is exactly two hops:
    which resolves the `weight_proposal` use case for the **fairness matrix**, not for
    the headline score — so there is no existing weights input to thread into.
 
-Until both land, the Dial's projected shortlist is the only place a weight has an
-effect, and it is explicitly an **upper bound**: each `gain` is an independent
-counterfactual from `winnability.py` ("demote just this one and N more shortlist"), so
-summing two of them double-counts any candidate both loosenings would have admitted.
-The copy says that too. Nothing here re-runs the scorer.
+Until both land, a weight is a recorded judgement and nothing more; the footnote
+says so, and nothing here re-runs the scorer.
 
 Known gaps: the weight seam above. The ledger derives only from the winnability
 payload — richer per-candidate patterns (a seniority mismatch, an archetype skew)
@@ -1735,8 +1728,15 @@ present, always current); any other language renders the stored body, or the emp
 state. The tab panel carries a `min-h-[32rem]` floor so switching tabs does not resize
 the dialog under the reader's cursor.
 
-Known gaps: a translation is not invalidated when the role's own fields are edited
-afterwards — it keeps its `created_at` and has to be re-generated by hand. There is no
-bulk "translate every open role" action, and the auto-close hook does not notify
+A re-ingest of the role under its existing id (an edited JD saved through
+`PATCH /api/jds/[slug]`, a restored revision, the library's ingest door) rewrites the
+role's fields, so `insertJob` (`app/_lib/job-ingest.ts`) drops that team's
+`job_translations` for the role on the same connection — a German advertisement of
+the previous text is not a translation of this one. The posting tab shows the empty
+state again and regrows each language on demand. Pinned by
+`app/_lib/db/job-translations-tenancy.test.ts` (one team's drop never touches the
+other team's rows).
+
+Known gaps: there is no bulk "translate every open role" action, and the auto-close hook does not notify
 anyone that a role retired itself (it writes no event kind of its own by design; the
 withdrawn candidates' `role_closed` events are the only trace).

@@ -7,9 +7,8 @@
 // the recruiter's head on every visit.
 //
 // Everything here is pure and React-free so the three variants share ONE derivation and
-// the projection arithmetic is unit-testable (rolePatterns.test.ts).
+// the derivation is unit-testable (rolePatterns.test.ts).
 
-import { PRIORITY_WEIGHT, type PriorityLevel, type RolePriorityMap } from "@/app/_lib/role-priorities";
 import type { Winnability } from "./winnabilityTypes";
 
 /** The grade this ledger is derived from — re-exported so consumers import one module. */
@@ -49,13 +48,6 @@ export type RolePattern = {
  *  share it); re-exported here so the three variants import ONE module. */
 export { PRIORITY_LEVELS, PRIORITY_WEIGHT } from "@/app/_lib/role-priorities";
 export type { PriorityLevel, RolePriorityMap } from "@/app/_lib/role-priorities";
-
-/** How much of a pattern's counterfactual gain the projection is allowed to claim,
- *  given how the recruiter weighted it. Critical = hold the requirement, claim
- *  nothing. Minor = the recruiter has said it barely matters, so the full loosening
- *  gain is on the table. Important = half, the honest middle. An UNTAGGED pattern
- *  claims nothing: "not yet judged" is not "drop it". */
-export const RELAXATION: Record<PriorityLevel, number> = { critical: 0, important: 0.5, minor: 1 };
 
 function gateId(kind: "language" | "education", value: string): string {
   return `${kind}:${value}`;
@@ -124,60 +116,4 @@ export function derivePatterns(win: Winnability | null): RolePattern[] {
   }
 
   return out.sort((a, b) => b.affected - a.affected || b.gain - a.gain || a.id.localeCompare(b.id));
-}
-
-// ---- The Dial's projection --------------------------------------------------
-
-export type PoolProjection = {
-  /** Candidates that would shortlist under the current weighting. */
-  projected: number;
-  /** The base the projection starts from (today's shortlist-ready count). */
-  base: number;
-  /** The ceiling: nobody outside the pool can be projected into it. */
-  cap: number;
-  /** How many patterns actually contributed — 0 means the number is just the base. */
-  contributing: number;
-};
-
-/** What the pool would look like if the role were loosened in proportion to how the
- *  recruiter weighted each pattern.
- *
- *  This is an UPPER BOUND and the UI must say so: each `gain` is an INDEPENDENT
- *  counterfactual from winnability.py ("demote just this one and N more shortlist"),
- *  so adding two of them double-counts any candidate that both loosenings would have
- *  admitted. Summing them is the honest direction to be wrong in for a "how much room
- *  is there?" number, but it is not a re-score, and nothing here re-runs the scorer. */
-export function projectPool(
-  patterns: readonly RolePattern[],
-  priorities: RolePriorityMap,
-  base: number,
-  cap: number,
-): PoolProjection {
-  let claimed = 0;
-  let contributing = 0;
-  for (const p of patterns) {
-    const level = priorities[p.id];
-    if (!level) continue;
-    const share = RELAXATION[level] * p.gain;
-    if (share <= 0) continue;
-    claimed += share;
-    contributing += 1;
-  }
-  const projected = Math.min(Math.max(cap, base), base + Math.round(claimed));
-  return { projected, base, cap, contributing };
-}
-
-/** The summed weight of one priority lane — the Stack variant's lane header. */
-export function laneWeight(patterns: readonly RolePattern[], priorities: RolePriorityMap, level: PriorityLevel): number {
-  return patterns.reduce((sum, p) => (priorities[p.id] === level ? sum + PRIORITY_WEIGHT[level] : sum), 0);
-}
-
-/** The patterns sitting in one lane, ledger order preserved. Pass null for the
- *  Stack's "inbox" strip: the patterns nobody has weighed yet. */
-export function patternsInLane(
-  patterns: readonly RolePattern[],
-  priorities: RolePriorityMap,
-  level: PriorityLevel | null,
-): RolePattern[] {
-  return patterns.filter((p) => (priorities[p.id] ?? null) === level);
 }

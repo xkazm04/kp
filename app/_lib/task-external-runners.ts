@@ -25,7 +25,14 @@ export type ExternalTaskCtx = {
 
 export type ExternalTaskRunner = (ctx: ExternalTaskCtx) => Promise<unknown>;
 
-const runners = new Map<string, ExternalTaskRunner>();
+// The map lives on globalThis, not in module scope. Next bundles instrumentation-node.ts
+// and the route handlers separately, so in `next start` this module is evaluated TWICE:
+// once in the instrumentation chunk that registers, once in the route chunk that reads.
+// A module-level Map is two Maps, and the first manual scan failed with "not registered"
+// (smoke, 2026-09-16) although boot had registered it. Same shape as core.ts's __kpDb.
+const REGISTRY_KEY = "__kpTaskRunners";
+const holder = globalThis as typeof globalThis & { [REGISTRY_KEY]?: Map<string, ExternalTaskRunner> };
+const runners: Map<string, ExternalTaskRunner> = holder[REGISTRY_KEY] ?? (holder[REGISTRY_KEY] = new Map());
 
 /** Boot-time registration (instrumentation-node.ts). Re-registering replaces — the dev
  *  server re-runs instrumentation on reload and must not throw on the second pass. */

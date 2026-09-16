@@ -9,14 +9,11 @@ import {
   bandOf,
   bandShare,
   buildLadderRows,
-  CANDIDATE_VARIANTS,
   filterRows,
   groupByBand,
-  isCandidateVariant,
   MAX_GAPS,
   MAX_STRENGTHS,
-  stageOptions,
-} from "./candidatesModel";
+  stageOptions } from "./candidatesModel";
 import type { CandRow } from "../JobsTypes";
 
 function cand(over: Partial<CandRow> & { candidateId: string; total: number }): CandRow {
@@ -38,13 +35,6 @@ function cand(over: Partial<CandRow> & { candidateId: string; total: number }): 
     ...rest,
   } as CandRow;
 }
-
-test("the variant vocabulary is closed and guarded", () => {
-  assert.deepEqual([...CANDIDATE_VARIANTS], ["ladder", "rungs", "grid"]);
-  assert.ok(isCandidateVariant("rungs"));
-  assert.ok(!isCandidateVariant("columns"));
-  assert.ok(!isCandidateVariant(null));
-});
 
 test("rank is the position in the ordered eligible pool, and a KO row has none", () => {
   const rows = buildLadderRows([

@@ -41,9 +41,13 @@ test.describe("/me keyless", () => {
       await expect(page.locator(`section[data-tier="${tier}"]`)).toBeVisible();
     }
     const tierC = page.locator('section[data-tier="C"]');
-    await expect(tierC.locator("[data-refused]").first()).toBeVisible();
+    const refused = tierC.locator("[data-refused]");
+    await expect(refused.first()).toBeVisible();
+    // The ROWS carry no control. The section heading owns one text-free explain
+    // hint (an IconAction, round 27), which is not a control on any source.
+    await expect(refused.getByRole("switch")).toHaveCount(0);
+    await expect(refused.getByRole("button")).toHaveCount(0);
     await expect(tierC.getByRole("switch")).toHaveCount(0);
-    await expect(tierC.getByRole("button")).toHaveCount(0);
   });
 
   test("a tier B board's toggle opens the acknowledgement, CTA disabled until ticked", async ({ page }) => {

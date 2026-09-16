@@ -7,17 +7,20 @@ import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { TablePager, clampPage, pageSlice, TABLE_PAGE_SIZE } from "@/app/_components/table/TablePager";
 import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useTableSort } from "@/app/_components/table/useTableSort";
-import { META_LABEL } from "@/app/_components/ui/recipes";
 import { PRIORITY_WEIGHT, type PriorityLevel } from "@/app/_lib/role-priorities";
-import { CoachPriorityChips } from "./CoachPriorityChips";
+import { CoachPriorityDial } from "./CoachPriorityDial";
 import { sharePercent, usePatternCopy } from "./coachLabels";
 import type { RolePattern, RolePriorityMap, Winnability } from "./rolePatterns";
 
-// VARIANT 1 — "Ledger". The dense, auditable reading: every pattern on one row, sorted
-// by whichever column the recruiter is arguing from, weighed in place. It is the
-// variant for someone who already knows the role and wants the whole picture at once.
+// The ledger of patterns — the winner of the 2026-09 prototype round, fused: the
+// Ledger's one-row-per-pattern table as the baseline, simplified to a single line
+// (headline with its measure inline · share bar · dial · one action), with the Dial
+// variant's three-notch priority control in place of the chip row.
 
-type Col = "pattern" | "share" | "affected" | "priority";
+const ICON_BTN =
+  "focus-ring inline-grid h-8 w-8 cursor-pointer place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral";
+
+type Col = "pattern" | "share" | "priority";
 
 export function CoachLedger({
   patterns,
@@ -41,35 +44,28 @@ export function CoachLedger({
     {
       pattern: (p) => p.value,
       share: (p) => p.share ?? -1,
-      affected: (p) => p.affected,
       // Untagged sorts BELOW every weighted row rather than above `minor`: the
       // question this column answers is "what have I weighed", not "what is light".
       priority: (p) => (priorities[p.id] ? PRIORITY_WEIGHT[priorities[p.id]] : -1),
     },
-    { col: "affected", dir: "desc" },
+    { col: "share", dir: "desc" },
   );
 
   const safePage = clampPage(page, sorted.length);
   const rows = pageSlice(sorted, safePage);
-  const titles: Record<Col, string> = {
-    pattern: t("col.pattern"),
-    share: t("col.share"),
-    affected: t("col.affected"),
-    priority: t("col.priority"),
-  };
+  const titles: Record<Col, string> = { pattern: t("col.pattern"), share: t("col.share"), priority: t("col.priority") };
 
   return (
     <div className="space-y-3">
       <TableStatus columnTitle={titles[sort.col]} dir={sort.dir} matched={sorted.length} />
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] border-collapse text-base">
+        <table className="w-full min-w-[34rem] border-collapse text-base">
           <thead>
             <tr className="border-b border-stone-200">
               <ColumnHead<Col> title={titles.pattern} sortCol="pattern" sort={sort} onSort={toggle} className="pl-1" />
-              <ColumnHead<Col> title={titles.share} sortCol="share" sort={sort} onSort={toggle} className="w-36" />
-              <ColumnHead<Col> title={titles.affected} sortCol="affected" sort={sort} onSort={toggle} align="right" className="w-20" />
-              <ColumnHead<Col> title={titles.priority} sortCol="priority" sort={sort} onSort={toggle} className="w-56" />
-              <ColumnHead<Col> title={t("col.action")} sort={sort} onSort={toggle} align="right" className="w-28" />
+              <ColumnHead<Col> title={titles.share} sortCol="share" sort={sort} onSort={toggle} className="w-40" />
+              <ColumnHead<Col> title={titles.priority} sortCol="priority" sort={sort} onSort={toggle} className="w-28" />
+              <ColumnHead<Col> title={t("col.action")} sort={sort} onSort={toggle} align="right" className="w-12" />
             </tr>
           </thead>
           <tbody>
@@ -77,12 +73,12 @@ export function CoachLedger({
               const copy = copyOf(p);
               const pct = sharePercent(p);
               return (
-                <tr key={p.id} className="border-b border-stone-200/70 align-top">
-                  <td className="py-2.5 pl-1 pr-3">
-                    <p className="text-ink">{copy.title}</p>
-                    {copy.measure ? <p className="text-sm text-steel nums">{copy.measure}</p> : null}
+                <tr key={p.id} className="border-b border-stone-200/70">
+                  <td className="py-2 pl-1 pr-3 align-middle">
+                    <span className="text-ink">{copy.title}</span>
+                    {copy.measure ? <span className="ml-2 text-sm text-steel nums">{copy.measure}</span> : null}
                   </td>
-                  <td className="py-2.5 pr-3">
+                  <td className="py-2 pr-3 align-middle">
                     {pct === null ? (
                       // A dash, never a zero bar: "not countable" and "costs nobody"
                       // are different answers and the ledger must not conflate them.
@@ -91,39 +87,22 @@ export function CoachLedger({
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">
-                        <span
-                          className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100"
-                          role="img"
-                          aria-label={t("shareAria", { pct })}
-                        >
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={t("shareAria", { pct })}>
                           <span className="block h-full rounded-full bg-coral" style={{ width: `${Math.max(pct, 2)}%` }} />
                         </span>
                         <span className="w-9 shrink-0 text-right text-sm text-steel nums">{t("pct", { pct })}</span>
                       </span>
                     )}
                   </td>
-                  <td className="py-2.5 pr-3 text-right text-ink nums">{copy.measure ? p.affected : "—"}</td>
-                  <td className="py-2.5 pr-3">
-                    <CoachPriorityChips
-                      patternId={p.id}
-                      patternLabel={copy.title}
-                      level={priorities[p.id] ?? null}
-                      onChange={onPriority}
-                    />
+                  <td className="py-2 pr-3 align-middle">
+                    <CoachPriorityDial patternId={p.id} patternLabel={copy.title} level={priorities[p.id] ?? null} onChange={onPriority} />
                   </td>
-                  <td className="py-2.5 pr-1 text-right">
+                  <td className="py-2 pr-1 text-right align-middle">
                     {onEdit && p.editable ? (
-                      <button
-                        type="button"
-                        onClick={() => onEdit(p)}
-                        aria-label={t("stageEditAria", { value: p.value })}
-                        className="focus-ring inline-flex cursor-pointer items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
-                      >
-                        <SquarePen size={13} aria-hidden /> {t("stageEdit")}
+                      <button type="button" onClick={() => onEdit(p)} aria-label={t("stageEditAria", { value: p.value })} title={t("stageEdit")} className={ICON_BTN}>
+                        <SquarePen size={15} aria-hidden />
                       </button>
-                    ) : (
-                      <span className={META_LABEL}>{"—"}</span>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               );

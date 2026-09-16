@@ -12,11 +12,13 @@
 // So the bridge is two doors, and the row's own data picks one:
 //
 //   inPipeline != null  ->  the real CandidateModal, on that candidate's entry for
-//                           THIS role. The entry is looked up in GET /api/pipeline,
-//                           fetched ONCE per mount and cached here — the same payload
-//                           the board renders, which also carries the stage `axis` the
-//                           modal needs, so one request answers both questions and no
-//                           route had to change.
+//                           THIS role. The entry is looked up in GET /api/pipeline on
+//                           EVERY open — the same payload the board renders, which also
+//                           carries the stage `axis` the modal needs, so one request
+//                           answers both questions and no route had to change. Read
+//                           fresh, not cached: a stage move made on the board while
+//                           this tab stays open must not hand the modal a stale entry,
+//                           and one small GET per click is the cheaper honesty.
 //   inPipeline == null  ->  CandidatePreviewModal (beside this file): the honest
 //                           read-only pre-pipeline view, with the two sourcing actions
 //                           the old cards carried. A candidate with no entry has no
@@ -27,7 +29,7 @@
 // A lookup that finds nothing (the entry was closed or moved between the ranking and
 // the click) falls back to the preview rather than to a broken modal.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { nextCandidateView, type CandidateTab, type CandidateView } from "@/app/features/hiring/pipeline/candidate/candidateView";
@@ -40,23 +42,6 @@ export function useCandidateBridge(jobId: string) {
   const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_STAGE_AXIS);
   const [preview, setPreview] = useState<CandRow | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
-  // One board read per mount, shared by every row that needs it. A ref, not state:
-  // the promise is a cache, and re-rendering on its arrival is what `view` is for.
-  const boardRef = useRef<Promise<BoardPayload> | null>(null);
-
-  const readBoard = useCallback(async (): Promise<BoardPayload> => {
-    if (!boardRef.current) {
-      boardRef.current = fetch("/api/pipeline")
-        .then((r) => (r.ok ? (r.json() as Promise<BoardPayload>) : {}))
-        .catch(() => {
-          // A blip must not poison the cache: drop it so the next click retries.
-          boardRef.current = null;
-          return {} as BoardPayload;
-        });
-    }
-    return boardRef.current;
-  }, []);
-
   /** Open whichever door this candidate's data earns. */
   const open = useCallback(
     async (c: CandRow) => {
@@ -66,7 +51,9 @@ export function useCandidateBridge(jobId: string) {
       }
       setOpening(c.candidateId);
       try {
-        const board = await readBoard();
+        const board: BoardPayload = await fetch("/api/pipeline")
+          .then((r): Promise<BoardPayload> => (r.ok ? (r.json() as Promise<BoardPayload>) : Promise.resolve({})))
+          .catch((): BoardPayload => ({}));
         const entry = (board.entries ?? []).find(
           (e) => e.candidateId === c.candidateId && e.jobId === jobId && e.status === "active",
         );
@@ -79,7 +66,7 @@ export function useCandidateBridge(jobId: string) {
         setOpening(null);
       }
     },
-    [jobId, readBoard],
+    [jobId],
   );
 
   const close = useCallback(() => setView(null), []);
@@ -100,10 +87,5 @@ export function useCandidateBridge(jobId: string) {
     },
     [],
   );
-  /** A stage move behind the modal invalidates the cached board read. */
-  const invalidate = useCallback(() => {
-    boardRef.current = null;
-  }, []);
-
-  return { view, axis, preview, opening, open, close, closePreview, navigate, setTab, openEntryById, invalidate };
+  return { view, axis, preview, opening, open, close, closePreview, navigate, setTab, openEntryById };
 }

@@ -5190,16 +5190,9 @@
       "noPatternsTitle": "Nothing is holding this role back",
       "noPatternsBody": "No requirement here costs you candidates, and the salary is in line with the market. There is nothing to weigh.",
       "intro": "What your candidate pool shows against {jobTitle}. Set a priority on each pattern and Kandi weighs it that way.",
-      "variant": {
-        "label": "Ledger layout",
-        "ledger": "Ledger",
-        "stack": "Stack",
-        "dial": "Dial"
-      },
       "col": {
         "pattern": "Pattern",
         "share": "Share of pool",
-        "affected": "Candidates",
         "priority": "Priority",
         "action": "Action"
       },
@@ -5220,20 +5213,6 @@
       "pct": "{pct}%",
       "shareAria": "{pct}% of the pool",
       "noShare": "Not countable",
-      "gain": "+{n}",
-      "lane": {
-        "inbox": "Not weighed yet ({n})",
-        "inboxEmpty": "Every pattern has a priority.",
-        "empty": "Nothing here yet."
-      },
-      "laneWeight": "Weight {n}",
-      "moveLeftAria": "Lower the priority of {pattern}",
-      "moveRightAria": "Raise the priority of {pattern}",
-      "dial": {
-        "projectedLabel": "Projected shortlist",
-        "untouched": "{base} shortlist today. Set a priority on a pattern to see what loosening it would buy.",
-        "upperBound": "Up from {base} today. Weighted patterns: {n}. An upper bound: each gain is measured on its own, so two loosenings can free the same candidate twice."
-      },
       "salaryUnset": "(no band set)",
       "notAssessed": "{n, plural, one {# candidate couldn't be scored} other {# candidates couldn't be scored}} and {n, plural, one {is} other {are}} not counted above. Check their profile.",
       "stageEdit": "Stage this edit",
@@ -5361,10 +5340,6 @@
       "auditUnder": "under {label}",
       "auditPoolTruncated": "Capped sample: the candidate corpus exceeds the ranking caps, so this audit covers the scored subset only, not the whole pool.",
       "malformedResponse": "The server sent a response we could not read. Try loading the candidates again.",
-      "layoutLabel": "Layout",
-      "layout_ladder": "Ladder",
-      "layout_rungs": "Rungs",
-      "layout_grid": "Grid",
       "colRank": "#",
       "colCandidate": "Candidate",
       "colScore": "Fit",
@@ -5372,13 +5347,7 @@
       "colStage": "Stage",
       "notFiled": "Not in this role",
       "noneMatch": "No candidates match.",
-      "band_strong": "Strong fit",
-      "band_mid": "Promising",
-      "band_weak": "Weak fit",
-      "band_notEligible": "Not eligible",
-      "bandCount": "{count, plural, one {# candidate} other {# candidates}}",
       "gapsInline": "Missing: {gaps}",
-      "gridMore": "{count, plural, one {# more candidate is ranked below these} other {# more candidates are ranked below these}}. Switch to Ladder to read the whole pool.",
       "noGaps": "No missing must-haves",
       "previewSubtitle": "Ranked for this role, not in its pipeline yet",
       "previewNotFiled": "This candidate has no entry for this role, so there is no stage, timeline or decision to show yet. File them and the full candidate view opens here.",

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getRolePriorities, setRolePriorities } from "@/app/_lib/role-priorities-store";
 
 // The role coach's PATTERN PRIORITIES — the three-level weight (critical / important /
@@ -39,6 +40,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  // AUTHORIZATION (write-routes-check-a-capability): a recruiter operation, so the
+  // seat is asked for `pipeline:write` and a viewer is refused with a code rather
+  // than silently mutating the role.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const scope = await resolve(id);
     if (!scope) return NextResponse.json({ error: "Job not found." }, { status: 404 });

@@ -132,8 +132,10 @@ test("the fairness audit repeats the capped-sample caveat, in the panel and in t
 // to let a caveat fall out of one of them — the KO-filtered cohort is the easiest
 // thing in the world to leave out of a "compact card grid". Each variant must
 // receive the cohort AND render it; the frame owns the cap note and the audit.
-test("every Candidates layout carries the KO-filtered cohort", () => {
-  for (const file of ["./candidates/CandidatesLadder.tsx", "./candidates/CandidatesRungs.tsx", "./candidates/CandidatesGrid.tsx"]) {
+test("the Candidates ladder carries the KO-filtered cohort", () => {
+  // One layout since the 2026-09 round picked the Ladder; the contract outlives
+  // the switcher because it is about the claim, not the shape.
+  for (const file of ["./candidates/CandidatesLadder.tsx"]) {
     const src = read(file);
     assert.ok(src.includes("notEligible"), `${file} must take the not-eligible cohort`);
     assert.ok(src.includes("koReasons"), `${file} must show WHY a candidate was filtered, not just that they were`);

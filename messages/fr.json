@@ -5190,16 +5190,9 @@
       "noPatternsTitle": "Rien ne freine ce poste",
       "noPatternsBody": "Aucune exigence ici ne vous coûte de candidats, et le salaire est aligné sur le marché. Il n'y a rien à pondérer.",
       "intro": "Ce que votre vivier de candidats révèle sur {jobTitle}. Définissez une priorité pour chaque motif et Kandi la prend comme pondération.",
-      "variant": {
-        "label": "Disposition du registre",
-        "ledger": "Registre",
-        "stack": "Tri",
-        "dial": "Molette"
-      },
       "col": {
         "pattern": "Motif",
         "share": "Part du vivier",
-        "affected": "Candidats",
         "priority": "Priorité",
         "action": "Action"
       },
@@ -5220,20 +5213,6 @@
       "pct": "{pct} %",
       "shareAria": "{pct} % du vivier",
       "noShare": "Non chiffrable",
-      "gain": "+{n}",
-      "lane": {
-        "inbox": "Pas encore pondérés ({n})",
-        "inboxEmpty": "Chaque motif a une priorité.",
-        "empty": "Rien ici pour l'instant."
-      },
-      "laneWeight": "Poids {n}",
-      "moveLeftAria": "Baisser la priorité de {pattern}",
-      "moveRightAria": "Augmenter la priorité de {pattern}",
-      "dial": {
-        "projectedLabel": "Présélection projetée",
-        "untouched": "{base} en présélection aujourd'hui. Définissez une priorité sur un motif pour voir ce qu'un assouplissement apporterait.",
-        "upperBound": "Contre {base} aujourd'hui. Motifs pondérés : {n}. Une borne haute : chaque gain est mesuré séparément, donc deux assouplissements peuvent libérer le même candidat deux fois."
-      },
       "salaryUnset": "(aucune fourchette définie)",
       "notAssessed": "{n, plural, one {# candidat n'a pas pu être évalué} other {# candidats n'ont pas pu être évalués}} et {n, plural, one {n'est} other {ne sont}} pas compté ci-dessus. Vérifiez leur profil.",
       "stageEdit": "Préparer cette modification",
@@ -5361,10 +5340,6 @@
       "auditUnder": "selon la pondération de {label}",
       "auditPoolTruncated": "Échantillon plafonné : le corpus de candidats dépasse les plafonds de classement, cet audit ne couvre donc que le sous-ensemble évalué, pas tout le vivier.",
       "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rechargez les candidats.",
-      "layoutLabel": "Disposition",
-      "layout_ladder": "Échelle",
-      "layout_rungs": "Barreaux",
-      "layout_grid": "Grille",
       "colRank": "#",
       "colCandidate": "Candidat",
       "colScore": "Adéquation",
@@ -5372,13 +5347,7 @@
       "colStage": "Étape",
       "notFiled": "Pas sur ce poste",
       "noneMatch": "Aucun candidat ne correspond.",
-      "band_strong": "Forte adéquation",
-      "band_mid": "Prometteurs",
-      "band_weak": "Faible adéquation",
-      "band_notEligible": "Non éligibles",
-      "bandCount": "{count, plural, one {# candidat} other {# candidats}}",
       "gapsInline": "Manque : {gaps}",
-      "gridMore": "{count, plural, one {# autre candidat est classé en dessous} other {# autres candidats sont classés en dessous}}. Passez à l’Échelle pour lire tout le vivier.",
       "noGaps": "Aucun prérequis manquant",
       "previewSubtitle": "Évalué pour ce poste, pas encore dans son pipeline",
       "previewNotFiled": "Ce candidat n’a pas d’entrée pour ce poste : il n’y a donc ni étape, ni historique, ni décision à afficher. Ajoutez-le et la vue complète du candidat s’ouvrira ici.",

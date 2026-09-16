@@ -2101,6 +2101,8 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobs", "The openings corpus (seeded reference rows + a team's own openings), no candidate data."],
   ["job_postings", "Imported job ADVERTISEMENTS — the two bundled corpora, an ad pasted by the operator, or a fetched careers page. Company-authored role copy about an opening, the same class as `jobs` and `campaign_packs`: it is written before any candidate exists and is not keyed to an entry, so a candidate's Art. 17 request has nothing in it to reach. Deleting it on a per-candidate scrub would destroy the whole workspace's corpus for a request that names one person."],
   ["job_ingests", "Content-hash dedup keys for job ingest — hashes of JD text, no candidate data."],
+  ["job_translations", "A role's advertisement rendered into another language — company-authored role copy, the same class as `jobs` / `job_postings`; written for an opening, never keyed to a candidate."],
+  ["role_pattern_priorities", "A team's weighting of a ROLE's requirement patterns (critical / important / minor) — operator judgement about the opening, no candidate data."],
   ["dev_cases", "The work-sample assignment itself (scenario, seed tree), authored before any candidate exists."],
   ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
   ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],

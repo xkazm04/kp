@@ -1,34 +1,25 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { PRIORITY_LEVELS, type PriorityLevel } from "@/app/_lib/role-priorities";
 
-// The three-state weight control shared by the Ledger's priority cell. The Stack moves
-// patterns between lanes and the Dial turns a notched dial instead, so this is
-// deliberately NOT "the" priority control — it is the one shape that fits inside a
-// table cell.
+// The three-notch priority dial — the one weight control in the ledger. It reads as
+// ONE control with three positions rather than three separate switches, which is
+// what won it over the chip row in the 2026-09 prototype round.
 //
-// Clicking the ACTIVE level clears it. Untagged is a real state (nobody has weighed
+// Clicking the ACTIVE notch clears it. Untagged is a real state (nobody has weighed
 // this pattern yet) and the recruiter must be able to get back to it; a control with
 // no way out would force a judgement the ledger then feeds to the scorer as if it
 // were one the recruiter meant.
 
-/** Per-level accent, tokens only. Ordered by how loudly the level should read. */
-export const LEVEL_ACCENT: Record<PriorityLevel, string> = {
-  critical: "text-coral",
-  important: "text-amber-700",
-  minor: "text-steel",
-};
-
-/** The dot a lane header / dial notch paints. Background twins of LEVEL_ACCENT. */
+/** The dot a notch paints, per level. Tokens only; ordered by how loudly it reads. */
 export const LEVEL_DOT: Record<PriorityLevel, string> = {
   critical: "bg-coral",
   important: "bg-amber-500",
   minor: "bg-stone-400",
 };
 
-export function CoachPriorityChips({
+export function CoachPriorityDial({
   patternId,
   patternLabel,
   level,
@@ -46,7 +37,7 @@ export function CoachPriorityChips({
     minor: t("level.minor"),
   };
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-stone-200 p-0.5" role="group" aria-label={t("col.priority")}>
       {PRIORITY_LEVELS.map((lvl) => {
         const active = level === lvl;
         return (
@@ -54,13 +45,14 @@ export function CoachPriorityChips({
             key={lvl}
             type="button"
             aria-pressed={active}
-            aria-label={
-              active ? t("clearLevelAria", { pattern: patternLabel }) : t("setLevelAria", { level: labels[lvl], pattern: patternLabel })
-            }
+            aria-label={active ? t("clearLevelAria", { pattern: patternLabel }) : t("setLevelAria", { level: labels[lvl], pattern: patternLabel })}
+            title={labels[lvl]}
             onClick={() => onChange(patternId, active ? null : lvl)}
-            className={`${CHIP_TOGGLE(active)} cursor-pointer px-2 py-0.5 ${active ? "" : LEVEL_ACCENT[lvl]}`}
+            className={`focus-ring inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-colors ${
+              active ? "bg-stone-100" : "hover:bg-stone-100"
+            }`}
           >
-            {labels[lvl]}
+            <span className={`rounded-full transition-all ${active ? `h-3.5 w-3.5 ${LEVEL_DOT[lvl]}` : "h-2 w-2 bg-stone-300"}`} aria-hidden />
           </button>
         );
       })}

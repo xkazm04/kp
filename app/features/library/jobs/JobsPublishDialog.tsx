@@ -65,7 +65,7 @@ export function JobsPublishDialog({
       size="md"
       footer={
         <>
-          <button type="button" onClick={onCancel} className={BTN_SECONDARY}>
+          <button type="button" onClick={onCancel} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
             {t("cancel")}
           </button>
           <button
@@ -75,7 +75,7 @@ export function JobsPublishDialog({
             // and refusing it would break the one-click go-live for no gain.
             disabled={!targetValid}
             onClick={() => onConfirm({ targetHires: parsed, langs })}
-            className={BTN_PRIMARY}
+            className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
           >
             {reopen ? t("confirmReopen") : t("confirm")}
           </button>

@@ -1,17 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, ListChecks, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { PANEL_SUNKEN, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { EmptyState } from "./JobsShared";
 import { buildCoachEditParam, COACH_EDIT_PARAM, type CoachEditKind } from "./jobsCoachApply";
-import { CoachDial } from "./coach/CoachDial";
 import { CoachLedger } from "./coach/CoachLedger";
-import { CoachStack } from "./coach/CoachStack";
 import { useRolePatterns } from "./coach/useRolePatterns";
 import type { RolePattern } from "./coach/rolePatterns";
 
@@ -21,30 +18,9 @@ import type { RolePattern } from "./coach/rolePatterns";
 // they can WEIGH on a three-level scale, and the weighting is durable per (role, team)
 // instead of being re-decided from scratch on every visit.
 //
-// Three variants sit behind the switcher because the same ledger is read three ways:
-// audited (Ledger), sorted (Stack), or tuned against one consequence (Dial). The choice
-// is remembered per browser — it is a reading preference, not data.
-
-const VARIANTS = ["ledger", "stack", "dial"] as const;
-type Variant = (typeof VARIANTS)[number];
-const VARIANT_KEY = "kp.coach.variant";
-
-function isVariant(v: string | null): v is Variant {
-  return v !== null && (VARIANTS as readonly string[]).includes(v);
-}
-
-/** The remembered layout, or the default. Never throws: a blocked storage jar
- *  (a private window, site data off) costs the memory, never the panel. */
-function readVariant(): Variant {
-  if (typeof window === "undefined") return "ledger";
-  try {
-    const stored = window.localStorage.getItem(VARIANT_KEY);
-    return isVariant(stored) ? stored : "ledger";
-  } catch {
-    /* best-effort: storage is unavailable, so the default layout stands */
-    return "ledger";
-  }
-}
+// One layout (coach/CoachLedger.tsx): the 2026-09 prototype round's Ledger as the
+// baseline, fused with the Dial variant's notched priority control. The Stack and
+// Dial layouts did not survive the round.
 
 export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const t = useTranslations("jobs.coach");
@@ -55,21 +31,6 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
   const router = useRouter();
   const search = useSearchParams();
   const { patterns, win, priorities, loading, error, saveError, reload, setPriority } = useRolePatterns(jobId);
-
-  // A LAZY initializer, not a mount effect: reading storage in an effect and calling
-  // setState from it is the cascading-render shape react-hooks/set-state-in-effect
-  // exists to stop, and this value never changes underneath us. Guarded on `window`
-  // so the server render (the panel is dynamically imported, so it can be attempted)
-  // takes the default instead of throwing.
-  const [variant, setVariant] = useState<Variant>(() => readVariant());
-  const pickVariant = (next: Variant) => {
-    setVariant(next);
-    try {
-      window.localStorage.setItem(VARIANT_KEY, next);
-    } catch {
-      /* best-effort: the choice still applies for this session */
-    }
-  };
 
   // The coach never mutates the job. A "loosen this" row can hand off into the
   // EXISTING JD editor with the change STAGED for the recruiter to confirm; only
@@ -108,30 +69,9 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
   }
 
   const skippedCount = win.skipped?.length ?? 0;
-  const labels: Record<Variant, string> = {
-    ledger: t("variant.ledger"),
-    stack: t("variant.stack"),
-    dial: t("variant.dial"),
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-base text-ink">{t("intro", { jobTitle })}</p>
-        <div className={TOGGLE_GROUP} role="group" aria-label={t("variant.label")}>
-          {VARIANTS.map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={variant === v}
-              onClick={() => pickVariant(v)}
-              className={`focus-ring cursor-pointer rounded px-2.5 py-1 text-sm font-semibold transition-colors ${toggleBtn(variant === v)}`}
-            >
-              {labels[v]}
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="text-base text-ink">{t("intro", { jobTitle })}</p>
 
       {win.poolTruncated ? (
         <p className={`${PANEL_SUNKEN} px-3 py-2 text-sm text-steel`}>{tc("poolTruncatedNote")}</p>
@@ -152,12 +92,8 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
 
       {patterns.length === 0 ? (
         <EmptyState icon={ListChecks} title={t("noPatternsTitle")} body={t("noPatternsBody")} />
-      ) : variant === "ledger" ? (
-        <CoachLedger patterns={patterns} priorities={priorities} win={win} onPriority={setPriority} onEdit={jdSlug ? stageEdit : null} />
-      ) : variant === "stack" ? (
-        <CoachStack patterns={patterns} priorities={priorities} win={win} onPriority={setPriority} />
       ) : (
-        <CoachDial patterns={patterns} priorities={priorities} win={win} onPriority={setPriority} />
+        <CoachLedger patterns={patterns} priorities={priorities} win={win} onPriority={setPriority} onEdit={jdSlug ? stageEdit : null} />
       )}
 
       <p className="text-meta text-steel">{t("footnote")}</p>

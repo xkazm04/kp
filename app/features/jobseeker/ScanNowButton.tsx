@@ -12,7 +12,12 @@ import type { ScanTaskState } from "./useScanTask";
 // the refusal by code. `variant` picks the recipe: the empty state's primary call, or
 // the Scans page's secondary control beside the clock toggle.
 
-export function ScanNowButton({ scan, variant = "primary" }: { scan: ScanTaskState & { start(): Promise<void> }; variant?: "primary" | "secondary" }) {
+// `quiet` keeps the button and drops its notices: the feed mounts this door twice while
+// its empty state is on screen (header chrome + the empty state's own CTA), and both
+// read ONE task state, so one failure painted two identical red notices (smoke,
+// 2026-09-16). The empty state's copy is the one under the reader's eye; the header's
+// stays a plain button until rows exist.
+export function ScanNowButton({ scan, variant = "primary", quiet = false }: { scan: ScanTaskState & { start(): Promise<void> }; variant?: "primary" | "secondary"; quiet?: boolean }) {
   const t = useTranslations("me.jobs.scan");
   const busy = scan.starting || scan.active;
   const recipe = variant === "primary" ? BTN_PRIMARY : BTN_SECONDARY;
@@ -24,6 +29,8 @@ export function ScanNowButton({ scan, variant = "primary" }: { scan: ScanTaskSta
         {busy ? <Loader2 size={15} aria-hidden className="animate-spin" /> : <Radar size={15} aria-hidden />}
         {busy ? t("running") : t("cta")}
       </button>
+      {quiet ? null : (
+        <>
       {busy && progress ? (
         // The live line is neutral CONTEXT, not a caveat: `NOTICE("info")`, the same
         // advisory shape every other surface in the studio uses, rather than a bare
@@ -45,6 +52,8 @@ export function ScanNowButton({ scan, variant = "primary" }: { scan: ScanTaskSta
         <FailureNotice fallback={scan.error ? t("failedMsg", { msg: scan.error }) : t("failed")} />
       ) : null}
       {scan.startError ? <FailureNotice failure={scan.startError} fallback={t("startError")} onRetry={() => void scan.start()} retrying={busy} /> : null}
+        </>
+      )}
     </div>
   );
 }

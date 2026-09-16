@@ -55,6 +55,15 @@ function fromRow(row: Row): JobTranslation {
 
 const COLUMNS = `job_id, lang, source_lang, title, body_md, created_at`;
 
+/** Drop every rendering this team holds for one role. Called when the role's own
+ *  fields are rewritten (a re-ingest of an edited JD, a restored revision): a German
+ *  advertisement of the PREVIOUS text is not a translation of this one, and the
+ *  posting tab's empty state with its "generate" button is the honest reading until
+ *  someone renders it again. Returns how many languages were dropped. */
+export function deleteJobTranslations(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  return ensureDb().prepare(`DELETE FROM job_translations WHERE job_id = ? AND workspace_id = ?`).run(jobId, workspaceId).changes;
+}
+
 /** Every translation this team holds for one role, oldest language first. A role has
  *  at most one row per app locale, so this is bounded by the locale count and needs
  *  no paging. */

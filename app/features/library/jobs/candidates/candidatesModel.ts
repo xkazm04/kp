@@ -10,42 +10,7 @@
 import type { CandRow } from "../JobsTypes";
 import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "@/app/_lib/fit-thresholds";
 
-/** The three layouts, declared once. Literal array + derived union + runtime guard
- *  — the closed-vocabulary idiom this repo uses for tab ids and locales. */
-export const CANDIDATE_VARIANTS = ["ladder", "rungs", "grid"] as const;
-export type CandidateVariant = (typeof CANDIDATE_VARIANTS)[number];
-
-export function isCandidateVariant(value: unknown): value is CandidateVariant {
-  return typeof value === "string" && (CANDIDATE_VARIANTS as readonly string[]).includes(value);
-}
-
-/** One localStorage key for the whole tab — the reader's last layout, not a
- *  per-role preference: a recruiter who thinks in tables thinks in tables on
- *  every role. */
-export const VARIANT_STORAGE_KEY = "kp.jobs.candidates.variant";
-
-/** Read the remembered layout. Every access is guarded: a private window, blocked
- *  site data or a server render must degrade to the default, never throw. */
-export function readVariant(fallback: CandidateVariant = "ladder"): CandidateVariant {
-  try {
-    const raw = globalThis.localStorage?.getItem(VARIANT_STORAGE_KEY);
-    return isCandidateVariant(raw) ? raw : fallback;
-  } catch {
-    /* best-effort: the remembered layout is a convenience, never the surface */
-    return fallback;
-  }
-}
-
-export function writeVariant(variant: CandidateVariant): void {
-  try {
-    globalThis.localStorage?.setItem(VARIANT_STORAGE_KEY, variant);
-  } catch {
-    /* best-effort: failing to remember a layout must not fail the click */
-  }
-}
-
-/** Score bands the Rungs variant groups by, and the Ladder tints its score cell
- *  with. The two floors are the app's shared fit thresholds — a band boundary
+/** Score bands the Ladder tints its score cell with. The two floors are the app's shared fit thresholds — a band boundary
  *  invented here would put this surface out of step with every other one. */
 export const SCORE_BANDS = ["strong", "mid", "weak", "notEligible"] as const;
 export type ScoreBand = (typeof SCORE_BANDS)[number];

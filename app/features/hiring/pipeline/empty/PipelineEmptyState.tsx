@@ -7,7 +7,7 @@
  *
  * METAPHOR: a set built for a play nobody has walked onto yet. The board is the
  * teaching object, so the surface IS the board: the real lanes, in the real
- * order, wearing the real column-header type (`text-meta uppercase text-steel`,
+ * order, wearing the real column-header type (the META_LABEL recipe,
  * hairline dividers) the live PipelineBoard uses. Each lane holds a bracketed
  * exemplar of what lands in it, so reading the empty surface is reading what the
  * work will produce (docs/design/surface-doctrine.md §1: "an empty state is an
@@ -40,7 +40,7 @@
 
 import { useTranslations } from "next-intl";
 import { ArrowRight, CornerLeftUp, UserPlus } from "lucide-react";
-import { PANEL, EYEBROW, TITLE_DISPLAY, META_LABEL, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { PANEL, EYEBROW, TITLE_DISPLAY, META_LABEL, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
 import { STAGES } from "@/app/features/shared/pipelineTypes";
 import { EMPTY_MOVES } from "./pipelineEmptyMoves";
@@ -89,10 +89,11 @@ export function PipelineEmptyState({
 
   return (
     <section className={`${PANEL} overflow-hidden`} aria-label={t("stageSet.title")}>
-      {/* Step zero, when the wizard was left early: one full-width band, so the
-          surface below is unchanged whether it is here or not. */}
+      {/* Step zero, when the wizard was left early: one full-width band composed
+          from the amber NOTICE recipe (its box shape squared off so the band spans
+          the panel), so the surface below is unchanged whether it is here or not. */}
       {setupUnfinished ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-50 px-5 py-3">
+        <div className={`${NOTICE("amber")} flex flex-wrap items-center gap-x-4 gap-y-2 rounded-none border-x-0 border-t-0 px-5 py-3 dark:rounded-none`}>
           <div className="min-w-0 flex-1">
             <p className="text-base font-semibold text-amber-900">{t("setupTitle")}</p>
             <p className="mt-0.5 text-sm text-amber-900">{t("setupBody")}</p>

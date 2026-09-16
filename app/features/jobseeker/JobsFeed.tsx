@@ -336,7 +336,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
             do (a profile and at least one enabled source) — before that, the empty
             state's own CTA is the honest next step and a "Scan now" here would be a
             button that cannot help. */}
-        {fetchRows ? <ScanNowButton scan={scan} variant="secondary" /> : null}
+        {fetchRows ? <ScanNowButton scan={scan} variant="secondary" quiet={rows !== null && rows.length === 0 && !loadError} /> : null}
       </header>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">

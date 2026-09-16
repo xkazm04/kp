@@ -3,7 +3,8 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getRoleOpenConfig, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { listJobTranslations } from "@/app/_lib/db/job-translations";
 import { postingSourceLang, runPostingTranslation } from "@/app/_lib/job-translate-run";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
 
@@ -49,6 +50,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  // AUTHORIZATION (write-routes-check-a-capability): a recruiter operation, so the
+  // seat is asked for `pipeline:write` and a viewer is refused with a code rather
+  // than silently mutating the role.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const ws = await currentWorkspace();
     if (!jobVisibleToWorkspace(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
