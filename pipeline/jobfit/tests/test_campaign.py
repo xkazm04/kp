@@ -334,7 +334,7 @@ class CliTests(unittest.TestCase):
                 code, out, _ = self._run(["--job-json", str(p), "--no-llm"])
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(out)["source"], "deterministic")
-            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["source"], "deterministic")
         self.assertEqual(rows[0]["provider"], "deterministic")
@@ -357,7 +357,7 @@ class CliTests(unittest.TestCase):
                 code, out, _ = self._run(["--job-json", str(p)])
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(out)["source"], "deterministic")
-            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         # A CODE, not the thrown message. The engine still hands the CLI the full
         # "<Type>: <message>" line for the per-request envelope, but `llm_usage.reason`
         # is a durable operator-facing column and a provider message can echo the

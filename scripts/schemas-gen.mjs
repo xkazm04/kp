@@ -61,7 +61,7 @@ const MISSING_PYTHON_HINT = [
   "  the Pydantic models in pipeline/jobfit — `npm run typecheck` and `npm run build`",
   "  both run it first, so neither can work without Python.",
   "",
-  "  Install Python 3.11+ and its dependencies:",
+  "  Install Python 3.11+ and its dependencies (see AGENTS.md):",
   "    pip install -r requirements.txt",
   "  Or point the build at an interpreter you already have:",
   "    KP_PYTHON=/path/to/python npm run schemas:gen   (PYTHON_CMD also works)",
@@ -71,7 +71,7 @@ const missingPackageHint = (interpreter) =>
   [
     `schemas:gen ran ${interpreter} but the pipeline package is not importable.`,
     "",
-    "  Install the pipeline dependencies from the repo root:",
+    "  Install the pipeline dependencies from the repo root (see AGENTS.md):",
     "    pip install -r requirements.txt",
   ].join("\n");
 

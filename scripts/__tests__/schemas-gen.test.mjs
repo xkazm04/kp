@@ -82,6 +82,7 @@ test("no interpreter at all: exit 1 with the install hint, and codegen is never 
   assert.equal(codegenSpawns, 0, "nothing to run the module with — do not try");
   assert.match(res.stderr, /could not find a Python interpreter/);
   assert.match(res.stderr, /pip install -r requirements\.txt/, "the hint must name the fix");
+  assert.match(res.stderr, /AGENTS\.md/, "the hint must point at the documented setup");
   assert.match(res.stderr, /KP_PYTHON=/, "the hint must name the documented override");
   assert.match(res.stderr, /PYTHON_CMD/, "and still mention the older name");
 });
@@ -101,6 +102,7 @@ test("interpreter present, package missing: the traceback is kept AND the instal
   assert.match(res.stderr, /No module named 'pydantic'/, "never swallow the real error");
   assert.match(res.stderr, /pipeline package is not importable/);
   assert.match(res.stderr, /pip install -r requirements\.txt/);
+  assert.match(res.stderr, /AGENTS\.md/, "cold-clone.yml greps for this alongside requirements.txt");
 });
 
 test("argv passes straight through, so --check keeps its exit-code contract", () => {
