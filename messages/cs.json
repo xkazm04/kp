@@ -1778,6 +1778,7 @@
     "PROFILE_UPDATE_FAILED": "Změny v profilu se nepodařilo uložit. Zkuste to prosím znovu.",
     "PROFILE_DELETE_FAILED": "Profil se nepodařilo smazat. Zkuste to prosím znovu.",
     "PROFILE_CANDIDATES_FAILED": "Matici kandidátů se nepodařilo načíst. Zkuste to prosím znovu.",
+    "PROFILE_DRAFT_FAILED": "Z tohoto textu se nepodařilo vytvořit profil. Zkuste to prosím znovu.",
     "SCHEDULE_BULK_NO_ENTRIES": "Nejprve vyberte alespoň jednoho kandidáta, kterému se má odkaz poslat.",
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Tento kandidát už na nástěnce není. Načtěte stránku znovu a zkuste to znovu.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Tento kandidát už není aktivní, odkaz pro plánování se neodeslal.",
@@ -3974,7 +3975,30 @@
       }
     },
     "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu.",
-    "evalCacheProbeFailed": "Nepodařilo se ověřit, zda pro tento výběr už existuje uložené srovnání. Spusťte znovu pro nové srovnání; tím začne nový běh AI."
+    "evalCacheProbeFailed": "Nepodařilo se ověřit, zda pro tento výběr už existuje uložené srovnání. Spusťte znovu pro nové srovnání; tím začne nový běh AI.",
+    "ledger": {
+      "prototype": "Prototyp",
+      "variantGroup": "Rozvržení přehledu",
+      "variant": {
+        "flat": "Přehled",
+        "grouped": "Podle pozice",
+        "inline": "Rychlé rozhodnutí"
+      },
+      "colName": "Kandidát",
+      "colRole": "Pozice",
+      "colScore": "Skóre",
+      "colRecommended": "Doporučení AI",
+      "colDecide": "Rozhodnutí",
+      "colQuick": "Rychlé rozhodnutí",
+      "decide": "Rozhodnout",
+      "decideAria": "Rozhodnout o kandidátovi {name}",
+      "groupCount": "{count, plural, one {# čeká} few {# čekají} other {# čeká}}",
+      "groupBest": "nejlepší",
+      "expand": "Zobrazit žebříček pro {name}",
+      "collapse": "Skrýt žebříček pro {name}",
+      "ladderTitle": "Žebříček",
+      "decisionTitle": "Vaše rozhodnutí"
+    }
   },
   "scheduleTab": {
     "lifecycle": {
@@ -10600,6 +10624,11 @@
     }
   },
   "me": {
+    "common": {
+      "retry": "Zkusit znovu",
+      "retrying": "Zkouším znovu…",
+      "unreachable": "Server není dostupný. Zkontrolujte, že aplikace běží, a zkuste to znovu."
+    },
     "title": "Moje hledání práce",
     "nav": {
       "profile": "Profil a CV",
@@ -10705,6 +10734,11 @@
       },
       "couldNotReadTitle": "Co jsem nedokázal přečíst",
       "couldNotReadBody": "Jde o mezery v tom, co CV uvádí, ne o body proti vám. Studio se na ně zeptá.",
+      "readWithoutAiTitle": "Přečteno bez AI - zkontrolujte údaje",
+      "readWithoutAiBody": "Žádný AI model není nastavený ani dostupný, vaše CV proto přečetl pevný parser. Dovednosti jsou zaznamenané přesně tak, jak je uvádí CV, nic nebylo odvozeno. Přidejte model v Nastavení, Modely a importujte znovu, aby CV přečetl model.",
+      "skillsTitle": "Dovednosti přečtené z vašeho CV",
+      "skillSelfDeclared": "{skill} - uvádíte vy, neověřeno",
+      "skillProvenance": "{skill} - doklad: {provenance}",
       "couldNotReadNone": "Všechna pole, která hledám, tam byla."
     },
     "preferences": {
@@ -10743,6 +10777,8 @@
       },
       "errExtract": "Soubor se nepodařilo přečíst.",
       "errDraft": "Z vašeho CV se nepodařilo vytvořit profil. Zkuste soubor s více textem, nebo to zkuste znovu.",
+      "errNoTextLayer": "Toto PDF nemá textovou vrstvu (je to sken nebo obrázek). Exportujte je jako text nebo PDF/A a zkuste to znovu.",
+      "errTransport": "Server se nepodařilo kontaktovat. Zkontrolujte připojení a zkuste to znovu.",
       "errSave": "Profil se nepodařilo uložit. Zkuste to prosím znovu."
     },
     "print": {
@@ -10778,7 +10814,6 @@
       },
       "actionError": "Změnu se nepodařilo uložit. Zkuste to prosím znovu.",
       "loadError": "Přehled se nepodařilo načíst.",
-      "retry": "Zkusit znovu",
       "loading": "Načítání",
       "loadMore": "Načíst další",
       "empty": {
@@ -10921,6 +10956,7 @@
         "running": "Čtení",
         "error": "Podrobné prověření se nepodařilo spustit.",
         "deterministic": "Není nastaven žádný AI model, takže toto zdůvodnění je pevná šablona. Zobrazuje se, neukládá.",
+        "templateOnly": "Žádný model neodpověděl, takže toto zdůvodnění je pevná šablona. Zobrazuje se, neukládá.",
         "strengths": "Silné stránky",
         "gaps": "Rozdíly",
         "probes": "Otázky, které čekejte"
@@ -10966,7 +11002,6 @@
       "title": "Zdroje",
       "intro": "Odkud nabídky přicházejí. Feedy a firemní kariérní stránky jsou jen přepínač; pracovní portály, jejichž podmínky automatizaci zakazují, vyžadují vaše potvrzení; odmítnuté portály jsou uvedeny, abyste věděli proč.",
       "loadError": "Zdroje se nepodařilo načíst.",
-      "retry": "Zkusit znovu",
       "loading": "Načítání",
       "available": "K dispozici k přidání",
       "addEntry": "Přidat {label}",
@@ -11098,7 +11133,7 @@
       "title": "Skeny",
       "intro": "Sken přečte každý zapnutý zdroj, ohodnotí, co našel, a užší výběr podrobně prověří. Spusťte ho ručně; po prvním úspěchu může převzít časovač.",
       "loadError": "Plán se nepodařilo načíst.",
-      "retry": "Zkusit znovu",
+      "sourcesError": "Seznam zdrojů se nepodařilo načíst, běhy níže proto označují každý zdroj uloženým id.",
       "loading": "Načítání",
       "updateError": "Plán se nepodařilo upravit.",
       "clock": {

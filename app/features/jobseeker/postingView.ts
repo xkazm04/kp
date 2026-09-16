@@ -97,6 +97,21 @@ export function reasoningView(reasoning: Record<string, unknown> | null): Postin
   return { verdict, strengths: strings(reasoning.strengths, 8), gaps: strings(reasoning.gaps, 8), probes: strings(reasoning.interviewProbes, 8) };
 }
 
+/** What the deep-dive door answered, as ONE word the page can branch on. The door's
+ *  shape is documented in app/api/jobseeker/postings/[id]/deepdive/route.ts:
+ *  `source` says who wrote the rationale, `fallbackReason` says why it is not a model's.
+ *  A keyless answer is `no_provider` or `template` — both honest states that render the
+ *  fixed-template note, NEVER an error and never a silent no-op. Anything the door did
+ *  not shape this way (a 4xx/5xx body, an unparsable answer) is `failed`. */
+export type DiveOutcome = "llm" | "template" | "no_provider" | "failed";
+
+export function diveOutcome(body: { source?: unknown; fallbackReason?: unknown } | null | undefined): DiveOutcome {
+  if (!body || typeof body !== "object") return "failed";
+  if (body.source === "llm") return "llm";
+  if (body.source !== "deterministic") return "failed";
+  return body.fallbackReason === "no_provider" ? "no_provider" : "template";
+}
+
 export function postingDetailView(p: JobseekerPosting, sourceLabel: string, attribution: string | null): PostingDetailView {
   return {
     id: p.id,

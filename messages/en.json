@@ -1778,6 +1778,7 @@
     "PROFILE_UPDATE_FAILED": "Couldn’t save your changes to that profile. Please try again.",
     "PROFILE_DELETE_FAILED": "Couldn’t delete that profile. Please try again.",
     "PROFILE_CANDIDATES_FAILED": "Couldn’t load the candidate matrix. Please try again.",
+    "PROFILE_DRAFT_FAILED": "Couldn’t turn that text into a profile. Please try again.",
     "SCHEDULE_BULK_NO_ENTRIES": "Select at least one candidate before sending scheduling links.",
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "That candidate is no longer on this board. Reload and try again.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "That candidate is no longer active, so no scheduling link was sent.",
@@ -3974,7 +3975,30 @@
       }
     },
     "reinstateFailed": "Couldn't put this candidate back. Try again.",
-    "evalCacheProbeFailed": "We couldn't check whether a saved comparison already exists for this selection. Re-run to compare fresh; that starts a new AI run."
+    "evalCacheProbeFailed": "We couldn't check whether a saved comparison already exists for this selection. Re-run to compare fresh; that starts a new AI run.",
+    "ledger": {
+      "prototype": "Prototype",
+      "variantGroup": "Ledger layout",
+      "variant": {
+        "flat": "Ledger",
+        "grouped": "By role",
+        "inline": "Quick decide"
+      },
+      "colName": "Candidate",
+      "colRole": "Role",
+      "colScore": "Score",
+      "colRecommended": "AI recommends",
+      "colDecide": "Decision",
+      "colQuick": "Quick decision",
+      "decide": "Decide",
+      "decideAria": "Decide on {name}",
+      "groupCount": "{count, plural, one {# waiting} other {# waiting}}",
+      "groupBest": "best",
+      "expand": "Show the ladder for {name}",
+      "collapse": "Hide the ladder for {name}",
+      "ladderTitle": "Ladder",
+      "decisionTitle": "Your decision"
+    }
   },
   "scheduleTab": {
     "lifecycle": {
@@ -10600,6 +10624,11 @@
     }
   },
   "me": {
+    "common": {
+      "retry": "Try again",
+      "retrying": "Retrying…",
+      "unreachable": "Could not reach the server. Check that the app is running, then retry."
+    },
     "title": "My job search",
     "nav": {
       "profile": "Profile & CV",
@@ -10705,6 +10734,11 @@
       },
       "couldNotReadTitle": "What I could not read",
       "couldNotReadBody": "These are gaps in what the CV states, not marks against you. The studio will ask about them.",
+      "readWithoutAiTitle": "Read without AI - check the details",
+      "readWithoutAiBody": "No AI model was configured or reachable, so a fixed parser read your CV. Your skills are recorded exactly as the CV states them and nothing was inferred. Add a model in Settings, Models, then import again to have one read it.",
+      "skillsTitle": "Skills read from your CV",
+      "skillSelfDeclared": "{skill} - stated by you, not verified",
+      "skillProvenance": "{skill} - evidence: {provenance}",
       "couldNotReadNone": "Every field I look for was there."
     },
     "preferences": {
@@ -10743,6 +10777,8 @@
       },
       "errExtract": "That file could not be read.",
       "errDraft": "Your CV could not be turned into a profile. Try a file with more text, or try again.",
+      "errNoTextLayer": "This PDF has no text layer (a scan or an image). Export it as text or PDF/A and try again.",
+      "errTransport": "Could not reach the server. Check your connection and try again.",
       "errSave": "Your profile could not be saved. Please try again."
     },
     "print": {
@@ -10778,7 +10814,6 @@
       },
       "actionError": "That change could not be saved. Please try again.",
       "loadError": "The feed could not be loaded.",
-      "retry": "Try again",
       "loading": "Loading",
       "loadMore": "Load more",
       "empty": {
@@ -10921,6 +10956,7 @@
         "running": "Reading",
         "error": "The deep-dive could not run.",
         "deterministic": "No AI model is configured, so this rationale is a fixed template. It is shown, not saved.",
+        "templateOnly": "No model answered, so this rationale is a fixed template. It is shown, not saved.",
         "strengths": "Strengths",
         "gaps": "Gaps",
         "probes": "Questions to expect"
@@ -10966,7 +11002,6 @@
       "title": "Sources",
       "intro": "Where postings come from. Feeds and company boards are a switch; job boards whose terms forbid automation need your acknowledgement; refused boards are listed so you know why.",
       "loadError": "The sources could not be loaded.",
-      "retry": "Try again",
       "loading": "Loading",
       "available": "Available to add",
       "addEntry": "Add {label}",
@@ -11098,7 +11133,7 @@
       "title": "Scans",
       "intro": "A scan reads every enabled source, scores what it finds and deep-dives the shortlist. Run one by hand; after the first success the timer can take over.",
       "loadError": "The schedule could not be loaded.",
-      "retry": "Try again",
+      "sourcesError": "The source list could not be loaded, so the runs below name each source by its stored id.",
       "loading": "Loading",
       "updateError": "The schedule could not be updated.",
       "clock": {

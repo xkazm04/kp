@@ -11,9 +11,22 @@ import { isLocale } from "@/i18n/locales";
 
 // POST /api/jobseeker/postings/[id]/deepdive — the LLM deep-dive for ONE posting, on
 // demand and synchronously (WP4c): model re-structuring (jd_ingest), a re-match of that
-// posting, the rationale (match_reasoning) → { posting, reasoning, source }. Keyless it
-// answers 200 with `source: "deterministic"` and the engine's template rationale — one
-// cheap spawn, nothing persisted (a template must not freeze the row out of an upgrade).
+// posting, the rationale (match_reasoning). Keyless it answers 200 — one cheap spawn,
+// nothing persisted (a template must not freeze the row out of an upgrade).
+//
+// THE ANSWER SHAPE, which the client branches on (postingView.ts `diveOutcome`):
+//
+//   { posting, source: "llm" | "deterministic", reasoning: object | null, fallbackReason }
+//
+//   source "llm"            fallbackReason null           persisted, the page re-reads
+//   source "deterministic"  fallbackReason "template"     the engine served its template
+//   source "deterministic"  fallbackReason "no_provider"  no provider resolved, nothing spent
+//
+// `reasoning` is the rationale object when there is one and NULL otherwise — including a
+// template that came back empty. A keyless answer is therefore never an error and never a
+// no-op: the page shows the honest note ("a fixed template, shown and not saved") with the
+// template text under it when one arrived, and the note alone when none did. Only
+// `source: "llm"` means a row changed, so only that answer is worth a refresh.
 //
 // The provider's own timeout is 120 s per call (jobs_cli / reasoning_cli); maxDuration is
 // the serverless ceiling only — self-hosted `next start` is bounded by the spawn timeouts
@@ -45,11 +58,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const langParam = new URL(request.url).searchParams.get("lang");
     const lang = isLocale(langParam) ? langParam : "en";
     const outcome = await deepDivePosting(posting, profile, { lang, signal: request.signal, workspaceId: ws });
+    // An empty template is `null` on the wire: "there is no rationale" is one state for
+    // the reader, whether the engine answered {} or was never reached.
+    const reasoning = outcome.kind === "no_provider" || Object.keys(outcome.reasoning).length === 0 ? null : outcome.reasoning;
     return NextResponse.json({
       posting: getPostingSummary(id, ws),
-      reasoning: outcome.kind === "no_provider" ? null : outcome.reasoning,
+      reasoning,
       source: outcome.kind === "done" ? "llm" : "deterministic",
-      ...(outcome.kind === "no_provider" ? { fallbackReason: "no_provider" } : {}),
+      fallbackReason: outcome.kind === "done" ? null : outcome.kind === "no_provider" ? "no_provider" : "template",
     });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings/[id]/deepdive", "JOBSEEKER_STORE_FAILED");

@@ -312,7 +312,7 @@ postings are still structured and matched.
 | `/api/jobseeker/scan` | POST | `startTask("jobseeker_scan", {trigger: "manual", workspaceId})` → 202 `{taskId}` | `jobseeker-scan` 6/10 min |
 | `/api/jobseeker/postings` | GET | `?status=&minTotal=&sourceId=&sort=total,posted,seen&cursor=&limit=` (1..100, default 50) → `{rows: JobseekerPostingSummary[], nextCursor}`; keyset cursor; no `status` = the live feed; a value outside its vocabulary → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-postings` 120/10 min |
 | `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus`; `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
-| `/api/jobseeker/postings/[id]/deepdive` | POST | `?lang=` → `deepDivePosting` synchronously (maxDuration 120) → `{posting, reasoning, source}`; keyless 200 with `source: "deterministic"` (+ `fallbackReason: "no_provider"`); no profile → 409 `JOBSEEKER_PROFILE_MISSING` | `jobseeker-deepdive` 20/10 min |
+| `/api/jobseeker/postings/[id]/deepdive` | POST | `?lang=` → `deepDivePosting` synchronously (maxDuration 120) → `{posting, source, reasoning, fallbackReason}`: `llm`/`null` (persisted), or 200 `deterministic` with `fallbackReason` `template` or `no_provider` and `reasoning` null when the template was empty (`deepdive-route.test.ts`); no profile → 409 `JOBSEEKER_PROFILE_MISSING` | `jobseeker-deepdive` 20/10 min |
 
 Codes are reused, not minted: `APPLY_SELECTION_INVALID` is the existing generic "not one
 of the options offered" refusal, `POSTING_NOT_FOUND` the existing "that job posting could
@@ -351,9 +351,14 @@ as plain paragraphs, never as HTML. Pay is compared with the seeker's floor thro
 the periods agree, else "not comparable (X vs Y)"; an unstated pay is unknown, never
 low. The match section: `ScoreDial`, tier, confidence, breakdown bars, matched /
 missing / unproven skills, eligibility with details. Reasoning shows when deep-dived;
-else a "Deep-dive" door (`POST /api/jobseeker/postings/[id]/deepdive`, WP4c) whose
-keyless answer is labelled deterministic and shown, not stored. "Discuss fit" opens the
-fit studio; "I applied" / dismiss as on the feed.
+else a "Deep-dive" door (`POST /api/jobseeker/postings/[id]/deepdive`, WP4c). The door
+answers `{source, reasoning, fallbackReason}` and the page turns that into ONE word,
+`diveOutcome()` in `postingView.ts` (`postingView.test.ts`): `llm` (persisted, and the
+only answer that triggers `router.refresh()`), `no_provider` and `template` (both
+honest keyless states, both rendering the fixed-template note, with the template text
+under it when one arrived and the note alone when it did not), `failed` (the only red
+line). A keyless deep-dive is therefore never an error and never a silent no-op.
+"Discuss fit" opens the fit studio; "I applied" / dismiss as on the feed.
 
 **Fit dialog (UC3)** (`FitStudio.tsx` + `FitSheet.tsx`): the Studio kit's second seeker
 variant, CvStudio's twin in composition (`ns="me"`, zones `chat | fit`,

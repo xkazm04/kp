@@ -1778,6 +1778,7 @@
     "PROFILE_UPDATE_FAILED": "Die Änderungen am Profil konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "PROFILE_DELETE_FAILED": "Das Profil konnte nicht gelöscht werden. Bitte erneut versuchen.",
     "PROFILE_CANDIDATES_FAILED": "Die Kandidatenmatrix konnte nicht geladen werden. Bitte erneut versuchen.",
+    "PROFILE_DRAFT_FAILED": "Aus diesem Text konnte kein Profil erstellt werden. Bitte erneut versuchen.",
     "SCHEDULE_BULK_NO_ENTRIES": "Wählen Sie mindestens eine Person aus, bevor Sie Terminlinks senden.",
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Diese Person steht nicht mehr auf diesem Board. Laden Sie neu und versuchen Sie es erneut.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde kein Terminlink gesendet.",
@@ -3974,7 +3975,30 @@
       }
     },
     "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen.",
-    "evalCacheProbeFailed": "Wir konnten nicht prüfen, ob für diese Auswahl bereits ein gespeicherter Vergleich vorliegt. Neu ausführen startet einen neuen KI-Durchlauf."
+    "evalCacheProbeFailed": "Wir konnten nicht prüfen, ob für diese Auswahl bereits ein gespeicherter Vergleich vorliegt. Neu ausführen startet einen neuen KI-Durchlauf.",
+    "ledger": {
+      "prototype": "Prototyp",
+      "variantGroup": "Layout der Übersicht",
+      "variant": {
+        "flat": "Übersicht",
+        "grouped": "Nach Stelle",
+        "inline": "Schnell entscheiden"
+      },
+      "colName": "Bewerbung",
+      "colRole": "Stelle",
+      "colScore": "Score",
+      "colRecommended": "KI empfiehlt",
+      "colDecide": "Entscheidung",
+      "colQuick": "Schnellentscheidung",
+      "decide": "Entscheiden",
+      "decideAria": "Über {name} entscheiden",
+      "groupCount": "{count, plural, one {# wartet} other {# warten}}",
+      "groupBest": "beste",
+      "expand": "Rangliste für {name} anzeigen",
+      "collapse": "Rangliste für {name} ausblenden",
+      "ladderTitle": "Rangliste",
+      "decisionTitle": "Ihre Entscheidung"
+    }
   },
   "scheduleTab": {
     "lifecycle": {
@@ -10600,6 +10624,11 @@
     }
   },
   "me": {
+    "common": {
+      "retry": "Erneut versuchen",
+      "retrying": "Wird wiederholt…",
+      "unreachable": "Der Server ist nicht erreichbar. Prüfen Sie, ob die App läuft, und versuchen Sie es erneut."
+    },
     "title": "Meine Jobsuche",
     "nav": {
       "profile": "Profil & Lebenslauf",
@@ -10705,6 +10734,11 @@
       },
       "couldNotReadTitle": "Was ich nicht lesen konnte",
       "couldNotReadBody": "Das sind Lücken in dem, was der Lebenslauf nennt, keine Minuspunkte. Das Studio fragt danach.",
+      "readWithoutAiTitle": "Ohne KI gelesen - prüfen Sie die Angaben",
+      "readWithoutAiBody": "Es war kein KI-Modell eingerichtet oder erreichbar, deshalb hat ein fester Parser Ihren Lebenslauf gelesen. Die Fähigkeiten stehen genau so da, wie der Lebenslauf sie nennt, nichts wurde abgeleitet. Richten Sie unter Einstellungen, Modelle ein Modell ein und importieren Sie erneut, damit ein Modell ihn liest.",
+      "skillsTitle": "Aus Ihrem Lebenslauf gelesene Fähigkeiten",
+      "skillSelfDeclared": "{skill} - von Ihnen angegeben, nicht geprüft",
+      "skillProvenance": "{skill} - Nachweis: {provenance}",
       "couldNotReadNone": "Jedes Feld, nach dem ich suche, war da."
     },
     "preferences": {
@@ -10743,6 +10777,8 @@
       },
       "errExtract": "Diese Datei konnte nicht gelesen werden.",
       "errDraft": "Aus Ihrem Lebenslauf konnte kein Profil erstellt werden. Versuchen Sie eine Datei mit mehr Text, oder versuchen Sie es erneut.",
+      "errNoTextLayer": "Dieses PDF hat keine Textebene (ein Scan oder ein Bild). Exportieren Sie es als Text oder PDF/A und versuchen Sie es erneut.",
+      "errTransport": "Der Server war nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "errSave": "Ihr Profil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
     },
     "print": {
@@ -10778,7 +10814,6 @@
       },
       "actionError": "Die Änderung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
       "loadError": "Die Liste konnte nicht geladen werden.",
-      "retry": "Erneut versuchen",
       "loading": "Wird geladen",
       "loadMore": "Mehr laden",
       "empty": {
@@ -10921,6 +10956,7 @@
         "running": "Wird gelesen",
         "error": "Die vertiefte Prüfung konnte nicht laufen.",
         "deterministic": "Kein KI-Modell ist konfiguriert, daher ist diese Begründung eine feste Vorlage. Sie wird angezeigt, nicht gespeichert.",
+        "templateOnly": "Kein Modell hat geantwortet, daher ist diese Begründung eine feste Vorlage. Sie wird angezeigt, nicht gespeichert.",
         "strengths": "Stärken",
         "gaps": "Lücken",
         "probes": "Zu erwartende Fragen"
@@ -10966,7 +11002,6 @@
       "title": "Quellen",
       "intro": "Woher die Stellen kommen. Feeds und Firmenportale sind ein Schalter; Jobbörsen, deren Bedingungen Automatisierung verbieten, brauchen Ihre Bestätigung; abgelehnte Börsen sind aufgeführt, damit Sie wissen warum.",
       "loadError": "Die Quellen konnten nicht geladen werden.",
-      "retry": "Erneut versuchen",
       "loading": "Wird geladen",
       "available": "Zum Hinzufügen verfügbar",
       "addEntry": "{label} hinzufügen",
@@ -11098,7 +11133,7 @@
       "title": "Scans",
       "intro": "Ein Scan liest jede eingeschaltete Quelle, bewertet die Funde und prüft die Auswahl vertieft. Starten Sie einen von Hand; nach dem ersten Erfolg kann der Timer übernehmen.",
       "loadError": "Der Zeitplan konnte nicht geladen werden.",
-      "retry": "Erneut versuchen",
+      "sourcesError": "Die Quellenliste konnte nicht geladen werden, daher benennen die Läufe unten jede Quelle mit ihrer gespeicherten ID.",
       "loading": "Wird geladen",
       "updateError": "Der Zeitplan konnte nicht geändert werden.",
       "clock": {

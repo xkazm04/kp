@@ -1778,6 +1778,7 @@
     "PROFILE_UPDATE_FAILED": "Impossible d’enregistrer vos modifications sur ce profil. Veuillez réessayer.",
     "PROFILE_DELETE_FAILED": "Impossible de supprimer ce profil. Veuillez réessayer.",
     "PROFILE_CANDIDATES_FAILED": "Impossible de charger la matrice des candidats. Veuillez réessayer.",
+    "PROFILE_DRAFT_FAILED": "Impossible de transformer ce texte en profil. Veuillez réessayer.",
     "SCHEDULE_BULK_NO_ENTRIES": "Sélectionnez au moins un candidat avant d’envoyer des liens de planification.",
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Ce candidat ne figure plus sur ce tableau. Rechargez la page et réessayez.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucun lien de planification n’a été envoyé.",
@@ -3974,7 +3975,30 @@
       }
     },
     "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",
-    "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA."
+    "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA.",
+    "ledger": {
+      "prototype": "Prototype",
+      "variantGroup": "Disposition du registre",
+      "variant": {
+        "flat": "Registre",
+        "grouped": "Par poste",
+        "inline": "Décision rapide"
+      },
+      "colName": "Candidature",
+      "colRole": "Poste",
+      "colScore": "Score",
+      "colRecommended": "L’IA recommande",
+      "colDecide": "Décision",
+      "colQuick": "Décision rapide",
+      "decide": "Décider",
+      "decideAria": "Décider pour {name}",
+      "groupCount": "{count, plural, one {# en attente} other {# en attente}}",
+      "groupBest": "meilleur",
+      "expand": "Afficher le classement pour {name}",
+      "collapse": "Masquer le classement pour {name}",
+      "ladderTitle": "Classement",
+      "decisionTitle": "Votre décision"
+    }
   },
   "scheduleTab": {
     "lifecycle": {
@@ -10600,6 +10624,11 @@
     }
   },
   "me": {
+    "common": {
+      "retry": "Réessayer",
+      "retrying": "Nouvelle tentative…",
+      "unreachable": "Le serveur est injoignable. Vérifiez que l'application est lancée, puis réessayez."
+    },
     "title": "Ma recherche d'emploi",
     "nav": {
       "profile": "Profil et CV",
@@ -10705,6 +10734,11 @@
       },
       "couldNotReadTitle": "Ce que je n'ai pas pu lire",
       "couldNotReadBody": "Ce sont des lacunes dans ce que le CV indique, pas des points en moins. Le studio vous posera la question.",
+      "readWithoutAiTitle": "Lu sans IA - vérifiez les détails",
+      "readWithoutAiBody": "Aucun modèle d'IA n'était configuré ni joignable : votre CV a donc été lu par un analyseur fixe. Les compétences sont enregistrées telles que le CV les énonce, rien n'a été déduit. Ajoutez un modèle dans Paramètres, Modèles, puis réimportez pour qu'un modèle le lise.",
+      "skillsTitle": "Compétences lues dans votre CV",
+      "skillSelfDeclared": "{skill} - déclaré par vous, non vérifié",
+      "skillProvenance": "{skill} - preuve : {provenance}",
       "couldNotReadNone": "Tous les champs que je recherche étaient présents."
     },
     "preferences": {
@@ -10743,6 +10777,8 @@
       },
       "errExtract": "Ce fichier n'a pas pu être lu.",
       "errDraft": "Votre CV n'a pas pu être transformé en profil. Essayez un fichier avec plus de texte, ou réessayez.",
+      "errNoTextLayer": "Ce PDF n'a pas de couche de texte (un scan ou une image). Exportez-le en texte ou en PDF/A, puis réessayez.",
+      "errTransport": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
       "errSave": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
     },
     "print": {
@@ -10778,7 +10814,6 @@
       },
       "actionError": "La modification n'a pas pu être enregistrée. Veuillez réessayer.",
       "loadError": "Le flux n'a pas pu être chargé.",
-      "retry": "Réessayer",
       "loading": "Chargement",
       "loadMore": "Charger la suite",
       "empty": {
@@ -10921,6 +10956,7 @@
         "running": "Lecture",
         "error": "L'analyse approfondie n'a pas pu s'exécuter.",
         "deterministic": "Aucun modèle d'IA n'est configuré, cette justification est donc un gabarit fixe. Elle est affichée, pas enregistrée.",
+        "templateOnly": "Aucun modèle n'a répondu, cette justification est donc un gabarit fixe. Elle est affichée, pas enregistrée.",
         "strengths": "Points forts",
         "gaps": "Écarts",
         "probes": "Questions à prévoir"
@@ -10966,7 +11002,6 @@
       "title": "Sources",
       "intro": "D'où viennent les offres. Les flux et les portails d'entreprise sont un simple interrupteur ; les sites d'emploi dont les conditions interdisent l'automatisation demandent votre accord ; les sites refusés sont listés pour que vous sachiez pourquoi.",
       "loadError": "Les sources n'ont pas pu être chargées.",
-      "retry": "Réessayer",
       "loading": "Chargement",
       "available": "Disponibles à l'ajout",
       "addEntry": "Ajouter {label}",
@@ -11098,7 +11133,7 @@
       "title": "Analyses",
       "intro": "Une analyse lit chaque source activée, note ce qu'elle trouve et approfondit la présélection. Lancez-en une à la main ; après le premier succès, le minuteur peut prendre le relais.",
       "loadError": "La planification n'a pas pu être chargée.",
-      "retry": "Réessayer",
+      "sourcesError": "La liste des sources n'a pas pu être chargée : les analyses ci-dessous désignent chaque source par son identifiant enregistré.",
       "loading": "Chargement",
       "updateError": "La planification n'a pas pu être modifiée.",
       "clock": {

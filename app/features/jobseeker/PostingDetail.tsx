@@ -17,7 +17,7 @@ import { DismissPicker } from "./DismissPicker";
 import { EligibilityChips } from "./EligibilityChips";
 import { compareSalary } from "./feedModel";
 import { FitStudio } from "./FitStudio";
-import type { PostingDetailView } from "./postingView";
+import { diveOutcome, reasoningView, type DiveOutcome, type PostingDetailView } from "./postingView";
 import type { StudioDegradation } from "./CvStudio";
 import { usePostingActions } from "./usePostingActions";
 
@@ -36,7 +36,8 @@ const SCORE_BAR: Record<ReturnType<typeof scoreTone>, string> = {
 };
 
 type StudioState = { dialog: JobseekerDialog; degradation: StudioDegradation | null } | null;
-type DeepDive = { reasoning: PostingDetailView["reasoning"]; source: "llm" | "deterministic" } | null;
+/** A deep-dive that ANSWERED. `failed` never lands here — it is the error line. */
+type DeepDive = { reasoning: PostingDetailView["reasoning"]; outcome: Exclude<DiveOutcome, "failed"> } | null;
 
 export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingDetailView; salaryFloor: SalaryFloor | null; profileId: string | null }) {
   const t = useTranslations("me.posting");
@@ -67,19 +68,18 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
     setDiveError(null);
     try {
       const res = await fetch(`/api/jobseeker/postings/${encodeURIComponent(view.id)}/deepdive`, { method: "POST" });
-      const body = (await res.json().catch(() => null)) as { reasoning?: Record<string, unknown>; source?: string; code?: string } | null;
-      if (!res.ok || !body?.reasoning) {
+      const body = (await res.json().catch(() => null)) as { reasoning?: Record<string, unknown> | null; source?: string; fallbackReason?: string | null; code?: string } | null;
+      // Keyless is an ANSWER, not a failure: only a refused request or a shape this page
+      // cannot read is an error. `no_provider` and `template` both render the honest note.
+      const outcome = res.ok ? diveOutcome(body) : "failed";
+      if (outcome === "failed") {
         setDiveError({ code: body?.code ?? null });
         return;
       }
-      const r = body.reasoning;
-      const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-      setDive({
-        reasoning: typeof r.verdict === "string" ? { verdict: r.verdict, strengths: list(r.strengths), gaps: list(r.gaps), probes: list(r.interviewProbes) } : null,
-        source: body.source === "llm" ? "llm" : "deterministic",
-      });
-      // A model rationale was persisted with a re-match: re-read the projection.
-      if (body.source === "llm") router.refresh();
+      setDive({ reasoning: reasoningView(body?.reasoning && typeof body.reasoning === "object" ? body.reasoning : null), outcome });
+      // A model rationale was persisted with a re-match: re-read the projection. A
+      // template was not stored, so there is nothing on the server to go and fetch.
+      if (outcome === "llm") router.refresh();
     } catch {
       setDiveError({ code: null });
     } finally {
@@ -131,6 +131,9 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
         (view.salary.period ? ` ${tPrefs(`period.${view.salary.period}`)}` : "")
       : null;
   const reasoning = view.reasoning ?? dive?.reasoning ?? null;
+  // The template note stands on its own: an empty template still says WHY the panel is
+  // thin, which is the whole point of answering keyless instead of erroring.
+  const templateNote = dive?.outcome === "no_provider" ? t("reasoning.deterministic") : dive?.outcome === "template" ? t("reasoning.templateOnly") : null;
   const paragraphs = view.bodyText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
   return (
@@ -293,13 +296,17 @@ export function PostingDetail({ view, salaryFloor, profileId }: { view: PostingD
             <h2 id="posting-reasoning" className={META_LABEL}>
               {t("reasoning.title")}
             </h2>
-            {reasoning ? (
+            {reasoning || templateNote ? (
               <div className="mt-3 space-y-3 text-sm">
-                {dive?.source === "deterministic" ? <p className="text-sm text-steel">{t("reasoning.deterministic")}</p> : null}
-                <p className="text-ink">{reasoning.verdict}</p>
-                <ReasonList label={t("reasoning.strengths")} items={reasoning.strengths} />
-                <ReasonList label={t("reasoning.gaps")} items={reasoning.gaps} />
-                <ReasonList label={t("reasoning.probes")} items={reasoning.probes} />
+                {templateNote ? <p className="text-sm text-steel">{templateNote}</p> : null}
+                {reasoning ? (
+                  <>
+                    <p className="text-ink">{reasoning.verdict}</p>
+                    <ReasonList label={t("reasoning.strengths")} items={reasoning.strengths} />
+                    <ReasonList label={t("reasoning.gaps")} items={reasoning.gaps} />
+                    <ReasonList label={t("reasoning.probes")} items={reasoning.probes} />
+                  </>
+                ) : null}
               </div>
             ) : (
               <div className="mt-2 space-y-2">
