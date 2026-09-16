@@ -13,7 +13,7 @@ dependency decision: [ADR 0009](../../architecture/decisions/0009-one-html-parse
 
 | Surface | Path | Gate |
 | --- | --- | --- |
-| Thin shell (rail: brand mark, four links, appearance + language) | `app/me/layout.tsx` | `isOperator()` else 404; not in `PUBLIC_PAGES`, so the fail-closed proxy walls it when a password is set |
+| Thin shell (the house icon rail + a mobile drawer) | `app/me/layout.tsx`, `MeNav.tsx`, `MeNavDrawer.tsx` | `isOperator()` else 404; not in `PUBLIC_PAGES`, so the fail-closed proxy walls it when a password is set |
 | Profile & CV studio | `app/me/page.tsx` | WP2 |
 | Jobs feed + posting detail + fit dialog | `app/me/jobs/**` | WP5 |
 | Sources (three tiers, acknowledgement) | `app/me/sources/**` | WP5 |
@@ -209,10 +209,20 @@ malformed input).
 ## Profile and CV studio
 
 **Entry.** `/me` (`app/me/page.tsx`, server: reads the seeker's row once and hands it
-to `app/features/jobseeker/ProfilePage.tsx`). The shell is `app/me/layout.tsx`: brand
-mark, four links (`MeNav.tsx`, active state from the pathname), the appearance +
-language preferences, a `TranslatedErrorBoundary` around the page, no Companion dock;
-the rail is `print:hidden`. A seeker arrives here from the first-run wizard's **intent
+to `app/features/jobseeker/ProfilePage.tsx`). The shell is `app/me/layout.tsx`: a
+`MeNav.tsx` rail, a `TranslatedErrorBoundary` around the page, no Companion dock; the
+whole rail is `print:hidden`.
+
+The rail IS the workspace rail — the same 4.75rem icon column as `NavSectionRail`'s
+level 1, composed from the same `railTile` recipe (so the active tile carries the dark
+outline), the same `RailBrandMark` on top and the same `RailPreferences` in the footer
+slot, where the `left-full` popovers anchor correctly. It stops at ONE level on
+purpose: the second level exists for ~20 modules, and /me has four destinations. They
+are real anchors with `aria-current="page"` (the URL is the state, not a tab store) —
+not a tablist, which would promise same-document panels and roving-arrow focus. Below
+`md` the column becomes a top bar carrying the mark and a hamburger, and the same rail
+slides in as an off-canvas drawer with a scrim and a `useDialogA11y` focus trap
+(`MeNavDrawer.tsx`, the `WorkspaceNavDrawer` shape). A seeker arrives here from the first-run wizard's **intent
 fork** (`docs/architecture/app-structure.md`, "shell/setup/"): "I'm looking for a job"
 skips company/team/pipeline/companion and `finish()` routes to `/me`.
 
