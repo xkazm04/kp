@@ -157,6 +157,10 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   // so without it the day alone would be the identity and two tenants would share
   // one digest, the exact collapse this module's header describes.
   companion_digest: (p) => stableKey("companion_digest", p.workspaceId, p.dayIso),
+  // ONE scan per tenant at a time: a second "scan now" while one is running coalesces
+  // onto it instead of fetching the same boards twice under one politeness budget. The
+  // workspace is in the key for the same reason as above — a builder sees only params.
+  jobseeker_scan: (p) => stableKey("jobseeker_scan", p.workspaceId),
 };
 
 /**

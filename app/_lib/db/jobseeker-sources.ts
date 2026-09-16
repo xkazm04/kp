@@ -92,6 +92,26 @@ export function listJobseekerSources(workspaceId: string = DEFAULT_WORKSPACE_ID)
   return rows.map(fromRow);
 }
 
+/** The clock job's fan-out list: every workspace that has BOTH a seeker profile and at
+ *  least one enabled, unpaused source — the two preconditions a scan needs to do any
+ *  work. This is the ONE query in the seeker stores that spans workspaces, and it is
+ *  deliberately a list of ids, never of rows: the caller runs `runJobseekerScan(ws)`
+ *  per id and every read/write inside that run binds the workspace again. Tagged
+ *  `-- tenancy:global` so jobseeker-sources-tenancy.test.ts exempts exactly this block
+ *  (the same convention pipeline.ts uses for the automation engine's sweep). */
+export function listWorkspacesWithEnabledSources(): string[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT DISTINCT s.workspace_id AS workspace_id -- tenancy:global (clock fan-out: ids only)
+       FROM jobseeker_sources s
+       JOIN jobseeker_profiles p ON p.workspace_id = s.workspace_id
+       WHERE s.enabled = 1 AND s.paused_reason IS NULL
+       ORDER BY s.workspace_id ASC`
+    )
+    .all() as { workspace_id: string }[];
+  return rows.map((r) => r.workspace_id);
+}
+
 export function getJobseekerSource(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerSource | null {
   const row = ensureDb()
     .prepare(`SELECT * FROM jobseeker_sources WHERE id = ? AND workspace_id = ?`)

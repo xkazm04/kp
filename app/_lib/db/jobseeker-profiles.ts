@@ -57,6 +57,16 @@ export function getJobseekerProfile(userId: string | null, workspaceId: string =
   return row ? fromRow(row) : null;
 }
 
+/** The workspace's seeker profile when no user is in scope — the scan (a clock job or a
+ *  background task has no session). One workspace is one seeker in the /me product; if
+ *  several profile rows ever exist, the most recently updated one is the active seeker. */
+export function getWorkspaceJobseekerProfile(workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerProfile | null {
+  const row = ensureDb()
+    .prepare(`SELECT * FROM jobseeker_profiles WHERE workspace_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1`)
+    .get(workspaceId) as ProfileRow | undefined;
+  return row ? fromRow(row) : null;
+}
+
 export function getJobseekerProfileById(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerProfile | null {
   const row = ensureDb()
     .prepare(`SELECT * FROM jobseeker_profiles WHERE id = ? AND workspace_id = ?`)

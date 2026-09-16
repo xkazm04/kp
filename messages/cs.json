@@ -9733,7 +9733,8 @@
       "agentFit": "Vhodnost agenta · {job}",
       "campaign": "Kampaňový balíček · {job}",
       "profileDraft": "AI návrh profilu",
-      "companionDigest": "Přehled pracovního prostoru"
+      "companionDigest": "Přehled pracovního prostoru",
+      "jobseekerScan": "Sken pracovního trhu"
     },
     "filter": {
       "clear": "Zrušit filtry"

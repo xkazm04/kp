@@ -29,10 +29,45 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
     const n = await sendDueInterviewReminders();
     return n ? { status: "ok", summary: { sent: n }, log: `interview reminders sent: ${n}` } : null;
   },
-  // WP4c wires the real per-workspace source scan here (app/_lib/jobseeker/**). Until
-  // then a claimed run is recorded as SKIPPED — never `ok`, because an ok row is what
-  // verifies the job (hasVerifiedRun) and lets the operator arm its clock.
-  jobseeker_scan: async () => ({ status: "skipped", summary: { skipped: "not_wired" } }),
+  // The seeker's job-market scan (WP4c, app/_lib/jobseeker/scan.ts). Fan-out is per
+  // WORKSPACE: the one cross-tenant read is the id list (`-- tenancy:global`, ids only);
+  // every workspace then runs the same `runJobseekerScan` the manual door runs, bound to
+  // its own tenant. Sequential under ONE wall budget shared by every workspace — the
+  // politeness budget is per host, and two tenants on the same board would otherwise
+  // queue on one host slot anyway. `null` when no workspace qualifies (no row for a
+  // clock that had nothing to do); `ok` only when a scan actually ran — an ok row is
+  // what verifies the job (hasVerifiedRun), and the FIRST one comes from the manual
+  // door, never from the clock, because the clock cannot be armed before it exists.
+  jobseeker_scan: async () => {
+    const { listWorkspacesWithEnabledSources } = await import("./app/_lib/db/jobseeker-sources");
+    const { runJobseekerScan, SCAN_WALL_BUDGET_MS } = await import("./app/_lib/jobseeker/scan");
+    const workspaces = listWorkspacesWithEnabledSources();
+    if (workspaces.length === 0) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("jobseeker_scan: clock wall budget exhausted")), SCAN_WALL_BUDGET_MS);
+    const totals = { workspaces: 0, matched: 0, deepDived: 0, blocked: 0, collapsed: 0, skipped: 0 };
+    try {
+      for (const ws of workspaces) {
+        if (controller.signal.aborted) {
+          totals.skipped += 1;
+          continue;
+        }
+        const summary = await runJobseekerScan(ws, { trigger: "clock", signal: controller.signal });
+        totals.workspaces += 1;
+        totals.matched += summary.matched;
+        totals.deepDived += summary.deepDived;
+        totals.blocked += summary.sources.filter((s) => s.outcome === "blocked").length;
+        totals.collapsed += summary.sources.filter((s) => s.outcome === "collapsed").length;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    return {
+      status: totals.workspaces > 0 ? "ok" : "skipped",
+      summary: totals,
+      log: `jobseeker scan: ${totals.workspaces} workspace(s), matched ${totals.matched}, deep-dived ${totals.deepDived}, blocked ${totals.blocked}, collapsed ${totals.collapsed}`,
+    };
+  },
 };
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
@@ -215,8 +250,8 @@ export async function startClock(): Promise<void> {
     // no auto-advance opt-in required) — is the first of them: its row defaults ON
     // at the historical every-minute cadence. Zero-send sweeps record no run row —
     // at a 1-minute cadence that would be pure noise. `jobseeker_scan` is registered
-    // DISABLED and, until WP4c wires the real scan, records any claimed run as
-    // `skipped` so the log never claims work that did not happen.
+    // DISABLED and armed only after a manual scan recorded an `ok` row; its handler
+    // (JOB_HANDLERS above) fans the real scan out per workspace.
     try {
       const { SCHEDULER_JOBS } = await import("./app/_lib/scheduler-jobs");
       const { ensureRegisteredSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");

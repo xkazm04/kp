@@ -9733,7 +9733,8 @@
       "agentFit": "Adéquation de l’agent · {job}",
       "campaign": "Pack de campagne · {job}",
       "profileDraft": "Brouillon de profil IA",
-      "companionDigest": "Synthèse de l’espace de travail"
+      "companionDigest": "Synthèse de l’espace de travail",
+      "jobseekerScan": "Analyse du marché de l’emploi"
     },
     "filter": {
       "clear": "Effacer"

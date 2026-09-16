@@ -1858,6 +1858,43 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "getJobseekerProfile(",
   },
+  // jobseeker — WP4c: the scan door, the feed, the seeker's status moves and the
+  // on-demand deep-dive. The scan is minutes of third-party fetching plus Python spawns
+  // and bounded model calls; the deep-dive is two model calls; the two posting doors are
+  // a read and a one-row write — each limited before the work it names.
+  {
+    // 6/10min per IP: a scan is the whole install's politeness budget for minutes, and
+    // the dedupe key already folds a double-click onto the run in flight.
+    rel: "./jobseeker/scan/route.ts",
+    key: "`jobseeker-scan:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // The feed read, paged at 50; 120/10min per IP.
+    rel: "./jobseeker/postings/route.ts",
+    key: "`jobseeker-postings:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "listPostings(",
+  },
+  {
+    // One status write per card click; 120/10min per IP.
+    rel: "./jobseeker/postings/[id]/route.ts",
+    key: "`jobseeker-postings-write:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setPostingStatus(",
+  },
+  {
+    // jd_ingest + match_reasoning for one posting, synchronously; 20/10min per IP.
+    rel: "./jobseeker/postings/[id]/deepdive/route.ts",
+    key: "`jobseeker-deepdive:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "deepDivePosting(",
+  },
 ];
 
 for (const spec of ROUTES) {

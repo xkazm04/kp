@@ -64,12 +64,17 @@ That last flag is the gate: the route refuses `POST { job: "jobseeker_scan",
 enabled: true }` with `JOBSEEKER_SCAN_UNVERIFIED` (409) until `scheduler_runs`
 holds one `ok` row for the job (`hasVerifiedRun`), and the panel renders the
 toggle disabled with `pipeline.scheduler.unverified` as its title. Disabling and
-re-timing are never gated — only arming is. The clock's handler for the job is a
-**WP4c placeholder**: a claimed run records `{ skipped: "not_wired" }` with status
-`skipped`, which does not verify the job (only `ok` does). WP4c replaces it with
-the real per-workspace source scan and the manual "scan now" door whose first
-success is what arms the timer. Pinned by `app/_lib/scheduler-jobs.test.ts` and
-`app/api/automation/schedule/route.test.ts`.
+re-timing are never gated — only arming is. The clock's handler for the job
+(`JOB_HANDLERS.jobseeker_scan` in `instrumentation-node.ts`) fans out over
+`listWorkspacesWithEnabledSources()` — every workspace with a profile AND an enabled,
+unpaused source; the ONE cross-workspace query in the seeker stores, tagged
+`-- tenancy:global`, ids only — and runs `runJobseekerScan(ws, {trigger: "clock"})`
+sequentially under one 8-minute budget. It answers `null` (no row) when no workspace
+qualifies and `ok` with `{workspaces, matched, deepDived, blocked, collapsed, skipped}`
+otherwise. The FIRST `ok` row can only come from the manual door (`POST
+/api/jobseeker/scan` → the `jobseeker_scan` task), which records `ok` when at least
+one source ran and the run completed, `skipped` when no source is enabled. Pinned by
+`app/_lib/scheduler-jobs.test.ts` and `app/api/automation/schedule/route.test.ts`.
 
 ## Sources and politeness
 
@@ -258,7 +263,62 @@ disclosed as `fallbackLang`. The `fit` kind is accepted with its stub opening un
 
 ## Scan and scoring
 
-_WP4._
+`app/_lib/jobseeker/scan.ts` — `runJobseekerScan(workspaceId, {trigger, signal?,
+onProgress?, deps?})` → `ScanSummary`. Four phases, every dependency injected
+(`ScanDeps`; `defaultScanDeps` binds the stores, `politeFetch`, `adapterFor` and the
+Python runner in `python-cli.ts`), so `scan.test.ts` runs the whole pipeline over fixture
+adapters and a scripted runner with no network, no interpreter and no DB
+(`KP_JOBSEEKER_SCAN_SPAWN=1` opts the two deterministic CLIs into real spawns).
+
+| Phase | What runs | Bound |
+| --- | --- | --- |
+| Acquire | `reconcileSource` per enabled, unpaused source, creation order; a `blocked`/`collapsed` source is paused by reconcile and the scan moves on | `SCAN_LIMITS { maxRefs: 300, maxDetailFetches: 60 }` per source; 8-min wall budget (`SCAN_WALL_BUDGET_MS`) joined with the caller's signal — stops BETWEEN sources, and a source not reached is recorded `skipped` / `wall_budget`, never omitted |
+| Structure | `listPostingsNeedingStructure` (job_json NULL) → `posting_structure_cli` → `setPostingStructure(id, job, "deterministic")` | one spawn per 200 |
+| Match | `listPostingsForMatching` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n` → `setPostingMatch` with `match_version = "jobseeker-match-v1"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
+| Deep-dive | `listDeepDiveCandidates({threshold, limit: maxPerScan})` (match_total ≥ `preferences.deepDive.threshold`, live, `reasoning_json IS NULL`, best first) → `deepDivePosting` | `deepDive.maxPerScan`; stops at the FIRST keyless answer |
+
+KO'd postings are NOT scored 0: the matcher returns only survivors (`meta.koFiltered`,
+aggregated `meta.koReasons`), so a posting that failed the hard filter stays unmatched
+(`match_total NULL`, sorted last) and the count goes to the server log.
+
+`deepdive.ts` — `deepDivePosting(posting, profile, {lang, signal, workspaceId, deps})`,
+three spawns per posting: `jobs_cli ingest --job-id <postingId>` (use case `jd_ingest`;
+the model re-structures the ad → `job_source = "llm"`), then a re-match of ONLY that
+posting through `matchChunk` (deterministic; a KO here leaves the earlier score in place
+rather than silently demoting a card the seeker saw), then `reasoning_cli --profile-json
+--jobs <one-job corpus> --job-id` (use case `match_reasoning`) → `setPostingReasoning`.
+Re-match after model structuring IS done: it is one deterministic spawn and it is what
+makes the indexed total and the eligibility flags reflect the richer Job.
+
+**Keyless is a decision.** There is no TS-side provider oracle, so the first step is the
+probe: `jobs_cli`'s "No LLM provider available" refusal (`isNoProviderError`) or a
+`source: "deterministic"` rationale both end the shortlist with `deepDiveSkipped:
+"no_provider"` — one cheap spawn per scan, never `maxPerScan` of them. A deterministic
+rationale is never persisted (`reasoning_json IS NOT NULL` means deep-dived, and storing
+the template would freeze the row out of an upgrade). No profile → `sources: []`,
+`deepDiveSkipped: "no_profile"`, nothing spent.
+
+The manual door is the `jobseeker_scan` task kind (`app/_lib/tasks.ts`: `tenancy:
+"scoped"`, label `tasks.kind.jobseekerScan`, budget class `agent`, dedupe = one scan per
+workspace in flight, no outcome table — `/me/scans` renders the `scheduler_runs` row).
+Offline scans are NOT refused: acquisition answers `offline` per source and the stored
+postings are still structured and matched.
+
+### API (`app/api/jobseeker/{scan,postings}/**`, all `requireOperator()` → limiter → work)
+
+| Route | Verb | Does | Limiter |
+| --- | --- | --- | --- |
+| `/api/jobseeker/scan` | POST | `startTask("jobseeker_scan", {trigger: "manual", workspaceId})` → 202 `{taskId}` | `jobseeker-scan` 6/10 min |
+| `/api/jobseeker/postings` | GET | `?status=&minTotal=&sourceId=&sort=total,posted,seen&cursor=&limit=` (1..100, default 50) → `{rows: JobseekerPostingSummary[], nextCursor}`; keyset cursor; no `status` = the live feed; a value outside its vocabulary → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-postings` 120/10 min |
+| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus`; `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
+| `/api/jobseeker/postings/[id]/deepdive` | POST | `?lang=` → `deepDivePosting` synchronously (maxDuration 120) → `{posting, reasoning, source}`; keyless 200 with `source: "deterministic"` (+ `fallbackReason: "no_provider"`); no profile → 409 `JOBSEEKER_PROFILE_MISSING` | `jobseeker-deepdive` 20/10 min |
+
+Codes are reused, not minted: `APPLY_SELECTION_INVALID` is the existing generic "not one
+of the options offered" refusal, `POSTING_NOT_FOUND` the existing "that job posting could
+not be found". Store additions: `getPostingSummary`, `listPostingsNeedingStructure`,
+`listDeepDiveCandidates` (postings), `getWorkspaceJobseekerProfile` (profiles — the scan
+has no session, so it reads the workspace's newest profile),
+`listWorkspacesWithEnabledSources` (sources, global, see Scheduler).
 
 ## Feed, fit dialog, sources UI
 
@@ -267,6 +327,12 @@ _WP5._
 ## Known gaps
 
 - Everything above marked with a work-package number is not built yet.
+- `ScanSummary` has no `koFiltered` / `structured` counts and `RECONCILE_REASONS` has no
+  `wall_budget`: the scan logs the KO count and records an unreached source with
+  `reason: "wall_budget"` (a string the type allows) — both are counter-proposals for
+  `types.ts`, not silent edits.
+- A posting-specific not-found code (`JOBSEEKER_POSTING_NOT_FOUND`) does not exist; the
+  postings routes reuse `POSTING_NOT_FOUND`, whose sentence fits.
 - No `JOBSEEKER_SOURCE_NOT_FOUND` refusal code exists yet; the sources routes answer an
   unknown id with a bodiless 404 (an unregistered code would fail `i18n:check`, English
   prose is never rendered). Adding the code means the registry plus four catalog entries.

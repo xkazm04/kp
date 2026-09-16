@@ -9733,7 +9733,8 @@
       "agentFit": "Agent-Eignung · {job}",
       "campaign": "Kampagnenpaket · {job}",
       "profileDraft": "KI-Profilentwurf",
-      "companionDigest": "Überblick zum Arbeitsbereich"
+      "companionDigest": "Überblick zum Arbeitsbereich",
+      "jobseekerScan": "Stellenmarkt-Scan"
     },
     "filter": {
       "clear": "Zurücksetzen"

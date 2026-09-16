@@ -461,6 +461,72 @@ export function listPostings(
   return { rows: page.map(fromSummaryRow), nextCursor };
 }
 
+/** The summary projection of ONE posting — what a write door hands back (PATCH, the
+ *  deep-dive) so the feed row can be replaced in place without a second list fetch. */
+export function getPostingSummary(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerPostingSummary | null {
+  const row = ensureDb()
+    .prepare(`SELECT ${SUMMARY_COLUMNS} FROM jobseeker_postings WHERE id = ? AND workspace_id = ?`)
+    .get(id, workspaceId) as SummaryRow | undefined;
+  return row ? fromSummaryRow(row) : null;
+}
+
+/** The RawPosting the structurer reads, rebuilt from the row: the scan structures a
+ *  posting AFTER reconciliation (one batch spawn, not one per upsert), so the adapter's
+ *  RawPosting is gone by then. `salaryText` and `lang` are not persisted — the
+ *  deterministic structurer reads `salary` (the adapter's parse) and the body. */
+function rawFromRow(row: PostingRow): RawPosting {
+  const jsonld = safeRowParse<Record<string, unknown>>(row.jsonld_json, "jobseekerPosting.jsonld", row.id);
+  const period = coerceSalaryPeriod(row.salary_period);
+  return {
+    externalKey: row.external_key,
+    url: row.url,
+    title: row.title,
+    company: row.company,
+    location: row.location,
+    country: row.country,
+    workMode: isWorkMode(row.work_mode) ? row.work_mode : null,
+    postedAt: row.posted_at,
+    salaryText: null,
+    salary:
+      row.salary_currency && period && (row.salary_min !== null || row.salary_max !== null)
+        ? { min: row.salary_min, max: row.salary_max, currency: row.salary_currency, period }
+        : null,
+    bodyText: row.body_text,
+    jsonld: jsonld && typeof jsonld === "object" ? jsonld : null,
+    lang: null,
+  };
+}
+
+/** What the structurer still owes a Job: live postings with no job_json (new since the
+ *  last scan, or changed — upsertPosting clears the structure on a moved content hash). */
+export function listPostingsNeedingStructure(workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; raw: RawPosting }[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT * FROM jobseeker_postings
+       WHERE workspace_id = ? AND job_json IS NULL AND status NOT IN ('dismissed', 'gone')
+       ORDER BY first_seen_at DESC, id DESC`
+    )
+    .all(workspaceId) as PostingRow[];
+  return rows.map((row) => ({ id: row.id, raw: rawFromRow(row) }));
+}
+
+/** The deep-dive shortlist: scored at or above the seeker's threshold, still live, not
+ *  yet reasoned about — best first, capped at the policy's per-scan maximum. */
+export function listDeepDiveCandidates(
+  opts: { threshold: number; limit: number },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): JobseekerPosting[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT * FROM jobseeker_postings
+       WHERE workspace_id = ? AND match_total >= ? AND reasoning_json IS NULL AND status NOT IN ('dismissed', 'gone')
+       ORDER BY match_total DESC, id DESC
+       LIMIT ?`
+    )
+    .all(workspaceId, opts.threshold, Math.max(0, Math.trunc(opts.limit))) as PostingRow[];
+  return rows.map(fromRow);
+}
+
 /** What the matcher scores: every structured, still-live posting of the workspace. */
 export function listPostingsForMatching(workspaceId: string = DEFAULT_WORKSPACE_ID): { id: string; job: Record<string, unknown> }[] {
   const rows = ensureDb()

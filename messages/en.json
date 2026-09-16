@@ -9733,7 +9733,8 @@
       "agentFit": "Agent fit · {job}",
       "campaign": "Campaign pack · {job}",
       "profileDraft": "AI profile draft",
-      "companionDigest": "Workspace digest"
+      "companionDigest": "Workspace digest",
+      "jobseekerScan": "Job-market scan"
     },
     "filter": {
       "clear": "Clear"
