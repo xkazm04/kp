@@ -18,6 +18,8 @@
 // prototype fixture. Onboarding speaks the server enum natively.
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
+import { APP_CURRENCY } from "@/app/_lib/format";
+import type { OrgCurrency } from "@/app/_lib/org-settings";
 import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 // The PROBE module, never companion-brain.ts: that one spawns Python and opens
 // better-sqlite3, and this file is imported by a client component. Same
@@ -109,6 +111,8 @@ export function reachedCeiling(maxVisited: number, stepIndex: number, canAdvance
 export type SetupState = {
   orgName: string;
   language: AppLanguage;
+  /** The salary currency the org writes its bands in (a label, never FX). */
+  currency: OrgCurrency;
   /** Brand accent hex, or null = keep the product default (coral). */
   accentColor: string | null;
   /** https:// logo URL ("" = none). */
@@ -131,6 +135,7 @@ export type SetupState = {
 export const INITIAL_SETUP: SetupState = {
   orgName: "",
   language: "en",
+  currency: APP_CURRENCY,
   accentColor: null,
   logoUrl: "",
   invites: [],

@@ -129,11 +129,12 @@ export function PipelinePopulatedBoard({
               entries={s.filteredEntries}
               axis={s.axis}
               retiredStages={s.retiredStages}
+              plan={s.plan}
               isStale={s.isStale}
               openPositionRanking={s.openPositionRanking}
               openProfile={s.openProfile}
               openJob={s.openJob}
-              openActions={s.openActions}
+              openCandidate={s.openCandidate}
               selectMode={s.selectMode}
               selectedIds={s.selectedIds}
               onToggleSelect={s.toggleSelected}

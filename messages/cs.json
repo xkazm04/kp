@@ -92,7 +92,15 @@
       "strandedRow": "{stage} · {count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}}",
       "strandedHint": "Vyberte, kam jednotlivé skupiny přejdou. Přesun proběhne při uložení a každý kandidát dostane záznam v historii s vysvětlením.",
       "mapAria": "Kam mají přejít kandidáti z fáze {stage}?",
-      "mapChoose": "Vyberte krok…"
+      "mapChoose": "Vyberte krok…",
+      "colActions": "Akce AI",
+      "actionsDefault": "Výchozí",
+      "actionsCustom": "Vlastní",
+      "actionsNone": "Žádné",
+      "actionsCount": "{count, plural, one {# akce} few {# akce} other {# akcí}}",
+      "actionsAria": "Akce AI ve fázi {stage}",
+      "actionsReset": "Obnovit výchozí",
+      "actionsHint": "Co lze u kandidáta v této fázi spustit."
     },
     "roles": {
       "entry": "Sem přicházejí",
@@ -1542,6 +1550,7 @@
     "MEMBER_PERMISSIONS_CHANGED": "Oprávnění tohoto člena se během vaší úpravy změnila. Načtěte stránku znovu a zkuste to ještě jednou.",
     "ORG_SETTINGS_FORBIDDEN": "Nastavení organizace může měnit jen správce organizace.",
     "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje.",
+    "ORG_CURRENCY_INVALID": "Tuto měnu aplikace nenabízí.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Změna pravidel neuvedla fázi nebo neobsahovala žádná pravidla k uložení.",
     "DECISION_CONFIG_INVALID": "Tato pravidla nejsou pro tuto fázi platná.",
     "DECISION_CONFIG_SAVE_FAILED": "Pravidla se nepodařilo uložit. Zkuste to prosím znovu.",
@@ -1734,6 +1743,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Tento kandidát není na této nástěnce.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
     "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit.",
+    "AUTOMATION_TASK_NOT_OFFERED": "Tuto akci AI nelze v této fázi kandidáta spustit.",
     "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
     "APPLY_SESSION_INVALID": "Tento pokus o přihlášku se nepodařilo zahájit. Načtěte stránku znovu a zkuste to prosím ještě jednou.",
     "FOLLOWUP_LINK_NOT_FOUND": "Tento odkaz na profil není platný. Vaše přihláška je v bezpečí uložená. Požádejte náboráře o nový.",
@@ -2533,7 +2543,8 @@
       "workspace": "Pracovní prostory",
       "agents": "Agenti",
       "activity": "Aktivita",
-      "intake": "Vstup pozice"
+      "intake": "Vstup pozice",
+      "templates": "Šablony"
     },
     "groups": {
       "hiring": "Nábor",
@@ -2697,7 +2708,9 @@
       "gridAria": "Pozice podle fází",
       "cellAria": "{position}, {stage}, {count, plural, =0 {žádní kandidáti} one {# kandidát} few {# kandidáti} other {# kandidátů}}",
       "cellEmpty": "Žádní kandidáti",
-      "dropHint": "Přetažením sem přesunete kandidáta do této fáze."
+      "dropHint": "Přetažením sem přesunete kandidáta do této fáze.",
+      "waitingHuman": "{count, plural, one {# kandidát čeká na člověka} few {# kandidáti čekají na člověka} other {# kandidátů čeká na člověka}}",
+      "waitingAi": "{count, plural, one {# kandidát čeká na AI} few {# kandidáti čekají na AI} other {# kandidátů čeká na AI}}"
     },
     "stageHelp": {
       "Accepted": "Přijatý životopis: příchozí přihláška nebo aktivně vyhledaný kandidát čekající na prověření.",
@@ -2991,7 +3004,10 @@
       "slaEditorRange": "{min}–{max} dní; prázdné použije výchozí",
       "previewCommitFailed": "Průchod se nepodařilo použít.",
       "bulkTaskIncomplete": "Úloha psaní skončila bez výsledku. Kandidáti zůstávají vybraní, zkuste to znovu.",
-      "bulkInviteItemsRefused": "Některé pozvánky byly odmítnuty. Důvod zjistíte otevřením kandidáta."
+      "bulkInviteItemsRefused": "Některé pozvánky byly odmítnuty. Důvod zjistíte otevřením kandidáta.",
+      "expandBoard": "Celá stránka",
+      "collapseBoard": "Zavřít celou stránku",
+      "boardFullPageAria": "Nástěnka pozic na celou stránku"
     },
     "emptyState": {
       "optional": "Volitelné",
@@ -3179,6 +3195,49 @@
         "retry": "Zkusit znovu"
       },
       "transfer": "přenos"
+    },
+    "candidate": {
+      "back": "Zpět",
+      "tabsAria": "Sekce kandidáta",
+      "tabs": {
+        "overview": "Přehled",
+        "activity": "Aktivita",
+        "record": "Záznam"
+      },
+      "activityEmpty": "Zatím tu není žádný pohovor, hodnocení ani zpráva.",
+      "scorecard": {
+        "advance": "Přesunout do fáze {stage}",
+        "route": "Průběh",
+        "score": "Skóre",
+        "unscored": "Zatím bez skóre",
+        "breakdown": "Rozpad skóre",
+        "weight": "Váha",
+        "points": "Body",
+        "confidence": "Pravděpodobně {low}–{high}",
+        "salary": "Očekávaná mzda",
+        "estimate": "odhad",
+        "salaryFit": {
+          "inside": "v rámci pásma pozice",
+          "below": "pod pásmem pozice",
+          "above": "nad pásmem pozice"
+        },
+        "matched": "Shoda",
+        "unproven": "Uvedeno, neprokázáno",
+        "missing": "Chybí",
+        "noSkills": "K dovednostem nejsou žádné podklady.",
+        "loading": "Načítá se rozpad skóre…",
+        "noAnalysis": "K této pozici chybí analýza, k dispozici je jen skóre z nástěnky.",
+        "matchError": "Podrobnosti skóre teď nejsou k dispozici."
+      },
+      "footer": {
+        "aria": "Akce s kandidátem",
+        "moveStage": "Přesunout do fáze",
+        "voiceLink": "Odkaz na hlasový pohovor",
+        "scheduleLink": "Odkaz na výběr termínu",
+        "closeTray": "Zavřít panel",
+        "showResult": "Poslední výsledek",
+        "noActions": "V této fázi nejsou k dispozici žádné akce AI"
+      }
     },
     "actions": {
       "screen": "Prověřit přes AI",
@@ -6321,6 +6380,8 @@
       "saved": "Uloženo",
       "saveFailed": "Nepodařilo se uložit. Zkontrolujte připojení a zkuste to znovu.",
       "languageLabel": "Jazyk aplikace",
+      "currencyLabel": "Měna mezd",
+      "currencyHint": "V této měně označuje pipeline nástěnka mzdová pásma. Nic se nepřepočítává.",
       "previewOnboarding": "Náhled onboardingu",
       "backup": {
         "title": "Zálohování a obnovení",
@@ -8296,7 +8357,9 @@
       },
       "logoLabel": "URL loga",
       "logoInvalid": "Zadejte adresu obrázku začínající https://.",
-      "nameHint": "Tento název vidí kandidáti v inzerátech, nabídkách a v každé zprávě, kterou jim pošlete."
+      "nameHint": "Tento název vidí kandidáti v inzerátech, nabídkách a v každé zprávě, kterou jim pošlete.",
+      "currencyLabel": "Měna mezd",
+      "currencyHint": "Měna, ve které zadáváte mzdová pásma. Později ji můžete změnit v Nastavení → Organizace."
     },
     "team": {
       "emailPlaceholder": "jmeno@spolecnost.cz",
@@ -8393,6 +8456,7 @@
       "part": {
         "orgName": "Název firmy",
         "language": "Jazyk aplikace",
+        "currency": "Měna mezd",
         "invites": "Pozvánky pro kolegy",
         "pipeline": "Sloupce nástěnky",
         "brand": "Barva značky a logo",
@@ -10347,5 +10411,98 @@
     "clear": "Zrušit výběr",
     "searchPlaceholder": "Hledat…",
     "noMatches": "Žádné výsledky"
+  },
+  "templates": {
+    "tab": {
+      "eyebrow": "Nastavení",
+      "title": "Šablony zpráv",
+      "intro": "Zprávy, které posíláte stále dokola: potvrzení přijatého životopisu, pozvánku na pohovor, průvodní text k nabídce, zamítnutí. Napište každou jednou, přiřaďte ji ke stavu náboru a používejte ji opakovaně."
+    },
+    "variant": {
+      "eyebrow": "Prototyp",
+      "label": "Rozvržení prototypu",
+      "library": "Knihovna",
+      "board": "Podle stavu",
+      "compose": "Psaní"
+    },
+    "kind": {
+      "received": "Přijatý životopis",
+      "screened": "Po prvním síte",
+      "interview": "Pohovor",
+      "offer": "Nabídka",
+      "rejected": "Zamítnuto",
+      "unsorted": "Bez stavu"
+    },
+    "scope": {
+      "org": "Firma",
+      "team": "Tým",
+      "default": "Výchozí"
+    },
+    "loadFailed": "Knihovnu šablon se nepodařilo načíst.",
+    "retry": "Zkusit znovu",
+    "truncated": "Toto je jen část seznamu. Knihovna obsahuje více šablon, než se vejde na jednu stránku.",
+    "errInvalid": "Šablona potřebuje název i text a ani jeden nesmí překročit povolenou délku.",
+    "errUnknownTokens": "Text používá zástupný symbol, který neexistuje. Odeberte ho, nebo vyberte některý ze seznamu.",
+    "errNotPermitted": "Nemáte oprávnění měnit šablony.",
+    "errSaveFailed": "Šablonu se nepodařilo uložit.",
+    "errDeleteFailed": "Šablonu se nepodařilo smazat.",
+    "library": {
+      "searchPlaceholder": "Hledat v šablonách",
+      "new": "Nová šablona",
+      "loading": "Načítání šablon…",
+      "empty": "Žádná šablona neodpovídá.",
+      "pickOne": "Vyberte šablonu vlevo, nebo založte novou."
+    },
+    "board": {
+      "emptyColumn": "Pro tento stav zatím nic napsaného.",
+      "addHere": "Přidat sem",
+      "editTitle": "Upravit šablonu",
+      "newTitle": "Nová šablona"
+    },
+    "compose": {
+      "pick": "Šablona",
+      "pickPlaceholder": "Otevřít šablonu",
+      "blank": "Prázdná",
+      "bodyPlaceholder": "Napište zprávu. Zástupný symbol vložíte kliknutím vpravo.",
+      "showPreview": "Náhled",
+      "hidePreview": "Zpět k psaní"
+    },
+    "editor": {
+      "name": "Název",
+      "namePlaceholder": "K čemu tato zpráva slouží",
+      "state": "Stav náboru",
+      "scope": "Viditelné pro",
+      "scopeTeam": "Můj tým",
+      "scopeOrg": "Celou firmu",
+      "scopeTeamHint": "Šablonu uvidí jen váš tým.",
+      "scopeOrgHint": "Šablonu uvidí každý tým ve firmě.",
+      "body": "Zpráva",
+      "placeholders": "Zástupné symboly",
+      "localizedTokens": "Přeložené nadpisy",
+      "tokenHint": "Vykreslí se jen tyto; jakýkoli jiný zástupný symbol uložení odmítne. Podporované: {supported}",
+      "insertToken": "Vložit {token}",
+      "preview": "Náhled s ukázkovými daty",
+      "previewEmpty": "Zatím není co zobrazit.",
+      "save": "Uložit",
+      "cancel": "Zrušit",
+      "delete": "Smazat",
+      "deleteConfirm": "Smazat tuto šablonu?",
+      "deleteYes": "Smazat",
+      "deleteNo": "Ponechat"
+    },
+    "sample": {
+      "title": "Senior datový inženýr",
+      "company": "Northwind",
+      "seniority": "Senior",
+      "salary": "90–110 tis.",
+      "about": "Stavíme reportingovou páteř, podle které si několik set kolegů plánuje týden.",
+      "resp1": "Převzít odpovědnost za datové pipeline od začátku do konce",
+      "resp2": "Spolupracovat s analytiky na modelech, které denně dotazují",
+      "resp3": "Udržet noční zpracování v jeho časovém okně",
+      "must1": "Několik let produkčního Pythonu a SQL",
+      "must2": "Zkušenost s provozem pipeline, na které závisí někdo další",
+      "nice1": "Práce s dbt nebo obdobným nástrojem",
+      "nice2": "Ochota procházet dotazy ostatních"
+    }
   }
 }

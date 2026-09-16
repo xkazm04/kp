@@ -109,8 +109,8 @@ fn --> ui : ranked + bands`,
   },
   screen: {
     status: "live",
-    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
-    puml: `[CandidateDrawer\\n"Screen with AI"] <<auto>> as ui
+    files: ["app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx", "app/_lib/automation-run.ts", "pipeline/jobfit/automation.py"],
+    puml: `[CandidateModal\\n"Screen with AI"] <<auto>> as ui
 [runAutomationTask\\nscreen] as fn
 [automation_cli screen\\nClaude CLI + fallback] as cli
 database "pipeline_entries\\npipeline_events · gemini_cache" as db
@@ -132,8 +132,8 @@ fn --> db : UPDATE stage`,
   },
   engage: {
     status: "live",
-    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/_lib/automation-run.ts", "app/_lib/comms-dispatch.ts", "app/_lib/comms.ts"],
-    puml: `[CandidateDrawer\\n"Draft outreach"] <<auto>> as ui
+    files: ["app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx", "app/_lib/automation-run.ts", "app/_lib/comms-dispatch.ts", "app/_lib/comms.ts"],
+    puml: `[CandidateModal\\n"Draft outreach"] <<auto>> as ui
 [runAutomationTask\\noutreach] as fn
 [dispatchOutreach\\ncomms-dispatch.ts] as disp
 [sendComm] as send
@@ -148,7 +148,7 @@ send ..> rcpt`,
   interview: {
     status: "live",
     files: [
-      "app/features/hiring/pipeline/PipelineCandidateDrawer.tsx",
+      "app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx",
       "app/api/interview/*",
       "app/_lib/interview-run.ts",
       "app/_lib/voice/*",
@@ -157,7 +157,7 @@ send ..> rcpt`,
       "app/api/schedule/*",
       "app/_lib/schedule-store.ts",
     ],
-    puml: `[CandidateDrawer\\n"Voice screen"] <<auto>> as ui
+    puml: `[CandidateModal\\n"Voice screen"] <<auto>> as ui
 [POST /api/interview/create\\nbuildGroundedInterview · Task 4] <<auto>> as create
 database "interview_sessions" as iv
 [Candidate portal\\n/interview/[token]] <<auto>> as portal
@@ -183,8 +183,8 @@ slot --> si : confirmed slot`,
   },
   offer: {
     status: "gate",
-    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/_lib/automation-run.ts", "app/_lib/offers-store.ts", "app/_lib/comms-dispatch.ts"],
-    puml: `[CandidateDrawer\\n"Draft offer"] <<auto>> as ui
+    files: ["app/features/hiring/pipeline/candidate/CandidateActionsTab.tsx", "app/_lib/automation-run.ts", "app/_lib/offers-store.ts", "app/_lib/comms-dispatch.ts"],
+    puml: `[CandidateModal\\n"Draft offer"] <<auto>> as ui
 [runAutomationTask\\noffer] as fn
 [setApproval\\noffer_review] as ap
 [AiReviewCard approve\\n(human)] <<gate>> as human

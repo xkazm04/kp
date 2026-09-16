@@ -674,7 +674,7 @@ of attribute literals elsewhere.
   (`jdsLibrary.SORTS`). A grammar constant that a parser round-trips
   (`ScheduleTypes.DEFAULT_SLOT`) is not copy at all — comment it and leave it.
 - `ERROR_LEAK_ALLOW` in `scripts/i18n-check.mjs` still lists
-  `usePipelineCandidateDrawerState.ts`, `analyzeRunAnalysis.ts` and
+  `analyzeRunAnalysis.ts` and
   `useDevSubmissionRow.ts`, whose GitHub call sites now resolve a real code. The
   entries are stale and can be dropped, which would re-arm the guard on those
   files.

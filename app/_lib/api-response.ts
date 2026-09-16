@@ -461,6 +461,9 @@ export const REFUSAL_ERRORS = {
   AUTOMATION_ENTRY_NO_PROFILE: "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
   /** The POST arrived without an entry to act on (400). */
   AUTOMATION_ENTRY_REQUIRED: "Name the candidate this step should run for.",
+  /** A recruiter asked for an AI action the candidate's column does not offer (409) —
+   *  the workspace's per-step list in Settings → Hiring, or the product default. */
+  AUTOMATION_TASK_NOT_OFFERED: "That AI action isn't available at this candidate's step.",
   /** A non-numeric automation interval (400). The dock's own field clamps to
    *  [1, 1440], so reaching this means a hand-rolled call or a broken client —
    *  and the operator still deserves the reason in their own language. */
@@ -940,6 +943,10 @@ export const REFUSAL_ERRORS = {
    *  app ships (400). A bad argument, never a permission problem — kept apart from
    *  ORG_SETTINGS_FORBIDDEN so the console cannot blame a recruiter's role for it. */
   ORG_LANGUAGE_INVALID: "That isn't one of the app's languages.",
+  /** The salary currency submitted for the organization is not one the app offers
+   *  (400). A bad argument, kept apart from ORG_SETTINGS_FORBIDDEN for the same
+   *  reason as the language code above. */
+  ORG_CURRENCY_INVALID: "That isn't one of the currencies the app offers.",
   /** The matrix scorer refused the request itself (4xx) — a corpus/profile the grid
    *  asked for that the engine will not score. Not a fault, so it is not withheld: the
    *  recruiter's move is to reload or narrow the scope, not to report a crash. */

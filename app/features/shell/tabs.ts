@@ -58,6 +58,10 @@ export const WORKSPACE_TAB_IDS = [
   // Hiring-pipeline composer (Settings): how this workspace combines AI/human
   // interview rounds and approval gates. Appended last (chord rule below).
   "hiring",
+  // Message templates (Settings): the messages a recruiter sends at each pipeline
+  // state — CV acknowledged, screened, interview invite, offer cover note,
+  // rejection. Appended last, same chord rule.
+  "templates",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -273,6 +277,12 @@ export const NAV_GROUPS: NavGroup[] = [
       // The hiring-pipeline composer (AI/human rounds + approval gating).
       // Appended last so every prior `g`-chord assignment is untouched.
       { id: "hiring", label: "Hiring" },
+      // Message templates. Appended last so every prior `g`-chord assignment is
+      // untouched: every letter of "templates" (t/e/m/p/l/a/s) is already a
+      // single-letter chord, so the derivation sends it to the two-key pass on
+      // its own and it lands on `g f t` — no chordOverflow/chordPin needed, and
+      // nothing else moves (workspaceChords.test.ts is what proves that).
+      { id: "templates", label: "Templates" },
     ],
   },
 ];

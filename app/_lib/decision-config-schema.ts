@@ -13,7 +13,7 @@ import { ROLE_FAMILY_SLUGS } from "./role-families.ts";
 // pipeline-stages.ts is equally dependency-free (no DB, no alias), so importing
 // the shipped axis here keeps this module loadable by `node --test` and the
 // browser alike — and makes the board the literal source of the axis default.
-import { DEFAULT_STAGE_AXIS, roleOf, stagesWithRole, stageWithRole, type StageDef, type StageRole } from "./pipeline-stages.ts";
+import { DEFAULT_STAGE_AXIS, roleOf, stagesWithRole, stageWithRole, type StageDef, type StageRole, isStageAiAction, STAGE_AI_ACTIONS, type StageAiAction } from "./pipeline-stages.ts";
 
 // Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
 // matched candidates that are ALSO below `maxMatchToReject` match — never
@@ -298,7 +298,13 @@ export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = migrateLegacyInterviewP
 // label instead of rendering a raw id — and so a candidate found sitting on it
 // can be named in the migration prompt. The board renders only `stages`.
 export type PipelineStageRoleWire = "entry" | "screening" | "interview" | "scoring" | "offer" | "terminal" | "custom";
-export type PipelineStageWire = { id: string; label: string; role: PipelineStageRoleWire };
+export type PipelineStageWire = {
+  id: string;
+  label: string;
+  role: PipelineStageRoleWire;
+  /** Stored only when the workspace customised the column's AI actions. */
+  actions?: StageAiAction[];
+};
 export type PipelineStagesRule = {
   stages: PipelineStageWire[];
   retired: PipelineStageWire[];
@@ -338,7 +344,7 @@ const LEGACY_INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as c
 const INTERVIEW_PLAN_STEP_KEYS = ["stageId", "gate", "rounds"] as const;
 const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
 const PIPELINE_STAGES_KEYS = ["stages", "retired"] as const;
-const STAGE_KEYS = ["id", "label", "role"] as const;
+const STAGE_KEYS = ["id", "label", "role", "actions"] as const;
 
 export type DecisionConfigResult =
   | { ok: true; phase: "screening"; config: ScreeningRule }
@@ -415,7 +421,18 @@ function validateStage(raw: unknown, path: string): { ok: true; stage: PipelineS
     return { ok: false, error: `${path}.label must be 1-60 characters.` };
   }
   if (!isStageRole(rec.role)) return { ok: false, error: `${path}.role must be one of: ${STAGE_ROLES.join(", ")}.` };
-  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role } };
+  // The column's own AI actions (Settings → Hiring). Absent = the role default, so it
+  // is stored only when set; a present list must name distinct known actions and is
+  // normalised to the canonical order, so two equal selections serialise equally.
+  let actions: StageAiAction[] | undefined;
+  if (rec.actions !== undefined) {
+    const list = rec.actions;
+    if (!Array.isArray(list) || !list.every(isStageAiAction) || new Set(list).size !== list.length) {
+      return { ok: false, error: `${path}.actions must be a list of distinct AI actions: ${STAGE_AI_ACTIONS.join(", ")}.` };
+    }
+    actions = STAGE_AI_ACTIONS.filter((id) => list.includes(id));
+  }
+  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role, ...(actions ? { actions } : {}) } };
 }
 
 function validateStageList(

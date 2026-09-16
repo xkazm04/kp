@@ -50,7 +50,25 @@ export type StageRole = "entry" | "screening" | "interview" | "scoring" | "offer
  *  `pipeline_entries.stage`, both `pipeline_events` stage columns, the analytics
  *  history and the ATS field map for zero behavioural gain. Ids stay as they are;
  *  labels become editable when the axis becomes per-workspace data. */
-export type StageDef = { id: string; label: string; role: StageRole };
+/** The AI actions a recruiter can run on ONE candidate from the candidate modal — a
+ *  closed vocabulary (literal array + derived union + guard). WHICH of them a column
+ *  offers is resolved in stage-ai-actions.ts: the stage's own `actions` when the
+ *  workspace set them in Settings → Hiring, else the product default by role. */
+export const STAGE_AI_ACTIONS = ["screen", "prep", "scorecard", "offer", "outreach", "rejection", "rematch"] as const;
+export type StageAiAction = (typeof STAGE_AI_ACTIONS)[number];
+
+export function isStageAiAction(value: unknown): value is StageAiAction {
+  return typeof value === "string" && (STAGE_AI_ACTIONS as readonly string[]).includes(value);
+}
+
+export type StageDef = {
+  id: string;
+  label: string;
+  role: StageRole;
+  /** The AI actions this column offers, when the workspace customised them. Absent =
+   *  the product default for the role; an empty list is a real answer (nothing runs). */
+  actions?: readonly StageAiAction[];
+};
 
 /** The role each canonical stage plays. Exhaustive over PipelineStage, so adding a
  *  stage to the axis without deciding what it MEANS is a compile error. */

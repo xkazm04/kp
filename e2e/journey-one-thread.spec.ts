@@ -355,9 +355,9 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   expect(mine.matchScore, "a work sample must not be written into the match score").toBeNull();
   expect(typeof mine.transferScore, "the transfer score reaches the board as itself").toBe("number");
 
-  // …and the board SAYS so. The kind marker only renders on a non-match score
-  // (PipelineCandidateRow.tsx:248-252); its title is the sentence that tells a
-  // recruiter which of the four 0-100 numbers they are looking at.
+  // …and the board SAYS so. The bead's title carries the kind sentence only on a
+  // non-match score (beadTitle, map/PipelineBoardSubway.tsx): it tells a recruiter
+  // which of the four 0-100 numbers they are looking at.
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(CANDIDATE)}`);
   const row = page.getByRole("button", { name: CANDIDATE }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });

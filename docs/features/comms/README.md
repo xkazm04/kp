@@ -388,8 +388,8 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
 - **`commsVerdict` is the single vocabulary** — one pure function
   (`comms-view.ts`) maps a derived row to exactly one of `orphaned | bounced |
   recovered | failed | sent | queued`; the Comms Center and the candidate
-  drawer both consume it, never re-deriving.
-- **The drawer payload carries the derived fields** via one exported mapping
+  candidate modal both consume it, never re-deriving.
+- **The candidate modal payload carries the derived fields** via one exported mapping
   (`candidate-timeline.ts` → `toCandidateComm`); parity locked by
   `comms-delivery-truth.test.ts`.
 - **Resend claims are honest** — both resend clients (Dev outbox

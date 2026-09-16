@@ -822,7 +822,7 @@ Three consequences worth knowing:
   failing to parse.
 - **Only an `ok` review's prose is ever frozen onto a person's record.** Every other
   status fills `codeReview.summary` with machine copy ("Set `GEMINI_API_KEY`…",
-  "Couldn't gather public repo signals…"), and the pipeline drawer renders the frozen
+  "Couldn't gather public repo signals…"), and the pipeline candidate modal renders the frozen
   summary verbatim — so `buildGithubEvidenceSummary` takes the review's line only on
   `ok` and otherwise falls back to the run's own metrics sentence
   (`app/_lib/github-summary.ts`; pinned by `github-summary.test.ts`).

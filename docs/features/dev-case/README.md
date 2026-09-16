@@ -57,7 +57,7 @@ palette. The full mapping table and the five reading states are in
   sit past row 50 with nothing on screen admitting it existed.
   - **The delivery column is the derived verdict, never the raw `status`.**
     `outboxView.ts` runs the rows through the same `deriveCommsView` +
-    `commsVerdict` pair the Comms Center and the candidate drawer read
+    `commsVerdict` pair the Comms Center and the candidate modal read
     (`app/_lib/comms-view.ts`), so this surface cannot disagree with them about the
     same message: a bounce RECEIPT folds onto the send it concerns (that send reads
     **Bounced**, not the green `sent` its column still stores), a dead letter a
@@ -1451,10 +1451,10 @@ Now:
   every ranking, banding and threshold read in the app goes through them — board sort
   and score bands, decisions peer rank, screen-wave. So Matrix and Match never rank a
   candidate on a transfer score.
-- **The board says which kind it is.** The drawer header's caption under the number is
+- **The board says which kind it is.** The candidate modal's score caption is
   the score kind; the card wears a `transfer` marker beside the badge (a bare badge means
   match); the board legend (`PipelineShared.tsx`) states the vocabulary once, including
-  that the drawer scorecard's 1..5 rubric is a third kind.
+  that the interview scorecard's 1..5 rubric is a third kind.
 
 Pinned in `app/_lib/pipeline-transfer-score.test.ts`.
 
@@ -1554,7 +1554,7 @@ entry while the evaluation stayed on the submission.
   every evaluated submission: session status, the scorecard's verdict and its mean
   **observed** rating (not-assessed axes excluded, so a partial interview cannot average
   toward a middling 3 that looks like a judgement), and otherwise the same
-  `PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+  `PipelineVoiceScreenPanel` the candidate modal uses, pointed at this submission. One
   minting affordance, not a second copy of one; reissue/revoke and the full transcript
   stay on the board, where the entry is.
 

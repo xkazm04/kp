@@ -184,7 +184,7 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
 
 const HANDLERS: Record<string, Spec> = {
   automation: {
-    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
+    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId, { manual: true }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("automation", { task: String(p.task ?? ""), entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },

@@ -106,9 +106,6 @@
     "features/hiring/pipeline/PassPreviewModal.tsx": {
       "noticeAmber": 1
     },
-    "features/hiring/pipeline/PipelineBoard.tsx": {
-      "metaLabel": 2
-    },
     "features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx": {
       "noticeAmber": 1
     },
@@ -119,9 +116,6 @@
       "panel": 1
     },
     "features/hiring/pipeline/PipelineConsentPanel.tsx": {
-      "rawDate": 1
-    },
-    "features/hiring/pipeline/PipelineDrawerHeader.tsx": {
       "rawDate": 1
     },
     "features/hiring/pipeline/PipelineFilterBar.tsx": {

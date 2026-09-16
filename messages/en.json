@@ -92,7 +92,15 @@
       "strandedRow": "{stage} · {count, plural, one {# candidate} other {# candidates}}",
       "strandedHint": "Pick where each group goes. They move when you save, and every candidate gets a history entry explaining why.",
       "mapAria": "Where should candidates on {stage} go?",
-      "mapChoose": "Choose a step…"
+      "mapChoose": "Choose a step…",
+      "colActions": "AI actions",
+      "actionsDefault": "Default",
+      "actionsCustom": "Custom",
+      "actionsNone": "None",
+      "actionsCount": "{count, plural, one {# action} other {# actions}}",
+      "actionsAria": "AI actions at {stage}",
+      "actionsReset": "Reset to default",
+      "actionsHint": "What a recruiter can run on a candidate at this step."
     },
     "roles": {
       "entry": "Arrives here",
@@ -1542,6 +1550,7 @@
     "MEMBER_PERMISSIONS_CHANGED": "This member’s permissions changed while you were editing them. Reload and try again.",
     "ORG_SETTINGS_FORBIDDEN": "Only an organization administrator can change the organization’s settings.",
     "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages.",
+    "ORG_CURRENCY_INVALID": "That isn’t one of the currencies the app offers.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "That rules update named no phase, or carried no rules to save.",
     "DECISION_CONFIG_INVALID": "Those rules aren't valid for this phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Couldn't save these rules. Please try again.",
@@ -1734,6 +1743,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "That candidate is not on this board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
     "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
+    "AUTOMATION_TASK_NOT_OFFERED": "That AI action isn’t available at this candidate’s step.",
     "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
     "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
     "FOLLOWUP_LINK_NOT_FOUND": "This profile link isn't valid. Your application is safely filed. Ask the recruiter for a fresh one.",
@@ -2533,7 +2543,8 @@
       "workspace": "Workspaces",
       "agents": "Agents",
       "activity": "Activity",
-      "intake": "Job intake"
+      "intake": "Job intake",
+      "templates": "Templates"
     },
     "groups": {
       "hiring": "Hiring",
@@ -2697,7 +2708,9 @@
       "gridAria": "Positions by stage",
       "cellAria": "{position}, {stage}, {count, plural, =0 {no candidates} =1 {1 candidate} other {# candidates}}",
       "cellEmpty": "No candidates",
-      "dropHint": "Drop a candidate here to move them to this stage."
+      "dropHint": "Drop a candidate here to move them to this stage.",
+      "waitingHuman": "{count, plural, one {# candidate waits for a person} other {# candidates wait for a person}}",
+      "waitingAi": "{count, plural, one {# candidate waits for the AI} other {# candidates wait for the AI}}"
     },
     "stageHelp": {
       "Accepted": "CV received: an inbound application or a proactively-sourced candidate, waiting to be screened.",
@@ -2991,7 +3004,10 @@
       "slaEditorRange": "{min}–{max} days; blank uses the default",
       "previewCommitFailed": "The pass could not be applied.",
       "bulkTaskIncomplete": "The drafting task ended without a result. Still selected, retry.",
-      "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why."
+      "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why.",
+      "expandBoard": "Full page",
+      "collapseBoard": "Exit full page",
+      "boardFullPageAria": "Positions board, full page"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3179,6 +3195,49 @@
         "retry": "Try again"
       },
       "transfer": "transfer"
+    },
+    "candidate": {
+      "back": "Back",
+      "tabsAria": "Candidate sections",
+      "tabs": {
+        "overview": "Overview",
+        "activity": "Activity",
+        "record": "Record"
+      },
+      "activityEmpty": "No interview, scorecard or message on file yet.",
+      "scorecard": {
+        "advance": "Move to {stage}",
+        "route": "Route",
+        "score": "Score",
+        "unscored": "Not scored yet",
+        "breakdown": "Score breakdown",
+        "weight": "Weight",
+        "points": "Points",
+        "confidence": "Likely {low}–{high}",
+        "salary": "Expected salary",
+        "estimate": "estimate",
+        "salaryFit": {
+          "inside": "inside the role’s band",
+          "below": "below the role’s band",
+          "above": "above the role’s band"
+        },
+        "matched": "Matched",
+        "unproven": "Claimed, not proven",
+        "missing": "Missing",
+        "noSkills": "No skills evidence on file.",
+        "loading": "Loading the score breakdown…",
+        "noAnalysis": "No analysis for this role on file. The board score is all there is.",
+        "matchError": "Score detail is unavailable right now."
+      },
+      "footer": {
+        "aria": "Candidate actions",
+        "moveStage": "Move to step",
+        "voiceLink": "Voice screen link",
+        "scheduleLink": "Scheduling link",
+        "closeTray": "Close panel",
+        "showResult": "Last result",
+        "noActions": "No AI actions at this step"
+      }
     },
     "actions": {
       "screen": "Screen with AI",
@@ -6321,6 +6380,8 @@
       "saved": "Saved",
       "saveFailed": "Couldn't save. Check the connection and try again.",
       "languageLabel": "App language",
+      "currencyLabel": "Salary currency",
+      "currencyHint": "The pipeline board labels salary bands in this currency. Nothing is converted.",
       "previewOnboarding": "Preview onboarding flow",
       "backup": {
         "title": "Backup & restore",
@@ -8296,7 +8357,9 @@
       },
       "logoLabel": "Logo URL",
       "logoInvalid": "Enter an https:// image URL.",
-      "nameHint": "This is the name candidates see on job posts, offers and every message you send them."
+      "nameHint": "This is the name candidates see on job posts, offers and every message you send them.",
+      "currencyLabel": "Salary currency",
+      "currencyHint": "The currency you write salary bands in. You can change it later in Settings → Organization."
     },
     "team": {
       "emailPlaceholder": "name@company.com",
@@ -8393,6 +8456,7 @@
       "part": {
         "orgName": "Company name",
         "language": "App language",
+        "currency": "Salary currency",
         "invites": "Teammate invites",
         "pipeline": "Board columns",
         "brand": "Brand color and logo",
@@ -10347,5 +10411,98 @@
     "clear": "Clear",
     "searchPlaceholder": "Search…",
     "noMatches": "No matches"
+  },
+  "templates": {
+    "tab": {
+      "eyebrow": "Settings",
+      "title": "Message templates",
+      "intro": "The messages you send again and again: the acknowledgement after a CV arrives, the interview invite, the offer cover note, the rejection. Write each one once, group it by the pipeline state it belongs to, and reuse it."
+    },
+    "variant": {
+      "eyebrow": "Prototype",
+      "label": "Prototype layout",
+      "library": "Library",
+      "board": "By state",
+      "compose": "Compose"
+    },
+    "kind": {
+      "received": "Received CV",
+      "screened": "Screened",
+      "interview": "Interview",
+      "offer": "Offer",
+      "rejected": "Rejected",
+      "unsorted": "No state"
+    },
+    "scope": {
+      "org": "Company",
+      "team": "Team",
+      "default": "Default"
+    },
+    "loadFailed": "The template library could not be loaded.",
+    "retry": "Try again",
+    "truncated": "This is a partial list. The library holds more templates than fit in one page.",
+    "errInvalid": "A template needs both a name and a body, and neither may be over the length limit.",
+    "errUnknownTokens": "The body uses a placeholder that does not exist. Remove it, or pick one from the list.",
+    "errNotPermitted": "You do not have permission to change templates.",
+    "errSaveFailed": "The template could not be saved.",
+    "errDeleteFailed": "The template could not be deleted.",
+    "library": {
+      "searchPlaceholder": "Search templates",
+      "new": "New template",
+      "loading": "Loading templates…",
+      "empty": "No templates match.",
+      "pickOne": "Pick a template on the left, or start a new one."
+    },
+    "board": {
+      "emptyColumn": "Nothing written for this state yet.",
+      "addHere": "Add here",
+      "editTitle": "Edit template",
+      "newTitle": "New template"
+    },
+    "compose": {
+      "pick": "Template",
+      "pickPlaceholder": "Open a template",
+      "blank": "Blank",
+      "bodyPlaceholder": "Write the message. Click a placeholder on the right to insert it.",
+      "showPreview": "Preview",
+      "hidePreview": "Back to editing"
+    },
+    "editor": {
+      "name": "Name",
+      "namePlaceholder": "What this message is for",
+      "state": "Pipeline state",
+      "scope": "Visible to",
+      "scopeTeam": "My team",
+      "scopeOrg": "The whole company",
+      "scopeTeamHint": "Only your team sees this template.",
+      "scopeOrgHint": "Every team in the company sees this template.",
+      "body": "Message",
+      "placeholders": "Placeholders",
+      "localizedTokens": "Translated headings",
+      "tokenHint": "Only these render; any other placeholder is refused on save. Supported: {supported}",
+      "insertToken": "Insert {token}",
+      "preview": "Preview with sample data",
+      "previewEmpty": "Nothing to preview yet.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this template?",
+      "deleteYes": "Delete",
+      "deleteNo": "Keep"
+    },
+    "sample": {
+      "title": "Senior Data Engineer",
+      "company": "Northwind",
+      "seniority": "Senior",
+      "salary": "90–110k",
+      "about": "We build the reporting backbone a few hundred colleagues plan their week around.",
+      "resp1": "Own the ingestion pipelines end to end",
+      "resp2": "Work with analysts on the models they query daily",
+      "resp3": "Keep the nightly load inside its window",
+      "must1": "Several years of production Python and SQL",
+      "must2": "Experience running a pipeline someone else depends on",
+      "nice1": "Worked with dbt or an equivalent",
+      "nice2": "Comfortable reviewing other people's queries"
+    }
   }
 }

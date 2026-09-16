@@ -7,7 +7,7 @@
 // its own — it has no business deciding what the operator is told, and two writes
 // each toasting their own verdict is how the wizard used to end with a green
 // "Your workspace is set up" over a red pipeline error.
-import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
+import { setOrgCurrency, setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { axisEqualsStored, draftToStored } from "@/app/features/shared/pipelineAxisDraft";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import {
@@ -36,6 +36,10 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
   }
   const lang = await setOrgLanguage(state.language);
   results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
+  // Same refusable org setting as the two above; always written, because the
+  // wizard seeds it from the cookie and a default pick is still an answer.
+  const money = await setOrgCurrency(state.currency);
+  results.push(money.ok ? { part: "currency", status: "landed" } : { part: "currency", status: "refused", code: money.code });
 
   results.push(await persistSetupBrand(state));
 

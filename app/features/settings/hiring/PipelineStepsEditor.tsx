@@ -45,6 +45,7 @@ import {
 } from "@/app/features/shared/PipelineStepRow";
 import { POLICY_SLOT } from "./PipelineComposerBits";
 import { PipelineStepPolicy } from "./PipelineStepPolicy";
+import { StageActionsPicker } from "./StageActionsPicker";
 import { PRESETS, matchesPreset, type PipelinePlan, type PresetId } from "./pipelineComposerModel";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import {
@@ -54,12 +55,16 @@ import {
   moveStage,
   removeStage,
   renameStage,
+  setStageActions,
   setStageRole,
   type AxisDraft,
   type AxisProblem,
   type StrandedStage,
 } from "@/app/features/shared/pipelineAxisDraft";
 import { usePipelineAxisProblemText, usePipelineStageRoleLabel } from "@/app/features/shared/usePipelineAxisCopy";
+
+/** The AI-actions column: one picker per step (StageActionsPicker). */
+const ACTIONS_CELL = "w-48 shrink-0";
 
 export function PipelineStepsEditor({
   draft,
@@ -91,7 +96,12 @@ export function PipelineStepsEditor({
   const problemText = usePipelineAxisProblemText();
   // The DRAFT axis, so a preset applied mid-edit keys onto the columns the
   // reader is looking at rather than the ones the server still has.
-  const axis: StageDef[] = draft.stages.map((s) => ({ id: s.id, label: s.label, role: s.role }));
+  const axis: StageDef[] = draft.stages.map((s) => ({
+    id: s.id,
+    label: s.label,
+    role: s.role,
+    ...(s.actions ? { actions: s.actions } : {}),
+  }));
   const activePreset: PresetId | null = PRESETS.find((p) => matchesPreset(plan, p, axis))?.id ?? null;
   // Rounds are counted in BOARD order, so a column knows whether anything ran
   // before it — which is what decides if a cohort reducer means anything there.
@@ -149,6 +159,7 @@ export function PipelineStepsEditor({
           <span className={`${META_LABEL} ${POLICY_SLOT.executor} shrink-0`}>{tp("colExecutor")}</span>
           <span className={`${META_LABEL} ${POLICY_SLOT.guard} shrink-0`}>{tp("colGuard")}</span>
         </span>
+        <span className={`${PIPELINE_STEP_CELL} ${META_LABEL} ${ACTIONS_CELL}`}>{t("colActions")}</span>
       </div>
 
       <ol className="mt-1 space-y-2">
@@ -178,6 +189,18 @@ export function PipelineStepsEditor({
                 stageLabel={stage.label || stage.id}
                 roundsBefore={roundsBefore.get(stage.id) ?? 0}
               />
+            }
+            // Which AI actions a recruiter can run on a candidate standing here:
+            // the type's default until someone picks otherwise.
+            meta={
+              <span className={`${PIPELINE_STEP_CELL} ${ACTIONS_CELL}`}>
+                <StageActionsPicker
+                  stageId={stage.id}
+                  stageLabel={stage.label || stage.id}
+                  axis={axis}
+                  onChange={(actions) => onChange(setStageActions(draft, stage.id, actions))}
+                />
+              </span>
             }
             onMove={(delta) => onChange(moveStage(draft, stage.id, delta))}
             canMoveUp={i > 0}

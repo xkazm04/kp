@@ -25,6 +25,8 @@ import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { getPipelineAxis } from "./pipeline-axis-server";
+import { offeredStageActions } from "./stage-ai-actions";
+import type { StageAiAction } from "./pipeline-stages";
 import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
@@ -158,7 +160,7 @@ const outreachInFlight = new Set<string>();
 // answered with a STORE code instead. Without this split the two were
 // indistinguishable at the boundary — both arrived as `AutomationError` and both
 // had their raw `.message` forwarded.
-export const AUTOMATION_REFUSALS = ["unknown_task", "entry_not_found", "entry_has_no_profile"] as const;
+export const AUTOMATION_REFUSALS = ["unknown_task", "entry_not_found", "entry_has_no_profile", "task_not_offered"] as const;
 export type AutomationRefusal = (typeof AUTOMATION_REFUSALS)[number];
 
 export class AutomationError extends Error {
@@ -276,6 +278,8 @@ export async function runAutomationTask(
   signal?: AbortSignal,
   lang?: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
+  /** `manual`: a recruiter asked for this from the candidate modal or the API. */
+  opts: { manual?: boolean } = {},
 ): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404, "unknown_task");
   // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
@@ -284,6 +288,14 @@ export async function runAutomationTask(
   // stay correct regardless; threading workspaceId keeps their label/title enrichment right.
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) throw new AutomationError("entry not found", 404, "entry_not_found");
+  // A RECRUITER-initiated run may only be an action the entry's column offers — the
+  // workspace's own list from Settings → Hiring, else the product default by role
+  // (stage-ai-actions.ts, the same rule the candidate modal's footer renders from).
+  // Internal callers (bulk screening, the interview scorecard, outreach sweeps) pass
+  // no `manual` and keep their own gates.
+  if (opts.manual && !offeredStageActions(entry, getPipelineAxis(workspaceId).stages).includes(task as StageAiAction)) {
+    throw new AutomationError(`task ${task} is not offered at stage ${entry.stage}`, 409, "task_not_offered");
+  }
   if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400, "entry_has_no_profile");
   const rec = getProfileRecord(entry.candidateId, workspaceId);
   if (!rec) throw new AutomationError("candidate profile not found", 400, "entry_has_no_profile");

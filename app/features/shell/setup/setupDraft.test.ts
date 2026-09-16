@@ -22,6 +22,7 @@ function draft(over: Partial<SetupDraft> = {}): SetupDraft {
   return {
     orgName: "Acme",
     language: "cs",
+    currency: "EUR",
     accentColor: "#3f6f4f",
     logoUrl: "https://acme.test/logo.svg",
     invites: [{ email: "jana@acme.com", role: "recruiter" }],

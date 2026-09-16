@@ -92,7 +92,15 @@
       "strandedRow": "{stage} · {count, plural, one {# Kandidat} other {# Kandidaten}}",
       "strandedHint": "Wählen Sie, wohin jede Gruppe geht. Der Wechsel erfolgt beim Speichern, und jeder Kandidat erhält einen Verlaufseintrag mit der Begründung.",
       "mapAria": "Wohin sollen Kandidaten aus {stage} wechseln?",
-      "mapChoose": "Schritt wählen…"
+      "mapChoose": "Schritt wählen…",
+      "colActions": "KI-Aktionen",
+      "actionsDefault": "Standard",
+      "actionsCustom": "Angepasst",
+      "actionsNone": "Keine",
+      "actionsCount": "{count, plural, one {# Aktion} other {# Aktionen}}",
+      "actionsAria": "KI-Aktionen in {stage}",
+      "actionsReset": "Auf Standard zurücksetzen",
+      "actionsHint": "Was sich bei einer Bewerbung in diesem Schritt ausführen lässt."
     },
     "roles": {
       "entry": "Eingang",
@@ -1542,6 +1550,7 @@
     "MEMBER_PERMISSIONS_CHANGED": "Die Berechtigungen dieses Mitglieds haben sich während Ihrer Bearbeitung geändert. Bitte neu laden und erneut versuchen.",
     "ORG_SETTINGS_FORBIDDEN": "Nur eine Administratorin oder ein Administrator der Organisation kann deren Einstellungen ändern.",
     "ORG_LANGUAGE_INVALID": "Das ist keine der Sprachen dieser App.",
+    "ORG_CURRENCY_INVALID": "Diese Währung bietet die App nicht an.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Diese Regeländerung nannte keine Phase oder enthielt keine Regeln zum Speichern.",
     "DECISION_CONFIG_INVALID": "Diese Regeln sind für diese Phase nicht gültig.",
     "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
@@ -1734,6 +1743,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
     "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
+    "AUTOMATION_TASK_NOT_OFFERED": "Diese KI-Aktion ist in diesem Schritt nicht verfügbar.",
     "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
     "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
     "FOLLOWUP_LINK_NOT_FOUND": "Dieser Profil-Link ist ungültig. Ihre Bewerbung ist sicher hinterlegt. Bitten Sie um einen neuen Link.",
@@ -2533,7 +2543,8 @@
       "workspace": "Workspaces",
       "agents": "Agenten",
       "activity": "Aktivität",
-      "intake": "Stellen-Intake"
+      "intake": "Stellen-Intake",
+      "templates": "Vorlagen"
     },
     "groups": {
       "hiring": "Recruiting",
@@ -2697,7 +2708,9 @@
       "gridAria": "Positionen nach Phase",
       "cellAria": "{position}, {stage}, {count, plural, =0 {keine Kandidaten} one {# Kandidat} other {# Kandidaten}}",
       "cellEmpty": "Keine Kandidaten",
-      "dropHint": "Ziehen Sie eine Karte hierher, um den Kandidaten in diese Phase zu verschieben."
+      "dropHint": "Ziehen Sie eine Karte hierher, um den Kandidaten in diese Phase zu verschieben.",
+      "waitingHuman": "{count, plural, one {# Bewerbung wartet auf eine Person} other {# Bewerbungen warten auf eine Person}}",
+      "waitingAi": "{count, plural, one {# Bewerbung wartet auf die KI} other {# Bewerbungen warten auf die KI}}"
     },
     "stageHelp": {
       "Accepted": "Lebenslauf erhalten: eine eingehende Bewerbung oder ein/e proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",
@@ -2991,7 +3004,10 @@
       "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard",
       "previewCommitFailed": "Der Durchlauf konnte nicht angewendet werden.",
       "bulkTaskIncomplete": "Die Entwurfsaufgabe endete ohne Ergebnis. Weiterhin ausgewählt, bitte erneut versuchen.",
-      "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen."
+      "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen.",
+      "expandBoard": "Ganze Seite",
+      "collapseBoard": "Ganze Seite verlassen",
+      "boardFullPageAria": "Positions-Board, ganze Seite"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3179,6 +3195,49 @@
         "retry": "Erneut versuchen"
       },
       "transfer": "Transfer"
+    },
+    "candidate": {
+      "back": "Zurück",
+      "tabsAria": "Bereiche der Bewerbung",
+      "tabs": {
+        "overview": "Übersicht",
+        "activity": "Aktivität",
+        "record": "Akte"
+      },
+      "activityEmpty": "Noch kein Interview, keine Bewertung und keine Nachricht vorhanden.",
+      "scorecard": {
+        "advance": "Nach {stage} verschieben",
+        "route": "Verlauf",
+        "score": "Score",
+        "unscored": "Noch ohne Score",
+        "breakdown": "Score-Aufschlüsselung",
+        "weight": "Gewichtung",
+        "points": "Punkte",
+        "confidence": "Wahrscheinlich {low}–{high}",
+        "salary": "Gehaltsvorstellung",
+        "estimate": "Schätzung",
+        "salaryFit": {
+          "inside": "innerhalb des Gehaltsbands der Stelle",
+          "below": "unter dem Gehaltsband der Stelle",
+          "above": "über dem Gehaltsband der Stelle"
+        },
+        "matched": "Erfüllt",
+        "unproven": "Angegeben, nicht belegt",
+        "missing": "Fehlt",
+        "noSkills": "Keine Nachweise zu Kompetenzen vorhanden.",
+        "loading": "Score-Aufschlüsselung wird geladen…",
+        "noAnalysis": "Für diese Stelle liegt keine Analyse vor, nur der Score vom Board.",
+        "matchError": "Score-Details sind gerade nicht verfügbar."
+      },
+      "footer": {
+        "aria": "Aktionen zur Bewerbung",
+        "moveStage": "In Schritt verschieben",
+        "voiceLink": "Link zum Voice-Screening",
+        "scheduleLink": "Link zur Terminwahl",
+        "closeTray": "Bereich schließen",
+        "showResult": "Letztes Ergebnis",
+        "noActions": "In diesem Schritt sind keine KI-Aktionen verfügbar"
+      }
     },
     "actions": {
       "screen": "Mit AI prüfen",
@@ -6321,6 +6380,8 @@
       "saved": "Gespeichert",
       "saveFailed": "Speichern fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
       "languageLabel": "App-Sprache",
+      "currencyLabel": "Gehaltswährung",
+      "currencyHint": "Das Pipeline-Board beschriftet Gehaltsbänder in dieser Währung. Es wird nichts umgerechnet.",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
       "backup": {
         "title": "Sicherung & Wiederherstellung",
@@ -8296,7 +8357,9 @@
       },
       "logoLabel": "Logo-URL",
       "logoInvalid": "Geben Sie eine https://-Bild-URL ein.",
-      "nameHint": "Diesen Namen sehen Kandidatinnen und Kandidaten in Stellenanzeigen, Angeboten und in jeder Nachricht, die Sie senden."
+      "nameHint": "Diesen Namen sehen Kandidatinnen und Kandidaten in Stellenanzeigen, Angeboten und in jeder Nachricht, die Sie senden.",
+      "currencyLabel": "Gehaltswährung",
+      "currencyHint": "Die Währung, in der Sie Gehaltsbänder angeben. Sie können sie später unter Einstellungen → Organisation ändern."
     },
     "team": {
       "emailPlaceholder": "name@firma.de",
@@ -8393,6 +8456,7 @@
       "part": {
         "orgName": "Firmenname",
         "language": "App-Sprache",
+        "currency": "Gehaltswährung",
         "invites": "Team-Einladungen",
         "pipeline": "Board-Spalten",
         "brand": "Markenfarbe und Logo",
@@ -10347,5 +10411,98 @@
     "clear": "Auswahl aufheben",
     "searchPlaceholder": "Suchen…",
     "noMatches": "Keine Treffer"
+  },
+  "templates": {
+    "tab": {
+      "eyebrow": "Einstellungen",
+      "title": "Nachrichtenvorlagen",
+      "intro": "Die Nachrichten, die Sie immer wieder senden: die Eingangsbestätigung für einen Lebenslauf, die Einladung zum Gespräch, das Anschreiben zum Angebot, die Absage. Einmal schreiben, dem passenden Pipeline-Status zuordnen und wiederverwenden."
+    },
+    "variant": {
+      "eyebrow": "Prototyp",
+      "label": "Prototyp-Layout",
+      "library": "Bibliothek",
+      "board": "Nach Status",
+      "compose": "Verfassen"
+    },
+    "kind": {
+      "received": "Lebenslauf eingegangen",
+      "screened": "Vorauswahl",
+      "interview": "Gespräch",
+      "offer": "Angebot",
+      "rejected": "Absage",
+      "unsorted": "Ohne Status"
+    },
+    "scope": {
+      "org": "Unternehmen",
+      "team": "Team",
+      "default": "Standard"
+    },
+    "loadFailed": "Die Vorlagenbibliothek konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "truncated": "Dies ist nur ein Ausschnitt. Die Bibliothek enthält mehr Vorlagen, als auf eine Seite passen.",
+    "errInvalid": "Eine Vorlage braucht Namen und Text, und keiner von beiden darf die Längengrenze überschreiten.",
+    "errUnknownTokens": "Der Text verwendet einen Platzhalter, den es nicht gibt. Entfernen Sie ihn oder wählen Sie einen aus der Liste.",
+    "errNotPermitted": "Sie haben keine Berechtigung, Vorlagen zu ändern.",
+    "errSaveFailed": "Die Vorlage konnte nicht gespeichert werden.",
+    "errDeleteFailed": "Die Vorlage konnte nicht gelöscht werden.",
+    "library": {
+      "searchPlaceholder": "Vorlagen durchsuchen",
+      "new": "Neue Vorlage",
+      "loading": "Vorlagen werden geladen…",
+      "empty": "Keine Vorlage passt.",
+      "pickOne": "Wählen Sie links eine Vorlage oder beginnen Sie eine neue."
+    },
+    "board": {
+      "emptyColumn": "Für diesen Status ist noch nichts geschrieben.",
+      "addHere": "Hier hinzufügen",
+      "editTitle": "Vorlage bearbeiten",
+      "newTitle": "Neue Vorlage"
+    },
+    "compose": {
+      "pick": "Vorlage",
+      "pickPlaceholder": "Vorlage öffnen",
+      "blank": "Leer",
+      "bodyPlaceholder": "Schreiben Sie die Nachricht. Einen Platzhalter fügen Sie per Klick rechts ein.",
+      "showPreview": "Vorschau",
+      "hidePreview": "Zurück zum Schreiben"
+    },
+    "editor": {
+      "name": "Name",
+      "namePlaceholder": "Wofür diese Nachricht gedacht ist",
+      "state": "Pipeline-Status",
+      "scope": "Sichtbar für",
+      "scopeTeam": "Mein Team",
+      "scopeOrg": "Das ganze Unternehmen",
+      "scopeTeamHint": "Nur Ihr Team sieht diese Vorlage.",
+      "scopeOrgHint": "Jedes Team im Unternehmen sieht diese Vorlage.",
+      "body": "Nachricht",
+      "placeholders": "Platzhalter",
+      "localizedTokens": "Übersetzte Überschriften",
+      "tokenHint": "Nur diese werden ersetzt; jeder andere Platzhalter wird beim Speichern abgelehnt. Unterstützt: {supported}",
+      "insertToken": "{token} einfügen",
+      "preview": "Vorschau mit Beispieldaten",
+      "previewEmpty": "Noch nichts in der Vorschau.",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "deleteConfirm": "Diese Vorlage löschen?",
+      "deleteYes": "Löschen",
+      "deleteNo": "Behalten"
+    },
+    "sample": {
+      "title": "Senior Data Engineer",
+      "company": "Northwind",
+      "seniority": "Senior",
+      "salary": "90–110 Tsd.",
+      "about": "Wir bauen das Reporting-Rückgrat, an dem einige hundert Kolleginnen und Kollegen ihre Woche ausrichten.",
+      "resp1": "Die Ingestion-Pipelines von Anfang bis Ende verantworten",
+      "resp2": "Mit Analystinnen an den Modellen arbeiten, die sie täglich abfragen",
+      "resp3": "Den nächtlichen Ladelauf in seinem Zeitfenster halten",
+      "must1": "Mehrere Jahre Python und SQL im Produktivbetrieb",
+      "must2": "Erfahrung mit einer Pipeline, auf die sich andere verlassen",
+      "nice1": "Erfahrung mit dbt oder Vergleichbarem",
+      "nice2": "Bereitschaft, die Abfragen anderer zu prüfen"
+    }
   }
 }

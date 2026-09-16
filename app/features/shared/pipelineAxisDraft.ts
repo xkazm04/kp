@@ -18,7 +18,7 @@
 // pipelineAxisDraft.test.ts, which runs both over the same cases).
 import type { PipelineStagesRule, PipelineStageRoleWire, PipelineStageWire } from "@/app/_lib/decision-config-schema";
 import { PIPELINE_STAGES_MAX } from "@/app/_lib/decision-config-schema";
-import type { StageDef } from "@/app/_lib/pipeline-stages";
+import type { StageAiAction, StageDef } from "@/app/_lib/pipeline-stages";
 
 export type DraftStage = StageDef & {
   /** True for a stage that exists in the SAVED axis. A stage added in this draft
@@ -81,7 +81,12 @@ export function draftToStored(draft: AxisDraft, savedStages: readonly StageDef[]
       retained.push(s);
     }
   }
-  const wire = (s: StageDef): PipelineStageWire => ({ id: s.id, label: s.label, role: s.role as PipelineStageRoleWire });
+  const wire = (s: StageDef): PipelineStageWire => ({
+    id: s.id,
+    label: s.label,
+    role: s.role as PipelineStageRoleWire,
+    ...(s.actions ? { actions: [...s.actions] } : {}),
+  });
   return { stages: draft.stages.map(wire), retired: retained.map(wire) };
 }
 
@@ -140,6 +145,21 @@ export function setStageRole(draft: AxisDraft, id: string, role: PipelineStageRo
 /** Move a stage one position up (-1) or down (+1). A move that would run off
  *  either end is a no-op rather than an error — the editor disables those
  *  buttons, and a keyboard repeat should not throw. */
+/** Set the AI actions a column offers; `undefined` returns it to the product default
+ *  (and stores nothing, so a later change to the default reaches this column). */
+export function setStageActions(draft: AxisDraft, id: string, actions: readonly StageAiAction[] | undefined): AxisDraft {
+  return {
+    ...draft,
+    stages: draft.stages.map((s) => {
+      if (s.id !== id) return s;
+      const next: DraftStage = { ...s };
+      if (actions) next.actions = [...actions];
+      else delete next.actions;
+      return next;
+    }),
+  };
+}
+
 export function moveStage(draft: AxisDraft, id: string, delta: -1 | 1): AxisDraft {
   const from = draft.stages.findIndex((s) => s.id === id);
   const to = from + delta;

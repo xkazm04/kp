@@ -92,7 +92,15 @@
       "strandedRow": "{stage} · {count, plural, one {# candidat} other {# candidats}}",
       "strandedHint": "Choisissez où va chaque groupe. Le déplacement a lieu à l’enregistrement, et chaque candidat reçoit une entrée d’historique expliquant pourquoi.",
       "mapAria": "Où doivent aller les candidats de l’étape {stage} ?",
-      "mapChoose": "Choisir une étape…"
+      "mapChoose": "Choisir une étape…",
+      "colActions": "Actions IA",
+      "actionsDefault": "Par défaut",
+      "actionsCustom": "Personnalisé",
+      "actionsNone": "Aucune",
+      "actionsCount": "{count, plural, one {# action} other {# actions}}",
+      "actionsAria": "Actions IA à l’étape {stage}",
+      "actionsReset": "Rétablir le défaut",
+      "actionsHint": "Ce qu’on peut lancer sur une candidature à cette étape."
     },
     "roles": {
       "entry": "Point d’entrée",
@@ -1542,6 +1550,7 @@
     "MEMBER_PERMISSIONS_CHANGED": "Les autorisations de ce membre ont changé pendant votre modification. Rechargez la page, puis réessayez.",
     "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
     "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application.",
+    "ORG_CURRENCY_INVALID": "Cette devise n’est pas proposée par l’application.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Cette mise à jour des règles n'indiquait aucune phase ou ne contenait aucune règle à enregistrer.",
     "DECISION_CONFIG_INVALID": "Ces règles ne sont pas valides pour cette phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
@@ -1734,6 +1743,7 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
     "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
+    "AUTOMATION_TASK_NOT_OFFERED": "Cette action IA n’est pas disponible à cette étape.",
     "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
     "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
     "FOLLOWUP_LINK_NOT_FOUND": "Ce lien de profil n’est pas valide. Votre candidature est bien conservée. Demandez-en un nouveau au recruteur.",
@@ -2533,7 +2543,8 @@
       "workspace": "Espaces de travail",
       "agents": "Agents",
       "activity": "Activité",
-      "intake": "Cadrage du poste"
+      "intake": "Cadrage du poste",
+      "templates": "Modèles"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -2697,7 +2708,9 @@
       "gridAria": "Postes par étape",
       "cellAria": "{position}, {stage}, {count, plural, =0 {aucun candidat} one {# candidat} other {# candidats}}",
       "cellEmpty": "Aucun candidat",
-      "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape."
+      "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape.",
+      "waitingHuman": "{count, plural, one {# candidature attend une personne} other {# candidatures attendent une personne}}",
+      "waitingAi": "{count, plural, one {# candidature attend l’IA} other {# candidatures attendent l’IA}}"
     },
     "stageHelp": {
       "Accepted": "CV reçu : une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",
@@ -2991,7 +3004,10 @@
       "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut",
       "previewCommitFailed": "Le passage n’a pas pu être appliqué.",
       "bulkTaskIncomplete": "La tâche de rédaction s’est terminée sans résultat. Toujours sélectionnés, réessayez.",
-      "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison."
+      "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison.",
+      "expandBoard": "Pleine page",
+      "collapseBoard": "Quitter la pleine page",
+      "boardFullPageAria": "Tableau des postes, pleine page"
     },
     "emptyState": {
       "optional": "Facultatif",
@@ -3179,6 +3195,49 @@
         "retry": "Réessayer"
       },
       "transfer": "transfert"
+    },
+    "candidate": {
+      "back": "Retour",
+      "tabsAria": "Sections de la candidature",
+      "tabs": {
+        "overview": "Aperçu",
+        "activity": "Activité",
+        "record": "Dossier"
+      },
+      "activityEmpty": "Aucun entretien, évaluation ou message pour l’instant.",
+      "scorecard": {
+        "advance": "Passer à l’étape {stage}",
+        "route": "Parcours",
+        "score": "Score",
+        "unscored": "Pas encore évalué",
+        "breakdown": "Détail du score",
+        "weight": "Poids",
+        "points": "Points",
+        "confidence": "Probablement {low}–{high}",
+        "salary": "Salaire attendu",
+        "estimate": "estimation",
+        "salaryFit": {
+          "inside": "dans la fourchette du poste",
+          "below": "sous la fourchette du poste",
+          "above": "au-dessus de la fourchette du poste"
+        },
+        "matched": "Acquis",
+        "unproven": "Déclaré, non prouvé",
+        "missing": "Manquant",
+        "noSkills": "Aucune preuve de compétences au dossier.",
+        "loading": "Chargement du détail du score…",
+        "noAnalysis": "Aucune analyse pour ce poste, seul le score du tableau est disponible.",
+        "matchError": "Le détail du score est indisponible pour le moment."
+      },
+      "footer": {
+        "aria": "Actions sur la candidature",
+        "moveStage": "Déplacer vers l’étape",
+        "voiceLink": "Lien d’entretien vocal",
+        "scheduleLink": "Lien de prise de rendez-vous",
+        "closeTray": "Fermer le panneau",
+        "showResult": "Dernier résultat",
+        "noActions": "Aucune action IA disponible à cette étape"
+      }
     },
     "actions": {
       "screen": "Présélection AI",
@@ -6321,6 +6380,8 @@
       "saved": "Enregistré",
       "saveFailed": "Impossible d’enregistrer. Vérifiez la connexion et réessayez.",
       "languageLabel": "Langue de l’application",
+      "currencyLabel": "Devise des salaires",
+      "currencyHint": "Le tableau du pipeline affiche les fourchettes de salaire dans cette devise. Rien n’est converti.",
       "previewOnboarding": "Aperçu du parcours d’intégration",
       "backup": {
         "title": "Sauvegarde et restauration",
@@ -8296,7 +8357,9 @@
       },
       "logoLabel": "URL du logo",
       "logoInvalid": "Saisissez une URL d’image en https://.",
-      "nameHint": "C'est le nom que les candidats voient sur les offres, les propositions et dans chaque message que vous leur envoyez."
+      "nameHint": "C'est le nom que les candidats voient sur les offres, les propositions et dans chaque message que vous leur envoyez.",
+      "currencyLabel": "Devise des salaires",
+      "currencyHint": "La devise dans laquelle vous saisissez les fourchettes de salaire. Vous pourrez la modifier dans Paramètres → Organisation."
     },
     "team": {
       "emailPlaceholder": "nom@entreprise.fr",
@@ -8393,6 +8456,7 @@
       "part": {
         "orgName": "Nom de l’entreprise",
         "language": "Langue de l’application",
+        "currency": "Devise des salaires",
         "invites": "Invitations d’équipe",
         "pipeline": "Colonnes du tableau",
         "brand": "Couleur de marque et logo",
@@ -10347,5 +10411,98 @@
     "clear": "Effacer la sélection",
     "searchPlaceholder": "Rechercher…",
     "noMatches": "Aucun résultat"
+  },
+  "templates": {
+    "tab": {
+      "eyebrow": "Paramètres",
+      "title": "Modèles de messages",
+      "intro": "Les messages que vous envoyez sans cesse : l'accusé de réception d'un CV, l'invitation à un entretien, la lettre d'accompagnement d'une offre, le refus. Écrivez chacun une fois, rattachez-le à l'étape du pipeline concernée et réutilisez-le."
+    },
+    "variant": {
+      "eyebrow": "Prototype",
+      "label": "Disposition du prototype",
+      "library": "Bibliothèque",
+      "board": "Par étape",
+      "compose": "Rédaction"
+    },
+    "kind": {
+      "received": "CV reçu",
+      "screened": "Présélection",
+      "interview": "Entretien",
+      "offer": "Offre",
+      "rejected": "Refus",
+      "unsorted": "Sans étape"
+    },
+    "scope": {
+      "org": "Entreprise",
+      "team": "Équipe",
+      "default": "Par défaut"
+    },
+    "loadFailed": "La bibliothèque de modèles n'a pas pu être chargée.",
+    "retry": "Réessayer",
+    "truncated": "Cette liste est partielle. La bibliothèque contient plus de modèles qu'une page ne peut en afficher.",
+    "errInvalid": "Un modèle exige un nom et un texte, et aucun des deux ne peut dépasser la longueur autorisée.",
+    "errUnknownTokens": "Le texte utilise un espace réservé qui n'existe pas. Retirez-le ou choisissez-en un dans la liste.",
+    "errNotPermitted": "Vous n'avez pas l'autorisation de modifier les modèles.",
+    "errSaveFailed": "Le modèle n'a pas pu être enregistré.",
+    "errDeleteFailed": "Le modèle n'a pas pu être supprimé.",
+    "library": {
+      "searchPlaceholder": "Rechercher un modèle",
+      "new": "Nouveau modèle",
+      "loading": "Chargement des modèles…",
+      "empty": "Aucun modèle ne correspond.",
+      "pickOne": "Choisissez un modèle à gauche, ou commencez-en un nouveau."
+    },
+    "board": {
+      "emptyColumn": "Rien d'écrit pour cette étape.",
+      "addHere": "Ajouter ici",
+      "editTitle": "Modifier le modèle",
+      "newTitle": "Nouveau modèle"
+    },
+    "compose": {
+      "pick": "Modèle",
+      "pickPlaceholder": "Ouvrir un modèle",
+      "blank": "Vierge",
+      "bodyPlaceholder": "Rédigez le message. Cliquez sur un espace réservé à droite pour l'insérer.",
+      "showPreview": "Aperçu",
+      "hidePreview": "Revenir à la rédaction"
+    },
+    "editor": {
+      "name": "Nom",
+      "namePlaceholder": "À quoi sert ce message",
+      "state": "Étape du pipeline",
+      "scope": "Visible par",
+      "scopeTeam": "Mon équipe",
+      "scopeOrg": "Toute l'entreprise",
+      "scopeTeamHint": "Seule votre équipe voit ce modèle.",
+      "scopeOrgHint": "Toutes les équipes de l'entreprise voient ce modèle.",
+      "body": "Message",
+      "placeholders": "Espaces réservés",
+      "localizedTokens": "Titres traduits",
+      "tokenHint": "Seuls ceux-ci sont remplacés ; tout autre espace réservé est refusé à l'enregistrement. Pris en charge : {supported}",
+      "insertToken": "Insérer {token}",
+      "preview": "Aperçu avec des données d'exemple",
+      "previewEmpty": "Rien à prévisualiser pour l'instant.",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "deleteConfirm": "Supprimer ce modèle ?",
+      "deleteYes": "Supprimer",
+      "deleteNo": "Conserver"
+    },
+    "sample": {
+      "title": "Ingénieur data senior",
+      "company": "Northwind",
+      "seniority": "Senior",
+      "salary": "90–110 k",
+      "about": "Nous construisons la colonne vertébrale du reporting sur laquelle quelques centaines de collègues calent leur semaine.",
+      "resp1": "Porter les pipelines d'ingestion de bout en bout",
+      "resp2": "Travailler avec les analystes sur les modèles qu'ils interrogent chaque jour",
+      "resp3": "Maintenir le chargement nocturne dans sa fenêtre",
+      "must1": "Plusieurs années de Python et de SQL en production",
+      "must2": "Avoir exploité un pipeline dont quelqu'un d'autre dépend",
+      "nice1": "Expérience de dbt ou d'un équivalent",
+      "nice2": "À l'aise pour relire les requêtes des autres"
+    }
   }
 }

@@ -227,6 +227,25 @@ columns both reading "Interview" cannot be told apart on the board).
 `retired` tombstone, so history and a stranded candidate can still be given its
 name. A step the draft only *added* just disappears — it was never stored.
 
+### Which AI actions each step offers
+
+The last column of the steps table (`StageActionsPicker.tsx`) says which AI actions a
+recruiter can run from the candidate modal on someone standing in that step — Screen,
+Prep, Scorecard, Draft offer, Outreach, Rejection, Explore alternatives. Until someone
+picks otherwise a step offers **our default for its type** (screening steps screen,
+interview rounds prep and score, the offer step drafts the offer, rejection and
+alternatives before the outcome, outreach everywhere); each default action is marked
+"Default" in the list and the button reads "Default" or "Custom".
+
+A selection is stored on the stage as `actions` in the same `pipelineStages` config the
+columns live in (`setStageActions` in `pipelineAxisDraft.ts`, saved with the columns),
+and only when it differs from the default: a selection that equals the default — or
+**Reset to default** — stores nothing, so the step follows a later change to the
+default. An empty selection is a real answer: nothing runs there. The validator refuses
+unknown or repeated actions and stores the list in canonical order. The rule itself, and
+the server's refusal of an action a step does not offer, are documented with the
+candidate modal in [`../pipeline/README.md`](../pipeline/README.md#the-candidate-modal).
+
 ### Aging thresholds follow the role, not the name
 
 The board's amber "aging" dot, the `?quick=aging` filter, the header's Aging

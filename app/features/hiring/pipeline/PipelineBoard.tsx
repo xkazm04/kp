@@ -1,285 +1,100 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import type { StageDef } from "@/app/_lib/pipeline-stages";
-import { Legend } from "./PipelineShared";
-import { bucketLaneEntries, offAxisEntries } from "./pipelineBoardLayout";
-import { moveTargetStages } from "./pipelineMoveTargets";
-import { StageCell } from "./PipelineBoardStageCell";
-import { PipelineBoardToolbar } from "./PipelineBoardToolbar";
-import { PipelineBoardOffAxisStrip } from "./PipelineBoardOffAxisStrip";
-import { usePipelineBoardScroll } from "./usePipelineBoardScroll";
-import { boardGrid, boardMinWidth, EMPTY_SELECTION } from "./pipelineBoardGrid";
-import { STAGE_HELP, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
-import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
+// The pipeline board: a 3-layer map. Layer 1 is the Subway board (one slim row per
+// position, candidates as beads), layer 2 the Spectrum "Orchard" overlay an occupied
+// cell opens (tickets in salary branches, banded by score). A bead or a ticket opens
+// the candidate modal, which PipelineTab mounts (candidate/CandidateModal.tsx) — on
+// top of the Orchard, which stays open underneath. Consumers hand this the same
+// props as before.
+//
+// This file owns what is SHARED between the two map layers: the open cell, the role
+// ranking the Orchard reads (a module-level store the modal shares), the score
+// reconciliation between board and overlay, and the portal that puts the
+// fixed-position overlay on <body> (the board sits inside framer-motion wrappers
+// whose transforms would otherwise make them the containing block of a `fixed`
+// overlay).
 
-export function PipelineBoard({
-  positions,
-  entries,
-  axis = DEFAULT_BOARD_AXIS,
-  retiredStages = [],
-  isStale,
-  openPositionRanking,
-  openProfile,
-  openJob,
-  openActions,
-  selectMode = false,
-  selectedIds,
-  onToggleSelect,
-  onMove,
-  bouncedEntryId = null,
-  bouncedReason = null,
-}: {
-  positions: Position[];
-  entries: Entry[];
-  /** The columns THIS WORKSPACE renders, from GET /api/pipeline. Defaults to the
-   *  shipped axis so a caller that has not threaded it through still works. */
-  axis?: readonly StageDef[];
-  /** Columns the workspace has dropped — used to NAME a stranded candidate's
-   *  stage in the off-axis strip instead of showing a bare id. */
-  retiredStages?: readonly StageDef[];
-  isStale: (e: Entry) => boolean;
-  openPositionRanking: (jobId: string) => void;
-  openProfile: (e: Entry) => void;
-  openJob: (jobId: string) => void;
-  openActions: (e: Entry) => void;
-  // PIPE1 — bulk select mode (owned by PipelineTab; the board just renders it).
-  selectMode?: boolean;
-  selectedIds?: ReadonlySet<string>;
-  onToggleSelect?: (e: Entry) => void;
-  // cea12908 — when provided (and not in select mode), candidates can be dragged
-  // between stage columns; the board calls this with the dragged entry + target stage.
-  onMove?: (entry: Entry, toStage: string) => void;
-  /** board-actions-survive-a-renamed-axis — the card whose move the server REFUSED
-   *  (it has already been rolled back into this stage) and the localized reason. The
-   *  cell holding it renders the reason beneath the card, so the feedback lands where
-   *  the gesture ended instead of only in the banner at the top of the page. */
-  bouncedEntryId?: string | null;
-  bouncedReason?: string | null;
-}) {
-  const t = useTranslations("pipeline");
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence } from "framer-motion";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
+import { PipelineBoardSubway } from "./map/PipelineBoardSubway";
+import { CellOverlaySpectrum } from "./map/CellOverlaySpectrum";
+import { useCellMatchData } from "./map/useCellMatchData";
+import { bucketLaneEntries } from "./pipelineBoardLayout";
+import type { CellSelection, PipelineBoardProps } from "./map/mapTypes";
+
+const noSubscription = () => () => undefined;
+
+export function PipelineBoard(props: PipelineBoardProps) {
+  const { openCandidate, positions, entries } = props;
+  const axis = props.axis ?? DEFAULT_BOARD_AXIS;
+  const [selection, setSelection] = useState<CellSelection | null>(null);
   const enumLabel = useEnumLabel();
-  const columns = useMemo(() => axis.map((s) => s.id), [axis]);
-  // Bucket every entry into its [lane][stage] cell in ONE memoized pass — replaces
-  // the per-position × per-stage `lane.filter(...)` that re-scanned the whole entry
-  // list for every cell each render.
-  const cellsByLane = useMemo(() => bucketLaneEntries(positions, entries, columns), [positions, entries, columns]);
-  // Candidates standing on a column this board does not render — a retired stage,
-  // or a legacy one. Surfaced in their own strip rather than folded into column 0
-  // (see pipelineBoardLayout): under an editable axis, a silent fold would make a
-  // removed column look like a mass reset to the top of the funnel.
-  const stranded = useMemo(() => offAxisEntries(entries, columns), [entries, columns]);
-  const grid = useMemo(() => boardGrid(columns.length), [columns.length]);
-  const minWidth = useMemo(() => boardMinWidth(columns.length), [columns.length]);
-  // The candidate currently being dragged (pointer DnD). Lifted here so any cell's
-  // drop can resolve the source row regardless of which column started the drag.
-  const [dragging, setDragging] = useState<Entry | null>(null);
-  const dragEnabled = !!onMove && !selectMode;
-  const { scrollRef, centerColumn, scrollByColumn, onBoardDragOver, stopAutoScroll, canScrollLeft, canScrollRight } =
-    usePipelineBoardScroll(dragEnabled);
-  // One description shared by every drop target — the sentence is the same for all of
-  // them, so it is written once and referenced, not repeated into 5 x N aria-labels.
-  const dropHintId = useId();
-  // bug-ui pipeline #1 — the polite live-region text narrating a stage change so a
-  // screen-reader user hears the outcome of a keyboard (or drag) move even though
-  // the moved card silently re-renders into another column.
-  const [announce, setAnnounce] = useState("");
-  // ONE move path for BOTH the drop and the per-card "Move to…" menu: announce,
-  // then delegate to the caller's onMove (the optimistic set_stage). Same-stage is
-  // a no-op. We narrate optimistically only for a target the server can accept
-  // (moveTargetStages excludes Hired) — a drag onto a rejected column still calls
-  // onMove so its 422 surfaces, but we don't announce a success that rolls back.
-  const handleMove = (entry: Entry, toStage: string) => {
-    if (entry.stage === toStage) return;
-    if (moveTargetStages(entry.stage, axis).includes(toStage)) {
-      setAnnounce(t("board.movedAnnounce", { name: entry.candidateLabel, stage: enumLabel("stage", toStage) }));
-    }
-    onMove?.(entry, toStage);
-  };
-  // Stage help tooltip: catalog `stageHelp.<stage>`, falling back to the English
-  // STAGE_HELP source (then the raw stage) for any unmapped stage. A
-  // workspace-invented column has no catalog entry and no help text — the raw id
-  // is the honest fallback, and the recruiter named it themselves.
-  const stageHelp = (s: string): string => {
-    const k = `stageHelp.${s}` as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : STAGE_HELP[s] ?? s;
-  };
-  // A shipped stage renders through the shared enum catalog (localized in four
-  // locales); a workspace-authored one renders its own stored label. `label ===
-  // id` marks a stage the workspace has not renamed, which is exactly the set the
-  // catalog covers.
-  const stageColumnLabel = (stage: StageDef): string =>
-    stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
+  const { matchByCandidate, matchLoading, matchError } = useCellMatchData(selection?.position.id ?? null);
+
+  const onOpenCell = useCallback((sel: CellSelection) => setSelection(sel), []);
+  const onClose = useCallback(() => setSelection(null), []);
+  const openCell = useMemo(
+    () => (selection ? { positionId: selection.position.id, stageId: selection.stage.id } : null),
+    [selection],
+  );
+  // A workspace-renamed column shows its own label, a shipped one the enum catalog.
+  const stageLabel = selection
+    ? selection.stage.label === selection.stage.id
+      ? enumLabel("stage", selection.stage.id)
+      : selection.stage.label
+    : "";
+
+  // The overlay reads the cell LIVE, not the click-time snapshot: a stage move made
+  // in the candidate modal on top of it reloads the board, and the ticket must leave
+  // the cell it no longer stands in. Then ONE score per candidate: once the ranking
+  // answers, its fresh `total` becomes the entries' canonicalScore for sorting,
+  // tallies and rings alike; until then the snapshot stands.
+  const overlaySelection = useMemo<CellSelection | null>(() => {
+    if (!selection) return null;
+    const cells = bucketLaneEntries(positions, entries, axis.map((s) => s.id)).get(selection.position.id);
+    const live = cells?.[selection.stageIndex] ?? [];
+    return {
+      ...selection,
+      entries:
+        matchByCandidate.size === 0
+          ? live
+          : live.map((e) => {
+              const total = e.candidateId ? matchByCandidate.get(e.candidateId)?.total : undefined;
+              return total == null ? e : { ...e, canonicalScore: total };
+            }),
+    };
+  }, [selection, positions, entries, axis, matchByCandidate]);
+
+  // useSyncExternalStore with a null server snapshot is the hydration-safe way to
+  // read document.body without a setState-in-effect.
+  const portalRoot = useSyncExternalStore(noSubscription, () => document.body, () => null);
 
   return (
-    // No panel chrome of its own: the board is now the bottom layer of the board
-    // PANEL that also carries the filter header (PipelineFilterBar), so a second
-    // rounded border here would draw a card inside a card.
-    <section>
-      {/* bug-ui pipeline #1 — polite live region narrating stage moves (keyboard or
-          drag). Stable across the board's re-renders so a text change is announced. */}
-      <div aria-live="polite" className="sr-only">
-        {announce}
-      </div>
-      <PipelineBoardToolbar
-        t={t}
-        dragEnabled={dragEnabled}
-        onScrollByColumn={scrollByColumn}
-        canScrollLeft={canScrollLeft}
-        canScrollRight={canScrollRight}
-      />
-      {/* board-grid-has-a-name — what a drop DOES, said once and referenced by every
-          cell through aria-describedby (aria-dropeffect is deprecated and was never
-          implemented usefully). Rendered only while dragging is actually possible. */}
-      {dragEnabled ? (
-        <p id={dropHintId} className="sr-only">
-          {t("board.dropHint")}
-        </p>
-      ) : null}
-      <div
-        ref={scrollRef}
-        tabIndex={0}
-        role="region"
-        aria-label={t("board.boardAria")}
-        // bug-ui pipeline #4 — edge auto-scroll during a card drag. The container
-        // itself is not a drop target (no preventDefault here); it only reads the
-        // pointer position from the bubbled dragover and stops the loop when the
-        // drag ends (drop / dragend) or the pointer truly leaves the board.
-        onDragOver={onBoardDragOver}
-        onDrop={stopAutoScroll}
-        onDragEnd={stopAutoScroll}
-        onDragLeave={(ev) => {
-          if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) stopAutoScroll();
-        }}
-        className="focus-ring overflow-x-auto bg-white"
-      >
-        {/* board-grid-has-a-name — the lanes ARE a grid (positions down, stages across)
-            and used to be a run of bare divs, so a screen reader read a flat list of
-            names with no notion of which column any of them stood in. The roles are
-            layered onto the existing elements: no wrapper was added, so the CSS grid
-            tracks (and therefore the layout) are untouched. */}
-        <div
-          style={minWidth}
-          role="grid"
-          aria-label={t("board.gridAria")}
-          aria-colcount={columns.length + 1}
-          aria-rowcount={positions.length + 1}
-        >
-          <div className="grid border-b border-stone-200 bg-paper" style={grid} role="row">
-            <div role="columnheader" className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">{t("board.position")}</div>
-            {axis.map((stage, i) => (
-              <button
-                key={stage.id}
-                type="button"
-                role="columnheader"
-                data-stage-header
-                onClick={centerColumn}
-                title={stageHelp(stage.id)}
-                className="focus-ring cursor-pointer border-r border-stone-200 px-3 py-2 text-center text-meta uppercase text-steel transition-colors last:border-0 hover:bg-stone-100 hover:text-coral"
-              >
-                {/* A workspace's own label wins; the shipped stages keep resolving
-                    through enums.stage.* so they stay localized in four locales.
-                    A renamed column is the recruiter's own words, untranslated —
-                    which is correct: nobody else authored them. */}
-                <span className="text-stone-400">{i + 1}.</span> {stageColumnLabel(stage)}
-              </button>
-            ))}
-          </div>
-          {positions.map((pos) => {
-            // The lane's per-stage cells, precomputed by bucketLaneEntries (keyed by
-            // the shared entryLaneKey so lane membership is provably the same
-            // derivation as the lane COUNT in PipelineTab.groupPositions — a 2-way vs
-            // 3-way fallback mismatch once counted an entry under "?" but placed it in
-            // no lane). Empty per-stage arrays fall back if the lane somehow vanished.
-            const laneCells = cellsByLane.get(pos.id) ?? columns.map(() => [] as Entry[]);
-            return (
-              <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={grid} role="row">
-                <div role="rowheader" className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
-                  <button
-                    type="button"
-                    onClick={() => openJob(pos.id)}
-                    title={t("board.openJd")}
-                    className="focus-ring text-left text-base font-semibold leading-tight text-ink hover:text-coral"
-                  >
-                    {pos.title}
-                  </button>
-                  <p className="text-sm text-steel">{t("board.active", { count: pos.count })}</p>
-                  <button
-                    type="button"
-                    onClick={() => openPositionRanking(pos.id)}
-                    className="focus-ring mt-1 text-sm font-semibold text-coral hover:underline"
-                  >
-                    {t("board.rankCandidates")}
-                  </button>
-                </div>
-                {columns.map((stage, i) => {
-                  // Precomputed by bucketLaneEntries. An entry whose stage is not a
-                  // column here lands in NO cell — it is rendered by the off-axis
-                  // strip below instead of being folded into column 0.
-                  const cellEntries = laneCells[i];
-                  // Key by stage ONLY (stable across polls) — the "+N more" expansion
-                  // is now reset by a render-phase population-change check inside
-                  // StageCell, so an unrelated live-refresh no longer remounts the cell
-                  // (which collapsed the overflow mid-read and churned the DOM).
-                  return (
-                    <StageCell
-                      key={stage}
-                      stage={stage}
-                      // The cell's accessible name: position, stage, how many stand there.
-                      // The stage LABEL (not the id) so a renamed column reads as the
-                      // recruiter named it, exactly as the header above does.
-                      laneLabel={pos.title}
-                      stageLabel={stageColumnLabel(axis[i])}
-                      dropHintId={dragEnabled ? dropHintId : undefined}
-                      entries={cellEntries}
-                      // The row's "Move to…" menu is the keyboard twin of the drop,
-                      // so it has to resolve against the SAME axis handleMove does.
-                      axis={axis}
-                      isStale={isStale}
-                      openProfile={openProfile}
-                      openActions={openActions}
-                      selectMode={selectMode}
-                      selectedIds={selectedIds ?? EMPTY_SELECTION}
-                      onToggleSelect={onToggleSelect ?? (() => undefined)}
-                      dragEnabled={dragEnabled}
-                      isDragging={!!dragging}
-                      onDragStartEntry={setDragging}
-                      onDragEndEntry={() => setDragging(null)}
-                      onMoveEntry={handleMove}
-                      bouncedEntryId={bouncedEntryId}
-                      bouncedReason={bouncedReason}
-                      onDropToStage={(toStage) => {
-                        // Resolve the dragged entry from board state and funnel the
-                        // drop through the SAME move+announce path the menu uses.
-                        // handleMove ignores a same-stage (no-op) drop.
-                        if (dragging) handleMove(dragging, toStage);
-                        setDragging(null);
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {/* Candidates on a column this board no longer draws. Loud by design: the
-          only alternative is losing track of them. */}
-      {stranded.length > 0 ? (
-        <PipelineBoardOffAxisStrip
-          entries={stranded}
-          retiredStages={retiredStages}
-          openProfile={openProfile}
-          onMove={onMove ? handleMove : undefined}
-          axis={axis}
-        />
-      ) : null}
-
-      <div className="border-t border-stone-200 px-4 py-2.5">
-        <Legend />
-      </div>
-    </section>
+    <>
+      <PipelineBoardSubway {...props} onOpenCell={onOpenCell} openCell={openCell} />
+      {portalRoot
+        ? createPortal(
+            <AnimatePresence>
+              {overlaySelection ? (
+                <CellOverlaySpectrum
+                  key={`${overlaySelection.position.id}:${overlaySelection.stage.id}`}
+                  selection={overlaySelection}
+                  matchByCandidate={matchByCandidate}
+                  matchLoading={matchLoading}
+                  matchError={matchError}
+                  onClose={onClose}
+                  openCandidate={openCandidate}
+                  stageLabel={stageLabel}
+                  enumLabel={enumLabel}
+                />
+              ) : null}
+            </AnimatePresence>,
+            portalRoot,
+          )
+        : null}
+    </>
   );
 }

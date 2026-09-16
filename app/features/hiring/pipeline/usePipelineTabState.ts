@@ -16,7 +16,7 @@
 // body (SLA hydration → board load/poll → URL-sync teardown → view hydration → the
 // outreach-completion watcher → the batch-screen reload).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
@@ -40,6 +40,12 @@ import { usePipelineFilters, emptyFacets } from "./usePipelineFilters";
 import { usePipelineSavedViews } from "./usePipelineSavedViews";
 import { usePipelineBulk } from "./usePipelineBulk";
 import { usePipelineNavigation } from "./usePipelineNavigation";
+import {
+  nextCandidateView,
+  type CandidateTab,
+  type CandidateView,
+  type ShowCandidateOptions,
+} from "./candidate/candidateView";
 
 export function usePipelineTabState() {
   const t = useTranslations("pipeline.tab");
@@ -55,7 +61,18 @@ export function usePipelineTabState() {
   // REC-10 — "invited to schedule" only reads as delivered when a relay exists;
   // without one the bulk invites are terminal outbox rows.
   const relayConfigured = useDeliveryCapability();
-  const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
+  // The candidate modal's view: who is open, which cohort the pager walks, which tab
+  // shows. One state for every door (candidateView.ts owns the transitions).
+  const [candidate, setCandidate] = useState<CandidateView | null>(null);
+  const showCandidate = useCallback(
+    (entry: Entry | null, opts?: ShowCandidateOptions) => setCandidate((prev) => nextCandidateView(prev, entry, opts)),
+    []
+  );
+  const closeCandidate = useCallback(() => setCandidate(null), []);
+  const setCandidateTab = useCallback(
+    (tab: CandidateTab) => setCandidate((prev) => (prev ? { ...prev, tab } : prev)),
+    []
+  );
 
   const { slaOverrides, setStageSla, editingSla, setEditingSla } = usePipelineSla();
   const { tasks } = useTasks();
@@ -64,11 +81,11 @@ export function usePipelineTabState() {
   const lastBatchDone = useRef<string | null>(null);
 
   // The board's data plane: entries/events/error + the self-sequencing load(), its
-  // 30s poll (paused while the drawer is open), and the optimistic drag move.
+  // 30s poll (paused while the candidate modal is open), and the optimistic drag move.
   const board = usePipelineBoardData({
     t,
     slaOverrides,
-    drawerOpen: drawerEntry != null,
+    drawerOpen: candidate != null,
   });
   const { entries, events, error, eventsError, load, moveError, moveErrorEntryId, dismissMoveError, moveEntry } = board;
   // The compound filters + their two-way URL sync, and the visible-scope signature
@@ -152,7 +169,7 @@ export function usePipelineTabState() {
   // Bulk select mode + the four batch actions, resolved against exactly what the
   // board renders (filteredEntries) and scoped by what it was showing (visibleScope).
   const bulk = usePipelineBulk({ t, entries, filteredEntries, visibleScope, relayConfigured, load });
-  const nav = usePipelineNavigation({ entries, setDrawerEntry });
+  const nav = usePipelineNavigation({ entries, showCandidate });
 
   // drawer-flow-friction — the degraded/needs-intake chip ARMS the board's existing
   // `intake` quick filter (reused, not forked) so the whole stub cohort is isolated,
@@ -176,7 +193,7 @@ export function usePipelineTabState() {
     );
     const sorted = sortFilteredEntries(cohort, sort);
     const ordered = boardVisibleOrder(groupPositions(sorted), sorted, boardColumns);
-    if (ordered.length > 0) setDrawerEntry(ordered[0]);
+    if (ordered.length > 0) showCandidate(ordered[0], { cohort: null, tab: "overview" });
   };
 
   // Reload the board when a background batch-screen finishes (it mutates many entries).
@@ -192,7 +209,7 @@ export function usePipelineTabState() {
   return {
     t, channelName, relayConfigured,
     entries, events, error, eventsError, load,
-    drawerEntry, setDrawerEntry,
+    candidate, showCandidate, closeCandidate, setCandidateTab,
     query, setQueryAndSync: filters.setQueryAndSync,
     quicks, toggleQuick: filters.toggleQuick,
     scoreBands, toggleBand: filters.toggleBand,
@@ -213,9 +230,9 @@ export function usePipelineTabState() {
     slaOverrides, setStageSla, editingSla, setEditingSla,
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
-    axis: board.axis, retiredStages: board.retiredStages,
+    axis: board.axis, retiredStages: board.retiredStages, plan: board.plan,
     isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
-    openActions: nav.openActions, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
+    openCandidate: nav.openCandidate, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,
     selectedAwaiting: bulk.selectedAwaiting, awaitingKinds: bulk.awaitingKinds, selectedActive: bulk.selectedActive,
     bulkMove: bulk.bulkMove, bulkDecide: bulk.bulkDecide, bulkInvite: bulk.bulkInvite, bulkOutreach: bulk.bulkOutreach,

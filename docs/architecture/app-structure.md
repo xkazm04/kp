@@ -5,7 +5,7 @@ tree). Three rules apply to `app/features/**`:
 
 1. **No `.tsx` over 200 lines.** Anything larger is split into modules.
 2. **Every module in a feature folder starts with that feature's name** —
-   `PipelineBoard.tsx`, `PipelineCandidateDrawer.tsx`, `pipelineBoardFilters.ts`
+   `PipelineBoard.tsx`, `candidate/CandidateModal.tsx`, `pipelineBoardFilters.ts`
    — so a file's home is readable from its name alone and the folder sorts by
    role. PascalCase for `.tsx` components, camelCase for `.ts` helpers.
 3. **The folder tree mirrors the app's menu** — `hiring/pipeline`,
@@ -25,7 +25,9 @@ app/features/
   library/      jds, jobs
   insights/     about, analytics, matrix (+ matrix/focus — the candidate-focus
                 mode, formerly the standalone Match tab)
-  settings/     billing, branding, integrations, models, organization, workspace
+  settings/     billing, branding, hiring, integrations, models, organization,
+                templates (message templates — the per-pipeline-state messages,
+                over the existing /api/templates routes), workspace
   tools/        analyze, devcases, interview, profile
   shell/        Workspace.tsx + nav/, simulation/, tasks/, setup/ (the frame
                 the menu lives in — sidebar, command palette, keyboard chords,
@@ -225,7 +227,8 @@ was a 403 rendered as a failed load.
   `workspace` → `team:manage` (`POST /api/workspaces`), `hiring` → `pipeline:write`
   (`/api/decisions/config`), and the tour → `pipeline:write`. `branding` is
   deliberately absent: its door is `requireOperator`, not a capability, so no entry
-  would be truthful. Pinned by `navCapabilities.test.ts`.
+  would be truthful. `templates` is absent for the same reason — the write half of
+  `/api/templates` gates on `requireOperator`. Pinned by `navCapabilities.test.ts`.
 - **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
   per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
   so a late mount sees the answer on its first render). A dedicated route rather

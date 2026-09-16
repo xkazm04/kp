@@ -42,7 +42,7 @@ The studio sidebar groups the tabs (tab ids live once in `app/features/shell/tab
 
 | Group | Tab | What it does |
 | --- | --- | --- |
-| Hiring | Overview / Pipeline | Kanban board of candidates across hiring stages, scheduler control, candidate drawer; the overview surfaces what needs a human decision first |
+| Hiring | Overview / Pipeline | Kanban board of candidates across hiring stages, scheduler control, candidate modal; the overview surfaces what needs a human decision first |
 | Hiring | Channels | Sourcing channels feeding the pipeline |
 | Hiring | Decisions | AI screening recommendations, group eval, decision rules — all behind human review |
 | Hiring | Schedule | Interview calendar, transcripts, prep kits |
@@ -109,7 +109,7 @@ editing copy needs the left column, an agent editing code needs the right one.
 | **Job description** — the document that describes it | `jds` table (+ `jd_revisions`), `/api/jds`, `library.*` catalog | Job descriptions tab, JD builder, `/jds/[slug]` |
 | **Role brief** — the structured intake behind a JD | `role_intakes` table, `RoleBrief` type, `/api/intake` | the role-intake dialog, and nowhere else |
 | **Assignment** — the work sample | `dev_cases` / `dev_postings` / `dev_submissions`, `/api/devcase`, `devcase.*` catalog, `?tab=assignments` (legacy `?tab=dev`) | Assignments tab, detail, lifecycle strip, voice panel, Jobs lifecycle strip, Decisions |
-| **Voice screen** — the AI interview | `interview_sessions`, `/api/interview` | Interview sim, board drawer, assignment detail |
+| **Voice screen** — the AI interview | `interview_sessions`, `/api/interview` | Interview sim, candidate modal, assignment detail |
 
 Retired from user-facing copy, with what replaced each:
 

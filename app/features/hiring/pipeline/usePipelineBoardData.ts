@@ -13,6 +13,7 @@ import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { boardSignature, eventsSignature } from "./pipelineRenderDiet";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 import { DEFAULT_BOARD_AXIS, type Entry, type PipelineEvent, type StageDef } from "@/app/features/shared/pipelineTypes";
+import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import { pipelineActionReason } from "./pipelineTabHelpers";
 import { mergeMovedRow, moveOutcome, restageEntries, shouldCommitBoard } from "./pipelineBoardMove";
 import { POLL_BASE_MS, nextPollDelay } from "./schedulerRunState";
@@ -35,6 +36,8 @@ export function usePipelineBoardData({
   // columns instead of flashing an empty grid; the payload replaces it.
   const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_BOARD_AXIS);
   const [retiredStages, setRetiredStages] = useState<readonly StageDef[]>([]);
+  // The hiring plan the board reads step executors from; null until the first load.
+  const [plan, setPlan] = useState<InterviewPlanRule | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Activity-feed health is tracked separately from the board: a failed events
@@ -104,7 +107,7 @@ export function usePipelineBoardData({
     // `?since=` request — so that half always runs.
     const boardDone: Promise<boolean> = opts?.eventsOnly
       ? Promise.resolve(true)
-      : sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; error?: string }>("/api/pipeline", {
+      : sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; plan?: InterviewPlanRule; error?: string }>("/api/pipeline", {
         refresh: !opts?.shared,
       })
         .then((p) => {
@@ -116,6 +119,10 @@ export function usePipelineBoardData({
           // JSON compare keeps the board from re-bucketing on every 30s poll.
           if (Array.isArray(p.stages) && p.stages.length > 0) {
             setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(p.stages) ? cur : p.stages!));
+          }
+          if (p.plan) {
+            const incomingPlan = p.plan;
+            setPlan((cur) => (JSON.stringify(cur) === JSON.stringify(incomingPlan) ? cur : incomingPlan));
           }
           setRetiredStages((cur) => {
             const incoming = p.retiredStages ?? [];
@@ -314,6 +321,7 @@ export function usePipelineBoardData({
     entries,
     axis,
     retiredStages,
+    plan,
     events,
     error,
     eventsError,

@@ -192,7 +192,7 @@ path between them a UI could act on.
 The create door now accepts **either** id:
 
 ```jsonc
-POST /api/interview/create  { "entryId": "…" }        // the board drawer, unchanged
+POST /api/interview/create  { "entryId": "…" }        // the candidate modal, unchanged
 POST /api/interview/create  { "submissionId": "…" }   // the assignment's eval surface
 ```
 
@@ -235,7 +235,7 @@ exactly what was asked. The same read-time consent gate as `?entry=` applies.
 The recruiter-facing half is `DevVoiceScreenPanel` (`app/features/tools/devcases/`),
 rendered under the eval panel for every evaluated submission: the screen's status, its
 verdict and mean observed rating when a scorecard exists, and otherwise the **same**
-`PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+`PipelineVoiceScreenPanel` the candidate modal uses, pointed at this submission. One
 affordance, one endpoint, one set of semantics (billing gate, reissue guard, delivery
 truth) — the revoke control stays entry-scoped and is therefore not rendered there.
 Pinned in `app/_lib/devcase-interview-entry.test.ts`.

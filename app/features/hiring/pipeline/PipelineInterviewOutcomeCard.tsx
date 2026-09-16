@@ -13,7 +13,7 @@ import { rubricAnchorLine } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { RATING_MAX } from "@/app/_lib/format";
 import { PipelineInterviewTelemetryStrip } from "./PipelineInterviewTelemetryStrip";
-import type { InterviewOutcome } from "./usePipelineCandidateDrawerState";
+import type { InterviewOutcome } from "./candidate/state/useCandidateBundle";
 
 export function PipelineInterviewOutcomeCard({
   ivOutcome,
