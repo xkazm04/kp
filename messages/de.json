@@ -10997,8 +10997,7 @@
         "posted": "Veröffentlicht",
         "seen": "Zuletzt gesehen",
         "status": "Status",
-        "actions": "Aktionen",
-        "range": "{low}–{high}"
+        "actions": "Aktionen"
       }
     },
     "posting": {

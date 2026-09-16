@@ -10997,8 +10997,7 @@
         "posted": "Zveřejněno",
         "seen": "Naposledy viděno",
         "status": "Stav",
-        "actions": "Akce",
-        "range": "{low}–{high}"
+        "actions": "Akce"
       }
     },
     "posting": {

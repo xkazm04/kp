@@ -397,8 +397,13 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
               <table className="w-full min-w-[40rem] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-stone-200 bg-paper/60">
-                    <ColumnHead title={t("table.fit")} sortCol="total" sort={sort} onSort={onSort} align="right" className="px-3 pt-2" />
-                    <ColumnHead title={t("table.role")} sort={sort} onSort={onSort} className="px-3 pt-2" />
+                    {/* The widths live on the HEADER cells, where a table's column
+                        allocation belongs: `w-20` pins fit to a numeral, `w-full` makes
+                        role the greedy column that absorbs everything the fixed ones
+                        leave. Every other column is `whitespace-nowrap` and therefore
+                        sized by its own content. */}
+                    <ColumnHead title={t("table.fit")} sortCol="total" sort={sort} onSort={onSort} align="right" className="w-20 px-3 pt-2" />
+                    <ColumnHead title={t("table.role")} sort={sort} onSort={onSort} className="w-full px-3 pt-2" />
                     <ColumnHead title={t("table.source")} sort={sort} onSort={onSort} className="hidden px-3 pt-2 md:table-cell" />
                     <ColumnHead title={t("table.posted")} sortCol="posted" sort={sort} onSort={onSort} className="hidden px-3 pt-2 lg:table-cell" />
                     <ColumnHead title={t("table.seen")} sortCol="seen" sort={sort} onSort={onSort} className="hidden px-3 pt-2 sm:table-cell" />

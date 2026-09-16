@@ -440,10 +440,23 @@ responsive hiding on the four a phone cannot afford. Headers are the shared
 comparator: `useTableSort` would be a lie over a keyset-paged list, so the three
 sortable columns are exactly `sort=total|posted|seen` (all DESC in the store's
 `ORDER BY`), the `SortState` is derived from the query, and the columns the route
-cannot order declare no `sortCol` and therefore claim no sortability. One row is
-`PostingRow.tsx` — the fit numeral `nums` and right-aligned beside the shared
-`FitTierBadge`, the confidence band as figures under it, the title cell
-`max-w-0 truncate font-semibold text-ink` linking to the detail, eligibility chips
+cannot order declare no `sortCol` and therefore claim no sortability.
+
+**A ledger row is one title line plus one meta line**, and the column allocation is what
+enforces it. FIT is `w-20`, right-aligned, and carries the `nums` numeral ALONE — the
+confidence band is its `Tooltip` and the tier badge moved to the role cell, because the
+three of them stacked cost ~230px at 1440px and starved the column a reader actually
+scans. ROLE is `w-full max-w-0`: `w-full` makes it the greedy column that absorbs what
+the fixed ones leave, `max-w-0` is what lets its children truncate inside a table cell at
+all — together, "flexible, and it shrinks the TEXT, not the column". Its meta line is
+`flex-nowrap` (wrapping is what turned a row into a ~120px block): the tier badge,
+company · location as truncating text, and the eligibility chips side by side. SOURCE
+shows the catalog label's short half (`"EURES"`, the text before `" ("`) with the full
+name on hover and focus. POSTED · LAST SEEN · STATUS are `whitespace-nowrap` and sized by
+their own content. Measured over the classes: 20px title line + 2px `mt-0.5` + 24px meta
+line (the badges govern) + 20px `py-2.5` + 1px rule ≈ **67px**.
+
+One row is `PostingRow.tsx` — the title cell linking to the detail, eligibility chips
 (`EligibilityChips.tsx`: `flag` amber, `ok` moss, `unknown` neutral, the engine's detail
 sentence revealed on hover AND focus through the shared `Tooltip`, never as `title=`), a
 status `Badge` whose tooltip carries the one fact the pill cannot show (when the seeker

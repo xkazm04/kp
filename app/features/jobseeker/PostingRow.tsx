@@ -72,6 +72,9 @@ export function PostingRow({
   const live = row.status !== "dismissed" && row.status !== "gone";
   const isNew = arrivalOrder >= 0;
   const meta = [row.company, row.location, row.workMode ? t(`workMode.${row.workMode}`) : null].filter((x): x is string => !!x);
+  // The catalog labels are "<short> (<the full legal name>)" — the parenthetical is
+  // provenance, not identity, and it belongs on hover rather than in a column.
+  const shortSource = sourceLabel.split(" (")[0].trim() || sourceLabel;
   const statusTone = row.status === "applied" ? "positive" : row.status === "shortlisted" ? "info" : row.status === "new" ? "neutral" : "caution";
   // The one sentence the status pill owes and cannot show: WHEN the seeker acted, or
   // WHY they dropped it. It rides on the pill as a tooltip instead of as a second line.
@@ -90,57 +93,82 @@ export function PostingRow({
       exit={{ opacity: reduced ? 1 : 0 }}
       transition={reduced ? { duration: 0 } : { ...SPRING, delay: isNew && arrivalOrder < STAGGER_CAP ? (arrivalOrder * STAGGER_MS) / 1000 : 0 }}
     >
-      {/* FIT — the numeral leads, right-aligned under a right-aligned header, with the
-          tier word beside it and the confidence band under it as figures, not prose. */}
-      <td className="whitespace-nowrap px-3 py-2.5 text-right align-top">
+      {/* FIT — a NARROW numeric column and nothing else. It used to carry the tier
+          badge, the numeral and the confidence range on two lines, which cost ~230px at
+          1440px and starved the one column a reader actually scans. The band is the
+          numeral's tooltip now (surface-doctrine §4: evidence on hover/focus), and the
+          tier word moved into the role cell's meta line. `w-20` is the hint; the column
+          only grows past it for an unscored row, which says the words rather than
+          printing a dash the reader has to hover to understand. */}
+      <td className="w-20 whitespace-nowrap px-3 py-2.5 text-right align-top">
         {row.matchTotal !== null ? (
-          <>
-            <span className="flex items-center justify-end gap-2">
-              <FitTierBadge tier={row.fitTier} labels={tierLabels} />
-              <span className="nums font-serif text-h3 leading-none text-ink">{Math.round(row.matchTotal)}</span>
-            </span>
-            {row.confidence ? (
-              <Tooltip
-                label={t("card.confidence", {
-                  level: t(`confidenceLevel.${row.confidence.level}`),
-                  low: Math.round(row.confidence.low),
-                  high: Math.round(row.confidence.high),
-                })}
-                side="bottom"
-                className="mt-1 justify-end"
-              >
-                <span tabIndex={0} className="focus-ring nums hidden rounded text-meta text-steel md:inline">
-                  {t("table.range", { low: Math.round(row.confidence.low), high: Math.round(row.confidence.high) })}
-                </span>
-              </Tooltip>
-            ) : null}
-          </>
+          row.confidence ? (
+            <Tooltip
+              label={t("card.confidence", {
+                level: t(`confidenceLevel.${row.confidence.level}`),
+                low: Math.round(row.confidence.low),
+                high: Math.round(row.confidence.high),
+              })}
+              side="left"
+            >
+              <span tabIndex={0} className="focus-ring nums rounded font-serif text-h3 text-ink">
+                {Math.round(row.matchTotal)}
+              </span>
+            </Tooltip>
+          ) : (
+            <span className="nums font-serif text-h3 text-ink">{Math.round(row.matchTotal)}</span>
+          )
         ) : (
           <span className={CHIP_QUIET}>{t("card.unscored")}</span>
         )}
       </td>
 
-      {/* ROLE — the truncating title cell every ledger in the studio leads with. */}
-      <td className="max-w-0 px-3 py-2.5 align-top">
-        <span className="flex items-center gap-2">
-          <Link href={`/me/jobs/${encodeURIComponent(row.id)}`} className="focus-ring min-w-0 truncate rounded font-semibold text-ink hover:underline">
+      {/* ROLE — the GREEDY column: `w-full` takes every pixel the fixed columns leave,
+          `max-w-0` is what lets its children truncate inside a table cell at all (a cell
+          with no computed max width sizes to its content and `truncate` never fires).
+          Together they are "flexible, and it shrinks the TEXT, not the column".
+          Exactly two lines, always: the title, then ONE meta line where the tier badge,
+          the company/location text and the eligibility chips sit side by side. The line
+          is `flex-nowrap` on purpose — wrapping is what turned a ledger row into a
+          ~120px block — so the text truncates and the badges keep their width. */}
+      <td className="w-full max-w-0 px-3 py-2.5 align-top">
+        <span className="block truncate">
+          <Link href={`/me/jobs/${encodeURIComponent(row.id)}`} className="focus-ring rounded font-semibold text-ink hover:underline">
             {row.title}
           </Link>
-          {row.deepDived ? <span className={`${CHIP_QUIET} shrink-0`}>{t("card.deepDived")}</span> : null}
         </span>
-        {meta.length > 0 ? <span className="mt-0.5 block truncate text-meta text-steel">{meta.join(" · ")}</span> : null}
-        <div className="mt-1">
-          <EligibilityChips flags={row.eligibility} />
-        </div>
+        <span className="mt-0.5 flex min-w-0 flex-nowrap items-center gap-1.5">
+          <span className="shrink-0">
+            <FitTierBadge tier={row.fitTier} labels={tierLabels} />
+          </span>
+          {meta.length > 0 ? <span className="min-w-0 truncate text-sm text-steel">{meta.join(" · ")}</span> : null}
+          {row.deepDived ? <span className={`${CHIP_QUIET} shrink-0`}>{t("card.deepDived")}</span> : null}
+          <span className="shrink-0">
+            <EligibilityChips flags={row.eligibility} />
+          </span>
+        </span>
       </td>
 
-      <td className="hidden max-w-0 truncate px-3 py-2.5 align-top text-steel md:table-cell">{sourceLabel}</td>
+      {/* SOURCE — the catalog label's SHORT half ("EURES"), with the full name on hover
+          and focus. It was the whole string ("EURES (European Labour Authority)") in a
+          truncating cell, so every row read "EURES (Europe…" and spent 160px doing it. */}
+      <td className="hidden whitespace-nowrap px-3 py-2.5 align-top text-steel md:table-cell">
+        {shortSource !== sourceLabel ? (
+          <Tooltip label={sourceLabel} side="bottom">
+            <span tabIndex={0} className="focus-ring rounded">
+              {shortSource}
+            </span>
+          </Tooltip>
+        ) : (
+          shortSource
+        )}
+      </td>
 
       <td className="hidden whitespace-nowrap px-3 py-2.5 align-top text-steel lg:table-cell">{row.postedAt ? rel(row.postedAt) : "—"}</td>
 
       <td className="hidden whitespace-nowrap px-3 py-2.5 align-top text-steel sm:table-cell">{rel(row.lastSeenAt)}</td>
 
-      <td className="px-3 py-2.5 align-top">
+      <td className="whitespace-nowrap px-3 py-2.5 align-top">
         {statusHint ? (
           <Tooltip label={statusHint} side="left">
             <span tabIndex={0} className="focus-ring rounded">
