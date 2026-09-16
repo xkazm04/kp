@@ -1895,6 +1895,19 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "deepDivePosting(",
   },
+  // jobseeker — round 26: the feed's last-seen anchor.
+  {
+    // One write per departure (visibilitychange → hidden, pagehide) or explicit
+    // acknowledgement, from a beacon whose answer nobody reads; 120/10 min per IP is a
+    // budget a reader tabbing in and out never meets.
+    rel: "./jobseeker/profile/seen/route.ts",
+    key: "`jobseeker-feed-seen:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "SEEN_RATE_LIMIT",
+    optsDef: "const SEEN_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "advanceFeedAnchor(",
+  },
 ];
 
 for (const spec of ROUTES) {

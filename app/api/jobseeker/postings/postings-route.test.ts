@@ -9,10 +9,12 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { getJobseekerPosting, setPostingMatch, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
-import type { JobseekerPostingSummary, RawPosting } from "../../../_lib/jobseeker/types.ts";
+import { upsertJobseekerProfile } from "../../../_lib/db/jobseeker-profiles.ts";
+import { EMPTY_PREFERENCES, type JobseekerPostingSummary, type RawPosting } from "../../../_lib/jobseeker/types.ts";
 import { GET } from "./route.ts";
 import { PATCH } from "./[id]/route.ts";
 import { POST as DEEPDIVE } from "./[id]/deepdive/route.ts";
+import { POST as SEEN } from "../profile/seen/route.ts";
 
 after(() => cleanupUnitDb());
 
@@ -166,4 +168,73 @@ test("POST deepdive: an unknown posting is 404 and a workspace without a profile
   const noProfile = await DEEPDIVE(req(ids[0]), { params: Promise.resolve({ id: ids[0] }) });
   assert.equal(noProfile.status, 409);
   assert.equal(((await noProfile.json()) as { code: string }).code, "JOBSEEKER_PROFILE_MISSING");
+});
+
+// The feed's last-seen anchor. These run LAST on purpose: they create the workspace's
+// seeker profile, and the deep-dive test above pins the answer a workspace WITHOUT one
+// gets. `at` is a real ISO instant in every assertion — the store compares the tuple as
+// a string, so a "timestamp" it cannot order is refused at the door.
+const T_ANCHOR = "2026-09-16T09:00:00.000Z";
+const T_LATER = "2026-09-16T12:00:00.000Z";
+const seen = (body: unknown) =>
+  SEEN(new Request("http://localhost/api/jobseeker/profile/seen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+
+test("GET newSince: null before a profile and before an anchor — the first visit is quiet", async () => {
+  assert.equal(((await (await get("")).json()) as { newSince: unknown }).newSince, null, "no profile: nothing to compare against");
+  upsertJobseekerProfile({ userId: null, profile: {} as never, preferences: EMPTY_PREFERENCES });
+  assert.equal(((await (await get("")).json()) as { newSince: unknown }).newSince, null, "a profile with no anchor is still quiet, not `{count: 0}`");
+});
+
+test("POST seen: the anchor advances, never backwards, and the count is derived from it", async () => {
+  const ok = await seen({ at: T_ANCHOR, id: "jpo-anchor" });
+  assert.equal(ok.status, 200);
+  assert.deepEqual((await ok.json()) as unknown, { anchor: { at: T_ANCHOR, id: "jpo-anchor" } });
+
+  // Every seeded posting was first seen BEFORE the anchor, so nothing is new yet.
+  const quiet = (await (await get("")).json()) as { newSince: { count: number; anchorAt: string } };
+  assert.deepEqual(quiet.newSince, { count: 0, anchorAt: T_ANCHOR }, "an anchor with nothing after it says zero, which is not the same as null");
+
+  // A posting that arrives after the anchor is the count, by one comparison.
+  const fresh = upsertPosting(SRC_A, raw(), T_LATER).id;
+  const after = (await (await get("")).json()) as { newSince: { count: number } };
+  assert.equal(after.newSince.count, 1);
+
+  // An out-of-order beacon (an older tuple) must not rewind the feed.
+  const backwards = await seen({ at: "2026-09-16T07:00:00.000Z", id: "jpo-older" });
+  assert.equal(backwards.status, 200);
+  assert.deepEqual((await backwards.json()) as unknown, { anchor: { at: T_ANCHOR, id: "jpo-anchor" } }, "the stored anchor is answered, not the one asked for");
+  assert.equal(((await (await get("")).json()) as { newSince: { count: number } }).newSince.count, 1, "…so the count did not move either");
+
+  // Acknowledging the newest rendered row folds the count to zero.
+  const forward = await seen({ at: T_LATER, id: fresh });
+  assert.equal(forward.status, 200);
+  assert.equal(((await (await get("")).json()) as { newSince: { count: number } }).newSince.count, 0);
+
+  for (const [body, field] of [
+    [{ at: "not-a-time", id: "jpo-1" }, "at"],
+    [{ id: "jpo-1" }, "at"],
+    [{ at: T_LATER }, "id"],
+    [{ at: T_LATER, id: "" }, "id"],
+  ] as const) {
+    const bad = await seen(body);
+    assert.equal(bad.status, 400, JSON.stringify(body));
+    const answered = (await bad.json()) as { code: string; field: string };
+    assert.equal(answered.code, "APPLY_SELECTION_INVALID");
+    assert.equal(answered.field, field);
+  }
+});
+
+test("PATCH applied: the row carries WHEN the seeker applied, and a restore clears it", async () => {
+  const applied = await patch(ids[3], { status: "applied" });
+  assert.equal(applied.status, 200);
+  const row = (await applied.json()) as { posting: JobseekerPostingSummary };
+  assert.equal(row.posting.status, "applied");
+  assert.ok(row.posting.appliedAt && !Number.isNaN(Date.parse(row.posting.appliedAt)), "an applied row stamps the date the seeker acted");
+  assert.notEqual(row.posting.appliedAt, row.posting.lastSeenAt, "…which is not the crawler's last re-read");
+
+  // Re-sending `applied` keeps the FIRST stamp; leaving `applied` clears it.
+  const again = (await (await patch(ids[3], { status: "applied" })).json()) as { posting: JobseekerPostingSummary };
+  assert.equal(again.posting.appliedAt, row.posting.appliedAt);
+  const restored = (await (await patch(ids[3], { status: "new" })).json()) as { posting: JobseekerPostingSummary };
+  assert.equal(restored.posting.appliedAt, null, "a restored row did not apply");
 });

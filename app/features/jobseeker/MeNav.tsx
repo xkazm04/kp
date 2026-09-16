@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Briefcase, Radar, Rss, UserRound, type LucideIcon } from "lucide-react";
+import { Badge } from "@/app/_components/Badge";
 import { RailBrandMark } from "@/app/features/shell/nav/NavRailBrandMark";
 import { RailPreferences } from "@/app/features/shell/nav/NavRailPreferences";
 import { navItemClass } from "@/app/features/shell/tabs";
@@ -26,7 +27,11 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MeNav({ label }: { label: string }) {
+/** `jobsNew` is the DERIVED count of postings that arrived after the seeker's feed
+ *  anchor, read server-side by the layout (no client fetch, so the rail never flashes a
+ *  number in). Zero — and a seeker with no anchor yet, who is handed 0 — shows nothing:
+ *  a badge reading "0" is noise, and a first visit has nothing to be behind on. */
+export function MeNav({ label, jobsNew = 0 }: { label: string; jobsNew?: number }) {
   const t = useTranslations("me.nav");
   const pathname = usePathname() ?? "/me";
   return (
@@ -47,6 +52,9 @@ export function MeNav({ label }: { label: string }) {
               >
                 <Icon size={16} aria-hidden className="shrink-0" />
                 <span className="truncate">{t(key)}</span>
+                {key === "jobs" && jobsNew > 0 ? (
+                  <Badge tone="info" label={String(jobsNew)} ariaLabel={t("jobsNew", { count: jobsNew })} className="ml-auto" />
+                ) : null}
               </Link>
             </li>
           );

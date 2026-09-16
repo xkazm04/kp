@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { listJobseekerPostings, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
-import { isPostingStatus } from "@/app/_lib/jobseeker/types";
+import { currentUserId } from "@/app/_lib/auth/session";
+import { countJobseekerPostingsNewSince, listJobseekerPostings, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
+import { getFeedAnchor, getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import { isPostingStatus, type FeedNewSince } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // GET /api/jobseeker/postings?status=&minTotal=&sourceId=&sort=total|posted|seen&cursor=&limit=
-// → { rows: JobseekerPostingSummary[], nextCursor } — the seeker's feed (WP4c). The
+// → { rows: JobseekerPostingSummary[], nextCursor, newSince } — the seeker's feed (WP4c). The
 // projection is the store's summary (no body, no JSON-LD, no full match payload);
 // paging is keyset (an opaque cursor), so a scan writing between two pages never
 // repeats or skips a row. No `status` = the LIVE feed (not dismissed, not gone).
@@ -73,7 +76,15 @@ export async function GET(request: Request): Promise<NextResponse> {
     if ("field" in parsed) return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: parsed.field });
     const ws = await currentWorkspace();
     const { rows, nextCursor } = listJobseekerPostings(parsed.opts, ws);
-    return NextResponse.json({ rows, nextCursor });
+    // "New since your last visit" is DERIVED here from the seeker's stored anchor by one
+    // comparison over the ordering tuple the pager already uses — never a counter. No
+    // anchor (a seeker who has never had a settled feed load) answers `null` rather than
+    // `{count: 0}`: the first run is quiet, and "zero new" is a different sentence from
+    // "we have nothing to compare against".
+    const profile = getJobseekerProfile(currentUserId(await currentSession()), ws);
+    const anchor = profile ? getFeedAnchor(profile.id, ws) : null;
+    const newSince: FeedNewSince = anchor ? { count: countJobseekerPostingsNewSince(anchor, ws), anchorAt: anchor.at } : null;
+    return NextResponse.json({ rows, nextCursor, newSince });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings", "JOBSEEKER_STORE_FAILED");
   }

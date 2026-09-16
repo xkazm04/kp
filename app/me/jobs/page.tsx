@@ -21,7 +21,13 @@ export default async function JobsPage() {
   const feedSources: FeedSource[] = sources.map((s) => ({ id: s.id, label: catalogEntryForHost(s.host)?.label ?? s.host }));
   // "A scan ran" is per workspace: a source of THIS workspace carries a lastRunAt, or
   // the manual scan task recorded a run (which it does only when a source ran).
-  const hasScanned = sources.some((s) => s.lastRunAt !== null) || listRuns(1, SCAN_JOB_NAME, { workspace: ws }).length > 0;
+  // The same two facts answer "has a scan ever run" and "when": the newest scheduler run
+  // for this workspace, else the newest source run — the header states the later of them
+  // and stays silent when neither exists rather than writing "never".
+  const lastRun = listRuns(1, SCAN_JOB_NAME, { workspace: ws })[0] ?? null;
+  const lastSourceRunAt = sources.reduce<string | null>((newest, s) => (s.lastRunAt && (!newest || s.lastRunAt > newest) ? s.lastRunAt : newest), null);
+  const lastScanAt = [lastRun?.finishedAt ?? lastRun?.startedAt ?? null, lastSourceRunAt].filter((x): x is string => !!x).sort().at(-1) ?? null;
+  const hasScanned = lastScanAt !== null;
   // `countries` rides with the chain (not a client fetch): the `no_sources` state offers
   // one click that enables EURES for the seeker's OWN markets, and the button has to be
   // able to NAME them before it is pressed.
@@ -32,6 +38,7 @@ export default async function JobsPage() {
         enabledSources: sources.filter((s) => s.enabled).length,
         hasScanned,
         countries: profile?.preferences.countries ?? [],
+        lastScanAt,
       }}
       sources={feedSources}
     />

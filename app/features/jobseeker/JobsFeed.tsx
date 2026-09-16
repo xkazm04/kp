@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { Skeleton } from "@/app/_components/Skeleton";
-import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
-import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP, EYEBROW, FIELD, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import type { FeedNewSince, JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
 import { EnableEuresButton } from "./EnableEuresButton";
 import { FailureNotice } from "./FailureNotice";
-import { resolveFeedEmptyState, shouldFetchRows, type FeedEmptyState } from "./feedModel";
+import { isNewerThanAnchor, renderedAnchor, resolveFeedEmptyState, shouldFetchRows, type FeedEmptyState, type FeedTuple } from "./feedModel";
 import { PostingCard } from "./PostingCard";
 import { ScanNowButton } from "./ScanNowButton";
 import { usePostingActions } from "./usePostingActions";
@@ -26,7 +27,16 @@ import { useScanTask } from "./useScanTask";
 // is the route's keyset cursor: "load more" appends, a filter change starts over.
 
 export type FeedSource = { id: string; label: string };
-export type FeedChain = { hasProfile: boolean; enabledSources: number; hasScanned: boolean; countries: string[] };
+export type FeedChain = {
+  hasProfile: boolean;
+  enabledSources: number;
+  hasScanned: boolean;
+  countries: string[];
+  /** When the last scan for this workspace finished, from the scheduler run the server
+   *  page already read. Null until one ever ran — the header says nothing rather than
+   *  inventing "never". */
+  lastScanAt: string | null;
+};
 
 const STATUS_FILTERS = ["live", "new", "shortlisted", "applied", "dismissed"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -51,6 +61,7 @@ function queryString(q: Query, cursor: string | null, minTotalOverride?: number)
 
 export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSource[] }) {
   const t = useTranslations("me.jobs");
+  const rel = useRelativeTime();
   const [query, setQuery] = useState<Query>({ status: "live", minTotal: 0, sourceId: "", sort: "total" });
   const [rows, setRows] = useState<JobseekerPostingSummary[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -59,6 +70,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
   const [loadError, setLoadError] = useState<ClassifiedFailure | null>(null);
   const [droppedByMin, setDroppedByMin] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(chain.hasScanned);
+  const [newSince, setNewSince] = useState<FeedNewSince>(null);
   // The chain links the page can flip without a server round-trip: the one-click EURES
   // door enables a source, and the feed must start reading rows from that moment.
   const [enabledSources, setEnabledSources] = useState(chain.enabledSources);
@@ -70,7 +82,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
   // skeleton is `rows === null`; "load more" sets `loading` in its click handler.
   const load = useCallback((q: Query, after: string | null): Promise<void> => {
     const gen = ++generation.current;
-    type Page = { rows?: JobseekerPostingSummary[]; nextCursor?: string | null; code?: string };
+    type Page = { rows?: JobseekerPostingSummary[]; nextCursor?: string | null; newSince?: FeedNewSince; code?: string };
     return fetch(`/api/jobseeker/postings?${queryString(q, after)}`)
       .then(async (res) => ({ res, body: (await res.json().catch(() => null)) as Page | null }))
       .then(async ({ res, body }) => {
@@ -86,6 +98,7 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
         setLoadError(null);
         setRows((prev) => (after && prev ? [...prev, ...rows] : rows));
         setCursor(body.nextCursor ?? null);
+        setNewSince(body.newSince ?? null);
         // A capped list says what it dropped: when the min-fit filter emptied the page,
         // count what the same query holds without it (one page; "30+" past that).
         if (!after && rows.length === 0 && q.minTotal > 0) {
@@ -126,12 +139,81 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
   }, []);
   const actions = usePostingActions(replaceRow);
 
+  // ── the last-seen anchor ──────────────────────────────────────────────────────────
+  //
+  // ONE durable anchor, advanced only when the reader demonstrably saw a SETTLED feed:
+  // the tuple is taken from the rows actually rendered, and a failed or still-loading
+  // page leaves it untouched (a failure is not a read). It moves on departure
+  // (visibilitychange → hidden, pagehide — the two events a phone browser reliably
+  // gives before it freezes the tab) and on the explicit "mark all as seen"; the store
+  // refuses to move it backwards, so an out-of-order beacon is a no-op, never a rewind.
+  const seenAnchor = useRef<FeedTuple | null>(null);
+  useEffect(() => {
+    if (rows && rows.length > 0 && !loadError) seenAnchor.current = renderedAnchor(rows);
+  }, [rows, loadError]);
+
+  const sendSeen = useCallback((tuple: FeedTuple | null) => {
+    if (!tuple) return;
+    const body = JSON.stringify({ at: tuple.at, id: tuple.id });
+    // A departure has no time for a response: the beacon is queued by the browser and
+    // survives the page. `keepalive` is the fallback where sendBeacon is missing or
+    // refuses (queue full); both are best-effort by design — a lost advance costs the
+    // reader one repeated "new" badge, and a WRONG advance would cost them a posting.
+    try {
+      if (navigator.sendBeacon?.("/api/jobseeker/profile/seen", new Blob([body], { type: "application/json" }))) return;
+    } catch {
+      /* best-effort: the anchor is a convenience, never the request the reader is making */
+    }
+    void fetch("/api/jobseeker/profile/seen", {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json" },
+      body,
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") sendSeen(seenAnchor.current);
+    };
+    const onPageHide = () => sendSeen(seenAnchor.current);
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [sendSeen]);
+
+  // The explicit acknowledgement: an ordinary request (its answer IS read), and the
+  // divider/count fold to zero against the tuple that was just acknowledged.
+  const markAllSeen = useCallback(() => {
+    const tuple = seenAnchor.current;
+    if (!tuple) return;
+    sendSeen(tuple);
+    setNewSince({ count: 0, anchorAt: tuple.at });
+  }, [sendSeen]);
+
   const scan = useScanTask((summary) => {
     if (summary) setHasScanned(true);
     void load(query, null);
   });
 
   const sourceLabel = useMemo(() => new Map(sources.map((s) => [s.id, s.label])), [sources]);
+  const newCount = newSince?.count ?? 0;
+  // Where the "new" run ends on THIS page: the first rendered row that is not newer than
+  // the anchor. Only `sort=seen` orders the list the way the anchor orders the dataset,
+  // so every other sort states the count in the header instead of drawing a line in the
+  // wrong place. The anchor's id half is not on the wire (the route answers the count and
+  // the timestamp), so a row that arrived in the very same millisecond as the anchor sits
+  // on the new side of the line — the count is the server's, the line is an approximation
+  // of where it falls.
+  const dividerAt = useMemo(() => {
+    if (!newSince || newCount === 0 || query.sort !== "seen" || !rows) return null;
+    const anchor = { at: newSince.anchorAt, id: "" };
+    const i = rows.findIndex((row) => !isNewerThanAnchor({ at: row.firstSeenAt, id: row.id }, anchor));
+    return i > 0 ? i : null;
+  }, [newSince, newCount, query.sort, rows]);
   const emptyState: FeedEmptyState = resolveFeedEmptyState({
     hasProfile: chain.hasProfile,
     enabledSources,
@@ -147,6 +229,24 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
           <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
+          {/* What the seeker came back to: when the crawler last looked, and — only once
+              an anchor exists — how much arrived since they last did. A first visit has
+              no anchor and says neither, which is the quiet first run. */}
+          {chain.lastScanAt || newCount > 0 ? (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-steel">
+              {chain.lastScanAt ? <span>{t("lastScan", { when: rel(chain.lastScanAt) })}</span> : null}
+              {newCount > 0 ? (
+                <>
+                  {chain.lastScanAt ? <span aria-hidden>·</span> : null}
+                  {/* With `sort=seen` the divider below carries the count in place. */}
+                  {query.sort === "seen" ? null : <span className="font-medium text-ink">{t("newSince", { count: newCount })}</span>}
+                  <button type="button" className={`${BTN_GHOST} h-7 px-2 text-sm`} onClick={markAllSeen}>
+                    {t("markAllSeen")}
+                  </button>
+                </>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         {chain.hasProfile && enabledSources > 0 && rows && rows.length > 0 ? <ScanNowButton scan={scan} variant="secondary" /> : null}
       </header>
@@ -213,17 +313,27 @@ export function JobsFeed({ chain, sources }: { chain: FeedChain; sources: FeedSo
       ) : rows.length > 0 ? (
         <>
           <ul className="space-y-3">
-            {rows.map((row) => (
-              <PostingCard
-                key={row.id}
-                row={row}
-                sourceLabel={sourceLabel.get(row.sourceId) ?? row.sourceId}
-                busy={actions.busyId === row.id}
-                onShortlist={(next) => void actions.setStatus(row.id, next ? "shortlisted" : "new")}
-                onApplied={() => void actions.markApplied(row)}
-                onDismiss={(reason, note) => void actions.setStatus(row.id, "dismissed", { reason, note })}
-                onRestore={() => void actions.setStatus(row.id, "new")}
-              />
+            {rows.map((row, i) => (
+              <Fragment key={row.id}>
+                {/* Sorted by last seen, the boundary is a place on the page, so the count
+                    is rendered AS that place. `dividerAt` is null for every other sort. */}
+                {i === dividerAt ? (
+                  <li className="flex items-center gap-3 pt-1" aria-hidden={false}>
+                    <span className="h-px flex-1 bg-coral/40" />
+                    <span className={`${CHIP} shrink-0 font-medium text-ink`}>{t("newSince", { count: newCount })}</span>
+                    <span className="h-px flex-1 bg-coral/40" />
+                  </li>
+                ) : null}
+                <PostingCard
+                  row={row}
+                  sourceLabel={sourceLabel.get(row.sourceId) ?? row.sourceId}
+                  busy={actions.busyId === row.id}
+                  onShortlist={(next) => void actions.setStatus(row.id, next ? "shortlisted" : "new")}
+                  onApplied={() => void actions.markApplied(row)}
+                  onDismiss={(reason, note) => void actions.setStatus(row.id, "dismissed", { reason, note })}
+                  onRestore={() => void actions.setStatus(row.id, "new")}
+                />
+              </Fragment>
             ))}
           </ul>
           {cursor ? (

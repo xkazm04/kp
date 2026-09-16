@@ -365,8 +365,9 @@ postings are still structured and matched.
 | Route | Verb | Does | Limiter |
 | --- | --- | --- | --- |
 | `/api/jobseeker/scan` | POST | `startTask("jobseeker_scan", {trigger: "manual", workspaceId})` → 202 `{taskId}` | `jobseeker-scan` 6/10 min |
-| `/api/jobseeker/postings` | GET | `?status=&minTotal=&sourceId=&sort=total,posted,seen&cursor=&limit=` (1..100, default 50) → `{rows: JobseekerPostingSummary[], nextCursor}`; keyset cursor; no `status` = the live feed; a value outside its vocabulary → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-postings` 120/10 min |
-| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus`; `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
+| `/api/jobseeker/postings` | GET | `?status=&minTotal=&sourceId=&sort=total,posted,seen&cursor=&limit=` (1..100, default 50) → `{rows: JobseekerPostingSummary[], nextCursor, newSince}`; keyset cursor; no `status` = the live feed; `newSince` = `{count, anchorAt}` derived from the seeker's feed anchor, `null` when there is none; a value outside its vocabulary → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-postings` 120/10 min |
+| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus`; `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; `applied` stamps `applied_at` (and leaving `applied` clears it), so the card can say when the SEEKER acted instead of when the crawler last looked; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
+| `/api/jobseeker/profile/seen` | POST | `{at, id}` — the ordering tuple of the newest row the feed RENDERED → `advanceFeedAnchor` (monotonic; an older tuple is a no-op) → `{anchor}`; no profile → 404 `JOBSEEKER_PROFILE_MISSING`; a malformed tuple → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-feed-seen` 120/10 min |
 | `/api/jobseeker/postings/[id]/deepdive` | POST | `?lang=` → `deepDivePosting` synchronously (maxDuration 120) → `{posting, source, reasoning, fallbackReason}`: `llm`/`null` (persisted), or 200 `deterministic` with `fallbackReason` `template` or `no_provider` and `reasoning` null when the template was empty (`deepdive-route.test.ts`); no profile → 409 `JOBSEEKER_PROFILE_MISSING` | `jobseeker-deepdive` 20/10 min |
 
 Codes are reused, not minted: `APPLY_SELECTION_INVALID` is the existing generic "not one
@@ -380,7 +381,9 @@ has no session, so it reads the workspace's newest profile),
 
 **Feed** (`/me/jobs`, `app/me/jobs/page.tsx` → `app/features/jobseeker/JobsFeed.tsx`).
 The server page reads the CHAIN FACTS (a profile exists · a source is enabled · a scan
-ever ran) and the source labels; the client feed reads `GET /api/jobseeker/postings`
+ever ran, and WHEN it ran — the later of the newest `jobseeker_scan` scheduler run and
+the newest source run, shown in the header and silent when neither exists) and the
+source labels; the client feed reads `GET /api/jobseeker/postings`
 (keyset cursor, "Load more" appends, a filter change starts over). Filters: status
 (live · new · shortlisted · applied · dismissed), min fit (any/50/65/80), source, sort
 (best fit · newest posted · last seen). A card (`PostingCard.tsx`) leads with the fit
@@ -397,6 +400,37 @@ results** (`EnableEuresButton.tsx`, below) beside the link to `/me/sources`; no 
 which polls `GET /api/tasks/[id]` because /me mounts no TasksProvider); scanned but
 nothing above the min fit → says how many rows the filter dropped; nothing live → scan
 again or check Dismissed.
+
+**"New since your last visit"** is derived from ONE durable anchor per profile, never a
+maintained counter. `jobseeker_profiles.feed_seen_at` + `feed_seen_id` hold the ordering
+TUPLE the keyset pager already uses — `(first_seen_at, id)` — and the count is one
+comparison over it (`countJobseekerPostingsNewSince`), so the header count, the divider
+and the rail badge cannot disagree. The rules:
+
+- **It only moves when the reader demonstrably saw a settled feed.** The tuple is the
+  newest row the page actually RENDERED (`feedModel.ts: renderedAnchor` — not row 0: the
+  feed sorts by fit, so the newest arrival is rarely at the top), and a failed or
+  still-loading page advances nothing (async-ui-states: a failure is not a read).
+- **It never moves backwards.** `advanceFeedAnchor` puts the comparison in the UPDATE's
+  `WHERE`, so a late beacon, a second tab, or a tuple from a page rendered minutes ago is
+  `changes === 0` — and the store answers the anchor as it STANDS, not the one it was
+  asked for (`jobseeker-profiles.test.ts`).
+- **It advances on departure and on acknowledgement**: `visibilitychange` → hidden and
+  `pagehide` send `POST /api/jobseeker/profile/seen` by `sendBeacon` (a `keepalive` fetch
+  where the beacon is missing or refuses), and a "Mark all as seen" control does the same
+  deliberately.
+- **It deliberately does NOT touch `updated_at`.** That column is what the scan's
+  incremental matcher compares stored scores against; reading the feed is not a change to
+  the inputs a score was computed from, and bumping it would re-score the dataset on every
+  visit.
+- **A first visit is quiet.** No anchor answers `newSince: null` — not `{count: 0}` — so
+  there is no badge and no divider until there is something to be behind on.
+
+With `sort=seen` the count is rendered as a DIVIDER at the boundary row; every other sort
+states it in the header (the list is not in anchor order, so a line would sit in the wrong
+place). The rail badge (`MeNav.tsx`) is read SERVER-side in `app/me/layout.tsx` from the
+same store call — no client fetch, so the rail never flashes a number in — and a zero
+renders nothing.
 
 **One click to first results** (`EnableEuresButton.tsx`). A seeker who has just imported
 a CV was three pages from a scored feed. EURES is the one source that needs no
@@ -543,8 +577,12 @@ change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
 ## Known gaps
 
 - Everything above marked with a work-package number is not built yet. WP5 (feed, detail,
-  fit dialog, sources, scans) is built; the MeNav badge (a count of new postings) is not:
-  the feed response carries no total, so the count would be a second list read per paint.
+  fit dialog, sources, scans) is built, and so is the MeNav badge (the derived "new since
+  your last visit" count).
+- The feed's divider places the boundary from `newSince.anchorAt` alone — the anchor's id
+  half is not on the wire — so a posting first seen in the very same millisecond as the
+  anchor row is drawn on the new side. The COUNT is the server's and compares the full
+  tuple; only the line's position is the approximation.
 - `/me/jobs/[id]` reads the store directly; a `GET /api/jobseeker/postings/[id]` would let
   the page become a client reader like the other three, but nothing needs it yet.
 - `ScanSummary` has no `koFiltered` / `structured` counts and `RECONCILE_REASONS` has no

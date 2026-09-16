@@ -1,5 +1,5 @@
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
-import { EMPTY_PREFERENCES, type JobseekerPreferences, type JobseekerProfile } from "../jobseeker/types";
+import { EMPTY_PREFERENCES, type JobseekerFeedAnchor, type JobseekerPreferences, type JobseekerProfile } from "../jobseeker/types";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -27,6 +27,8 @@ type ProfileRow = {
   cv_source_text: string | null;
   cv_polished_md: string | null;
   cv_hash: string | null;
+  feed_seen_at: string | null;
+  feed_seen_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -144,6 +146,46 @@ export function upsertJobseekerProfile(input: JobseekerProfileInput, workspaceId
     return fromRow(d.prepare(`SELECT * FROM jobseeker_profiles WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as ProfileRow);
   });
   return run.immediate();
+}
+
+// ── the feed's last-seen anchor ──────────────────────────────────────────────────────
+//
+// ONE durable anchor per profile (session-resume/last-seen-anchors), holding the
+// ordering TUPLE the feed's keyset pager already uses — (first_seen_at, id). "New since
+// your last visit" is DERIVED from it by one comparison (jobseeker-postings.ts
+// countJobseekerPostingsNewSince); there is no maintained counter to drift.
+//
+// It NEVER moves backwards. That is a precondition in the UPDATE's WHERE rather than a
+// read-then-write: two tabs closing at once, a beacon arriving after a later
+// acknowledgement, a stale tuple from a page rendered minutes ago — each is answered by
+// `res.changes === 0`, "nothing to do", instead of rewinding the seeker's feed.
+
+/** The anchor tuple: the newest row the seeker demonstrably saw settled. */
+export function getFeedAnchor(profileId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerFeedAnchor | null {
+  const row = ensureDb()
+    .prepare(`SELECT feed_seen_at, feed_seen_id FROM jobseeker_profiles WHERE id = ? AND workspace_id = ?`)
+    .get(profileId, workspaceId) as Pick<ProfileRow, "feed_seen_at" | "feed_seen_id"> | undefined;
+  if (!row?.feed_seen_at || !row.feed_seen_id) return null;
+  return { at: row.feed_seen_at, id: row.feed_seen_id };
+}
+
+/** Advance the anchor to `next`, or leave it exactly where it is when `next` is not
+ *  strictly newer. Answers the anchor as it stands afterwards (never null after a
+ *  successful first advance), so the caller reports the truth rather than what it asked
+ *  for. Unknown / foreign profile id → null. */
+export function advanceFeedAnchor(
+  profileId: string,
+  next: JobseekerFeedAnchor,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): JobseekerFeedAnchor | null {
+  ensureDb()
+    .prepare(
+      `UPDATE jobseeker_profiles SET feed_seen_at = ?, feed_seen_id = ?
+       WHERE id = ? AND workspace_id = ?
+         AND (feed_seen_at IS NULL OR feed_seen_id IS NULL OR feed_seen_at < ? OR (feed_seen_at = ? AND feed_seen_id < ?))`
+    )
+    .run(next.at, next.id, profileId, workspaceId, next.at, next.at, next.id);
+  return getFeedAnchor(profileId, workspaceId);
 }
 
 /** The studio produced (or re-produced) a polished CV. */

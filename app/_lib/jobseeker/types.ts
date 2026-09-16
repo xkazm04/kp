@@ -264,6 +264,10 @@ export type JobseekerPosting = {
   status: PostingStatus;
   dismissReason: DismissReason | null;
   dismissNote: string | null;
+  /** WHEN the seeker applied — the date THEY acted, which `lastSeenAt` (the crawler's
+   *  re-read) never was. Null unless the row is applied, and null for rows applied
+   *  before the column existed: unknown, never a fabricated date. */
+  appliedAt: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
   goneAt: string | null;
@@ -277,6 +281,17 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
   confidence: { low: number; high: number; level: "tight" | "moderate" | "wide" } | null;
   deepDived: boolean;
 };
+
+/** The feed's LAST-SEEN anchor: the ordering tuple the keyset pager already uses
+ *  (`firstSeenAt`, `id`) for the newest row the seeker demonstrably saw settled. One
+ *  durable anchor per profile; "new since your last visit" is derived from it by one
+ *  comparison, never by a maintained counter. */
+export type JobseekerFeedAnchor = { at: string; id: string };
+
+/** What the feed route answers beside the rows: how many live postings arrived after the
+ *  anchor, and the anchor the count was measured against. `null` — not `{count: 0}` —
+ *  when there is no anchor yet, which is the quiet first run: no badge, no divider. */
+export type FeedNewSince = { count: number; anchorAt: string } | null;
 
 // ---------------------------------------------------------------------------
 // Dialogs (the Studio kit's two seeker variants)

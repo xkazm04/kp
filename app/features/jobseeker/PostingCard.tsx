@@ -66,7 +66,11 @@ export function PostingCard({
           <p className="text-sm text-steel">
             {t("card.source", { label: sourceLabel })}
             {" · "}
-            {t("card.seen", { when: rel(row.lastSeenAt) })}
+            {/* An applied row answers a different question. `lastSeenAt` is the CRAWLER's
+                last re-read of the board; once the seeker has applied, the date that
+                matters is the one THEY acted on. A row applied before applied_at existed
+                has none, and falls back to the crawler's date rather than inventing one. */}
+            {row.status === "applied" && row.appliedAt ? t("card.applied", { when: rel(row.appliedAt) }) : t("card.seen", { when: rel(row.lastSeenAt) })}
             {row.confidence ? (
               <>
                 {" · "}

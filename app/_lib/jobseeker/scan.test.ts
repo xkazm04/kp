@@ -141,6 +141,7 @@ function makeStore() {
           status: "new",
           dismissReason: null,
           dismissNote: null,
+          appliedAt: null,
           firstSeenAt: seenAt,
           lastSeenAt: seenAt,
           goneAt: null,

@@ -1,7 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DISMISS_REASONS, isDismissReason } from "@/app/_lib/jobseeker/types";
-import { compareSalary, DISMISS_PICKER_REASONS, euresCountries, nearestScanInterval, resolveFeedEmptyState, SCAN_INTERVALS, shouldFetchRows } from "./feedModel";
+import {
+  compareSalary,
+  DISMISS_PICKER_REASONS,
+  euresCountries,
+  isNewerThanAnchor,
+  nearestScanInterval,
+  renderedAnchor,
+  resolveFeedEmptyState,
+  SCAN_INTERVALS,
+  shouldFetchRows,
+} from "./feedModel";
 
 // The empty-state chain: the FIRST missing link wins, and rows always win over the chain.
 test("empty state resolves to the first missing link of the chain", () => {
@@ -70,4 +80,34 @@ test("a stored interval outside the three offered snaps to the nearest for displ
   assert.equal(nearestScanInterval(15), 360);
   assert.equal(nearestScanInterval(1000), 720);
   assert.equal(nearestScanInterval(1200), 1440);
+});
+
+// The last-seen anchor: one comparison over the ordering tuple, and a quiet first run.
+test("isNewerThanAnchor compares the (firstSeenAt, id) tuple, and no anchor means nothing is new", () => {
+  const anchor = { at: "2026-09-16T10:00:00.000Z", id: "jpo-5" };
+  assert.equal(isNewerThanAnchor({ at: "2026-09-16T11:00:00.000Z", id: "jpo-1" }, anchor), true, "a later timestamp wins whatever the id");
+  assert.equal(isNewerThanAnchor({ at: "2026-09-16T09:00:00.000Z", id: "jpo-9" }, anchor), false);
+  assert.equal(isNewerThanAnchor({ at: anchor.at, id: "jpo-6" }, anchor), true, "the id breaks a tie");
+  assert.equal(isNewerThanAnchor({ at: anchor.at, id: "jpo-5" }, anchor), false, "the anchor row itself is not new");
+  assert.equal(isNewerThanAnchor({ at: anchor.at, id: "jpo-4" }, anchor), false);
+  // First run: no anchor is not "everything is new".
+  assert.equal(isNewerThanAnchor({ at: "2026-09-16T11:00:00.000Z", id: "jpo-1" }, null), false);
+});
+
+test("renderedAnchor is the newest tuple the page showed, not its first row", () => {
+  const rows = [
+    { id: "jpo-1", firstSeenAt: "2026-09-16T10:00:00.000Z" },
+    { id: "jpo-2", firstSeenAt: "2026-09-16T12:00:00.000Z" },
+    { id: "jpo-3", firstSeenAt: "2026-09-16T11:00:00.000Z" },
+  ];
+  assert.deepEqual(renderedAnchor(rows), { at: "2026-09-16T12:00:00.000Z", id: "jpo-2" }, "the feed sorts by fit, so the newest arrival is not row 0");
+  assert.deepEqual(
+    renderedAnchor([
+      { id: "jpo-a", firstSeenAt: "2026-09-16T12:00:00.000Z" },
+      { id: "jpo-b", firstSeenAt: "2026-09-16T12:00:00.000Z" },
+    ]),
+    { at: "2026-09-16T12:00:00.000Z", id: "jpo-b" },
+    "same instant: the larger id wins, exactly as the cursor orders"
+  );
+  assert.equal(renderedAnchor([]), null, "an empty page advances nothing");
 });

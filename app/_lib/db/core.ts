@@ -1937,6 +1937,20 @@ export function ensureDb(): Database.Database {
     // "no such table" (only "duplicate column"/"already exists" are benign), so an
     // earlier ALTER would hard-fail every fresh boot.
     "ALTER TABLE outreach_state ADD COLUMN candidate_halt_at TEXT",
+    // The seeker's LAST-SEEN anchor on their own feed (docs/features/jobseeker/README.md,
+    // "Feed, fit dialog, sources UI"): ONE durable anchor per profile, carrying the
+    // ordering TUPLE the feed already pages by — (first_seen_at, id) — so "new since your
+    // last visit" is DERIVED by one comparison instead of a counter somebody has to keep
+    // correct. NULL on every existing row and on a seeker who has never had a settled
+    // feed load, which is the quiet first-run state: no badge, no divider.
+    "ALTER TABLE jobseeker_profiles ADD COLUMN feed_seen_at TEXT",
+    "ALTER TABLE jobseeker_profiles ADD COLUMN feed_seen_id TEXT",
+    // WHEN the seeker applied, which the status alone could never say: `applied` is a
+    // status, and the card was showing the CRAWLER's last_seen_at beside it — the date
+    // the board was re-read, not the date the seeker acted. NULL for every row that is
+    // not applied (and for rows applied before this column existed: unknown, never a
+    // fabricated date).
+    "ALTER TABLE jobseeker_postings ADD COLUMN applied_at TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

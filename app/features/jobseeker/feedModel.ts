@@ -108,6 +108,35 @@ export function compareSalary(pay: PostingPay, floor: SalaryFloor | null): Salar
   return { kind: "compared", verdict: VERDICT_FOR[position], pct };
 }
 
+// ── the last-seen anchor ────────────────────────────────────────────────────────────
+//
+// "New since your last visit" is one comparison against ONE stored tuple, not a counter:
+// the anchor is `(firstSeenAt, id)` — the same ordering pair the feed's keyset cursor
+// uses — so the header count and the divider agree about the boundary by construction.
+// With NO anchor nothing is new: the first visit is quiet (no badge, no divider), never
+// "everything is new".
+
+export type FeedTuple = { at: string; id: string };
+
+export function isNewerThanAnchor(tuple: FeedTuple, anchor: FeedTuple | null): boolean {
+  if (!anchor) return false;
+  return tuple.at > anchor.at || (tuple.at === anchor.at && tuple.id > anchor.id);
+}
+
+/** The anchor a page may advance to: the NEWEST tuple among the rows it actually
+ *  rendered. Not `rows[0]` — the feed sorts by fit or by last-seen, so the newest
+ *  arrival is not the top row — and never a clock reading: an anchor the reader was not
+ *  shown would swallow postings they never saw. `null` for an empty page, which
+ *  advances nothing. */
+export function renderedAnchor(rows: readonly { firstSeenAt: string; id: string }[]): FeedTuple | null {
+  let best: FeedTuple | null = null;
+  for (const row of rows) {
+    const tuple = { at: row.firstSeenAt, id: row.id };
+    if (!best || isNewerThanAnchor(tuple, best)) best = tuple;
+  }
+  return best;
+}
+
 /** The cadence choices the Scans page offers for the clock job, in minutes. */
 export const SCAN_INTERVALS = [360, 720, 1440] as const;
 export type ScanInterval = (typeof SCAN_INTERVALS)[number];

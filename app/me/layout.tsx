@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { TranslatedErrorBoundary } from "@/app/_components/ErrorBoundary";
+import { currentSession } from "@/app/_lib/auth/current-user";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isOperator } from "@/app/_lib/auth/require-operator";
+import { currentUserId } from "@/app/_lib/auth/session";
+import { countJobseekerPostingsNewSince } from "@/app/_lib/db/jobseeker-postings";
+import { getFeedAnchor, getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { MeNav } from "@/app/features/jobseeker/MeNav";
 
 // /me — the job-seeker's own workspace, a THIN shell beside the recruiter Workspace
@@ -23,9 +28,16 @@ export const instant = false;
 export default async function MeLayout({ children }: { children: React.ReactNode }) {
   if (!(await isOperator())) notFound();
   const t = await getTranslations("me");
+  // The rail's Jobs badge is DERIVED here, on the server, from the seeker's stored
+  // anchor — one comparison, no client fetch and no maintained counter. No profile or no
+  // anchor (the first visit) counts nothing, and MeNav renders no badge for a zero.
+  const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+  const profile = getJobseekerProfile(currentUserId(session), ws);
+  const anchor = profile ? getFeedAnchor(profile.id, ws) : null;
+  const jobsNew = anchor ? countJobseekerPostingsNewSince(anchor, ws) : 0;
   return (
     <div className="min-h-screen bg-paper md:flex">
-      <MeNav label={t("title")} />
+      <MeNav label={t("title")} jobsNew={jobsNew} />
       <main className="min-w-0 flex-1 bg-paper">
         <div className="mx-auto max-w-[108rem] px-4 py-8 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
           {/* The boundary speaks the reader's language (errorBoundary.*) — a broken

@@ -61,6 +61,7 @@ type PostingRow = {
   status: string;
   dismiss_reason: string | null;
   dismiss_note: string | null;
+  applied_at: string | null;
   first_seen_at: string;
   last_seen_at: string;
   gone_at: string | null;
@@ -75,7 +76,7 @@ type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "r
 
 const SUMMARY_COLUMNS = `id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode,
      posted_at, salary_min, salary_max, salary_currency, salary_period, match_json, match_total, fit_tier,
-     match_version, matched_at, job_source, status, dismiss_reason, dismiss_note, first_seen_at, last_seen_at, gone_at,
+     match_version, matched_at, job_source, status, dismiss_reason, dismiss_note, applied_at, first_seen_at, last_seen_at, gone_at,
      LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived`;
 
 function coerceFitTier(value: string | null): FitTier | null {
@@ -115,6 +116,7 @@ function baseFromRow(row: PostingRow | SummaryRow) {
     status: isPostingStatus(row.status) ? row.status : "new",
     dismissReason: isDismissReason(row.dismiss_reason) ? row.dismiss_reason : null,
     dismissNote: row.dismiss_note,
+    appliedAt: row.applied_at,
     firstSeenAt: row.first_seen_at,
     lastSeenAt: row.last_seen_at,
     goneAt: row.gone_at,
@@ -342,7 +344,12 @@ export function setPostingReasoning(id: string, reasoning: Record<string, unknow
 }
 
 /** The seeker's own status move. `dismiss` is required by shape when the status is
- *  'dismissed' (the reason is what the feed learns from); any other status clears it. */
+ *  'dismissed' (the reason is what the feed learns from); any other status clears it.
+ *
+ *  `applied_at` follows the status in the SAME statement: it is stamped when the row
+ *  becomes 'applied' and cleared when it leaves (a restored row did not apply). COALESCE
+ *  keeps the FIRST stamp — re-sending 'applied' for a row that already is must not
+ *  rewrite the date the seeker acted. */
 export function setJobseekerPostingStatus(
   id: string,
   status: PostingStatus,
@@ -351,9 +358,41 @@ export function setJobseekerPostingStatus(
 ): boolean {
   const applied = status === "dismissed" ? dismiss : null;
   const res = ensureDb()
-    .prepare(`UPDATE jobseeker_postings SET status = ?, dismiss_reason = ?, dismiss_note = ? WHERE id = ? AND workspace_id = ?`)
-    .run(status, applied?.reason ?? null, applied?.note?.trim() ? applied.note.trim().slice(0, 1000) : null, id, workspaceId);
+    .prepare(
+      `UPDATE jobseeker_postings
+       SET status = ?, dismiss_reason = ?, dismiss_note = ?,
+           applied_at = CASE WHEN ? = 'applied' THEN COALESCE(applied_at, ?) ELSE NULL END
+       WHERE id = ? AND workspace_id = ?`
+    )
+    .run(
+      status,
+      applied?.reason ?? null,
+      applied?.note?.trim() ? applied.note.trim().slice(0, 1000) : null,
+      status,
+      new Date().toISOString(),
+      id,
+      workspaceId
+    );
   return res.changes > 0;
+}
+
+/** How many LIVE postings arrived after the seeker's feed anchor — the derived half of
+ *  "new since your last visit". ONE comparison over the same ordering tuple the keyset
+ *  pager uses, `(first_seen_at, id) > (anchor.at, anchor.id)`, so the count and the
+ *  divider can never disagree about which row is the boundary. No counter is maintained
+ *  anywhere; there is nothing to drift. */
+export function countJobseekerPostingsNewSince(
+  anchor: { at: string; id: string },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): number {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM jobseeker_postings
+       WHERE workspace_id = ? AND status NOT IN ('dismissed', 'gone')
+         AND (first_seen_at > ? OR (first_seen_at = ? AND id > ?))`
+    )
+    .get(workspaceId, anchor.at, anchor.at, anchor.id) as { n: number };
+  return row.n;
 }
 
 export function getJobseekerPosting(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobseekerPosting | null {
