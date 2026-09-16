@@ -28,7 +28,8 @@ import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { runCompanionDigestTask } from "./companion-digest-run";
-import { runJobseekerScan } from "./jobseeker/scan";
+import { externalRunner } from "./task-external-runners";
+import type { ScanSummary } from "./jobseeker/types";
 import { SCAN_JOB_NAME } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
@@ -364,10 +365,15 @@ const HANDLERS: Record<string, Spec> = {
   // lets the operator arm `jobseeker_scan` — so `ok` is written only when at least one
   // source actually ran (whatever its outcome) and the run completed; a scan with no
   // enabled source (or no profile) is `skipped`, which verifies nothing.
+  //
+  // The scan's implementation is NOT imported here: it reaches the whole acquisition
+  // graph (adapters, rules engine, reconciliation), and this hub sits on ~60 routes'
+  // paths, so it is registered at boot from instrumentation-node.ts and looked up
+  // through task-external-runners.ts (the perf budget counts dynamic imports too).
   jobseeker_scan: {
     run: async (ctx) => {
       const startedAt = new Date().toISOString();
-      const summary = await runJobseekerScan(ctx.workspaceId, { trigger: "manual", signal: ctx.signal, onProgress: ctx.progress });
+      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress })) as ScanSummary;
       recordRun({
         job: SCAN_JOB_NAME,
         trigger: "manual",

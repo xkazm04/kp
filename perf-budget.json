@@ -42,8 +42,8 @@
     },
     "app/_lib/job-ingest.ts": {
       "maxModules": 28,
-      "maxKb": 351,
-      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes"
+      "maxKb": 375,
+      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes. Raised 351 -> 375 KB on 2026-09-16: app/_lib/db/core.ts grew by the four job-seeker tables' DDL (+114 lines) and core.ts is on this path; no new module was added"
     }
   },
   "groups": {
