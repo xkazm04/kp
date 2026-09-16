@@ -144,7 +144,11 @@ export function PostingRow({
           {meta.length > 0 ? <span className="min-w-0 truncate text-sm text-steel">{meta.join(" · ")}</span> : null}
           {row.deepDived ? <span className={`${CHIP_QUIET} shrink-0`}>{t("card.deepDived")}</span> : null}
           <span className="shrink-0">
-            <EligibilityChips flags={row.eligibility} />
+            {/* The row carries the MISMATCHES only. A real scan (smoke, 2026-09-16: 288 EURES
+                matches) put five chips on every row because `ok` and `unknown` painted too,
+                and the one amber chip the reader scans for drowned among four grey ones. The
+                detail page keeps the full set with its evidence sentences. */}
+            <EligibilityChips flags={row.eligibility.filter((f) => f.state === "flag")} />
           </span>
         </span>
       </td>
