@@ -4438,6 +4438,8 @@
       "deleteConfirm": "Löschen",
       "deleteCancel": "Abbrechen",
       "detailOpenPublic": "Öffentliche Seite öffnen",
+      "copyPublicLink": "Öffentlichen Link kopieren",
+      "publicLinkCopied": "Kopiert",
       "detailAnalyzeCv": "Lebenslauf analysieren",
       "detailLoadError": "Diese Beschreibung konnte gerade nicht geladen werden.",
       "noDescriptionYet": "Diese Position hat noch keine Beschreibung.",

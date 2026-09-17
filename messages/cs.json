@@ -4438,6 +4438,8 @@
       "deleteConfirm": "Smazat",
       "deleteCancel": "Zrušit",
       "detailOpenPublic": "Otevřít veřejnou stránku",
+      "copyPublicLink": "Kopírovat veřejný odkaz",
+      "publicLinkCopied": "Zkopírováno",
       "detailAnalyzeCv": "Analyzovat CV",
       "detailLoadError": "Tento popis se teď nepodařilo načíst.",
       "noDescriptionYet": "Tato pozice zatím nemá popis.",

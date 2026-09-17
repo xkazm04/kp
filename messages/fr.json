@@ -4438,6 +4438,8 @@
       "deleteConfirm": "Supprimer",
       "deleteCancel": "Annuler",
       "detailOpenPublic": "Ouvrir la page publique",
+      "copyPublicLink": "Copier le lien public",
+      "publicLinkCopied": "Copié",
       "detailAnalyzeCv": "Analyser un CV",
       "detailLoadError": "Impossible de charger cette description pour le moment.",
       "noDescriptionYet": "Ce poste n’a pas encore de description.",

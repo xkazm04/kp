@@ -4438,6 +4438,8 @@
       "deleteConfirm": "Delete",
       "deleteCancel": "Cancel",
       "detailOpenPublic": "Open public page",
+      "copyPublicLink": "Copy public link",
+      "publicLinkCopied": "Copied",
       "detailAnalyzeCv": "Analyze a CV",
       "detailLoadError": "Couldn't load this description right now.",
       "noDescriptionYet": "This role doesn't have a description yet.",
