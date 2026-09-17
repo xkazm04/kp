@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // the write boundary and store an unbounded or empty title/body.
     const fields = validateJdFields(body.title, body.body);
     if (!fields.ok) {
-      return NextResponse.json({ error: fields.error }, { status: 400 });
+      return jsonRefusal(fields.code, 400);
     }
 
     // The budget is spent HERE: after the field validation above, so a rejected

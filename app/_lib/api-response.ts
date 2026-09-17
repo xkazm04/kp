@@ -1731,6 +1731,12 @@ export const REFUSAL_ERRORS = {
    *  POSTING_NOT_FOUND so useErrorMessage localizes it instead of falling through
    *  to English "JD not found." */
   JD_NOT_FOUND: "That job description could not be found.",
+  /** POST /api/jds and POST /api/jds/save: title or body missing after trim (400). */
+  JD_FIELDS_REQUIRED: "A title and a description are both required.",
+  /** Title over JD_TITLE_MAX_LENGTH (400). */
+  JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
+  /** Body over JD_BODY_MAX_LENGTH (400). */
+  JD_BODY_TOO_LONG: "The description must be 20,000 characters or fewer.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
