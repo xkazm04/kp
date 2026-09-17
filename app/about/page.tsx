@@ -40,6 +40,9 @@ export async function generateMetadata(_props: unknown, parent: ResolvingMetadat
   return {
     title,
     description,
+    // Own list — Next merges metadata shallowly, so omitting `keywords`
+    // would keep the root layout's landing differentiator set.
+    keywords: t.raw("keywords") as string[],
     openGraph: { ...openGraph, title, description: shareDescription },
     twitter: { ...twitter, title, description: shareDescription }
   };

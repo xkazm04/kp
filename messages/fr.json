@@ -1325,7 +1325,16 @@
     "meta": {
       "title": "À propos de l’app : KandiDate",
       "description": "Suivez un recrutement sur tout le pipeline : conception du poste, sourcing, réception, présélection, travail pratique, entretien, offre, embauche. L’AI lit à chaque étape. Chaque décision est signée par un humain.",
-      "ogDescription": "Un recrutement sur tout le pipeline. L’AI lit, un humain signe chaque décision."
+      "ogDescription": "Un recrutement sur tout le pipeline. L’AI lit, un humain signe chaque décision.",
+      "keywords": [
+        "pipeline de recrutement",
+        "fiche de poste",
+        "présélection de CV",
+        "travail pratique",
+        "entretien vocal",
+        "offre",
+        "humain dans la boucle"
+      ]
     }
   },
   "theme": {

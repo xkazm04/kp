@@ -19,12 +19,14 @@ const REPO = path.join(HERE, "..", "..");
 const catalog = (locale: string) =>
   JSON.parse(readFileSync(path.join(REPO, "messages", `${locale}.json`), "utf8")) as {
     aboutPage: {
-      meta: { title: string; description: string };
+      meta: { title: string; description: string; keywords: string[] };
       hero: { title: string };
       nav: { home: string };
       steps: Record<string, { title: string; body: string }>;
     };
   };
+
+const aboutPageSrc = () => readFileSync(path.join(HERE, "page.tsx"), "utf8");
 
 function typesOf(node: Record<string, unknown>): string[] {
   const t = node["@type"];
@@ -124,6 +126,24 @@ test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", 
       assert.equal(howToSteps[i].text, steps[key].body);
       assert.equal(howToSteps[i].url, `${aboutPageUrl("https://kandidate.example")}#${aboutStepId(i)}`);
     });
+  }
+});
+
+test("generateMetadata assigns aboutPage.meta.keywords instead of inheriting the site list", () => {
+  const src = aboutPageSrc();
+  assert.match(
+    src,
+    /keywords:\s*t\.raw\("keywords"\)/,
+    "generateMetadata must assign keywords: from aboutPage.meta so the parent landing list does not win"
+  );
+  for (const locale of LOCALES) {
+    const keywords = catalog(locale).aboutPage.meta.keywords;
+    assert.equal(keywords.length, 7, `${locale} aboutPage.meta.keywords length`);
+    assert.equal(
+      keywords.some((k) => /anti-AI-cheating|Czech market/i.test(k)),
+      false,
+      `${locale} still carries the landing differentiator bag`
+    );
   }
 });
 

@@ -224,6 +224,12 @@ kept the site title. `e2e/public-pages.spec.ts` pins the tags against `/`.
 `/market`, `/privacy`, `/terms` and `/trust` still return a bare `openGraph` and
 have the same gap.
 
+`/about` also returns `keywords` from `aboutPage.meta.keywords` (the pipeline
+walk: hiring pipeline, job description, CV screening, work sample, voice
+interview, offer, human in the loop) so the explainer does not inherit the
+root layout's landing bag (anti-AI-cheating, Czech market). `about-jsonld.test.ts`
+pins the assignment.
+
 Three things deliberately do **not** go through the catalog, and each is held as
 a named constant rather than JSX text so the lint can tell them apart from copy:
 

@@ -1325,7 +1325,16 @@
     "meta": {
       "title": "Über die App: KandiDate",
       "description": "Begleiten Sie eine Einstellung durch die ganze Pipeline: Stelle entwerfen, Sourcing, Eingang, Screening, Arbeitsprobe, Interview, Angebot, Einstellung. Die AI liest bei jedem Schritt mit; unterschrieben wird jede Entscheidung von einem Menschen.",
-      "ogDescription": "Eine Einstellung durch die ganze Pipeline. Die AI liest, ein Mensch unterschreibt jede Entscheidung."
+      "ogDescription": "Eine Einstellung durch die ganze Pipeline. Die AI liest, ein Mensch unterschreibt jede Entscheidung.",
+      "keywords": [
+        "Hiring-Pipeline",
+        "Stellenbeschreibung",
+        "CV-Screening",
+        "Arbeitsprobe",
+        "Sprachinterview",
+        "Angebot",
+        "Human-in-the-Loop"
+      ]
     }
   },
   "theme": {

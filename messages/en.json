@@ -1325,7 +1325,16 @@
     "meta": {
       "title": "About the app: KandiDate",
       "description": "Walk one hire down the whole pipeline: design the role, source, intake, screen, work sample, interview, offer, hire. AI does the reading at every step; a human signs every decision.",
-      "ogDescription": "Walk one hire down the whole pipeline. AI does the reading, a human signs every decision."
+      "ogDescription": "Walk one hire down the whole pipeline. AI does the reading, a human signs every decision.",
+      "keywords": [
+        "hiring pipeline",
+        "job description",
+        "CV screening",
+        "work sample",
+        "voice interview",
+        "offer",
+        "human in the loop"
+      ]
     }
   },
   "theme": {
