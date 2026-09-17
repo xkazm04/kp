@@ -432,7 +432,10 @@ const FORWARD_CEILING = new Map<string, number>([
   ["analytics/calibration/route.ts", 1],
   ["analytics/calibration/threshold-history/route.ts", 1],
   ["auth/switch-workspace/route.ts", 1],
-  ["skill-profile/[token]/verify/route.ts", 1],
+  // skill-profile/[token]/verify/route.ts stood here at 1 and is FIXED, not ceilinged
+  // (scan-sweep w6-rest): the catch answers safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")
+  // so a store throw cannot print English or err.message on the public credential URL.
+  // The row is deleted so the win is locked and a regression reads as undeclared.
   ["workspaces/[id]/route.ts", 1],
   ["workspaces/route.ts", 2],
 ]);
