@@ -39,6 +39,25 @@ test("chat knockout buttons are tonally neutral — neither answer is signposted
   }
 });
 
+test("the conversational done card renders the status link the way quick is pinned", () => {
+  const card = read("ApplyDoneCard.tsx");
+  const view = read("ConversationalApply.tsx");
+  assert.match(
+    card,
+    /done\.result === "accepted" && done\.statusToken/,
+    "the done card only links when the outcome is accepted and carries a token"
+  );
+  assert.match(card, /\/status\/\$\{done\.statusToken\}/, "the done screen links to /status/<token>");
+  assert.match(card, /t\("trackStatus"\)/, "the link uses the shared apply.trackStatus label");
+  assert.match(view, /<ApplyDoneCard done=\{done\}/, "ConversationalApply still mounts the done card");
+  const mutated = card.replace("/status/${done.statusToken}", "/");
+  assert.doesNotMatch(
+    mutated,
+    /\/status\/\$\{done\.statusToken\}/,
+    "non-vacuity: a copy of ApplyDoneCard without the href fails this pin"
+  );
+});
+
 test("a declined outcome is recoverable in place", () => {
   // The done card, the view that wires it, and the submit hook that owns `done`
   // — the three links of the restart chain, since the card was split out.
