@@ -5105,7 +5105,7 @@
         "route1Cta": "Ouvrir les fiches de poste",
         "route2Title": "Importer un poste que vous avez déjà",
         "route2Body": "Collez le texte d’un poste existant et Kandi en fait un poste structuré : exigences, séniorité, mode de travail.",
-        "route2Cta": "Utilisez « Importer un poste » dans l’en-tête",
+        "route2Cta": "Importer un poste",
         "unlocksLabel": "Un poste débloque",
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",

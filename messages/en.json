@@ -5105,7 +5105,7 @@
         "route1Cta": "Open the JD library",
         "route2Title": "Import a job position you already have",
         "route2Body": "Paste an existing job posting and Kandi parses it into a structured role: requirements, seniority, work mode.",
-        "route2Cta": "Use Import position in the header",
+        "route2Cta": "Import a job position",
         "unlocksLabel": "One role unlocks",
         "unlockChannels": "Channels open",
         "unlockPipeline": "Candidates flow",

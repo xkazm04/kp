@@ -57,12 +57,14 @@ ledger:
 - `?tab=jobs` — the Jobs tab (drafts vs. published/closed, publish action). Its
   header carries **Import position** top-right (`IngestAdButton`), which opens
   the paste form directly under the header. The state is one
-  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger and the form
-  separately, so the two can never disagree about whether the panel is open; the
+  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger, the form,
+  and the empty-catalog launchpad's import CTA, so the three can never disagree
+  about whether the panel is open; the
   trigger locks while a parse is in flight, because a run costs billed LLM time
   and its one deliberate exit is the form's **Cancel run**. Copy calls what is
   pasted a **job position**, not an ad — the corpus is roles, and the ad is only
-  the format one arrived in.
+  the format one arrived in. The launchpad's second route is a button that calls
+  `ingest.setOpen(true)` (pinned by `jobsEmptyLaunchpad.test.ts`).
 - `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now.
 - `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
 - `/jds/[slug]` — the public JD page (candidate-facing).

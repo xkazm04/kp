@@ -136,7 +136,7 @@ export function JobsTab() {
         <RediscoveryFeed />
       </Defer>
 
-      <JobsTabResults list={list} onOpen={setOpenJob} />
+      <JobsTabResults list={list} onOpen={setOpenJob} onImport={() => ingest.setOpen(true)} />
 
       {openJob ? (
         <JobPostingModal
