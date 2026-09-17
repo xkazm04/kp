@@ -40,11 +40,24 @@ export function JdLintPanel({ findings }: { findings: JdLintFinding[] }) {
                     ? t("lintManyMustHaves", m.values)
                     : m.key === "lintMissingSalary"
                       ? t("lintMissingSalary")
-                      : t("lintMissingPlace")}
+                      : m.key === "lintMissingPlace"
+                        ? t("lintMissingPlace")
+                        : assertLintMessageHandled(m)}
             </li>
           );
         })}
       </ul>
     </div>
   );
+}
+
+// The chain above ends on a NAMED key, not on a fall-through. jdLintMessage is
+// already exhaustive over JdLintFinding, so a new finding kind is a compile error
+// there — but that error is discharged by adding a JdLintMessage member, and the
+// ternary below it used to absorb the new key into the "missing place" label and
+// ship. A reader whose unrecognized branch DOES something is reached by every
+// addition to the contract it reads, and no gate sees it; the last branch must be
+// a key this panel actually names, with the residue a compile error here too.
+function assertLintMessageHandled(m: never): never {
+  throw new Error(`Unhandled JdLintMessage in JdLintPanel: ${JSON.stringify(m)}`);
 }
