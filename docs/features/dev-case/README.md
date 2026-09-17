@@ -1404,7 +1404,7 @@ What replaced each of them:
 
 | Field | Now | Fallback, and when |
 | --- | --- | --- |
-| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one |
+| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one. The persisted `jobTitle` beside that synthetic id is the opening's title, else the assignment's role title, else the product word **Assignment** (`caseJobIdentity`) — never the retired English "Dev case", which used to mint a board column labelled that in every locale |
 | `candidate_id` | a real `profiles` row | a **minimal profile minted at promote**, when this team has never seen the person |
 | `archetype` | the resolved person's own | `unknown` on a minted profile — the fail-closed sentinel (`FALLBACK_ARCHETYPE`, `app/_lib/apply.ts`), never `bau` |
 | `role_family` | the linked job's | then `need_json.roleFamily`, then the documented `software_engineering` literal |
