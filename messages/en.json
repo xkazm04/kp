@@ -8803,7 +8803,14 @@
         "topOf": "top {shown} of {total}",
         "truncated": "Ranked by transfer fit. The axis leader below is the strongest of these {shown}, not of the whole cohort. {hidden, plural, one {# further evaluated submission is} other {# further evaluated submissions are}} not in this matrix.",
         "axis": "Axis",
-        "fit": "fit {score}"
+        "fit": "fit {score}",
+        "authenticity": "Authenticity",
+        "band": {
+          "authentic": "authentic",
+          "mixed": "mixed",
+          "suspect": "suspect",
+          "unscored": "not scored"
+        }
       },
       "action": {
         "runLifecycle": "Run lifecycle",

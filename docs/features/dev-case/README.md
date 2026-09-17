@@ -157,7 +157,8 @@ palette. The full mapping table and the five reading states are in
    individual axis. Each compared column carries `authenticityBand` /
    `authenticityScore` from the bundle (null when absent, never defaulted to
    authentic), so a consumer cannot present a suspect row as just a transfer
-   number.
+   number. The matrix paints that band as a row under transfer fit (authentic /
+   mixed / suspect / not scored).
 6. **Promotion.** `app/api/devcase/promote/route.ts` + `dev-control.ts`
    (autonomy level, promote floor) — auto-promotion is gated: a submission
    flagged `suspect` by the authenticity score, or with a broken integrity

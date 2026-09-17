@@ -8803,7 +8803,14 @@
         "topOf": "nejlepších {shown} z {total}",
         "truncated": "Řazeno podle přenositelné shody. Nejlepší na ose níže vede mezi těmito {shown}, ne v celé skupině. {hidden, plural, one {# další hodnocené odevzdání v této tabulce chybí} few {# další hodnocená odevzdání v této tabulce chybí} other {# dalších hodnocených odevzdání v této tabulce chybí}}.",
         "axis": "Osa",
-        "fit": "shoda {score}"
+        "fit": "shoda {score}",
+        "authenticity": "Autenticita",
+        "band": {
+          "authentic": "autentické",
+          "mixed": "smíšené",
+          "suspect": "podezřelé",
+          "unscored": "nehodnoceno"
+        }
       },
       "action": {
         "runLifecycle": "Spuštění životního cyklu",

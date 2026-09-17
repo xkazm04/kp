@@ -61,6 +61,26 @@ export function CompareSubmissions({
             </tr>
           </thead>
           <tbody>
+            <tr className="border-b border-stone-100">
+              <td className="px-3 py-1.5 text-steel">{t("authenticity")}</td>
+              {columns.map((col) => {
+                const band = col.authenticityBand;
+                const label = t((band ? `band.${band}` : "band.unscored") as Parameters<typeof t>[0]);
+                const tone =
+                  band === "suspect"
+                    ? "font-semibold text-coral"
+                    : band === "mixed"
+                      ? "font-semibold text-amber-700"
+                      : band === "authentic"
+                        ? "font-semibold text-moss"
+                        : "text-stone-300";
+                return (
+                  <td key={col.id} className={`px-3 py-1.5 text-right ${tone}`}>
+                    {label}
+                  </td>
+                );
+              })}
+            </tr>
             {axes.map((axis) => (
               <tr key={axis.name} className="border-b border-stone-100 last:border-0">
                 <td className="px-3 py-1.5 text-steel">{axis.label}</td>

@@ -8803,7 +8803,14 @@
         "topOf": "{shown} premiers sur {total}",
         "truncated": "Classement par transférabilité. La personne en tête de l’axe ci-dessous est la meilleure de ces {shown}, pas de tout le groupe. {hidden, plural, one {# autre rendu évalué ne figure pas} other {# autres rendus évalués ne figurent pas}} dans cette matrice.",
         "axis": "Axe",
-        "fit": "adéq. {score}"
+        "fit": "adéq. {score}",
+        "authenticity": "Authenticité",
+        "band": {
+          "authentic": "authentique",
+          "mixed": "mixte",
+          "suspect": "suspect",
+          "unscored": "non évalué"
+        }
       },
       "action": {
         "runLifecycle": "Le lancement du cycle de vie",
