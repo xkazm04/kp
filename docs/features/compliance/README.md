@@ -256,7 +256,8 @@ hand-rolling. What changed on the two doors in this document:
   and "no such entry", so the door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
   feedback on a still-running application), `NPS_SCORE_REQUIRED` /
   `NPS_SCORE_INVALID` (`parseNpsSubmission` refuses with a code, never an English
-  `reason`), and `DATA_LINK_INVALID` (404 for a
+  `reason`; `POST /api/status/[token]/nps` answers `jsonRefusal(parsed.code, 400)`),
+  and `DATA_LINK_INVALID` (404 for a
   never-issued or already-spent erasure token). All are in `REFUSAL_ERRORS`
   with four catalogue entries each; the page resolves `errors.<CODE>` in the
   reader's language (`docs/architecture/api-contracts.md` §1.1). Pinned by

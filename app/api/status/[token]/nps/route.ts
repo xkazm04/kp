@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = await readJsonWithLimit<{ score?: unknown; comment?: unknown }>(request, MAX_NPS_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_NPS_BODY_BYTES });
     const parsed = parseNpsSubmission(body);
-    if (!parsed.ok) return NextResponse.json({ error: parsed.code }, { status: 400 });
+    if (!parsed.ok) return jsonRefusal(parsed.code, 400);
 
     recordCandidateNps(resolved.entryId, parsed.score, parsed.comment, resolved.workspaceId);
     return jsonOk({ ok: true });

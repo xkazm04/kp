@@ -44,6 +44,12 @@ test("the NPS route derives one workspace and threads it through every store cal
   );
 });
 
+test("invalid NPS scores refuse with a code, not the validator's English reason", () => {
+  assert.match(npsSrc, /jsonRefusal\(parsed\.code, 400\)/, "the 400 is jsonRefusal of NPS_SCORE_*");
+  assert.doesNotMatch(npsSrc, /parsed\.reason/, "the English reason field is gone");
+  assert.doesNotMatch(npsSrc, /error:\s*parsed\./, "no { error: parsed.* } body on this public token door");
+});
+
 test("neither route invents a tenant from a session — there isn't one on a token route", () => {
   for (const [name, src] of [["status", statusSrc], ["nps", npsSrc]] as const) {
     const code = src.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
