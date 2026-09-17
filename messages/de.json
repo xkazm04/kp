@@ -7994,6 +7994,7 @@
       "waitingTitle": "Genehmigen Sie die Anfrage in der Personas-App",
       "waitingBody": "Kandi hat Personas um ein Pairing gebeten. Wechseln Sie in die Personas-Desktop-App und genehmigen Sie die Anfrage. Diese Karte prüft weiter und schließt von selbst ab.",
       "waitingCancel": "Abbrechen",
+      "waitingRemaining": "{count, plural, one {Noch # Sekunde} other {Noch # Sekunden}}",
       "timeoutTitle": "Pairing abgelaufen",
       "timeoutBody": "Die Anfrage verfällt nach 5 Minuten (Personas hält sie nur im Speicher). Starten Sie erneut und genehmigen Sie zügig.",
       "retryPair": "Erneut versuchen",

@@ -7994,6 +7994,7 @@
       "waitingTitle": "Approve the request in the Personas app",
       "waitingBody": "Kandi asked Personas to pair. Switch to the Personas desktop app and approve the request. This card keeps checking and completes on its own.",
       "waitingCancel": "Cancel",
+      "waitingRemaining": "{count, plural, one {# second remaining} other {# seconds remaining}}",
       "timeoutTitle": "Pairing timed out",
       "timeoutBody": "The request expires after 5 minutes (Personas keeps it in memory). Start again and approve it promptly.",
       "retryPair": "Try again",

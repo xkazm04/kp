@@ -7994,6 +7994,7 @@
       "waitingTitle": "Schvalte požadavek v aplikaci Personas",
       "waitingBody": "Kandi požádalo Personas o spárování. Přepněte se do desktopové aplikace Personas a požadavek schvalte. Tato karta stav průběžně kontroluje a dokončí se sama.",
       "waitingCancel": "Zrušit",
+      "waitingRemaining": "{count, plural, one {Zbývá # sekunda} few {Zbývají # sekundy} other {Zbývá # sekund}}",
       "timeoutTitle": "Párování vypršelo",
       "timeoutBody": "Požadavek vyprší po 5 minutách (Personas ho drží jen v paměti). Začněte znovu a schvalte ho bez otálení.",
       "retryPair": "Zkusit znovu",

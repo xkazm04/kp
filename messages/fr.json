@@ -7994,6 +7994,7 @@
       "waitingTitle": "Approuvez la demande dans l’application Personas",
       "waitingBody": "Kandi a demandé l’appairage à Personas. Passez dans l’application de bureau Personas et approuvez la demande. Cette carte vérifie en continu et se termine d’elle-même.",
       "waitingCancel": "Annuler",
+      "waitingRemaining": "{count, plural, one {# seconde restante} other {# secondes restantes}}",
       "timeoutTitle": "Appairage expiré",
       "timeoutBody": "La demande expire après 5 minutes (Personas ne la garde qu’en mémoire). Recommencez et approuvez sans tarder.",
       "retryPair": "Réessayer",

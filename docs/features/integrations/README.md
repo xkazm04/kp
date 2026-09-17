@@ -426,7 +426,8 @@ The envelope, signing and delivery/retry semantics live in
 The pairing card (`IntegrationsPersonasPanel` + `integrationsPersonasLogic`) is a
 two-phase flow: `POST /api/agents/pair {phase:"start"}` mints a nonce, then a claim poll
 waits for a human to approve in the Personas desktop app (a 300s in-memory TTL on that
-side).
+side). The waiting card shows remaining seconds from that deadline (`remainingMs`);
+it omits the live count while the tab is hidden and resumes when it is visible.
 
 - **The claim poll backs off and stops when nobody is looking.** It was a fixed 2s tick
   for the full five minutes — 150 identical requests to watch a human decide, on a
