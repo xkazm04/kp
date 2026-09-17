@@ -1327,7 +1327,16 @@
     "meta": {
       "title": "O aplikaci: KandiDate",
       "description": "Projděte s jednou posilou celou pipeline: návrh pozice, sourcing, příjem, screening, pracovní ukázka, pohovor, nabídka, přijetí. AI v každém kroku čte za vás; každé rozhodnutí podepisuje člověk.",
-      "ogDescription": "Projděte s jednou posilou celou pipeline. AI čte, člověk podepisuje každé rozhodnutí."
+      "ogDescription": "Projděte s jednou posilou celou pipeline. AI čte, člověk podepisuje každé rozhodnutí.",
+      "keywords": [
+        "náborová pipeline",
+        "popis pozice",
+        "screening CV",
+        "pracovní ukázka",
+        "hlasový pohovor",
+        "nabídka",
+        "člověk ve smyčce"
+      ]
     }
   },
   "theme": {

@@ -7,6 +7,9 @@ import { sourceRepoHref } from "@/app/_lib/source-repo";
 import { ABOUT_STEP_KEYS, aboutStepId } from "@/app/landing/spark/about-art/shared";
 import { aboutPageUrl, buildAboutJsonLd, plainIcu, serializeJsonLd } from "./about-jsonld";
 
+// Last-reviewed stamp crawlers see. Bump when ABOUT_STEP_KEYS or aboutPage.steps change.
+const ABOUT_PAGE_MODIFIED = "2026-09-17";
+
 /*
  * /about — "About the app", not about us. The page explains what the product
  * does (the pipeline phases, end to end), so the marketing navigation labels
@@ -40,7 +43,15 @@ export async function generateMetadata(_props: unknown, parent: ResolvingMetadat
   return {
     title,
     description,
-    openGraph: { ...openGraph, title, description: shareDescription },
+    // Own list — Next merges metadata shallowly, so omitting `keywords`
+    // would keep the root layout's landing differentiator set.
+    keywords: t.raw("keywords") as string[],
+    openGraph: {
+      ...openGraph,
+      title,
+      description: shareDescription,
+      modifiedTime: ABOUT_PAGE_MODIFIED,
+    },
     twitter: { ...twitter, title, description: shareDescription }
   };
 }
@@ -70,6 +81,7 @@ export default async function AboutPage() {
       url: `${aboutUrl}#${aboutStepId(i)}`,
     })),
     breadcrumbHomeName: tAbout("nav.home"),
+    dateModified: ABOUT_PAGE_MODIFIED,
   });
   // Same nonce the layout stamps on THEME_INIT — script-src is nonce'd and
   // report-only today, but an un-nonced inline block is what an enforced

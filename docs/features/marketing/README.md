@@ -18,7 +18,7 @@ different repository, are in [`docs/marketing/the-bar.md`](../../marketing/the-b
 | Route | Renders | Purpose |
 | --- | --- | --- |
 | `/` | `app/page.tsx` → `HomeGate` → `app/landing/spark/SparkHome.tsx` → `SparkLanding.tsx` | The landing. Signed-out only; signed-in visitors get the workspace. |
-| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the pipeline phases (`about-art/shared.ts` `ABOUT_STEP_KEYS`). The route shell emits `AboutPage` + `SoftwareApplication` JSON-LD (`app/about/about-jsonld.ts`) so crawlers get a typed product page, not only Open Graph title/description, plus a `HowTo` of those eight phases (order-locked to `ABOUT_STEP_KEYS`, step URLs are `#step-0N`) and a two-item `BreadcrumbList` (Home → About the app). |
+| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the pipeline phases (`about-art/shared.ts` `ABOUT_STEP_KEYS`). The route shell emits `AboutPage` + `SoftwareApplication` JSON-LD (`app/about/about-jsonld.ts`) so crawlers get a typed product page, not only Open Graph title/description, plus a `HowTo` of those eight phases (order-locked to `ABOUT_STEP_KEYS`, step URLs are `#step-0N`) and a two-item `BreadcrumbList` (Home → About the app). `ABOUT_PAGE_MODIFIED` (ISO date, bump with `ABOUT_STEP_KEYS` / `aboutPage.steps`) is `openGraph.modifiedTime` and JSON-LD `dateModified`. |
 | `/market` | `app/market/page.tsx` → `MarketPulse.tsx` → `market/MarketPulseApp.tsx` → `MarketPulseAtlas.tsx` | "Market Pulse" — the Czech job market from open data. |
 | `/landing`, `/landing/spark` | redirect stubs | Legacy bookmarks → `/`. |
 
@@ -223,6 +223,12 @@ link lost og:type, og:site_name, og:locale and the image, and its Twitter card
 kept the site title. `e2e/public-pages.spec.ts` pins the tags against `/`.
 `/market`, `/privacy`, `/terms` and `/trust` still return a bare `openGraph` and
 have the same gap.
+
+`/about` also returns `keywords` from `aboutPage.meta.keywords` (the pipeline
+walk: hiring pipeline, job description, CV screening, work sample, voice
+interview, offer, human in the loop) so the explainer does not inherit the
+root layout's landing bag (anti-AI-cheating, Czech market). `about-jsonld.test.ts`
+pins the assignment.
 
 Three things deliberately do **not** go through the catalog, and each is held as
 a named constant rather than JSX text so the lint can tell them apart from copy:
@@ -461,7 +467,7 @@ is edited:
 | no page promises onboarding | `TENANCY_RETIRED_TABLES` still lists the onboarding tables; the ban then sweeps the whole `landing` + `aboutPage` namespaces, per locale |
 | the language claim | `LOCALES.length` — the numeral, read the way the pricing test reads a price |
 | SSO is not sold as shipped | no SAML/OIDC implementation in `_lib/auth/*`; the capability must carry a "(planned)" marker in every locale and the blurb must not name it |
-| `/about` walks every phase | `aboutPage.steps` key order equals `ABOUT_STEP_KEYS`, each eyebrow states its own 1-based position, and the hero states the phase count. The same list is the HowTo JSON-LD on the route shell (`HowTo.step.length === ABOUT_STEP_KEYS.length`, names from the catalog titles). |
+| `/about` walks every phase | `aboutPage.steps` key order equals `ABOUT_STEP_KEYS`, each eyebrow states its own 1-based position, and the hero states the phase count. The same list is the HowTo JSON-LD on the route shell (`HowTo.step.length === ABOUT_STEP_KEYS.length`, names from the catalog titles). `ABOUT_PAGE_MODIFIED` on the route shell is the last-reviewed stamp for that list. |
 
 Two of those need a per-locale table in the test (the "by default" qualifier and
 the "(planned)" marker), because **a claim whose honesty lives in a qualifier is

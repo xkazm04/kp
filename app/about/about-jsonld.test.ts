@@ -19,19 +19,24 @@ const REPO = path.join(HERE, "..", "..");
 const catalog = (locale: string) =>
   JSON.parse(readFileSync(path.join(REPO, "messages", `${locale}.json`), "utf8")) as {
     aboutPage: {
-      meta: { title: string; description: string };
+      meta: { title: string; description: string; keywords: string[] };
       hero: { title: string };
       nav: { home: string };
       steps: Record<string, { title: string; body: string }>;
     };
   };
 
+const aboutPageSrc = () => readFileSync(path.join(HERE, "page.tsx"), "utf8");
+
 function typesOf(node: Record<string, unknown>): string[] {
   const t = node["@type"];
   return Array.isArray(t) ? t.map(String) : [String(t)];
 }
 
-function graphOf(locale: string, extras: { howTo?: boolean; breadcrumb?: boolean } = {}) {
+function graphOf(
+  locale: string,
+  extras: { howTo?: boolean; breadcrumb?: boolean; dateModified?: string } = {}
+) {
   const page = catalog(locale).aboutPage;
   const origin = "https://kandidate.example";
   const aboutUrl = aboutPageUrl(origin);
@@ -52,6 +57,7 @@ function graphOf(locale: string, extras: { howTo?: boolean; breadcrumb?: boolean
         }
       : {}),
     ...(extras.breadcrumb ? { breadcrumbHomeName: page.nav.home } : {}),
+    ...(extras.dateModified ? { dateModified: extras.dateModified } : {}),
   });
 }
 
@@ -124,6 +130,42 @@ test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", 
       assert.equal(howToSteps[i].text, steps[key].body);
       assert.equal(howToSteps[i].url, `${aboutPageUrl("https://kandidate.example")}#${aboutStepId(i)}`);
     });
+  }
+});
+
+test("ABOUT_PAGE_MODIFIED is a YYYY-MM-DD and feeds openGraph.modifiedTime plus JSON-LD dateModified", () => {
+  // Bump ABOUT_PAGE_MODIFIED when ABOUT_STEP_KEYS (app/landing/spark/about-art/shared.ts)
+  // or aboutPage.steps (messages/*.json) change — those two sources are the explainer.
+  const src = aboutPageSrc();
+  const matched = src.match(/const ABOUT_PAGE_MODIFIED = "(\d{4}-\d{2}-\d{2})"/);
+  assert.ok(matched, "ABOUT_PAGE_MODIFIED must be a committed ISO date next to generateMetadata");
+  assert.match(
+    src,
+    /modifiedTime:\s*ABOUT_PAGE_MODIFIED/,
+    "generateMetadata must read ABOUT_PAGE_MODIFIED into openGraph.modifiedTime"
+  );
+  assert.match(src, /dateModified:\s*ABOUT_PAGE_MODIFIED/, "the JSON-LD graph must get the same stamp");
+  const doc = graphOf("en", { dateModified: matched[1] });
+  const page = doc["@graph"].find((n) => typesOf(n).includes("AboutPage"));
+  assert.ok(page);
+  assert.equal(page.dateModified, matched[1]);
+});
+
+test("generateMetadata assigns aboutPage.meta.keywords instead of inheriting the site list", () => {
+  const src = aboutPageSrc();
+  assert.match(
+    src,
+    /keywords:\s*t\.raw\("keywords"\)/,
+    "generateMetadata must assign keywords: from aboutPage.meta so the parent landing list does not win"
+  );
+  for (const locale of LOCALES) {
+    const keywords = catalog(locale).aboutPage.meta.keywords;
+    assert.equal(keywords.length, 7, `${locale} aboutPage.meta.keywords length`);
+    assert.equal(
+      keywords.some((k) => /anti-AI-cheating|Czech market/i.test(k)),
+      false,
+      `${locale} still carries the landing differentiator bag`
+    );
   }
 });
 

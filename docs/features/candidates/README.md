@@ -422,8 +422,10 @@ validation message is `aria-describedby`-linked to the control it is about
 (`aria-invalid` rides on the input via `TextInput`'s `invalid`). The buttons
 compose `BTN_PRIMARY` / `BTN_SECONDARY` / `BTN_GHOST` from
 `app/_components/ui/recipes.ts` rather than hand-rolled class strings, so the
-public door keeps the app's dual-theme treatment. `apply-door-a11y.test.ts` and
-`apply-submit-outcome.test.ts` pin all of it.
+public door keeps the app's dual-theme treatment — including `ApplyFollowup`'s
+Save (`BTN_PRIMARY`) and Skip (`BTN_GHOST`). `apply-door-a11y.test.ts`,
+`candidate-door-conversion.test.ts` and `apply-submit-outcome.test.ts` pin all
+of it.
 
 An abandoned chat resumes from a localStorage draft (`use-apply-draft.ts`) keyed by
 job (+ lead token) and fingerprinted against the script that recorded it. Two rules
@@ -505,7 +507,11 @@ token, token for another job, entry with no profile row — deliberately
 indistinguishable) with its 500 going through `safeJsonError(..., "FOLLOWUP_FAILED")`
 so profile_cli's reason reaches the log and never the candidate. The *page*-level
 closed-role gate still renders `t("roleClosed")`; that is a different surface.
-Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
+Both apply pages mount `LanguageSwitcher` on every HTML `<main>` return,
+including that closed-role card, so a forwarded filled/retired link in the
+wrong language still has an escape (the open-path APP4 switcher used to drop
+on the early return). Pinned by `app/api/apply/apply-error-hygiene.test.ts` and
+`candidate-door-conversion.test.ts`.
 
 **Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
 `app/_lib/apply-session-store.ts`) is written from a public door on every form

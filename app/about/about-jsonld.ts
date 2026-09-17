@@ -21,6 +21,8 @@ export type AboutJsonLdInput = {
   howToSteps?: readonly { name: string; text: string; url: string }[];
   /** Localized Home label (`aboutPage.nav.home`). Position 2 uses `name`. */
   breadcrumbHomeName?: string;
+  /** ISO date (`ABOUT_PAGE_MODIFIED`). AboutPage.dateModified. */
+  dateModified?: string;
 };
 
 /** Strip next-intl rich tags (`<br></br>`, `<emph>`) so JSON-LD carries plain text. */
@@ -69,6 +71,7 @@ export function buildAboutJsonLd(input: AboutJsonLdInput): {
         url: aboutUrl,
         inLanguage: input.inLanguage,
         isPartOf: website,
+        ...(input.dateModified ? { dateModified: input.dateModified } : {}),
       },
       {
         "@type": "SoftwareApplication",

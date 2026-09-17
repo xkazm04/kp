@@ -102,3 +102,27 @@ test("the prefill-beats-stale-draft precedence survives (commit f331436)", () =>
   assert.match(view, /setAnswers\(mergeDraftAnswers\(d\.answers, prefill\?\.answers\)\)/, "the prefill still wins over the draft's keys");
   assert.match(view, /onRestore: \(d\) =>/, "…applied to the draft the restore hook validated");
 });
+
+test("the apply page still merges ?lead= prefill over a restored draft and fingerprints the trimmed script", () => {
+  const page = read("page.tsx");
+  assert.match(page, /coerceLeadTokenParam/, "the page shape-gates ?lead= before looking the entry up");
+  assert.match(page, /findEntryByLeadToken/, "the page resolves the token to a pipeline entry");
+  assert.match(
+    page,
+    /target\.entry\.jobId === job\.id/,
+    "a token for another role must not seed this chat"
+  );
+  assert.match(page, /seedLeadPrefillAnswers/, "the page builds the seeded answers from the matched lead");
+  assert.match(
+    page,
+    /trimSeededSteps\(steps, prefill\.answers\)/,
+    "ConversationalApply is handed the trimmed script, not the untrimmed one"
+  );
+  assert.match(page, /prefill=\{prefill\}/, "the prefill object is passed through to the chat");
+  const mutated = page.replace("target.entry.jobId === job.id", "true");
+  assert.doesNotMatch(
+    mutated,
+    /target\.entry\.jobId === job\.id/,
+    "non-vacuity: dropping the jobId equality fails this pin"
+  );
+});
