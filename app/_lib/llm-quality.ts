@@ -77,6 +77,34 @@ export const BENCH_OPS: readonly BenchOp[] = [
   { id: "campaign_pack", useCase: "campaign_pack" },
 ] as const;
 
+/** A named `DEFAULT_MODELS` cloud slug the baked scorecard did not measure.
+ *  A registry default bump without a re-bake must land here (date + reason)
+ *  or `llm-capabilities-lockstep.test.ts` fails. Drop the row when the slug
+ *  appears in `QUALITY_SCORES.models`. */
+export interface UnmeasuredDefault {
+  slug: string;
+  since: string;
+  reason: string;
+}
+
+export const UNMEASURED_DEFAULTS: readonly UnmeasuredDefault[] = [
+  {
+    slug: "gemini-3.8-flash",
+    since: "2026-09-02",
+    reason: "Gemini registry default announced after the 2026-08-12 bake; the scorecard still ranks gemini-3.6-flash. Re-measure before pinning routing to 3.8.",
+  },
+  {
+    slug: "claude-haiku-4-5",
+    since: "2026-08-12",
+    reason: "Anthropic default is the cheap tier; the bake measured claude-sonnet-5 and claude-opus-5.",
+  },
+  {
+    slug: "gpt-5.4-mini",
+    since: "2026-08-12",
+    reason: "openai default was not measurable (no OPENAI_API_KEY) in the bake environment.",
+  },
+];
+
 /** Bench ops that feed one routing use case (the "*" catch-all maps to nothing). */
 export function opsForUseCase(useCase: string): string[] {
   return BENCH_OPS.filter((o) => o.useCase === useCase).map((o) => o.id);
