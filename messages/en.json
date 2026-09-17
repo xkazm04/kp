@@ -10146,7 +10146,7 @@
     "title": "Autonomy control room",
     "intro": "Human oversight for the autonomous hiring pipeline: a kill switch, the human gates awaiting you, and an immutable audit trail of every automated decision (the record-keeping a high-risk AI hiring system requires).",
     "backToDevCases": "← Assignments",
-    "disarmed": "Confirm cancelled.",
+    "disarmed": "Confirm canceled.",
     "autonomy": {
       "statePaused": "Automation is PAUSED",
       "stateRunning": "Automation is running",
