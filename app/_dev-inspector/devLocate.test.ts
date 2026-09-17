@@ -13,7 +13,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { dedupeChain, isLibraryPath, parseLoc, pickDefaultIndex, type LocEntry } from "./devLocate.ts";
+import {
+  dedupeChain,
+  isLibraryPath,
+  parseLoc,
+  pickDefaultIndex,
+  shouldShowArm,
+  type LocEntry,
+} from "./devLocate.ts";
 
 /** A chain entry without the DOM element the pure helpers never read. */
 function entry(loc: string): LocEntry {
@@ -21,6 +28,17 @@ function entry(loc: string): LocEntry {
   assert.ok(parsed, `fixture ${loc} must parse`);
   return { el: null as unknown as Element, ...parsed };
 }
+
+// --- shouldShowArm -----------------------------------------------------------
+
+test("shouldShowArm is true only when mapping is on and the overlay is off", () => {
+  assert.equal(shouldShowArm(true, "off"), true);
+  assert.equal(shouldShowArm(false, "off"), false);
+  assert.equal(shouldShowArm(true, "nav"), false);
+  assert.equal(shouldShowArm(true, "armed"), false);
+  assert.equal(shouldShowArm(false, "nav"), false);
+  assert.equal(shouldShowArm(false, "armed"), false);
+});
 
 // --- parseLoc ----------------------------------------------------------------
 

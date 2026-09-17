@@ -40,6 +40,13 @@ export function isLibraryPath(path: string): boolean {
   return LIBRARY_SEGMENTS.some((seg) => p.includes(seg));
 }
 
+export type InspectorMode = "off" | "nav" | "armed";
+
+/** Corner Inspect control: only when source mapping is on and the overlay is off. */
+export function shouldShowArm(mappingOn: boolean, mode: InspectorMode): boolean {
+  return mappingOn && mode === "off";
+}
+
 export function parseLoc(raw: string): Omit<LocEntry, "el"> | null {
   const m = /^(.*):(\d+):(\d+)$/.exec(raw);
   if (!m) return null;
