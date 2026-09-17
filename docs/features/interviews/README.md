@@ -456,7 +456,7 @@ predicate, source-level for the route contract).
 | `app/_components/voice/transport/transport-error.ts` | `VoiceTransportError` + the status/throw classifier. Four client-origin codes (`VOICE_TRANSPORT_NETWORK` / `_AUTH` / `_TIMEOUT` / `_PROVIDER`) resolved through `errors.<CODE>`; the provider's response body goes to the console, never to the candidate |
 | `app/_components/voice/transcript-follow.ts` | `shouldFollow` (autoscroll only while the reader is at the tail), `foldTranscript` + `turnKey` (a bounded live log with full-transcript-stable keys) |
 | `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
-| `app/_components/voice/VoiceSettings.tsx` (the provider picker consumes the same `availability-gate` the Start button does — an unchecked provider is disabled, with the same **Check again** line), `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
+| `app/_components/voice/VoiceSettings.tsx` (the provider picker consumes the same `availability-gate` the Start button does — an unchecked provider is disabled, with the same **Check again** line), `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log). The live clock is elapsed-only in the lab; the portal passes the grounded `durationMin` so `live-clock.ts` shows remaining (`durationMin*60 - elapsed`, clamped at 0) beside elapsed |
 
 ## Data model
 

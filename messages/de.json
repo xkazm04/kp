@@ -2295,6 +2295,7 @@
       "unmuteAudio": "Stimme des Interviewers aktivieren",
       "enableAudio": "Tippen, um Ton zu aktivieren",
       "elapsedLabel": "Verstrichene Zeit",
+      "elapsedRemainingLabel": "Verstrichene und verbleibende Zeit",
       "completedNext": "Sie hören per E-Mail von uns, üblicherweise innerhalb weniger Tage.",
       "micTestBtn": "Mikrofon testen",
       "micTestListening": "Wir hören zu. Sagen Sie etwas laut…",

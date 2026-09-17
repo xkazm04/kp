@@ -2295,6 +2295,7 @@
       "unmuteAudio": "Unmute interviewer's voice",
       "enableAudio": "Tap to enable audio",
       "elapsedLabel": "Elapsed time",
+      "elapsedRemainingLabel": "Elapsed and remaining time",
       "completedNext": "You'll hear back by email, usually within a few days.",
       "micTestBtn": "Test your microphone",
       "micTestListening": "Listening. Say something out loud…",

@@ -2295,6 +2295,7 @@
       "unmuteAudio": "Zapnout hlas tazatele",
       "enableAudio": "Klepnutím zapnete zvuk",
       "elapsedLabel": "Uplynulý čas",
+      "elapsedRemainingLabel": "Uplynulý a zbývající čas",
       "completedNext": "Ozveme se vám e-mailem, obvykle během několika dní.",
       "micTestBtn": "Otestovat mikrofon",
       "micTestListening": "Posloucháme. Řekněte něco nahlas…",

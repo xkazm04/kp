@@ -2295,6 +2295,7 @@
       "unmuteAudio": "Réactiver la voix de l’interlocuteur",
       "enableAudio": "Appuyez pour activer le son",
       "elapsedLabel": "Temps écoulé",
+      "elapsedRemainingLabel": "Temps écoulé et restant",
       "completedNext": "Vous recevrez une réponse par e-mail, généralement sous quelques jours.",
       "micTestBtn": "Tester votre microphone",
       "micTestListening": "À l’écoute. Dites quelque chose à voix haute…",

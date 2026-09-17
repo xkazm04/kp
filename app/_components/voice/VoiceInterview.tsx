@@ -58,6 +58,10 @@ export type VoiceInterviewProps = {
   token?: string;
   candidateLabel?: string;
   jobTitle?: string;
+  // Booked run-of-show length in minutes. The portal passes the grounded
+  // duration so the live clock can show remaining vs elapsed; the lab omits it
+  // and stays elapsed-only.
+  durationMin?: number;
   // Candidate-portal mode (idea voice-3): pin the provider to the recruiter's
   // per-session choice and hide the provider/language picker, so a candidate can't
   // override the grounded provider the session was created for. The lab passes
@@ -108,7 +112,7 @@ export function VoiceInterview(props: VoiceInterviewProps) {
   );
 }
 
-function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
+function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
   const t = useTranslations("interview.voice");
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
@@ -896,6 +900,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 audioMuted={audioMuted}
                 onToggleAudioMuted={toggleAudioMuted}
                 elapsed={elapsed}
+                durationMin={durationMin}
                 unstable={unstable}
                 audioBlocked={audioBlocked}
                 onEnableAudio={enableAudio}
