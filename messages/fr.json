@@ -7460,6 +7460,7 @@
       "colDecision": "Décision",
       "colBy": "Par",
       "colDetail": "Détail",
+      "detailToggle": "Afficher le détail complet",
       "boardLevelRow": "Niveau tableau",
       "actorNotIdentified": "Non identifié",
       "noMatches": "Aucune décision ne correspond aux filtres.",

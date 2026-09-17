@@ -658,7 +658,9 @@ acting when any group-eval record already carries traceability.
 `sections/DecisionLogTable.tsx` gains the same subject search, **server-side** because the trail
 is server-paged, sharing the fold and collator helpers with the records table, plus a
 **whole-trail CSV export** beside "Export page" — a failure downloads **nothing** rather than a
-partial file named "whole trail". The refined read path exists because SQLite's BINARY collation
+partial file named "whole trail". The detail column expands like the records table (row button,
+`aria-expanded`, full text + sealed reason + cohort) so a keyboard or touch auditor can read
+the legal basis without a hover `title`. The refined read path exists because SQLite's BINARY collation
 can do neither job: when `q` is set, or the sort column is `candidateLabel`/`jobTitle`, the
 handler reads the filtered set newest-first, folds and collates in JS, then slices the page and
 enriches only that slice. It is a **scan bound, not a date window** — `SUBJECT_REFINE_MAX = 5000`
