@@ -76,6 +76,10 @@ translations — and they now run through a `rebuildTable` helper that drops the
 table and wraps the swap in a transaction, since the unguarded version could wedge boot
 after an interrupted migration.
 
+`users.last_login_at` is an ALTER-added TEXT column (NULL until the first successful
+`verifyCredentials` hit). A port keeps it nullable: a miss must not stamp it, and a
+fresh install's invited rows stay NULL until the person actually signs in.
+
 A third: the boot DDL is deliberately loud. Every `ALTER`/`CREATE` runs through
 `migrateExec`, which tolerates ONLY the benign "already applied" error and re-throws the
 rest — and, since wave 40, so do the per-tenant scan indexes (previously one bare

@@ -128,10 +128,14 @@ inventing a second scoping dimension.
   the one moment the plaintext is legitimately in hand; a failed login rewrites
   nothing, and a legacy hash whose password is below today's floor is left alone
   rather than pushed through a write `setUserPassword` would refuse. Legacy values
-  still verify at node's defaults, so the change logs nobody out. Pinned by
+  still verify at node's defaults, so the change logs nobody out. The same hit
+  stamps `users.last_login_at` (NULL until the first success, untouched on a miss)
+  so an org admin can list dormant seats without parsing server logs; `listUsersByOrg`
+  already returns the column. Pinned by
   `app/_lib/auth/password.test.ts` (both formats, both directions of `needsRehash`,
-  malformed values failing closed) and `credentials.test.ts` (the in-place rewrite,
-  the failed-login no-op, the below-floor no-op).
+  malformed values failing closed), `credentials.test.ts` (the in-place rewrite,
+  the failed-login no-op, the below-floor no-op), and `app/_lib/db/users.test.ts`
+  (hit moves the stamp, miss leaves it null).
 - **The password floor is enforced at the store write.** `MIN_PASSWORD_LENGTH`
   lives in `app/_lib/auth/password.ts` (users.ts cannot import `org-service.ts` —
   org-service imports users) and `setUserPassword` throws below it. Signup and

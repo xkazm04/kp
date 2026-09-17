@@ -1503,6 +1503,10 @@ export function ensureDb(): Database.Database {
     // sessions where no user id exists (current-user.ts short-circuits to null).
     "ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT",
     "ALTER TABLE users ADD COLUMN onboarding_skipped_at TEXT",
+    // Last successful password login. NULL = never signed in (or invited and not yet
+    // redeemed). Stamped only by verifyCredentials after a hit, so a miss cannot
+    // move it. Org admins list dormant seats off this column without parsing logs.
+    "ALTER TABLE users ADD COLUMN last_login_at TEXT",
     // First-run onboarding (workspace fallback): 'completed' | 'skipped' | NULL.
     // The authority when the session has no user claim (open dev mode, operator
     // password) — mirrors the default_locale per-workspace-scalar pattern.
