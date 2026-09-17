@@ -79,7 +79,10 @@ palette. The full mapping table and the five reading states are in
     detail keeps the verdict word only.
     Labels come from the shared `channels.comms` status catalog (a surface picks its
     own tone, never its own delivery vocabulary). Caveat: supersession is computed
-    over what `GET /api/devcase/comms` returned, currently the newest 50 rows.
+    over what `GET /api/devcase/comms` returned. The door defaults to the newest 50
+    rows and now accepts `?limit=` (clamped to 500, same envelope as the case list:
+    `{ outbox, truncated, limit, relayConfigured }`) so older dead letters are
+    fetchable without a schema change. Today's client still asks for the default.
   - `ResendButton` reports four outcomes, because only one of them is a delivery:
     refused (non-2xx, with the server's reason), dead-lettered again
     (`failed`/`bounced`), recorded-but-undeliverable (`queued` — the relay is gone,
