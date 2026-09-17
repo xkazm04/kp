@@ -13,7 +13,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jdMarketResearchAvailable } from "@/app/features/library/jds/jdsLibrary";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
-import { isPublicJdApplyOpen, publicJdHeaderActions } from "./jdPublicHeader";
+import { isPublicJdApplyOpen, publicJdAlternates, publicJdHeaderActions } from "./jdPublicHeader";
 
 
 // First ~155 chars of the JD body, markdown stripped, for the share/search snippet.
@@ -80,6 +80,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
   if (!jd) return {};
   const description = metaDescription(jd.body);
+  const alternates = publicJdAlternates(slug, Boolean(jd.archived_at));
   return {
     title: jd.title,
     description,
@@ -87,6 +88,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     twitter: { card: "summary", title: jd.title, description },
     // A retired role shouldn't keep ranking / drawing applicants; keep links followable.
     ...(jd.archived_at ? { robots: { index: false, follow: true } } : {}),
+    ...(alternates ? { alternates } : {}),
   };
 }
 
