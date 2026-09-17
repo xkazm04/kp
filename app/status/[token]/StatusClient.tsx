@@ -242,7 +242,11 @@ export function StatusClient({
                   const reached = i <= timelineIndex(view.status);
                   const current = i === timelineIndex(view.status);
                   return (
-                    <li key={step} className="flex items-start gap-3">
+                    <li
+                      key={step}
+                      className="flex items-start gap-3"
+                      aria-current={current ? "step" : undefined}
+                    >
                       <span
                         aria-hidden
                         className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border text-meta font-semibold ${

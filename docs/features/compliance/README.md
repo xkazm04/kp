@@ -245,7 +245,10 @@ hand-rolling. What changed on the two doors in this document:
 - **The status page's retry and refresh** are `BTN_PRIMARY_LG` / `BTN_GHOST` at
   44px; the NPS scale's eleven cells were 36px and are now 44px (the scale keeps
   its own selected/unselected tint — no `BTN_*` recipe expresses a scale, and
-  the guard exempts `role="radio"` on that ground alone).
+  the guard exempts `role="radio"` on that ground alone). The five-step
+  timeline marks the current `<li>` with `aria-current="step"` (the WAI-ARIA
+  step-list token; the other four stay unset), same job `ChapterRail` does with
+  `aria-current="location"`. Pinned by `status-decision-kinds.test.ts`.
 - **The NPS failure is a `role="alert"` and the thanks swap a `role="status"`.**
   "That didn't go through" announced nothing: a screen-reader user pressed Send
   and heard silence over an answer that had been DROPPED, and the success case
