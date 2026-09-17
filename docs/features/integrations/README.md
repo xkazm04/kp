@@ -222,6 +222,11 @@ ping (`POST /api/ats/test`).
   instrumentation clock. A still-scheduled failure is live work and is never swept, however
   old. The table had no DELETE anywhere in the tree before this, and every row names a
   candidate's pipeline entry.
+- **Due retries run on the process clock.** `retryDueAtsDeliveries` used to run only when
+  someone POSTed `/api/ats/deliveries` — an operator, or an external cron this self-hosted
+  studio does not ship. The same tick that prunes terminal rows now claims and redelivers
+  due ones, under the autonomy pause (this POSTs candidate PII, so a halted clock must not
+  drain the queue). POST remains the on-demand flush.
 - **A dead-letter can be force-replayed.** After `MAX_ATTEMPTS` (6) a failed row parks
   with `next_attempt_at NULL`. `GET /api/ats/deliveries` reports that parked count as
   `dead` beside `due`. `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal

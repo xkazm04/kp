@@ -314,9 +314,11 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
 }
 
 /** Retry every failed delivery whose backoff window has elapsed (and that still has
- *  retry budget). Called by an operator via POST /api/ats/deliveries or an external
- *  cron on a timer. Re-builds the record from CURRENT entry state (a mirror wants the
- *  latest), so a since-deleted entry is finalized off the queue. Never throws per row.
+ *  retry budget). Called by the process clock each tick (instrumentation-node.ts,
+ *  under the autonomy pause), by an operator via POST /api/ats/deliveries, or by an
+ *  external cron on a timer. Re-builds the record from CURRENT entry state (a mirror
+ *  wants the latest), so a since-deleted entry is finalized off the queue. Never
+ *  throws per row.
  *
  *  Two sweeps can run at once (an operator pressing Retry while the cron fires), and both
  *  read the same due list. Each row is therefore CLAIMED before it is delivered — a

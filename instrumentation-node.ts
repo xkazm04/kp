@@ -425,6 +425,21 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] ATS delivery retention sweep failed:", e);
     }
+    // ATS delivery retry (ats-egress.ts) — the sibling of the prune. The ledger claims
+    // at-least-once delivery with a backoff ladder, but due retries used to run only
+    // when someone POSTed /api/ats/deliveries (an operator, or an external cron this
+    // self-hosted studio does not ship). A hire that failed at 18:00 then waited until
+    // a human opened Integrations. Same tick, under the autonomy pause: this POSTs
+    // candidate PII, so a halted clock must not drain the queue. Best-effort. POST
+    // remains the manual flush. No jitter in this increment — the tick is already
+    // spaced by HEARTBEAT_MS.
+    try {
+      const { retryDueAtsDeliveries } = await import("./app/_lib/ats-egress");
+      const summary = await retryDueAtsDeliveries();
+      if (summary.due) console.log("[clock] ATS delivery retry:", JSON.stringify(summary));
+    } catch (e) {
+      console.error("[clock] ATS delivery retry sweep failed:", e);
+    }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();
   };
