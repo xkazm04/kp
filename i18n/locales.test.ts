@@ -99,6 +99,20 @@ test("resolveAcceptLanguage ignores a q-suffix and empty list entries", () => {
   assert.equal(resolveAcceptLanguage(",,cs,"), "cs");
 });
 
+test("resolveAcceptLanguage skips q=0 tags and never reorders by q", () => {
+  // RFC 9110: q=0 means not acceptable. A privacy-minded client forbids English.
+  assert.equal(resolveAcceptLanguage("en;q=0,cs"), "cs");
+  assert.equal(resolveAcceptLanguage("en;q=0.0,cs"), "cs");
+  // The header is already sorted; a lower-q first tag still wins.
+  assert.equal(resolveAcceptLanguage("de;q=0.2,fr;q=0.9"), "de");
+  assert.equal(resolveAcceptLanguage("fr;q=0.5"), "fr");
+  // Malformed q is "present", not a skip.
+  assert.equal(resolveAcceptLanguage("en;q=nope,cs"), "en");
+  assert.equal(resolveAcceptLanguage("en;q=,cs"), "en");
+  // Nothing acceptable falls through.
+  assert.equal(resolveAcceptLanguage("en;q=0"), null);
+});
+
 // --- the cookie policy -------------------------------------------------------
 
 test("localeCookieOptions is one shape: year-long, site-wide, lax", () => {
