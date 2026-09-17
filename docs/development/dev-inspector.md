@@ -27,4 +27,5 @@ keeps it off `node_modules` and Next internals, which was the cause.
 misbehaves — same stamps, slower compile. See the comment in `next.config.ts`, and
 `scripts/dev-guard.mjs` for the process-tree reaper that makes a repeat of that
 incident impossible regardless of bundler (Next allows one dev server per checkout;
-the lock is `.next/dev/lock`).
+the lock is `.next/dev/lock`). `npm run dev` now also sets `DEV_GUARD_MAX_NODE=150`
+so the storm circuit breaker is armed on the everyday server, not only on inspect.

@@ -16,7 +16,7 @@
     "prepare": "node scripts/hooks/install.mjs",
     "hooks:install": "node scripts/hooks/install.mjs",
     "hooks:check": "node scripts/hooks/install.mjs --check",
-    "dev": "node scripts/dev-guard.mjs next dev",
+    "dev": "cross-env DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev",
     "dev:empty": "node scripts/dev-empty.mjs",
     "dev:inspect": "cross-env DEV_INSPECT=1 DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev",
     "dev:inspect:webpack": "cross-env DEV_INSPECT=1 DEV_INSPECT_BUNDLER=webpack DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev --webpack",
