@@ -1055,7 +1055,9 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
   `@elevenlabs/client` 1.21.0 added `overrides.asr.keywords` — a **per-job**
   list the server builds from `requirements[].skill` + `detectedSkills`
   (`interviewAsrKeywords` → `/api/interview/connect` → the SDK override, capped
-  at 50 terms with the floor list filling the remainder).
+  at 50 terms with the floor list filling the remainder). The spoken eval's
+  headless init frame forwards the same list (`conversation_config_override.asr.keywords`)
+  so WER/entity numbers describe the biased recogniser, not the dashboard default.
   Both need the agent to have been created with the `asr.keywords` override
   unlocked, or the platform silently ignores the per-session list and the call
   runs on the account-wide one. **Deployed 2026-08-21** — `--check` reports zero
