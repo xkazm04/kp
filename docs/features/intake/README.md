@@ -1312,7 +1312,7 @@ sample is drawn from.
 
 | Surface | What it does |
 | --- | --- |
-| `GET /api/job-postings?q=&roleFamily=&limit=` | This workspace's posting ledger → `{ postings: JobPostingSummary[] }` (no bodies — `bodyChars` instead). `q` matches title or company, case-insensitively. Default limit 200, ceiling 500. |
+| `GET /api/job-postings?q=&roleFamily=&limit=` | This workspace's posting ledger → `{ postings: JobPostingSummary[] }` (no bodies — `bodyChars` instead). `q` matches title or company, case-insensitively. Default limit 200, ceiling 500. The store's `listJobPostingsPage` reads one row past the page and returns `{ postings, truncated, limit }` so a cut slice can say so; `listJobPostings` is the bare-array wrapper (same shape as `listJobs` / `listJobsPage`). |
 | `POST /api/job-postings` `{source:"seed"}` | Imports the two bundled corpora into this workspace, **once** → `{ inserted, skipped, postings: [] }`. |
 | `POST /api/job-postings` `{source:"paste", title, text, company?, lang?, roleFamily?, seniority?}` | Stores a pasted advertisement → `{ inserted, skipped, postings: [summary] }`. |
 | `POST /api/job-postings` `{source:"url", url}` | Fetches the page, extracts its text, stores it. Same response shape. |
@@ -1325,7 +1325,7 @@ allow-list (`app/_lib/auth/public-routes.ts`).
 
 | Module | Holds |
 | --- | --- |
-| `app/_lib/db/job-postings.ts` | The store: `listJobPostings`, `getJobPosting`, `insertJobPosting`, `distinctRolePostings`, `seedJobPostingsCorpus`, plus `postingContentHash` / `normalizeBody`. |
+| `app/_lib/db/job-postings.ts` | The store: `listJobPostingsPage` (`{ postings, truncated, limit }`), `listJobPostings` (bare array), `getJobPosting`, `insertJobPosting`, `distinctRolePostings`, `seedJobPostingsCorpus`, plus `postingContentHash` / `normalizeBody`. |
 | `app/_lib/job-posting-fetch.ts` | `htmlToText`, `htmlTitle`, `decodeEntities`, `fetchPostingText` — dependency-free extraction, no DOM library. |
 | `app/api/job-postings/posting-import-limits.ts` | `POSTING_MIN_CHARS` (200) and `POSTING_MAX_CHARS` (60 000). A sibling module because a non-handler `export const` in a route file aborts `next build`. |
 
