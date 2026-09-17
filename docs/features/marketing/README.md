@@ -18,7 +18,7 @@ different repository, are in [`docs/marketing/the-bar.md`](../../marketing/the-b
 | Route | Renders | Purpose |
 | --- | --- | --- |
 | `/` | `app/page.tsx` → `HomeGate` → `app/landing/spark/SparkHome.tsx` → `SparkLanding.tsx` | The landing. Signed-out only; signed-in visitors get the workspace. |
-| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the pipeline phases (`about-art/shared.ts` `ABOUT_STEP_KEYS`). |
+| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the pipeline phases (`about-art/shared.ts` `ABOUT_STEP_KEYS`). The route shell emits `AboutPage` + `SoftwareApplication` JSON-LD (`app/about/about-jsonld.ts`) so crawlers get a typed product page, not only Open Graph title/description. |
 | `/market` | `app/market/page.tsx` → `MarketPulse.tsx` → `market/MarketPulseApp.tsx` → `MarketPulseAtlas.tsx` | "Market Pulse" — the Czech job market from open data. |
 | `/landing`, `/landing/spark` | redirect stubs | Legacy bookmarks → `/`. |
 

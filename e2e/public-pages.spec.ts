@@ -129,6 +129,25 @@ test("/about's share tags keep the site's OpenGraph and a matching Twitter card"
   expect(about["twitter:image"], "/about's summary_large_image card has no image").toBeTruthy();
 });
 
+test("/about emits AboutPage + SoftwareApplication JSON-LD matching the document title", async ({ page }) => {
+  await page.goto("/about");
+  const scripts = page.locator('script[type="application/ld+json"]');
+  await expect(scripts).toHaveCount(1);
+  const json = JSON.parse((await scripts.first().textContent()) ?? "null") as {
+    "@graph"?: Record<string, unknown>[];
+  };
+  const nodes = json["@graph"] ?? [];
+  const typeOf = (n: Record<string, unknown>) =>
+    ([] as unknown[]).concat(n["@type"] ?? []).map(String);
+  const types = nodes.flatMap(typeOf);
+  expect(types, "/about JSON-LD @graph types").toEqual(
+    expect.arrayContaining(["AboutPage", "SoftwareApplication"])
+  );
+  const aboutPage = nodes.find((n) => typeOf(n).includes("AboutPage"));
+  expect(aboutPage, "AboutPage node").toBeTruthy();
+  expect(aboutPage!.name).toBe(await page.title());
+});
+
 for (const path of PAGES) {
   test(`${path} passes axe beyond its recorded holdouts`, async ({ page }) => {
     await page.goto(path);

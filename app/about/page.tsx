@@ -1,6 +1,10 @@
 import type { Metadata, ResolvingMetadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { headers } from "next/headers";
+import { getLocale, getTranslations } from "next-intl/server";
 import AboutHome from "@/app/landing/spark/AboutHome";
+import { siteUrl } from "@/app/_lib/site-url";
+import { sourceRepoHref } from "@/app/_lib/source-repo";
+import { buildAboutJsonLd, serializeJsonLd } from "./about-jsonld";
 
 /*
  * /about — "About the app", not about us. The page explains what the product
@@ -45,6 +49,28 @@ export async function generateMetadata(_props: unknown, parent: ResolvingMetadat
 // Components rather than prerender a skeleton flash.
 export const instant = false;
 
-export default function AboutPage() {
-  return <AboutHome />;
+export default async function AboutPage() {
+  const t = await getTranslations("aboutPage.meta");
+  const locale = await getLocale();
+  const jsonLd = buildAboutJsonLd({
+    name: t("title"),
+    description: t("description"),
+    inLanguage: locale,
+    siteOrigin: siteUrl().href,
+    sameAs: sourceRepoHref(),
+  });
+  // Same nonce the layout stamps on THEME_INIT — script-src is nonce'd and
+  // report-only today, but an un-nonced inline block is what an enforced
+  // policy would drop.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
+      <AboutHome />
+    </>
+  );
 }
