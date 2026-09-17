@@ -643,6 +643,8 @@ the test.
 | `open-mode-shipped-on` | a chart that sets `KP_ALLOW_OPEN` truthy, or an `.env.example` that never documents it |
 | `ingress-public-origin` | `ingress.enabled` with `env.NEXT_PUBLIC_APP_BASE_URL` empty or not an absolute http(s) origin — candidate links would resolve to `siteUrl()` while the cluster is reached at the ingress host |
 
+`ingress-public-origin` is the same shape as `secret-renders-empty-instead-of-failing`: `NOTES.txt` already warned when the origin was empty, and an operator who ignored it got a green `deploy:check` and a cluster whose offer/schedule emails used `siteUrl()`. The policy fails that install; ingress off with an empty URL stays clean.
+
 The gate reads **every file in `deploy/helm/kp/templates/`**, not a list of five.
 The five named in `CHART_FILES` stay required — a policy that must read the
 Deployment cannot be handed "some template", and a missing one is exit 2 — but
