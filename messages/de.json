@@ -1593,6 +1593,8 @@
     "COMM_SIMULATION_ROW": "Diese Nachricht gehört zur geführten Simulation und wird nie gesendet.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen.",
     "MATCH_RUN_FAILED": "Diese Person konnte nicht gegen die Rollen bewertet werden. Bitte erneut versuchen.",
+    "ARCHETYPES_READ_FAILED": "Die Archetyp-Registry konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ARCHETYPES_WRITE_FAILED": "Dieser Archetyp konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "MATCH_INPUT_INVALID": "Diese Person ließ sich nicht auflösen. Das Profil oder die Analyse dahinter existiert nicht mehr.",
     "BENCHMARK_ROLE_FAMILY_REQUIRED": "Dieser Benchmark nennt keine Rollenfamilie.",
     "ANALYTICS_SPEND_SAVE_FAILED": "Diese Ausgabe konnte nicht gespeichert werden. Bitte erneut versuchen.",
@@ -6302,6 +6304,7 @@
     "colFamily": "Berufsfamilie",
     "colSeniority": "Seniorität",
     "colScore": "Score",
+    "colProducer": "Quelle",
     "colDecision": "Entscheidung",
     "colJd": "Stellenbeschreibung",
     "colSaved": "Gespeichert",
@@ -6309,6 +6312,11 @@
       "advance": "weiterleiten",
       "hold": "zurückhalten",
       "pass": "ablehnen"
+    },
+    "producer": {
+      "llm": "Modell",
+      "deterministic": "Regeln",
+      "unknown": "Unbekannt"
     },
     "reviewFlags": "{count, plural, one {# Qualitätsprüfung zur Überprüfung markiert} other {# Qualitätsprüfungen zur Überprüfung markiert}}",
     "priorRuns": "{count, plural, one {ersetzt # früheren Lauf desselben Lebenslaufs} other {ersetzt # frühere Läufe desselben Lebenslaufs}}"

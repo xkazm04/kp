@@ -12,6 +12,7 @@ import { jdLastEditedAt, loadJd } from "@/app/_lib/db/jobs";
 import { findActiveEntriesByCandidateLabel } from "@/app/_lib/db/pipeline";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { dateFormatter } from "@/app/_lib/date-format";
 import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
@@ -143,7 +144,13 @@ export default async function HistoryDetailPage({
   } catch (error) {
     console.error(`[history] jd title lookup failed for "${slug}"`, error);
   }
-  const staleDate = jdEditedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(jdEditedAt)) : "";
+  const staleDate = jdEditedAt ? dateFormatter(locale, { dateStyle: "medium" }).format(new Date(jdEditedAt)) : "";
+  const created = new Date(found.row.created_at);
+  const createdOk = Number.isFinite(created.getTime());
+  const savedDate = createdOk ? dateFormatter(locale, { dateStyle: "medium" }).format(created) : found.row.created_at;
+  const savedDateTime = createdOk
+    ? dateFormatter(locale, { dateStyle: "medium", timeStyle: "short" }).format(created)
+    : found.row.created_at;
 
   // Direction 2 (a) — the honest disabled-reason the LIVE tab shows. The saved
   // report can only be JD-less (it always persisted), so the sole reason here is
@@ -169,12 +176,12 @@ export default async function HistoryDetailPage({
           <ReportActions
             analysis={parsed.data}
             candidateLabel={found.row.candidate_label}
-            savedAt={new Date(found.row.created_at).toLocaleDateString()}
+            savedAt={savedDate}
           />
         </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
-          {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: new Date(found.row.created_at).toLocaleString() })}
+          {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: savedDateTime })}
           {found.row.jd_slug ? (
             <>
               {" · "}

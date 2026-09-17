@@ -21,6 +21,25 @@ export type AnalysisRow = {
   // Content-addressed identity: how many OLDER re-runs of the same CV+JD this row
   // supersedes (the list collapses them to the newest). 0/absent = a first/only run.
   prior_runs?: number | null;
+  // Which producer scored this row. listAnalyses already SELECTs both; NULL on a
+  // row saved before the columns existed is unknown, never assumed to be an LLM.
+  engine?: string | null;
+  engine_provider?: string | null;
+};
+
+export const ANALYSIS_PRODUCERS = ["llm", "deterministic", "unknown"] as const;
+export type AnalysisProducer = (typeof ANALYSIS_PRODUCERS)[number];
+
+/** Map the stored engine marker to the chip the History row paints. A null, blank,
+ *  or unrecognised value is unknown — never "llm". */
+export function analysisProducer(engine: string | null | undefined): AnalysisProducer {
+  return engine === "llm" || engine === "deterministic" ? engine : "unknown";
+}
+
+export const PRODUCER_STYLE: Record<AnalysisProducer, string> = {
+  llm: "bg-moss/10 text-moss",
+  deterministic: "bg-stone-100 text-steel",
+  unknown: "bg-amber-100 text-amber-800",
 };
 
 // RES5 — the recruiter's recorded decision on a saved analysis, shown as a pill on
@@ -38,6 +57,22 @@ export const DISPOSITION_STYLE: Record<string, string> = {
 // sortOptionsByLabel.
 export function distinct(values: (string | null)[]): string[] {
   return [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
+}
+
+/**
+ * Case- and diacritic-insensitive search key. Same fold as the profile roster
+ * and the analytics audit log: a recruiter who cannot type Č still finds Čapek.
+ * Copied rather than imported across feature modules (three lines).
+ */
+export function foldForSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** True when the History search needle hits the candidate label or the slug. */
+export function historyRowMatchesQuery(row: Pick<AnalysisRow, "candidate_label" | "slug">, q: string): boolean {
+  const needle = foldForSearch(q.trim());
+  if (!needle) return true;
+  return foldForSearch(row.candidate_label).includes(needle) || foldForSearch(row.slug).includes(needle);
 }
 
 // Filter-dropdown options ordered by what is ON SCREEN, in the reader's locale.

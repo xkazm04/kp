@@ -52,14 +52,18 @@ career-switcher) that other features key off. Downstream ranking is
   missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
   seniority/decision filters run CLIENT-side over the rows `/api/analyses`
-  returned (a hard cap, default 200). The route answers `{ truncated, limit }`
+  returned (a hard cap, default 200). Name search folds diacritics and case
+  (`foldForSearch` / `historyRowMatchesQuery` in `HistoryTypes.ts`, the same
+  fold as the profile roster), so `capek` finds `Čapek`. The route answers `{ truncated, limit }`
   beside the rows; when the page was cut, History names it as a page
   ("Showing {n} newest; older runs still open by slug") and the Showing-of
   line uses the loaded-slice copy instead of `rows.length` as a total. The
   family/seniority dropdowns are ordered by their **localized** label through
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
-  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader.
+  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader. Saved-at dates go through
+  `useDateFormat` (the list) and `dateFormatter` with the server `getLocale()`
+  (the report header), never the runtime default locale.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
@@ -657,7 +661,9 @@ Rules (`pipeline/jobfit/registry.py`): a self-declared archetype (from the apply
 form) wins outright at confidence 0.9; CVs are read heuristically; contradictions
 lower confidence (e.g. "student" signal alongside 3+ years experience → 0.65);
 no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
-manual review**. The conservative default (unclassifiable → experienced, not
+manual review**. The analyze dump stamps that as `archetypeNeedsReview` (plus
+`archetypeNeedsReviewCode` `low_confidence` / `contradiction`) beside the float,
+so the report does not re-implement the cutoff. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
@@ -686,7 +692,9 @@ never a guessed zero) and states that retiring only hides it from the pickers.
 **Registry edits (the write boundary).** The Archetype admin UI writes
 `archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
 `app/_lib/archetype-registry.ts` does an atomic temp-file + `rename`, serialized
-so two saves cannot clobber each other). `validateArchetype` is deliberately at
+so two saves cannot clobber each other). A registry read/write 500 answers
+`ARCHETYPES_READ_FAILED` / `ARCHETYPES_WRITE_FAILED` (never `error.message`);
+input errors already return `code`/`params` via `errorResponse`. `validateArchetype` is deliberately at
 least as strict as the file's *readers*, because Python re-reads and re-validates
 it on **every** pipeline spawn (`registry._validate_archetype_weights` raises at
 import, which would fail every analyze / match / intake / profile build on the
@@ -945,8 +953,11 @@ data inside the fence and does not change the schema-validated output shape.
     the committed JSON is refreshed on its own schedule, so deriving would leave a stale
     corpus unmarked. The saved report renders `EngineNote variant="deterministic"` above
     the engine panel when no model ran; an LLM row says nothing extra, because that is
-    the assumed case and a marker on every report is chrome nobody reads. Pinned by
-    `analyze-run.test.ts`.
+    the assumed case and a marker on every report is chrome nobody reads. History
+    rows show a localized producer chip (`analysisProducer` in `HistoryTypes.ts`:
+    llm / deterministic / unknown) so a mixed workspace is not uniform; a null
+    engine paints unknown, never "llm". Pinned by
+    `analyze-run.test.ts` and `HistoryTypes.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
 - `pipeline_entries` — the per-job application record; carries the *snapshot*

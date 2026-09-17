@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { setArchetypeArchived, updateArchetype, type ArchetypeError } from "@/app/_lib/archetype-registry";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 // Both handlers here WRITE the shared archetype registry
 // (pipeline/jobfit/archetypes.json — one file per deployment, re-read by the Python
@@ -31,8 +32,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     if ("error" in result) return errorResponse(result.error);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to update archetype.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:archetypes", "ARCHETYPES_WRITE_FAILED");
   }
 }
 
@@ -51,7 +51,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if ("error" in result) return errorResponse(result.error);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to update archetype.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:archetypes", "ARCHETYPES_WRITE_FAILED");
   }
 }

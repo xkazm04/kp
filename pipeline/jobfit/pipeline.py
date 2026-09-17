@@ -772,7 +772,30 @@ def _v2_profile_and_routing(
     # ignores the extra key when the completed profile is saved back through
     # profile_cli — so the gap list itself never persists.
     dump["completenessGaps"] = completeness_gaps(v2)
+    # Structured needs-review: the registry flags confidence < 0.55 (and a
+    # fired contradiction) for manual review, but the dump used to carry only
+    # the float, so the report re-implemented the threshold. Keep the float;
+    # stamp the boolean + code so History/the banner can filter from one field.
+    needs, why = _archetype_needs_review(v2.archetype_confidence, v2.archetype_reasons)
+    dump["archetypeNeedsReview"] = needs
+    dump["archetypeNeedsReviewCode"] = why
     return dump, checks, v2
+
+
+def _archetype_needs_review(confidence: float, reasons: list[str]) -> tuple[bool, str | None]:
+    """Boolean + code for the dump, matching the registry's 0.55 rule.
+
+    ``low_confidence`` wins when both fire so a 0.54 contradiction is still
+    the threshold case the fixtures pin. A self-declared 0.9 with no
+    contradiction is not review.
+    """
+    from . import registry
+
+    if confidence < registry.low_confidence_threshold():
+        return True, "low_confidence"
+    if registry.contradiction_fired(reasons):
+        return True, "contradiction"
+    return False, None
 
 
 def _score_from_payload(raw: Any, repairs: list[str] | None = None) -> ScoreBreakdown:

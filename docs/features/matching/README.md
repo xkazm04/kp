@@ -8,7 +8,12 @@ archetype detection are `docs/features/candidates/README.md`.
 ## Entry points
 
 - **Fit matrix** (`?tab=matrix`) — `app/features/insights/matrix/MatrixTab.tsx`. One
-  surface, two modes behind a segmented control:
+  surface, two modes behind a segmented control. `GET /api/matrix` forwards three
+  "don't swallow" channels from `matrix_cli`: `missing` (unresolved ids),
+  `missingCandidates` (profile validate/transform failures), and `missingJobs`
+  (jobs-json rows that failed `Job.model_validate`). A poison-pill ingested JD
+  is listed rather than dropping a column the recruiter thought was open;
+  `respond()` defaults `missingJobs` to `[]` when an older CLI omitted it.
   - **Grid** (pool-first: every candidate × every open role) — `MatrixGrid.tsx`,
     `MatrixReasoningPopover.tsx`.
   - **Candidate focus** (candidate-first: one candidate ranked against every role) —

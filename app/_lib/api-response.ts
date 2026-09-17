@@ -321,6 +321,13 @@ export const STORE_ERRORS = {
   // MATRIX_BUILD_FAILED because the reader is looking at ONE candidate's ranking, not
   // at the grid.
   MATCH_RUN_FAILED: "Could not rank that candidate against the roles. Please try again.",
+  // GET/POST /api/archetypes and PUT/PATCH /api/archetypes/[id] (/perfect wave 4,
+  // cv-intel). All four catches forwarded `error.message` — registry JSON parse
+  // text, the absolute archetypes.json path, and write-rename failures. Distinct
+  // from a validation 400 (`errorResponse` already ships code/params): these are
+  // store faults the archetype manager must resolve via useErrorMessage.
+  ARCHETYPES_READ_FAILED: "Could not load the archetype registry. Please try again.",
+  ARCHETYPES_WRITE_FAILED: "Could not save that archetype. Please try again.",
   // The billing doors (/perfect 2026-09-03, billing-ui). All three answered prose with
   // no code: the overview's catch hand-rolled its own `{ error }`, and checkout/portal
   // forwarded the GATEWAY's thrown message — a merchant-of-record HTTP body, i.e. an

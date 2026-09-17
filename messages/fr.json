@@ -1593,6 +1593,8 @@
     "COMM_SIMULATION_ROW": "Ce message appartient à la simulation guidée et n'est jamais envoyé.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est.",
     "MATCH_RUN_FAILED": "Impossible de classer ce candidat par rapport aux postes. Veuillez réessayer.",
+    "ARCHETYPES_READ_FAILED": "Impossible de charger le registre des archetypes. Veuillez réessayer.",
+    "ARCHETYPES_WRITE_FAILED": "Impossible d'enregistrer cet archetype. Veuillez réessayer.",
     "MATCH_INPUT_INVALID": "Ce candidat est introuvable : le profil ou l'analyse correspondante n'existe plus.",
     "BENCHMARK_ROLE_FAMILY_REQUIRED": "Ce comparatif n'indique aucune famille de postes.",
     "ANALYTICS_SPEND_SAVE_FAILED": "Impossible d'enregistrer ce montant de dépense. Veuillez réessayer.",
@@ -6302,6 +6304,7 @@
     "colFamily": "Famille de postes",
     "colSeniority": "Séniorité",
     "colScore": "Score",
+    "colProducer": "Source",
     "colDecision": "Décision",
     "colJd": "Fiche de poste",
     "colSaved": "Enregistré",
@@ -6309,6 +6312,11 @@
       "advance": "avancer",
       "hold": "en attente",
       "pass": "écarter"
+    },
+    "producer": {
+      "llm": "Modèle",
+      "deterministic": "Règles",
+      "unknown": "Inconnu"
     },
     "reviewFlags": "{count, plural, one {# contrôle qualité à examiner} other {# contrôles qualité à examiner}}",
     "priorRuns": "{count, plural, one {remplace # exécution précédente du même CV} other {remplace # exécutions précédentes du même CV}}"

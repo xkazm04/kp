@@ -13,7 +13,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { distinct, historyShowingTotal, readAnalysesListPayload, sortOptionsByLabel } from "./HistoryTypes.ts";
+import {
+  analysisProducer,
+  distinct,
+  historyRowMatchesQuery,
+  historyShowingTotal,
+  readAnalysesListPayload,
+  sortOptionsByLabel,
+} from "./HistoryTypes.ts";
 
 // The real `enums.family` labels from messages/cs.json, keyed by the canonical
 // slug the analyses table stores.
@@ -136,6 +143,47 @@ test("truncated is a positive claim: missing or junk is not invented as true", (
   assert.equal(readAnalysesListPayload({ analyses: [row("a")], truncated: "yes" }).truncated, false);
   assert.equal(readAnalysesListPayload({ analyses: "nope" }).analyses.length, 0);
   assert.equal(readAnalysesListPayload(null).analyses.length, 0);
+});
+
+test("analysisProducer names llm, deterministic, and unknown; null is never llm", () => {
+  assert.equal(analysisProducer("llm"), "llm");
+  assert.equal(analysisProducer("deterministic"), "deterministic");
+  assert.equal(analysisProducer(null), "unknown");
+  assert.equal(analysisProducer(undefined), "unknown");
+  assert.equal(analysisProducer(""), "unknown");
+  assert.equal(analysisProducer("gemini"), "unknown");
+});
+
+test("HistoryTable paints the producer chip from analysisProducer, never a raw engine string", () => {
+  const table = readFileSync(fileURLToPath(new URL("./HistoryTable.tsx", import.meta.url)), "utf8");
+  assert.match(table, /analysisProducer\(engine\)/, "deterministic/null/llm go through the mapper");
+  assert.match(table, /t\(`producer\.\$\{producer\}`\)/, "the chip label is the localized producer.* key");
+  assert.match(table, /t\("colProducer"\)/, "the column is present");
+  assert.doesNotMatch(table, /producer\.llm/, "null must not hard-code llm");
+});
+
+test("capek matches Čapek; exact slug still matches", () => {
+  const named = { ...row("cv-capek"), candidate_label: "Čapek" };
+  assert.equal(historyRowMatchesQuery(named, "capek"), true, "ASCII needle");
+  assert.equal(historyRowMatchesQuery(named, "Čapek"), true, "exact diacritic needle");
+  assert.equal(historyRowMatchesQuery(named, "CAPEK"), true, "case-folded needle");
+  assert.equal(historyRowMatchesQuery(row("ada-lovelace"), "ada-lovelace"), true, "exact slug");
+  assert.equal(historyRowMatchesQuery(named, "novak"), false);
+});
+
+test("HistoryTab search uses the folded matcher, not toLowerCase alone", () => {
+  const tab = readFileSync(fileURLToPath(new URL("./HistoryTab.tsx", import.meta.url)), "utf8");
+  assert.match(tab, /historyRowMatchesQuery/, "HistoryTab folds through HistoryTypes");
+  assert.doesNotMatch(tab, /candidate_label\.toLowerCase\(\)/, "bare toLowerCase was the pre-fix needle");
+});
+
+test("History dates go through the shared formatter; toLocaleString is gone", () => {
+  const table = readFileSync(fileURLToPath(new URL("./HistoryTable.tsx", import.meta.url)), "utf8");
+  const page = readFileSync(fileURLToPath(new URL("../../../../history/[slug]/page.tsx", import.meta.url)), "utf8");
+  assert.doesNotMatch(table, /toLocaleDateString|toLocaleString/);
+  assert.doesNotMatch(page, /toLocaleDateString|toLocaleString/);
+  assert.match(table, /useDateFormat/, "HistoryTable absolute fallback uses the client formatter");
+  assert.match(page, /dateFormatter/, "the saved-report header uses the memoized server formatter");
 });
 
 test("History names a truncated page as a page and drops the complete-list claim", () => {
