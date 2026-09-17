@@ -10,8 +10,8 @@
 // shape, or the ceiling claim changes, and update the doc's measured line.
 //
 // What it does: creates a throwaway SQLite file, opens every connection with the
-// repo's REAL canonical pragmas (the openStore() trio, app/_lib/db-path.ts —
-// journal_mode=WAL, synchronous=NORMAL, busy_timeout=5000), spawns N=1..5
+// repo's REAL canonical pragmas (openStore() in app/_lib/db-path.ts —
+// journal_mode=WAL, synchronous=NORMAL, busy_timeout=5000, foreign_keys=ON), spawns N=1..5
 // concurrent writer workers (worker_threads, one connection each — the same
 // shape as the app's scheduler-vs-route sibling connections on one file), and
 // has each commit W small single-row transactions (the app's dominant write
@@ -39,6 +39,7 @@ function openLikeTheApp(file) {
   d.pragma("journal_mode = WAL");
   d.pragma("synchronous = NORMAL");
   d.pragma("busy_timeout = 5000");
+  d.pragma("foreign_keys = ON");
   return d;
 }
 
