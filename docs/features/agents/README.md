@@ -186,13 +186,13 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 
 | Path | Role |
 | --- | --- |
-| `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server) |
+| `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server). App-master rows also carry `backbonePeriod` and `backboneFreshness` (`current \| stale \| unknown`) from the latest rollup, or null when none has reported |
 | `GET/DELETE /api/agents/bridge` | Connection status (key presence only) / disconnect (clears the stored key; 409 for env-driven config). DELETE is `org:manage` |
 | `POST /api/agents/pair` | Two-phase pairing: `{phase:"start", baseUrl?}` → `{nonce}`; `{phase:"claim", nonce}` → pending/paired. `org:manage` |
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
 | `POST + GET /api/jobs/[id]/agent-fit` | Start the backgrounded transform (returns `{taskId}`) / read the latest stored spec |
 | `POST /api/agents/dispatch` | `{jobId, overrides?}` → merge overrides onto the stored spec, mint the hire, POST the persona request. **Or `{intakeId}`** — the App-master path (below). `pipeline:write` |
-| `POST /api/agents/hire-from-need` | **One call from a need to a persona** — the machine door. `{need, project:{name, rootPath, mainBranch?}, population:"agent", workspace?, budgetUsd?, dryRun?, simulation?, originPersonaId?}` → scan the repo, open an intake seeded with the need, land the dossier, compose the App master, dispatch. Returns `{intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun}`. Auth is EITHER the operator session + `pipeline:write` OR the `x-kp-automation-token` header (below). See "Hiring from a need, with nobody in the loop" |
+| `POST /api/agents/hire-from-need` | **One call from a need to a persona** — the machine door. `{need, project:{name, rootPath, mainBranch?}, population:"agent", workspace?, lang?, budgetUsd?, dryRun?, simulation?, originPersonaId?}` → scan the repo, open an intake seeded with the need, land the dossier, compose the App master, dispatch. Intake language is `body.lang` when it is a shipped locale, otherwise the workspace default (not silently English). Returns `{intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun}`. Auth is EITHER the operator session + `pipeline:write` OR the `x-kp-automation-token` header (below). See "Hiring from a need, with nobody in the loop" |
 | `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path. `pipeline:write` (the poll can move a board entry) |
 | `POST /api/agents/report/[token]` | PUBLIC inbound report route — the CSPRNG token is the capability |
 | `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
@@ -265,6 +265,12 @@ drives them: start a repo scan → poll it → `createIntake({scanId})` → one
 step is the **shared** tail extracted to `app/api/agents/dispatch/mint.ts`, so
 this route and `POST /api/agents/dispatch` mint, dispatch and file the board
 card through one implementation rather than two that drift.
+
+**Language.** The intake opening, the seeded exchange and the App-master compose
+all take `body.lang` when it is a shipped locale (`en`/`cs`/`de`/`fr`, including
+a regional tag like `de-AT`), otherwise the workspace default. They used to
+resolve a missing body field as English, so a Czech tenant's unattended hire
+composed the spec in English.
 
 **Auth — two doors, a caller needs one.**
 
@@ -475,8 +481,10 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   job. The roster row's intake link is the only handle; a promoted intake (one that also
   built a JD) does keep its job and its card.
 - **The backbone is scored from the LATEST period only**: an agent that reported August and
-  then went quiet keeps showing August's verdict. There is no multi-window trend, and no
-  staleness marker on the verdict beyond the period the rollup names.
+  then went quiet keeps showing August's verdict. There is no multi-window trend.
+  `GET /api/agents` now names that period (`backbonePeriod`) and classifies it
+  (`backboneFreshness`: `current | stale | unknown`) so the roster can label a
+  quiet hire instead of implying the last-reported pass is live.
 - **Two implementations of one scorer**: `backbone_score` exists in Python (the authority)
   and TypeScript (the read path). They are pinned by generated fixtures
   (`app/_lib/app-master/backbone.test.ts`), but a change still has to be made twice.

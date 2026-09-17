@@ -459,6 +459,15 @@ ladder is bounded at five attempts, after which the state stays on screen and th
 client stops asking. Pure, so `dossier-retry.test.ts` pins the ladder and
 `jdsIntakeLogic.test.ts` pins the wiring.
 
+**The mandate projection names the bounds.** `mandateSections`
+([`app/_lib/app-master/mandate-view.ts`](../../../app/_lib/app-master/mandate-view.ts))
+projects `scopeRung` (0..2, where 0 is read-only and still a bound) and
+`forbiddenClasses` beside the gates, objectives, cadence, retire criteria and
+reservation policy. A spec that only has a rung still counts as non-empty;
+an out-of-range rung or a whitespace class is absent, never clamped or
+invented. The projection used to omit both, so a requestor-facing section
+could look complete without the rung cap or the forbidden-change list.
+
 **The spec's vintage.** `AppMasterCompose.composedAt` has been stored since P3
 and was read by no surface, so a spec composed against three facets looked
 identical to one composed a second ago — under a button that hands a mandate to
@@ -467,9 +476,13 @@ an accountable owner. `specVintage`
 compares it against the intake row's `updatedAt` (a 2-second grace window, because
 the compose route stamps `composedAt` and THEN writes the row) and the card shows
 an amber *Older brief* chip plus the remedy when the brief moved afterwards. It is
-a DISCLOSURE, not a gate: Dispatch stays enabled, and the requestor decides. It is
-also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`, which is a schema check
-on the stored spec's shape; a spec can be stale in vintage while parsing perfectly.
+a DISCLOSURE on the card, not a schema check: Dispatch stays enabled until the
+door calls `vintageDispatch`, which returns `AGENT_DISPATCH_SPEC_VINTAGE` when
+the vintage is `stale` and the caller did not pass `acknowledgeStale`. `unknown`
+never refuses. It is also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`,
+which is a schema check on the stored spec's shape; a spec can be stale in
+vintage while parsing perfectly. The helper is the contract; wiring the door is
+a separate change.
 
 ### The reference reading
 
@@ -1817,9 +1830,12 @@ The schemas travel three ways once the later phases land:
   (`python app/_lib/app-master/__fixtures__/generate.py`) — but forgetting is now
   a red gate rather than a silent drift.
 - **Only the latest period is scored.** Rollups are absolutes per period, so the
-  latest one is treated as the review window. An agent that reported August and
-  went quiet keeps showing August's verdict; there is no trend across windows and
-  no staleness marker beyond the period name.
+  latest one is treated as the review window. There is no trend across windows.
+  `backboneFreshness` (`app/_lib/app-master/backbone.ts`) classifies that period
+  as `current | stale | unknown` (`YYYY-MM` older than the current month, or
+  `YYYY-MM-DD` older than the review window, is stale; unparseable is unknown,
+  never invented stale) so a roster can label a quiet hire instead of implying
+  August's verdict is still the review window.
 - **The mandate is data kp dispatches, not a bound kp enforces.** `scopeRung` and
   `forbiddenClasses` ride the wire and the roster shows them; blocking a proposal
   that touches a forbidden class happens in Personas' `autonomy.rs`, which is not

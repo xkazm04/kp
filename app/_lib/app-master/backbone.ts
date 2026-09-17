@@ -387,3 +387,61 @@ export function backboneFromRollup(raw: unknown, windowDays = 30): PerformanceBa
     ledgerConsistent: typeof r.ledgerConsistent === "boolean" ? r.ledgerConsistent : true,
   };
 }
+
+// --------------------------------------------------------------------------- //
+// Period freshness — is the latest rollup still the review window?
+// --------------------------------------------------------------------------- //
+
+/** `current` when the named period is still the review window, `stale` when it
+ *  has closed, `unknown` when the stamp will not parse. Never invents stale:
+ *  an unreadable period is a disclosed hole, not a quiet agent. */
+export type BackboneFreshness = "current" | "stale" | "unknown";
+
+const YM = /^(\d{4})-(\d{2})$/;
+const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DAY_MS = 86_400_000;
+
+function utcDate(value: Date | string | number): Date | null {
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+/** Classify a rollup period against `now`.
+ *
+ *  `YYYY-MM` older than the current UTC month is stale. `YYYY-MM-DD` older
+ *  than `windowDays` is stale. Anything else unparseable is unknown. */
+export function backboneFreshness(input: {
+  period: string | null | undefined;
+  now: Date | string | number;
+  windowDays: number;
+}): BackboneFreshness {
+  if (typeof input.period !== "string") return "unknown";
+  const period = input.period.trim();
+  const now = utcDate(input.now);
+  if (!now) return "unknown";
+
+  const ym = YM.exec(period);
+  if (ym) {
+    const year = Number(ym[1]);
+    const month = Number(ym[2]);
+    if (month < 1 || month > 12) return "unknown";
+    const nowYear = now.getUTCFullYear();
+    const nowMonth = now.getUTCMonth() + 1;
+    return year < nowYear || (year === nowYear && month < nowMonth) ? "stale" : "current";
+  }
+
+  const ymd = YMD.exec(period);
+  if (ymd) {
+    if (!Number.isFinite(input.windowDays) || input.windowDays <= 0) return "unknown";
+    const year = Number(ymd[1]);
+    const month = Number(ymd[2]);
+    const day = Number(ymd[3]);
+    const stamp = new Date(Date.UTC(year, month - 1, day));
+    if (stamp.getUTCFullYear() !== year || stamp.getUTCMonth() !== month - 1 || stamp.getUTCDate() !== day) {
+      return "unknown";
+    }
+    return now.getTime() - stamp.getTime() > input.windowDays * DAY_MS ? "stale" : "current";
+  }
+
+  return "unknown";
+}

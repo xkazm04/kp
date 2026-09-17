@@ -13,8 +13,12 @@
 // (→ open mode) and PERSONAS_BRIDGE_* so no dev-shell pairing leaks in.
 import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
+import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale, setWorkspaceDefaultLocale } from "../../../_lib/db/workspaces.ts";
+import { LOCALES } from "../../../../i18n/locales.ts";
 import {
   AUTOMATION_TOKEN_ENV,
   AUTOMATION_TOKEN_HEADER,
@@ -22,7 +26,7 @@ import {
   checkAutomationToken,
   tokensMatch,
 } from "./automation-auth.ts";
-import { POST as hirePost } from "./route.ts";
+import { hireIntakeLang, POST as hirePost } from "./route.ts";
 
 after(() => cleanupUnitDb());
 
@@ -204,4 +208,32 @@ test("the need is bounded rather than rejected, and the bound is the same one Pe
     "HIRE_ROOT_NOT_ALLOWED",
     "an over-long need was bounded and carried forward, not refused"
   );
+});
+
+test("hire intake language follows the workspace default, and body.lang overrides", () => {
+  const previous = getWorkspaceDefaultLocale(DEFAULT_WORKSPACE_ID);
+  try {
+    for (const locale of LOCALES) {
+      setWorkspaceDefaultLocale(locale, DEFAULT_WORKSPACE_ID);
+      assert.equal(hireIntakeLang(undefined, DEFAULT_WORKSPACE_ID), locale, `workspace ${locale} with no body lang`);
+      assert.equal(hireIntakeLang(null, DEFAULT_WORKSPACE_ID), locale);
+      assert.equal(hireIntakeLang("not-a-locale", DEFAULT_WORKSPACE_ID), locale, "an unknown tag does not fall back to en");
+    }
+    setWorkspaceDefaultLocale("cs", DEFAULT_WORKSPACE_ID);
+    assert.equal(hireIntakeLang("de", DEFAULT_WORKSPACE_ID), "de", "body wins when it is a shipped locale");
+    assert.equal(hireIntakeLang("de-AT", DEFAULT_WORKSPACE_ID), "de");
+    assert.equal(hireIntakeLang("fr", DEFAULT_WORKSPACE_ID), "fr");
+    assert.equal(hireIntakeLang("en", DEFAULT_WORKSPACE_ID), "en");
+  } finally {
+    setWorkspaceDefaultLocale(previous, DEFAULT_WORKSPACE_ID);
+  }
+});
+
+test("the hire door threads that lang into opening, exchange and compose", () => {
+  const src = readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  assert.match(src, /const lang = hireIntakeLang\(body\?\.lang, ws\)/);
+  assert.match(src, /runIntakeOpening\(lang, "app_master"\)/);
+  assert.match(src, /runIntakeExchange\(\{[\s\S]*?\blang,/);
+  assert.match(src, /runIntakeAppMasterSync\(\{[\s\S]*?\blang,/);
+  assert.doesNotMatch(src, /const lang = intakeLang\(null\)/, "null always yielded en — that is the bug");
 });

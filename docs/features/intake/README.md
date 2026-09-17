@@ -313,7 +313,10 @@ JD has ever had.
   every label through next-intl in the four catalogs, and an **absent value
   renders nothing**: no zero, no dash, no invented default. The field mapping is
   pure and pinned — `mandateSections` in `app/_lib/app-master/mandate-view.ts`
-  (`mandate-view.test.ts`) — so the JSX stays typography. Capped lists (the fit's
+  (`mandate-view.test.ts`) — so the JSX stays typography. That mapping also
+  carries `mandate.scopeRung` (0..2, read-only included) and
+  `mandate.forbiddenClasses`, the two bounds that actually constrain the holder.
+  Capped lists (the fit's
   per-objective rows, the dossier's stack/gates/hot-spots/risks/objectives) carry
   a **"+N more"** that expands in place, the affordance
   `MatchCardSkillChips` already uses: a silent truncation is a claim about how
