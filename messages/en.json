@@ -1656,6 +1656,7 @@
     "ATS_CONFIG_SAVE_FAILED": "Could not save the webhook settings. Please try again.",
     "ATS_CONFIG_STALE": "Someone saved newer webhook settings. Reload and make your change again.",
     "GROUP_EVAL_READ_FAILED": "Could not load the saved comparison. Please try again.",
+    "DECISION_RECORDS_READ_FAILED": "Could not load decision records. Please try again.",
     "SIM_RESET_FAILED": "Could not clear the simulation data. Please try again.",
     "SIM_INBOUND_FAILED": "Could not simulate the incoming application. Please try again.",
     "SIM_SCREEN_DRAFT_FAILED": "Could not prepare the screening recommendation. Please try again.",
