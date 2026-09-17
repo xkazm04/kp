@@ -8922,6 +8922,7 @@
       "colRecipient": "Destinataire",
       "colSubject": "Objet",
       "colStatus": "Statut",
+      "colRef": "Épreuve",
       "colSent": "Envoyé",
       "resendTitle": "Réacheminer ce message par le canal actif (consigné comme une nouvelle ligne de la boîte d’envoi)",
       "retryResend": "Réessayer l’envoi",

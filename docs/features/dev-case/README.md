@@ -49,7 +49,9 @@ palette. The full mapping table and the five reading states are in
   `DevTabDefineView.tsx` (need intake + analysis) / `DevTabCasesView.tsx` (case
   list) / `DevCaseDetail.tsx` (per-case lifecycle, submissions, evaluation).
 - Outbox — `OutboxSection.tsx` (filter state, dead-letter chip, pager) over
-  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` and
+  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` (kind,
+  status, free text, and a `ref` facet so one posting's dead letters are a one-click
+  subset) and
   the re-dispatch button in `ResendButton.tsx` (also used by the Channels comms
   modal). Every message the pipeline sent, dead letters sorted to the top, paged 20
   at a time via `app/_components/table/TablePager.tsx`. It previously rendered a

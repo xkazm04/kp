@@ -131,6 +131,14 @@ export function OutboxRows({
                 options={facets.statuses}
               />
             </th>
+            <th scope="col" className="hidden px-3 py-2 lg:table-cell">
+              <ColumnFilter
+                title={t("colRef")}
+                value={filters.ref ?? ""}
+                onChange={(ref) => onFilters({ ref })}
+                options={facets.refs}
+              />
+            </th>
             <th scope="col" className={`hidden whitespace-nowrap px-3 py-2 sm:table-cell ${META_LABEL}`}>
               {t("colSent")}
             </th>
@@ -170,6 +178,9 @@ export function OutboxRows({
                     <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
                   </div>
                 ) : null}
+              </td>
+              <td className="hidden max-w-[8rem] truncate px-3 py-2 text-micro text-steel lg:table-cell" title={m.ref ?? undefined}>
+                {m.ref ?? "—"}
               </td>
               <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-steel sm:table-cell">{rel(m.createdAt) || "—"}</td>
             </tr>

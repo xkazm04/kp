@@ -33,13 +33,15 @@ export type OutboxFilters = {
   kind: string;
   /** CommsVerdict — "" means all. */
   status: string;
+  /** Pipeline entry / posting / submission id this message concerns — "" means all. */
+  ref?: string;
 };
 
 /** An outbox row carrying the delivery verdict the library derived for it. */
 export type OutboxRowView = OutboxItem & { verdict: CommsVerdict };
 
 export type Facet = { value: string; label: string };
-export type OutboxFacets = { kinds: Facet[]; statuses: Facet[] };
+export type OutboxFacets = { kinds: Facet[]; statuses: Facet[]; refs: Facet[] };
 
 // Severity order for the status filter, worst first (a closed vocabulary, so it is
 // never alphabetized). `recovered` sits with the benign half deliberately: a dead
@@ -103,12 +105,16 @@ export function outboxRows(
   // than being alphabetized — but still lists only what is present.
   const present = new Set(all.map((m) => m.verdict));
   const statuses = VERDICT_ORDER.filter((s) => present.has(s)).map((value) => ({ value, label: statusLabel(value) }));
+  const refs = [...new Set(all.map((m) => m.ref).filter((r): r is string => Boolean(r)))]
+    .map((value) => ({ value, label: value }))
+    .sort((a, b) => collator.compare(a.label, b.label));
 
   const rows = all
     .filter((m) => {
       if (failedOnly && !isDeadLetter(m)) return false;
       if (filters.kind && m.kind !== filters.kind) return false;
       if (filters.status && m.verdict !== filters.status) return false;
+      if (filters.ref && (m.ref ?? "") !== filters.ref) return false;
       if (needle) {
         const hay = `${m.recipient ?? ""} ${m.subject ?? ""}`.toLowerCase();
         if (!hay.includes(needle)) return false;
@@ -125,5 +131,5 @@ export function outboxRows(
       return Date.parse(b.createdAt) - Date.parse(a.createdAt);
     });
 
-  return { rows, facets: { kinds, statuses }, failedCount, total: all.length };
+  return { rows, facets: { kinds, statuses, refs }, failedCount, total: all.length };
 }

@@ -8922,6 +8922,7 @@
       "colRecipient": "Příjemce",
       "colSubject": "Předmět",
       "colStatus": "Stav",
+      "colRef": "Zadání",
       "colSent": "Odesláno",
       "resendTitle": "Doručit tuto zprávu znovu aktivním kanálem (zaznamená se jako nový řádek odchozí pošty)",
       "retryResend": "Zkusit odeslat znovu",

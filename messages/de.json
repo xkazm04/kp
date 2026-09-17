@@ -8922,6 +8922,7 @@
       "colRecipient": "Empfänger",
       "colSubject": "Betreff",
       "colStatus": "Status",
+      "colRef": "Aufgabe",
       "colSent": "Gesendet",
       "resendTitle": "Diese Nachricht erneut über den aktiven Kanal zustellen (wird als neue Postausgangszeile erfasst)",
       "retryResend": "Erneut versuchen",
