@@ -140,6 +140,11 @@ export type PipelineAnalytics = {
   // ANA2 — the window actually applied (null = all time), echoed so the client
   // renders the selector state from the server's answer, not its own request.
   windowDays: number | null;
+  /** Echo of `opts.jobId` — null when the read is workspace-wide. A job-scoped
+   *  cohort ANDs `job_id = ?` on the entries SELECT, the sim-exclusion COUNT, and
+   *  the event-time hire count (funnel, TTH, cost-per-hire). Callers that omit it
+   *  stay byte-identical on every other field. */
+  jobId: string | null;
   // ANA2 — weekly inflow/outcome trend from pipeline_events (see
   // analytics-momentum.ts for the series mapping and bucket semantics).
   momentum: MomentumWeek[];
@@ -307,7 +312,9 @@ export function pipelineAnalytics(
   // `rowCap` overrides ANALYTICS_COHORT_CAP. Tests only — a production caller has
   // no business narrowing the cohort, and the flag it would set is the payload's
   // honesty about the DEFAULT bound.
-  opts?: { endMs?: number; rowCap?: number },
+  // `jobId` is the missing cohort axis: one role's funnel / TTH / cost-per-hire.
+  // Omitted = workspace-wide, byte-identical to the historical two-opt shape.
+  opts?: { endMs?: number; rowCap?: number; jobId?: string },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineAnalytics {
   const db = ensureDb();
@@ -315,6 +322,9 @@ export function pipelineAnalytics(
   const cutoffIso = windowDays ? new Date(endMs - windowDays * 86_400_000).toISOString() : null;
   const upperIso = opts?.endMs != null && windowDays ? new Date(endMs).toISOString() : null;
   const rowCap = cohortCap(opts?.rowCap);
+  const jobId = typeof opts?.jobId === "string" && opts.jobId.trim() ? opts.jobId.trim() : null;
+  const jobPred = jobId ? " AND job_id = ?" : "";
+  const jobBind: string[] = jobId ? [jobId] : [];
   const ROW_COLUMNS =
     "job_id, job_title, archetype, stage, status, created_at, stage_changed_at, source_channel, source_campaign, source_variant";
   // NEWEST FIRST + one row past the cap: the ordering makes the slice deterministic
@@ -330,17 +340,17 @@ export function pipelineAnalytics(
       ? upperIso
         ? db
             .prepare(
-              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`
             )
-            .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, rowCap + 1)
+            .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)
         : db
             .prepare(
-              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`
             )
-            .all(cutoffIso, SIM_TITLE_LIKE, workspaceId, rowCap + 1)
+            .all(cutoffIso, SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)
       : db
-          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
-          .all(SIM_TITLE_LIKE, workspaceId, rowCap + 1)) as unknown[]
+          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`)
+          .all(SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)) as unknown[]
   );
   const truncated = read.truncated;
   const rows = read.rows as {
@@ -368,13 +378,13 @@ export function pipelineAnalytics(
       ? upperIso
         ? db
             .prepare(
-              `SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${SIM_PREDICATE} AND workspace_id = ?`
+              `SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${SIM_PREDICATE} AND workspace_id = ?${jobPred}`
             )
-            .get(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId)
+            .get(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, ...jobBind)
         : db
-            .prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND ${SIM_PREDICATE} AND workspace_id = ?`)
-            .get(cutoffIso, SIM_TITLE_LIKE, workspaceId)
-      : db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE ${SIM_PREDICATE} AND workspace_id = ?`).get(SIM_TITLE_LIKE, workspaceId)
+            .prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND ${SIM_PREDICATE} AND workspace_id = ?${jobPred}`)
+            .get(cutoffIso, SIM_TITLE_LIKE, workspaceId, ...jobBind)
+      : db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE ${SIM_PREDICATE} AND workspace_id = ?${jobPred}`).get(SIM_TITLE_LIKE, workspaceId, ...jobBind)
   ) as { n: number };
 
   // Index against THIS WORKSPACE's axis, not the shipped list. A team that
@@ -777,6 +787,7 @@ export function pipelineAnalytics(
   // the event trail, and `hired` additionally catches entries seeded straight onto a
   // terminal stage with no transition event to find.
   const terminalStageIds = stagesWithRole("terminal", axis);
+  const terminalPlaceholders = terminalStageIds.map(() => "?").join(", ");
   const hiresClosedInWindow = !cutoffIso
     ? hired
     : terminalStageIds.length === 0
@@ -785,14 +796,30 @@ export function pipelineAnalytics(
           (
             db
               .prepare(
-                `SELECT COUNT(DISTINCT entry_id) AS n FROM pipeline_events
-                  WHERE kind IN ('advanced', 'auto_advanced')
-                    AND to_stage IN (${terminalStageIds.map(() => "?").join(", ")})
-                    AND entry_id IS NOT NULL
-                    AND created_at >= ?${upperIso ? " AND created_at < ?" : ""}
-                    AND ${notSim()} AND workspace_id = ?`
+                jobId
+                  ? `SELECT COUNT(DISTINCT e.entry_id) AS n FROM pipeline_events e
+                       INNER JOIN pipeline_entries p ON p.id = e.entry_id
+                      WHERE e.kind IN ('advanced', 'auto_advanced')
+                        AND e.to_stage IN (${terminalPlaceholders})
+                        AND e.entry_id IS NOT NULL
+                        AND e.created_at >= ?${upperIso ? " AND e.created_at < ?" : ""}
+                        AND ${notSim("e.job_title")} AND e.workspace_id = ?
+                        AND p.job_id = ?`
+                  : `SELECT COUNT(DISTINCT entry_id) AS n FROM pipeline_events
+                      WHERE kind IN ('advanced', 'auto_advanced')
+                        AND to_stage IN (${terminalPlaceholders})
+                        AND entry_id IS NOT NULL
+                        AND created_at >= ?${upperIso ? " AND created_at < ?" : ""}
+                        AND ${notSim()} AND workspace_id = ?`
               )
-              .get(...terminalStageIds, cutoffIso, ...(upperIso ? [upperIso] : []), SIM_TITLE_LIKE, workspaceId) as { n: number }
+              .get(
+                ...terminalStageIds,
+                cutoffIso,
+                ...(upperIso ? [upperIso] : []),
+                SIM_TITLE_LIKE,
+                workspaceId,
+                ...jobBind
+              ) as { n: number }
           ).n ?? 0
         );
 
@@ -846,6 +873,7 @@ export function pipelineAnalytics(
     koDeclined,
     byArchetype,
     windowDays: windowDays ?? null,
+    jobId,
     momentum,
     automation,
     offers,
