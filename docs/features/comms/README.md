@@ -414,10 +414,13 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
   It now renders as a calm "already being delivered" line, never in the failure
   tone, and the button settles instead of inviting a third click. Five outcomes
   pinned by `app/_lib/comms-resend-outcome.test.ts`.
-- **Resend is throttled and de-duplicated** — `POST /api/comms/[id]/resend` is
-  the one door in the outbox loop that spends real email, so it carries a per-IP
-  `rateLimit()` (60 per 10 minutes, after the cheap refusals) and answers
-  `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
+- **Resend is operator-gated, throttled and de-duplicated** — `POST /api/comms/[id]/resend`
+  is the one door in the outbox loop that spends real email. It asks `requireOperator`
+  then `pipeline:write` before the in-flight Set (a demo cookie is 401; a viewer is
+  403 `FORBIDDEN_CAPABILITY`) because `comms_relay_config` is a single global row
+  and a sandbox click would POST a candidate-shaped envelope at the install's live
+  relay. It also carries a per-IP `rateLimit()` (60 per 10 minutes, after the cheap
+  refusals) and answers `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
   entry-less KO-decline case) correlates on its own outbox id, so the refless
   shape can no longer be resent without bound (`resend-dedup.test.ts`).
 

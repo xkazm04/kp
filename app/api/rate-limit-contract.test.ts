@@ -1361,10 +1361,12 @@ const ROUTES: RouteSpec[] = [
     // spends real email on demand, and it carried no throttle at all. Its only guards
     // were an in-process in-flight Set and a dedup that a REFLESS message skipped
     // entirely - so a refless dead letter could be re-dispatched once per click,
-    // without bound. Operator-gated, and open mode (KP_OPERATOR_PASSWORD unset) makes
-    // that gate a documented no-op for the ENTIRE API, so the limiter is the real
-    // bound. 60/10min per IP sits far above a recruiter working a dead-letter list by
-    // hand (one click per message, each read first) and pins a scripted loop at 6/min.
+    // without bound. Operator-gated (`await requireOperator()` before sendComm, plus
+    // pipeline:write) — a demo cookie is refused at identity, a viewer at capability.
+    // Open mode (KP_OPERATOR_PASSWORD unset) makes that identity gate a documented
+    // no-op for the ENTIRE API, so the limiter is the real bound. 60/10min per IP sits
+    // far above a recruiter working a dead-letter list by hand (one click per message,
+    // each read first) and pins a scripted loop at 6/min.
     rel: "./comms/[id]/resend/route.ts",
     key: "`comms-resend:${clientIpFrom(request.headers)}`",
     limit: 60,
