@@ -5459,6 +5459,17 @@
       "targetInvalid": "Enter a whole number between 1 and {max}.",
       "langsLabel": "Advertise in",
       "langsHelp": "Languages beyond the posting's own are written by the AI after the role goes live. With no model configured none are written, and you can generate one later from the Posting tab."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Assumed facts",
+        "company": "Assumed employer",
+        "location": "Assumed location",
+        "work_mode": "Assumed work mode",
+        "seniority": "Assumed seniority",
+        "salary_band": "Assumed pay band",
+        "generic": "Assumed {field}"
+      }
     }
   },
   "scoreProvenance": {

@@ -5459,6 +5459,17 @@
       "targetInvalid": "Zadejte celé číslo od 1 do {max}.",
       "langsLabel": "Inzerovat v jazycích",
       "langsHelp": "Jazyky nad rámec vlastního jazyka inzerátu píše AI po zveřejnění role. Bez nastaveného modelu nevznikne žádný a překlad můžete vytvořit později na kartě Inzerát."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Předpokládané údaje",
+        "company": "Předpokládaný zaměstnavatel",
+        "location": "Předpokládaná lokalita",
+        "work_mode": "Předpokládaný režim práce",
+        "seniority": "Předpokládaná seniorita",
+        "salary_band": "Předpokládané platové pásmo",
+        "generic": "Předpokládané {field}"
+      }
     }
   },
   "scoreProvenance": {

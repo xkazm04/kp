@@ -5459,6 +5459,17 @@
       "targetInvalid": "Saisissez un nombre entier entre 1 et {max}.",
       "langsLabel": "Diffuser en",
       "langsHelp": "Les langues autres que celle de l'annonce sont rédigées par l'IA une fois le poste ouvert. Sans modèle configuré, aucune n'est rédigée, et vous pourrez en générer une plus tard depuis l'onglet Annonce."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Faits supposés",
+        "company": "Employeur supposé",
+        "location": "Lieu supposé",
+        "work_mode": "Mode de travail supposé",
+        "seniority": "Niveau supposé",
+        "salary_band": "Fourchette salariale supposée",
+        "generic": "Supposé : {field}"
+      }
     }
   },
   "scoreProvenance": {

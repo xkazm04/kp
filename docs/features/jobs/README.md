@@ -1432,9 +1432,12 @@ include `workspace_id`).
   40 from this screen. That needs server-side search or a load-more, not more copy.
 - The campaign pack now ships `defaultedFields` (camelCase, the list
   `normalize_job` recorded) beside `warnings`. A job that defaulted location +
-  seniority includes those slugs; a fully stated job sends `[]`. Pinned by
-  `pipeline/jobfit/tests/test_campaign.py`. The Campaign tab is still gone, so
-  painting the list is a follow-up on whatever surface renders a pack next.
+  seniority includes those slugs; a fully stated job sends `[]`. Painting the
+  list is `campaignDefaultedChips` (`jobsCampaignDefaulted.ts`): known slugs get
+  a localized chip, unknown slugs get "assumed {field}", and `[]` paints none.
+  The Campaign tab is still gone, so the next pack surface calls that helper.
+  Pinned by `test_campaign.py` and `jobsCampaignDefaulted.test.ts`. Also on the
+  pack schema floor as `defaultedFields`.
 - **The Fair Rank audit table still ranks one number across cohorts it is not
   comparable within.** The producer now labels the split: `recruiter.fairness_check`
   carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`

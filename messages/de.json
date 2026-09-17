@@ -5459,6 +5459,17 @@
       "targetInvalid": "Geben Sie eine ganze Zahl zwischen 1 und {max} ein.",
       "langsLabel": "Ausschreiben in",
       "langsHelp": "Sprachen über die des Inserats hinaus schreibt die KI, nachdem die Stelle live ist. Ohne konfiguriertes Modell entsteht keine, und Sie können sie später im Tab Inserat erzeugen."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Angenommene Angaben",
+        "company": "Angenommener Arbeitgeber",
+        "location": "Angenommener Ort",
+        "work_mode": "Angenommenes Arbeitsmodell",
+        "seniority": "Angenommenes Niveau",
+        "salary_band": "Angenommenes Gehaltsband",
+        "generic": "Angenommen: {field}"
+      }
     }
   },
   "scoreProvenance": {
