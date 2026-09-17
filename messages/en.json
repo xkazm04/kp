@@ -6833,6 +6833,8 @@
     "fieldContactPlaceholder": "So we can get back to you",
     "fieldContactHint": "Required. This is the only way we can invite you to the next step.",
     "fieldRepo": "Solution repository URL",
+    "fieldRepoPlaceholder": "https://example.com/your-solution",
+    "fieldRepoHint": "A public http or https URL. Any host is fine.",
     "fieldNotes": "Notes (optional)",
     "submit": "Submit solution",
     "sending": "Submitting…",

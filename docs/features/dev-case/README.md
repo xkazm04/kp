@@ -78,7 +78,8 @@ palette. The full mapping table and the five reading states are in
   `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`. The page
   subtitle matches the submit path that actually renders (`subtitleLive` when a
   seed is present and the Live Work Surface mounts, `subtitleRepo` for the
-  repository-link form).
+  repository-link form). The repo-link field uses a localized placeholder and
+  rejects a value that is not an http(s) URL.
 
 ## Flows
 

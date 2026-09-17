@@ -6833,6 +6833,8 @@
     "fieldContactPlaceholder": "Damit wir uns bei Ihnen melden können",
     "fieldContactHint": "Erforderlich. Nur so können wir Sie zum nächsten Schritt einladen.",
     "fieldRepo": "URL des Lösungs-Repositorys",
+    "fieldRepoPlaceholder": "https://example.com/ihre-loesung",
+    "fieldRepoHint": "Eine öffentliche http- oder https-URL. Jeder Host ist in Ordnung.",
     "fieldNotes": "Notizen (optional)",
     "submit": "Lösung einreichen",
     "sending": "Wird eingereicht…",

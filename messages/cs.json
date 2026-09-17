@@ -6833,6 +6833,8 @@
     "fieldContactPlaceholder": "Abychom se vám mohli ozvat",
     "fieldContactHint": "Povinné. Jedině tak vás můžeme pozvat k dalšímu kroku.",
     "fieldRepo": "URL repozitáře s řešením",
+    "fieldRepoPlaceholder": "https://example.com/vase-reseni",
+    "fieldRepoHint": "Veřejná adresa http nebo https. Hostitel může být libovolný.",
     "fieldNotes": "Poznámky (volitelné)",
     "submit": "Odeslat řešení",
     "sending": "Odesílání…",

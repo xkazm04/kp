@@ -6833,6 +6833,8 @@
     "fieldContactPlaceholder": "Pour que nous puissions vous recontacter",
     "fieldContactHint": "Obligatoire. C’est le seul moyen de vous inviter à l’étape suivante.",
     "fieldRepo": "URL du dépôt de la solution",
+    "fieldRepoPlaceholder": "https://example.com/votre-solution",
+    "fieldRepoHint": "Une URL http ou https publique. N’importe quel hôte convient.",
     "fieldNotes": "Notes (facultatif)",
     "submit": "Soumettre la solution",
     "sending": "Envoi…",
