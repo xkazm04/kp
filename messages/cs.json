@@ -1591,6 +1591,8 @@
     "COMM_SIMULATION_ROW": "Tato zpráva patří k řízené simulaci a nikdy se neodesílá.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází.",
     "MATCH_RUN_FAILED": "Tohoto kandidáta se nepodařilo porovnat s rolemi. Zkuste to prosím znovu.",
+    "ARCHETYPES_READ_FAILED": "Registr archetypů se nepodařilo načíst. Zkuste to prosím znovu.",
+    "ARCHETYPES_WRITE_FAILED": "Archetyp se nepodařilo uložit. Zkuste to prosím znovu.",
     "MATCH_INPUT_INVALID": "Tohoto kandidáta nelze načíst. Profil nebo analýza za ním už neexistuje.",
     "BENCHMARK_ROLE_FAMILY_REQUIRED": "Tento benchmark neuvedl žádnou rodinu rolí.",
     "ANALYTICS_SPEND_SAVE_FAILED": "Náklady na tento kanál se nepodařilo uložit. Zkuste to prosím znovu.",

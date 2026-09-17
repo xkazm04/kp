@@ -280,8 +280,12 @@ const LEAK_CEILING = new Map<string, number>([
   ["jobs/[id]/candidates/route.ts", 1],
   ["repo-scan/route.ts", 1],
   ["analytics/route.ts", 1],
-  ["archetypes/[id]/route.ts", 2],
-  ["archetypes/route.ts", 2],
+  // archetypes/route.ts (2) and archetypes/[id]/route.ts (2) were FIXED, not
+  // ceilinged (scan-sweep w4-cv-intel): the four 500s answer
+  // safeJsonError(..., "ARCHETYPES_{READ,WRITE}_FAILED") and the input 400s
+  // already ship code/params via errorResponse, so the archetype manager
+  // resolves every fault in the reader's language. The rows are deleted so the
+  // win is locked and a regression reads as `undeclared`.
   // ats/config's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
   // integrations-settings): the 500 answers safeJsonError(..., "ATS_CONFIG_SAVE_FAILED")
   // and the new stale-write 409 is jsonRefusal("ATS_CONFIG_STALE"), so the panel resolves

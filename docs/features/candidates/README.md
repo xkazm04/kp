@@ -690,7 +690,9 @@ never a guessed zero) and states that retiring only hides it from the pickers.
 **Registry edits (the write boundary).** The Archetype admin UI writes
 `archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
 `app/_lib/archetype-registry.ts` does an atomic temp-file + `rename`, serialized
-so two saves cannot clobber each other). `validateArchetype` is deliberately at
+so two saves cannot clobber each other). A registry read/write 500 answers
+`ARCHETYPES_READ_FAILED` / `ARCHETYPES_WRITE_FAILED` (never `error.message`);
+input errors already return `code`/`params` via `errorResponse`. `validateArchetype` is deliberately at
 least as strict as the file's *readers*, because Python re-reads and re-validates
 it on **every** pipeline spawn (`registry._validate_archetype_weights` raises at
 import, which would fail every analyze / match / intake / profile build on the
