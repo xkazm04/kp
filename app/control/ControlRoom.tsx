@@ -35,6 +35,7 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
   // deliberate two-step so a misclick on this oversight surface can't fire an
   // irreversible action. null = nothing armed. Pause/resume bypass this (kill switch).
   const [armed, setArmed] = useState<string | null>(null);
+  const [armedAt, setArmedAt] = useState<number | null>(null);
 
   // The 3s poll keeps the last good status/outcomes visible when the API drops
   // and tracks per-loader failure + freshness, so a stale view is flagged rather
@@ -163,8 +164,9 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
   // control through the two-step gate. First click arms (button flips to "Confirm…");
   // a second click on the SAME control runs it. Any other control re-arms instead.
   const guard = (key: string, run: () => void | Promise<void>) => {
-    const { execute, nextArmed } = armOrExecute(armed, key);
+    const { execute, nextArmed } = armOrExecute(armed, key, Date.now(), armedAt);
     setArmed(nextArmed);
+    setArmedAt(nextArmed ? Date.now() : null);
     if (execute) void run();
   };
 

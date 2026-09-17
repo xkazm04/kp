@@ -5,7 +5,11 @@
 // vacuously because it also asserts the control becomes armed.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { armOrExecute, floorKey } from "./controlRoomConfirm.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { armOrExecute, ARMED_TTL_MS, floorKey } from "./controlRoomConfirm.ts";
+
+const roomSrc = readFileSync(fileURLToPath(new URL("./ControlRoom.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 
 test("a first click ARMS the control and does not execute (the misclick guard)", () => {
   const r = armOrExecute(null, "gate-42");
@@ -41,4 +45,22 @@ test("confirming the SAME suggested floor still applies it", () => {
   const r = armOrExecute(floorKey(70), floorKey(70));
   assert.equal(r.execute, true);
   assert.equal(r.nextArmed, null);
+});
+
+test("a confirm older than the TTL disarms without executing", () => {
+  const r = armOrExecute("gate-42", "gate-42", ARMED_TTL_MS + 1, 0);
+  assert.equal(r.execute, false, "a parked Confirm must not fire after the operator has left");
+  assert.equal(r.nextArmed, null);
+});
+
+test("a confirm just inside the TTL still executes", () => {
+  const r = armOrExecute("gate-42", "gate-42", ARMED_TTL_MS - 1, 0);
+  assert.equal(r.execute, true);
+  assert.equal(r.nextArmed, null);
+});
+
+test("ControlRoom stores armedAt and passes Date.now() into the reducer", () => {
+  assert.match(roomSrc, /const \[armedAt, setArmedAt\] = useState<number \| null>\(null\)/);
+  assert.match(roomSrc, /armOrExecute\(armed, key, Date\.now\(\), armedAt\)/);
+  assert.match(roomSrc, /setArmedAt\(nextArmed \? Date\.now\(\) : null\)/);
 });
