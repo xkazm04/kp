@@ -339,7 +339,10 @@ transcript's full width, beneath the bubble. Round 5 changed this after an
 operator click-through: a three-column table inside the old 26rem, 85 %-capped
 slot wrapped every cell to three lines and read as illegible chrome.
 
-`ChatMiniChart` is hand-rolled inline SVG — no chart library. recharts needs
+`ChatMiniChart` is hand-rolled inline SVG — no chart library. The SVG keeps
+`role="img"`; an `sr-only` table of `x.values × series` (`chatChartAlt.ts`) is
+the text alternative, so a screen-reader user can compare the numbers instead
+of hearing only the title. recharts needs
 literal color strings for its chrome and therefore a `useTheme()` fork (see
 `FactorChart`); inside a chat turn that costs more than the drawing is worth. A
 presentation attribute is parsed as CSS, so `fill="var(--color-coral)"` resolves

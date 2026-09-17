@@ -1,4 +1,6 @@
+import { useId } from "react";
 import type { ChatBlockLabels, ChatChartBlock } from "./chatBlockTypes";
+import { chartAlt } from "./chatChartAlt";
 
 /*
  * A small two-axis chart inside a chat turn — hand-rolled inline SVG, no chart
@@ -70,6 +72,8 @@ function formatTick(value: number): string {
 
 export function ChatMiniChart({ block, labels }: { block: ChatChartBlock; labels: ChatBlockLabels }) {
   const { series, x, y, kind, title } = block;
+  const alt = chartAlt(block, labels);
+  const altId = useId();
   const count = x.values.length;
   const ticks = tickIndexes(count);
   // Anchoring depends on whether the ticks were THINNED. Three ticks spread
@@ -100,6 +104,7 @@ export function ChatMiniChart({ block, labels }: { block: ChatChartBlock; labels
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label={title ?? labels.chart}
+          aria-describedby={altId}
           className="block h-auto w-full min-w-[420px] text-meta"
         >
           {/* Two value ticks — zero and the scale top. A grid of five lines in
@@ -178,6 +183,27 @@ export function ChatMiniChart({ block, labels }: { block: ChatChartBlock; labels
             ))}
           </ul>
         ) : null}
+        <table className="sr-only">
+          <caption id={altId}>{alt.caption}</caption>
+          <thead>
+            <tr>
+              {alt.columns.map((column, index) => (
+                <th key={index} scope="col">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {alt.rows.map((row, index) => (
+              <tr key={index}>
+                {row.map((cell, cellIndex) => (
+                  <td key={cellIndex}>{cell || labels.emptyCell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </figure>
   );
