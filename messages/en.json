@@ -10112,7 +10112,8 @@
       "heading": "Awaiting your decision · {count}",
       "untitled": "Role",
       "approve": "Approve & continue",
-      "approveConfirm": "Confirm approve?"
+      "approveConfirm": "Confirm approve?",
+      "review": "Review"
     },
     "lifecycles": {
       "heading": "Active lifecycles · {count}",

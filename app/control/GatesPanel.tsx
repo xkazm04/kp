@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { EYEBROW, NOTICE } from "@/app/_components/ui/recipes";
 import type { Gate, Guard } from "./types";
@@ -31,6 +32,14 @@ export function GatesPanel({
               {/* `detail` is the lifecycle's own server-composed descriptor — audit payload, not copy. */}
               <span className="block truncate text-micro text-steel">{g.detail}</span>
             </span>
+            {/* Review is the edit path (DevLifecycleReviewPanel on Assignments).
+                Approve stays the no-edit two-step confirm. */}
+            <Link
+              href={`/?tab=assignments&lifecycle=${encodeURIComponent(g.id)}`}
+              className="focus-ring inline-flex h-8 shrink-0 items-center rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40"
+            >
+              {t("review")}
+            </Link>
             {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): approving an
                 Art. 22 human gate is irreversible — require a deliberate confirm. */}
             <button

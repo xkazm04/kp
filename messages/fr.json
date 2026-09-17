@@ -9953,7 +9953,8 @@
       "heading": "En attente de votre décision · {count}",
       "untitled": "Poste",
       "approve": "Approuver et continuer",
-      "approveConfirm": "Confirmer l’approbation ?"
+      "approveConfirm": "Confirmer l’approbation ?",
+      "review": "Examiner"
     },
     "lifecycles": {
       "heading": "Cycles de vie actifs · {count}",

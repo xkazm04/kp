@@ -456,7 +456,10 @@ Advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`).
 `/control` — approving an Art. 22 human gate, reconciling, and applying the
 calibrated promote floor — arm on the first click and only run on a second
 click of the *same* control (`app/control/controlRoomConfirm.ts`
-`armOrExecute`; pause/resume stay one-click, a kill switch must). The room
+`armOrExecute`; pause/resume stay one-click, a kill switch must). Each pending
+gate also carries a **Review** link to `/?tab=assignments&lifecycle=<id>` so
+sign-off can happen on `DevLifecycleReviewPanel` (case edits, probe-gate
+override) rather than a truncated title. The room
 re-polls every 3s, so a control's identity has to include anything that can
 change under the arm: the promote-floor key carries the VALUE (`floorKey`,
 e.g. `floor:70`). With the earlier constant `"floor"` key a suggestion that

@@ -10112,7 +10112,8 @@
       "heading": "Wartet auf Ihre Entscheidung · {count}",
       "untitled": "Position",
       "approve": "Genehmigen & fortfahren",
-      "approveConfirm": "Genehmigung bestätigen?"
+      "approveConfirm": "Genehmigung bestätigen?",
+      "review": "Prüfen"
     },
     "lifecycles": {
       "heading": "Aktive Lebenszyklen · {count}",

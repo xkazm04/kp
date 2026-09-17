@@ -10112,7 +10112,8 @@
       "heading": "Čeká na vaše rozhodnutí · {count}",
       "untitled": "Pozice",
       "approve": "Schválit a pokračovat",
-      "approveConfirm": "Potvrdit schválení?"
+      "approveConfirm": "Potvrdit schválení?",
+      "review": "Posoudit"
     },
     "lifecycles": {
       "heading": "Aktivní životní cykly · {count}",
