@@ -254,11 +254,13 @@ hand-rolling. What changed on the two doors in this document:
   English. `STATUS_LINK_INVALID` (404 on `/api/status/[token]`, its `/nps`
   sibling, and `GET /api/status/[token]/decisions` — one refusal for "no such token"
   and "no such entry", so the door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
-  feedback on a still-running application) and `DATA_LINK_INVALID` (404 for a
-  never-issued or already-spent erasure token). All three are in `REFUSAL_ERRORS`
+  feedback on a still-running application), `NPS_SCORE_REQUIRED` /
+  `NPS_SCORE_INVALID` (`parseNpsSubmission` refuses with a code, never an English
+  `reason`), and `DATA_LINK_INVALID` (404 for a
+  never-issued or already-spent erasure token). All are in `REFUSAL_ERRORS`
   with four catalogue entries each; the page resolves `errors.<CODE>` in the
   reader's language (`docs/architecture/api-contracts.md` §1.1). Pinned by
-  `app/api/status/status-decisions.test.ts`.
+  `app/api/status/status-decisions.test.ts` and `app/_lib/candidate-nps.test.ts`.
 
 `e2e/token-doors-axe.spec.ts` now sweeps `/status/[token]` in two states — the
 loaded timeline and the dead-link alert — beside the offer, erasure and invite

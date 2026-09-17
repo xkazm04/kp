@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = await readJsonWithLimit<{ score?: unknown; comment?: unknown }>(request, MAX_NPS_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_NPS_BODY_BYTES });
     const parsed = parseNpsSubmission(body);
-    if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: 400 });
+    if (!parsed.ok) return NextResponse.json({ error: parsed.code }, { status: 400 });
 
     recordCandidateNps(resolved.entryId, parsed.score, parsed.comment, resolved.workspaceId);
     return jsonOk({ ok: true });

@@ -1699,6 +1699,8 @@
     "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen.",
     "STATUS_LINK_INVALID": "Dieser Statuslink ist nicht gültig.",
     "STATUS_NPS_NOT_APPLICABLE": "Diese Frage wird freigeschaltet, sobald Ihre Bewerbung abgeschlossen ist.",
+    "NPS_SCORE_REQUIRED": "Eine Bewertung ist erforderlich.",
+    "NPS_SCORE_INVALID": "Die Bewertung muss eine ganze Zahl zwischen 0 und 10 sein.",
     "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Diese Aktion des Kontrollraums kennt diese Installation nicht. Laden Sie die Seite neu.",
     "DEVCASE_FLOOR_INVALID": "Die Promote-Schwelle muss eine Zahl zwischen 0 und 100 sein.",
