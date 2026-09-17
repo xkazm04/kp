@@ -4697,6 +4697,7 @@
           "kindNote": "note",
           "kindJd": "saved JD",
           "jdPick": "Pick a saved JD…",
+          "retry": "Try again",
           "error": "Could not update the attachments. Please try again.",
           "noteFallbackTitle": "Untitled note",
           "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts.",

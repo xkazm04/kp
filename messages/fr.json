@@ -4697,6 +4697,7 @@
           "kindNote": "note",
           "kindJd": "fiche enregistrée",
           "jdPick": "Choisir une fiche enregistrée…",
+          "retry": "Réessayer",
           "error": "Impossible d'enregistrer les documents. Veuillez réessayer.",
           "noteFallbackTitle": "Note sans titre",
           "textCap": "Cette note dépasse les {max, number} caractères qu'un document de référence peut contenir. Raccourcissez-la ou joignez-la en plusieurs parties.",

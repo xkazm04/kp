@@ -43,6 +43,13 @@ test("the pane states the count cap and stops at it", () => {
   assert.match(SRC, /resolveError\(\{ code: "INTAKE_ATTACHMENT_LIMIT" \}/);
 });
 
+test("a failed JD library fetch is not an empty picker", () => {
+  assert.match(SRC, /intakeJdPickerFromResponse/);
+  assert.match(SRC, /code: "JD_LIST_FAILED"/);
+  assert.match(SRC, /t\("retry"\)/);
+  assert.doesNotMatch(SRC, /setJds\(\[\]\)/, "a 500 must not collapse to an empty list");
+});
+
 test("the caps the pane discloses are the caps the route enforces", () => {
   // NON-VACUITY for the assertions above: if either constant moved, the pane's
   // sentence would still be right, because it never holds a literal.

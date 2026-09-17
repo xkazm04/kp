@@ -4697,6 +4697,7 @@
           "kindNote": "poznámka",
           "kindJd": "uložený popis pozice",
           "jdPick": "Vyberte uložený popis pozice…",
+          "retry": "Zkusit znovu",
           "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
           "noteFallbackTitle": "Poznámka bez názvu",
           "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech.",

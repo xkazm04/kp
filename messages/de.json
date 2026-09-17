@@ -4697,6 +4697,7 @@
           "kindNote": "Notiz",
           "kindJd": "gespeicherte Stellenbeschreibung",
           "jdPick": "Gespeicherte Stellenbeschreibung wählen…",
+          "retry": "Erneut versuchen",
           "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen.",
           "noteFallbackTitle": "Notiz ohne Titel",
           "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an.",
