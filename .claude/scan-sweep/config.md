@@ -175,3 +175,12 @@ claim and an untrue one.
   count, and say that a thin route shell is swept through its PAIRS (the
   layout it merges with, sibling routes, the catalog it reads), where most of
   its findings will be veto 1.
+
+- **2026-09-17 — Coordinator waves on a shared checkout mix commit subjects
+  even when every builder is told pathspec-only.** Nineteen parallel
+  implementers on disjoint product files still raced the index: `messages/*.json`,
+  a shared `git add` between `diff --cached --stat` and `commit`, and
+  `docs/features/*/README.md` produced commits whose subject named one finding
+  and whose tree contained another session's files (observed: `aac14e447`,
+  `f0085c17d`, `4cfa7963a`, `461f083e3`). Worktrees, or a single serialized
+  owner for catalogs/docs, are the control; the pathspec reminder is not.
