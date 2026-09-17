@@ -1,14 +1,15 @@
 // State + handlers for JdsBuilder.tsx — extracted verbatim (no behaviour change)
 // so the builder file stays under the 200-line split threshold. Owns: the form
 // fields (title/company/seniority/family/need/repo/output-lang), the template
-// picker, the live advisory lint, the backgrounded Generate flow, and the
-// Save-as-draft flow.
+// picker, the backgrounded Generate flow, and the Save-as-draft flow. The
+// finished-JD lint belongs on post-build editors (ledger / public), not on the
+// need prompt.
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { builderLintFindings, type GeneratePrefill } from "./jdsLibrary";
+import type { GeneratePrefill } from "./jdsLibrary";
 import type { Template } from "@/app/features/shared/renderTemplate";
 import { fetchTemplates } from "@/app/features/shared/templatesClient";
 import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
@@ -128,15 +129,6 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   // ── Generate: the backgrounded, checklist-driven AI build ──────────────────
   const [options, setOptions] = useState({ description: true, marketResearch: true, caseDesign: false });
 
-  // ── Advisory specificity/inclusivity lint (jd-lint, live on the editor body) ──
-  // Debounced ~400ms so it recomputes off the keystroke path; ADVISORY only —
-  // never gates Generate or Save-as-draft. The panel below hides at zero findings.
-  const [lintFindings, setLintFindings] = useState<ReturnType<typeof builderLintFindings>>([]);
-  const marketResearch = options.marketResearch;
-  useEffect(() => {
-    const id = setTimeout(() => setLintFindings(builderLintFindings(needText, { marketResearch })), 400);
-    return () => clearTimeout(id);
-  }, [needText, marketResearch]);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // Durable library-row href after a successful start (replaces the 4s queued chip).
@@ -269,7 +261,6 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     familyOptions,
     options,
     setOptions,
-    lintFindings,
     checklistOpen,
     setChecklistOpen,
     submitting,

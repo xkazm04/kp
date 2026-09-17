@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Check, Loader2, Save, Settings2, Sparkles } from "lucide-react";
 import type { GeneratePrefill } from "./jdsLibrary";
-import { JdLintPanel } from "./JdsLintPanel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { Select } from "@/app/_components/Select";
@@ -56,7 +55,6 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
     familyOptions,
     options,
     setOptions,
-    lintFindings,
     checklistOpen,
     setChecklistOpen,
     submitting,
@@ -141,17 +139,6 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           minHeight="8rem"
         />
       </Field>
-      {/* Advisory lint over the editor body — surfaces boilerplate / missing pay·place /
-          non-inclusive wording as the recruiter drafts. Hidden at zero findings (no
-          empty chrome); never blocks Generate or Save-as-draft. */}
-      {lintFindings.length > 0 ? (
-        // Fresh content arriving under a settled form (the lint engages once the
-        // draft is substantive): fade it in rather than having advice pop into the
-        // page while the recruiter is mid-sentence.
-        <div className="animate-arrive-in">
-          <JdLintPanel findings={lintFindings} />
-        </div>
-      ) : null}
       {/* Codebase enrichment is a dev-role feature — shown only when Field = Software. */}
       {isSoftware ? (
         // Same reason: this field appears the moment Field flips to Software.

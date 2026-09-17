@@ -34,23 +34,20 @@ export function jdMarketResearchAvailable(
   return normalizeMarketSalary(artifacts.salary).available;
 }
 
-// Below this many characters the "describe the need" body is too thin to lint
-// usefully — every short draft would trip missing-salary/place, which reads as
-// nagging rather than advice. So the builder holds the advisory panel until the
-// draft is substantive, then engages. Named here so the wiring test pins it.
+// Below this many characters a JD body is too thin to lint usefully — every
+// short draft would trip missing-salary/place, which reads as nagging rather
+// than advice. Named here so the wiring test pins it. The Generate form's editor
+// is the NEED, not a posting, so this threshold is for post-build editors only.
 export const LINT_MIN_BODY_CHARS = 40;
 
-// The builder's advisory specificity/inclusivity lint over its rich-editor body —
-// the SAME finished jd-lint engine that already backs the public-page panel, wired
-// (finally) to the authoring surface. Findings are ADVISORY; the panel hides at
-// zero (below the threshold this returns none). `marketResearch` feeds the
-// engine's `salaryAvailable` seam — "a grounded figure exists outside the prose,
-// so don't nag about pay". It is resolved per surface: PRE-build (JdBuilder) it's
-// the ticked "market research" checkbox, an intent whose result isn't knowable
-// yet; POST-build (the ledger read-view/editor, the public page's editor) it MUST
+// Advisory specificity/inclusivity lint over a finished JD body — the same
+// engine on the ledger read-view/editor and the public-page editor. Findings are
+// ADVISORY; the panel hides at zero (below the threshold this returns none).
+// `marketResearch` feeds the engine's `salaryAvailable` seam — "a grounded
+// figure exists outside the prose, so don't nag about pay". Post-build it MUST
 // come from jdMarketResearchAvailable above, which checks the band the build
-// actually produced rather than re-trusting the tick. The engine itself is
-// bilingual by content (EN+CS regexes) — no lang argument to thread.
+// actually produced rather than re-trusting the pre-build tick. The engine
+// itself is bilingual by content (EN+CS regexes) — no lang argument to thread.
 export function builderLintFindings(
   body: string,
   opts: { marketResearch: boolean; mustHaveCount?: number }
@@ -60,9 +57,9 @@ export function builderLintFindings(
 }
 
 /** The structured must-have count from a build's artifacts, for the lint's
- *  manyMustHaves rule. Only the artifact-bearing surfaces can supply it — the
- *  builder lints the recruiter's PROMPT and has no RoleSpec yet, so it passes
- *  nothing and the rule falls back to counting marker words in prose. */
+ *  manyMustHaves rule. Only the artifact-bearing post-build surfaces can supply
+ *  it — a prompt has no RoleSpec yet, so the rule falls back to counting marker
+ *  words in prose. */
 export function jdMustHaveCount(
   artifacts: { role?: { mustHaves?: unknown[] } } | null | undefined
 ): number | undefined {
