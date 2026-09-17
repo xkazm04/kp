@@ -408,7 +408,11 @@ already carries traceability.
 
 The full dossier (`GET /api/decisions/records`) stays operator-gated
 (`requireOperator()`) because it carries rationale text, chain hashes and
-policy versions. A **separate, redacted candidate-facing view** now exists:
+policy versions. The same operator-session re-verify is pinned for every
+`/api/decisions/*` handler in `app/api/decisions/decisions-auth.test.ts`,
+including `GET /api/decisions/peer-context` (salary expectations) and
+`GET /api/decisions/jd-freshness` (JD-edit times), so dropping
+`requireOperator` on either is a red test rather than a public PII leak. A **separate, redacted candidate-facing view** now exists:
 `app/_lib/status-decisions.ts` derives a `CandidateDecisionView` (kind,
 attribution, reasonCode, and — for `auto_rejected` only — the threshold facts
 that were actually decisive) from the same sealed rows, served on
