@@ -42,10 +42,11 @@ as a banner, then strips the param from the URL so a reload cannot replay a stal
    pathless delete serializes `Path=/`, which expires nothing and leaves the real state
    replayable for the rest of its TTL (`callback/route.test.ts` guards both halves).
 3. Whatever happens, the operator lands back on this tab with a `calendar=<code>` param.
-4. **Disconnect** issues `DELETE /api/calendar/google`, which **revokes at Google first**
-   and only then drops the row — deleting locally without revoking would leave a live grant
-   nobody can see or withdraw from kp. The response reports `revokedAtGoogle` separately,
-   and the UI says so when the revoke did not confirm.
+4. **Disconnect** is confirm-gated (same posture as ATS removal): the first click opens a
+   strip naming the revoke, and only Confirm issues `DELETE /api/calendar/google`, which
+   **revokes at Google first** and only then drops the row — deleting locally without
+   revoking would leave a live grant nobody can see or withdraw from kp. The response
+   reports `revokedAtGoogle` separately, and the UI says so when the revoke did not confirm.
 
 ### Scopes, and partial grants
 

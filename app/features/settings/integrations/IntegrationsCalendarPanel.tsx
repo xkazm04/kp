@@ -11,19 +11,10 @@ import type { CalendarConnection } from "@/app/_lib/calendar/token-store";
 import { IntegrationsCallbackBanner } from "./IntegrationsCallbackBanner";
 
 // connect-the-integrations — connect / inspect / disconnect the workspace's Google
-// Calendar. The engine (OAuth, encrypted token store, revoke-first delete) shipped in W1
-// with no caller; this is the door.
-//
-// Three states, and the un-configured one matters most: when the deployment has no
-// GOOGLE_OAUTH_CLIENT_ID/SECRET the panel SAYS SO and shows the exact env vars plus the
-// redirect URI to register — it does not render a Connect button that would bounce off a
-// 503. Degrading without credentials is a product property here.
-//
-// Connect is a plain <a> to the start route, not a fetch: that route sets an httpOnly
-// state cookie and 302s to Google, which only a top-level navigation can follow.
-// Disconnect is the EXISTING DELETE (revoke at Google first, then drop the row) — its
-// `revokedAtGoogle: false` is surfaced, because that is precisely the case where the
-// operator must go withdraw the grant in their Google account themselves.
+// Calendar. Unconfigured deployments name the env vars instead of a Connect button
+// that would 503. Connect is a top-level <a> (state cookie + 302). Disconnect is
+// confirm-gated: the DELETE revokes at Google first, then drops the row, and
+// `revokedAtGoogle: false` is surfaced so the operator can withdraw the grant.
 
 type Payload = { configured: boolean; connection: CalendarConnection | null; redirectUriToRegister: string };
 
@@ -52,6 +43,7 @@ export function IntegrationsCalendarPanel() {
   }, [callback]);
 
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
 
   const connection = data?.connection ?? null;
@@ -67,6 +59,7 @@ export function IntegrationsCalendarPanel() {
       const p = (await r.json().catch(() => null)) as { ok?: boolean; revokedAtGoogle?: boolean } | null;
       if (!r.ok || !p?.ok) throw new Error();
       setNote({ text: p.revokedAtGoogle ? t("disconnected") : t("disconnectedNotRevoked"), ok: !!p.revokedAtGoogle });
+      setConfirming(false);
       reload();
     } catch {
       setNote({ text: t("disconnectFailed"), ok: false });
@@ -159,12 +152,36 @@ export function IntegrationsCalendarPanel() {
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => void disconnect()} disabled={busy} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
-              {busy ? t("disconnecting") : t("disconnect")}
-            </button>
-            <p className="text-sm text-steel">{t("disconnectHint")}</p>
-          </div>
+          {confirming ? (
+            <div className="mt-4 border-t border-stone-200 pt-4">
+              <p className="text-sm text-steel">{t("disconnectConfirm")}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void disconnect()}
+                  disabled={busy}
+                  className={`${BTN_SECONDARY} h-9 px-4 text-sm text-coral`}
+                >
+                  {busy ? t("disconnecting") : t("disconnectConfirmAction")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  disabled={busy}
+                  className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
+                >
+                  {t("disconnectCancel")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => setConfirming(true)} disabled={busy} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
+                {t("disconnect")}
+              </button>
+              <p className="text-sm text-steel">{t("disconnectHint")}</p>
+            </div>
+          )}
         </div>
       ) : null}
 
