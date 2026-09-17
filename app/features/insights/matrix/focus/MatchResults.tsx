@@ -34,6 +34,7 @@ export function MatchResults({
   error = null,
   staleness = null,
   onReweight,
+  onShowRemaining,
   filed,
   onFiled,
 }: {
@@ -50,6 +51,8 @@ export function MatchResults({
   // hand-built profiles (never stale) ⇒ no badge, no chrome.
   staleness?: { newerSlug: string; newerAnalyzedAt: string } | null;
   onReweight?: (weights?: WeightVector) => void;
+  // Fetch the rest of a cap-truncated ranking (same ref, higher limit).
+  onShowRemaining?: (limit: number) => void;
   // shortlist-to-group-eval — the cross-candidate session ledger (owned by
   // MatrixCandidateFocus; this component remounts per candidate) of pipeline entries filed
   // from Match, keyed by jobId. Roles with ≥ 2 entries surface the
@@ -114,6 +117,8 @@ export function MatchResults({
         archetype={archetype}
         early={early}
         onExportCsv={exportCsv}
+        onShowRemaining={onShowRemaining}
+        busy={loading}
       />
 
       {onReweight && candidate.weights && candidate.weightBounds ? (

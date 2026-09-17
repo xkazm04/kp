@@ -536,14 +536,19 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
 - **Grid.** `/api/matrix` scores at most `MATRIX_POOL_CAP` profiles and returns the
   unclamped `poolTotal` beside it; `MatrixDataNotices.tsx` renders `matrix.ofCount`
   ("200 of 350") whenever `poolTotal > poolCap`.
-- **Candidate focus.** `useMatchTabRun` posts `limit: 25` and `matching.py::match`
-  returns `scored[:limit]`, reporting BOTH `meta.survivors` (roles that cleared every
-  KO gate and were scored) and `meta.returned` (the slice). `rankedField` compares
-  them and `MatchResultsHeader.tsx` renders the "Ranked" chip as the same
-  `matrix.ofCount` sentence — "25 of 74" — when the cap cut the list, plain "25" when
-  it didn't. Without it the chip row read "Evaluated 120 · KO-filtered 46 · Ranked
-  25": arithmetic that doesn't close, with 49 scored roles invisible (the CSV export
-  carries the same slice).
+- **Candidate focus.** `useMatchTabRun` posts `MATCH_FOCUS_LIMIT` (25) on first
+  paint and `matching.py::match` returns `scored[:limit]`, reporting BOTH
+  `meta.survivors` (roles that cleared every KO gate and were scored) and
+  `meta.returned` (the slice). `rankedField` compares them and
+  `MatchResultsHeader.tsx` renders the "Ranked" chip as the same `matrix.ofCount`
+  sentence — "25 of 74" — when the cap cut the list, plain "25" when it didn't.
+  When it is a cut, the header also offers a control that re-posts the same ref
+  at `min(survivors, MATCH_LIMIT_MAX)` (`offersRankedExpand` /
+  `expandRankedLimit` in `focus/matchView.ts`) so the missing roles fill in and
+  the CSV can leave as the real field. First paint stays at 25 (cost); a
+  re-weight after expand keeps the raised limit. Without the chip the row read
+  "Evaluated 120 · KO-filtered 46 · Ranked 25": arithmetic that doesn't close,
+  with 49 scored roles invisible.
 - **Candidate picker.** The `/api/profile` and `/api/analyses` option reads check
   `r.ok` before trusting the body, so `candidateOptionsPlaceholder` can tell the
   three cases apart — in flight ("Loading…"), the read failed (`matrix.loadFailed`),
