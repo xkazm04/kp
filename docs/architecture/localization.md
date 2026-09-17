@@ -352,9 +352,14 @@ resolution path shared by `i18n/request.ts` and every API route that threads a
 language into a backend call. Its precedence is **cookie → `Accept-Language` →
 `en`**, with `isLocale()` guarding each step: an unsupported cookie value does
 not win and does not stop the chain, it falls through to the header.
+`setLocale("auto")` or `setLocale(null)` deletes `NEXT_LOCALE` with the same
+path / SameSite / `secure` options the writer used, so a one-off override can
+return to "whatever this browser speaks". Invalid values stay no-ops.
 `resolveAcceptLanguage` folds a regional tag onto its primary subtag (`cs-CZ` →
 `cs`) and honours the header's own order, so the first *supported* tag wins
-rather than the first tag. The `?lang=` proxy and `setLocale` fold the same way
+rather than the first tag. Tags with `q=0` are skipped (RFC 9110: not
+acceptable) without re-sorting the list, so `en;q=0,cs` resolves to Czech and
+`de;q=0.2,fr;q=0.9` still resolves to German. The `?lang=` proxy and `setLocale` fold the same way
 through `coerceLocale`, so a candidate link `?lang=cs-CZ` writes `cs` instead of
 being ignored. `isLocale` stays strict so a catalog import never sees a regional
 tag; `es-ES` and path-like values stay unset. All of it is pinned by

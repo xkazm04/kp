@@ -42,14 +42,32 @@ export function coerceLocale(value: unknown): Locale | null {
   return primary !== tag && isLocale(primary) ? primary : null;
 }
 
+/** RFC 9110 q=0 means "not acceptable". Invalid / missing q is treated as present
+ *  so we never reorder the header — the browser already sorted it. */
+function isUnacceptableQ(params: readonly string[]): boolean {
+  for (const raw of params) {
+    const param = raw.trim();
+    if (!param.toLowerCase().startsWith("q=")) continue;
+    const value = param.slice(2).trim();
+    if (value === "") return false;
+    const q = Number(value);
+    if (!Number.isFinite(q)) return false;
+    return q === 0;
+  }
+  return false;
+}
+
 /** Pick the best supported locale from an `Accept-Language` header, or null if
  *  none match. Matches on the PRIMARY subtag ("cs-CZ" -> "cs") and honours the
  *  header's own priority order (it is already sorted by q-value by the browser),
- *  so the first listed language we actually support wins. */
+ *  so the first listed language we actually support wins. Tags with `q=0` are
+ *  skipped (RFC 9110: not acceptable); the list is never re-sorted by q. */
 export function resolveAcceptLanguage(header: string | null | undefined): Locale | null {
   if (!header) return null;
   for (const part of header.split(",")) {
-    const folded = coerceLocale(part.split(";")[0]);
+    const [tag, ...params] = part.split(";");
+    if (isUnacceptableQ(params)) continue;
+    const folded = coerceLocale(tag);
     if (folded) return folded;
   }
   return null;

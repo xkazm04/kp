@@ -12,10 +12,20 @@ import { coerceLocale, LOCALE_COOKIE } from "./locales";
  *  {@link coerceLocale} onto a shipped catalog (`cs`); `isLocale` stays strict
  *  for catalog imports.
  *
+ *  `"auto"` or `null` deletes the cookie (same path / SameSite / secure as the
+ *  writer) so the next request falls through to Accept-Language. Invalid values
+ *  stay no-ops.
+ *
  *  Options come from `localeCookieOptions()` — the ONE policy the three
  *  NEXT_LOCALE writers share (lifetime, scope, SameSite, secure-in-production). */
-export async function setLocale(locale: string): Promise<void> {
+export async function setLocale(locale: string | null): Promise<void> {
+  const store = await cookies();
+  if (locale === "auto" || locale === null) {
+    const { path, sameSite, secure } = localeCookieOptions();
+    store.delete({ name: LOCALE_COOKIE, path, sameSite, secure });
+    return;
+  }
   const folded = coerceLocale(locale);
   if (!folded) return;
-  (await cookies()).set(LOCALE_COOKIE, folded, localeCookieOptions());
+  store.set(LOCALE_COOKIE, folded, localeCookieOptions());
 }
