@@ -23,7 +23,7 @@ test("prefers-reduced-motion never remounts, even for a looping consumer", () =>
 test("MotionizedGlyph disconnects the observer after the first play when playOnce", () => {
   const src = readFileSync(fileURLToPath(new URL("./MotionizedGlyph.tsx", import.meta.url)), "utf8");
   assert.match(src, /playOnce\s*=\s*true/);
-  assert.match(src, /if \(playOnce\) \{\s*io\.disconnect\(\);/s);
+  assert.match(src, /if \(playOnce\) \{[\s\S]*?io\.disconnect\(\);/);
   assert.match(src, /shouldReplayEntrance\(\{ playOnce, reduced, reentered:/);
 });
 
