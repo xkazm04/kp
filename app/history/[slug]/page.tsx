@@ -4,7 +4,6 @@ import { History } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ResultPanel } from "@/app/_components/results/ResultPanel";
 import { ReportActions } from "@/app/_components/results/ReportActions";
-import { DispositionEditor } from "@/app/_components/results/DispositionEditor";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { RecordRecent } from "@/app/features/shell/RecordRecent";
 import { hasLabelCollision, listAnalysesByCvHash, loadAnalysis, parseStoredGithubAnalysis } from "@/app/_lib/db/analyses";
@@ -222,17 +221,14 @@ export default async function HistoryDetailPage({
             {t("labelCollision")}
           </p>
         ) : null}
-        <DispositionEditor
-          slug={slug}
-          initialDisposition={found.row.disposition ?? null}
-          initialNote={found.row.decision_note ?? null}
-        />
       </header>
 
       <div className="mt-6">
         <ResultPanel
           analysis={parsed.data}
           analysisSlug={slug}
+          initialDisposition={found.row.disposition ?? null}
+          initialNote={found.row.decision_note ?? null}
           // When this candidate is live on the board, hand the Interview tab the
           // real pipeline entry id so it can push its question kit into the actual
           // interview-prep pack (Direction 2). Off-board → undefined → no import

@@ -61,6 +61,10 @@ career-switcher) that other features key off. Downstream ranking is
   the canonical slug order is alphabetical only in English, and a locale-less
   `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
+  mounts `DispositionEditor` in the header row next to Add-to-pipeline once
+  `analysisSlug` is set (live Analyze after persist, and the saved report), so
+  advance/hold/pass is recorded on the same surface as the verdict; an unsaved
+  run omits it. The panel also
   keeps its active tab in the URL fragment: selecting a tab rewrites
   `#report-<tab>` with `history.replaceState`, and the panel reads that fragment on
   mount and on `hashchange`. So a recruiter can send a colleague the salary read of
