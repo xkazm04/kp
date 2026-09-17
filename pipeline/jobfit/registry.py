@@ -132,6 +132,25 @@ def low_confidence_threshold() -> float:
     return float(_DETECTION["lowConfidenceThreshold"])
 
 
+def contradiction_fired(reasons: list[str]) -> bool:
+    """True when ``detect()`` appended a contradiction sentence.
+
+    Contradictions lower confidence (self-declared student + 3y experience, …)
+    and are the only reasons whose kind is ``contradiction_*``. ``detect()``
+    still returns the rendered English, so we match those sentences by the
+    static prefix of each contradiction ``reason`` template (the part before
+    any ``{placeholder}``).
+    """
+    for rules in _DETECTION["contradictions"].values():
+        for rule in rules:
+            tmpl = str(rule["reason"])
+            cut = tmpl.find("{")
+            prefix = tmpl if cut < 0 else tmpl[:cut]
+            if prefix and any(r.startswith(prefix) for r in reasons):
+                return True
+    return False
+
+
 def signals_absent(reasons: list[str]) -> bool:
     """True when :func:`detect` fired NO signal and fell back to the registry
     default. ``detect`` appends ``defaultReason`` only on that no-signal branch, so
