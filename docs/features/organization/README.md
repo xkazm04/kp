@@ -405,7 +405,12 @@ Two lenses over one dataset (`useWorkspaceAdmin` composes `/api/workspaces` +
 - **By workspace** — a rail of the org's teams (name, seat count, which one the
   session is in) beside one team's detail: inline rename, Switch, its roster, and
   two ways to add somebody — seat an existing colleague, or invite an address.
-  Both write against the selected workspace.
+  Both write against the selected workspace. **Copy invite link** builds the
+  URL through `copyInviteUrl` → `publicBaseUrl` (`workspaceAdminHelpers.ts`), so
+  a recruiter on localhost or behind a proxy copies the configured public origin
+  (`NEXT_PUBLIC_APP_BASE_URL` / `APP_BASE_URL`) rather than
+  `window.location.origin` — the invite is a capability link the candidate must
+  open. Pinned by `workspaceAdminHelpers.test.ts`.
 - **By person** — one row per colleague with **every** seat they hold as an
   editable chip, plus a `+` to add another and the account-deletion action.
 
