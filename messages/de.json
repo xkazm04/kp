@@ -9119,7 +9119,8 @@
       "open": "Öffnen",
       "untitledAssignment": "Aufgabe",
       "stageAria": "Aufgabenphase: {stage}",
-      "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet."
+      "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet.",
+      "loadMore": "Ältere Aufgaben laden"
     },
     "evalPanel": {
       "capabilityScores": "Kompetenzwerte",

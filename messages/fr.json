@@ -9119,7 +9119,8 @@
       "open": "Ouvrir",
       "untitledAssignment": "Épreuve",
       "stageAria": "Étape de l’exercice : {stage}",
-      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées."
+      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées.",
+      "loadMore": "Charger les affectations plus anciennes"
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",

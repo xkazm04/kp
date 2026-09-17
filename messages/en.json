@@ -9119,7 +9119,8 @@
       "open": "Open",
       "untitledAssignment": "Assignment",
       "stageAria": "Assignment stage: {stage}",
-      "truncated": "Showing the {count} most recent assignments. Older ones are not listed."
+      "truncated": "Showing the {count} most recent assignments. Older ones are not listed.",
+      "loadMore": "Load older assignments"
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",

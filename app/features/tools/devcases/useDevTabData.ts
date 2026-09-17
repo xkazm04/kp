@@ -9,6 +9,7 @@ import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 import type { DevCaseDetail, JdSummary, Lifecycle, OutboxItem, Posting, SelectedJd } from "./DevTypes";
 import { buildNeed } from "./buildNeed";
 import { shouldReloadOnReturn } from "./outboxRefresh";
+import { canRaiseCaseLimit, casesListUrl, nextCaseLimit } from "./casesPage";
 
 export function useDevTabData() {
   const t = useTranslations("devcase.studio.jds");
@@ -35,12 +36,17 @@ export function useDevTabData() {
   // the store's default of 50 silently, so a studio past fifty approved cases showed
   // fifty newest and gave the reader no way to know the rest existed. The loader keeps
   // the whole envelope so `truncated` survives to the table that has to say so.
+  const [caseLimit, setCaseLimit] = useState(50);
   const { data: casesPage, state: casesState, reload: loadCases } = useLoader<{ items: DevCaseDetail[]; truncated: boolean }>(
-    "/api/devcase",
+    casesListUrl(caseLimit),
     (p) => ({ items: (p.cases as DevCaseDetail[]) ?? [], truncated: p.truncated === true }),
     { items: [], truncated: false },
   );
   const cases = casesPage.items;
+  const raiseCaseLimit = useCallback(() => {
+    setCaseLimit((n) => nextCaseLimit(n));
+  }, []);
+  const canLoadMoreCases = casesPage.truncated && canRaiseCaseLimit(caseLimit);
   const { data: postings, reload: loadPostings } = useLoader<Posting[]>(
     "/api/devcase/postings",
     (p) => (p.postings as Posting[]) ?? [],
@@ -178,6 +184,7 @@ export function useDevTabData() {
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesTruncated: casesPage.truncated, casesState, loadCases,
+    raiseCaseLimit, canLoadMoreCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox: reloadOutbox,

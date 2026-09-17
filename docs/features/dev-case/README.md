@@ -1303,7 +1303,10 @@ It now takes `?limit` (a positive integer, clamped to 500; anything malformed fa
 back to 50 rather than 400-ing a read), reads one row more than the page, and answers
 `{ cases, limit, truncated }`. `CasesTable` renders `truncated` as a `role="status"`
 line under the table (`devcase.casesTable.truncated`, four locales), so a cut page
-looks different from a studio that has exactly that many cases.
+looks different from a studio that has exactly that many cases. When the page is cut
+and the door can still raise `?limit=` (50 → 150 → 500), a **Load older assignments**
+control refetches through `useDevTabData` with the next step so assignments past the
+first fifty are reachable.
 
 ### The control room asks authority, and reports its writes
 

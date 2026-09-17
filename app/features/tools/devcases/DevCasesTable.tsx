@@ -29,6 +29,7 @@ export function CasesTable({
   state,
   onOpen,
   onDefine,
+  onLoadMore,
 }: {
   cases: DevCaseDetail[];
   /** The server cut the page (GET /api/devcase answers `truncated`). Said out loud
@@ -40,6 +41,9 @@ export function CasesTable({
   state: LoadState;
   onOpen: (id: string) => void;
   onDefine: () => void;
+  /** Raises `?limit=` on the next fetch. Absent when the page is not cut, or when
+   *  the door's max (500) is already in force. */
+  onLoadMore?: () => void;
 }) {
   const rel = useRelativeTime();
   const t = useTranslations("devcase.casesTable");
@@ -123,9 +127,20 @@ export function CasesTable({
           the one that is about them. Same component, same five words, on every
           surface that carries a status chip. */}
       {truncated ? (
-        <p role="status" className={`${DIVIDER} bg-paper/40 px-3 py-2 text-micro text-steel`}>
-          {t("truncated", { count: cases.length })}
-        </p>
+        <div className={`${DIVIDER} flex flex-wrap items-center gap-2 bg-paper/40 px-3 py-2`}>
+          <p role="status" className="text-micro text-steel">
+            {t("truncated", { count: cases.length })}
+          </p>
+          {onLoadMore ? (
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="focus-ring inline-flex h-7 items-center rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40"
+            >
+              {t("loadMore")}
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <StatusLegend className={`${DIVIDER} bg-paper/40 px-3 py-2`} />
     </div>

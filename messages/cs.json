@@ -9119,7 +9119,8 @@
       "open": "Otevřít",
       "untitledAssignment": "Zadání",
       "stageAria": "Fáze zadání: {stage}",
-      "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují."
+      "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují.",
+      "loadMore": "Načíst starší zadání"
     },
     "evalPanel": {
       "capabilityScores": "Skóre schopností",
