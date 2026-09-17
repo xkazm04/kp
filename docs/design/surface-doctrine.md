@@ -100,6 +100,8 @@ changes, where motion carries information:
   an arrived answer, give both a shared `layoutId` so one object morphs. A
   component that unmounts and another that mounts in its place throws away scroll
   anchoring, selection and focus at exactly the moment the reader engages.
+  Empty-state `MotionizedGlyph`s default `playOnce` so a tab return does not
+  remount the 1.1s stagger — the drawing stays put.
 - **Arrival is staggered and capped.** 40ms between rows, twelve rows maximum,
   the rest instant, so a large update is a wave and not a queue.
 - **Only what changed animates.** Diff the new state against the previous one and

@@ -22,8 +22,10 @@
  * Implementation notes worth keeping:
  * - CSS keyframes, not framer-motion: a reveal is a declarative timeline over
  *   dozens of paths, and scoped `@keyframes` stay cheap at that path count.
- * - An IntersectionObserver replays the *entrance* on viewport re-entry (tab
- *   switch, scroll-back); ambient loops keep their own clock.
+ * - An IntersectionObserver can replay the *entrance* on viewport re-entry
+ *   (tab switch, scroll-back); ambient loops keep their own clock. Empty-state
+ *   heroes pass `playOnce` (the default) so the observer disconnects after the
+ *   first reveal — a thing that persists must persist visually.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -34,6 +36,7 @@ import {
   type EntrancePresetName,
 } from "./motionPresets";
 import { entranceDelayS, glyphMotionCss } from "./glyphMotionCss";
+import { shouldReplayEntrance } from "./glyphEntrancePolicy";
 import { GLYPH_SIZE } from "./glyphSizes";
 import { snapToToken } from "./glyphTokens";
 
@@ -69,6 +72,13 @@ interface Props {
    * `pulse` implies activity — only use it where work is actually happening.
    */
   ambient?: AmbientPresetName;
+  /**
+   * Disconnect the viewport observer after the first reveal so a tab switch
+   * does not remount the entrance. Default true: every current consumer is an
+   * empty-state illustration. Pass false only for a looping ambient that
+   * should replay when it re-enters view.
+   */
+  playOnce?: boolean;
 }
 
 export function MotionizedGlyph({
@@ -81,10 +91,12 @@ export function MotionizedGlyph({
   spread = 1.1,
   entrance = "staggered-draw",
   ambient,
+  playOnce = true,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gid = useId().replace(/:/g, "");
-  // First reveal plays on mount; the observer bumps this to replay on re-entry.
+  // First reveal plays on mount; the observer bumps this to replay on re-entry
+  // unless playOnce disconnects after the first intersecting callback.
   const [runKey, setRunKey] = useState(1);
   const seen = useRef<boolean | null>(null);
 
@@ -94,18 +106,23 @@ export function MotionizedGlyph({
     const io = new IntersectionObserver(
       (entries) => {
         const vis = entries[0]?.isIntersecting ?? false;
+        if (playOnce) {
+          io.disconnect();
+        }
         if (seen.current === null) {
           seen.current = vis; // initial observation
           return;
         }
-        if (vis && !seen.current) setRunKey((k) => k + 1); // re-entered view → replay
+        if (shouldReplayEntrance({ playOnce, reentered: vis && !seen.current })) {
+          setRunKey((k) => k + 1);
+        }
         seen.current = vis;
       },
       { threshold: 0.25 },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [playOnce]);
 
   const cls = `mz-${gid}`;
   const painted = useMemo(() => data.map((p) => ({ ...p, ...snapToToken(p.fill) })), [data]);

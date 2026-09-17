@@ -847,6 +847,12 @@ The renderer is two layers now (`entrance` + `ambient`), and
 `motionPresets.test.ts` still pins the preset union to exactly the records those
 two props read.
 
+Empty-state heroes default `playOnce` (true). The IntersectionObserver
+disconnects after the first intersecting callback so switching back to an empty
+Jobs or Decisions tab does not replay the stagger.
+[`shouldReplayEntrance`](../../app/_components/glyph/glyphEntrancePolicy.ts)
+is the policy; `glyphEntrancePolicy.test.ts` pins disconnect-after-first.
+
 ## Public landing (status: BUILT, NOT LAUNCHED)
 
 The marketing landing (`app/landing/spark/SparkHome` — hero, pricing tiers, trust
