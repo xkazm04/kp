@@ -544,6 +544,15 @@
       ]
     },
     {
+      "_comment": "The import-graph budget, the pipeline wall-clock budget, the local SQLite writer-knee probe, and the committed ceiling files. docs/development/performance-budget.md is what an operator reads to decide whether a ceiling fails a build; a header rewrite that leaves Status behind is the failure that page exists to prevent. __tests__/ stay unmapped via the skip patterns.",
+      "doc": "docs/development/performance-budget.md",
+      "sourceGlobs": [
+        "scripts/perf/**",
+        "perf-budget.json",
+        "ci-budget.json"
+      ]
+    },
+    {
       "doc": "docs/features/jobseeker/README.md",
       "sourceGlobs": [
         "app/me/**",

@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
 import { roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
-import { classifyInviteResult, inviteFailedCopy, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteFetchResult, type InviteOutcome } from "./invite-result";
+import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteFetchResult, type InviteOutcome } from "./invite-result";
 
 type Preview = {
   email: string;
@@ -61,6 +63,8 @@ export function AcceptForm({ token }: { token: string }) {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [legalAck, setLegalAck] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,7 +140,17 @@ export function AcceptForm({ token }: { token: string }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < minPasswordLength) {
+    const block = inviteSubmitBlock({ needsName, name, password, passwordConfirm, minPasswordLength, legalAck });
+    if (block === "legalAck") return;
+    if (block === "missingName") {
+      setError(t("nameRequired"));
+      return;
+    }
+    if (block === "passwordMismatch") {
+      setError(t("passwordMismatch"));
+      return;
+    }
+    if (block === "emptyPassword" || block === "weakPassword") {
       setError(t("weakPassword", { minLength: minPasswordLength }));
       return;
     }
@@ -168,6 +182,8 @@ export function AcceptForm({ token }: { token: string }) {
     );
   }
 
+  const passwordDescribedBy = error ? "invite-password-hint invite-error" : "invite-password-hint";
+
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
       {/* The org name is the SERVER's when it has one; the fallback is a catalog
@@ -186,32 +202,83 @@ export function AcceptForm({ token }: { token: string }) {
         {needsName ? (
           <label className="block text-sm text-ink">
             {t("nameLabel")}
-            <TextInput value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="mt-1" />
+            <TextInput
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError(null);
+              }}
+              autoComplete="name"
+              autoFocus
+              required
+              className="mt-1"
+            />
           </label>
         ) : null}
         <label className="block text-sm text-ink">
           {t("passwordLabel")}
           <TextInput
             type="password"
-            autoFocus
+            autoFocus={!needsName}
             autoComplete="new-password"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
               if (error) setError(null);
             }}
+            minLength={minPasswordLength}
+            invalid={error != null}
+            aria-describedby={passwordDescribedBy}
+            className="mt-1"
+          />
+        </label>
+        <p id="invite-password-hint" className="text-meta text-steel">
+          {t("passwordHint", { minLength: minPasswordLength })}
+        </p>
+        <label className="block text-sm text-ink">
+          {t("passwordConfirm")}
+          <TextInput
+            type="password"
+            autoComplete="new-password"
+            value={passwordConfirm}
+            onChange={(e) => {
+              setPasswordConfirm(e.target.value);
+              if (error) setError(null);
+            }}
+            minLength={minPasswordLength}
             invalid={error != null}
             className="mt-1"
           />
         </label>
         {error ? (
-          <p role="alert" className="text-sm text-coral">
+          <p id="invite-error" role="alert" className="text-sm text-coral">
             {error}
           </p>
         ) : null}
+        <Checkbox
+          checked={legalAck}
+          onChange={(e) => setLegalAck(e.target.checked)}
+          required
+          label={t.rich("legalAck", {
+            privacy: (chunks) => (
+              <Link href="/privacy" className="text-ink underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+            terms: (chunks) => (
+              <Link href="/terms" className="text-ink underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+          })}
+        />
         {/* h-11 (44px), the mobile touch-target floor the offer door's actions
             already use — this form is opened on a phone as often as not. */}
-        <button type="submit" disabled={submitting || !password} className={`${BTN_PRIMARY} h-11 w-full justify-center`}>
+        <button
+          type="submit"
+          disabled={submitting || !canSubmitInvite({ needsName, name, password, passwordConfirm, minPasswordLength, legalAck })}
+          className={`${BTN_PRIMARY} h-11 w-full justify-center`}
+        >
           {submitting ? t("submitting") : t("submit")}
         </button>
       </form>

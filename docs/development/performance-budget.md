@@ -1,13 +1,14 @@
 # Performance budget — the number that is allowed to fail a build
 
-**Status.** One rule is live and blocking (see
-[What already fails today](#what-already-fails-today) — the barrel restriction in
-`npm run lint`). The **budget** is not: `scripts/perf/check-budget.mjs` is
-committed, has no recorded `perf-budget.json`, and no CI step runs it. Two
-commands finish it, in [Finishing it](#finishing-it). Said plainly because the
-gap this page exists to close is precisely *"nothing fails when the app gets
-slower"*, and a page claiming more than is wired would be the same failure in a
-new place.
+**Status.** The import-graph budget is live. `perf-budget.json` is committed
+next to the code it governs, and `npm run test:perf` (the last cases of
+`scripts/perf/__tests__/check-budget.test.mjs`) evaluates it on every push.
+`npm run perf:budget` is the same check locally. The barrel restriction in
+`npm run lint` is a second, independent hold (see
+[What already fails today](#what-already-fails-today)). Said plainly because
+the gap this page exists to close is precisely *"nothing fails when the app
+gets slower"*, and a page claiming less than is wired would send the next
+agent to re-record ceilings or skip the gate.
 
 The sibling budget — *"nothing fails when the **pipeline** gets slower"* — **is**
 wired: `scripts/perf/ci-budget.mjs` runs in its own `ci.yml` job on every run and
@@ -16,9 +17,10 @@ fails it when a job exceeds its declared ceiling. See
 
 ## What is measured, and why this number
 
-This repo measures cost carefully and gates none of it. 783 tests, e2e,
-accessibility probes and LLM evals all read correctness; no committed threshold
-reads cost. The one number with a measured cost model behind it already lives in
+This repo used to measure cost carefully and gate none of it. 783 tests, e2e,
+accessibility probes and LLM evals all read correctness; the committed
+threshold that now reads cost is `perf-budget.json`. The number with a measured
+cost model behind it already lives in
 [`../architecture/app-structure.md`](../architecture/app-structure.md):
 
 > `next dev` compiles a route's **entire module graph** on first hit, with no
@@ -139,24 +141,17 @@ usually fixes it:
 node scripts/perf/check-budget.mjs --explain app/api/schedule/route.ts
 ```
 
-## Finishing it
+## How it is held
 
-1. **Calibrate.** `node scripts/perf/check-budget.mjs --record` measures the tree
-   and writes `perf-budget.json`. Read every number before committing it, and
-   delete any target not worth a gate. (It refuses to overwrite an existing
-   budget — lowering is `--tighten`, raising is an edit.)
-2. **Gate.** Add to `package.json`:
-   `"perf:budget": "node scripts/perf/check-budget.mjs"`, then a
-   `- run: npm run perf:budget` step to the **node-quality** job in
-   `.github/workflows/ci.yml`, beside `npm run design:check` — same tier: a
-   static, key-free read of the committed tree that needs no build. Adding a step
-   to an existing job changes no job name, so
-   `.github/rulesets/main.json` and `npm run review:gate` need no edit.
-3. Optionally add fixtures under `scripts/perf/__tests__/` and wire them into the
-   `npm run test:docs` / `test:review` tier of ci.yml, the way every other gate
-   script in this repo carries its own tests.
+`perf-budget.json` is recorded. `npm run test:perf` is the holder: the last
+cases of `scripts/perf/__tests__/check-budget.test.mjs` load the committed
+budget and fail when this tree is over it. `npm run perf:budget` is the same
+check for a local run. There is no duplicate `perf:budget` step to add to
+`ci.yml`; `test:perf` already runs on every push.
 
-Until step 2 exists, nothing fails when the app gets slower.
+Ceilings still move the way [How a ceiling moves](#how-a-ceiling-moves)
+describes: `--tighten` lowers them, raising one is an edit with a `why`.
+`--record` refuses to overwrite an existing budget.
 
 ## The other budget: how long the pipeline itself is allowed to take
 
@@ -177,10 +172,10 @@ while halving throughput.
 | Aspect | The app budget (`check-budget.mjs`) | The pipeline budget (`ci-budget.mjs`) |
 | --- | --- | --- |
 | Metric | first-party module graph, static | job wall-clock, from the Actions API |
-| Where it runs | (not yet wired — see [Finishing it](#finishing-it)) | the `pipeline-budget` job, `if: always()` |
-| Ceilings | to be recorded from the tree | `ci-budget.json`, seeded at 0.6 × each job's `timeout-minutes` |
+| Where it runs | `npm run test:perf` (and `npm run perf:budget` locally) | the `pipeline-budget` job, `if: always()` |
+| Ceilings | `perf-budget.json`, recorded from the tree | `ci-budget.json`, seeded at 0.6 × each job's `timeout-minutes` |
 | Ratchet | `--tighten` | `--tighten` |
-| Blocks a merge? | will, once recorded | **not yet** — see below |
+| Blocks a merge? | yes, via `test:perf` | **not yet** — see below |
 
 **This does not contradict "why a static graph and not a stopwatch" above.** That
 argument says an unmeasured wall-clock ceiling is a bad thing to *block merges*

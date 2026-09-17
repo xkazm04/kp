@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { classifyInviteResult, inviteFailedCopy, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
+import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, invitePasswordCheck, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
 
 test("2xx statuses classify as ok", () => {
   for (const status of [200, 201, 204]) {
@@ -86,4 +86,66 @@ test("AcceptForm swaps the two 409s to the failed panel (which already offers go
   assert.match(src, /isTerminalInviteOutcome\(outcome\)/, "redeem 409s must leave the password form");
   assert.match(src, /inviteFailedCopy\(state\.outcome\)/, "the failed panel must not fall through to loadFailed for 409s");
   assert.match(src, /t\("goToSignIn"\)/, "the failed panel keeps the sign-in link");
+});
+
+test("a needsName preview cannot submit with an empty name", () => {
+  assert.equal(inviteSubmitBlock({ needsName: true, name: "", password: "abcdefgh" }), "missingName");
+  assert.equal(inviteSubmitBlock({ needsName: true, name: "   ", password: "abcdefgh" }), "missingName");
+  assert.equal(canSubmitInvite({ needsName: true, name: "", password: "abcdefgh" }), false);
+  assert.equal(canSubmitInvite({ needsName: true, name: "Ada", password: "abcdefgh" }), true);
+});
+
+test("when the preview did not ask for a name, an empty name is not a block", () => {
+  assert.equal(inviteSubmitBlock({ needsName: false, name: "", password: "abcdefgh" }), null);
+  assert.equal(canSubmitInvite({ needsName: false, name: "", password: "abcdefgh" }), true);
+});
+
+test("an empty password is refused even when a name is present", () => {
+  assert.equal(inviteSubmitBlock({ needsName: true, name: "Ada", password: "" }), "emptyPassword");
+  assert.equal(canSubmitInvite({ needsName: false, name: "", password: "" }), false);
+});
+
+test("AcceptForm wires the name pre-check: required field, disabled submit, inline error, no POST", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /canSubmitInvite\(/, "submit disablement must use the shared helper");
+  assert.match(src, /inviteSubmitBlock\(/, "submit must classify empty name before fetch");
+  assert.match(src, /t\("nameRequired"\)/, "empty name must set the inline catalog error");
+  assert.match(src, /required/, "the name input is required when it is shown");
+});
+
+test("invitePasswordCheck pins too-short, mismatch, and match", () => {
+  assert.equal(invitePasswordCheck("short", "short", 8), "tooShort");
+  assert.equal(invitePasswordCheck("abcdefgh", "abcdefgH", 8), "mismatch");
+  assert.equal(invitePasswordCheck("abcdefgh", "abcdefgh", 8), "ok");
+});
+
+test("canSubmitInvite requires a matching confirmation at the preview floor", () => {
+  const base = { needsName: false, name: "", minPasswordLength: 8 };
+  assert.equal(inviteSubmitBlock({ ...base, password: "short", passwordConfirm: "short" }), "weakPassword");
+  assert.equal(inviteSubmitBlock({ ...base, password: "abcdefgh", passwordConfirm: "abcdefgH" }), "passwordMismatch");
+  assert.equal(canSubmitInvite({ ...base, password: "abcdefgh", passwordConfirm: "abcdefgh" }), true);
+});
+
+test("AcceptForm shows the floor, a confirm field, and does not POST on mismatch", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /t\("passwordHint", \{ minLength: minPasswordLength \}\)/, "hint uses the preview floor");
+  assert.match(src, /t\("passwordConfirm"\)/, "confirm field is catalogued");
+  assert.match(src, /minLength=\{minPasswordLength\}/, "native minLength matches the preview floor");
+  assert.match(src, /aria-describedby=\{passwordDescribedBy\}/, "password input points at hint + error");
+  assert.match(src, /t\("passwordMismatch"\)/, "mismatch is an inline error, not a fetch");
+});
+
+test("canSubmitInvite refuses an unchecked privacy/terms acknowledgment", () => {
+  const ready = { needsName: false, name: "", password: "abcdefgh", passwordConfirm: "abcdefgh", minPasswordLength: 8 };
+  assert.equal(inviteSubmitBlock({ ...ready, legalAck: false }), "legalAck");
+  assert.equal(canSubmitInvite({ ...ready, legalAck: false }), false);
+  assert.equal(canSubmitInvite({ ...ready, legalAck: true }), true);
+});
+
+test("AcceptForm cannot submit without an explicit privacy/terms acknowledgment", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /t\.rich\("legalAck"/, "the checkbox copy is catalogued");
+  assert.match(src, /href="\/privacy"/, "privacy policy is linked");
+  assert.match(src, /href="\/terms"/, "terms of service are linked");
+  assert.match(src, /legalAck/, "submit disablement includes the ack");
 });

@@ -40,8 +40,18 @@ inventing a second scoping dimension.
   `signupOpen` prop (SparkHome → SparkLanding → Hero), so on a gated deploy the
   primary CTA's refused keyless login hands off to `/signup` when signup is open
   and `/login` when it is not — `enterWorkspace(plan?, { fallback })` in
-  `app/_lib/auth/session-nav.ts`. The env is never mirrored into a
+  `app/_lib/auth/session-nav.ts`. The same bit is threaded into `/login` as
+  `signupOpen`: when true, LoginClient renders a footer to `/signup` (the
+  inverse of signup's `haveAccount` row); when false, the footer is omitted so
+  the door matches `/signup`'s 404 concealment. The env is never mirrored into a
   `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
+  `/login` itself does not re-prompt an entered session: if
+  `hasEnteredWorkspace()` is already true, the server wrapper redirects to
+  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Anonymous
+  visitors still see the form. The member copy does not advertise the operator
+  password: subtitle is email+password only, and the "leave blank" hint renders
+  only while the email field is empty. Empty email + password remains the API
+  operator path.
 
 ## Identity & auth
 
@@ -643,6 +653,27 @@ where it used to answer the English literal `"your organization"` — a server-s
 string spliced into a four-locale eyebrow by code that has no idea who is reading.
 The fallback is now the catalog's (`invite.orgNameFallback`), resolved in the
 invitee's language.
+
+**A name is required when the preview asked for one.** GET sets `needsName`
+when the user row has none. The form used to POST `name: name.trim() ||
+undefined`, so a brand-new member joined as `name: null` and Art. 22 seals
+fell back to email. Empty name is now a client refusal like a weak password
+(inline `invite.nameRequired`, no fetch), the field is `required`, and submit
+stays disabled until name and password are non-empty. Pinned by
+`canSubmitInvite` / `inviteSubmitBlock` in `invite-result.ts`.
+
+**The password door shows the floor and asks twice.** Redeem is single-use
+(`410` on a second POST), so a typo that met the length floor used to consume
+the invite. The form now shows `invite.passwordHint` with the preview's
+`minPasswordLength`, a confirm field, and `minLength` / `aria-describedby` on
+the password input. Mismatch or too-short is an inline error and does not
+POST. Pinned by `invitePasswordCheck`.
+
+**Privacy and terms are acknowledged before the account exists.** `/privacy`
+and `/terms` are already public; the emailed colleague creating an operator
+account never had to open them. A required checkbox (`invite.legalAck`) with
+links to both pages disables submit until checked and refuses POST if
+unchecked.
 
 ## Copy & localization
 

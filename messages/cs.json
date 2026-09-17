@@ -6727,7 +6727,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Přihlášení",
-    "subtitle": "Přihlaste se e-mailem a heslem, nebo heslem operátora.",
+    "subtitle": "Přihlaste se e-mailem a heslem.",
     "emailLabel": "E-mail",
     "emailPlaceholder": "vy@firma.cz",
     "emailHint": "Chcete-li použít heslo operátora, nechte pole prázdné.",
@@ -6739,7 +6739,9 @@
     "serverError": "Na naší straně došlo k chybě. Zkuste to prosím za chvíli znovu.",
     "timeoutError": "Časový limit požadavku vypršel. Zkuste to prosím znovu.",
     "success": "Přihlášení proběhlo úspěšně.",
-    "error": "Nesprávné přihlašovací údaje. Zkuste to znovu."
+    "error": "Nesprávné přihlašovací údaje. Zkuste to znovu.",
+    "noAccount": "Ještě nemáte účet?",
+    "goToSignUp": "Vytvořit pracovní prostor"
   },
   "signup": {
     "eyebrow": "Kandi",
@@ -6787,7 +6789,12 @@
     "title": "Nastavte si heslo",
     "subtitle": "Byli jste pozváni jako {role}. Zvolte heslo a dokončete nastavení účtu <em>{email}</em>.",
     "nameLabel": "Vaše jméno",
+    "nameRequired": "Zadejte své jméno.",
     "passwordLabel": "Heslo",
+    "passwordHint": "Alespoň {minLength} znaků.",
+    "passwordConfirm": "Potvrzení hesla",
+    "passwordMismatch": "Hesla se neshodují.",
+    "legalAck": "Přečetl(a) jsem si <privacy>zásady ochrany soukromí</privacy> a <terms>podmínky používání</terms>.",
     "submitting": "Nastavování…",
     "submit": "Přijmout pozvánku"
   },

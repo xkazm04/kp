@@ -6727,7 +6727,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Anmelden",
-    "subtitle": "Melden Sie sich mit Ihrer E-Mail und Ihrem Passwort an oder mit dem Operator-Passwort.",
+    "subtitle": "Melden Sie sich mit Ihrer E-Mail und Ihrem Passwort an.",
     "emailLabel": "E-Mail",
     "emailPlaceholder": "name@firma.de",
     "emailHint": "Leer lassen, um das Operator-Passwort zu verwenden.",
@@ -6739,7 +6739,9 @@
     "serverError": "Auf unserer Seite ist ein Fehler aufgetreten. Bitte versuchen Sie es gleich erneut.",
     "timeoutError": "Zeitüberschreitung der Anfrage. Bitte versuchen Sie es erneut.",
     "success": "Angemeldet.",
-    "error": "Falsche Zugangsdaten. Versuchen Sie es erneut."
+    "error": "Falsche Zugangsdaten. Versuchen Sie es erneut.",
+    "noAccount": "Noch kein Konto?",
+    "goToSignUp": "Workspace erstellen"
   },
   "signup": {
     "eyebrow": "Kandi",
@@ -6787,7 +6789,12 @@
     "title": "Passwort festlegen",
     "subtitle": "Sie wurden als {role} eingeladen. Legen Sie ein Passwort fest, um die Einrichtung von <em>{email}</em> abzuschließen.",
     "nameLabel": "Ihr Name",
+    "nameRequired": "Geben Sie Ihren Namen ein.",
     "passwordLabel": "Passwort",
+    "passwordHint": "Mindestens {minLength} Zeichen.",
+    "passwordConfirm": "Passwort bestätigen",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+    "legalAck": "Ich habe die <privacy>Datenschutzerklärung</privacy> und die <terms>Nutzungsbedingungen</terms> gelesen.",
     "submitting": "Wird eingerichtet…",
     "submit": "Einladung annehmen"
   },

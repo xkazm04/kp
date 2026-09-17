@@ -93,3 +93,50 @@ export function inviteFailedCopy(outcome: InviteOutcome): { title: InviteFailedC
   if (outcome === "emailTaken") return { title: "emailTaken", body: "emailTaken" };
   return { title: "loadFailedTitle", body: "loadFailedBody" };
 }
+
+// Client pre-check for the redeem form. GET preview sets `needsName` when the
+// user row has no display name; posting `name: name.trim() || undefined` used
+// to create the account as `name: null`, so Art. 22 seals fell back to email.
+// Empty name is the same class of client refusal as an empty password: do not
+// fetch. Redeem is single-use, so a mistyped password that meets the floor
+// still consumes the invite: length and confirmation are refused here too.
+
+export type InviteSubmitInput = {
+  needsName: boolean;
+  name: string;
+  password: string;
+  /** When set (including ""), a mismatch is a client refusal. */
+  passwordConfirm?: string;
+  /** When set, a password shorter than this is a client refusal. */
+  minPasswordLength?: number;
+  /** When explicitly false, the privacy/terms checkbox is unchecked. */
+  legalAck?: boolean;
+};
+
+export type InviteSubmitBlock = "missingName" | "emptyPassword" | "weakPassword" | "passwordMismatch" | "legalAck";
+
+export type InvitePasswordCheck = "ok" | "tooShort" | "mismatch";
+
+export function invitePasswordCheck(password: string, confirm: string, minLength: number): InvitePasswordCheck {
+  if (password.length < minLength) return "tooShort";
+  if (password !== confirm) return "mismatch";
+  return "ok";
+}
+
+export function inviteSubmitBlock(input: InviteSubmitInput): InviteSubmitBlock | null {
+  if (input.needsName && input.name.trim() === "") return "missingName";
+  if (!input.password) return "emptyPassword";
+  if (input.minPasswordLength != null || input.passwordConfirm !== undefined) {
+    const min = input.minPasswordLength ?? 0;
+    const confirm = input.passwordConfirm ?? input.password;
+    const pw = invitePasswordCheck(input.password, confirm, min);
+    if (pw === "tooShort") return "weakPassword";
+    if (pw === "mismatch") return "passwordMismatch";
+  }
+  if (input.legalAck === false) return "legalAck";
+  return null;
+}
+
+export function canSubmitInvite(input: InviteSubmitInput): boolean {
+  return inviteSubmitBlock(input) === null;
+}

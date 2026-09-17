@@ -6727,7 +6727,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Sign in",
-    "subtitle": "Sign in with your email and password, or the operator password.",
+    "subtitle": "Sign in with your email and password.",
     "emailLabel": "Email",
     "emailPlaceholder": "you@company.com",
     "emailHint": "Leave blank to use the operator password.",
@@ -6739,7 +6739,9 @@
     "serverError": "Something went wrong on our end. Please try again in a moment.",
     "timeoutError": "The request timed out. Please try again.",
     "success": "Signed in.",
-    "error": "Incorrect credentials. Try again."
+    "error": "Incorrect credentials. Try again.",
+    "noAccount": "Don't have an account?",
+    "goToSignUp": "Create a workspace"
   },
   "signup": {
     "eyebrow": "Kandi",
@@ -6787,7 +6789,12 @@
     "title": "Set your password",
     "subtitle": "You've been invited as {role}. Choose a password to finish setting up <em>{email}</em>.",
     "nameLabel": "Your name",
+    "nameRequired": "Enter your name.",
     "passwordLabel": "Password",
+    "passwordHint": "At least {minLength} characters.",
+    "passwordConfirm": "Confirm password",
+    "passwordMismatch": "The passwords do not match.",
+    "legalAck": "I have read the <privacy>privacy policy</privacy> and <terms>terms of service</terms>.",
     "submitting": "Setting up…",
     "submit": "Accept invitation"
   },
