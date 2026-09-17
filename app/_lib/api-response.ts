@@ -1492,6 +1492,14 @@ export const REFUSAL_ERRORS = {
    *  as a German advertisement would be worse than none — it is the document a
    *  candidate applies against. The empty state stays and offers the retry. */
   JOB_TRANSLATION_UNAVAILABLE: "No AI model is configured, so this posting was not translated.",
+  /** GET /api/jobs/[id] and the ingest / candidates / outreach by-id doors: no such
+   *  job, or another team's. 404, never 403, so the id is not an existence oracle. */
+  JOB_NOT_FOUND: "That role isn't in your catalog.",
+  /** POST /api/jobs/ingest with a paste shorter than MIN_AD_CHARS. The panel already
+   *  guards this; the door makes the floor true for anything that is not the panel. */
+  JOB_AD_TOO_SHORT: "Paste the full job ad. A short snippet is not enough.",
+  /** POST /api/jobs/[id]/candidates/outreach with no candidateId (400). */
+  OUTREACH_CANDIDATE_REQUIRED: "Name the candidate to reach out to.",
   /** The comms channel refused a send because the candidate may not be contacted —
    *  they were ANONYMIZED, their processing consent EXPIRED, or (for an outreach
    *  message only) the sequence was stopped. A DECISION, not a fault: `sendComm`

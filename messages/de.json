@@ -1885,7 +1885,10 @@
     "JOB_TRANSLATE_FAILED": "Das Inserat konnte nicht übersetzt werden. Bitte versuchen Sie es erneut.",
     "JOB_TARGET_HIRES_INVALID": "Eine Stelle wird für 1 bis 50 Einstellungen eröffnet.",
     "JOB_TRANSLATION_LANG_INVALID": "In diese Sprache lässt sich dieses Inserat nicht übersetzen.",
-    "JOB_TRANSLATION_UNAVAILABLE": "Es ist kein KI-Modell konfiguriert, daher wurde dieses Inserat nicht übersetzt."
+    "JOB_TRANSLATION_UNAVAILABLE": "Es ist kein KI-Modell konfiguriert, daher wurde dieses Inserat nicht übersetzt.",
+    "JOB_NOT_FOUND": "Diese Rolle ist nicht in Ihrem Katalog.",
+    "JOB_AD_TOO_SHORT": "Fügen Sie die vollständige Stellenanzeige ein. Ein kurzer Ausschnitt reicht nicht.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Nennen Sie den Kandidaten, den Sie kontaktieren möchten."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5101,12 +5104,12 @@
         "eyebrow": "Erste Stelle",
         "title": "Ihr Katalog wartet auf den Eröffnungszug",
         "body": "Jede Einstellung in Kandi hängt an einer offenen Stelle. Veröffentlichen Sie die erste, und der Rest des Arbeitsbereichs erwacht.",
-        "route1Title": "Aus einer Stellenbeschreibung entwerfen",
-        "route1Body": "Wählen Sie eine Stellenbeschreibung in der Bibliothek, passen Sie die Anforderungen an und veröffentlichen Sie sie als offene Stelle.",
-        "route1Cta": "Stellenbeschreibungen öffnen",
+        "route1Title": "Eine Stelle im Stellen-Intake entwerfen",
+        "route1Body": "Öffnen Sie den Intake-Dialog oder Generieren, und veröffentlichen Sie sie dann als offene Stelle.",
+        "route1Cta": "Stellen-Intake öffnen",
         "route2Title": "Vorhandene Stelle importieren",
         "route2Body": "Fügen Sie eine bestehende Stellenausschreibung ein, und Kandi macht daraus eine strukturierte Stelle: Anforderungen, Seniorität, Arbeitsmodell.",
-        "route2Cta": "„Stelle importieren“ in der Kopfzeile verwenden",
+        "route2Cta": "Stelle importieren",
         "unlocksLabel": "Eine Stelle schaltet frei",
         "unlockChannels": "Kanäle offen",
         "unlockPipeline": "Kandidat/innen kommen an",
@@ -5296,6 +5299,7 @@
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
+      "retry": "Erneut versuchen",
       "scanning": "Frühere Kandidat/innen werden auf Eignung geprüft…",
       "emptyTitle": "Noch tauchen keine früheren Kandidat/innen wieder auf",
       "emptyBody": "Sobald Personen abgelehnt oder anderswo eingestellt werden, erscheinen hier starke rollenübergreifende Eignungen.",
@@ -5316,7 +5320,13 @@
         "elsewhere": "Bereits für eine andere Stelle im Prozess; zugleich {score}% Eignung für {jobTitle}. Eine Umbesetzung, die eine Überlegung wert ist.",
         "reached": "Kam letztes Mal bis {stage}. Wird vor flacheren früheren Verläufen einsortiert."
       },
-      "suppressed": "{count, plural, one {# frühere Person wurde ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.} other {# frühere Personen wurden ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.}}"
+      "suppressed": "{count, plural, one {# frühere Person wurde ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.} other {# frühere Personen wurden ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.}}",
+      "filterAria": "Früheres Ergebnis",
+      "filterRejected": "Abgelehnt",
+      "filterClosed": "Stelle geschlossen",
+      "filterElsewhere": "Anderswo",
+      "filterEmptyTitle": "Niemand passt zu diesem Filter",
+      "filterEmptyBody": "Schalten Sie eine frühere Art wieder ein, um diese Kandidaten zu sehen."
     },
     "rediscoveryFeed": {
       "title": "Zweitplatzierte",
@@ -5340,6 +5350,7 @@
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
       "loading": "Interviews werden geladen…",
       "emptyTitle": "Noch keine abgeschlossenen Voice-Interviews",
       "emptyBody": "Starten Sie ein Voice-Screening aus der Pipeline. Abgeschlossene Interviews reihen sich hier auf, bewertet nach einer auf jede/n Kandidat/in abgestimmten Rubrik für den direkten Vergleich.",
@@ -5350,6 +5361,10 @@
         "early_career": "Berufseinsteiger/innen: Potenzial & Denkmodell"
       },
       "competency": "Kompetenz",
+      "exportCsv": "CSV exportieren",
+      "exportAi": "{name} KI",
+      "exportHuman": "{name} menschlich",
+      "exportRec": "{name} Empfehlung",
       "confidence": {
         "tight": "enge Konfidenz",
         "moderate": "moderate Konfidenz",
@@ -5434,6 +5449,7 @@
     },
     "deeplink": {
       "notFound": "Diese Stelle ist nicht in Ihrem Katalog. Sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
+      "import": "Stelle importieren",
       "dismiss": "Schließen"
     },
     "roleStatus": {
@@ -5455,6 +5471,17 @@
       "targetInvalid": "Geben Sie eine ganze Zahl zwischen 1 und {max} ein.",
       "langsLabel": "Ausschreiben in",
       "langsHelp": "Sprachen über die des Inserats hinaus schreibt die KI, nachdem die Stelle live ist. Ohne konfiguriertes Modell entsteht keine, und Sie können sie später im Tab Inserat erzeugen."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Angenommene Angaben",
+        "company": "Angenommener Arbeitgeber",
+        "location": "Angenommener Ort",
+        "work_mode": "Angenommenes Arbeitsmodell",
+        "seniority": "Angenommenes Niveau",
+        "salary_band": "Angenommenes Gehaltsband",
+        "generic": "Angenommen: {field}"
+      }
     }
   },
   "scoreProvenance": {

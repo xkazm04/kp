@@ -1885,7 +1885,10 @@
     "JOB_TRANSLATE_FAILED": "Inzerát se nepodařilo přeložit. Zkuste to prosím znovu.",
     "JOB_TARGET_HIRES_INVALID": "Roli lze otevřít pro 1 až 50 přijatých kandidátů.",
     "JOB_TRANSLATION_LANG_INVALID": "Do tohoto jazyka tento inzerát přeložit nelze.",
-    "JOB_TRANSLATION_UNAVAILABLE": "Není nastavený žádný model AI, inzerát se proto nepřeložil."
+    "JOB_TRANSLATION_UNAVAILABLE": "Není nastavený žádný model AI, inzerát se proto nepřeložil.",
+    "JOB_NOT_FOUND": "Tato role není ve vašem katalogu.",
+    "JOB_AD_TOO_SHORT": "Vložte celý inzerát. Krátký úryvek nestačí.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Uveďte kandidáta, kterého chcete oslovit."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5101,12 +5104,12 @@
         "eyebrow": "První pozice",
         "title": "Váš katalog čeká na první tah",
         "body": "Každé přijetí v Kandi stojí na jedné otevřené pozici. Vypište první a zbytek pracovní plochy ožije.",
-        "route1Title": "Sestavit ji ze šablony popisu pozice",
-        "route1Body": "Vyberte popis pozice v knihovně, dolaďte požadavky a zveřejněte ho jako otevřenou pozici.",
-        "route1Cta": "Otevřít popisy pozic",
+        "route1Title": "Napsat roli ve vstupu pozice",
+        "route1Body": "Otevřete dialog vstupu nebo Generovat popis a pak ji zveřejněte jako otevřenou pozici.",
+        "route1Cta": "Otevřít vstup pozice",
         "route2Title": "Importovat pozici, kterou už máte",
         "route2Body": "Vložte existující text pozice a Kandi z něj poskládá strukturovanou pozici: požadavky, senioritu i režim práce.",
-        "route2Cta": "Použijte Importovat pozici v záhlaví",
+        "route2Cta": "Importovat pozici",
         "unlocksLabel": "Jedna pozice odemkne",
         "unlockChannels": "Otevřené kanály",
         "unlockPipeline": "Příliv kandidátů",
@@ -5296,6 +5299,7 @@
     },
     "rediscover": {
       "loadFailed": "Znovuobjevení se nepodařilo spustit.",
+      "retry": "Zkusit znovu",
       "scanning": "Procházejí se dřívější kandidáti a hledá se shoda…",
       "emptyTitle": "Zatím se neobjevili žádní dřívější kandidáti",
       "emptyBody": "Jak budou lidé zamítáni nebo přijímáni jinde, objeví se tady silné shody napříč pozicemi.",
@@ -5316,7 +5320,13 @@
         "elsewhere": "Už je v procesu na jiné pozici; zároveň {score}% shoda pro {jobTitle}. Přesun stojí za zvážení.",
         "reached": "Minule došel/došla až do fáze {stage}. Řadí se před kandidáty s mělčím postupem."
       },
-      "suppressed": "{count, plural, one {# dřívější kandidát byl vynechán: vypršel mu souhlas nebo byla jeho data smazána.} few {# dřívější kandidáti byli vynecháni: vypršel jim souhlas nebo byla jejich data smazána.} other {# dřívějších kandidátů bylo vynecháno: vypršel jim souhlas nebo byla jejich data smazána.}}"
+      "suppressed": "{count, plural, one {# dřívější kandidát byl vynechán: vypršel mu souhlas nebo byla jeho data smazána.} few {# dřívější kandidáti byli vynecháni: vypršel jim souhlas nebo byla jejich data smazána.} other {# dřívějších kandidátů bylo vynecháno: vypršel jim souhlas nebo byla jejich data smazána.}}",
+      "filterAria": "Dřívější výsledek",
+      "filterRejected": "Zamítnutí",
+      "filterClosed": "Role uzavřena",
+      "filterElsewhere": "Jinde",
+      "filterEmptyTitle": "Tento filtr nikoho neukazuje",
+      "filterEmptyBody": "Zapněte znovu některý dřívější výsledek, aby se kandidáti objevili."
     },
     "rediscoveryFeed": {
       "title": "Stříbrní medailisté",
@@ -5340,6 +5350,7 @@
     },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
       "loading": "Načítají se pohovory…",
       "emptyTitle": "Zatím žádné dokončené hlasové pohovory",
       "emptyBody": "Spusťte hlasový screening z pipeline. Dokončené pohovory se tady seřadí, ohodnocené podle rubriky přizpůsobené každému kandidátovi pro porovnání vedle sebe.",
@@ -5350,6 +5361,10 @@
         "early_career": "Junioři: potenciál a myšlenkový model"
       },
       "competency": "Kompetence",
+      "exportCsv": "Exportovat CSV",
+      "exportAi": "{name} AI",
+      "exportHuman": "{name} lidské",
+      "exportRec": "{name} doporučení",
       "confidence": {
         "tight": "úzké rozpětí",
         "moderate": "střední rozpětí",
@@ -5434,6 +5449,7 @@
     },
     "deeplink": {
       "notFound": "Tuto pozici ve svém katalogu nemáte. Mohla být odstraněna, nebo patří jinému týmu.",
+      "import": "Importovat pozici",
       "dismiss": "Zavřít"
     },
     "roleStatus": {
@@ -5455,6 +5471,17 @@
       "targetInvalid": "Zadejte celé číslo od 1 do {max}.",
       "langsLabel": "Inzerovat v jazycích",
       "langsHelp": "Jazyky nad rámec vlastního jazyka inzerátu píše AI po zveřejnění role. Bez nastaveného modelu nevznikne žádný a překlad můžete vytvořit později na kartě Inzerát."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Předpokládané údaje",
+        "company": "Předpokládaný zaměstnavatel",
+        "location": "Předpokládaná lokalita",
+        "work_mode": "Předpokládaný režim práce",
+        "seniority": "Předpokládaná seniorita",
+        "salary_band": "Předpokládané platové pásmo",
+        "generic": "Předpokládané {field}"
+      }
     }
   },
   "scoreProvenance": {

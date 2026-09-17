@@ -1885,7 +1885,10 @@
     "JOB_TRANSLATE_FAILED": "Couldn't translate this posting. Please try again.",
     "JOB_TARGET_HIRES_INVALID": "A role is opened for between 1 and 50 hires.",
     "JOB_TRANSLATION_LANG_INVALID": "That is not a language this posting can be translated into.",
-    "JOB_TRANSLATION_UNAVAILABLE": "No AI model is configured, so this posting was not translated."
+    "JOB_TRANSLATION_UNAVAILABLE": "No AI model is configured, so this posting was not translated.",
+    "JOB_NOT_FOUND": "That role isn't in your catalog.",
+    "JOB_AD_TOO_SHORT": "Paste the full job ad. A short snippet is not enough.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Name the candidate to reach out to."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5101,12 +5104,12 @@
         "eyebrow": "First role",
         "title": "Your catalog is waiting for its opening move",
         "body": "Every hire in Kandi hangs off one open role. Post the first one and the rest of the workspace comes alive.",
-        "route1Title": "Draft it from a JD template",
-        "route1Body": "Pick a job description in the library, tune the requirements, and publish it as an open role.",
-        "route1Cta": "Open the JD library",
+        "route1Title": "Draft a role in Job intake",
+        "route1Body": "Open the intake dialog or Generate a description, then publish it as an open role.",
+        "route1Cta": "Open Job intake",
         "route2Title": "Import a job position you already have",
         "route2Body": "Paste an existing job posting and Kandi parses it into a structured role: requirements, seniority, work mode.",
-        "route2Cta": "Use Import position in the header",
+        "route2Cta": "Import a job position",
         "unlocksLabel": "One role unlocks",
         "unlockChannels": "Channels open",
         "unlockPipeline": "Candidates flow",
@@ -5296,6 +5299,7 @@
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",
+      "retry": "Retry",
       "scanning": "Scanning past candidates for a fit…",
       "emptyTitle": "No past candidates resurface yet",
       "emptyBody": "As people are rejected or hired elsewhere, strong cross-role fits will appear here.",
@@ -5316,7 +5320,13 @@
         "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle}. A redeploy worth weighing.",
         "reached": "Got as far as {stage} last time. Surfaced ahead of shallower priors."
       },
-      "suppressed": "{count, plural, one {# past candidate was left out: their consent has lapsed or their data was erased.} other {# past candidates were left out: their consent has lapsed or their data was erased.}}"
+      "suppressed": "{count, plural, one {# past candidate was left out: their consent has lapsed or their data was erased.} other {# past candidates were left out: their consent has lapsed or their data was erased.}}",
+      "filterAria": "Prior outcome",
+      "filterRejected": "Rejected",
+      "filterClosed": "Role closed",
+      "filterElsewhere": "Elsewhere",
+      "filterEmptyTitle": "No one matches this filter",
+      "filterEmptyBody": "Turn a prior kind back on to see those candidates."
     },
     "rediscoveryFeed": {
       "title": "Silver medalists",
@@ -5340,6 +5350,7 @@
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",
+      "retry": "Retry",
       "loading": "Loading interviews…",
       "emptyTitle": "No completed voice interviews yet",
       "emptyBody": "Run a voice screen from the pipeline. Finished interviews line up here, scored on a rubric matched to each candidate for side-by-side comparison.",
@@ -5350,6 +5361,10 @@
         "early_career": "Early-career: potential & mental model"
       },
       "competency": "Competency",
+      "exportCsv": "Export CSV",
+      "exportAi": "{name} AI",
+      "exportHuman": "{name} human",
+      "exportRec": "{name} recommendation",
       "confidence": {
         "tight": "tight confidence",
         "moderate": "moderate confidence",
@@ -5434,6 +5449,7 @@
     },
     "deeplink": {
       "notFound": "That role isn't in your catalog. It may have been removed, or it belongs to another team.",
+      "import": "Import a job position",
       "dismiss": "Dismiss"
     },
     "roleStatus": {
@@ -5455,6 +5471,17 @@
       "targetInvalid": "Enter a whole number between 1 and {max}.",
       "langsLabel": "Advertise in",
       "langsHelp": "Languages beyond the posting's own are written by the AI after the role goes live. With no model configured none are written, and you can generate one later from the Posting tab."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Assumed facts",
+        "company": "Assumed employer",
+        "location": "Assumed location",
+        "work_mode": "Assumed work mode",
+        "seniority": "Assumed seniority",
+        "salary_band": "Assumed pay band",
+        "generic": "Assumed {field}"
+      }
     }
   },
   "scoreProvenance": {

@@ -1885,7 +1885,10 @@
     "JOB_TRANSLATE_FAILED": "Impossible de traduire cette annonce. Veuillez réessayer.",
     "JOB_TARGET_HIRES_INVALID": "Un poste s'ouvre pour 1 à 50 recrutements.",
     "JOB_TRANSLATION_LANG_INVALID": "Cette annonce ne peut pas être traduite dans cette langue.",
-    "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite."
+    "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite.",
+    "JOB_NOT_FOUND": "Ce poste n'est pas dans votre catalogue.",
+    "JOB_AD_TOO_SHORT": "Collez l'annonce complète. Un court extrait ne suffit pas.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5101,12 +5104,12 @@
         "eyebrow": "Premier poste",
         "title": "Votre catalogue attend son coup d’envoi",
         "body": "Chaque recrutement dans Kandi repose sur un poste ouvert. Publiez le premier et le reste de l’espace de travail s’anime.",
-        "route1Title": "Le rédiger à partir d’un modèle de fiche de poste",
-        "route1Body": "Choisissez une fiche de poste dans la bibliothèque, ajustez les exigences et publiez-la comme poste ouvert.",
-        "route1Cta": "Ouvrir les fiches de poste",
+        "route1Title": "Rédiger un poste dans Cadrage du poste",
+        "route1Body": "Ouvrez le dialogue de cadrage ou Générer une fiche, puis publiez-la comme poste ouvert.",
+        "route1Cta": "Ouvrir Cadrage du poste",
         "route2Title": "Importer un poste que vous avez déjà",
         "route2Body": "Collez le texte d’un poste existant et Kandi en fait un poste structuré : exigences, séniorité, mode de travail.",
-        "route2Cta": "Utilisez « Importer un poste » dans l’en-tête",
+        "route2Cta": "Importer un poste",
         "unlocksLabel": "Un poste débloque",
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",
@@ -5296,6 +5299,7 @@
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
+      "retry": "Réessayer",
       "scanning": "Analyse des anciens candidats à la recherche d’une correspondance…",
       "emptyTitle": "Aucun ancien candidat à ressortir pour l’instant",
       "emptyBody": "À mesure que des personnes sont rejetées ou recrutées ailleurs, les bonnes correspondances inter-postes apparaîtront ici.",
@@ -5316,7 +5320,13 @@
         "elsewhere": "Déjà engagé sur un autre poste, et également {score} % de correspondance pour {jobTitle}. Un redéploiement à envisager.",
         "reached": "Est allé jusqu’à {stage} la dernière fois. Classé avant les parcours antérieurs moins avancés."
       },
-      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}"
+      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}",
+      "filterAria": "Résultat antérieur",
+      "filterRejected": "Rejetés",
+      "filterClosed": "Poste clos",
+      "filterElsewhere": "Ailleurs",
+      "filterEmptyTitle": "Personne ne correspond à ce filtre",
+      "filterEmptyBody": "Réactivez un type de résultat antérieur pour revoir ces candidats."
     },
     "rediscoveryFeed": {
       "title": "Médaillés d’argent",
@@ -5340,6 +5350,7 @@
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
+      "retry": "Réessayer",
       "loading": "Chargement des entretiens…",
       "emptyTitle": "Aucun entretien vocal terminé pour l’instant",
       "emptyBody": "Lancez une présélection vocale depuis le pipeline. Les entretiens terminés s’alignent ici, notés selon une grille adaptée à chaque candidat pour une comparaison côte à côte.",
@@ -5350,6 +5361,10 @@
         "early_career": "Début de carrière : potentiel et modèle mental"
       },
       "competency": "Compétence",
+      "exportCsv": "Exporter CSV",
+      "exportAi": "{name} IA",
+      "exportHuman": "{name} humain",
+      "exportRec": "{name} recommandation",
       "confidence": {
         "tight": "confiance étroite",
         "moderate": "confiance modérée",
@@ -5434,6 +5449,7 @@
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
+      "import": "Importer un poste",
       "dismiss": "Fermer"
     },
     "roleStatus": {
@@ -5455,6 +5471,17 @@
       "targetInvalid": "Saisissez un nombre entier entre 1 et {max}.",
       "langsLabel": "Diffuser en",
       "langsHelp": "Les langues autres que celle de l'annonce sont rédigées par l'IA une fois le poste ouvert. Sans modèle configuré, aucune n'est rédigée, et vous pourrez en générer une plus tard depuis l'onglet Annonce."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Faits supposés",
+        "company": "Employeur supposé",
+        "location": "Lieu supposé",
+        "work_mode": "Mode de travail supposé",
+        "seniority": "Niveau supposé",
+        "salary_band": "Fourchette salariale supposée",
+        "generic": "Supposé : {field}"
+      }
     }
   },
   "scoreProvenance": {

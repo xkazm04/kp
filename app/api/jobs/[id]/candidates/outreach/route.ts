@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // NULL) stay reachable by every team.
     const job = getJob(id);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
-      return NextResponse.json({ error: "Role not found." }, { status: 404 });
+      return jsonRefusal("JOB_NOT_FOUND", 404);
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       source?: unknown;
     };
     if (!body.candidateId) {
-      return NextResponse.json({ error: "candidateId is required." }, { status: 400 });
+      return jsonRefusal("OUTREACH_CANDIDATE_REQUIRED", 400);
     }
 
     // d95fed6d — the sourcing channel this reach-out was filed from ("sourcing" for
@@ -71,16 +71,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // dispatchOutreach re-checks (defense in depth). Fail-closed inside the gate.
     const suppressed = candidateOutreachSuppression(body.candidateId);
     if (suppressed) {
-      return NextResponse.json(
-        {
-          error:
-            suppressed === "anonymized"
-              ? "This candidate has been anonymized and can no longer be contacted."
-              : "This candidate's data-processing consent has expired — re-consent is required before outreach.",
-          suppressed,
-        },
-        { status: 409 }
-      );
+      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed });
     }
 
     // …and the same pre-mint check for the candidate's OWN opt-out (ePrivacy Art. 13(4);
@@ -92,13 +83,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // to mint a NEW per-role entry, so an entry-scoped read would report "contactable"
     // for someone who has already told us to stop.
     if (optedOutCandidateIds([body.candidateId]).has(body.candidateId.trim())) {
-      return NextResponse.json(
-        {
-          error: "This candidate has asked us to stop sending them messages.",
-          suppressed: "candidate",
-        },
-        { status: 409 }
-      );
+      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed: "candidate" });
     }
 
     // Per-IP, AFTER every cheap refusal (the 404, the missing-candidateId 400 and the

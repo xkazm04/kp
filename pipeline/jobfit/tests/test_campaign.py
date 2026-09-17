@@ -124,6 +124,15 @@ class DeterministicPackTests(unittest.TestCase):
         for v in pack["variants"]:
             self.assertNotIn("65 000", v["adCopy"], "the anchor figure leaked into the copy")
 
+    def test_defaulted_fields_listed_on_the_pack(self):
+        job = _job(defaulted_fields=["location", "seniority"])
+        pack, _ = draft_campaign_pack(job, lang="en", apply_url=URL)
+        self.assertEqual(pack["defaultedFields"], ["location", "seniority"])
+
+    def test_stated_job_sends_empty_defaulted_fields(self):
+        pack, _ = draft_campaign_pack(_job(), lang="en", apply_url=URL)
+        self.assertEqual(pack["defaultedFields"], [])
+
     def test_pack_is_never_empty_even_with_no_facts(self):
         job = _job(
             salary_band=[],

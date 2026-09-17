@@ -57,14 +57,18 @@ ledger:
 - `?tab=jobs` — the Jobs tab (drafts vs. published/closed, publish action). Its
   header carries **Import position** top-right (`IngestAdButton`), which opens
   the paste form directly under the header. The state is one
-  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger and the form
-  separately, so the two can never disagree about whether the panel is open; the
+  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger, the form,
+  and the empty-catalog launchpad's import CTA, so the three can never disagree
+  about whether the panel is open; the
   trigger locks while a parse is in flight, because a run costs billed LLM time
   and its one deliberate exit is the form's **Cancel run**. Copy calls what is
   pasted a **job position**, not an ad — the corpus is roles, and the ad is only
-  the format one arrived in.
+  the format one arrived in. The launchpad's second route is a button that calls
+  `ingest.setOpen(true)` (pinned by `jobsEmptyLaunchpad.test.ts`). A `?job=` miss
+  offers the same ingest action, so a stale share link degrades to paste-the-ad
+  instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
 - `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now.
-- `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
+- `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
 - `/jds/[slug]` — the public JD page (candidate-facing).
 
 ## Lifecycle stages
@@ -726,7 +730,14 @@ candidates rendered its top 20 under an intro that describes the list as "past
 candidates who clear the bar for this role" — a cut slice presented as the whole
 set, on the surface whose entire promise is that nobody falls through the cracks.
 The panel now appends the shared `match.card.moreCount` line ("+15 more") below
-the list whenever `more > 0`. The **standing** feed (`JobsRediscoveryFeed`) is a
+the list whenever `more > 0`. A failed on-demand load offers the same retry
+control the standing feed already has (`reload` from `useJsonFetch`), so a
+spawn timeout is recoverable without closing the modal. Pinned by
+`jobsRediscoverRetry.test.ts`. The list also filters client-side by prior kind
+(`rejected` / `closed` / `elsewhere`, default all on) so a recruiter can hide
+"we rejected them" while looking at "the req died". An empty filter shows its
+own empty state, not the pool-empty copy. Pinned by
+`jobsRediscoverKindFilter.test.ts`. The **standing** feed (`JobsRediscoveryFeed`) is a
 separate, alert-backed surface and is not paged this way.
 
 The same honesty applies one layer up. `buildCandidatePool` already computes
@@ -1050,6 +1061,13 @@ inert on a role that is live unless every caller remembered to clear the flag by
 hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
 staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
+The Compare tab's failed load (`useJsonFetch`) offers the same retry control the
+Coach panel already has, bound to `reload` — a transient 500 is recoverable
+without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`. The
+grid itself exports as CSV (`compareCsvRows` in `jobsCompareCohorts.ts`):
+competency × candidate, AI rating, human rating, recommendation; a missing
+side is blank, never `0`. Same shape as the Fair Rank audit export.
+
 ## The winnability coach stages the number it actually computed
 
 The Coach tab's pattern rows (`coach/CoachLedger.tsx`) can hand a
@@ -1138,8 +1156,14 @@ Behavioral coverage: `app/_lib/job-ingest.test.ts`.
 form of the list's `(workspace_id IS NULL OR workspace_id = ?)` predicate. All of
 `campaign` (GET + POST), `winnability`, `rediscover`, `agent-fit`, `candidates` and
 `candidates/outreach` now do, ahead
-of the spend, answering `404` (never `403`, so the endpoint can't confirm an id
-exists); seeded corpus rows stay visible to every tenant. The last two were the
+of the spend, answering `jsonRefusal("JOB_NOT_FOUND", 404)` (never `403`, so the
+endpoint can't confirm an id exists); seeded corpus rows stay visible to every
+tenant. The point-read `GET /api/jobs/[id]`, ingest's too-short paste
+(`JOB_AD_TOO_SHORT`), outreach's missing `candidateId` (`OUTREACH_CANDIDATE_REQUIRED`)
+and GDPR 409 (`COMMS_SUPPRESSED`, with the existing `suppressed` token) use the
+same coded envelope so the Roles desk resolves them via `errors.*` in all four
+locales. The candidates empty-pool short-circuit drops the English `note` and
+answers `{ candidates: [] }` — clients already key off the empty array. The last two were the
 family members the first pass missed, and they are the two that cost the most when
 ungated: `GET .../candidates` spawns a `recruiter_cli` child fed the role's title,
 body and stated band, and `POST .../candidates/outreach` files a pipeline row
@@ -1439,13 +1463,14 @@ include `workspace_id`).
   page in memory and there is no pager, so a workspace holding 240 non-archived JDs
   is now correctly told it is seeing 200 of them but still cannot search the other
   40 from this screen. That needs server-side search or a load-more, not more copy.
-- The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
-  rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
-  `campaign.py` spends them internally to suppress unstated facts but the pack it
-  returns carries only `warnings`. So a recruiter sees "no salary stated" but not
-  "we assumed medior / Praha for you". Surfacing it is a `campaign.py` change
-  (add the list to the returned pack) plus a line on whatever surface renders
-  a pack next (the modal's Campaign tab is gone), not a UI-only fix.
+- The campaign pack now ships `defaultedFields` (camelCase, the list
+  `normalize_job` recorded) beside `warnings`. A job that defaulted location +
+  seniority includes those slugs; a fully stated job sends `[]`. Painting the
+  list is `campaignDefaultedChips` (`jobsCampaignDefaulted.ts`): known slugs get
+  a localized chip, unknown slugs get "assumed {field}", and `[]` paints none.
+  The Campaign tab is still gone, so the next pack surface calls that helper.
+  Pinned by `test_campaign.py` and `jobsCampaignDefaulted.test.ts`. Also on the
+  pack schema floor as `defaultedFields`.
 - **The Fair Rank audit table still ranks one number across cohorts it is not
   comparable within.** The producer now labels the split: `recruiter.fairness_check`
   carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`
