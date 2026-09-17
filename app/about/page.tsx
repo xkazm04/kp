@@ -4,7 +4,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import AboutHome from "@/app/landing/spark/AboutHome";
 import { siteUrl } from "@/app/_lib/site-url";
 import { sourceRepoHref } from "@/app/_lib/source-repo";
-import { buildAboutJsonLd, serializeJsonLd } from "./about-jsonld";
+import { ABOUT_STEP_KEYS, aboutStepId } from "@/app/landing/spark/about-art/shared";
+import { aboutPageUrl, buildAboutJsonLd, plainIcu, serializeJsonLd } from "./about-jsonld";
 
 /*
  * /about — "About the app", not about us. The page explains what the product
@@ -51,13 +52,23 @@ export const instant = false;
 
 export default async function AboutPage() {
   const t = await getTranslations("aboutPage.meta");
+  const tAbout = await getTranslations("aboutPage");
   const locale = await getLocale();
+  const origin = siteUrl().href;
+  const aboutUrl = aboutPageUrl(origin);
+  const steps = tAbout.raw("steps") as Record<string, { title: string; body: string }>;
   const jsonLd = buildAboutJsonLd({
     name: t("title"),
     description: t("description"),
     inLanguage: locale,
-    siteOrigin: siteUrl().href,
+    siteOrigin: origin,
     sameAs: sourceRepoHref(),
+    howToName: plainIcu(tAbout("hero.title")),
+    howToSteps: ABOUT_STEP_KEYS.map((key, i) => ({
+      name: steps[key].title,
+      text: steps[key].body,
+      url: `${aboutUrl}#${aboutStepId(i)}`,
+    })),
   });
   // Same nonce the layout stamps on THEME_INIT — script-src is nonce'd and
   // report-only today, but an un-nonced inline block is what an enforced

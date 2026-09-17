@@ -15,7 +15,22 @@ export type AboutJsonLdInput = {
   siteOrigin: string;
   /** `sourceRepoHref()` — AGPL source, advertised as sameAs. */
   sameAs: string;
+  /** Visible hero title, ICU tags stripped — HowTo.name. */
+  howToName?: string;
+  /** One HowToStep per visible /about phase, already in ABOUT_STEP_KEYS order. */
+  howToSteps?: readonly { name: string; text: string; url: string }[];
 };
+
+/** Strip next-intl rich tags (`<br></br>`, `<emph>`) so JSON-LD carries plain text. */
+export function plainIcu(value: string): string {
+  return value
+    .replace(/<br\s*\/?><\/br>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/?emph>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function absoluteUrl(origin: string, path: string): string {
   return new URL(path, origin).href;
@@ -68,6 +83,24 @@ export function buildAboutJsonLd(input: AboutJsonLdInput): {
         // invent aggregateRating / review.
         offers: { "@type": "Offer", price: "0", priceCurrency: "CZK" },
       },
+      ...(input.howToSteps && input.howToSteps.length > 0
+        ? [
+            {
+              "@type": "HowTo",
+              "@id": `${aboutUrl}#howto`,
+              name: input.howToName || input.name,
+              inLanguage: input.inLanguage,
+              url: aboutUrl,
+              step: input.howToSteps.map((s, i) => ({
+                "@type": "HowToStep",
+                position: i + 1,
+                name: s.name,
+                text: s.text,
+                url: s.url,
+              })),
+            },
+          ]
+        : []),
     ],
   };
 }
