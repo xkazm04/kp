@@ -141,8 +141,16 @@ export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEF
   return { slug, createdAt };
 }
 
-export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisListRow[] {
+/** One page of History plus an HONEST truncation flag — same contract as
+ *  listJobsPage. `truncated` is true when at least one more (cv_hash, jd_slug)
+ *  group than `limit` exists, so a caller can say "latest 100 of more" instead of
+ *  presenting a cut slice as the whole corpus. */
+export type AnalysesPage = { rows: AnalysisListRow[]; truncated: boolean; limit: number };
+
+export function listAnalysesPage(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysesPage {
   const db = ensureDb();
+  // Defensive clamp: SQLite treats LIMIT -1 as unbounded.
+  const cap = Number.isInteger(limit) && limit > 0 ? limit : 100;
   // Content-addressed grouping: a re-run of the same CV (same cv_hash) against the
   // same JD used to add a fresh History row every time — duplicates piled up even
   // when the compute was a pure cache hit. We now return the NEWEST row per
@@ -157,6 +165,8 @@ export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
   //   - jd_slug is compared with `IS` (null-safe): two JD-less runs of the same CV
   //     group together; a CV run against different JDs does NOT.
   // Every subquery carries workspace_id (tenancy source guard) and matches a.workspace_id.
+  // LIMIT cap+1 is the listJobsPage shape: the extra group is how truncated is known
+  // without a COUNT round-trip over a different question (ungrouped rows).
   const rows = db
     .prepare(
       `SELECT a.slug, a.candidate_label, a.jd_slug, a.score, a.role_family, a.seniority,
@@ -180,8 +190,18 @@ export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
        ORDER BY a.created_at DESC
        LIMIT ?`
     )
-    .all(workspaceId, limit) as AnalysisListRow[];
-  return rows;
+    .all(workspaceId, cap + 1) as AnalysisListRow[];
+  const truncated = rows.length > cap;
+  return { rows: truncated ? rows.slice(0, cap) : rows, truncated, limit: cap };
+}
+
+/** History as a bare array (unchanged contract for existing callers).
+ *
+ *  WARNING for new callers: this is a PAGE, not the corpus — default LIMIT 100.
+ *  `.length` on the result is the size of the slice, NOT a count. Use
+ *  listAnalysesPage when you need to know the slice was cut. */
+export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisListRow[] {
+  return listAnalysesPage(limit, workspaceId).rows;
 }
 
 // Cross-job linkage (content-addressed identity): every OTHER analysis of the

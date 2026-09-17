@@ -58,7 +58,7 @@ makes "mount the volume in your region" a complete answer to data residency
 
 | Table · column | Candidate data | Written by |
 | --- | --- | --- |
-| `analyses.payload_json`, `.candidate_label`, `.cv_hash` | The scored analysis of a real person, and their name | `app/_lib/db/analyses.ts` |
+| `analyses.payload_json`, `.candidate_label`, `.cv_hash` | The scored analysis of a real person, and their name. History `listAnalysesPage` is a capped page (`{ rows, truncated, limit }`, default 100 groups, one past the cap so a cut slice says so); `listAnalyses` is the bare-array wrapper. Older runs stay loadable by slug. | `app/_lib/db/analyses.ts` |
 | `profiles.payload_json` | The extracted candidate profile | `app/_lib/db/profiles.ts` |
 | `pipeline_entries.contact` | **Email / phone.** The reachback address every outbound message uses | `app/_lib/db/pipeline.ts` |
 | `pipeline_entries.notes`, `.profile_gaps_json`, `.github_json`, `.github_handle` | Recruiter notes, gap analysis, linked public repo signal | `app/_lib/db/pipeline.ts` |
