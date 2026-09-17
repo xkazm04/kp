@@ -67,3 +67,17 @@ export function holdoutCount(
   }
   return n;
 }
+
+// Keep-row kind for the wave lists. Holdout is a first-class arm, not an
+// ordinary keep: `holdout` is the sealed clean arm, `holdoutSealFailed` is
+// spared-but-unsealed, `fairness` is the early-career / unknown-archetype
+// gate. Everything else (slider keeps, unscored, reinstated, staleSkipped)
+// is `other` so the UI cannot forget the calibration codes again.
+export type WaveKeepKind = "holdout" | "holdoutSealFailed" | "fairness" | "other";
+
+export function waveKeepKind(reasonCode: string | undefined | null): WaveKeepKind {
+  if (reasonCode === "holdout") return "holdout";
+  if (reasonCode === "holdoutSealFailed") return "holdoutSealFailed";
+  if (reasonCode === "earlyCareer" || reasonCode === "unknownArchetype") return "fairness";
+  return "other";
+}
