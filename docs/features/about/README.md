@@ -77,7 +77,7 @@ without a DOM.
 | `stage/parts.tsx` | the dumb parts: `Field`, `Slot`, `Part`, `Wire`, `Wires` |
 | `stage/Scene.tsx` | chapter chrome: number, eyebrow, title, lede, handoff link |
 | `scenes/status.ts` | pure — the status line's phase → text lookup (`status.test.ts`) |
-| `scenes/shared.tsx` | `SceneStatus`, `LaneLabel`, `CodeLabel`, `Bar` |
+| `scenes/shared.tsx` | `SceneStatus`, `LaneLabel`, `CodeLabel`, `Bar`. `SceneStatus`'s outer `p` is a persistent `aria-live="polite"` `aria-atomic` region (`scene-status.test.ts`) so each beat's identifier is announced; the keyed inner span still crossfades for sighted readers. |
 
 **Clock contract.** Off screen the interval is torn down. Re-entering rewinds to
 beat 0, so nobody joins a sentence half-typed. Reduced motion pins `stillTick` —
