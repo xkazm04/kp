@@ -15,10 +15,12 @@ import { useTranslations } from "next-intl";
  *                        on its first write. Nothing to flip today.
  * The code resolves through `errors.<CODE>` like every other refusal the client
  * renders (never the server's English); an unknown or absent code falls back to
- * the original generic body. Small fixed banner in the
+ * the original generic body. The banner is dismissible, never an auto-redirect,
+ * and offers /about (landing.nav.about — the same label the topbar uses) so a
+ * gated deploy is a guided read, not a brick wall. Small fixed banner in the
  * landing's own art direction (app/landing is the literal-hex exemption);
- * dismissible, client-only (useSearchParams — mounted under Suspense in
- * SparkHome). Renders nothing without the param, so the landing pays nothing.
+ * client-only (useSearchParams — mounted under Suspense in SparkHome). Renders
+ * nothing without the param, so the landing pays nothing.
  */
 export function DemoUnavailableNotice() {
   // The whole-"landing" namespace form (the sections' own convention): the
@@ -42,6 +44,12 @@ export function DemoUnavailableNotice() {
         <div className="min-w-0 text-sm text-[#141414]">
           <p className="font-semibold">{t("demoNotice.title")}</p>
           <p className="mt-0.5 opacity-80">{body}</p>
+          <a
+            href="/about"
+            className="mt-2 inline-block font-semibold underline decoration-2 underline-offset-2 hover:text-[#d65a4a]"
+          >
+            {t("nav.about")}
+          </a>
         </div>
         <button
           type="button"
