@@ -280,7 +280,10 @@ by both the portal page and `/api/interview/connect`:
   real conversations for one screen — and at hang-up the second to finish was
   answered `{ok: true, alreadyCompleted: true}`, its transcript discarded behind
   a saved confirmation. `/connect` now refuses a second dial on a live session
-  with `INTERVIEW_ALREADY_LIVE` (409) plus `retryAfterMin` as data. The window is
+  with `INTERVIEW_ALREADY_LIVE` (409) plus `retryAfterMin` as data. The portal
+  page paints the same fact as a busy card (no Start) when
+  `interviewPortalView` reads live, so a second window never mounts the client.
+  The window is
   `isInterviewSessionLive` — `LIVE_INTERVIEW_RECENCY_MIN = 30`, the **same**
   authority `/create`'s reissue guard uses, so a link can never be at once too
   live to reissue and free to re-dial. A genuinely dropped call does not wait the
