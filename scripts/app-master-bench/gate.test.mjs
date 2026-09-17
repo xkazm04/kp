@@ -245,10 +245,33 @@ test("the default window is the documented one", () => {
 });
 
 // --- the committed baseline must describe the committed scenarios -----------
+// Scenario files that are committed but not (yet) a gate subject. Empty on
+// purpose: a new scenarios/*.json must either join baseline.json or be named
+// here with a why. Silence is how coverage regressions hid as `unbaselined`.
+const UNBASELINED_ALLOW = {
+  // none — every shipped scenario is a gate subject
+};
+
 test("every baselined scenario has a scenario file", () => {
   const known = new Set(listScenarioFiles().map((f) => path.basename(f, ".json")));
   for (const name of Object.keys(BASELINE.scenarios)) {
     assert.ok(known.has(name), `baseline names "${name}", which has no scenarios/${name}.json`);
+  }
+});
+
+test("every scenario file is either baselined or on the explicit unbaselined allow list", () => {
+  const files = listScenarioFiles().map((f) => path.basename(f, ".json"));
+  const baselined = new Set(Object.keys(BASELINE.scenarios));
+  const allowed = new Set(Object.keys(UNBASELINED_ALLOW));
+  for (const name of files) {
+    assert.ok(
+      baselined.has(name) || allowed.has(name),
+      `scenarios/${name}.json is neither in baseline.json nor UNBASELINED_ALLOW — pick one, or a live sweep reports it as an unbaselined extra and does not fail`,
+    );
+  }
+  for (const name of allowed) {
+    assert.ok(!baselined.has(name), `"${name}" is on UNBASELINED_ALLOW AND baselined — drop it from the allow list`);
+    assert.ok(files.includes(name), `UNBASELINED_ALLOW names "${name}", which has no scenarios/${name}.json`);
   }
 });
 

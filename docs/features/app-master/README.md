@@ -1630,8 +1630,11 @@ rather than a failure to invent, and the gate says so in its own line.
 
 `baseline.json` is pinned to the committed scenarios by `gate.test.mjs` (in
 `npm run test:bench-driver`, a CI step) in both directions: every baselined
-scenario must have a scenario file, and every `requiredExpectations` name must
-actually be declared in that scenario's `expect` block. It is also a **ratchet**:
+scenario must have a scenario file, every `scenarios/*.json` name must be either
+in the baseline or on an explicit `UNBASELINED_ALLOW` list (empty: a new file
+without a row is a red unit test the same day, not a silent unbaselined extra at
+sweep time), and every `requiredExpectations` name must actually be declared in
+that scenario's `expect` block. It is also a **ratchet**:
 `FLOOR` in `gate.test.mjs` freezes what the baseline has already promised, so
 deleting a scenario, dropping a required expectation, lowering a bar or widening
 a tolerance is red — and the numbers are checked back against the fixture they
