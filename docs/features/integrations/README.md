@@ -286,11 +286,16 @@ ping (`POST /api/ats/test`).
   method *and* the signed PII body) would put that request into the internal network with no
   re-vetting, and hand `/api/ats/test` a port-scan oracle. A 3xx is reported as a delivery
   failure telling the operator to configure the final https endpoint.
-- **The test ping tests what is *stored*, not what is typed.** `POST /api/ats/test` has no
-  body — it pings the saved endpoint with the saved secret — so the button is disabled
-  until the field matches the URL the server last confirmed, and editing the field retires
-  the previous result. Otherwise a ping against the *previous* endpoint would report
-  "Delivered: endpoint responded 200" under the new address the operator had just typed.
+- **The test ping tests what is *stored*, not what is typed.** `POST /api/ats/test` pings
+  the saved endpoint with the saved secret — so the button is disabled until the field
+  matches the URL the server last confirmed, and editing the field retires the previous
+  result. Otherwise a ping against the *previous* endpoint would report "Delivered:
+  endpoint responded 200" under the new address the operator had just typed. An omitted
+  body still sends `{ ping: true }`. Optional `{ entryId }` delivers that candidate's
+  `kp.ats.v1` record under event `ping` (no ledger row, no `Idempotency-Key`) so a
+  receiver can be wired against the production field set without treating the test as a
+  hire. A missing entry answers `ATS_CANDIDATE_NOT_FOUND`; an anonymized one answers
+  `ATS_CANDIDATE_ERASED`.
 - **A failed config load says so — and disables Save.** The panel reads the HTTP status,
   not just the body: a 401 (expired or non-operator session) carries a parseable JSON body,
   so treating "no `config` in the answer" as a failure is what keeps a blank endpoint field
