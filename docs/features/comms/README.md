@@ -784,7 +784,7 @@ air-gapped.
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. |
+| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
 | `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
 | `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
@@ -956,9 +956,6 @@ already returns alongside the entries. Both rules are pinned by
 
 ## Known gaps
 
-- Column-filter option lists sort with `Intl.Collator` on the active locale, but
-  the free-text Name filter still matches literally — searching `kralova` will not
-  find `Králová`.
 - **`/api/jobs?limit=200` ships 201 KB for a list the Channels tab reads two fields
   of** (`{id, title}`, for the careers links and the receiver-binding picker). It
   is the largest payload on the tab by an order of magnitude. A `?fields=` (or

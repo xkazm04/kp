@@ -107,6 +107,28 @@ export const displaySubject = (m: { subject: string | null }, labels: ReceiptLab
 export const displayRecipient = (m: { recipient: string | null }, labels: ReceiptLabels): string | null =>
   isReceiptRecipient(m.recipient) ? labels.recipient : m.recipient;
 
+/** Case- and diacritic-folded. NFD splits an accented letter into its base plus a
+ *  combining mark, which `\p{Diacritic}` then strips, so `kralova` finds `Králová`. */
+export function foldCommsQuery(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+/** Free-text Name search over the ledger's shown name, subject and recipient. */
+export function matchesCommsQuery(
+  name: string,
+  subject: string | null,
+  recipient: string | null,
+  query: string,
+): boolean {
+  const needle = foldCommsQuery(query.trim());
+  if (!needle) return true;
+  return (
+    foldCommsQuery(name).includes(needle) ||
+    foldCommsQuery(subject ?? "").includes(needle) ||
+    foldCommsQuery(recipient ?? "").includes(needle)
+  );
+}
+
 // RECORDED, not "Sent". The header said Sent over EVERY row — including the queued
 // ones nothing will deliver and the failed ones that never left — and rendered a bare
 // DATE, which made an original and its same-day resend indistinguishable. The column
