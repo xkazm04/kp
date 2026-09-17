@@ -16,6 +16,7 @@ import { resolveIngestLatch } from "./jobsIngestLatch.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(dir, "jobsTabDeepLink.ts"), "utf8").replace(/\r\n/g, "\n");
+const tabSrc = readFileSync(path.join(dir, "JobsTab.tsx"), "utf8").replace(/\r\n/g, "\n");
 // Comments carry the reasoning and mention every shape the code once had, so a
 // regex over raw source would match prose. Strip them before asserting on CODE.
 const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
@@ -73,4 +74,11 @@ test("the ingest latch is bounded to a single refresh", () => {
 
 test("the tab arms the latch with the jobs array it was armed against", () => {
   assert.match(code, /setPendingOpen\(\{ id, sawJobs: jobs \}\)/, "the latch carries its own reference point");
+});
+
+test("a deep-link miss offers ingest", () => {
+  const tabCode = tabSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assert.match(tabCode, /lookupMissed/);
+  assert.match(tabCode, /td\("import"\)/);
+  assert.match(tabCode, /ingest\.setOpen\(true\)/);
 });

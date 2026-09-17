@@ -5445,6 +5445,7 @@
     },
     "deeplink": {
       "notFound": "Tuto pozici ve svém katalogu nemáte. Mohla být odstraněna, nebo patří jinému týmu.",
+      "import": "Importovat pozici",
       "dismiss": "Zavřít"
     },
     "roleStatus": {

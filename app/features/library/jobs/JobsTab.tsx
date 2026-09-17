@@ -82,11 +82,20 @@ export function JobsTab() {
       {lookupMissed ? (
         // Deep link to a role that no longer resolves (deleted, or another team's).
         // Says so instead of opening nothing — amber, the app's "partial/attention" tone.
+        // The recovery for "I have the ad, not the id" is the same ingest door as the
+        // empty launchpad.
         <div
           role="status"
           className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-base text-amber-800"
         >
           <span className="flex-1">{td("notFound")}</span>
+          <button
+            type="button"
+            onClick={() => ingest.setOpen(true)}
+            className="focus-ring shrink-0 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-sm font-semibold text-amber-800 hover:text-ink"
+          >
+            {td("import")}
+          </button>
           <button
             type="button"
             onClick={dismissLookupMissed}

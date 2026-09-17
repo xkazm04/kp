@@ -5445,6 +5445,7 @@
     },
     "deeplink": {
       "notFound": "That role isn't in your catalog. It may have been removed, or it belongs to another team.",
+      "import": "Import a job position",
       "dismiss": "Dismiss"
     },
     "roleStatus": {

@@ -5445,6 +5445,7 @@
     },
     "deeplink": {
       "notFound": "Diese Stelle ist nicht in Ihrem Katalog. Sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
+      "import": "Stelle importieren",
       "dismiss": "Schließen"
     },
     "roleStatus": {

@@ -5445,6 +5445,7 @@
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
+      "import": "Importer un poste",
       "dismiss": "Fermer"
     },
     "roleStatus": {
