@@ -5573,7 +5573,8 @@
         "other": "Adjust the profile and re-run to widen the field."
       },
       "openJdLibrary": "Open the JD library",
-      "reviewRoles": "Review roles"
+      "reviewRoles": "Review roles",
+      "bandUnit": "k"
     },
     "card": {
       "startFailed": "Couldn't start the fit analysis.",

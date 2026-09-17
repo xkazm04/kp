@@ -750,6 +750,12 @@ deep link when the corpus is empty, and a roles-library link when every role was
 KO-filtered. Omit the prop and the explainer stays hint-only. Pinned by
 `MatchPresentation.test.ts`.
 
+`formatBandCompact` still groups thousands in the reader locale and keeps the
+en-dash plus `APP_CURRENCY`, but the compact scale marker is an optional `unit`
+argument (default `"k"`). Match cards and job-compare pass `match.shared.bandUnit`
+so a Czech chip can read `45–60 tis. CZK` instead of a stray English `k`. Pinned
+by `matchTypes.test.ts`.
+
 ### The narrative says what it is, on both surfaces
 `/api/match/reasoning` reports three things about an answer besides the answer:
 `source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —

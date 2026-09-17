@@ -5573,7 +5573,8 @@
         "other": "Upravte profil a spusťte znovu, aby prošlo víc pozic."
       },
       "openJdLibrary": "Otevřít knihovnu popisů pozic",
-      "reviewRoles": "Prohlédnout pozice"
+      "reviewRoles": "Prohlédnout pozice",
+      "bandUnit": " tis."
     },
     "card": {
       "startFailed": "Analýzu vhodnosti se nepodařilo spustit.",

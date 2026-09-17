@@ -5573,7 +5573,8 @@
         "other": "Ajustez le profil et relancez pour élargir le champ."
       },
       "openJdLibrary": "Ouvrir la bibliothèque de fiches de poste",
-      "reviewRoles": "Voir les postes"
+      "reviewRoles": "Voir les postes",
+      "bandUnit": "k"
     },
     "card": {
       "startFailed": "Impossible de lancer l’analyse de correspondance.",

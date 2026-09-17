@@ -5573,7 +5573,8 @@
         "other": "Passen Sie das Profil an und führen Sie erneut aus, um das Feld zu erweitern."
       },
       "openJdLibrary": "Stellenbeschreibungen öffnen",
-      "reviewRoles": "Stellen prüfen"
+      "reviewRoles": "Stellen prüfen",
+      "bandUnit": " Tsd."
     },
     "card": {
       "startFailed": "Eignungsanalyse konnte nicht gestartet werden.",
