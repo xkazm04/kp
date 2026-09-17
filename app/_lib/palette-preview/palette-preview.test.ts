@@ -11,6 +11,8 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
+import { deriveDarkAccent } from "../brand-config.ts";
+import { saveBrand } from "../brand-store.ts";
 import { sealDecisionRecord, verifyDecisionChain } from "../decision-record-store.ts";
 import { ENTITY_KINDS, OPERATOR_ONLY_TABS, PREVIEWABLE_TABS, resolveEntityPreview, resolveTabPreview } from "./index.ts";
 
@@ -37,6 +39,17 @@ test("C. an unknown entity id is 'missing' for every kind", () => {
   for (const kind of ENTITY_KINDS) {
     assert.equal(resolveEntityPreview(kind, "no-such-id-" + kind, WS).view, "missing");
   }
+});
+
+test("branding preview carries both theme accents when an accent is stored", async () => {
+  saveBrand({ displayName: "Acme", accentColor: "#0057b8", logoUrl: null });
+  const p = await resolveTabPreview("branding", WS, true);
+  assert.equal(p.view, "branding");
+  if (p.view !== "branding") return;
+  assert.equal(p.accentColor, "#0057b8");
+  assert.equal(p.accentDark, deriveDarkAccent("#0057b8"));
+  assert.ok(p.accentDark, "a stored accent must expose its Spark Dark twin on the palette");
+  assert.notEqual(p.accentDark, p.accentColor);
 });
 
 test("pipeline preview carries the axis stages in board order with counts", async () => {

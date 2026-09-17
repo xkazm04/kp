@@ -313,7 +313,10 @@ returns one `PalettePreview` union member (`app/_lib/palette-preview/types.ts`);
 per-destination resolvers (`resolve-hiring.ts`, `resolve-library-tools.ts`,
 `resolve-insights-settings.ts`, `resolve-entities.ts`, dispatched by `index.ts`)
 compute 2–6 facts from the cheap tenant-scoped primitives (counts, small lists —
-never `pipelineAnalytics` or a Python spawn). Operator-only tabs (billing, models,
+never `pipelineAnalytics` or a Python spawn). The branding view includes both
+theme accents (`accentColor` and the derived `accentDark` twin) so highlighting
+Settings → Branding shows whether the stored hex will read after a theme flip.
+Operator-only tabs (billing, models,
 integrations, organization, workspaces) resolve to `{ view: "restricted" }` for a
 demo session (`isOperator()`); the analysis view applies the same PII masking as
 `/api/analyses/[slug]`. Client side, `shell/palette/usePalettePreview.ts`
