@@ -4482,7 +4482,8 @@
         "thinking": "Thinking…",
         "composer": {
           "send": "Send",
-          "transcriptLabel": "Intake conversation"
+          "transcriptLabel": "Intake conversation",
+          "composerLabel": "Message for the intake conversation"
         },
         "degradedNote": "AI is offline, so the guided checklist runs instead. Your answers are captured all the same.",
         "sendError": "That message didn't go through. Please try again.",
@@ -10444,6 +10445,7 @@
       "thinking": "Thinking…",
       "thinkingSlowCalm": "Still with you. She reads the workspace before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
+      "composerLabel": "Message to Candi",
       "errorGeneric": "That message did not go through. Nothing was lost, so try again.",
       "reconnect": "Try connecting again"
     },

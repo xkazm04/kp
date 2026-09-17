@@ -36,6 +36,8 @@ export type ChatLabels = {
   closed?: string;
   /** Accessible name for the transcript region. */
   transcriptLabel: string;
+  /** Accessible name for the composer textarea. Placeholder is not a name. */
+  composerLabel: string;
 };
 
 const SLOW_HINT_MS = 8000;

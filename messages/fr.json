@@ -4482,7 +4482,8 @@
         "thinking": "Réflexion…",
         "composer": {
           "send": "Envoyer",
-          "transcriptLabel": "Conversation de cadrage du poste"
+          "transcriptLabel": "Conversation de cadrage du poste",
+          "composerLabel": "Message pour la conversation de cadrage du poste"
         },
         "degradedNote": "L’AI est hors ligne, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
         "sendError": "Le message n’est pas passé. Veuillez réessayer.",
@@ -10444,6 +10445,7 @@
       "thinking": "Réflexion…",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du espace de travail avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
+      "composerLabel": "Message pour Candi",
       "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez.",
       "reconnect": "Réessayer la connexion"
     },

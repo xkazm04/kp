@@ -4482,7 +4482,8 @@
         "thinking": "Denkt nach…",
         "composer": {
           "send": "Senden",
-          "transcriptLabel": "Gespräch zur Rollenaufnahme"
+          "transcriptLabel": "Gespräch zur Rollenaufnahme",
+          "composerLabel": "Nachricht für das Gespräch zur Rollenaufnahme"
         },
         "degradedNote": "Die AI ist offline, deshalb läuft stattdessen die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
         "sendError": "Die Nachricht kam nicht durch. Bitte versuchen Sie es erneut.",
@@ -10444,6 +10445,7 @@
       "thinking": "Denkt nach…",
       "thinkingSlowCalm": "Ich bin noch da. Sie sieht sich erst das Arbeitsbereich an, deshalb dauert es ein paar Sekunden.",
       "transcriptLabel": "Gespräch mit Candi",
+      "composerLabel": "Nachricht an Candi",
       "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal.",
       "reconnect": "Erneut verbinden"
     },

@@ -4482,7 +4482,8 @@
         "thinking": "Přemýšlíme…",
         "composer": {
           "send": "Odeslat",
-          "transcriptLabel": "Konverzace k zadání role"
+          "transcriptLabel": "Konverzace k zadání role",
+          "composerLabel": "Zpráva do konverzace k zadání role"
         },
         "degradedNote": "AI je offline, takže pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
         "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
@@ -10444,6 +10445,7 @@
       "thinking": "Přemýšlí…",
       "thinkingSlowCalm": "Jsem tu s vámi. Než odpoví, projde si stav studia, takže to pár sekund zabere.",
       "transcriptLabel": "Konverzace s Candi",
+      "composerLabel": "Zpráva pro Candi",
       "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu.",
       "reconnect": "Zkusit se připojit znovu"
     },
