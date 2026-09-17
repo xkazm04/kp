@@ -79,7 +79,9 @@ palette. The full mapping table and the five reading states are in
   subtitle matches the submit path that actually renders (`subtitleLive` when a
   seed is present and the Live Work Surface mounts, `subtitleRepo` for the
   repository-link form). The repo-link field uses a localized placeholder and
-  rejects a value that is not an http(s) URL.
+  rejects a value that is not an http(s) URL. A closed posting still renders
+  `AiDisclosure` (without the data-consent line) so a late visitor is told that
+  AI evaluates the work.
 
 ## Flows
 

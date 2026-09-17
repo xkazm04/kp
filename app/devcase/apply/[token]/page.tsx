@@ -35,13 +35,21 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
   const compliance = disclosureComplianceFor(posting.workspaceId);
 
   // W5-3 — a closed posting renders an honest closure card instead of
-  // collecting applications nobody will process.
+  // collecting applications nobody will process. Closing intake does not
+  // erase that AI evaluates work already submitted, so the same
+  // server-resolved disclosure stays on this public card (without the
+  // data-consent line — there is no new submit).
   if (posting.status === "closed") {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{posting.caseTitle || posting.roleTitle || t("fallbackTitle")}</h1>
         <p className={`mt-4 ${PANEL_SUNKEN} p-4 text-body text-steel`}>{t("closed")}</p>
+        <AiDisclosure
+          className="mt-4"
+          regimeId={compliance.regimeId}
+          retentionMonths={compliance.retentionMonths}
+        />
       </main>
     );
   }
