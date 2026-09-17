@@ -10,7 +10,10 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 ## Entry points
 
 - Candidate portal: `app/interview/[token]/page.tsx` (+ `error.tsx`,
-  `loading.tsx`) — the real, token-bound candidate flow.
+  `loading.tsx`) — the real, token-bound candidate flow. Revoked and expired
+  links paint distinct closed cards (`interview.revokedTitle` /
+  `revokedBody` vs `expiredTitle` / `expiredBody`) so the candidate's next
+  mail names the actual reason.
 - Recruiter dev/demo harness: `app/interview-lab/page.tsx` — a keyless lab for
   trying the agent as a recruiter would; gated by `INTERVIEW_LAB_ENABLED=1`
   outside production.

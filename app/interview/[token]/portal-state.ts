@@ -11,6 +11,21 @@ import {
 
 export type InterviewPortalView = "completed" | "inactive" | "live" | "ready";
 
+export type InterviewInactiveCopyKeys = {
+  title: "revokedTitle" | "expiredTitle";
+  body: "revokedBody" | "expiredBody";
+};
+
+/** Closed-card copy for an inactive token. /connect already distinguishes
+ *  INTERVIEW_LINK_INACTIVE (revoked) from INTERVIEW_LINK_EXPIRED; the page
+ *  used to collapse both onto one "expired or was withdrawn" sentence. */
+export function interviewInactiveCopyKeys(session: { status: string }): InterviewInactiveCopyKeys {
+  if (session.status === "revoked") {
+    return { title: "revokedTitle", body: "revokedBody" };
+  }
+  return { title: "expiredTitle", body: "expiredBody" };
+}
+
 export function interviewPortalView(session: {
   status: string;
   createdAt: string;
