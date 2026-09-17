@@ -52,20 +52,16 @@
 //   node scripts/perf/check-budget.mjs --explain app/api/schedule/route.ts
 //                                                  # the heaviest modules on a path
 //
-// STATUS — READ THIS BEFORE TRUSTING IT. This tool ships UNCALIBRATED and
-// UNGATED: there is no perf-budget.json yet, and no CI step runs it. It was
-// written in a sandbox with no execution, so it has never been run against this
-// tree, and inventing ceilings without measuring them would have produced a
-// budget that fails honest work or passes everything. Two commands finish it:
+// STATUS. The committed perf-budget.json is the ceiling. `npm run test:perf`
+// holds it on every push: the last cases of scripts/perf/__tests__/check-budget.test.mjs
+// load the file and fail when this tree is over budget. `npm run perf:budget` is
+// the same check for a local run. Do not treat the import-graph budget as
+// optional folklore: a graph that doubles is a route that got slower, and that
+// fails the gate. docs/development/performance-budget.md is the operator page.
 //
-//   1. node scripts/perf/check-budget.mjs --record   (then read every number,
-//      and delete a target that is not worth a gate)
-//   2. add `- run: npm run perf:budget` to the node-quality job in ci.yml,
-//      beside `npm run design:check` — same tier: a static, sub-second,
-//      key-free read of the committed tree.
-//
-// Until step 2 exists nothing fails when the app gets slower, which is the whole
-// gap. docs/development/performance-budget.md carries the full procedure.
+// HOW A CEILING MOVES stays the commands above: `--record` writes a missing
+// file, `--tighten` lowers numbers, raising one is an edit with a `why`. There
+// is no second ci.yml step to add; test:perf is the holder.
 //
 // EXIT CODES: 0 within budget / 1 a ceiling was exceeded, or the budget file
 // could not be believed (a budget this script cannot parse must never read as
