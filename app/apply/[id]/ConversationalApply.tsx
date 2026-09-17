@@ -99,12 +99,17 @@ export function ConversationalApply({
   // seeded keys ride every advance() merge into the final POST payload.
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => ({ ...(prefill?.answers ?? {}) }));
   const [input, setInput] = useState("");
+  // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
+  // tabIndex -1 + autocomplete off), but a form-filling bot populates. Posted as
+  // `company_url` on the final submit — same contract as QuickApplyForm.
+  const [companyUrl, setCompanyUrl] = useState("");
   // The final POST and its outcome — `done` (accepted / declined, plus the
   // duplicate / enriched nuances), the in-flight flag, and the recoverable
   // failure. See useApplySubmit for why a failure is never terminal.
   const { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit, clearSubmitError } = useApplySubmit({
     jobId,
     lead: prefill ? prefill.leadToken : null,
+    companyUrl,
     submitFailedMessage: t("submitFailed"),
     networkFailedMessage: t("networkFailed"),
     hasErrorCode,
@@ -424,6 +429,21 @@ export function ConversationalApply({
 
   return (
     <div>
+      {/* Honeypot — must stay empty. Off-screen + removed from the a11y + tab order so
+          only an indiscriminate form-filling bot reaches it. Same markup as the
+          quick form; posted as company_url on the final submit. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+        <label htmlFor="ca-company-url">{t("quick.honeypotLabel")}</label>
+        <input
+          id="ca-company-url"
+          type="text"
+          name="company_url"
+          tabIndex={-1}
+          autoComplete="off"
+          value={companyUrl}
+          onChange={(e) => setCompanyUrl(e.target.value)}
+        />
+      </div>
       {/* idea-939d96e9 — a restored in-progress application: tell the candidate we
           resumed and give a one-tap way to start over. */}
       {resumed && !done ? (

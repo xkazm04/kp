@@ -378,7 +378,10 @@ above the transcript, hidden on the done card. Text only — no meter
 animation — so a reduced-motion reader gets the same signal. Pinned by
 `apply-intake.test.ts` and `apply-door-a11y.test.ts`. Quick apply
 (`QuickApplyForm.tsx`) is the short-form alternative behind
-`app/api/apply/[id]/quick/route.ts`.
+`app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
+`company_url` honeypot (not `type="hidden"`) and POST it on submit so a
+form-filling bot is dropped the same way on the chat as on the lead form.
+Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
 email as *editable* defaults. It is deliberately conservative — a wrong guess costs
@@ -510,8 +513,9 @@ closed-role gate still renders `t("roleClosed")`; that is a different surface.
 Both apply pages mount `LanguageSwitcher` on every HTML `<main>` return,
 including that closed-role card, so a forwarded filled/retired link in the
 wrong language still has an escape (the open-path APP4 switcher used to drop
-on the early return). Pinned by `app/api/apply/apply-error-hygiene.test.ts` and
-`candidate-door-conversion.test.ts`.
+on the early return). Drafts keep `notFound()` and stay switcher-less. Pinned
+by `app/api/apply/apply-error-hygiene.test.ts` and
+`app/apply/[id]/candidate-door-conversion.test.ts`.
 
 **Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
 `app/_lib/apply-session-store.ts`) is written from a public door on every form

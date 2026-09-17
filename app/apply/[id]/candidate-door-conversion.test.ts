@@ -158,6 +158,18 @@ test("the quick form's submit is always live and names what is missing", () => {
   assert.match(src, /jumpTo\(missing\)/, "…through the one shared jump helper");
 });
 
+test("every painted apply-page main, including the closed-role card, mounts LanguageSwitcher", () => {
+  const src = read("page.tsx");
+  const mains = [...src.matchAll(/<main[\s\S]*?<\/main>/g)].map((m) => m[0]);
+  assert.ok(mains.length >= 2, "open path and closed-role path each have a main");
+  for (const main of mains) {
+    assert.match(main, /<LanguageSwitcher \/>/, "a closed-role visit is still escapable into the candidate's language");
+  }
+  const draftGate = src.slice(src.indexOf('if (status === "draft")'), src.indexOf("return ("));
+  assert.match(draftGate, /notFound\(\)/, "drafts 404 rather than painting a card");
+  assert.doesNotMatch(draftGate, /LanguageSwitcher/, "the draft notFound path does not mount a switcher");
+});
+
 test("the quick form keeps its honeypot and the strict server KO contract untouched", () => {
   const src = read("quick/QuickApplyForm.tsx");
   assert.match(src, /company_url/, "the honeypot field is still posted");
@@ -165,4 +177,15 @@ test("the quick form keeps its honeypot and the strict server KO contract untouc
   // Every KO answer is still gathered client-side before any POST — the server
   // reads an ABSENT key as a fail, so an incomplete form must never reach it.
   assert.match(src, /koSteps\.find\(\(s\) => ko\[s\.id\] === undefined\)/, "an unanswered KO gate still blocks the POST");
+});
+
+test("the conversational chat posts the same company_url honeypot as the quick form", () => {
+  const view = read("ConversationalApply.tsx");
+  const submit = read("use-apply-submit.ts");
+  assert.match(view, /name="company_url"/, "the off-screen field is named company_url");
+  assert.match(view, /aria-hidden="true"/, "…and is out of the a11y tree");
+  assert.match(view, /tabIndex=\{-1\}/, "…and out of the tab order");
+  assert.match(view, /autoComplete="off"/, "…and not autofilled as a real company URL");
+  assert.doesNotMatch(view, /type="hidden"/, "not type=hidden — bots skip those");
+  assert.match(submit, /company_url: companyUrl/, "the final POST body includes company_url");
 });

@@ -38,6 +38,9 @@ export default async function ApplyPage({
     if (status === "draft") notFound();
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
+        {/* Same locale toggle as the open path: a filled/retired link is still a
+            public candidate door, and a Czech reader of an English filled-role
+            ad has no other chrome. Drafts 404 above and stay switcher-less. */}
         <div className="mb-4 flex justify-end">
           <LanguageSwitcher />
         </div>

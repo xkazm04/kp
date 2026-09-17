@@ -522,6 +522,14 @@ export const REFUSAL_ERRORS = {
    *  rather than stored: a response captured mid-process would be folded into a
    *  "candidate experience" figure that claims to measure completed journeys. */
   STATUS_NPS_NOT_APPLICABLE: "This question opens once your application has finished.",
+  /** Public NPS POST with no score at all (400). parseNpsSubmission used to put
+   *  the English sentence "score is required" on the wire; the status page
+   *  localizes `errors.NPS_SCORE_REQUIRED` instead. */
+  NPS_SCORE_REQUIRED: "A score is required.",
+  /** Public NPS POST whose score is not an integer in 0..10 (400). One code for
+   *  both "not a whole number" and "out of range" — the candidate's next step is
+   *  the same (pick a 0-10), and the validator must not coerce. */
+  NPS_SCORE_INVALID: "Score must be a whole number from 0 to 10.",
   /** An erasure link that resolves to nothing (404): never issued, or already
    *  spent — anonymizeEntry NULLs the token, so a replay lands here. Both readings
    *  share one refusal because the candidate's next step is the same either way,
