@@ -536,6 +536,10 @@ fails on any unmapped role.
 required fields (education detail + aspirations for early-career; years/seniority
 for experienced) and a provenance dropdown per skill claim
 (`ProfileEditorFields.tsx`, `profileCompletenessFields.ts`).
+`validateProfileEditorFields` gates both `yearsError` and `gradError` on field
+visibility (`graduation: isStudentish`), so a leftover `20266` typed under Student
+does not disable Save after a switch to Experienced — pinned by
+`profileEditorHelpers.test.ts`.
 
 The editor deliberately STAYS OPEN after a save, so the result panel's clickable
 completeness gaps can be worked through in place ("save → click a gap → fill the
@@ -1063,14 +1067,6 @@ absence has to survive the CV.
   honestly (`MATRIX_POOL_CAP` + `countMatrixProfiles`); the fix is the same shape —
   a server total plus a catalog key — and needs both, so it is not a client-only
   change.
-- **A hidden graduation-year typo disables Save with nothing on screen.**
-  `validateProfileEditorFields` gates `yearsError` on field visibility ("a stale,
-  hidden value won't be submitted, so it must not block Save either") but validates
-  `expectedGraduation` unconditionally. Type `20266` under Student/Auto, switch the
-  archetype to Experienced, and the field disappears while `hasFieldErrors` stays
-  true: Save is disabled, no error is rendered anywhere, and the offending input is
-  not on the page. The visibility flag (`isStudentish`) is computed in
-  `ProfileEditor.tsx`, not in the helper, so the fix has to thread it through.
 - **A failed archetype-registry load is swallowed.** `reloadArchetypes`
   (`useProfileTabDeepLinks.ts`) ends in `.catch(() => undefined)`, so a failing
   `GET /api/archetypes` leaves `archetypes: []` with no message; the editor then
