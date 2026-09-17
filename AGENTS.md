@@ -108,7 +108,7 @@ rather than a snapshot.
 | `npm run build` | `next build`, after `schemas:gen` |
 | `npm run lint:ruff-ratchet` | a `ruff.toml` ignore has no ceiling, is over it, or now suppresses nothing |
 | `npm run test:python:gate` | the gated Python suite, or its skip count exceeded `KP_SKIP_BASELINE` |
-| `npm run test:eval:ci` | a keyless deterministic AI-behaviour eval regressed (matching, automation, fault) |
+| `npm run test:eval:ci` | a keyless deterministic AI-behaviour eval regressed (matching, automation, fault, intake) |
 | `npm run docs:check:diff` | **reads the commit range.** Changed source vs the doc `scripts/docs/feature-doc-map.json` couples it to. Waive on the record with a `Doc-sync: internal-only — <why>` trailer in the commit body |
 | `npm run commit:check` | **reads the commit range.** The subject is ONE CLAUSE ABOUT THE CHANGE; the session narrative belongs in the body. Waive with `Commit-convention-exemption: <why>` |
 | `npm run ci:budget` | a job in `ci.yml` or `review.yml` has no wall-clock ceiling, or the measured run blew the one it declares |
