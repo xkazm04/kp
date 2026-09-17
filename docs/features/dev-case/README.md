@@ -113,7 +113,13 @@ palette. The full mapping table and the five reading states are in
    identically. A role with no must-haves is designed exactly as before (the
    key is omitted from the prompt rather than sent empty), and the
    deterministic keyless template is unchanged — it has no way to design
-   terrain, so it does not pretend to.
+   terrain, so it does not pretend to. CV-hypothesis covert probes
+   (`soft_signals.panel_to_probe_briefs`, each `{kind, focus, rationale}`)
+   reach `design_case` through the production CLI:
+   `design-artifacts --focus-probes-json`. The `--no-llm` path appends one
+   targeted cover-probe per brief (`id` `t1`…). `runDesignArtifacts` in TS
+   does not yet forward a panel, so a recruiter's soft-signal sheet still
+   cannot change the exercise the candidate sits from the app.
 3. **Human gate.** The role/case is a Decisions approval
    (`app/api/devcase/lifecycle/route.ts`, `.../[id]/approve/route.ts`) before
    it is published/sent. The manual (non-lifecycle) gate in the Define-need
@@ -1730,6 +1736,10 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
 - Sub-specialty drift (a Frontend role handed a backend-stack repo, iOS handed
   Android) still falls back to "generic engineering" in `design_case` — see
   `docs/_archive/dev-d3-hardening-findings.md` residuals.
+- `design-artifacts --focus-probes-json` is the Python half of Rec B (CV
+  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run-design.ts`)
+  still has no argument to forward a panel, so designed cases from the app
+  never confirm over-claimed skills.
 - Apply tokens and work sessions never expire: `getPostingByToken`
   (`app/_lib/db/devcase.ts`) has no expiry column, so only `status === "closed"`
   invalidates a link.
