@@ -21,6 +21,7 @@ import { saveAnalysis } from "./db/analyses.ts";
 import { saveProfile } from "./db/profiles.ts";
 import {
   ANALYSIS_POOL_CAP,
+  PROFILE_POOL_CAP,
   buildCandidatePool,
   resolveCandidatePoolEntry,
   type CandidatePoolEntry,
@@ -107,4 +108,17 @@ test("truncated is false under the caps and true once a cap fills", () => {
     saveAnalysis({ ...analysisBase, candidateLabel: `cap-${i}.pdf`, payload: { candidate: {} } }, ws);
   }
   assert.equal(buildCandidatePool(ws).truncated, true, "hitting a cap surfaces truncated=true to callers");
+});
+
+test("a workspace at PROFILE_POOL_CAP is truncated and still returns the capped set", () => {
+  // Rediscovery used to discard this flag, so a capped ranking read as complete.
+  // The pool itself must still be non-empty — truncation is an admission, not a wipe.
+  const ws = "ws-pool-profile-cap";
+  for (let i = 0; i < PROFILE_POOL_CAP; i++) {
+    saveProfile({ ...profileInput, label: `cap-profile-${i}` }, ws);
+  }
+  const pool = buildCandidatePool(ws);
+  assert.equal(pool.truncated, true, "hitting PROFILE_POOL_CAP surfaces truncated=true");
+  const profiles = pool.entries.filter((e) => "profile" in e);
+  assert.equal(profiles.length, PROFILE_POOL_CAP, "the capped set is still returned, not emptied");
 });
