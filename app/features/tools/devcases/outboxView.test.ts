@@ -149,6 +149,12 @@ test("outboxRows never mutates the input array", () => {
   assert.deepEqual(OUTBOX.map((m) => m.id), order);
 });
 
+test("a dead-letter row with failureDetail renders that detail under the verdict", () => {
+  assert.match(rowsSrc, /isDeadLetter\(m\) && m\.failureDetail/);
+  assert.match(rowsSrc, /title=\{m\.failureDetail\}/);
+  assert.match(rowsSrc, /\{m\.failureDetail\}/);
+});
+
 test("failed rows expose one-click resend; bounced rows expose the corrected-address form", () => {
   assert.match(rowsSrc, /from "@\/app\/features\/hiring\/channels\/ChannelsCommsBouncedResend"/);
   assert.match(rowsSrc, /\{m\.verdict === "failed" \? <ResendButton id=\{m\.id\} onResent=\{onResent\} compact \/> : null\}/);

@@ -69,6 +69,9 @@ palette. The full mapping table and the five reading states are in
     mounts Channels' `BouncedResend` (corrected-address form, same
     `channels.comms` copy) in the status cell so the recruiter can recover the
     letter without leaving Assignments; a recovered row would only earn a 409.
+    Dead-letter rows also show the store's `failureDetail` (relay refusal or
+    bounce reason) truncated under the verdict, full string in the tooltip — empty
+    detail keeps the verdict word only.
     Labels come from the shared `channels.comms` status catalog (a surface picks its
     own tone, never its own delivery vocabulary). Caveat: supersession is computed
     over what `GET /api/devcase/comms` returned, currently the newest 50 rows.

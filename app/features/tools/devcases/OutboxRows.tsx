@@ -178,6 +178,11 @@ export function OutboxRows({
                     <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
                   </div>
                 ) : null}
+                {isDeadLetter(m) && m.failureDetail ? (
+                  <p className="mt-1 max-w-[16rem] truncate font-normal normal-case text-steel" title={m.failureDetail}>
+                    {m.failureDetail}
+                  </p>
+                ) : null}
               </td>
               <td className="hidden max-w-[8rem] truncate px-3 py-2 text-micro text-steel lg:table-cell" title={m.ref ?? undefined}>
                 {m.ref ?? "—"}
