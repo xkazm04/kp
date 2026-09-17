@@ -418,6 +418,10 @@ fair-share floor that decides who gets flagged.
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
 it: should this score be allowed to decide at all.
 
+- **The reliability diagram exports.** A calibrated arm offers `kp-reliability.csv` (bin, lo,
+  hi, n, predicted, observed; empty bins omitted) with provenance naming source, outcome,
+  floor and whether that floor is enforced. The uncalibrated branch has no curve and no
+  button. Helper: `reliabilityCsv.ts`.
 - **Three producers, not two.** `GET /api/analytics/calibration?source=` serves `pipeline`
   (default) · `analysis` · `holdout` — the clean arm, which the route could already serve and
   no UI could reach. Each arm has its own "what this measures" / "what counts" copy.
