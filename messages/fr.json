@@ -5055,7 +5055,9 @@
         "heading_offer": "Ce que nous offrons",
         "heading_apply": "Comment postuler",
         "offer_note": "Travail hybride, de vraies responsabilités et de la place pour progresser.",
-        "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour."
+        "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour.",
+        "fallback_title": "Intitulé du poste",
+        "fallback_company": "Entreprise"
       },
       "loadFailed": "Impossible de charger vos modèles.",
       "retry": "Réessayer",
@@ -5543,6 +5545,7 @@
     },
     "shared": {
       "generatingReasoning": "Génération du raisonnement de correspondance…",
+      "retryReasoning": "Réessayer",
       "reasoning": "Raisonnement",
       "sourceLlm": "LLM",
       "sourceRuleBased": "basé sur des règles",
@@ -5551,6 +5554,7 @@
       "strengths": "Points forts",
       "gaps": "Lacunes",
       "interviewProbes": "Points à creuser en entretien",
+      "emptyReasons": "Aucun élément",
       "barAria": "{label}, score {score}",
       "scoreBreakdownAria": "Score {total} sur 100 : {detail}",
       "dimContribution": "{label} contribue pour {contribution} sur {weight} points",
@@ -5569,7 +5573,10 @@
         "work_mode": "Assouplissez la préférence de mode de travail sur le profil pour élargir le champ.",
         "early_career": "Peu de postes de ce corpus sont encore ouverts aux candidats débutants.",
         "other": "Ajustez le profil et relancez pour élargir le champ."
-      }
+      },
+      "openJdLibrary": "Ouvrir la bibliothèque de fiches de poste",
+      "reviewRoles": "Voir les postes",
+      "bandUnit": "k"
     },
     "card": {
       "startFailed": "Impossible de lancer l’analyse de correspondance.",

@@ -731,6 +731,31 @@ column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
 `matrixGridRoles.test.ts` — indices only mean anything while the counts agree
 with them.
 
+### A failed Explain-fit can retry in place
+`ReasoningPanel` is the async face (pending / error / resolved) mounted per match
+card. A failed start, empty payload, or failed background task used to leave a
+static red paragraph, so the operator had to hunt for the original Explain control.
+An optional `onRetry` paints a `BTN_GHOST` `match.shared.retryReasoning` control on
+the error face; callers that cannot retry omit the prop and stay text-only.
+`MatchCard` passes `explain` from `useMatchCardReasoning`. Pinned by
+`MatchReasoningPanel.test.ts`.
+
+An empty Strengths / Gaps / Probes column is data, not a forgotten list: the
+heading still paints and the body uses `match.shared.emptyReasons` ("None named")
+instead of three hollow columns on a keyless fallback verdict.
+
+`NoMatchesExplainer` accepts an optional `action` (`href` or `onClick` + `label`)
+so a 0-match run is not a dead-end card. `MatchResults` supplies a JD-library
+deep link when the corpus is empty, and a roles-library link when every role was
+KO-filtered. Omit the prop and the explainer stays hint-only. Pinned by
+`MatchPresentation.test.ts`.
+
+`formatBandCompact` still groups thousands in the reader locale and keeps the
+en-dash plus `APP_CURRENCY`, but the compact scale marker is an optional `unit`
+argument (default `"k"`). Match cards and job-compare pass `match.shared.bandUnit`
+so a Czech chip can read `45–60 tis. CZK` instead of a stray English `k`. Pinned
+by `matchTypes.test.ts`.
+
 ### The narrative says what it is, on both surfaces
 `/api/match/reasoning` reports three things about an answer besides the answer:
 `source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —

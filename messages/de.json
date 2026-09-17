@@ -5055,7 +5055,9 @@
         "heading_offer": "Was wir bieten",
         "heading_apply": "So bewerben Sie sich",
         "offer_note": "Hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
-        "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview."
+        "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview.",
+        "fallback_title": "Stellenbezeichnung",
+        "fallback_company": "Unternehmen"
       },
       "loadFailed": "Die Vorlagen konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
@@ -5543,6 +5545,7 @@
     },
     "shared": {
       "generatingReasoning": "Eignungsbegründung wird erstellt…",
+      "retryReasoning": "Erneut versuchen",
       "reasoning": "Begründung",
       "sourceLlm": "LLM",
       "sourceRuleBased": "regelbasiert",
@@ -5551,6 +5554,7 @@
       "strengths": "Stärken",
       "gaps": "Lücken",
       "interviewProbes": "Interview-Nachfragen",
+      "emptyReasons": "Keine genannt",
       "barAria": "{label} Score {score}",
       "scoreBreakdownAria": "Score {total} von 100: {detail}",
       "dimContribution": "{label} trägt {contribution} von {weight} Punkten bei",
@@ -5569,7 +5573,10 @@
         "work_mode": "Lockern Sie die Arbeitsmodus-Präferenz im Profil, um das Feld zu erweitern.",
         "early_career": "Nur wenige Stellen in diesem Korpus stehen Berufseinsteigern bislang offen.",
         "other": "Passen Sie das Profil an und führen Sie erneut aus, um das Feld zu erweitern."
-      }
+      },
+      "openJdLibrary": "Stellenbeschreibungen öffnen",
+      "reviewRoles": "Stellen prüfen",
+      "bandUnit": " Tsd."
     },
     "card": {
       "startFailed": "Eignungsanalyse konnte nicht gestartet werden.",

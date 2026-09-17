@@ -5055,7 +5055,9 @@
         "heading_offer": "What we offer",
         "heading_apply": "How to apply",
         "offer_note": "Hybrid working, meaningful ownership, and room to grow.",
-        "apply_note": "Apply via the link: a short conversation, then a first-round interview."
+        "apply_note": "Apply via the link: a short conversation, then a first-round interview.",
+        "fallback_title": "Role title",
+        "fallback_company": "Company"
       },
       "loadFailed": "Couldn't load your templates.",
       "retry": "Retry",
@@ -5543,6 +5545,7 @@
     },
     "shared": {
       "generatingReasoning": "Generating fit reasoning…",
+      "retryReasoning": "Try again",
       "reasoning": "Reasoning",
       "sourceLlm": "LLM",
       "sourceRuleBased": "rule-based",
@@ -5551,6 +5554,7 @@
       "strengths": "Strengths",
       "gaps": "Gaps",
       "interviewProbes": "Interview probes",
+      "emptyReasons": "None named",
       "barAria": "{label} score {score}",
       "scoreBreakdownAria": "Score {total} of 100: {detail}",
       "dimContribution": "{label} contributes {contribution} of {weight} points",
@@ -5569,7 +5573,10 @@
         "work_mode": "Loosen the work-mode preference on the profile to widen the field.",
         "early_career": "Few roles in this corpus are open to early-career candidates yet.",
         "other": "Adjust the profile and re-run to widen the field."
-      }
+      },
+      "openJdLibrary": "Open the JD library",
+      "reviewRoles": "Review roles",
+      "bandUnit": "k"
     },
     "card": {
       "startFailed": "Couldn't start the fit analysis.",

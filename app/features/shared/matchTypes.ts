@@ -232,8 +232,10 @@ export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
  *  `locale` (format.ts number-locale contract) so a four-digit band ("1 200k")
  *  groups the way the rest of the page does, and the unit is {@link APP_CURRENCY}
  *  rather than a "CZK" literal that would lie if that constant ever moved. The
- *  rounding, the "k" scale, and the en-dash are unchanged. */
-export function formatBandCompact(band?: number[], locale?: string): string {
+ *  compact scale marker defaults to `"k"` so tests/logs stay stable; callers with
+ *  a catalog pass `match.shared.bandUnit`. The rounding and the en-dash are
+ *  unchanged. */
+export function formatBandCompact(band?: number[], locale?: string, unit = "k"): string {
   if (!band || band.length !== 2) return "—";
-  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}k ${APP_CURRENCY}`;
+  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}${unit} ${APP_CURRENCY}`;
 }

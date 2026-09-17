@@ -161,6 +161,28 @@ it). Contract:
 Edits live only in memory until **Save as draft** persists them; switching
 templates is the one action that can replace them, and it now always asks.
 
+Empty `responsibilities` / `mustHaves` / `niceToHaves` collapse the same way
+empty `{{about}}` already did: `renderTemplate` emits no hollow `- —` bullet, so
+the section-collapse pass drops the heading and a generated JD does not publish
+unfinished Requirements / Nice-to-have sections. A filled list still renders
+markdown bullets. Pinned by `app/features/shared/renderTemplate.test.ts`.
+
+Missing `{{title}}` / `{{company}}` no longer substitute the English literals
+"Role title" and "Company". Those fallbacks are `library.templates.token.fallback_title`
+/ `fallback_company`, resolved with the rest of the document-language tokens, so a
+partial Czech (or German/French) render cannot leak English scaffolding.
+
+Unknown `{{tokens}}` fail inside `validateTemplateFields` / `validateTemplateUpdate`
+(`reason.code: unknownTokens`) rather than as a second, forgettable call at each
+write door. POST `/api/templates` and PUT `/api/templates/[id]` still 400; a new
+caller that only uses the shared validator cannot store `{{tilte}}`. Pinned by
+`renderTemplate.test.ts`.
+
+The seeded Company-standard header is `**{{company}}** · {{location}} · {{seniority}} · {{salary}}`.
+Empty location collapses with the same middot contract as seniority/salary, so a
+Prague-less draft still reads `**Acme** · Senior`. `findUnknownPlaceholders(DEFAULT_TEMPLATE_BODY)`
+stays empty.
+
 ### A template list that could not load says so
 
 `fetchTemplates` (`app/features/shared/templatesClient.ts`) answers

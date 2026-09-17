@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { findUnknownPlaceholders, validateTemplateFields } from "@/app/features/shared/renderTemplate";
+import { validateTemplateFields } from "@/app/features/shared/renderTemplate";
 import {
   loadManagedTemplates,
   sendTemplateWrite,
@@ -94,13 +94,7 @@ export function useMessageTemplates() {
       // with the identical rule instead of a round-trip 400.
       const fields = validateTemplateFields(name, draft.body);
       if (!fields.ok) {
-        setError(t("errInvalid"));
-        return false;
-      }
-      // Unknown {{tokens}} are BLOCKED by the API (renderTemplate's policy) —
-      // say so here rather than letting the save bounce.
-      if (findUnknownPlaceholders(fields.body).length) {
-        setError(t("errUnknownTokens"));
+        setError(fields.reason.code === "unknownTokens" ? t("errUnknownTokens") : t("errInvalid"));
         return false;
       }
       setBusy(true);

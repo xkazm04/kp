@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { MatchRef, MatchResponse } from "@/app/features/shared/matchTypes";
 import { isEarlyCareer } from "@/app/features/shared/matchTypes";
 import { KoReasonsNote, NoMatchesExplainer } from "@/app/features/shared/MatchPresentation";
+import { buildUrl } from "@/app/features/shell/tabs";
 import { MatchCard } from "./MatchCard";
 import { MatchWeightsPanel } from "./MatchWeightsPanel";
 import { MatchResultsHeader } from "./MatchResultsHeader";
@@ -63,6 +64,7 @@ export function MatchResults({
   onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
 }) {
   const t = useTranslations("match.results");
+  const tShared = useTranslations("match.shared");
   const { candidate, meta, matches } = result;
   // The routing value we CARRY (posted to the pipeline, passed to MatchCard, fed to
   // isEarlyCareer): honour the matcher's fail-closed "unknown" sentinel instead of
@@ -136,7 +138,15 @@ export function MatchResults({
 
       {matches.length === 0 ? (
         <div className="mt-4">
-          <NoMatchesExplainer meta={meta} archetype={archetype} />
+          <NoMatchesExplainer
+            meta={meta}
+            archetype={archetype}
+            action={
+              (meta.evaluated ?? 0) === 0
+                ? { href: buildUrl({ tab: "library" }, ""), label: tShared("openJdLibrary") }
+                : { href: buildUrl({ tab: "jobs" }, ""), label: tShared("reviewRoles") }
+            }
+          />
         </div>
       ) : (
         <>

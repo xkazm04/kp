@@ -5055,7 +5055,9 @@
         "heading_offer": "Co nabízíme",
         "heading_apply": "Jak se přihlásit",
         "offer_note": "Hybridní režim práce, smysluplná zodpovědnost a prostor k růstu.",
-        "apply_note": "Přihlaste se přes odkaz: krátký rozhovor a potom první kolo pohovoru."
+        "apply_note": "Přihlaste se přes odkaz: krátký rozhovor a potom první kolo pohovoru.",
+        "fallback_title": "Název role",
+        "fallback_company": "Společnost"
       },
       "loadFailed": "Šablony se nepodařilo načíst.",
       "retry": "Zkusit znovu",
@@ -5543,6 +5545,7 @@
     },
     "shared": {
       "generatingReasoning": "Generování zdůvodnění vhodnosti…",
+      "retryReasoning": "Zkusit znovu",
       "reasoning": "Zdůvodnění",
       "sourceLlm": "LLM",
       "sourceRuleBased": "pravidlové",
@@ -5551,6 +5554,7 @@
       "strengths": "Silné stránky",
       "gaps": "Mezery",
       "interviewProbes": "Otázky k pohovoru",
+      "emptyReasons": "Nic uvedeno",
       "barAria": "{label} skóre {score}",
       "scoreBreakdownAria": "Skóre {total} ze 100: {detail}",
       "dimContribution": "{label} přispívá {contribution} z {weight} bodů",
@@ -5569,7 +5573,10 @@
         "work_mode": "Uvolněte v profilu preferenci režimu práce, aby prošlo víc pozic.",
         "early_career": "Jen málo pozic v tomto korpusu je zatím otevřeno juniorům.",
         "other": "Upravte profil a spusťte znovu, aby prošlo víc pozic."
-      }
+      },
+      "openJdLibrary": "Otevřít knihovnu popisů pozic",
+      "reviewRoles": "Prohlédnout pozice",
+      "bandUnit": " tis."
     },
     "card": {
       "startFailed": "Analýzu vhodnosti se nepodařilo spustit.",

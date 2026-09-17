@@ -4,7 +4,7 @@
 // Runner: node:test with type stripping. `npm run test:unit app/features/shared/matchTypes.test.ts`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { provLabel } from "./matchTypes.ts";
+import { formatBandCompact, provLabel } from "./matchTypes.ts";
 
 test("provLabel keeps observed on its own high-trust stamp", () => {
   const pl = provLabel("observed");
@@ -20,4 +20,11 @@ test("provLabel does not label an unknown slug as academic", () => {
   const pl = provLabel("nope");
   assert.notEqual(pl.key, "academic");
   assert.equal(pl.key, "unknown");
+});
+
+test("formatBandCompact localizes the compact unit when the caller passes one", () => {
+  const localized = formatBandCompact([45000, 60000], "en", "tis.");
+  assert.match(localized, /tis\./);
+  assert.doesNotMatch(localized, /k /, "a caller-supplied unit must not leave a stray ASCII k");
+  assert.equal(formatBandCompact([45000, 60000], "en"), formatBandCompact([45000, 60000], "en", "k"));
 });
