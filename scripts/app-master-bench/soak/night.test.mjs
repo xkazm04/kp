@@ -15,6 +15,9 @@
 // the process entry point.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   MISS_CLASSES,
   SOAK_SCENARIO,
@@ -212,4 +215,15 @@ test("the matrix window is inclusive and a nameless miss is unclassified", () =>
 test("an empty log is an empty matrix, not a fabricated zero-pass night", () => {
   assert.deepEqual(passRateMatrix([]), []);
   assert.match(renderPassRateMatrix([]), /empty log/);
+});
+
+test("both soak wrappers invoke night.mjs with the same runner-missing contract", () => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const cmd = readFileSync(path.join(here, "soak-night.cmd"), "utf8");
+  const sh = readFileSync(path.join(here, "soak-night.sh"), "utf8");
+  assert.match(cmd, /night\.mjs/);
+  assert.match(sh, /night\.mjs/);
+  assert.match(sh, /set -eu/);
+  assert.match(sh, /SOAK_KP_URL/);
+  assert.match(sh, /SOAK_TENURE/);
 });

@@ -1017,8 +1017,10 @@ probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
 `scripts/app-master-bench/soak/night.mjs` runs ONE unattended C1 ideation night
 against the standing tenure and appends an honest per-night record — misses
 included — to `bench/app-master/soak/log.jsonl`. Scheduled by Windows Task
-Scheduler (`kp-app-master-soak`, 02:47 nightly), NOT by any session-bound
-mechanism — registered per machine by the committed `soak/install.cmd`
+Scheduler (`kp-app-master-soak`, 02:47 nightly) via `soak/soak-night.cmd`, or on
+a POSIX host by cron/systemd via `soak/soak-night.sh` (same `SOAK_*` defaults,
+exits 0 unless the runner itself is missing) — NOT by any session-bound
+mechanism. Windows registration is the committed `soak/install.cmd`
 (idempotent; the teardown command is in its header). The installer patches the
 task to **run late rather than not at all** (`StartWhenAvailable`, battery
 guards off), because the host measurably sleeps through 02:47; it deliberately

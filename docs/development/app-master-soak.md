@@ -25,7 +25,10 @@ gap in the log does not.
 
 - **Scheduler:** Windows Task Scheduler, task `kp-app-master-soak`, nightly
   02:47 local → `scripts/app-master-bench/soak/soak-night.cmd` →
-  `soak/night.mjs`. **Registered by the committed installer**
+  `soak/night.mjs`. POSIX twin: `soak/soak-night.sh` (cron or a systemd timer)
+  derives the repo root from its own location, uses the same `SOAK_*` defaults
+  `night.mjs` does, and exits 0 unless the runner itself is missing. **Registered
+  by the committed installer**
   `soak/install.cmd` (idempotent, paths derived from its own location, prints
   the task back for verification) — run it once per machine; the teardown
   command is in its header. **The task runs LATE rather than not at all**
