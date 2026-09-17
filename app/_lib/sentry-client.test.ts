@@ -19,6 +19,27 @@ test("a capability token in the message is redacted, the route shape is kept", (
   assert.match(out.message, /\/api\/schedule\/\[token\]/, "the route shape must survive — it is the diagnostic");
 });
 
+test("an opt-out /stop/<token> is redacted like the other capability links", () => {
+  const page = scrubbedForCapture(new Error("open /stop/SECRET-opt-out now")) as Error;
+  assert.ok(!page.message.includes("SECRET-opt-out"), "/stop/<token> must not survive");
+  assert.match(page.message, /\/stop\/\[token\]/, "the unsubscribe route shape must survive");
+
+  const api = scrubbedForCapture("POST /api/stop/SECRET-opt-out") as string;
+  assert.equal(typeof api, "string");
+  assert.ok(!api.includes("SECRET-opt-out"), "/api/stop/<token> must not survive");
+  assert.match(api, /\/api\/stop\/\[token\]/);
+});
+
+test("the server TOKEN_PATH twin also lists stop", () => {
+  // instrumentation.ts keeps its own literal copy on purpose (edge compile). A
+  // client-only fix would still ship the opt-out credential on a 500 from /api/stop.
+  const src = readFileSync(fileURLToPath(new URL("../../instrumentation.ts", import.meta.url)), "utf8").replace(
+    /\r\n/g,
+    "\n"
+  );
+  assert.match(src, /skill-profile\|stop\|/, "instrumentation.ts TOKEN_PATH must include stop beside the client list");
+});
+
 test("a capability token in the STACK is redacted too", () => {
   const err = new Error("boom");
   err.stack = "Error: boom\n    at Page (https://kp.example.com/interview/tok-9f8e7d/page.js:2:3)";
