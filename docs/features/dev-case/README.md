@@ -47,7 +47,9 @@ palette. The full mapping table and the five reading states are in
   mis-sold the office/marketing/finance cases it also ships):
   `app/features/tools/devcases/DevTab.tsx`, routed through `DevTabSwitcher.tsx` /
   `DevTabDefineView.tsx` (need intake + analysis) / `DevTabCasesView.tsx` (case
-  list) / `DevCaseDetail.tsx` (per-case lifecycle, submissions, evaluation). The
+  list; stalled collecting rows show the coral SLA chip on the stage cell, same
+  `devcase.lifecycle.stalled*` copy as the lifecycle strip) / `DevCaseDetail.tsx`
+  (per-case lifecycle, submissions, evaluation). The
   internal panel (`DevCaseDetailInternal`) renders a read-only **Voice screen script**
   when the frozen interview scenario has phases: intro clip, phase titles and spoken
   probes (not listen-for / red-flag notes). A template/deterministic source reuses
