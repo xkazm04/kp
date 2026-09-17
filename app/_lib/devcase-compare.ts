@@ -8,11 +8,13 @@
 type RubricDimLike = { name?: string; label?: string };
 type DimScoreLike = { name?: string; score?: number };
 type EvalInner = { dimensions?: DimScoreLike[]; dimensionScores?: Record<string, number> };
+export type CompareAuthenticityBand = "authentic" | "mixed" | "suspect";
+type AuthLike = { band?: unknown; score?: unknown };
 type SubmissionLike = {
   id: string;
   candidateRef?: string | null;
   transferScore?: number | null;
-  evaluation?: { evaluation?: EvalInner | null } | null;
+  evaluation?: { evaluation?: EvalInner | null; authenticity?: AuthLike | null } | null;
 };
 
 export type CompareAxis = { name: string; label: string };
@@ -22,6 +24,9 @@ export type CompareColumn = {
   transferScore: number | null;
   // axis name -> score (0..100), or null when this submission has no score on it.
   scores: Record<string, number | null>;
+  // Honest darkness: null when the bundle has no authenticity, never "authentic".
+  authenticityBand: CompareAuthenticityBand | null;
+  authenticityScore: number | null;
 };
 export type RubricComparison = {
   axes: CompareAxis[];
@@ -37,6 +42,19 @@ function scoreFor(inner: EvalInner, name: string): number | null {
   if (dim && typeof dim.score === "number") return dim.score;
   const s = inner.dimensionScores?.[name];
   return typeof s === "number" ? s : null;
+}
+
+const AUTH_BANDS = new Set<CompareAuthenticityBand>(["authentic", "mixed", "suspect"]);
+
+function authenticityOf(auth: AuthLike | null | undefined): {
+  authenticityBand: CompareAuthenticityBand | null;
+  authenticityScore: number | null;
+} {
+  const band = typeof auth?.band === "string" && AUTH_BANDS.has(auth.band as CompareAuthenticityBand)
+    ? (auth.band as CompareAuthenticityBand)
+    : null;
+  const score = typeof auth?.score === "number" ? auth.score : null;
+  return { authenticityBand: band, authenticityScore: score };
 }
 
 /** Build the axis × candidate score matrix for a case's evaluated submissions.
@@ -73,7 +91,13 @@ export function rubricCompare(
     const inner = s.evaluation!.evaluation!;
     const scores: Record<string, number | null> = {};
     for (const axis of axes) scores[axis.name] = scoreFor(inner, axis.name);
-    return { id: s.id, candidateRef: s.candidateRef ?? null, transferScore: s.transferScore ?? null, scores };
+    return {
+      id: s.id,
+      candidateRef: s.candidateRef ?? null,
+      transferScore: s.transferScore ?? null,
+      scores,
+      ...authenticityOf(s.evaluation?.authenticity),
+    };
   });
 
   const leaderByAxis: Record<string, string | null> = {};

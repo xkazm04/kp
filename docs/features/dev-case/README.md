@@ -154,7 +154,10 @@ palette. The full mapping table and the five reading states are in
    `maxColumns`), so it labels itself `top 5 of N` and states that the moss
    per-axis leader is the strongest of the columns *shown*, not of the whole
    evaluated cohort — a hidden submission with lower transfer fit can lead an
-   individual axis.
+   individual axis. Each compared column carries `authenticityBand` /
+   `authenticityScore` from the bundle (null when absent, never defaulted to
+   authentic), so a consumer cannot present a suspect row as just a transfer
+   number.
 6. **Promotion.** `app/api/devcase/promote/route.ts` + `dev-control.ts`
    (autonomy level, promote floor) — auto-promotion is gated: a submission
    flagged `suspect` by the authenticity score, or with a broken integrity
