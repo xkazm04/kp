@@ -355,9 +355,13 @@ scheduled workflow. An owner runs `market:build` / `market:earnings`. The page
 carries the consequence rather than hiding it: past `STALE_AFTER_DAYS` (60, in
 `app/landing/spark/market/data.ts`) the hero prints the snapshot's age instead of
 leaving the date to be noticed. Sixty days is therefore the contract those
-scripts owe, and all three script headers now state it — `market:apply` most of
-all, because it makes no network call, cannot tell a stale snapshot from a fresh
-one, and re-levels every shipped salary band from whatever it is handed.
+scripts owe. `market:apply` makes no network call, so it used to re-level every
+shipped salary band from whatever committed snapshot it was handed. It now reads
+`meta.generated_at` with the same UTC date math as the page (`assertFresh` in
+`scripts/lib/market-earnings.mjs`) and **exits 1** when the age is ≥ 60 days,
+naming the rebuild (`npm run market:build && npm run market:earnings`). `--force`
+writes anyway and prints that sentence as a warning — the same override
+`market:build` already uses when `validateSnapshot()` rejects a feed.
 
 #### Network contract — a build that cannot hang, and refuses offline
 
