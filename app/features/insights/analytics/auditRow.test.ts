@@ -31,6 +31,7 @@ import {
   matchesSubject,
   RECORD_ONLY_KINDS,
   shortHash,
+  toggleExpandedId,
   withExportProvenance,
 } from "./analyticsDecisionLogTypes.ts";
 
@@ -283,6 +284,16 @@ test("the records row carries the policy version and the content-hash fingerprin
   assert.equal(src.includes("r.policyVersion"), true, "policyVersion is sealed on every record and rendered nowhere");
   assert.equal(src.includes("shortHash(r.contentHash)"), true, "no per-row fingerprint to tie screen to export");
   assert.equal(src.includes('title={r.contentHash}'), true, "the full hash must stay reachable from the row");
+});
+
+test("a log row with a long detail can be expanded from the keyboard", () => {
+  assert.equal(toggleExpandedId(null, 12), 12);
+  assert.equal(toggleExpandedId(12, 12), null, "the same row closes");
+  assert.equal(toggleExpandedId(12, 7), 7);
+  const log = source(LOG_TABLE);
+  assert.equal(log.includes("aria-expanded={isOpen}"), true, "the detail does not expand");
+  assert.equal(log.includes("toggleExpandedId"), true);
+  assert.equal(/title=\{detail\}/.test(log), false, "hover title must not be the sole access path");
 });
 
 test("the rationale is expandable and the expansion reaches the ?candidate= dossier", () => {

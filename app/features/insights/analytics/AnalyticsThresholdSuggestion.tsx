@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { track } from "@/app/_lib/analytics/track";
 import { labelize } from "@/app/_lib/format";
 import type { CalibrationLeakage, ThresholdRecommendation } from "@/app/_lib/calibration";
 
@@ -87,6 +88,7 @@ export function ThresholdSuggestion({
         return;
       }
       setPhase({ kind: "done", scope, previous: body.previousThreshold ?? rec.currentThreshold, next: body.newThreshold ?? rec.suggestedThreshold });
+      track("calibration_apply", { family: roleFamily ? 1 : 0 });
       onApplied();
     } catch {
       // The fetch itself never reached the server (offline, aborted): there is no code

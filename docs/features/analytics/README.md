@@ -251,7 +251,11 @@ call a stage weak.
   `no-movement` show a guide, not a table), so the file can never carry a table the reader was
   not looking at. `current` is the one column on the file but not on the band's rows — the same
   field the dwell panel directly below renders, so the export adds a number the page already
-  states rather than a measurement it does not.
+  states rather than a measurement it does not. Both this file and `kp-roles.csv` now open
+  with the same provenance block the decision-log CSV already used (export name, generated
+  ISO UTC, window, `bucketTz`, locale, and — when they bite — the cohort-cap note and the
+  guided-demo exclusion count), so a deck paste cannot disagree with the header about what
+  was counted.
 
 ## Economics — one comparison board
 
@@ -388,6 +392,12 @@ describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/job
 `own`) and a `basis` string that **names the tier** are both still to be made, in
 `app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
 
+**Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
+`EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
+(`?tab=pipeline&q=<jobTitle>`) and selects the variant kind filter; an empty title stays
+text. The "recommendation, not an actuator" note is unchanged. Helper:
+`variantPauseBoardHref` in `source-analytics.ts`.
+
 **The variant pause heuristic judges each creative on its own clock.**
 `variantPauseRecommendations` (`app/_lib/source-analytics.ts`) gates a group on the *group's*
 earliest lead — how long the comparison has run — **and** each variant on **its own**
@@ -414,6 +424,10 @@ fair-share floor that decides who gets flagged.
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
 it: should this score be allowed to decide at all.
 
+- **The reliability diagram exports.** A calibrated arm offers `kp-reliability.csv` (bin, lo,
+  hi, n, predicted, observed; empty bins omitted) with provenance naming source, outcome,
+  floor and whether that floor is enforced. The uncalibrated branch has no curve and no
+  button. Helper: `reliabilityCsv.ts`.
 - **Three producers, not two.** `GET /api/analytics/calibration?source=` serves `pipeline`
   (default) · `analysis` · `holdout` — the clean arm, which the route could already serve and
   no UI could reach. Each arm has its own "what this measures" / "what counts" copy.
@@ -644,7 +658,9 @@ acting when any group-eval record already carries traceability.
 `sections/DecisionLogTable.tsx` gains the same subject search, **server-side** because the trail
 is server-paged, sharing the fold and collator helpers with the records table, plus a
 **whole-trail CSV export** beside "Export page" — a failure downloads **nothing** rather than a
-partial file named "whole trail". The refined read path exists because SQLite's BINARY collation
+partial file named "whole trail". The detail column expands like the records table (row button,
+`aria-expanded`, full text + sealed reason + cohort) so a keyboard or touch auditor can read
+the legal basis without a hover `title`. The refined read path exists because SQLite's BINARY collation
 can do neither job: when `q` is set, or the sort column is `candidateLabel`/`jobTitle`, the
 handler reads the filtered set newest-first, folds and collates in JS, then slices the page and
 enriches only that slice. It is a **scan bound, not a date window** — `SUBJECT_REFINE_MAX = 5000`
@@ -1008,8 +1024,9 @@ reads as if every arrival reached an offer (a measured 60 % accept and 10 leads/
 axis — `validatePipelineStages` requires that much and no more — so such a board falls back to
 the funnel-derived conversion and echoes `offerAcceptRate: null` · an unknown floor in the threshold-history strip renders `—`, never `0` — `0` is a legal floor (accept everything), so the fix is `floorLabel()` in `thresholdHistoryRows.ts`, not a falsy test; the strip's plot already skipped nulls while the sentence and the sr-only list beside it printed a prior floor no seal ever recorded · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
 capped tables say what they dropped and where to reach it · the first-run empty state previews
-the metrics with literal em-dashes and never fabricates sample figures
-(`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.
+four metrics (hire rate, time-to-hire, cost-per-hire, and whether the score may decide) with
+literal em-dashes and never fabricates sample figures (`AnalyticsEmptyPreview.tsx`), plus a
+deep link to `?tab=analytics&sec=quality` · a tamper-evidence claim is conditioned on the key census.
 
 ## Every stage threshold reads the workspace's own board
 
@@ -1027,7 +1044,7 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 
 Separate from everything above — that is the operator's own board, computed from the local
 DB. `app/_lib/analytics/` is the third-party half: `plausible.tsx` renders the script tag and
-`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`, `checkout_completed`).
+`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`, `checkout_completed`, and on this tab `analytics_section` `{sec}`, `analytics_export` `{artifact}`, `calibration_apply` `{family: 0|1}`). No PII in those props — section ids, artifact names, booleans only.
 
 Both are env-gated on `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Unset — dev, and every self-hosted
 deploy that does not opt in — renders nothing and ships zero analytics bytes.
@@ -1065,13 +1082,16 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   says *"over 5 hires"*, and `certifiable` is **false**, which is the honest answer: `status:
   measured` means measured. The field is optional and falls back to `hired`, so any other
   caller is unchanged; both halves are pinned in `metric-pack.test.ts`.
-- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.**
-  `?days=90` prints *"Window: last 90 days"* over every row, but capacity's two terms
-  (open roles, membership roster) are current counts with no window applied — the only row in
-  the pack that is not a figure about the stated period, and its `basis` names no period either.
-  (`cost_per_hire` is windowed-aware in the honest direction: spend is lifetime, so the route
-  returns `null` and the pack says `not_measurable` rather than dividing a lifetime numerator by
-  a windowed denominator.)
+- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.
+  CLOSED 2026-09-17.** `?days=90` still prints *"Window: last 90 days"* over the pack, and
+  capacity's two terms (open roles, membership roster) are still current counts with no window
+  applied. The basis now says so: a windowed pack uses `basis.capacityNow` (*"current owned
+  openings … Point-in-time, not last N days"*), so the one row that is not about the stated
+  period no longer pretends it is. If that snapshot is the only measured row, `certifiable` is
+  false. All-time packs keep `basis.capacity`. (`cost_per_hire` is windowed-aware in the honest
+  direction: spend is lifetime, so the route returns `null` and the pack says `not_measurable`
+  rather than dividing a lifetime numerator by a windowed denominator.) The owned-vs-corpus
+  numerator is a separate gap below.
 - **The metric-pack route's capacity comment argued the wrong way round. CLOSED
   2026-09-16.** `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would
   understate capacity, which is the direction that flatters us."* A capacity metric is roles
@@ -1100,12 +1120,11 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
-- **`effectAfterOnly` over-states an empty before side.** With the evidence floor now applied
-  symmetrically (above), a before side of 1–7 in-band decisions falls to
-  `effectAfterOnly` — „…No earlier in-band decisions to compare against." — which asserts
-  *zero* where there were a few too thin to compare. Strictly better than the „100 % before"
-  it replaces, but it needs a fourth string ("too few earlier in-band decisions") in all four
-  catalogs; `thresholdEffectClaim` already returns the branch that would carry it.
+- **`effectAfterOnly` over-states an empty before side. CLOSED 2026-09-17.** With the evidence
+  floor applied symmetrically, a before side of 1–7 in-band decisions still claims `after-only`,
+  but the strip now maps that to `effectBeforeThin` when `effect.before.n` is in `(0, min)` —
+  naming n and the floor — and keeps `effectAfterOnly` for a null or zero before side. No new
+  claim kind; `thresholdEffectCopy` is pinned in `calibrationVerdict.test.ts`.
 - **`/apply-threshold` was a read-modify-write with no transaction around it. CLOSED
   2026-08-21 (`0e4dc7e2`).** It used to read the screening rule, spend two full-table
   calibration scans re-deriving the recommendation, then write `{…screening, familyFloors:

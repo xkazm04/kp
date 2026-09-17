@@ -258,3 +258,8 @@ export function isRecordOnlyKind(kind: string): kind is RecordOnlyKind {
 export function shortHash(hash: string): string {
   return `${hash.slice(0, 8)}…`;
 }
+
+/** Toggle the expanded log/records row. Same id closes; a different id replaces. */
+export function toggleExpandedId(current: number | null, id: number): number | null {
+  return current === id ? null : id;
+}
