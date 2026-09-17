@@ -41,8 +41,8 @@ export type Fairness = {
 export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_applicable" | "insufficient_sample";
 
 /** Is a fairness blob actually renderable — i.e. do the parallel arrays the panel
- *  indexes in lockstep (labels / candidateIds / schemes / mean, and the matrix's row
- *  AND column counts) really agree in length?
+ *  indexes in lockstep (labels / candidateIds / schemes / own / mean / ranking, and
+ *  the matrix's row AND column counts) really agree in length?
  *
  *  The type above ASSERTS that alignment; nothing enforced it. The payload is
  *  persisted as JSON (group-eval.ts) and re-parsed unvalidated on every open, so one
@@ -50,20 +50,31 @@ export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_
  *  used to throw inside the panel's unguarded `schemes[j].skills` / `matrix[i][j]` /
  *  `mean[i]` indexing and take the WHOLE modal down: comparison table, decide buttons
  *  and the Re-run button that would have replaced the bad blob included. Returning
- *  false here degrades that to the honest "could not assess" panel instead. */
+ *  false here degrades that to the honest "could not assess" panel instead.
+ *
+ *  `own` is lockstep with labels (the matrix diagonal). `ranking` is the robust
+ *  order over that same field; a truncated ranking used to pass this guard and
+ *  then report agreement with a headline that was never fully compared. The
+ *  ranker may drop KO-failed labels from ranking (`recruiter.fairness_check`);
+ *  those rows stay in the matrix and are counted via optional `koFailed`. */
 export function isFairnessAligned(fairness: Fairness | null | undefined): fairness is Fairness {
   if (!fairness) return false;
-  const { labels, candidateIds, schemes, matrix, mean, ranking, weightNotes } = fairness;
+  const { labels, candidateIds, schemes, matrix, mean, ranking, weightNotes, own } = fairness;
   if (!Array.isArray(labels) || labels.length === 0) return false;
   const n = labels.length;
   const sameLength = (a: unknown) => Array.isArray(a) && a.length === n;
-  if (!sameLength(candidateIds) || !sameLength(schemes) || !sameLength(mean) || !sameLength(matrix)) return false;
+  if (!sameLength(candidateIds) || !sameLength(schemes) || !sameLength(mean) || !sameLength(matrix) || !sameLength(own)) return false;
   // Every row must span every column — the matrix is square by contract (each
   // candidate re-scored under every candidate's scheme).
   if (!matrix.every((row) => Array.isArray(row) && row.length === n)) return false;
   // The scheme cells the header formats, and the two collections the notes list walks.
   if (!schemes.every((s) => s != null && typeof s.skills === "number" && typeof s.career === "number" && typeof s.personal === "number")) return false;
   if (!Array.isArray(ranking)) return false;
+  const koFailed = (fairness as Fairness & { koFailed?: unknown }).koFailed;
+  const koCount = Array.isArray(koFailed) ? koFailed.length : 0;
+  if (ranking.length + koCount !== n) return false;
+  const labelSet = new Set(labels);
+  if (!ranking.every((l) => typeof l === "string" && labelSet.has(l))) return false;
   if (weightNotes != null && typeof weightNotes !== "object") return false;
   return true;
 }
