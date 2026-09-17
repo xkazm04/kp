@@ -51,7 +51,13 @@ function DestinationCard({ link, onOpen }: { link: ChainLink; onOpen: () => void
   );
 }
 
-export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: DecisionsEmptyProps) {
+export function DecisionsEmptyHandoff({
+  title,
+  body,
+  links,
+  reconsiderCount,
+  onRevealReconsider,
+}: DecisionsEmptyProps & { onRevealReconsider: () => void }) {
   const t = useTranslations("decisions.empty");
   const go = useChainNav();
   return (
@@ -76,10 +82,14 @@ export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: D
 
       {/* The one branch that runs backwards: rejects a recruiter can still pull back. */}
       {reconsiderCount > 0 ? (
-        <p className="mx-auto mt-5 inline-flex items-center gap-1.5 text-sm text-steel">
-          <RotateCcw size={13} aria-hidden className="text-coral" />
+        <button
+          type="button"
+          onClick={onRevealReconsider}
+          className="focus-ring mx-auto mt-5 inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+        >
+          <RotateCcw size={13} aria-hidden />
           {t("reconsiderLine", { count: reconsiderCount })}
-        </p>
+        </button>
       ) : null}
     </div>
   );
