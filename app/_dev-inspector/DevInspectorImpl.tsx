@@ -24,7 +24,7 @@
  * to enable source mapping.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -109,7 +109,11 @@ export function DevInspectorImpl() {
   const [hover, setHover] = useState<HoverState | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [copyOk, setCopyOk] = useState(true);
-  const [mappingOn, setMappingOn] = useState(false);
+  const mappingOn = useSyncExternalStore(
+    () => () => {},
+    () => document.querySelector("[data-loc]") !== null,
+    () => false,
+  );
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const navTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -214,13 +218,6 @@ export function DevInspectorImpl() {
     },
     [],
   );
-
-  // `[data-loc]` is stamped at compile time; read it after mount so a portal
-  // never runs during SSR/hydration. `mappingOn` starts false, so the first
-  // render still returns null.
-  useEffect(() => {
-    setMappingOn(document.querySelector("[data-loc]") !== null);
-  }, []);
 
   if (mode === "off") {
     if (!shouldShowArm(mappingOn, mode)) return null;
