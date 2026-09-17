@@ -150,6 +150,22 @@ test("alias contract: every funnel step has a STEP_DETAILS entry and vice versa"
   );
 });
 
+test("every STEP_DETAILS.puml body parses as PlantUML with at least one node", () => {
+  const empty: string[] = [];
+  const thrown: string[] = [];
+  for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
+    try {
+      const diagram = parsePuml(detail.puml);
+      const nodes = [...diagram.index.values()].filter((el) => el.type === "node");
+      if (nodes.length < 1) empty.push(stepId);
+    } catch (err) {
+      thrown.push(`${stepId}: ${(err as Error).message}`);
+    }
+  }
+  assert.deepEqual(thrown, [], `parsePuml threw on STEP_DETAILS bodies:\n  ${thrown.join("\n  ")}`);
+  assert.deepEqual(empty, [], `STEP_DETAILS bodies with no nodes: ${empty.join(", ")}`);
+});
+
 // /perfect wave 21b (internal-explorers): the drawer's TITLE and SUMMARY are the
 // only operator-facing prose in the explorer, so they moved out of the module and
 // into the four catalogs — `diagrams.steps.<id>.{title,summary}`. The module keeps
