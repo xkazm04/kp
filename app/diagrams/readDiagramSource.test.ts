@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -87,5 +87,23 @@ test("committed puml files equal DIAGRAMS plus an explicit UNLISTED set", () => 
     [...rendered, ...unlisted].sort(),
     onDisk,
     "every committed .puml must be in DIAGRAMS or UNLISTED (with a why), and UNLISTED cannot name a missing file",
+  );
+});
+
+test("next.config.ts traces every rendered puml into the standalone image", () => {
+  const src = readFileSync(path.join(ROOT, "next.config.ts"), "utf8").replace(/\r\n/g, "\n");
+  const block = src.match(/outputFileTracingIncludes:\s*\{[\s\S]*?\n  \},/);
+  assert.ok(block, "next.config.ts must still declare outputFileTracingIncludes");
+  const diagrams = block[0].match(/"\/diagrams"\s*:\s*\[([\s\S]*?)\]/);
+  assert.ok(diagrams, "outputFileTracingIncludes must still include /diagrams");
+  const globs = [...diagrams[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(globs.length > 0, "/diagrams tracing include is empty");
+  const globCoversAll = globs.some((g) => /(^|\/)docs\/diagrams\/\*\.puml$/.test(g));
+  if (globCoversAll) return;
+  const missing = RENDERED.filter((file) => !globs.some((g) => g.endsWith(file) || g.includes(`/${file}`)));
+  assert.deepEqual(
+    missing,
+    [],
+    `/diagrams tracing include narrowed past the catalog: missing ${missing.join(", ")}`,
   );
 });
