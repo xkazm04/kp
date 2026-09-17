@@ -108,8 +108,11 @@ any tier. CZK is the primary display currency at the app's implied ~24 Kč/$ rat
 The asymmetry is deliberate and load-bearing. Publishing is a RECRUITER action, so
 refusing it is reasonable. A hire fires on the CANDIDATE's accept — a person taking a
 job must never fail because the recruiter's org is over its allowance, so overage is
-billed and surfaced, never blocked. The debit is also best-effort there: a metering
-fault must not turn a successful acceptance into an error.
+billed and surfaced, never blocked. `MeterOverview.overage` is that count
+(`limit === null ? 0 : max(0, used - limit)`); `remaining` clamps at 0 and credits
+do not reduce it. Collecting the money is Polar usage-meter ingest — this field is
+the named figure GET /api/billing already returns. The debit is also best-effort
+there: a metering fault must not turn a successful acceptance into an error.
 
 Exactly-once on both sides comes from existing invariants rather than new bookkeeping:
 `setJobStatus` stamps `published_at` under `COALESCE`, and `markOfferResponded` is a
@@ -192,7 +195,7 @@ checkout:   POST /api/billing/checkout {plan|pack} → gateway → provider URL 
 state sync: provider → POST /api/billing/webhook
               verify signature → billing_events idempotency gate →
               reduce (pure, reduce.ts) → apply (sync.ts) → billing_state / billing_credits
-read:       GET /api/billing → entitled plan + per-meter {limit, used, credits, remaining}
+read:       GET /api/billing → entitled plan + per-meter {limit, used, credits, remaining, overage}
 manage:     POST /api/billing/portal → provider customer-portal URL
 ```
 
@@ -529,7 +532,7 @@ different tabs:
 
 | Source | Contribution |
 |---|---|
-| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits — **the caller's org** |
+| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, overage, pack credits — **the caller's org** |
 | `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
 | `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
 
