@@ -412,6 +412,11 @@ sealed record, never freshly generated** (see the module header comment,
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
 (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`).
+Every non-2xx from that door is a coded envelope (`jsonRefusal` /
+`safeJsonError`): missing `jobId`, a malformed override, a 409 approval
+refusal (still carrying `reason` from `SCREEN_WAVE_REFUSAL_REASONS`), and the
+500 catch. The client resolves `errors.<CODE>`; English `error.message` and
+store detail never become the painted string.
 
 **One review authorizes ONE commit.** The token is a pure function of
 `(jobId, policyVersion, reject set, issuedAt)`, so re-POSTing the same commit body

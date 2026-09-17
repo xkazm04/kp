@@ -293,6 +293,10 @@ export const STORE_ERRORS = {
   // constraint text and the absolute db path; it was forwarding `error.message`
   // verbatim with no code, so the Hiring composer could only paint English.
   DECISION_CONFIG_SAVE_FAILED: "Could not save these rules. Please try again.",
+  // POST /api/decisions/screen-wave: the only Decisions door that queues rejection
+  // email. Its catch sat over better-sqlite3 + the comms dispatcher, and used to
+  // forward error.message (SQLITE_* / db path) as the client string.
+  SCREEN_WAVE_FAILED: "Could not run the screening wave. Please try again.",
   // The analytics WRITE doors (/perfect 2026-09-03, analytics-writes-check-authority).
   // Both sit directly over better-sqlite3 (setChannelSpend / setAnalyticsTarget) and
   // were forwarding `error.message` verbatim — a UNIQUE/CHECK constraint string or the
@@ -997,6 +1001,18 @@ export const REFUSAL_ERRORS = {
   /** The rules changed since the client read them (409). Nothing was written: the draft
    *  was built on a plan that is gone, so it is dropped rather than merged. */
   DECISION_CONFIG_STALE: "Someone saved a newer version of these rules. Reload and make your change again.",
+  /** POST /api/decisions/screen-wave with no jobId (400). Nothing was ranked. */
+  SCREEN_WAVE_JOB_REQUIRED: "Name the role this screening wave should run on.",
+  /** Commit without a previewed approval token (409). */
+  SCREEN_WAVE_APPROVAL_REQUIRED: "Review the preview and approve this set before committing the wave.",
+  /** The approval token is older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (409). */
+  SCREEN_WAVE_APPROVAL_EXPIRED: "This approval has expired. Re-preview and approve the current set before committing.",
+  /** The live reject set no longer matches the previewed token (409). */
+  SCREEN_WAVE_APPROVAL_MISMATCH: "The candidate set changed since it was previewed. Re-preview and approve the current set before committing.",
+  /** The token was already spent on a commit (409). One review authorizes one wave. */
+  SCREEN_WAVE_APPROVAL_SPENT: "This review was already used. Re-preview and approve the current set before committing.",
+  /** Commit with no named approver (409). Sign in or set KP_OPERATOR_NAME. */
+  SCREEN_WAVE_APPROVAL_UNATTRIBUTED: "Sign in or set the operator name so this review can be attributed.",
   /** The board's column axis changed since the composer read it (409) — refused BEFORE
    *  anybody is moved, since the stage ids the mapping names may no longer exist. */
   PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",

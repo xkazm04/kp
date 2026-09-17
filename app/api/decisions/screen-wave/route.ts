@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
+import type { ScreenWaveRefusalReason } from "@/app/_lib/screen-wave-approval";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+
+const SCREEN_WAVE_APPROVAL_CODES = {
+  required: "SCREEN_WAVE_APPROVAL_REQUIRED",
+  expired: "SCREEN_WAVE_APPROVAL_EXPIRED",
+  mismatch: "SCREEN_WAVE_APPROVAL_MISMATCH",
+  spent: "SCREEN_WAVE_APPROVAL_SPENT",
+  unattributed: "SCREEN_WAVE_APPROVAL_UNATTRIBUTED",
+} as const satisfies Record<ScreenWaveRefusalReason, RefusalErrorCode>;
 
 export const maxDuration = 60;
 
@@ -51,13 +60,13 @@ export async function POST(request: NextRequest) {
       approvalToken?: unknown;
       approvedBy?: unknown;
     };
-    if (!body.jobId) return NextResponse.json({ error: "jobId is required." }, { status: 400 });
+    if (!body.jobId) return jsonRefusal("SCREEN_WAVE_JOB_REQUIRED", 400);
     // Validate the optional per-run override at the trust boundary: auto-reject is
     // irreversible (status change + queued candidate email), so a malformed or
     // out-of-range override is a 400 here — and the clamped result, never the raw
     // body, is what reaches runScreenWave's bottom-% math (idea-1852b219).
     const checked = validateScreeningOverride(body.override);
-    if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 });
+    if (!checked.ok) return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: checked.error });
     // dryRun (DEC2): preview the cohort the wave WOULD reject — full math, zero
     // mutation/comms. Default false (commit), so an old client without the flag
     // behaves exactly as before; only an explicit `true` previews.
@@ -109,13 +118,15 @@ export async function POST(request: NextRequest) {
       // different things — approve the set / re-preview a changed set / re-preview an
       // aged review / stop re-committing a review already spent / sign in or set
       // KP_OPERATOR_NAME — and a client with only the sentence cannot branch on them.
-      return NextResponse.json({ error: error.message, reason: error.reason }, { status: 409 });
+      // The painted string is the code; English `error.message` stays off the wire.
+      return jsonRefusal(SCREEN_WAVE_APPROVAL_CODES[error.reason], 409, { reason: error.reason });
     }
     // runScreenWave's backstop throws DecisionConfigError on a bad override —
     // surface it as a 400 too, so a schema violation is never reported as a 500.
     if (error instanceof DecisionConfigError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      console.error("[api:decisions/screen-wave] DECISION_CONFIG_INVALID", error);
+      return jsonRefusal("DECISION_CONFIG_INVALID", 400);
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Screen wave failed." }, { status: 500 });
+    return safeJsonError(error, "api:decisions/screen-wave", "SCREEN_WAVE_FAILED");
   }
 }
