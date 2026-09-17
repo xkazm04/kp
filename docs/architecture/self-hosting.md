@@ -558,10 +558,14 @@ candidates:
      else would be CSS injection), and it must clear **3:1 WCAG contrast** against
      both white button labels and the paper canvas. An illegible accent is refused,
      with the reason shown in the editor, rather than shipped app-wide.
-   - *Logo* — an `https://` URL of at most 500 characters, **rejected** (not
-     truncated) when longer, so a signed CDN URL can't be stored as a half-signature
-     that renders as a broken image. It is browser-loaded from that host with
-     `referrerPolicy="no-referrer"`; air-gapped installs should self-host the file.
+   - *Logo* — at most 500 characters, **rejected** (not truncated) when longer, so
+     a signed CDN URL can't be stored as a half-signature that renders as a broken
+     image. Storable shapes: an `https://` URL, a path-absolute `/brand/logo.png`
+     (the browser resolves it against the install origin), or `http://` only when
+     the host is loopback (`127.0.0.1`, `localhost`, `::1`). `javascript:` /
+     `data:` / `ftp:` / remote `http://` are refused. It is browser-loaded with
+     `referrerPolicy="no-referrer"`; air-gapped installs self-host the file and
+     store the path, not a public CDN.
    - *Display name* — whitespace-collapsed and clamped to 60 characters.
 2. **Custom domain.** Point your domain at the reverse proxy in front of KP
    (§8: Caddy / nginx / Traefik terminates TLS and proxies to `:3000`):
@@ -637,6 +641,7 @@ the test.
 | `env-contract-dropped` | an env key in `ENV_CONTRACT_REQUIRED` the chart **stopped** setting |
 | `secret-renders-empty-instead-of-failing` | a `required` removed from `KP_OPERATOR_PASSWORD` / `KP_SECRET` in the Secret template |
 | `open-mode-shipped-on` | a chart that sets `KP_ALLOW_OPEN` truthy, or an `.env.example` that never documents it |
+| `ingress-public-origin` | `ingress.enabled` with `env.NEXT_PUBLIC_APP_BASE_URL` empty or not an absolute http(s) origin — candidate links would resolve to `siteUrl()` while the cluster is reached at the ingress host |
 
 The gate reads **every file in `deploy/helm/kp/templates/`**, not a list of five.
 The five named in `CHART_FILES` stay required — a policy that must read the
