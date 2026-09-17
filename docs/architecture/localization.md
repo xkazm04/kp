@@ -300,19 +300,23 @@ the next section draws for *copy*.
 
 ## Choosing the app language
 
-`LOCALES` in `i18n/locales.ts` is the **only** enumeration of languages. Three
-surfaces let a user pick one, and all three write the same two authorities:
+`LOCALES` in `i18n/locales.ts` is the **only** enumeration of languages. Four
+surfaces let a user pick one; they do not all write the same authorities:
 
-| Surface | File |
-| --- | --- |
-| Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` |
-| Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` |
-| Organization settings + first-run wizard | `app/features/settings/organization/OrganizationGeneralPanel.tsx`, `app/features/shell/setup/SetupLanguageSwitch.tsx` |
+| Surface | File | Writes |
+| --- | --- | --- |
+| Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` | UI cookie (`setLocale`) |
+| Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` | UI cookie (`setLocale`) |
+| First-run wizard strip | `app/features/shell/setup/SetupLanguageSwitch.tsx` | UI cookie now (`setLocale`); workspace default on `finish()` |
+| Organization settings | `app/features/settings/organization/OrganizationGeneralPanel.tsx` | both, through `setOrgLanguage` |
 
-The public switcher writes only the UI cookie (`setLocale`, `i18n/actions.ts`).
-The two **org-level** surfaces write both authorities through `setOrgLanguage`
-(`app/_lib/org-actions.ts`), because an org's language has to reach code that
-runs with no request cookie:
+The public switcher, the studio rail and the wizard strip write only the UI
+cookie (`setLocale`, `i18n/actions.ts`) so the reader can keep going in the
+language they just picked. Skip/leave after a strip tap must not re-home
+candidate mail: `persistOnboardingSetup` is the one wizard writer of
+`setOrgLanguage`, and a skip never calls it. Organization settings writes both
+authorities through `setOrgLanguage` (`app/_lib/org-actions.ts`), because an
+org's language has to reach code that runs with no request cookie:
 
 1. the **`NEXT_LOCALE` cookie** — the UI and request-scoped generation (CV
    analysis, JD build, match reasoning);
@@ -370,10 +374,12 @@ actually ships** — a picker that silently could not reach half the product.
 `tsc` error. The two vocabularies cannot drift again.
 
 **In the first-run wizard, language lives in the left rail**
-(`SetupLanguageSwitch.tsx`), visible on every step, and it switches the app
-immediately. Two earlier positions were both wrong: step 2 as a draft value that
-only reached the server at `finish()` (a reader who could not read English picked
-their language and then watched the wizard stay in English for three more steps),
+(`SetupLanguageSwitch.tsx`), visible on every step, and it switches the UI
+immediately (`setLocale` + `router.refresh()`). The workspace default waits for
+`finish()` (`persistOnboardingSetup` → `setOrgLanguage`). Two earlier positions
+were both wrong: step 2 as a draft value that only reached the server at
+`finish()` (a reader who could not read English picked their language and then
+watched the wizard stay in English for three more steps),
 then step 1 above the value props — better, but gone the moment you pressed
 Continue, so realising on step 3 meant navigating back to find it. In the rail it
 is a four-code strip (`EN CS DE FR`, the `TOGGLE_GROUP` recipe, same shape as the
