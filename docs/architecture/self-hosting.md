@@ -746,7 +746,8 @@ docker run -d --name kp -p 3000:3000 \
 Pin an exact Python minor by overriding the base image:
 `docker build --build-arg NODE_IMAGE=node:24-bookworm-slim -t kp:local .`
 (The image uses Debian's `python3`, 3.11; CI validates 3.12 — the pipeline
-supports 3.11+.)
+supports 3.11+. `schemas:gen` refuses any interpreter older than 3.11 and
+prints the same install hint as a missing interpreter.)
 
 > **Prefer a published image to a local build.** Tagged releases publish
 > `ghcr.io/xkazm04/kp:<version>` (plus an immutable `sha-<commit>` tag) with a

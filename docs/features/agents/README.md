@@ -19,7 +19,9 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 1. **Pair** (once): Settings → Integrations → *Connect to Personas*. kp registers a
    pairing request (`POST /api/agents/pair {phase:"start"}`), the operator approves it in
    the Personas desktop app, and the card's 2s claim poll (`{phase:"claim"}`) picks up the
-   `pk_` key — stored encrypted, write-only (reads expose only `hasKey`).
+   `pk_` key — stored encrypted, write-only (reads expose only `hasKey`). The waiting
+   card shows remaining seconds until the pairing TTL (default 300s) and omits that
+   countdown while the tab is hidden.
    Encrypted at rest means a master key is **required**: both phases refuse with
    `503 AGENT_PAIR_NO_SECRET` when neither `KP_SECRET` nor `KP_ATS_SECRET_KEY` is set,
    before anything is registered and before the single-use claim is spent. It used to

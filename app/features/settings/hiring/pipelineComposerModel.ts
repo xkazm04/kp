@@ -39,6 +39,24 @@ export type PipelinePlan = InterviewPlanRule;
 
 export const MAX_ROUNDS = INTERVIEW_PLAN_MAX_ROUNDS;
 
+/** Shortcuts the cohort Select leads with. The validator accepts 1–50; these
+ *  are the common N, not the legal range. */
+export const COHORT_SHORTCUT_NS = [2, 3, 5, 8] as const;
+export const COHORT_N_MIN = 1;
+export const COHORT_N_MAX = 50;
+
+/** Every legal top-N, shortcuts first so 2/3/5/8 stay one click and a stored 10
+ *  still has a matching option. */
+export function cohortSelectNs(): number[] {
+  const lead = [...COHORT_SHORTCUT_NS];
+  const seen = new Set<number>(lead);
+  const rest: number[] = [];
+  for (let n = COHORT_N_MIN; n <= COHORT_N_MAX; n++) {
+    if (!seen.has(n)) rest.push(n);
+  }
+  return [...lead, ...rest];
+}
+
 export const newRound = (kind: RoundKind, gate: GateMode = "human", topN: number | null = null): PlanRound => ({
   kind,
   // A human round's verdict IS the human decision — the validator enforces this
@@ -370,6 +388,16 @@ export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEF
     },
     humanTouchpoints: decisions.length,
   };
+}
+
+/** How the Overview mini-board paints live occupancy under a station.
+ *  Unknown must omit rather than guess 0: a missing fetch must not look empty. */
+export type OccupancyMark = "omit" | "empty" | number;
+
+export function occupancyMark(countsLoaded: boolean, count: number | undefined): OccupancyMark {
+  if (!countsLoaded) return "omit";
+  const n = count ?? 0;
+  return n > 0 ? n : "empty";
 }
 
 /** The board stage each fixed composer row governs, so a policy surface names

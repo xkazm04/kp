@@ -16,8 +16,13 @@ import { axisProblems, draftToStored, type AxisDraft } from "@/app/features/shar
 import {
   activePresetId,
   composerStations,
+  cohortSelectNs,
+  COHORT_N_MAX,
+  COHORT_N_MIN,
+  COHORT_SHORTCUT_NS,
   deriveImpact,
   ENTERPRISE_AXIS_ROLES,
+  occupancyMark,
   matchesPreset,
   newRound,
   type PresetAxisLabels,
@@ -669,4 +674,22 @@ test("the plan's FIRST round carries no cohort reducer, wherever it sits", () =>
     assert.equal(rounds[0].topN, null);
     assert.equal(rounds[1].topN, 5);
   }
+});
+
+test("occupancyMark omits while unknown, paints empty at 0, and the loaded count otherwise", () => {
+  assert.equal(occupancyMark(false, 12), "omit");
+  assert.equal(occupancyMark(false, undefined), "omit");
+  assert.equal(occupancyMark(true, undefined), "empty");
+  assert.equal(occupancyMark(true, 0), "empty");
+  assert.equal(occupancyMark(true, 12), 12);
+});
+
+test("cohortSelectNs offers every legal 1–50, shortcuts first", () => {
+  const ns = cohortSelectNs();
+  assert.deepEqual(ns.slice(0, COHORT_SHORTCUT_NS.length), [...COHORT_SHORTCUT_NS]);
+  assert.equal(ns.length, COHORT_N_MAX - COHORT_N_MIN + 1);
+  assert.equal(new Set(ns).size, ns.length);
+  assert.ok(ns.includes(1) && ns.includes(10) && ns.includes(50));
+  assert.equal(Math.min(...ns), COHORT_N_MIN);
+  assert.equal(Math.max(...ns), COHORT_N_MAX);
 });

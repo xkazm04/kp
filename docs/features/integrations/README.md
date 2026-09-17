@@ -42,10 +42,11 @@ as a banner, then strips the param from the URL so a reload cannot replay a stal
    pathless delete serializes `Path=/`, which expires nothing and leaves the real state
    replayable for the rest of its TTL (`callback/route.test.ts` guards both halves).
 3. Whatever happens, the operator lands back on this tab with a `calendar=<code>` param.
-4. **Disconnect** issues `DELETE /api/calendar/google`, which **revokes at Google first**
-   and only then drops the row — deleting locally without revoking would leave a live grant
-   nobody can see or withdraw from kp. The response reports `revokedAtGoogle` separately,
-   and the UI says so when the revoke did not confirm.
+4. **Disconnect** is confirm-gated (same posture as ATS removal): the first click opens a
+   strip naming the revoke, and only Confirm issues `DELETE /api/calendar/google`, which
+   **revokes at Google first** and only then drops the row — deleting locally without
+   revoking would leave a live grant nobody can see or withdraw from kp. The response
+   reports `revokedAtGoogle` separately, and the UI says so when the revoke did not confirm.
 
 ### Scopes, and partial grants
 
@@ -425,7 +426,8 @@ The envelope, signing and delivery/retry semantics live in
 The pairing card (`IntegrationsPersonasPanel` + `integrationsPersonasLogic`) is a
 two-phase flow: `POST /api/agents/pair {phase:"start"}` mints a nonce, then a claim poll
 waits for a human to approve in the Personas desktop app (a 300s in-memory TTL on that
-side).
+side). The waiting card shows remaining seconds from that deadline (`remainingMs`);
+it omits the live count while the tab is hidden and resumes when it is visible.
 
 - **The claim poll backs off and stops when nobody is looking.** It was a fixed 2s tick
   for the full five minutes — 150 identical requests to watch a human decide, on a
