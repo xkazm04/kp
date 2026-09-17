@@ -1430,13 +1430,11 @@ include `workspace_id`).
   page in memory and there is no pager, so a workspace holding 240 non-archived JDs
   is now correctly told it is seeing 200 of them but still cannot search the other
   40 from this screen. That needs server-side search or a load-more, not more copy.
-- The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
-  rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
-  `campaign.py` spends them internally to suppress unstated facts but the pack it
-  returns carries only `warnings`. So a recruiter sees "no salary stated" but not
-  "we assumed medior / Praha for you". Surfacing it is a `campaign.py` change
-  (add the list to the returned pack) plus a line on whatever surface renders
-  a pack next (the modal's Campaign tab is gone), not a UI-only fix.
+- The campaign pack now ships `defaultedFields` (camelCase, the list
+  `normalize_job` recorded) beside `warnings`. A job that defaulted location +
+  seniority includes those slugs; a fully stated job sends `[]`. Pinned by
+  `pipeline/jobfit/tests/test_campaign.py`. The Campaign tab is still gone, so
+  painting the list is a follow-up on whatever surface renders a pack next.
 - **The Fair Rank audit table still ranks one number across cohorts it is not
   comparable within.** The producer now labels the split: `recruiter.fairness_check`
   carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`
