@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { TextArea } from "@/app/_components/TextArea";
 import { TextInput } from "@/app/_components/TextInput";
+import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { gapFieldCopy, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import type { ApplyFollowupState } from "./use-apply-followup";
 
@@ -81,7 +82,7 @@ export function ApplyFollowup({
               type="button"
               disabled={state === "sending"}
               onClick={onSubmit}
-              className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
+              className={`${BTN_PRIMARY} px-4 py-2 text-base font-semibold`}
             >
               {state === "sending" ? t("sending") : t("followup.submit")}
             </button>
@@ -90,7 +91,7 @@ export function ApplyFollowup({
               type="button"
               disabled={state === "sending"}
               onClick={onDismiss}
-              className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
+              className={`${BTN_GHOST} px-3 py-2 text-base font-semibold`}
             >
               {t("followup.skip")}
             </button>

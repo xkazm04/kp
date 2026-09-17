@@ -43,6 +43,19 @@ function mainBlocks(src: string): string[] {
   return src.split(/return\s*\(/).slice(1).filter((block) => block.includes("<main"));
 }
 
+test("ApplyFollowup buttons compose the shared recipes instead of the banned primary literal", () => {
+  const src = read("ApplyFollowup.tsx");
+  assert.match(src, /from "@\/app\/_components\/ui\/recipes"/, "ApplyFollowup must import the button recipes");
+  assert.match(src, /BTN_PRIMARY/, "Submit is BTN_PRIMARY");
+  assert.match(src, /BTN_GHOST/, "Skip is BTN_GHOST");
+  assert.doesNotMatch(
+    src,
+    /bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel/,
+    "ApplyFollowup hand-rolls the primary the a11y contract bans"
+  );
+  assert.doesNotMatch(src, /rounded-md border border-stone-200 bg-white px-\d/, "ApplyFollowup hand-rolls the secondary");
+});
+
 test("every apply-page HTML return mounts LanguageSwitcher, including the closed-role card", () => {
   for (const rel of ["page.tsx", "quick/page.tsx"] as const) {
     const src = read(rel);

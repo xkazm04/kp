@@ -418,8 +418,10 @@ validation message is `aria-describedby`-linked to the control it is about
 (`aria-invalid` rides on the input via `TextInput`'s `invalid`). The buttons
 compose `BTN_PRIMARY` / `BTN_SECONDARY` / `BTN_GHOST` from
 `app/_components/ui/recipes.ts` rather than hand-rolled class strings, so the
-public door keeps the app's dual-theme treatment. `apply-door-a11y.test.ts` and
-`apply-submit-outcome.test.ts` pin all of it.
+public door keeps the app's dual-theme treatment — including `ApplyFollowup`'s
+Save (`BTN_PRIMARY`) and Skip (`BTN_GHOST`). `apply-door-a11y.test.ts`,
+`candidate-door-conversion.test.ts` and `apply-submit-outcome.test.ts` pin all
+of it.
 
 An abandoned chat resumes from a localStorage draft (`use-apply-draft.ts`) keyed by
 job (+ lead token) and fingerprinted against the script that recorded it. Two rules
