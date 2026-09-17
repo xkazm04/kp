@@ -186,7 +186,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 
 | Path | Role |
 | --- | --- |
-| `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server) |
+| `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server). App-master rows also carry `backbonePeriod` and `backboneFreshness` (`current \| stale \| unknown`) from the latest rollup, or null when none has reported |
 | `GET/DELETE /api/agents/bridge` | Connection status (key presence only) / disconnect (clears the stored key; 409 for env-driven config). DELETE is `org:manage` |
 | `POST /api/agents/pair` | Two-phase pairing: `{phase:"start", baseUrl?}` → `{nonce}`; `{phase:"claim", nonce}` → pending/paired. `org:manage` |
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
@@ -476,8 +476,9 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   built a JD) does keep its job and its card.
 - **The backbone is scored from the LATEST period only**: an agent that reported August and
   then went quiet keeps showing August's verdict. There is no multi-window trend.
-  `backboneFreshness` classifies the named period (`current | stale | unknown`) so a
-  roster can label an out-of-window verdict instead of implying it is live.
+  `GET /api/agents` now names that period (`backbonePeriod`) and classifies it
+  (`backboneFreshness`: `current | stale | unknown`) so the roster can label a
+  quiet hire instead of implying the last-reported pass is live.
 - **Two implementations of one scorer**: `backbone_score` exists in Python (the authority)
   and TypeScript (the read path). They are pinned by generated fixtures
   (`app/_lib/app-master/backbone.test.ts`), but a change still has to be made twice.
