@@ -7210,6 +7210,8 @@
       "minsSaved": "{mins} min",
       "rateLabel": "Sazba náboráře",
       "rateSuffix": "Kč/h",
+      "hoursLabel": "Hodin na přijetí",
+      "hoursSuffix": "h/přijetí",
       "export": "Exportovat CSV",
       "csvKind": "Akce",
       "csvCount": "Počet",

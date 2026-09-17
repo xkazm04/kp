@@ -7210,6 +7210,8 @@
       "minsSaved": "{mins} Min.",
       "rateLabel": "Recruiter-Stundensatz",
       "rateSuffix": "CZK/Std.",
+      "hoursLabel": "Stunden pro Einstellung",
+      "hoursSuffix": "Std./Einstellung",
       "export": "CSV exportieren",
       "csvKind": "Aktion",
       "csvCount": "Anzahl",

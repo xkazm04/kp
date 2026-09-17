@@ -7213,6 +7213,8 @@
       "minsSaved": "{mins} min",
       "rateLabel": "Taux horaire recruteur",
       "rateSuffix": "CZK/h",
+      "hoursLabel": "Heures par embauche",
+      "hoursSuffix": "h/embauche",
       "export": "Exporter en CSV",
       "csvKind": "Action",
       "csvCount": "Nombre",

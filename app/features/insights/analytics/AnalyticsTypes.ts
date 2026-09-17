@@ -102,6 +102,7 @@ export const WINDOW_CHOICES = [null, 30, 90] as const;
 
 // 82c2b8e8 / b39992b1 — mirror the server's reserved analytics_targets keys.
 // Declared locally so the client doesn't import the db barrel (better-sqlite3)
-// for two strings.
+// for three strings.
 export const TIME_TO_HIRE_KEY = "time_to_hire";
 export const RECRUITER_HOURLY_KEY = "recruiter_hourly_czk";
+export const MANUAL_HOURS_KEY = "manual_hours_per_hire";
