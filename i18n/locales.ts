@@ -18,9 +18,28 @@ export const LOCALE_COOKIE = "NEXT_LOCALE";
 
 /** Type guard: is `value` one of our supported locales? Used to reject a
  *  fat-fingered cookie / `?lang` / Accept-Language tag before it reaches a
- *  dynamic `import(messages/<locale>.json)` that would otherwise 404 at runtime. */
+ *  dynamic `import(messages/<locale>.json)` that would otherwise 404 at runtime.
+ *  Strict: a regional tag (`cs-CZ`) is NOT a catalog name. Writers fold those
+ *  through {@link coerceLocale} first. */
 export function isLocale(value: unknown): value is Locale {
   return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
+}
+
+/** Fold an arbitrary language tag onto a shipped catalog locale, or null.
+ *
+ *  Lowercases, strips, then accepts the whole tag or its primary subtag when
+ *  that subtag is a `LOCALES` member (`cs-CZ` → `cs`, `DE-de` → `de`). Unsupported
+ *  families (`es-ES`) and path-like junk (`../en`) stay null so a writer never
+ *  stores a value `import(messages/<locale>.json)` cannot load.
+ *
+ *  THE entry for `?lang=` (proxy) and `setLocale`. `isLocale` stays strict. */
+export function coerceLocale(value: unknown): Locale | null {
+  if (typeof value !== "string") return null;
+  const tag = value.trim().toLowerCase();
+  if (!tag) return null;
+  if (isLocale(tag)) return tag;
+  const primary = tag.split("-")[0];
+  return primary !== tag && isLocale(primary) ? primary : null;
 }
 
 /** Pick the best supported locale from an `Accept-Language` header, or null if
@@ -30,10 +49,8 @@ export function isLocale(value: unknown): value is Locale {
 export function resolveAcceptLanguage(header: string | null | undefined): Locale | null {
   if (!header) return null;
   for (const part of header.split(",")) {
-    const tag = part.split(";")[0]?.trim().toLowerCase();
-    if (!tag) continue;
-    const primary = tag.split("-")[0];
-    if (isLocale(primary)) return primary;
+    const folded = coerceLocale(part.split(";")[0]);
+    if (folded) return folded;
   }
   return null;
 }

@@ -19,7 +19,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { register } from "node:module";
 
-import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALES, resolveAcceptLanguage } from "./locales.ts";
+import { coerceLocale, DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALES, resolveAcceptLanguage } from "./locales.ts";
 import { localeCookieOptions, LOCALE_COOKIE_MAX_AGE } from "./cookie.ts";
 
 // --- the closed vocabulary ---------------------------------------------------
@@ -36,6 +36,29 @@ test("isLocale accepts every declared locale and nothing else", () => {
   for (const bad of [null, undefined, 0, 1, true, {}, [], ["en"], { toString: () => "en" }]) {
     assert.equal(isLocale(bad), false, String(bad));
   }
+});
+
+test("coerceLocale folds a regional tag onto a shipped catalog and rejects the rest", () => {
+  // Candidate links and browser pickers emit cs-CZ / en-US; the cookie and
+  // `?lang=` writers fold those onto a catalog so the page is Czech, not English.
+  assert.equal(coerceLocale("cs-CZ"), "cs");
+  assert.equal(coerceLocale("de-AT"), "de");
+  assert.equal(coerceLocale("fr-CA"), "fr");
+  assert.equal(coerceLocale("DE-de"), "de");
+  assert.equal(coerceLocale("en-US"), "en");
+  for (const locale of LOCALES) assert.equal(coerceLocale(locale), locale, locale);
+
+  // Unsupported families and path-like junk must not become a catalog name.
+  assert.equal(coerceLocale("es-ES"), null);
+  assert.equal(coerceLocale("../en"), null);
+  assert.equal(coerceLocale("es"), null);
+  assert.equal(coerceLocale(""), null);
+  for (const bad of [null, undefined, 0, true, {}, [], ["en"]]) {
+    assert.equal(coerceLocale(bad), null, String(bad));
+  }
+
+  // isLocale stays strict: a regional tag is not a catalog import key.
+  assert.equal(isLocale("cs-CZ"), false);
 });
 
 test("the default locale is one of the declared locales", () => {
