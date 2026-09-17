@@ -542,13 +542,19 @@ The first two now come from `interviewBriefStrings(entry.locale)` in
 `interview-prep-strings.ts` — the same locale-pinned catalog loader as the prep
 pack, reading the `interview.brief` namespace in all four catalogs. The third is
 `OPENING_LANGUAGE_NAMES` in `interview-run.ts`, a `Record<Locale, string>` so a
-new locale is a tsc error rather than a silent fallback to English. Because the
-topics now load a catalog, `buildCandidateSafeBrief` is **async**; the connect
-route resolves it once before `connectWithFailover` (whose `resolveAgentPrompt`
-is synchronous by contract, so a failover never awaits between attempts).
-`interview-run-locale.test.ts` pins all of it against a real entry: a `de` entry
-stores a German agenda, an absent or unsupported locale keeps English, and the
-opening-language table is checked for parity with `LOCALES`.
+new locale is a tsc error rather than a silent fallback to English. A preferred
+locale **replaces** the shared Czech+English greet-then-detect paragraph
+(`PERSONA_LANGUAGE_DETECT`) rather than appending after it: that paragraph used
+to say it outranked every other instruction, so a German or French applicant
+still heard a CS+EN opener. A null locale keeps the bilingual greet
+byte-identical (the Python eval port's default student brief stays in lockstep).
+Because the topics now load a catalog, `buildCandidateSafeBrief` is **async**;
+the connect route resolves it once before `connectWithFailover` (whose
+`resolveAgentPrompt` is synchronous by contract, so a failover never awaits
+between attempts). `interview-run-locale.test.ts` pins all of it against a real
+entry: a `de` entry stores a German agenda, an absent or unsupported locale
+keeps English, a `de`/`fr` brief opens in that language with no CS+EN greet, and
+the opening-language table is checked for parity with `LOCALES`.
 
 The disclosure renders in **both** places a recruiter meets the rubric — the prep
 pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form

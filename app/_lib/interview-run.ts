@@ -117,8 +117,11 @@ function composeImportedRunOfShowLine(imported: string[]): string {
 
 // App §2 / P1 root cause: when the candidate EXPLICITLY chose a language at apply (entry.locale is
 // a real locale, not the workspace-default guess), tell the agent to OPEN in it instead of the
-// bilingual greet-then-detect. The follow/lock rules (PERSONA_LANGUAGE_DETECT) still apply, so a
-// candidate who switches is still followed. A null preferred language leaves the bilingual opener.
+// bilingual greet-then-detect. Appending that line AFTER PERSONA_LANGUAGE_DETECT used to lose:
+// the detect paragraph says it "outranks every other instruction", so a German applicant still
+// heard a Czech+English greet. Preferred-locale briefs REPLACE that paragraph with an
+// open-in-preferred + lock/follow rule. A null preferred language leaves the bilingual opener
+// byte-identical (the Python eval port's default student brief stays in lockstep).
 // ONE table, every locale in i18n/locales.ts. The names are English on purpose:
 // they are read by the agent inside an English instruction, not by the candidate.
 // It used to be `preferred === "cs" ? "Czech" : "English"`, which told a German or
@@ -133,10 +136,22 @@ export const OPENING_LANGUAGE_NAMES: Record<Locale, string> = {
   fr: "French",
 };
 
+function preferredLanguageDetect(name: string): string {
+  return (
+    `The candidate chose to apply in ${name}, so open the interview in ${name}. ` +
+    "Then LOCK onto the language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. " +
+    "Do not mix languages after your opening, and never switch unless the candidate does first (then follow them). " +
+    "Before EVERY turn you produce, check which language the candidate's last message was in and answer in that language."
+  );
+}
+
 function withOpeningLanguage(instructions: string, preferred: Locale | null): string {
   if (!preferred) return instructions;
-  const name = OPENING_LANGUAGE_NAMES[preferred];
-  return `${instructions} The candidate chose to apply in ${name}, so open the interview in ${name} (you may still follow them if they switch language later).`;
+  const replacement = preferredLanguageDetect(OPENING_LANGUAGE_NAMES[preferred]);
+  if (instructions.includes(PERSONA_LANGUAGE_DETECT)) {
+    return instructions.replace(PERSONA_LANGUAGE_DETECT, replacement);
+  }
+  return `${instructions} ${replacement}`;
 }
 
 /** The no-feedback / no-praise closing rule every interviewer brief ends on. It
