@@ -205,19 +205,22 @@ export type ProvenanceKey =
   | "self_declared"
   | "open_source"
   | "certification"
-  | "academic";
+  | "academic"
+  | "unknown";
 
 export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
   // `observed` is the highest-trust provenance the pipeline can mint (a passed
   // live case or case-grounded interview) — it gets the strongest visual stamp,
-  // and must never fall through to the generic "academic" bucket.
+  // and must never fall through to the generic "academic" bucket. An unrecognized
+  // slug is `unknown` (muted), never academic: academic is a claim about evidence.
   if (p === "observed") return { key: "observed", tone: "bg-moss/15 text-moss" };
   if (p === "professional") return { key: "professional", tone: "bg-stone-200 text-ink" };
   if (p === "internship") return { key: "internship", tone: "bg-blue-50 text-blue-700" };
   if (p === "self_declared") return { key: "self_declared", tone: "bg-stone-100 text-steel" };
   if (p === "open_source") return { key: "open_source", tone: "bg-blue-50 text-blue-700" };
   if (p === "certification") return { key: "certification", tone: "bg-blue-50 text-blue-700" };
-  return { key: "academic", tone: "bg-amber-50 text-amber-800" };
+  if (p === "academic") return { key: "academic", tone: "bg-amber-50 text-amber-800" };
+  return { key: "unknown", tone: "bg-stone-100 text-steel" };
 }
 
 /** Compact "k CZK" salary band for the match surfaces, e.g. `"45–60k CZK"`, or
