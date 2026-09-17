@@ -12,9 +12,17 @@ import { buildLlmConfigEnv } from "./llm-config";
 
 export class ProfileDraftError extends Error {
   status: number;
-  constructor(message: string, status = 500) {
+  /**
+   * The runner's stable machine code — "invalid_input" / "engine_error" /
+   * "timeout", the same vocabulary `parseStderrError` already produces.
+   * Dropping it here left /api/profile/draft unable to tell a missing-notes
+   * refusal from an engine fault in the reader's locale.
+   */
+  code?: string;
+  constructor(message: string, status = 500, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -28,9 +36,13 @@ export type ProfileDraftParams = {
 // cleanup margin) so the task path can't leak a longer-lived Gemini child.
 export const PROFILE_DRAFT_TIMEOUT_MS = 55_000;
 
-export async function runProfileDraft(params: ProfileDraftParams, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function runProfileDraft(
+  params: ProfileDraftParams,
+  signal?: AbortSignal,
+  spawn: typeof spawnPython = spawnPython
+): Promise<Record<string, unknown>> {
   const text = (params.text ?? "").trim();
-  if (!text) throw new ProfileDraftError("Add some notes for the AI to draft from.", 400);
+  if (!text) throw new ProfileDraftError("Add some notes for the AI to draft from.", 400, "invalid_input");
 
   let workdir: string | null = null;
   try {
@@ -38,14 +50,14 @@ export async function runProfileDraft(params: ProfileDraftParams, signal?: Abort
     const inputPath = path.join(workdir, "notes.json");
     await writeFile(inputPath, JSON.stringify({ text }), "utf-8");
 
-    const { result } = spawnPython(
+    const { result } = spawn(
       ["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath, "--lang", params.lang],
       { signal, timeoutMs: PROFILE_DRAFT_TIMEOUT_MS, env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
-      throw new ProfileDraftError(err.message, err.status);
+      throw new ProfileDraftError(err.message, err.status, err.code);
     }
     return parsePythonJson<Record<string, unknown>>(stdout, stderr);
   } finally {
