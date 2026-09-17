@@ -100,11 +100,11 @@ inventing a second scoping dimension.
   request instead of at the end of their 7-day session. `users.status` was
   previously consulted only by `verifyCredentials`, i.e. at sign-in, so an
   offboarded member's existing cookie kept full `read`/`pipeline:write` on their
-  team while the console showed them disabled. Still open: the ORG-WIDE
-  administrative path (`orgMembershipGrants` in `current-user.ts`, feeding
-  `callerOrgCapabilities`/`callerDelegationCeiling`) does not consult the status,
-  so a disabled admin's live session can still reach member/team administration —
-  see Known gaps.
+  team while the console showed them disabled. The same predicate now lives in
+  `orgMembershipGrants` (`app/_lib/auth/current-user.ts`), so
+  `callerOrgCapabilities` / `callerDelegationCeiling` / sister-team
+  `members:manage` also resolve empty for a disabled account — offboarding bites
+  on the next request for administration, not only for candidate data.
 - **A login costs the same whether or not the account exists.**
   `verifyCredentials` (`app/_lib/db/users.ts`) verifies against
   `DUMMY_PASSWORD_HASH` (`app/_lib/auth/password.ts` — a real scrypt hash of a
@@ -676,6 +676,14 @@ permission check now decides only what is KEPT: the invites response is discarde
 unless `canManage` is true (a caller without `members:manage` gets a 403 there,
 handled as "no invites"), so nothing gated is ever rendered.
 
+**Pending on that list means redeemable.** `listInvitesForOrg(org, "pending")`
+(`app/_lib/db/invites.ts`) is `status = 'pending'` AND not past `expires_at` —
+the same test `getRedeemableInvite` uses at the accept door. Invites expire after
+14 days; Copy link on a lapsed row 404s at redeem, so the Workspaces console (and
+getting-started's "team invited" tick) must not paint it as live. Listing with no
+status filter still returns the expired row (audit). Pinned in
+`app/_lib/db/invites.test.ts`.
+
 `DEFAULT_WORKSPACE_ID` reaches the console through the `/api/workspaces` payload
 (`defaultWorkspace`), not an import — `db/workspaces.ts` opens better-sqlite3 and
 cannot enter a client bundle. It is used only to bucket legacy invites, whose
@@ -746,13 +754,15 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
   needed before enterprise SSO / audit tracks can close out. Account-level
-  disable no longer waits on it for team data (see Identity & auth), but the
-  **org-wide administrative capabilities still do**: `orgMembershipGrants`
-  (`app/_lib/auth/current-user.ts`) builds `callerOrgCapabilities` and
-  `callerDelegationCeiling` straight from `listMembershipsForUser` without
-  reading `users.status`, so a disabled admin holding a live cookie can still
-  create a team and administer seats. The fix is the same one-line status read
-  that `capabilitiesForUserInWorkspace` now does, applied in that helper.
+  disable no longer waits on it: team-data caps (`capabilitiesForUserInWorkspace`)
+  and org-wide administrative caps (`orgMembershipGrants`) both resolve empty
+  when `users.status` is `disabled`, so a live cookie cannot keep creating
+  teams or administering seats after offboarding. Killing a specific session
+  before TTL still needs a revocation store.
+- *(closed 2026-09-17)* `orgMembershipGrants` used to skip `users.status`, so a
+  disabled admin's live cookie still held `team:manage` / `members:manage`
+  org-wide. It now returns `[]` for a missing or disabled account — the same
+  predicate as `capabilitiesForUserInWorkspace`.
 - **No workspace deletion.** Rename exists; delete does not, deliberately — a
   team's candidates, decisions and audit chain outlive its label, and there is no
   reassign-or-purge story yet.
