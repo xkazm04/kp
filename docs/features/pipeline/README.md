@@ -1859,7 +1859,13 @@ breakdown existed, the simulation's loading payload. They had drifted apart:
   `safeJsonError(..., "GROUP_EVAL_READ_FAILED")`, so the modal renders it in the
   reader's language (its row is deleted from the `error-response-contract`
   ceiling).
-- **The per-candidate strip is a real tablist.** One tab stop (roving
+- **The "ran at" stamp uses `useDateFormat().dateTime`.** `ranWhen` in
+  `groupEval/groupEvalHelpers.ts` only validates the ISO (so node:test does not
+  need Intl); `useGroupEval` formats it through the shared hook, the same
+  "3 Sep 2026, 14:30" shape as the rest of Decisions. A bare `toLocaleString`
+  used to follow the viewer's zone with no named formatter and could disagree
+  with every other timestamp on the tab.
+- **The per-candidate strip is a real tablist.** One tab stop (roving)
   `tabindex`), ←/→/↑/↓ + Home/End, `aria-controls`/`aria-labelledby` and a
   focusable panel; the movement rule is the pure reducer
   `groupEval/groupEvalTabKeys.ts`. Before this a keyboard user reached the
