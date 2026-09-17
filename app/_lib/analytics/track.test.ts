@@ -3,7 +3,8 @@
 // The leak this pins: <PlausibleScript /> is mounted in the ROOT layout
 // (app/layout.tsx), so it renders on every public candidate surface too —
 // /schedule/<token>, /interview/<token>, /status/<token>, /data/<erasureToken>,
-// /offer/<token>, /invite/<token>, /skill/<token>. Those tokens ARE the
+// /offer/<token>, /invite/<token>, /skill/<token>, /stop/<token>,
+// /devcase/apply/<token>. Those tokens ARE the
 // credential (no session is involved), and Plausible attaches `u: location.href`
 // to every event it sends, pageviews included. With NEXT_PUBLIC_PLAUSIBLE_DOMAIN
 // configured — which mvp-passport.json tells the operator to do at deploy — a
@@ -15,17 +16,42 @@
 // one. This file pins the list AND both consumers of it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { TOKENIZED_PATH_PREFIXES, isTokenizedPath, track } from "./track.ts";
 
-// Every app/<segment>/[token] route directory, spelled out. A new tokenized
-// candidate surface that is not in TOKENIZED_PATH_PREFIXES is the regression.
-const TOKENIZED_ROUTES = ["/schedule/", "/interview/", "/status/", "/data/", "/offer/", "/invite/", "/skill/"];
+const APP_DIR = fileURLToPath(new URL("../../", import.meta.url));
+
+/** Every app directory named `[token]` that holds a `page.tsx`, as the URL prefix Plausible would see. */
+function tokenizedPagePrefixes(appDir: string): string[] {
+  const prefixes: string[] = [];
+  const walk = (dir: string, urlParts: string[]): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      if (entry.name === "[token]") {
+        if (existsSync(path.join(dir, entry.name, "page.tsx"))) {
+          prefixes.push(`/${urlParts.join("/")}/`);
+        }
+        continue;
+      }
+      walk(path.join(dir, entry.name), [...urlParts, entry.name]);
+    }
+  };
+  walk(appDir, []);
+  return prefixes.sort();
+}
 
 test("every tokenized candidate route is excluded from analytics", () => {
-  for (const route of TOKENIZED_ROUTES) {
-    assert.ok(TOKENIZED_PATH_PREFIXES.includes(route as (typeof TOKENIZED_PATH_PREFIXES)[number]), `${route} is missing`);
+  const routes = tokenizedPagePrefixes(APP_DIR);
+  assert.ok(routes.includes("/stop/"), "/stop/[token] must be discovered");
+  assert.ok(routes.includes("/devcase/apply/"), "/devcase/apply/[token] must be discovered");
+  for (const route of routes) {
+    assert.ok(
+      (TOKENIZED_PATH_PREFIXES as readonly string[]).includes(route),
+      `${route} is missing from TOKENIZED_PATH_PREFIXES`
+    );
     assert.equal(isTokenizedPath(`${route}9f3a7c1e2b4d`), true, `${route}<token> must be excluded`);
   }
   // /apply/<jobId> is not a token in the path, but it carries ?lead=<opaque token>
@@ -51,6 +77,14 @@ test("track() is a no-op on a tokenized surface even when Plausible is loaded", 
   try {
     track("checkout_started", { item: "growth" });
     assert.deepEqual(calls, [], "no event may be sent from a capability-token page");
+
+    (g.window as { location: { pathname: string } }).location.pathname = "/stop/abc";
+    track("checkout_started", { item: "growth" });
+    assert.deepEqual(calls, [], "an opt-out link is a capability token too");
+
+    (g.window as { location: { pathname: string } }).location.pathname = "/devcase/apply/abc";
+    track("checkout_started", { item: "growth" });
+    assert.deepEqual(calls, [], "a take-home apply link is a capability token too");
 
     (g.window as { location: { pathname: string } }).location.pathname = "/";
     track("checkout_started", { item: "growth" });
