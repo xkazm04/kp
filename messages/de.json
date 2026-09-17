@@ -6785,6 +6785,7 @@
     "title": "Passwort festlegen",
     "subtitle": "Sie wurden als {role} eingeladen. Legen Sie ein Passwort fest, um die Einrichtung von <em>{email}</em> abzuschließen.",
     "nameLabel": "Ihr Name",
+    "nameRequired": "Geben Sie Ihren Namen ein.",
     "passwordLabel": "Passwort",
     "submitting": "Wird eingerichtet…",
     "submit": "Einladung annehmen"

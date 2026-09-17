@@ -6785,6 +6785,7 @@
     "title": "Set your password",
     "subtitle": "You've been invited as {role}. Choose a password to finish setting up <em>{email}</em>.",
     "nameLabel": "Your name",
+    "nameRequired": "Enter your name.",
     "passwordLabel": "Password",
     "submitting": "Setting up…",
     "submit": "Accept invitation"

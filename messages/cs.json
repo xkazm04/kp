@@ -6785,6 +6785,7 @@
     "title": "Nastavte si heslo",
     "subtitle": "Byli jste pozváni jako {role}. Zvolte heslo a dokončete nastavení účtu <em>{email}</em>.",
     "nameLabel": "Vaše jméno",
+    "nameRequired": "Zadejte své jméno.",
     "passwordLabel": "Heslo",
     "submitting": "Nastavování…",
     "submit": "Přijmout pozvánku"

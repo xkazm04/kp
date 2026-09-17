@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { classifyInviteResult, inviteFailedCopy, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
+import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
 
 test("2xx statuses classify as ok", () => {
   for (const status of [200, 201, 204]) {
@@ -86,4 +86,29 @@ test("AcceptForm swaps the two 409s to the failed panel (which already offers go
   assert.match(src, /isTerminalInviteOutcome\(outcome\)/, "redeem 409s must leave the password form");
   assert.match(src, /inviteFailedCopy\(state\.outcome\)/, "the failed panel must not fall through to loadFailed for 409s");
   assert.match(src, /t\("goToSignIn"\)/, "the failed panel keeps the sign-in link");
+});
+
+test("a needsName preview cannot submit with an empty name", () => {
+  assert.equal(inviteSubmitBlock({ needsName: true, name: "", password: "abcdefgh" }), "missingName");
+  assert.equal(inviteSubmitBlock({ needsName: true, name: "   ", password: "abcdefgh" }), "missingName");
+  assert.equal(canSubmitInvite({ needsName: true, name: "", password: "abcdefgh" }), false);
+  assert.equal(canSubmitInvite({ needsName: true, name: "Ada", password: "abcdefgh" }), true);
+});
+
+test("when the preview did not ask for a name, an empty name is not a block", () => {
+  assert.equal(inviteSubmitBlock({ needsName: false, name: "", password: "abcdefgh" }), null);
+  assert.equal(canSubmitInvite({ needsName: false, name: "", password: "abcdefgh" }), true);
+});
+
+test("an empty password is refused even when a name is present", () => {
+  assert.equal(inviteSubmitBlock({ needsName: true, name: "Ada", password: "" }), "emptyPassword");
+  assert.equal(canSubmitInvite({ needsName: false, name: "", password: "" }), false);
+});
+
+test("AcceptForm wires the name pre-check: required field, disabled submit, inline error, no POST", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /canSubmitInvite\(/, "submit disablement must use the shared helper");
+  assert.match(src, /inviteSubmitBlock\(/, "submit must classify empty name before fetch");
+  assert.match(src, /t\("nameRequired"\)/, "empty name must set the inline catalog error");
+  assert.match(src, /required/, "the name input is required when it is shown");
 });

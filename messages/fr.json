@@ -6785,6 +6785,7 @@
     "title": "Définissez votre mot de passe",
     "subtitle": "Vous avez été invité(e) en tant que {role}. Choisissez un mot de passe pour terminer la configuration de <em>{email}</em>.",
     "nameLabel": "Votre nom",
+    "nameRequired": "Saisissez votre nom.",
     "passwordLabel": "Mot de passe",
     "submitting": "Configuration…",
     "submit": "Accepter l’invitation"

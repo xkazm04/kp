@@ -93,3 +93,27 @@ export function inviteFailedCopy(outcome: InviteOutcome): { title: InviteFailedC
   if (outcome === "emailTaken") return { title: "emailTaken", body: "emailTaken" };
   return { title: "loadFailedTitle", body: "loadFailedBody" };
 }
+
+// Client pre-check for the redeem form. GET preview sets `needsName` when the
+// user row has no display name; posting `name: name.trim() || undefined` used
+// to create the account as `name: null`, so Art. 22 seals fell back to email.
+// Empty name is the same class of client refusal as an empty password: do not
+// fetch. Length / confirm / legal-ack checks live beside this when they land.
+
+export type InviteSubmitInput = {
+  needsName: boolean;
+  name: string;
+  password: string;
+};
+
+export type InviteSubmitBlock = "missingName" | "emptyPassword";
+
+export function inviteSubmitBlock(input: InviteSubmitInput): InviteSubmitBlock | null {
+  if (input.needsName && input.name.trim() === "") return "missingName";
+  if (!input.password) return "emptyPassword";
+  return null;
+}
+
+export function canSubmitInvite(input: InviteSubmitInput): boolean {
+  return inviteSubmitBlock(input) === null;
+}

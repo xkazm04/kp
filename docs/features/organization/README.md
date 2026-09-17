@@ -644,6 +644,14 @@ string spliced into a four-locale eyebrow by code that has no idea who is readin
 The fallback is now the catalog's (`invite.orgNameFallback`), resolved in the
 invitee's language.
 
+**A name is required when the preview asked for one.** GET sets `needsName`
+when the user row has none. The form used to POST `name: name.trim() ||
+undefined`, so a brand-new member joined as `name: null` and Art. 22 seals
+fell back to email. Empty name is now a client refusal like a weak password
+(inline `invite.nameRequired`, no fetch), the field is `required`, and submit
+stays disabled until name and password are non-empty. Pinned by
+`canSubmitInvite` / `inviteSubmitBlock` in `invite-result.ts`.
+
 ## Copy & localization
 
 The console is fully localized in all four locales from the **`workspaceAdmin`**
