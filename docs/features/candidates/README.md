@@ -617,6 +617,13 @@ roster only ever renders inside the tab that owns the deep-link effect, and that
 effect is mount-only, so pushing those params navigated the tab to itself and the
 button did nothing.
 
+The matrix's "build from analysis" action is the same shape: `CandidateMatrix`
+takes `onBuildFromAnalysis` and `ProfileTab` feeds it `openFromAnalysis(slug, null)`.
+A same-tab `?tab=archetypes&fromAnalysis=` push left both the chip action and the
+detail-modal footer inert; the equivalent push from `MatchResultsHeader` is fine
+because it crosses tabs and remounts the panel. `candidateMatrixContracts.test.ts`
+pins that the matrix no longer writes `fromAnalysis` onto the current tab.
+
 ### 4. Archetype detection
 Single-sourced in `pipeline/jobfit/archetypes.json`, read by both Python
 (`pipeline/jobfit/registry.py`) and TS (`app/_lib/archetype-registry.ts`,
@@ -1055,13 +1062,6 @@ absence has to survive the CV.
   honestly (`MATRIX_POOL_CAP` + `countMatrixProfiles`); the fix is the same shape —
   a server total plus a catalog key — and needs both, so it is not a client-only
   change.
-- **The matrix's own "build from analysis" action is inert.**
-  `CandidateMatrix.tsx` pushes `?tab=archetypes&fromAnalysis=<slug>`, but the matrix
-  renders INSIDE the archetypes tab: `navActive` doesn't change, `WorkspaceTabPanel`'s
-  `key` is stable, `ProfileTab` is not remounted, and the mount-only deep-link effect
-  never reads the params. Same defect the roster's Rebuild had; same fix (a callback
-  prop fed from `ProfileTab`'s `openFromAnalysis`). The equivalent push from
-  `MatchResultsHeader` is fine — it crosses tabs, so the panel does remount.
 - **A hidden graduation-year typo disables Save with nothing on screen.**
   `validateProfileEditorFields` gates `yearsError` on field visibility ("a stale,
   hidden value won't be submitted, so it must not block Save either") but validates
