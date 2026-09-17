@@ -16,7 +16,7 @@ CAP_GROUNDING = "grounding"
 # NOTE: CAP_FILE_INPUT is intentionally NOT advertised by the anthropic/openai/
 # azure_openai rows even though those vendors support multimodal input. Their
 # adapters implement only text `_call(prompt: str, ...)` — advertising the cap
-# green-lit routing `cv_analysis`/`profile_extract` to a provider whose adapter
+# green-lit routing `cv_analysis` to a provider whose adapter
 # silently drops the attachment and analyzes an empty prompt — the exact
 # misconfiguration this matrix exists to prevent. Re-add CAP_FILE_INPUT to a row
 # ONLY when that provider's adapter actually attaches files (the gemini row earned
@@ -57,9 +57,7 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "devcase_role_design": frozenset({CAP_JSON}),
     "devcase_case_design": frozenset({CAP_JSON}),
     "devcase_reflect": frozenset({CAP_JSON}),
-    "devcase_tooling": frozenset({CAP_JSON}),
     "devcase_evaluate": frozenset({CAP_JSON}),
-    "devcase_transfer": frozenset({CAP_JSON}),
     "devcase_judge": frozenset({CAP_JSON}),
     "devcase_interview_scenario": frozenset({CAP_JSON}),
     "devcase_seed": frozenset({CAP_JSON}),
@@ -93,7 +91,6 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "posting_translate": frozenset(),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
-    "profile_extract": frozenset({CAP_FILE_INPUT}),
     # Job-seeker module (/me): the CV polish and fit dialogs, and the one-off
     # extraction-rule authoring for a board without JSON-LD. All plain JSON turns.
     "cv_polish": frozenset({CAP_JSON}),

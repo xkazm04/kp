@@ -30,7 +30,7 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // getting a role into the system rather than a message sent to a candidate.
   { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice", "repo_scan", "posting_translate"] },
   // Reading candidates: CVs, profiles, public footprint.
-  { key: "profiles", useCases: ["cv_analysis", "profile_extract", "profile_draft", "github_analysis"] },
+  { key: "profiles", useCases: ["cv_analysis", "profile_draft", "github_analysis"] },
   // Interview outputs.
   { key: "interviews", useCases: ["interview_scorecard"] },
   // The operator's own companion. Its own section rather than a guest in one of
@@ -56,8 +56,6 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
       "devcase_reflect",
       "devcase_evaluate",
       "devcase_judge",
-      "devcase_tooling",
-      "devcase_transfer",
     ],
   },
 ] as const;
