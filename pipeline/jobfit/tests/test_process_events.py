@@ -83,6 +83,38 @@ class TestProcessEvents(unittest.TestCase):
         t = tooling_from_events(evs)  # must not raise
         self.assertEqual(t["confidence"], 0.8)
 
+    def test_edits_after_perturbation_count_as_adaptation(self):
+        evs = [
+            {"t": 1, "kind": "open", "path": "a.ts"},
+            {"t": 10, "kind": "perturbation"},
+            {"t": 11, "kind": "edit", "path": "a.ts"},
+        ]
+        sig = derive_signals(evs)
+        self.assertTrue(sig["perturbationShown"])
+        self.assertGreaterEqual(sig["editsAfterPerturbation"], 1)
+        evidence = " ".join(tooling_from_events(evs)["evidence"]).lower()
+        self.assertIn("adapted", evidence)
+
+    def test_perturbation_with_no_later_edit_is_stale_brief(self):
+        evs = [{"t": 1, "kind": "edit", "path": "a.ts"}, {"t": 10, "kind": "perturbation"}]
+        sig = derive_signals(evs)
+        self.assertTrue(sig["perturbationShown"])
+        self.assertEqual(sig["editsAfterPerturbation"], 0)
+        evidence = " ".join(tooling_from_events(evs)["evidence"]).lower()
+        self.assertIn("stale brief", evidence)
+
+    def test_prompt_exchanges_are_observed_never_a_penalty(self):
+        evs = [
+            {"t": 1, "kind": "prompt", "path": "assistant"},
+            {"t": 2, "kind": "prompt", "path": "stakeholder"},
+        ]
+        sig = derive_signals(evs)
+        self.assertEqual(sig["promptExchanges"], 2)
+        t = tooling_from_events(evs)
+        evidence = " ".join(t["evidence"]).lower()
+        self.assertIn("captured assistant/stakeholder channel", evidence)
+        self.assertEqual(t["overRelianceFlags"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
