@@ -657,7 +657,7 @@ money but were the last unmetered writes on the surface, and are now bounded too
 | `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
 | `POST /api/interview/complete` | 10 / 10 min per **token + IP** (`COMPLETE_RATE_LIMIT`) | The transcript write, the `interview_minutes` debit and the LLM scorecard run + sealed decision |
 | `PUT` / `POST` / `PATCH /api/interview-prep` | 600 / 10 min per IP, ONE shared bucket (`PREP_WRITE_RATE_LIMIT`) | Three read-merge-writes against the same prep artifact |
-| `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation also sets the `scorecard_review` approval, records an automation event and seals a decision |
+| `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation for an active **interview-role** column (not the literal name `Interview`) also sets the `scorecard_review` approval, records an automation event and seals a decision |
 
 The prep budget looks loose next to its neighbours and the reason is pinned in
 `rate-limit-contract.test.ts` so nobody tightens it into a bug: the interviewer's
