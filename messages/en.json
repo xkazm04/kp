@@ -1657,6 +1657,8 @@
     "ATS_CONFIG_SAVE_FAILED": "Could not save the webhook settings. Please try again.",
     "ATS_CONFIG_STALE": "Someone saved newer webhook settings. Reload and make your change again.",
     "GROUP_EVAL_READ_FAILED": "Could not load the saved comparison. Please try again.",
+    "DECISION_RECORDS_READ_FAILED": "Could not load decision records. Please try again.",
+    "JD_FRESHNESS_LOOKUP_FAILED": "Could not check when these JDs were last edited. Please try again.",
     "SIM_RESET_FAILED": "Could not clear the simulation data. Please try again.",
     "SIM_INBOUND_FAILED": "Could not simulate the incoming application. Please try again.",
     "SIM_SCREEN_DRAFT_FAILED": "Could not prepare the screening recommendation. Please try again.",
@@ -4008,6 +4010,23 @@
         "cancel": "Cancel",
         "confirm": "Reject & record reason",
         "sealedToast": "{name} rejected. The reason is on the audit record."
+      },
+      "acceptConfirm": {
+        "title": "Advance {name}?",
+        "body": "Advancing seals a named basis onto the tamper-evident audit record: why this candidate won the field. Without it, the audit says only that a recruiter accepted.",
+        "presetsLabel": "Common reasons",
+        "presets": {
+          "strongestField": "Strongest in the compared field",
+          "mustHaves": "Covers every must-have for this role",
+          "scorecard": "Scorecard and evidence support advancing"
+        },
+        "reasonLabel": "Reason for advancing",
+        "reasonRequired": "· required, sealed to the audit record",
+        "placeholder": "Why is this candidate going forward? e.g. strongest Kubernetes evidence in the field, and every must-have is covered.",
+        "sealNote": "Recorded as written. It is what the audit trail and any later review will read.",
+        "cancel": "Cancel",
+        "confirm": "Advance & record reason",
+        "sealedToast": "{name} advanced. The reason is on the audit record."
       },
       "schemeSkillsShort": "S",
       "schemeCareerShort": "C",

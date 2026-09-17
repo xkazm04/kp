@@ -1657,6 +1657,8 @@
     "ATS_CONFIG_SAVE_FAILED": "Impossible d'enregistrer les paramètres du webhook. Veuillez réessayer.",
     "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification.",
     "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer.",
+    "DECISION_RECORDS_READ_FAILED": "Impossible de charger les registres de décision. Veuillez réessayer.",
+    "JD_FRESHNESS_LOOKUP_FAILED": "Impossible de vérifier la date de dernière modification de ces fiches de poste. Veuillez réessayer.",
     "SIM_RESET_FAILED": "Impossible d'effacer les données de la simulation. Veuillez réessayer.",
     "SIM_INBOUND_FAILED": "Impossible de simuler la candidature entrante. Veuillez réessayer.",
     "SIM_SCREEN_DRAFT_FAILED": "Impossible de préparer la recommandation de présélection. Veuillez réessayer.",
@@ -4008,6 +4010,23 @@
         "cancel": "Annuler",
         "confirm": "Rejeter et consigner le motif",
         "sealedToast": "{name} rejeté(e). Le motif figure au registre d’audit."
+      },
+      "acceptConfirm": {
+        "title": "Faire avancer {name} ?",
+        "body": "L’avancement scelle un motif nommé dans le registre d’audit inviolable : pourquoi cette personne a remporté le panel. Sans lui, l’audit indique seulement qu’un recruteur a accepté.",
+        "presetsLabel": "Motifs courants",
+        "presets": {
+          "strongestField": "La plus forte du panel comparé",
+          "mustHaves": "Couvre chaque exigence indispensable du poste",
+          "scorecard": "La grille et les preuves justifient l’avancement"
+        },
+        "reasonLabel": "Motif de l’avancement",
+        "reasonRequired": "· obligatoire, scellé dans le registre d’audit",
+        "placeholder": "Pourquoi cette personne poursuit-elle ? Par ex. les preuves Kubernetes les plus solides du panel, et chaque exigence indispensable est couverte.",
+        "sealNote": "Consigné tel quel. C’est ce que liront la piste d’audit et toute relecture ultérieure.",
+        "cancel": "Annuler",
+        "confirm": "Faire avancer et consigner le motif",
+        "sealedToast": "{name} avancé(e). Le motif figure au registre d’audit."
       },
       "schemeSkillsShort": "Cp",
       "schemeCareerShort": "Ca",

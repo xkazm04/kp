@@ -314,6 +314,10 @@ const LEAK_CEILING = new Map<string, number>([
   // group-eval-ui): the 500 answers safeJsonError(..., "GROUP_EVAL_READ_FAILED"), so the
   // Decisions modal resolves it in the reader's language. The row is deleted so the win
   // is locked.
+  // decisions/records' single forward was FIXED, not ceilinged: the 500 answers
+  // safeJsonError(..., "DECISION_RECORDS_READ_FAILED"), so a store throw cannot
+  // put SQLITE text or the db path on the sealed Art. 22 dossier. The
+  // FORWARD_CEILING row is deleted so the win is locked.
   // decisions/screen-wave's single leak was FIXED, not ceilinged: the 500 answers
   // safeJsonError(..., "SCREEN_WAVE_FAILED") and every 400/409 is a jsonRefusal
   // code, so the Decisions modal never paints English or store detail. The row is
@@ -428,7 +432,6 @@ const FORWARD_CEILING = new Map<string, number>([
   ["analytics/calibration/route.ts", 1],
   ["analytics/calibration/threshold-history/route.ts", 1],
   ["auth/switch-workspace/route.ts", 1],
-  ["decisions/records/route.ts", 1],
   ["skill-profile/[token]/verify/route.ts", 1],
   ["workspaces/[id]/route.ts", 1],
   ["workspaces/route.ts", 2],

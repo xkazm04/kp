@@ -1657,6 +1657,8 @@
     "ATS_CONFIG_SAVE_FAILED": "Die Webhook-Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
     "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen.",
+    "DECISION_RECORDS_READ_FAILED": "Die Entscheidungsprotokolle konnten nicht geladen werden. Bitte erneut versuchen.",
+    "JD_FRESHNESS_LOOKUP_FAILED": "Es konnte nicht geprüft werden, wann diese JDs zuletzt bearbeitet wurden. Bitte erneut versuchen.",
     "SIM_RESET_FAILED": "Die Simulationsdaten konnten nicht gelöscht werden. Bitte erneut versuchen.",
     "SIM_INBOUND_FAILED": "Die eingehende Bewerbung konnte nicht simuliert werden. Bitte erneut versuchen.",
     "SIM_SCREEN_DRAFT_FAILED": "Die Screening-Empfehlung konnte nicht erstellt werden. Bitte erneut versuchen.",
@@ -4008,6 +4010,23 @@
         "cancel": "Abbrechen",
         "confirm": "Ablehnen & Grund erfassen",
         "sealedToast": "{name} abgelehnt. Der Grund steht im Auditprotokoll."
+      },
+      "acceptConfirm": {
+        "title": "{name} weiterziehen?",
+        "body": "Ein Weiterziehen versiegelt eine benannte Begründung im manipulationssicheren Auditprotokoll, warum diese Person das Feld gewonnen hat. Ohne sie steht im Audit nur, dass eine Recruiterin oder ein Recruiter angenommen hat.",
+        "presetsLabel": "Häufige Gründe",
+        "presets": {
+          "strongestField": "Stärkste Person im Vergleichsfeld",
+          "mustHaves": "Erfüllt jede Muss-Anforderung der Rolle",
+          "scorecard": "Scorecard und Belege stützen das Weiterziehen"
+        },
+        "reasonLabel": "Grund für das Weiterziehen",
+        "reasonRequired": "· erforderlich, wird im Auditprotokoll versiegelt",
+        "placeholder": "Warum geht es mit dieser Person weiter? z. B. stärkste Kubernetes-Belege im Feld, und jede Muss-Anforderung ist erfüllt.",
+        "sealNote": "Wird wortgetreu erfasst. Genau so lesen es das Auditprotokoll und jede spätere Prüfung.",
+        "cancel": "Abbrechen",
+        "confirm": "Weiterziehen & Grund erfassen",
+        "sealedToast": "{name} weitergezogen. Der Grund steht im Auditprotokoll."
       },
       "schemeSkillsShort": "F",
       "schemeCareerShort": "K",

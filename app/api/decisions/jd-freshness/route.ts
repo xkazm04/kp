@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
@@ -14,14 +15,20 @@ import { jdLastEditedAt } from "@/app/_lib/db/jobs";
 export async function GET(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
-  const ws = await currentWorkspace();
-  const raw = new URL(request.url).searchParams.get("jobs") ?? "";
-  // De-duped, trimmed, capped — a corpus/non-JD-backed job resolves to null (no chip).
-  const jobIds = [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 200);
-  const editedAt: Record<string, string | null> = {};
-  for (const jobId of jobIds) {
-    const slug = jdSlugOfJobId(jobId);
-    editedAt[jobId] = slug ? jdLastEditedAt(slug, ws) : null;
+  try {
+    const ws = await currentWorkspace();
+    const raw = new URL(request.url).searchParams.get("jobs") ?? "";
+    // De-duped, trimmed, capped — a corpus/non-JD-backed job resolves to null (no chip).
+    const jobIds = [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 200);
+    const editedAt: Record<string, string | null> = {};
+    for (const jobId of jobIds) {
+      const slug = jdSlugOfJobId(jobId);
+      editedAt[jobId] = slug ? jdLastEditedAt(slug, ws) : null;
+    }
+    return NextResponse.json({ editedAt });
+  } catch (error) {
+    // jdLastEditedAt opens SQLite; a locked DB used to become Next's framework 500
+    // with an unreadable body, on the route the staleness chips depend on.
+    return safeJsonError(error, "api:decisions/jd-freshness", "JD_FRESHNESS_LOOKUP_FAILED");
   }
-  return NextResponse.json({ editedAt });
 }

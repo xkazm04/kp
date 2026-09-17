@@ -1657,6 +1657,8 @@
     "ATS_CONFIG_SAVE_FAILED": "Nastavení webhooku se nepodařilo uložit. Zkuste to prosím znovu.",
     "ATS_CONFIG_STALE": "Někdo mezitím uložil novější nastavení webhooku. Načtěte je znovu a proveďte změnu ještě jednou.",
     "GROUP_EVAL_READ_FAILED": "Uložené srovnání se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DECISION_RECORDS_READ_FAILED": "Auditní záznamy rozhodnutí se nepodařilo načíst. Zkuste to prosím znovu.",
+    "JD_FRESHNESS_LOOKUP_FAILED": "Nepodařilo se ověřit, kdy byly tyto JD naposledy upraveny. Zkuste to prosím znovu.",
     "SIM_RESET_FAILED": "Data simulace se nepodařilo smazat. Zkuste to prosím znovu.",
     "SIM_INBOUND_FAILED": "Příchozí přihlášku se nepodařilo simulovat. Zkuste to prosím znovu.",
     "SIM_SCREEN_DRAFT_FAILED": "Doporučení ze screeningu se nepodařilo připravit. Zkuste to prosím znovu.",
@@ -4008,6 +4010,23 @@
         "cancel": "Zrušit",
         "confirm": "Zamítnout a zaznamenat důvod",
         "sealedToast": "{name} zamítnut(a). Důvod je v auditním záznamu."
+      },
+      "acceptConfirm": {
+        "title": "Posunout {name} dál?",
+        "body": "Postup se zapečetí do auditního záznamu odolného proti manipulaci s uvedeným důvodem, proč tento kandidát vyhrál pole. Bez něj by v auditu stálo jen to, že náborář přijal.",
+        "presetsLabel": "Časté důvody",
+        "presets": {
+          "strongestField": "Nejsilnější v porovnávaném poli",
+          "mustHaves": "Splňuje všechny povinné požadavky této role",
+          "scorecard": "Hodnoticí karta a doložené důkazy podporují postup"
+        },
+        "reasonLabel": "Důvod postupu",
+        "reasonRequired": "· povinné, zapečetí se do auditního záznamu",
+        "placeholder": "Proč tento kandidát postupuje dál? Např. nejsilnější doložené Kubernetes v poli a splněné všechny povinné požadavky.",
+        "sealNote": "Zaznamená se přesně tak, jak je napsáno. Takto ho uvidí auditní stopa i pozdější revize.",
+        "cancel": "Zrušit",
+        "confirm": "Posunout a zaznamenat důvod",
+        "sealedToast": "{name} posunut(a) dál. Důvod je v auditním záznamu."
       },
       "schemeSkillsShort": "D",
       "schemeCareerShort": "K",

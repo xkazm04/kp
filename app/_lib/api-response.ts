@@ -76,6 +76,12 @@ export const STORE_ERRORS = {
   // plus a JSON.parse of the persisted payload, so the thrown message carries the db path
   // or parser detail. The Decisions modal shows it verbatim, hence the code.
   GROUP_EVAL_READ_FAILED: "Could not load the saved comparison. Please try again.",
+  // GET /api/decisions/records: verify + listPipeline can throw SQLITE text and
+  // the db path onto an operator JSON body. The sealed Art. 22 dossier.
+  DECISION_RECORDS_READ_FAILED: "Could not load decision records. Please try again.",
+  // GET /api/decisions/jd-freshness: jdLastEditedAt opens SQLite; a locked DB
+  // used to become Next's framework 500 with no code, on the staleness-chip door.
+  JD_FRESHNESS_LOOKUP_FAILED: "Could not check when these JDs were last edited. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
   TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",

@@ -1550,6 +1550,8 @@ no letter and seals no decision. The rule:
 | `currency` | absent/empty → null (unit-less, P2-1); otherwise trimmed + upper-cased and required to be in `OFFER_CURRENCIES` (`APP_CURRENCY`, EUR, USD, GBP, PLN) | `OFFER_CURRENCY_UNSUPPORTED` (400) |
 | `notes` | trimmed; empty → null; `≤ OFFER_NOTES_MAX_CHARS` (2 000) | `OFFER_NOTES_TOO_LONG` (400, `max`) |
 
+The sealed `offer_terms` decision record's `inputs` are `{ salary, currency, jobTitle, notes }` — `notes` is the validated note (null when the draft carried none), so an auditor reading the chain can see the bonus/notice paragraph the candidate was (or was not) shown. The whole draft is not sealed.
+
 A market added to `pipeline/jobfit/market_config.py` whose currency is not on that
 closed list makes offers in it *refuse*, not mislabel — add the code to
 `OFFER_CURRENCIES` in the same change. The normalization also means `" czk "` and
@@ -1791,30 +1793,29 @@ said "must match" in a comment and nothing more. `test_automation_constant_sync.
 reads the TS source (comments stripped, name word-anchored) and fails when either
 side moves alone — the same shape as `test_fit_threshold_sync.py`.
 
-### A reject issued from the group-eval comparison carries its reason
+### A reject or advance issued from the group-eval comparison carries its reason
 
-UAT `LUC-GEF-L1-08` (raised twice, built 2026-08-18). A reject taken from inside
-the group-eval modal used to call `act(entry, "reject")` with no `detail`, so the
-sealed record fell back to `pipeline-entry-action.ts`'s
-`"Recruiter reject from <stage>."` — a tautology in the very column an auditor
-reads first, while the *same* action taken from the analysis view had always
-passed the recruiter's reason. The record's quality depended on which button the
-recruiter happened to use.
+UAT `LUC-GEF-L1-08` (raised twice, built 2026-08-18; advance half 2026-09-17). A
+decision taken from inside the group-eval modal used to call `act(entry, action)`
+with no `detail`, so the sealed record fell back to `pipeline-entry-action.ts`'s
+`"Recruiter accept/reject from <stage>."` — a tautology in the very column an
+auditor reads first, while the *same* action taken from the analysis view had
+always passed the recruiter's reason. The record's quality depended on which
+button the recruiter happened to use. Reject was gated first; advance now shares
+the same confirm+reason dialog.
 
 Now (`DecisionsModals.tsx`, `DecisionsGroupEvalRejectModal.tsx`):
 
-- the click **stages** the reject instead of issuing it, and returns `false`, so
-  no outcome pill appears for a decision that has not happened;
-- a confirm dialog requires a rationale (four one-click presets fill an editable
-  field; ⌘/Ctrl+Enter commits; confirm stays disabled while it is blank);
+- the click **stages** the accept or reject instead of issuing it, and returns
+  `false`, so no outcome pill appears for a decision that has not happened;
+- a confirm dialog requires a rationale (action-specific one-click presets fill
+  an editable field: reject has four, advance has strongest-field / must-haves /
+  scorecard; ⌘/Ctrl+Enter commits; confirm stays disabled while it is blank);
 - on confirm the reason reaches `act()` as `detail` and is what gets sealed;
 - the seal is handed back to the comparison through `GroupEvalModal`'s `sealed`
   prop, so the outcome pill is correct on the first confirm rather than on a
   second click, and `useGroupEval` will not let an already-sealed identity be
   acted on twice.
-
-Advance is untouched and still one click — this is a bulk-review surface, and
-friction that buys nothing is its own defect.
 
 ### A board write expires the role's cached group evaluation
 Every successful action in `runPipelineEntryAction` — `set_stage`, accept/reject,
@@ -1860,7 +1861,13 @@ breakdown existed, the simulation's loading payload. They had drifted apart:
   `safeJsonError(..., "GROUP_EVAL_READ_FAILED")`, so the modal renders it in the
   reader's language (its row is deleted from the `error-response-contract`
   ceiling).
-- **The per-candidate strip is a real tablist.** One tab stop (roving
+- **The "ran at" stamp uses `useDateFormat().dateTime`.** `ranWhen` in
+  `groupEval/groupEvalHelpers.ts` only validates the ISO (so node:test does not
+  need Intl); `useGroupEval` formats it through the shared hook, the same
+  "3 Sep 2026, 14:30" shape as the rest of Decisions. A bare `toLocaleString`
+  used to follow the viewer's zone with no named formatter and could disagree
+  with every other timestamp on the tab.
+- **The per-candidate strip is a real tablist.** One tab stop (roving)
   `tabindex`), ←/→/↑/↓ + Home/End, `aria-controls`/`aria-labelledby` and a
   focusable panel; the movement rule is the pure reducer
   `groupEval/groupEvalTabKeys.ts`. Before this a keyboard user reached the
