@@ -3,7 +3,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { isPublicJdApplyOpen, publicJdHeaderActions } from "./jdPublicHeader.ts";
+import { isPublicJdApplyOpen, publicJdAlternates, publicJdHeaderActions } from "./jdPublicHeader.ts";
+
+test("live JD metadata includes four hreflang alternates", () => {
+  const alt = publicJdAlternates("backend-eng", false);
+  assert.ok(alt);
+  assert.equal(alt.canonical, "/jds/backend-eng");
+  for (const loc of ["en", "cs", "de", "fr"] as const) {
+    assert.equal(alt.languages[loc], `/jds/backend-eng?lang=${loc}`);
+  }
+  assert.equal(alt.languages["x-default"], "/jds/backend-eng");
+  assert.equal(publicJdAlternates("backend-eng", true), undefined);
+  const src = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  assert.match(src, /publicJdAlternates\(slug,/);
+});
 
 test("an anonymous header has no Analyze CV or Publish controls", () => {
   const actions = publicJdHeaderActions({ canManage: false, applyOpen: true });

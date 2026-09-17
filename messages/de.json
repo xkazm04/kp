@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Der Terminlink konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
     "JD_LIST_FAILED": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JD_LOAD_FAILED": "Die Stellenbeschreibung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JD_NOT_FOUND": "Diese Stellenbeschreibung wurde nicht gefunden.",
     "JD_SAVE_FAILED": "Die Stellenbeschreibung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "JD_DELETE_FAILED": "Die Stellenbeschreibung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
     "JD_LIVE_CANNOT_DELETE": "Diese Beschreibung gehört zu einer aktiven Stelle. Schließen Sie zuerst die Stelle und löschen Sie sie dann.",
@@ -4372,7 +4373,7 @@
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Bibliothek der Stellenbeschreibungen",
-      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen.",
+      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen. Aktive Stellen bleiben unter Stellen; dieses Regal startet mit <strong>Alle außer aktive</strong>, damit sie es nicht füllen.",
       "savedJds": "Gespeicherte Stellenbeschreibungen",
       "entryCount": "{count, plural, one {# Eintrag} other {# Einträge}}",
       "loadFailed": "Laden fehlgeschlagen.",
@@ -4443,6 +4444,8 @@
       "deleteConfirm": "Löschen",
       "deleteCancel": "Abbrechen",
       "detailOpenPublic": "Öffentliche Seite öffnen",
+      "copyPublicLink": "Öffentlichen Link kopieren",
+      "publicLinkCopied": "Kopiert",
       "detailAnalyzeCv": "Lebenslauf analysieren",
       "detailLoadError": "Diese Beschreibung konnte gerade nicht geladen werden.",
       "noDescriptionYet": "Diese Position hat noch keine Beschreibung.",
@@ -4598,7 +4601,8 @@
           "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",
           "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren.",
           "checkFailed": "Ob Sprache verfügbar ist, ließ sich nicht prüfen. Versuchen Sie es erneut oder schreiben Sie weiter.",
-          "recheck": "Erneut prüfen"
+          "recheck": "Erneut prüfen",
+          "updatingBrief": "Das Briefing wird aktualisiert…"
         },
         "voiceIo": {
           "dictate": "Diktieren",
@@ -4702,6 +4706,7 @@
           "kindNote": "Notiz",
           "kindJd": "gespeicherte Stellenbeschreibung",
           "jdPick": "Gespeicherte Stellenbeschreibung wählen…",
+          "retry": "Erneut versuchen",
           "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen.",
           "noteFallbackTitle": "Notiz ohne Titel",
           "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an.",

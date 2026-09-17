@@ -53,3 +53,22 @@ export function nextMenuIndex(current: number, key: string, count: number): numb
       return null;
   }
 }
+
+/** Candidate-facing share URL for a saved JD (`/jds/<slug>` on this origin). */
+export function publicJdShareUrl(origin: string, slug: string): string {
+  return `${origin.replace(/\/$/, "")}/jds/${encodeURIComponent(slug)}`;
+}
+
+/** Write the public URL to the clipboard. Returns false when the write is blocked. */
+export async function copyPublicJdUrl(
+  write: (text: string) => Promise<void>,
+  origin: string,
+  slug: string,
+): Promise<boolean> {
+  try {
+    await write(publicJdShareUrl(origin, slug));
+    return true;
+  } catch {
+    return false;
+  }
+}

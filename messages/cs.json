@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Nepodařilo se vytvořit odkaz pro plánování. Zkuste to prosím znovu.",
     "JD_LIST_FAILED": "Nepodařilo se načíst knihovnu inzerátů. Zkuste to prosím znovu.",
     "JD_LOAD_FAILED": "Nepodařilo se načíst inzerát. Zkuste to prosím znovu.",
+    "JD_NOT_FOUND": "Tento popis pozice se nepodařilo najít.",
     "JD_SAVE_FAILED": "Nepodařilo se uložit inzerát. Zkuste to prosím znovu.",
     "JD_DELETE_FAILED": "Nepodařilo se smazat inzerát. Zkuste to prosím znovu.",
     "JD_LIVE_CANNOT_DELETE": "Tento popis patří k živé pozici. Nejdřív pozici uzavřete a pak popis smažte.",
@@ -4372,7 +4373,7 @@
     "tab": {
       "eyebrow": "Pracovní prostor",
       "title": "Knihovna popisů pozic",
-      "intro": "Popište potřebu náboru a nechte AI vytvořit popis pozice.",
+      "intro": "Popište potřebu náboru a nechte AI vytvořit popis pozice. Aktivní role zůstávají na kartě Pozice; tato knihovna se otevírá na <strong>Vše kromě aktivních</strong>, aby je nezaplňovaly.",
       "savedJds": "Uložené popisy pozic",
       "entryCount": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
       "loadFailed": "Načtení selhalo.",
@@ -4443,6 +4444,8 @@
       "deleteConfirm": "Smazat",
       "deleteCancel": "Zrušit",
       "detailOpenPublic": "Otevřít veřejnou stránku",
+      "copyPublicLink": "Kopírovat veřejný odkaz",
+      "publicLinkCopied": "Zkopírováno",
       "detailAnalyzeCv": "Analyzovat CV",
       "detailLoadError": "Tento popis se teď nepodařilo načíst.",
       "noDescriptionYet": "Tato pozice zatím nemá popis.",
@@ -4598,7 +4601,8 @@
           "failed": "Hovor se nepodařilo spustit. Pokračujte textem.",
           "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem.",
           "checkFailed": "Nepodařilo se zjistit, zda je hlas k dispozici. Zkuste to znovu, nebo pokračujte v textu.",
-          "recheck": "Zkusit znovu"
+          "recheck": "Zkusit znovu",
+          "updatingBrief": "Aktualizuji brief…"
         },
         "voiceIo": {
           "dictate": "Diktovat",
@@ -4702,6 +4706,7 @@
           "kindNote": "poznámka",
           "kindJd": "uložený popis pozice",
           "jdPick": "Vyberte uložený popis pozice…",
+          "retry": "Zkusit znovu",
           "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
           "noteFallbackTitle": "Poznámka bez názvu",
           "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech.",

@@ -10,6 +10,8 @@ import { confidenceGrade } from "@/app/_components/results/salary/salaryGauge.lo
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { jdBuildFailureCode } from "./jdsLibrary";
 import { caseTaskLabel, type CaseArtifact, type SnapshotArtifact } from "./jdsLedgerArtifacts";
 
 // In-progress placeholder shown in the detail while the detached build runs.
@@ -38,12 +40,14 @@ export function BuildingPanel({ progress, stalled = false }: { progress?: string
 // Failed build — the error plus a one-click retry (replays the original inputs).
 export function FailedPanel({ error, retrying, retryError, onRetry }: { error: string | null; retrying: boolean; retryError: string | null; onRetry: () => void }) {
   const t = useTranslations("library.tab");
+  const errMsg = useErrorMessage();
+  const code = jdBuildFailureCode(error);
   return (
     <div className="rounded-lg border border-red-200 bg-red-50/60 p-5">
       <p className="flex items-center gap-2 text-sm font-semibold text-red-700">
         <AlertTriangle size={16} aria-hidden /> {t("buildFailedTitle")}
       </p>
-      {error ? <p className="mt-2 break-words text-sm text-red-700/90">{error}</p> : null}
+      {error ? <p className="mt-2 break-words text-sm text-red-700/90">{errMsg({ code }, t("buildFailedTitle"))}</p> : null}
       <button
         type="button"
         onClick={onRetry}

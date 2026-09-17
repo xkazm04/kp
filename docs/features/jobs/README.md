@@ -2,7 +2,9 @@
 
 Job descriptions move from an AI draft to a live, matchable role. This covers
 the JD builder/lifecycle, structured job ingestion, the campaign-pack
-generator, and the specificity linter that runs live in the builder.
+generator, and the specificity linter that runs on saved JD bodies (ledger
+and public editors), not on the Generate need prompt. Phrase findings are
+click-to-highlight locators in the ledger editor.
 
 **Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
 **Job description**; **Role brief** belongs to the intake dialog and nowhere else.
@@ -67,9 +69,12 @@ ledger:
   `ingest.setOpen(true)` (pinned by `jobsEmptyLaunchpad.test.ts`). A `?job=` miss
   offers the same ingest action, so a stale share link degrades to paste-the-ad
   instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
-- `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now.
+- `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now. It opens on the All-but-live filter so live roles (the Roles tab's business) do not clutter the shelf.
 - `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
-- `/jds/[slug]` — the public JD page (candidate-facing).
+- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract.
+- Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
+- `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
+
 
 ## Lifecycle stages
 
@@ -80,6 +85,8 @@ ledger:
 | **Live (sourced)** | The JD is live and matching candidates have been sourced into the Pipeline (they land at `Accepted`). | "Publish" button (`POST /api/jobs/[id]/publish`) — in the drafts panel and the posting modal. | `jobs.status = 'published'` |
 | **Closed** | The role is retired: its apply link stops accepting applications, it drops out of the open catalog and the matching pool, and its in-flight pipeline entries in the caller's workspace are withdrawn. | `POST /api/jobs/[id]/close` (idempotent mirror of `/publish`). | `jobs.status = 'closed'` |
 | **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`, shown only when `canManage` (operator on the owning team). Anonymous share-link visitors never see it. | — |
+
+A failed AI build's ledger panel resolves a machine `code` (or `JD_GENERATE_FAILED`); it never renders the Python traceback that may still sit in `analysis_error`.
 
 `setJobStatus` (`app/_lib/job-ingest.ts`) owns every transition; a seeded
 corpus job with a `NULL` status is treated as already live. `Closed` was

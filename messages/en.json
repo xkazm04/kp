@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Could not create the scheduling link. Please try again.",
     "JD_LIST_FAILED": "Could not load the JD library. Please try again.",
     "JD_LOAD_FAILED": "Could not load the JD. Please try again.",
+    "JD_NOT_FOUND": "That job description could not be found.",
     "JD_SAVE_FAILED": "Could not save the JD. Please try again.",
     "JD_DELETE_FAILED": "Could not delete the JD. Please try again.",
     "JD_LIVE_CANNOT_DELETE": "This description belongs to a live role. Close the role first, then delete it.",
@@ -4372,7 +4373,7 @@
     "tab": {
       "eyebrow": "Workspace",
       "title": "Job description library",
-      "intro": "Describe a hiring need and let AI draft a job description.",
+      "intro": "Describe a hiring need and let AI draft a job description. Live roles live under Roles; this shelf defaults to <strong>All but live</strong> so they do not clutter it.",
       "savedJds": "Saved JDs",
       "entryCount": "{count, plural, one {# entry} other {# entries}}",
       "loadFailed": "Load failed.",
@@ -4443,6 +4444,8 @@
       "deleteConfirm": "Delete",
       "deleteCancel": "Cancel",
       "detailOpenPublic": "Open public page",
+      "copyPublicLink": "Copy public link",
+      "publicLinkCopied": "Copied",
       "detailAnalyzeCv": "Analyze a CV",
       "detailLoadError": "Couldn't load this description right now.",
       "noDescriptionYet": "This role doesn't have a description yet.",
@@ -4598,7 +4601,8 @@
           "failed": "The call didn't go through. Continue in text.",
           "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text.",
           "checkFailed": "Couldn't check whether voice is available. Try again, or continue in text.",
-          "recheck": "Check again"
+          "recheck": "Check again",
+          "updatingBrief": "Updating the brief…"
         },
         "voiceIo": {
           "dictate": "Dictate",
@@ -4702,6 +4706,7 @@
           "kindNote": "note",
           "kindJd": "saved JD",
           "jdPick": "Pick a saved JD…",
+          "retry": "Try again",
           "error": "Could not update the attachments. Please try again.",
           "noteFallbackTitle": "Untitled note",
           "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts.",

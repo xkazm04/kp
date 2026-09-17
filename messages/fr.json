@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Impossible de créer le lien de planification. Veuillez réessayer.",
     "JD_LIST_FAILED": "Impossible de charger la bibliothèque d’offres. Veuillez réessayer.",
     "JD_LOAD_FAILED": "Impossible de charger l’offre. Veuillez réessayer.",
+    "JD_NOT_FOUND": "Cette fiche de poste est introuvable.",
     "JD_SAVE_FAILED": "Impossible d’enregistrer l’offre. Veuillez réessayer.",
     "JD_DELETE_FAILED": "Impossible de supprimer l’offre. Veuillez réessayer.",
     "JD_LIVE_CANNOT_DELETE": "Cette description appartient à un poste en ligne. Fermez d’abord le poste, puis supprimez-la.",
@@ -4372,7 +4373,7 @@
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Bibliothèque de fiches de poste",
-      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste.",
+      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste. Les postes en ligne restent sous Postes; cette étagère s’ouvre sur <strong>Tout sauf en ligne</strong> pour ne pas les encombrer.",
       "savedJds": "Fiches enregistrées",
       "entryCount": "{count, plural, one {# entrée} other {# entrées}}",
       "loadFailed": "Échec du chargement.",
@@ -4443,6 +4444,8 @@
       "deleteConfirm": "Supprimer",
       "deleteCancel": "Annuler",
       "detailOpenPublic": "Ouvrir la page publique",
+      "copyPublicLink": "Copier le lien public",
+      "publicLinkCopied": "Copié",
       "detailAnalyzeCv": "Analyser un CV",
       "detailLoadError": "Impossible de charger cette description pour le moment.",
       "noDescriptionYet": "Ce poste n’a pas encore de description.",
@@ -4598,7 +4601,8 @@
           "failed": "L’appel n’a pas abouti. Continuez par écrit.",
           "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit.",
           "checkFailed": "Impossible de vérifier si la voix est disponible. Réessayez ou continuez par écrit.",
-          "recheck": "Vérifier à nouveau"
+          "recheck": "Vérifier à nouveau",
+          "updatingBrief": "Mise à jour du brief…"
         },
         "voiceIo": {
           "dictate": "Dicter",
@@ -4702,6 +4706,7 @@
           "kindNote": "note",
           "kindJd": "fiche enregistrée",
           "jdPick": "Choisir une fiche enregistrée…",
+          "retry": "Réessayer",
           "error": "Impossible d'enregistrer les documents. Veuillez réessayer.",
           "noteFallbackTitle": "Note sans titre",
           "textCap": "Cette note dépasse les {max, number} caractères qu'un document de référence peut contenir. Raccourcissez-la ou joignez-la en plusieurs parties.",

@@ -1739,6 +1739,16 @@ export const REFUSAL_ERRORS = {
   /** DELETE /api/jds/[slug] by someone who neither authored the JD nor holds an
    *  admin seat (403). See app/_lib/jds-delete-access.ts for the rule. */
   JD_DELETE_FORBIDDEN: "Only the person who created this description, or an admin, can delete it.",
+  /** A JD slug does not resolve in this workspace (404). Same envelope as
+   *  POSTING_NOT_FOUND so useErrorMessage localizes it instead of falling through
+   *  to English "JD not found." */
+  JD_NOT_FOUND: "That job description could not be found.",
+  /** POST /api/jds and POST /api/jds/save: title or body missing after trim (400). */
+  JD_FIELDS_REQUIRED: "A title and a description are both required.",
+  /** Title over JD_TITLE_MAX_LENGTH (400). */
+  JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
+  /** Body over JD_BODY_MAX_LENGTH (400). */
+  JD_BODY_TOO_LONG: "The description must be 20,000 characters or fewer.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

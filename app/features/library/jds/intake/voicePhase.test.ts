@@ -6,6 +6,8 @@
 //   node scripts/run-unit-tests.mjs app/features/library/jds/intake/voicePhase.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   HANGUP_DELAY_MS,
   apiFailure,
@@ -17,7 +19,7 @@ import {
   type VoiceUiState,
 } from "./voicePhase.ts";
 
-const live: VoiceUiState = { phase: "live", failure: null, awaitingMic: false, audioBlocked: false };
+const live: VoiceUiState = { phase: "live", failure: null, awaitingMic: false, audioBlocked: false, extracting: false };
 
 test("start moves idle → connecting and clears the previous failure", () => {
   const failed = voiceUiReducer(initialVoiceUiState, {
@@ -88,6 +90,24 @@ test("finishing → processing → idle, and a write-up failure survives the clo
   assert.equal(voiceUiReducer(processing, { type: "finished" }).failure, null);
   // Nothing to write up when no call was ever up.
   assert.equal(voiceUiReducer(initialVoiceUiState, { type: "finishing" }).phase, "idle");
+});
+
+test("the voice driver raises extractStart when completeTurn says extract", () => {
+  const src = readFileSync(fileURLToPath(new URL("./JdsIntakeVoice.tsx", import.meta.url)), "utf8");
+  assert.match(src, /if \(extract\) \{/);
+  assert.match(src, /dispatchUi\(\{ type: "extractStart" \}\)/);
+  assert.match(src, /t\("updatingBrief"\)/);
+});
+
+test("extract true raises the brief-updating flag until extractEnd or hang-up", () => {
+  const started = voiceUiReducer(live, { type: "extractStart" });
+  assert.equal(started.extracting, true);
+  assert.equal(started.phase, "live");
+  assert.equal(voiceUiReducer(started, { type: "extractEnd" }).extracting, false);
+  assert.equal(voiceUiReducer(started, { type: "finishing" }).extracting, false);
+  // A late start after hang-up must not resurrect the cue.
+  const processing = voiceUiReducer(live, { type: "finishing" });
+  assert.equal(voiceUiReducer(processing, { type: "extractStart" }).extracting, false);
 });
 
 test("audioBlocked is carried while live and dropped on close", () => {

@@ -4,7 +4,7 @@ import { listJobPipelineStats } from "@/app/_lib/db/pipeline";
 import { jdLibraryStats, listJdsPage, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
 import { currentUser } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
   const record = body as Record<string, unknown>;
   const fields = validateJdFields(record.title, record.body);
   if (!fields.ok) {
-    return NextResponse.json({ error: fields.error }, { status: 400 });
+    return jsonRefusal(fields.code, 400);
   }
   try {
     // Stamp the author at INSERT — it is the only moment the identity is known for

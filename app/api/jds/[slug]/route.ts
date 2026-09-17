@@ -29,7 +29,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     const ws = await currentWorkspace();
     const row = loadJd(slug, ws);
     if (!row) {
-      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+      return jsonRefusal("JD_NOT_FOUND", 404);
     }
     // The JD detail is public/shareable, but the stored build intent
     // (build_input_json — the recruiter's raw "describe the need" text) is
@@ -89,7 +89,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
-    if (!existing) return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
 
     const body = (await request.json().catch(() => ({}))) as {
       title?: unknown;
@@ -118,7 +118,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+      return jsonRefusal("JD_NOT_FOUND", 404);
     }
 
     // Keep the linked jd-<slug> job in step with the edited wording —
@@ -185,7 +185,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
   const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
-    if (!existing) return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
 
     const actor = await jdDeleteActor();
     if (!canDeleteJd(actor, existing.created_by)) return jsonRefusal("JD_DELETE_FORBIDDEN", 403);
@@ -205,7 +205,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
     // lifecycle object with its own door, it may already carry pipeline entries and
     // analyses, and cascading a role deletion out of a library action is exactly the
     // kind of invisible blast radius this codebase refuses elsewhere.
-    if (!deleteJd(slug, ws)) return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    if (!deleteJd(slug, ws)) return jsonRefusal("JD_NOT_FOUND", 404);
     return NextResponse.json({ ok: true, deleted: slug });
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_DELETE_FAILED");
