@@ -103,3 +103,10 @@ test("the script tag ships the exclusion list and the script build that honours 
   assert.match(src, /data-exclude=\{EXCLUDED_PAGES\}/, "must pass the exclusion globs");
   assert.match(src, /TOKENIZED_PATH_PREFIXES\.map\(\(prefix\) => `\$\{prefix\}\*`\)/, "globs must derive from the one list");
 });
+
+test("the Analytics tab fires the three named cookieless events", () => {
+  const read = (rel: string) => readFileSync(path.join(APP_DIR, "features", "insights", "analytics", rel), "utf8");
+  assert.match(read("AnalyticsTab.tsx"), /track\("analytics_section"/);
+  assert.match(read("AnalyticsExportButton.tsx"), /track\("analytics_export"/);
+  assert.match(read("AnalyticsThresholdSuggestion.tsx"), /track\("calibration_apply"/);
+});

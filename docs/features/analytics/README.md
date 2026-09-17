@@ -1027,7 +1027,7 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 
 Separate from everything above — that is the operator's own board, computed from the local
 DB. `app/_lib/analytics/` is the third-party half: `plausible.tsx` renders the script tag and
-`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`, `checkout_completed`).
+`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`, `checkout_completed`, and on this tab `analytics_section` `{sec}`, `analytics_export` `{artifact}`, `calibration_apply` `{family: 0|1}`). No PII in those props — section ids, artifact names, booleans only.
 
 Both are env-gated on `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Unset — dev, and every self-hosted
 deploy that does not opt in — renders nothing and ships zero analytics bytes.
