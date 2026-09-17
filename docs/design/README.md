@@ -783,6 +783,22 @@ and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — ev
 centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
 just the record, so a fifteenth site cannot quietly invent a sixth size.
 
+### Tab id → traced glyph (`glyphForTab`)
+
+Empty-state consumers used to each import a concrete `*Glyph.ts` module, so a
+new Jobs empty state could drop a lucide icon beside a traced neighbour with
+nothing to say the jobs glyph already existed.
+[`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) maps the tabs
+that already have art (`jobs`, `library`, `analytics`, `decisions`, `channels`,
+`schedule`, `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns
+the glyph or `undefined` — it does not throw. `ChainEmptyState` takes optional
+`tab` and resolves through that map; an explicit `glyph` still wins. Channel
+pane extras (ads / careers / email) stay in `channelsEmptySpecs`; the archetypes
+matrix projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
+`glyphRegistry.test.ts` pins the lookup and that every traced module except
+the channel extras is keyed. `glyphsHaveConsumers.test.ts` still requires a
+render site outside the glyphs folder.
+
 ### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
 
 Two contracts the glyph renderer declared and did not keep:
@@ -830,6 +846,15 @@ sees. Each was resolved rather than left standing:
 The renderer is two layers now (`entrance` + `ambient`), and
 `motionPresets.test.ts` still pins the preset union to exactly the records those
 two props read.
+
+Empty-state heroes default `playOnce` (true). The IntersectionObserver
+disconnects after the first intersecting callback so switching back to an empty
+Jobs or Decisions tab does not replay the stagger. Under
+`prefers-reduced-motion` the observer is never armed — `useReducedMotion()`
+skips the effect, and
+[`shouldReplayEntrance`](../../app/_components/glyph/glyphEntrancePolicy.ts)
+returns false when `reduced` is true even for a looping (`playOnce={false}`)
+consumer. `glyphEntrancePolicy.test.ts` pins both.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

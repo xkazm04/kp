@@ -2,6 +2,7 @@
 
 import { CalendarClock } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { DateTimeInput } from "@/app/_components/DateTimeInput";
 import { MAX_PROPOSE_TIMES } from "./use-schedule-invite";
 
 // The escalation surface, shared by the two stuck states (a fully-booked horizon and
@@ -51,13 +52,11 @@ export function ProposeSection({
       ) : null}
       <div className="mt-3 space-y-2">
         {Array.from({ length: MAX_PROPOSE_TIMES }).map((_, idx) => (
-          <input
+          <DateTimeInput
             key={idx}
-            type="datetime-local"
             value={proposeTimes[idx] ?? ""}
             onChange={(e) => onChangeTime(idx, e.target.value)}
             aria-label={t("proposeSlotAria", { n: idx + 1 })}
-            className="focus-ring w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-base text-ink"
           />
         ))}
       </div>
