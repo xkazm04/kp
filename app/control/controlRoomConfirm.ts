@@ -61,3 +61,23 @@ export function armOrExecute(
 export function floorKey(floor: number): string {
   return `floor:${floor}`;
 }
+
+/**
+ * The armed key for "approve this Art. 22 gate". The VALUE is the on-screen
+ * descriptor (title is truncated; `detail` is the lifecycle's own line), not
+ * just the lifecycle id. A poll that replaces the row under the same id with a
+ * different case is a DIFFERENT control, so armOrExecute re-arms instead of
+ * signing off a descriptor the operator did not confirm.
+ */
+export function gateKey(id: string, detail: string | null | undefined): string {
+  return `gate:${id}:${hashDetail(detail ?? "")}`;
+}
+
+function hashDetail(value: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}

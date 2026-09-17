@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { armOrExecute, ARMED_TTL_MS, cancelArmed, floorKey } from "./controlRoomConfirm.ts";
+import { armOrExecute, ARMED_TTL_MS, cancelArmed, floorKey, gateKey } from "./controlRoomConfirm.ts";
 
 const roomSrc = readFileSync(fileURLToPath(new URL("./ControlRoom.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 const barSrc = readFileSync(fileURLToPath(new URL("./AutonomyBar.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
@@ -52,6 +52,18 @@ test("a promote floor that CHANGED under the arm re-arms instead of firing", () 
 
 test("confirming the SAME suggested floor still applies it", () => {
   const r = armOrExecute(floorKey(70), floorKey(70));
+  assert.equal(r.execute, true);
+  assert.equal(r.nextArmed, null);
+});
+
+test("a gate whose detail changed under the arm re-arms instead of firing", () => {
+  const r = armOrExecute(gateKey("lc-1", "v1"), gateKey("lc-1", "v2"));
+  assert.equal(r.execute, false, "a confirm must never sign off a descriptor the operator did not see");
+  assert.equal(r.nextArmed, gateKey("lc-1", "v2"));
+});
+
+test("confirming the SAME gate descriptor still applies it", () => {
+  const r = armOrExecute(gateKey("lc-1", "v1"), gateKey("lc-1", "v1"));
   assert.equal(r.execute, true);
   assert.equal(r.nextArmed, null);
 });

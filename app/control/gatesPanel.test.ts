@@ -15,5 +15,6 @@ test("every pending gate offers a Review link to Assignments with the lifecycle 
     "the review href must include the lifecycle id"
   );
   assert.match(src, /t\("review"\)/);
-  assert.match(src, /guard\(g\.id, \(\) => onApprove\(g\.id\)\)/, "Approve stays the two-step no-edit path");
+  assert.match(src, /gateKey\(g\.id, g\.detail\)/, "Approve arms by gateKey so a changed detail re-arms");
+  assert.match(src, /guard\(key, \(\) => onApprove\(g\.id\)\)/, "Approve still receives the lifecycle id");
 });

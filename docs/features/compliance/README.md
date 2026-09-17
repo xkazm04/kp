@@ -466,7 +466,9 @@ operator has left the page. Escape while armed calls `cancelArmed` (execute
 false, nextArmed null) and announces the cancel on a polite live region. The room
 re-polls every 3s, so a control's identity has to include anything that can
 change under the arm: the promote-floor key carries the VALUE (`floorKey`,
-e.g. `floor:70`). With the earlier constant `"floor"` key a suggestion that
+e.g. `floor:70`), and a pending-gate Approve is keyed as `gateKey(id, detail)`
+so a polled replacement under the same lifecycle id re-arms instead of
+signing off. With the earlier constant `"floor"` key a suggestion that
 moved between the two clicks — one newly-decided outcome is enough to shift
 which band `calibrate()` picks — was applied without its own confirm and
 sealed into `dev_audit` as a human decision for a number nobody confirmed.
