@@ -368,6 +368,7 @@ const FLOOR = {
   "personas-self": { requiredExpectations: ["probation", "noViolations"] },
   ascent: { requiredExpectations: ["probation", "noViolations", "minProposalsOpened"] },
   "systedo-case": { requiredExpectations: ["probation", "noViolations", "minProposalsOpened"] },
+  "kp-c1-night": { requiredExpectations: ["noViolations", "rankVsBacklog", "declineQuality", "valueLiteracy"] },
 };
 
 test("no baselined scenario may be deleted", () => {

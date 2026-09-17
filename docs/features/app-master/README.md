@@ -1599,7 +1599,11 @@ because the instruction each carries is different.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
-printed loudly so nobody reads silence as coverage.
+printed loudly so nobody reads silence as coverage. `kp-c1-night` is **not** in
+that bucket: it is a gate subject (`mustPass`, its four C1 `expect` keys,
+`metrics: null` until a live night is committed), so a night that stops ranking
+the backlog or starts dispatching under `suggest` fails `bench:gate` instead of
+landing as an unbaselined extra.
 
 #### The baseline carries numbers (schemaVersion 2)
 
@@ -1620,7 +1624,7 @@ merged, gate pass rate 0.944, 0 violations, backbone score 0.9056, coverage 1).
 That run used `--stub-personas`, so those figures are **canned by construction**
 and the gate refuses a stub run outright: treat them as the SHAPE a real sweep
 must clear, and re-record them from the first live sweep with `metricsFrom`
-naming its run. The other five scenarios stay honestly at `metrics: null` and are
+naming its run. The other six scenarios stay honestly at `metrics: null` and are
 reported as **`unmetered`** — nobody has measured them, which is a gap to fill
 rather than a failure to invent, and the gate says so in its own line.
 
