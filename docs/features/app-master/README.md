@@ -1811,9 +1811,12 @@ The schemas travel three ways once the later phases land:
   (`python app/_lib/app-master/__fixtures__/generate.py`) — but forgetting is now
   a red gate rather than a silent drift.
 - **Only the latest period is scored.** Rollups are absolutes per period, so the
-  latest one is treated as the review window. An agent that reported August and
-  went quiet keeps showing August's verdict; there is no trend across windows and
-  no staleness marker beyond the period name.
+  latest one is treated as the review window. There is no trend across windows.
+  `backboneFreshness` (`app/_lib/app-master/backbone.ts`) classifies that period
+  as `current | stale | unknown` (`YYYY-MM` older than the current month, or
+  `YYYY-MM-DD` older than the review window, is stale; unparseable is unknown,
+  never invented stale) so a roster can label a quiet hire instead of implying
+  August's verdict is still the review window.
 - **The mandate is data kp dispatches, not a bound kp enforces.** `scopeRung` and
   `forbiddenClasses` ride the wire and the roster shows them; blocking a proposal
   that touches a forbidden class happens in Personas' `autonomy.rs`, which is not

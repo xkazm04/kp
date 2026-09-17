@@ -475,8 +475,9 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   job. The roster row's intake link is the only handle; a promoted intake (one that also
   built a JD) does keep its job and its card.
 - **The backbone is scored from the LATEST period only**: an agent that reported August and
-  then went quiet keeps showing August's verdict. There is no multi-window trend, and no
-  staleness marker on the verdict beyond the period the rollup names.
+  then went quiet keeps showing August's verdict. There is no multi-window trend.
+  `backboneFreshness` classifies the named period (`current | stale | unknown`) so a
+  roster can label an out-of-window verdict instead of implying it is live.
 - **Two implementations of one scorer**: `backbone_score` exists in Python (the authority)
   and TypeScript (the read path). They are pinned by generated fixtures
   (`app/_lib/app-master/backbone.test.ts`), but a change still has to be made twice.
