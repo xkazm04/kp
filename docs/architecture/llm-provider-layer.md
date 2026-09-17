@@ -694,7 +694,7 @@ Models. One section there answers it, from three sources at once:
 | Source | What it contributes |
 | --- | --- |
 | `GET /api/billing` (prop from the tab) | This period's plan meters: included allowance, remaining, pack credits |
-| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`) |
+| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over `?days=` (default 30, max 365). `?useCase=` restricts to one catalog id (400 + the catalog on unknown; omit = all) |
 | `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
 
 `useSpendData.ts` owns both fetches for the whole section — one loading state,
