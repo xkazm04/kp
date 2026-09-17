@@ -78,14 +78,18 @@ export async function PUT(request: NextRequest) {
       : undefined;
   // A KEYLESS provider (a stock Ollama / llama.cpp / LM Studio server checks no
   // credential) may be saved with a base URL and no key — that row exists to say
-  // WHERE the model server is. Every other provider still requires a key, and even
-  // a keyless one must carry at least one of the two, or the row says nothing.
-  if (!apiKey && !(isKeylessProvider(body.provider) && baseUrl)) {
-    return jsonRefusal(
-      isKeylessProvider(body.provider) ? "MODEL_KEY_LOCATION_REQUIRED" : "MODEL_KEY_SECRET_REQUIRED",
-      400,
-      { provider: body.provider }
-    );
+  // WHERE the model server is. Gateway is also keyless but is not a base-URL
+  // provider, so the Server URL field is hidden; an empty-key save is the
+  // documented valid row (built-in loopback). Every other provider still
+  // requires a key. A keyless provider that DOES show a location still needs
+  // one of the two, or the row says nothing.
+  if (!apiKey) {
+    if (!isKeylessProvider(body.provider)) {
+      return jsonRefusal("MODEL_KEY_SECRET_REQUIRED", 400, { provider: body.provider });
+    }
+    if (!baseUrl && providerAcceptsBaseUrl(body.provider)) {
+      return jsonRefusal("MODEL_KEY_LOCATION_REQUIRED", 400, { provider: body.provider });
+    }
   }
   const scope = isScope(body.scope) ? body.scope : "byom";
   const endpoint = typeof body.endpoint === "string" && body.endpoint.trim() ? body.endpoint.trim() : undefined;
