@@ -2317,7 +2317,7 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
   const src = read("./invite/[token]/route.ts");
   assert.match(
     src,
-    /import \{ isThrottled, recordFailedAttempt, type ThrottleOpts \} from "@\/app\/_lib\/auth\/login-throttle";/,
+    /import \{ isThrottled, recordFailedAttempt, throttleRetryAfterMs, type ThrottleOpts \} from "@\/app\/_lib\/auth\/login-throttle";/,
     "the invite door must share the login/register throttle store, not the in-process Map",
   );
   assert.doesNotMatch(src, /rateLimit\(/, "…and must not keep a second, per-process budget beside it");
@@ -2340,9 +2340,14 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
     // store changes WHERE the count lives, never what a throttled caller is told.
     const refusal = src.slice(gateAt, gateAt + 300);
     assert.ok(
-      refusal.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
-      `${verb}: the refusal must go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
+      refusal.includes("throttledRefusal("),
+      `${verb}: the refusal must go through throttledRefusal so 429 carries Retry-After`,
     );
+    assert.ok(
+      src.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
+      `${verb}: the refusal must still go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
+    );
+    assert.ok(src.includes("Retry-After"), `${verb}: a tripped throttle must send Retry-After`);
     // EVERY attempt counts, success included — like register, and unlike login.
     // What is bounded is provisioning and invitee disclosure, not guessing, so a
     // successful redeem must still spend its slot.
