@@ -726,8 +726,10 @@ role, so a renamed board still works). *Accept all* moves them to the next colum
 *Reject all* rejects them, both through `POST /api/pipeline/batch` with per-item
 `expectedStage` guards (a candidate moved since the board was read is skipped, never
 acted on blindly); *Reject all* needs a second click, because it emails everyone. *AI
-evaluate* starts ONE `batch_screen` background task over the named cohort — that task
-now takes an optional `entryIds` and, without one, sweeps every pre-gate column by role
+evaluate* starts ONE `batch_screen` background task over the named cohort, keyed by
+that cohort's sorted ids (`task-dedupe.ts`) so a second role's evaluate does not join
+the first's in-flight run and inherit its verdicts. The task takes an optional
+`entryIds` and, without one, sweeps every pre-gate column by role
 rather than the literal "Screened" it used to. Outcomes arrive as a toast in the
 reader's language and the board reloads. The scope is deliberately the entry column
 only: a row menu that reached every column would make "Reject all" a way to empty a
