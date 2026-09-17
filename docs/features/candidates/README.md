@@ -158,7 +158,10 @@ can hold anything another tab or an older build left behind, so a non-string
 field is dropped rather than pushed into a controlled `<textarea>` (a corrupted
 `github` never costs the recruiter their JD), an all-empty draft removes the key
 instead of writing a hollow one, and a restore only fills a field still empty so
-a saved-JD pick always beats a stale draft.
+a saved-JD pick always beats a stale draft. `blind` and `reportLang` ride the
+same codec (`reportLang` validated with `isLocale`); they restore only when
+still at the mount default, so a configured run survives the workspace tab
+unmount the draft was built for.
 
 **The drop highlight is counted, and the zones announce themselves.** A zone is a
 `<label>` wrapping an icon, a title and a hint, and `dragenter`/`dragleave` fire
