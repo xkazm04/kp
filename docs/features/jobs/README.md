@@ -3,7 +3,8 @@
 Job descriptions move from an AI draft to a live, matchable role. This covers
 the JD builder/lifecycle, structured job ingestion, the campaign-pack
 generator, and the specificity linter that runs on saved JD bodies (ledger
-and public editors), not on the Generate need prompt.
+and public editors), not on the Generate need prompt. Phrase findings are
+click-to-highlight locators in the ledger editor.
 
 **Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
 **Job description**; **Role brief** belongs to the intake dialog and nowhere else.

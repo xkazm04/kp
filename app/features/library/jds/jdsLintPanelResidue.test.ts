@@ -37,6 +37,12 @@ test("every JdLintMessage key the panel renders is tested by name", () => {
   }
 });
 
+test("phrase findings call onLocate with the reported substring", () => {
+  assert.match(panel, /onLocate\?: \(phrase: string\) => void/);
+  assert.match(panel, /lintFindingPhrase\(f\)/);
+  assert.match(panel, /onClick=\{\(\) => onLocate\(phrase\)\}/);
+});
+
 test("the chain's residue is a compile-time `never`, not a label", () => {
   // The last branch must hand the residue to a handler whose parameter is
   // `never` — that is what makes a sixth message key a build failure here
