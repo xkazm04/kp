@@ -78,9 +78,11 @@ after an interrupted migration.
 
 A third: the boot DDL is deliberately loud. Every `ALTER`/`CREATE` runs through
 `migrateExec`, which tolerates ONLY the benign "already applied" error and re-throws the
-rest — and, since wave 40, so do the nine per-tenant scan indexes (previously one bare
+rest — and, since wave 40, so do the per-tenant scan indexes (previously one bare
 `catch` wrapped all nine, so a single unexpected failure silently skipped the remaining
-eight) and the four UNIQUE indexes, which now go through `migrateUniqueIndex`: it tolerates
+eight; the block now also covers `interview_sessions`, `campaign_packs`, `tasks` and
+`skill_profiles`, which gained `workspace_id` in Phase 1 without an `idx_*_workspace`)
+and the four UNIQUE indexes, which now go through `migrateUniqueIndex`: it tolerates
 `SQLITE_CONSTRAINT_UNIQUE` — a legacy DB whose existing rows block the constraint, where
 the app-level read-then-insert coalescing stays the guarantee — logs which index was
 skipped and why, and re-throws everything else. A port keeps that split: the "duplicate

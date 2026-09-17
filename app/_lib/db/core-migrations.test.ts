@@ -114,6 +114,22 @@ test("ALTER-loop migrations landed: jds carries the backgrounded-analysis column
   }
 });
 
+test("per-tenant scan indexes cover interviews, campaign packs, tasks, and skill profiles", () => {
+  const names = new Set(
+    (ensureDb()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`)
+      .all() as { name: string }[]).map((r) => r.name)
+  );
+  for (const index of [
+    "idx_interview_sessions_workspace",
+    "idx_campaign_packs_workspace",
+    "idx_tasks_workspace",
+    "idx_skill_profiles_workspace",
+  ]) {
+    assert.ok(names.has(index), `${index} must exist after migrations`);
+  }
+});
+
 test("the llm_usage ledger exists with its metering columns and both indexes", () => {
   const cols = columnNames("llm_usage");
   for (const col of ["ts", "use_case", "provider", "model", "input_tokens", "output_tokens", "cost_usd", "source", "outcome", "reason"]) {

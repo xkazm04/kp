@@ -2134,12 +2134,16 @@ export function ensureDb(): Database.Database {
   db.prepare(`UPDATE workspaces SET type = 'team' WHERE type IS NULL`).run();
   // The per-tenant scan indexes. Every statement is `IF NOT EXISTS`, so "already exists"
   // is the ONE error SQLite cannot raise here — which is what made the single bare
-  // `catch { /* index already exists */ }` that used to wrap all nine a pure loss: it
-  // named an impossible error, absorbed the possible ones (lock contention, I/O, a name
-  // collision with a real table) and, because one try covered the whole block, ABORTED
-  // every index after the failing one. A tenant read then scanned the whole table for the
-  // life of the deployment with nothing logged. migrateExec tolerates only the benign
-  // re-run and is loud about the rest, per statement.
+  // `catch { /* index already exists */ }` that used to wrap the original nine a pure
+  // loss: it named an impossible error, absorbed the possible ones (lock contention, I/O,
+  // a name collision with a real table) and, because one try covered the whole block,
+  // ABORTED every index after the failing one. A tenant read then scanned the whole table
+  // for the life of the deployment with nothing logged. migrateExec tolerates only the
+  // benign re-run and is loud about the rest, per statement.
+  //
+  // The last four close the Phase-1 tenancy ALTER gap: interview_sessions, campaign_packs,
+  // tasks and skill_profiles gained workspace_id without a matching idx_*_workspace, so
+  // interviewedForJob / campaign pack get / task poll still table-scanned.
   for (const sql of [
     `CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`,
@@ -2150,6 +2154,10 @@ export function ensureDb(): Database.Database {
     `CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_interview_sessions_workspace ON interview_sessions (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_skill_profiles_workspace ON skill_profiles (workspace_id)`,
   ]) {
     migrateExec(sql);
   }
