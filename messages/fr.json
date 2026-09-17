@@ -1657,6 +1657,7 @@
     "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification.",
     "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer.",
     "DECISION_RECORDS_READ_FAILED": "Impossible de charger les registres de décision. Veuillez réessayer.",
+    "JD_FRESHNESS_LOOKUP_FAILED": "Impossible de vérifier la date de dernière modification de ces fiches de poste. Veuillez réessayer.",
     "SIM_RESET_FAILED": "Impossible d'effacer les données de la simulation. Veuillez réessayer.",
     "SIM_INBOUND_FAILED": "Impossible de simuler la candidature entrante. Veuillez réessayer.",
     "SIM_SCREEN_DRAFT_FAILED": "Impossible de préparer la recommandation de présélection. Veuillez réessayer.",
