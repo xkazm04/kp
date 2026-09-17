@@ -45,6 +45,10 @@ inventing a second scoping dimension.
   inverse of signup's `haveAccount` row); when false, the footer is omitted so
   the door matches `/signup`'s 404 concealment. The env is never mirrored into a
   `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
+  `/login` itself does not re-prompt an entered session: if
+  `hasEnteredWorkspace()` is already true, the server wrapper redirects to
+  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Anonymous
+  visitors still see the form.
 
 ## Identity & auth
 

@@ -93,6 +93,13 @@ test("even a same-origin ABSOLUTE url is refused — only in-app paths are legit
   assert.equal(safeNextPath(`?next=${encodeURIComponent(`${ORIGIN}/jobs?x=1`)}`, ORIGIN), "/");
 });
 
+test("LoginPage redirects an entered session into the workspace", () => {
+  const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  assert.match(page, /hasEnteredWorkspace\(\)/, "the server wrapper must consult the home gate");
+  assert.match(page, /redirect\(/, "an entered session leaves /login");
+  assert.match(page, /safeNextPath\(/, "a phishing next cannot escape the request origin");
+});
+
 test("LoginPage threads signupEnabled into LoginClient; the footer is gated on signupOpen", () => {
   const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
   const client = readFileSync(new URL("./LoginClient.tsx", import.meta.url), "utf8");
