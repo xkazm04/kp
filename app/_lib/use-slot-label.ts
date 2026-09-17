@@ -3,6 +3,7 @@
 import { useLocale } from "next-intl";
 import { useCallback } from "react";
 import { slotFormatters } from "./date-format.ts";
+import { resolveTimeZone, timeZoneShortLabel } from "./timezone.ts";
 
 // SCH4 — format a slot's ISO datetime in the candidate's ACTIVE locale for
 // display, instead of the server-minted English label ("Tue 10 Jun · 10:00")
@@ -32,18 +33,31 @@ import { slotFormatters } from "./date-format.ts";
  */
 export { slotFormatters } from "./date-format.ts";
 
-/** The pure formatter behind the hook — `locale` explicit, no React. */
-export function formatSlotLabel(iso: string | null | undefined, locale: string, fallback?: string | null): string {
+/** The pure formatter behind the hook — `locale` explicit, no React.
+ *  Optional `timeZone` (IANA) appends a short zone (` · GMT+2`) when
+ *  {@link timeZoneShortLabel} can name it, so a remote candidate does not
+ *  read a shifted "16:00" as the recruiter's 16:00. */
+export function formatSlotLabel(
+  iso: string | null | undefined,
+  locale: string,
+  fallback?: string | null,
+  opts?: { timeZone?: string | null }
+): string {
   if (!iso) return fallback ?? "";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return fallback ?? "";
   const d = new Date(ms);
   const { date, time } = slotFormatters(locale);
   // Mirror the server label's "<date> · <time>" shape so the two read alike.
-  return `${date.format(d)} · ${time.format(d)}`;
+  const label = `${date.format(d)} · ${time.format(d)}`;
+  const requested = opts?.timeZone;
+  if (!requested) return label;
+  const zone = timeZoneShortLabel(iso, locale, requested);
+  return zone ? `${label} · ${zone}` : label;
 }
 
 export function useSlotLabel(): (iso: string | null | undefined, fallback?: string | null) => string {
   const locale = useLocale();
-  return useCallback((iso, fallback) => formatSlotLabel(iso, locale, fallback), [locale]);
+  const timeZone = resolveTimeZone();
+  return useCallback((iso, fallback) => formatSlotLabel(iso, locale, fallback, { timeZone }), [locale, timeZone]);
 }
