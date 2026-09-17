@@ -40,6 +40,22 @@ export function distinct(values: (string | null)[]): string[] {
   return [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
 }
 
+/**
+ * Case- and diacritic-insensitive search key. Same fold as the profile roster
+ * and the analytics audit log: a recruiter who cannot type Č still finds Čapek.
+ * Copied rather than imported across feature modules (three lines).
+ */
+export function foldForSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** True when the History search needle hits the candidate label or the slug. */
+export function historyRowMatchesQuery(row: Pick<AnalysisRow, "candidate_label" | "slug">, q: string): boolean {
+  const needle = foldForSearch(q.trim());
+  if (!needle) return true;
+  return foldForSearch(row.candidate_label).includes(needle) || foldForSearch(row.slug).includes(needle);
+}
+
 // Filter-dropdown options ordered by what is ON SCREEN, in the reader's locale.
 //
 // Two bugs in one: the options were emitted in `distinct()`'s slug order, which

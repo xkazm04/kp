@@ -52,7 +52,9 @@ career-switcher) that other features key off. Downstream ranking is
   missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
   seniority/decision filters run CLIENT-side over the rows `/api/analyses`
-  returned (a hard cap, default 200). The route answers `{ truncated, limit }`
+  returned (a hard cap, default 200). Name search folds diacritics and case
+  (`foldForSearch` / `historyRowMatchesQuery` in `HistoryTypes.ts`, the same
+  fold as the profile roster), so `capek` finds `Čapek`. The route answers `{ truncated, limit }`
   beside the rows; when the page was cut, History names it as a page
   ("Showing {n} newest; older runs still open by slug") and the Showing-of
   line uses the loaded-slice copy instead of `rows.length` as a total. The

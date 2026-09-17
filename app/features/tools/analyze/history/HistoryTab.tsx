@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { CARD_PAD, DIVIDER, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { HistoryTable } from "./HistoryTable";
-import { distinct, readAnalysesListPayload, type AnalysisRow } from "./HistoryTypes";
+import { distinct, historyRowMatchesQuery, readAnalysesListPayload, type AnalysisRow } from "./HistoryTypes";
 
 export function HistoryTab() {
   const t = useTranslations("history");
@@ -77,10 +77,9 @@ export function HistoryTab() {
   const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
   const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return (rows ?? []).filter(
       (r) =>
-        (!needle || r.candidate_label.toLowerCase().includes(needle) || r.slug.toLowerCase().includes(needle)) &&
+        historyRowMatchesQuery(r, q) &&
         (!roleFamily || r.role_family === roleFamily) &&
         (!seniority || r.seniority === seniority) &&
         (!disposition || (disposition === "undecided" ? r.disposition == null : r.disposition === disposition))
