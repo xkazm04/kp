@@ -9,9 +9,10 @@
 // that constant here, and a drift fails the suite instead of quietly misinforming.
 //
 // Scope note: this pins the couplings a test can check mechanically — the chapter
-// frames, chapter 4's tally arithmetic, and chapter 6's parked kinds. Prose claims
-// live in messages/*.json and are reviewed by reading; see each scene's header
-// comment for the constants its copy quotes.
+// frames, chapter 1's grounding sentence, chapter 4's tally arithmetic, and
+// chapter 6's parked kinds. Remaining prose claims live in messages/*.json and
+// are reviewed by reading; see each scene's header comment for the constants
+// its copy quotes.
 //
 // Runner: Node's built-in test runner with type stripping (no extra deps).
 //   npm run test:unit
@@ -164,6 +165,74 @@ test("the archetype scene's quoted detection constants still hold", () => {
   assert.ok(
     detection.defaultConfidence < detection.lowConfidenceThreshold,
     "the chapter's whole point: the unguided fallback must sit BELOW the review threshold"
+  );
+});
+
+// ---- chapter 1: the grounding sentence --------------------------------------
+//
+// The orphan-row scene's whole argument is the prompt rule "every mustHave must
+// trace to something the inputs state". Chapters 2–5 already pin the engine
+// numbers they quote; chapter 1 was the remaining unpinned claim. A regex
+// against design.py plus the English catalog string is the same mechanical
+// coupling — no Python import required.
+
+test("every scene names a stillTick that is the complete-argument beat", () => {
+  // useSceneClock defaults stillTick to cycle-1. That is a trap: a scene whose
+  // last beat is a teardown or a reset would pin reduced-motion readers on the
+  // wrong story. Every scene must declare STILL, pass it explicitly, keep it
+  // inside the cycle, and not leave the closing status sentence after it.
+  const scenes = [
+    "scenes/jd/JdGrounding.tsx",
+    "scenes/scoring/ScoringBuckets.tsx",
+    "scenes/screening/ScreeningLadder.tsx",
+    "scenes/archetypes/ArchetypeRouter.tsx",
+    "scenes/assignments/CaseBaseline.tsx",
+    "scenes/gates/GatesQueue.tsx",
+  ];
+  for (const rel of scenes) {
+    const src = read(rel);
+    const cycleHit = src.match(/^const CYCLE = (\d+);/m);
+    const stillHit = src.match(/^const STILL = (\d+);/m);
+    assert.ok(cycleHit, `${rel} must declare CYCLE`);
+    assert.ok(stillHit, `${rel} must declare STILL — reduced motion has no complete-argument beat without it`);
+    const cycle = Number(cycleHit[1]);
+    const still = Number(stillHit[1]);
+    assert.ok(
+      still >= 0 && still < cycle,
+      `${rel} STILL=${still} must satisfy 0 <= STILL < CYCLE=${cycle}`,
+    );
+    assert.match(
+      src,
+      /useSceneClock\(CYCLE,\s*\{\s*stillTick:\s*STILL\s*\}\)/,
+      `${rel} must pass stillTick: STILL — the hook default is not an authoring choice`,
+    );
+    const table = src.match(/statusPicker\(\{([\s\S]*?)^\s*\}\)/m);
+    assert.ok(table, `${rel} has no statusPicker table`);
+    const keys = [...table[1].matchAll(/^\s*(\d+)\s*:/gm)].map((m) => Number(m[1]));
+    assert.ok(keys.length > 0, `${rel} statusPicker table parsed no beat keys`);
+    const last = Math.max(...keys);
+    assert.ok(
+      last <= still,
+      `${rel} last status beat ${last} is after STILL=${still}; reduced-motion would miss the closing sentence`,
+    );
+  }
+});
+
+test("chapter 1's grounding sentence is still the live prompt rule", () => {
+  const design = pySource("pipeline/jobfit/devcase/design.py");
+  // The prompt is a concatenated Python string, so the sentence is split across
+  // adjacent literals. Both halves have to stay: dropping either one drops the
+  // orphan-row rule the Kafka beat demonstrates.
+  assert.match(design, /every mustHave must trace to/, "design.py dropped the mustHave half of the grounding rule");
+  assert.match(
+    design,
+    /need\/JD\/analysis actually STATES/,
+    "design.py dropped the STATES half of the grounding rule",
+  );
+  assert.match(
+    copy("jd.status.s3"),
+    /trace to something the inputs actually state/i,
+    "about.jd.status.s3 must keep quoting the grounding rule the prompt still contains",
   );
 });
 

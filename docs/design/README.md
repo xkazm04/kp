@@ -250,9 +250,13 @@ element:
   `score-*` tokens, but recharts chrome (grid, ticks, tooltip) needs literal
   strings — `FactorChart` picks light/dark values from the `LIGHT` and `DARK`
   mirrors in `app/_lib/brand.ts` (the JS copies of the two token blocks, keyed
-  by role: `SURFACE`/`FILL`/`GRID`). Any new chart follows that pattern; both
-  mirrors are pinned to `globals.css` by `design:check`, so neither half can
-  drift the way the light half had.
+  by role: named hues plus `SURFACE`/`FILL`/`GRID`). `DARK` carries every named
+  brand hue (`INK`/`PAPER`/`MOSS`/`CORAL`/`STEEL`/`LIMEWASH`/`DIAL_STONE`/
+  `DIAL_AMBER`), not only the canvas trio, so a chart that needs moss or coral
+  cannot accidentally import the Studio Light constant onto `#141b24`. Any new
+  chart follows that pattern; both mirrors are pinned to `globals.css` by
+  `design:check`, and `app/_lib/brand.test.ts` asserts key parity, so neither
+  half can drift the way the light half had.
 - **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
   attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
   resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`

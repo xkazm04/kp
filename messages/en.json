@@ -1893,6 +1893,10 @@
     "errorBody": "An unexpected error interrupted this page. Nothing was lost. You can try again, or head back home.",
     "errorDigest": "Error reference: {digest}",
     "retry": "Try again",
+    "report": "Report this error",
+    "reporting": "Sending report",
+    "reportSent": "Report sent",
+    "reportFailed": "Could not send the report. Please try again.",
     "home": "Back to home"
   },
   "offer": {
@@ -4502,7 +4506,8 @@
         "thinking": "Thinking…",
         "composer": {
           "send": "Send",
-          "transcriptLabel": "Intake conversation"
+          "transcriptLabel": "Intake conversation",
+          "composerLabel": "Message for the intake conversation"
         },
         "degradedNote": "AI is offline, so the guided checklist runs instead. Your answers are captured all the same.",
         "sendError": "That message didn't go through. Please try again.",
@@ -10493,6 +10498,7 @@
       "thinking": "Thinking…",
       "thinkingSlowCalm": "Still with you. She reads the workspace before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
+      "composerLabel": "Message to Candi",
       "errorGeneric": "That message did not go through. Nothing was lost, so try again.",
       "reconnect": "Try connecting again"
     },

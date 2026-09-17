@@ -20,6 +20,12 @@ the local SQLite store, and operators read it (read-only) on `/control`.
   the current route captured automatically. It asks for nothing else — the
   reply address is resolved from the signed-in user by the route, so there is
   no email field to fill in or to spoof.
+- **Route crash** — `app/_components/RouteError.tsx` (every segment `error.tsx`)
+  offers a secondary Report next to Retry. It POSTs the same `/api/feedback`
+  door with the server `digest` and the current pathname, never the thrown
+  English line. The button disables after success; Home stays the escape. A
+  public token page without a session still gets a coded refusal (the door is
+  workspace-gated); Retry and Home remain.
 - **Operator view** — `app/control/FeedbackSection.tsx`, composed from
   `app/control/page.tsx` beside `ControlRoom` (deliberately NOT inside
   `ControlRoom.tsx`, which is oversized and mid-decomposition). Read-only,

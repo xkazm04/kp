@@ -340,7 +340,10 @@ transcript's full width, beneath the bubble. Round 5 changed this after an
 operator click-through: a three-column table inside the old 26rem, 85 %-capped
 slot wrapped every cell to three lines and read as illegible chrome.
 
-`ChatMiniChart` is hand-rolled inline SVG — no chart library. recharts needs
+`ChatMiniChart` is hand-rolled inline SVG — no chart library. The SVG keeps
+`role="img"`; an `sr-only` table of `x.values × series` (`chatChartAlt.ts`) is
+the text alternative, so a screen-reader user can compare the numbers instead
+of hearing only the title. recharts needs
 literal color strings for its chrome and therefore a `useTheme()` fork (see
 `FactorChart`); inside a chat turn that costs more than the drawing is worth. A
 presentation attribute is parsed as CSS, so `fill="var(--color-coral)"` resolves
@@ -603,7 +606,7 @@ Operator-gated routes, all workspace-scoped through the store's own tenancy.
 | Route | Does |
 | --- | --- |
 | `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns, its proposals AND `memoryEnabled` — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
-| `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something |
+| `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something. The shared composer textarea is named by `companion.chat.composerLabel` (placeholder is not a name) |
 | `POST /api/companion/[id]/message` | one exchange. Returns the thread's full turn list AND its live proposals |
 | `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled`. Per-IP 60/10min — it creates nothing and calls no model, but it is still a Python child per request, and in open mode the operator gate above it is a no-op for the whole API |
 | `POST /api/companion/brain` | **WP4.** `{action: "connect" \| "birth"}`. Records consent; `birth` runs `ensure_brain` first, so consent is never stamped over a brain that does not exist. Per-IP 20/10min, after the 400 so a malformed call never starts a process. There is no "decline" |

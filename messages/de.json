@@ -1893,6 +1893,10 @@
     "errorBody": "Ein unerwarteter Fehler hat diese Seite unterbrochen. Es ist nichts verloren gegangen. Sie können es erneut versuchen oder zur Startseite zurückkehren.",
     "errorDigest": "Fehlerreferenz: {digest}",
     "retry": "Erneut versuchen",
+    "report": "Fehler melden",
+    "reporting": "Meldung wird gesendet",
+    "reportSent": "Meldung gesendet",
+    "reportFailed": "Die Meldung konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
     "home": "Zurück zur Startseite"
   },
   "offer": {
@@ -4502,7 +4506,8 @@
         "thinking": "Denkt nach…",
         "composer": {
           "send": "Senden",
-          "transcriptLabel": "Gespräch zur Rollenaufnahme"
+          "transcriptLabel": "Gespräch zur Rollenaufnahme",
+          "composerLabel": "Nachricht für das Gespräch zur Rollenaufnahme"
         },
         "degradedNote": "Die AI ist offline, deshalb läuft stattdessen die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
         "sendError": "Die Nachricht kam nicht durch. Bitte versuchen Sie es erneut.",
@@ -10493,6 +10498,7 @@
       "thinking": "Denkt nach…",
       "thinkingSlowCalm": "Ich bin noch da. Sie sieht sich erst das Arbeitsbereich an, deshalb dauert es ein paar Sekunden.",
       "transcriptLabel": "Gespräch mit Candi",
+      "composerLabel": "Nachricht an Candi",
       "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal.",
       "reconnect": "Erneut verbinden"
     },

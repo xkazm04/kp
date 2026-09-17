@@ -1893,6 +1893,10 @@
     "errorBody": "Une erreur inattendue a interrompu cette page. Rien n’a été perdu. Vous pouvez réessayer ou revenir à l’accueil.",
     "errorDigest": "Référence de l’erreur : {digest}",
     "retry": "Réessayer",
+    "report": "Signaler cette erreur",
+    "reporting": "Envoi du signalement",
+    "reportSent": "Signalement envoyé",
+    "reportFailed": "Impossible d’envoyer le signalement. Veuillez réessayer.",
     "home": "Retour à l’accueil"
   },
   "offer": {
@@ -4502,7 +4506,8 @@
         "thinking": "Réflexion…",
         "composer": {
           "send": "Envoyer",
-          "transcriptLabel": "Conversation de cadrage du poste"
+          "transcriptLabel": "Conversation de cadrage du poste",
+          "composerLabel": "Message pour la conversation de cadrage du poste"
         },
         "degradedNote": "L’AI est hors ligne, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
         "sendError": "Le message n’est pas passé. Veuillez réessayer.",
@@ -10493,6 +10498,7 @@
       "thinking": "Réflexion…",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du espace de travail avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
+      "composerLabel": "Message pour Candi",
       "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez.",
       "reconnect": "Réessayer la connexion"
     },
