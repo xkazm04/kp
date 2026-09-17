@@ -849,9 +849,12 @@ two props read.
 
 Empty-state heroes default `playOnce` (true). The IntersectionObserver
 disconnects after the first intersecting callback so switching back to an empty
-Jobs or Decisions tab does not replay the stagger.
+Jobs or Decisions tab does not replay the stagger. Under
+`prefers-reduced-motion` the observer is never armed — `useReducedMotion()`
+skips the effect, and
 [`shouldReplayEntrance`](../../app/_components/glyph/glyphEntrancePolicy.ts)
-is the policy; `glyphEntrancePolicy.test.ts` pins disconnect-after-first.
+returns false when `reduced` is true even for a looping (`playOnce={false}`)
+consumer. `glyphEntrancePolicy.test.ts` pins both.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

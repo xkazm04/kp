@@ -25,9 +25,12 @@
  * - An IntersectionObserver can replay the *entrance* on viewport re-entry
  *   (tab switch, scroll-back); ambient loops keep their own clock. Empty-state
  *   heroes pass `playOnce` (the default) so the observer disconnects after the
- *   first reveal — a thing that persists must persist visually.
+ *   first reveal — a thing that persists must persist visually. Under
+ *   `prefers-reduced-motion` the observer is never armed: CSS already stills
+ *   the paths, so remounting them is DOM churn with no visual benefit.
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import {
   AMBIENT_PRESETS,
   ENTRANCE_PRESETS,
@@ -95,14 +98,16 @@ export function MotionizedGlyph({
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gid = useId().replace(/:/g, "");
+  const reduced = useReducedMotion();
   // First reveal plays on mount; the observer bumps this to replay on re-entry
-  // unless playOnce disconnects after the first intersecting callback.
+  // unless playOnce disconnects after the first intersecting callback, or
+  // prefers-reduced-motion skipped arming the observer entirely.
   const [runKey, setRunKey] = useState(1);
   const seen = useRef<boolean | null>(null);
 
   useEffect(() => {
     const el = svgRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (!el || reduced || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
         const vis = entries[0]?.isIntersecting ?? false;
@@ -113,7 +118,7 @@ export function MotionizedGlyph({
           seen.current = vis; // initial observation
           return;
         }
-        if (shouldReplayEntrance({ playOnce, reentered: vis && !seen.current })) {
+        if (shouldReplayEntrance({ playOnce, reduced, reentered: vis && !seen.current })) {
           setRunKey((k) => k + 1);
         }
         seen.current = vis;
@@ -122,7 +127,7 @@ export function MotionizedGlyph({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [playOnce]);
+  }, [playOnce, reduced]);
 
   const cls = `mz-${gid}`;
   const painted = useMemo(() => data.map((p) => ({ ...p, ...snapToToken(p.fill) })), [data]);
