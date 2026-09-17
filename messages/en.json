@@ -8218,7 +8218,10 @@
       "colRunnerUp": "Runner-up",
       "na": "n/a",
       "method": "Measured {date} · judge {judge} · {n} cases · {limit} run(s)/cell. Composite 0–10: correctness + task-adherence weighted higher, relevance lower; invalid output penalised. Small run counts are noisy, so treat them as directional.",
-      "empty": "No measured quality yet. This deployment has no baked benchmark matrix, so there is nothing to rank."
+      "empty": "No measured quality yet. This deployment has no baked benchmark matrix, so there is nothing to rank.",
+      "unmeasuredTitle": "Not measured",
+      "unmeasuredIntro": "These routing use cases have no bench cell yet, so the scorecard does not recommend a model for them.",
+      "unmeasured": "not measured"
     },
     "benchOps": {
       "match_reasoning": "Match reasoning",

@@ -8218,7 +8218,10 @@
       "colRunnerUp": "Zweitbestes",
       "na": "k. A.",
       "method": "Gemessen am {date} · Judge {judge} · {n} Fälle · {limit} Lauf/Läufe pro Zelle. Gesamtscore 0–10: Korrektheit + Aufgabentreue höher gewichtet, Relevanz niedriger; ungültige Ausgabe wird abgewertet. Kleine Laufzahlen sind verrauscht, verstehen Sie sie daher nur als Richtungsangabe.",
-      "empty": "Noch keine Messwerte. Diese Installation enthält keine eingebackene Benchmark-Matrix, also gibt es nichts zu ranken."
+      "empty": "Noch keine Messwerte. Diese Installation enthält keine eingebackene Benchmark-Matrix, also gibt es nichts zu ranken.",
+      "unmeasuredTitle": "Nicht gemessen",
+      "unmeasuredIntro": "Diese Routing-Anwendungsfälle haben noch keine Bench-Zelle, daher empfiehlt die Scorecard für sie kein Modell.",
+      "unmeasured": "nicht gemessen"
     },
     "benchOps": {
       "match_reasoning": "Match-Begründung",
