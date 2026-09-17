@@ -4367,7 +4367,7 @@
     "tab": {
       "eyebrow": "Pracovní prostor",
       "title": "Knihovna popisů pozic",
-      "intro": "Popište potřebu náboru a nechte AI vytvořit popis pozice.",
+      "intro": "Popište potřebu náboru a nechte AI vytvořit popis pozice. Aktivní role zůstávají na kartě Pozice; tato knihovna se otevírá na <strong>Vše kromě aktivních</strong>, aby je nezaplňovaly.",
       "savedJds": "Uložené popisy pozic",
       "entryCount": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
       "loadFailed": "Načtení selhalo.",

@@ -4367,7 +4367,7 @@
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Bibliothek der Stellenbeschreibungen",
-      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen.",
+      "intro": "Beschreiben Sie einen Personalbedarf und lassen Sie die AI eine Stellenbeschreibung entwerfen. Aktive Stellen bleiben unter Stellen; dieses Regal startet mit <strong>Alle außer aktive</strong>, damit sie es nicht füllen.",
       "savedJds": "Gespeicherte Stellenbeschreibungen",
       "entryCount": "{count, plural, one {# Eintrag} other {# Einträge}}",
       "loadFailed": "Laden fehlgeschlagen.",

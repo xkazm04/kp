@@ -4367,7 +4367,7 @@
     "tab": {
       "eyebrow": "Workspace",
       "title": "Job description library",
-      "intro": "Describe a hiring need and let AI draft a job description.",
+      "intro": "Describe a hiring need and let AI draft a job description. Live roles live under Roles; this shelf defaults to <strong>All but live</strong> so they do not clutter it.",
       "savedJds": "Saved JDs",
       "entryCount": "{count, plural, one {# entry} other {# entries}}",
       "loadFailed": "Load failed.",

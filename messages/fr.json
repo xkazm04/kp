@@ -4367,7 +4367,7 @@
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Bibliothèque de fiches de poste",
-      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste.",
+      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste. Les postes en ligne restent sous Postes; cette étagère s’ouvre sur <strong>Tout sauf en ligne</strong> pour ne pas les encombrer.",
       "savedJds": "Fiches enregistrées",
       "entryCount": "{count, plural, one {# entrée} other {# entrées}}",
       "loadFailed": "Échec du chargement.",

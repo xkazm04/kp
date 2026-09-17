@@ -23,6 +23,20 @@ test("FailedPanel never interpolates a traceback-shaped analysis_error", () => {
   assert.doesNotMatch(panel, />\{error\}</);
 });
 
+test("the library intro names the default All-but-live filter and the ledger still starts there", () => {
+  for (const loc of ["en", "cs", "de", "fr"] as const) {
+    const tab = (JSON.parse(readFileSync(new URL(`../../../../messages/${loc}.json`, import.meta.url), "utf8")) as {
+      library: { tab: { intro: string; filterNotLive: string } };
+    }).library.tab;
+    assert.ok(
+      tab.intro.includes(tab.filterNotLive),
+      `${loc} library.tab.intro must name the default filter (${tab.filterNotLive})`,
+    );
+  }
+  const logic = readFileSync(fileURLToPath(new URL("./jdsLedgerLogic.ts", import.meta.url)), "utf8");
+  assert.match(logic, /useState<StatusFilter>\("notLive"\)/);
+});
+
 test("analysis_status takes precedence over jobStatus in statusCategory", () => {
   // A backgrounded build wins even over a linked job's lifecycle status.
   assert.equal(statusCategory(row({ analysis_status: "analyzing", jobStatus: "published" })), "analyzing");
