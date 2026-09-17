@@ -58,7 +58,7 @@ is that it creates nothing:
 ```bash
 python -m pipeline.jobfit.companion_cli --probe
 # {"root": "…", "present": true, "episodes": 41, "identitySections": 2,
-#  "constitutionOrigin": "kp"}
+#  "constitutionOrigin": "kp", "constitutionMatchesTemplate": true}
 python -m pipeline.jobfit.companion_cli --birth   # ensure_brain behind a flag
 ```
 
@@ -68,6 +68,7 @@ python -m pipeline.jobfit.companion_cli --birth   # ensure_brain behind a flag
 | `episodes` | episode files on disk, **capped at 999** (`EPISODE_PROBE_CAP`) — the walk stops there, because a human reads "hundreds" exactly as well as an exact five-digit count |
 | `identitySections` | `## ` headings in `identity.md` — how much of a self is written down |
 | `constitutionOrigin` | `kp` when the constitution carries this repo's `<!-- kp-constitution v1 -->` marker · `personas` when one exists WITHOUT it (Athena's own, or one the operator rewrote) · `none` when there is no constitution |
+| `constitutionMatchesTemplate` | `true`/`false` when origin is `kp` (sha256 of canonical LF bytes vs the shipped `companion_constitution.md`) · `null` otherwise. A rewrite that kept the kp marker still reads as origin `kp`; this bit is how first-run tells a stock constitution from a drifted one |
 
 `personas` is deliberately provenance rather than authorship: what the caller
 needs to decide is "was this mind made somewhere else", and an Athena tree and a

@@ -1017,8 +1017,10 @@ probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
 `scripts/app-master-bench/soak/night.mjs` runs ONE unattended C1 ideation night
 against the standing tenure and appends an honest per-night record — misses
 included — to `bench/app-master/soak/log.jsonl`. Scheduled by Windows Task
-Scheduler (`kp-app-master-soak`, 02:47 nightly), NOT by any session-bound
-mechanism — registered per machine by the committed `soak/install.cmd`
+Scheduler (`kp-app-master-soak`, 02:47 nightly) via `soak/soak-night.cmd`, or on
+a POSIX host by cron/systemd via `soak/soak-night.sh` (same `SOAK_*` defaults,
+exits 0 unless the runner itself is missing) — NOT by any session-bound
+mechanism. Windows registration is the committed `soak/install.cmd`
 (idempotent; the teardown command is in its header). The installer patches the
 task to **run late rather than not at all** (`StartWhenAvailable`, battery
 guards off), because the host measurably sleeps through 02:47; it deliberately
@@ -1029,9 +1031,12 @@ miss, which is a measurement. Protocol, per-night record shape, the failure
 taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
 
 The runner's *reasoning* — the miss taxonomy (`MISS_CLASSES`, a literal array
-plus a runtime guard, so a typo'd class stops being indistinguishable from a real
-one), the one-record-one-verdict rule, the calendar-gap backfill and reading the
-log — is exported above `main()` and pinned by `soak/night.test.mjs`. Importing
+plus a runtime guard, lockstepped against the taxonomy table in
+`docs/development/app-master-soak.md` so a one-sided add is red), the
+one-record-one-verdict rule, the calendar-gap backfill, reading the
+log, and `passRateMatrix` (`node soak/night.mjs --matrix` prints the weekly
+pass-rate table without running a night) — is exported above `main()` and pinned
+by `soak/night.test.mjs`. Importing
 the module runs nothing; only being the process entry point starts a night. That
 half was the most-revised code in this area, twenty-odd review rounds defended
 entirely by comments, and it had no test. `npm run test:bench-driver` globs
@@ -1599,7 +1604,11 @@ because the instruction each carries is different.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
-printed loudly so nobody reads silence as coverage.
+printed loudly so nobody reads silence as coverage. `kp-c1-night` is **not** in
+that bucket: it is a gate subject (`mustPass`, its four C1 `expect` keys,
+`metrics: null` until a live night is committed), so a night that stops ranking
+the backlog or starts dispatching under `suggest` fails `bench:gate` instead of
+landing as an unbaselined extra.
 
 #### The baseline carries numbers (schemaVersion 2)
 
@@ -1620,14 +1629,20 @@ merged, gate pass rate 0.944, 0 violations, backbone score 0.9056, coverage 1).
 That run used `--stub-personas`, so those figures are **canned by construction**
 and the gate refuses a stub run outright: treat them as the SHAPE a real sweep
 must clear, and re-record them from the first live sweep with `metricsFrom`
-naming its run. The other five scenarios stay honestly at `metrics: null` and are
+naming its run. The other six scenarios stay honestly at `metrics: null` and are
 reported as **`unmetered`** — nobody has measured them, which is a gap to fill
 rather than a failure to invent, and the gate says so in its own line.
 
 `baseline.json` is pinned to the committed scenarios by `gate.test.mjs` (in
 `npm run test:bench-driver`, a CI step) in both directions: every baselined
-scenario must have a scenario file, and every `requiredExpectations` name must
-actually be declared in that scenario's `expect` block. It is also a **ratchet**:
+scenario must have a scenario file, every `scenarios/*.json` name must be either
+in the baseline or on an explicit `UNBASELINED_ALLOW` list (empty: a new file
+without a row is a red unit test the same day, not a silent unbaselined extra at
+sweep time), and every `requiredExpectations` name must actually be declared in
+that scenario's `expect` block — and the inverse: every `expect` key of a
+baselined scenario is required, or named on `UNGATED_EXPECTATIONS` (empty).
+Dropping a check from a scenario file without updating the baseline is a
+unit-test failure, not a sweep-time unmeasured. It is also a **ratchet**:
 `FLOOR` in `gate.test.mjs` freezes what the baseline has already promised, so
 deleting a scenario, dropping a required expectation, lowering a bar or widening
 a tolerance is red — and the numbers are checked back against the fixture they
@@ -1837,9 +1852,13 @@ The schemas travel three ways once the later phases land:
   ("dossier field accuracy vs ground truth") is the missing harness. Treat the
   reference reading in `examples/kp-dossier.json` as one sample, not a baseline.
 - **The scan is one-shot and never re-run.** A dossier is a reading of a repo at
-  a moment; nothing expires it, re-scans on a schedule, or tells the operator the
-  dossier a spec was composed from is now months old. `generatedAt` is on the
-  record, and reading it is currently the operator's job.
+  a moment; nothing expires it or re-scans on a schedule. `generatedAt` is on the
+  record, and `dossier_freshness(generated_at, now)` classifies it as
+  `current` / `stale` / `unknown` against a 14-day window (the same order as the
+  bench gate) so compose and hire-from-need can disclose or refuse a stale
+  reading without spawning a new scan. The walker itself stays pure: freshness is
+  a sibling field, not a schema stamp, so two walks of an unchanged tree are
+  still byte-identical.
 - **Churn uses `--name-only`, not the concept's `--oneline`.**
   `docs/concepts/app-master.md` §3 names `git log --oneline -200` for hot spots,
   but that format prints no paths, so it cannot answer "what changes most". The
