@@ -8999,7 +8999,12 @@
       "label": "Audit der Prüfpunktstärke",
       "strong": "{loadBearing} von {total} Prüfpunkten sind tragend. Diese Aufgabe differenziert.",
       "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend. Die meisten trennen Starke nicht von Naiven.",
-      "none": "Keine tragenden Prüfpunkte. Diese Aufgabe unterscheidet eine starke Einreichung nicht von einer naiven."
+      "none": "Keine tragenden Prüfpunkte. Diese Aufgabe unterscheidet eine starke Einreichung nicht von einer naiven.",
+      "issue": {
+        "no_choice": "Keine erzwungene Wahl: mindestens zwei unterschiedliche vertretbare Optionen nötig.",
+        "no_seam": "Keine konkrete Nahtstelle: in der Aufgabe gibt es keinen Ort für die Falle.",
+        "no_reveals": "Kein Gut-gegen-Naiv-Kriterium: nichts, woran die Behandlung zu bewerten ist."
+      }
     },
     "sessionEvidence": {
       "show": "Sitzungsbelege",

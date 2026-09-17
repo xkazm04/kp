@@ -55,7 +55,8 @@ export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
           {dead.map((p, i) => (
             <li key={`${p.probeId}|${p.where}|${i}`}>
               <span className="rounded bg-white/70 px-1 py-0.5 font-semibold uppercase">{probeKind(p.kind)}</span>{" "}
-              <span className="text-steel">@ {p.where || "—"}</span> — {p.issues.join(" ")}
+              <span className="text-steel">@ {p.where || "—"}</span>{" "}
+              {p.issues.map((code) => t(`issue.${code}` as Parameters<typeof t>[0])).join(" ")}
             </li>
           ))}
         </ul>

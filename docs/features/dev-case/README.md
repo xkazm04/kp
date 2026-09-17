@@ -522,16 +522,17 @@ reads `perStepSources.evaluate` and falls back to `source` only for bundles save
 before the per-step envelope (pinned in `DevHelpers.test.ts`).
 
 **The probe gate's refusal reaches the reviewer.** `enforceProbeGate` answers 422
-`{ code: "probe_audit_failed" }` for a case with no load-bearing probes, and the
-`errors` catalog has no entry for that code — so `useErrorMessage` fell through to
-`DevLifecycleReviewPanel`'s generic "Approve failed." and the reviewer lost both the
-cause and the way out, while the *editless* approve path (`useDevTabActions.runAction`)
-showed the server's full English sentence. The panel now selects its fallback from the
-code (`DevHelpers.approveFallbackFor`) and states the refusal in the reader's language
-by reusing the two strings already on screen: the probe banner's `none` verdict plus
-`review.engineOwned`, which names the exit — Regenerate with note, the button beside
-Approve. The test pins the code literal against `enforceProbeGate` itself, so a rename
-cannot silently restore the generic message.
+`{ code: "probe_audit_failed" }` for a case with no load-bearing probes (the `error`
+field is that code, not an English paragraph). The `errors` catalog has no entry for
+that code — so `useErrorMessage` fell through to `DevLifecycleReviewPanel`'s generic
+"Approve failed." and the reviewer lost both the cause and the way out. The panel now
+selects its fallback from the code (`DevHelpers.approveFallbackFor`) and states the
+refusal in the reader's language by reusing the two strings already on screen: the
+probe banner's `none` verdict plus `review.engineOwned`, which names the exit —
+Regenerate with note, the button beside Approve. Dead-probe reasons are catalog keys
+(`devcase.probeAudit.issue.no_choice` / `no_seam` / `no_reveals`) resolved in the
+banner in all four locales. The test pins the issue codes against `auditProbe` and the
+catalogs, so a rename cannot silently restore English.
 
 **The timebox the reviewer approves is the timebox the candidate receives.** The
 cap on a candidate's unpaid work is policy, generated from

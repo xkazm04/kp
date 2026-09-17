@@ -251,6 +251,9 @@ const DEVCASE_CALLS: [string, Record<string, unknown>][] = [
   ["submissionForm.receiptRecorded", {}],
   ["submissionForm.receiptDuplicate", {}],
   ["review.tasksRequired", {}],
+  ["probeAudit.issue.no_choice", {}],
+  ["probeAudit.issue.no_seam", {}],
+  ["probeAudit.issue.no_reveals", {}],
 ];
 
 for (const locale of LOCALES) {

@@ -8999,7 +8999,12 @@
       "label": "Audit síly sond",
       "strong": "Nosných sond: {loadBearing} z {total}. Toto zadání rozlišuje.",
       "weak": "Nosné jsou jen {loadBearing} z {total} sond. Většina silné od naivních neodliší.",
-      "none": "Žádné nosné sondy. Toto zadání nerozezná silné řešení od naivního."
+      "none": "Žádné nosné sondy. Toto zadání nerozezná silné řešení od naivního.",
+      "issue": {
+        "no_choice": "Žádná vynucená volba: jsou potřeba alespoň dvě odlišné obhajitelné možnosti.",
+        "no_seam": "Žádný konkrétní šev: v zadání není kam past umístit.",
+        "no_reveals": "Žádné kritérium dobré vs. naivní: není podle čeho zpracování hodnotit."
+      }
     },
     "sessionEvidence": {
       "show": "Doklady ze sezení",

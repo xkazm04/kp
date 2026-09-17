@@ -8999,7 +8999,12 @@
       "label": "Probe-strength audit",
       "strong": "{loadBearing} of {total} probes are load-bearing. This assignment discriminates.",
       "weak": "Only {loadBearing} of {total} probes are load-bearing. Most won't separate strong from naive.",
-      "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one."
+      "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one.",
+      "issue": {
+        "no_choice": "No forced choice: needs at least two distinct defensible options.",
+        "no_seam": "No concrete seam: nowhere in the task to plant the trap.",
+        "no_reveals": "No good-vs-naive criterion: nothing to grade the handling against."
+      }
     },
     "sessionEvidence": {
       "show": "Session evidence",

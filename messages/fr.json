@@ -8999,7 +8999,12 @@
       "label": "Audit de la force des sondes",
       "strong": "{loadBearing} sondes sur {total} sont porteuses. Cet exercice discrimine.",
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses. La plupart ne sépareront pas les bons des naïfs.",
-      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf."
+      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf.",
+      "issue": {
+        "no_choice": "Pas de choix forcé : il faut au moins deux options distinctes et défendables.",
+        "no_seam": "Pas de faille concrète : aucun endroit dans la tâche pour planter le piège.",
+        "no_reveals": "Pas de critère bon contre naïf : rien pour évaluer le traitement."
+      }
     },
     "sessionEvidence": {
       "show": "Éléments de la session",
