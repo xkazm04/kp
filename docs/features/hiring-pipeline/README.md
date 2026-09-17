@@ -14,7 +14,8 @@ Feature dir: `app/features/settings/hiring/`.
 Composes how candidates move from application to offer in **one table**: a row per
 board column, carrying both the column itself (type, name, order) and the policy
 that runs there — mode (AI or human round), approval gating (human approves vs
-auto) and the cohort reducer into each round (top-N), up to
+auto) and the cohort reducer into each round (top-N, any integer 1–50; the
+composer Select leads with 2/3/5/8 then the rest of the range), up to
 `INTERVIEW_PLAN_MAX_ROUNDS = 3` rounds across the whole plan. Quick-apply
 org-complexity presets (Solo-lean / Team-hybrid / Enterprise-governance) sit above
 it.
