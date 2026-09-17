@@ -17,7 +17,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { STEP_DETAILS } from "./pipelineSteps.ts";
+import { parseDiagramStep, STEP_DETAILS } from "./pipelineSteps.ts";
 import { parsePuml } from "../_components/puml/parse.ts";
 import { LOCALES } from "../../i18n/locales.ts";
 
@@ -99,6 +99,22 @@ function funnelStepAliases(): string[] {
     .filter((el) => el.type === "node" && el.kind !== "actor" && el.kind !== "note")
     .map((el) => el.id);
 }
+
+test("parseDiagramStep accepts every STEP_DETAILS alias and ignores unknown", () => {
+  const ids = Object.keys(STEP_DETAILS);
+  assert.ok(ids.length >= 14, `expected the live funnel aliases, got ${ids.length}`);
+  for (const id of ids) {
+    assert.equal(parseDiagramStep(id), id);
+    assert.equal(parseDiagramStep(` ${id} `), id);
+  }
+  assert.equal(parseDiagramStep("decide"), "decide");
+  assert.equal(parseDiagramStep(["cron"]), "cron");
+  assert.equal(parseDiagramStep("nope"), null);
+  assert.equal(parseDiagramStep(""), null);
+  assert.equal(parseDiagramStep("   "), null);
+  assert.equal(parseDiagramStep(undefined), null);
+  assert.equal(parseDiagramStep(["nope"]), null);
+});
 
 test("alias contract: every funnel step has a STEP_DETAILS entry and vice versa", () => {
   const aliases = new Set(funnelStepAliases());

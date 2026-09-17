@@ -234,3 +234,12 @@ tick --> pass
 pass --> db : advance / hold / nudge`,
   },
 };
+
+/** Validate a `?step=` query value against STEP_DETAILS. Unknown, blank, or
+ *  non-string input is ignored so `/diagrams?step=nope` still renders. */
+export function parseDiagramStep(raw: unknown): string | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== "string") return null;
+  const id = value.trim();
+  return id && Object.hasOwn(STEP_DETAILS, id) ? id : null;
+}

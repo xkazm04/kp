@@ -8,6 +8,16 @@ import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { META_LABEL, STICKY_BAR } from "@/app/_components/ui/recipes";
 import { STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
 
+/** Keep `?step=` in lockstep with the open drawer so a refresh or a pasted
+ *  citation lands on the same wiring. `replaceState` (not push) so clicking
+ *  around the funnel does not stack history entries. */
+function replaceStepQuery(step: string | null): void {
+  const url = new URL(window.location.href);
+  if (step) url.searchParams.set("step", step);
+  else url.searchParams.delete("step");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 // bug-ui-scan-2026-07-09 (architecture-diagrams #3): status pill labels now come
 // from messages/*.json (t("status.<status>")); only the colour class stays local.
 const STATUS_CLS: Record<StepStatus, string> = {
@@ -19,8 +29,12 @@ const STATUS_CLS: Record<StepStatus, string> = {
 // The to-be funnel, made interactive. Clicking a step opens a half-page drawer
 // on the right with that step's real implementation; the funnel stays on the
 // left (the active step keeps a coral border) so the relation is visible.
-export function PipelineExplorer({ source }: { source: string }) {
-  const [active, setActive] = useState<{ id: string; detail: StepDetail } | null>(null);
+export function PipelineExplorer({ source, initialStep }: { source: string; initialStep?: string | null }) {
+  const [active, setActive] = useState<{ id: string; detail: StepDetail } | null>(() => {
+    if (!initialStep) return null;
+    const detail = STEP_DETAILS[initialStep];
+    return detail ? { id: initialStep, detail } : null;
+  });
   const t = useTranslations("diagrams");
 
   return (
@@ -41,6 +55,7 @@ export function PipelineExplorer({ source }: { source: string }) {
             const detail = STEP_DETAILS[node.id];
             if (detail) {
               setActive({ id: node.id, detail });
+              replaceStepQuery(node.id);
             } else if (process.env.NODE_ENV !== "production") {
               // A clickable funnel node whose puml alias has no STEP_DETAILS entry
               // no-ops silently — surface the .puml<->pipelineSteps drift in dev.
@@ -54,7 +69,17 @@ export function PipelineExplorer({ source }: { source: string }) {
           switching steps while the drawer is open REMOUNTS it — re-running the
           focus-in / scroll-reset affordances instead of silently swapping content
           under a persistent instance whose mount-only focus effect never re-fires. */}
-      {active ? <StepDrawer key={active.id} id={active.id} detail={active.detail} onClose={() => setActive(null)} /> : null}
+      {active ? (
+        <StepDrawer
+          key={active.id}
+          id={active.id}
+          detail={active.detail}
+          onClose={() => {
+            setActive(null);
+            replaceStepQuery(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }
