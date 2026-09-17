@@ -5350,6 +5350,10 @@
         "early_career": "Début de carrière : potentiel et modèle mental"
       },
       "competency": "Compétence",
+      "exportCsv": "Exporter CSV",
+      "exportAi": "{name} IA",
+      "exportHuman": "{name} humain",
+      "exportRec": "{name} recommandation",
       "confidence": {
         "tight": "confiance étroite",
         "moderate": "confiance modérée",

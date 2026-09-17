@@ -1030,7 +1030,10 @@ staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
 The Compare tab's failed load (`useJsonFetch`) offers the same retry control the
 Coach panel already has, bound to `reload` — a transient 500 is recoverable
-without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`.
+without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`. The
+grid itself exports as CSV (`compareCsvRows` in `jobsCompareCohorts.ts`):
+competency × candidate, AI rating, human rating, recommendation; a missing
+side is blank, never `0`. Same shape as the Fair Rank audit export.
 
 ## The winnability coach stages the number it actually computed
 

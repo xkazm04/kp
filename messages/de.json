@@ -5350,6 +5350,10 @@
         "early_career": "Berufseinsteiger/innen: Potenzial & Denkmodell"
       },
       "competency": "Kompetenz",
+      "exportCsv": "CSV exportieren",
+      "exportAi": "{name} KI",
+      "exportHuman": "{name} menschlich",
+      "exportRec": "{name} Empfehlung",
       "confidence": {
         "tight": "enge Konfidenz",
         "moderate": "moderate Konfidenz",

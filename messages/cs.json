@@ -5350,6 +5350,10 @@
         "early_career": "Junioři: potenciál a myšlenkový model"
       },
       "competency": "Kompetence",
+      "exportCsv": "Exportovat CSV",
+      "exportAi": "{name} AI",
+      "exportHuman": "{name} lidské",
+      "exportRec": "{name} doporučení",
       "confidence": {
         "tight": "úzké rozpětí",
         "moderate": "střední rozpětí",
