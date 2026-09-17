@@ -10,9 +10,22 @@ import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
 
 
-// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
-// present only on blocked cells, localized client-side by key.
-type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
+// Wire contract the grid consumes. Extra CLI keys currently survive parsePythonJson
+// at runtime but were untyped (and could be dropped by the next typed mapper) —
+// the same hole koKeys had to be named before the grid could localize blockers.
+// fitTier/confidence/unprovenCount/provenanceMix are additive and optional so a
+// cell of only {score, blocked} still validates. respond() spreads the parsed
+// matrix unchanged; the cache key hashes the CLI JSON, so typing here does not
+// move the key.
+type Cell = {
+  score: number | null;
+  blocked: boolean;
+  koKeys?: string[];
+  fitTier?: "strong" | "promising" | "partial";
+  confidence?: { low: number; high: number; level?: string };
+  unprovenCount?: number;
+  provenanceMix?: string;
+};
 type MatrixOut = {
   candidates: { id: string; label: string; archetype: string | null }[];
   positions: { id: string; title: string; seniority: string; roleFamily: string; salaryBand: number[] }[];

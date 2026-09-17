@@ -1091,13 +1091,15 @@ side either; it was removed, and a test asserts it does not come back.
   `matrix.ofCount`); closing it needs the two routes to return the count, following
   the `listJobsPage`/`countJobs` template in `app/_lib/db/jobs.ts`. Deep links
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
-- The grid's cells carry **no per-cell confidence or provenance**: a cell shows one
-  number, and whether that number rests on evidenced or self-declared skills is
-  only readable after opening the cell's reasoning popover. Surfacing it in the
-  cell needs a per-cell provenance summary from the Python pass (`/api/matrix`
-  currently returns `{score, blocked, koKeys}` only) — a pipeline change, not a
-  UI one, so the match card's three-bucket split above is the honest interim:
-  the unproven bucket is visible on the card, not yet in the grid.
+- The grid's cells still **paint one number**: whether that number rests on
+  evidenced or self-declared skills is only readable after opening the cell's
+  reasoning popover. The GET `/api/matrix` `Cell` type now enumerates optional
+  `fitTier`, `confidence`, `unprovenCount`, and `provenanceMix` (additive: a
+  `{score, blocked}` cell still validates, and `respond()` spreads the parsed
+  matrix so a future CLI cannot be stripped by a typed mapper). `matrix_cli`
+  still emits `{score, blocked, koKeys?}` only — filling those fields is a
+  pipeline change. Until then the match card's three-bucket split is the honest
+  interim: the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.
