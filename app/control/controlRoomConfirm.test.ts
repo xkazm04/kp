@@ -10,6 +10,15 @@ import { fileURLToPath } from "node:url";
 import { armOrExecute, ARMED_TTL_MS, cancelArmed, floorKey } from "./controlRoomConfirm.ts";
 
 const roomSrc = readFileSync(fileURLToPath(new URL("./ControlRoom.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+const barSrc = readFileSync(fileURLToPath(new URL("./AutonomyBar.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+
+test("pause and resume stay single-click: AutonomyBar must not route them through guard", () => {
+  assert.match(barSrc, /onClick=\{\(\) => void onAct\("resume"\)\}/);
+  assert.match(barSrc, /onClick=\{\(\) => void onAct\("pause"\)\}/);
+  assert.match(barSrc, /guard\("reconcile", \(\) => onAct\("reconcile"\)\)/);
+  assert.doesNotMatch(barSrc, /guard\(\s*["']pause["']/);
+  assert.doesNotMatch(barSrc, /guard\(\s*["']resume["']/);
+});
 
 test("a first click ARMS the control and does not execute (the misclick guard)", () => {
   const r = armOrExecute(null, "gate-42");
