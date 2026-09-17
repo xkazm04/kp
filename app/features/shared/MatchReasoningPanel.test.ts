@@ -24,10 +24,19 @@ test("error face with onRetry paints a retry button; without onRetry stays text-
   assert.match(errorFace, /role="alert"/, "the error copy is an alert");
 });
 
-test("retryReasoning is present in all four catalogs", () => {
+test("empty reasoning columns render the emptyReasons catalog line under the heading", () => {
+  const listFn = src.slice(src.indexOf("function ReasonList"), src.length);
+  assert.match(listFn, /items\.length === 0/, "empty items take the empty-copy branch");
+  assert.match(listFn, /t\("emptyReasons"\)/, "empty copy is catalogued");
+  assert.match(listFn, /items\.map/, "a filled list is unchanged");
+});
+
+test("retryReasoning and emptyReasons are present in all four catalogs", () => {
   for (const locale of ["en", "cs", "de", "fr"] as const) {
-    const value = catalog(locale).match.shared.retryReasoning;
-    assert.equal(typeof value, "string", `${locale} match.shared.retryReasoning`);
-    assert.ok(value.trim().length > 0, `${locale} retryReasoning must not be blank`);
+    const shared = catalog(locale).match.shared;
+    assert.equal(typeof shared.retryReasoning, "string", `${locale} match.shared.retryReasoning`);
+    assert.ok(shared.retryReasoning.trim().length > 0, `${locale} retryReasoning must not be blank`);
+    assert.equal(typeof shared.emptyReasons, "string", `${locale} match.shared.emptyReasons`);
+    assert.ok(shared.emptyReasons.trim().length > 0, `${locale} emptyReasons must not be blank`);
   }
 });

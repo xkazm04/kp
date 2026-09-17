@@ -116,18 +116,23 @@ function ReasoningSkeleton() {
 }
 
 function ReasonList({ title, items, tone }: { title: string; items: string[]; tone: "green" | "red" | "neutral" }) {
+  const t = useTranslations("match.shared");
   const dot = tone === "green" ? "text-green-600" : tone === "red" ? "text-red-600" : "text-steel";
   return (
     <div>
       <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
-      <ul className="mt-1 space-y-1">
-        {items.map((it, i) => (
-          <li key={i} className="flex gap-1 text-sm text-ink">
-            <span className={dot}>•</span>
-            <span>{it}</span>
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <p className="mt-1 text-sm text-steel">{t("emptyReasons")}</p>
+      ) : (
+        <ul className="mt-1 space-y-1">
+          {items.map((it, i) => (
+            <li key={i} className="flex gap-1 text-sm text-ink">
+              <span className={dot}>•</span>
+              <span>{it}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

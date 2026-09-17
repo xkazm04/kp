@@ -5552,6 +5552,7 @@
       "strengths": "Stärken",
       "gaps": "Lücken",
       "interviewProbes": "Interview-Nachfragen",
+      "emptyReasons": "Keine genannt",
       "barAria": "{label} Score {score}",
       "scoreBreakdownAria": "Score {total} von 100: {detail}",
       "dimContribution": "{label} trägt {contribution} von {weight} Punkten bei",

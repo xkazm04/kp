@@ -5552,6 +5552,7 @@
       "strengths": "Silné stránky",
       "gaps": "Mezery",
       "interviewProbes": "Otázky k pohovoru",
+      "emptyReasons": "Nic uvedeno",
       "barAria": "{label} skóre {score}",
       "scoreBreakdownAria": "Skóre {total} ze 100: {detail}",
       "dimContribution": "{label} přispívá {contribution} z {weight} bodů",

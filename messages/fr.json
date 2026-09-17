@@ -5552,6 +5552,7 @@
       "strengths": "Points forts",
       "gaps": "Lacunes",
       "interviewProbes": "Points à creuser en entretien",
+      "emptyReasons": "Aucun élément",
       "barAria": "{label}, score {score}",
       "scoreBreakdownAria": "Score {total} sur 100 : {detail}",
       "dimContribution": "{label} contribue pour {contribution} sur {weight} points",

@@ -740,6 +740,10 @@ the error face; callers that cannot retry omit the prop and stay text-only.
 `MatchCard` passes `explain` from `useMatchCardReasoning`. Pinned by
 `MatchReasoningPanel.test.ts`.
 
+An empty Strengths / Gaps / Probes column is data, not a forgotten list: the
+heading still paints and the body uses `match.shared.emptyReasons` ("None named")
+instead of three hollow columns on a keyless fallback verdict.
+
 ### The narrative says what it is, on both surfaces
 `/api/match/reasoning` reports three things about an answer besides the answer:
 `source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —
