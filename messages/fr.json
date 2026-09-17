@@ -6737,7 +6737,9 @@
     "serverError": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant.",
     "timeoutError": "La requête a expiré. Veuillez réessayer.",
     "success": "Connexion réussie.",
-    "error": "Identifiants incorrects. Réessayez."
+    "error": "Identifiants incorrects. Réessayez.",
+    "noAccount": "Pas encore de compte ?",
+    "goToSignUp": "Créer un espace de travail"
   },
   "signup": {
     "eyebrow": "Kandi",

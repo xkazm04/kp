@@ -6737,7 +6737,9 @@
     "serverError": "Something went wrong on our end. Please try again in a moment.",
     "timeoutError": "The request timed out. Please try again.",
     "success": "Signed in.",
-    "error": "Incorrect credentials. Try again."
+    "error": "Incorrect credentials. Try again.",
+    "noAccount": "Don't have an account?",
+    "goToSignUp": "Create a workspace"
   },
   "signup": {
     "eyebrow": "Kandi",

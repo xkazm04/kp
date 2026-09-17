@@ -1,3 +1,4 @@
+import { signupEnabled } from "@/app/_lib/workspace-lock";
 import { LoginClient } from "./LoginClient";
 
 // The sign-in form renders under the per-request locale layout (useTranslations
@@ -8,5 +9,7 @@ import { LoginClient } from "./LoginClient";
 export const instant = false;
 
 export default function LoginPage() {
-  return <LoginClient />;
+  // Same server-resolved bit the landing hero uses: /signup 404s when the flag
+  // is off, so the client must never guess from a public env mirror.
+  return <LoginClient signupOpen={signupEnabled()} />;
 }

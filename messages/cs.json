@@ -6737,7 +6737,9 @@
     "serverError": "Na naší straně došlo k chybě. Zkuste to prosím za chvíli znovu.",
     "timeoutError": "Časový limit požadavku vypršel. Zkuste to prosím znovu.",
     "success": "Přihlášení proběhlo úspěšně.",
-    "error": "Nesprávné přihlašovací údaje. Zkuste to znovu."
+    "error": "Nesprávné přihlašovací údaje. Zkuste to znovu.",
+    "noAccount": "Ještě nemáte účet?",
+    "goToSignUp": "Vytvořit pracovní prostor"
   },
   "signup": {
     "eyebrow": "Kandi",

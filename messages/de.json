@@ -6737,7 +6737,9 @@
     "serverError": "Auf unserer Seite ist ein Fehler aufgetreten. Bitte versuchen Sie es gleich erneut.",
     "timeoutError": "Zeitüberschreitung der Anfrage. Bitte versuchen Sie es erneut.",
     "success": "Angemeldet.",
-    "error": "Falsche Zugangsdaten. Versuchen Sie es erneut."
+    "error": "Falsche Zugangsdaten. Versuchen Sie es erneut.",
+    "noAccount": "Noch kein Konto?",
+    "goToSignUp": "Workspace erstellen"
   },
   "signup": {
     "eyebrow": "Kandi",

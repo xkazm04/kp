@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
@@ -22,7 +23,7 @@ function safeNext(): string {
 // (bug-ui-scan-2026-07-09 auth-sessions-workspace-tenancy #5).
 const LOGIN_TIMEOUT_MS = 15_000;
 
-export function LoginClient() {
+export function LoginClient({ signupOpen = false }: { signupOpen?: boolean }) {
   const t = useTranslations("login");
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -144,6 +145,14 @@ export function LoginClient() {
           {status === "submitting" ? t("submitting") : t("submit")}
         </button>
       </form>
+      {signupOpen ? (
+        <p className="mt-4 text-sm text-steel">
+          {t("noAccount")}{" "}
+          <Link href="/signup" className="text-ink underline underline-offset-2">
+            {t("goToSignUp")}
+          </Link>
+        </p>
+      ) : null}
     </main>
   );
 }

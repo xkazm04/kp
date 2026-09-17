@@ -40,7 +40,10 @@ inventing a second scoping dimension.
   `signupOpen` prop (SparkHome → SparkLanding → Hero), so on a gated deploy the
   primary CTA's refused keyless login hands off to `/signup` when signup is open
   and `/login` when it is not — `enterWorkspace(plan?, { fallback })` in
-  `app/_lib/auth/session-nav.ts`. The env is never mirrored into a
+  `app/_lib/auth/session-nav.ts`. The same bit is threaded into `/login` as
+  `signupOpen`: when true, LoginClient renders a footer to `/signup` (the
+  inverse of signup's `haveAccount` row); when false, the footer is omitted so
+  the door matches `/signup`'s 404 concealment. The env is never mirrored into a
   `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
 
 ## Identity & auth

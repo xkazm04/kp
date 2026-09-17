@@ -7,6 +7,7 @@
 // Runner: Node's built-in test runner with type stripping.  npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { classifyLoginResult, isInlineCredentialError, safeNextPath, type LoginOutcome } from "./login-result.ts";
 
 test("2xx statuses classify as success", () => {
@@ -90,4 +91,14 @@ test("protocol-relative and scheme-bearing targets fall back to the root", () =>
 
 test("even a same-origin ABSOLUTE url is refused — only in-app paths are legitimate", () => {
   assert.equal(safeNextPath(`?next=${encodeURIComponent(`${ORIGIN}/jobs?x=1`)}`, ORIGIN), "/");
+});
+
+test("LoginPage threads signupEnabled into LoginClient; the footer is gated on signupOpen", () => {
+  const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  const client = readFileSync(new URL("./LoginClient.tsx", import.meta.url), "utf8");
+  assert.match(page, /signupOpen=\{signupEnabled\(\)\}/, "the server wrapper resolves the flag, never a public env mirror");
+  assert.doesNotMatch(page, /process\.env/);
+  assert.match(client, /signupOpen\s*=\s*false/, "LoginClient takes the server boolean");
+  assert.match(client, /signupOpen\s*\?/, "the /signup footer renders only when the prop is true");
+  assert.match(client, /href="\/signup"/);
 });
