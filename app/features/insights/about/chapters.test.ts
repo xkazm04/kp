@@ -176,6 +176,48 @@ test("the archetype scene's quoted detection constants still hold", () => {
 // against design.py plus the English catalog string is the same mechanical
 // coupling — no Python import required.
 
+test("every scene names a stillTick that is the complete-argument beat", () => {
+  // useSceneClock defaults stillTick to cycle-1. That is a trap: a scene whose
+  // last beat is a teardown or a reset would pin reduced-motion readers on the
+  // wrong story. Every scene must declare STILL, pass it explicitly, keep it
+  // inside the cycle, and not leave the closing status sentence after it.
+  const scenes = [
+    "scenes/jd/JdGrounding.tsx",
+    "scenes/scoring/ScoringBuckets.tsx",
+    "scenes/screening/ScreeningLadder.tsx",
+    "scenes/archetypes/ArchetypeRouter.tsx",
+    "scenes/assignments/CaseBaseline.tsx",
+    "scenes/gates/GatesQueue.tsx",
+  ];
+  for (const rel of scenes) {
+    const src = read(rel);
+    const cycleHit = src.match(/^const CYCLE = (\d+);/m);
+    const stillHit = src.match(/^const STILL = (\d+);/m);
+    assert.ok(cycleHit, `${rel} must declare CYCLE`);
+    assert.ok(stillHit, `${rel} must declare STILL — reduced motion has no complete-argument beat without it`);
+    const cycle = Number(cycleHit[1]);
+    const still = Number(stillHit[1]);
+    assert.ok(
+      still >= 0 && still < cycle,
+      `${rel} STILL=${still} must satisfy 0 <= STILL < CYCLE=${cycle}`,
+    );
+    assert.match(
+      src,
+      /useSceneClock\(CYCLE,\s*\{\s*stillTick:\s*STILL\s*\}\)/,
+      `${rel} must pass stillTick: STILL — the hook default is not an authoring choice`,
+    );
+    const table = src.match(/statusPicker\(\{([\s\S]*?)^\s*\}\)/m);
+    assert.ok(table, `${rel} has no statusPicker table`);
+    const keys = [...table[1].matchAll(/^\s*(\d+)\s*:/gm)].map((m) => Number(m[1]));
+    assert.ok(keys.length > 0, `${rel} statusPicker table parsed no beat keys`);
+    const last = Math.max(...keys);
+    assert.ok(
+      last <= still,
+      `${rel} last status beat ${last} is after STILL=${still}; reduced-motion would miss the closing sentence`,
+    );
+  }
+});
+
 test("chapter 1's grounding sentence is still the live prompt rule", () => {
   const design = pySource("pipeline/jobfit/devcase/design.py");
   // The prompt is a concatenated Python string, so the sentence is split across

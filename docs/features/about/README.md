@@ -82,7 +82,10 @@ without a DOM.
 **Clock contract.** Off screen the interval is torn down. Re-entering rewinds to
 beat 0, so nobody joins a sentence half-typed. Reduced motion pins `stillTick` —
 the first beat at which every module has reached its final stage — and never
-creates a timer. A **backgrounded tab pauses and keeps its tick**: `useInView`
+creates a timer. `chapters.test.ts` parses `CYCLE` / `STILL` from all six scenes
+and fails if `STILL` is missing, `>= CYCLE`, not passed explicitly, or earlier
+than the last `statusPicker` key (a reduced-motion reader would miss the closing
+sentence). A **backgrounded tab pauses and keeps its tick**: `useInView`
 measures geometry, which a hidden tab retains, so without the
 `visibilitychange` term every scrolled-to scene kept re-rendering its diagram
 every 900ms in a tab nobody was looking at. Pause, not rewind — returning to a
