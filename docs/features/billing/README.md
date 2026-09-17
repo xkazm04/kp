@@ -499,6 +499,12 @@ by `billingTabState.test.ts`:
   form, and a button that re-enables in that gap mints a second session.
 - **`isCheckoutReturn`** — the `?billing=success` flag, captured once in lazy initial
   state because the effect strips the param immediately.
+- **`checkout_completed`** — Plausible records `checkout_started` on Buy, and
+  `checkout_completed { item }` once when the webhook-backed banner first becomes
+  `confirmed` (`shouldTrackCheckoutCompleted` in `billingCheckoutBanner.ts`). It
+  does not fire on `unconfirmed` (the webhook is still missing). The catalog item
+  is stashed in `sessionStorage` across the Polar redirect because the tab remounts
+  on return. Keyless: `track` is already a no-op without Plausible.
 - **`CHECKOUT_POLL_DELAYS_MS` + `checkoutPollWindowMs()`** — the post-checkout poll now
   **backs off to a stated one-minute cap** (2s, 6s, 14s, 30s, 60s) instead of three fixed
   shots that stopped at 5.5s. When the window closes without the plan reflecting the

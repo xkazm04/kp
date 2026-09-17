@@ -24,6 +24,9 @@
  *   workspace_entered { plan? }  — session-nav.enterWorkspace (landing CTAs)
  *   demo_started                 — SimulationProvider's /?sim=auto auto-start
  *   checkout_started { item }    — BillingTab.startCheckout (plan or pack id)
+ *   checkout_completed { item }  — BillingTab, once, when the webhook-backed
+ *                                  banner first becomes `confirmed` (not on
+ *                                  `unconfirmed`, and not again on re-render)
  * Landing CTA events are the layout owner's side (this module just supplies
  * the primitives).
  */
