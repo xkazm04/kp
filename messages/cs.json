@@ -6725,7 +6725,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Přihlášení",
-    "subtitle": "Přihlaste se e-mailem a heslem, nebo heslem operátora.",
+    "subtitle": "Přihlaste se e-mailem a heslem.",
     "emailLabel": "E-mail",
     "emailPlaceholder": "vy@firma.cz",
     "emailHint": "Chcete-li použít heslo operátora, nechte pole prázdné.",

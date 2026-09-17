@@ -6725,7 +6725,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Sign in",
-    "subtitle": "Sign in with your email and password, or the operator password.",
+    "subtitle": "Sign in with your email and password.",
     "emailLabel": "Email",
     "emailPlaceholder": "you@company.com",
     "emailHint": "Leave blank to use the operator password.",

@@ -113,7 +113,7 @@ export function LoginClient({ signupOpen = false }: { signupOpen?: boolean }) {
             className="mt-1"
           />
         </label>
-        <p className="text-xs text-steel">{t("emailHint")}</p>
+        {email.trim() === "" ? <p className="text-xs text-steel">{t("emailHint")}</p> : null}
         <label className="block text-sm text-ink">
           {t("passwordLabel")}
           <TextInput

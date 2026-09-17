@@ -48,7 +48,10 @@ inventing a second scoping dimension.
   `/login` itself does not re-prompt an entered session: if
   `hasEnteredWorkspace()` is already true, the server wrapper redirects to
   `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Anonymous
-  visitors still see the form.
+  visitors still see the form. The member copy does not advertise the operator
+  password: subtitle is email+password only, and the "leave blank" hint renders
+  only while the email field is empty. Empty email + password remains the API
+  operator path.
 
 ## Identity & auth
 

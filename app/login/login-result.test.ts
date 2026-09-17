@@ -100,6 +100,18 @@ test("LoginPage redirects an entered session into the workspace", () => {
   assert.match(page, /safeNextPath\(/, "a phishing next cannot escape the request origin");
 });
 
+test("the default login subtitle does not mention the operator password", () => {
+  const catalogs = ["en", "cs", "de", "fr"].map((locale) =>
+    JSON.parse(readFileSync(new URL(`../../messages/${locale}.json`, import.meta.url), "utf8")),
+  );
+  for (const cat of catalogs) {
+    assert.doesNotMatch(cat.login.subtitle, /operator/i, "subtitle must not advertise the operator path");
+  }
+  const client = readFileSync(new URL("./LoginClient.tsx", import.meta.url), "utf8");
+  assert.match(client, /email\.trim\(\) === ""/, "emailHint renders only while the email field is empty");
+  assert.match(client, /t\("emailHint"\)/);
+});
+
 test("LoginPage threads signupEnabled into LoginClient; the footer is gated on signupOpen", () => {
   const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
   const client = readFileSync(new URL("./LoginClient.tsx", import.meta.url), "utf8");

@@ -6725,7 +6725,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Connexion",
-    "subtitle": "Connectez-vous avec votre e-mail et votre mot de passe, ou le mot de passe opérateur.",
+    "subtitle": "Connectez-vous avec votre e-mail et votre mot de passe.",
     "emailLabel": "E-mail",
     "emailPlaceholder": "vous@entreprise.com",
     "emailHint": "Laissez vide pour utiliser le mot de passe opérateur.",
