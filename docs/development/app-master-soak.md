@@ -9,6 +9,9 @@ $0, keyed API calls do not. The abort criterion below keys on that delta. Note: 
 nights of history (P2 passed — `app-master-c1-exam.md` §8c). This document is
 the protocol and the taxonomy; the per-night record is
 `bench/app-master/soak/log.jsonl` (one JSON line per night, misses included).
+`node scripts/app-master-bench/soak/night.mjs --matrix` reduces that log to a
+scenario × window pass-rate table (`--from` / `--to` inclusive YYYY-MM-DD);
+the default night run still appends one line.
 
 **What it measures** (close-out §9 gap 5, registry `agent-memory`): what breaks
 when an App master runs for weeks, not rings — memory that decays wrongly, recall

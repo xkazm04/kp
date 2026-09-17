@@ -17,11 +17,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   MISS_CLASSES,
+  SOAK_SCENARIO,
   backfillRows,
   isMissClass,
   localDate,
   newRecord,
+  passRateMatrix,
   readLogLines,
+  renderPassRateMatrix,
   resolveVerdict,
 } from "./night.mjs";
 
@@ -173,4 +176,40 @@ test("a fresh record starts with no verdict and an empty anomaly list", () => {
   assert.equal(rec.night, null);
   assert.deepEqual(rec.anomalies, []);
   assert.equal(rec.date, localDate(new Date("2026-09-04T10:00:00.000Z")));
+});
+
+// --- pass-rate matrix --------------------------------------------------------
+test("three nights (one miss, two ran) reduce to passed=2/3 and the miss class counted", () => {
+  const lines = [
+    JSON.stringify({ date: "2026-09-01", ran: true, miss: null }),
+    JSON.stringify({ date: "2026-09-02", ran: false, miss: "bridge-down" }),
+    JSON.stringify({ date: "2026-09-03", ran: true, miss: null }),
+  ];
+  const rows = passRateMatrix(lines);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].scenario, SOAK_SCENARIO);
+  assert.equal(rows[0].nights, 3);
+  assert.equal(rows[0].passed, 2);
+  assert.deepEqual(rows[0].missedByClass, { "bridge-down": 1 });
+  const md = renderPassRateMatrix(rows);
+  assert.match(md, /kp-c1-night/);
+  assert.match(md, /2/);
+  assert.match(md, /bridge-down: 1/);
+});
+
+test("the matrix window is inclusive and a nameless miss is unclassified", () => {
+  const lines = [
+    { date: "2026-09-01", ran: true },
+    { date: "2026-09-02", ran: false, miss: "not-a-class" },
+    { date: "2026-09-08", ran: false, miss: "tick-died" },
+  ];
+  const rows = passRateMatrix(lines, { from: "2026-09-02", to: "2026-09-07" });
+  assert.equal(rows[0].nights, 1);
+  assert.equal(rows[0].passed, 0);
+  assert.deepEqual(rows[0].missedByClass, { unclassified: 1 });
+});
+
+test("an empty log is an empty matrix, not a fabricated zero-pass night", () => {
+  assert.deepEqual(passRateMatrix([]), []);
+  assert.match(renderPassRateMatrix([]), /empty log/);
 });
