@@ -148,6 +148,23 @@ test("/about emits AboutPage + SoftwareApplication JSON-LD matching the document
   expect(aboutPage!.name).toBe(await page.title());
 });
 
+test("/about JSON-LD advertises a two-item Home to About breadcrumb", async ({ page }) => {
+  await page.goto("/about");
+  const json = JSON.parse(
+    (await page.locator('script[type="application/ld+json"]').first().textContent()) ?? "null"
+  ) as { "@graph"?: Record<string, unknown>[] };
+  const nodes = json["@graph"] ?? [];
+  const typeOf = (n: Record<string, unknown>) =>
+    ([] as unknown[]).concat(n["@type"] ?? []).map(String);
+  const crumbs = nodes.find((n) => typeOf(n).includes("BreadcrumbList"));
+  expect(crumbs, "BreadcrumbList node").toBeTruthy();
+  const items = (crumbs!.itemListElement as { position: number; name: string; item: string }[]) ?? [];
+  expect(items).toHaveLength(2);
+  expect(items[1].position).toBe(2);
+  expect(items[1].item.replace(/\/$/, "")).toMatch(/\/about$/);
+  expect(items[1].name).toBe(await page.title());
+});
+
 for (const path of PAGES) {
   test(`${path} passes axe beyond its recorded holdouts`, async ({ page }) => {
     await page.goto(path);

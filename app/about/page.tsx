@@ -69,6 +69,7 @@ export default async function AboutPage() {
       text: steps[key].body,
       url: `${aboutUrl}#${aboutStepId(i)}`,
     })),
+    breadcrumbHomeName: tAbout("nav.home"),
   });
   // Same nonce the layout stamps on THEME_INIT — script-src is nonce'd and
   // report-only today, but an un-nonced inline block is what an enforced

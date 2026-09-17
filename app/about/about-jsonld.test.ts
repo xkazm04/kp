@@ -21,6 +21,7 @@ const catalog = (locale: string) =>
     aboutPage: {
       meta: { title: string; description: string };
       hero: { title: string };
+      nav: { home: string };
       steps: Record<string, { title: string; body: string }>;
     };
   };
@@ -30,7 +31,7 @@ function typesOf(node: Record<string, unknown>): string[] {
   return Array.isArray(t) ? t.map(String) : [String(t)];
 }
 
-function graphOf(locale: string, withHowTo = false) {
+function graphOf(locale: string, extras: { howTo?: boolean; breadcrumb?: boolean } = {}) {
   const page = catalog(locale).aboutPage;
   const origin = "https://kandidate.example";
   const aboutUrl = aboutPageUrl(origin);
@@ -40,7 +41,7 @@ function graphOf(locale: string, withHowTo = false) {
     inLanguage: locale,
     siteOrigin: origin,
     sameAs: "https://github.com/xkazm04/kp",
-    ...(withHowTo
+    ...(extras.howTo
       ? {
           howToName: plainIcu(page.hero.title),
           howToSteps: ABOUT_STEP_KEYS.map((key, i) => ({
@@ -50,6 +51,7 @@ function graphOf(locale: string, withHowTo = false) {
           })),
         }
       : {}),
+    ...(extras.breadcrumb ? { breadcrumbHomeName: page.nav.home } : {}),
   });
 }
 
@@ -109,7 +111,7 @@ test("plainIcu strips hero ICU tags to a single sentence", () => {
 test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", () => {
   for (const locale of LOCALES) {
     const steps = catalog(locale).aboutPage.steps;
-    const doc = graphOf(locale, true);
+    const doc = graphOf(locale, { howTo: true });
     const howTo = doc["@graph"].find((n) => typesOf(n).includes("HowTo"));
     assert.ok(howTo, `${locale} missing HowTo`);
     assert.equal(howTo.name, plainIcu(catalog(locale).aboutPage.hero.title));
@@ -122,5 +124,22 @@ test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", 
       assert.equal(howToSteps[i].text, steps[key].body);
       assert.equal(howToSteps[i].url, `${aboutPageUrl("https://kandidate.example")}#${aboutStepId(i)}`);
     });
+  }
+});
+
+test("BreadcrumbList is Home then the localized about title, and only those two", () => {
+  for (const locale of LOCALES) {
+    const page = catalog(locale).aboutPage;
+    const doc = graphOf(locale, { breadcrumb: true });
+    const crumbs = doc["@graph"].find((n) => typesOf(n).includes("BreadcrumbList"));
+    assert.ok(crumbs, `${locale} missing BreadcrumbList`);
+    const items = crumbs.itemListElement as Record<string, unknown>[];
+    assert.equal(items.length, 2, "no invented intermediate crumbs");
+    assert.equal(items[0].position, 1);
+    assert.equal(items[0].name, page.nav.home);
+    assert.equal(items[0].item, "https://kandidate.example/");
+    assert.equal(items[1].position, 2);
+    assert.equal(items[1].name, page.meta.title);
+    assert.equal(items[1].item, aboutPageUrl("https://kandidate.example"));
   }
 });

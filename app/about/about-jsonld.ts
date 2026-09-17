@@ -19,6 +19,8 @@ export type AboutJsonLdInput = {
   howToName?: string;
   /** One HowToStep per visible /about phase, already in ABOUT_STEP_KEYS order. */
   howToSteps?: readonly { name: string; text: string; url: string }[];
+  /** Localized Home label (`aboutPage.nav.home`). Position 2 uses `name`. */
+  breadcrumbHomeName?: string;
 };
 
 /** Strip next-intl rich tags (`<br></br>`, `<emph>`) so JSON-LD carries plain text. */
@@ -98,6 +100,28 @@ export function buildAboutJsonLd(input: AboutJsonLdInput): {
                 text: s.text,
                 url: s.url,
               })),
+            },
+          ]
+        : []),
+      ...(input.breadcrumbHomeName
+        ? [
+            {
+              "@type": "BreadcrumbList",
+              "@id": `${aboutUrl}#breadcrumb`,
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: input.breadcrumbHomeName,
+                  item: home,
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: input.name,
+                  item: aboutUrl,
+                },
+              ],
             },
           ]
         : []),
