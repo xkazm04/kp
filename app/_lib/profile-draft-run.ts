@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -8,6 +9,7 @@ import {
   spawnPython as defaultSpawnPython,
 } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
+import { withLlmRequestIdIfUnset } from "./llm-request-context";
 
 // AI profile-draft generation, extracted from the POST /api/profile/draft route
 // body so the SAME runner serves the route (sync convenience wrapper) and the
@@ -50,23 +52,26 @@ export async function runProfileDraft(
   const text = (params.text ?? "").trim();
   if (!text) throw new ProfileDraftError("Add some notes for the AI to draft from.", 400, "invalid_input");
 
-  let workdir: string | null = null;
-  try {
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "notes.json");
-    await writeFile(inputPath, JSON.stringify({ text }), "utf-8");
+  const requestId = `profile_draft:${createHash("sha256").update(text).digest("hex").slice(0, 12)}`;
+  return withLlmRequestIdIfUnset(requestId, async () => {
+    let workdir: string | null = null;
+    try {
+      workdir = await createWorkdir();
+      const inputPath = path.join(workdir, "notes.json");
+      await writeFile(inputPath, JSON.stringify({ text }), "utf-8");
 
-    const { result } = spawnPython(
-      ["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath, "--lang", params.lang],
-      { signal, timeoutMs: PROFILE_DRAFT_TIMEOUT_MS, env: buildLlmConfigEnv() }
-    );
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new ProfileDraftError(err.message, err.status, err.code);
+      const { result } = spawnPython(
+        ["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath, "--lang", params.lang],
+        { signal, timeoutMs: PROFILE_DRAFT_TIMEOUT_MS, env: buildLlmConfigEnv() }
+      );
+      const { stdout, stderr, exitCode } = await result;
+      if (exitCode !== 0) {
+        const err = parseStderrError(stderr, exitCode);
+        throw new ProfileDraftError(err.message, err.status, err.code);
+      }
+      return parsePythonJson<Record<string, unknown>>(stdout, stderr);
+    } finally {
+      if (workdir) await cleanupWorkdir(workdir);
     }
-    return parsePythonJson<Record<string, unknown>>(stdout, stderr);
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
-  }
+  });
 }

@@ -90,6 +90,17 @@ for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
 
 after(() => cleanupUnitDb());
 
+test("recruiter-run and profile-draft-run open withLlmRequestIdIfUnset around the spawn", () => {
+  for (const rel of ["_lib/recruiter-run.ts", "_lib/profile-draft-run.ts"] as const) {
+    const source = readFileSync(path.join(APP_ROOT, rel), "utf-8");
+    assert.match(
+      source,
+      /withLlmRequestIdIfUnset/,
+      `${rel} is an inline LLM spawn; without a request scope Activity rows land with null request_id`
+    );
+  }
+});
+
 // …and that the env it builds actually ROUTES cv_analysis: the use case must survive
 // into KP_LLM_CONFIG with its provider AND its model pin, since the child reads the
 // model off the resolved provider (pipeline.py: `getattr(cv_provider, "model", None)`).
