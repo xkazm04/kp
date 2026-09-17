@@ -79,7 +79,7 @@ tinted calendar header band) plus the `ImpactCard` shell, `RoundChip`,
 
 | Card | File | Drawn as |
 | --- | --- | --- |
-| Overview | `ImpactOverviewCard.tsx` | a miniature of the board — ruled columns in board order, `enums.stage.*` headers, the board's own `·` in a column the plan runs nothing at |
+| Overview | `ImpactOverviewCard.tsx` | a miniature of the board — ruled columns in board order, `enums.stage.*` headers, the board's own `·` in a column the plan runs nothing at, and the live occupancy count under each station (`occupancyMark`: omit while the fetch is in flight, `·` when zero) |
 | Decisions | `ImpactDecisionsCard.tsx` | a checkpoint ladder over `gateLedger()`, mirroring the policy table above it |
 | Schedule | `ImpactScheduleCard.tsx` | a miniature week grid in ScheduleCalendar's `grid-cols-[2rem_repeat(5,1fr)]` shape, plus a legend naming the live channels |
 

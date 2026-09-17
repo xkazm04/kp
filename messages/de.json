@@ -59,6 +59,7 @@
       "decisionsSub": "Die Warteschlangen, die ein Mensch abarbeiten muss",
       "scheduleSub": "Was im Kalender landet",
       "colsN": "{count, plural, one {# Spalte} other {# Spalten}}",
+      "occupancy": "{count, plural, one {# hier} other {# hier}}",
       "noRounds": "hier läuft nichts",
       "unattended": "Unbeaufsichtigt",
       "touchpointsLabel": "Menschliche Entscheidungen",

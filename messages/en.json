@@ -59,6 +59,7 @@
       "decisionsSub": "The queues a human must clear",
       "scheduleSub": "What lands on a calendar",
       "colsN": "{count, plural, one {# column} other {# columns}}",
+      "occupancy": "{count, plural, one {# here} other {# here}}",
       "noRounds": "nothing runs here",
       "unattended": "Unattended",
       "touchpointsLabel": "Human decisions",

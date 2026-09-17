@@ -372,6 +372,16 @@ export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEF
   };
 }
 
+/** How the Overview mini-board paints live occupancy under a station.
+ *  Unknown must omit rather than guess 0: a missing fetch must not look empty. */
+export type OccupancyMark = "omit" | "empty" | number;
+
+export function occupancyMark(countsLoaded: boolean, count: number | undefined): OccupancyMark {
+  if (!countsLoaded) return "omit";
+  const n = count ?? 0;
+  return n > 0 ? n : "empty";
+}
+
 /** The board stage each fixed composer row governs, so a policy surface names
  *  the same columns the board draws instead of its own private station words.
  *

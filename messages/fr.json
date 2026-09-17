@@ -59,6 +59,7 @@
       "decisionsSub": "Les files qu'un humain doit traiter",
       "scheduleSub": "Ce qui arrive dans l'agenda",
       "colsN": "{count, plural, one {# colonne} other {# colonnes}}",
+      "occupancy": "{count, plural, one {# ici} other {# ici}}",
       "noRounds": "rien ne s'exécute ici",
       "unattended": "Sans supervision",
       "touchpointsLabel": "Décisions humaines",

@@ -18,6 +18,7 @@ import {
   composerStations,
   deriveImpact,
   ENTERPRISE_AXIS_ROLES,
+  occupancyMark,
   matchesPreset,
   newRound,
   type PresetAxisLabels,
@@ -669,4 +670,12 @@ test("the plan's FIRST round carries no cohort reducer, wherever it sits", () =>
     assert.equal(rounds[0].topN, null);
     assert.equal(rounds[1].topN, 5);
   }
+});
+
+test("occupancyMark omits while unknown, paints empty at 0, and the loaded count otherwise", () => {
+  assert.equal(occupancyMark(false, 12), "omit");
+  assert.equal(occupancyMark(false, undefined), "omit");
+  assert.equal(occupancyMark(true, undefined), "empty");
+  assert.equal(occupancyMark(true, 0), "empty");
+  assert.equal(occupancyMark(true, 12), 12);
 });
