@@ -186,8 +186,11 @@ four-fifths rule) — every other regime’s null is the contract, not a gap.
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET
-(projection) and POST (→ `anonymizeEntry`). The token is carried in comms
-email footers.
+(projection) and POST (→ `anonymizeEntry`). GET already projects
+`consentExpiresAt`; the page now formats it through `useDateFormat().date`
+(`data.keptUntil`) so the person the TTL is about can see how long we keep
+them, and a malformed expiry cannot print "Invalid Date". Anonymized entries
+do not show a future expiry. The token is carried in comms email footers.
 
 The page distinguishes a **dead link** from a **transient fault**, because the
 two need opposite reactions from the candidate: only a `404` renders the
