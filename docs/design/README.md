@@ -41,7 +41,9 @@ appearance control on the workspace sidebar rail
 (`app/features/shell/nav/NavRailPreferences.tsx`) flips it, persists the choice
 to `localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
 inline pre-hydration script in `app/layout.tsx` applies the stored theme
-before first paint, so there is no flash.
+before first paint, so there is no flash. `subscribeTheme` also listens for
+`storage` events on that key, so a flip in one workspace tab updates this
+document's attribute (and `useTheme()`) without a reload.
 
 **`/landing` is exempt — and enforced.** The Spark landing page is a fixed art
 direction with literal hexes on purpose (`app/landing/spark/tokens.ts`) — it

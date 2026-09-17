@@ -13,7 +13,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { getServerTheme, THEME_STORAGE_KEY } from "./theme.ts";
+import { getServerTheme, getTheme, subscribeTheme, THEME_STORAGE_KEY } from "./theme.ts";
 
 // CRLF here, LF in a fresh worktree — normalize before any anchored matching.
 const layoutSrc = readFileSync(new URL("../layout.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
@@ -50,4 +50,76 @@ test("the bootstrap and the store agree on what 'dark' means", () => {
   // the first client snapshot correct it — the light default is what the bootstrap's
   // "no stored value, no dark media query" branch also produces.
   assert.equal(getServerTheme(), "light");
+});
+
+type StorageHandler = (ev: { key: string | null; newValue: string | null }) => void;
+
+function installThemeDom(): {
+  dataset: { theme?: string };
+  storageHandlers: StorageHandler[];
+  storageWrites: { n: number };
+  restore: () => void;
+} {
+  const dataset: { theme?: string } = {};
+  const storageHandlers: StorageHandler[] = [];
+  const storageWrites = { n: 0 };
+  const g = globalThis as typeof globalThis & { document?: unknown; window?: unknown; localStorage?: unknown };
+  const prev = { document: g.document, window: g.window, localStorage: g.localStorage };
+  g.document = { documentElement: { dataset } };
+  g.window = {
+    addEventListener(type: string, handler: StorageHandler) {
+      if (type === "storage") storageHandlers.push(handler);
+    },
+    removeEventListener(type: string, handler: StorageHandler) {
+      const i = storageHandlers.indexOf(handler);
+      if (i >= 0) storageHandlers.splice(i, 1);
+    },
+  };
+  g.localStorage = {
+    setItem() {
+      storageWrites.n += 1;
+    },
+  };
+  return {
+    dataset,
+    storageHandlers,
+    storageWrites,
+    restore() {
+      g.document = prev.document;
+      g.window = prev.window;
+      g.localStorage = prev.localStorage;
+    },
+  };
+}
+
+test("subscribeTheme registers a storage listener and applies a foreign-tab write", () => {
+  const dom = installThemeDom();
+  let ticks = 0;
+  const unsub = subscribeTheme(() => {
+    ticks += 1;
+  });
+  try {
+    assert.equal(dom.storageHandlers.length, 1, "subscribeTheme must bind window storage once");
+    assert.equal(getTheme(), "light");
+
+    dom.storageHandlers[0]({ key: THEME_STORAGE_KEY, newValue: "dark" });
+    assert.equal(getTheme(), "dark");
+    assert.equal(dom.dataset.theme, "dark");
+    assert.equal(ticks, 1, "useTheme listeners follow the foreign-tab write");
+    assert.equal(dom.storageWrites.n, 0, "a foreign-tab write must not re-write localStorage");
+
+    dom.storageHandlers[0]({ key: THEME_STORAGE_KEY, newValue: "light" });
+    assert.equal(getTheme(), "light");
+    assert.equal(dom.dataset.theme, undefined);
+    assert.equal(ticks, 2);
+
+    const ticksBefore = ticks;
+    dom.storageHandlers[0]({ key: "other-key", newValue: "dark" });
+    assert.equal(getTheme(), "light");
+    assert.equal(ticks, ticksBefore);
+  } finally {
+    unsub();
+    assert.equal(dom.storageHandlers.length, 0, "last unsubscribe unbinds the storage listener");
+    dom.restore();
+  }
 });
