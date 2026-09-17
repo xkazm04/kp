@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
 import { roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
@@ -62,6 +64,7 @@ export function AcceptForm({ token }: { token: string }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [legalAck, setLegalAck] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +140,8 @@ export function AcceptForm({ token }: { token: string }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const block = inviteSubmitBlock({ needsName, name, password, passwordConfirm, minPasswordLength });
+    const block = inviteSubmitBlock({ needsName, name, password, passwordConfirm, minPasswordLength, legalAck });
+    if (block === "legalAck") return;
     if (block === "missingName") {
       setError(t("nameRequired"));
       return;
@@ -251,11 +255,28 @@ export function AcceptForm({ token }: { token: string }) {
             {error}
           </p>
         ) : null}
+        <Checkbox
+          checked={legalAck}
+          onChange={(e) => setLegalAck(e.target.checked)}
+          required
+          label={t.rich("legalAck", {
+            privacy: (chunks) => (
+              <Link href="/privacy" className="text-ink underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+            terms: (chunks) => (
+              <Link href="/terms" className="text-ink underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+          })}
+        />
         {/* h-11 (44px), the mobile touch-target floor the offer door's actions
             already use — this form is opened on a phone as often as not. */}
         <button
           type="submit"
-          disabled={submitting || !canSubmitInvite({ needsName, name, password, passwordConfirm, minPasswordLength })}
+          disabled={submitting || !canSubmitInvite({ needsName, name, password, passwordConfirm, minPasswordLength, legalAck })}
           className={`${BTN_PRIMARY} h-11 w-full justify-center`}
         >
           {submitting ? t("submitting") : t("submit")}

@@ -134,3 +134,18 @@ test("AcceptForm shows the floor, a confirm field, and does not POST on mismatch
   assert.match(src, /aria-describedby=\{passwordDescribedBy\}/, "password input points at hint + error");
   assert.match(src, /t\("passwordMismatch"\)/, "mismatch is an inline error, not a fetch");
 });
+
+test("canSubmitInvite refuses an unchecked privacy/terms acknowledgment", () => {
+  const ready = { needsName: false, name: "", password: "abcdefgh", passwordConfirm: "abcdefgh", minPasswordLength: 8 };
+  assert.equal(inviteSubmitBlock({ ...ready, legalAck: false }), "legalAck");
+  assert.equal(canSubmitInvite({ ...ready, legalAck: false }), false);
+  assert.equal(canSubmitInvite({ ...ready, legalAck: true }), true);
+});
+
+test("AcceptForm cannot submit without an explicit privacy/terms acknowledgment", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /t\.rich\("legalAck"/, "the checkbox copy is catalogued");
+  assert.match(src, /href="\/privacy"/, "privacy policy is linked");
+  assert.match(src, /href="\/terms"/, "terms of service are linked");
+  assert.match(src, /legalAck/, "submit disablement includes the ack");
+});

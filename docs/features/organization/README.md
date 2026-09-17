@@ -659,6 +659,12 @@ the invite. The form now shows `invite.passwordHint` with the preview's
 the password input. Mismatch or too-short is an inline error and does not
 POST. Pinned by `invitePasswordCheck`.
 
+**Privacy and terms are acknowledged before the account exists.** `/privacy`
+and `/terms` are already public; the emailed colleague creating an operator
+account never had to open them. A required checkbox (`invite.legalAck`) with
+links to both pages disables submit until checked and refuses POST if
+unchecked.
+
 ## Copy & localization
 
 The console is fully localized in all four locales from the **`workspaceAdmin`**

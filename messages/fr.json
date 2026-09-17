@@ -6790,6 +6790,7 @@
     "passwordHint": "Au moins {minLength} caractères.",
     "passwordConfirm": "Confirmer le mot de passe",
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "legalAck": "J'ai lu la <privacy>politique de confidentialité</privacy> et les <terms>conditions d'utilisation</terms>.",
     "submitting": "Configuration…",
     "submit": "Accepter l’invitation"
   },

@@ -109,9 +109,11 @@ export type InviteSubmitInput = {
   passwordConfirm?: string;
   /** When set, a password shorter than this is a client refusal. */
   minPasswordLength?: number;
+  /** When explicitly false, the privacy/terms checkbox is unchecked. */
+  legalAck?: boolean;
 };
 
-export type InviteSubmitBlock = "missingName" | "emptyPassword" | "weakPassword" | "passwordMismatch";
+export type InviteSubmitBlock = "missingName" | "emptyPassword" | "weakPassword" | "passwordMismatch" | "legalAck";
 
 export type InvitePasswordCheck = "ok" | "tooShort" | "mismatch";
 
@@ -131,6 +133,7 @@ export function inviteSubmitBlock(input: InviteSubmitInput): InviteSubmitBlock |
     if (pw === "tooShort") return "weakPassword";
     if (pw === "mismatch") return "passwordMismatch";
   }
+  if (input.legalAck === false) return "legalAck";
   return null;
 }
 

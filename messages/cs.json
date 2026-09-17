@@ -6790,6 +6790,7 @@
     "passwordHint": "Alespoň {minLength} znaků.",
     "passwordConfirm": "Potvrzení hesla",
     "passwordMismatch": "Hesla se neshodují.",
+    "legalAck": "Přečetl(a) jsem si <privacy>zásady ochrany soukromí</privacy> a <terms>podmínky používání</terms>.",
     "submitting": "Nastavování…",
     "submit": "Přijmout pozvánku"
   },
