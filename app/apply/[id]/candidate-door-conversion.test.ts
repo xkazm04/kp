@@ -97,3 +97,14 @@ test("the quick form keeps its honeypot and the strict server KO contract untouc
   // reads an ABSENT key as a fail, so an incomplete form must never reach it.
   assert.match(src, /koSteps\.find\(\(s\) => ko\[s\.id\] === undefined\)/, "an unanswered KO gate still blocks the POST");
 });
+
+test("the conversational chat posts the same company_url honeypot as the quick form", () => {
+  const view = read("ConversationalApply.tsx");
+  const submit = read("use-apply-submit.ts");
+  assert.match(view, /name="company_url"/, "the off-screen field is named company_url");
+  assert.match(view, /aria-hidden="true"/, "…and is out of the a11y tree");
+  assert.match(view, /tabIndex=\{-1\}/, "…and out of the tab order");
+  assert.match(view, /autoComplete="off"/, "…and not autofilled as a real company URL");
+  assert.doesNotMatch(view, /type="hidden"/, "not type=hidden — bots skip those");
+  assert.match(submit, /company_url: companyUrl/, "the final POST body includes company_url");
+});

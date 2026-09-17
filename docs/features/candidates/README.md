@@ -374,7 +374,10 @@ above the transcript, hidden on the done card. Text only — no meter
 animation — so a reduced-motion reader gets the same signal. Pinned by
 `apply-intake.test.ts` and `apply-door-a11y.test.ts`. Quick apply
 (`QuickApplyForm.tsx`) is the short-form alternative behind
-`app/api/apply/[id]/quick/route.ts`.
+`app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
+`company_url` honeypot (not `type="hidden"`) and POST it on submit so a
+form-filling bot is dropped the same way on the chat as on the lead form.
+Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
 email as *editable* defaults. It is deliberately conservative — a wrong guess costs
