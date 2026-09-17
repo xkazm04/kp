@@ -269,7 +269,10 @@ mismatch. `isFairnessAligned` (`app/features/shared/groupEvalTypes.ts`) also
 requires `own` and `ranking` to lockstep with `labels` (ranking may be shorter
 only when the blob's `koFailed` list accounts for the dropped KO labels), so a
 truncated persist cannot crown a robust order or paint a lockstep cell the
-panel does not have.
+panel does not have. `assessRobustness` itself returns `insufficient_sample`
+when that aligned field is below `GROUP_EVAL_MIN_COHORT`, so a one-person
+comparison cannot seal as robustness-checked even on the record path that never
+mounts the panel.
 
 **The fairness track rides on every compared candidate.** `fairness_track`
 (`recruiter.py`) marks each ranked row `early_career` or `experienced` because

@@ -1,4 +1,5 @@
 import type { MatchResultView } from "@/app/features/shared/matchTypes";
+import { GROUP_EVAL_MIN_COHORT } from "@/app/_lib/group-eval-cohort";
 
 // Structured, bold-formatted head-to-head narrative (group_compare_cli). Bold
 // spans are marked with **double asterisks** for RichText to render as <strong>.
@@ -84,10 +85,12 @@ export function isFairnessAligned(fairness: Fairness | null | undefined): fairne
  *  weights actually vary. Single-sourced so the panel copy AND the sealed decision
  *  record agree, and so a no-op / a missing check can never read as a PASS. A
  *  MISALIGNED matrix is treated exactly like a missing one — an unreadable check is
- *  not a check. */
+ *  not a check. An aligned field below `GROUP_EVAL_MIN_COHORT` is
+ *  `insufficient_sample` (no field to re-rank, no lead to crown). */
 export function assessRobustness(hasJob: boolean, fairness: Fairness | null): RobustnessStatus {
   if (!hasJob) return "not_applicable";
   if (!isFairnessAligned(fairness)) return "unavailable";
+  if (fairness.labels.length < GROUP_EVAL_MIN_COHORT) return "insufficient_sample";
   const varied = fairness.candidateIds.some((id) => (fairness.weightNotes?.[id]?.length ?? 0) > 0);
   return varied ? "assessed" : "not_varied";
 }
