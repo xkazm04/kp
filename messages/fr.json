@@ -2360,7 +2360,10 @@
     "lab": {
       "eyebrow": "Interne · MVP vocal",
       "title": "Laboratoire d'entretien vocal",
-      "disabledBody": "Le laboratoire est désactivé en production : il génère de vrais identifiants de fournisseur sans jeton de session. Définissez <flag>INTERVIEW_LAB_ENABLED=1</flag> pour l'activer, ou utilisez la simulation recruteur, qui passe par une session tokenisée."
+      "disabledBody": "Le laboratoire est désactivé en production : il génère de vrais identifiants de fournisseur sans jeton de session. Définissez <flag>INTERVIEW_LAB_ENABLED=1</flag> pour l'activer, ou utilisez la simulation recruteur, qui passe par une session tokenisée.",
+      "enabledBody": "Comparez en A/B les fournisseurs temps réel sur un premier entretien court. Choisissez un fournisseur et une langue, donnez votre consentement, puis parlez. La transcription en direct est capturée et enregistrée. Définissez <code>OPENAI_API_KEY</code> et <code>ELEVENLABS_API_KEY</code> + <code>ELEVENLABS_AGENT_ID</code> dans <code>.env.local</code> pour activer chacun, puis redémarrez le serveur de développement.",
+      "candidatePortalNote": "La version côté candidat se trouve à <path>/interview/{token}</path>, avec le fournisseur fixé par session.",
+      "diagramsLink": "Voir les diagrammes du pipeline."
     }
   },
   "palette": {

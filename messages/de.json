@@ -2360,7 +2360,10 @@
     "lab": {
       "eyebrow": "Intern · Voice-MVP",
       "title": "Labor für Sprachinterviews",
-      "disabledBody": "Das Labor ist in der Produktion deaktiviert: Es erzeugt echte Anbieter-Zugangsdaten ohne Sitzungstoken. Setzen Sie <flag>INTERVIEW_LAB_ENABLED=1</flag>, um es zu aktivieren, oder nutzen Sie die Recruiting-Simulation, die über eine tokenisierte Sitzung läuft."
+      "disabledBody": "Das Labor ist in der Produktion deaktiviert: Es erzeugt echte Anbieter-Zugangsdaten ohne Sitzungstoken. Setzen Sie <flag>INTERVIEW_LAB_ENABLED=1</flag>, um es zu aktivieren, oder nutzen Sie die Recruiting-Simulation, die über eine tokenisierte Sitzung läuft.",
+      "enabledBody": "A/B-Vergleich der Echtzeit-Anbieter in einem kurzen Erstgespräch. Wählen Sie Anbieter und Sprache, stimmen Sie zu und sprechen Sie. Das Live-Transkript wird erfasst und gespeichert. Setzen Sie <code>OPENAI_API_KEY</code> und <code>ELEVENLABS_API_KEY</code> + <code>ELEVENLABS_AGENT_ID</code> in <code>.env.local</code>, um jeden zu aktivieren, und starten Sie den Dev-Server neu.",
+      "candidatePortalNote": "Die kandidatenseitige Version liegt unter <path>/interview/{token}</path>; der Anbieter ist pro Sitzung festgelegt.",
+      "diagramsLink": "Pipeline-Diagramme ansehen."
     }
   },
   "palette": {
