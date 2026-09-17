@@ -914,6 +914,10 @@ export const REFUSAL_ERRORS = {
    *  dropped so it stays selected and the recruiter can send the next batch; the cap
    *  rides alongside in `max`. */
   SCHEDULE_BULK_OVER_CAP: "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
+  /** A per-entry row whose resolved recipient is a display name, an opaque id, or
+   *  the literal "candidate" — a relay would dead-letter it. Refused before mint so
+   *  the row stays selected and no orphan schedule token is created. */
+  SCHEDULE_BULK_UNADDRESSABLE: "This candidate has no email address, so no scheduling link was sent.",
   // ---- The SINGLE invite door (/perfect wave 40, scheduling-and-interview-prep).
   // Its bulk sibling was migrated one wave earlier; this door still answered three
   // hand-built English sentences, and the third of them reached the recruiter panel
