@@ -80,6 +80,8 @@ test("POST confirm books the offered slot, advances the entry to Interview, and 
   assert.equal(body.invite.status, "confirmed");
   assert.equal(body.invite.slotAt, slots[0].value);
   assert.equal(typeof body.confirmationSent, "boolean");
+  assert.equal(body.canReschedule, true, "first-confirm POST must carry the reschedule affordance the booked card reads");
+  assert.equal(body.rescheduleCapReached, false);
 
   // The linked pipeline entry advanced via approve_event with the chosen slot.
   assert.equal(getPipelineEntry(entry.id)!.stage, "Interview");

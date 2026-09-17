@@ -506,6 +506,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         confirmationSent: confirmationDelivery !== "failed",
         confirmationDelivery,
         rescheduled: true,
+        canReschedule: moved.invite.status === "confirmed" && moved.invite.rescheduleCount < MAX_RESCHEDULES,
+        rescheduleCapReached: moved.invite.status === "confirmed" && moved.invite.rescheduleCount >= MAX_RESCHEDULES,
       });
     }
 
@@ -525,6 +527,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       invite: publicInviteView(result.invite),
       confirmationSent: confirmationDelivery !== "failed",
       confirmationDelivery,
+      // The booked card hid Change time until reload: GET on a pending invite
+      // answers canReschedule:false, and this envelope omitted the flags, so
+      // pick() had nothing to adopt. After first confirm, rescheduleCount is 0.
+      canReschedule: result.invite.status === "confirmed" && result.invite.rescheduleCount < MAX_RESCHEDULES,
+      rescheduleCapReached: result.invite.status === "confirmed" && result.invite.rescheduleCount >= MAX_RESCHEDULES,
     });
   } catch (error) {
     // Raw err.message would surface SQLite/dispatch internals on a public

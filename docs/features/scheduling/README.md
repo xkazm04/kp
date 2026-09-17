@@ -37,6 +37,11 @@ rules make that hold, and both were once broken:
   `rescheduleCapReached` on in the same response; refreshing only the first left
   the booked card with neither the "change time" button nor the propose
   escalation the POST's `stuckCapped` branch would have accepted.
+- The first-confirm POST lists `canReschedule` / `rescheduleCapReached` next to
+  `confirmationDelivery`, and `pick()` adopts them from that body (no extra
+  free/busy GET). GET on a *pending* invite correctly answers `canReschedule:
+  false`; without the flags on the POST the booked card hid Change time until
+  reload even though `rescheduleCount` was 0.
 
 Pinned by `app/schedule/[token]/schedule-picker-recovery.test.ts` (source-level —
 the repo's unit runner has no component renderer; same idiom as
@@ -813,14 +818,6 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   by the 8s fetch abort). It sits *after* the booking commit and the confirmation
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
-- **A first booking hides the "change time" button until the page is reloaded.**
-  The GET on a *pending* invite necessarily answers `canReschedule: false`, and
-  the first-confirm POST response carries no allowance flags, so the booked card
-  that swaps in has no reschedule affordance even though the server would accept
-  one (`rescheduleCount` 0 < `MAX_RESCHEDULES`). Only the reschedule path
-  refreshes. The clean fix is to put `canReschedule` / `rescheduleCapReached` on
-  the POST response next to `confirmationDelivery`; doing it client-side costs an
-  extra free/busy-hitting GET on every booking.
 - **The propose form does not say which zone its working-hours window is in.**
   The `datetime-local` inputs are the candidate's *browser* wall clock, but
   `PROPOSAL_HOURS` (08:00–18:00) is fenced in `KP_INTERVIEW_TZ`, so a New York

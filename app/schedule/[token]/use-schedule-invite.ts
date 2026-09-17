@@ -138,6 +138,12 @@ export function useScheduleInvite(token: string) {
         // Adopt the server's confirmed invite (carries the ISO slotAt) so the
         // booked card's "Add to calendar" has a real datetime for a fresh booking.
         if (d.invite) setInvite(d.invite);
+        // First-confirm POST used to omit these, so the booked card hid Change
+        // time until reload even though the server would accept a move. Read
+        // them from THIS response (outside the isReschedule GET) so a first
+        // booking shows the affordance without a free/busy-hitting refresh.
+        setCanReschedule(Boolean(d.canReschedule));
+        setCapReached(Boolean(d.rescheduleCapReached));
         if (isReschedule) {
           // Back to the booked card showing the new time; refresh the remaining
           // reschedule allowance + slot pool so the affordance disappears at the cap.

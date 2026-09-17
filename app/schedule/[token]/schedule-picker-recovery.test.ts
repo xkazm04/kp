@@ -72,8 +72,29 @@ test("the post-reschedule refresh re-reads the cap flag, not just the allowance"
 test("client and server name the cap flag identically — a rename can't silently read undefined", () => {
   assert.match(routeSrc, /rescheduleCapReached = invite\.status === "confirmed" && invite\.rescheduleCount >= MAX_RESCHEDULES/);
   assert.match(routeSrc, /\n\s*rescheduleCapReached,/, "the GET must actually put it on the wire");
-  // Both client reads (initial load + post-reschedule refresh) use that exact key.
+  // Three client reads: initial load, first-confirm POST, post-reschedule refresh.
   // CODE only — the comments legitimately name the flag while explaining the bug.
   const inviteCode = inviteSrc.replace(/\/\/[^\n]*/g, "");
-  assert.equal((inviteCode.match(/\bn?d\.rescheduleCapReached\b/g) ?? []).length, 2, "initial load AND reschedule refresh");
+  assert.equal((inviteCode.match(/\bn?d\.rescheduleCapReached\b/g) ?? []).length, 3, "initial load AND first-confirm POST AND reschedule refresh");
+});
+
+test("first-confirm POST lists the reschedule flags and pick() reads them outside the isReschedule branch", () => {
+  const firstConfirm = routeSrc.slice(routeSrc.indexOf("// FIRST CONFIRM"), routeSrc.indexOf("} catch (error)"));
+  assert.ok(firstConfirm.length > 0, "precondition: the first-confirm envelope is locatable");
+  assert.match(firstConfirm, /canReschedule:/, "first-confirm POST must list canReschedule next to confirmationDelivery");
+  assert.match(firstConfirm, /rescheduleCapReached:/, "…and rescheduleCapReached, so the booked card can show Change time without a GET");
+
+  const pick = inviteSrc.slice(inviteSrc.indexOf("const pick = async"), inviteSrc.indexOf("const rsvp = async"));
+  const beforeReschedule = pick.slice(0, pick.indexOf("if (isReschedule)"));
+  assert.ok(beforeReschedule.length > 0, "precondition: pick() has a success path before the isReschedule GET");
+  assert.match(
+    beforeReschedule,
+    /setCanReschedule\(Boolean\(d\.canReschedule\)\)/,
+    "pick() adopts canReschedule from the POST, not only after a reschedule GET"
+  );
+  assert.match(
+    beforeReschedule,
+    /setCapReached\(Boolean\(d\.rescheduleCapReached\)\)/,
+    "…and the cap flag, so spending the last reschedule still raises the propose path"
+  );
 });
