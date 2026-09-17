@@ -75,7 +75,7 @@ ledger:
 | **Draft** | The JD is saved and reusable for analysis/matching, but no candidates are sourced and it is not live. | `POST /api/jds/save` (AI builder) or `POST /api/jds` (manual paste). | `jobs.status = 'draft'` |
 | **Live (sourced)** | The JD is live and matching candidates have been sourced into the Pipeline (they land at `Accepted`). | "Publish" button (`POST /api/jobs/[id]/publish`) — in the drafts panel and the posting modal. | `jobs.status = 'published'` |
 | **Closed** | The role is retired: its apply link stops accepting applications, it drops out of the open catalog and the matching pool, and its in-flight pipeline entries in the caller's workspace are withdrawn. | `POST /api/jobs/[id]/close` (idempotent mirror of `/publish`). | `jobs.status = 'closed'` |
-| **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`. | — |
+| **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`, shown only when `canManage` (operator on the owning team). Anonymous share-link visitors never see it. | — |
 
 `setJobStatus` (`app/_lib/job-ingest.ts`) owns every transition; a seeded
 corpus job with a `NULL` status is treated as already live. `Closed` was
@@ -252,9 +252,13 @@ two steps:
 The fallback cannot widen what is public: `loadJd` matches on the workspace it is
 given, an anonymous visitor resolves to the DEFAULT workspace (i.e. the query that
 just missed), and the only other workspace ever read is the caller's own session's.
-`canManage` (the Edit/Archive/History controls) still requires
-`isOperator() && currentWorkspace() === owner`, where `owner` is whichever of the
-two produced the row.
+`canManage` (Edit / Archive / History, plus Analyze CV and the job-board
+Publish teaser) still requires `isOperator() && currentWorkspace() === owner`,
+where `owner` is whichever of the two produced the row. A candidate on the share
+link used to see Analyze CV (`/?tab=analyze&jd=`) and a disabled "Publish to job
+boards" button in the same header as Apply — operator chrome on a job posting.
+Those two now render only when `canManage`; Apply / Not accepting stay for
+everyone. Pinned by `app/jds/[slug]/jdPublicHeader.test.ts`.
 
 ### Publishing a draft reports its outcome in a toast
 
@@ -291,7 +295,8 @@ all.
    `JobsDraftsPanel.tsx` and `JobsPostingModalFooter.tsx`, which share the
    `jobs.drafts` message namespace.
 2. **Publish to job boards** *(external distribution)* — not yet
-   implemented; the button on `/jds/[slug]` is disabled ("coming soon").
+   implemented; the disabled "coming soon" button on `/jds/[slug]` is
+   operator-only (`canManage`). A candidate on the share link does not see it.
 
 > The API route (`/api/jobs/[id]/publish`) and the `jobs.status = 'published'`
 > column are a stable internal contract (matching engine, the simulation
@@ -692,6 +697,14 @@ set, on the surface whose entire promise is that nobody falls through the cracks
 The panel now appends the shared `match.card.moreCount` line ("+15 more") below
 the list whenever `more > 0`. The **standing** feed (`JobsRediscoveryFeed`) is a
 separate, alert-backed surface and is not paged this way.
+
+The same honesty applies one layer up. `buildCandidatePool` already computes
+`truncated` when 100 profiles or 60 analyses fill a cap, but `rediscoverForJob`
+used to destructure that flag away, so silver-medalist ranking silently omitted
+the overflow with only a `console.warn`. `RediscoverResult` now carries
+`poolTruncated` (a boolean, never a list of dropped identities — same rule as
+`suppressed`) and `GET /api/jobs/[id]/rediscover` forwards it. A capped pool still
+returns its ranked subset; the flag says the subset is not the whole corpus.
 
 A failed sweep in that feed also stopped wearing the success tone: `note` carries
 either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, and

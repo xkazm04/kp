@@ -13,6 +13,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jdMarketResearchAvailable } from "@/app/features/library/jds/jdsLibrary";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
+import { publicJdHeaderActions } from "./jdPublicHeader";
 
 
 // First ~155 chars of the JD body, markdown stripped, for the share/search snippet.
@@ -149,6 +150,9 @@ export default async function JdDetailPage({
   // everyone, a candidate on the share link — would be shown Edit/Archive buttons
   // whose every click comes back "JD not found."
   const canManage = (await isOperator()) && (await currentWorkspace()) === owner;
+  // Analyze CV and the job-board Publish teaser are operator tools (the ledger
+  // rail already has Analyze). A candidate on the share link must not see them.
+  const headerActions = publicJdHeaderActions({ canManage, applyOpen });
 
   // The lint's salary-suppression seam (JdActions' editor now runs the same live
   // lint as the ledger). This page loads the JD's stored build artifacts
@@ -181,35 +185,52 @@ export default async function JdDetailPage({
           <p className="mt-2 text-sm text-steel">{t("savedAt", { date: new Date(jd.created_at).toLocaleString(locale) })}</p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row lg:items-end">
-          {applyOpen ? (
-            <Link
-              href={`/apply/${encodeURIComponent(jobId)}`}
-              className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90"
-            >
-              <UserPlus size={15} /> {t("apply")}
-            </Link>
-          ) : (
-            <span
-              className="inline-flex h-10 items-center justify-center rounded-md border border-dashed border-stone-300 px-3 text-sm text-steel"
-              title={t("notAcceptingTitle")}
-            >
-              {t("notAccepting")}
-            </span>
-          )}
-          <button
-            type="button"
-            disabled
-            title={t("publishTitle")}
-            className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel opacity-70"
-          >
-            <Send size={15} /> {t("publish")}
-          </button>
-          <Link
-            href={`/?tab=analyze&jd=${encodeURIComponent(slug)}`}
-            className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
-          >
-            {t("analyzeCv")}
-          </Link>
+          {headerActions.map((action) => {
+            switch (action) {
+              case "apply":
+                return (
+                  <Link
+                    key="apply"
+                    href={`/apply/${encodeURIComponent(jobId)}`}
+                    className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90"
+                  >
+                    <UserPlus size={15} /> {t("apply")}
+                  </Link>
+                );
+              case "notAccepting":
+                return (
+                  <span
+                    key="notAccepting"
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-dashed border-stone-300 px-3 text-sm text-steel"
+                    title={t("notAcceptingTitle")}
+                  >
+                    {t("notAccepting")}
+                  </span>
+                );
+              case "publish":
+                return (
+                  <button
+                    key="publish"
+                    type="button"
+                    disabled
+                    title={t("publishTitle")}
+                    className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel opacity-70"
+                  >
+                    <Send size={15} /> {t("publish")}
+                  </button>
+                );
+              case "analyzeCv":
+                return (
+                  <Link
+                    key="analyzeCv"
+                    href={`/?tab=analyze&jd=${encodeURIComponent(slug)}`}
+                    className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
+                  >
+                    {t("analyzeCv")}
+                  </Link>
+                );
+            }
+          })}
         </div>
       </header>
 

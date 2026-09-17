@@ -29,6 +29,21 @@ export type WaveResult = {
   kept: number;
   cohort: number;
   commsFailures: number;
+  // Art. 22 records the wave could not seal. Required: a result that omits it
+  // used to paint a clean commit while the hash chain missed rows.
+  sealFailures: number;
   dryRun: boolean;
   approvalToken?: string;
 };
+
+/** What the tab keeps after the wave modal closes. */
+export type WaveCommitSummary = {
+  commsFailures: number;
+  failedLabels: string[];
+  sealFailures: number;
+};
+
+/** True when the post-commit banner must say the chain is incomplete. */
+export function committedWaveNeedsSealBanner(summary: { sealFailures: number }): boolean {
+  return summary.sealFailures > 0;
+}

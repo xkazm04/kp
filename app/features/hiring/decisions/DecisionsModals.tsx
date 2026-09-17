@@ -31,7 +31,7 @@ export function DecisionsModals({
   evalGovernanceMismatch,
   openGroupEval, act,
   rulesOpen, setRulesOpen,
-  waveRole, setWaveRole, load, setWaveCommsFailed,
+  waveRole, setWaveRole, load, setWaveCommsFailed, setWaveSealFailed,
 }: {
   summaryEntry: Entry | null;
   setSummaryEntry: (e: Entry | null) => void;
@@ -57,6 +57,7 @@ export function DecisionsModals({
   setWaveRole: (v: { jobId: string; title: string } | null) => void;
   load: () => void;
   setWaveCommsFailed: (updater: (prev: { count: number; labels: string[] }[]) => { count: number; labels: string[] }[]) => void;
+  setWaveSealFailed: (updater: (prev: number) => number) => void;
 }) {
   const tGroupEval = useTranslations("decisions.groupEval");
   // UAT LUC-GEF-L1-08 — the reject awaiting its rationale + confirmation, and the
@@ -188,6 +189,9 @@ export function DecisionsModals({
               // than appending an ever-growing flat list. Named labels may be fewer
               // than the count (some failures are anonymous); count carries the total.
               setWaveCommsFailed((prev) => [...prev, { count: summary.commsFailures, labels: summary.failedLabels }]);
+            }
+            if (summary && summary.sealFailures > 0) {
+              setWaveSealFailed((n) => n + summary.sealFailures);
             }
           }}
         />

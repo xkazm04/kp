@@ -27,6 +27,7 @@ export function DecisionsTab() {
     leavingWrapClass, queuedLabels, setQueuedLabels,
     sentOffers, setSentOffers, copiedOfferId, setCopiedOfferId, relayConfigured,
     waveCommsFailed, setWaveCommsFailed,
+    waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry, waveRole, setWaveRole,
     evalRole, setEvalRole, evalMode, setEvalMode, evalData, setEvalData,
     evalGovernanceMismatch,
@@ -83,6 +84,8 @@ export function DecisionsTab() {
         onDismissSentOffers={() => setSentOffers([])}
         waveCommsFailed={waveCommsFailed}
         onDismissWaveComms={() => setWaveCommsFailed([])}
+        waveSealFailed={waveSealFailed}
+        onDismissWaveSeal={() => setWaveSealFailed(0)}
       />
 
       {error ? (
@@ -213,6 +216,7 @@ export function DecisionsTab() {
         setWaveRole={setWaveRole}
         load={load}
         setWaveCommsFailed={setWaveCommsFailed}
+        setWaveSealFailed={setWaveSealFailed}
       />
     </div>
   );

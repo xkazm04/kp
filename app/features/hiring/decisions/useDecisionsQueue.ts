@@ -179,6 +179,10 @@ export function useDecisionsQueue() {
   // each committed wave with comms failures pushes one { count, labels } group, so
   // the banner can group + cap ("+N more") instead of appending names uncapped.
   const [waveCommsFailed, setWaveCommsFailed] = useState<{ count: number; labels: string[] }[]>([]);
+  // Missed Art. 22 seals from a committed wave. Session-local like comms
+  // failures: the modal closes, this count stays until dismissed. Accumulates
+  // across successive waves so a second commit cannot hide the first gap.
+  const [waveSealFailed, setWaveSealFailed] = useState(0);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
@@ -783,6 +787,7 @@ export function useDecisionsQueue() {
     sentOffers, setSentOffers,
     copiedOfferId, setCopiedOfferId,
     waveCommsFailed, setWaveCommsFailed,
+    waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry,
     waveRole, setWaveRole,
     evalRole, setEvalRole,
