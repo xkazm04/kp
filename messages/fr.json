@@ -5571,7 +5571,9 @@
         "work_mode": "Assouplissez la préférence de mode de travail sur le profil pour élargir le champ.",
         "early_career": "Peu de postes de ce corpus sont encore ouverts aux candidats débutants.",
         "other": "Ajustez le profil et relancez pour élargir le champ."
-      }
+      },
+      "openJdLibrary": "Ouvrir la bibliothèque de fiches de poste",
+      "reviewRoles": "Voir les postes"
     },
     "card": {
       "startFailed": "Impossible de lancer l’analyse de correspondance.",

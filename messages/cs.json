@@ -5571,7 +5571,9 @@
         "work_mode": "Uvolněte v profilu preferenci režimu práce, aby prošlo víc pozic.",
         "early_career": "Jen málo pozic v tomto korpusu je zatím otevřeno juniorům.",
         "other": "Upravte profil a spusťte znovu, aby prošlo víc pozic."
-      }
+      },
+      "openJdLibrary": "Otevřít knihovnu popisů pozic",
+      "reviewRoles": "Prohlédnout pozice"
     },
     "card": {
       "startFailed": "Analýzu vhodnosti se nepodařilo spustit.",

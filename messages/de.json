@@ -5571,7 +5571,9 @@
         "work_mode": "Lockern Sie die Arbeitsmodus-Präferenz im Profil, um das Feld zu erweitern.",
         "early_career": "Nur wenige Stellen in diesem Korpus stehen Berufseinsteigern bislang offen.",
         "other": "Passen Sie das Profil an und führen Sie erneut aus, um das Feld zu erweitern."
-      }
+      },
+      "openJdLibrary": "Stellenbeschreibungen öffnen",
+      "reviewRoles": "Stellen prüfen"
     },
     "card": {
       "startFailed": "Eignungsanalyse konnte nicht gestartet werden.",

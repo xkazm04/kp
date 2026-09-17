@@ -744,6 +744,12 @@ An empty Strengths / Gaps / Probes column is data, not a forgotten list: the
 heading still paints and the body uses `match.shared.emptyReasons` ("None named")
 instead of three hollow columns on a keyless fallback verdict.
 
+`NoMatchesExplainer` accepts an optional `action` (`href` or `onClick` + `label`)
+so a 0-match run is not a dead-end card. `MatchResults` supplies a JD-library
+deep link when the corpus is empty, and a roles-library link when every role was
+KO-filtered. Omit the prop and the explainer stays hint-only. Pinned by
+`MatchPresentation.test.ts`.
+
 ### The narrative says what it is, on both surfaces
 `/api/match/reasoning` reports three things about an answer besides the answer:
 `source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —
