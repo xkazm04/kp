@@ -151,7 +151,9 @@
     },
     "explorer": {
       "instruction": "Klikněte na kterýkoli krok a uvidíte, jak je zapojen. Otevřený krok zůstává zvýrazněný tady vlevo.",
-      "codeHeading": "Kód"
+      "codeHeading": "Kód",
+      "copy": "Kopírovat cestu",
+      "copied": "Zkopírováno"
     },
     "status": {
       "live": "Automatizováno",

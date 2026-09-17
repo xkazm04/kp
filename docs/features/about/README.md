@@ -22,7 +22,7 @@ machine can check are checked by `app/features/insights/about/chapters.test.ts`.
 | --- | --- |
 | `?tab=about` | `app/features/insights/about/AboutTab.tsx` |
 | Deep link to one chapter | `?tab=about#<id>` — ids in `app/features/insights/about/chapters.ts` (`job-descriptions`, `scoring`, `screening`, `archetypes`, `assignments`, `human-gates`) |
-| Out to the architecture diagrams | `/diagrams` (header link, shown only to a caller holding `read` — the explorer is operator-only, see below) |
+| Out to the architecture diagrams | `/diagrams` (header link, shown only to a caller holding `read` — the explorer is operator-only, see below). A funnel step is addressable as `/diagrams?step=<alias>` (`jd`, `screen`, `decide`, `offer`, `cron`, … — the keys in `app/diagrams/pipelineSteps.ts`); an unknown alias is ignored and the page still renders. |
 | Out to the guided tour | the shell's `SimulationProvider` (header button, hidden while a tour is running) |
 
 **The architecture link is gated.** `/diagrams` (`app/diagrams/page.tsx`) draws
@@ -35,7 +35,11 @@ while the set is still unknown, exactly as the nav rail treats a locked tab. The
 step titles and summaries the explorer's drawer renders live in
 `messages/*.json` under `diagrams.steps.<id>`; only the status, the cited repo
 paths and the PlantUML body stay in `app/diagrams/pipelineSteps.ts`, and
-`pipelineSteps.test.ts` holds the two halves in bijection.
+`pipelineSteps.test.ts` holds the two halves in bijection. A docs citation or
+chat paste can open a drawer directly with `?step=<alias>`; the explorer writes
+the same query on node click (`history.replaceState`) so refresh and share keep
+the step. Each `files[]` row in the drawer copies the repo-relative path on
+click (parenthetical notes like `(actOnPipelineEntry)` are stripped first).
 
 The chapter frames — number, eyebrow, title, lede, anchor, handoff link — are
 always in the server HTML (`stage/Scene.tsx`). Only the art is code-split, one

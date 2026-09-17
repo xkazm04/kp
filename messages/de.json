@@ -151,7 +151,9 @@
     },
     "explorer": {
       "instruction": "Klicken Sie auf einen Schritt, um zu sehen, wie er verdrahtet ist. Der geöffnete Schritt bleibt hier links umrandet.",
-      "codeHeading": "Code"
+      "codeHeading": "Code",
+      "copy": "Pfad kopieren",
+      "copied": "Kopiert"
     },
     "status": {
       "live": "Automatisiert",

@@ -121,7 +121,7 @@ fn --> db : advance / hold`,
   },
   decide: {
     status: "gate",
-    files: ["app/features/hiring/decisions/*", "app/api/pipeline/[id]/route.ts", "app/_lib/db.ts (actOnPipelineEntry)"],
+    files: ["app/features/hiring/decisions/*", "app/api/pipeline/[id]/route.ts", "app/_lib/db/pipeline.ts (actOnPipelineEntry)"],
     puml: `[DecisionsTab\\nAiReviewCard] <<gate>> as ui
 [POST /api/pipeline/[id]] as api
 [actOnPipelineEntry] as fn
@@ -234,3 +234,18 @@ tick --> pass
 pass --> db : advance / hold / nudge`,
   },
 };
+
+/** Validate a `?step=` query value against STEP_DETAILS. Unknown, blank, or
+ *  non-string input is ignored so `/diagrams?step=nope` still renders. */
+export function parseDiagramStep(raw: unknown): string | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== "string") return null;
+  const id = value.trim();
+  return id && Object.hasOwn(STEP_DETAILS, id) ? id : null;
+}
+
+/** Strip a trailing parenthetical note so a files[] citation copies as a
+ *  repo-relative path: `automation.py (evaluate_entry)` → the .py path. */
+export function citationPath(entry: string): string {
+  return entry.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}

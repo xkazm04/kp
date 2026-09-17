@@ -151,7 +151,9 @@
     },
     "explorer": {
       "instruction": "Cliquez sur une étape pour voir comment elle est câblée. L’étape ouverte reste encadrée ici à gauche.",
-      "codeHeading": "Code"
+      "codeHeading": "Code",
+      "copy": "Copier le chemin",
+      "copied": "Copié"
     },
     "status": {
       "live": "Automatisé",

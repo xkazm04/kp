@@ -151,7 +151,9 @@
     },
     "explorer": {
       "instruction": "Click any step to see how it's wired. The open step stays outlined here on the left.",
-      "codeHeading": "Code"
+      "codeHeading": "Code",
+      "copy": "Copy path",
+      "copied": "Copied"
     },
     "status": {
       "live": "Automated",
