@@ -640,8 +640,22 @@ label, `aria-busy`). The visual is unchanged. The rule for which gaps use it:
 *announced-on-arrival*. The region unmounts when content replaces it, and a live region that
 disappears cannot announce what took its place; that needs a stable region owned by the section.
 
-Adopted across the Analytics tab (8 sites). ~80 block-level gaps elsewhere in `app/` still use
-the bare `aria-hidden` form — fix-as-you-touch, not a migration.
+Adopted across the Analytics tab (8 sites). The remaining silent block-level
+`reveal-quiet` + `aria-hidden` boxes are a per-file ceiling in
+[`loading-gap-debt.json`](../../app/_components/ui/loading-gap-debt.json), walked
+by [`loading-gap-debt.test.ts`](../../app/_components/ui/loading-gap-debt.test.ts)
+beside `LoadingGap.tsx` — the same ratchet idiom as `recipe-debt.json`. **Grew**
+and **undeclared** (a new file with a silent panel-body box) are blocking;
+inline `inline-block h-4 w-24` shimmers are the documented exception and are not
+counted. Fix-as-you-touch, not a migration: adopt `<LoadingGap>`, then
+
+```bash
+node --experimental-transform-types app/_components/ui/loading-gap-debt.test.ts --tighten
+```
+
+Seeded 2026-09-17 at `blockGap=77` over 59 files. A number is never raised to
+make a build green. A file burnt down to zero loses its entry, which locks the
+win.
 
 ### Accessible names on shared primitives
 
