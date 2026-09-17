@@ -7065,6 +7065,7 @@
       "effectTitle": "Seit der letzten Änderung",
       "effectTooFew": "Seit der Änderung gibt es im Band {lo}–{hi} zu wenige Entscheidungen zum Messen. Mindestens {min} sind erforderlich.",
       "effectAfterOnly": "Seitdem wurden {pct} % der Kandidaten im Band {lo}–{hi} weitergeleitet (n={n}). Keine früheren Entscheidungen in diesem Band zum Vergleich.",
+      "effectBeforeThin": "Seitdem wurden {pct} % der Kandidaten im Band {lo}–{hi} weitergeleitet (n={n}). {beforeN} frühere Entscheidungen in diesem Band, unter den {min} zum Vergleich nötigen.",
       "effectDelta": "Weiterleitungsquote im Band {lo}–{hi}: {beforePct} % davor → {afterPct} % nach der Änderung (n={n} seitdem).",
       "recFamilyScope": "für {family}",
       "recAppliedFamily": "Schwelle für {family} auf {suggested} gesetzt (vorher {previous}). Durch erneutes Anwenden umkehrbar.",

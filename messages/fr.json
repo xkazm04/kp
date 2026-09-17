@@ -7065,6 +7065,7 @@
       "effectTitle": "Depuis le dernier changement",
       "effectTooFew": "Trop peu de décisions dans la tranche {lo}–{hi} depuis le changement pour mesurer. Au moins {min} sont nécessaires.",
       "effectAfterOnly": "Depuis, {pct} % des candidats de la tranche {lo}–{hi} ont avancé (n={n}). Aucune décision antérieure dans cette tranche pour comparer.",
+      "effectBeforeThin": "Depuis, {pct} % des candidats de la tranche {lo}–{hi} ont avancé (n={n}). {beforeN} décisions antérieures dans cette tranche, sous les {min} nécessaires pour comparer.",
       "effectDelta": "Taux d’avancement de la tranche {lo}–{hi} : {beforePct} % avant → {afterPct} % après le changement (n={n} depuis).",
       "recFamilyScope": "pour {family}",
       "recAppliedFamily": "Seuil pour {family} fixé à {suggested} (précédemment {previous}). Réversible en réappliquant.",

@@ -1108,12 +1108,11 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
-- **`effectAfterOnly` over-states an empty before side.** With the evidence floor now applied
-  symmetrically (above), a before side of 1–7 in-band decisions falls to
-  `effectAfterOnly` — „…No earlier in-band decisions to compare against." — which asserts
-  *zero* where there were a few too thin to compare. Strictly better than the „100 % before"
-  it replaces, but it needs a fourth string ("too few earlier in-band decisions") in all four
-  catalogs; `thresholdEffectClaim` already returns the branch that would carry it.
+- **`effectAfterOnly` over-states an empty before side. CLOSED 2026-09-17.** With the evidence
+  floor applied symmetrically, a before side of 1–7 in-band decisions still claims `after-only`,
+  but the strip now maps that to `effectBeforeThin` when `effect.before.n` is in `(0, min)` —
+  naming n and the floor — and keeps `effectAfterOnly` for a null or zero before side. No new
+  claim kind; `thresholdEffectCopy` is pinned in `calibrationVerdict.test.ts`.
 - **`/apply-threshold` was a read-modify-write with no transaction around it. CLOSED
   2026-08-21 (`0e4dc7e2`).** It used to read the screening rule, spend two full-table
   calibration scans re-deriving the recommendation, then write `{…screening, familyFloors:

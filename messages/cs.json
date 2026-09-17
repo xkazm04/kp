@@ -7065,6 +7065,7 @@
       "effectTitle": "Od poslední změny",
       "effectTooFew": "Od změny je v pásmu {lo}–{hi} příliš málo rozhodnutí k měření. Je potřeba alespoň {min}.",
       "effectAfterOnly": "Od té doby postoupilo {pct} % kandidátů z pásma {lo}–{hi} (n={n}). Žádná dřívější rozhodnutí v tomto pásmu k porovnání.",
+      "effectBeforeThin": "Od té doby postoupilo {pct} % kandidátů z pásma {lo}–{hi} (n={n}). Dřívějších rozhodnutí v tomto pásmu: {beforeN}, pod {min} potřebnými k porovnání.",
       "effectDelta": "Míra postupu v pásmu {lo}–{hi}: {beforePct} % před → {afterPct} % po změně (n={n} od té doby).",
       "recFamilyScope": "pro {family}",
       "recAppliedFamily": "Práh pro {family} nastaven na {suggested} (dříve {previous}). Vrátíte to opětovným použitím.",
