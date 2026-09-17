@@ -352,6 +352,9 @@ resolution path shared by `i18n/request.ts` and every API route that threads a
 language into a backend call. Its precedence is **cookie → `Accept-Language` →
 `en`**, with `isLocale()` guarding each step: an unsupported cookie value does
 not win and does not stop the chain, it falls through to the header.
+`setLocale("auto")` or `setLocale(null)` deletes `NEXT_LOCALE` with the same
+path / SameSite / `secure` options the writer used, so a one-off override can
+return to "whatever this browser speaks". Invalid values stay no-ops.
 `resolveAcceptLanguage` folds a regional tag onto its primary subtag (`cs-CZ` →
 `cs`) and honours the header's own order, so the first *supported* tag wins
 rather than the first tag. Tags with `q=0` are skipped (RFC 9110: not

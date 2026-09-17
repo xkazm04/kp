@@ -184,3 +184,36 @@ test("getServerLocale: nothing usable anywhere resolves to the default", async (
   assert.equal(await serverLocaleWith(undefined, null), DEFAULT_LOCALE);
   assert.equal(await serverLocaleWith("es", "pt-BR,it"), DEFAULT_LOCALE);
 });
+
+type ActionsModule = { setLocale: (locale: string | null) => Promise<void> };
+let actionsModule: ActionsModule | null = null;
+
+async function localeAction(): Promise<ActionsModule> {
+  actionsModule ??= (await import("./actions.ts")) as ActionsModule;
+  return actionsModule;
+}
+
+test("setLocale(auto) clears the cookie so getServerLocale follows Accept-Language", async () => {
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.__KP_TEST_COOKIES__ = { [LOCALE_COOKIE]: "en" };
+  g.__KP_TEST_HEADERS__ = { "accept-language": "cs-CZ" };
+  const { setLocale } = await localeAction();
+  await setLocale("auto");
+  const jar = g.__KP_TEST_COOKIES__ as Record<string, string>;
+  assert.equal(jar[LOCALE_COOKIE], undefined);
+  serverModule ??= (await import("./server.ts")) as ServerModule;
+  assert.equal(await serverModule.getServerLocale(), "cs");
+});
+
+test("setLocale(null) also deletes; invalid values are no-ops", async () => {
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.__KP_TEST_COOKIES__ = { [LOCALE_COOKIE]: "de" };
+  g.__KP_TEST_HEADERS__ = { "accept-language": "fr" };
+  const { setLocale } = await localeAction();
+  await setLocale("es");
+  assert.equal((g.__KP_TEST_COOKIES__ as Record<string, string>)[LOCALE_COOKIE], "de");
+  await setLocale(null);
+  assert.equal((g.__KP_TEST_COOKIES__ as Record<string, string>)[LOCALE_COOKIE], undefined);
+  serverModule ??= (await import("./server.ts")) as ServerModule;
+  assert.equal(await serverModule.getServerLocale(), "fr");
+});
