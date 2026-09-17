@@ -7540,6 +7540,7 @@
         "hoursSaved": "Recruiter hours not spent, from {actions, plural, one {# automated action} other {# automated actions}} at the per-action minute rates in automation-roi.ts.",
         "hoursSavedNone": "No automated actions recorded.",
         "capacity": "{roles, plural, one {# open role} other {# open roles}} carried by {recruiters, plural, one {# recruiter} other {# recruiters}}.",
+        "capacityNow": "{roles, plural, one {# current owned opening} other {# current owned openings}} carried by {recruiters, plural, one {# recruiter} other {# recruiters}}. Point-in-time, not last {days, plural, one {# day} other {# days}}.",
         "capacityNone": "No open roles or no recruiter roster.",
         "nps": "Net promoter score from {responses, plural, one {# candidate response} other {# candidate responses}} at a terminal outcome, on the standard -100 to 100 scale.",
         "costPerHireAsOf": "Spend was last entered {date}."

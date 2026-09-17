@@ -1065,13 +1065,16 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   says *"over 5 hires"*, and `certifiable` is **false**, which is the honest answer: `status:
   measured` means measured. The field is optional and falls back to `hired`, so any other
   caller is unchanged; both halves are pinned in `metric-pack.test.ts`.
-- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.**
-  `?days=90` prints *"Window: last 90 days"* over every row, but capacity's two terms
-  (open roles, membership roster) are current counts with no window applied — the only row in
-  the pack that is not a figure about the stated period, and its `basis` names no period either.
-  (`cost_per_hire` is windowed-aware in the honest direction: spend is lifetime, so the route
-  returns `null` and the pack says `not_measurable` rather than dividing a lifetime numerator by
-  a windowed denominator.)
+- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.
+  CLOSED 2026-09-17.** `?days=90` still prints *"Window: last 90 days"* over the pack, and
+  capacity's two terms (open roles, membership roster) are still current counts with no window
+  applied. The basis now says so: a windowed pack uses `basis.capacityNow` (*"current owned
+  openings … Point-in-time, not last N days"*), so the one row that is not about the stated
+  period no longer pretends it is. If that snapshot is the only measured row, `certifiable` is
+  false. All-time packs keep `basis.capacity`. (`cost_per_hire` is windowed-aware in the honest
+  direction: spend is lifetime, so the route returns `null` and the pack says `not_measurable`
+  rather than dividing a lifetime numerator by a windowed denominator.) The owned-vs-corpus
+  numerator is a separate gap below.
 - **The metric-pack route's capacity comment argued the wrong way round. CLOSED
   2026-09-16.** `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would
   understate capacity, which is the direction that flatters us."* A capacity metric is roles

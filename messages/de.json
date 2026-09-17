@@ -7540,6 +7540,7 @@
         "hoursSaved": "Nicht aufgewendete Recruiter-Stunden, aus {actions, plural, one {# automatisierten Aktion} other {# automatisierten Aktionen}} zu den Minutensätzen pro Aktion in automation-roi.ts.",
         "hoursSavedNone": "Keine automatisierten Aktionen erfasst.",
         "capacity": "{roles, plural, one {# offene Stelle} other {# offene Stellen}}, betreut von {recruiters, plural, one {# Recruiter} other {# Recruitern}}.",
+        "capacityNow": "{roles, plural, one {# aktuell betreute eigene offene Stelle} other {# aktuell betreute eigene offene Stellen}}, betreut von {recruiters, plural, one {# Recruiter} other {# Recruitern}}. Stichtag, nicht die letzten {days, plural, one {# Tag} other {# Tage}}.",
         "capacityNone": "Keine offenen Stellen oder kein Recruiter-Team.",
         "nps": "Net Promoter Score aus {responses, plural, one {# Kandidatenrückmeldung} other {# Kandidatenrückmeldungen}} bei einem Endergebnis, auf der Standardskala von -100 bis 100.",
         "costPerHireAsOf": "Die Ausgaben wurden zuletzt am {date} eingetragen."

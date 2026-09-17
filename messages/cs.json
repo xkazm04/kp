@@ -7540,6 +7540,7 @@
         "hoursSaved": "Hodiny, které recruiteři nemuseli strávit, z {actions, plural, one {# automatické akce} few {# automatických akcí} other {# automatických akcí}} při minutových sazbách na akci v automation-roi.ts.",
         "hoursSavedNone": "Nebyly zaznamenány žádné automatické akce.",
         "capacity": "{roles, plural, one {# otevřenou pozici} few {# otevřené pozice} other {# otevřených pozic}} {recruiters, plural, one {má na starosti # recruiter} few {mají na starosti # recruiteři} other {má na starosti # recruiterů}}.",
+        "capacityNow": "{roles, plural, one {# aktuálně vlastněnou otevřenou pozici} few {# aktuálně vlastněné otevřené pozice} other {# aktuálně vlastněných otevřených pozic}} {recruiters, plural, one {má na starosti # recruiter} few {mají na starosti # recruiteři} other {má na starosti # recruiterů}}. Okamžitý stav, ne za poslední {days, plural, one {# den} few {# dny} other {# dní}}.",
         "capacityNone": "Žádné otevřené pozice nebo žádný seznam recruiterů.",
         "nps": "Net promoter score z {responses, plural, one {# odpovědi kandidáta} few {# odpovědí kandidátů} other {# odpovědí kandidátů}} v koncovém stavu, na standardní škále -100 až 100.",
         "costPerHireAsOf": "Útrata byla naposledy zadána {date}."
