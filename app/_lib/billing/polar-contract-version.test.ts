@@ -78,6 +78,25 @@ test("an unpinned deployment sends NO version header — the change is inert by 
   assert.deepEqual(Object.keys(headers[0]).sort(), ["Authorization", "Content-Type"]);
 });
 
+test("a first-purchase checkout body has no customer_id field", async () => {
+  // Pair of the header inertness rule: attaching an existing Polar customer is
+  // opt-in on opts.customerId. A first purchase (no id) must not grow the JSON
+  // with a null/empty customer_id, which Polar would treat as a different body.
+  let body: Record<string, unknown> = {};
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+    return new Response(JSON.stringify({ id: "x", url: "https://example.test/c" }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    await checkout(pinned(null));
+  } finally {
+    globalThis.fetch = real;
+  }
+  assert.ok(!("customer_id" in body), "first purchase must omit the key, not send null");
+  assert.deepEqual(Object.keys(body).sort(), ["metadata", "products", "success_url"]);
+});
+
 test("the version the PROVIDER used is recorded, even when we pinned nothing", async () => {
   noteObservedApiVersion(null);
   await capture(checkout, pinned(null), { "polar-version": "2026-07" });

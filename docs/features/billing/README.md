@@ -175,8 +175,8 @@ friction at zero users.
 | Layer | File(s) | Notes |
 |---|---|---|
 | Plan catalog | `app/_lib/billing/plans.ts` | 5 plans + 1 pack; `isSelfServePlan()`. |
-| Gateway interface | `app/_lib/billing/gateway.ts` | `BillingGateway`: `createCheckout`, `createPortalSession`, `verifyWebhook → BillingEvent`, `productMap`. |
-| Polar implementation | `app/_lib/billing/polar.ts` | Everything Polar-specific lives in this ONE file, behind the gateway. Talks Polar's REST API directly with `fetch` — no vendor SDK dependency. |
+| Gateway interface | `app/_lib/billing/gateway.ts` | `BillingGateway`: `createCheckout`, `createPortalSession`, `verifyWebhook → BillingEvent`, `productMap`. `createCheckout` opts may carry `customerId` so a pack or win-back session attaches to the existing MoR customer; omit it on first purchase (Polar then creates the customer at payment). An invalid id throws — the gateway never drops it and retries. |
+| Polar implementation | `app/_lib/billing/polar.ts` | Everything Polar-specific lives in this ONE file, behind the gateway. Talks Polar's REST API directly with `fetch` — no vendor SDK dependency. Checkout JSON includes `customer_id` only when the opts id is non-empty, so first-purchase bytes stay identical on that key. |
 | Webhook signature | `app/_lib/billing/webhook-verify.ts` | Standard Webhooks scheme, verified in-house. |
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
