@@ -11,7 +11,7 @@ import { JobsCompareInterviewsEvidenceCard } from "./JobsCompareInterviewsEviden
 
 export function CompareInterviews({ jobId }: { jobId: string }) {
   const t = useTranslations("jobs.compare");
-  const { data, error } = useJsonFetch<{ rubrics: Record<string, RubricComp[]>; candidates: Candidate[] }>(
+  const { data, error, reload } = useJsonFetch<{ rubrics: Record<string, RubricComp[]>; candidates: Candidate[] }>(
     `/api/interview/compare?job=${encodeURIComponent(jobId)}`,
     t("loadFailed")
   );
@@ -20,7 +20,16 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
     return t.has(key) ? t(key) : model;
   };
 
-  if (error) return <p className="text-base text-coral">{error}</p>;
+  if (error) {
+    return (
+      <div className="text-base text-coral">
+        {error}{" "}
+        <button type="button" onClick={reload} className="focus-ring cursor-pointer underline hover:text-ink">
+          {t("retry")}
+        </button>
+      </div>
+    );
+  }
   if (!data) return <p className="text-base text-steel">{t("loading")}</p>;
   if (data.candidates.length === 0) {
     return (

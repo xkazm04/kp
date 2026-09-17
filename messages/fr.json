@@ -5339,6 +5339,7 @@
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
+      "retry": "Réessayer",
       "loading": "Chargement des entretiens…",
       "emptyTitle": "Aucun entretien vocal terminé pour l’instant",
       "emptyBody": "Lancez une présélection vocale depuis le pipeline. Les entretiens terminés s’alignent ici, notés selon une grille adaptée à chaque candidat pour une comparaison côte à côte.",

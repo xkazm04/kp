@@ -5339,6 +5339,7 @@
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
       "loading": "Interviews werden geladen…",
       "emptyTitle": "Noch keine abgeschlossenen Voice-Interviews",
       "emptyBody": "Starten Sie ein Voice-Screening aus der Pipeline. Abgeschlossene Interviews reihen sich hier auf, bewertet nach einer auf jede/n Kandidat/in abgestimmten Rubrik für den direkten Vergleich.",

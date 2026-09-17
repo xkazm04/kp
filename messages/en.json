@@ -5339,6 +5339,7 @@
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",
+      "retry": "Retry",
       "loading": "Loading interviews…",
       "emptyTitle": "No completed voice interviews yet",
       "emptyBody": "Run a voice screen from the pipeline. Finished interviews line up here, scored on a rubric matched to each candidate for side-by-side comparison.",

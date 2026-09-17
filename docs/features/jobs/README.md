@@ -1028,6 +1028,10 @@ inert on a role that is live unless every caller remembered to clear the flag by
 hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
 staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
+The Compare tab's failed load (`useJsonFetch`) offers the same retry control the
+Coach panel already has, bound to `reload` — a transient 500 is recoverable
+without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`.
+
 ## The winnability coach stages the number it actually computed
 
 The Coach tab's pattern rows (`coach/CoachLedger.tsx`) can hand a

@@ -5339,6 +5339,7 @@
     },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
       "loading": "Načítají se pohovory…",
       "emptyTitle": "Zatím žádné dokončené hlasové pohovory",
       "emptyBody": "Spusťte hlasový screening z pipeline. Dokončené pohovory se tady seřadí, ohodnocené podle rubriky přizpůsobené každému kandidátovi pro porovnání vedle sebe.",
