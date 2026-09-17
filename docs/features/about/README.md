@@ -46,7 +46,7 @@ argument survive with JavaScript still in flight.
 
 | # | Chapter | Claims quoted from | Guarded by |
 | --- | --- | --- | --- |
-| 1 | Job descriptions — nothing invented | the grounding rule ("every mustHave must trace to something the inputs state") | prose; the orphan row is the argument |
+| 1 | Job descriptions — nothing invented | the grounding rule ("every mustHave must trace to something the inputs state") | `chapters.test.ts` — `design.py` grounding paragraph plus `about.jd.status.s3` |
 | 2 | Candidate scoring — three answers, not two | `_MATCH_THRESHOLD = 0.5` (`pipeline/jobfit/matching.py`), `_SIBLING_MATCH = 0.4` (`pipeline/jobfit/taxonomy.py`) | `chapters.test.ts` — both constants, their ordering, the en copy that prints them, and the painted line's derived position |
 | 3 | Screening — cheap filters first | `ko_filter` / `score_job` (`pipeline/jobfit/matching.py`), `match_reasoning` (its own module), `KoReasonKey` | `chapters.test.ts` — the layer names exist and every gate reason shown is a real `KoReasonKey` |
 | 4 | Archetypes — the same three slots, weighted differently | `pipeline/jobfit/archetypes.json` (rule weights, `selfDeclaredConfidence`, `defaultArchetype`, `defaultConfidence`, `lowConfidenceThreshold`) | `chapters.test.ts` — the tally board is parsed back out and compared to the registry |

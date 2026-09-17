@@ -9,9 +9,10 @@
 // that constant here, and a drift fails the suite instead of quietly misinforming.
 //
 // Scope note: this pins the couplings a test can check mechanically — the chapter
-// frames, chapter 4's tally arithmetic, and chapter 6's parked kinds. Prose claims
-// live in messages/*.json and are reviewed by reading; see each scene's header
-// comment for the constants its copy quotes.
+// frames, chapter 1's grounding sentence, chapter 4's tally arithmetic, and
+// chapter 6's parked kinds. Remaining prose claims live in messages/*.json and
+// are reviewed by reading; see each scene's header comment for the constants
+// its copy quotes.
 //
 // Runner: Node's built-in test runner with type stripping (no extra deps).
 //   npm run test:unit
@@ -164,6 +165,32 @@ test("the archetype scene's quoted detection constants still hold", () => {
   assert.ok(
     detection.defaultConfidence < detection.lowConfidenceThreshold,
     "the chapter's whole point: the unguided fallback must sit BELOW the review threshold"
+  );
+});
+
+// ---- chapter 1: the grounding sentence --------------------------------------
+//
+// The orphan-row scene's whole argument is the prompt rule "every mustHave must
+// trace to something the inputs state". Chapters 2–5 already pin the engine
+// numbers they quote; chapter 1 was the remaining unpinned claim. A regex
+// against design.py plus the English catalog string is the same mechanical
+// coupling — no Python import required.
+
+test("chapter 1's grounding sentence is still the live prompt rule", () => {
+  const design = pySource("pipeline/jobfit/devcase/design.py");
+  // The prompt is a concatenated Python string, so the sentence is split across
+  // adjacent literals. Both halves have to stay: dropping either one drops the
+  // orphan-row rule the Kafka beat demonstrates.
+  assert.match(design, /every mustHave must trace to/, "design.py dropped the mustHave half of the grounding rule");
+  assert.match(
+    design,
+    /need\/JD\/analysis actually STATES/,
+    "design.py dropped the STATES half of the grounding rule",
+  );
+  assert.match(
+    copy("jd.status.s3"),
+    /trace to something the inputs actually state/i,
+    "about.jd.status.s3 must keep quoting the grounding rule the prompt still contains",
   );
 });
 
