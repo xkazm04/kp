@@ -192,7 +192,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
 | `POST + GET /api/jobs/[id]/agent-fit` | Start the backgrounded transform (returns `{taskId}`) / read the latest stored spec |
 | `POST /api/agents/dispatch` | `{jobId, overrides?}` → merge overrides onto the stored spec, mint the hire, POST the persona request. **Or `{intakeId}`** — the App-master path (below). `pipeline:write` |
-| `POST /api/agents/hire-from-need` | **One call from a need to a persona** — the machine door. `{need, project:{name, rootPath, mainBranch?}, population:"agent", workspace?, budgetUsd?, dryRun?, simulation?, originPersonaId?}` → scan the repo, open an intake seeded with the need, land the dossier, compose the App master, dispatch. Returns `{intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun}`. Auth is EITHER the operator session + `pipeline:write` OR the `x-kp-automation-token` header (below). See "Hiring from a need, with nobody in the loop" |
+| `POST /api/agents/hire-from-need` | **One call from a need to a persona** — the machine door. `{need, project:{name, rootPath, mainBranch?}, population:"agent", workspace?, lang?, budgetUsd?, dryRun?, simulation?, originPersonaId?}` → scan the repo, open an intake seeded with the need, land the dossier, compose the App master, dispatch. Intake language is `body.lang` when it is a shipped locale, otherwise the workspace default (not silently English). Returns `{intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun}`. Auth is EITHER the operator session + `pipeline:write` OR the `x-kp-automation-token` header (below). See "Hiring from a need, with nobody in the loop" |
 | `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path. `pipeline:write` (the poll can move a board entry) |
 | `POST /api/agents/report/[token]` | PUBLIC inbound report route — the CSPRNG token is the capability |
 | `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
@@ -265,6 +265,12 @@ drives them: start a repo scan → poll it → `createIntake({scanId})` → one
 step is the **shared** tail extracted to `app/api/agents/dispatch/mint.ts`, so
 this route and `POST /api/agents/dispatch` mint, dispatch and file the board
 card through one implementation rather than two that drift.
+
+**Language.** The intake opening, the seeded exchange and the App-master compose
+all take `body.lang` when it is a shipped locale (`en`/`cs`/`de`/`fr`, including
+a regional tag like `de-AT`), otherwise the workspace default. They used to
+resolve a missing body field as English, so a Czech tenant's unattended hire
+composed the spec in English.
 
 **Auth — two doors, a caller needs one.**
 
