@@ -511,7 +511,7 @@ _230 routes, 306 handlers._
 
 | Route | Methods | Auth |
 | --- | --- | --- |
-| `/api/repo-scan` | POST | gated |
+| `/api/repo-scan` | GET, POST | gated |
 | `/api/repo-scan/[id]` | GET | gated |
 
 ### `/api/schedule`

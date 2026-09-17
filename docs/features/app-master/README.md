@@ -44,6 +44,7 @@ fork.
 | `appMasterSpecSchema` / `repoDossierSchema` / `performanceBackboneSchema` (Zod) | **shipped (P1)** | `app/_lib/schemas.generated.ts` (generated; do not edit) |
 | `codebase_dossier` facet key on a RoleBrief | **shipped (P1)** — suggested vocabulary only, never a validator | `pipeline/jobfit/rolebrief.py` |
 | `POST /api/repo-scan` → `{ scanId, taskId }` | **shipped (P2)** | `app/api/repo-scan/route.ts` |
+| `GET /api/repo-scan` → `{ scans }` (this workspace, allow-list) | **shipped (P2)** | `app/api/repo-scan/route.ts` |
 | `GET /api/repo-scan/[id]` → the scan row | **shipped (P2)** | `app/api/repo-scan/[id]/route.ts` |
 | `repo_scan` background task → `RepoDossier` | **shipped (P2)** | `app/_lib/repo-scan.ts`, `app/_lib/repo-scan-run.ts`, `pipeline/jobfit/repo_scan.py` |
 | Intake shape `app_master` — the pipeline is shipped, but its START DOOR was withdrawn from the intake page on 2026-09-09 and not replaced, so no new app-master session can be opened from the UI | **shipped (P3), unreachable** | `app/features/library/jds/intake/jdsIntakeLogic.ts` (`startAppMaster`), `pipeline/jobfit/intake.py` |
@@ -893,6 +894,7 @@ spec was composed, and it travels with the spec.
 | Symbol | Kind | What it is |
 | --- | --- | --- |
 | `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` + optional `fresh: true` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan; `fresh` refuses a finished reading, never an in-flight one). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `GET /api/repo-scan` | route | → `{ scans }` — this workspace's 25 most recent rows, same allow-list as the detail read (no spend, so no extra limiter). A refresh with no in-memory `scanId` can recover an in-flight row from here. `requireOperator` |
 | `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
