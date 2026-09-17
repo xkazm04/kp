@@ -55,6 +55,37 @@ test("a cell with only score and blocked still validates; summary fields are add
   assert.equal(isMatrixCell({ score: 61 }), false, "blocked is required");
 });
 
+test("MatrixOut names missingJobs and respond() forwards it, defaulting to []", () => {
+  const src = routeSrc();
+  assert.match(src, /missingJobs:\s*\{\s*id:\s*string\s*\|\s*null;\s*error:\s*string\s*\}\[\]/, "typed on MatrixOut");
+  const respond = src.indexOf("const respond = (matrix: MatrixOut, cached: boolean)");
+  assert.ok(respond >= 0, "respond() helper");
+  const body = src.slice(respond, src.indexOf("const key = matrixCacheKey", respond));
+  assert.match(body, /missingJobs:\s*matrix\.missingJobs\s*\?\?\s*\[\]/, "older CLI output defaults to []");
+  assert.match(src, /missingJobs:\s*\[\]/, "the empty-grid early return names the channel too");
+});
+
+test("a validation-failed job appears in missingJobs; siblings still score", () => {
+  // The CLI already isolates a jobs-json row that fails Job.model_validate
+  // (test_matrix_cli.MatrixCliMalformedJobsTest). This pins that the route's
+  // typed response keeps that channel — a missing-title record is listed, and
+  // a sibling cell is still a valid score.
+  const poison = { id: "job-poison", error: "Field required [title]" };
+  const sibling = { score: 61, blocked: false };
+  assert.equal(typeof poison.id, "string");
+  assert.equal(typeof poison.error, "string");
+  assert.equal(isMatrixCell(sibling), true);
+  const out: { missingJobs: { id: string | null; error: string }[]; cells: unknown[][] } = {
+    missingJobs: [poison],
+    cells: [[sibling]],
+  };
+  assert.equal(out.missingJobs.length, 1);
+  assert.equal(out.missingJobs[0].id, "job-poison");
+  assert.equal(out.cells[0].length, 1);
+  const omitted = { missingJobs: undefined as { id: string | null; error: string }[] | undefined };
+  assert.deepEqual(omitted.missingJobs ?? [], [], "respond() default when the CLI omitted the key");
+});
+
 test("respond() still spreads the parsed matrix, so extra cell keys are not stripped", () => {
   const src = routeSrc();
   const respond = src.indexOf("const respond = (matrix: MatrixOut, cached: boolean)");
