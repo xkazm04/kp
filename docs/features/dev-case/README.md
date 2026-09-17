@@ -721,7 +721,10 @@ product, and nothing was ever going to catch them: `eslint.config.mjs` deliberat
 Twelve components now read from the `devcase.studio.*` namespace in all four catalogs:
 `DevTab`, `DevCasesTable`, `DevCasesEmpty`, `DevAnalysisView`, `DevAnalysisReflectionCard`,
 `DevAnalysisDesignCard`, `DevCaseDetail`, `DevCaseDetailHeader`, `DevCaseDetailInternal`,
-`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Three
+`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Posting
+channel chips on the assignment detail resolve `devcase.studio.channel.<id>` (`local` /
+`link` / `email`, pinned to the distribution producer) with a `t.has` fallback to the
+raw store value for anything unknown. Three
 non-component seams moved with them:
 
 - `degradedReasons` (`DevCaseDetail.publish.ts`) returns CODES (`"scenario"`, `"seed"`)

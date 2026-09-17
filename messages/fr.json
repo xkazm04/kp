@@ -8796,6 +8796,11 @@
         "received": "{count} reçus",
         "applyLink": "Lien de candidature"
       },
+      "channel": {
+        "local": "Local",
+        "link": "Lien",
+        "email": "E-mail"
+      },
       "compare": {
         "title": "Comparer sur les axes de la grille",
         "topOf": "{shown} premiers sur {total}",

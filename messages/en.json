@@ -8796,6 +8796,11 @@
         "received": "{count} in",
         "applyLink": "Apply link"
       },
+      "channel": {
+        "local": "Local",
+        "link": "Link",
+        "email": "Email"
+      },
       "compare": {
         "title": "Compare on rubric axes",
         "topOf": "top {shown} of {total}",

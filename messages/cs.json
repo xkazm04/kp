@@ -8796,6 +8796,11 @@
         "received": "{count} přijato",
         "applyLink": "Odkaz pro přihlášení"
       },
+      "channel": {
+        "local": "Lokální",
+        "link": "Odkaz",
+        "email": "E-mail"
+      },
       "compare": {
         "title": "Porovnání na osách rubriky",
         "topOf": "nejlepších {shown} z {total}",

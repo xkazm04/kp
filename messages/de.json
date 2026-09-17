@@ -8796,6 +8796,11 @@
         "received": "{count} eingegangen",
         "applyLink": "Bewerbungslink"
       },
+      "channel": {
+        "local": "Lokal",
+        "link": "Link",
+        "email": "E-Mail"
+      },
       "compare": {
         "title": "Vergleich auf den Rubrik-Achsen",
         "topOf": "Top {shown} von {total}",
