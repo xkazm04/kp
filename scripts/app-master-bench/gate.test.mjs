@@ -291,6 +291,33 @@ test("every required expectation is actually declared by its scenario", () => {
   }
 });
 
+// Expect keys a baselined scenario declares but the gate does not require.
+// Empty on purpose: a declared check that is not required is an ungated exam,
+// and it used to hide as sweep-time "unmeasured" only if a run existed.
+const UNGATED_EXPECTATIONS = {
+  // none — every shipped expect key of a baselined scenario is a requiredExpectation
+};
+
+test("every declared expect key is required by the baseline, or listed as ungated", () => {
+  for (const [name, spec] of Object.entries(BASELINE.scenarios)) {
+    const file = listScenarioFiles().find((f) => path.basename(f, ".json") === name);
+    if (!file) continue;
+    const declared = Object.keys(readScenario(file).expect ?? {});
+    const required = new Set(spec.requiredExpectations ?? []);
+    const ungated = new Set(UNGATED_EXPECTATIONS[name] ?? []);
+    for (const key of declared) {
+      assert.ok(
+        required.has(key) || ungated.has(key),
+        `${name} declares expect.${key} but baseline.json does not require it and it is not on UNGATED_EXPECTATIONS`,
+      );
+    }
+    for (const key of ungated) {
+      assert.ok(declared.includes(key), `UNGATED_EXPECTATIONS[${name}] names "${key}", which the scenario does not declare`);
+      assert.ok(!required.has(key), `UNGATED_EXPECTATIONS[${name}] names "${key}", which is already required — drop it from the list`);
+    }
+  }
+});
+
 // --- NUMBERS, not just pass/fail --------------------------------------------
 // `mustPass` + `requiredExpectations` let a tenure fall from five opened
 // proposals to one and still pass green: every required check was measured,
