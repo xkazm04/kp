@@ -5295,6 +5295,7 @@
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
+      "retry": "Réessayer",
       "scanning": "Analyse des anciens candidats à la recherche d’une correspondance…",
       "emptyTitle": "Aucun ancien candidat à ressortir pour l’instant",
       "emptyBody": "À mesure que des personnes sont rejetées ou recrutées ailleurs, les bonnes correspondances inter-postes apparaîtront ici.",

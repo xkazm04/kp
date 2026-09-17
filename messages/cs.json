@@ -5295,6 +5295,7 @@
     },
     "rediscover": {
       "loadFailed": "Znovuobjevení se nepodařilo spustit.",
+      "retry": "Zkusit znovu",
       "scanning": "Procházejí se dřívější kandidáti a hledá se shoda…",
       "emptyTitle": "Zatím se neobjevili žádní dřívější kandidáti",
       "emptyBody": "Jak budou lidé zamítáni nebo přijímáni jinde, objeví se tady silné shody napříč pozicemi.",

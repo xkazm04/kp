@@ -5295,6 +5295,7 @@
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",
+      "retry": "Retry",
       "scanning": "Scanning past candidates for a fit…",
       "emptyTitle": "No past candidates resurface yet",
       "emptyBody": "As people are rejected or hired elsewhere, strong cross-role fits will appear here.",

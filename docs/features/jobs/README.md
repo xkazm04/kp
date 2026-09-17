@@ -704,7 +704,10 @@ candidates rendered its top 20 under an intro that describes the list as "past
 candidates who clear the bar for this role" — a cut slice presented as the whole
 set, on the surface whose entire promise is that nobody falls through the cracks.
 The panel now appends the shared `match.card.moreCount` line ("+15 more") below
-the list whenever `more > 0`. The **standing** feed (`JobsRediscoveryFeed`) is a
+the list whenever `more > 0`. A failed on-demand load offers the same retry
+control the standing feed already has (`reload` from `useJsonFetch`), so a
+spawn timeout is recoverable without closing the modal. Pinned by
+`jobsRediscoverRetry.test.ts`. The **standing** feed (`JobsRediscoveryFeed`) is a
 separate, alert-backed surface and is not paged this way.
 
 The same honesty applies one layer up. `buildCandidatePool` already computes

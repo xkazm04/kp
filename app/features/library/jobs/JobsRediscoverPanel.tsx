@@ -28,7 +28,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   // Localized pipeline-stage name for the disclosed prior depth (canonical stage →
   // enums.stage, with graceful fallback — the recruiter-side enum-label helper).
   const enumLabel = useEnumLabel();
-  const { data: body, error } = useJsonFetch<{
+  const { data: body, error, reload } = useJsonFetch<{
     rediscovered?: Rediscovered[];
     skipped?: SkippedCandidate[];
     // How many silver medalists cleared the bar BEYOND the ones returned —
@@ -57,7 +57,16 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId, "sourcing");
 
-  if (error) return <p className="text-base text-coral">{error}</p>;
+  if (error) {
+    return (
+      <div className="text-base text-coral">
+        {error}{" "}
+        <button type="button" onClick={reload} className="focus-ring cursor-pointer underline hover:text-ink">
+          {t("retry")}
+        </button>
+      </div>
+    );
+  }
   if (!data)
     // The rediscovery scan is a CLI sweep over the pool: reserve the result
     // list's shape quietly (no skeleton bars) with a short copy line, per

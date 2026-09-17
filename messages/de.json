@@ -5295,6 +5295,7 @@
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
+      "retry": "Erneut versuchen",
       "scanning": "Frühere Kandidat/innen werden auf Eignung geprüft…",
       "emptyTitle": "Noch tauchen keine früheren Kandidat/innen wieder auf",
       "emptyBody": "Sobald Personen abgelehnt oder anderswo eingestellt werden, erscheinen hier starke rollenübergreifende Eignungen.",
