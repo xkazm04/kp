@@ -39,7 +39,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LLM_PROVIDERS, LLM_USE_CASES } from "./llm-config.ts";
-import { BENCH_OPS, UNMEASURED_DEFAULTS } from "./llm-quality.ts";
+import { BENCH_OPS, UNMEASURED_DEFAULTS, UNMEASURED_USE_CASES } from "./llm-quality.ts";
 import { QUALITY_SCORES } from "./llm-quality-scores.ts";
 import { TRANSIENT_HTTP_CODES, TRANSIENT_MARKERS } from "./gemini-retry.ts";
 
@@ -130,6 +130,20 @@ test("BENCH_OPS matches REGISTRY_USE_CASE — both the op ids and what each roll
   // and getting that rollup wrong silently changes which measurements back a
   // published recommendation.
   assert.deepEqual(BENCH_OPS.map((o) => `${o.id}=${o.useCase}`).sort(), pythonPairs.sort());
+});
+
+test("every LLM_USE_CASES id except '*' is measured or named as unmeasured", () => {
+  const measured = new Set(BENCH_OPS.map((o) => o.useCase));
+  const unmeasured = new Set(UNMEASURED_USE_CASES.map((row) => row.id));
+  for (const row of UNMEASURED_USE_CASES) {
+    assert.ok(row.reason.trim(), `${row.id} needs a one-line reason`);
+    assert.ok(!measured.has(row.id), `${row.id} is already in BENCH_OPS.useCase; drop UNMEASURED_USE_CASES`);
+  }
+  const members = LLM_USE_CASES.filter((id) => id !== "*");
+  const missing = members.filter((id) => !measured.has(id) && !unmeasured.has(id));
+  assert.deepEqual(missing, [], "add a BENCH_OPS mapping or an UNMEASURED_USE_CASES row");
+  const extra = [...unmeasured].filter((id) => !(members as readonly string[]).includes(id));
+  assert.deepEqual(extra, [], "UNMEASURED_USE_CASES names a use case LLM_USE_CASES does not");
 });
 
 test("every bench op rolls up to a use case that actually exists", () => {

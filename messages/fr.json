@@ -8218,7 +8218,10 @@
       "colRunnerUp": "Second",
       "na": "n.d.",
       "method": "Mesuré le {date} · juge {judge} · {n} cas · {limit} exécution(s)/cellule. Composite 0–10 : justesse + respect de la tâche pondérés plus haut, pertinence plus bas. Sortie non valide pénalisée. De faibles nombres d’exécutions sont bruités, à considérer comme indicatifs.",
-      "empty": "Aucune qualité mesurée pour l’instant. Ce déploiement ne contient pas de matrice de référence, il n’y a donc rien à classer."
+      "empty": "Aucune qualité mesurée pour l’instant. Ce déploiement ne contient pas de matrice de référence, il n’y a donc rien à classer.",
+      "unmeasuredTitle": "Non mesuré",
+      "unmeasuredIntro": "Ces cas d'usage de routage n'ont pas encore de cellule de bench, donc le tableau de scores ne recommande pas de modèle pour eux.",
+      "unmeasured": "non mesuré"
     },
     "benchOps": {
       "match_reasoning": "Raisonnement de matching",

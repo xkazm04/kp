@@ -78,7 +78,10 @@ equality in both directions, the way `llm-model-required.test.ts` already did fo
 provider Python gained and TS did not answers `"Unknown provider."` for a
 provider that works; a use case TS gained and Python did not is a routing pin the
 resolver never reads; and a bench op rolling up to a use case that does not exist
-makes the Models tab silently show no recommendation for it. The test carries a
+makes the Models tab silently show no recommendation for it. Every pinnable
+`LLM_USE_CASES` id except `*` must appear in `BENCH_OPS.useCase` or
+`UNMEASURED_USE_CASES` (id + reason); the Quality section lists the unmeasured
+ids instead of omitting the row. The test carries a
 shape guard so a re-shaped Python declaration fails loudly instead of parsing to
 an empty list and passing vacuously.
 

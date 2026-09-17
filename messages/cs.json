@@ -8218,7 +8218,10 @@
       "colRunnerUp": "Druhý",
       "na": "n/a",
       "method": "Změřeno {date} · rozhodčí {judge} · {n} případů · {limit} běhů/buňka. Složené skóre 0–10: správnost a splnění úkolu váženo výše, relevance níže; nevalidní výstup penalizován. Malý počet běhů je nespolehlivý, berte ho proto jen orientačně.",
-      "empty": "Zatím žádná naměřená kvalita. Toto nasazení nemá zabudovanou srovnávací matici, takže není co řadit."
+      "empty": "Zatím žádná naměřená kvalita. Toto nasazení nemá zabudovanou srovnávací matici, takže není co řadit.",
+      "unmeasuredTitle": "Neměřeno",
+      "unmeasuredIntro": "Tyto směrovací úlohy zatím nemají buňku v bench matici, takže scorecard pro ně model nedoporučí.",
+      "unmeasured": "neměřeno"
     },
     "benchOps": {
       "match_reasoning": "Zdůvodnění shody",

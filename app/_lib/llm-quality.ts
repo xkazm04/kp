@@ -105,6 +105,34 @@ export const UNMEASURED_DEFAULTS: readonly UnmeasuredDefault[] = [
   },
 ];
 
+/** A pinnable routing use case with no bench cell. `bestModelForUseCase` returns
+ *  null for these; the Quality UI must list them instead of omitting the row.
+ *  Adding an `LLM_USE_CASES` id without a `BENCH_OPS` mapping or a row here
+ *  fails `llm-capabilities-lockstep.test.ts`. Drop the row when a scenario lands. */
+export interface UnmeasuredUseCase {
+  id: string;
+  reason: string;
+}
+
+export const UNMEASURED_USE_CASES: readonly UnmeasuredUseCase[] = [
+  { id: "profile_draft", reason: "Bench names it as an extension point; no seed builder is registered." },
+  { id: "devcase_reflect", reason: "No bench scenario; later assignment step." },
+  { id: "devcase_evaluate", reason: "No bench scenario; later assignment step." },
+  { id: "devcase_judge", reason: "No bench scenario; later assignment step." },
+  { id: "devcase_seed", reason: "No bench scenario; seed generation is not a judged op." },
+  { id: "agent_fit", reason: "No bench scenario; agent-candidate scoring is not in the matrix." },
+  { id: "repo_scan", reason: "No bench scenario; quality depends on checkout access, not a shared prompt." },
+  { id: "role_intake", reason: "No bench scenario; intake is not in the 2026-08-12 matrix." },
+  { id: "role_intake_voice", reason: "No bench scenario; voice intake is not in the matrix." },
+  { id: "assistant", reason: "No bench scenario; the companion is not a matrix op." },
+  { id: "posting_translate", reason: "No bench scenario; translation is capability-gated, not judged." },
+  { id: "github_analysis", reason: "No bench scenario; GitHub review is a TS-side call." },
+  { id: "cv_analysis", reason: "No bench scenario; flagship CV analysis was not in the 15-op bake." },
+  { id: "cv_polish", reason: "No bench scenario; job-seeker polish is not in the matrix." },
+  { id: "fit_dialog", reason: "No bench scenario; job-seeker fit dialog is not in the matrix." },
+  { id: "extraction_rules", reason: "No bench scenario; extraction-rule authoring is not in the matrix." },
+];
+
 /** Bench ops that feed one routing use case (the "*" catch-all maps to nothing). */
 export function opsForUseCase(useCase: string): string[] {
   return BENCH_OPS.filter((o) => o.useCase === useCase).map((o) => o.id);
