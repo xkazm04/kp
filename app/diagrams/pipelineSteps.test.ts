@@ -222,13 +222,15 @@ function routeFileFor(route: string): string | null {
 
 test("every /api route drawn in a step body/summary resolves to a real route.ts", () => {
   const missing: string[] = [];
-  // The summary half of the haystack now comes from the EN catalog (the source of
-  // truth for the four locales) rather than the module — the guard is about the
-  // endpoints the prose CLAIMS, and the prose moved.
-  const summaries = stepCatalog("en");
+  // puml once (code identifiers, untranslated) + each locale summary, so a
+  // translated claim cannot name a dead endpoint the EN guard never sees.
+  const catalogs = Object.fromEntries(LOCALES.map((locale) => [locale, stepCatalog(locale)]));
   for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
-    const summary = summaries[stepId]?.summary;
-    const haystack = `${detail.puml}\n${typeof summary === "string" ? summary : ""}`;
+    const summaries = LOCALES.map((locale) => {
+      const s = catalogs[locale]?.[stepId]?.summary;
+      return typeof s === "string" ? s : "";
+    }).join("\n");
+    const haystack = `${detail.puml}\n${summaries}`;
     const seen = new Set<string>();
     for (const match of haystack.matchAll(API_ROUTE)) {
       const route = match[0];
