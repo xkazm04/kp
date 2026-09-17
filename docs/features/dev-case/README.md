@@ -151,10 +151,12 @@ palette. The full mapping table and the five reading states are in
    review cards in `app/features/tools/devcases/DevEvalPanel*.tsx`,
    `DevCompareSubmissions.tsx`, `DevCohortProbePanel.tsx`. The rubric-compare
    matrix caps its columns at the top 5 by transfer fit (`rubricCompare`'s
-   `maxColumns`), so it labels itself `top 5 of N` and states that the moss
+   `maxColumns`; `0` means no cap) and can expand to the full evaluated set, so
+   it labels itself `top 5 of N` while collapsed and states that the moss
    per-axis leader is the strongest of the columns *shown*, not of the whole
    evaluated cohort — a hidden submission with lower transfer fit can lead an
-   individual axis. Each compared column carries `authenticityBand` /
+   individual axis. Expanding drops that caveat because every evaluated column
+   is on screen. Each compared column carries `authenticityBand` /
    `authenticityScore` from the bundle (null when absent, never defaulted to
    authentic), so a consumer cannot present a suspect row as just a transfer
    number. The matrix paints that band as a row under transfer fit (authentic /

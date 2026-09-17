@@ -61,7 +61,8 @@ function authenticityOf(auth: AuthLike | null | undefined): {
  *  Axes come from the case's rubric (canonical order + labels); when the case
  *  carries none, they're derived from the union of the submissions' own scored
  *  dimensions so older bundles still compare. `maxColumns` caps the matrix width
- *  (highest transferScore first) — the caller reports the true count. */
+ *  (highest transferScore first; `< 1` means no cap) — the caller reports the
+ *  true count. */
 export function rubricCompare(
   rubricDims: RubricDimLike[],
   submissions: SubmissionLike[],
@@ -69,8 +70,9 @@ export function rubricCompare(
 ): RubricComparison {
   const evaluated = submissions
     .filter((s) => s.evaluation?.evaluation)
-    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))
-    .slice(0, maxColumns);
+    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1));
+  // maxColumns < 1 means no cap (the truncated-matrix "show all" toggle).
+  const capped = maxColumns < 1 ? evaluated : evaluated.slice(0, maxColumns);
 
   // Axes: the case's rubric when present, else the union of scored dimension
   // names across the evaluated submissions (first-seen order).
@@ -79,7 +81,7 @@ export function rubricCompare(
     .map((d) => ({ name: d.name, label: d.label ?? d.name }));
   if (axes.length === 0) {
     const seen = new Map<string, string>();
-    for (const s of evaluated) {
+    for (const s of capped) {
       const inner = s.evaluation!.evaluation!;
       for (const d of inner.dimensions ?? []) if (d.name && !seen.has(d.name)) seen.set(d.name, d.name);
       for (const name of Object.keys(inner.dimensionScores ?? {})) if (!seen.has(name)) seen.set(name, name);
@@ -87,7 +89,7 @@ export function rubricCompare(
     axes = [...seen.keys()].map((name) => ({ name, label: name }));
   }
 
-  const columns: CompareColumn[] = evaluated.map((s) => {
+  const columns: CompareColumn[] = capped.map((s) => {
     const inner = s.evaluation!.evaluation!;
     const scores: Record<string, number | null> = {};
     for (const axis of axes) scores[axis.name] = scoreFor(inner, axis.name);

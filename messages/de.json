@@ -8804,6 +8804,8 @@
         "truncated": "Sortiert nach Übertragbarkeit. Die Spitze auf der Achse unten ist die beste dieser {shown}, nicht der gesamten Gruppe. {hidden, plural, one {# weitere bewertete Einreichung fehlt} other {# weitere bewertete Einreichungen fehlen}} in dieser Matrix.",
         "axis": "Achse",
         "fit": "Passung {score}",
+        "showAll": "Alle {total} zeigen",
+        "showTop": "Top {shown} zeigen",
         "authenticity": "Authentizität",
         "band": {
           "authentic": "authentisch",

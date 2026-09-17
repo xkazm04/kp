@@ -8804,6 +8804,8 @@
         "truncated": "Classement par transférabilité. La personne en tête de l’axe ci-dessous est la meilleure de ces {shown}, pas de tout le groupe. {hidden, plural, one {# autre rendu évalué ne figure pas} other {# autres rendus évalués ne figurent pas}} dans cette matrice.",
         "axis": "Axe",
         "fit": "adéq. {score}",
+        "showAll": "Afficher les {total}",
+        "showTop": "Afficher le top {shown}",
         "authenticity": "Authenticité",
         "band": {
           "authentic": "authentique",

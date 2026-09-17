@@ -8804,6 +8804,8 @@
         "truncated": "Ranked by transfer fit. The axis leader below is the strongest of these {shown}, not of the whole cohort. {hidden, plural, one {# further evaluated submission is} other {# further evaluated submissions are}} not in this matrix.",
         "axis": "Axis",
         "fit": "fit {score}",
+        "showAll": "Show all {total}",
+        "showTop": "Show top {shown}",
         "authenticity": "Authenticity",
         "band": {
           "authentic": "authentic",

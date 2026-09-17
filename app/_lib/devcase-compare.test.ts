@@ -64,6 +64,12 @@ test("caps the matrix width to the top-N by transfer score", () => {
   assert.deepEqual(cmp.columns.map((c) => c.id), ["b", "c"]); // top 2 by transfer
 });
 
+test("maxColumns 0 (no cap) expands a truncated 9-column fixture to the full evaluated set", () => {
+  const subs = Array.from({ length: 9 }, (_, i) => sub(String(i), 90 - i, { framing: 1 }));
+  assert.equal(rubricCompare(rubric, subs, 5).columns.length, 5);
+  assert.equal(rubricCompare(rubric, subs, 0).columns.length, 9);
+});
+
 test("unevaluated submissions are excluded", () => {
   const cmp = rubricCompare(rubric, [sub("a", 50, { framing: 70 }), { id: "b", candidateRef: "cand-b", transferScore: null, evaluation: null }]);
   assert.deepEqual(cmp.columns.map((c) => c.id), ["a"]);

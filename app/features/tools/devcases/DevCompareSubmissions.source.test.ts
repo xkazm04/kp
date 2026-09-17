@@ -11,3 +11,9 @@ test("the compare matrix labels authenticityBand, including suspect leaders", ()
   assert.match(src, /band\.\$\{band\}/);
   assert.match(src, /band\.unscored/);
 });
+
+test("a truncated compare can expand past the transfer tail", () => {
+  assert.match(src, /showAll \? 0 : 5/);
+  assert.match(src, /t\("showAll"/);
+  assert.match(src, /t\("showTop"/);
+});

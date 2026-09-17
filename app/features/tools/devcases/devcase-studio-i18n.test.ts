@@ -153,6 +153,8 @@ const CALLS: [string, Record<string, unknown>][] = [
   ["compare.truncated", { shown: 5, hidden: 4 }],
   ["compare.axis", {}],
   ["compare.fit", { score: 71 }],
+  ["compare.showAll", { total: 9 }],
+  ["compare.showTop", { shown: 5 }],
   ["compare.authenticity", {}],
   ["compare.band.authentic", {}],
   ["compare.band.mixed", {}],
