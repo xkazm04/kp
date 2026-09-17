@@ -7491,7 +7491,10 @@
       "metricTimeToHire": "Time to hire",
       "metricTimeToHireBody": "Days from a candidate arriving to signing.",
       "metricCostPerHire": "Cost per hire",
-      "metricCostPerHireBody": "Channel spend divided by the hires it produced."
+      "metricCostPerHireBody": "Channel spend divided by the hires it produced.",
+      "metricTrust": "Can this score decide?",
+      "metricTrustBody": "Whether calibration says the match score may decide. Empty until sealed outcomes exist, never a fake Brier.",
+      "metricTrustLink": "Open Quality once a candidate exists"
     },
     "funnelGuide": {
       "title": "Your funnel is standing by",

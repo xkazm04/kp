@@ -7491,7 +7491,10 @@
       "metricTimeToHire": "Doba do přijetí",
       "metricTimeToHireBody": "Počet dní od příchodu kandidáta po podpis.",
       "metricCostPerHire": "Náklady na jedno přijetí",
-      "metricCostPerHireBody": "Výdaje na kanál dělené počtem přijetí, ke kterým vedly."
+      "metricCostPerHireBody": "Výdaje na kanál dělené počtem přijetí, ke kterým vedly.",
+      "metricTrust": "Může toto skóre rozhodovat?",
+      "metricTrustBody": "Zda kalibrace říká, že match skóre smí rozhodovat. Prázdné, dokud neexistují zapečetěné výsledky, nikdy falešný Brier.",
+      "metricTrustLink": "Otevřít Kvalitu, až budete mít kandidáta"
     },
     "funnelGuide": {
       "title": "Nábor je připravený a čeká",

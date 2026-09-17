@@ -7491,7 +7491,10 @@
       "metricTimeToHire": "Time-to-Hire",
       "metricTimeToHireBody": "Tage vom Eingang einer Bewerbung bis zur Unterschrift.",
       "metricCostPerHire": "Kosten pro Einstellung",
-      "metricCostPerHireBody": "Kanalausgaben geteilt durch die daraus entstandenen Einstellungen."
+      "metricCostPerHireBody": "Kanalausgaben geteilt durch die daraus entstandenen Einstellungen.",
+      "metricTrust": "Darf dieser Score entscheiden?",
+      "metricTrustBody": "Ob die Kalibrierung sagt, dass der Match-Score entscheiden darf. Leer, bis versiegelte Ergebnisse vorliegen, nie ein gefälschter Brier.",
+      "metricTrustLink": "Qualität öffnen, sobald ein Kandidat da ist"
     },
     "funnelGuide": {
       "title": "Ihr Funnel steht bereit",

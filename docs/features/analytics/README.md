@@ -1012,8 +1012,9 @@ reads as if every arrival reached an offer (a measured 60 % accept and 10 leads/
 axis — `validatePipelineStages` requires that much and no more — so such a board falls back to
 the funnel-derived conversion and echoes `offerAcceptRate: null` · an unknown floor in the threshold-history strip renders `—`, never `0` — `0` is a legal floor (accept everything), so the fix is `floorLabel()` in `thresholdHistoryRows.ts`, not a falsy test; the strip's plot already skipped nulls while the sentence and the sr-only list beside it printed a prior floor no seal ever recorded · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
 capped tables say what they dropped and where to reach it · the first-run empty state previews
-the metrics with literal em-dashes and never fabricates sample figures
-(`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.
+four metrics (hire rate, time-to-hire, cost-per-hire, and whether the score may decide) with
+literal em-dashes and never fabricates sample figures (`AnalyticsEmptyPreview.tsx`), plus a
+deep link to `?tab=analytics&sec=quality` · a tamper-evidence claim is conditioned on the key census.
 
 ## Every stage threshold reads the workspace's own board
 

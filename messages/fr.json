@@ -7491,7 +7491,10 @@
       "metricTimeToHire": "Délai de recrutement",
       "metricTimeToHireBody": "Nombre de jours entre l’arrivée d’un candidat et la signature.",
       "metricCostPerHire": "Coût par recrutement",
-      "metricCostPerHireBody": "Les dépenses du canal divisées par les recrutements qu’il a produits."
+      "metricCostPerHireBody": "Les dépenses du canal divisées par les recrutements qu’il a produits.",
+      "metricTrust": "Ce score peut-il décider ?",
+      "metricTrustBody": "Si la calibration dit que le score de correspondance peut décider. Vide tant qu’il n’y a pas d’issues scellées, jamais un Brier inventé.",
+      "metricTrustLink": "Ouvrir Qualité dès qu’un candidat existe"
     },
     "funnelGuide": {
       "title": "Votre entonnoir est prêt",
