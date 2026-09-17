@@ -157,6 +157,28 @@ test("scrubPiiFromPayload blanks PII but retains scoring signal", () => {
   assert.equal(profile.candidate.name, "Monika Marešová");
 });
 
+test("scrubPiiFromPayload empties parsingNotes / parsing_notes so Art. 17 cannot leave the CV name in metadata", () => {
+  // Key match is lowercased exact: parsingNotes → parsingnotes, parsing_notes stays
+  // underscored. Arrays not in PII_ARRAY_KEYS are mapped element-wise, so a note
+  // like "Extracted name Monika Marešová from header" used to survive the walk.
+  const camel = {
+    metadata: { parsingNotes: ["Extracted name Monika Marešová from header"] },
+    score: 82,
+  };
+  const snake = {
+    metadata: { parsing_notes: ["Extracted name Monika Marešová from header"] },
+    score: 82,
+  };
+  const camelScrubbed = scrubPiiFromPayload(camel) as typeof camel;
+  const snakeScrubbed = scrubPiiFromPayload(snake) as typeof snake;
+  assert.deepEqual(camelScrubbed.metadata.parsingNotes, []);
+  assert.deepEqual(snakeScrubbed.metadata.parsing_notes, []);
+  assert.equal(camelScrubbed.score, 82, "numeric score is a retained signal");
+  assert.equal(snakeScrubbed.score, 82);
+  assert.ok(!JSON.stringify(camelScrubbed).includes("Marešová"));
+  assert.ok(!JSON.stringify(snakeScrubbed).includes("Marešová"));
+});
+
 test("scrubPiiFromPayload tolerates non-object input", () => {
   assert.equal(scrubPiiFromPayload(null), null);
   assert.equal(scrubPiiFromPayload("plain"), "plain");

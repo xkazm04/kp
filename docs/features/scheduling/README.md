@@ -216,19 +216,16 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
-**Both writers re-check, on the same rule.** `slotStillFree` runs on the
-candidate confirm (`app/api/schedule/[token]/route.ts`) *and* on the recruiter's
-week-grid book (`POST /api/schedule {action:"book"}`), which refuses a definite
-conflict with `SCHEDULE_CALENDAR_BUSY` (409). Until then a candidate could not
-book an hour the interviewer's calendar shows busy while a recruiter could, from
-the other side of the same app, for the same interviewer. The degradation
-contract is identical on both sides — no calendar connected, or a failed lookup,
-books exactly as it did before the integration — and there is **no override
-affordance**: a recruiter who wants the hour clears it on their own calendar.
-The one exception is an entry's own confirmed instant: kp writes a real event for
-each booking, so re-confirming the same cell would otherwise be refused by kp's
-own event. The recruiter-side *reschedule* and *accept-proposal* writes still do
-not re-check (their offered lists are filtered). Pinned by
+**All four confirm writers re-check, on the same rule.** `slotStillFree` runs on
+the candidate confirm (`app/api/schedule/[token]/route.ts`) and on every recruiter
+write that would occupy the hour: week-grid `book`, `reschedule`, and
+`accept_proposal`. A definite conflict answers `SCHEDULE_CALENDAR_BUSY` (409).
+The degradation contract is identical on every writer — no calendar connected,
+or a failed lookup, books exactly as it did before the integration — and there
+is **no override affordance**: a recruiter who wants the hour clears it on their
+own calendar. The one exception is an invite's own confirmed instant: kp writes
+a real event for each booking, so re-confirming (or rescheduling back to) the
+same cell would otherwise be refused by kp's own event. Pinned by
 `app/api/schedule/schedule-book-refusals.test.ts` against the same Google double
 `calendar-conflict.test.ts` uses.
 
@@ -455,7 +452,7 @@ returns a bare English `{ error }` any more:
 | `SCHEDULE_NO_PROPOSALS` | 409 | Decline-all on an invite carrying no proposals |
 | `SCHEDULE_NOTHING_TO_RECONCILE` | 409 | Already resolved |
 | `SCHEDULE_MEETING_URL_INVALID` | 400 | The join link is not http(s) |
-| `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal |
+| `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` · `SCHEDULE_CALENDAR_BUSY` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal. `reschedule` and `accept_proposal` re-check free/busy the same way `book` does |
 | `TOO_MANY_REQUESTS` | 429 | The per-IP limiter on both handlers |
 
 Why it mattered: `useScheduleInviteLifecycle.runAction` resolves failures through
@@ -816,10 +813,6 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   by the 8s fetch abort). It sits *after* the booking commit and the confirmation
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
-- The recruiter-side reschedule / accept-proposal **writes** do not re-check
-  free/busy at confirm time the way the candidate confirm and the week-grid book
-  do — the recruiter is assumed to be looking at their own calendar. (Their
-  offered list *is* filtered.)
 - **A first booking hides the "change time" button until the page is reloaded.**
   The GET on a *pending* invite necessarily answers `canReschedule: false`, and
   the first-confirm POST response carries no allowance flags, so the booked card

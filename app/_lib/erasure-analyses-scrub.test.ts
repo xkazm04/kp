@@ -100,6 +100,12 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
         summary: "Jane Doe: 9 mock questions tied to 6 evidence gaps.",
         questions: [{ bucket: "technical", question: "Walk Jane through the Acme billing rewrite.", evidenceGap: "" }],
       },
+      // Extractor free-text about the document — recruiter-visible on the saved
+      // report (`analysis.metadata.parsingNotes`). Same class of leak as
+      // extractionComparison: not in PII_KEYS, so a walk left the name intact.
+      metadata: {
+        parsingNotes: ["Extracted name Jane Doe from header"],
+      },
       score: 82, // non-PII recruitment signal must survive
     },
   });
@@ -137,6 +143,11 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
   assert.doesNotMatch(flat, /mock questions/i, "interviewKit.summary scrubbed");
   assert.doesNotMatch(flat, /billing rewrite/i, "interviewKit question text scrubbed");
   assert.doesNotMatch(flat, /Jane Doe/i, "no copy of the name survives anywhere in the payload");
+  assert.deepEqual(
+    (after!.payload as { metadata: { parsingNotes: unknown[] } }).metadata.parsingNotes,
+    [],
+    "parsingNotes emptied",
+  );
 
   // Non-identifying recruitment signal is retained for rediscovery.
   assert.equal((after!.payload as { score: number }).score, 82, "score retained");

@@ -123,8 +123,9 @@ legal-claims/compliance basis for retaining the sealed chain post-erasure.
 
 Inside an analysis/profile payload the scrub is `scrubPiiFromPayload`
 (`consent.ts`), which walks the blob generically: keys in `PII_KEYS` are blanked
-(`name`, `rawText`, `email`, `phone`, `explanation`, …), `evidence` arrays are
-emptied, and the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
+(`name`, `rawText`, `email`, `phone`, `explanation`, …), arrays in
+`PII_ARRAY_KEYS` (`evidence`, `parsingNotes` / `parsing_notes`) are emptied, and
+the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
 `extractionComparison`, `interviewKit` — are deep-redacted subtree-wide. The
 last two matter because the pipeline stores the uploaded CV text **three** times:
 `candidate.rawText` plus `extractionComparison.{pypdfText,geminiText}`
@@ -132,8 +133,11 @@ last two matter because the pipeline stores the uploaded CV text **three** times
 `rawText` alone left an identical copy of the CV — name, email, phone — readable
 in History and `/api/analyses/[slug]` after an Art. 17 erasure. `explanation` and
 `interviewKit.summary` are name-bearing for the same reason: the deterministic
-(keyless) builders interpolate `candidate.name` straight into them. Retained, as
-before: scores, skills, seniority, role family, salary band, traits.
+(keyless) builders interpolate `candidate.name` straight into them.
+`metadata.parsingNotes` is the same class of leak one key over: the extractor's
+free-text commentary on the document, recruiter-visible on the saved report, and
+not a retained score. Retained, as before: scores, skills, seniority, role
+family, salary band, traits.
 
 **Erasure survives a restart.** The shipped demo corpus is not inert: `ensureDb()`
 re-runs `seedCandidates` and `seedAnalyses` on **every** boot (no empty-table guard,

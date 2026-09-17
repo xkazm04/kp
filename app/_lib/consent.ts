@@ -181,9 +181,12 @@ const PII_KEYS = new Set([
   "avatar",
 ]);
 
-// Free-text evidence arrays quote the CV verbatim, so they can leak the name even
+// Free-text arrays that quote the CV (or name the person in extractor prose) even
 // after the structured fields are blanked — emptied wholesale on anonymization.
-const PII_ARRAY_KEYS = new Set(["evidence"]);
+// `parsingNotes` / `parsing_notes` is the extractor's document-level commentary
+// (`analysis.metadata.parsingNotes`); it is recruiter-visible on the saved report
+// and is not a retained score.
+const PII_ARRAY_KEYS = new Set(["evidence", "parsingnotes", "parsing_notes"]);
 
 // CONTAINERS whose ENTIRE subtree is verbatim free-text quoted from the CV (not a
 // retained recruitment signal), so erasure must deep-redact every string/array under
