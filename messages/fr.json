@@ -1912,6 +1912,7 @@
     "confirmationUnsent": "Nous avons enregistré votre créneau. Nous vous recontacterons sous peu pour confirmer les détails. Vous pouvez fermer cette page.",
     "addToCalendar": "Ajouter au calendrier",
     "differentTime": "Besoin d’un autre horaire ?",
+    "reschedulesRemaining": "{n, plural, one {# modification restante} other {# modifications restantes}}",
     "icsTitle": "Entretien",
     "icsTitleRole": "Entretien : {role}",
     "icsDescription": "Votre entretien avec l’équipe de recrutement.",

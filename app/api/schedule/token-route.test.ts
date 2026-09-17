@@ -10,7 +10,7 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { GET, POST } from "./[token]/route.ts";
 import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry } from "../../_lib/db/pipeline.ts";
-import { createScheduleInvite, getScheduleInviteByToken } from "../../_lib/schedule-store.ts";
+import { createScheduleInvite, getScheduleInviteByToken, MAX_RESCHEDULES } from "../../_lib/schedule-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -84,6 +84,7 @@ test("POST confirm books the offered slot, advances the entry to Interview, and 
   assert.equal(typeof body.confirmationSent, "boolean");
   assert.equal(body.canReschedule, true, "first-confirm POST must carry the reschedule affordance the booked card reads");
   assert.equal(body.rescheduleCapReached, false);
+  assert.equal(body.reschedulesRemaining, MAX_RESCHEDULES, "first booking has the full self-reschedule budget");
 
   // The linked pipeline entry advanced via approve_event with the chosen slot.
   assert.equal(getPipelineEntry(entry.id)!.stage, "Interview");
@@ -92,6 +93,37 @@ test("POST confirm books the offered slot, advances the entry to Interview, and 
   const echo = await post(invite.token, { slotAt: slots[0].value });
   assert.equal(echo.status, 200);
   assert.equal((await echo.json()).invite.status, "confirmed");
+});
+
+test("GET and POST report remaining self-reschedules after 0, 1 and 3 moves", async () => {
+  const { invite } = inviteFixture();
+  const slots = await offeredSlots(invite.token);
+  assert.ok(slots.length >= 4, "need four distinct offered times for the remaining-budget ladder");
+
+  const first = await post(invite.token, { slotAt: slots[0].value });
+  assert.equal(first.status, 200);
+  assert.equal((await first.json()).reschedulesRemaining, MAX_RESCHEDULES, "0 moves → full budget");
+  const after0 = await GET(new NextRequest(`http://localhost/api/schedule/${invite.token}`), params(invite.token));
+  assert.equal((await after0.json()).reschedulesRemaining, MAX_RESCHEDULES);
+
+  const move1 = await post(invite.token, { slotAt: slots[1].value, reschedule: true });
+  assert.equal(move1.status, 200);
+  assert.equal((await move1.json()).reschedulesRemaining, MAX_RESCHEDULES - 1, "1 move → one spent");
+  const after1 = await GET(new NextRequest(`http://localhost/api/schedule/${invite.token}`), params(invite.token));
+  assert.equal((await after1.json()).reschedulesRemaining, MAX_RESCHEDULES - 1);
+
+  assert.equal((await post(invite.token, { slotAt: slots[2].value, reschedule: true })).status, 200);
+  const last = await post(invite.token, { slotAt: slots[3].value, reschedule: true });
+  assert.equal(last.status, 200);
+  const lastBody = (await last.json()) as { reschedulesRemaining: number; canReschedule: boolean; rescheduleCapReached: boolean };
+  assert.equal(lastBody.reschedulesRemaining, 0, "3 moves → budget spent");
+  assert.equal(lastBody.canReschedule, false);
+  assert.equal(lastBody.rescheduleCapReached, true);
+  const after3 = await GET(new NextRequest(`http://localhost/api/schedule/${invite.token}`), params(invite.token));
+  const g = (await after3.json()) as { reschedulesRemaining: number; canReschedule: boolean; rescheduleCapReached: boolean };
+  assert.equal(g.reschedulesRemaining, 0);
+  assert.equal(g.canReschedule, false);
+  assert.equal(g.rescheduleCapReached, true);
 });
 
 test("two candidates cannot book the same slot: the loser gets a 409 'just taken'", async () => {

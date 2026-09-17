@@ -1912,6 +1912,7 @@
     "confirmationUnsent": "Wir haben Ihren Termin erfasst. Wir melden uns in Kürze, um die Details zu bestätigen. Sie können diese Seite schließen.",
     "addToCalendar": "Zum Kalender hinzufügen",
     "differentTime": "Brauchen Sie einen anderen Termin?",
+    "reschedulesRemaining": "{n, plural, one {# Änderung übrig} other {# Änderungen übrig}}",
     "icsTitle": "Interview",
     "icsTitleRole": "Interview: {role}",
     "icsDescription": "Ihr Interview mit dem Einstellungsteam.",

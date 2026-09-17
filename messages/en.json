@@ -1912,6 +1912,7 @@
     "confirmationUnsent": "We’ve recorded your slot. We’ll be in touch shortly to confirm the details. You can close this page.",
     "addToCalendar": "Add to calendar",
     "differentTime": "Need a different time?",
+    "reschedulesRemaining": "{n, plural, one {# change left} other {# changes left}}",
     "icsTitle": "Interview",
     "icsTitleRole": "Interview: {role}",
     "icsDescription": "Your interview with the hiring team.",

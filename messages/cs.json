@@ -1912,6 +1912,7 @@
     "confirmationUnsent": "Termín jsme zaznamenali. Brzy se vám ozveme s potvrzením podrobností. Tuto stránku můžete zavřít.",
     "addToCalendar": "Přidat do kalendáře",
     "differentTime": "Potřebujete jiný termín?",
+    "reschedulesRemaining": "{n, plural, one {Zbývá # změna} few {Zbývají # změny} other {Zbývá # změn}}",
     "icsTitle": "Pohovor",
     "icsTitleRole": "Pohovor: {role}",
     "icsDescription": "Váš pohovor s náborovým týmem.",

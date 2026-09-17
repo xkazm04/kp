@@ -46,6 +46,10 @@ rules make that hold, and both were once broken:
   (`schedule.proposeTimezoneNote`, zone from `GET /api/schedule/[token]`
   `interviewTz`). The `datetime-local` inputs are the browser wall clock;
   `PROPOSAL_HOURS` (08:00-18:00) is fenced in `KP_INTERVIEW_TZ`.
+- The booked card states remaining self-reschedules (`reschedulesRemaining` =
+  `max(0, MAX_RESCHEDULES - rescheduleCount)` on GET and the confirm POST).
+  `rescheduleCount` itself stays off the public wire. At 0 the existing
+  capReached propose path stays.
 
 Pinned by `app/schedule/[token]/schedule-picker-recovery.test.ts` (source-level —
 the repo's unit runner has no component renderer; same idiom as

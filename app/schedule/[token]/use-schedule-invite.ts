@@ -64,6 +64,7 @@ export function useScheduleInvite(token: string) {
   // The candidate may still self-reschedule a confirmed booking (server-gated by
   // MAX_RESCHEDULES). `rescheduling` swaps the booked card for the slot picker.
   const [canReschedule, setCanReschedule] = useState(false);
+  const [reschedulesRemaining, setReschedulesRemaining] = useState(0);
   const [rescheduling, setRescheduling] = useState(false);
   // REC-10 — the confirmation's TRUTHFUL delivery claim from the booking POST:
   // "sent" (relayed), "queued" (recorded in the local outbox, nothing delivers
@@ -106,6 +107,7 @@ export function useScheduleInvite(token: string) {
         setCalendarChecked(d.calendarChecked === true);
         setCanReschedule(Boolean(d.canReschedule));
         setCapReached(Boolean(d.rescheduleCapReached));
+        setReschedulesRemaining(typeof d.reschedulesRemaining === "number" ? Math.max(0, d.reschedulesRemaining) : 0);
         setProposalStatus(d.invite?.proposalStatus ?? null);
         setInterviewTz(typeof d.interviewTz === "string" ? d.interviewTz : "");
         if (d.closed) setClosedReason(typeof d.closedReason === "string" ? d.closedReason : "closed");
@@ -149,6 +151,7 @@ export function useScheduleInvite(token: string) {
         // booking shows the affordance without a free/busy-hitting refresh.
         setCanReschedule(Boolean(d.canReschedule));
         setCapReached(Boolean(d.rescheduleCapReached));
+        setReschedulesRemaining(typeof d.reschedulesRemaining === "number" ? Math.max(0, d.reschedulesRemaining) : 0);
         if (isReschedule) {
           // Back to the booked card showing the new time; refresh the remaining
           // reschedule allowance + slot pool so the affordance disappears at the cap.
@@ -165,6 +168,7 @@ export function useScheduleInvite(token: string) {
                 // server would still have accepted — the exact dead-end the escalation
                 // exists to remove, until the candidate reloaded the page.
                 setCapReached(Boolean(nd.rescheduleCapReached));
+                setReschedulesRemaining(typeof nd.reschedulesRemaining === "number" ? Math.max(0, nd.reschedulesRemaining) : 0);
                 setSlots(nd.slots ?? []);
                 setCalendarChecked(nd.calendarChecked === true);
               }
@@ -344,6 +348,7 @@ export function useScheduleInvite(token: string) {
     picking,
     confirmed,
     canReschedule,
+    reschedulesRemaining,
     rescheduling,
     confirmationDelivery,
     rsvpPending,

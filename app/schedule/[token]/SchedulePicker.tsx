@@ -97,6 +97,7 @@ export function SchedulePicker({ token }: { token: string }) {
           confirmed={s.confirmed}
           confirmationDelivery={s.confirmationDelivery}
           canReschedule={s.canReschedule}
+          reschedulesRemaining={s.reschedulesRemaining}
           capReached={s.capReached}
           rsvpPending={s.rsvpPending}
           onReschedule={s.startReschedule}
