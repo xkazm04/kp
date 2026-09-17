@@ -502,6 +502,10 @@ indistinguishable) with its 500 going through `safeJsonError(..., "FOLLOWUP_FAIL
 so profile_cli's reason reaches the log and never the candidate. The *page*-level
 closed-role gate still renders `t("roleClosed")`; that is a different surface.
 Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
+The closed-role card still mounts `LanguageSwitcher` (same block as the open
+path) so a filled/retired English link is escapable into the candidate's
+language; drafts keep `notFound()` and stay switcher-less. Pinned by
+`app/apply/[id]/candidate-door-conversion.test.ts`.
 
 **Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
 `app/_lib/apply-session-store.ts`) is written from a public door on every form

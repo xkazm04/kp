@@ -77,6 +77,18 @@ test("the quick form's submit is always live and names what is missing", () => {
   assert.match(src, /jumpTo\(missing\)/, "…through the one shared jump helper");
 });
 
+test("every painted apply-page main, including the closed-role card, mounts LanguageSwitcher", () => {
+  const src = read("page.tsx");
+  const mains = [...src.matchAll(/<main[\s\S]*?<\/main>/g)].map((m) => m[0]);
+  assert.ok(mains.length >= 2, "open path and closed-role path each have a main");
+  for (const main of mains) {
+    assert.match(main, /<LanguageSwitcher \/>/, "a closed-role visit is still escapable into the candidate's language");
+  }
+  const draftGate = src.slice(src.indexOf('if (status === "draft")'), src.indexOf("return ("));
+  assert.match(draftGate, /notFound\(\)/, "drafts 404 rather than painting a card");
+  assert.doesNotMatch(draftGate, /LanguageSwitcher/, "the draft notFound path does not mount a switcher");
+});
+
 test("the quick form keeps its honeypot and the strict server KO contract untouched", () => {
   const src = read("quick/QuickApplyForm.tsx");
   assert.match(src, /company_url/, "the honeypot field is still posted");
