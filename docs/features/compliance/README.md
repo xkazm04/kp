@@ -190,7 +190,9 @@ data and an erase button; `app/api/data/[token]/route.ts` handles GET
 `consentExpiresAt`; the page now formats it through `useDateFormat().date`
 (`data.keptUntil`) so the person the TTL is about can see how long we keep
 them, and a malformed expiry cannot print "Invalid Date". Anonymized entries
-do not show a future expiry. The token is carried in comms email footers.
+do not show a future expiry. The erase explainer and confirm name the limit
+already stated on `/trust`: in-product erasure cannot reach a hosted voice
+provider's copy of an interview. The token is carried in comms email footers.
 
 The page distinguishes a **dead link** from a **transient fault**, because the
 two need opposite reactions from the candidate: only a `404` renders the

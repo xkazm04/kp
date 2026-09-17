@@ -263,3 +263,20 @@ test("data.keptUntil exists in all four catalogs and interpolates {date}", () =>
     assert.ok(key.includes("{date}"), `${loc}: data.keptUntil must interpolate {date}`);
   }
 });
+
+test("eraseExplainer and confirmBody name a hosted-voice copy the transaction cannot reach", () => {
+  const needles: Record<"en" | "cs" | "de" | "fr", RegExp> = {
+    en: /hosted voice/i,
+    cs: /hostovan/i,
+    de: /gehostet/i,
+    fr: /voix héberg/i,
+  };
+  for (const loc of ["en", "cs", "de", "fr"] as const) {
+    const catalog = JSON.parse(read(`../../../messages/${loc}.json`)) as {
+      data?: { eraseExplainer?: string; confirmBody?: string };
+    };
+    const needle = needles[loc];
+    assert.match(catalog.data?.eraseExplainer ?? "", needle, `${loc}: eraseExplainer must name the hosted-voice carve-out`);
+    assert.match(catalog.data?.confirmBody ?? "", needle, `${loc}: confirmBody must name the hosted-voice carve-out`);
+  }
+});
