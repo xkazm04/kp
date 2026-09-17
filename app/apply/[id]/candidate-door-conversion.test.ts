@@ -39,6 +39,29 @@ test("chat knockout buttons are tonally neutral — neither answer is signposted
   }
 });
 
+function mainBlocks(src: string): string[] {
+  return src.split(/return\s*\(/).slice(1).filter((block) => block.includes("<main"));
+}
+
+test("every apply-page HTML return mounts LanguageSwitcher, including the closed-role card", () => {
+  for (const rel of ["page.tsx", "quick/page.tsx"] as const) {
+    const src = read(rel);
+    const blocks = mainBlocks(src);
+    assert.ok(blocks.length >= 2, `${rel} expected closed + open HTML returns`);
+    for (const block of blocks) {
+      assert.match(block, /LanguageSwitcher/, `${rel} HTML return missing LanguageSwitcher`);
+    }
+    const closed = blocks.find((b) => b.includes('t("roleClosed")'));
+    assert.ok(closed, `${rel} has no closed-role <main>`);
+    const without = closed.replace(/<LanguageSwitcher\s*\/>/, "");
+    assert.doesNotMatch(
+      without,
+      /LanguageSwitcher/,
+      `non-vacuity: ${rel} closed-role branch without the switcher fails this pin`
+    );
+  }
+});
+
 test("the conversational done card renders the status link the way quick is pinned", () => {
   const card = read("ApplyDoneCard.tsx");
   const view = read("ConversationalApply.tsx");

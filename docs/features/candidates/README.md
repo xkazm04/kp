@@ -501,7 +501,11 @@ token, token for another job, entry with no profile row — deliberately
 indistinguishable) with its 500 going through `safeJsonError(..., "FOLLOWUP_FAILED")`
 so profile_cli's reason reaches the log and never the candidate. The *page*-level
 closed-role gate still renders `t("roleClosed")`; that is a different surface.
-Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
+Both apply pages mount `LanguageSwitcher` on every HTML `<main>` return,
+including that closed-role card, so a forwarded filled/retired link in the
+wrong language still has an escape (the open-path APP4 switcher used to drop
+on the early return). Pinned by `app/api/apply/apply-error-hygiene.test.ts` and
+`candidate-door-conversion.test.ts`.
 
 **Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
 `app/_lib/apply-session-store.ts`) is written from a public door on every form
