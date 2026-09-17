@@ -96,7 +96,7 @@ to `sendComm`/`sendCandidateComm` in `comms-dispatch.ts` and asserts set
 equality, so this list cannot silently drift from the dispatchers:
 
 `acknowledgement`, `outreach`, `rejection`, `ko_decline`, `offer`,
-`offer_reminder`, `interview_confirmation`, `interview_reminder`,
+`offer_reminder`, `consent_expiry`, `interview_confirmation`, `interview_reminder`,
 `interview_invite`, `interviewer_brief`, `schedule_invite`.
 
 (`onboarding` and `onboarding_reminder` were retired with the post-hire

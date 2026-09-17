@@ -68,6 +68,13 @@ skill credential) and the calibration row, the retired
 onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
+The same heartbeat also runs `notifyExpiringConsents` (`app/_lib/consent-expiry-reminders.ts`):
+entries whose consent is in the 30-day `CONSENT_EXPIRING_DAYS` window and that have
+no `expiring_notified` event yet get exactly one candidate letter (kind
+`consent_expiry`) carrying the existing `/data/[token]` and `/stop/[token]`
+footers, claimed by `claimConsentExpiryNotice` in an IMMEDIATE transaction so a
+re-tick cannot double-send. Opted-out, anonymized, and already-expired rows are
+skipped — expiry itself stays the anonymize sweep's job.
 
 **Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
 
@@ -538,7 +545,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 
 | Concern | Files |
 |---|---|
-| Consent core + DB lifecycle | `app/_lib/consent.ts`, `app/_lib/db/pipeline.ts` (`recordEntryConsent`, `anonymizeEntry`, `anonymizeExpiredConsents`, `scrubEntryLinkedPii`) |
+| Consent core + DB lifecycle | `app/_lib/consent.ts`, `app/_lib/db/pipeline.ts` (`recordEntryConsent`, `anonymizeEntry`, `anonymizeExpiredConsents`, `claimConsentExpiryNotice`, `scrubEntryLinkedPii`), `app/_lib/consent-expiry-reminders.ts` (`notifyExpiringConsents`) |
 | Data-held / jurisdiction resolver | `app/_lib/data-held.ts`, `app/_lib/compliance-regimes.ts` |
 | Erasure self-service | `app/data/[token]/page.tsx`, `DataClient.tsx`, `app/api/data/[token]/route.ts` |
 | Candidate status + decision explanation + NPS | `app/status/[token]/StatusClient.tsx`, `app/_lib/status-decisions.ts`, `app/api/status/[token]/nps/route.ts`, `app/_lib/candidate-nps.ts`, `app/_lib/candidate-nps-store.ts` |

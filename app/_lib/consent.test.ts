@@ -7,6 +7,7 @@ import {
   consentWithholdsPii,
   maskCandidateName,
   outreachSuppressionReason,
+  consentNeedsExpiryNotice,
   redactTranscriptForConsent,
   scrubPiiFromPayload,
   type ConsentSnapshot,
@@ -102,6 +103,14 @@ test("consentStatus walks none → active → expiring → expired, and anonymiz
   );
   // granted, no expiry recorded → treated as active (legacy)
   assert.equal(consentStatus({ givenAt: "x", expiresAt: null, anonymizedAt: null }, NOW), "active");
+});
+
+test("consentNeedsExpiryNotice is true only for expiring and not-yet-notified", () => {
+  const expiring: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW + 10 * DAY).toISOString(), anonymizedAt: null };
+  assert.equal(consentNeedsExpiryNotice(expiring, NOW, false), true, "expiring + unnotified notifies");
+  assert.equal(consentNeedsExpiryNotice(expiring, NOW, true), false, "already-notified is a no-op");
+  const expired: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW - DAY).toISOString(), anonymizedAt: null };
+  assert.equal(consentNeedsExpiryNotice(expired, NOW, false), false, "expired is the anonymize sweep's job, not this one");
 });
 
 test("maskCandidateName reduces to First L. and degrades safely", () => {

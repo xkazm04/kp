@@ -6,7 +6,7 @@ import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-stat
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { randomToken } from "../random-id";
-import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
+import { CONSENT_EXPIRING_DAYS, CONSENT_TTL_DAYS, consentExpiresAt, consentNeedsExpiryNotice, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
 // Type-only: match-score.ts is pure, and the import is erased, so no cycle and no
@@ -2440,6 +2440,58 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
     }
   }
   return count;
+}
+
+/** Entries whose consent is in the 30-day pre-expiry window and that have not
+ *  yet been written an `expiring_notified` event. GLOBAL like the anonymize sweep:
+ *  process every tenant, thread each row's workspace_id to the scoped claim. */
+export function listConsentExpiryNoticeDue(nowIso: string = new Date().toISOString()): { id: string; workspace_id: string }[] {
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return [];
+  const windowEnd = new Date(nowMs + CONSENT_EXPIRING_DAYS * 86_400_000).toISOString();
+  return ensureDb()
+    .prepare(
+      `SELECT pe.id, pe.workspace_id FROM pipeline_entries pe
+        WHERE pe.consent_expires_at IS NOT NULL
+          AND pe.consent_expires_at > ?
+          AND pe.consent_expires_at <= ?
+          AND pe.anonymized_at IS NULL
+          AND pe.consent_given_at IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM consent_events ce
+             WHERE ce.entry_id = pe.id AND ce.kind = 'expiring_notified'
+          ) -- tenancy:global`
+    )
+    .all(nowIso, windowEnd) as { id: string; workspace_id: string }[];
+}
+
+/** CAS-claim the pre-expiry notice: insert `expiring_notified` iff the row is still
+ *  in the expiring window and has no such event. IMMEDIATE so two clock ticks cannot
+ *  both pass the read. Returns the entry on a won claim, null otherwise. */
+export function claimConsentExpiryNotice(
+  entryId: string,
+  nowIso: string = new Date().toISOString(),
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+): PipelineEntry | null {
+  const db = ensureDb();
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return null;
+  const tx = db.transaction((): PipelineEntry | null => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
+    if (!row) return null;
+    const already = db
+      .prepare(`SELECT 1 AS ok FROM consent_events WHERE entry_id = ? AND kind = 'expiring_notified' LIMIT 1`)
+      .get(entryId) as { ok: number } | undefined;
+    const snap = {
+      givenAt: row.consent_given_at ?? null,
+      expiresAt: row.consent_expires_at ?? null,
+      anonymizedAt: row.anonymized_at ?? null,
+    };
+    if (!consentNeedsExpiryNotice(snap, nowMs, Boolean(already))) return null;
+    logConsentEvent(db, entryId, "expiring_notified", "pre-expiry reminder", workspaceId);
+    return rowToEntry(row);
+  });
+  return tx.immediate();
 }
 
 // ---- Automation helpers (Phase 15) ----------------------------------------

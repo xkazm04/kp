@@ -912,3 +912,27 @@ export async function dispatchOfferReminder(entry: PipelineEntry, link: string, 
     console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
 }
+
+function formatConsentExpiryDate(iso: string, locale: string | null | undefined, workspaceId?: string | null): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const loc = candidateLocale(locale, workspaceId);
+  return dateFormatter(loc, { dateStyle: "medium" }).format(new Date(ms));
+}
+
+/** Pre-expiry consent notice: one letter in the 30-day window before the anonymize
+ *  sweep, so the candidate can renew or erase before storage limitation fires.
+ *  `sendCandidateComm` already appends the `/data/[token]` and `/stop/[token]`
+ *  footers. A throw means the message did NOT go out; the sweep claims the
+ *  `expiring_notified` event before calling, so a throw is logged, not retried. */
+export async function dispatchConsentExpiryReminder(entry: PipelineEntry): Promise<void> {
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const date = formatConsentExpiryDate(entry.consentExpiresAt ?? "", entry.locale, entry.workspaceId)
+    || (entry.consentExpiresAt ?? "").slice(0, 10);
+  const subject = t("consentExpiryReminder.subject", { role, date });
+  const body = t("consentExpiryReminder.body", { name, role, date, team: t("team") });
+  await sendCandidateComm(entry, t, { subject, body, kind: "consent_expiry" }, locale);
+}

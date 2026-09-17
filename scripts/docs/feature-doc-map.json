@@ -218,6 +218,7 @@
       "doc": "docs/features/compliance/README.md",
       "sourceGlobs": [
         "app/_lib/consent.ts",
+        "app/_lib/consent-expiry-reminders.ts",
         "app/_lib/data-held.ts",
         "app/_lib/compliance-regimes.ts",
         "app/_lib/db/pipeline.ts",

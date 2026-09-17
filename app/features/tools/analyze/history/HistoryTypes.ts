@@ -60,3 +60,32 @@ export function sortOptionsByLabel<T extends { label: string }>(options: T[], lo
   const collator = new Intl.Collator(locale, { numeric: true });
   return [...options].sort((a, b) => collator.compare(a.label, b.label));
 }
+
+// GET /api/analyses now answers `{ analyses, truncated, limit }` so a workspace
+// past the cap can stop claiming completeness. Inventing `truncated: false` when
+// the route said nothing would be a completeness claim the server never made.
+export type AnalysesListPage = {
+  analyses: AnalysisRow[];
+  truncated: boolean;
+  limit: number | null;
+};
+
+/** Read a `/api/analyses` body into what History renders. A missing/non-array
+ *  `analyses` is an empty list, never `undefined` reaching the table. */
+export function readAnalysesListPayload(payload: unknown): AnalysesListPage {
+  const body = (
+    payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {}
+  ) as { analyses?: unknown; truncated?: unknown; limit?: unknown };
+  const analyses = Array.isArray(body.analyses) ? (body.analyses as AnalysisRow[]) : [];
+  const limit =
+    typeof body.limit === "number" && Number.isFinite(body.limit) && body.limit > 0
+      ? Math.floor(body.limit)
+      : null;
+  return { analyses, truncated: body.truncated === true, limit };
+}
+
+/** The Showing-of line may name a total only when the page is complete. A
+ *  truncated slice has no population figure — `rows.length` is the loaded cap. */
+export function historyShowingTotal(loadedCount: number, truncated: boolean): number | null {
+  return truncated ? null : loadedCount;
+}

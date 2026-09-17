@@ -49,6 +49,7 @@ export const KNOWN_COMM_KINDS = [
   "ko_decline",
   "offer",
   "offer_reminder",
+  "consent_expiry",
   "interview_confirmation",
   "interview_reminder",
   "interview_invite",

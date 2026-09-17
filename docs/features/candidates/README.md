@@ -52,7 +52,10 @@ career-switcher) that other features key off. Downstream ranking is
   missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
   seniority/decision filters run CLIENT-side over the rows `/api/analyses`
-  returned (a hard `LIMIT 200`, no truncation flag — see Known gaps). The
+  returned (a hard cap, default 200). The route answers `{ truncated, limit }`
+  beside the rows; when the page was cut, History names it as a page
+  ("Showing {n} newest; older runs still open by slug") and the Showing-of
+  line uses the loaded-slice copy instead of `rows.length` as a total. The
   family/seniority dropdowns are ordered by their **localized** label through
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
@@ -1046,14 +1049,12 @@ absence has to survive the CV.
   and returns no `truncated` flag, so past 200 saved analyses the board's lane
   counts, distribution bars and "N candidates" label describe the newest 200 —
   presented as the whole population.
-- **The History table claims a total it only loaded a slice of.** Same cap, same
-  missing flag on `GET /api/analyses` (`listAnalyses(200, ws)`), and `HistoryTab`
-  filters CLIENT-side over that slice: searching a candidate analysed 250 runs ago
-  returns "No runs match your search or filter", and `Showing {shown} of {total}`
-  passes `rows.length` as the total, so a 900-run workspace reads "Showing 0 of
-  200". The row is still reachable at `/history/[slug]`, so this is discoverability
-  loss rather than data loss. The honest fix needs a server `truncated`/`total`
-  (or a query param + pager) plus new `history` keys in all four catalogs.
+- **History still cannot page past the cap.** `GET /api/analyses` now answers
+  `{ truncated, limit }` and History names a cut page as a page (it no longer
+  reads a 900-run workspace as "200"), but the tab still filters CLIENT-side
+  over that newest slice: searching a candidate analysed 250 runs ago returns
+  "No runs match your search or filter". The row is still reachable at
+  `/history/[slug]`. A server pager (or a query param) is the remaining half.
 - **The saved-profile roster claims a silently capped population.**
   `GET /api/profile` serves `cachedProfileRecords` = `listProfileRecords(200, ws)`
   with no total and no `truncated` flag, and `ProfileRoster` renders

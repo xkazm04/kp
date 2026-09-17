@@ -130,8 +130,10 @@ async function clockIsPaused(): Promise<boolean> {
 
 /** GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
  *  Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
- *  scores/notes/stage retained for re-engagement). The candidate erasure path also
- *  anonymizes on demand; this sweep is what honors a silent expiry on time.
+ *  scores/notes/stage retained for re-engagement) and, in the 30-day window before
+ *  that, sends the one pre-expiry reminder the drawer already had copy for. The
+ *  candidate erasure path also anonymizes on demand; this sweep is what honors a
+ *  silent expiry on time, and what warns before it.
  *
  *  DELIBERATELY EXEMPT from the autonomy pause, and the reasoning is the decision
  *  itself rather than an accident of imports: this is not an automated DECISION about
@@ -144,6 +146,13 @@ async function clockIsPaused(): Promise<boolean> {
  *  notes. If a future erasure-hold ("legal hold") capability is added, it belongs on
  *  the consent record where it can be per-candidate and audited — not on this pause. */
 async function sweepExpiredConsents(): Promise<void> {
+  try {
+    const { notifyExpiringConsents } = await import("./app/_lib/consent-expiry-reminders");
+    const notified = await notifyExpiringConsents();
+    if (notified) console.log("[clock] consent expiry reminders sent:", notified);
+  } catch (e) {
+    console.error("[clock] consent expiry reminder sweep failed:", e);
+  }
   try {
     const { anonymizeExpiredConsents } = await import("./app/_lib/db");
     const anonymized = anonymizeExpiredConsents();

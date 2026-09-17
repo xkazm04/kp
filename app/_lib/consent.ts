@@ -48,6 +48,18 @@ export function consentExpiresAt(givenAtMs: number, ttlDays: number = CONSENT_TT
   return new Date(givenAtMs + ttlDays * DAY_MS).toISOString();
 }
 
+/** True only when the grant is in the 30-day pre-expiry window and we have not
+ *  already written the reminder. Expired rows belong to `anonymizeExpiredConsents`,
+ *  not this notice. */
+export function consentNeedsExpiryNotice(
+  snap: ConsentSnapshot,
+  nowMs: number,
+  alreadyNotified: boolean,
+): boolean {
+  if (alreadyNotified) return false;
+  return consentStatus(snap, nowMs) === "expiring";
+}
+
 /** Lifecycle state of an entry's consent, for the sweep + the drawer chip.
  *  anonymized wins over everything (it's terminal); then we read the expiry. */
 export function consentStatus(snap: ConsentSnapshot, nowMs: number): ConsentStatus {
