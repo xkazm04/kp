@@ -17,7 +17,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseDiagramStep, STEP_DETAILS } from "./pipelineSteps.ts";
+import { citationPath, parseDiagramStep, STEP_DETAILS } from "./pipelineSteps.ts";
 import { parsePuml } from "../_components/puml/parse.ts";
 import { LOCALES } from "../../i18n/locales.ts";
 
@@ -38,7 +38,7 @@ function stepCatalog(locale: string): Record<string, { title?: unknown; summary?
  *  - strip a trailing parenthetical note: "automation.py (evaluate_entry)" -> "automation.py"
  *  - a "dir/*" glob collapses to a directory existence check on "dir". */
 function resolveEntry(entry: string): { rel: string; mustBeDir: boolean } {
-  let rel = entry.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  let rel = citationPath(entry);
   let mustBeDir = false;
   if (rel.endsWith("/*")) {
     rel = rel.slice(0, -2);
@@ -46,6 +46,26 @@ function resolveEntry(entry: string): { rel: string; mustBeDir: boolean } {
   }
   return { rel, mustBeDir };
 }
+
+test("citationPath strips a trailing parenthetical and leaves the rest", () => {
+  assert.equal(citationPath("pipeline/jobfit/automation.py (evaluate_entry)"), "pipeline/jobfit/automation.py");
+  assert.equal(citationPath("app/_lib/db/pipeline.ts (actOnPipelineEntry)"), "app/_lib/db/pipeline.ts");
+  assert.equal(citationPath("app/features/library/jds/*"), "app/features/library/jds/*");
+  assert.equal(citationPath("app/_lib/analyze-run.ts"), "app/_lib/analyze-run.ts");
+});
+
+test("every STEP_DETAILS files[] row copies a resolved repo-relative path", () => {
+  let n = 0;
+  for (const detail of Object.values(STEP_DETAILS)) {
+    for (const entry of detail.files) {
+      const rel = citationPath(entry);
+      assert.ok(rel.length > 0, `empty citationPath for "${entry}"`);
+      assert.equal(/\([^)]*\)\s*$/.test(rel), false, `parenthetical survived in "${rel}"`);
+      n += 1;
+    }
+  }
+  assert.ok(n > 0, "STEP_DETAILS has no files[] rows to copy");
+});
 
 test("STEP_DETAILS never cites the app/_lib/db.ts barrel", () => {
   const hits: string[] = [];

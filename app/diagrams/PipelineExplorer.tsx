@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { META_LABEL, STICKY_BAR } from "@/app/_components/ui/recipes";
-import { STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
+import { citationPath, STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
 
 /** Keep `?step=` in lockstep with the open drawer so a refresh or a pasted
  *  citation lands on the same wiring. `replaceState` (not push) so clicking
@@ -138,14 +138,48 @@ function StepDrawer({ id, detail, onClose }: { id: string; detail: StepDetail; o
             <p className={META_LABEL}>{t("explorer.codeHeading")}</p>
             <ul className="mt-1 space-y-0.5">
               {detail.files.map((f) => (
-                <li key={f}>
-                  <code className="text-sm text-ink">{f}</code>
-                </li>
+                <CitationRow key={f} entry={f} />
               ))}
             </ul>
           </div>
         </div>
       </aside>
     </div>
+  );
+}
+
+function CitationRow({ entry }: { entry: string }) {
+  const t = useTranslations("diagrams");
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const rel = citationPath(entry);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(rel);
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        aria-label={copied ? t("explorer.copied") : t("explorer.copy")}
+        className="focus-ring block rounded-md px-1 py-0.5 text-left hover:bg-stone-100"
+      >
+        <code className="text-sm text-ink">{entry}</code>
+        {copied ? (
+          <span role="status" className="ml-2 text-meta text-moss">
+            {t("explorer.copied")}
+          </span>
+        ) : null}
+      </button>
+    </li>
   );
 }

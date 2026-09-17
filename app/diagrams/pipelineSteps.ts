@@ -243,3 +243,9 @@ export function parseDiagramStep(raw: unknown): string | null {
   const id = value.trim();
   return id && Object.hasOwn(STEP_DETAILS, id) ? id : null;
 }
+
+/** Strip a trailing parenthetical note so a files[] citation copies as a
+ *  repo-relative path: `automation.py (evaluate_entry)` → the .py path. */
+export function citationPath(entry: string): string {
+  return entry.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}

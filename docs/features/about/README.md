@@ -38,7 +38,8 @@ paths and the PlantUML body stay in `app/diagrams/pipelineSteps.ts`, and
 `pipelineSteps.test.ts` holds the two halves in bijection. A docs citation or
 chat paste can open a drawer directly with `?step=<alias>`; the explorer writes
 the same query on node click (`history.replaceState`) so refresh and share keep
-the step.
+the step. Each `files[]` row in the drawer copies the repo-relative path on
+click (parenthetical notes like `(actOnPipelineEntry)` are stripped first).
 
 The chapter frames — number, eyebrow, title, lede, anchor, handoff link — are
 always in the server HTML (`stage/Scene.tsx`). Only the art is code-split, one
