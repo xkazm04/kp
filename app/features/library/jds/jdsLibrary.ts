@@ -67,6 +67,17 @@ export function jdMustHaveCount(
   return typeof n === "number" && n > 0 ? n : undefined;
 }
 
+// analysis_error used to be Python spawn prose (paths, traceback). A short
+// ALL_CAPS code is resolvable; anything else is JD_GENERATE_FAILED and the raw
+// string stays out of the DOM.
+const JD_BUILD_CODE_RE = /^[A-Z][A-Z0-9_]{2,64}$/;
+export function jdBuildFailureCode(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (JD_BUILD_CODE_RE.test(s)) return s;
+  if (s) console.error("[jd-build] analysis_error is not a code");
+  return "JD_GENERATE_FAILED";
+}
+
 // Mirrors the JdRow the /api/jds list endpoint returns (identity + a
 // server-truncated preview), enriched with the linked-job status and the
 // analyzed-candidate count the route computes for every row in one pass.

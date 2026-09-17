@@ -6,9 +6,22 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coachHandoffBlock, jdLibraryFooter, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jdsLibrary.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { coachHandoffBlock, jdBuildFailureCode, jdLibraryFooter, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jdsLibrary.ts";
 
 const row = (over: Partial<JdRow> = {}): JdRow => ({ slug: "s", title: "T", preview: "", created_at: "2026-01-01", ...over });
+
+test("FailedPanel never interpolates a traceback-shaped analysis_error", () => {
+  const traceback = "Traceback (most recent call last):\n  File \"/opt/kp/pipeline/jobfit/jd_build.py\", line 12, in run\nRuntimeError: spawn failed";
+  assert.equal(jdBuildFailureCode(traceback), "JD_GENERATE_FAILED");
+  assert.equal(jdBuildFailureCode("JD_SAVE_FAILED"), "JD_SAVE_FAILED");
+  assert.equal(jdBuildFailureCode(null), "JD_GENERATE_FAILED");
+  const panel = readFileSync(fileURLToPath(new URL("./JdsLedgerDetailPanels.tsx", import.meta.url)), "utf8");
+  assert.match(panel, /jdBuildFailureCode\(error\)/);
+  assert.match(panel, /errMsg\(\{ code \}/);
+  assert.doesNotMatch(panel, />\{error\}</);
+});
 
 test("analysis_status takes precedence over jobStatus in statusCategory", () => {
   // A backgrounded build wins even over a linked job's lifecycle status.
