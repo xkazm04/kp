@@ -191,6 +191,10 @@ export const STORE_ERRORS = {
   /** POST /api/devcase/skill-profile - the credential mint. A store transaction plus an
    *  HMAC sign, both of whose messages `jsonError` used to forward. */
   DEVCASE_SKILL_PROFILE_FAILED: "Could not issue the skill profile. Please try again.",
+  /** GET /api/skill-profile/[token]/verify — public FICO-style lookup. A store throw
+   *  used to answer jsonError English, which forwarded err.message to whoever holds
+   *  the credential URL. */
+  SKILL_PROFILE_VERIFY_FAILED: "Could not verify the skill profile. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",

@@ -1119,7 +1119,9 @@ either exposes a credential or kills a link a candidate already gave an employer
 
 - **One public address.** The shareable value is the CSPRNG `access_token`
   (`randomToken`, ~192 bits) — the sole auth on `/skill/[token]` and
-  `GET /api/skill-profile/[token]/verify`. The row's PK is an *internal* `randomId`
+  `GET /api/skill-profile/[token]/verify`. A store fault on that verify door
+  answers `safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")` so the public
+  credential URL never prints English or a raw store message. The row's PK is an *internal* `randomId`
   (`Math.random`-derived, time-ordered) and resolves a credential **only on legacy rows**
   (`access_token IS NULL`, minted before the token was hardened), so an already-shared old
   link keeps working while a hardened credential answers to its CSPRNG token alone. The

@@ -788,6 +788,10 @@ render site, in all four locales:
 | Salary-read grade (`report.confidence.*`) | how strong the evidence behind the read is | **Strong / Moderate / Weak evidence** |
 | Archetype vote share (`registry.detect`) | the winner's share of the routing-signal weight | **signals agree** |
 
+The headless salary CLI (`scripts/salary.py`) prints that salary-read grade as
+**Evidence** / Strong|Moderate|Weak, never the `Confidence` stem. A missing grade
+omits the line rather than printing 0.
+
 **The self-report no longer renders with measurement grammar.** The 0–100 scalar used to be a
 tinted meter under the word "Confidence", announced as "AI confidence in this recommendation:
 87 %" — all grammar this app reserves for measured quantities. `DecisionsAiReviewCard.tsx` now
