@@ -2380,13 +2380,12 @@ export function ensureDb(): Database.Database {
 type BootMaintenanceDb = { pragma: (source: string) => unknown };
 
 /**
- * The boot TAIL: the two housekeeping steps that run once the schema is ready.
+ * The boot TAIL: the housekeeping steps that run once the schema is ready.
  *
- * Both are deliberately best-effort. Neither reclaims correctness — they reclaim SPACE —
- * so a failure in either must be logged and survived, never allowed to wedge a boot that
- * would otherwise serve. That "best-effort" is a decision, not an accident, which is why
- * it is a named, tested seam rather than two bare try/catch at the end of a 900-line
- * initializer (`core-boot-tail.test.ts`).
+ * Each is deliberately best-effort. A failure must be logged and survived, never allowed
+ * to wedge a boot that would otherwise serve. That "best-effort" is a decision, not an
+ * accident, which is why it is a named, tested seam rather than bare try/catch at the
+ * end of a 900-line initializer (`core-boot-tail.test.ts`).
  *
  * 1. Prune expired (and, once their TTL lapses, superseded-PROMPT_VERSION) prompt-cache
  *    rows. lookupPromptCache only SKIPS expired rows — it never deletes them — so without
@@ -2396,11 +2395,19 @@ type BootMaintenanceDb = { pragma: (source: string) => unknown };
  *    nothing else forces one. TRUNCATE both checkpoints AND shrinks the -wal to zero.
  *    Every store opens the same kp.sqlite, so this one call bounds the shared WAL. A
  *    concurrent reader holding the WAL open is an ordinary, expected failure here.
+ * 3. Sample getRowHealth(). The ledger counts unreadable JSON columns since boot; a
+ *    non-zero total is the only boot-time signal that a restored dump has corrupt
+ *    payload_json (otherwise it stays silent until a user opens that row). Zero is the
+ *    ordinary case and must not add a log line.
  *
- * `prune` is injected only so a failing prune can be exercised; production always passes
- * the real one.
+ * `prune` and `rowHealth` are injected only so a failing / non-zero sample can be
+ * exercised; production always passes the real ones.
  */
-export function runBootMaintenance(db: BootMaintenanceDb, prune: () => number = prunePromptCache): void {
+export function runBootMaintenance(
+  db: BootMaintenanceDb,
+  prune: () => number = prunePromptCache,
+  rowHealth: () => { ok: boolean; total: number; issues: RowIssue[] } = getRowHealth
+): void {
   try {
     const pruned = prune();
     if (pruned > 0) console.log(`[db] pruned ${pruned} expired prompt-cache row(s) on boot`);
@@ -2411,6 +2418,14 @@ export function runBootMaintenance(db: BootMaintenanceDb, prune: () => number = 
     db.pragma("wal_checkpoint(TRUNCATE)");
   } catch (error) {
     console.error("[db] boot WAL checkpoint failed", error);
+  }
+  try {
+    const health = rowHealth();
+    if (health.total > 0) {
+      console.warn(`[db] row-health: ${health.total} unreadable column(s) since boot ${JSON.stringify(health.issues)}`);
+    }
+  } catch (error) {
+    console.error("[db] row-health boot sample failed", error);
   }
 }
 

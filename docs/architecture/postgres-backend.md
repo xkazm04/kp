@@ -90,9 +90,12 @@ rows already exist" case is real on Postgres too (`CREATE UNIQUE INDEX` raises
 `unique_violation`), a locked or broken database is not something to boot past.
 
 And a fourth, at the other end of boot: `runBootMaintenance()` (exported from `db/core.ts`,
-pinned by `app/_lib/db/core-boot-tail.test.ts`) prunes expired prompt-cache rows and runs
-`wal_checkpoint(TRUNCATE)`. Both reclaim SPACE, not correctness, so both are best-effort —
-a failure is logged and survived, never allowed to wedge a boot that would otherwise serve.
+pinned by `app/_lib/db/core-boot-tail.test.ts`) prunes expired prompt-cache rows, runs
+`wal_checkpoint(TRUNCATE)`, and samples `getRowHealth()`. The first two reclaim SPACE, not
+correctness; the third is the only boot-time signal that a restored dump has unreadable
+JSON columns (`total > 0` warns the count and the bounded issue sample; zero is silent).
+All three are best-effort — a failure is logged and survived, never allowed to wedge a
+boot that would otherwise serve.
 On Postgres the checkpoint half disappears entirely (no WAL sidecar to fold back; autovacuum
 owns the equivalent), while the prune must stay: nothing else bounds `gemini_cache`, because
 `lookupPromptCache` skips expired rows without deleting them. Fixture seeding runs BEFORE
