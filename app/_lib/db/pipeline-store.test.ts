@@ -17,7 +17,9 @@ import {
   listConsentEvents,
   listJobPipelineStats,
   listPipeline,
+  listPipelinePage,
   listPipelineEventsForEntry,
+  PIPELINE_BOARD_CAP,
   PIPELINE_STAGES,
   recordEntryConsent,
   reinstatePipelineEntry,
@@ -374,4 +376,39 @@ test("a requested 'decision' gate (shortlist-to-group-eval) resolves through the
   // Omitting the field keeps every other add path byte-identical: no gate.
   const plain = addEntry();
   assert.equal(plain.approvalKind, null);
+});
+
+test("listPipeline is capped at PIPELINE_BOARD_CAP and listPipelinePage says when it truncated", () => {
+  assert.equal(PIPELINE_BOARD_CAP, 2000, "the board cap matches the documented per-tick render budget");
+  assert.ok(PIPELINE_BOARD_CAP > 0, "a cap of 0 or less would read nothing");
+
+  const ws = "board-cap-ws";
+  const cap = 3;
+  for (let i = 0; i < cap + 1; i += 1) {
+    createPipelineEntry({
+      candidateId: `board-cap-c${i}`,
+      candidateLabel: `Board Cap ${i}`,
+      jobId: `board-cap-job-${i}`,
+      jobTitle: "Board Cap Role",
+      workspaceId: ws,
+    });
+  }
+
+  const cut = listPipelinePage(ws, { rowCap: cap });
+  assert.equal(cut.truncated, true, "one past the cap is how truncated is known");
+  assert.equal(cut.entries.length, cap, "the page returns the cap, not the extra row");
+
+  const whole = listPipelinePage(ws, { rowCap: cap + 10 });
+  assert.equal(whole.truncated, false, "a board under the cap is a complete answer");
+  assert.equal(whole.entries.length, cap + 1);
+
+  assert.deepEqual(
+    listPipeline(ws).map((e) => e.id),
+    listPipelinePage(ws).entries.map((e) => e.id),
+    "listPipeline is the .entries wrapper, like listJobs"
+  );
+  assert.ok(
+    listPipelinePage(ws, { rowCap: PIPELINE_BOARD_CAP * 10 }).entries.length <= PIPELINE_BOARD_CAP,
+    "a caller cannot raise the store past its own ceiling"
+  );
 });

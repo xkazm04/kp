@@ -718,8 +718,30 @@ export function pipelineCalibrationBandCandidates(
   return out;
 }
 
-export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
+/** How many active board rows `listPipeline` will hydrate.
+ *
+ *  Insights already caps its cohort at 20_000 with `truncated`; the automation
+ *  pass caps at {@link AUTOMATION_PASS_ENTRY_CAP}. The board SELECT had no LIMIT
+ *  and ran `rowToEntry` (github JSON, notes, source attribution) for every
+ *  active row on every tab focus. 2000 matches the documented per-tick render
+ *  budget and the automation ceiling. `rowCap` on {@link listPipelinePage} is
+ *  tests only — a caller cannot raise this. */
+export const PIPELINE_BOARD_CAP = 2000;
+
+export type PipelineBoardPage = { entries: PipelineEntry[]; truncated: boolean };
+
+function boardCap(override?: number): number {
+  return Number.isInteger(override) && (override as number) > 0
+    ? Math.min(override as number, PIPELINE_BOARD_CAP)
+    : PIPELINE_BOARD_CAP;
+}
+
+export function listPipelinePage(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: { rowCap?: number }
+): PipelineBoardPage {
   const db = ensureDb();
+  const cap = boardCap(opts?.rowCap);
   const rows = db
     .prepare(
       // Exclude BOTH terminal states (recruiter `rejected` and candidate
@@ -737,15 +759,26 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
       // dev_case_id / dev_submission_id ride it for the same reason: the case-grounded
       // interview brief and the eval kit are resolved FROM the board-opened entry
       // (devcase-identity.ts), and an omitted column reads as "not from an assignment".
+      // LIMIT cap+1 is the listJobsPage / analytics cohort shape: the extra row is
+      // how `truncated` is known without a COUNT round-trip.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
               source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
-       ORDER BY job_title, match_score DESC`
+       ORDER BY job_title, match_score DESC
+       LIMIT ?`
     )
-    .all(workspaceId) as PipelineRow[];
-  return rows.map(rowToEntry);
+    .all(workspaceId, cap + 1) as PipelineRow[];
+  const truncated = rows.length > cap;
+  const kept = truncated ? rows.slice(0, cap) : rows;
+  return { entries: kept.map(rowToEntry), truncated };
+}
+
+/** Active board rows for this workspace, capped at {@link PIPELINE_BOARD_CAP}.
+ *  Callers that need the honesty flag use {@link listPipelinePage}. */
+export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
+  return listPipelinePage(workspaceId).entries;
 }
 
 /** The active placements of ONE candidate, newest-scoring first, CAPPED.

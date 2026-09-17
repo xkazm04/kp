@@ -1065,6 +1065,15 @@ The ceiling is documented rather than raised: the board draws every entry it is 
 meets this loop. If the pin goes red the answer is a narrower payload or virtualization,
 never a per-entry `JSON.stringify` creeping back in.
 
+The store now matches that number. `listPipelinePage` (`app/_lib/db/pipeline.ts`)
+reads `PIPELINE_BOARD_CAP` (2000) plus one, the same one-past LIMIT Insights and
+`listJobsPage` use, and answers `{ entries, truncated }`. `listPipeline` is the
+`.entries` wrapper so existing callers keep a `PipelineEntry[]`. A 2001-row
+workspace therefore hydrates 2000 rows and says so, instead of running `rowToEntry`
+(github JSON, notes, source attribution) over the whole active table on every tab
+focus. `rowCap` is tests only — a caller cannot raise the ceiling. Pinned by
+`pipeline-store.test.ts`.
+
 The second half is the drag-move. It used to `await load()` in a `finally`, paying for a
 full board re-read on top of the optimistic write to learn the one thing it already knew.
 The route answers `set_stage` with the moved row, so the success path applies **that** —
