@@ -336,12 +336,20 @@ export async function dispatchApplicationReceived(
   recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
 }
 
-/** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
- *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
-// `replied`/`manual` join the consent reasons (W2.3): every way a send can be refused
-// is one union, so a caller cannot handle the compliance refusals and silently miss the
-// sequence-stopped ones.
-export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason };
+/** Outcome of an outreach dispatch: delivered (or honestly queued with no relay),
+ *  SUPPRESSED for a consent/halt reason, or a dead-lettered relay handoff.
+ *
+ *  REC-10: `{ sent: true }` is keyed on the outbox row, never on "the call resolved".
+ *  Terminal `queued` (no relay — the local outbox IS the destination) and `sent`
+ *  (relay 2xx) are both `{ sent: true }`. A dead-letter (`failed`) is not — that
+ *  must not write `outreach_sent`, or automation will treat the person as reached
+ *  and refuse the retry. */
+// `replied`/`manual`/`candidate` join the consent reasons (W2.3); `delivery_failed`
+// is the relay dead-letter, so a caller cannot handle the compliance refusals and
+// silently miss a drop that should be retried.
+export type OutreachResult =
+  | { sent: true; status: "queued" | "sent" }
+  | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason | "delivery_failed"; status?: "failed" };
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
@@ -388,13 +396,20 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
-  // Recorded only after the send actually happened — counting an attempt would make a
-  // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
-  // from a fresh application.
+  const status = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
+  // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
+  // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
+  // — and that must not consume the one-shot `outreach_sent` marker automation-run
+  // uses for `already_sent`. Terminal `queued` (no relay) is honest keyless success.
+  if (status === "failed") {
+    return { sent: false, reason: "delivery_failed", status: "failed" };
+  }
+  // Recorded only after a non-failed handoff — counting an attempt would make a
+  // dead-letter look like a contact, and `sends > 0` is what later distinguishes a
+  // reply from a fresh application.
   recordOutreachSend(entry.id, entry.workspaceId);
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId);
-  return { sent: true };
+  return { sent: true, status: status === "sent" ? "sent" : "queued" };
 }
 
 /**

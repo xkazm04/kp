@@ -963,17 +963,15 @@ already returns alongside the entries. Both rules are pinned by
   declares no length is buffered whole before `validateUploadServer` ever sees a
   size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
-- **`dispatchOutreach` reports `{ sent: true }` off "the call resolved", not off the
-  outbox row's real status.** `sendCandidateComm` returns the status precisely so a
-  caller can key its claim on it (REC-10), and the interview/schedule dispatchers do;
-  outreach ignores it, so a relay dead-letter still records `outreach_sent` — the
-  durable marker `automation-run` uses to refuse a retry ("already_sent") — for a
-  message nobody received. Its refusal vocabulary is already unambiguous at the source
-  (`anonymized | consent_expired | replied | manual`, so `suppressed_${reason}` is
-  derivable); the collapse into "consent expired" happens in `automation-run.ts`'s
-  ternary, which handles only `anonymized` and treats everything else as a consent
-  lapse. Both halves want the same change: carry the delivery status in
-  `OutreachResult` and map every reason 1:1 at the consumer.
+- **`automation-run` still collapses every non-anonymized `sent: false` into
+  `suppressed_consent_expired`.** `dispatchOutreach` now keys `{ sent: true }` on the
+  outbox row (REC-10): terminal `queued` and relay `sent` record `outreach_sent`; a
+  dead-letter returns `{ sent: false, reason: "delivery_failed" }` with no marker, so
+  the next pass retries instead of mapping the drop to `already_sent`. Pinned by
+  `comms-dispatch-outreach.test.ts`. The consumer ternary still handles only
+  `anonymized` and treats `delivery_failed` / `replied` / `manual` / `candidate` as a
+  consent lapse — map every reason 1:1 there without expanding the dispatcher's
+  contract.
 - **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
   and the encrypted store write, and the two are indistinguishable from the route, so a
   store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
