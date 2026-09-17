@@ -1993,6 +1993,7 @@
       "scores": "Unsere Bewertungs-Scores für diese Stelle"
     },
     "appliedOn": "Sie haben sich am {date} beworben.",
+    "keptUntil": "Wir bewahren diese Daten bis {date} auf.",
     "eraseTitle": "Meine personenbezogenen Daten löschen",
     "eraseExplainer": "Wir entfernen die personenbezogenen Daten, die wir über Sie gespeichert haben, dauerhaft: Ihren Namen, Ihre Kontaktdaten, Ihren Lebenslauf, die Antworten aus einem etwaigen Interview und die Nachrichten, die wir Ihnen gesendet haben. Wir behalten lediglich einen anonymisierten Datensatz der Bewertung (Scores und Phase, ohne personenbezogene Daten), um fair und konsistent zu bleiben, sowie einen versiegelten Datensatz der Entscheidung selbst, den wir ausschließlich aufbewahren, um sie im Falle einer rechtlichen Anfechtung zu verteidigen.",
     "eraseCta": "Meine Daten löschen",

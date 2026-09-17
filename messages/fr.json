@@ -1993,6 +1993,7 @@
       "scores": "Nos scores d’évaluation pour ce poste"
     },
     "appliedOn": "Vous avez postulé le {date}.",
+    "keptUntil": "Nous conservons ces données jusqu'au {date}.",
     "eraseTitle": "Effacer mes données personnelles",
     "eraseExplainer": "Nous supprimerons définitivement les données personnelles que nous détenons à votre sujet : votre nom, vos coordonnées, votre CV, les réponses d’un éventuel entretien et les messages que nous vous avons envoyés. Nous conservons uniquement un enregistrement anonymisé de l’évaluation (score et étape, sans données personnelles) afin de rester justes et cohérents, ainsi qu’un enregistrement scellé de la décision elle-même, que nous conservons uniquement pour la défendre en cas de contestation juridique.",
     "eraseCta": "Effacer mes données",
