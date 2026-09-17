@@ -783,6 +783,22 @@ and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — ev
 centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
 just the record, so a fifteenth site cannot quietly invent a sixth size.
 
+### Tab id → traced glyph (`glyphForTab`)
+
+Empty-state consumers used to each import a concrete `*Glyph.ts` module, so a
+new Jobs empty state could drop a lucide icon beside a traced neighbour with
+nothing to say the jobs glyph already existed.
+[`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) maps the tabs
+that already have art (`jobs`, `library`, `analytics`, `decisions`, `channels`,
+`schedule`, `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns
+the glyph or `undefined` — it does not throw. `ChainEmptyState` takes optional
+`tab` and resolves through that map; an explicit `glyph` still wins. Channel
+pane extras (ads / careers / email) stay in `channelsEmptySpecs`; the archetypes
+matrix projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
+`glyphRegistry.test.ts` pins the lookup and that every traced module except
+the channel extras is keyed. `glyphsHaveConsumers.test.ts` still requires a
+render site outside the glyphs folder.
+
 ### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
 
 Two contracts the glyph renderer declared and did not keep:
