@@ -1255,9 +1255,11 @@ guard over exactly these decisions — the behaviour itself needs a browser.
   It is read by the dock's own state line. It is deliberately kept out of
   `decisions`, whose count beacons the ControlDock orb and whose one click routes
   to the Decisions tab — a tab with no affordance that can resolve a proposal.
-- No thread switcher. The toolbar can START a conversation, but the dock always
-  opens the most recent one and there is no way back to an older thread — the
-  ledger keeps them, nothing lists them.
+- No thread switcher. The toolbar can START a conversation, and the dock still
+  opens the most recent one by default. `GET /api/companion/threads?thread=` can
+  hydrate any workspace-owned id in the same boot payload (unknown ids keep the
+  newest, rather than 404ing the dock); the UI half that would list and switch
+  them is still missing.
 - Not verified in a running app. The dock, the proposal card and the resolve
   route have been type-checked, linted and unit-tested, but no browser has painted
   a proposal card and no accept has dispatched a real task.
