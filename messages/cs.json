@@ -2299,6 +2299,7 @@
       "errVoiceSession": "Chyba hlasové relace",
       "errConnectTimeout": "Nepodařilo se připojit do 30 s. Zkontrolujte oprávnění mikrofonu, že je poskytovatel nastaven a (u ElevenLabs) že agent povoluje přepsání.",
       "errStartCall": "Hovor se nepodařilo spustit",
+      "retryAfterMinutes": "Zkusit znovu můžete asi za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
       "errElevenConnect": "ElevenLabs se nepodařilo připojit",
       "liveTranscript": "Živý přepis",
       "liveBadge": "Živě",

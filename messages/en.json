@@ -2299,6 +2299,7 @@
       "errVoiceSession": "Voice session error",
       "errConnectTimeout": "Couldn't connect within 30s. Check microphone permission, that the provider is configured, and (ElevenLabs) that the agent allows overrides.",
       "errStartCall": "Failed to start the call",
+      "retryAfterMinutes": "You can try again in about {minutes, plural, one {# minute} other {# minutes}}.",
       "errElevenConnect": "ElevenLabs failed to connect",
       "liveTranscript": "Live transcript",
       "liveBadge": "Live",

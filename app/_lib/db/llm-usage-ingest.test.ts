@@ -156,7 +156,9 @@ test("a second ingest of the same sidecar adds nothing and reports the duplicate
 // /api/stt, /api/interview/complete or github/usage write billed the same minute
 // twice. The sidecar fold already refused that; these four sites now go through
 // the same ON CONFLICT(ingest_key) door.
-function tsWrite(overrides: Parameters<typeof insertLlmUsage>[0]): Parameters<typeof insertLlmUsage>[0] {
+function tsWrite(
+  overrides: Partial<Parameters<typeof insertLlmUsage>[0]> & Pick<Parameters<typeof insertLlmUsage>[0], "useCase">,
+): Parameters<typeof insertLlmUsage>[0] {
   return {
     provider: "openai",
     source: "llm",

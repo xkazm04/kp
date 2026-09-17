@@ -48,6 +48,7 @@ export async function generateMetadata(_props: unknown, parent: ResolvingMetadat
     keywords: t.raw("keywords") as string[],
     openGraph: {
       ...openGraph,
+      type: "article",
       title,
       description: shareDescription,
       modifiedTime: ABOUT_PAGE_MODIFIED,
@@ -67,7 +68,6 @@ export default async function AboutPage() {
   const locale = await getLocale();
   const origin = siteUrl().href;
   const aboutUrl = aboutPageUrl(origin);
-  const steps = tAbout.raw("steps") as Record<string, { title: string; body: string }>;
   const jsonLd = buildAboutJsonLd({
     name: t("title"),
     description: t("description"),
@@ -76,8 +76,8 @@ export default async function AboutPage() {
     sameAs: sourceRepoHref(),
     howToName: plainIcu(tAbout("hero.title")),
     howToSteps: ABOUT_STEP_KEYS.map((key, i) => ({
-      name: steps[key].title,
-      text: steps[key].body,
+      name: tAbout(`steps.${key}.title`),
+      text: tAbout(`steps.${key}.body`),
       url: `${aboutUrl}#${aboutStepId(i)}`,
     })),
     breadcrumbHomeName: tAbout("nav.home"),

@@ -2299,6 +2299,7 @@
       "errVoiceSession": "Fehler der Voice-Sitzung",
       "errConnectTimeout": "Verbindung innerhalb von 30 Sek. nicht möglich. Prüfen Sie die Mikrofonberechtigung, ob der Anbieter konfiguriert ist und (ElevenLabs) ob der Agent Overrides zulässt.",
       "errStartCall": "Gespräch konnte nicht gestartet werden",
+      "retryAfterMinutes": "Sie können es in etwa {minutes, plural, one {# Minute} other {# Minuten}} erneut versuchen.",
       "errElevenConnect": "ElevenLabs konnte keine Verbindung herstellen",
       "liveTranscript": "Live-Transkript",
       "liveBadge": "Live",

@@ -65,7 +65,7 @@ function installThemeDom(): {
   const storageWrites = { n: 0 };
   const g = globalThis as typeof globalThis & { document?: unknown; window?: unknown; localStorage?: unknown };
   const prev = { document: g.document, window: g.window, localStorage: g.localStorage };
-  g.document = { documentElement: { dataset } };
+  g.document = { documentElement: { dataset } } as unknown as Document;
   g.window = {
     addEventListener(type: string, handler: StorageHandler) {
       if (type === "storage") storageHandlers.push(handler);
@@ -74,12 +74,12 @@ function installThemeDom(): {
       const i = storageHandlers.indexOf(handler);
       if (i >= 0) storageHandlers.splice(i, 1);
     },
-  };
+  } as unknown as Window & typeof globalThis;
   g.localStorage = {
     setItem() {
       storageWrites.n += 1;
     },
-  };
+  } as unknown as Storage;
   return {
     dataset,
     storageHandlers,

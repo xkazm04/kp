@@ -2299,6 +2299,7 @@
       "errVoiceSession": "Erreur de session vocale",
       "errConnectTimeout": "Connexion impossible en moins de 30 s. Vérifiez l’autorisation du microphone, la configuration du fournisseur et (ElevenLabs) que l’agent autorise les surcharges.",
       "errStartCall": "Échec du démarrage de l’appel",
+      "retryAfterMinutes": "Vous pouvez réessayer dans environ {minutes, plural, one {# minute} other {# minutes}}.",
       "errElevenConnect": "Échec de la connexion à ElevenLabs",
       "liveTranscript": "Transcription en direct",
       "liveBadge": "En direct",
