@@ -731,6 +731,15 @@ column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
 `matrixGridRoles.test.ts` — indices only mean anything while the counts agree
 with them.
 
+### A failed Explain-fit can retry in place
+`ReasoningPanel` is the async face (pending / error / resolved) mounted per match
+card. A failed start, empty payload, or failed background task used to leave a
+static red paragraph, so the operator had to hunt for the original Explain control.
+An optional `onRetry` paints a `BTN_GHOST` `match.shared.retryReasoning` control on
+the error face; callers that cannot retry omit the prop and stay text-only.
+`MatchCard` passes `explain` from `useMatchCardReasoning`. Pinned by
+`MatchReasoningPanel.test.ts`.
+
 ### The narrative says what it is, on both surfaces
 `/api/match/reasoning` reports three things about an answer besides the answer:
 `source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —

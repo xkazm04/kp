@@ -8,6 +8,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
+import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { Reasoning, ReasoningState } from "@/app/features/shared/matchTypes";
 
@@ -18,7 +19,7 @@ import type { Reasoning, ReasoningState } from "@/app/features/shared/matchTypes
 // while the answer is computed. `layout` tweens the residual height delta and
 // AnimatePresence crossfades the swap, turning a jarring pop into a soft reveal.
 // Both effects collapse to a snap under the OS "reduce motion" preference.
-export function ReasoningPanel({ state }: { state: ReasoningState }) {
+export function ReasoningPanel({ state, onRetry }: { state: ReasoningState; onRetry?: () => void }) {
   const t = useTranslations("match.shared");
   const reduced = useReducedMotion();
 
@@ -28,7 +29,7 @@ export function ReasoningPanel({ state }: { state: ReasoningState }) {
       <span className="sr-only">{t("generatingReasoning")}</span>
     </motion.div>
   ) : state.error ? (
-    <motion.p
+    <motion.div
       key="error"
       initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -36,8 +37,13 @@ export function ReasoningPanel({ state }: { state: ReasoningState }) {
       transition={{ duration: reduced ? 0.12 : 0.18 }}
       className="rounded-md bg-red-50 p-2 text-sm text-red-700"
     >
-      {state.error}
-    </motion.p>
+      <p role="alert">{state.error}</p>
+      {onRetry ? (
+        <button type="button" onClick={onRetry} className={`${BTN_GHOST} mt-2 px-2 py-1`}>
+          {t("retryReasoning")}
+        </button>
+      ) : null}
+    </motion.div>
   ) : state.data ? (
     <motion.div
       key="resolved"

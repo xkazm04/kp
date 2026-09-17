@@ -5543,6 +5543,7 @@
     },
     "shared": {
       "generatingReasoning": "Génération du raisonnement de correspondance…",
+      "retryReasoning": "Réessayer",
       "reasoning": "Raisonnement",
       "sourceLlm": "LLM",
       "sourceRuleBased": "basé sur des règles",

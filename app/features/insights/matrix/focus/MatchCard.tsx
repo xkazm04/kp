@@ -197,7 +197,7 @@ export function MatchCard({
             </p>
           ) : null}
 
-          {reasoning ? <ReasoningPanel state={reasoning} /> : null}
+          {reasoning ? <ReasoningPanel state={reasoning} onRetry={canExplain ? explain : undefined} /> : null}
         </div>
       </div>
     </li>

@@ -5543,6 +5543,7 @@
     },
     "shared": {
       "generatingReasoning": "Generování zdůvodnění vhodnosti…",
+      "retryReasoning": "Zkusit znovu",
       "reasoning": "Zdůvodnění",
       "sourceLlm": "LLM",
       "sourceRuleBased": "pravidlové",

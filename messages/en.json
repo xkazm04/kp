@@ -5543,6 +5543,7 @@
     },
     "shared": {
       "generatingReasoning": "Generating fit reasoning…",
+      "retryReasoning": "Try again",
       "reasoning": "Reasoning",
       "sourceLlm": "LLM",
       "sourceRuleBased": "rule-based",

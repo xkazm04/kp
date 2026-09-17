@@ -5543,6 +5543,7 @@
     },
     "shared": {
       "generatingReasoning": "Eignungsbegründung wird erstellt…",
+      "retryReasoning": "Erneut versuchen",
       "reasoning": "Begründung",
       "sourceLlm": "LLM",
       "sourceRuleBased": "regelbasiert",
