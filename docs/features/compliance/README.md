@@ -417,6 +417,9 @@ including `GET /api/decisions/peer-context` (salary expectations) and
 `requireOperator` on either is a red test rather than a public PII leak.
 A store fault on jd-freshness answers `JD_FRESHNESS_LOOKUP_FAILED` through
 `safeJsonError`; the client already treats a missing `editedAt` as non-stale.
+`GET /api/decisions/reconsider` still pages at 50 auto-rejects, but the envelope
+now carries `truncated` and `total` so an auditor can see when the safety valve's
+window hid the rest of an irreversible wave.
 
 A **separate, redacted candidate-facing view** now exists:
 `app/_lib/status-decisions.ts` derives a `CandidateDecisionView` (kind,

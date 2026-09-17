@@ -1263,8 +1263,24 @@ export type ReconsiderItem = { entry: PipelineEntry; rejectedAt: string | null }
  *  Only entries carrying an `auto_rejected` event surface here — a manual human
  *  reject is a deliberate decision, not a queue item. GROUP BY e.id dedups an
  *  entry that was auto-rejected more than once; MAX(created_at) is its latest. */
-export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): ReconsiderItem[] {
+export function listReconsiderQueue(
+  limit = 50,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { items: ReconsiderItem[]; total: number } {
   const db = ensureDb();
+  const cap = Math.min(Math.max(limit, 1), 200);
+  // COUNT of the same grouped set the page is cut from — LIMIT 50 must not
+  // pretend the auto-reject wave ended there.
+  const total = (
+    db
+      .prepare(
+        `SELECT COUNT(DISTINCT e.id) AS n
+           FROM pipeline_entries e
+           JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
+          WHERE e.status = 'rejected' AND e.workspace_id = ?`
+      )
+      .get(workspaceId) as { n: number }
+  ).n;
   const rows = db
     .prepare(
       `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
@@ -1278,8 +1294,8 @@ export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WO
         ORDER BY rejected_at DESC
         LIMIT ?`
     )
-    .all(workspaceId, Math.min(Math.max(limit, 1), 200)) as (PipelineRow & { rejected_at: string | null })[];
-  return rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null }));
+    .all(workspaceId, cap) as (PipelineRow & { rejected_at: string | null })[];
+  return { items: rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null })), total };
 }
 
 /** Reverse an auto-rejection: put the entry back to active at the board's
