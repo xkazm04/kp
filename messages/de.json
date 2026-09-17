@@ -8816,7 +8816,8 @@
         "title": "Intern: Material für Interviewende und Prüfende",
         "noProbes": "Zu dieser Aufgabe sind keine verdeckten Sonden erfasst.",
         "roleMustHaves": "Muss-Kriterien der Rolle",
-        "roleResponsibilities": "Verantwortlichkeiten der Rolle"
+        "roleResponsibilities": "Verantwortlichkeiten der Rolle",
+        "voiceScript": "Skript für das Sprachinterview"
       },
       "shortlist": {
         "title": "Auswahlliste über alle Kanäle"
@@ -8826,6 +8827,11 @@
         "posting": "Ausschreibung",
         "received": "{count} eingegangen",
         "applyLink": "Bewerbungslink"
+      },
+      "channel": {
+        "local": "Lokal",
+        "link": "Link",
+        "email": "E-Mail"
       },
       "compare": {
         "title": "Vergleich auf den Rubrik-Achsen",
@@ -8963,6 +8969,7 @@
       "colRecipient": "Empfänger",
       "colSubject": "Betreff",
       "colStatus": "Status",
+      "colRef": "Aufgabe",
       "colSent": "Gesendet",
       "resendTitle": "Diese Nachricht erneut über den aktiven Kanal zustellen (wird als neue Postausgangszeile erfasst)",
       "retryResend": "Erneut versuchen",
@@ -9006,7 +9013,13 @@
       "low": "niedrig"
     },
     "interviewKit": {
-      "title": "Interview-Kit: Top-Kandidat",
+      "title": "Interview-Kit",
+      "pickAria": "Kandidat aus der Auswahlliste zum Export",
+      "band": {
+        "authentic": "authentisch",
+        "mixed": "gemischt",
+        "suspect": "verdächtig"
+      },
       "fit": "· Eignung {score}",
       "copied": "Kopiert",
       "copy": "Kopieren",
@@ -9152,7 +9165,8 @@
       "open": "Öffnen",
       "untitledAssignment": "Aufgabe",
       "stageAria": "Aufgabenphase: {stage}",
-      "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet."
+      "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet.",
+      "loadMore": "Ältere Aufgaben laden"
     },
     "evalPanel": {
       "capabilityScores": "Kompetenzwerte",

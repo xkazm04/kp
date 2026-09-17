@@ -47,9 +47,18 @@ palette. The full mapping table and the five reading states are in
   mis-sold the office/marketing/finance cases it also ships):
   `app/features/tools/devcases/DevTab.tsx`, routed through `DevTabSwitcher.tsx` /
   `DevTabDefineView.tsx` (need intake + analysis) / `DevTabCasesView.tsx` (case
-  list) / `DevCaseDetail.tsx` (per-case lifecycle, submissions, evaluation).
+  list; stalled collecting rows show the coral SLA chip on the stage cell, same
+  `devcase.lifecycle.stalled*` copy as the lifecycle strip) / `DevCaseDetail.tsx`
+  (per-case lifecycle, submissions, evaluation). The
+  internal panel (`DevCaseDetailInternal`) renders a read-only **Voice screen script**
+  when the frozen interview scenario has phases: intro clip, phase titles and spoken
+  probes (not listen-for / red-flag notes). A template/deterministic source reuses
+  `devcase.studio.degradedReason.scenario`. A case with no phases renders nothing,
+  not an empty script.
 - Outbox — `OutboxSection.tsx` (filter state, dead-letter chip, pager) over
-  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` and
+  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` (kind,
+  status, free text, and a `ref` facet so one posting's dead letters are a one-click
+  subset) and
   the re-dispatch button in `ResendButton.tsx` (also used by the Channels comms
   modal). Every message the pipeline sent, dead letters sorted to the top, paged 20
   at a time via `app/_components/table/TablePager.tsx`. It previously rendered a
@@ -67,9 +76,15 @@ palette. The full mapping table and the five reading states are in
     mounts Channels' `BouncedResend` (corrected-address form, same
     `channels.comms` copy) in the status cell so the recruiter can recover the
     letter without leaving Assignments; a recovered row would only earn a 409.
+    Dead-letter rows also show the store's `failureDetail` (relay refusal or
+    bounce reason) truncated under the verdict, full string in the tooltip — empty
+    detail keeps the verdict word only.
     Labels come from the shared `channels.comms` status catalog (a surface picks its
     own tone, never its own delivery vocabulary). Caveat: supersession is computed
-    over what `GET /api/devcase/comms` returned, currently the newest 50 rows.
+    over what `GET /api/devcase/comms` returned. The door defaults to the newest 50
+    rows and now accepts `?limit=` (clamped to 500, same envelope as the case list:
+    `{ outbox, truncated, limit, relayConfigured }`) so older dead letters are
+    fetchable without a schema change. Today's client still asks for the default.
   - `ResendButton` reports four outcomes, because only one of them is a delivery:
     refused (non-2xx, with the server's reason), dead-lettered again
     (`failed`/`bounced`), recorded-but-undeliverable (`queued` — the relay is gone,
@@ -573,9 +588,13 @@ The client half mattered more than the wire half: `LiveWorkSurface.ensureSession
 drop a failed mint on the floor and answer `null`, so a candidate whose link had closed or
 whose quota was spent kept typing into a surface that recorded nothing and learned about
 it only when Submit failed with the generic line. It now reads the code through
-`useErrorMessage` and shows it as an alert beside the sync banner; the submit path resolves
-its code the same way, with the existing `errorClosed`/`error` strings as fallback so a
-future code with no catalog entry still degrades to a sentence. Statuses are unchanged —
+`useErrorMessage` and shows it as an alert beside the sync banner. A thrown fetch
+(offline, DNS, CORS) used to take the same silent path — `catch { return null }` with
+no refusal — and now folds to `{ code: null, error: null }` so the generic
+`workSurface.error` line paints beside the sync banner while the next tick can retry
+(`foldMintRefusal` in `liveWorkMint.ts`). The submit path resolves its code the same
+way, with the existing `errorClosed`/`error` strings as fallback so a future code with
+no catalog entry still degrades to a sentence. Statuses are unchanged —
 `session-intake-guards.test.ts` and `inbound/route.test.ts` still pin 404/410/429 against
 the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins the
 source: no route may re-type the closed-intake sentence, and the work surface may never
@@ -721,7 +740,10 @@ product, and nothing was ever going to catch them: `eslint.config.mjs` deliberat
 Twelve components now read from the `devcase.studio.*` namespace in all four catalogs:
 `DevTab`, `DevCasesTable`, `DevCasesEmpty`, `DevAnalysisView`, `DevAnalysisReflectionCard`,
 `DevAnalysisDesignCard`, `DevCaseDetail`, `DevCaseDetailHeader`, `DevCaseDetailInternal`,
-`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Three
+`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Posting
+channel chips on the assignment detail resolve `devcase.studio.channel.<id>` (`local` /
+`link` / `email`, pinned to the distribution producer) with a `t.has` fallback to the
+raw store value for anything unknown. Three
 non-component seams moved with them:
 
 - `degradedReasons` (`DevCaseDetail.publish.ts`) returns CODES (`"scenario"`, `"seed"`)
@@ -857,6 +879,10 @@ Six places where the studio was quietly less honest than it looked, closed in on
   so a freshly-published assignment rendered three nothings in a row and simply stopped
   after the internal panels. One "waiting for the first submission" panel now stands in
   for all three, and only when the assignment is actually published.
+- **The case-level interview kit can export a held shortlist row.** It used to always
+  assemble the highest-transfer submission with follow-ups. The shortlist already ranks
+  everyone; a one-line select (candidateRef + transfer + authenticity band) now picks
+  any followup-bearing row. Default remains the transfer leader.
 - **`source()` is single-flight.** It was the one write action on the tab without a
   guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
   row it was clicked on: a click on a second row seeded the pipeline twice.
@@ -1293,7 +1319,10 @@ It now takes `?limit` (a positive integer, clamped to 500; anything malformed fa
 back to 50 rather than 400-ing a read), reads one row more than the page, and answers
 `{ cases, limit, truncated }`. `CasesTable` renders `truncated` as a `role="status"`
 line under the table (`devcase.casesTable.truncated`, four locales), so a cut page
-looks different from a studio that has exactly that many cases.
+looks different from a studio that has exactly that many cases. When the page is cut
+and the door can still raise `?limit=` (50 → 150 → 500), a **Load older assignments**
+control refetches through `useDevTabData` with the next step so assignments past the
+first fifty are reachable.
 
 ### The control room asks authority, and reports its writes
 
@@ -1418,7 +1447,7 @@ What replaced each of them:
 
 | Field | Now | Fallback, and when |
 | --- | --- | --- |
-| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one |
+| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one. The persisted `jobTitle` beside that synthetic id is the opening's title, else the assignment's role title, else the product word **Assignment** (`caseJobIdentity`) — never the retired English "Dev case", which used to mint a board column labelled that in every locale |
 | `candidate_id` | a real `profiles` row | a **minimal profile minted at promote**, when this team has never seen the person |
 | `archetype` | the resolved person's own | `unknown` on a minted profile — the fail-closed sentinel (`FALLBACK_ARCHETYPE`, `app/_lib/apply.ts`), never `bau` |
 | `role_family` | the linked job's | then `need_json.roleFamily`, then the documented `software_engineering` literal |

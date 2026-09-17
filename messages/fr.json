@@ -8816,7 +8816,8 @@
         "title": "Interne : matériel pour l’entretien et la relecture",
         "noProbes": "Aucune sonde masquée enregistrée sur cet exercice.",
         "roleMustHaves": "Indispensables du poste",
-        "roleResponsibilities": "Responsabilités du poste"
+        "roleResponsibilities": "Responsabilités du poste",
+        "voiceScript": "Script de l’entretien vocal"
       },
       "shortlist": {
         "title": "Présélection, tous canaux"
@@ -8826,6 +8827,11 @@
         "posting": "Annonce",
         "received": "{count} reçus",
         "applyLink": "Lien de candidature"
+      },
+      "channel": {
+        "local": "Local",
+        "link": "Lien",
+        "email": "E-mail"
       },
       "compare": {
         "title": "Comparer sur les axes de la grille",
@@ -8963,6 +8969,7 @@
       "colRecipient": "Destinataire",
       "colSubject": "Objet",
       "colStatus": "Statut",
+      "colRef": "Épreuve",
       "colSent": "Envoyé",
       "resendTitle": "Réacheminer ce message par le canal actif (consigné comme une nouvelle ligne de la boîte d’envoi)",
       "retryResend": "Réessayer l’envoi",
@@ -9006,7 +9013,13 @@
       "low": "faible"
     },
     "interviewKit": {
-      "title": "Kit d’entretien : meilleur candidat",
+      "title": "Kit d’entretien",
+      "pickAria": "Candidat de la présélection à exporter",
+      "band": {
+        "authentic": "authentique",
+        "mixed": "mixte",
+        "suspect": "suspect"
+      },
       "fit": "· correspondance {score}",
       "copied": "Copié",
       "copy": "Copier",
@@ -9152,7 +9165,8 @@
       "open": "Ouvrir",
       "untitledAssignment": "Épreuve",
       "stageAria": "Étape de l’exercice : {stage}",
-      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées."
+      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées.",
+      "loadMore": "Charger les affectations plus anciennes"
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",

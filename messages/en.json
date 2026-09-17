@@ -8816,7 +8816,8 @@
         "title": "Internal: interviewer & reviewer material",
         "noProbes": "No covert probes recorded on this assignment.",
         "roleMustHaves": "Role must-haves",
-        "roleResponsibilities": "Role responsibilities"
+        "roleResponsibilities": "Role responsibilities",
+        "voiceScript": "Voice screen script"
       },
       "shortlist": {
         "title": "Shortlist, all channels"
@@ -8826,6 +8827,11 @@
         "posting": "Posting",
         "received": "{count} in",
         "applyLink": "Apply link"
+      },
+      "channel": {
+        "local": "Local",
+        "link": "Link",
+        "email": "Email"
       },
       "compare": {
         "title": "Compare on rubric axes",
@@ -8963,6 +8969,7 @@
       "colRecipient": "Recipient",
       "colSubject": "Subject",
       "colStatus": "Status",
+      "colRef": "Assignment",
       "colSent": "Sent",
       "resendTitle": "Re-deliver this message through the active channel (recorded as a new outbox row)",
       "retryResend": "Retry resend",
@@ -9006,7 +9013,13 @@
       "low": "low"
     },
     "interviewKit": {
-      "title": "Interview kit: top candidate",
+      "title": "Interview kit",
+      "pickAria": "Shortlist candidate to export",
+      "band": {
+        "authentic": "authentic",
+        "mixed": "mixed",
+        "suspect": "suspect"
+      },
       "fit": "· fit {score}",
       "copied": "Copied",
       "copy": "Copy",
@@ -9152,7 +9165,8 @@
       "open": "Open",
       "untitledAssignment": "Assignment",
       "stageAria": "Assignment stage: {stage}",
-      "truncated": "Showing the {count} most recent assignments. Older ones are not listed."
+      "truncated": "Showing the {count} most recent assignments. Older ones are not listed.",
+      "loadMore": "Load older assignments"
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",

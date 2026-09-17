@@ -8816,7 +8816,8 @@
         "title": "Interní materiál pro tazatele a hodnotitele",
         "noProbes": "K tomuto zadání nejsou zaznamenány žádné skryté sondy.",
         "roleMustHaves": "Nutné požadavky role",
-        "roleResponsibilities": "Odpovědnosti role"
+        "roleResponsibilities": "Odpovědnosti role",
+        "voiceScript": "Scénář hlasového pohovoru"
       },
       "shortlist": {
         "title": "Užší výběr napříč kanály"
@@ -8826,6 +8827,11 @@
         "posting": "Inzerát",
         "received": "{count} přijato",
         "applyLink": "Odkaz pro přihlášení"
+      },
+      "channel": {
+        "local": "Lokální",
+        "link": "Odkaz",
+        "email": "E-mail"
       },
       "compare": {
         "title": "Porovnání na osách rubriky",
@@ -8963,6 +8969,7 @@
       "colRecipient": "Příjemce",
       "colSubject": "Předmět",
       "colStatus": "Stav",
+      "colRef": "Zadání",
       "colSent": "Odesláno",
       "resendTitle": "Doručit tuto zprávu znovu aktivním kanálem (zaznamená se jako nový řádek odchozí pošty)",
       "retryResend": "Zkusit odeslat znovu",
@@ -9006,7 +9013,13 @@
       "low": "nízká"
     },
     "interviewKit": {
-      "title": "Podklady k pohovoru: nejlepší kandidát",
+      "title": "Podklady k pohovoru",
+      "pickAria": "Kandidát z užšího výběru k exportu",
+      "band": {
+        "authentic": "autentické",
+        "mixed": "smíšené",
+        "suspect": "podezřelé"
+      },
       "fit": "· shoda {score}",
       "copied": "Zkopírováno",
       "copy": "Kopírovat",
@@ -9152,7 +9165,8 @@
       "open": "Otevřít",
       "untitledAssignment": "Zadání",
       "stageAria": "Fáze zadání: {stage}",
-      "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují."
+      "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují.",
+      "loadMore": "Načíst starší zadání"
     },
     "evalPanel": {
       "capabilityScores": "Skóre schopností",
