@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { armOrExecute, ARMED_TTL_MS, floorKey } from "./controlRoomConfirm.ts";
+import { armOrExecute, ARMED_TTL_MS, cancelArmed, floorKey } from "./controlRoomConfirm.ts";
 
 const roomSrc = readFileSync(fileURLToPath(new URL("./ControlRoom.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 
@@ -57,6 +57,20 @@ test("a confirm just inside the TTL still executes", () => {
   const r = armOrExecute("gate-42", "gate-42", ARMED_TTL_MS - 1, 0);
   assert.equal(r.execute, true);
   assert.equal(r.nextArmed, null);
+});
+
+test("cancelArmed disarms without executing", () => {
+  const r = cancelArmed();
+  assert.equal(r.execute, false);
+  assert.equal(r.nextArmed, null);
+});
+
+test("ControlRoom Escape while armed calls cancelArmed and does not execute", () => {
+  assert.match(roomSrc, /cancelArmed\(\)/);
+  assert.match(roomSrc, /e\.key !== "Escape"/);
+  assert.match(roomSrc, /window\.addEventListener\("keydown", onKey\)/);
+  assert.match(roomSrc, /aria-live="polite"/);
+  assert.match(roomSrc, /t\("disarmed"\)/);
 });
 
 test("ControlRoom stores armedAt and passes Date.now() into the reducer", () => {

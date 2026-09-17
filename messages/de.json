@@ -10098,6 +10098,7 @@
     "title": "Kontrollzentrum Autonomie",
     "intro": "Menschliche Aufsicht über die autonome Recruiting-Pipeline: ein Not-Aus, die auf Sie wartenden menschlichen Gates und ein unveränderlicher Audit-Trail jeder automatisierten Entscheidung (die Nachweispflicht, die ein Hochrisiko-AI-System im Recruiting erfüllen muss).",
     "backToDevCases": "← Aufgaben",
+    "disarmed": "Bestätigung abgebrochen.",
     "autonomy": {
       "statePaused": "Automatisierung ist PAUSIERT",
       "stateRunning": "Automatisierung läuft",

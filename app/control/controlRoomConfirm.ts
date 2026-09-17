@@ -10,6 +10,11 @@
 /** How long a Confirm stays armed. A parked second click after this does not fire. */
 export const ARMED_TTL_MS = 15_000;
 
+/** Abort an armed Confirm without executing. Bound to Escape in the control room. */
+export function cancelArmed(): { execute: false; nextArmed: null } {
+  return { execute: false, nextArmed: null };
+}
+
 /**
  * Given the currently-armed control key and the key just clicked, decide whether to
  * EXECUTE the action and what the next armed key should be:

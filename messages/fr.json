@@ -9939,6 +9939,7 @@
     "title": "Centre de contrôle de l’autonomie",
     "intro": "Supervision humaine du pipeline de recrutement autonome : un coupe-circuit, les validations humaines qui vous attendent et une piste d’audit inaltérable de chaque décision automatisée (la traçabilité qu’exige un système d’AI de recrutement à haut risque).",
     "backToDevCases": "← Exercices",
+    "disarmed": "Confirmation annulée.",
     "autonomy": {
       "statePaused": "L’automatisation est SUSPENDUE",
       "stateRunning": "L’automatisation est active",

@@ -10098,6 +10098,7 @@
     "title": "Řídicí centrum autonomie",
     "intro": "Lidský dohled nad autonomní náborovou pipeline: nouzová brzda, lidské brány, které čekají na vás, a neměnná auditní stopa každého automatického rozhodnutí (evidence, kterou vysoce rizikový systém AI pro nábor musí vést).",
     "backToDevCases": "← Zadání",
+    "disarmed": "Potvrzení zrušeno.",
     "autonomy": {
       "statePaused": "Automatizace je POZASTAVENA",
       "stateRunning": "Automatizace běží",
