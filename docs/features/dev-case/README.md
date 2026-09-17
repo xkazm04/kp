@@ -165,7 +165,8 @@ palette. The full mapping table and the five reading states are in
    (autonomy level, promote floor) — auto-promotion is gated: a submission
    flagged `suspect` by the authenticity score, or with a broken integrity
    chain, is held for a live ownership-verifying interview rather than
-   advanced on transfer score alone.
+   advanced on transfer score alone. The copyable interview kit includes those
+   held/suspect submissions (ordered first), not only the transfer leader.
 
    **A hold holds the profile write too.** Promotion also bridges the take-home
    into the candidate's saved profile — `mintObservedFromSubmission`

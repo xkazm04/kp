@@ -66,11 +66,6 @@ export function CaseDetail({
   // fec3e23a — every submission across this case's postings, for the cohort
   // probe-miss roll-up in the internal section.
   const caseSubmissions = casePostings.flatMap((p) => p.submissions ?? []);
-  // 8d4f38b9 — the winning submission (highest transfer fit among those evaluated)
-  // for its auto-generated interview kit.
-  const topSubmission = caseSubmissions
-    .filter((s) => s.evaluation?.followups?.questions?.length)
-    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))[0];
   // 99288c0e — one cross-channel leaderboard: every submission across all of this
   // case's postings, ranked by transfer fit and tagged with its channel, so the
   // true #1 for the assignment is visible regardless of which channel they applied
@@ -182,7 +177,7 @@ export function CaseDetail({
 
       {/* A published assignment with no applicants used to render THREE nothings in a
           row: CompareSubmissions needs two evaluated submissions, the shortlist needs
-          one, and the interview kit needs a scored top — so the page just stopped after
+          one, and the interview kit needs minted follow-ups — so the page just stopped after
           the internal panels with no word about what it was waiting for. Say it once,
           in place of all three, and only when the assignment is actually live (an
           unpublished one has nothing to wait for and its Publish button says so). */}
@@ -196,8 +191,9 @@ export function CaseDetail({
           {/* b268f5e5 — read who leads on each rubric axis across the case's cohort. */}
           <CompareSubmissions rubricDims={c.rubricDimensions ?? []} submissions={caseSubmissions} />
 
-          {/* 8d4f38b9 — the winning candidate's interview kit, ready to copy/export. */}
-          {topSubmission ? <InterviewKit caseTitle={kase.title ?? c.title ?? ""} top={topSubmission} /> : null}
+          {/* 8d4f38b9 — interview kit for every evaluated submission with follow-ups,
+              held/suspect first so the ownership interview is not only for #1. */}
+          <InterviewKit caseTitle={kase.title ?? c.title ?? ""} submissions={caseSubmissions} />
 
           {/* 99288c0e — the case-wide shortlist: all candidates, every channel, one ranking. */}
           <DevCaseDetailShortlist shortlist={shortlist} roleJdText={roleJdText} onChanged={loadPostings} />
