@@ -6847,7 +6847,8 @@
     },
     "eyebrow": "Domácí zadání",
     "fallbackTitle": "Vývojářské zadání",
-    "subtitle": "Přečtěte si zadání, stáhněte si startovní soubory a po dokončení odešlete odkaz na repozitář s řešením.",
+    "subtitleLive": "Přečtěte si zadání a dokončete ho v pracovní ploše níže. Hodnotíme i postup, který při práci vidíme.",
+    "subtitleRepo": "Přečtěte si zadání, stáhněte si startovní soubory a po dokončení odešlete odkaz na repozitář s řešením.",
     "closed": "Příjem řešení pro tuto pozici už byl uzavřen. Děkujeme za váš zájem.",
     "briefUnavailable": "Zadání teď není k dispozici. Zkuste to prosím později, nebo kontaktujte náboráře, který vám poslal tento odkaz.",
     "submitHeading": "Odeslat řešení",
@@ -6857,6 +6858,8 @@
     "fieldContactPlaceholder": "Abychom se vám mohli ozvat",
     "fieldContactHint": "Povinné. Jedině tak vás můžeme pozvat k dalšímu kroku.",
     "fieldRepo": "URL repozitáře s řešením",
+    "fieldRepoPlaceholder": "https://example.com/vase-reseni",
+    "fieldRepoHint": "Veřejná adresa http nebo https. Hostitel může být libovolný.",
     "fieldNotes": "Poznámky (volitelné)",
     "submit": "Odeslat řešení",
     "sending": "Odesílání…",
@@ -8829,7 +8832,16 @@
         "topOf": "nejlepších {shown} z {total}",
         "truncated": "Řazeno podle přenositelné shody. Nejlepší na ose níže vede mezi těmito {shown}, ne v celé skupině. {hidden, plural, one {# další hodnocené odevzdání v této tabulce chybí} few {# další hodnocená odevzdání v této tabulce chybí} other {# dalších hodnocených odevzdání v této tabulce chybí}}.",
         "axis": "Osa",
-        "fit": "shoda {score}"
+        "fit": "shoda {score}",
+        "showAll": "Zobrazit všech {total}",
+        "showTop": "Zobrazit nejlepších {shown}",
+        "authenticity": "Autenticita",
+        "band": {
+          "authentic": "autentické",
+          "mixed": "smíšené",
+          "suspect": "podezřelé",
+          "unscored": "nehodnoceno"
+        }
       },
       "action": {
         "runLifecycle": "Spuštění životního cyklu",
@@ -9016,7 +9028,12 @@
       "label": "Audit síly sond",
       "strong": "Nosných sond: {loadBearing} z {total}. Toto zadání rozlišuje.",
       "weak": "Nosné jsou jen {loadBearing} z {total} sond. Většina silné od naivních neodliší.",
-      "none": "Žádné nosné sondy. Toto zadání nerozezná silné řešení od naivního."
+      "none": "Žádné nosné sondy. Toto zadání nerozezná silné řešení od naivního.",
+      "issue": {
+        "no_choice": "Žádná vynucená volba: jsou potřeba alespoň dvě odlišné obhajitelné možnosti.",
+        "no_seam": "Žádný konkrétní šev: v zadání není kam past umístit.",
+        "no_reveals": "Žádné kritérium dobré vs. naivní: není podle čeho zpracování hodnotit."
+      }
     },
     "sessionEvidence": {
       "show": "Doklady ze sezení",

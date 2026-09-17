@@ -6847,7 +6847,8 @@
     },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
-    "subtitle": "Read the brief, grab the starter files, and submit a link to your solution repository when you're done.",
+    "subtitleLive": "Read the brief, then complete the assignment in the work surface below. Your process is part of what we review.",
+    "subtitleRepo": "Read the brief, grab the starter files, and submit a link to your solution repository when you're done.",
     "closed": "This role's intake has closed and is no longer accepting submissions. Thank you for your interest.",
     "briefUnavailable": "The assignment brief isn't available right now. Please check back shortly or contact the recruiter who shared this link.",
     "submitHeading": "Submit your solution",
@@ -6857,6 +6858,8 @@
     "fieldContactPlaceholder": "So we can get back to you",
     "fieldContactHint": "Required. This is the only way we can invite you to the next step.",
     "fieldRepo": "Solution repository URL",
+    "fieldRepoPlaceholder": "https://example.com/your-solution",
+    "fieldRepoHint": "A public http or https URL. Any host is fine.",
     "fieldNotes": "Notes (optional)",
     "submit": "Submit solution",
     "sending": "Submitting…",
@@ -8829,7 +8832,16 @@
         "topOf": "top {shown} of {total}",
         "truncated": "Ranked by transfer fit. The axis leader below is the strongest of these {shown}, not of the whole cohort. {hidden, plural, one {# further evaluated submission is} other {# further evaluated submissions are}} not in this matrix.",
         "axis": "Axis",
-        "fit": "fit {score}"
+        "fit": "fit {score}",
+        "showAll": "Show all {total}",
+        "showTop": "Show top {shown}",
+        "authenticity": "Authenticity",
+        "band": {
+          "authentic": "authentic",
+          "mixed": "mixed",
+          "suspect": "suspect",
+          "unscored": "not scored"
+        }
       },
       "action": {
         "runLifecycle": "Run lifecycle",
@@ -9016,7 +9028,12 @@
       "label": "Probe-strength audit",
       "strong": "{loadBearing} of {total} probes are load-bearing. This assignment discriminates.",
       "weak": "Only {loadBearing} of {total} probes are load-bearing. Most won't separate strong from naive.",
-      "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one."
+      "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one.",
+      "issue": {
+        "no_choice": "No forced choice: needs at least two distinct defensible options.",
+        "no_seam": "No concrete seam: nowhere in the task to plant the trap.",
+        "no_reveals": "No good-vs-naive criterion: nothing to grade the handling against."
+      }
     },
     "sessionEvidence": {
       "show": "Session evidence",

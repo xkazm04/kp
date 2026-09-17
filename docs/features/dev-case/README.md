@@ -75,7 +75,13 @@ palette. The full mapping table and the five reading states are in
     (`failed`/`bounced`), recorded-but-undeliverable (`queued` — the relay is gone,
     so it shows the "no relay configured" warning rather than "Resent"), and relayed.
 - Candidate apply/work surface — `app/devcase/apply/[token]/page.tsx` +
-  `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`.
+  `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`. The page
+  subtitle matches the submit path that actually renders (`subtitleLive` when a
+  seed is present and the Live Work Surface mounts, `subtitleRepo` for the
+  repository-link form). The repo-link field uses a localized placeholder and
+  rejects a value that is not an http(s) URL. A closed posting still renders
+  `AiDisclosure` (without the data-consent line) so a late visitor is told that
+  AI evaluates the work.
 
 ## Flows
 
@@ -145,15 +151,22 @@ palette. The full mapping table and the five reading states are in
    review cards in `app/features/tools/devcases/DevEvalPanel*.tsx`,
    `DevCompareSubmissions.tsx`, `DevCohortProbePanel.tsx`. The rubric-compare
    matrix caps its columns at the top 5 by transfer fit (`rubricCompare`'s
-   `maxColumns`), so it labels itself `top 5 of N` and states that the moss
+   `maxColumns`; `0` means no cap) and can expand to the full evaluated set, so
+   it labels itself `top 5 of N` while collapsed and states that the moss
    per-axis leader is the strongest of the columns *shown*, not of the whole
    evaluated cohort — a hidden submission with lower transfer fit can lead an
-   individual axis.
+   individual axis. Expanding drops that caveat because every evaluated column
+   is on screen. Each compared column carries `authenticityBand` /
+   `authenticityScore` from the bundle (null when absent, never defaulted to
+   authentic), so a consumer cannot present a suspect row as just a transfer
+   number. The matrix paints that band as a row under transfer fit (authentic /
+   mixed / suspect / not scored).
 6. **Promotion.** `app/api/devcase/promote/route.ts` + `dev-control.ts`
    (autonomy level, promote floor) — auto-promotion is gated: a submission
    flagged `suspect` by the authenticity score, or with a broken integrity
    chain, is held for a live ownership-verifying interview rather than
-   advanced on transfer score alone.
+   advanced on transfer score alone. The copyable interview kit includes those
+   held/suspect submissions (ordered first), not only the transfer leader.
 
    **A hold holds the profile write too.** Promotion also bridges the take-home
    into the candidate's saved profile — `mintObservedFromSubmission`
@@ -509,16 +522,17 @@ reads `perStepSources.evaluate` and falls back to `source` only for bundles save
 before the per-step envelope (pinned in `DevHelpers.test.ts`).
 
 **The probe gate's refusal reaches the reviewer.** `enforceProbeGate` answers 422
-`{ code: "probe_audit_failed" }` for a case with no load-bearing probes, and the
-`errors` catalog has no entry for that code — so `useErrorMessage` fell through to
-`DevLifecycleReviewPanel`'s generic "Approve failed." and the reviewer lost both the
-cause and the way out, while the *editless* approve path (`useDevTabActions.runAction`)
-showed the server's full English sentence. The panel now selects its fallback from the
-code (`DevHelpers.approveFallbackFor`) and states the refusal in the reader's language
-by reusing the two strings already on screen: the probe banner's `none` verdict plus
-`review.engineOwned`, which names the exit — Regenerate with note, the button beside
-Approve. The test pins the code literal against `enforceProbeGate` itself, so a rename
-cannot silently restore the generic message.
+`{ code: "probe_audit_failed" }` for a case with no load-bearing probes (the `error`
+field is that code, not an English paragraph). The `errors` catalog has no entry for
+that code — so `useErrorMessage` fell through to `DevLifecycleReviewPanel`'s generic
+"Approve failed." and the reviewer lost both the cause and the way out. The panel now
+selects its fallback from the code (`DevHelpers.approveFallbackFor`) and states the
+refusal in the reader's language by reusing the two strings already on screen: the
+probe banner's `none` verdict plus `review.engineOwned`, which names the exit —
+Regenerate with note, the button beside Approve. Dead-probe reasons are catalog keys
+(`devcase.probeAudit.issue.no_choice` / `no_seam` / `no_reveals`) resolved in the
+banner in all four locales. The test pins the issue codes against `auditProbe` and the
+catalogs, so a rename cannot silently restore English.
 
 **The timebox the reviewer approves is the timebox the candidate receives.** The
 cap on a candidate's unpaid work is policy, generated from

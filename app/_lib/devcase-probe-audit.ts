@@ -18,12 +18,15 @@
 
 type ProbeLike = { id?: string; kind?: string; where?: string; reveals?: string; decisionSpace?: string[] };
 
+export const PROBE_ISSUE_CODES = ["no_choice", "no_seam", "no_reveals"] as const;
+export type ProbeIssueCode = (typeof PROBE_ISSUE_CODES)[number];
+
 export type ProbeAudit = {
   probeId: string;
   kind: string;
   where: string;
   loadBearing: boolean;
-  issues: string[]; // why it can't discriminate (empty when load-bearing)
+  issues: ProbeIssueCode[]; // catalog keys (empty when load-bearing)
 };
 
 export type CaseProbeAudit = {
@@ -55,15 +58,15 @@ function distinctOptions(decisionSpace: string[] | undefined): number {
 }
 
 export function auditProbe(probe: ProbeLike): ProbeAudit {
-  const issues: string[] = [];
+  const issues: ProbeIssueCode[] = [];
   if (distinctOptions(probe.decisionSpace) < MIN_PROBE_DECISION_OPTIONS) {
-    issues.push("No forced choice — needs at least two distinct defensible options.");
+    issues.push("no_choice");
   }
   if (!String(probe.where ?? "").trim()) {
-    issues.push("No concrete seam — nowhere in the task to plant the trap.");
+    issues.push("no_seam");
   }
   if (!String(probe.reveals ?? "").trim()) {
-    issues.push("No good-vs-naive criterion — nothing to grade the handling against.");
+    issues.push("no_reveals");
   }
   return {
     probeId: probe.id ?? "",
@@ -86,14 +89,8 @@ export function auditProbeStrength(probes: ProbeLike[]): CaseProbeAudit {
   return { probes: audited, total, loadBearing, verdict };
 }
 
-// The blocked-approval message, single-sourced so BOTH approve paths return the exact
-// same 422 body (bug-ui-scan-2026-07-09 — the manual path previously had NO gate).
-const PROBE_GATE_BLOCK_MESSAGE =
-  "This case has no load-bearing probes — it can't tell a strong submission from a naive one. " +
-  "Regenerate the probes (Regenerate with note), or re-submit with overrideProbeAudit:true to ship it anyway.";
-
 // Note recorded in the audit trail when a "none" verdict is shipped anyway, so the
-// decision to publish a non-discriminating case is always on the record.
+// decision to publish a non-discriminating assignment is always on the record.
 const PROBE_GATE_OVERRIDE_REASON = "probe-audit OVERRIDDEN (no load-bearing probes)";
 
 export type ProbeGateResult =
@@ -112,7 +109,10 @@ export type ProbeGateResult =
 export function enforceProbeGate(probes: ProbeLike[], override: boolean): ProbeGateResult {
   const audit = auditProbeStrength(probes);
   if (audit.verdict === "none" && !override) {
-    return { ok: false, status: 422, code: "probe_audit_failed", verdict: "none", error: PROBE_GATE_BLOCK_MESSAGE };
+    // Keep `code: probe_audit_failed`. Do not send an English paragraph as
+    // `error` — the panel localizes from the code (approveFallbackFor) and the
+    // per-probe why is `issues` keys resolved in the banner.
+    return { ok: false, status: 422, code: "probe_audit_failed", verdict: "none", error: "probe_audit_failed" };
   }
   return {
     ok: true,

@@ -6847,7 +6847,8 @@
     },
     "eyebrow": "Exercice à domicile",
     "fallbackTitle": "Exercice pour développeur",
-    "subtitle": "Lisez le brief, récupérez les fichiers de départ et soumettez un lien vers le dépôt de votre solution une fois terminé.",
+    "subtitleLive": "Lisez le brief, puis terminez l’exercice dans l’espace de travail ci-dessous. Votre démarche fait partie de ce que nous évaluons.",
+    "subtitleRepo": "Lisez le brief, récupérez les fichiers de départ et soumettez un lien vers le dépôt de votre solution une fois terminé.",
     "closed": "La réception des candidatures pour ce poste est close et nous n’acceptons plus de soumissions. Merci de votre intérêt.",
     "briefUnavailable": "Le brief de l’exercice n’est pas disponible pour le moment. Revenez bientôt ou contactez le recruteur qui a partagé ce lien.",
     "submitHeading": "Soumettez votre solution",
@@ -6857,6 +6858,8 @@
     "fieldContactPlaceholder": "Pour que nous puissions vous recontacter",
     "fieldContactHint": "Obligatoire. C’est le seul moyen de vous inviter à l’étape suivante.",
     "fieldRepo": "URL du dépôt de la solution",
+    "fieldRepoPlaceholder": "https://example.com/votre-solution",
+    "fieldRepoHint": "Une URL http ou https publique. N’importe quel hôte convient.",
     "fieldNotes": "Notes (facultatif)",
     "submit": "Soumettre la solution",
     "sending": "Envoi…",
@@ -8829,7 +8832,16 @@
         "topOf": "{shown} premiers sur {total}",
         "truncated": "Classement par transférabilité. La personne en tête de l’axe ci-dessous est la meilleure de ces {shown}, pas de tout le groupe. {hidden, plural, one {# autre rendu évalué ne figure pas} other {# autres rendus évalués ne figurent pas}} dans cette matrice.",
         "axis": "Axe",
-        "fit": "adéq. {score}"
+        "fit": "adéq. {score}",
+        "showAll": "Afficher les {total}",
+        "showTop": "Afficher le top {shown}",
+        "authenticity": "Authenticité",
+        "band": {
+          "authentic": "authentique",
+          "mixed": "mixte",
+          "suspect": "suspect",
+          "unscored": "non évalué"
+        }
       },
       "action": {
         "runLifecycle": "Le lancement du cycle de vie",
@@ -9016,7 +9028,12 @@
       "label": "Audit de la force des sondes",
       "strong": "{loadBearing} sondes sur {total} sont porteuses. Cet exercice discrimine.",
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses. La plupart ne sépareront pas les bons des naïfs.",
-      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf."
+      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf.",
+      "issue": {
+        "no_choice": "Pas de choix forcé : il faut au moins deux options distinctes et défendables.",
+        "no_seam": "Pas de faille concrète : aucun endroit dans la tâche pour planter le piège.",
+        "no_reveals": "Pas de critère bon contre naïf : rien pour évaluer le traitement."
+      }
     },
     "sessionEvidence": {
       "show": "Éléments de la session",
