@@ -1801,6 +1801,8 @@
     "ATS_FIELD_MAP_INVALID": "Diese Feldzuordnung ist nicht verwendbar. Jedes zugeordnete Feld braucht einen Pfad, und der Pfad zur externen ID ist Pflicht.",
     "ATS_CONNECTION_NOT_FOUND": "Für dieses ATS ist keine Verbindung gespeichert.",
     "ATS_CONNECTION_STALE": "Jemand hat eine neuere Version dieser ATS-Verbindung gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
+    "ATS_DELIVERY_NOT_FOUND": "Diese Zustellung steht nicht im Lieferprotokoll.",
+    "ATS_DELIVERY_NOT_REPLAYABLE": "Diese Zustellung lässt sich nicht erneut senden. Nur ein endgültig fehlgeschlagener Eintrag kann manuell wiederholt werden.",
     "EXTRACT_FILE_REQUIRED": "Hängen Sie eine Datei an, aus der Text gelesen werden soll.",
     "EXTRACT_TEXT_UNREADABLE": "Diese Datei konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei mit auswählbarem Text.",
     "EXTRACT_TEXT_TIMEOUT": "Das Lesen der Datei hat zu lange gedauert und wurde abgebrochen. Versuchen Sie eine kleinere Datei.",
@@ -7991,7 +7993,13 @@
       "active": "Aktiv",
       "trialing": "Testphase",
       "past_due": "Überfällig",
+      "unpaid": "Unbezahlt",
       "canceled": "Gekündigt"
+    },
+    "dunning": {
+      "pastDue": "{hasDate, select, yes {Zahlung fehlgeschlagen. Aktualisieren Sie Ihre Karte bis {date}, sonst wechselt der Tarif auf Free.} other {Zahlung fehlgeschlagen. Aktualisieren Sie Ihre Karte, sonst wechselt der Tarif auf Free.}}",
+      "unpaid": "Die Nachfrist ist abgelaufen. Aktualisieren Sie Ihre Karte im Portal, um den Tarif wiederherzustellen.",
+      "updatePayment": "Zahlung aktualisieren"
     },
     "meters": {
       "job_posts": "Veröffentlichte Rollen",

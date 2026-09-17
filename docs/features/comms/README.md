@@ -447,6 +447,13 @@ locale. `resolveCommsLocale` (`comms-locale.ts`) is the one authority:
 2. else **the entry's OWN team** `workspaces.default_locale` (`cs` on the ČS seed);
 3. else `DEFAULT_LOCALE`, only when even the workspace row is unreadable.
 
+Write paths that have no explicit choice (add-to-pipeline, sourcing, rematch)
+infer from the CV's declared languages via `inferLocaleFromLanguages` — the TS
+twin of Python `_candidate_lang`. Czech wins with English; English wins over a
+third language; a German- or French-only list stores `de` / `fr` rather than
+collapsing to `en`; empty/unmapped stays NULL and resolves through step 2 at
+read time. Locked by `comms-locale.test.ts` against `CandidateLangTest`.
+
 Step 2 is per-tenant, so every dispatcher resolves through
 `comms-dispatch.candidateLocale`, which threads `entry.workspaceId` (entry-less
 dispatchers thread their caller's `opts.workspaceId`). Omitting it read the

@@ -1801,6 +1801,8 @@
     "ATS_FIELD_MAP_INVALID": "Ce mappage de champs est inutilisable. Chaque champ mappé a besoin d'un chemin, et le chemin vers l'identifiant externe est obligatoire.",
     "ATS_CONNECTION_NOT_FOUND": "Aucune connexion n'est enregistrée pour cet ATS.",
     "ATS_CONNECTION_STALE": "Quelqu'un a enregistré une version plus récente de cette connexion ATS. Rechargez-la et refaites votre modification.",
+    "ATS_DELIVERY_NOT_FOUND": "Cette livraison n'est pas dans le registre.",
+    "ATS_DELIVERY_NOT_REPLAYABLE": "Cette livraison ne peut pas être renvoyée. Seul un échec classé en lettre morte peut être relancé.",
     "EXTRACT_FILE_REQUIRED": "Joignez un fichier dont le texte doit être extrait.",
     "EXTRACT_TEXT_UNREADABLE": "Ce fichier n'a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD dont le texte est sélectionnable.",
     "EXTRACT_TEXT_TIMEOUT": "La lecture de ce fichier a pris trop de temps et a été interrompue. Essayez un fichier plus petit.",
@@ -7991,7 +7993,13 @@
       "active": "Actif",
       "trialing": "Essai",
       "past_due": "En retard de paiement",
+      "unpaid": "Impayé",
       "canceled": "Annulé"
+    },
+    "dunning": {
+      "pastDue": "{hasDate, select, yes {Paiement échoué. Mettez à jour votre carte avant le {date} pour que le tarif ne passe pas à Free.} other {Paiement échoué. Mettez à jour votre carte pour que le tarif ne passe pas à Free.}}",
+      "unpaid": "Le délai de grâce est écoulé. Mettez à jour votre carte dans le portail pour rétablir le tarif.",
+      "updatePayment": "Mettre à jour le paiement"
     },
     "meters": {
       "job_posts": "Postes publiés",

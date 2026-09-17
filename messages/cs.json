@@ -1801,6 +1801,8 @@
     "ATS_FIELD_MAP_INVALID": "Toto mapování polí není použitelné. Každé mapované pole potřebuje cestu a cesta k externímu ID je povinná.",
     "ATS_CONNECTION_NOT_FOUND": "Pro toto ATS není uložené žádné připojení.",
     "ATS_CONNECTION_STALE": "Někdo mezitím uložil novější verzi tohoto připojení k ATS. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "ATS_DELIVERY_NOT_FOUND": "Tato doručenka v deníku není.",
+    "ATS_DELIVERY_NOT_REPLAYABLE": "Tuto doručenku nelze znovu odeslat. Znovu odeslat jde jen selhání, které už nemá další pokus.",
     "EXTRACT_FILE_REQUIRED": "Přiložte soubor, ze kterého se má text načíst.",
     "EXTRACT_TEXT_UNREADABLE": "Tento soubor se nepodařilo přečíst. Zkuste PDF, DOCX, TXT nebo MD s vybíratelným textem.",
     "EXTRACT_TEXT_TIMEOUT": "Čtení souboru trvalo příliš dlouho a bylo zastaveno. Zkuste menší soubor.",
@@ -7991,7 +7993,13 @@
       "active": "Aktivní",
       "trialing": "Zkušební období",
       "past_due": "Po splatnosti",
+      "unpaid": "Nezaplaceno",
       "canceled": "Zrušeno"
+    },
+    "dunning": {
+      "pastDue": "{hasDate, select, yes {Platba selhala. Aktualizujte kartu do {date}, jinak tarif klesne na Free.} other {Platba selhala. Aktualizujte kartu, jinak tarif klesne na Free.}}",
+      "unpaid": "Odklad vypršel. Aktualizujte kartu v portálu, abyste tarif obnovili.",
+      "updatePayment": "Aktualizovat platbu"
     },
     "meters": {
       "job_posts": "Zveřejněné pozice",

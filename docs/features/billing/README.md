@@ -475,6 +475,17 @@ relaxation (a lapsed `canceled`). `STATUS_TONE` in the same file enumerates the 
 `SubscriptionStatus` union for the same reason: `unpaid` used to fall through to the
 neutral chip that also means "no subscription".
 
+**Failed payment is a recovery action, not a quieter chip.** `past_due` and `unpaid`
+used to share the current-plan card's "Manage subscription" weight with an active
+sub. Polar's customer portal is the only place to update the card, so those two
+statuses now also paint a `role="alert"` banner (`dunningBanner()` in
+`billingTypes.ts`, on `BillingCurrentPlanPanel`) with an Update-payment CTA on the
+same `openPortal` handler. `past_due` names `periodEnd` when the overview has one
+(`billing.dunning.pastDue`); `unpaid` says the retries have run out
+(`billing.dunning.unpaid`). `billing.status.unpaid` is a real catalog key in all
+four locales, so Czech no longer falls through to `labelize("unpaid")`. The banner
+is suppressed when billing is unconfigured — there is no portal to open.
+
 ### The tab's state machine (`billingTabState.ts`)
 
 Four rules that had shipped as inline refs and timer arrays inside `BillingTab.tsx`,

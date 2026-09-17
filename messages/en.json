@@ -1801,6 +1801,8 @@
     "ATS_FIELD_MAP_INVALID": "That field map is not usable. Every mapped field needs a path, and the external id path is required.",
     "ATS_CONNECTION_NOT_FOUND": "There is no connection stored for that ATS.",
     "ATS_CONNECTION_STALE": "Someone saved a newer version of this ATS connection. Reload and make your change again.",
+    "ATS_DELIVERY_NOT_FOUND": "That delivery is not in the ledger.",
+    "ATS_DELIVERY_NOT_REPLAYABLE": "That delivery cannot be replayed. Only a dead-lettered failure can be force-retried.",
     "EXTRACT_FILE_REQUIRED": "Attach a file to read text from.",
     "EXTRACT_TEXT_UNREADABLE": "That file could not be read. Try a PDF, DOCX, TXT or MD file with selectable text.",
     "EXTRACT_TEXT_TIMEOUT": "Reading that file took too long and was stopped. Try a smaller file.",
@@ -7991,7 +7993,13 @@
       "active": "Active",
       "trialing": "Trial",
       "past_due": "Past due",
+      "unpaid": "Unpaid",
       "canceled": "Canceled"
+    },
+    "dunning": {
+      "pastDue": "{hasDate, select, yes {Payment failed. Update your card before {date} so the plan does not drop to Free.} other {Payment failed. Update your card so the plan does not drop to Free.}}",
+      "unpaid": "Payment retries have run out. Update your card in the portal to restore the plan.",
+      "updatePayment": "Update payment"
     },
     "meters": {
       "job_posts": "Published roles",
