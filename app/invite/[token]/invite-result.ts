@@ -59,7 +59,37 @@ export function classifyInviteResult(result: InviteFetchResult): InviteOutcome {
 }
 
 /** Outcomes the invitee can act on by trying again. `dead` deliberately is not
- *  one: a retry button over a consumed invite is a loop with no exit. */
+ *  one: a retry button over a consumed invite is a loop with no exit. The two
+ *  409s are not either: `already_active` / `email_taken` can never succeed on
+ *  retry, so they swap to the failed panel with a sign-in link. */
 export function isRetryableInviteOutcome(outcome: InviteOutcome): boolean {
   return outcome === "retry" || outcome === "rateLimited";
+}
+
+/** Redeem (and preview) endings that must leave the password form. `dead` is
+ *  the link itself; the 409s mean "sign in instead". `weakPassword` stays on
+ *  the form so the invitee can pick a longer password. */
+export function isTerminalInviteOutcome(outcome: InviteOutcome): boolean {
+  return outcome === "dead" || outcome === "alreadyActive" || outcome === "emailTaken";
+}
+
+/** Catalog keys the failed panel paints for a classified outcome. The two 409s
+ *  reuse their inline copy rather than falling through to "Couldn't load your
+ *  invitation" — that line is a lie once we already know the account exists. */
+export type InviteFailedCopyKey =
+  | "unavailableTitle"
+  | "unavailableBody"
+  | "rateLimitedTitle"
+  | "rateLimitedBody"
+  | "loadFailedTitle"
+  | "loadFailedBody"
+  | "alreadyActive"
+  | "emailTaken";
+
+export function inviteFailedCopy(outcome: InviteOutcome): { title: InviteFailedCopyKey; body: InviteFailedCopyKey } {
+  if (outcome === "dead") return { title: "unavailableTitle", body: "unavailableBody" };
+  if (outcome === "rateLimited") return { title: "rateLimitedTitle", body: "rateLimitedBody" };
+  if (outcome === "alreadyActive") return { title: "alreadyActive", body: "alreadyActive" };
+  if (outcome === "emailTaken") return { title: "emailTaken", body: "emailTaken" };
+  return { title: "loadFailedTitle", body: "loadFailedBody" };
 }

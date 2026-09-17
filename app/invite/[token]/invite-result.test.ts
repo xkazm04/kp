@@ -8,7 +8,8 @@
 // Runner: Node's built-in test runner with type stripping.  npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyInviteResult, isRetryableInviteOutcome, type InviteOutcome } from "./invite-result.ts";
+import { readFileSync } from "node:fs";
+import { classifyInviteResult, inviteFailedCopy, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
 
 test("2xx statuses classify as ok", () => {
   for (const status of [200, 201, 204]) {
@@ -61,4 +62,28 @@ test("only retry and rateLimited are retryable — a dead link never shows a ret
   const terminal: InviteOutcome[] = ["ok", "dead", "weakPassword", "emailTaken", "alreadyActive"];
   for (const o of retryable) assert.equal(isRetryableInviteOutcome(o), true, `${o} must be retryable`);
   for (const o of terminal) assert.equal(isRetryableInviteOutcome(o), false, `${o} must not offer a retry`);
+});
+
+test("alreadyActive and emailTaken are terminal sign-in endings, not form errors", () => {
+  assert.equal(isTerminalInviteOutcome("alreadyActive"), true);
+  assert.equal(isTerminalInviteOutcome("emailTaken"), true);
+  assert.equal(isTerminalInviteOutcome("dead"), true);
+  assert.equal(isTerminalInviteOutcome("weakPassword"), false, "a short password is still correctable on the form");
+  assert.equal(isTerminalInviteOutcome("retry"), false);
+  assert.equal(isTerminalInviteOutcome("rateLimited"), false);
+});
+
+test("the failed panel reuses alreadyActive/emailTaken copy rather than the load-failed fallback", () => {
+  assert.deepEqual(inviteFailedCopy("alreadyActive"), { title: "alreadyActive", body: "alreadyActive" });
+  assert.deepEqual(inviteFailedCopy("emailTaken"), { title: "emailTaken", body: "emailTaken" });
+  assert.deepEqual(inviteFailedCopy("dead"), { title: "unavailableTitle", body: "unavailableBody" });
+  assert.deepEqual(inviteFailedCopy("rateLimited"), { title: "rateLimitedTitle", body: "rateLimitedBody" });
+  assert.deepEqual(inviteFailedCopy("retry"), { title: "loadFailedTitle", body: "loadFailedBody" });
+});
+
+test("AcceptForm swaps the two 409s to the failed panel (which already offers goToSignIn)", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /isTerminalInviteOutcome\(outcome\)/, "redeem 409s must leave the password form");
+  assert.match(src, /inviteFailedCopy\(state\.outcome\)/, "the failed panel must not fall through to loadFailed for 409s");
+  assert.match(src, /t\("goToSignIn"\)/, "the failed panel keeps the sign-in link");
 });

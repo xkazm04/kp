@@ -6,7 +6,7 @@ import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
-import { classifyInviteResult, isRetryableInviteOutcome, type InviteFetchResult, type InviteOutcome } from "./invite-result";
+import { classifyInviteResult, inviteFailedCopy, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteFetchResult, type InviteOutcome } from "./invite-result";
 
 type Preview = {
   email: string;
@@ -110,18 +110,15 @@ export function AcceptForm({ token }: { token: string }) {
   }
 
   if (state.phase === "failed") {
-    // Three honest endings instead of one. Only `dead` says the invitation is
-    // gone; the other two say the invitation is fine and offer the retry.
-    const dead = state.outcome === "dead";
-    const throttled = state.outcome === "rateLimited";
+    // Honest endings instead of one. `dead` says the invitation is gone; the
+    // two 409s say sign in instead; retryable outcomes keep the invitation
+    // valid and offer another try. Title and body share a catalog key for the
+    // 409s, so skip the duplicate paragraph.
+    const copy = inviteFailedCopy(state.outcome);
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 text-center">
-        <h1 className="font-serif text-display text-ink">
-          {dead ? t("unavailableTitle") : throttled ? t("rateLimitedTitle") : t("loadFailedTitle")}
-        </h1>
-        <p className="mt-2 text-body text-steel">
-          {dead ? t("unavailableBody") : throttled ? t("rateLimitedBody") : t("loadFailedBody")}
-        </p>
+        <h1 className="font-serif text-display text-ink">{t(copy.title)}</h1>
+        {copy.title === copy.body ? null : <p className="mt-2 text-body text-steel">{t(copy.body)}</p>}
         {isRetryableInviteOutcome(state.outcome) ? (
           <button type="button" onClick={retry} className={`${BTN_SECONDARY} mt-6 h-11 justify-center px-4`}>
             {tCommon("retry")}
@@ -155,23 +152,19 @@ export function AcceptForm({ token }: { token: string }) {
       return;
     }
     setSubmitting(false);
-    // A redeem that answers 410 means the link was consumed or lapsed WHILE the
-    // form was open: swap to the dead-invite ending rather than leaving a generic
-    // line under a form that can never succeed again.
-    if (outcome === "dead") {
+    // 410 (link consumed/lapsed while the form was open) and the two 409s
+    // (already_active / email_taken) can never succeed on retry: leave the
+    // password form for the failed panel, which already offers goToSignIn.
+    if (isTerminalInviteOutcome(outcome)) {
       setState({ phase: "failed", outcome });
       return;
     }
     setError(
       outcome === "weakPassword"
         ? t("weakPassword", { minLength: minPasswordLength })
-        : outcome === "emailTaken"
-          ? t("emailTaken")
-          : outcome === "alreadyActive"
-            ? t("alreadyActive")
-            : outcome === "rateLimited"
-              ? t("rateLimitedBody")
-              : t("retryError")
+        : outcome === "rateLimited"
+          ? t("rateLimitedBody")
+          : t("retryError")
     );
   }
 

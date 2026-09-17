@@ -592,13 +592,17 @@ ask for a replacement that would behave identically. The classifier splits them:
 | `dead` | 404 (no redeemable invite) · 410 (consumed / lapsed on redeem) | The unavailable panel. No retry: a retry over a consumed invite is a loop with no exit. |
 | `rateLimited` | 429 | "Too many attempts", the invitation stated to be still valid, plus a retry. |
 | `retry` | 5xx · network drop · the 15 s abort | "Couldn't load your invitation", plus a retry. |
-| `weakPassword` / `emailTaken` / `alreadyActive` | 400 / 409 with the reason code | The existing inline field messages. |
+| `weakPassword` | 400 with the reason code | The existing inline field message; the invitee can pick a longer password. |
+| `emailTaken` / `alreadyActive` | 409 with the reason code | The failed panel, reusing that copy, plus the existing sign-in link. No retry: those outcomes can never succeed on this form. |
 
 Two consequences worth naming. A redeem that answers **410** now swaps the whole
 surface to the dead ending rather than leaving a generic line under a form that can
-never succeed again. And both fetches run under a 15 s `AbortController` budget
-(`INVITE_TIMEOUT_MS`), mirroring `LOGIN_TIMEOUT_MS`, so a stalled request cannot
-strand the invitee on a spinner or a dead "Setting up…" button.
+never succeed again. The two **409**s (`already_active`, `email_taken`) do the
+same: they used to sit as inline errors under a password form whose submit would
+409 forever; they now swap to the failed panel with `goToSignIn`. And both fetches
+run under a 15 s `AbortController` budget (`INVITE_TIMEOUT_MS`), mirroring
+`LOGIN_TIMEOUT_MS`, so a stalled request cannot strand the invitee on a spinner
+or a dead "Setting up…" button.
 
 **Redeem lands on the dashboard.** A successful `POST` mints the session cookie
 *and* the readable `kp_entered` marker, exactly as `/api/auth/login` and
