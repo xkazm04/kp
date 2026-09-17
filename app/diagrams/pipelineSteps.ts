@@ -121,7 +121,7 @@ fn --> db : advance / hold`,
   },
   decide: {
     status: "gate",
-    files: ["app/features/hiring/decisions/*", "app/api/pipeline/[id]/route.ts", "app/_lib/db.ts (actOnPipelineEntry)"],
+    files: ["app/features/hiring/decisions/*", "app/api/pipeline/[id]/route.ts", "app/_lib/db/pipeline.ts (actOnPipelineEntry)"],
     puml: `[DecisionsTab\\nAiReviewCard] <<gate>> as ui
 [POST /api/pipeline/[id]] as api
 [actOnPipelineEntry] as fn

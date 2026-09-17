@@ -47,6 +47,28 @@ function resolveEntry(entry: string): { rel: string; mustBeDir: boolean } {
   return { rel, mustBeDir };
 }
 
+test("STEP_DETAILS never cites the app/_lib/db.ts barrel", () => {
+  const hits: string[] = [];
+  for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
+    for (const entry of detail.files) {
+      const { rel } = resolveEntry(entry);
+      if (rel.replaceAll("\\", "/") === "app/_lib/db.ts") {
+        hits.push(`${stepId}: "${entry}"`);
+      }
+    }
+  }
+  assert.deepEqual(
+    hits,
+    [],
+    `files[] must name the defining slice, not the db.ts barrel:\n  ${hits.join("\n  ")}`
+  );
+  const decide = STEP_DETAILS.decide.files.map((entry) => resolveEntry(entry).rel.replaceAll("\\", "/"));
+  assert.ok(
+    decide.includes("app/_lib/db/pipeline.ts"),
+    `decide.files must cite app/_lib/db/pipeline.ts, got: ${decide.join(", ")}`
+  );
+});
+
 test("every STEP_DETAILS.files[] entry resolves to a real path on disk", () => {
   const missing: string[] = [];
   for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
