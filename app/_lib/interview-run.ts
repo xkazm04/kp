@@ -32,6 +32,7 @@ import {
   type CaseInterviewScenario,
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
+import { rubricCoverage } from "./interview-rubric";
 import { buildAsrKeywords } from "./voice/asr-keywords.mjs";
 import {
   candidateSafeTopic,
@@ -600,6 +601,7 @@ export async function runInterviewScorecard(
     );
   }
   const { result } = await runAutomationTask(entryId, "scorecard", notes, undefined, undefined, workspaceId);
+  if (!result) return null;
   // Deterministic call telemetry (hint-uptake, talk ratio, recovery-time proxies)
   // rides the scorecard, so validating potential_score's weights later has DATA
   // per interview instead of anecdotes. The hint to track is the scripted
@@ -608,6 +610,10 @@ export async function runInterviewScorecard(
   // (extractTelemetry documents each one); best-effort, never a gate.
   try {
     const entry = getPipelineEntry(entryId, workspaceId);
+    // Same coverage provenance the human POST stamps. Python already writes
+    // rubricVersion/rubricKeys; this post-pass fills the gap without a Python bump
+    // and will not overwrite if the scorer starts stamping it.
+    stampAiScorecardRubricCoverage(result as Record<string, unknown>, entry?.roleFamily);
     let hintText: string | null = null;
     if (entry && isEarlyCareer(entry.archetype)) {
       const caseId = devCaseIdForEntry(entry);
@@ -645,4 +651,14 @@ export async function runInterviewScorecard(
     /* minting is enrichment — a failure must not lose the scorecard */
   }
   return result;
+}
+
+/** Stamp role-family industry-axis coverage on an AI scorecard after the spawn.
+ *  Does not overwrite a value Python (or a later caller) already set. */
+export function stampAiScorecardRubricCoverage(
+  result: Record<string, unknown>,
+  roleFamily: string | null | undefined,
+): void {
+  if (result.rubricCoverage != null) return;
+  result.rubricCoverage = rubricCoverage(roleFamily);
 }

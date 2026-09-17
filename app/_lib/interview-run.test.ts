@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { candidateRunOfShow, composeBrief, importedQuestionsForBrief, MAX_BRIEF_IMPORTED_QUESTIONS } from "./interview-run.ts";
+import { candidateRunOfShow, composeBrief, importedQuestionsForBrief, MAX_BRIEF_IMPORTED_QUESTIONS, stampAiScorecardRubricCoverage } from "./interview-run.ts";
 
 const CHRON = [
   { fromMin: 0, toMin: 8, topic: "Recent backend ownership", goal: "Depth on the service they own.", questions: ["Walk me through the service you own end to end."] },
@@ -141,6 +141,30 @@ test("runInterviewScorecard REQUIRES a workspace — no default tenant", () => {
   // The one caller derives the entry's team (token flow, no session workspace).
   const complete = readFileSync(new URL("../api/interview/complete/route.ts", import.meta.url), "utf8");
   assert.match(complete, /runInterviewScorecard\(session\.entryId, transcript, ws\)/);
+  assert.match(src, /stampAiScorecardRubricCoverage\(result as Record<string, unknown>, entry\?\.roleFamily\)/);
+});
+
+test("stampAiScorecardRubricCoverage records all three gap cases the human POST already stamps", () => {
+  const none: Record<string, unknown> = {};
+  stampAiScorecardRubricCoverage(none, null);
+  assert.equal((none.rubricCoverage as { gap: string }).gap, "no_family");
+
+  const silent: Record<string, unknown> = {};
+  stampAiScorecardRubricCoverage(silent, "software_engineering");
+  assert.equal((silent.rubricCoverage as { gap: string }).gap, "family_no_axes");
+  assert.ok("rubricCoverage" in silent, "family_no_axes is silent in the UI but still present on the object");
+
+  const unknown: Record<string, unknown> = {};
+  stampAiScorecardRubricCoverage(unknown, "not_a_real_family");
+  assert.equal((unknown.rubricCoverage as { gap: string; roleFamily: string }).gap, "family_unrecognized");
+  assert.equal((unknown.rubricCoverage as { roleFamily: string }).roleFamily, "not_a_real_family");
+});
+
+test("stampAiScorecardRubricCoverage does not overwrite a Python-stamped value", () => {
+  const prior = { gap: "no_family" as const, roleFamily: null, axisKeys: [] as string[] };
+  const result: Record<string, unknown> = { rubricCoverage: prior };
+  stampAiScorecardRubricCoverage(result, "software_engineering");
+  assert.equal(result.rubricCoverage, prior);
 });
 
 test("each shared prompt paragraph is written once, and both briefs read the same one", () => {

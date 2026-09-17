@@ -429,7 +429,7 @@ predicate, source-level for the route contract).
 | `app/_lib/voice/index.ts` | Adapter registry, default-provider policy, candidate-safe default brief |
 | `app/_lib/voice/elevenlabs.ts`, `openai.ts` | The two provider adapters |
 | `app/_lib/voice/self-hosted.ts` | Self-hosted ElevenLabs-compatible endpoint detection (see below) |
-| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider) |
+| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider). Pre-flight names the environment as a code (`VOICE_PREFLIGHT_INSECURE` / `_NO_MEDIA` / `_NO_WEBRTC`), resolved through `useErrorMessage` in the candidate's language — never a hardcoded English sentence |
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
@@ -561,9 +561,10 @@ pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form
 (`ScheduleHumanScorecardForm`) — through one component,
 `app/_components/RubricCoverageNote.tsx`, translated in all four locales under the
 `rubricCoverage` message namespace. The `gap` is **persisted for all three cases**
-— on the prep payload (a generator-owned key, `interview-prep-run.ts`) and on the
-stored human `Scorecard` beside `rubricVersion`/`rubricKeys` — so the record stays
-complete even where the UI stays quiet.
+— on the prep payload (a generator-owned key, `interview-prep-run.ts`), on the
+stored human `Scorecard` beside `rubricVersion`/`rubricKeys`, and on the
+AI-synthesized scorecard after `runInterviewScorecard`'s post-pass — so the
+record stays complete even where the UI stays quiet.
 
 `rubricCoverage` is a pure *report*: it never infers or defaults a role family,
 and it leaves `rubricForArchetype()` output byte-identical (pinned by the
@@ -579,10 +580,11 @@ archetype × family combination's version hash). Guards:
 - `app/_components/rubric-coverage-catalog.test.ts` — pins the message catalog to
   `RUBRIC_COVERAGE_DISCLOSED_GAPS`, and asserts the silent gap has **no** key.
 
-**Not covered yet:** the AI-synthesized scorecard written by the Python scorer
-(`pipeline/jobfit/automation.py`, which mirrors `industry_axes_for`) carries no
-`rubricCoverage` stamp — the field is optional and consumers must treat it as
-absent there.
+The AI-synthesized scorecard gets the same stamp in TypeScript after the Python
+spawn (`runInterviewScorecard` → `stampAiScorecardRubricCoverage`), so a recruiter
+comparing two AI screens can see when one was scored without industry axes. Python
+still does not write the field; the post-pass will not overwrite it if that
+changes. The field stays optional for legacy rows.
 
 ## The scorecard fences the transcript and cites only what was said (scorecard-v7)
 
