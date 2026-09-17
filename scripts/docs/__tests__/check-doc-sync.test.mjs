@@ -257,6 +257,26 @@ check('real map: every app/diagrams module is watched by the About entry', () =>
   }
 });
 
+check('real map: the four perf entry scripts are watched by performance-budget.md', () => {
+  const entry = realMap.entries.find((e) => e.doc === 'docs/development/performance-budget.md');
+  assert.ok(entry, 'performance-budget entry missing');
+  const matchers = entry.sourceGlobs.map(compileGlob);
+  const scripts = [
+    'scripts/perf/check-budget.mjs',
+    'scripts/perf/ci-budget.mjs',
+    'scripts/perf/devbench.mjs',
+    'scripts/perf/sqlite-writer-knee.mjs',
+    'perf-budget.json',
+    'ci-budget.json',
+  ];
+  for (const f of scripts) {
+    assert.ok(
+      matchers.some((re) => re.test(f)),
+      `${f} is not covered by the performance-budget sourceGlobs`,
+    );
+  }
+});
+
 check('real map: the five doc-gate entry scripts are watched by change-review.md', () => {
   const entry = realMap.entries.find((e) => e.doc === 'docs/development/change-review.md');
   assert.ok(entry, 'change-review entry missing');
