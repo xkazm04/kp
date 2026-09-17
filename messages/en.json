@@ -1993,6 +1993,7 @@
       "scores": "Our assessment scores for this role"
     },
     "appliedOn": "You applied on {date}.",
+    "keptUntil": "We keep this data until {date}.",
     "eraseTitle": "Erase my personal data",
     "eraseExplainer": "We'll permanently remove the personal data we hold about you: your name, contact details, CV, the answers from any interview, and the messages we sent you. We keep only a de-identified record of the assessment (scores and stage, with no personal data) so our hiring stays fair and consistent, plus a sealed record of the decision itself that we retain solely to defend it if it is ever legally challenged.",
     "eraseCta": "Erase my data",
@@ -7344,6 +7345,7 @@
       "exportCsv": "Export CSV",
       "csvTime": "Time",
       "csvAttribution": "Attribution",
+      "csvActor": "Actor",
       "csvKind": "Event",
       "csvCandidate": "Candidate",
       "csvRole": "Role",

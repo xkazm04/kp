@@ -37,6 +37,7 @@ import { META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import {
   ATTRIBUTION_BADGE,
+  actorDisplayName,
   compareNames,
   decisionMeta,
   formatAuditTime,
@@ -199,11 +200,12 @@ export function DecisionLogTable({
         // The rendered time AND the ISO instant, in that order: the first matches
         // the screen, the second is the unambiguous machine value. Dropping either
         // is what made the two disagree.
-        [t("csvTimeLocal", { zone }), t("csvTimeIso"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
+        [t("csvTimeLocal", { zone }), t("csvTimeIso"), t("csvAttribution"), t("csvActor"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
         list.map((d) => [
           formatAuditTime(d.createdAt, locale, zone),
           d.createdAt,
           t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
+          actorDisplayName(d.actor, t("actorNotIdentified")),
           kindLabel(t, d.kind, { relayConfigured }),
           d.candidateLabel,
           d.jobTitle,
@@ -377,6 +379,7 @@ export function DecisionLogTable({
                         ) : null}
                       </td>
                       <td className="py-2 pr-3">
+                        <span className="block font-medium text-ink">{actorDisplayName(d.actor, t("actorNotIdentified"))}</span>
                         <span className={`rounded-full px-2 py-0.5 text-sm font-medium ${ATTRIBUTION_BADGE[m.attribution]}`}>
                           {t(`attribution.${m.attribution}` as Parameters<typeof t>[0])}
                         </span>
