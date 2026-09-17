@@ -305,3 +305,14 @@ test("a provided {{about}} renders under its heading", () => {
 {{about}}`, { about: "We are Acme." });
   assert.ok(out.includes("About us") && out.includes("We are Acme."));
 });
+
+test("empty title and company fallbacks follow the document language", async () => {
+  const cs = await jdTemplateTokens("cs");
+  const out = renderWithTokens("# {{title}}\n**{{company}}**", {}, cs);
+  assert.equal(out, `# ${cs.fallback_title}\n**${cs.fallback_company}**`);
+  assert.ok(!out.includes("Role title"), "cs tokens must not leak the English title fallback");
+  assert.ok(!out.includes("Company"), "cs tokens must not leak the English company fallback");
+  const en = renderTemplate("# {{title}}\n**{{company}}**", {});
+  assert.match(en, /Role title/);
+  assert.match(en, /\*\*Company\*\*/);
+});

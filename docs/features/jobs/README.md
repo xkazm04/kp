@@ -167,6 +167,11 @@ the section-collapse pass drops the heading and a generated JD does not publish
 unfinished Requirements / Nice-to-have sections. A filled list still renders
 markdown bullets. Pinned by `app/features/shared/renderTemplate.test.ts`.
 
+Missing `{{title}}` / `{{company}}` no longer substitute the English literals
+"Role title" and "Company". Those fallbacks are `library.templates.token.fallback_title`
+/ `fallback_company`, resolved with the rest of the document-language tokens, so a
+partial Czech (or German/French) render cannot leak English scaffolding.
+
 ### A template list that could not load says so
 
 `fetchTemplates` (`app/features/shared/templatesClient.ts`) answers

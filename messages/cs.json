@@ -5053,7 +5053,9 @@
         "heading_offer": "Co nabízíme",
         "heading_apply": "Jak se přihlásit",
         "offer_note": "Hybridní režim práce, smysluplná zodpovědnost a prostor k růstu.",
-        "apply_note": "Přihlaste se přes odkaz: krátký rozhovor a potom první kolo pohovoru."
+        "apply_note": "Přihlaste se přes odkaz: krátký rozhovor a potom první kolo pohovoru.",
+        "fallback_title": "Název role",
+        "fallback_company": "Společnost"
       },
       "loadFailed": "Šablony se nepodařilo načíst.",
       "retry": "Zkusit znovu",

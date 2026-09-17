@@ -5053,7 +5053,9 @@
         "heading_offer": "Was wir bieten",
         "heading_apply": "So bewerben Sie sich",
         "offer_note": "Hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
-        "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview."
+        "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview.",
+        "fallback_title": "Stellenbezeichnung",
+        "fallback_company": "Unternehmen"
       },
       "loadFailed": "Die Vorlagen konnten nicht geladen werden.",
       "retry": "Erneut versuchen",

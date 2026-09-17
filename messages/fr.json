@@ -5053,7 +5053,9 @@
         "heading_offer": "Ce que nous offrons",
         "heading_apply": "Comment postuler",
         "offer_note": "Travail hybride, de vraies responsabilités et de la place pour progresser.",
-        "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour."
+        "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour.",
+        "fallback_title": "Intitulé du poste",
+        "fallback_company": "Entreprise"
       },
       "loadFailed": "Impossible de charger vos modèles.",
       "retry": "Réessayer",

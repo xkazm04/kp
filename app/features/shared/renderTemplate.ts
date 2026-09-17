@@ -36,7 +36,9 @@ export const TEMPLATE_PLACEHOLDERS = [
 // USER-authored template keeps its literal headings — the author's choice, never
 // machine-translated — but MAY opt into these tokens. Two example-filler tokens
 // (offer_note/apply_note) localize the seeded default's sample bullets too, so a
-// cs build from the default is single-language throughout. These are NOT data
+// cs build from the default is single-language throughout. fallback_title and
+// fallback_company do the same for empty data slots, so a partial generate cannot
+// stamp English "Role title" / "Company" onto a Czech posting. These are NOT data
 // placeholders (they take no value from `data`); they resolve from the TemplateTokens
 // map the caller passes in.
 export const TEMPLATE_LOCALIZED_TOKENS = [
@@ -48,6 +50,8 @@ export const TEMPLATE_LOCALIZED_TOKENS = [
   "heading_apply",
   "offer_note",
   "apply_note",
+  "fallback_title",
+  "fallback_company",
 ] as const;
 
 export type LocalizedToken = (typeof TEMPLATE_LOCALIZED_TOKENS)[number];
@@ -156,8 +160,8 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
   // to leave hollow Requirements / Nice-to-have sections on a generated JD.
   const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "");
   const map: Record<string, string> = {
-    title: data.title?.trim() || "Role title",
-    company: data.company?.trim() || "Company",
+    title: data.title?.trim() || localized.fallback_title,
+    company: data.company?.trim() || localized.fallback_company,
     seniority: data.seniority?.trim() || "",
     salary: data.salary?.trim() || "",
     // No canned company blurb: the build supplies no real `about`, and emitting the
