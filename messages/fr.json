@@ -8967,7 +8967,13 @@
       "low": "faible"
     },
     "interviewKit": {
-      "title": "Kit d’entretien : meilleur candidat",
+      "title": "Kit d’entretien",
+      "pickAria": "Candidat de la présélection à exporter",
+      "band": {
+        "authentic": "authentique",
+        "mixed": "mixte",
+        "suspect": "suspect"
+      },
       "fit": "· correspondance {score}",
       "copied": "Copié",
       "copy": "Copier",

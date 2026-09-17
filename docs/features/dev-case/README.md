@@ -857,6 +857,10 @@ Six places where the studio was quietly less honest than it looked, closed in on
   so a freshly-published assignment rendered three nothings in a row and simply stopped
   after the internal panels. One "waiting for the first submission" panel now stands in
   for all three, and only when the assignment is actually published.
+- **The case-level interview kit can export a held shortlist row.** It used to always
+  assemble the highest-transfer submission with follow-ups. The shortlist already ranks
+  everyone; a one-line select (candidateRef + transfer + authenticity band) now picks
+  any followup-bearing row. Default remains the transfer leader.
 - **`source()` is single-flight.** It was the one write action on the tab without a
   guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
   row it was clicked on: a click on a second row seeded the pipeline twice.

@@ -8967,7 +8967,13 @@
       "low": "niedrig"
     },
     "interviewKit": {
-      "title": "Interview-Kit: Top-Kandidat",
+      "title": "Interview-Kit",
+      "pickAria": "Kandidat aus der Auswahlliste zum Export",
+      "band": {
+        "authentic": "authentisch",
+        "mixed": "gemischt",
+        "suspect": "verdächtig"
+      },
       "fit": "· Eignung {score}",
       "copied": "Kopiert",
       "copy": "Kopieren",

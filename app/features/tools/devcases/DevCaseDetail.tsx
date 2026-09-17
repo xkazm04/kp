@@ -7,6 +7,7 @@ import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { Markdown } from "@/app/_components/Markdown";
 import { CompareSubmissions } from "./DevCompareSubmissions";
 import { InterviewKit } from "./DevInterviewKit";
+import { submissionsWithFollowups } from "./DevInterviewKit.select";
 import { caseToMarkdown } from "./DevHelpers";
 import { DevCaseDetailHeader } from "./DevCaseDetailHeader";
 import { DevCaseDetailInternal } from "./DevCaseDetailInternal";
@@ -66,11 +67,6 @@ export function CaseDetail({
   // fec3e23a — every submission across this case's postings, for the cohort
   // probe-miss roll-up in the internal section.
   const caseSubmissions = casePostings.flatMap((p) => p.submissions ?? []);
-  // 8d4f38b9 — the winning submission (highest transfer fit among those evaluated)
-  // for its auto-generated interview kit.
-  const topSubmission = caseSubmissions
-    .filter((s) => s.evaluation?.followups?.questions?.length)
-    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))[0];
   // 99288c0e — one cross-channel leaderboard: every submission across all of this
   // case's postings, ranked by transfer fit and tagged with its channel, so the
   // true #1 for the assignment is visible regardless of which channel they applied
@@ -78,6 +74,10 @@ export function CaseDetail({
   const shortlist = casePostings
     .flatMap((p) => (p.submissions ?? []).map((s) => ({ s, channel: p.channel })))
     .sort((a, b) => (b.s.transferScore ?? -1) - (a.s.transferScore ?? -1));
+  // Case-level kit: every shortlist row that has minted follow-ups, transfer-sorted
+  // so index 0 is still today's leader. InterviewKit lets the recruiter pick a
+  // held (lower-transfer) candidate without opening that row's EvalPanel.
+  const kitCandidates = submissionsWithFollowups(shortlist.map(({ s }) => s));
   const hasScenario = Array.isArray(kase.scenario?.phases) && (kase.scenario?.phases?.length ?? 0) > 0;
   // Provenance persisted with each generated blob (devcase-orchestrator) — same visual
   // language as the ProvenanceStrip: moss = real LLM output, amber = degraded/template.
@@ -196,8 +196,8 @@ export function CaseDetail({
           {/* b268f5e5 — read who leads on each rubric axis across the case's cohort. */}
           <CompareSubmissions rubricDims={c.rubricDimensions ?? []} submissions={caseSubmissions} />
 
-          {/* 8d4f38b9 — the winning candidate's interview kit, ready to copy/export. */}
-          {topSubmission ? <InterviewKit caseTitle={kase.title ?? c.title ?? ""} top={topSubmission} /> : null}
+          {/* 8d4f38b9 — interview kit for a shortlist candidate, ready to copy/export. */}
+          {kitCandidates.length ? <InterviewKit caseTitle={kase.title ?? c.title ?? ""} candidates={kitCandidates} /> : null}
 
           {/* 99288c0e — the case-wide shortlist: all candidates, every channel, one ranking. */}
           <DevCaseDetailShortlist shortlist={shortlist} roleJdText={roleJdText} onChanged={loadPostings} />

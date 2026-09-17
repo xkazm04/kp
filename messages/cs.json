@@ -8967,7 +8967,13 @@
       "low": "nízká"
     },
     "interviewKit": {
-      "title": "Podklady k pohovoru: nejlepší kandidát",
+      "title": "Podklady k pohovoru",
+      "pickAria": "Kandidát z užšího výběru k exportu",
+      "band": {
+        "authentic": "autentické",
+        "mixed": "smíšené",
+        "suspect": "podezřelé"
+      },
       "fit": "· shoda {score}",
       "copied": "Zkopírováno",
       "copy": "Kopírovat",
