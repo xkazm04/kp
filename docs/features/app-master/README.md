@@ -1852,9 +1852,13 @@ The schemas travel three ways once the later phases land:
   ("dossier field accuracy vs ground truth") is the missing harness. Treat the
   reference reading in `examples/kp-dossier.json` as one sample, not a baseline.
 - **The scan is one-shot and never re-run.** A dossier is a reading of a repo at
-  a moment; nothing expires it, re-scans on a schedule, or tells the operator the
-  dossier a spec was composed from is now months old. `generatedAt` is on the
-  record, and reading it is currently the operator's job.
+  a moment; nothing expires it or re-scans on a schedule. `generatedAt` is on the
+  record, and `dossier_freshness(generated_at, now)` classifies it as
+  `current` / `stale` / `unknown` against a 14-day window (the same order as the
+  bench gate) so compose and hire-from-need can disclose or refuse a stale
+  reading without spawning a new scan. The walker itself stays pure: freshness is
+  a sibling field, not a schema stamp, so two walks of an unchanged tree are
+  still byte-identical.
 - **Churn uses `--name-only`, not the concept's `--oneline`.**
   `docs/concepts/app-master.md` §3 names `git log --oneline -200` for hot spots,
   but that format prints no paths, so it cannot answer "what changes most". The
