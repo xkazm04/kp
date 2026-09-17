@@ -98,19 +98,39 @@ export function inviteFailedCopy(outcome: InviteOutcome): { title: InviteFailedC
 // user row has no display name; posting `name: name.trim() || undefined` used
 // to create the account as `name: null`, so Art. 22 seals fell back to email.
 // Empty name is the same class of client refusal as an empty password: do not
-// fetch. Length / confirm / legal-ack checks live beside this when they land.
+// fetch. Redeem is single-use, so a mistyped password that meets the floor
+// still consumes the invite: length and confirmation are refused here too.
 
 export type InviteSubmitInput = {
   needsName: boolean;
   name: string;
   password: string;
+  /** When set (including ""), a mismatch is a client refusal. */
+  passwordConfirm?: string;
+  /** When set, a password shorter than this is a client refusal. */
+  minPasswordLength?: number;
 };
 
-export type InviteSubmitBlock = "missingName" | "emptyPassword";
+export type InviteSubmitBlock = "missingName" | "emptyPassword" | "weakPassword" | "passwordMismatch";
+
+export type InvitePasswordCheck = "ok" | "tooShort" | "mismatch";
+
+export function invitePasswordCheck(password: string, confirm: string, minLength: number): InvitePasswordCheck {
+  if (password.length < minLength) return "tooShort";
+  if (password !== confirm) return "mismatch";
+  return "ok";
+}
 
 export function inviteSubmitBlock(input: InviteSubmitInput): InviteSubmitBlock | null {
   if (input.needsName && input.name.trim() === "") return "missingName";
   if (!input.password) return "emptyPassword";
+  if (input.minPasswordLength != null || input.passwordConfirm !== undefined) {
+    const min = input.minPasswordLength ?? 0;
+    const confirm = input.passwordConfirm ?? input.password;
+    const pw = invitePasswordCheck(input.password, confirm, min);
+    if (pw === "tooShort") return "weakPassword";
+    if (pw === "mismatch") return "passwordMismatch";
+  }
   return null;
 }
 

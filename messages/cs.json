@@ -6787,6 +6787,9 @@
     "nameLabel": "Vaše jméno",
     "nameRequired": "Zadejte své jméno.",
     "passwordLabel": "Heslo",
+    "passwordHint": "Alespoň {minLength} znaků.",
+    "passwordConfirm": "Potvrzení hesla",
+    "passwordMismatch": "Hesla se neshodují.",
     "submitting": "Nastavování…",
     "submit": "Přijmout pozvánku"
   },

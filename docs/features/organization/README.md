@@ -652,6 +652,13 @@ fell back to email. Empty name is now a client refusal like a weak password
 stays disabled until name and password are non-empty. Pinned by
 `canSubmitInvite` / `inviteSubmitBlock` in `invite-result.ts`.
 
+**The password door shows the floor and asks twice.** Redeem is single-use
+(`410` on a second POST), so a typo that met the length floor used to consume
+the invite. The form now shows `invite.passwordHint` with the preview's
+`minPasswordLength`, a confirm field, and `minLength` / `aria-describedby` on
+the password input. Mismatch or too-short is an inline error and does not
+POST. Pinned by `invitePasswordCheck`.
+
 ## Copy & localization
 
 The console is fully localized in all four locales from the **`workspaceAdmin`**

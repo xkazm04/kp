@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
+import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, invitePasswordCheck, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteOutcome } from "./invite-result.ts";
 
 test("2xx statuses classify as ok", () => {
   for (const status of [200, 201, 204]) {
@@ -111,4 +111,26 @@ test("AcceptForm wires the name pre-check: required field, disabled submit, inli
   assert.match(src, /inviteSubmitBlock\(/, "submit must classify empty name before fetch");
   assert.match(src, /t\("nameRequired"\)/, "empty name must set the inline catalog error");
   assert.match(src, /required/, "the name input is required when it is shown");
+});
+
+test("invitePasswordCheck pins too-short, mismatch, and match", () => {
+  assert.equal(invitePasswordCheck("short", "short", 8), "tooShort");
+  assert.equal(invitePasswordCheck("abcdefgh", "abcdefgH", 8), "mismatch");
+  assert.equal(invitePasswordCheck("abcdefgh", "abcdefgh", 8), "ok");
+});
+
+test("canSubmitInvite requires a matching confirmation at the preview floor", () => {
+  const base = { needsName: false, name: "", minPasswordLength: 8 };
+  assert.equal(inviteSubmitBlock({ ...base, password: "short", passwordConfirm: "short" }), "weakPassword");
+  assert.equal(inviteSubmitBlock({ ...base, password: "abcdefgh", passwordConfirm: "abcdefgH" }), "passwordMismatch");
+  assert.equal(canSubmitInvite({ ...base, password: "abcdefgh", passwordConfirm: "abcdefgh" }), true);
+});
+
+test("AcceptForm shows the floor, a confirm field, and does not POST on mismatch", () => {
+  const src = readFileSync(new URL("./AcceptForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /t\("passwordHint", \{ minLength: minPasswordLength \}\)/, "hint uses the preview floor");
+  assert.match(src, /t\("passwordConfirm"\)/, "confirm field is catalogued");
+  assert.match(src, /minLength=\{minPasswordLength\}/, "native minLength matches the preview floor");
+  assert.match(src, /aria-describedby=\{passwordDescribedBy\}/, "password input points at hint + error");
+  assert.match(src, /t\("passwordMismatch"\)/, "mismatch is an inline error, not a fetch");
 });

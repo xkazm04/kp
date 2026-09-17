@@ -6787,6 +6787,9 @@
     "nameLabel": "Your name",
     "nameRequired": "Enter your name.",
     "passwordLabel": "Password",
+    "passwordHint": "At least {minLength} characters.",
+    "passwordConfirm": "Confirm password",
+    "passwordMismatch": "The passwords do not match.",
     "submitting": "Setting up…",
     "submit": "Accept invitation"
   },

@@ -6787,6 +6787,9 @@
     "nameLabel": "Votre nom",
     "nameRequired": "Saisissez votre nom.",
     "passwordLabel": "Mot de passe",
+    "passwordHint": "Au moins {minLength} caractères.",
+    "passwordConfirm": "Confirmer le mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
     "submitting": "Configuration…",
     "submit": "Accepter l’invitation"
   },

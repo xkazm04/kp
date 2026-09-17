@@ -6787,6 +6787,9 @@
     "nameLabel": "Ihr Name",
     "nameRequired": "Geben Sie Ihren Namen ein.",
     "passwordLabel": "Passwort",
+    "passwordHint": "Mindestens {minLength} Zeichen.",
+    "passwordConfirm": "Passwort bestätigen",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein.",
     "submitting": "Wird eingerichtet…",
     "submit": "Einladung annehmen"
   },
