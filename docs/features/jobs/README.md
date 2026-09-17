@@ -1424,17 +1424,20 @@ include `workspace_id`).
   "we assumed medior / Praha for you". Surfacing it is a `campaign.py` change
   (add the list to the returned pack) plus a line on whatever surface renders
   a pack next (the modal's Campaign tab is gone), not a UI-only fix.
-- **The Fair Rank audit table ranks one number across cohorts it is not
-  comparable within.** `recruiter.fairness_check` is handed *every* validated
-  candidate, so its `own` / `mean` arrays include both fairness tracks **and**
-  the KO-filtered ones. `FairnessAuditPanel` renders them as a single list
-  sorted by `mean` descending with no track and no eligibility column — so an
-  early-career candidate scored on *potential* is ranked against an experienced
-  one scored on work history (the interleave the Candidates tab promises two
-  paragraphs above it never happens: "never ranked on one number against
-  experienced candidates"), and a candidate the KO filter rejected outright can
-  sit at the top of the bias-defensible record. Fixing it needs `koPassed` +
-  `track` passed down from `JobsRecruiterCandidates.tsx`, and a column label.
+- **The Fair Rank audit table still ranks one number across cohorts it is not
+  comparable within.** The producer now labels the split: `recruiter.fairness_check`
+  carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`
+  id list, and drops KO-failed labels from `ranking` (pinned by
+  `pipeline/jobfit/tests/test_recruiter.py`). `own` / `mean` stay the full
+  validated pool so the CLI lockstep does not shrink. `FairnessAuditPanel` still
+  renders a single list sorted by `mean` descending with no track and no
+  eligibility column — so an early-career candidate scored on *potential* is
+  ranked against an experienced one scored on work history (the interleave the
+  Candidates tab promises two paragraphs above it never happens: "never ranked
+  on one number against experienced candidates"), and a KO-failed candidate can
+  still sit in the audit table even though they are gone from `ranking`. Fixing
+  the panel needs it to read `tracks` + `koFailed` (or `koPassed` from the
+  ranked rows) and a column label.
 - No structurally-tracked, independently-provenanced editable salary band yet
   (would need its own `source: "manual"` marker, not a re-parse of the
   markdown).
