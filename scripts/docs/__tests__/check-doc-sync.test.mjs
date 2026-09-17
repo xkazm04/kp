@@ -257,4 +257,23 @@ check('real map: every app/diagrams module is watched by the About entry', () =>
   }
 });
 
+check('real map: the five doc-gate entry scripts are watched by change-review.md', () => {
+  const entry = realMap.entries.find((e) => e.doc === 'docs/development/change-review.md');
+  assert.ok(entry, 'change-review entry missing');
+  const matchers = entry.sourceGlobs.map(compileGlob);
+  const scripts = [
+    'scripts/docs/check-guidance.mjs',
+    'scripts/docs/check-doc-sync.mjs',
+    'scripts/docs/check-adrs.mjs',
+    'scripts/docs/check-doc-sync-diff.mjs',
+    'scripts/docs/api-reference.mjs',
+  ];
+  for (const f of scripts) {
+    assert.ok(
+      matchers.some((re) => re.test(f)),
+      `${f} is not covered by the change-review sourceGlobs`,
+    );
+  }
+});
+
 console.log(`\n${passed} checks passed.`);

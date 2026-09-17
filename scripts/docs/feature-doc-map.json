@@ -537,6 +537,13 @@
       ]
     },
     {
+      "_comment": "The doc-sync / ADR / guidance / API-reference scripts. check-doc-sync.mjs is the machine that enforces this map, and a skip-pattern or DOC_PREFIX change had no Stop-hook reminder. docs/development/change-review.md already names check-guidance.mjs and the review lenses; this entry watches the rest of the gate scripts (scripts/i18n-check.mjs is mapped from localization.md). __tests__/ stay unmapped via the skip patterns.",
+      "doc": "docs/development/change-review.md",
+      "sourceGlobs": [
+        "scripts/docs/**"
+      ]
+    },
+    {
       "doc": "docs/features/jobseeker/README.md",
       "sourceGlobs": [
         "app/me/**",
