@@ -1550,6 +1550,8 @@ no letter and seals no decision. The rule:
 | `currency` | absent/empty → null (unit-less, P2-1); otherwise trimmed + upper-cased and required to be in `OFFER_CURRENCIES` (`APP_CURRENCY`, EUR, USD, GBP, PLN) | `OFFER_CURRENCY_UNSUPPORTED` (400) |
 | `notes` | trimmed; empty → null; `≤ OFFER_NOTES_MAX_CHARS` (2 000) | `OFFER_NOTES_TOO_LONG` (400, `max`) |
 
+The sealed `offer_terms` decision record's `inputs` are `{ salary, currency, jobTitle, notes }` — `notes` is the validated note (null when the draft carried none), so an auditor reading the chain can see the bonus/notice paragraph the candidate was (or was not) shown. The whole draft is not sealed.
+
 A market added to `pipeline/jobfit/market_config.py` whose currency is not on that
 closed list makes offers in it *refuse*, not mislabel — add the code to
 `OFFER_CURRENCIES` in the same change. The normalization also means `" czk "` and
