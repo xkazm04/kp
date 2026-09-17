@@ -81,6 +81,10 @@ export function useScheduleInvite(token: string) {
   const [capReached, setCapReached] = useState(false);
   const [proposeTimes, setProposeTimes] = useState<string[]>(["", "", ""]);
   const [proposing, setProposing] = useState(false);
+  // The propose form's working-hours window is fenced in INTERVIEW_TZ, not the
+  // browser clock the datetime-local inputs use. Named from GET so the form can
+  // say which zone 08:00-18:00 is in.
+  const [interviewTz, setInterviewTz] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -103,6 +107,7 @@ export function useScheduleInvite(token: string) {
         setCanReschedule(Boolean(d.canReschedule));
         setCapReached(Boolean(d.rescheduleCapReached));
         setProposalStatus(d.invite?.proposalStatus ?? null);
+        setInterviewTz(typeof d.interviewTz === "string" ? d.interviewTz : "");
         if (d.closed) setClosedReason(typeof d.closedReason === "string" ? d.closedReason : "closed");
         if (d.invite?.status === "confirmed") setConfirmed(d.invite.slot ?? "");
       })
@@ -347,6 +352,7 @@ export function useScheduleInvite(token: string) {
     capReached,
     proposeTimes,
     proposing,
+    interviewTz,
     pick,
     rsvp,
     withdraw,

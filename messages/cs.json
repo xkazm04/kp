@@ -2073,6 +2073,8 @@
     "eyebrow": "Přihláška",
     "roleClosed": "Tato pozice už je obsazená a další přihlášky nepřijímáme. Děkujeme za váš zájem!",
     "subtitle": "Krátký rozhovor, žádné formuláře, žádné přihlašování. Pár otázek a máte hotovo.",
+    "progress": "Otázka {current} z {total}",
+    "progressAria": "Průběh přihlášky, otázka {current} z {total}",
     "letsBegin": "Začněme.",
     "youreIn": "Jste ve hře 🎉",
     "alreadyApplied": "Už přihlášeno",

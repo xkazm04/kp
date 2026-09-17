@@ -2073,6 +2073,8 @@
     "eyebrow": "Postuler",
     "roleClosed": "Ce poste a été pourvu et n’accepte plus de candidatures. Merci de votre intérêt !",
     "subtitle": "Une petite conversation, sans formulaire ni connexion. Quelques questions et c’est terminé.",
+    "progress": "Question {current} sur {total}",
+    "progressAria": "Progression de la candidature, question {current} sur {total}",
     "letsBegin": "C’est parti.",
     "youreIn": "C’est validé 🎉",
     "alreadyApplied": "Déjà postulé",

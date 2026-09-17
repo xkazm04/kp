@@ -28,6 +28,7 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const pickerSrc = readFileSync(path.join(HERE, "SchedulePicker.tsx"), "utf8");
 const inviteSrc = readFileSync(path.join(HERE, "use-schedule-invite.ts"), "utf8");
+const proposeSrc = readFileSync(path.join(HERE, "ProposeSection.tsx"), "utf8");
 const routeSrc = readFileSync(path.join(HERE, "..", "..", "api", "schedule", "[token]", "route.ts"), "utf8");
 
 test("an ACTION error renders above the live state, never instead of it", () => {
@@ -97,4 +98,11 @@ test("first-confirm POST lists the reschedule flags and pick() reads them outsid
     /setCapReached\(Boolean\(d\.rescheduleCapReached\)\)/,
     "…and the cap flag, so spending the last reschedule still raises the propose path"
   );
+});
+
+test("ProposeSection interpolates the interview zone the working-hours window uses", () => {
+  assert.match(routeSrc, /interviewTz: INTERVIEW_TZ/, "GET puts the interview zone on the wire");
+  assert.match(inviteSrc, /setInterviewTz\(typeof d\.interviewTz === "string" \? d\.interviewTz : ""\)/);
+  assert.match(pickerSrc, /interviewTz=\{s\.interviewTz\}/);
+  assert.match(proposeSrc, /t\("proposeTimezoneNote", \{ zone: interviewTz \}\)/);
 });

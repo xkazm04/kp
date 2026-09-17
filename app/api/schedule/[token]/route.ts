@@ -19,7 +19,7 @@ import {
   isTerminalScheduleInviteStatus,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
-import { offeredSlotFor, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
+import { INTERVIEW_TZ, offeredSlotFor, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { isValidTimeZone } from "@/app/_lib/timezone";
@@ -165,6 +165,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     canReschedule,
     rescheduleCapReached,
     calendarChecked: proposed.calendarChecked,
+    interviewTz: INTERVIEW_TZ,
   });
 }
 

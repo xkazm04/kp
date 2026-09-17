@@ -2073,6 +2073,8 @@
     "eyebrow": "Bewerben",
     "roleClosed": "Diese Stelle wurde besetzt und nimmt keine Bewerbungen mehr an. Vielen Dank für Ihr Interesse!",
     "subtitle": "Ein kurzes Gespräch, keine Formulare, keine Logins. Ein paar Fragen und Sie sind fertig.",
+    "progress": "Frage {current} von {total}",
+    "progressAria": "Bewerbungsfortschritt, Frage {current} von {total}",
     "letsBegin": "Los geht's.",
     "youreIn": "Sie sind dabei 🎉",
     "alreadyApplied": "Bereits beworben",

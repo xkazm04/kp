@@ -11,12 +11,14 @@ export function ProposeSection({
   proposalStatus,
   proposeTimes,
   proposing,
+  interviewTz,
   onChangeTime,
   onSubmit,
 }: {
   proposalStatus: string | null;
   proposeTimes: string[];
   proposing: boolean;
+  interviewTz: string;
   onChangeTime: (idx: number, value: string) => void;
   onSubmit: () => void;
 }) {
@@ -44,6 +46,9 @@ export function ProposeSection({
     <div className="mt-4 border-t border-stone-200 pt-4">
       <p className="font-serif text-h3 text-ink">{t("proposeTitle")}</p>
       <p className="mt-1 text-base text-steel">{t("proposeBody")}</p>
+      {interviewTz ? (
+        <p className="mt-1 text-meta text-steel">{t("proposeTimezoneNote", { zone: interviewTz })}</p>
+      ) : null}
       <div className="mt-3 space-y-2">
         {Array.from({ length: MAX_PROPOSE_TIMES }).map((_, idx) => (
           <input

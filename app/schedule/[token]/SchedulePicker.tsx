@@ -53,6 +53,7 @@ export function SchedulePicker({ token }: { token: string }) {
       proposalStatus={s.proposalStatus}
       proposeTimes={s.proposeTimes}
       proposing={s.proposing}
+      interviewTz={s.interviewTz}
       onChangeTime={s.setProposeTime}
       onSubmit={s.submitProposals}
     />

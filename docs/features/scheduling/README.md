@@ -42,6 +42,10 @@ rules make that hold, and both were once broken:
   free/busy GET). GET on a *pending* invite correctly answers `canReschedule:
   false`; without the flags on the POST the booked card hid Change time until
   reload even though `rescheduleCount` was 0.
+- The propose-times form names the interview zone its working-hours window uses
+  (`schedule.proposeTimezoneNote`, zone from `GET /api/schedule/[token]`
+  `interviewTz`). The `datetime-local` inputs are the browser wall clock;
+  `PROPOSAL_HOURS` (08:00-18:00) is fenced in `KP_INTERVIEW_TZ`.
 
 Pinned by `app/schedule/[token]/schedule-picker-recovery.test.ts` (source-level —
 the repo's unit runner has no component renderer; same idiom as
@@ -54,7 +58,11 @@ the repo's unit runner has no component renderer; same idiom as
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
    `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
    comms-failed entry never aborts the batch and the response reports each
-   outcome. Only the first `BULK_INVITE_CAP` = 100 entries are processed; the
+   outcome. `partitionBulkInviteTargets` refuses an unaddressable recipient
+   (`SCHEDULE_BULK_UNADDRESSABLE`) **before** minting, so a sourced name with no
+   `contact` does not get an orphan token plus a failed send. Opt-out is not a
+   reason to skip: schedule mail is transactional. Only the first
+   `BULK_INVITE_CAP` = 100 entries are processed; the
    **overflow is returned as explicit per-entry refusals** (`ok:false`, an
    error naming the cap) plus a `capped` count, so a cohort larger than the cap
    is never silently truncated into a green "N invited". Each processed entry
@@ -818,11 +826,3 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   by the 8s fetch abort). It sits *after* the booking commit and the confirmation
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
-- **The propose form does not say which zone its working-hours window is in.**
-  The `datetime-local` inputs are the candidate's *browser* wall clock, but
-  `PROPOSAL_HOURS` (08:00–18:00) is fenced in `KP_INTERVIEW_TZ`, so a New York
-  candidate proposing 14:00 is refused with "future weekday times during working
-  hours" for a time that is squarely in their working day. `SlotPicker` names the
-  zone for the offered grid (`schedule.timezoneNote`); the escalation form has no
-  equivalent, and adding one needs a new 4-locale key — plus a product call on
-  whether to fence the window in the interview zone at all.

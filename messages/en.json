@@ -2073,6 +2073,8 @@
     "eyebrow": "Apply",
     "roleClosed": "This role has been filled and is no longer accepting applications. Thank you for your interest!",
     "subtitle": "A quick chat, no forms, no logins. A few questions and you're done.",
+    "progress": "Question {current} of {total}",
+    "progressAria": "Application progress, question {current} of {total}",
     "letsBegin": "Let's begin.",
     "youreIn": "You're in 🎉",
     "alreadyApplied": "Already applied",

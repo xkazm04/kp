@@ -56,6 +56,8 @@ test("GET: unknown token → 404; a pending invite gets slots and a leak-free pu
   const body = await res.json();
   assert.equal(body.invite.status, "pending");
   assert.ok(Array.isArray(body.slots) && body.slots.length > 0, "a pending invite proposes slots");
+  assert.equal(typeof body.interviewTz, "string");
+  assert.ok(body.interviewTz.length > 0, "GET names the interview zone the propose form fences against");
   // The public projection must not carry internal handles (idea-69d1e4fd).
   assert.equal("entryId" in body.invite, false, "entryId is an internal IDOR handle — never on the public wire");
   assert.equal("reconcileReason" in body.invite, false);
