@@ -78,16 +78,13 @@ test("isLibraryPath marks shared internals and leaves feature/page files alone",
     "app/features/hiring/pipeline/PipelineTab.tsx",
     "app/page.tsx",
     "app/landing/spark/PricingSection.tsx",
-    // NOT library, and deliberately recorded as such: `app/_components/` is this
-    // repo's shared-primitive directory, but only its `ui/` subtree matches a
-    // LIBRARY_SEGMENT. So right-clicking a Badge stops at Badge.tsx rather than
-    // walking out to the feature that used it. That is today's behaviour, pinned
-    // here so a fix is a deliberate edit to LIBRARY_SEGMENTS (add "/_components/")
-    // with this line updated, not an accident either way.
-    "app/_components/Badge.tsx",
   ]) {
     assert.equal(isLibraryPath(site), false, site);
   }
+  // Shared primitives under `app/_components/` (Badge, not only `ui/`) are
+  // library: default copy walks out to the feature that used them. Alt+right-click
+  // still reaches the primitive.
+  assert.equal(isLibraryPath("app/_components/Badge.tsx"), true);
 });
 
 test("isLibraryPath matches a leading segment, not a bare substring", () => {
@@ -112,6 +109,14 @@ test("pickDefaultIndex picks the first NON-library file — the call site", () =
     entry("app/page.tsx"),
   ];
   assert.equal(pickDefaultIndex(chain), 2);
+});
+
+test("pickDefaultIndex walks out of Badge.tsx to the feature that used it", () => {
+  const chain = [
+    entry("app/_components/Badge.tsx"),
+    entry("app/features/hiring/pipeline/PipelineTab.tsx"),
+  ];
+  assert.equal(pickDefaultIndex(chain), 1);
 });
 
 test("pickDefaultIndex falls back to the innermost element when the chain is ALL library", () => {

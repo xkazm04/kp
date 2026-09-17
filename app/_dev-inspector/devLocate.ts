@@ -29,6 +29,7 @@ const LIBRARY_SEGMENTS = [
   "/stores/",
   "/shared/",
   "/ui/",
+  "/_components/",
   "/utils/",
   "/i18n/",
   "/_dev-inspector/",
