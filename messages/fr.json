@@ -8784,7 +8784,8 @@
         "title": "Interne : matériel pour l’entretien et la relecture",
         "noProbes": "Aucune sonde masquée enregistrée sur cet exercice.",
         "roleMustHaves": "Indispensables du poste",
-        "roleResponsibilities": "Responsabilités du poste"
+        "roleResponsibilities": "Responsabilités du poste",
+        "voiceScript": "Script de l’entretien vocal"
       },
       "shortlist": {
         "title": "Présélection, tous canaux"

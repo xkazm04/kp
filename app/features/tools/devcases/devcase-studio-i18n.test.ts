@@ -142,6 +142,7 @@ const CALLS: [string, Record<string, unknown>][] = [
   ["internal.noProbes", {}],
   ["internal.roleMustHaves", {}],
   ["internal.roleResponsibilities", {}],
+  ["internal.voiceScript", {}],
   ["shortlist.title", {}],
   ["channels.title", {}],
   ["channels.posting", {}],

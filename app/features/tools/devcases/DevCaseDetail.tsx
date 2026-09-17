@@ -178,7 +178,7 @@ export function CaseDetail({
       ) : null}
 
       {/* internal material — everything a candidate must never see */}
-      <DevCaseDetailInternal c={c} role={role} caseSubmissions={caseSubmissions} />
+      <DevCaseDetailInternal c={c} role={role} caseSubmissions={caseSubmissions} scenario={kase.scenario} />
 
       {/* A published assignment with no applicants used to render THREE nothings in a
           row: CompareSubmissions needs two evaluated submissions, the shortlist needs

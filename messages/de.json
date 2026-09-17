@@ -8784,7 +8784,8 @@
         "title": "Intern: Material für Interviewende und Prüfende",
         "noProbes": "Zu dieser Aufgabe sind keine verdeckten Sonden erfasst.",
         "roleMustHaves": "Muss-Kriterien der Rolle",
-        "roleResponsibilities": "Verantwortlichkeiten der Rolle"
+        "roleResponsibilities": "Verantwortlichkeiten der Rolle",
+        "voiceScript": "Skript für das Sprachinterview"
       },
       "shortlist": {
         "title": "Auswahlliste über alle Kanäle"

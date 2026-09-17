@@ -8784,7 +8784,8 @@
         "title": "Interní materiál pro tazatele a hodnotitele",
         "noProbes": "K tomuto zadání nejsou zaznamenány žádné skryté sondy.",
         "roleMustHaves": "Nutné požadavky role",
-        "roleResponsibilities": "Odpovědnosti role"
+        "roleResponsibilities": "Odpovědnosti role",
+        "voiceScript": "Scénář hlasového pohovoru"
       },
       "shortlist": {
         "title": "Užší výběr napříč kanály"

@@ -8784,7 +8784,8 @@
         "title": "Internal: interviewer & reviewer material",
         "noProbes": "No covert probes recorded on this assignment.",
         "roleMustHaves": "Role must-haves",
-        "roleResponsibilities": "Role responsibilities"
+        "roleResponsibilities": "Role responsibilities",
+        "voiceScript": "Voice screen script"
       },
       "shortlist": {
         "title": "Shortlist, all channels"
