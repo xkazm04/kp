@@ -1884,7 +1884,10 @@
     "JOB_TRANSLATE_FAILED": "Inzerát se nepodařilo přeložit. Zkuste to prosím znovu.",
     "JOB_TARGET_HIRES_INVALID": "Roli lze otevřít pro 1 až 50 přijatých kandidátů.",
     "JOB_TRANSLATION_LANG_INVALID": "Do tohoto jazyka tento inzerát přeložit nelze.",
-    "JOB_TRANSLATION_UNAVAILABLE": "Není nastavený žádný model AI, inzerát se proto nepřeložil."
+    "JOB_TRANSLATION_UNAVAILABLE": "Není nastavený žádný model AI, inzerát se proto nepřeložil.",
+    "JOB_NOT_FOUND": "Tato role není ve vašem katalogu.",
+    "JOB_AD_TOO_SHORT": "Vložte celý inzerát. Krátký úryvek nestačí.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Uveďte kandidáta, kterého chcete oslovit."
   },
   "resilience": {
     "notFoundEyebrow": "404",

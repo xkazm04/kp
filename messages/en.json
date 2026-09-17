@@ -1884,7 +1884,10 @@
     "JOB_TRANSLATE_FAILED": "Couldn't translate this posting. Please try again.",
     "JOB_TARGET_HIRES_INVALID": "A role is opened for between 1 and 50 hires.",
     "JOB_TRANSLATION_LANG_INVALID": "That is not a language this posting can be translated into.",
-    "JOB_TRANSLATION_UNAVAILABLE": "No AI model is configured, so this posting was not translated."
+    "JOB_TRANSLATION_UNAVAILABLE": "No AI model is configured, so this posting was not translated.",
+    "JOB_NOT_FOUND": "That role isn't in your catalog.",
+    "JOB_AD_TOO_SHORT": "Paste the full job ad. A short snippet is not enough.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Name the candidate to reach out to."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1884,7 +1884,10 @@
     "JOB_TRANSLATE_FAILED": "Das Inserat konnte nicht übersetzt werden. Bitte versuchen Sie es erneut.",
     "JOB_TARGET_HIRES_INVALID": "Eine Stelle wird für 1 bis 50 Einstellungen eröffnet.",
     "JOB_TRANSLATION_LANG_INVALID": "In diese Sprache lässt sich dieses Inserat nicht übersetzen.",
-    "JOB_TRANSLATION_UNAVAILABLE": "Es ist kein KI-Modell konfiguriert, daher wurde dieses Inserat nicht übersetzt."
+    "JOB_TRANSLATION_UNAVAILABLE": "Es ist kein KI-Modell konfiguriert, daher wurde dieses Inserat nicht übersetzt.",
+    "JOB_NOT_FOUND": "Diese Rolle ist nicht in Ihrem Katalog.",
+    "JOB_AD_TOO_SHORT": "Fügen Sie die vollständige Stellenanzeige ein. Ein kurzer Ausschnitt reicht nicht.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Nennen Sie den Kandidaten, den Sie kontaktieren möchten."
   },
   "resilience": {
     "notFoundEyebrow": "404",

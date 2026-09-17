@@ -1116,8 +1116,14 @@ Behavioral coverage: `app/_lib/job-ingest.test.ts`.
 form of the list's `(workspace_id IS NULL OR workspace_id = ?)` predicate. All of
 `campaign` (GET + POST), `winnability`, `rediscover`, `agent-fit`, `candidates` and
 `candidates/outreach` now do, ahead
-of the spend, answering `404` (never `403`, so the endpoint can't confirm an id
-exists); seeded corpus rows stay visible to every tenant. The last two were the
+of the spend, answering `jsonRefusal("JOB_NOT_FOUND", 404)` (never `403`, so the
+endpoint can't confirm an id exists); seeded corpus rows stay visible to every
+tenant. The point-read `GET /api/jobs/[id]`, ingest's too-short paste
+(`JOB_AD_TOO_SHORT`), outreach's missing `candidateId` (`OUTREACH_CANDIDATE_REQUIRED`)
+and GDPR 409 (`COMMS_SUPPRESSED`, with the existing `suppressed` token) use the
+same coded envelope so the Roles desk resolves them via `errors.*` in all four
+locales. The candidates empty-pool short-circuit drops the English `note` and
+answers `{ candidates: [] }` — clients already key off the empty array. The last two were the
 family members the first pass missed, and they are the two that cost the most when
 ungated: `GET .../candidates` spawns a `recruiter_cli` child fed the role's title,
 body and stated band, and `POST .../candidates/outreach` files a pipeline row

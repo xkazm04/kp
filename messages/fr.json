@@ -1884,7 +1884,10 @@
     "JOB_TRANSLATE_FAILED": "Impossible de traduire cette annonce. Veuillez réessayer.",
     "JOB_TARGET_HIRES_INVALID": "Un poste s'ouvre pour 1 à 50 recrutements.",
     "JOB_TRANSLATION_LANG_INVALID": "Cette annonce ne peut pas être traduite dans cette langue.",
-    "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite."
+    "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite.",
+    "JOB_NOT_FOUND": "Ce poste n'est pas dans votre catalogue.",
+    "JOB_AD_TOO_SHORT": "Collez l'annonce complète. Un court extrait ne suffit pas.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter."
   },
   "resilience": {
     "notFoundEyebrow": "404",
