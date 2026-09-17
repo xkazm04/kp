@@ -1871,6 +1871,10 @@
     "errorBody": "Une erreur inattendue a interrompu cette page. Rien n’a été perdu. Vous pouvez réessayer ou revenir à l’accueil.",
     "errorDigest": "Référence de l’erreur : {digest}",
     "retry": "Réessayer",
+    "report": "Signaler cette erreur",
+    "reporting": "Envoi du signalement",
+    "reportSent": "Signalement envoyé",
+    "reportFailed": "Impossible d’envoyer le signalement. Veuillez réessayer.",
     "home": "Retour à l’accueil"
   },
   "offer": {

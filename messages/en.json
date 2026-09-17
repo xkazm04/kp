@@ -1871,6 +1871,10 @@
     "errorBody": "An unexpected error interrupted this page. Nothing was lost. You can try again, or head back home.",
     "errorDigest": "Error reference: {digest}",
     "retry": "Try again",
+    "report": "Report this error",
+    "reporting": "Sending report",
+    "reportSent": "Report sent",
+    "reportFailed": "Could not send the report. Please try again.",
     "home": "Back to home"
   },
   "offer": {

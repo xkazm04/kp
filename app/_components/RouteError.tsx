@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PANEL } from "@/app/_components/ui/recipes";
 import { reportBoundaryError } from "@/app/_lib/sentry-client";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // Shared route-level error fallback — the branded panel every segment
 // `error.tsx` (and the root one) renders instead of Next's unstyled default.
@@ -25,6 +27,10 @@ export function RouteError({
   reset: () => void;
 }) {
   const t = useTranslations("resilience");
+  const errMsg = useErrorMessage();
+  const pathname = usePathname();
+  const [report, setReport] = useState<"idle" | "busy" | "sent">("idle");
+  const [reportError, setReportError] = useState<string | null>(null);
 
   useEffect(() => {
     // The console keeps the stack (and the server-side digest correlation id)
@@ -33,6 +39,35 @@ export function RouteError({
     console.error("Route render failed:", error);
     reportBoundaryError(error);
   }, [error]);
+
+  async function sendReport() {
+    if (report !== "idle") return;
+    setReport("busy");
+    setReportError(null);
+    // Digest + path only — the thrown English line is diagnosis, not copy, and
+    // must never land in a feedback row a colleague later reads.
+    const digest = error.digest ?? "";
+    try {
+      const r = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: digest ? `Route crash digest=${digest}` : "Route crash (no digest)",
+          route: pathname,
+        }),
+      });
+      if (!r.ok) {
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        setReportError(errMsg(p, t("reportFailed")));
+        setReport("idle");
+        return;
+      }
+      setReport("sent");
+    } catch {
+      setReportError(t("reportFailed"));
+      setReport("idle");
+    }
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper p-6">
@@ -48,10 +83,27 @@ export function RouteError({
           <button type="button" onClick={reset} className={`${BTN_PRIMARY} h-10 px-4`}>
             <RotateCcw size={14} aria-hidden /> {t("retry")}
           </button>
+          <button
+            type="button"
+            onClick={() => void sendReport()}
+            disabled={report !== "idle"}
+            className={`${BTN_SECONDARY} h-10 px-4`}
+          >
+            {report === "busy" ? t("reporting") : t("report")}
+          </button>
           <Link href="/" className={`${BTN_SECONDARY} h-10 px-4`}>
             {t("home")}
           </Link>
         </div>
+        {reportError ? (
+          <p role="alert" className="mt-3 text-sm font-medium text-coral">
+            {reportError}
+          </p>
+        ) : report === "sent" ? (
+          <p role="status" className="mt-3 text-sm font-medium text-ink">
+            {t("reportSent")}
+          </p>
+        ) : null}
       </div>
     </main>
   );

@@ -1871,6 +1871,10 @@
     "errorBody": "Ein unerwarteter Fehler hat diese Seite unterbrochen. Es ist nichts verloren gegangen. Sie können es erneut versuchen oder zur Startseite zurückkehren.",
     "errorDigest": "Fehlerreferenz: {digest}",
     "retry": "Erneut versuchen",
+    "report": "Fehler melden",
+    "reporting": "Meldung wird gesendet",
+    "reportSent": "Meldung gesendet",
+    "reportFailed": "Die Meldung konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
     "home": "Zurück zur Startseite"
   },
   "offer": {

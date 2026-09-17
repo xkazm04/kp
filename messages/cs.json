@@ -1871,6 +1871,10 @@
     "errorBody": "Načítání stránky přerušila neočekávaná chyba. O nic jste nepřišli. Zkuste to znovu, nebo se vraťte domů.",
     "errorDigest": "Kód chyby: {digest}",
     "retry": "Zkusit znovu",
+    "report": "Nahlásit chybu",
+    "reporting": "Odesílám hlášení",
+    "reportSent": "Hlášení odesláno",
+    "reportFailed": "Hlášení se nepodařilo odeslat. Zkuste to prosím znovu.",
     "home": "Zpět domů"
   },
   "offer": {
