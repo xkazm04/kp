@@ -126,7 +126,10 @@ palette. The full mapping table and the five reading states are in
    the in-product **Live Work Surface** (`LiveWorkSurface.tsx`) — every
    open/edit/decision-log/submit/paste event is server-recorded
    (`pipeline/jobfit/devcase/process_events.py`), so there is a first-party
-   observed trace with no reliance on a private git log.
+   observed trace with no reliance on a private git log. The per-token local
+   draft (`kp:devcase:livework:<token>`) also holds the captured chat transcript
+   and the candidate's name/contact, so a reload does not wipe the prompt-channel
+   evidence or force them to retype identity before Submit.
 5. **Evaluation.** `pipeline/jobfit/devcase/evaluate.py` +
    `reflect.py` run `reflect_commits → assess_tooling → evaluate_submission →
    score_transfer` (or the observed-event equivalent), producing dimension
@@ -1028,6 +1031,16 @@ credential. These rules keep that honest, all sized so a real candidate never me
   re-sends everything. That flush also carries **no `keepalive`** — the flag caps a request
   body at 64KB (the same rule `useTranscriptPersistence.ts` documents) and this is the one
   request that must carry the complete tree, which the server accepts at 50 files × 256KB.
+- **The local draft keeps chat and identity across a reload.** `LiveWorkDraft`
+  (`app/devcase/apply/[token]/liveWorkDraft.ts`) used to store only `sessionId`,
+  `files` and `pending` events, so a refresh wiped the captured assistant/stakeholder
+  transcript (LLM-era control #2, the evidence the candidate can see) and the
+  name/contact the finalize door requires — Submit disabled until they retyped.
+  The blob now round-trips `chat[]`, `name` and `contact` too, with the same
+  size/shape caps as files; `decodeDraft` drops unknown channels/roles and fills
+  empty values for a legacy blob that lacks the new keys. `LiveWorkSurface`
+  writes them on chat send and identity edits, and hydrates them on mount. A
+  successful submit still clears the key.
 - **Intake throttling.** `/api/devcase/inbound` accepts an application against the apply
   token, and each accepted call writes a submission row, sends the candidate
   acknowledgement over the relay to a **caller-supplied address**, and resumes a collecting
