@@ -43,6 +43,32 @@ function mainBlocks(src: string): string[] {
   return src.split(/return\s*\(/).slice(1).filter((block) => block.includes("<main"));
 }
 
+function closedRoleBlock(src: string): string {
+  const start = src.indexOf("if (!isJobOpenForApplications");
+  assert.ok(start >= 0, "could not locate the closed-role gate");
+  const rest = src.slice(start);
+  const end = rest.indexOf("\n  }\n");
+  assert.ok(end > 0, "could not find the end of the closed-role block");
+  return rest.slice(0, end);
+}
+
+test("a closed role renders apply.roleClosed and does not mount the chat or the quick form", () => {
+  const pages: { rel: string; form: string }[] = [
+    { rel: "page.tsx", form: "ConversationalApply" },
+    { rel: "quick/page.tsx", form: "QuickApplyForm" },
+  ];
+  for (const { rel, form } of pages) {
+    const src = read(rel);
+    const closed = closedRoleBlock(src);
+    assert.match(closed, /t\("roleClosed"\)/, `${rel} closed branch must render apply.roleClosed`);
+    assert.match(closed, /status === "draft"\) notFound\(\)/, `${rel} drafts 404`);
+    assert.doesNotMatch(closed, new RegExp(form), `${rel} closed branch must not mount ${form}`);
+    assert.match(src, new RegExp(`<${form}`), `${rel} open path still mounts ${form}`);
+    const mutated = closed.replace("{t(\"roleClosed\")}", `<${form} />`);
+    assert.match(mutated, new RegExp(form), `non-vacuity: ${rel} closed branch that mounts ${form} fails this pin`);
+  }
+});
+
 test("ApplyFollowup buttons compose the shared recipes instead of the banned primary literal", () => {
   const src = read("ApplyFollowup.tsx");
   assert.match(src, /from "@\/app\/_components\/ui\/recipes"/, "ApplyFollowup must import the button recipes");
