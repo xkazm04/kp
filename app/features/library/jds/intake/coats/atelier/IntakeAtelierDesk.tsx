@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { dictationLang } from "@/app/_lib/intake-lang";
 import { Paperclip } from "lucide-react";
 import { IconAction } from "@/app/_components/IconAction";
 import { StudioComposer, StudioDesk, StudioTranscript, StudioVoiceBar, useStudioComposerDraft } from "@/app/_components/studio";
@@ -51,6 +52,7 @@ export function IntakeAtelierDesk({
 }) {
   const t = useTranslations("library.tab.intake");
   const tCols = useTranslations("library.tab.intake.columns");
+  const viewerLocale = useLocale();
   // Controlled: the paperclip glyph opens the draft zone from OUTSIDE the desk,
   // so intake holds the open set and persists it with the kit's own helpers.
   const [open, setOpen] = useState<IntakeColumnKey[]>(() => readStoredColumns(INTAKE_COLUMNS_STORAGE_KEY, DEFAULT_OPEN));
@@ -141,7 +143,7 @@ export function IntakeAtelierDesk({
             draftKey={`kp-intake-draft:${active.id}`}
             focusRef={composerRef}
             leading={<IconAction icon={Paperclip} label={t("glyph.materials")} hint={materialsHint} onClick={revealMaterials} />}
-            voiceSlot={<IntakeDictationSlot lang={active.lang ?? "en"} sessionKey={active.id} speakText={speakText} disabled={logic.sending} />}
+            voiceSlot={<IntakeDictationSlot lang={dictationLang(active.lang, viewerLocale)} sessionKey={active.id} speakText={speakText} disabled={logic.sending} />}
             actions={
               <JdsIntakeVoice
                 intakeId={active.id}
