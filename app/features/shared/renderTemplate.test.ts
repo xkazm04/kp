@@ -89,12 +89,27 @@ test("unknown placeholders are left verbatim", () => {
   assert.equal(renderTemplate("{{company}} — {{unknown}}", { company: "Acme" }), "Acme — {{unknown}}");
 });
 
-test("default template: header collapses and lists fall back to a dash", () => {
+test("default template: header collapses and empty list sections drop their headings", () => {
   const out = renderTemplate(DEFAULT_TEMPLATE_BODY, { title: "Engineer", company: "Acme" });
   assert.match(out, /^# Engineer$/m);
   assert.match(out, /^\*\*Acme\*\*$/m); // no seniority/salary → header is just the company
-  assert.match(out, /^- —$/m); // empty responsibilities/mustHaves/niceToHaves fall back
+  assert.ok(!out.includes(TOKENS.heading_role), "empty responsibilities drop the role heading");
+  assert.ok(!out.includes(TOKENS.heading_requirements), "empty mustHaves drop the requirements heading");
+  assert.ok(!out.includes(TOKENS.heading_nice), "empty niceToHaves drop the nice-to-have heading");
+  assert.doesNotMatch(out, /^- —$/m, "empty lists must not emit a hollow dash bullet");
+  assert.ok(out.includes(TOKENS.heading_offer), "localized offer filler still keeps its section");
   assert.ok(!out.includes(`${SEP}\n`), "no separator should be left dangling before a newline");
+});
+
+test("a filled list keeps its heading; the other empty lists still collapse", () => {
+  const out = renderTemplate(DEFAULT_TEMPLATE_BODY, {
+    title: "Engineer",
+    company: "Acme",
+    mustHaves: ["TypeScript"],
+  });
+  assert.ok(out.includes(TOKENS.heading_requirements) && out.includes("- TypeScript"));
+  assert.ok(!out.includes(TOKENS.heading_role), "empty responsibilities still drop");
+  assert.ok(!out.includes(TOKENS.heading_nice), "empty niceToHaves still drop");
 });
 
 // ---- findUnknownPlaceholders — the save-time linter -------------------------

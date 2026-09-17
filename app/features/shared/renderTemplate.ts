@@ -151,7 +151,10 @@ const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 // ship raw `{{heading_about}}` onto a public posting, so the type system asks the
 // caller which language the document is in.
 export function renderTemplate(body: string, data: TemplateData, localized: TemplateTokens): string {
-  const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "- —");
+  // Empty lists must be actually empty so the section-collapse pass can drop the
+  // heading, matching {{about}}. A literal "- —" is never EMPTY_MARK, so it used
+  // to leave hollow Requirements / Nice-to-have sections on a generated JD.
+  const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "");
   const map: Record<string, string> = {
     title: data.title?.trim() || "Role title",
     company: data.company?.trim() || "Company",

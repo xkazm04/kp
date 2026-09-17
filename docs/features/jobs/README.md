@@ -161,6 +161,12 @@ it). Contract:
 Edits live only in memory until **Save as draft** persists them; switching
 templates is the one action that can replace them, and it now always asks.
 
+Empty `responsibilities` / `mustHaves` / `niceToHaves` collapse the same way
+empty `{{about}}` already did: `renderTemplate` emits no hollow `- —` bullet, so
+the section-collapse pass drops the heading and a generated JD does not publish
+unfinished Requirements / Nice-to-have sections. A filled list still renders
+markdown bullets. Pinned by `app/features/shared/renderTemplate.test.ts`.
+
 ### A template list that could not load says so
 
 `fetchTemplates` (`app/features/shared/templatesClient.ts`) answers
