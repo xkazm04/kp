@@ -251,7 +251,11 @@ call a stage weak.
   `no-movement` show a guide, not a table), so the file can never carry a table the reader was
   not looking at. `current` is the one column on the file but not on the band's rows — the same
   field the dwell panel directly below renders, so the export adds a number the page already
-  states rather than a measurement it does not.
+  states rather than a measurement it does not. Both this file and `kp-roles.csv` now open
+  with the same provenance block the decision-log CSV already used (export name, generated
+  ISO UTC, window, `bucketTz`, locale, and — when they bite — the cohort-cap note and the
+  guided-demo exclusion count), so a deck paste cannot disagree with the header about what
+  was counted.
 
 ## Economics — one comparison board
 

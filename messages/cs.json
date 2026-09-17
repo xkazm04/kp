@@ -6963,6 +6963,8 @@
     "viewInBoard": "Otevřít tyto kandidáty na nástěnce pipeline",
     "openPipelineBoard": "Otevřít nástěnku pipeline",
     "windowLabel": "Časové okno",
+    "exportProvTruncated": "Zkráceno",
+    "exportProvExcludedSim": "Vynechané demo-řádky",
     "windowAll": "Za celou dobu",
     "windowDays": "Posledních {days} dní",
     "metricPackDownload": "Stáhnout sadu metrik",

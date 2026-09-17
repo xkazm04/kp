@@ -6963,6 +6963,8 @@
     "viewInBoard": "Open these candidates on the pipeline board",
     "openPipelineBoard": "Open the pipeline board",
     "windowLabel": "Time window",
+    "exportProvTruncated": "Truncated",
+    "exportProvExcludedSim": "Guided-demo rows excluded",
     "windowAll": "All time",
     "windowDays": "Last {days} days",
     "metricPackDownload": "Download metric pack",

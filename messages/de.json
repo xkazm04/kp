@@ -6963,6 +6963,8 @@
     "viewInBoard": "Diese Kandidaten auf dem Pipeline-Board öffnen",
     "openPipelineBoard": "Pipeline-Board öffnen",
     "windowLabel": "Zeitfenster",
+    "exportProvTruncated": "Gekürzt",
+    "exportProvExcludedSim": "Geführte Demo-Zeilen ausgeschlossen",
     "windowAll": "Gesamt",
     "windowDays": "Letzte {days} Tage",
     "metricPackDownload": "Kennzahlenpaket herunterladen",
