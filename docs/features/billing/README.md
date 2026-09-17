@@ -375,7 +375,10 @@ write is reported in the ingest result's `detail` and still answers 2xx: the eve
 `listBillingAlerts` takes a `limit`, clamped to 1..500 (default 200). It is fed by a
 PROVIDER event stream — one row per distinct dark subscription or order — so an
 unbounded `SELECT … ORDER BY id DESC` was a table read whose size an external system
-decided.
+decided. `resolveBillingAlert({ id, orgId, expectedUnresolved: true })` stamps
+`resolved_at` with a compensating `WHERE resolved_at IS NULL`, so a paid-but-unmapped
+Polar signal can leave the open worklist; a second call (or a missing id) returns
+false and does not move the stamp. Pinned by `app/_lib/db/billing-store.test.ts`.
 
 `billing_events` rows are kept **forever**: the row *is* the idempotency gate, and
 deleting one would let a very late redelivery re-apply a plan change or re-grant a pack.
