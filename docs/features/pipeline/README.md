@@ -638,11 +638,14 @@ Back, the Scorecard) beside the carried-over `pipeline.drawer.*`, in all four lo
 When the board has no entries, block 3 is replaced by
 `app/features/hiring/pipeline/empty/PipelineEmptyState.tsx`. It is the first-run
 surface, so it teaches rather than apologises, and the board is its own
-illustration: the five real lanes through `useEnumLabel`, in the live column-header
-type, each holding a bracketed exemplar of what lands in it
-(`stageSlot.<stage>`, optional per stage so a renamed axis gets no English baked
-in — see [surface-doctrine §1](../../design/surface-doctrine.md), "an empty state
-is an exemplar, not a skeleton").
+illustration: the live workspace axis (the same columns `GET /api/pipeline` handed
+the board), labelled through `useEnumLabel` or the workspace's own label, in the
+live column-header type, each holding a bracketed exemplar of what lands in it
+(`stageSlot.<id>`, optional per stage so a custom id gets the fallback, not
+English — see [surface-doctrine §1](../../design/surface-doctrine.md), "an empty state
+is an exemplar, not a skeleton"). A seven-column Enterprise funnel therefore
+teaches seven lanes; the shipped default stays five. The entry-column exemplar is
+the stage whose `role` is `entry`, not index 0.
 
 Below a hairline sits the inflow zone: **three action cards, numbered, that all
 feed the first lane**. The order is a real dependency and lives once in

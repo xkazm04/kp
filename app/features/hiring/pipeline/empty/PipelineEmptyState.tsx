@@ -42,8 +42,8 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, CornerLeftUp, UserPlus } from "lucide-react";
 import { PANEL, EYEBROW, TITLE_DISPLAY, META_LABEL, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
-import { STAGES } from "@/app/features/shared/pipelineTypes";
-import { EMPTY_MOVES } from "./pipelineEmptyMoves";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { EMPTY_MOVES, emptyBoardLanes, isEmptyBoardEntryLane } from "./pipelineEmptyMoves";
 import { useEmptyMoveNav } from "./useEmptyMoveNav";
 import { PipelineEmptyMoveCard } from "./PipelineEmptyMoveCard";
 
@@ -53,6 +53,8 @@ export type PipelineEmptyStateProps = {
   onResumeSetup: () => void;
   /** Absent when the guided tour is already running. */
   onStartTour?: () => void;
+  /** The live board axis from GET /api/pipeline — the set teaches these columns. */
+  axis: readonly StageDef[];
 };
 
 /**
@@ -78,14 +80,18 @@ export function PipelineEmptyState({
   setupUnfinished,
   onResumeSetup,
   onStartTour,
+  axis,
 }: PipelineEmptyStateProps): React.JSX.Element {
   const t = useTranslations("pipeline.emptyState");
   const enumLabel = useEnumLabel();
   const go = useEmptyMoveNav();
+  const lanes = emptyBoardLanes(axis);
   // The slot copy is OPTIONAL per stage: a workspace that renames or invents a
-  // column (Settings -> Hiring composes the axis) simply gets no exemplar rather
+  // column (Settings -> Hiring composes the axis) simply gets the fallback rather
   // than an English one baked in.
   const slotFor = (stage: string): string => labelOr(t, `stageSlot.${stage}`, t("stageSlotFallback"));
+  const stageLabel = (stage: StageDef): string =>
+    stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
 
   return (
     <section className={`${PANEL} overflow-hidden`} aria-label={t("stageSet.title")}>
@@ -111,8 +117,13 @@ export function PipelineEmptyState({
 
       {/* The set itself: the live board's column header row, unfilled. */}
       <ol aria-label={t("stageSet.laneStrip")} className="mt-4 flex border-y border-stone-200 bg-stone-50">
-        {STAGES.map((stage, i) => (
-          <SetLane key={stage} label={enumLabel("stage", stage)} slot={slotFor(stage)} entry={i === 0} />
+        {lanes.map((stage) => (
+          <SetLane
+            key={stage.id}
+            label={stageLabel(stage)}
+            slot={slotFor(stage.id)}
+            entry={isEmptyBoardEntryLane(stage)}
+          />
         ))}
       </ol>
 

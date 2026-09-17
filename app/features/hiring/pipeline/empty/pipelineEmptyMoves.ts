@@ -28,7 +28,18 @@
  */
 
 // Type-only, so this module stays runnable under `node --test` type stripping.
+import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { WorkspaceTabId } from "@/app/features/shell/tabs";
+
+/** Lanes the empty set draws: the live workspace axis, never the shipped five names. */
+export function emptyBoardLanes(axis: readonly StageDef[]): readonly StageDef[] {
+  return axis;
+}
+
+/** The inflow lands on the entry-role column, which may not be index 0. */
+export function isEmptyBoardEntryLane(stage: Pick<StageDef, "role">): boolean {
+  return stage.role === "entry";
+}
 
 export type EmptyMoveKey = "role" | "candidates" | "channels";
 

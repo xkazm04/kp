@@ -111,6 +111,7 @@ export function PipelineTab() {
            own lanes are the illustration and each move is one action card
            (empty/PipelineEmptyState.tsx). */
         <PipelineEmptyState
+          axis={s.axis}
           setupUnfinished={setupUnfinished}
           onResumeSetup={requestOnboardingReopen}
           onStartTour={s.sim.running ? undefined : s.sim.start}
