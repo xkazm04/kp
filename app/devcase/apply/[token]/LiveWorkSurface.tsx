@@ -6,6 +6,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft, type LiveWorkChatMessage } from "./liveWorkDraft";
+import { foldMintRefusal } from "./liveWorkMint";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTICE, PANEL, PANEL_SUNKEN, toggleBtn } from "@/app/_components/ui/recipes";
 import { useTablist } from "@/app/_components/ui/useTablist";
 
@@ -214,7 +215,7 @@ export function LiveWorkSurface({
           // link has spent its day of sessions) are both terminal-ish and both have a
           // code. Show it; retrying into a wall silently is the failure being fixed.
           const payload = (await r.json().catch(() => null)) as ApiErrorPayload | null;
-          setRefusal(payload?.code ? payload : { code: null, error: null });
+          setRefusal(foldMintRefusal({ ok: false, payload }));
           return null;
         }
         setRefusal(null);
@@ -238,6 +239,10 @@ export function LiveWorkSurface({
         }
         return sessionIdRef.current;
       } catch {
+        // Offline / DNS / CORS: the coded 404/429 path above never runs. Paint the
+        // generic workSurface.error line (null code) so the candidate is not typing
+        // into an unrecorded session; startingRef is still cleared in `finally`.
+        setRefusal(foldMintRefusal({ networkError: true }));
         return null;
       }
     })();

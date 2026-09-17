@@ -559,9 +559,13 @@ The client half mattered more than the wire half: `LiveWorkSurface.ensureSession
 drop a failed mint on the floor and answer `null`, so a candidate whose link had closed or
 whose quota was spent kept typing into a surface that recorded nothing and learned about
 it only when Submit failed with the generic line. It now reads the code through
-`useErrorMessage` and shows it as an alert beside the sync banner; the submit path resolves
-its code the same way, with the existing `errorClosed`/`error` strings as fallback so a
-future code with no catalog entry still degrades to a sentence. Statuses are unchanged —
+`useErrorMessage` and shows it as an alert beside the sync banner. A thrown fetch
+(offline, DNS, CORS) used to take the same silent path — `catch { return null }` with
+no refusal — and now folds to `{ code: null, error: null }` so the generic
+`workSurface.error` line paints beside the sync banner while the next tick can retry
+(`foldMintRefusal` in `liveWorkMint.ts`). The submit path resolves its code the same
+way, with the existing `errorClosed`/`error` strings as fallback so a future code with
+no catalog entry still degrades to a sentence. Statuses are unchanged —
 `session-intake-guards.test.ts` and `inbound/route.test.ts` still pin 404/410/429 against
 the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins the
 source: no route may re-type the closed-intake sentence, and the work surface may never
