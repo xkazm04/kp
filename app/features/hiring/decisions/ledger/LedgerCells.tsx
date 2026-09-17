@@ -71,9 +71,10 @@ export function SelectCell({ row, selected, onToggle }: { row: LedgerRow; select
   );
 }
 
-/** The Decision column: accept ✓ and reject ✕ apply the AI's proposal right here
- *  (an offer accept uses the default deadline); the third door opens the candidate
- *  modal for a considered decision. Hidden in select mode — the batch bar decides. */
+/** The Decision column: accept ✓ and reject ✕ apply the AI's proposal right here;
+ *  offer rows hide ✓ so the deadline is chosen in the candidate modal (batch
+ *  already excludes offers). The third door opens that modal. Hidden in select
+ *  mode — the batch bar decides. */
 export function DecisionCell({
   row,
   onAccept,
@@ -93,16 +94,18 @@ export function DecisionCell({
     <span className="inline-flex items-center justify-end gap-1">
       {hidden ? null : (
         <>
-          <button
-            type="button"
-            data-sim-click="accept"
-            onClick={onAccept}
-            aria-label={t("quickAccept", { name })}
-            title={t("quickAccept", { name })}
-            className={`${ICON_BTN} border-moss/40 bg-white text-moss hover:bg-moss/10`}
-          >
-            <Check size={15} aria-hidden />
-          </button>
+          {row.kind === "offer" ? null : (
+            <button
+              type="button"
+              data-sim-click="accept"
+              onClick={onAccept}
+              aria-label={t("quickAccept", { name })}
+              title={t("quickAccept", { name })}
+              className={`${ICON_BTN} border-moss/40 bg-white text-moss hover:bg-moss/10`}
+            >
+              <Check size={15} aria-hidden />
+            </button>
+          )}
           <button
             type="button"
             onClick={onReject}

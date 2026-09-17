@@ -1431,7 +1431,9 @@ quick-decide mechanism. Columns: candidate · role · **pipeline** (the board-st
 chip, the one place the row says where the person stands) · the ONE canonical fit
 score · what the AI proposes (its verdict, or the offer amount — an unpriced draft says
 so) · **decision**. The decision column is three icon doors: accept ✓ and reject ✕
-apply the proposal from the row (an offer accept uses the default deadline), and the
+apply the proposal from the row, except offer rows hide ✓ so the deadline is chosen
+in the candidate modal (batch already excludes offers — a one-click accept must not
+mint a 7-day offer the recruiter did not pick), and the
 third opens the candidate modal for a considered call; in select mode only the modal
 door remains — the batch bar decides. Rows read one model
 (`decisionsLedgerModel.ts`, pinned by its test) and share their cells
