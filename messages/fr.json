@@ -5316,7 +5316,13 @@
         "elsewhere": "Déjà engagé sur un autre poste, et également {score} % de correspondance pour {jobTitle}. Un redéploiement à envisager.",
         "reached": "Est allé jusqu’à {stage} la dernière fois. Classé avant les parcours antérieurs moins avancés."
       },
-      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}"
+      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}",
+      "filterAria": "Résultat antérieur",
+      "filterRejected": "Rejetés",
+      "filterClosed": "Poste clos",
+      "filterElsewhere": "Ailleurs",
+      "filterEmptyTitle": "Personne ne correspond à ce filtre",
+      "filterEmptyBody": "Réactivez un type de résultat antérieur pour revoir ces candidats."
     },
     "rediscoveryFeed": {
       "title": "Médaillés d’argent",

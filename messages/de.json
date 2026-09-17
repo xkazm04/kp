@@ -5316,7 +5316,13 @@
         "elsewhere": "Bereits für eine andere Stelle im Prozess; zugleich {score}% Eignung für {jobTitle}. Eine Umbesetzung, die eine Überlegung wert ist.",
         "reached": "Kam letztes Mal bis {stage}. Wird vor flacheren früheren Verläufen einsortiert."
       },
-      "suppressed": "{count, plural, one {# frühere Person wurde ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.} other {# frühere Personen wurden ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.}}"
+      "suppressed": "{count, plural, one {# frühere Person wurde ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.} other {# frühere Personen wurden ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.}}",
+      "filterAria": "Früheres Ergebnis",
+      "filterRejected": "Abgelehnt",
+      "filterClosed": "Stelle geschlossen",
+      "filterElsewhere": "Anderswo",
+      "filterEmptyTitle": "Niemand passt zu diesem Filter",
+      "filterEmptyBody": "Schalten Sie eine frühere Art wieder ein, um diese Kandidaten zu sehen."
     },
     "rediscoveryFeed": {
       "title": "Zweitplatzierte",

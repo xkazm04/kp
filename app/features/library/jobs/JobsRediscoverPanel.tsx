@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Check, History, RotateCcw, Send, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
@@ -7,11 +8,25 @@ import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReachOut } from "@/app/_lib/useReachOut";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import type { SkippedCandidate } from "./JobsTypes";
 // Type-only import of the canonical wire row — erased at compile time, so it does
 // NOT pull rediscover.ts's better-sqlite3 runtime into this client bundle.
 import type { Rediscovered } from "@/app/_lib/rediscover";
+import {
+  ALL_KINDS_ON,
+  REDISCOVER_KINDS,
+  filterRediscoverByKind,
+  toggleKind,
+  type RediscoverKind,
+} from "./jobsRediscoverKindFilter";
+
+const KIND_LABEL: Record<RediscoverKind, "filterRejected" | "filterClosed" | "filterElsewhere"> = {
+  rejected: "filterRejected",
+  closed: "filterClosed",
+  elsewhere: "filterElsewhere",
+};
 
 const PRIOR_STYLE: Record<string, string> = {
   rejected: "bg-coral/10 text-coral",
@@ -56,6 +71,8 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
     suppressed > 0 ? <p className="mt-2 text-sm text-steel">{t("suppressed", { count: suppressed })}</p> : null;
   const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId, "sourcing");
+  const [kindFilter, setKindFilter] = useState(ALL_KINDS_ON);
+  const shown = data ? filterRediscoverByKind(data, kindFilter) : [];
 
   if (error) {
     return (
@@ -78,6 +95,22 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
     );
   // The skipped note rides above the results regardless of whether any candidate
   // resurfaced — a malformed profile may be exactly why the list looks empty.
+  const kindChips = (
+    <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label={t("filterAria")}>
+      {REDISCOVER_KINDS.map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          aria-pressed={kindFilter[kind]}
+          onClick={() => setKindFilter((f) => toggleKind(f, kind))}
+          className={`${CHIP_TOGGLE(kindFilter[kind])} cursor-pointer px-2.5 py-0.5`}
+        >
+          {t(KIND_LABEL[kind])}
+        </button>
+      ))}
+    </div>
+  );
+
   if (data.length === 0) {
     return (
       <div>
@@ -105,8 +138,12 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
           b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
         })}
       </p>
+      {kindChips}
+      {shown.length === 0 ? (
+        <EmptyState icon={History} title={t("filterEmptyTitle")} body={t("filterEmptyBody")} />
+      ) : (
       <ul className="mt-3 space-y-2">
-        {data.map((c) => {
+        {shown.map((c) => {
           const err = addError(c.candidateId);
           const reachErr = reachError(c.candidateId);
           const input = { candidateId: c.candidateId, candidateLabel: c.label, archetype: c.archetype, matchScore: c.score };
@@ -187,7 +224,8 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
           );
         })}
       </ul>
-      {more > 0 ? (
+      )}
+      {shown.length > 0 && more > 0 ? (
         <p className="mt-2 text-sm text-steel">{tMore("moreCount", { count: more })}</p>
       ) : null}
     </div>

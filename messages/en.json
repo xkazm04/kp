@@ -5316,7 +5316,13 @@
         "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle}. A redeploy worth weighing.",
         "reached": "Got as far as {stage} last time. Surfaced ahead of shallower priors."
       },
-      "suppressed": "{count, plural, one {# past candidate was left out: their consent has lapsed or their data was erased.} other {# past candidates were left out: their consent has lapsed or their data was erased.}}"
+      "suppressed": "{count, plural, one {# past candidate was left out: their consent has lapsed or their data was erased.} other {# past candidates were left out: their consent has lapsed or their data was erased.}}",
+      "filterAria": "Prior outcome",
+      "filterRejected": "Rejected",
+      "filterClosed": "Role closed",
+      "filterElsewhere": "Elsewhere",
+      "filterEmptyTitle": "No one matches this filter",
+      "filterEmptyBody": "Turn a prior kind back on to see those candidates."
     },
     "rediscoveryFeed": {
       "title": "Silver medalists",

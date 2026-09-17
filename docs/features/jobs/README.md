@@ -707,7 +707,11 @@ The panel now appends the shared `match.card.moreCount` line ("+15 more") below
 the list whenever `more > 0`. A failed on-demand load offers the same retry
 control the standing feed already has (`reload` from `useJsonFetch`), so a
 spawn timeout is recoverable without closing the modal. Pinned by
-`jobsRediscoverRetry.test.ts`. The **standing** feed (`JobsRediscoveryFeed`) is a
+`jobsRediscoverRetry.test.ts`. The list also filters client-side by prior kind
+(`rejected` / `closed` / `elsewhere`, default all on) so a recruiter can hide
+"we rejected them" while looking at "the req died". An empty filter shows its
+own empty state, not the pool-empty copy. Pinned by
+`jobsRediscoverKindFilter.test.ts`. The **standing** feed (`JobsRediscoveryFeed`) is a
 separate, alert-backed surface and is not paged this way.
 
 The same honesty applies one layer up. `buildCandidatePool` already computes

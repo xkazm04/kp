@@ -5316,7 +5316,13 @@
         "elsewhere": "Už je v procesu na jiné pozici; zároveň {score}% shoda pro {jobTitle}. Přesun stojí za zvážení.",
         "reached": "Minule došel/došla až do fáze {stage}. Řadí se před kandidáty s mělčím postupem."
       },
-      "suppressed": "{count, plural, one {# dřívější kandidát byl vynechán: vypršel mu souhlas nebo byla jeho data smazána.} few {# dřívější kandidáti byli vynecháni: vypršel jim souhlas nebo byla jejich data smazána.} other {# dřívějších kandidátů bylo vynecháno: vypršel jim souhlas nebo byla jejich data smazána.}}"
+      "suppressed": "{count, plural, one {# dřívější kandidát byl vynechán: vypršel mu souhlas nebo byla jeho data smazána.} few {# dřívější kandidáti byli vynecháni: vypršel jim souhlas nebo byla jejich data smazána.} other {# dřívějších kandidátů bylo vynecháno: vypršel jim souhlas nebo byla jejich data smazána.}}",
+      "filterAria": "Dřívější výsledek",
+      "filterRejected": "Zamítnutí",
+      "filterClosed": "Role uzavřena",
+      "filterElsewhere": "Jinde",
+      "filterEmptyTitle": "Tento filtr nikoho neukazuje",
+      "filterEmptyBody": "Zapněte znovu některý dřívější výsledek, aby se kandidáti objevili."
     },
     "rediscoveryFeed": {
       "title": "Stříbrní medailisté",
