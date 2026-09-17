@@ -45,7 +45,11 @@ career-switcher) that other features key off. Downstream ranking is
 - **Saved analysis report** — `app/history/[slug]/page.tsx`. Its "Add to pipeline"
   files the candidate under the JD's REAL title (`loadJd(jd_slug, ws).title`,
   workspace-scoped, best-effort); the synthetic `JD <slug>` remains only as the
-  fallback for a JD deleted out from under the analysis. History list —
+  fallback for a JD deleted out from under the analysis. The live Analyze result
+  uses the same filing identity: `deriveAnalyzePipelineAffordance` resolves
+  `jobTitle` from the picker's `JdSummary` for the run's `jdSlug` (the library
+  the form already holds) and falls back to `JD <slug>` only when that row is
+  missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
   seniority/decision filters run CLIENT-side over the rows `/api/analyses`
   returned (a hard `LIMIT 200`, no truncation flag — see Known gaps). The
@@ -352,8 +356,15 @@ students get project/thesis + education + aspirations questions, switchers get
 prior-field + direction questions, experienced candidates get the original
 flow. This branching is implemented as conditional steps in `apply.ts` /
 `apply-intake.ts` (`stepConditionMet` / `nextVisibleStepIndex`), not a
-per-archetype form. Quick apply (`QuickApplyForm.tsx`) is the short-form
-alternative behind `app/api/apply/[id]/quick/route.ts`.
+per-archetype form. The chat names remaining work as a visible-lane
+progress ("Question 3 of 8"): `visibleStepProgress` counts only the steps
+the current answers will actually show (a student's total is not a BAU
+total), and `ConversationalApply` binds that to a `role="progressbar"`
+above the transcript, hidden on the done card. Text only — no meter
+animation — so a reduced-motion reader gets the same signal. Pinned by
+`apply-intake.test.ts` and `apply-door-a11y.test.ts`. Quick apply
+(`QuickApplyForm.tsx`) is the short-form alternative behind
+`app/api/apply/[id]/quick/route.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
 email as *editable* defaults. It is deliberately conservative — a wrong guess costs
