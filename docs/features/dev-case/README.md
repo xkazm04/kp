@@ -63,8 +63,10 @@ palette. The full mapping table and the five reading states are in
     **Bounced**, not the green `sent` its column still stores), a dead letter a
     resend already recovered reads **Recovered** and leaves the "needs attention"
     chip, and a receipt matching no send in the window reads **Unmatched receipt**.
-    The one-click resend is offered on an *unrecovered* `failed` only — a bounce
-    needs the corrected-address form, and a recovered row would only earn a 409.
+    The one-click resend is offered on an *unrecovered* `failed` only. A bounce
+    mounts Channels' `BouncedResend` (corrected-address form, same
+    `channels.comms` copy) in the status cell so the recruiter can recover the
+    letter without leaving Assignments; a recovered row would only earn a 409.
     Labels come from the shared `channels.comms` status catalog (a surface picks its
     own tone, never its own delivery vocabulary). Caveat: supersession is computed
     over what `GET /api/devcase/comms` returned, currently the newest 50 rows.

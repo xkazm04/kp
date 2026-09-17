@@ -12,8 +12,13 @@
 //     had already recovered stayed in the "needs attention" chip forever.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { isDeadLetter, outboxRows, outboxVerdicts } from "./outboxView.ts";
 import type { OutboxItem } from "./DevTypes.ts";
+
+const rowsSrc = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "OutboxRows.tsx"), "utf8");
 
 const M = (
   id: string,
@@ -131,4 +136,12 @@ test("outboxRows never mutates the input array", () => {
   const order = OUTBOX.map((m) => m.id);
   view();
   assert.deepEqual(OUTBOX.map((m) => m.id), order);
+});
+
+test("failed rows expose one-click resend; bounced rows expose the corrected-address form", () => {
+  assert.match(rowsSrc, /from "@\/app\/features\/hiring\/channels\/ChannelsCommsBouncedResend"/);
+  assert.match(rowsSrc, /\{m\.verdict === "failed" \? <ResendButton id=\{m\.id\} onResent=\{onResent\} compact \/> : null\}/);
+  assert.match(rowsSrc, /\{m\.verdict === "bounced" \? \(/);
+  assert.match(rowsSrc, /<BouncedResend id=\{m\.id\} defaultRecipient=\{m\.recipient\}/);
+  assert.doesNotMatch(rowsSrc, /verdict === "bounced"[\s\S]{0,120}<ResendButton/);
 });
