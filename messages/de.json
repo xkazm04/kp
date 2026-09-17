@@ -4003,6 +4003,23 @@
         "confirm": "Ablehnen & Grund erfassen",
         "sealedToast": "{name} abgelehnt. Der Grund steht im Auditprotokoll."
       },
+      "acceptConfirm": {
+        "title": "{name} weiterziehen?",
+        "body": "Ein Weiterziehen versiegelt eine benannte Begründung im manipulationssicheren Auditprotokoll, warum diese Person das Feld gewonnen hat. Ohne sie steht im Audit nur, dass eine Recruiterin oder ein Recruiter angenommen hat.",
+        "presetsLabel": "Häufige Gründe",
+        "presets": {
+          "strongestField": "Stärkste Person im Vergleichsfeld",
+          "mustHaves": "Erfüllt jede Muss-Anforderung der Rolle",
+          "scorecard": "Scorecard und Belege stützen das Weiterziehen"
+        },
+        "reasonLabel": "Grund für das Weiterziehen",
+        "reasonRequired": "· erforderlich, wird im Auditprotokoll versiegelt",
+        "placeholder": "Warum geht es mit dieser Person weiter? z. B. stärkste Kubernetes-Belege im Feld, und jede Muss-Anforderung ist erfüllt.",
+        "sealNote": "Wird wortgetreu erfasst. Genau so lesen es das Auditprotokoll und jede spätere Prüfung.",
+        "cancel": "Abbrechen",
+        "confirm": "Weiterziehen & Grund erfassen",
+        "sealedToast": "{name} weitergezogen. Der Grund steht im Auditprotokoll."
+      },
       "schemeSkillsShort": "F",
       "schemeCareerShort": "K",
       "schemePersonalShort": "P",

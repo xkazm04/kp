@@ -4003,6 +4003,23 @@
         "confirm": "Rejeter et consigner le motif",
         "sealedToast": "{name} rejeté(e). Le motif figure au registre d’audit."
       },
+      "acceptConfirm": {
+        "title": "Faire avancer {name} ?",
+        "body": "L’avancement scelle un motif nommé dans le registre d’audit inviolable : pourquoi cette personne a remporté le panel. Sans lui, l’audit indique seulement qu’un recruteur a accepté.",
+        "presetsLabel": "Motifs courants",
+        "presets": {
+          "strongestField": "La plus forte du panel comparé",
+          "mustHaves": "Couvre chaque exigence indispensable du poste",
+          "scorecard": "La grille et les preuves justifient l’avancement"
+        },
+        "reasonLabel": "Motif de l’avancement",
+        "reasonRequired": "· obligatoire, scellé dans le registre d’audit",
+        "placeholder": "Pourquoi cette personne poursuit-elle ? Par ex. les preuves Kubernetes les plus solides du panel, et chaque exigence indispensable est couverte.",
+        "sealNote": "Consigné tel quel. C’est ce que liront la piste d’audit et toute relecture ultérieure.",
+        "cancel": "Annuler",
+        "confirm": "Faire avancer et consigner le motif",
+        "sealedToast": "{name} avancé(e). Le motif figure au registre d’audit."
+      },
       "schemeSkillsShort": "Cp",
       "schemeCareerShort": "Ca",
       "schemePersonalShort": "Pe",

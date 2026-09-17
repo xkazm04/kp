@@ -4003,6 +4003,23 @@
         "confirm": "Zamítnout a zaznamenat důvod",
         "sealedToast": "{name} zamítnut(a). Důvod je v auditním záznamu."
       },
+      "acceptConfirm": {
+        "title": "Posunout {name} dál?",
+        "body": "Postup se zapečetí do auditního záznamu odolného proti manipulaci s uvedeným důvodem, proč tento kandidát vyhrál pole. Bez něj by v auditu stálo jen to, že náborář přijal.",
+        "presetsLabel": "Časté důvody",
+        "presets": {
+          "strongestField": "Nejsilnější v porovnávaném poli",
+          "mustHaves": "Splňuje všechny povinné požadavky této role",
+          "scorecard": "Hodnoticí karta a doložené důkazy podporují postup"
+        },
+        "reasonLabel": "Důvod postupu",
+        "reasonRequired": "· povinné, zapečetí se do auditního záznamu",
+        "placeholder": "Proč tento kandidát postupuje dál? Např. nejsilnější doložené Kubernetes v poli a splněné všechny povinné požadavky.",
+        "sealNote": "Zaznamená se přesně tak, jak je napsáno. Takto ho uvidí auditní stopa i pozdější revize.",
+        "cancel": "Zrušit",
+        "confirm": "Posunout a zaznamenat důvod",
+        "sealedToast": "{name} posunut(a) dál. Důvod je v auditním záznamu."
+      },
       "schemeSkillsShort": "D",
       "schemeCareerShort": "K",
       "schemePersonalShort": "O",
