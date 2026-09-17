@@ -150,12 +150,17 @@ test("GET pins the EXACT field set that reaches the candidate — no silent leak
     "jobTitle",
     "salary",
     "status",
+    "timeZone",
     "token",
   ]);
   // The countdown is SERVER-computed (offers-onboarding #5) and rides the same
   // instant as the deadline the letter states.
   assert.equal(typeof body.offer.hoursRemaining, "number");
   assert.ok(body.offer.hoursRemaining > 0 && body.offer.hoursRemaining <= 7 * 24);
+  // Named IANA zone so the accept card can format expiresAt on the same clock
+  // as the letter, without a schema column.
+  assert.equal(typeof body.offer.timeZone, "string");
+  new Intl.DateTimeFormat("en-US", { timeZone: body.offer.timeZone });
 });
 
 test("POST pins the EXACT success field set", async () => {

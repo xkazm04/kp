@@ -9,6 +9,7 @@ import { recordMeterUsage } from "./billing";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
 import { offerHoursRemaining } from "./offer-policy";
+import { INTERVIEW_TZ } from "./schedule-slots";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -220,6 +221,10 @@ export function offerView(token: string) {
     // Countdown computed on the SERVER clock (offers-onboarding #5) so the candidate's
     // "X hours left" copy can't drift from server-enforced expiry under client clock skew.
     hoursRemaining: offerHoursRemaining(offer.expiresAt),
+    // The company's named zone (KP_INTERVIEW_TZ, Europe/Prague default) — same
+    // clock the slot grid uses. The offer row has no zone column yet; formatOfferDeadline
+    // already accepts this as its third argument. Server-resolved, never a client guess.
+    timeZone: INTERVIEW_TZ,
   };
 }
 

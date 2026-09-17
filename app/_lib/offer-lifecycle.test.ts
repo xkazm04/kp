@@ -19,6 +19,7 @@ import {
 } from "./offers-store.ts";
 import { offerView, respondToOffer } from "./offer-finalize.ts";
 import { sendDueOfferReminders } from "./offer-reminders.ts";
+import { INTERVIEW_TZ } from "./schedule-slots.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { billingOverview } from "./billing/entitlements.ts";
 
@@ -172,6 +173,8 @@ test("offerView ships a SERVER-computed hoursRemaining so the countdown can't dr
   const view = offerView(offer.token)!;
   assert.equal(typeof view.hoursRemaining, "number", "the view must carry a server-side hours-left figure");
   assert.ok(view.hoursRemaining! >= 23 && view.hoursRemaining! <= 24, `expected ~24h, got ${view.hoursRemaining}`);
+  assert.equal(view.timeZone, INTERVIEW_TZ, "the public view stamps the company's interview zone, not UTC-by-omission");
+  new Intl.DateTimeFormat("en-US", { timeZone: view.timeZone });
 });
 
 test("getOrCreateOpenOffer reuses the one open offer per entry instead of minting a second live link", () => {
