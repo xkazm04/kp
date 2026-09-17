@@ -165,8 +165,10 @@ callers need one, give them the code and let them resolve it.
   longer re-exported from `matchTypes` / `profileTypes`: a barrel handing feature
   code the raw map is how this reached three surfaces.
 
-`ERROR_LEAK_ALLOW` in the script lists the verified exceptions. Two kinds
-qualify, and both are commented at the entry:
+`ERROR_LEAK_ALLOW` in the script lists the verified exceptions. The set is
+held to `ERROR_LEAK_ALLOW_MAX` (currently 7): appending a path without raising
+the ceiling (with a reason) fails `i18n:check`, as does an entry that is not
+on disk. Two kinds qualify, and both are commented at the entry:
 
 - **Not an API envelope** — e.g. a background `Task` record's own diagnostic
   field. There is no `code`, so there is nothing to resolve.
