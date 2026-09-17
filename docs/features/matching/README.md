@@ -145,7 +145,10 @@ For `student`/`career_switcher` archetypes, `pipeline/jobfit/matching.py`
 (`_DIM_SLUG_EARLY`) replaces the `career` dimension (seniority/family fit —
 undefined for someone with no track record) with **`potential_score`**, and
 `personal` (JD keyword overlap) with **motivation** (aspirations coherence +
-role-family hit + language). `potential_score` is a deterministic rubric over
+role-family hit + language). `score_motivation`'s aspiration term is whole-token
+title containment with a glue stopword set (`_MOTIVATION_STOPWORDS`), so a
+two-letter target like `"UX"` hits *UX Designer* and glue (`in`, `v`, `na`) does
+not — pinned by `MotivationAspirationTermTest`. `potential_score` is a deterministic rubric over
 the evidence structure — 35% depth + 25% learning velocity + 25% foundation +
 15% initiative — validated to `[0,1]` at the Pydantic boundary
 (`MatchCandidate.potential_score`), clamped so out-of-range values can't
@@ -1132,15 +1135,6 @@ side either; it was removed, and a test asserts it does not come back.
   uncertainty guard fails open for a blank field and closed for a partly-stated
   one. Fixing it is a data split of the term plus a knockout-policy decision on
   where an unstated degree level ranks; both are product calls, not a code fix.
-- `score_motivation`'s aspiration term still drops tokens of ≤3 characters
-  (`len(t) > 3`), the same guard `score_personal` removed 20 lines above as
-  "redundant AND discriminatory". A student whose stated aspiration is `"UX"`
-  scores `motivation` 0.65 / total 33 against a *UX Designer* role where the
-  same student writing `"UX design"` scores 1.0 / 40. Reach is thin (real
-  aspirations are usually multi-word, so a short token is rarely the only one),
-  and the safe fix is not simply deleting the guard: the term matches by raw
-  substring, so unfiltered short tokens would let glue words (`in`, `for`, `v`,
-  `na`) hit a title. It needs whole-token matching plus a stopword set.
 - Student/switcher end-to-end mechanics (observed-evidence minting from a
   live case or case-grounded interview, the dev-case module itself) are only
   summarized here; the devcase/interview build is owned by other feature docs

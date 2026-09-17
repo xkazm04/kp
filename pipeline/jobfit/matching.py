@@ -780,6 +780,17 @@ def _language_coverage(candidate: MatchCandidate, job: Job) -> float:
     return covered / len(job.languages)
 
 
+# Glue tokens that would otherwise whole-token-match almost any title
+# ("Engineer in Residence", "analytik v Praze"). Distinct from
+# taxonomy._FALLBACK_STOPWORDS, which also drops role nouns ("engineer")
+# that are legitimate aspiration terms.
+_MOTIVATION_STOPWORDS = frozenset({
+    "of", "and", "or", "the", "a", "an", "for", "to", "in", "on", "with", "at",
+    "by", "from", "as",
+    "v", "ve", "na", "pro", "se", "si", "o", "z", "ze", "do", "po", "k", "u", "i", "s",
+})
+
+
 def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
     """Early-career 'personal' dimension: aspirations + domain fit + language coverage.
 
@@ -790,6 +801,13 @@ def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | Non
     default; with the embedding bridge, a cosine between the stated aspirations
     and the role's title+description ("aiming for data work" can meet an
     "Analytics Engineer" ad). Fail-open to the token heuristic.
+
+    The default term is whole-token (never a substring) and drops glue via
+    ``_MOTIVATION_STOPWORDS``. The old ``len(t) > 3`` guard was the same
+    discriminatory filter ``score_personal`` removed: it scored a student
+    targeting "UX" as having no aspiration hit on a UX Designer role. Glue
+    (``in``, ``v``, ``na``) must still not hit, which is why the length guard
+    is not simply deleted.
     """
     family_hit = 1.0 if candidate.role_family == job.role_family else 0.3
     asp = " ".join(candidate.aspirations).casefold()
@@ -801,8 +819,9 @@ def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | Non
 
         aspiration_hit = semantic_overlap(*pair, embedder)
     if aspiration_hit is None:
-        asp_tokens = [t for t in asp.replace("/", " ").split() if len(t) > 3]
-        aspiration_hit = 1.0 if asp_tokens and any(t in title for t in asp_tokens) else 0.0
+        title_words = frozenset(_WORD_RE.findall(title))
+        asp_tokens = [t for t in _WORD_RE.findall(asp) if t not in _MOTIVATION_STOPWORDS]
+        aspiration_hit = 1.0 if asp_tokens and any(t in title_words for t in asp_tokens) else 0.0
     lang_cov = _language_coverage(candidate, job)
     return round(0.4 * family_hit + 0.35 * aspiration_hit + 0.25 * lang_cov, 4)
 
