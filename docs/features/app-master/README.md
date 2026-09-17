@@ -476,9 +476,13 @@ an accountable owner. `specVintage`
 compares it against the intake row's `updatedAt` (a 2-second grace window, because
 the compose route stamps `composedAt` and THEN writes the row) and the card shows
 an amber *Older brief* chip plus the remedy when the brief moved afterwards. It is
-a DISCLOSURE, not a gate: Dispatch stays enabled, and the requestor decides. It is
-also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`, which is a schema check
-on the stored spec's shape; a spec can be stale in vintage while parsing perfectly.
+a DISCLOSURE on the card, not a schema check: Dispatch stays enabled until the
+door calls `vintageDispatch`, which returns `AGENT_DISPATCH_SPEC_VINTAGE` when
+the vintage is `stale` and the caller did not pass `acknowledgeStale`. `unknown`
+never refuses. It is also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`,
+which is a schema check on the stored spec's shape; a spec can be stale in
+vintage while parsing perfectly. The helper is the contract; wiring the door is
+a separate change.
 
 ### The reference reading
 
