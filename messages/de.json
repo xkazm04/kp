@@ -1886,6 +1886,8 @@
     "roleGeneric": "Eine Stelle bei uns",
     "preparedFor": "Erstellt für {name}",
     "compensation": "Vorgeschlagene Vergütung",
+    "notesLabel": "Hinweise",
+    "startDate": "Startdatum",
     "prompt": "Wir würden uns sehr freuen, Sie bei {company} begrüßen zu dürfen. Bitte teilen Sie uns unten Ihre Entscheidung mit.",
     "promptGeneric": "Wir würden uns sehr freuen, Sie bei uns begrüßen zu dürfen. Bitte teilen Sie uns unten Ihre Entscheidung mit.",
     "accept": "Angebot annehmen",

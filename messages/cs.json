@@ -1886,6 +1886,8 @@
     "roleGeneric": "Pozice u nás",
     "preparedFor": "Připraveno pro {name}",
     "compensation": "Navrhovaná odměna",
+    "notesLabel": "Poznámky",
+    "startDate": "Nástup",
     "prompt": "Byli bychom nadšeni, kdybyste se přidali k nám do společnosti {company}. Dejte nám prosím níže vědět své rozhodnutí.",
     "promptGeneric": "Byli bychom nadšeni, kdybyste se k nám přidali. Dejte nám prosím níže vědět své rozhodnutí.",
     "accept": "Přijmout nabídku",

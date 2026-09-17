@@ -1886,6 +1886,8 @@
     "roleGeneric": "A role with us",
     "preparedFor": "Prepared for {name}",
     "compensation": "Proposed compensation",
+    "notesLabel": "Notes",
+    "startDate": "Start date",
     "prompt": "We'd be thrilled to have you join {company}. Please let us know your decision below.",
     "promptGeneric": "We'd be thrilled to have you join us. Please let us know your decision below.",
     "accept": "Accept offer",

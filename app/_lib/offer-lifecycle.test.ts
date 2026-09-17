@@ -165,6 +165,38 @@ test("sendDueOfferReminders dispatches each due offer once across sweeps", async
   assert.equal(await sendDueOfferReminders(), 0, "the claim persists — no duplicate nudge on the next tick");
 });
 
+test("offerView projects notes and startDate from the payload and never the rest of the draft", () => {
+  const entry = entryAtOffer();
+  const offer = createOffer({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId,
+    jobTitle: entry.jobTitle,
+    currency: "CZK",
+    salary: 90_000,
+    payload: {
+      subject: "Your offer",
+      body: "Confidential letter body",
+      notes: "  Signing bonus after probation.  ",
+      startDate: "2026-10-01",
+    },
+  });
+  const view = offerView(offer.token)!;
+  assert.equal(view.notes, "Signing bonus after probation.");
+  assert.equal(view.startDate, "2026-10-01");
+  assert.equal("payload" in view, false);
+  assert.equal("subject" in view, false);
+  assert.equal("body" in view, false);
+});
+
+test("offerView omits empty notes and startDate", () => {
+  const entry = entryAtOffer();
+  const offer = mintOffer(entry.id);
+  const view = offerView(offer.token)!;
+  assert.equal(view.notes, null);
+  assert.equal(view.startDate, null);
+});
+
 test("offerView ships a SERVER-computed hoursRemaining so the countdown can't drift on a skewed client clock", () => {
   // bug-ui-scan-2026-07-09 (offers-onboarding #5): the candidate page must render the
   // hours-left from the server's clock, not Date.now() on an untrusted device.

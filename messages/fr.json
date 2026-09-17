@@ -1886,6 +1886,8 @@
     "roleGeneric": "Un poste chez nous",
     "preparedFor": "Préparé pour {name}",
     "compensation": "Rémunération proposée",
+    "notesLabel": "Notes",
+    "startDate": "Date de début",
     "prompt": "Nous serions ravis de vous accueillir chez {company}. Merci de nous indiquer votre décision ci-dessous.",
     "promptGeneric": "Nous serions ravis de vous accueillir parmi nous. Merci de nous indiquer votre décision ci-dessous.",
     "accept": "Accepter l’offre",
