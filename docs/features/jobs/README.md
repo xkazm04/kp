@@ -178,6 +178,11 @@ write door. POST `/api/templates` and PUT `/api/templates/[id]` still 400; a new
 caller that only uses the shared validator cannot store `{{tilte}}`. Pinned by
 `renderTemplate.test.ts`.
 
+The seeded Company-standard header is `**{{company}}** · {{location}} · {{seniority}} · {{salary}}`.
+Empty location collapses with the same middot contract as seniority/salary, so a
+Prague-less draft still reads `**Acme** · Senior`. `findUnknownPlaceholders(DEFAULT_TEMPLATE_BODY)`
+stays empty.
+
 ### A template list that could not load says so
 
 `fetchTemplates` (`app/features/shared/templatesClient.ts`) answers

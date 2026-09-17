@@ -7,6 +7,7 @@ import type { JdTemplate } from "@/app/_lib/templates-store";
 export type TemplateData = {
   title?: string;
   company?: string;
+  location?: string;
   seniority?: string;
   salary?: string;
   about?: string;
@@ -18,6 +19,7 @@ export type TemplateData = {
 export const TEMPLATE_PLACEHOLDERS = [
   "title",
   "company",
+  "location",
   "seniority",
   "salary",
   "about",
@@ -89,7 +91,7 @@ const ALL_KNOWN_TOKENS: readonly string[] = [...TEMPLATE_PLACEHOLDERS, ...TEMPLA
 // rendered from this is surfaced through JdLintPanel (Ledger read-view + editor),
 // and the old "Competitive pay…" line was exactly the boilerplate jd-lint flags.
 export const DEFAULT_TEMPLATE_BODY = `# {{title}}
-**{{company}}** · {{seniority}} · {{salary}}
+**{{company}}** · {{location}} · {{seniority}} · {{salary}}
 
 ## {{heading_about}}
 {{about}}
@@ -109,9 +111,10 @@ export const DEFAULT_TEMPLATE_BODY = `# {{title}}
 ## {{heading_apply}}
 - {{apply_note}}`;
 
-// The middot separator used by the default template's `**company** · seniority ·
-// salary` header line. Kept as a named constant so the collapse contract below
-// and the unit tests (render-template.test.ts) reference one source of truth.
+// The middot separator used by the default template's
+// `**company** · location · seniority · salary` header line. Kept as a named
+// constant so the collapse contract below and the unit tests
+// (render-template.test.ts) reference one source of truth.
 export const TEMPLATE_SEPARATOR = " · ";
 
 // Private-use sentinel (U+E000) that marks where a placeholder rendered to an
@@ -130,16 +133,17 @@ const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 // ----------------------------
 // `renderTemplate` substitutes every `{{key}}` with its value from `data`
 // (trimmed, with the fallbacks in `map`); an unknown `{{key}}` is left verbatim.
-// Some placeholders can render empty (today only `{{seniority}}` and
+// Some placeholders can render empty (`{{location}}`, `{{seniority}}`,
 // `{{salary}}`), which on the default header line
-//     **{{company}}** · {{seniority}} · {{salary}}
+//     **{{company}}** · {{location}} · {{seniority}} · {{salary}}
 // would otherwise leave dangling `TEMPLATE_SEPARATOR`s. The contract:
 //
 //   • A separator immediately adjacent to a placeholder that rendered empty is
 //     removed together with that empty value — on EITHER side, in ANY ordering:
+//         location empty  → **Acme** · Senior
 //         seniority empty → **Acme** · 120k
 //         salary empty    → **Acme** · Senior
-//         both empty      → **Acme**
+//         all empty       → **Acme**
 //   • A literal `TEMPLATE_SEPARATOR` typed into static template text is NEVER
 //     removed, regardless of layout — only separators touching an empty
 //     placeholder collapse. (The previous implementation regex-scanned the
@@ -162,6 +166,7 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
   const map: Record<string, string> = {
     title: data.title?.trim() || localized.fallback_title,
     company: data.company?.trim() || localized.fallback_company,
+    location: data.location?.trim() || "",
     seniority: data.seniority?.trim() || "",
     salary: data.salary?.trim() || "",
     // No canned company blurb: the build supplies no real `about`, and emitting the
@@ -201,8 +206,8 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
   // (e.g. an unfilled `{{about}}` alone under "## About us") is dropped header-and-all,
   // so the section vanishes cleanly rather than leaving a dangling empty heading. Only
   // a header immediately followed by a lone marker line matches — inline empties on the
-  // `**company** · seniority · salary` line aren't ATX headers, so they're untouched
-  // and still handled by the separator collapse below.
+  // `**company** · location · seniority · salary` line aren't ATX headers, so they're
+  // untouched and still handled by the separator collapse below.
   // Then collapse a separator adjacent to an empty marker (either side), and finally
   // drop any lone markers that had no separator beside them.
   return substituted
@@ -217,7 +222,7 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
 // Unknown-token policy: BLOCKED
 // -----------------------------
 // renderTemplate leaves any {{token}} not in TEMPLATE_PLACEHOLDERS verbatim in
-// its output, so a typo ({{tilte}}) or an out-of-set token ({{location}},
+// its output, so a typo ({{tilte}}) or an out-of-set token ({{department}},
 // {{roleFamily}}) would render raw onto a public, shareable JD page. We make
 // that impossible at save time by BLOCKING — not stripping or keeping — bodies
 // that reference unknown tokens:

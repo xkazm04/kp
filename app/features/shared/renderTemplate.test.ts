@@ -30,12 +30,26 @@ const renderTemplate = (body: string, data: Parameters<typeof renderWithTokens>[
 const SEP = TEMPLATE_SEPARATOR; // " · "
 // The default template's header line in isolation, so each case asserts the
 // collapse behavior without the surrounding document.
-const HEADER = `**{{company}}**${SEP}{{seniority}}${SEP}{{salary}}`;
+const HEADER = `**{{company}}**${SEP}{{location}}${SEP}{{seniority}}${SEP}{{salary}}`;
 
 test("header: all three fields present render verbatim with separators", () => {
   assert.equal(
     renderTemplate(HEADER, { company: "Acme", seniority: "Senior", salary: "120k" }),
     `**Acme**${SEP}Senior${SEP}120k`,
+  );
+});
+
+test("header: filled location sits between company and seniority", () => {
+  assert.equal(
+    renderTemplate(HEADER, { company: "Acme", location: "Prague", seniority: "Senior", salary: "120k" }),
+    `**Acme**${SEP}Prague${SEP}Senior${SEP}120k`,
+  );
+});
+
+test("header: empty location collapses its orphaned separator", () => {
+  assert.equal(
+    renderTemplate(HEADER, { company: "Acme", location: "   ", seniority: "Senior" }),
+    `**Acme**${SEP}Senior`,
   );
 });
 
@@ -132,24 +146,24 @@ test("linter: a typo'd token is reported", () => {
 
 test("linter: out-of-set tokens are reported", () => {
   assert.deepEqual(
-    findUnknownPlaceholders("{{title}} in {{location}} — {{roleFamily}}"),
-    ["location", "roleFamily"],
+    findUnknownPlaceholders("{{title}} in {{department}} — {{roleFamily}}"),
+    ["department", "roleFamily"],
   );
 });
 
 test("linter: unknown tokens are de-duped, in first-seen order", () => {
   assert.deepEqual(
-    findUnknownPlaceholders("{{location}} {{title}} {{roleFamily}} {{location}}"),
-    ["location", "roleFamily"],
+    findUnknownPlaceholders("{{department}} {{title}} {{roleFamily}} {{department}}"),
+    ["department", "roleFamily"],
   );
 });
 
 test("linter: what the linter flags is exactly what renderTemplate leaves raw", () => {
   // The linter and renderer must agree: any token the linter passes is one
   // renderTemplate substitutes, and any token it flags renders verbatim.
-  const body = "{{title}} — {{location}}";
-  assert.deepEqual(findUnknownPlaceholders(body), ["location"]);
-  assert.equal(renderTemplate(body, { title: "Engineer" }), "Engineer — {{location}}");
+  const body = "{{title}} — {{department}}";
+  assert.deepEqual(findUnknownPlaceholders(body), ["department"]);
+  assert.equal(renderTemplate(body, { title: "Engineer" }), "Engineer — {{department}}");
 });
 
 test("linter: a token naming an Object.prototype member is unknown AND renders raw", () => {
@@ -180,8 +194,8 @@ test("linter message: singular vs plural and the supported list", () => {
   assert.match(one, /^Unknown placeholder: \{\{tilte\}\}\./);
   assert.match(one, /\{\{title\}\}/); // names the supported set
 
-  const many = unknownPlaceholderMessage(["location", "roleFamily"]);
-  assert.match(many, /^Unknown placeholders: \{\{location\}\}, \{\{roleFamily\}\}\./);
+  const many = unknownPlaceholderMessage(["department", "roleFamily"]);
+  assert.match(many, /^Unknown placeholders: \{\{department\}\}, \{\{roleFamily\}\}\./);
 });
 
 // ---- validateTemplateFields — the create write boundary --------------------
