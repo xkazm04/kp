@@ -1,6 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import {
+  cleanupWorkdir,
+  createWorkdir,
+  parsePythonJson,
+  parseStderrError,
+  spawnPython as defaultSpawnPython,
+} from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 
 // AI profile-draft generation, extracted from the POST /api/profile/draft route
@@ -39,7 +45,7 @@ export const PROFILE_DRAFT_TIMEOUT_MS = 55_000;
 export async function runProfileDraft(
   params: ProfileDraftParams,
   signal?: AbortSignal,
-  spawn: typeof spawnPython = spawnPython
+  spawnPython: typeof defaultSpawnPython = defaultSpawnPython
 ): Promise<Record<string, unknown>> {
   const text = (params.text ?? "").trim();
   if (!text) throw new ProfileDraftError("Add some notes for the AI to draft from.", 400, "invalid_input");
@@ -50,7 +56,7 @@ export async function runProfileDraft(
     const inputPath = path.join(workdir, "notes.json");
     await writeFile(inputPath, JSON.stringify({ text }), "utf-8");
 
-    const { result } = spawn(
+    const { result } = spawnPython(
       ["-m", "pipeline.jobfit.profile_draft_cli", "--input-json", inputPath, "--lang", params.lang],
       { signal, timeoutMs: PROFILE_DRAFT_TIMEOUT_MS, env: buildLlmConfigEnv() }
     );

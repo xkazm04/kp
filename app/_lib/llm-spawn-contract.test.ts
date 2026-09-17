@@ -55,6 +55,11 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
 // that was never called. Adding it to the map above would assert the wrong
 // contract, not a missing one.
 
+/** Strip comments so `env: buildLlmConfigEnv()` in a comment cannot satisfy the pin. */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
   test(`${rel} passes buildLlmConfigEnv to its LLM spawn (${useCase})`, () => {
     const source = readFileSync(path.join(APP_ROOT, rel), "utf-8");
@@ -65,26 +70,25 @@ for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
         "the configured BYOM provider/key re-route is dead for its use case."
     );
   });
+
+  // Identifier presence is not enough: a comment or unused import kept every
+  // site but analyze-run green while the spawn options omitted env. Each
+  // spawnPython/spawnChild call's options literal must carry env: buildLlmConfigEnv().
+  test(`${rel} pins env: buildLlmConfigEnv() on the spawn options (${useCase})`, () => {
+    const stripped = withoutComments(readFileSync(path.join(APP_ROOT, rel), "utf-8"));
+    const spawns = stripped.match(/\b(?:spawnPython|spawnChild)\s*\(/g) ?? [];
+    assert.ok(spawns.length >= 1, `${rel} has no spawnPython/spawnChild call — re-pin this contract`);
+    const envs = stripped.match(/env:\s*buildLlmConfigEnv\(\)/g) ?? [];
+    assert.equal(
+      envs.length,
+      spawns.length,
+      `${rel} has ${spawns.length} spawn(s) but ${envs.length} env: buildLlmConfigEnv() pin(s) — ` +
+        "the child's resolve_provider sees no KP_LLM_CONFIG unless the options literal carries it."
+    );
+  });
 }
 
 after(() => cleanupUnitDb());
-
-// The static assertion above proves the identifier is PRESENT; this one proves the
-// flagship spawn's option object actually carries it. `env` had to be added beside
-// `timeoutMs` on that call — a `buildLlmConfigEnv` mentioned only in a comment
-// would satisfy a regex and route nothing.
-test("_lib/analyze-run.ts passes the env on the spawn itself, not merely imports it", () => {
-  const source = readFileSync(path.join(APP_ROOT, "_lib/analyze-run.ts"), "utf-8");
-  const call = /spawnPython\(\s*cliArgs\([^)]*\),\s*\{([\s\S]*?)\}\s*\)/.exec(source);
-  assert.ok(call, "the analyze spawn call site moved — re-pin this contract");
-  assert.match(
-    call[1],
-    /env:\s*buildLlmConfigEnv\(\)/,
-    "the analyze spawn's options must carry env: buildLlmConfigEnv() — without it the " +
-      "child's resolve_provider(\"cv_analysis\") sees no KP_LLM_CONFIG and the operator's " +
-      "Models routing row plus any BYOM key are silently inert."
-  );
-});
 
 // …and that the env it builds actually ROUTES cv_analysis: the use case must survive
 // into KP_LLM_CONFIG with its provider AND its model pin, since the child reads the
