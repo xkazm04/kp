@@ -13,6 +13,7 @@ import {
   coerceGithubHandle,
   mergeDraftAnswers,
   nextVisibleStepIndex,
+  visibleStepProgress,
 } from "@/app/_lib/apply-intake";
 import { ensureApplySession } from "@/app/_lib/apply-session-client";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
@@ -414,6 +415,12 @@ export function ConversationalApply({
   // The step on screen: the one being re-asked after a rejected submit, else the
   // one the script is on.
   const cur = !done ? (fixStepId ? (steps.find((s) => s.id === fixStepId) ?? steps[idx]) : steps[idx]) : null;
+  // Visible-lane N of M — raw idx is the script slot, which is the wrong number
+  // once an archetype lane has skipped or inserted questions. Hidden on the
+  // done card; text only (no meter animation) so reduced-motion readers get
+  // the same remaining-work signal as everyone else.
+  const progressIdx = cur ? steps.indexOf(cur) : idx;
+  const progress = visibleStepProgress(steps, progressIdx === -1 ? idx : progressIdx, answers);
 
   return (
     <div>
@@ -432,6 +439,18 @@ export function ConversationalApply({
             {t("startFresh")}
           </button>
         </div>
+      ) : null}
+      {!done && progress.total > 0 ? (
+        <p
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuenow={progress.current}
+          aria-valuemax={progress.total}
+          aria-label={t("progressAria", { current: progress.current, total: progress.total })}
+          className="nums mb-3 text-sm font-medium text-steel"
+        >
+          {t("progress", { current: progress.current, total: progress.total })}
+        </p>
       ) : null}
       {/* role="log" + aria-live so each new bot prompt (and the final outcome) is announced
           to screen readers — the conversation previously advanced visual-only, leaving SR
