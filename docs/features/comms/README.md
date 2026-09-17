@@ -499,7 +499,10 @@ new dispatcher cannot ship a letter carrying the erasure link and no opt-out. Bo
 on every send through `sendCandidateComm`. The offer letter and the offer reminder receive their link from the
 caller and PIN it here (`pinLinkLocale`, beside the same `candidateLocale` resolution the
 letter uses) — until 2026-09-01 the offer link was the one bare candidate door, so a Czech
-letter opened an English accept/decline page. Locked by `offer-link-locale.test.ts`. The
+letter opened an English accept/decline page. Locked by `offer-link-locale.test.ts`. A
+T-48h offer reminder that is CAS-claimed (`reminded_at`) and then fails to dispatch is
+not retried (at-most-once); the miss is recorded as an `offer_comms_failed` pipeline
+event so the timeline shows it, and `reminded_at` stays set. The
 erasure link is absolute (`candidateLinkBase` → `publicBaseUrl`, warning
 loudly when nothing is configured) **and `?lang=`-pinned to the language the letter is
 written in**, exactly like the status link that rides beside it — `proxy.ts` turns the
