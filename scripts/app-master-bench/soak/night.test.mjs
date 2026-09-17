@@ -34,14 +34,46 @@ import {
 const record = (over = {}) => ({ ...newRecord(new Date("2026-09-01T22:00:00.000Z")), ...over });
 
 // --- the taxonomy is closed --------------------------------------------------
+const SOAK_DOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../docs/development/app-master-soak.md");
+
+function taxonomyClassesFromDoc(text) {
+  const section = text.split("## The taxonomy")[1]?.split("\n## ")[0] ?? "";
+  return [...section.matchAll(/^\| `([a-z0-9-]+)` /gm)].map((m) => m[1]);
+}
+
+// Weekly-pass classes recorded as anomalies on a RAN night, never as rec.miss.
+// A new doc row that is neither a runner miss nor named here fails the lockstep.
+const TAXONOMY_ANOMALY_CLASSES = [
+  "ideation-blocked",
+  "authored-zero",
+  "dispatch-on-ideation",
+  "memory-unreported",
+  "memory-nonmonotonic",
+  "recall-wrong",
+];
+
 test("the miss taxonomy is a closed set, and the doc's classes are all in it", () => {
-  // The classes the runner itself writes, plus the two only a human writes.
-  for (const cls of ["bridge-down", "kp-boot-failed", "driver-timeout", "driver-crashed", "tick-died", "record-unreadable", "no-record", "unclassified", "machine"]) {
-    assert.ok(isMissClass(cls), `"${cls}" is documented but not declared in MISS_CLASSES`);
-  }
   assert.equal(isMissClass("timeout"), false, "a near-miss spelling must not pass — that is the whole point of the guard");
   assert.equal(isMissClass(null), false);
   assert.equal(new Set(MISS_CLASSES).size, MISS_CLASSES.length, "a class is listed twice");
+});
+
+test("MISS_CLASSES locksteps with the soak doc taxonomy table", () => {
+  const fromDoc = taxonomyClassesFromDoc(readFileSync(SOAK_DOC, "utf8"));
+  assert.ok(fromDoc.length >= MISS_CLASSES.length, "the soak doc taxonomy table was not found");
+  for (const cls of MISS_CLASSES) {
+    assert.ok(fromDoc.includes(cls), `"${cls}" is a runner miss class with no soak-doc taxonomy row`);
+  }
+  const leftover = fromDoc.filter((c) => !MISS_CLASSES.includes(c) && !TAXONOMY_ANOMALY_CLASSES.includes(c));
+  assert.deepEqual(
+    leftover,
+    [],
+    `soak-doc taxonomy has classes neither in MISS_CLASSES nor TAXONOMY_ANOMALY_CLASSES: ${leftover.join(", ")}`,
+  );
+  for (const cls of TAXONOMY_ANOMALY_CLASSES) {
+    assert.ok(fromDoc.includes(cls), `"${cls}" is listed as a weekly-pass anomaly but has no soak-doc row`);
+    assert.equal(isMissClass(cls), false, `"${cls}" is an anomaly class, not a runner miss`);
+  }
 });
 
 // --- one record, one verdict -------------------------------------------------

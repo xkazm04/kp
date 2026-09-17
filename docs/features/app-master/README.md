@@ -1031,8 +1031,9 @@ miss, which is a measurement. Protocol, per-night record shape, the failure
 taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
 
 The runner's *reasoning* — the miss taxonomy (`MISS_CLASSES`, a literal array
-plus a runtime guard, so a typo'd class stops being indistinguishable from a real
-one), the one-record-one-verdict rule, the calendar-gap backfill, reading the
+plus a runtime guard, lockstepped against the taxonomy table in
+`docs/development/app-master-soak.md` so a one-sided add is red), the
+one-record-one-verdict rule, the calendar-gap backfill, reading the
 log, and `passRateMatrix` (`node soak/night.mjs --matrix` prints the weekly
 pass-rate table without running a night) — is exported above `main()` and pinned
 by `soak/night.test.mjs`. Importing

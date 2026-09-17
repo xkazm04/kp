@@ -104,6 +104,7 @@ soak night exhibits it:
 | `memory-nonmonotonic` | tier counts moved in a way no night explains (wrong decay / wrong consolidation) | — |
 | `recall-wrong` | a night's output contradicts something the memory should have carried (requires reading the proposals — the weekly human pass) | — |
 | `driver-timeout` | the driver exceeded the runner's 40-min ceiling — observed directly, distinct from a crash | — |
+| `driver-crashed` | the driver spawn failed, or produced no new run directory — observed directly, distinct from a timeout | — |
 | `record-unreadable` | a fresh run dir whose result.json carries no `tickOk` — partial write or driver shape change; the night may even have run | — |
 | `unclassified` | no code path recorded a reason — the record-keeping itself failed; classify by hand at the weekly pass and fix the silent path | — |
 | `no-record` | BACKFILLED at the next firing for any calendar day with no row (`backfilled: true`): the task never fired OR it fired and the runner died before writing — the row states both hypotheses and names the evidence (runner.log, Task Scheduler history); the weekly pass hand-classifies it to `machine` or `unclassified` | — |
