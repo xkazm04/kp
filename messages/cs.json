@@ -1578,6 +1578,13 @@
     "DECISION_CONFIG_FIELDS_REQUIRED": "Změna pravidel neuvedla fázi nebo neobsahovala žádná pravidla k uložení.",
     "DECISION_CONFIG_INVALID": "Tato pravidla nejsou pro tuto fázi platná.",
     "DECISION_CONFIG_SAVE_FAILED": "Pravidla se nepodařilo uložit. Zkuste to prosím znovu.",
+    "SCREEN_WAVE_FAILED": "Screeningovou vlnu se nepodařilo spustit. Zkuste to prosím znovu.",
+    "SCREEN_WAVE_JOB_REQUIRED": "Uveďte pozici, na které má screeningová vlna běžet.",
+    "SCREEN_WAVE_APPROVAL_REQUIRED": "Nejdřív zkontrolujte náhled a schvalte tuto sadu, než vlnu spustíte.",
+    "SCREEN_WAVE_APPROVAL_EXPIRED": "Toto schválení vypršelo. Znovu zobrazte náhled a schvalte aktuální sadu, než vlnu spustíte.",
+    "SCREEN_WAVE_APPROVAL_MISMATCH": "Sada kandidátů se od náhledu změnila. Znovu zobrazte náhled a schvalte aktuální sadu, než vlnu spustíte.",
+    "SCREEN_WAVE_APPROVAL_SPENT": "Toto schválení už bylo použito. Znovu zobrazte náhled a schvalte aktuální sadu, než vlnu spustíte.",
+    "SCREEN_WAVE_APPROVAL_UNATTRIBUTED": "Přihlaste se, nebo nastavte jméno operátora, aby šlo toto schválení přiřadit.",
     "MATRIX_BUILD_FAILED": "Matici vhodnosti se nepodařilo sestavit. Zkuste to prosím znovu.",
     "MATCH_REASONING_FAILED": "Tuto shodu se nepodařilo vysvětlit. Zkuste to prosím znovu.",
     "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
@@ -1883,6 +1890,8 @@
     "roleGeneric": "Pozice u nás",
     "preparedFor": "Připraveno pro {name}",
     "compensation": "Navrhovaná odměna",
+    "notesLabel": "Poznámky",
+    "startDate": "Nástup",
     "prompt": "Byli bychom nadšeni, kdybyste se přidali k nám do společnosti {company}. Dejte nám prosím níže vědět své rozhodnutí.",
     "promptGeneric": "Byli bychom nadšeni, kdybyste se k nám přidali. Dejte nám prosím níže vědět své rozhodnutí.",
     "accept": "Přijmout nabídku",
@@ -10099,6 +10108,7 @@
     "title": "Řídicí centrum autonomie",
     "intro": "Lidský dohled nad autonomní náborovou pipeline: nouzová brzda, lidské brány, které čekají na vás, a neměnná auditní stopa každého automatického rozhodnutí (evidence, kterou vysoce rizikový systém AI pro nábor musí vést).",
     "backToDevCases": "← Zadání",
+    "disarmed": "Potvrzení zrušeno.",
     "autonomy": {
       "statePaused": "Automatizace je POZASTAVENA",
       "stateRunning": "Automatizace běží",
@@ -10113,7 +10123,8 @@
       "heading": "Čeká na vaše rozhodnutí · {count}",
       "untitled": "Pozice",
       "approve": "Schválit a pokračovat",
-      "approveConfirm": "Potvrdit schválení?"
+      "approveConfirm": "Potvrdit schválení?",
+      "review": "Posoudit"
     },
     "lifecycles": {
       "heading": "Aktivní životní cykly · {count}",

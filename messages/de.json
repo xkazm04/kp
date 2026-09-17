@@ -1578,6 +1578,13 @@
     "DECISION_CONFIG_FIELDS_REQUIRED": "Diese Regeländerung nannte keine Phase oder enthielt keine Regeln zum Speichern.",
     "DECISION_CONFIG_INVALID": "Diese Regeln sind für diese Phase nicht gültig.",
     "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "SCREEN_WAVE_FAILED": "Die Screening-Welle konnte nicht ausgeführt werden. Bitte erneut versuchen.",
+    "SCREEN_WAVE_JOB_REQUIRED": "Nennen Sie die Stelle, für die diese Screening-Welle laufen soll.",
+    "SCREEN_WAVE_APPROVAL_REQUIRED": "Prüfen Sie die Vorschau und genehmigen Sie diese Auswahl, bevor die Welle ausgeführt wird.",
+    "SCREEN_WAVE_APPROVAL_EXPIRED": "Diese Genehmigung ist abgelaufen. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
+    "SCREEN_WAVE_APPROVAL_MISMATCH": "Die Kandidatenauswahl hat sich seit der Vorschau geändert. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
+    "SCREEN_WAVE_APPROVAL_SPENT": "Diese Prüfung wurde bereits verwendet. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
+    "SCREEN_WAVE_APPROVAL_UNATTRIBUTED": "Melden Sie sich an oder setzen Sie den Operatornamen, damit diese Prüfung zugeordnet werden kann.",
     "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
     "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
     "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
@@ -1883,6 +1890,8 @@
     "roleGeneric": "Eine Stelle bei uns",
     "preparedFor": "Erstellt für {name}",
     "compensation": "Vorgeschlagene Vergütung",
+    "notesLabel": "Hinweise",
+    "startDate": "Startdatum",
     "prompt": "Wir würden uns sehr freuen, Sie bei {company} begrüßen zu dürfen. Bitte teilen Sie uns unten Ihre Entscheidung mit.",
     "promptGeneric": "Wir würden uns sehr freuen, Sie bei uns begrüßen zu dürfen. Bitte teilen Sie uns unten Ihre Entscheidung mit.",
     "accept": "Angebot annehmen",
@@ -10099,6 +10108,7 @@
     "title": "Kontrollzentrum Autonomie",
     "intro": "Menschliche Aufsicht über die autonome Recruiting-Pipeline: ein Not-Aus, die auf Sie wartenden menschlichen Gates und ein unveränderlicher Audit-Trail jeder automatisierten Entscheidung (die Nachweispflicht, die ein Hochrisiko-AI-System im Recruiting erfüllen muss).",
     "backToDevCases": "← Aufgaben",
+    "disarmed": "Bestätigung abgebrochen.",
     "autonomy": {
       "statePaused": "Automatisierung ist PAUSIERT",
       "stateRunning": "Automatisierung läuft",
@@ -10113,7 +10123,8 @@
       "heading": "Wartet auf Ihre Entscheidung · {count}",
       "untitled": "Position",
       "approve": "Genehmigen & fortfahren",
-      "approveConfirm": "Genehmigung bestätigen?"
+      "approveConfirm": "Genehmigung bestätigen?",
+      "review": "Prüfen"
     },
     "lifecycles": {
       "heading": "Aktive Lebenszyklen · {count}",

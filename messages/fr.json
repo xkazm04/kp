@@ -1578,6 +1578,13 @@
     "DECISION_CONFIG_FIELDS_REQUIRED": "Cette mise à jour des règles n'indiquait aucune phase ou ne contenait aucune règle à enregistrer.",
     "DECISION_CONFIG_INVALID": "Ces règles ne sont pas valides pour cette phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
+    "SCREEN_WAVE_FAILED": "Impossible d'exécuter la vague de tri. Veuillez réessayer.",
+    "SCREEN_WAVE_JOB_REQUIRED": "Indiquez le poste sur lequel cette vague de tri doit s'exécuter.",
+    "SCREEN_WAVE_APPROVAL_REQUIRED": "Vérifiez l'aperçu et approuvez cet ensemble avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_EXPIRED": "Cette approbation a expiré. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_MISMATCH": "L'ensemble de candidats a changé depuis l'aperçu. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_SPENT": "Cette revue a déjà été utilisée. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_UNATTRIBUTED": "Connectez-vous ou définissez le nom de l'opérateur pour que cette revue puisse être attribuée.",
     "MATRIX_BUILD_FAILED": "Impossible de construire la matrice d'adéquation. Veuillez réessayer.",
     "MATCH_REASONING_FAILED": "Impossible d'expliquer cette correspondance. Veuillez réessayer.",
     "MATRIX_INPUT_INVALID": "La matrice d'adéquation n'a pas pu être construite à partir de cette demande.",
@@ -1883,6 +1890,8 @@
     "roleGeneric": "Un poste chez nous",
     "preparedFor": "Préparé pour {name}",
     "compensation": "Rémunération proposée",
+    "notesLabel": "Notes",
+    "startDate": "Date de début",
     "prompt": "Nous serions ravis de vous accueillir chez {company}. Merci de nous indiquer votre décision ci-dessous.",
     "promptGeneric": "Nous serions ravis de vous accueillir parmi nous. Merci de nous indiquer votre décision ci-dessous.",
     "accept": "Accepter l’offre",
@@ -9940,6 +9949,7 @@
     "title": "Centre de contrôle de l’autonomie",
     "intro": "Supervision humaine du pipeline de recrutement autonome : un coupe-circuit, les validations humaines qui vous attendent et une piste d’audit inaltérable de chaque décision automatisée (la traçabilité qu’exige un système d’AI de recrutement à haut risque).",
     "backToDevCases": "← Exercices",
+    "disarmed": "Confirmation annulée.",
     "autonomy": {
       "statePaused": "L’automatisation est SUSPENDUE",
       "stateRunning": "L’automatisation est active",
@@ -9954,7 +9964,8 @@
       "heading": "En attente de votre décision · {count}",
       "untitled": "Poste",
       "approve": "Approuver et continuer",
-      "approveConfirm": "Confirmer l’approbation ?"
+      "approveConfirm": "Confirmer l’approbation ?",
+      "review": "Examiner"
     },
     "lifecycles": {
       "heading": "Cycles de vie actifs · {count}",

@@ -209,6 +209,7 @@ export function offerView(token: string) {
   // it from there — this is what lets the public offer page show who it's from.
   const job = offer.jobId ? getJob(offer.jobId) : null;
   const company = job?.company ?? null;
+  const terms = publicOfferTerms(offer.payload);
   return {
     token: offer.token,
     status: offer.status,
@@ -225,6 +226,23 @@ export function offerView(token: string) {
     // clock the slot grid uses. The offer row has no zone column yet; formatOfferDeadline
     // already accepts this as its third argument. Server-resolved, never a client guess.
     timeZone: INTERVIEW_TZ,
+    // Terms the letter already promised: notes and start date live on the draft
+    // payload, never as top-level columns. Project only those two strings so the
+    // rest of the payload (subject, body) never reaches the public token door.
+    notes: terms.notes,
+    startDate: terms.startDate,
   };
+}
+
+/** Pull the candidate-visible terms off the stored draft payload. Empty / non-string
+ *  values omit. Never returns the payload itself. */
+function publicOfferTerms(payload: unknown): { notes: string | null; startDate: string | null } {
+  if (payload == null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { notes: null, startDate: null };
+  }
+  const p = payload as { notes?: unknown; startDate?: unknown };
+  const notes = typeof p.notes === "string" && p.notes.trim() ? p.notes.trim() : null;
+  const startDate = typeof p.startDate === "string" && p.startDate.trim() ? p.startDate.trim() : null;
+  return { notes, startDate };
 }
 

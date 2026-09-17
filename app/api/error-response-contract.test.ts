@@ -314,7 +314,10 @@ const LEAK_CEILING = new Map<string, number>([
   // group-eval-ui): the 500 answers safeJsonError(..., "GROUP_EVAL_READ_FAILED"), so the
   // Decisions modal resolves it in the reader's language. The row is deleted so the win
   // is locked.
-  ["decisions/screen-wave/route.ts", 1],
+  // decisions/screen-wave's single leak was FIXED, not ceilinged: the 500 answers
+  // safeJsonError(..., "SCREEN_WAVE_FAILED") and every 400/409 is a jsonRefusal
+  // code, so the Decisions modal never paints English or store detail. The row is
+  // deleted so the win is locked.
   // The ten devcase rows that stood here (thirteen leaks across comms, control,
   // inbound, lifecycle + its [id]/approve, [id]/close, [id]/redesign, outcomes,
   // postings and promote) were FIXED, not ceilinged (/perfect 2026-09-02,

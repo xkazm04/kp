@@ -412,6 +412,11 @@ sealed record, never freshly generated** (see the module header comment,
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
 (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`).
+Every non-2xx from that door is a coded envelope (`jsonRefusal` /
+`safeJsonError`): missing `jobId`, a malformed override, a 409 approval
+refusal (still carrying `reason` from `SCREEN_WAVE_REFUSAL_REASONS`), and the
+500 catch. The client resolves `errors.<CODE>`; English `error.message` and
+store detail never become the painted string.
 
 **One review authorizes ONE commit.** The token is a pure function of
 `(jobId, policyVersion, reject set, issuedAt)`, so re-POSTing the same commit body
@@ -451,10 +456,19 @@ Advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`).
 `/control` — approving an Art. 22 human gate, reconciling, and applying the
 calibrated promote floor — arm on the first click and only run on a second
 click of the *same* control (`app/control/controlRoomConfirm.ts`
-`armOrExecute`; pause/resume stay one-click, a kill switch must). The room
+`armOrExecute`; pause/resume stay one-click, a kill switch must). Each pending
+gate also carries a **Review** link to `/?tab=assignments&lifecycle=<id>` so
+sign-off can happen on `DevLifecycleReviewPanel` (case edits, probe-gate
+override) rather than a truncated title. An armed Confirm also expires after
+15s (`ARMED_TTL_MS`): a late second click disarms without executing, so a
+parked confirm cannot apply a promote floor or approve a gate after the
+operator has left the page. Escape while armed calls `cancelArmed` (execute
+false, nextArmed null) and announces the cancel on a polite live region. The room
 re-polls every 3s, so a control's identity has to include anything that can
 change under the arm: the promote-floor key carries the VALUE (`floorKey`,
-e.g. `floor:70`). With the earlier constant `"floor"` key a suggestion that
+e.g. `floor:70`), and a pending-gate Approve is keyed as `gateKey(id, detail)`
+so a polled replacement under the same lifecycle id re-arms instead of
+signing off. With the earlier constant `"floor"` key a suggestion that
 moved between the two clicks — one newly-decided outcome is enough to shift
 which band `calibrate()` picks — was applied without its own confirm and
 sealed into `dev_audit` as a human decision for a number nobody confirmed.

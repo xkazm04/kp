@@ -1578,6 +1578,13 @@
     "DECISION_CONFIG_FIELDS_REQUIRED": "That rules update named no phase, or carried no rules to save.",
     "DECISION_CONFIG_INVALID": "Those rules aren't valid for this phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Couldn't save these rules. Please try again.",
+    "SCREEN_WAVE_FAILED": "Could not run the screening wave. Please try again.",
+    "SCREEN_WAVE_JOB_REQUIRED": "Name the role this screening wave should run on.",
+    "SCREEN_WAVE_APPROVAL_REQUIRED": "Review the preview and approve this set before committing the wave.",
+    "SCREEN_WAVE_APPROVAL_EXPIRED": "This approval has expired. Re-preview and approve the current set before committing.",
+    "SCREEN_WAVE_APPROVAL_MISMATCH": "The candidate set changed since it was previewed. Re-preview and approve the current set before committing.",
+    "SCREEN_WAVE_APPROVAL_SPENT": "This review was already used. Re-preview and approve the current set before committing.",
+    "SCREEN_WAVE_APPROVAL_UNATTRIBUTED": "Sign in or set the operator name so this review can be attributed.",
     "MATRIX_BUILD_FAILED": "Could not build the fit matrix. Please try again.",
     "MATCH_REASONING_FAILED": "Could not explain that match. Please try again.",
     "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
@@ -1883,6 +1890,8 @@
     "roleGeneric": "A role with us",
     "preparedFor": "Prepared for {name}",
     "compensation": "Proposed compensation",
+    "notesLabel": "Notes",
+    "startDate": "Start date",
     "prompt": "We'd be thrilled to have you join {company}. Please let us know your decision below.",
     "promptGeneric": "We'd be thrilled to have you join us. Please let us know your decision below.",
     "accept": "Accept offer",
@@ -10099,6 +10108,7 @@
     "title": "Autonomy control room",
     "intro": "Human oversight for the autonomous hiring pipeline: a kill switch, the human gates awaiting you, and an immutable audit trail of every automated decision (the record-keeping a high-risk AI hiring system requires).",
     "backToDevCases": "← Assignments",
+    "disarmed": "Confirm cancelled.",
     "autonomy": {
       "statePaused": "Automation is PAUSED",
       "stateRunning": "Automation is running",
@@ -10113,7 +10123,8 @@
       "heading": "Awaiting your decision · {count}",
       "untitled": "Role",
       "approve": "Approve & continue",
-      "approveConfirm": "Confirm approve?"
+      "approveConfirm": "Confirm approve?",
+      "review": "Review"
     },
     "lifecycles": {
       "heading": "Active lifecycles · {count}",
