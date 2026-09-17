@@ -75,7 +75,10 @@ palette. The full mapping table and the five reading states are in
     (`failed`/`bounced`), recorded-but-undeliverable (`queued` — the relay is gone,
     so it shows the "no relay configured" warning rather than "Resent"), and relayed.
 - Candidate apply/work surface — `app/devcase/apply/[token]/page.tsx` +
-  `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`.
+  `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`. The page
+  subtitle matches the submit path that actually renders (`subtitleLive` when a
+  seed is present and the Live Work Surface mounts, `subtitleRepo` for the
+  repository-link form).
 
 ## Flows
 
