@@ -44,8 +44,9 @@ rules make that hold, and both were once broken:
   reload even though `rescheduleCount` was 0.
 - The propose-times form names the interview zone its working-hours window uses
   (`schedule.proposeTimezoneNote`, zone from `GET /api/schedule/[token]`
-  `interviewTz`). The `datetime-local` inputs are the browser wall clock;
-  `PROPOSAL_HOURS` (08:00-18:00) is fenced in `KP_INTERVIEW_TZ`.
+  `interviewTz`). The slots are `DateTimeInput` (`type="datetime-local"`, the
+  TextInput family — Spark Dark, invalid, sizeVariant); values are the browser
+  wall clock. `PROPOSAL_HOURS` (08:00-18:00) is fenced in `KP_INTERVIEW_TZ`.
 - The booked card states remaining self-reschedules (`reschedulesRemaining` =
   `max(0, MAX_RESCHEDULES - rescheduleCount)` on GET and the confirm POST).
   `rescheduleCount` itself stays off the public wire. At 0 the existing
