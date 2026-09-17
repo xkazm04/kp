@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Check, Loader2, Save, Settings2, Sparkles } from "lucide-react";
 import type { GeneratePrefill } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
@@ -59,7 +60,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
     checklistOpen,
     setChecklistOpen,
     submitting,
-    queued,
+    queuedHref,
     anyOption,
     inputOk,
     canStart,
@@ -182,9 +183,10 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {savingDraft ? t("savingDraft") : t("saveDraft")}
         </button>
-        {queued ? (
+        {queuedHref ? (
           <span className="animate-fade-in inline-flex items-center gap-1 text-sm font-semibold text-moss" role="status">
-            <Check size={16} aria-hidden /> {t("queued")}
+            <Check size={16} aria-hidden />
+            <Link href={queuedHref} className="underline-offset-2 hover:underline">{t("queued")}</Link>
           </span>
         ) : draftSaved ? (
           <span className="animate-fade-in inline-flex items-center gap-1 text-sm font-semibold text-moss" role="status">

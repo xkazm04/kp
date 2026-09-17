@@ -17,6 +17,7 @@ import { compareCells } from "@/app/_components/table/useTableSort";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { readClientOrgName } from "@/app/_lib/org-settings";
+import { generateSuccessHref, readGenerateSlug } from "./jdsBuilderGenerate";
 
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // Role-family slugs (canonical; the display label comes from the enums catalog).
@@ -138,9 +139,8 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   }, [needText, marketResearch]);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [queued, setQueued] = useState(false);
-  const queuedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (queuedTimer.current) clearTimeout(queuedTimer.current); }, []);
+  // Durable library-row href after a successful start (replaces the 4s queued chip).
+  const [queuedHref, setQueuedHref] = useState<string | null>(null);
 
   const anyOption = options.description || options.marketResearch || options.caseDesign;
   // A role (for the description and/or the case) needs a real need; market research
@@ -153,6 +153,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     if (!canStart) return;
     setSubmitting(true);
     setError(null);
+    setQueuedHref(null);
     try {
       const r = await fetch("/api/jds/generate", {
         method: "POST",
@@ -177,17 +178,16 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
         throw new Error(errMsg(p, t("generateFailedStatus", { status: r.status })));
       }
       // The JD now lives in the Ledger as "Analyzing" and fills in server-side.
-      // Clear the role-specific inputs so the next role starts fresh (reusable
-      // company/seniority/field/template/language stay), reload the Ledger, and
-      // show a transient confirmation.
+      // Keep the returned slug as a durable link to that row — Generate lives on
+      // Job-intake now, so a 4s chip on this tab is not a path to the object the
+      // paid run is producing.
+      const p = await r.json().catch(() => ({}));
       setChecklistOpen(false);
       setTitle("");
       setNeedText("");
       setRepoUrl("");
       onSaved();
-      setQueued(true);
-      if (queuedTimer.current) clearTimeout(queuedTimer.current);
-      queuedTimer.current = setTimeout(() => setQueued(false), 4000);
+      setQueuedHref(generateSuccessHref(readGenerateSlug(p)));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("genFailed"));
     } finally {
@@ -273,7 +273,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     checklistOpen,
     setChecklistOpen,
     submitting,
-    queued,
+    queuedHref,
     anyOption,
     inputOk,
     canStart,
