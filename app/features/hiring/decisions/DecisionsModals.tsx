@@ -50,7 +50,7 @@ export function DecisionsModals({
   evalDrift: number;
   evalGovernanceMismatch?: GovernanceCacheMismatch | null;
   openGroupEval: (g: Group, rerun?: boolean, selection?: string[]) => void;
-  act: (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => void;
+  act: (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => Promise<boolean>;
   rulesOpen: boolean;
   setRulesOpen: (v: boolean) => void;
   waveRole: { jobId: string; title: string } | null;
@@ -157,19 +157,17 @@ export function DecisionsModals({
           candidateLabel={rejectPending.entry.candidateLabel}
           roleTitle={evalRole?.roleTitle}
           onCancel={() => setRejectPending(null)}
-          onConfirm={(reason) => {
+          onConfirm={async (reason) => {
             const { entry, identity } = rejectPending;
-            // The one line this whole item is about: the rationale reaches act() as
-            // `detail`, so the sealed record's rationale is the recruiter's basis
-            // instead of pipeline-entry-action's "Recruiter reject from <stage>."
-            void act(entry, "reject", reason);
+            // The rationale reaches act() as `detail`, so the sealed record's
+            // rationale is the recruiter's basis instead of pipeline-entry-action's
+            // "Recruiter reject from <stage>." Await the CAS: a 409 means the
+            // candidate was not rejected, and a green toast over a permanently
+            // sealed button would be a success the server never gave.
+            const ok = await act(entry, "reject", reason);
+            if (!ok) return;
             setSealedRejects((s) => new Set(s).add(identity));
             setRejectPending(null);
-            // The comparison tab cannot flip to its outcome pill from out here (the
-            // decided map is the modal's own session state), so confirm the seal
-            // where the recruiter is looking. Truthful wording: the rationale IS
-            // recorded synchronously with the request; the candidate's notice is
-            // queued by dispatchRejection and is not claimed as delivered.
             toast.success(tGroupEval("rejectConfirm.sealedToast", { name: entry.candidateLabel }));
           }}
         />

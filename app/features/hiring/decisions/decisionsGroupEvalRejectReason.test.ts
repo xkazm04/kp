@@ -70,6 +70,22 @@ test("a group-eval reject reaches act() with the recruiter's reason", () => {
   assert.match(modals, /action === "reject" && sealedRejects\.has\(identity\)/, "a re-click on an already-sealed reject must report the recorded outcome");
 });
 
+test("a failed group-eval reject does not toast or seal the identity", () => {
+  const modals = source("./DecisionsModals.tsx");
+  // onConfirm must await the server CAS and condition the toast + sealed set on it.
+  assert.match(modals, /const ok = await act\(entry, "reject", reason\)/, "onConfirm must await act rather than void it");
+  const awaitAt = modals.indexOf('const ok = await act(entry, "reject", reason)');
+  assert.ok(awaitAt > -1, "the confirm path must bind act's boolean");
+  const after = modals.slice(awaitAt);
+  const skipAt = after.indexOf("if (!ok) return");
+  const sealAt = after.indexOf("setSealedRejects((s) => new Set(s).add(identity))");
+  const toastAt = after.indexOf("toast.success");
+  assert.ok(skipAt > -1, "a false act must keep the dialog open and skip the toast");
+  assert.ok(sealAt > skipAt, "the identity is sealed only after act resolves true");
+  assert.ok(toastAt > skipAt, "the success toast fires only after act resolves true");
+  assert.equal(modals.includes('void act(entry, "reject", reason)'), false, "the confirm path must not fire-and-forget act");
+});
+
 test("the confirmation cannot be committed without a rationale", () => {
   const modal = source("./DecisionsGroupEvalRejectModal.tsx");
 
