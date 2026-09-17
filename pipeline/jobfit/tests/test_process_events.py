@@ -20,6 +20,28 @@ class TestProcessEvents(unittest.TestCase):
         bad = [{"t": 1, "kind": "edit", "path": "b.ts"}]
         self.assertEqual(derive_signals(bad)["readBeforeWrite"], 0.0)
 
+    def test_seed_paths_excludes_created_files_from_read_before_write(self):
+        # A created helper (b.ts) must not drag rbw to 0 when the seed only had a.ts.
+        evs = [
+            {"t": 1, "kind": "edit", "path": "b.ts"},
+            {"t": 2, "kind": "open", "path": "a.ts"},
+            {"t": 3, "kind": "edit", "path": "a.ts"},
+        ]
+        sig = derive_signals(evs, seed_paths=["a.ts"])
+        self.assertEqual(sig["readBeforeWrite"], 1.0)
+        self.assertEqual(sig["filesEdited"], 2)
+
+    def test_seed_paths_none_keeps_created_files_in_the_rbw_pool(self):
+        # Legacy: without seed_paths every edited path stays in the pool, so the
+        # unread created file halves the ratio.
+        evs = [
+            {"t": 1, "kind": "edit", "path": "b.ts"},
+            {"t": 2, "kind": "open", "path": "a.ts"},
+            {"t": 3, "kind": "edit", "path": "a.ts"},
+        ]
+        self.assertEqual(derive_signals(evs)["readBeforeWrite"], 0.5)
+        self.assertEqual(derive_signals(evs, seed_paths=None)["readBeforeWrite"], 0.5)
+
     def test_editing_a_test_file_counts_as_verification(self):
         sig = derive_signals([{"t": 1, "kind": "edit", "path": "src/foo.test.ts"}])
         self.assertTrue(sig["editedTest"])
