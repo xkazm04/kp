@@ -239,4 +239,22 @@ check('real map: no duplicate doc entries', () => {
   assert.equal(new Set(docs).size, docs.length);
 });
 
+check('real map: every app/diagrams module is watched by the About entry', () => {
+  const about = realMap.entries.find((e) => e.doc === 'docs/features/about/README.md');
+  assert.ok(about, 'About entry missing');
+  const matchers = about.sourceGlobs.map(compileGlob);
+  const modules = [
+    'app/diagrams/page.tsx',
+    'app/diagrams/PipelineExplorer.tsx',
+    'app/diagrams/pipelineSteps.ts',
+    'app/diagrams/readDiagramSource.ts',
+  ];
+  for (const f of modules) {
+    assert.ok(
+      matchers.some((re) => re.test(f)),
+      `${f} is not covered by the About sourceGlobs`,
+    );
+  }
+});
+
 console.log(`\n${passed} checks passed.`);
