@@ -42,14 +42,9 @@ Backend shipped and in production use:
   produced each field. See `docs/features/app-master/README.md`.
 - LightTrack observability (below) and the benchmark suite (below).
 
-**Outstanding:** `profile_extract` fold-in (`cv_analysis` folded in 2026-08-30 —
-`docs/specs/2026-08-30-cv-analysis-fold-in.md`: `pipeline.py` resolves
-`cv_analysis` through the registry and the Gemini adapter's `complete_document`
-attaches the file, so the gemini row now declares `file_input`; Gemini remains
-the only capable provider, and `extract_profile_text_with_gemini` still calls
-`gemini.py` directly), a
-deliberate bench run to pick metered default models, org-level (per-tenant)
-`llm_usage` attribution (tracked in `docs/features/organization/README.md` /
+**Outstanding:** a deliberate bench run to pick metered default models, and
+org-level (per-tenant) `llm_usage` attribution (tracked in
+`docs/features/organization/README.md` /
 `docs/product/enterprise-readiness.md` §8).
 
 ## Adapters (`pipeline/jobfit/llm/adapters/`)
@@ -154,8 +149,14 @@ replay is COUNTED and logged (`[llm-usage] N of M …`), because a non-zero skip
 means a cleanup failed. The key is deliberately **not** `request_id`: that
 identifies the *spawn* and is stamped on every line the spawn wrote, so a unique
 index on it would drop the second and later metered calls of every multi-call
-run. Rows written directly by `insertLlmUsage` (the voice-interview per-minute
-estimate) and every row predating the column carry `ingest_key` NULL, and SQLite
+run. Rows written directly by `insertLlmUsage` now take the same door: an optional
+`ingestKey`, otherwise a hash of `(requestId, useCase, source, billed unit)` when
+`requestId` is present (TTS cache key, interview session id, GitHub request id).
+`ON CONFLICT(ingest_key) DO NOTHING` refuses a retried write and the skip is
+counted, so a client retry or a complete-route double-POST cannot double-bill.
+A TTS cache *hit* still lands beside the miss that filled it — different `source`
+and billed unit, different key. Unkeyed writers (STT today, which does not pass a
+request id) and every row predating the column carry `ingest_key` NULL, and SQLite
 treats NULLs as distinct — so the index can never be blocked by existing data.
 
 **Resolution happens on the TS side** (it owns the DB), then flows to Python via
@@ -304,8 +305,9 @@ themselves.
 
 ### The direct `gemini.py` seam has its own typed vocabulary
 
-`cv_analysis` and `profile_extract` reach Gemini through `pipeline/jobfit/gemini.py`
-rather than a `TextProvider` adapter (it needs multimodal file bytes + grounding).
+`cv_analysis` reaches Gemini through the registry adapter (`complete_document`).
+The leftover direct `gemini.py` door is tests-only
+(`extract_profile_text_with_gemini`); it still needs multimodal file bytes.
 Its refusals used to be bare `RuntimeError`s carrying English prose only, so a
 caller could not tell an operator-config problem from a model-side failure, and
 `_cli.emit_error` classified every one of them as an anonymous `engine_error`/500.
@@ -896,8 +898,15 @@ locales.
   The spawn now carries the env and `llm-spawn-contract.test.ts` pins it. Gemini
   stays the only
   `file_input`-capable adapter (openai/anthropic/azure rows are still honestly
-  text-only). `profile_extract` still calls the dedicated `gemini.py` path; a
-  config row for it has no effect today.
+  text-only). `extract_profile_text_with_gemini` remains a tests-only `gemini.py`
+  helper and is not in the use-case catalog — a Models-tab pin could not change
+  its traffic, so the row was dropped rather than sold. `devcase_tooling` and
+  `devcase_transfer` were the same class of inert pin (evaluate-submission
+  produces those artifacts under `devcase_evaluate`) and left the catalog with
+  it. `test_byom_coverage.py` now fails when a catalog id is neither a scanned
+  `resolve_provider` site nor a named exemption (`github_analysis` is TS-direct
+  in `app/_lib/github/code-review.ts`; `devcase_role_design` is collapsed into
+  `devcase_case_design` by `design-artifacts`).
 - `grounded_salary` (market salary via `market_salary_cli.py`) also calls
   `gemini.py` directly and is not in the use-case catalog — un-routable.
 - Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider

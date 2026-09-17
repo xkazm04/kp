@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { cleanupUnitDb, UNIT_DB_DIR } from "../testing/unit-db.ts";
-import { aggregateLlmUsage, ingestLlmUsageLog, ingestLlmUsageResult, listLlmActivity } from "./llm.ts";
+import { aggregateLlmUsage, ingestLlmUsageLog, ingestLlmUsageResult, insertLlmUsage, listLlmActivity } from "./llm.ts";
 
 after(() => {
   cleanupUnitDb();
@@ -150,4 +150,87 @@ test("a second ingest of the same sidecar adds nothing and reports the duplicate
   assert.equal(result.inserted, 0, "a replay of the same sidecar inserts nothing");
   assert.equal(result.skipped, 2, "and SAYS how many duplicate lines it refused");
   assert.equal(after().length, 2, "the ledger is unchanged — spend is not doubled");
+});
+
+// TS-DIRECT WRITERS. insertLlmUsage used to omit ingest_key, so a retried /api/tts,
+// /api/stt, /api/interview/complete or github/usage write billed the same minute
+// twice. The sidecar fold already refused that; these four sites now go through
+// the same ON CONFLICT(ingest_key) door.
+function tsWrite(overrides: Parameters<typeof insertLlmUsage>[0]): Parameters<typeof insertLlmUsage>[0] {
+  return {
+    provider: "openai",
+    source: "llm",
+    outcome: "ok",
+    ...overrides,
+  };
+}
+
+test("a second insertLlmUsage of the same ingest_key adds nothing and reports the skip", () => {
+  const row = tsWrite({
+    useCase: "tts",
+    costUsd: 0.02,
+    requestId: "tts-clip-replay",
+    ingestKey: "ts-direct-replay-key",
+  });
+  const first = insertLlmUsage(row);
+  assert.equal(first.inserted, 1);
+  assert.equal(first.skipped, 0);
+
+  const spend = () =>
+    listLlmActivity()
+      .filter((r) => r.requestId === "tts-clip-replay")
+      .reduce((s, r) => s + (r.costUsd ?? 0), 0);
+  const before = spend();
+
+  const replay = insertLlmUsage(row);
+  assert.equal(replay.inserted, 0, "a replay of the same TS write inserts nothing");
+  assert.equal(replay.skipped, 1, "and SAYS the duplicate was refused");
+  assert.equal(spend(), before, "the ledger is unchanged — spend is not doubled");
+});
+
+test("requestId-bearing TS writers auto-stamp ingest_key so a retry cannot double-bill", () => {
+  // Shapes the four TS-direct sites already pass: TTS (cache key), interview
+  // (session id), GitHub (request id). STT does not yet pass a requestId, so it
+  // stays NULL-keyed and is pinned separately below.
+  const sites = [
+    tsWrite({ useCase: "tts", costUsd: 0.01, requestId: "tts-cache-key" }),
+    tsWrite({ useCase: "interview_realtime", costUsd: 1.2, requestId: "sess-auto" }),
+    tsWrite({ useCase: "github_analysis", costUsd: 0.05, requestId: "gh-req-1", inputTokens: 10, outputTokens: 4 }),
+  ];
+  for (const row of sites) {
+    assert.equal(insertLlmUsage(row).inserted, 1, `${row.useCase} first write lands`);
+    assert.equal(insertLlmUsage(row).skipped, 1, `${row.useCase} retry is refused`);
+    assert.equal(
+      listLlmActivity().filter((r) => r.useCase === row.useCase && r.requestId === row.requestId).length,
+      1,
+      `${row.useCase} spend is one row, not two`
+    );
+  }
+});
+
+test("a TTS cache hit still lands beside the miss that filled it", () => {
+  // Same requestId, different source + billed unit — the hit is a counted zero,
+  // not a replay of the miss.
+  const miss = tsWrite({ useCase: "tts", costUsd: 0.03, requestId: "tts-hit-miss", source: "llm" });
+  const hit = tsWrite({ useCase: "tts", costUsd: 0, requestId: "tts-hit-miss", source: "deterministic" });
+  assert.equal(insertLlmUsage(miss).inserted, 1);
+  assert.equal(insertLlmUsage(hit).inserted, 1);
+  assert.equal(listLlmActivity().filter((r) => r.requestId === "tts-hit-miss").length, 2);
+});
+
+test("an STT-shaped row without requestId still inserts twice — NULL keys are distinct", () => {
+  const row = tsWrite({ useCase: "stt", costUsd: 0.004, provider: "openai" });
+  assert.equal(insertLlmUsage(row).inserted, 1);
+  assert.equal(insertLlmUsage(row).inserted, 1, "unkeyed STT cannot refuse a retry");
+  assert.equal(
+    listLlmActivity().filter((r) => r.useCase === "stt" && r.costUsd === 0.004).length,
+    2
+  );
+});
+
+test("an STT-shaped row WITH an ingestKey refuses a replay like the other three sites", () => {
+  const row = tsWrite({ useCase: "stt", costUsd: 0.008, ingestKey: "stt-retry-key" });
+  assert.equal(insertLlmUsage(row).inserted, 1);
+  assert.equal(insertLlmUsage(row).skipped, 1);
+  assert.equal(listLlmActivity().filter((r) => r.useCase === "stt" && r.costUsd === 0.008).length, 1);
 });
