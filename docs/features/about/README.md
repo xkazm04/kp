@@ -51,7 +51,7 @@ argument survive with JavaScript still in flight.
 | 3 | Screening — cheap filters first | `ko_filter` / `score_job` (`pipeline/jobfit/matching.py`), `match_reasoning` (its own module), `KoReasonKey` | `chapters.test.ts` — the layer names exist and every gate reason shown is a real `KoReasonKey` |
 | 4 | Archetypes — the same three slots, weighted differently | `pipeline/jobfit/archetypes.json` (rule weights, `selfDeclaredConfidence`, `defaultArchetype`, `defaultConfidence`, `lowConfidenceThreshold`) | `chapters.test.ts` — the tally board is parsed back out and compared to the registry |
 | 5 | Assignments — a work sample that survives delegation | the `sim >= 0.85` prompt gate (`pipeline/jobfit/devcase/artifact_checks.py`), `dev_cases.baseline_json` | `chapters.test.ts` — the gate, the scene's `AIM`, and that the worked example sits below it |
-| 6 | Human gates — the machine ranks, a person decides | the approval path in `app/_lib/automation-pass.ts` | prose |
+| 6 | Human gates — the machine ranks, a person decides | `APPROVAL_KINDS` / `needsHumanDecision` (`app/_lib/approval-kinds.ts`), the approval path in `app/_lib/automation-pass.ts` | `chapters.test.ts` — every non-empty `ACTIONS.kind` is `isApprovalKind`, parks iff kind is set, and `needsHumanDecision` still exists |
 
 **One deliberate exception.** Chapter 3's `120 / 74 / 8` are *not* quoted from
 anything: the shortlist width is whatever the caller asks `match_reasoning` for
