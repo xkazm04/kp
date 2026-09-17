@@ -13,7 +13,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jdMarketResearchAvailable } from "@/app/features/library/jds/jdsLibrary";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
-import { publicJdHeaderActions } from "./jdPublicHeader";
+import { isPublicJdApplyOpen, publicJdHeaderActions } from "./jdPublicHeader";
 
 
 // First ~155 chars of the JD body, markdown stripped, for the share/search snippet.
@@ -139,7 +139,14 @@ export default async function JdDetailPage({
   // same isJobOpenForApplications gate the apply surfaces enforce).
   const jobId = jdJobId(slug);
   const linkedJob = getJob(jobId);
-  const applyOpen = linkedJob !== null && isJobOpenForApplications(getJobStatus(jobId));
+  // Archived JDs keep this page up (and robots: noindex) so analysis links still
+  // resolve, but they must not offer Apply — the banner already says the role is
+  // retired. Do not wait on a job-status write; archived_at is the page's own fact.
+  const applyOpen = isPublicJdApplyOpen({
+    hasLinkedJob: linkedJob !== null,
+    jobOpenForApplications: isJobOpenForApplications(getJobStatus(jobId)),
+    archivedAt: jd.archived_at,
+  });
 
   // This page is public + shareable, so the Edit / Archive / Revert controls must
   // not render for a candidate visiting via the share link. Only an operator sees

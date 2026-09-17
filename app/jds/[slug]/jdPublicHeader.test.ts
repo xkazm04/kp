@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { publicJdHeaderActions } from "./jdPublicHeader.ts";
+import { isPublicJdApplyOpen, publicJdHeaderActions } from "./jdPublicHeader.ts";
 
 test("an anonymous header has no Analyze CV or Publish controls", () => {
   const actions = publicJdHeaderActions({ canManage: false, applyOpen: true });
@@ -30,4 +30,37 @@ test("the public page renders the header from publicJdHeaderActions, not a paral
   const src = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
   assert.ok(src.includes("publicJdHeaderActions("), "the page must call the helper");
   assert.ok(src.includes("headerActions.map"), "the header must iterate the helper's list");
+  assert.ok(src.includes("isPublicJdApplyOpen("), "applyOpen must go through the archived-aware helper");
+});
+
+test("an archived JD is not accepting even when the linked job is still open", () => {
+  const applyOpen = isPublicJdApplyOpen({
+    hasLinkedJob: true,
+    jobOpenForApplications: true,
+    archivedAt: "2026-09-01T00:00:00Z",
+  });
+  assert.equal(applyOpen, false);
+  assert.deepEqual(publicJdHeaderActions({ canManage: false, applyOpen }), ["notAccepting"]);
+});
+
+test("an open unarchived JD with a linked job still shows Apply", () => {
+  assert.equal(
+    isPublicJdApplyOpen({ hasLinkedJob: true, jobOpenForApplications: true, archivedAt: null }),
+    true
+  );
+  assert.equal(
+    isPublicJdApplyOpen({ hasLinkedJob: true, jobOpenForApplications: true, archivedAt: undefined }),
+    true
+  );
+});
+
+test("a missing or closed job never opens Apply, archived or not", () => {
+  assert.equal(
+    isPublicJdApplyOpen({ hasLinkedJob: false, jobOpenForApplications: true, archivedAt: null }),
+    false
+  );
+  assert.equal(
+    isPublicJdApplyOpen({ hasLinkedJob: true, jobOpenForApplications: false, archivedAt: null }),
+    false
+  );
 });

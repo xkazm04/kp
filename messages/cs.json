@@ -595,6 +595,10 @@
       "subject": "Připomínka: vaše nabídka na pozici {role} stále platí",
       "body": "Dobrý den, {name},\n\njen krátká připomínka, že vaše nabídka na pozici {role} stále platí a čeká na vaše rozhodnutí. Pokud ji chcete přijmout, dejte nám prosím vědět do {deadline}.\n\nDetaily si prohlédněte a odpovězte zde:\n{link}\n\nPokud máte před rozhodnutím jakékoli dotazy, stačí odpovědět. Rádi pomůžeme.\n\n{team}"
     },
+    "consentExpiryReminder": {
+      "subject": "Vaše údaje k přihlášce na pozici {role} anonymizujeme {date}",
+      "body": "Dobrý den, {name},\n\nvaši přihlášku na pozici {role} stále evidujeme. Dne {date} ji anonymizujeme: jméno a kontaktní údaje odstraníme a ponecháme jen deidentifikovaný záznam o posouzení.\n\nMůžete si data prohlédnout, požádat o výmaz, nebo nechat termín doběhnout. Odkazy na tyto kroky jsou na konci této zprávy.\n\n{team}"
+    },
     "interviewInvite": {
       "subject": "Vaše první kolo s AI: {role}",
       "length": " Trvá přibližně {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
@@ -2701,7 +2705,8 @@
       "interview_reminder": "Připomenutí pohovoru",
       "interview_invite": "Pozvánka na pohovor",
       "case_invite": "Pozvánka k zadání",
-      "offer_reminder": "Připomenutí nabídky"
+      "offer_reminder": "Připomenutí nabídky",
+      "consent_expiry": "Připomenutí konce souhlasu"
     },
     "provenance": {
       "voiceProvider": {
@@ -8872,7 +8877,8 @@
       "interview_invite": "Pozvánka na pohovor",
       "case_invite": "Pozvánka k praktickému zadání",
       "interviewer_brief": "Podklady pro tazatele",
-      "schedule_invite": "Pozvánka k naplánování"
+      "schedule_invite": "Pozvánka k naplánování",
+      "consent_expiry": "připomenutí konce souhlasu"
     },
     "cohort": {
       "title": "Přehled sond napříč kohortou",

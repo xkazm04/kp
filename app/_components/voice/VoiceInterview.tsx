@@ -24,7 +24,7 @@ import { interviewFinalStatus, unmountBeaconStatus } from "@/app/_lib/voice/fina
 // Pre-flight capability check (idea-b0fc8018) — same browser-safe pure-helper
 // pattern; fails fast with an actionable message instead of letting
 // getUserMedia throw the generic "Failed to start the call".
-import { collectVoicePreflightEnv, voicePreflightError } from "@/app/_lib/voice/preflight";
+import { collectVoicePreflightEnv, voicePreflightCode } from "@/app/_lib/voice/preflight";
 // The two realtime transports live side by side under transport/: OpenAI Realtime
 // is raw WebRTC (a plain module of ref-driven functions), ElevenLabs is a thin hook
 // around the SDK. Everything provider-specific — protocol buffers, teardown order,
@@ -576,9 +576,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     // link, or a WebRTC-less browser is the most common real-world failure of a
     // first-round screen — name the root cause and the fix, and never burn a
     // /connect call (which mints provider credentials) on a doomed environment.
-    const preflight = voicePreflightError(collectVoicePreflightEnv(), provider);
+    const preflight = voicePreflightCode(collectVoicePreflightEnv(), provider);
     if (preflight) {
-      setError(preflight);
+      setError(errMsg({ code: preflight }, t("errStartCall")));
       setPhase("error");
       return;
     }

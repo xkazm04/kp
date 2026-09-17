@@ -15,3 +15,12 @@ export function publicJdHeaderActions(opts: {
   }
   return actions;
 }
+
+/** Apply on the public page: linked job is open AND the JD itself is not archived. */
+export function isPublicJdApplyOpen(opts: {
+  hasLinkedJob: boolean;
+  jobOpenForApplications: boolean;
+  archivedAt: string | number | null | undefined;
+}): boolean {
+  return Boolean(opts.hasLinkedJob && opts.jobOpenForApplications && !opts.archivedAt);
+}

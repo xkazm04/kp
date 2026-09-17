@@ -319,6 +319,16 @@ const SATELLITE_ERROR_SOURCES = [
     }
   },
   {
+    // Client-origin: the browser classifies its OWN environment before /connect,
+    // so these can never appear in the server's store/refusal vocabulary.
+    file: "app/_lib/voice/preflight.ts",
+    declaration: "VOICE_PREFLIGHT_ERRORS",
+    codes: (src) => {
+      const block = src.match(/export const VOICE_PREFLIGHT_ERRORS = \{([\s\S]*?)\n\} as const;/);
+      return block ? [...block[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]) : null;
+    }
+  },
+  {
     // `export type JdFieldsErrorCode = "JD_FIELDS_REQUIRED" | …;` — a union, not an
     // object: validateJdFields returns the code beside its canonical-English `error`.
     file: "app/_lib/jd-limits.ts",

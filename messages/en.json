@@ -595,6 +595,10 @@
       "subject": "Reminder: your offer for {role} is still open",
       "body": "Hi {name},\n\nA quick reminder that your offer for {role} is still open and waiting for your decision. To keep it, please let us know by {deadline}.\n\nReview the details and respond here:\n{link}\n\nIf you have any questions before deciding, just reply. We're happy to help.\n\n{team}"
     },
+    "consentExpiryReminder": {
+      "subject": "Your application data for {role} will be anonymized on {date}",
+      "body": "Hi {name},\n\nWe still hold your application for {role}. On {date} we will anonymize it: your name and contact details will be removed, and we will keep only a de-identified assessment.\n\nYou can review, erase, or let the date stand. The links at the bottom of this message open those doors.\n\n{team}"
+    },
     "interviewInvite": {
       "subject": "Your AI first-round screen: {role}",
       "length": " It takes about {minutes} minutes.",
@@ -2701,7 +2705,8 @@
       "interview_reminder": "Interview reminder",
       "interview_invite": "Interview invite",
       "case_invite": "Assignment invite",
-      "offer_reminder": "Offer reminder"
+      "offer_reminder": "Offer reminder",
+      "consent_expiry": "Consent expiry reminder"
     },
     "provenance": {
       "voiceProvider": {
@@ -8872,7 +8877,8 @@
       "interview_invite": "interview invite",
       "case_invite": "assignment invite",
       "interviewer_brief": "interviewer brief",
-      "schedule_invite": "scheduling invite"
+      "schedule_invite": "scheduling invite",
+      "consent_expiry": "consent expiry reminder"
     },
     "cohort": {
       "title": "Cohort probe insights",

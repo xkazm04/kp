@@ -595,6 +595,10 @@
       "subject": "Rappel : votre offre pour {role} est toujours ouverte",
       "body": "Bonjour {name},\n\nPetit rappel : votre offre pour {role} est toujours ouverte et attend votre décision. Pour la conserver, merci de nous répondre avant le {deadline}.\n\nConsultez les détails et répondez ici :\n{link}\n\nSi vous avez des questions avant de décider, répondez simplement. Nous sommes là pour aider.\n\n{team}"
     },
+    "consentExpiryReminder": {
+      "subject": "Vos données de candidature pour {role} seront anonymisées le {date}",
+      "body": "Bonjour {name},\n\nNous conservons encore votre candidature pour {role}. Le {date}, nous l'anonymiserons : nom et coordonnées seront retirés, et nous ne garderons qu'un dossier d'évaluation anonymisé.\n\nVous pouvez consulter, effacer, ou laisser la date arriver. Les liens pour ces démarches sont en bas de ce message.\n\n{team}"
+    },
     "caseInvite": {
       "subject": "Votre test pratique : {role}",
       "body": "Bonjour {name},\n\nNous aimerions vous proposer un court test pratique pour {role}. L’énoncé, les matériaux de départ et le lieu de remise se trouvent tous sur votre lien sécurisé :\n{link}\n\nVous pouvez commencer quand vous le souhaitez. L’usage d’outils AI est attendu et ne vous sera jamais reproché. Ce qui compte, c’est le raisonnement derrière vos choix.\n\nBonne chance,\n{team}"
@@ -2701,7 +2705,8 @@
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
       "case_invite": "Invitation au test pratique",
-      "offer_reminder": "Rappel d’offre"
+      "offer_reminder": "Rappel d’offre",
+      "consent_expiry": "Rappel d’expiration du consentement"
     },
     "provenance": {
       "voiceProvider": {
@@ -8872,7 +8877,8 @@
       "interview_invite": "Invitation à l’entretien",
       "case_invite": "Invitation au test pratique (envoi)",
       "interviewer_brief": "Brief de l’intervieweur",
-      "schedule_invite": "Invitation à planifier"
+      "schedule_invite": "Invitation à planifier",
+      "consent_expiry": "rappel d’expiration du consentement"
     },
     "cohort": {
       "title": "Analyse des sondes sur la cohorte",

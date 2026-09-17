@@ -260,6 +260,15 @@ boards" button in the same header as Apply — operator chrome on a job posting.
 Those two now render only when `canManage`; Apply / Not accepting stay for
 everyone. Pinned by `app/jds/[slug]/jdPublicHeader.test.ts`.
 
+**Archived means not accepting.** The archived banner and `robots: noindex`
+already claim the role is retired, but Apply used to key only on the linked
+`jd-<slug>` job (`isJobOpenForApplications`). An archived JD whose job was
+still open showed both the banner and an Apply CTA into `/apply/jd-<slug>`.
+`isPublicJdApplyOpen` requires `!archived_at` as well; the closed-job dashed
+chip (`notAccepting`) covers the archived case. The apply APIs still gate on
+job status — this is the page predicate, so the CTA stops contradicting the
+banner without waiting on a job-status write.
+
 ### Publishing a draft reports its outcome in a toast
 
 A publish spends ~20s in the sourcing matcher, and its outcome used to be an

@@ -595,6 +595,10 @@
       "subject": "Erinnerung: Ihr Angebot für {role} ist noch offen",
       "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Angebot für {role} noch offen ist und auf Ihre Entscheidung wartet. Damit es gültig bleibt, geben Sie uns bitte bis {deadline} Bescheid.\n\nDetails ansehen und hier antworten:\n{link}\n\nWenn Sie vor Ihrer Entscheidung Fragen haben, antworten Sie einfach. Wir helfen gern.\n\n{team}"
     },
+    "consentExpiryReminder": {
+      "subject": "Ihre Bewerbungsdaten für {role} werden am {date} anonymisiert",
+      "body": "Hallo {name},\n\nwir halten Ihre Bewerbung für {role} noch vor. Am {date} anonymisieren wir sie: Name und Kontaktdaten entfallen, es bleibt nur ein de-identifizierter Bewertungsdatensatz.\n\nSie können die Daten einsehen, löschen lassen oder das Datum abwarten. Die Links dafür stehen am Ende dieser Nachricht.\n\n{team}"
+    },
     "interviewInvite": {
       "subject": "Ihr AI-Screening der ersten Runde: {role}",
       "length": " Es dauert etwa {minutes} Minuten.",
@@ -2701,7 +2705,8 @@
       "interview_reminder": "Interview-Erinnerung",
       "interview_invite": "Interview-Einladung",
       "case_invite": "Arbeitsprobe-Einladung",
-      "offer_reminder": "Angebotserinnerung"
+      "offer_reminder": "Angebotserinnerung",
+      "consent_expiry": "Erinnerung an das Einwilligungsende"
     },
     "provenance": {
       "voiceProvider": {
@@ -8872,7 +8877,8 @@
       "interview_invite": "Interview-Einladung",
       "case_invite": "Einladung zur Arbeitsprobe",
       "interviewer_brief": "Interviewer-Briefing",
-      "schedule_invite": "Termin-Einladung"
+      "schedule_invite": "Termin-Einladung",
+      "consent_expiry": "Erinnerung an das Einwilligungsende"
     },
     "cohort": {
       "title": "Kohorten-Auswertung der Prüfpunkte",
