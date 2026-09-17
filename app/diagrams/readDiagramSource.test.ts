@@ -12,19 +12,16 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { DIAGRAMS } from "./diagramCatalog.ts";
 import { readDiagramSource, diagramPath } from "./readDiagramSource.ts";
 
 // app/diagrams/ -> repo root (two levels up), so the .puml sources resolve
 // regardless of the test runner's cwd (mirrors pipelineSteps.test.ts).
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// The three sources DiagramsPage renders (page.tsx DIAGRAMS[]). These are exactly
-// the files that must survive the trip into the standalone image.
-const RENDERED = [
-  "15-automated-pipeline-tobe.puml",
-  "01-system-architecture-v1.puml",
-  "02-system-architecture-v2.puml",
-];
+// The sources DiagramsPage renders — imported from the same catalog the page
+// uses, so a rename in one place cannot leave this suite asserting a stale list.
+const RENDERED = DIAGRAMS.map((d) => d.file);
 
 test("readDiagramSource returns real PlantUML content for every rendered diagram", () => {
   for (const file of RENDERED) {

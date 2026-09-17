@@ -5,6 +5,7 @@ import { EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recip
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
+import { DIAGRAMS } from "./diagramCatalog";
 import { PipelineExplorer } from "./PipelineExplorer";
 import { parseDiagramStep } from "./pipelineSteps";
 import { readDiagramSource } from "./readDiagramSource";
@@ -20,15 +21,6 @@ export const instant = false;
 // The on-disk read + module-scope cache live in ./readDiagramSource; those .puml
 // files reach the standalone production runtime via next.config.ts's
 // `outputFileTracingIncludes` for the /diagrams route.
-
-// bug-ui-scan-2026-07-09 (architecture-diagrams #3): the user-facing label/blurb
-// for each diagram live in messages/*.json (items.<key>.*); only the on-disk file
-// name and layout flags stay here.
-const DIAGRAMS: { file: string; key: "tobe" | "v1" | "v2"; featured?: boolean }[] = [
-  { file: "15-automated-pipeline-tobe.puml", key: "tobe", featured: true },
-  { file: "01-system-architecture-v1.puml", key: "v1" },
-  { file: "02-system-architecture-v2.puml", key: "v2" },
-];
 
 function Legend({ live, gate, gap }: { live: string; gate: string; gap: string }) {
   return (
