@@ -6300,6 +6300,7 @@
     "colFamily": "Role family",
     "colSeniority": "Seniority",
     "colScore": "Score",
+    "colProducer": "Producer",
     "colDecision": "Decision",
     "colJd": "JD",
     "colSaved": "Saved",
@@ -6307,6 +6308,11 @@
       "advance": "advance",
       "hold": "hold",
       "pass": "pass"
+    },
+    "producer": {
+      "llm": "Model",
+      "deterministic": "Rules",
+      "unknown": "Unknown"
     },
     "reviewFlags": "{count, plural, one {# quality check flagged for review} other {# quality checks flagged for review}}",
     "priorRuns": "{count, plural, one {supersedes # earlier run of the same CV} other {supersedes # earlier runs of the same CV}}"

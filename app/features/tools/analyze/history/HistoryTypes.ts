@@ -21,6 +21,25 @@ export type AnalysisRow = {
   // Content-addressed identity: how many OLDER re-runs of the same CV+JD this row
   // supersedes (the list collapses them to the newest). 0/absent = a first/only run.
   prior_runs?: number | null;
+  // Which producer scored this row. listAnalyses already SELECTs both; NULL on a
+  // row saved before the columns existed is unknown, never assumed to be an LLM.
+  engine?: string | null;
+  engine_provider?: string | null;
+};
+
+export const ANALYSIS_PRODUCERS = ["llm", "deterministic", "unknown"] as const;
+export type AnalysisProducer = (typeof ANALYSIS_PRODUCERS)[number];
+
+/** Map the stored engine marker to the chip the History row paints. A null, blank,
+ *  or unrecognised value is unknown — never "llm". */
+export function analysisProducer(engine: string | null | undefined): AnalysisProducer {
+  return engine === "llm" || engine === "deterministic" ? engine : "unknown";
+}
+
+export const PRODUCER_STYLE: Record<AnalysisProducer, string> = {
+  llm: "bg-moss/10 text-moss",
+  deterministic: "bg-stone-100 text-steel",
+  unknown: "bg-amber-100 text-amber-800",
 };
 
 // RES5 — the recruiter's recorded decision on a saved analysis, shown as a pill on

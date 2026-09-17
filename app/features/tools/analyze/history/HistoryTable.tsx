@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { DISPOSITION_STYLE, type AnalysisRow } from "./HistoryTypes";
+import { analysisProducer, DISPOSITION_STYLE, PRODUCER_STYLE, type AnalysisRow } from "./HistoryTypes";
 
 export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLabel: (d: string) => string }) {
   const t = useTranslations("history");
@@ -23,6 +23,7 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
             <Th>{t("colFamily")}</Th>
             <Th>{t("colSeniority")}</Th>
             <Th>{t("colScore")}</Th>
+            <Th>{t("colProducer")}</Th>
             <Th>{t("colDecision")}</Th>
             <Th>{t("colJd")}</Th>
             <Th>{t("colSaved")}</Th>
@@ -63,6 +64,9 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
                     ⚠ {row.review_flags}
                   </span>
                 ) : null}
+              </Td>
+              <Td>
+                <ProducerChip engine={row.engine} provider={row.engine_provider} t={t} />
               </Td>
               <Td>
                 {row.disposition ? (
@@ -106,6 +110,26 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ProducerChip({
+  engine,
+  provider,
+  t,
+}: {
+  engine: string | null | undefined;
+  provider: string | null | undefined;
+  t: ReturnType<typeof useTranslations<"history">>;
+}) {
+  const producer = analysisProducer(engine);
+  return (
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-sm font-semibold ${PRODUCER_STYLE[producer]}`}
+      title={provider?.trim() || t(`producer.${producer}`)}
+    >
+      {t(`producer.${producer}`)}
+    </span>
   );
 }
 

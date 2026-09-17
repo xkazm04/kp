@@ -947,8 +947,11 @@ data inside the fence and does not change the schema-validated output shape.
     the committed JSON is refreshed on its own schedule, so deriving would leave a stale
     corpus unmarked. The saved report renders `EngineNote variant="deterministic"` above
     the engine panel when no model ran; an LLM row says nothing extra, because that is
-    the assumed case and a marker on every report is chrome nobody reads. Pinned by
-    `analyze-run.test.ts`.
+    the assumed case and a marker on every report is chrome nobody reads. History
+    rows show a localized producer chip (`analysisProducer` in `HistoryTypes.ts`:
+    llm / deterministic / unknown) so a mixed workspace is not uniform; a null
+    engine paints unknown, never "llm". Pinned by
+    `analyze-run.test.ts` and `HistoryTypes.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
 - `pipeline_entries` — the per-job application record; carries the *snapshot*

@@ -6300,6 +6300,7 @@
     "colFamily": "Berufsfamilie",
     "colSeniority": "Seniorität",
     "colScore": "Score",
+    "colProducer": "Quelle",
     "colDecision": "Entscheidung",
     "colJd": "Stellenbeschreibung",
     "colSaved": "Gespeichert",
@@ -6307,6 +6308,11 @@
       "advance": "weiterleiten",
       "hold": "zurückhalten",
       "pass": "ablehnen"
+    },
+    "producer": {
+      "llm": "Modell",
+      "deterministic": "Regeln",
+      "unknown": "Unbekannt"
     },
     "reviewFlags": "{count, plural, one {# Qualitätsprüfung zur Überprüfung markiert} other {# Qualitätsprüfungen zur Überprüfung markiert}}",
     "priorRuns": "{count, plural, one {ersetzt # früheren Lauf desselben Lebenslaufs} other {ersetzt # frühere Läufe desselben Lebenslaufs}}"

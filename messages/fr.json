@@ -6300,6 +6300,7 @@
     "colFamily": "Famille de postes",
     "colSeniority": "Séniorité",
     "colScore": "Score",
+    "colProducer": "Source",
     "colDecision": "Décision",
     "colJd": "Fiche de poste",
     "colSaved": "Enregistré",
@@ -6307,6 +6308,11 @@
       "advance": "avancer",
       "hold": "en attente",
       "pass": "écarter"
+    },
+    "producer": {
+      "llm": "Modèle",
+      "deterministic": "Règles",
+      "unknown": "Inconnu"
     },
     "reviewFlags": "{count, plural, one {# contrôle qualité à examiner} other {# contrôles qualité à examiner}}",
     "priorRuns": "{count, plural, one {remplace # exécution précédente du même CV} other {remplace # exécutions précédentes du même CV}}"

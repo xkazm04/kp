@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
+  analysisProducer,
   distinct,
   historyRowMatchesQuery,
   historyShowingTotal,
@@ -142,6 +143,23 @@ test("truncated is a positive claim: missing or junk is not invented as true", (
   assert.equal(readAnalysesListPayload({ analyses: [row("a")], truncated: "yes" }).truncated, false);
   assert.equal(readAnalysesListPayload({ analyses: "nope" }).analyses.length, 0);
   assert.equal(readAnalysesListPayload(null).analyses.length, 0);
+});
+
+test("analysisProducer names llm, deterministic, and unknown; null is never llm", () => {
+  assert.equal(analysisProducer("llm"), "llm");
+  assert.equal(analysisProducer("deterministic"), "deterministic");
+  assert.equal(analysisProducer(null), "unknown");
+  assert.equal(analysisProducer(undefined), "unknown");
+  assert.equal(analysisProducer(""), "unknown");
+  assert.equal(analysisProducer("gemini"), "unknown");
+});
+
+test("HistoryTable paints the producer chip from analysisProducer, never a raw engine string", () => {
+  const table = readFileSync(fileURLToPath(new URL("./HistoryTable.tsx", import.meta.url)), "utf8");
+  assert.match(table, /analysisProducer\(engine\)/, "deterministic/null/llm go through the mapper");
+  assert.match(table, /t\(`producer\.\$\{producer\}`\)/, "the chip label is the localized producer.* key");
+  assert.match(table, /t\("colProducer"\)/, "the column is present");
+  assert.doesNotMatch(table, /producer\.llm/, "null must not hard-code llm");
 });
 
 test("capek matches Čapek; exact slug still matches", () => {

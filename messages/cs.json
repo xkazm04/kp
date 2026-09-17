@@ -6300,6 +6300,7 @@
     "colFamily": "Rodina rolí",
     "colSeniority": "Seniorita",
     "colScore": "Skóre",
+    "colProducer": "Zdroj",
     "colDecision": "Rozhodnutí",
     "colJd": "Popis pozice",
     "colSaved": "Uloženo",
@@ -6307,6 +6308,11 @@
       "advance": "postoupit",
       "hold": "pozdržet",
       "pass": "zamítnout"
+    },
+    "producer": {
+      "llm": "Model",
+      "deterministic": "Pravidla",
+      "unknown": "Neznámý"
     },
     "reviewFlags": "{count, plural, one {# kontrola kvality označena k posouzení} few {# kontroly kvality označeny k posouzení} other {# kontrol kvality označeno k posouzení}}",
     "priorRuns": "{count, plural, one {nahrazuje # dřívější běh stejného CV} few {nahrazuje # dřívější běhy stejného CV} other {nahrazuje # dřívějších běhů stejného CV}}"
