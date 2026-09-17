@@ -20,6 +20,12 @@ test("the launchpad import CTA is a button that invokes onImport", () => {
   assert.match(src, /onClick=\{onClick\}/);
 });
 
+test("the launchpad draft CTA points at Job intake, not the JD shelf", () => {
+  const src = code(launchpad);
+  assert.match(src, /tab="intake"/);
+  assert.equal(/tab="library"/.test(src), false);
+});
+
 test("JobsTab opens the ingest panel from the launchpad import CTA", () => {
   assert.match(code(tab), /onImport=\{\(\) => ingest\.setOpen\(true\)\}/);
   assert.match(code(results), /<JobsEmptyLaunchpad onImport=\{onImport\} \/>/);

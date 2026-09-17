@@ -100,7 +100,7 @@ export function JobsEmptyLaunchpad({ onImport }: { onImport?: () => void } = {})
           title={t("route1Title")}
           body={t("route1Body")}
           cta={t("route1Cta")}
-          tab="library"
+          tab="intake"
           search={searchStr}
         />
         <RouteCard

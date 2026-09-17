@@ -12,6 +12,7 @@ the existing JD build. Conversation design is normed by
 - `?tab=intake` — **Job intake**, the authoring tab (sidebar: Library → Job
   intake). Two modes behind one switcher: the **intake dialog** (default) and
   **Generate**, the manual JD builder for a recruiter who already has the text.
+  The empty Jobs catalog's "draft a role" card lands here (not on the JD shelf).
   Both panels stay mounted, so switching can never discard a half-typed draft or
   an in-flight dialog (`jdsLedgerNav.ts` pins that; only a Duplicate advances
   `builderKey` and remounts the builder).
