@@ -12,7 +12,6 @@ import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
-import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
 import type { GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
@@ -197,13 +196,20 @@ export function useDecisionsQueue() {
   // moved. Every read takes a ticket, a confirmed decision invalidates outstanding
   // tickets, and a superseded response is dropped instead of clobbering fresher state.
   const loadTicket = useRef(0);
-  // Sharing is OPT-IN (see usePipelineBoardData): `load` is also the post-action
-  // reconcile, which must always hit the network.
-  const load = (opts?: { shared?: boolean }) => {
+  // Fetch is direct (not sharedGetJson): a non-OK pipeline read carries
+  // FORBIDDEN_CAPABILITY / PIPELINE_LIST_FAILED on the body, and sharedGetJson
+  // throws `Error("HTTP 403")` after discarding it. Always hits the network so
+  // a post-action reconcile cannot attach to a pre-write GET.
+  const load = () => {
     const ticket = ++loadTicket.current;
-    return sharedGetJson<unknown>("/api/pipeline", { refresh: !opts?.shared })
-      .then((p) => {
+    return fetch("/api/pipeline")
+      .then(async (r) => {
+        const p = await r.json().catch(() => null);
         if (ticket !== loadTicket.current) return; // superseded by a newer read or a landed decision
+        if (!r.ok) {
+          setError(capabilityAwareReason(errMsg, foldQueueLoadThrow({ status: r.status, body: p }), t("loadFailed")));
+          return;
+        }
         // the-decisions-queue-answers-codes: the body is FOLDED, never thrown. The
         // old chain re-threw `p.error` and painted `e.message`, so the queue's own
         // failure was the one English sentence on a screen where every other
@@ -256,7 +262,7 @@ export function useDecisionsQueue() {
     // The gate object is created once and never replaced, so capturing it here is
     // the identity the cleanup needs (and keeps the ref out of the cleanup body).
     const gate = reconsiderGate.current;
-    latestLoaders.current.load({ shared: true }); // mount read may ride a sibling's in-flight request
+    latestLoaders.current.load(); // mount read always fetches so a 403 body still folds
     latestLoaders.current.loadReconsider();
     return () => gate.invalidate(); // an unmounted tab writes nothing
   }, []);
