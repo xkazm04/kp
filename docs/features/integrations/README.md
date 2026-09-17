@@ -504,10 +504,13 @@ side).
   the record builder, `ats-candidate-audit.ts`'s `redactAtsRecordForConsent` is belt-and-braces
   for the expired-consent case rather than the enforcement; the anonymized case never
   reaches it (coded 410 above).
-- **The field map has no UI.** A connection saved here uses the stored map (or an empty
-  one), and an empty map has no `externalId` path — so a sync using it fails loudly rather
-  than importing under a bad identity. Editing it still requires a `POST` with a `fieldMap`
-  body.
+- **The field map has no UI.** Editing it still requires a `POST` with a `fieldMap` body.
+  A Recruitee connection created without a map now stores the shipped default (`id`,
+  `candidate.name`, `candidate.emails.0`, `offer.id` / `offer.title`, `stage.name`,
+  `created_at`, stage `1st round` → `Interview`) so a pasted token can actually import.
+  Recruitis and Teamio still store an empty map (no `externalId` path) so a sync using
+  them fails loudly rather than importing under a guessed identity. An explicit empty
+  object still refuses.
 - **`ats_connections` is not workspace-keyed** (unlike `calendar_connections`), so ATS
   credentials are installation-wide. Only the *links* are per-workspace.
 - **Calendar connections are per workspace, not per interviewer.** Free/busy therefore
