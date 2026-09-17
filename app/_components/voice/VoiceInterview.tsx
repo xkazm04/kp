@@ -40,6 +40,7 @@ import { isVoiceTransportError } from "./transport/transport-error";
 import { useMicTest } from "./useMicTest";
 import { useTranscriptPersistence } from "./useTranscriptPersistence";
 import { micErrorText } from "./micErrorText";
+import { connectStartFailureMessage } from "./connect-start-failure";
 import { PROVIDER_LABEL, type LangHint, type Phase } from "./ui-types";
 import { MicTestPanel } from "./MicTestPanel";
 import { StatusPill } from "./VoiceStatusPill";
@@ -630,11 +631,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         }),
       });
       const data = await res.json();
-      // /api/interview/connect answers with safeJsonError's `{ error, code }`
-      // (INTERVIEW_CONNECT_FAILED) — resolve the code; `error` is English for the
-      // server log (app/_lib/use-error-message.ts). The old fallback was a raw
-      // English `connect failed (status)` string, so every locale saw English twice.
-      if (!res.ok) throw new Error(errMsg(data, t("errStartCall")));
+      // /api/interview/connect answers with `{ error, code }` — resolve the
+      // code; `error` is English for the server log. Do not throw into the
+      // generic catch: that path discarded e.message for t("errStartCall")
+      // and hid INTERVIEW_ALREADY_LIVE / EXPIRED / INACTIVE / ALREADY_COMPLETED.
+      if (!res.ok) {
+        clearConnectTimer();
+        setError(
+          connectStartFailureMessage(data, errMsg, t("errStartCall"), (minutes) =>
+            t("retryAfterMinutes", { minutes }),
+          ),
+        );
+        setPhase("error");
+        teardownOpenAi();
+        return;
+      }
       sessionIdRef.current = data.sessionId;
       sessionTokenRef.current = (typeof data.token === "string" ? data.token : null) ?? token ?? null;
       const c = data.connect;
