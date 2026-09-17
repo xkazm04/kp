@@ -4,6 +4,7 @@
 // HistoryTab.tsx.
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { analysisProducer, DISPOSITION_STYLE, PRODUCER_STYLE, type AnalysisRow } from "./HistoryTypes";
@@ -12,6 +13,7 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
   const t = useTranslations("history");
   const enumLabel = useEnumLabel();
   const locale = useLocale();
+  const dates = useDateFormat();
 
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-stone-200">
@@ -104,7 +106,7 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
                   "—"
                 )}
               </Td>
-              <Td>{formatRelative(row.created_at, locale)}</Td>
+              <Td>{formatRelative(row.created_at, locale, dates.date)}</Td>
             </tr>
           ))}
         </tbody>
@@ -148,13 +150,13 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
   return <td className={`px-4 py-3 text-base text-ink ${className}`}>{children}</td>;
 }
 
-function formatRelative(iso: string, locale: string): string {
+function formatRelative(iso: string, locale: string, formatDate: (value: string) => string): string {
   const ts = new Date(iso).getTime();
   if (!Number.isFinite(ts)) return iso;
   // Within a day: the shared relative "ago" renderer. Older: an absolute date,
   // which reads better than "37d ago" for a history view. Both halves render in
-  // the ACTIVE locale — the absolute fallback used to take the JS runtime's
-  // default, which is the viewer's OS locale, not the app's.
+  // the ACTIVE locale — the absolute fallback goes through useDateFormat so it
+  // follows the app locale, not the viewer's OS.
   if (Date.now() - ts < 86_400_000) return formatRelativeTime(iso, locale);
-  return new Date(iso).toLocaleDateString(locale);
+  return formatDate(iso);
 }

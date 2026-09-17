@@ -61,7 +61,9 @@ career-switcher) that other features key off. Downstream ranking is
   family/seniority dropdowns are ordered by their **localized** label through
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
-  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader.
+  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader. Saved-at dates go through
+  `useDateFormat` (the list) and `dateFormatter` with the server `getLocale()`
+  (the report header), never the runtime default locale.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so

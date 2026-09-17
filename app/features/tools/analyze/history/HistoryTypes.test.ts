@@ -177,6 +177,15 @@ test("HistoryTab search uses the folded matcher, not toLowerCase alone", () => {
   assert.doesNotMatch(tab, /candidate_label\.toLowerCase\(\)/, "bare toLowerCase was the pre-fix needle");
 });
 
+test("History dates go through the shared formatter; toLocaleString is gone", () => {
+  const table = readFileSync(fileURLToPath(new URL("./HistoryTable.tsx", import.meta.url)), "utf8");
+  const page = readFileSync(fileURLToPath(new URL("../../../../history/[slug]/page.tsx", import.meta.url)), "utf8");
+  assert.doesNotMatch(table, /toLocaleDateString|toLocaleString/);
+  assert.doesNotMatch(page, /toLocaleDateString|toLocaleString/);
+  assert.match(table, /useDateFormat/, "HistoryTable absolute fallback uses the client formatter");
+  assert.match(page, /dateFormatter/, "the saved-report header uses the memoized server formatter");
+});
+
 test("History names a truncated page as a page and drops the complete-list claim", () => {
   const tab = readFileSync(fileURLToPath(new URL("./HistoryTab.tsx", import.meta.url)), "utf8");
   const bar = readFileSync(fileURLToPath(new URL("./HistoryFilterBar.tsx", import.meta.url)), "utf8");
