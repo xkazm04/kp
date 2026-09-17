@@ -9,6 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,4 +48,44 @@ test("a missing diagram falls back to empty string instead of throwing", () => {
   } finally {
     console.error = original;
   }
+});
+
+// Committed sources that the operator page does not render. A new .puml that
+// never reaches /diagrams must land here with a why, not as an omission — that
+// is the ratchet so the unpublished subset cannot grow silently.
+const UNLISTED: Record<string, string> = {
+  "03-domain-model-v2.puml": "v2-plan class model; the operator page renders the live funnel and the v1/v2 overviews",
+  "04-bau-candidate-analysis-v1.puml": "v1 analysis sequence; unpublished on /diagrams",
+  "05-job-ingestion-pipeline.puml": "job-ad ingest activity; unpublished on /diagrams",
+  "06-bau-matching-pipeline.puml": "BAU matching sequence; unpublished on /diagrams",
+  "07-archetype-detection.puml": "archetype routing activity; unpublished on /diagrams",
+  "08-student-intake.puml": "student intake activity; unpublished on /diagrams",
+  "09-student-transformation.puml": "student transformation activity; unpublished on /diagrams",
+  "10-student-scoring-reasoning.puml": "student scoring sequence; unpublished on /diagrams",
+  "11-recruiter-outputs.puml": "recruiter-output activity; unpublished on /diagrams",
+  "12-career-switcher.puml": "career-switcher activity; unpublished on /diagrams",
+  "13-dev-case-lifecycle.puml": "dev-case lifecycle; unpublished on /diagrams",
+  "14-dev-evaluation-model.puml": "dev-evaluation model; unpublished on /diagrams",
+};
+
+test("committed puml files equal DIAGRAMS plus an explicit UNLISTED set", () => {
+  const onDisk = readdirSync(path.join(ROOT, "docs/diagrams"))
+    .filter((f) => f.endsWith(".puml"))
+    .sort();
+  const rendered = [...RENDERED].sort();
+  const unlisted = Object.keys(UNLISTED).sort();
+
+  const blankWhy = Object.entries(UNLISTED)
+    .filter(([, why]) => typeof why !== "string" || why.trim() === "")
+    .map(([file]) => file);
+  assert.deepEqual(blankWhy, [], `UNLISTED entries need a why string: ${blankWhy.join(", ")}`);
+
+  const overlap = rendered.filter((f) => Object.hasOwn(UNLISTED, f));
+  assert.deepEqual(overlap, [], `a file cannot be both rendered and UNLISTED: ${overlap.join(", ")}`);
+
+  assert.deepEqual(
+    [...rendered, ...unlisted].sort(),
+    onDisk,
+    "every committed .puml must be in DIAGRAMS or UNLISTED (with a why), and UNLISTED cannot name a missing file",
+  );
 });
