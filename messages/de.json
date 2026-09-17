@@ -4593,7 +4593,8 @@
           "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",
           "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren.",
           "checkFailed": "Ob Sprache verfügbar ist, ließ sich nicht prüfen. Versuchen Sie es erneut oder schreiben Sie weiter.",
-          "recheck": "Erneut prüfen"
+          "recheck": "Erneut prüfen",
+          "updatingBrief": "Das Briefing wird aktualisiert…"
         },
         "voiceIo": {
           "dictate": "Diktieren",

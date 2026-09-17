@@ -4593,7 +4593,8 @@
           "failed": "Hovor se nepodařilo spustit. Pokračujte textem.",
           "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem.",
           "checkFailed": "Nepodařilo se zjistit, zda je hlas k dispozici. Zkuste to znovu, nebo pokračujte v textu.",
-          "recheck": "Zkusit znovu"
+          "recheck": "Zkusit znovu",
+          "updatingBrief": "Aktualizuji brief…"
         },
         "voiceIo": {
           "dictate": "Diktovat",

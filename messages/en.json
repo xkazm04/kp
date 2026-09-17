@@ -4593,7 +4593,8 @@
           "failed": "The call didn't go through. Continue in text.",
           "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text.",
           "checkFailed": "Couldn't check whether voice is available. Try again, or continue in text.",
-          "recheck": "Check again"
+          "recheck": "Check again",
+          "updatingBrief": "Updating the brief…"
         },
         "voiceIo": {
           "dictate": "Dictate",
