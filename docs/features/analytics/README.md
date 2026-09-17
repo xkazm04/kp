@@ -392,6 +392,12 @@ describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/job
 `own`) and a `basis` string that **names the tier** are both still to be made, in
 `app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
 
+**Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
+`EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
+(`?tab=pipeline&q=<jobTitle>`) and selects the variant kind filter; an empty title stays
+text. The "recommendation, not an actuator" note is unchanged. Helper:
+`variantPauseBoardHref` in `source-analytics.ts`.
+
 **The variant pause heuristic judges each creative on its own clock.**
 `variantPauseRecommendations` (`app/_lib/source-analytics.ts`) gates a group on the *group's*
 earliest lead — how long the comparison has run — **and** each variant on **its own**
