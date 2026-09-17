@@ -290,6 +290,10 @@ pages; wrapped in `Suspense` because it reads `useSearchParams`, and it uses
 (`Modal placement="top" bare` — the launcher idiom: the eye starts at the input,
 results grow down). The host owns all state (query, debounced `/api/search`,
 keyboard highlight); while typing, entity hits lead and the tab navigator trails.
+`tasks` is a valid tab the footer opens but `NAV_GROUPS` omits, so the navigator
+walk would never list it: `useWorkspaceCommandPaletteItems.ts` appends
+`action-tasks` beside `action-new-intake`, offered at rest and on a match of
+`tasks.label` (or the hunt tokens `tasks` / `background`), href `/?tab=tasks`.
 
 **A failed search clears the rows.** `useWorkspaceCommandPaletteSearch.ts` reduces
 each response through the pure `searchResponseState(ok, body)`
