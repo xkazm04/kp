@@ -3,7 +3,7 @@ import { createTemplate, listTemplates } from "@/app/_lib/templates-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateFields } from "@/app/features/shared/renderTemplate";
+import { validateTemplateFields } from "@/app/features/shared/renderTemplate";
 
 
 export async function GET() {
@@ -31,10 +31,8 @@ export async function POST(request: NextRequest) {
     // whitespace-only name can't slip through to be coerced to "Untitled template".
     const fields = validateTemplateFields(body.name, body.body);
     if (!fields.ok) return NextResponse.json({ error: fields.error }, { status: 400 });
-    // Block unknown {{tokens}} before they can be stored and rendered raw onto a
-    // public JD page (see the unknown-token policy in render-template.ts).
-    const unknown = findUnknownPlaceholders(fields.body);
-    if (unknown.length) return NextResponse.json({ error: unknownPlaceholderMessage(unknown) }, { status: 400 });
+    // Unknown {{tokens}} fail inside validateTemplateFields (unknownTokens), so a
+    // caller that only uses the shared validator still cannot store {{tilte}}.
     // scope 'org' publishes to the shared company library (visible to every team);
     // default is team-private. Publishing is org-affecting, so the whole route is
     // operator-gated above; a finer-grained "manage templates" capability is still

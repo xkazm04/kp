@@ -221,6 +221,16 @@ test("create: caps name and body at the limits the team trusts", () => {
   assert.equal(validateTemplateFields("Name", "b".repeat(TEMPLATE_BODY_MAX_LENGTH + 1)).ok, false);
 });
 
+test("create: unknown tokens fail with unknownTokens", () => {
+  const r = validateTemplateFields("n", "# {{tilte}}");
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.reason.code, "unknownTokens");
+    if (r.reason.code === "unknownTokens") assert.deepEqual(r.reason.tokens, ["tilte"]);
+    assert.match(r.error, /\{\{tilte\}\}/);
+  }
+});
+
 test("create: each failure carries a distinct, user-facing message", () => {
   const required = validateTemplateFields("", "");
   const longName = validateTemplateFields("a".repeat(TEMPLATE_NAME_MAX_LENGTH + 1), "body");
@@ -279,6 +289,17 @@ test("update: a present-but-empty name or body is rejected, not silently kept", 
   assert.equal(validateTemplateUpdate({ name: "   " }).ok, false);
   assert.equal(validateTemplateUpdate({ body: "" }).ok, false);
   assert.equal(validateTemplateUpdate({ name: "ok", body: "   " }).ok, false);
+});
+
+test("update: unknown tokens in a present body fail with unknownTokens", () => {
+  const r = validateTemplateUpdate({ body: "# {{tilte}}" });
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.reason.code, "unknownTokens");
+    if (r.reason.code === "unknownTokens") assert.deepEqual(r.reason.tokens, ["tilte"]);
+  }
+  const rename = validateTemplateUpdate({ name: "Renamed" });
+  assert.equal(rename.ok, true, "a rename-only edit does not lint an absent body");
 });
 
 test("update: present fields are capped to the same limits as create", () => {

@@ -321,6 +321,14 @@ function templateTooLong(field: "name" | "body", value: string, max: number): Te
   return value.length > max ? { code: "tooLong", field, max } : null;
 }
 
+// Unknown {{tokens}} used to be a second, forgettable call at every write door.
+// Both validators run it so a caller that only uses validateTemplateFields still
+// cannot store {{tilte}}.
+function unknownTokensIn(body: string): TemplateFieldError | null {
+  const tokens = findUnknownPlaceholders(body);
+  return tokens.length ? { code: "unknownTokens", tokens } : null;
+}
+
 // A failure result carrying BOTH the English `error` (API/consumer + route) and
 // the stable `reason` code (manager localizes it). One helper so the two never drift.
 function fail(reason: TemplateFieldError): { ok: false; error: string; reason: TemplateFieldError } {
@@ -331,19 +339,22 @@ export type TemplateFieldsResult =
   | { ok: true; name: string; body: string }
   | { ok: false; error: string; reason: TemplateFieldError };
 
-/** Required-and-length validation for a NEW template's name/body (POST
- *  /api/templates) — the single source for both the caps AND the exact error
- *  wording, shared by the write boundary and the manager form so they can't
- *  drift. Trims both fields and rejects a whitespace-only name (which the store
- *  would otherwise silently coerce to "Untitled template") or body. Returns the
- *  trimmed fields on success, or one user-facing error. Accepts `unknown` so a
- *  raw request field can be passed without re-implementing the string guard. */
+/** Required-and-length-and-unknown-token validation for a NEW template's
+ *  name/body (POST /api/templates) — the single source for the caps, the
+ *  unknown-token policy, AND the exact error wording, shared by the write
+ *  boundary and the manager form so they can't drift. Trims both fields and
+ *  rejects a whitespace-only name (which the store would otherwise silently
+ *  coerce to "Untitled template") or body. Returns the trimmed fields on
+ *  success, or one user-facing error. Accepts `unknown` so a raw request field
+ *  can be passed without re-implementing the string guard. */
 export function validateTemplateFields(name: unknown, body: unknown): TemplateFieldsResult {
   const n = typeof name === "string" ? name.trim() : "";
   const b = typeof body === "string" ? body.trim() : "";
   if (!n || !b) return fail({ code: "bothRequired" });
   const lenError = templateTooLong("name", n, TEMPLATE_NAME_MAX_LENGTH) ?? templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
   if (lenError) return fail(lenError);
+  const unknown = unknownTokensIn(b);
+  if (unknown) return fail(unknown);
   return { ok: true, name: n, body: b };
 }
 
@@ -356,7 +367,7 @@ export type TemplateUpdateResult =
  *  promote-to-default carries neither). Only the fields actually present are
  *  trimmed, capped, and returned — and a present field may not be whitespace-only
  *  — so a partial edit can neither store an empty name/body nor exceed the caps.
- *  Same caps and wording as validateTemplateFields, via templateTooLong. */
+ *  Same caps, unknown-token policy, and wording as validateTemplateFields. */
 export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }): TemplateUpdateResult {
   const out: { name?: string; body?: string } = {};
   if (input.name !== undefined) {
@@ -369,7 +380,7 @@ export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }
   if (input.body !== undefined) {
     const b = typeof input.body === "string" ? input.body.trim() : "";
     if (!b) return fail({ code: "bodyEmpty" });
-    const e = templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
+    const e = templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH) ?? unknownTokensIn(b);
     if (e) return fail(e);
     out.body = b;
   }

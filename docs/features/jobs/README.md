@@ -172,6 +172,12 @@ Missing `{{title}}` / `{{company}}` no longer substitute the English literals
 / `fallback_company`, resolved with the rest of the document-language tokens, so a
 partial Czech (or German/French) render cannot leak English scaffolding.
 
+Unknown `{{tokens}}` fail inside `validateTemplateFields` / `validateTemplateUpdate`
+(`reason.code: unknownTokens`) rather than as a second, forgettable call at each
+write door. POST `/api/templates` and PUT `/api/templates/[id]` still 400; a new
+caller that only uses the shared validator cannot store `{{tilte}}`. Pinned by
+`renderTemplate.test.ts`.
+
 ### A template list that could not load says so
 
 `fetchTemplates` (`app/features/shared/templatesClient.ts`) answers
