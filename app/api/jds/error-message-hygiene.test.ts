@@ -73,6 +73,29 @@ test("safeJsonError logs server-side and returns a generic message + stable code
   );
 });
 
+test("every JD 404 is jsonRefusal JD_NOT_FOUND, never a bare English string", () => {
+  const files = [
+    "./[slug]/route.ts",
+    "./[slug]/analyses/route.ts",
+    "./[slug]/ingest-job/route.ts",
+    "./[slug]/revisions/route.ts",
+    "./[slug]/retry-analysis/route.ts",
+    "./save/route.ts",
+  ] as const;
+  let refusals = 0;
+  for (const rel of files) {
+    const src = read(rel);
+    assert.doesNotMatch(src, /error:\s*"JD not found\."/, `${rel} still answers a missing JD in English`);
+    assert.doesNotMatch(src, /error:\s*"Revision or JD not found\."/, `${rel} still answers a missing revision in English`);
+    const hits = src.match(/jsonRefusal\("JD_NOT_FOUND", 404\)/g) ?? [];
+    assert.ok(hits.length > 0, `${rel} must jsonRefusal JD_NOT_FOUND`);
+    refusals += hits.length;
+  }
+  assert.equal(refusals, 11, "eleven JD 404s must carry JD_NOT_FOUND");
+  const registry = read("../../_lib/api-response.ts");
+  assert.match(registry, /JD_NOT_FOUND:\s*"That job description could not be found\."/);
+});
+
 test("the stable-code catalogue covers every JD/template failure path", () => {
   const src = read("../../_lib/api-response.ts");
   for (const code of [

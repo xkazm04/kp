@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listAnalysesByJd } from "@/app/_lib/db/analyses";
 import { jdLastEditedAt, loadJd } from "@/app/_lib/db/jobs";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
@@ -16,7 +16,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
   const ws = await currentWorkspace();
   try {
     if (!loadJd(slug, ws)) {
-      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+      return jsonRefusal("JD_NOT_FOUND", 404);
     }
     // `jdEditedAt` = when the JD body last changed (null if never edited). The
     // client marks any analysis scored BEFORE it as stale — its score reflects the

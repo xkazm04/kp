@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Der Terminlink konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
     "JD_LIST_FAILED": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JD_LOAD_FAILED": "Die Stellenbeschreibung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JD_NOT_FOUND": "Diese Stellenbeschreibung wurde nicht gefunden.",
     "JD_SAVE_FAILED": "Die Stellenbeschreibung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "JD_DELETE_FAILED": "Die Stellenbeschreibung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
     "JD_LIVE_CANNOT_DELETE": "Diese Beschreibung gehört zu einer aktiven Stelle. Schließen Sie zuerst die Stelle und löschen Sie sie dann.",

@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     let slug: string;
     if (body.slug) {
       if (!loadJd(body.slug, ws)) {
-        return NextResponse.json({ error: "JD not found." }, { status: 404 });
+        return jsonRefusal("JD_NOT_FOUND", 404);
       }
       slug = body.slug;
     } else {

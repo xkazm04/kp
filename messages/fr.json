@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Impossible de créer le lien de planification. Veuillez réessayer.",
     "JD_LIST_FAILED": "Impossible de charger la bibliothèque d’offres. Veuillez réessayer.",
     "JD_LOAD_FAILED": "Impossible de charger l’offre. Veuillez réessayer.",
+    "JD_NOT_FOUND": "Cette fiche de poste est introuvable.",
     "JD_SAVE_FAILED": "Impossible d’enregistrer l’offre. Veuillez réessayer.",
     "JD_DELETE_FAILED": "Impossible de supprimer l’offre. Veuillez réessayer.",
     "JD_LIVE_CANNOT_DELETE": "Cette description appartient à un poste en ligne. Fermez d’abord le poste, puis supprimez-la.",

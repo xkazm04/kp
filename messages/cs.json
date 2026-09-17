@@ -1369,6 +1369,7 @@
     "SCHEDULE_INVITE_FAILED": "Nepodařilo se vytvořit odkaz pro plánování. Zkuste to prosím znovu.",
     "JD_LIST_FAILED": "Nepodařilo se načíst knihovnu inzerátů. Zkuste to prosím znovu.",
     "JD_LOAD_FAILED": "Nepodařilo se načíst inzerát. Zkuste to prosím znovu.",
+    "JD_NOT_FOUND": "Tento popis pozice se nepodařilo najít.",
     "JD_SAVE_FAILED": "Nepodařilo se uložit inzerát. Zkuste to prosím znovu.",
     "JD_DELETE_FAILED": "Nepodařilo se smazat inzerát. Zkuste to prosím znovu.",
     "JD_LIVE_CANNOT_DELETE": "Tento popis patří k živé pozici. Nejdřív pozici uzavřete a pak popis smažte.",
