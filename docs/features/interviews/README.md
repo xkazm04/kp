@@ -10,7 +10,10 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 ## Entry points
 
 - Candidate portal: `app/interview/[token]/page.tsx` (+ `error.tsx`,
-  `loading.tsx`) — the real, token-bound candidate flow.
+  `loading.tsx`) — the real, token-bound candidate flow. Revoked and expired
+  links paint distinct closed cards (`interview.revokedTitle` /
+  `revokedBody` vs `expiredTitle` / `expiredBody`) so the candidate's next
+  mail names the actual reason.
 - Recruiter dev/demo harness: `app/interview-lab/page.tsx` — a keyless lab for
   trying the agent as a recruiter would; gated by `INTERVIEW_LAB_ENABLED=1`
   outside production.
@@ -698,8 +701,9 @@ are gone. Those two modules are the PREDICATE and the GATE; the wording is the
 catalog's. `interview-lab.test.ts` now pins the gate itself — production closed by
 default, open only on the exact `INTERVIEW_LAB_ENABLED=1` opt-in (not "true", not
 `0`), read per call rather than captured at import, and actually consulted by
-`/connect` before it mints. The lab page's disabled-state copy comes from
-`interview.lab.*` in all four catalogs.
+`/connect` before it mints. The lab page's disabled-state and enabled-state copy
+(`interview.lab.disabledBody`, `enabledBody`, `candidatePortalNote`,
+`diagramsLink`) comes from `interview.lab.*` in all four catalogs.
 
 The candidate sidebar's duration chip was the other English leak: `durationChip` /
 `durationLabel` composed "~20 min" / "About 20 minutes" inside

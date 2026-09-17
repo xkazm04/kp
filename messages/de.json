@@ -2241,8 +2241,10 @@
     "completedTitle": "Vielen Dank",
     "completedBody": "Dieses Interview wurde bereits abgeschlossen. Ein/e Recruiter/in prüft das Gespräch und meldet sich bei Ihnen.",
     "completedStatusCta": "Bewerbungsstatus verfolgen",
-    "inactiveTitle": "Dieser Interview-Link ist nicht mehr aktiv",
-    "inactiveBody": "Der Link ist abgelaufen oder wurde von dem/der Recruiter/in zurückgezogen. Wenn Sie ein Interview erwarten, bitten Sie um einen neuen Link.",
+    "revokedTitle": "Dieser Interview-Link wurde zurückgezogen",
+    "revokedBody": "Der/die Recruiter/in hat diesen Interview-Link zurückgezogen. Versuchen Sie ihn nicht erneut. Wenn Sie weiterhin ein Interview erwarten, fragen Sie, ob ein neuer Link geschickt wird.",
+    "expiredTitle": "Dieser Interview-Link ist abgelaufen",
+    "expiredBody": "Dieser Interview-Link ist abgelaufen. Wenn Sie weiterhin ein Interview erwarten, bitten Sie den/die Recruiter/in um einen neuen Link.",
     "eyebrow": "Erstgespräch",
     "titleRole": "Screening: {role}",
     "titleGeneric": "Voice-Screening",
@@ -2361,7 +2363,10 @@
     "lab": {
       "eyebrow": "Intern · Voice-MVP",
       "title": "Labor für Sprachinterviews",
-      "disabledBody": "Das Labor ist in der Produktion deaktiviert: Es erzeugt echte Anbieter-Zugangsdaten ohne Sitzungstoken. Setzen Sie <flag>INTERVIEW_LAB_ENABLED=1</flag>, um es zu aktivieren, oder nutzen Sie die Recruiting-Simulation, die über eine tokenisierte Sitzung läuft."
+      "disabledBody": "Das Labor ist in der Produktion deaktiviert: Es erzeugt echte Anbieter-Zugangsdaten ohne Sitzungstoken. Setzen Sie <flag>INTERVIEW_LAB_ENABLED=1</flag>, um es zu aktivieren, oder nutzen Sie die Recruiting-Simulation, die über eine tokenisierte Sitzung läuft.",
+      "enabledBody": "A/B-Vergleich der Echtzeit-Anbieter in einem kurzen Erstgespräch. Wählen Sie Anbieter und Sprache, stimmen Sie zu und sprechen Sie. Das Live-Transkript wird erfasst und gespeichert. Setzen Sie <code>OPENAI_API_KEY</code> und <code>ELEVENLABS_API_KEY</code> + <code>ELEVENLABS_AGENT_ID</code> in <code>.env.local</code>, um jeden zu aktivieren, und starten Sie den Dev-Server neu.",
+      "candidatePortalNote": "Die kandidatenseitige Version liegt unter <path>/interview/{token}</path>; der Anbieter ist pro Sitzung festgelegt.",
+      "diagramsLink": "Pipeline-Diagramme ansehen."
     }
   },
   "palette": {

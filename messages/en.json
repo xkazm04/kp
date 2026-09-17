@@ -2241,8 +2241,10 @@
     "completedTitle": "Thank you",
     "completedBody": "This interview has already been completed. A human recruiter will review the conversation and follow up.",
     "completedStatusCta": "Track your application",
-    "inactiveTitle": "This interview link is no longer active",
-    "inactiveBody": "The link has expired or was withdrawn by the recruiter. If you're expecting an interview, please ask them for a fresh link.",
+    "revokedTitle": "This interview link was withdrawn",
+    "revokedBody": "The recruiter withdrew this interview link. Do not retry it. If you still expect an interview, ask them whether a new link will be sent.",
+    "expiredTitle": "This interview link has expired",
+    "expiredBody": "This interview link has expired. If you still expect an interview, please ask the recruiter for a fresh link.",
     "eyebrow": "First-round interview",
     "titleRole": "Screen: {role}",
     "titleGeneric": "Voice screen",
@@ -2361,7 +2363,10 @@
     "lab": {
       "eyebrow": "Internal · voice MVP",
       "title": "Voice interview lab",
-      "disabledBody": "The lab is disabled in production: it mints live provider credentials without a session token. Set <flag>INTERVIEW_LAB_ENABLED=1</flag> to opt in, or use the recruiter simulation, which runs through a tokenized session."
+      "disabledBody": "The lab is disabled in production: it mints live provider credentials without a session token. Set <flag>INTERVIEW_LAB_ENABLED=1</flag> to opt in, or use the recruiter simulation, which runs through a tokenized session.",
+      "enabledBody": "A/B the realtime providers on a short first-round screen. Pick a provider and language, consent, then talk. The live transcript is captured and stored. Set <code>OPENAI_API_KEY</code> and <code>ELEVENLABS_API_KEY</code> + <code>ELEVENLABS_AGENT_ID</code> in <code>.env.local</code> to enable each, then restart the dev server.",
+      "candidatePortalNote": "The candidate-facing version lives at <path>/interview/{token}</path> with the provider fixed per session.",
+      "diagramsLink": "See the pipeline diagrams."
     }
   },
   "palette": {

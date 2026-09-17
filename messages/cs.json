@@ -2241,8 +2241,10 @@
     "completedTitle": "Děkujeme",
     "completedBody": "Tento pohovor už je dokončený. Náborář/ka si konverzaci projde a ozve se vám.",
     "completedStatusCta": "Sledovat stav přihlášky",
-    "inactiveTitle": "Tento odkaz na pohovor už není aktivní",
-    "inactiveBody": "Platnost odkazu vypršela, nebo jej náborář/ka stáhl/a. Pokud pohovor očekáváte, požádejte prosím o nový odkaz.",
+    "revokedTitle": "Tento odkaz na pohovor byl stažen",
+    "revokedBody": "Náborář/ka tento odkaz stáhl/a. Nezkoušejte ho znovu. Pokud pohovor stále očekáváte, zeptejte se, zda vám pošle nový odkaz.",
+    "expiredTitle": "Platnost tohoto odkazu na pohovor vypršela",
+    "expiredBody": "Platnost tohoto odkazu na pohovor vypršela. Pokud pohovor stále očekáváte, požádejte náboráře/ku o nový odkaz.",
     "eyebrow": "Pohovor prvního kola",
     "titleRole": "Screening: {role}",
     "titleGeneric": "Hlasový screening",
@@ -2361,7 +2363,10 @@
     "lab": {
       "eyebrow": "Interní · hlasové MVP",
       "title": "Laboratoř hlasového pohovoru",
-      "disabledBody": "Laboratoř je v produkci vypnutá: vytváří živé přístupové údaje k poskytovateli bez tokenu relace. Zapněte ji nastavením <flag>INTERVIEW_LAB_ENABLED=1</flag>, nebo použijte náborovou simulaci, která běží přes tokenizovanou relaci."
+      "disabledBody": "Laboratoř je v produkci vypnutá: vytváří živé přístupové údaje k poskytovateli bez tokenu relace. Zapněte ji nastavením <flag>INTERVIEW_LAB_ENABLED=1</flag>, nebo použijte náborovou simulaci, která běží přes tokenizovanou relaci.",
+      "enabledBody": "A/B porovnání poskytovatelů v reálném čase na krátkém pohovoru prvního kola. Vyberte poskytovatele a jazyk, udělte souhlas a mluvte. Živý přepis se zachytí a uloží. Nastavte <code>OPENAI_API_KEY</code> a <code>ELEVENLABS_API_KEY</code> + <code>ELEVENLABS_AGENT_ID</code> v <code>.env.local</code>, aby se každý zapnul, a restartujte vývojový server.",
+      "candidatePortalNote": "Verze pro kandidáty je na <path>/interview/{token}</path> s poskytovatelem pevným pro danou relaci.",
+      "diagramsLink": "Zobrazit diagramy pipeline."
     }
   },
   "palette": {

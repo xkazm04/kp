@@ -10,7 +10,7 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
-import { interviewPortalView } from "./portal-state";
+import { interviewInactiveCopyKeys, interviewPortalView } from "./portal-state";
 
 
 // Candidate-facing portal: a tokenized link runs the first-round voice screen
@@ -69,10 +69,11 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   // dead Start button). Expiry comes from the shared authority in db.ts so the
   // page and the credential gate can never disagree.
   if (view === "inactive") {
+    const copy = interviewInactiveCopyKeys(session);
     return (
       <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-serif text-h2 text-ink">{t("inactiveTitle")}</h1>
-        <p className="mt-2 text-body text-steel">{t("inactiveBody")}</p>
+        <h1 className="font-serif text-h2 text-ink">{t(copy.title)}</h1>
+        <p className="mt-2 text-body text-steel">{t(copy.body)}</p>
       </main>
     );
   }
