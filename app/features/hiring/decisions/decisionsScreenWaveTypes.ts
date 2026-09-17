@@ -32,6 +32,9 @@ export type WaveResult = {
   // Art. 22 records the wave could not seal. Required: a result that omits it
   // used to paint a clean commit while the hash chain missed rows.
   sealFailures: number;
+  // Calibration clean-arm keeps (reasonCode holdout | holdoutSealFailed).
+  // Counted on the client via holdoutCount(); older fixtures default to 0.
+  holdout: number;
   dryRun: boolean;
   approvalToken?: string;
 };

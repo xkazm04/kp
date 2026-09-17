@@ -1,10 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   familyFloorEntries,
   familyFloorSummaryList,
   rowEffectiveFloor,
   familyOverrideRejectCount,
+  holdoutCount,
 } from "./decisionsFloorDisclosure.ts";
 
 const upper = (s: string) => s.toUpperCase();
@@ -58,4 +61,27 @@ test("familyOverrideRejectCount counts reject rows whose floor differs from the 
   assert.equal(familyOverrideRejectCount(decisions, 45), 2);
   assert.equal(familyOverrideRejectCount(decisions, 55), 2); // 45 & 60 now differ from a 55 slider
   assert.equal(familyOverrideRejectCount([], 45), 0);
+});
+
+test("holdoutCount counts both holdout and holdoutSealFailed, and defaults missing to 0", () => {
+  const decisions = [
+    { reasonCode: "holdout" },
+    { reasonCode: "holdoutSealFailed" },
+    { reasonCode: "aboveCutoff" },
+    { reasonCode: "reject" },
+    { reasonCode: undefined },
+  ];
+  assert.equal(holdoutCount(decisions), 2);
+  assert.equal(holdoutCount([]), 0);
+  assert.equal(holdoutCount(undefined), 0);
+  assert.equal(holdoutCount(null), 0);
+});
+
+test("WaveResult requires sealFailures and holdout so a fixture without them is a type gap", () => {
+  const types = readFileSync(fileURLToPath(new URL("./decisionsScreenWaveTypes.ts", import.meta.url)), "utf8")
+    .replace(/\r\n/g, "\n")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|\s)\/\/.*$/gm, "$1");
+  assert.match(types, /export type WaveResult = \{[\s\S]*sealFailures:\s*number/, "WaveResult must require sealFailures");
+  assert.match(types, /export type WaveResult = \{[\s\S]*holdout:\s*number/, "WaveResult must require holdout");
 });

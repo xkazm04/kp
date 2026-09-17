@@ -53,3 +53,17 @@ export function familyOverrideRejectCount(
   }
   return n;
 }
+
+// How many KEEP rows are the calibration clean arm — spared from auto-reject
+// (holdout) or spared-but-unsealed (holdoutSealFailed). Both codes count: a
+// missed clean-arm seal is still a holdout fact the wave must disclose.
+export function holdoutCount(
+  decisions: { reasonCode?: string }[] | undefined | null
+): number {
+  if (!decisions) return 0;
+  let n = 0;
+  for (const d of decisions) {
+    if (d.reasonCode === "holdout" || d.reasonCode === "holdoutSealFailed") n += 1;
+  }
+  return n;
+}
