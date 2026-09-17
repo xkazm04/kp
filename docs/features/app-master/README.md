@@ -459,6 +459,15 @@ ladder is bounded at five attempts, after which the state stays on screen and th
 client stops asking. Pure, so `dossier-retry.test.ts` pins the ladder and
 `jdsIntakeLogic.test.ts` pins the wiring.
 
+**The mandate projection names the bounds.** `mandateSections`
+([`app/_lib/app-master/mandate-view.ts`](../../../app/_lib/app-master/mandate-view.ts))
+projects `scopeRung` (0..2, where 0 is read-only and still a bound) and
+`forbiddenClasses` beside the gates, objectives, cadence, retire criteria and
+reservation policy. A spec that only has a rung still counts as non-empty;
+an out-of-range rung or a whitespace class is absent, never clamped or
+invented. The projection used to omit both, so a requestor-facing section
+could look complete without the rung cap or the forbidden-change list.
+
 **The spec's vintage.** `AppMasterCompose.composedAt` has been stored since P3
 and was read by no surface, so a spec composed against three facets looked
 identical to one composed a second ago — under a button that hands a mandate to
