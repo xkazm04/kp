@@ -69,6 +69,10 @@ const ENGLISH_ERROR_LEAK = /\.error\s*(?:\|\||\?\?)|typeof\s+\w+\??\.error\s*===
 // Verified non-UI uses of the same syntax: a change-detection cache key, a DB
 // column write, and a server-side log field. Re-verify before adding to this list —
 // it exists for values that never reach a user, not for exceptions.
+// Ceiling, not a suggestion: appending a path is a silent policy change.
+// Raise ERROR_LEAK_ALLOW_MAX in the same commit that adds a member, with a
+// reason. The gate fails if the set grows past this or names a missing file.
+const ERROR_LEAK_ALLOW_MAX = 7;
 const ERROR_LEAK_ALLOW = new Set([
   "app/_lib/task-view.ts",
   "app/_lib/scheduler-store.ts",
@@ -87,7 +91,6 @@ const ERROR_LEAK_ALLOW = new Set([
   // honest state is "documented English", not a silent generic.
   "app/features/hiring/channels/useChannelsData.ts",
   "app/features/hiring/pipeline/pipelineTabHelpers.ts",
-  // Dev-facing studio, deliberately outside the strict i18n lint (eslint.config.mjs).
 ]);
 const HARDCODED_ATTR = /(?:^|\s)(aria-label|title|placeholder|alt)="[^"{]/;
 const LINE_BREAK = /\r?\n/;
@@ -459,6 +462,18 @@ if (!existsSync(archetypeRegistryPath)) {
         );
       }
     }
+  }
+}
+
+if (ERROR_LEAK_ALLOW.size > ERROR_LEAK_ALLOW_MAX) {
+  problems.push(
+    `ERROR_LEAK_ALLOW has ${ERROR_LEAK_ALLOW.size} entries; ceiling is ${ERROR_LEAK_ALLOW_MAX}. ` +
+      `Remove a path or raise the ceiling in the same change with a reason.`,
+  );
+}
+for (const rel of ERROR_LEAK_ALLOW) {
+  if (!existsSync(join(REPO_ROOT, rel))) {
+    problems.push(`ERROR_LEAK_ALLOW names ${rel}, which is not on disk`);
   }
 }
 

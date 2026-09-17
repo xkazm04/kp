@@ -6,7 +6,8 @@
  * Usage (mirrors the personas desktop app):
  *   1. Launch with `npm run dev:inspect` (sets DEV_INSPECT=1 so the Turbopack
  *      loader stamps host elements with `data-loc`).
- *   2. Press `;` to enter keyboard mode, then `i` to arm the inspector.
+ *   2. Click the corner Inspect button (shown only when `[data-loc]` exists),
+ *      or press `;` then `i` to arm the inspector.
  *   3. Hover highlights the element; RIGHT-CLICK copies a Claude-Code-friendly
  *      `src/.../File.tsx:LINE` to the clipboard (left-click is left untouched so
  *      you can keep operating the app). Default copy = the call site (the
@@ -26,7 +27,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { buildChain, dedupeChain, pickDefaultIndex, type LocEntry } from "./devLocate";
+import {
+  buildChain,
+  dedupeChain,
+  pickDefaultIndex,
+  shouldShowArm,
+  type LocEntry,
+} from "./devLocate";
 import { HighlightBox, InspectorHud, NavHint, SourceLabel, Z } from "./devInspectorUi";
 
 async function copyText(text: string): Promise<boolean> {
@@ -69,11 +76,40 @@ interface HoverState {
   defaultIndex: number;
 }
 
+function ArmControl({ onArm }: { onArm: () => void }) {
+  return (
+    <button
+      type="button"
+      data-devinspector
+      onClick={onArm}
+      style={{
+        position: "fixed",
+        right: 12,
+        bottom: 12,
+        zIndex: Z,
+        pointerEvents: "auto",
+        font: "12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontWeight: 700,
+        color: "#0b1220",
+        background: "#38bdf8",
+        border: "none",
+        borderRadius: 8,
+        padding: "8px 12px",
+        cursor: "pointer",
+        boxShadow: "0 8px 28px rgba(0,0,0,0.5)",
+      }}
+    >
+      Inspect
+    </button>
+  );
+}
+
 export function DevInspectorImpl() {
   const [mode, setMode] = useState<Mode>("off");
   const [hover, setHover] = useState<HoverState | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [copyOk, setCopyOk] = useState(true);
+  const [mappingOn, setMappingOn] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const navTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -179,10 +215,22 @@ export function DevInspectorImpl() {
     [],
   );
 
-  // No hydration/mount gate needed: `mode` starts "off" everywhere (server and
-  // client alike) and only leaves "off" via client-side keydown handlers, so the
-  // document.body portals below are unreachable during SSR/hydration.
-  if (mode === "off") return null;
+  // `[data-loc]` is stamped at compile time; read it after mount so a portal
+  // never runs during SSR/hydration. `mappingOn` starts false, so the first
+  // render still returns null.
+  useEffect(() => {
+    setMappingOn(document.querySelector("[data-loc]") !== null);
+  }, []);
+
+  if (mode === "off") {
+    if (!shouldShowArm(mappingOn, mode)) return null;
+    return createPortal(
+      <div style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}>
+        <ArmControl onArm={() => setMode("armed")} />
+      </div>,
+      document.body,
+    );
+  }
 
   if (mode === "nav") {
     return createPortal(
@@ -194,7 +242,6 @@ export function DevInspectorImpl() {
   }
 
   // armed
-  const mappingOn = document.querySelector("[data-loc]") !== null;
   const defaultLoc =
     hover && hover.chain[hover.defaultIndex] ? hover.chain[hover.defaultIndex]!.loc : null;
   const crumbs = hover ? dedupeChain(hover.chain) : [];

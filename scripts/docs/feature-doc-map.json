@@ -499,10 +499,11 @@
       ]
     },
     {
-      "_comment": "The Insights -> About explainer deck. Its whole value is being TRUE: every number it prints is a constant in pipeline/jobfit or app/_lib, and chapters.test.ts pins the couplings a machine can check. A change to a scene, a chapter frame or the stage primitives has to reach the doc that records WHICH constant each chapter quotes — otherwise the deck goes on teaching a rule the engine no longer implements, which is the one failure this tab cannot survive.",
+      "_comment": "The Insights -> About explainer deck. Its whole value is being TRUE: every number it prints is a constant in pipeline/jobfit or app/_lib, and chapters.test.ts pins the couplings a machine can check. A change to a scene, a chapter frame or the stage primitives has to reach the doc that records WHICH constant each chapter quotes — otherwise the deck goes on teaching a rule the engine no longer implements, which is the one failure this tab cannot survive. app/diagrams/** is the operator /diagrams explorer that README's 'Out to the architecture diagrams' section describes (pipelineSteps.ts, the 404, diagrams.steps.*); a renamed step or a new funnel node cannot land with About still teaching the old contract.",
       "doc": "docs/features/about/README.md",
       "sourceGlobs": [
-        "app/features/insights/about/**"
+        "app/features/insights/about/**",
+        "app/diagrams/**"
       ]
     },
     {
@@ -533,6 +534,13 @@
       "doc": "docs/development/recipe-candidates.md",
       "sourceGlobs": [
         "pipeline/jobfit/eval/recipe_candidates.py"
+      ]
+    },
+    {
+      "_comment": "The doc-sync / ADR / guidance / API-reference scripts. check-doc-sync.mjs is the machine that enforces this map, and a skip-pattern or DOC_PREFIX change had no Stop-hook reminder. docs/development/change-review.md already names check-guidance.mjs and the review lenses; this entry watches the rest of the gate scripts (scripts/i18n-check.mjs is mapped from localization.md). __tests__/ stay unmapped via the skip patterns.",
+      "doc": "docs/development/change-review.md",
+      "sourceGlobs": [
+        "scripts/docs/**"
       ]
     },
     {
