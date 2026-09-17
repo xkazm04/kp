@@ -333,7 +333,10 @@ lock, and the opt-out door can read no held data and perform no erasure.
 **The record.** `outreach_state.candidate_halt_at`, written by `recordCandidateOptOut`
 (`outreach-state-store.ts`). It is a **different column** from `manual_halt_at`, which is
 the recruiter's stop: an operator halt is a workflow decision the next operator may
-clear, a candidate opt-out is a legally binding objection. `outreachHaltReason`
+clear via `resumeOutreach` (`outreach-state-store.ts`; pure twin `withoutManualHalt`),
+a candidate opt-out is a legally binding objection. `resumeOutreach` nulls only
+`manual_halt_at` when `workspace_id` matches — it never writes `candidate_halt_at`
+or `replied_at`, and a foreign tenant is a no-op. `outreachHaltReason`
 (`outreach-halt.ts`) ranks `candidate` above `manual` above `replied`, so the
 legally-significant reason is the one surfaced. `outreach_state` stays `ERASURE_EXEMPT`
 for the reason it always was, which this strengthens: it is the record that stops further
@@ -579,8 +582,10 @@ the only thing that can replay it); a page is clamped to 50 events and 1 MB with
 
 Configuration is API-only today: `PATCH /api/channels/webhooks`
 `{token, pullUrl, pullSecret}` (team-scoped; secret semantics are the usual
-omit-keeps / `""`-clears / string-replaces, encrypted at rest). There is no UI for
-it yet — see Known gaps.
+omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` already
+projects the recruiter-safe pull half onto every receiver (`pullUrl` /
+`hasPullSecret` / `lastPullAt` / `lastPullError`) so a failing source is visible
+on the same list as Listening. There is no editor UI for it yet — see Known gaps.
 
 **IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
 which is a dependency decision, not a code decision — and the edge's Email Routing
@@ -771,7 +776,7 @@ air-gapped.
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. The flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and `ChannelsTab` says it ONCE above the switcher (`channels.receiversTruncated`) rather than leaving each pane to guess. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and `ChannelsTab` says it ONCE above the switcher (`channels.receiversTruncated`) rather than leaving each pane to guess. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
@@ -984,10 +989,11 @@ already returns alongside the entries. Both rules are pinned by
   store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
   server-side) instead of a 500. Separating them needs a typed error out of
   `db/channels.ts`.
-- **Pull sources have no UI.** `PATCH /api/channels/webhooks` is the only way to
-  set `pullUrl` / `pullSecret`; the receiver table shows neither the pull URL nor
-  `last_pull_error`, so a source that has been failing for a week is visible only
-  in the clock's log. The Edge card (§11) is the model for what this needs.
+- **Pull sources have no editor UI.** `GET /api/channels/webhooks` now projects
+  `pullUrl` / `hasPullSecret` / `lastPullAt` / `lastPullError` on every receiver
+  (secret material never appears), so a week-old `last_pull_error` is on the same
+  list as Listening. `PATCH` is still the only write; the receiver table does not
+  yet bind those fields. The Edge card (§11) is the model for the editor.
 - **The edge cannot carry a CV.** Mail is headers-only by design, so an emailed
   attachment is not extracted — the candidate has to follow the enrichment link.
   Closing this means sealing the body at the edge and extracting locally on drain,

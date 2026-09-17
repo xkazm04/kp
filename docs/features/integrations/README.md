@@ -222,6 +222,13 @@ ping (`POST /api/ats/test`).
   instrumentation clock. A still-scheduled failure is live work and is never swept, however
   old. The table had no DELETE anywhere in the tree before this, and every row names a
   candidate's pipeline entry.
+- **A dead-letter can be force-replayed.** After `MAX_ATTEMPTS` (6) a failed row parks
+  with `next_attempt_at NULL`. `GET /api/ats/deliveries` reports that parked count as
+  `dead` beside `due`. `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal
+  row (restoring one shot of retry budget when attempts are exhausted) then runs the due
+  sweep under the same ledger id / `Idempotency-Key`. An omitted body still flushes every
+  currently-due retry. An unknown id answers `ATS_DELIVERY_NOT_FOUND`; a delivered,
+  pending, or still-due row answers `ATS_DELIVERY_NOT_REPLAYABLE`.
 - **The secret is write-only**, same contract as the inbound token: `GET` returns
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
@@ -479,12 +486,6 @@ side).
 
 ## Known gaps
 
-- **A dead-lettered delivery cannot be replayed.** After `MAX_ATTEMPTS` (6, exponential from
-  one minute — roughly half an hour of receiver downtime) a failed row keeps
-  `next_attempt_at NULL` for good. `POST /api/ats/deliveries` sweeps only rows that are still
-  *due*, so the terminal row is visible in the ledger but has no force-replay path; recovering
-  that hire means editing the row by hand. `ats-delivery-store.ts` calls the dead-letter
-  "force-retryable", which is the intent, not yet the code.
 - **The retry ladder has no jitter, and it is not the comms ladder.** Six attempts,
   exponential from one minute, unjittered — a receiver that comes back after an outage takes
   every queued delivery in one thundering herd. The candidate-comms relay beside it has its

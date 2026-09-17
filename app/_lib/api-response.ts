@@ -1510,6 +1510,12 @@ export const REFUSAL_ERRORS = {
    *  Same doctrine as ATS_CONFIG_STALE next door: nothing was written, and the panel's
    *  answer is to reload and re-apply rather than to retry blind. */
   ATS_CONNECTION_STALE: "Someone saved a newer version of this ATS connection. Reload and make your change again.",
+  /** POST /api/ats/deliveries { replayId } named a ledger row that is not there (404). */
+  ATS_DELIVERY_NOT_FOUND: "That delivery is not in the ledger.",
+  /** POST /api/ats/deliveries { replayId } named a row that is not a dead-letter (409).
+   *  Delivered, pending, and still-due failures stay on their own path; only a failed
+   *  row with no next attempt can be force-retried. */
+  ATS_DELIVERY_NOT_REPLAYABLE: "That delivery cannot be replayed. Only a dead-lettered failure can be force-retried.",
   // ---- Interview-prep refusals (/perfect wave 37, lib-voice-interview-11).
   // The five write verbs of /api/interview-prep answered bare English sentences with
   // no code, while their voice twins next door had been coded since 2026-09-02. The
