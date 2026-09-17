@@ -185,7 +185,7 @@ friction at zero users.
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
 | UI — usage & cost | `app/features/settings/billing/spend/**` | Consolidated spend section (see below); moved here from the Models tab. |
-| UI — usage meter row | `app/features/settings/billing/BillingUsageMeterRow.tsx` | `MeterRow` renders name, progress bar, remaining count, and depleted badge per meter. When `meterId === "interview_minutes"` and the meter is depleted, an inline "Buy more minutes →" anchor links to `#billing-minutes-pack` in the catalog below — the highest-intent moment for a top-up purchase. |
+| UI — usage meter row | `app/features/settings/billing/BillingUsageMeterRow.tsx` | `MeterRow` renders name, progress bar, remaining count, and depleted badge per meter. `meterCta()` (`billingMeterCta.ts`) decides the recovery link: depleted `interview_minutes` still jumps to `#billing-minutes-pack`; every other limited meter at 0 offers `Upgrade →` to `#billing-plans` on the catalog heading; remaining in the last 20% of a numeric limit (at least 1) paints an approaching-limit caution. Unlimited meters stay quiet. |
 
 ```
 checkout:   POST /api/billing/checkout {plan|pack} → gateway → provider URL (redirect)
