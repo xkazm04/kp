@@ -458,6 +458,42 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   );
 }
 
+/**
+ * Deliver an interview FEEDBACK LETTER a recruiter approved (spark
+ * interview-feedback-letter, WP-beta). The body is the recruiter's own final text,
+ * verbatim: a person owns every sentence of it, so nothing here rewrites, trims or
+ * appends to what they approved beyond the delivery chrome (the status line and the
+ * legal footers every candidate comm carries).
+ *
+ * THE STATUS LINK is the one piece of chrome this letter adds, and it is the thing the
+ * rejection letter still lacks: the candidate asked for this letter FROM their status
+ * page, and the page is also where it stays readable after the email is gone. ABSOLUTE
+ * (candidateLinkBase) and `?lang=`-pinned to the letter's language, like the footers.
+ * Omitted when no token could be minted rather than printed as a dead link.
+ *
+ * The language is the LETTER's (resolved once, when the candidate asked), passed in by
+ * the caller, never re-derived from the entry: a candidate who asked in Czech on a page
+ * they switched to Czech reads a Czech letter under a Czech subject.
+ *
+ * Returns the outbox row's truthful status. The consent gate is the channel's own
+ * (sendComm → commsSendSuppression), so a suppressed send THROWS CommsSuppressedError
+ * exactly as it does for every other dispatcher; the caller records that honestly.
+ */
+export async function dispatchInterviewLetter(
+  entry: PipelineEntry,
+  letter: { text: string; locale: Locale; statusToken: string | null }
+): Promise<OutboxStatus> {
+  const t = await commsTranslator(letter.locale);
+  const role = (entry.jobTitle ?? "").trim();
+  const subject = role ? t("interviewLetter.subjectRole", { role }) : t("interviewLetter.subject");
+  const lines = [letter.text.trim()];
+  if (letter.statusToken) {
+    const link = `${await candidateLinkBase()}/status/${encodeURIComponent(letter.statusToken)}?lang=${letter.locale}`;
+    lines.push("", t("interviewLetter.statusLine", { link }));
+  }
+  return sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale);
+}
+
 /** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are
  *  declined BEFORE any pipeline entry exists (lead-intake's knockout gate), so the
  *  one identity in hand is the inbound email; `ref` is omitted and the envelope

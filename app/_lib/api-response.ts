@@ -241,6 +241,14 @@ export const STORE_ERRORS = {
    *  own code: a failed request must not read as "we could not load the page", or the
    *  candidate walks away believing they asked. */
   STATUS_LETTER_REQUEST_FAILED: "Could not record your feedback request. Please try again.",
+  /** The recruiter's feedback-letter review doors (/api/decisions/feedback-letters/**).
+   *  Each sits on better-sqlite3 (and approve on the comms dispatcher), whose thrown
+   *  messages carry SQLITE_* text and the db path. One code per door, so a failed
+   *  approve never reads as "the list did not load". */
+  FEEDBACK_LETTERS_LIST_FAILED: "Could not load the feedback requests. Please try again.",
+  FEEDBACK_LETTER_APPROVE_FAILED: "Could not approve this letter. Please try again.",
+  FEEDBACK_LETTER_DECLINE_FAILED: "Could not decline this request. Please try again.",
+  FEEDBACK_LETTER_REDRAFT_FAILED: "Could not queue a new draft. Please try again.",
   // The two PUBLIC apply submissions (conversational + quick lead form). Their
   // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
   // temp write and the comms dispatcher — every one throws messages carrying
@@ -564,6 +572,21 @@ export const REFUSAL_ERRORS = {
    *  the existing request's state beside the code (`letter`), so a repeated click still
    *  shows the candidate where their one request stands — never a second letter. */
   STATUS_LETTER_ALREADY_REQUESTED: "You have already asked for feedback on this interview.",
+  /** A feedback letter id that does not resolve in the caller's team (404), or whose
+   *  application is gone. One answer for both: a foreign id is not an existence oracle. */
+  FEEDBACK_LETTER_NOT_FOUND: "This feedback request no longer exists.",
+  /** The letter is no longer open (409): someone approved or declined it, or an erasure
+   *  closed it, between the read and this write. The response carries the letter's
+   *  current `state` beside the code. Nothing was written. */
+  FEEDBACK_LETTER_MOVED: "Someone already decided on this feedback request. Reload the list to see where it stands.",
+  /** The candidate's consent is withheld (expired, not yet anonymized) (409). No letter
+   *  is written or drafted about a person whose consent lapsed; a decline still closes it. */
+  FEEDBACK_LETTER_CONSENT_WITHHELD: "This candidate's consent has lapsed, so the letter can no longer be written or sent. Decline the request to close it.",
+  /** Approve with an empty final text (400). */
+  FEEDBACK_LETTER_TEXT_EMPTY: "Write the letter before approving it.",
+  /** Approve with a final text over LETTER_MAX_CHARS (400). The cap rides beside the code
+   *  as `maxChars`; the letter is never truncated to fit. */
+  FEEDBACK_LETTER_TEXT_TOO_LONG: "The letter is longer than the limit. Shorten it before approving it.",
   /** Public NPS POST with no score at all (400). parseNpsSubmission used to put
    *  the English sentence "score is required" on the wire; the status page
    *  localizes `errors.NPS_SCORE_REQUIRED` instead. */

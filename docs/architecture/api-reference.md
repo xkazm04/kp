@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_240 routes, 319 handlers._
+_244 routes, 323 handlers._
 
 ### `/api/agents`
 
@@ -243,6 +243,10 @@ _240 routes, 319 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/decisions/config` | GET, POST | gated |
+| `/api/decisions/feedback-letters` | GET | gated |
+| `/api/decisions/feedback-letters/[id]/approve` | POST | gated |
+| `/api/decisions/feedback-letters/[id]/decline` | POST | gated |
+| `/api/decisions/feedback-letters/[id]/redraft` | POST | gated |
 | `/api/decisions/group-eval` | GET | gated |
 | `/api/decisions/jd-freshness` | GET | gated |
 | `/api/decisions/peer-context` | GET | gated |

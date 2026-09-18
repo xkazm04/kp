@@ -1748,6 +1748,45 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "validateScreeningOverride(body.override)",
   },
   // ------------------------------------------------------------------
+  // ADDED with the routes (spark interview-feedback-letter, WP-beta). The recruiter's three
+  // feedback-letter doors. Operator-gated with `pipeline:write`, but open mode makes the
+  // operator gate a documented no-op, so each self-limits. Every limiter sits AFTER the
+  // cheap coded refusals (not found, moved, consent withheld, a text that cannot be
+  // stored), so a request that could never act spends none of the window.
+  {
+    // Approving SENDS a candidate email. 30/10min per IP: one human decision per click.
+    rel: "./decisions/feedback-letters/[id]/approve/route.ts",
+    key: "`feedback-letter-approve:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "APPROVE_RATE_LIMIT",
+    optsDef: "const APPROVE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "interviewLetterApprove(id, { finalText, decidedBy }, ws)",
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_CONSENT_WITHHELD", 409)',
+  },
+  {
+    rel: "./decisions/feedback-letters/[id]/decline/route.ts",
+    key: "`feedback-letter-decline:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "DECLINE_RATE_LIMIT",
+    optsDef: "const DECLINE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "interviewLetterDecline(id, { decidedBy }, ws)",
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_MOVED", 409, { state: letter.state })',
+  },
+  {
+    // A redraft spawns the drafting CLI and, with a model configured, a paid call. The
+    // tightest of the three; the task's own `cheap` class and its dedupe sit behind it.
+    rel: "./decisions/feedback-letters/[id]/redraft/route.ts",
+    key: "`feedback-letter-redraft:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "REDRAFT_RATE_LIMIT",
+    optsDef: "const REDRAFT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'startTask("interview_letter",',
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_CONSENT_WITHHELD", 409)',
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (billing-ui), with the limiters themselves. The two
   // BILLING doors had no throttle at all — the only doors in the app that reach a
   // MERCHANT OF RECORD. Both were guarded by `requireOperator()` alone, and open mode

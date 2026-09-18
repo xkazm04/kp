@@ -705,6 +705,156 @@ outlives an erasure). If the drafting CLI itself fails, the task fails and the l
 - One letter per application: an application that is reopened and decided again keeps its
   first letter.
 
+## Interview feedback letters — review, send, show
+
+The recruiter's half of the interview feedback letter (WP-beta). A letter a candidate asked
+for waits in a **Feedback requests** queue in the Decisions tab; a recruiter edits the draft,
+owns every sentence, and approves it (it is emailed and shown on the candidate's status page)
+or declines it (the status page says the team does not send individual feedback). Nothing
+reaches the candidate without a person's approval.
+
+### The queue
+
+`GET /api/decisions/feedback-letters` — `requireOperator`, the caller's own team
+(`app/_lib/interview-letter-review.ts` `feedbackLetterQueue` over the store's
+`interviewLetterQueue`, one batched `getPipelineEntriesByIds` read for the page).
+
+`200 { items: FeedbackLetterQueueItem[], truncated }` — open (`requested` / `drafted`),
+non-erased letters, oldest request first, at most 100 (`truncated` says when more wait). Each
+item: `id, candidateLabel, jobTitle, outcome (not_selected|hired), requestedAt, state, lang,
+draft {text, source (model|template), createdAt} | null, closeOnly`. `500
+FEEDBACK_LETTERS_LIST_FAILED`.
+
+`closeOnly` (`letterCloseOnly`) is `consent_withheld` when the entry's consent is expired or
+anonymized, `application_gone` when the entry no longer exists, else null. A close-only item
+carries **no draft** and a masked label (the read-time PII gate, `consent.ts`): it can only
+be declined. The approve and redraft doors refuse on exactly the same rule, so the list and
+the doors agree.
+
+Why a queue of its own: a reject clears `approval_kind`, so a decided candidate never reaches
+the ordinary Decisions queue; like **Reconsider**, this is the only list they appear on.
+
+### The doors
+
+All three: `requireOperator` → `requireCapabilityCoded("pipeline:write", requireCapability)`
+(a viewer gets `403 FORBIDDEN_CAPABILITY` + `capability`), the caller's team only (a foreign
+id is `404 FEEDBACK_LETTER_NOT_FOUND`), a per-IP limiter placed after every cheap refusal and
+pinned in `app/api/rate-limit-contract.test.ts`, the actor from `humanActor()` (the signed-in
+person, `human:<Name>`, or `human:recruiter` on a deployment that cannot name one; never from
+the body). A letter that is no longer open answers `409 FEEDBACK_LETTER_MOVED` + `{ state }`
+and writes nothing, both on the pre-read and when the store's compare-and-swap loses a race.
+
+| Door | Body | Answers |
+| --- | --- | --- |
+| `POST …/[id]/approve` | `{ finalText }` (16 KB cap, trimmed at the ends) | `200 { ok, letter: {id, state, decidedAt}, delivery }` · `400 FEEDBACK_LETTER_TEXT_EMPTY` · `400 FEEDBACK_LETTER_TEXT_TOO_LONG` + `maxChars` · `409 FEEDBACK_LETTER_CONSENT_WITHHELD` · `413 PAYLOAD_TOO_LARGE` · `429` · `500 FEEDBACK_LETTER_APPROVE_FAILED` (30/10 min) |
+| `POST …/[id]/decline` | none | `200 { ok, letter }` · `429` · `500 FEEDBACK_LETTER_DECLINE_FAILED` (30/10 min). Allowed on a close-only letter: it writes who decided, nothing about the candidate |
+| `POST …/[id]/redraft` | none | `200 { ok, taskId }` (the `interview_letter` task, params `{letterId, jobTitle}`, deduped on the letter) · `409 FEEDBACK_LETTER_CONSENT_WITHHELD` · `429` · `500 FEEDBACK_LETTER_REDRAFT_FAILED` (20/10 min) |
+
+Redraft has no body on purpose: the new draft is written from the interview record alone,
+so the recruiter's unsaved edits are never sent to it (the editor says so), and a late draft
+loses to a decision at the store's CAS.
+
+### Delivery
+
+`app/_lib/interview-letter-delivery.ts` `deliverApprovedLetter`, after the approve lands.
+`dispatchInterviewLetter` (`comms-dispatch.ts`) sends the recruiter's final text verbatim
+through `sendCandidateComm` as comm kind **`interview_letter`** (in `KNOWN_COMM_KINDS`,
+`devcase.outboxKind.interview_letter` in all four catalogs), in the **letter's** language
+(`resolveCommsLocale(letter.lang)`), subject `comms.interviewLetter.subject[Role]`, plus one
+line with the candidate's **status link** (`getOrCreateStatusLink`, absolute via
+`candidateLinkBase`, `?lang=`-pinned) and the usual data/opt-out footers. The line is omitted
+if no token can be minted, never printed dead.
+
+The letter records what the outbox reported (`interviewLetterRecordDelivery`): `sent` (relay
+accepted), `queued` (no relay: the outbox row is the destination), `failed` (dead-lettered).
+The door's `delivery` field is `{ delivery, suppressed, readableOnStatusPage, recorded }`.
+
+**Consent.** Two different gates, deliberately:
+
+- *Entry consent withheld* (expired or anonymized): approve and redraft are **refused**
+  (`409 FEEDBACK_LETTER_CONSENT_WITHHELD`) before anything is stored. No letter is written
+  about a person whose consent lapsed, the same line the draft runner holds
+  (`interview-letter-run.ts`). The page shows nothing either way (`candidateLetterView`).
+  Decline still closes the request. An anonymized entry's letter is already erased by the
+  scrub and answers `FEEDBACK_LETTER_MOVED`.
+- *The channel's gate* (`commsSendSuppression`, resolved at the candidate IDENTITY, e.g.
+  another application of the same person was erased): the approval stands, no email is sent
+  (`CommsSuppressedError`), the letter's delivery is recorded `failed` (the contract has no
+  fourth word, and `queued` would claim an outbox row that does not exist), `suppressed:
+  true` is returned, and the letter stays readable on this application's status page because
+  its own consent allows it.
+
+A delivery fault never turns the approval into a 500: the approval is on the record, and the
+response says what the email did.
+
+### The recruiter UI
+
+`app/features/hiring/decisions/DecisionsFeedbackLetters.tsx` (mounted once in
+`DecisionsTab.tsx` beside Reconsider; its own read in `useFeedbackLetters.ts`, latest-wins,
+live-refresh) — a `<details>` section: title with the count (`—` when the first read
+failed, `N+` when truncated), help line, empty state, one row per letter (candidate, role,
+outcome, asked date, state chip, **Review**). Open by default while anyone waits.
+
+`DecisionsFeedbackLetterEditor.tsx` (a `Modal`) — the draft's source (model / standard
+template / none yet) and language, the one-line rule ("names competencies, never quotes the
+candidate, never gives a score"), the text, a live counter against `LETTER_MAX_CHARS` that
+names the overshoot before any refusal (Approve is disabled while the text cannot be stored),
+a no-relay notice, **Approve and send** (moss), **Redraft** (queues a draft, watched with
+`useTaskResult` + `TaskFlightNote`; the text is replaced only when a redraft was asked for or
+the recruiter has not edited), **Decline** with an inline confirm. Outcomes are said as they
+happened: `doneSent` / `doneQueued` / `doneFailed` / `doneSuppressed`, then whether the page
+shows it; `doneDeclined` (or `doneClosed` for a close-only letter). Pure rules in
+`feedbackLetterEditorLogic.ts`.
+
+### The candidate's status page
+
+`app/status/[token]/StatusLetterCard.tsx`, rendered by `StatusClient.tsx` after the decision
+history. Pure rules in `statusLetterView.ts`:
+
+| `letter` | Card |
+| --- | --- |
+| `canRequest` | "Request feedback on your interview" + "a person on the hiring team reviews it before it is sent" |
+| `requested` | "You asked for feedback on {date}…" + follow-up |
+| `drafted` | "Your letter is being prepared…" + follow-up |
+| `sent` | the approved text, verbatim |
+| `declined` | "The hiring team has decided not to send individual feedback on this interview." |
+| anything else / consent withheld | nothing |
+
+The follow-up promises email only when a relay is configured (`whenReadyEmail` vs
+`whenReadyPage`), and both say that a decision not to send will also appear on the page. The
+request is one click (it is idempotent); a repeated request folds the existing state back; a
+"not available" refusal removes the button and says so once; any other failure is a coded
+`role="alert"` with the button left in place. The page's poll still stops at a terminal
+status, so a candidate sees later states on Refresh or from the email.
+
+### Tests
+
+`app/api/decisions/feedback-letters/feedback-letters.test.ts` (real handlers, signed
+sessions: gates, queue tenancy and shape, close-only, human actor, CAS race, 409s, delivery
+`queued` with the status link and language, suppressed send, decline, redraft task params),
+`feedbackLetterEditorLogic.test.ts`, `app/status/[token]/statusLetterView.test.ts`, the
+comm-kind pins (`comms-envelope.test.ts`, `outbox-kind-catalog.test.ts`) and the rate-limit
+contract.
+
+### Known gaps
+
+- **No decline email.** A decline is said on the status page only; the candidate learns it
+  there (they were told on request that it would appear there).
+- **A failed email is not retried from here.** The outbox row can be resent from the Comms
+  outbox, but that resend does not update the letter's `delivery`.
+- **The human-written final text is not run through a protected-attribute filter.** The
+  model draft is (`letter_problem` in `automation.py`); the recruiter's text is theirs and is
+  sent verbatim. The registry's `protected-attribute-line-suppression` asks for the filter
+  over human text too; a warn-in-editor design is open.
+- The candidate's page does not poll after a terminal status, so the letter appears on
+  Refresh or via the email link.
+
+(Also owed outside this section: `docs/features/comms/README.md` gains the
+`dispatchInterviewLetter` dispatcher; `docs/features/comms/outbound-export.md` line ~100
+lists `interview_letter` among the kinds; `docs/architecture/api-reference.md` needs
+`npm run api:docs` for the four routes; and the WP-alpha "Known gaps" bullet "No UI yet…"
+is now closed.)
+
 ## Surface
 
 | Concern | Files |

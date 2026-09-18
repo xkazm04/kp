@@ -776,6 +776,7 @@ air-gapped.
 | `app/_lib/comms-relay.ts` / `comms-relay-store.ts` | Relay resolution (env → stored config) and the encrypted stored-config persistence. |
 | `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`. |
 | `app/_lib/rejection-feedback.ts` | `buildRejectionFeedback` / `renderRejectionFeedback` — recorded-only rejection reasons behind the protected-attribute filter (§9). |
+| `app/_lib/interview-letter-delivery.ts` | `dispatchInterviewLetter` (comm kind `interview_letter`) — sends a recruiter-APPROVED interview feedback letter in the letter's language with the candidate's status link, and records the truthful delivery on the letter (`queued` with no relay; `failed` when the consent gate refuses, never a phantom `queued`). The letter itself: `docs/features/compliance/README.md` §"Interview feedback letters". |
 | `app/_lib/comms-status.ts` | `OUTBOX_STATUSES`, `coerceOutboxStatus`, retry classification. |
 | `app/_lib/comms-view.ts` | `deriveCommsView`, `commsVerdict` — the single delivery-truth vocabulary. |
 | `app/_lib/comms-truth.ts` | `isRelayConfigured` legacy helper / capability surfacing. |

@@ -97,7 +97,7 @@ equality, so this list cannot silently drift from the dispatchers:
 
 `acknowledgement`, `outreach`, `rejection`, `ko_decline`, `offer`,
 `offer_reminder`, `consent_expiry`, `interview_confirmation`, `interview_reminder`,
-`interview_invite`, `interviewer_brief`, `schedule_invite`.
+`interview_invite`, `interviewer_brief`, `schedule_invite`, `interview_letter`.
 
 (`onboarding` and `onboarding_reminder` were retired with the post-hire
 onboarding module. A relay may still receive them from an outbox replay of

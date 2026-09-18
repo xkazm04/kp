@@ -12,8 +12,10 @@ import {
   RECORDING_RETENTION_AFTER_DECISION_DAYS,
 } from "@/app/_lib/interview-recording-paths";
 import { StatusNpsCard } from "./StatusNpsCard";
+import { StatusLetterCard } from "./StatusLetterCard";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
+import type { CandidateLetterView } from "@/app/_lib/interview-letter-types";
 import {
   CANDIDATE_TIMELINE,
   classifyStatusError,
@@ -35,6 +37,9 @@ type StatusView = {
   // still hold it. A BOOLEAN and nothing more: the projection deliberately carries no
   // file name, size, attempt count or date (api/status/[token]/route.ts).
   hasInterviewRecording?: boolean;
+  // Spark interview-feedback-letter — the candidate's own feedback-letter request: may
+  // they ask, and where does their one request stand. The contract's projection only.
+  letter?: CandidateLetterView;
 };
 
 // Public, token-gated candidate application-status page (idea-e76a6fb2). Shows
@@ -337,6 +342,18 @@ export function StatusClient({
               {/* Echoes aiDisclosure.body's promise on the surface where it matters most. */}
               <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote")}</p>
             </section>
+          ) : null}
+
+          {/* Spark interview-feedback-letter — ask for a letter about the AI interview after
+              a person decided, and see where that one request stands. Renders nothing when
+              there is nothing to offer or report (StatusLetterCard / statusLetterView.ts). */}
+          {token ? (
+            <StatusLetterCard
+              token={token}
+              letter={view.letter}
+              relayConfigured={view.relayConfigured}
+              onLetter={(letter) => setView((cur) => (cur ? { ...cur, letter } : cur))}
+            />
           ) : null}
 
           {/* WP3 — "delete my interview recording". Shown ONLY while audio we hold
