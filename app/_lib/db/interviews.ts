@@ -685,6 +685,33 @@ export function setInterviewSessionProvider(
   ).run(provider, failoverFrom ?? null, new Date().toISOString(), id);
 }
 
+/** Persist the director's agenda built at connect (spark ai-interview-parity). The
+ *  director validates tool calls against it and the recruiter's evidence view reads
+ *  its competencies, so it is written on every connect that built one — the stored
+ *  copy always matches the brief the provider was just given. Guarded like every
+ *  other live-row write: a raced /complete is never perturbed. Returns whether the
+ *  row took it. */
+export function setInterviewAgenda(id: string, agenda: InterviewAgenda): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE interview_sessions SET agenda_json=? WHERE id=? AND status != 'completed'`)
+    .run(JSON.stringify(agenda), id);
+  return res.changes > 0;
+}
+
+/** Stamp the candidate's AUDIO-recording consent — separate from `consent_at` (the
+ *  transcribed conversation). COALESCE keeps the FIRST agreement: a reconnect that
+ *  repeats it must not move the record of when consent was given. The caller gates
+ *  this on the workspace actually offering recording (interview-recording.ts). */
+export function markInterviewRecordingConsent(id: string): boolean {
+  const now = new Date().toISOString();
+  const res = ensureDb()
+    .prepare(
+      `UPDATE interview_sessions SET recording_consent_at=COALESCE(recording_consent_at, ?) WHERE id=? AND status != 'completed'`
+    )
+    .run(now, id);
+  return res.changes > 0;
+}
+
 /** Attach the synthesized scorecard to an already-persisted session. Separate
  *  from completeInterviewSession so the transcript write can happen FIRST and
  *  scoring strictly after it (idea-55fd89f9) — a scoring step that sets the

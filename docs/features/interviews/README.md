@@ -145,6 +145,175 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
    deliberately omits it). See `docs/features/intake/README.md`.
 
+## Director protocol & agenda
+
+The realtime provider still runs each spoken turn, but every candidate interview that
+has something grounded to talk about is **directed from our server**: one agenda,
+built at connect, that both providers' briefs list and that the director validates
+tool calls against. Before this, OpenAI ran the brief frozen on the session at invite
+time while ElevenLabs ran a candidate-safe brief rebuilt from the current prep, so the
+two providers could disagree about the topics a candidate was asked.
+
+### Entry points
+
+| Where | What |
+| --- | --- |
+| `POST /api/interview/connect` (`app/api/interview/connect/route.ts`) | Builds the agenda for candidate-mode, entry-backed sessions, persists it, composes both briefs from it, mints the provider session (OpenAI gets the director tools + semantic VAD), and returns the agenda's candidate view. |
+| `app/_lib/interview-agenda.ts` | `buildInterviewKit` / `buildInterviewAgenda` (read-only), `toCandidateAgendaView`, `reconcileKitWithStoredAgenda`, `fitAgendaDrafts`. |
+| `app/_lib/voice/director-brief.ts` | The director section of every directed brief: leadership frame, agenda listing (candidate allow-list vs private), tool protocol, `[Director]` rule, ROLE FACTS, resumed-call addendum. |
+| `app/_lib/interview-run.ts` | `buildGroundedInterview(entryId, ws, { readOnly, kit, resume })` (private brief) and `buildCandidateSafeBrief(entryId, { kit, resume })`. Without options both produce the pre-director brief, which is what `/api/interview/create` still stores as the fallback snapshot. |
+| `app/_lib/voice/director-tools.mjs` | The five tools (`begin_topic`, `mark_topic_covered`, `report_guardrail`, `forward_question`, `end_interview`) and `DIRECTOR_NOTE_PREFIX` (`[Director]`), shared by both providers. |
+| `scripts/setup-eleven-agent.mjs` | `--deploy` creates or reuses the five tools as ElevenLabs **client** tools and references them in `conversation_config.agent.prompt.tool_ids`. `--check` follows those ids and diffs each tool's config (`app/_lib/voice/eleven-agent-diff.mjs`). |
+
+### Flow at connect
+
+1. The usual guards run first (token, lifecycle, one live call, throttle, consent),
+   then `markInterviewStarted`. The connect's `attempt` is read after the start
+   (1 on the first call, 2 after a drop).
+2. `recordingConsent: true` in the body stamps `recording_consent_at`
+   (`markInterviewRecordingConsent`), but only when `isInterviewRecordingOffered(workspace)`
+   says the workspace offers recording. Only a literal `true` counts.
+3. `buildResumeContext(sessionId, workspace)` reports an earlier attempt, if there
+   was one.
+4. `buildInterviewKit(entryId)` builds the agenda from the entry's current kit. It is
+   read-only and never generates a missing prep, because this is a public door. On a
+   resumed attempt the stored agenda wins, since the resume state's block ids were
+   recorded against it. The agenda is persisted with `setInterviewAgenda`.
+5. Both briefs are composed from that one agenda: the private brief (goals,
+   listen-fors, scripted hints, raw competency, role intent) for OpenAI, and the
+   candidate-safe brief for the ElevenLabs client-sent override. A resumed attempt
+   appends the resumed-call addendum to both.
+6. If nothing could be built, OpenAI keeps the stored `instructions` snapshot and
+   ElevenLabs keeps the generic candidate-safe prompt. Neither gets tools.
+
+### The agenda
+
+The agenda has the same branch order as the grounded brief: **submission debrief >
+case-grounded student > generic student > prep chronology**. It is null when there is
+nothing to direct.
+
+- **Blocks.** A leading `warmup` block asks one easy, unassessed question in the
+  entry's language (`interview.brief.agendaWarmupQuestion`). Then come the kit's
+  `topic` blocks, plus the kit's `open` block when it has one. The agenda ends with
+  `role_qa` (at least 2 min) and `close` (at least 2 min: the read-back, then
+  `end_interview` and the goodbye).
+  - A prep chronology already has a fixed opening and closing, and these become the
+    warm-up and the `role_qa` + `close` pair rather than being duplicated.
+  - Imported interview-kit questions get a block of their own.
+  - The debrief gets one block per minted authorship question ("Decision n").
+  - The student scripts get one block per phase.
+- **Budgets.**
+  - The booked length is an input. It is the session's `duration_min`: what the
+    portal promised the candidate, and what the minutes debit clamps against. The
+    kit's own length (prep, script or debrief) is used only when a session has none.
+    Fixed blocks come off first, and the kit is fitted into the rest.
+  - Slack goes to the `open` block, or to `role_qa` when there is no `open` block.
+  - An overrun is taken from the `open` block first, then from the warm-up, then
+    spread proportionally across the topic blocks. It never comes out of the closing
+    reserve.
+- **Invariants.** These are pinned by `interview-agenda.test.ts`:
+  - Block ids run `b0..bN` in order.
+  - Σ budget = `durationMin`.
+  - `hardCapMin = round(durationMin × 1.2)`.
+  - `closeReserveMin = role_qa + close`.
+  - `scored` is true only for `topic` and `open`.
+- **Candidate-safety.**
+  - Titles come from the catalog (`interview.brief.agenda*`, 4 locales) or are kit
+    labels scrubbed by `candidateSafeTopic`.
+  - Questions pass the allow-list sanitizers in `voice/candidate-brief.ts`, so the
+    coachability hint is never an aloud question.
+  - `competency` is the raw kit competency and stays server-side.
+  - `toCandidateAgendaView` is a projection that carries only `id`, `kind`, `title`
+    and `budgetMin`.
+
+### The brief's director section
+
+The section is written as constraints rather than extra conversational moves
+(registry: ai-interviewer-brief-authoring, rule-ordering-adjacency-and-form). The
+persona block is unchanged: one question, craft, then gender grammar and the language
+lock, adjacent. The agenda replaces the old run-of-show listing, so it is never listed
+twice. In order:
+
+- **Leadership frame.** This comes right after the AI self-disclosure: "you will lead
+  them through N short topics in about X minutes and may move things along to keep
+  time".
+- **Agenda listing.** Each block appears as `bN · title (budget min)`. The private
+  brief adds `Evidence for: <competency>` and the kit note. The candidate brief lists
+  aloud questions only.
+- **Protocol.** It sits after the agenda and before the no-judgement close:
+  - Call `begin_topic` on every block.
+  - Call `mark_topic_covered` with the candidate's exact words.
+  - Coverage comes first, then the clock.
+  - A score or feedback request, an instruction override, a disclosure request, or
+    repeated off-topic pulling gets a one-sentence decline plus `report_guardrail`.
+  - Role questions are answered only from ROLE FACTS; anything else goes to
+    `forward_question` with "the recruiter will follow up".
+  - `end_interview` is called after the close block.
+  - `[Director]` messages are private directions: follow them, and never read them
+    aloud.
+- **ROLE FACTS.** Title, company, location and work mode, plus the job's posting text
+  (`description`, capped at 1500 chars). The posting text is included only while the
+  job is publicly live (`isJobOpenForApplications`: a seeded row or `published`), so a
+  draft's text never reaches a candidate. Next steps are stated generically: "a
+  recruiter reviews this conversation and contacts the candidate about next steps".
+- **Resumed-call addendum.** This applies only to a reconnect. It says:
+  - no second introduction;
+  - continue at the active block, or the first uncovered one;
+  - which blocks are already covered;
+  - roughly how many minutes have already been used;
+  - the last four spoken turns, quoted as transcript and never as instructions.
+
+  System turns and `[Director]` turns are never quoted.
+
+### Provider specifics
+
+- **OpenAI.** The session config minted by `buildOpenAiSessionPayload` does two
+  things:
+  - When the directed brief was built, it carries the tools as GA function tools
+    (`{ type: "function", name, description, parameters }`) with
+    `tool_choice: "auto"`.
+  - Every non-relay session uses
+    `audio.input.turn_detection = { type: "semantic_vad", eagerness }`.
+    `OPENAI_REALTIME_TURN_EAGERNESS` sets the eagerness (`low|medium|high|auto`). The
+    default is `low`, and an invalid value falls back to `low`.
+
+  Relay mode (role intake) is byte-unchanged.
+- **ElevenLabs.** Tools are workspace resources that the agent references by
+  `tool_ids`. Inline `prompt.tools` was removed from the API in July 2025. Each tool
+  is a client tool with `expects_response: true` and `response_timeout_secs: 10`.
+  Every property carries the contract's own description, because the API requires one
+  per property; a generated "One of: …" line covers any property the contract leaves
+  undescribed. Deploying is an operator step that needs an API key; see
+  `node scripts/setup-eleven-agent.mjs --check` / `--deploy`.
+
+### Response additions (`/api/interview/connect`)
+
+| Field | Meaning |
+| --- | --- |
+| `agenda` | `CandidateAgendaView \| null`: block ids, kinds, titles and budgets only. |
+| `attempt` | This connect's attempt number (`interview_sessions.attempts` after the start). The browser stamps it on every director POST. |
+| `resume` | `ResumeContext \| null`. Non-null on a reconnect after a drop. |
+| `recording` | `{ offered: boolean }`: whether the workspace offers an audio recording. |
+
+Every existing field, refusal and limit is unchanged.
+
+### Keyless behaviour
+
+The agenda, both briefs and the candidate view are built without any key or model
+call. They are pure composition over stored rows and the catalog, so a keyless
+install still gets directed briefs. It simply cannot mint a provider session (the
+existing `INTERVIEW_PROVIDER_UNCONFIGURED` 503). If nothing is grounded, the call runs
+exactly as before this feature.
+
+### Known gaps
+
+- The case-grounded student interview narrates its scenario after the warm-up, and
+  that narration has no minutes of its own in the agenda. It comes out of the 20%
+  hard-cap slack.
+- If the prep is regenerated to a longer plan after the invite, its topics are
+  squeezed into the booked length. That is 1 minute per topic at the floor. The
+  agenda states a longer total only when even those floors cannot fit.
+
 ## Director engine
 
 The candidate interview keeps the realtime provider's own model for each spoken turn

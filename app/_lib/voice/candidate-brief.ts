@@ -43,6 +43,14 @@ import {
   PERSONA_LANGUAGE_DETECT,
   PERSONA_ONE_QUESTION,
 } from "../student-interview";
+import {
+  agendaHeader,
+  candidateAgendaListing,
+  directorProtocol,
+  leadershipFrame,
+  type RoleFacts,
+} from "./director-brief";
+import type { InterviewAgenda } from "./director-types";
 
 /** The ONLY shape that reaches the candidate-safe prompt. Constructed, never copied. */
 export type CandidateSafeBlock = {
@@ -86,6 +94,19 @@ export function candidateSafeTopic(raw: unknown): string | null {
   return stripped.length > MAX_TOPIC_CHARS ? stripped.slice(0, MAX_TOPIC_CHARS).trimEnd() : stripped;
 }
 
+/** The ALOUD half of a chronology block — its questions plus the follow-up, the
+ *  same allow-list pick sanitizeChronologyBlock makes, without needing a topic. The
+ *  director agenda (interview-agenda.ts) keeps a block whose LABEL scrubs to nothing
+ *  under a fallback title, so it needs the questions on their own. */
+export function chronologyAloudQuestions(block: unknown): string[] {
+  if (!block || typeof block !== "object") return [];
+  const b = block as Record<string, unknown>;
+  const questions = asQuestionList(b.questions);
+  const followUp = asCleanString(b.followUp);
+  if (followUp) questions.push(followUp);
+  return questions;
+}
+
 /** Allow-list pick from an interview-prep chronology block ({ topic, goal,
  *  questions, followUp, fromMin, toMin }). `goal` is deliberately NOT picked —
  *  prep goals embed whatsGoodLooksLike / "Listen for:" assessment guidance.
@@ -97,9 +118,7 @@ export function sanitizeChronologyBlock(block: unknown): CandidateSafeBlock | nu
   const b = block as Record<string, unknown>;
   const topic = candidateSafeTopic(b.topic);
   if (!topic) return null;
-  const questions = asQuestionList(b.questions);
-  const followUp = asCleanString(b.followUp);
-  if (followUp) questions.push(followUp);
+  const questions = chronologyAloudQuestions(b);
   const out: CandidateSafeBlock = { topic, questions };
   if (typeof b.fromMin === "number" && Number.isFinite(b.fromMin)) out.fromMin = b.fromMin;
   if (typeof b.toMin === "number" && Number.isFinite(b.toMin)) out.toMin = b.toMin;
@@ -119,10 +138,20 @@ export function sanitizeScenarioPhase(phase: unknown): CandidateSafeBlock | null
   const p = phase as Record<string, unknown>;
   const topic = candidateSafeTopic(p.phase);
   if (!topic) return null;
+  return { topic, questions: scenarioPhaseAloudQuestions(p) };
+}
+
+/** The ALOUD half of a student-script / case-scenario phase: its probe, unless the
+ *  phase feeds Coachability — that probe is the scripted stage direction (the hint
+ *  the agent injects and observes) and never reaches the browser. Same rule as
+ *  sanitizeScenarioPhase, usable without a topic. */
+export function scenarioPhaseAloudQuestions(phase: unknown): string[] {
+  if (!phase || typeof phase !== "object") return [];
+  const p = phase as Record<string, unknown>;
   const feeds = Array.isArray(p.feeds) ? p.feeds : [];
   const isCoachability = feeds.some((f) => typeof f === "string" && f.toLowerCase() === "coachability");
   const probe = isCoachability ? null : asCleanString(p.probe);
-  return { topic, questions: probe ? [probe] : [] };
+  return probe ? [probe] : [];
 }
 
 /** Allow-list pick from a submission-debrief followup ({ question, listenFor,
@@ -136,7 +165,15 @@ export function sanitizeFollowupQuestion(followup: unknown): string | null {
 /** Compose the candidate-safe grounded brief from sanitized blocks. Same shared
  *  persona contract as every other builder; the run-of-show lines carry ONLY
  *  what the sanitizers emitted. `intro` is optional aloud narration (e.g. a
- *  case scenario's caseIntro — the agent reads it to the candidate anyway). */
+ *  case scenario's caseIntro — the agent reads it to the candidate anyway).
+ *
+ *  DIRECTED (an `agenda` is given — spark ai-interview-parity): the director's agenda
+ *  REPLACES the run-of-show listing (it is never listed twice), the leadership frame
+ *  follows the AI self-disclosure, and the director protocol + ROLE FACTS sit between
+ *  the agenda and the no-judgement close. The listing is candidateAgendaListing — an
+ *  allow-list over block id / title / budget / aloud questions that never reads the
+ *  block's competency — so the agenda's server-side half cannot ride this prompt.
+ *  Without an agenda the output is byte-identical to the pre-director brief. */
 export function composeCandidateBrief(opts: {
   company: string;
   roleLine: string;
@@ -144,7 +181,10 @@ export function composeCandidateBrief(opts: {
   durationMin: number;
   blocks: CandidateSafeBlock[];
   intro?: string | null;
+  agenda?: InterviewAgenda | null;
+  roleFacts?: RoleFacts | null;
 }): string {
+  const agenda = opts.agenda ?? null;
   const name = opts.candidateLabel ? ` You are speaking with ${opts.candidateLabel}.` : "";
   const runOfShow = opts.blocks
     .map((b, i) => {
@@ -161,9 +201,16 @@ export function composeCandidateBrief(opts: {
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     `Begin by briefly introducing yourself as an AI assistant and the ${opts.roleLine} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
-    ...(opts.intro ? [`After your introduction, narrate this context to the candidate conversationally in at most two minutes: ${opts.intro}`] : []),
-    `Then lead the conversation through this run of show (about ${opts.durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
-    runOfShow,
+    ...(agenda ? [leadershipFrame(agenda)] : []),
+    ...(opts.intro
+      ? [`After your introduction${agenda ? " and the warm-up" : ""}, narrate this context to the candidate conversationally in at most two minutes: ${opts.intro}`]
+      : []),
+    ...(agenda
+      ? [agendaHeader(agenda), candidateAgendaListing(agenda), directorProtocol(opts.roleFacts ?? null)]
+      : [
+          `Then lead the conversation through this run of show (about ${opts.durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
+          runOfShow,
+        ]),
     "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
   ].join(" ");
 }

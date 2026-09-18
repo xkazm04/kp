@@ -2368,7 +2368,14 @@
       "debriefDecisions": "Entscheidungen im Detail",
       "debriefCounterfactuals": "Was-wäre-wenn-Szenarien",
       "debriefQuestions": "Ihre Fragen",
-      "recruiterAddedQuestions": "Vom Recruiter ergänzte Fragen"
+      "recruiterAddedQuestions": "Vom Recruiter ergänzte Fragen",
+      "agendaWarmup": "Zum Einstieg",
+      "agendaWarmupQuestion": "Bevor wir beginnen: Von wo aus sind Sie heute dabei?",
+      "agendaOpen": "Offenes Gespräch",
+      "agendaRoleQuestions": "Ihre Fragen zur Stelle",
+      "agendaClose": "Abschluss",
+      "agendaDecision": "Entscheidung {n}",
+      "agendaTopicFallback": "Thema {n}"
     },
     "lab": {
       "eyebrow": "Intern · Voice-MVP",

@@ -2368,7 +2368,14 @@
       "debriefDecisions": "Rozbor rozhodnutí",
       "debriefCounterfactuals": "Co kdyby",
       "debriefQuestions": "Vaše otázky",
-      "recruiterAddedQuestions": "Otázky doplněné náborářem"
+      "recruiterAddedQuestions": "Otázky doplněné náborářem",
+      "agendaWarmup": "Na úvod",
+      "agendaWarmupQuestion": "Než začneme: odkud se dnes připojujete?",
+      "agendaOpen": "Otevřená diskuse",
+      "agendaRoleQuestions": "Vaše otázky k pozici",
+      "agendaClose": "Shrnutí a rozloučení",
+      "agendaDecision": "Rozhodnutí {n}",
+      "agendaTopicFallback": "Téma {n}"
     },
     "lab": {
       "eyebrow": "Interní · hlasové MVP",

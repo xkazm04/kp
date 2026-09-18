@@ -1,4 +1,4 @@
-import type { VoiceAvailability, VoiceConnect, VoiceProviderId } from "./types.ts";
+import type { VoiceAvailability, VoiceConnect, VoiceProviderId, VoiceToolDef } from "./types.ts";
 
 // Provider FAILOVER at connect (Direction 3). connect/route.ts flips the session
 // in_progress BEFORE the adapter connects; if the preferred provider's connect
@@ -15,7 +15,12 @@ import type { VoiceAvailability, VoiceConnect, VoiceProviderId } from "./types.t
 
 /** The minimal adapter surface failover needs — just connect(). */
 export type ConnectableAdapter = {
-  connect(opts: { instructions: string; language?: string | null; sessionToken?: string | null }): Promise<VoiceConnect>;
+  connect(opts: {
+    instructions: string;
+    language?: string | null;
+    sessionToken?: string | null;
+    tools?: readonly VoiceToolDef[] | null;
+  }): Promise<VoiceConnect>;
 };
 
 export type FailoverResult = {
@@ -49,6 +54,10 @@ export async function connectWithFailover(opts: {
    *  credential to this session (as a hash — see voice/openai.ts). Optional: the
    *  tokenless lab path has none. */
   sessionToken?: string | null;
+  /** The interview director's tools for an agenda-backed candidate session, handed to
+   *  WHICHEVER provider dials (OpenAI mints them into the session; ElevenLabs declares
+   *  them on the agent and ignores this), so a failover never drops the protocol. */
+  tools?: readonly VoiceToolDef[] | null;
   getAdapter: (id: VoiceProviderId) => ConnectableAdapter;
   availability: VoiceAvailability;
   /** Build the served provider's client-sent prompt (null for a server-grounded
@@ -60,6 +69,7 @@ export async function connectWithFailover(opts: {
       instructions: opts.instructions,
       language: opts.language,
       sessionToken: opts.sessionToken ?? null,
+      tools: opts.tools ?? null,
     });
 
   let connect: VoiceConnect;

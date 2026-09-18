@@ -167,3 +167,26 @@ test("both providers throw → surfaces the PREFERRED provider's error", async (
     /EL primary boom/
   );
 });
+
+test("the director's tools reach whichever provider dials — a failover keeps the protocol", async () => {
+  const seen: { id: VoiceProviderId; tools: unknown }[] = [];
+  const recording = (id: VoiceProviderId, behavior: VoiceConnect | Error): ConnectableAdapter => ({
+    async connect(opts) {
+      seen.push({ id, tools: opts.tools });
+      if (behavior instanceof Error) throw behavior;
+      return behavior;
+    },
+  });
+  const tools = [{ name: "begin_topic", description: "d", parameters: { type: "object" } }];
+  await connectWithFailover({
+    preferred: "elevenlabs",
+    instructions: "brief",
+    language: "en",
+    tools,
+    getAdapter: (id) => (id === "elevenlabs" ? recording(id, new Error("EL down")) : recording(id, OAI_CONNECT)),
+    availability: bothAvailable,
+    resolveAgentPrompt: noPrompt,
+  });
+  assert.deepEqual(seen.map((s) => s.id), ["elevenlabs", "openai"]);
+  assert.ok(seen.every((s) => s.tools === tools));
+});

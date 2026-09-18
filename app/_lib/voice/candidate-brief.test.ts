@@ -226,3 +226,51 @@ test("composed brief carries only sanitized material end to end", () => {
   assert.match(brief, /Do not give feedback, scores/);
   assert.match(brief, /LOCK onto the one language/);
 });
+
+// ---- directed mode (spark ai-interview-parity) ---------------------------------------
+// With a director agenda the candidate-safe brief lists the AGENDA instead of the
+// run-of-show. The agenda's `competency` is the RAW kit competency — it carries the
+// gap annotation — so the listing must be an allow-list that never reads it.
+
+test("directed: the agenda replaces the run-of-show and its competency never reaches the prompt", () => {
+  const agenda = {
+    version: 1 as const,
+    durationMin: 12,
+    hardCapMin: 14,
+    closeReserveMin: 4,
+    blocks: [
+      { id: "b0", kind: "warmup" as const, title: "Warm-up", budgetMin: 2, competency: null, scored: false, questions: ["Where are you joining from?"] },
+      { id: "b1", kind: "topic" as const, title: "Test automation fundamentals", budgetMin: 6, competency: `${ANNOTATED_TOPIC} ${LISTEN_FOR}`, scored: true, questions: ["Which tests would you write first?"] },
+      { id: "b2", kind: "role_qa" as const, title: "Your questions about the role", budgetMin: 2, competency: null, scored: false, questions: [] },
+      { id: "b3", kind: "close" as const, title: "Wrap-up", budgetMin: 2, competency: null, scored: false, questions: [] },
+    ],
+  };
+  const brief = composeCandidateBrief({
+    company: "Acme",
+    roleLine: "QA Engineer",
+    durationMin: 12,
+    // Legacy blocks are ignored when an agenda is given — the agenda is the ONE listing.
+    blocks: [{ topic: "Legacy topic that must not be listed", questions: ["Legacy question?"] }],
+    agenda,
+    roleFacts: { title: "QA Engineer", company: "Acme", location: null, workMode: null, posting: null },
+  });
+  assertNoInternal(brief);
+  assert.doesNotMatch(brief, /Legacy topic|Legacy question|run of show/);
+  assert.match(brief, /b1 · Test automation fundamentals \(6 min\) — Ask: “Which tests would you write first\?”/);
+  assert.match(brief, /lead them through 1 short topic in about 12 minutes/);
+  assert.match(brief, /Director protocol/);
+  // The persona contract and the no-judgement close still bracket it.
+  assert.ok(brief.indexOf("LOCK onto the one language") < brief.indexOf("b0 · "));
+  assert.ok(brief.indexOf("Director protocol") < brief.indexOf("Do not give feedback"));
+});
+
+test("without an agenda the candidate brief is the pre-director brief (no protocol, no ids)", () => {
+  const brief = composeCandidateBrief({
+    company: "Acme",
+    roleLine: "QA Engineer",
+    durationMin: 20,
+    blocks: [{ topic: "Design trade-offs", fromMin: 7, toMin: 12, questions: ["Why?"] }],
+  });
+  assert.match(brief, /Then lead the conversation through this run of show \(about 20 minutes total\)/);
+  assert.doesNotMatch(brief, /Director protocol|begin_topic|b0 · /);
+});

@@ -2368,7 +2368,14 @@
       "debriefDecisions": "Decisions deep-dive",
       "debriefCounterfactuals": "Counterfactuals",
       "debriefQuestions": "Your questions",
-      "recruiterAddedQuestions": "Recruiter-added questions"
+      "recruiterAddedQuestions": "Recruiter-added questions",
+      "agendaWarmup": "Warm-up",
+      "agendaWarmupQuestion": "Before we start, where are you joining us from today?",
+      "agendaOpen": "Open discussion",
+      "agendaRoleQuestions": "Your questions about the role",
+      "agendaClose": "Wrap-up",
+      "agendaDecision": "Decision {n}",
+      "agendaTopicFallback": "Topic {n}"
     },
     "lab": {
       "eyebrow": "Internal · voice MVP",

@@ -42,10 +42,29 @@ import {
   sanitizeScenarioPhase,
   type CandidateSafeBlock,
 } from "./voice/candidate-brief";
+import { isJobOpenForApplications } from "./job-ingest";
+import {
+  caseScenarioForEntry,
+  importedQuestionsForBrief,
+  MAX_BRIEF_IMPORTED_QUESTIONS,
+  type InterviewKit,
+  type PrepPayload,
+} from "./interview-agenda";
+import {
+  capPostingText,
+  privateDirectedBrief,
+  resumeAddendum,
+  type DirectedBrief,
+  type RoleFacts,
+} from "./voice/director-brief";
+import type { InterviewAgenda, ResumeContext } from "./voice/director-types";
 
 // Re-exported for back-compat: the transcript→notes flattener now lives with the
 // rest of the documented truncation policy in ./interview-transcript.
 export { transcriptToNotes };
+// Re-exported for back-compat: the imported-question guard moved beside the agenda
+// builder (interview-agenda.ts), which is the other reader of the prep payload.
+export { importedQuestionsForBrief, MAX_BRIEF_IMPORTED_QUESTIONS };
 
 // Bridges the voice interview to the existing pipeline:
 //  - the agent's brief is built from the rich interview-prep artifact (the same
@@ -54,51 +73,20 @@ export { transcriptToNotes };
 //  - the transcript feeds Task 5 (interview_scorecard), which sets the
 //    scorecard_review approval on the entry (Interview→Offer gate).
 
-type PrepPayload = {
-  scenario?: string;
-  durationMin?: number;
-  focusAreas?: string[];
-  chronology?: ChronologyBlock[];
-  // Interview-kit questions imported into the pack (written by /api/interview-prep
-  // POST, rendered in the prep modal). Aloud-material the recruiter wants asked —
-  // now carried into the voice brief alongside the generated chronology.
-  importedQuestions?: string[];
+/** What a DIRECTED build (spark ai-interview-parity) is given at connect: the kit
+ *  built by interview-agenda.ts::buildInterviewKit — the ONE agenda both briefs list
+ *  — and the director's resume state for a reconnect. */
+export type DirectedBuildOptions = {
+  /** The connect-time agenda + private notes. When present, the agenda REPLACES the
+   *  legacy run-of-show in the brief and the director protocol rides with it. */
+  kit?: InterviewKit | null;
+  /** Non-null on a reconnect after a dropped call: appends the resumed-call addendum. */
+  resume?: ResumeContext | null;
 };
 
-/** Cap on imported interview-kit questions carried into a grounded brief, so a
- *  40-question import (the /api/interview-prep import cap) can't overwhelm the
- *  brief's length discipline. What is dropped is stated in the brief prose. */
-export const MAX_BRIEF_IMPORTED_QUESTIONS = 8;
-
-/** The imported interview-kit questions (prep payload `importedQuestions`) that
- *  should ride a grounded brief: trimmed, de-duplicated, and — the coordination
- *  guard with the sibling "weave into chronology" work — dropped when their exact
- *  text is already asked in a chronology block, so a woven question never
- *  double-renders. Pure/exported for the brief-construction unit tests. */
-export function importedQuestionsForBrief(importedQuestions: unknown, alreadyAsked: Iterable<string>): string[] {
-  const seen = new Set<string>();
-  for (const q of alreadyAsked) if (typeof q === "string") seen.add(q.trim());
-  const out: string[] = [];
-  if (Array.isArray(importedQuestions)) {
-    for (const raw of importedQuestions) {
-      // Entries are legacy plain strings OR { question, blockRef? } objects (the
-      // round-8 weave shape). Both must reach the brief — a woven question keeps
-      // its single home in importedQuestions, so skipping objects would silently
-      // drop exactly the questions the recruiter planned most deliberately.
-      const text =
-        typeof raw === "string"
-          ? raw
-          : raw && typeof raw === "object" && typeof (raw as { question?: unknown }).question === "string"
-            ? (raw as { question: string }).question
-            : null;
-      if (text === null) continue;
-      const q = text.trim();
-      if (!q || seen.has(q)) continue;
-      seen.add(q);
-      out.push(q);
-    }
-  }
-  return out;
+/** Append the resumed-call addendum when the director reports an earlier attempt. */
+function withResume(text: string, resume: ResumeContext | null | undefined, agenda: InterviewAgenda | null): string {
+  return resume ? `${text} ${resumeAddendum(resume, agenda)}` : text;
 }
 
 /** The run-of-show tail for imported interview-kit questions: a single appended
@@ -179,10 +167,15 @@ export function composeBrief(
   // the promoted RoleBrief behind this job (intake-brief.ts::briefIntentSummary).
   // Rides AFTER the run-of-show so agenda order stays untouched; null on jobs
   // with no intake behind them.
-  roleIntent?: string | null
+  roleIntent?: string | null,
+  // Spark ai-interview-parity: the director's agenda + protocol. When given, the
+  // agenda listing REPLACES the run-of-show (imported questions are one of its
+  // blocks, never a second list), the leadership frame follows the self-disclosure,
+  // and the protocol sits after the role intent, before the no-judgement close.
+  directed?: DirectedBrief | null
 ): string {
   const chron = prep?.chronology ?? [];
-  if (chron.length === 0) return defaultInterviewerInstructions({ role: roleLine });
+  if (chron.length === 0 && !directed) return defaultInterviewerInstructions({ role: roleLine });
   const runOfShow = chron
     .map((b, i) => {
       const qs = (b.questions ?? []).filter(Boolean).map((q) => `“${q}”`).join(" ");
@@ -204,9 +197,14 @@ export function composeBrief(
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     `Begin by briefly introducing yourself as an AI assistant, ${company}, and the ${title} position in two or three sentences, and mention that the call is transcribed for a human recruiter.`,
-    `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
-    runOfShow + importedLine,
+    ...(directed
+      ? [directed.frame, directed.header, directed.listing]
+      : [
+          `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
+          runOfShow + importedLine,
+        ]),
     ...(roleIntent ? [roleIntent] : []),
+    ...(directed ? [directed.protocol] : []),
     noJudgementClose("the agenda is"),
   ].join(" ");
 }
@@ -243,6 +241,18 @@ function entryBriefContext(entry: PipelineEntry) {
   const company = job?.company || "Česká spořitelna";
   const title = entry.jobTitle || job?.title || "the role";
   const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
+  // The ROLE FACTS the director protocol lets the interviewer answer from (spark
+  // ai-interview-parity). Public job facts only — they ride the CLIENT-SENT
+  // ElevenLabs prompt too — and the posting text only while the job is publicly
+  // live (isJobOpenForApplications: a seeded corpus row or `published`), so a
+  // draft's or a closed role's text never reaches a candidate.
+  const roleFacts: RoleFacts = {
+    title,
+    company,
+    location: job?.location || null,
+    workMode: job?.workMode || null,
+    posting: job && isJobOpenForApplications(job.status ?? null) ? capPostingText(job.description) : null,
+  };
   return {
     company,
     title,
@@ -251,6 +261,7 @@ function entryBriefContext(entry: PipelineEntry) {
     // enough to fix the opening language and the agenda language; anything unknown keeps
     // the bilingual greet-then-detect opener and the default catalog.
     preferredLang: (isLocale(entry.locale) ? entry.locale : null) as Locale | null,
+    roleFacts,
   };
 }
 
@@ -264,7 +275,11 @@ function composeDebriefBrief(
   roleLine: string,
   candidateLabel: string | null,
   followups: SubmissionFollowup[],
-  durationMin: number
+  durationMin: number,
+  // Directed (spark ai-interview-parity): the agenda gives each authorship question a
+  // block of its own (the listen-for / red-flag notes ride the private listing), and
+  // REPLACES the numbered question list.
+  directed?: DirectedBrief | null
 ): string {
   const name = candidateLabel ? ` You are speaking with ${candidateLabel}.` : "";
   const questions = followups
@@ -282,10 +297,20 @@ function composeDebriefBrief(
     PERSONA_GENDER_GRAMMAR,
     PERSONA_LANGUAGE_DETECT,
     "Begin by briefly introducing yourself as an AI assistant in two sentences, mention the call is transcribed for a human recruiter, and say this conversation is about the take-home assignment they submitted — you'd like to understand how they approached it.",
+    ...(directed ? [directed.frame] : []),
     "Using AI tools to build the submission is expected and NEVER penalised — what matters is whether they own the decisions in it. Never imply suspicion or that authorship is being verified; every question is genuine curiosity about their reasoning.",
-    `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,
-    questions,
+    ...(directed
+      ? [
+          directed.header,
+          directed.listing,
+          "In every decision block, push gently for the WHY, the alternative they rejected, and what would make them decide differently.",
+        ]
+      : [
+          `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,
+          questions,
+        ]),
     "If an answer stays generic, ask for the specific moment in THEIR submission where they made that call. An honest “I don't know” or “the tool suggested it and I kept it” is useful signal — acknowledge it neutrally and move on.",
+    ...(directed ? [directed.protocol] : []),
     noJudgementClose("the questions are"),
   ].join(" ");
 }
@@ -328,20 +353,41 @@ export function candidateRunOfShow(chronology: ChronologyBlock[] | undefined | n
  *  flows follow (/api/interview/complete, /api/status/[token]). Either beats the
  *  bare read this replaces, which resolved against the DEFAULT team: on any other
  *  workspace "Create link" threw "pipeline entry not found", so the candidate
- *  drawer's voice-screen action and the Schedule tab's AI round were dead. */
-export async function buildGroundedInterview(entryId: string, workspaceId?: string): Promise<{
+ *  drawer's voice-screen action and the Schedule tab's AI round were dead.
+ *
+ *  `opts` (spark ai-interview-parity) — the CONNECT-time variant:
+ *    - `readOnly`: never generate a missing prep. /api/interview/connect is a PUBLIC
+ *      door; a token holder must not be able to trigger a paid prep build. With no
+ *      prep the result is the generic brief and `grounded` is false, so the caller
+ *      keeps the session's stored snapshot instead.
+ *    - `kit`: the connect-time agenda (interview-agenda.ts). The brief lists THAT
+ *      agenda — the same blocks the candidate-safe brief and the director use — in
+ *      place of the legacy run-of-show, with the director protocol.
+ *    - `resume`: appends the resumed-call addendum.
+ *  Without `opts` the result is exactly the pre-director brief (the create path). */
+export async function buildGroundedInterview(
+  entryId: string,
+  workspaceId?: string,
+  opts?: DirectedBuildOptions & { readOnly?: boolean }
+): Promise<{
   instructions: string;
   runOfShow: string[];
   durationMin: number;
   candidateLabel: string | null;
   jobId: string | null;
   jobTitle: string | null;
+  /** False only when nothing grounded could be built (no prep, and `readOnly` forbade
+   *  generating one): `instructions` is then the generic quick-screen brief. */
+  grounded: boolean;
 }> {
   const ws = workspaceId ?? getEntryWorkspace(entryId);
   const entry = getPipelineEntry(entryId, ws);
   if (!entry) throw new Error("pipeline entry not found");
 
-  const { company, title, roleLine, preferredLang } = entryBriefContext(entry);
+  const { company, title, roleLine, preferredLang, roleFacts } = entryBriefContext(entry);
+  const kit = opts?.kit ?? null;
+  const directed = kit ? privateDirectedBrief(kit.agenda, kit.privateNotes, roleFacts) : null;
+  const finish = (text: string) => withResume(withOpeningLanguage(text, preferredLang), opts?.resume, kit?.agenda ?? null);
 
   // Entries promoted from an evaluated dev-case submission get the SUBMISSION
   // DEBRIEF: the take-home's evaluation minted authorship questions from their
@@ -352,15 +398,13 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
   if (followups.length > 0) {
     const durationMin = debriefDurationMin(followups.length);
     return {
-      instructions: withOpeningLanguage(
-        composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin),
-        preferredLang
-      ),
+      instructions: finish(composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin, directed)),
       runOfShow: (await interviewBriefStrings(entry.locale)).debriefRunOfShow,
       durationMin,
       candidateLabel: entry.candidateLabel ?? null,
       jobId: entry.jobId ?? null,
       jobTitle: entry.jobTitle ?? null,
+      grounded: true,
     };
   }
 
@@ -374,18 +418,19 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
       candidateLabel: entry.candidateLabel ?? null,
       jobId: entry.jobId ?? null,
       jobTitle: entry.jobTitle ?? null,
+      grounded: true,
     };
     const caseId = devCaseIdForEntry(entry);
     const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
     if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
       return {
-        instructions: withOpeningLanguage(
+        instructions: finish(
           caseGroundedInterviewerInstructions(scenario, {
             candidateLabel: entry.candidateLabel,
             roleLine,
             company,
-          }),
-          preferredLang
+            directed,
+          })
         ),
         runOfShow: scenarioRunOfShow(scenario),
         durationMin: scenario.durationMin || STUDENT_SCRIPT_MIN,
@@ -393,10 +438,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
       };
     }
     return {
-      instructions: withOpeningLanguage(
-        studentInterviewerInstructions({ candidateLabel: entry.candidateLabel, roleLine, company }),
-        preferredLang
-      ),
+      instructions: finish(studentInterviewerInstructions({ candidateLabel: entry.candidateLabel, roleLine, company, directed })),
       runOfShow: studentRunOfShow(),
       durationMin: STUDENT_SCRIPT_MIN,
       ...base,
@@ -406,7 +448,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
   // Same tenant as the entry read above — unscoped, this found no pack on any other
   // team and fell through to GENERATING one on every single call.
   let prep = (getInterviewPrep(entryId, ws)?.payload as PrepPayload | undefined) ?? undefined;
-  if (!prep || !(prep.chronology && prep.chronology.length)) {
+  if (!opts?.readOnly && (!prep || !(prep.chronology && prep.chronology.length))) {
     try {
       // Same tenant as the entry above (3rd arg): the generated pack's task row and
       // its own entry re-read are workspace-filtered, so an unscoped generation on
@@ -447,7 +489,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
       roleIntent = null;
     }
   }
-  const instructions = withOpeningLanguage(composeBrief(company, title, roleLine, prep, durationMin, roleIntent), preferredLang);
+  const instructions = finish(composeBrief(company, title, roleLine, prep, durationMin, roleIntent, directed));
   return {
     instructions,
     runOfShow,
@@ -455,6 +497,9 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
     candidateLabel: entry.candidateLabel ?? null,
     jobId: entry.jobId ?? null,
     jobTitle: entry.jobTitle ?? null,
+    // A directed brief is grounded by its agenda even when the pack has since gone
+    // (a resumed call keeps the stored agenda — interview-agenda.ts).
+    grounded: grounded || directed !== null,
   };
 }
 
@@ -467,8 +512,13 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
  *  aloud-questions and time-boxes survive; goals, listenFor, redFlag and
  *  coachability stage directions do not. Read-only like plannedInterviewMinutes
  *  (never generates missing prep); returns null when there is nothing grounded
- *  to say, so the caller falls back to the generic candidate-safe prompt. */
-export async function buildCandidateSafeBrief(entryId: string): Promise<string | null> {
+ *  to say, so the caller falls back to the generic candidate-safe prompt.
+ *
+ *  `opts.kit` (spark ai-interview-parity): the brief lists the connect-time AGENDA —
+ *  the same blocks the private brief and the director use — through the allow-list
+ *  listing in voice/candidate-brief.ts, with the director protocol and ROLE FACTS.
+ *  `opts.resume` appends the resumed-call addendum. */
+export async function buildCandidateSafeBrief(entryId: string, opts?: DirectedBuildOptions): Promise<string | null> {
   // Tenant from the ENTRY, never a session: the only caller is the PUBLIC token
   // route /api/interview/connect, where the candidate has no workspace. Bare, this
   // read resolved against the DEFAULT team and returned null everywhere else, so
@@ -478,8 +528,33 @@ export async function buildCandidateSafeBrief(entryId: string): Promise<string |
   const entry = getPipelineEntry(entryId, briefWs);
   if (!entry) return null;
 
-  const { company, roleLine, preferredLang } = entryBriefContext(entry);
+  const { company, roleLine, preferredLang, roleFacts } = entryBriefContext(entry);
   const candidateLabel = entry.candidateLabel ?? null;
+
+  const kit = opts?.kit ?? null;
+  if (kit) {
+    // The agenda already carries every candidate-facing word (catalog titles, scrubbed
+    // labels, allow-listed aloud questions); only the case narration — read ALOUD to
+    // the candidate by design — comes from the scenario itself.
+    const intro = kit.branch === "case" ? (caseScenarioForEntry(entry)?.caseIntro ?? null) : null;
+    return withResume(
+      withOpeningLanguage(
+        composeCandidateBrief({
+          company,
+          roleLine,
+          candidateLabel,
+          durationMin: kit.agenda.durationMin,
+          blocks: [],
+          intro,
+          agenda: kit.agenda,
+          roleFacts,
+        }),
+        preferredLang
+      ),
+      opts?.resume,
+      kit.agenda
+    );
+  }
   // The candidate-facing topics in this brief are written FOR the applicant, so they
   // ride the entry's language like the stored agenda above.
   const strings = await interviewBriefStrings(entry.locale);
@@ -495,9 +570,13 @@ export async function buildCandidateSafeBrief(entryId: string): Promise<string |
       { topic: strings.debriefRunOfShow[1], questions },
       { topic: strings.debriefRunOfShow[3], questions: [] },
     ];
-    return withOpeningLanguage(
-      composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: debriefDurationMin(followups.length), blocks }),
-      preferredLang
+    return withResume(
+      withOpeningLanguage(
+        composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: debriefDurationMin(followups.length), blocks }),
+        preferredLang
+      ),
+      opts?.resume,
+      null
     );
   }
 
@@ -507,17 +586,21 @@ export async function buildCandidateSafeBrief(entryId: string): Promise<string |
     const phases = scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0 ? scenario.phases : STUDENT_SCRIPT;
     const blocks = phases.map(sanitizeScenarioPhase).filter((b): b is CandidateSafeBlock => b !== null);
     if (blocks.length === 0) return null;
-    return withOpeningLanguage(
-      composeCandidateBrief({
-        company,
-        roleLine,
-        candidateLabel,
-        durationMin: scenario?.durationMin || STUDENT_SCRIPT_MIN,
-        blocks,
-        // The case intro is narrated ALOUD to the candidate by design — safe to ground on.
-        intro: scenario?.caseIntro ?? null,
-      }),
-      preferredLang
+    return withResume(
+      withOpeningLanguage(
+        composeCandidateBrief({
+          company,
+          roleLine,
+          candidateLabel,
+          durationMin: scenario?.durationMin || STUDENT_SCRIPT_MIN,
+          blocks,
+          // The case intro is narrated ALOUD to the candidate by design — safe to ground on.
+          intro: scenario?.caseIntro ?? null,
+        }),
+        preferredLang
+      ),
+      opts?.resume,
+      null
     );
   }
 
@@ -538,9 +621,13 @@ export async function buildCandidateSafeBrief(entryId: string): Promise<string |
     const extra = sanitizeChronologyBlock({ topic: strings.recruiterAddedQuestions, questions: imported });
     if (extra) blocks.push(extra);
   }
-  return withOpeningLanguage(
-    composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: prep?.durationMin ?? GROUNDED_DEFAULT_MIN, blocks }),
-    preferredLang
+  return withResume(
+    withOpeningLanguage(
+      composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: prep?.durationMin ?? GROUNDED_DEFAULT_MIN, blocks }),
+      preferredLang
+    ),
+    opts?.resume,
+    null
   );
 }
 

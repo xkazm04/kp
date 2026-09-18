@@ -21,8 +21,21 @@
 // are all inert until a deploy and drift silently thereafter. --check GETs the
 // current agent (ELEVENLABS_AGENT_ID, from the env or .env.local) and diffs it
 // field-by-field against this script's intended PROMPT, ASR_KEYWORDS and
-// override flags. It creates NOTHING and exits 0 on match, 1 on drift, 2 when it
-// cannot verify (no key / no agent id / the API would not return the config).
+// override flags — and follows the agent's tool_ids to the five interview-director
+// CLIENT tools, diffing each tool's config. It creates NOTHING and exits 0 on match,
+// 1 on drift, 2 when it cannot verify (no key / no agent id / the API would not
+// return the config).
+//
+// ── The director's client tools (spark ai-interview-parity) ─────────────────
+// The agent declares begin_topic / mark_topic_covered / report_guardrail /
+// forward_question / end_interview (app/_lib/voice/director-tools.mjs — the SAME
+// definitions the OpenAI session config mints) as CLIENT tools, so the browser
+// answers each call by asking /api/interview/director. ElevenLabs no longer takes
+// tools inline on the agent (`prompt.tools` was removed in July 2025): a tool is a
+// workspace resource (POST /v1/convai/tools) the agent lists in
+// `conversation_config.agent.prompt.tool_ids`. --deploy therefore REUSES a workspace
+// client tool whose config already matches exactly and CREATES the rest — it never
+// edits an existing tool, which another agent in the workspace may depend on.
 //
 // ── --deploy — a DEPLOY, do not run casually ────────────────────────────────
 // Re-running creates a NEW agent (ElevenLabs has no upsert) and ROTATES
@@ -39,8 +52,15 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { QUICK_SCREEN_MIN, PROVIDER_MAX_DURATION_SECONDS } from "../app/_lib/interview-duration.mjs";
-import { diffAgentConfig, formatDriftReport } from "../app/_lib/voice/eleven-agent-diff.mjs";
+import {
+  clientToolDrift,
+  diffAgentConfig,
+  extractLiveToolIds,
+  formatDriftReport,
+  toElevenClientTool,
+} from "../app/_lib/voice/eleven-agent-diff.mjs";
 import { BASE_ASR_KEYWORDS } from "../app/_lib/voice/asr-keywords.mjs";
+import { DIRECTOR_TOOL_DEFS } from "../app/_lib/voice/director-tools.mjs";
 
 // Where the credentials live, in the precedence Next.js itself uses: .env.local
 // overrides .env. This used to be `.env.local` alone, which quietly blocked every
@@ -115,6 +135,10 @@ const OVERRIDE_INTENT = { prompt: true, first_message: true, language: true, asr
 const LLM_MODEL = "gemini-2.5-flash";
 const LLM_TEMPERATURE = 0.3;
 
+// The interview director's tools as ElevenLabs CLIENT tool configs — one conversion
+// of the shared definitions, read by the deploy (create/reuse) and by --check (diff).
+const CLIENT_TOOLS = DIRECTOR_TOOL_DEFS.map(toElevenClientTool);
+
 // Env-configurable defaults the deploy body resolves; --check resolves the same
 // way so a checkout with these exported doesn't false-flag drift.
 const DEFAULT_LANGUAGE = "cs";
@@ -137,7 +161,54 @@ function intendedConfig(getEnv) {
     maxDurationSeconds: PROVIDER_MAX_DURATION_SECONDS,
     ttsModel: getEnv("ELEVENLABS_TTS_MODEL") || DEFAULT_TTS_MODEL,
     textOnly: false,
+    clientTools: CLIENT_TOOLS,
   };
+}
+
+/** Every CLIENT tool in the workspace, following the list endpoint's cursor. A
+ *  bounded walk (20 pages of 100): a workspace with more tools than that is an
+ *  operator situation the deploy should report, not page through forever. */
+async function listWorkspaceClientTools(key) {
+  const out = [];
+  let cursor = null;
+  for (let page = 0; page < 20; page++) {
+    const qs = new URLSearchParams({ types: "client", page_size: "100" });
+    if (cursor) qs.set("cursor", cursor);
+    const res = await fetch(`${API}/v1/convai/tools?${qs}`, { headers: { "xi-api-key": key } });
+    if (!res.ok) throw new Error(`List tools failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+    const body = await res.json();
+    for (const t of body.tools ?? []) if (t?.id && t?.tool_config) out.push({ id: t.id, config: t.tool_config });
+    if (!body.has_more || !body.next_cursor) return out;
+    cursor = body.next_cursor;
+  }
+  throw new Error("More than 2000 client tools in this workspace — refusing to guess which to reuse.");
+}
+
+/** The tool ids the agent should reference: an EXACT-match existing tool is reused
+ *  (so repeated deploys do not pile up duplicates), anything else is created. An
+ *  existing tool is never modified — another agent may be using it. */
+async function ensureClientTools(key) {
+  const existing = await listWorkspaceClientTools(key);
+  const ids = [];
+  for (const cfg of CLIENT_TOOLS) {
+    const same = existing.find((t) => t.config?.name === cfg.name && clientToolDrift(cfg, t.config).length === 0);
+    if (same) {
+      console.log(`  tool ${cfg.name}: reusing ${same.id}`);
+      ids.push(same.id);
+      continue;
+    }
+    const res = await fetch(`${API}/v1/convai/tools`, {
+      method: "POST",
+      headers: { "xi-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ tool_config: cfg }),
+    });
+    if (!res.ok) throw new Error(`Create tool ${cfg.name} failed (${res.status}): ${(await res.text()).slice(0, 600)}`);
+    const data = await res.json();
+    if (!data?.id) throw new Error(`Create tool ${cfg.name}: no id in response`);
+    console.log(`  tool ${cfg.name}: created ${data.id}`);
+    ids.push(data.id);
+  }
+  return ids;
 }
 
 function usage() {
@@ -227,7 +298,26 @@ async function runCheck() {
     process.exit(2);
   }
 
-  const report = diffAgentConfig(intendedConfig((n) => resolveEnv(n, fileEnv)), agent);
+  // Follow the agent's tool_ids to each tool's config — the agent body carries ids
+  // only. A tool we cannot read is "cannot verify", not a guessed verdict.
+  const liveTools = [];
+  for (const toolId of extractLiveToolIds(agent)) {
+    let toolRes;
+    try {
+      toolRes = await fetch(`${API}/v1/convai/tools/${encodeURIComponent(toolId)}`, { headers: { "xi-api-key": key } });
+    } catch (e) {
+      console.error(`Cannot verify: network error reading tool ${toolId} — ${e instanceof Error ? e.message : e}`);
+      process.exit(2);
+    }
+    if (!toolRes.ok) {
+      console.error(`Cannot verify: GET tool ${toolId} failed (${toolRes.status}): ${(await toolRes.text()).slice(0, 300)}`);
+      process.exit(2);
+    }
+    const tool = await toolRes.json().catch(() => null);
+    if (tool?.tool_config) liveTools.push(tool.tool_config);
+  }
+
+  const report = diffAgentConfig(intendedConfig((n) => resolveEnv(n, fileEnv)), agent, liveTools);
   console.log(`Agent ${agentId} — drift report:\n`);
   console.log(formatDriftReport(report));
   process.exit(report.ok ? 0 : 1);
@@ -270,6 +360,9 @@ async function runDeploy() {
     voiceName = first.name || voiceId;
   }
 
+  // The director's client tools exist before the agent that references them.
+  const toolIds = await ensureClientTools(key);
+
   // Every field here is drawn from `intended` (above) so --check verifies the WHOLE
   // body field-by-field and nothing can silently diverge. voice_id is the one field
   // with no fixed intended value — it is resolved per-account at deploy time and so
@@ -280,7 +373,7 @@ async function runDeploy() {
       agent: {
         first_message: intended.firstMessage,
         language: intended.language,
-        prompt: { prompt: intended.prompt, llm: intended.llm, temperature: intended.temperature },
+        prompt: { prompt: intended.prompt, llm: intended.llm, temperature: intended.temperature, tool_ids: toolIds },
       },
       tts: { model_id: intended.ttsModel, voice_id: voiceId },
       asr: { keywords: intended.asrKeywords },
@@ -324,6 +417,7 @@ async function runDeploy() {
   console.log(`✓ Created agent ${agentId}`);
   console.log(`  voice: ${voiceName} (${voiceId}) · model: ${model} · language: ${language}`);
   console.log(`  prompt/first_message/language/asr.keywords overrides: enabled`);
+  console.log(`  director client tools: ${CLIENT_TOOLS.map((t) => t.name).join(", ")}`);
   console.log(`  → wrote ELEVENLABS_AGENT_ID to ${envName} — restart the dev server.`);
 }
 
