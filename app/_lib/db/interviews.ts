@@ -1,6 +1,7 @@
 import { coerceInterviewRecommendation, type InterviewRecommendation } from "../interview-recommendation";
 import type { ScorecardRating } from "../interview-scorecard";
 import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "../voice/types";
+import type { InterviewAgenda, RecordingMeta } from "../voice/director-types";
 import { randomId, randomToken } from "../random-id";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { ensureDb, safeRowParse } from "./core";
@@ -152,6 +153,14 @@ export type InterviewSession = {
    *  that has not been opened yet; a dropped call that is retried (which the billing
    *  path already treats as a separate attempt) makes it 2. */
   attempts: number;
+  /** The director's agenda (block ids, budgets, competencies), built at connect for
+   *  both providers. NULL until the first connect, and on every pre-director row. */
+  agenda: InterviewAgenda | null;
+  /** When the candidate agreed to an AUDIO recording — separate from `consentAt`,
+   *  which covers the transcribed conversation. NULL = not recorded. */
+  recordingConsentAt: string | null;
+  /** One entry per recorded attempt, including deleted ones (the deletion is the record). */
+  recordings: RecordingMeta[];
 };
 
 type InterviewRow = {
@@ -178,6 +187,9 @@ type InterviewRow = {
   workspace_id: string | null;
   failover_from: string | null;
   attempts: number | null;
+  agenda_json: string | null;
+  recording_consent_at: string | null;
+  recordings_json: string | null;
 };
 
 function rowToInterview(r: InterviewRow): InterviewSession {
@@ -211,6 +223,9 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     failoverFrom: r.failover_from ? coerceProviderId(r.failover_from, "openai") : null,
     // A row written before the column existed reads as the single attempt it was.
     attempts: Number.isFinite(r.attempts) ? Number(r.attempts) : 1,
+    agenda: safeRowParse<InterviewAgenda>(r.agenda_json ?? null, "interview.agenda", r.id),
+    recordingConsentAt: r.recording_consent_at ?? null,
+    recordings: safeRowParse<RecordingMeta[]>(r.recordings_json ?? null, "interview.recordings", r.id) ?? [],
   };
 }
 

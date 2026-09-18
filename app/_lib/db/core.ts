@@ -840,6 +840,14 @@ export function ensureDb(): Database.Database {
       failover_from TEXT,
       -- How many times this link was CONNECTED. 1 = the ordinary single-attempt call.
       attempts INTEGER NOT NULL DEFAULT 1,
+      -- The director's agenda for this call (voice/director-types.ts InterviewAgenda),
+      -- built at connect time for BOTH providers. NULL until a call connects.
+      agenda_json TEXT,
+      -- When the candidate ALSO agreed to an audio recording (separate from consent_at,
+      -- which covers the transcribed conversation). NULL = not recorded.
+      recording_consent_at TEXT,
+      -- RecordingMeta[] — one entry per recorded attempt, with its deletion record.
+      recordings_json TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -1985,6 +1993,14 @@ export function ensureDb(): Database.Database {
     // connected yet, both read as the ordinary single-attempt session rather than as
     // a fabricated zero.
     "ALTER TABLE interview_sessions ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
+    // The interview DIRECTOR (spark ai-interview-parity; docs/features/interviews/
+    // README.md "Director"). agenda_json is the block list the director steers by, built
+    // at connect for both providers so they stop running different kits; the two
+    // recording columns carry the SEPARATE audio consent and the per-attempt file
+    // records (with their deletion trail). All NULL on every existing row.
+    "ALTER TABLE interview_sessions ADD COLUMN agenda_json TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN recording_consent_at TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN recordings_json TEXT",
     // The candidate's own opt-out timestamp on an outreach_state row that predates it.
     // It has to live in THIS loop rather than the one beside the pipeline_entries
     // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws
