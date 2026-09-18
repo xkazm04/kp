@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { interviewKitById, interviewKitPublish } from "@/app/_lib/db/interview-kits";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -36,6 +37,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   // Publishing decides what candidates are asked, so it asks the same capability every
   // other recruiter write on this surface does — and it runs FIRST, so a refused seat
   // learns nothing about which job or kit ids exist.
+  // IDENTITY, then AUTHORITY. requireOperator proves a trusted session is present (the
+  // proxy gate is not defence in depth on its own, ADR 0005); the capability below is
+  // what decides this seat may write. Same order as the sibling job-write doors.
+  const unauth = await requireOperator();
+  if (unauth) return unauth;
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   try {

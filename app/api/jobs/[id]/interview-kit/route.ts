@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { canWriteJobLifecycle, getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import {
   interviewKitAppendVersion,
@@ -56,6 +57,10 @@ function visibleJob(id: string, ws: string) {
 }
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // A recruiter read of a role's authoring material: re-verify the session like every
+  // sensitive route does (defence in depth behind the proxy gate).
+  const unauth = await requireOperator();
+  if (unauth) return unauth;
   try {
     const { id } = await context.params;
     const ws = await currentWorkspace();
@@ -77,6 +82,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   // AUTHORIZATION FIRST, ahead of the 404 and the throttle: a refused seat must neither
   // spend rate-limit budget nor learn which job ids exist. `pipeline:write` is what the
   // sibling job-write doors ask (priorities, translations).
+  // IDENTITY, then AUTHORITY. requireOperator proves a trusted session is present (the
+  // proxy gate is not defence in depth on its own, ADR 0005); the capability below is
+  // what decides this seat may write. Same order as the sibling job-write doors.
+  const unauth = await requireOperator();
+  if (unauth) return unauth;
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   try {
@@ -103,6 +113,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 }
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // IDENTITY, then AUTHORITY. requireOperator proves a trusted session is present (the
+  // proxy gate is not defence in depth on its own, ADR 0005); the capability below is
+  // what decides this seat may write. Same order as the sibling job-write doors.
+  const unauth = await requireOperator();
+  if (unauth) return unauth;
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   try {
