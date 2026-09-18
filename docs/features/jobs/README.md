@@ -710,7 +710,7 @@ never a 403.
 Versions are append-only (`interview_kits`), so a regeneration never overwrites an edit
 and a link pinned to version N keeps asking what version N asked. A kit holds **no
 candidate data** — the erasure scrub is entry-keyed and cannot reach a job-keyed row —
-and a shape test keeps that sentence true. How the kit becomes an agenda, a brief and a
+and a shape test keeps that sentence true. The **Kit** tab of the posting modal (`JobsKitTab.tsx`) is where a recruiter drafts one from the posting, edits competencies, weights, budgets, questions, must-asks and the FAQ, publishes a version, and rehearses it before any candidate meets it. How the kit becomes an agenda, a brief and a
 director policy is the interview feature's story:
 [`docs/features/interviews/README.md`](../interviews/README.md) §"The job interview
 kit" and §"The kit in the interview".

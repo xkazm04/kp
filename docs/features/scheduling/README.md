@@ -765,6 +765,15 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
     evidence", §"Director engine" and §"Opt-in audio recording". Files here:
     `ScheduleInterviewEvidenceSection.tsx`, `ScheduleInterviewObservations.tsx`,
     `ScheduleInterviewRecordings.tsx`, `scheduleInterviewEvidence.ts`.
+  - **The prep modal edits one candidate's kit-based plan** (2026-09-18). For a
+    candidate whose interview runs on the job's kit, the recruiter can drop,
+    rewrite or add a question for THIS candidate. The edits are stored as a
+    human-owned overlay on the prep payload (`PATCH /api/interview-prep` with
+    `{ kitOverlay }`), so a regeneration reapplies them instead of discarding
+    them, and every row says whether it came from the kit, the CV or the
+    recruiter. Files: `ScheduleInterviewPrepOverlay*.tsx`,
+    `scheduleInterviewPrepOverlayModel.ts`. The rules are the interview feature's:
+    [`docs/features/interviews/README.md`](../interviews/README.md) §"Authoring the kit".
   - **A `failed` session lands back in "Awaiting link".** `/api/interview/complete`
     downgrades a silent-mic call to `failed` so it is never scored, and
     `revokeOpenInterviewSessions` treats a failed row as reissuable — so

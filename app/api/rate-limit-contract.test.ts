@@ -1825,7 +1825,9 @@ const ROUTES: RouteSpec[] = [
   // unset) makes a documented no-op for the WHOLE API — so, exactly as for the JD
   // library's spend doors, the limiter is the real bound and not a second belt.
   {
-    // The three write verbs (PUT progress, POST import, PATCH weave) share ONE bucket
+    // The three write verbs (PUT progress, POST import, PATCH weave — and PATCH
+    // { kitOverlay }, the recruiter's per-candidate kit overlay, which is the same verb
+    // and the same key: spark interview-kit-template WP-C) share ONE bucket
     // on purpose: they mutate the same artifact, so a per-verb allowance would just be
     // three windows to walk in turn. 600/10 min is deliberately loose and the reason is
     // pinned here so nobody "tightens" it into a bug: the checklist/notes PUT is

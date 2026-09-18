@@ -889,6 +889,142 @@ them. Catalog keys: `scheduleTab.transcript.evidence.mustAsk*` (4 locales).
 - **The candidate-safe brief doesn't mark which questions are required.** The `ask_overrun`
   and `move_on` directives carry the requirement at the moment it matters.
 
+## Authoring the kit
+
+### Authoring the kit
+
+#### Authoring the kit
+
+The job interview kit (see "The job interview kit" above) has two recruiter surfaces: a
+**Kit tab** in the job posting modal, where the job's kit is drafted, edited, published and
+tried, and a section in the **interview prep modal**, where a recruiter changes the kit for
+one candidate without changing it for anyone else.
+
+##### Entry points
+
+| Surface | What it does |
+| --- | --- |
+| Job posting modal → **Interview kit** tab (`app/features/library/jobs/JobsKitTab.tsx`) | Shows the live version, any newer draft and the version history. Drafts a kit from the posting, edits it, saves the edit as a new version, publishes a version and opens a practice interview on it. The tab id `kit` is in the closed vocabulary `jobsPostingModalTabs.ts`. |
+| Schedule → interview prep modal → **AI interview questions for this candidate** (`app/features/hiring/schedule/ScheduleInterviewPrepOverlay.tsx`) | The kit this candidate's interview runs on, this candidate's own CV probes, and the recruiter's per-candidate overlay: remove, rewrite or add a question for this candidate only. Renders nothing when the role has no kit. |
+
+##### Flows
+
+**Drafting.** "Draft from the posting" calls `POST /api/jobs/[id]/interview-kit` and follows
+the returned `interview_kit` task (`useTaskResult`) to completion, then reloads the kit. When
+the finished task's `source` is `deterministic`, the tab says so: no AI provider is
+configured, the draft is a template built from the posting's own requirements, and its
+questions should be rewritten before publishing. Before the click the hint states the same
+fallback. "Write it yourself" opens a blank kit with one unweighted, unbudgeted competency.
+
+**Editing.** The editor opens the newest draft when it is newer than the live version, and
+otherwise the live version. Competencies are an ordered list with the pipeline-axis editor's
+row grammar: a fixed-width emphasis picker first, then the title, the planned minutes and the
+shared move up / move down / remove cluster (`PipelineStepRowControls`, extracted from
+`features/shared/PipelineStepRow.tsx`, so both editors name every control per row). Each
+competency holds its questions, each with a must-ask toggle and an optional follow-up. The
+FAQ and the author's note follow.
+
+- **Emphasis is a word, not a number** ("Decisive", "Important", "Supporting" for weights 3,
+  2, 1). Weights order nothing and are never added up, so a digit on screen would read as a
+  score the product does not compute. A new competency has no emphasis until the author
+  picks one, because the server refuses a missing weight rather than inventing one.
+- **Limits are shown before a save could be refused.** Counts sit beside every list, an add
+  button disables at its cap, the must-ask toggle closes when the kit-wide budget of 5 is
+  spent, inputs carry the text caps as `maxLength`, and the blocking problems (no title, no
+  emphasis, minutes outside 1–240, no question) are listed as they appear. What a save would
+  silently drop (an empty question, a half-filled FAQ entry) is listed as a note.
+- **Must-asks tell the truth about the clock.** The hint every toggle is described by says a
+  must-ask is asked even after the booked time runs out, but only if the candidate agrees to
+  a few extra minutes, and that a declined overrun ends the call on time with the unasked
+  must-asks shown to the recruiter.
+- **New items get random ids** (`c-…`, `q-…`, `f-…`) minted in the browser; existing items keep
+  their stored ids. The validator mints a missing id by position, so a question saved without
+  one could inherit the position, and so the per-candidate overlays, of a question deleted in
+  an earlier version.
+
+**Saving** is `PUT /api/jobs/[id]/interview-kit`: always a new draft version, never an edit
+in place. The editor reopens on the version the server stored, and shows the server's
+`adjusted` report (competencies or questions trimmed, must-asks demoted, text shortened, ids
+minted) when there is one. An `INTERVIEW_KIT_INVALID` refusal shows the localized code plus
+the competency its `at` names.
+
+**Publishing** is `POST …/publish { kitId }`, from the editor for the open draft or from any
+newer draft in the version list. The tab states, before any control, that a publish changes
+what interview links sent afterwards carry and never what a link already sent asks. A draft
+older than the live version gets no Publish button: new links mint from the highest
+published version, so publishing it would succeed and change nothing.
+
+**Trying** ("Try this version") calls `POST /api/jobs/[id]/interview-kit/rehearse { kitId }`
+(the rehearsal door, documented with the interview side) and opens the returned
+`/interview/<token>` in a new tab. The tab is opened synchronously inside the click, so a
+popup blocker sees a user gesture, and is pointed at the rehearsal once the door answers or
+closed when it refuses. When the browser blocks it anyway, the link is shown to click. Only a
+same-origin `/interview/…` path is followed. Unsaved edits cannot be tried; the button asks
+for a save first.
+
+**The per-candidate overlay.** `GET /api/interview-prep?entry=` now also answers `kit`: the
+version the candidate's open interview link was minted with (a session in `created`,
+`in_progress` or `failed`), else the role's live version, which the next link will carry. The
+modal says which of the two it is showing. It lists:
+
+- the kit's questions per competency, marked **Kit**;
+- this candidate's own probes, marked **From the CV**: imported questions first, then the
+  plan's questions and follow-ups, never one the kit already asks. Only the first 3 ride the
+  interview (`MAX_KIT_CV_PROBES`), and the rest say they are not asked. The group is hidden
+  when this candidate's branch takes no probes (a work-sample debrief, the student script);
+- the recruiter's own questions, marked **Added by you**, under a competency or on their own.
+
+A kit or CV question can be rewritten (and the rewrite undone) or removed (and restored). An
+added question can be rewritten, made a must-ask, or deleted. Every row that the recruiter
+changed says so ("Rewritten for this candidate", "Removed for this candidate"), and a
+rewritten row shows its original. Each change is saved at once with `PATCH
+/api/interview-prep { kitOverlay }`, the whole overlay each time, one request in flight and
+later edits collapsed into one follow-up. Drops and rewrites that name a question this version
+and this plan no longer have are counted, not applied, and can be forgotten.
+
+##### API / lib surface
+
+| Path | Role |
+| --- | --- |
+| `PATCH /api/interview-prep?entry=` `{ kitOverlay }` | Replaces the candidate's overlay. Same gate (`pipeline:write`, first), throttle (the shared 600/10 min `interview-prep:<ip>` bucket), tenancy read and 404 as the weave that shares the verb. The body is capped at 256 KB (`PAYLOAD_TOO_LARGE`, 413). A malformed or over-cap overlay is `INTERVIEW_PREP_OVERLAY_INVALID` (400) with `reason` as data. A body naming `kitOverlay` is an overlay write and nothing else. |
+| `GET /api/interview-prep?entry=` | Adds `kit: { kitId, version, status, pinned, cvProbesRide, kit } \| null`. |
+| `app/_lib/interview-prep-kit.ts` | Server-only. `prepKitForEntry(entryId, ws)` resolves the kit above. A read fault is logged and answers null, so it never costs the prep pack. `parseKitOverlayWrite(value)` is the write boundary: stricter than `coerceKitOverlay` (anything coercion would discard is refused, not dropped), entries rebuilt from their known keys, texts trimmed, then `kitOverlayProblems`. |
+| `app/_lib/interview-prep.ts` `saveInterviewPrepKitOverlay` | IMMEDIATE read-merge-write of the `kitOverlay` key, like the checklist and scorecard writes beside it. |
+| `app/_lib/interview-kit-overlay.ts` | Pure and client-safe. The caps (`KIT_OVERLAY_MAX_ADDED` = 6, `KIT_OVERLAY_MAX_REFS` = 120 drops and 120 rewrites, `KIT_OVERLAY_MAX_TEXT_CHARS` = 600, ids of at most 64 characters, the kit-wide must-ask budget), read by both the modal and the write door. Also a **mirror** of the agenda rules the modal predicts (`kitProbeId` ↔ `cvProbeId`, `applyOverlayToKit` ↔ `applyKitOverlay`, `narrowKitOverlay` ↔ `coerceKitOverlay`, and the probe ordering and cap), because the real ones import the database. `interview-kit-overlay.test.ts` runs each mirror against the real function and once end to end through `buildInterviewKit`. |
+| `app/features/library/jobs/jobsKitModel.ts` | The editor's pure model: list reducers, the caps, `kitDraftProblems` (pinned against `normalizeInterviewKit`: no blocking problem means the server stores the draft untrimmed), version helpers, `rehearsalTarget`. |
+| `app/features/hiring/schedule/scheduleInterviewPrepOverlayModel.ts` | The modal's rows (origin, state, asked) and the overlay's edit operations. |
+
+##### Data model
+
+No new table. The overlay is the `kitOverlay` key on the candidate's `interview_preps`
+payload (`KitOverlay`, version 1). It is human-owned: the generator never writes it, so a
+Regenerate carries it (`mergeRegeneratedPrep`, pinned in `interview-prep-run.test.ts`), and the
+GDPR erasure scrub reaches it with the rest of the pack. Nothing about a candidate is written
+to `interview_kits`.
+
+##### Keyless behaviour
+
+Everything on both surfaces works without a key except the model half of "Draft from the
+posting", which falls back to the deterministic template and says so. The overlay, the
+version list, saving and publishing are deterministic reads and writes. Trying a version needs
+a configured voice provider; without one the rehearsal door refuses with
+`INTERVIEW_PROVIDER_UNCONFIGURED`, and the tab shows that message.
+
+##### Known gaps
+
+- Only the open draft and the live version can be opened in the editor. The GET returns the
+  other versions as summaries, and there is no read of one version's content by id.
+- The engine note (AI or template) exists only in the session that ran the generation. The
+  stored row records generated versus edited, not which engine wrote it.
+- The kit shown in the prep modal is resolved from `latestInterviewByEntry`, which prefers a
+  session with a transcript. A candidate whose completed call is followed by a newer, unused
+  link is shown the live version rather than that link's pin.
+- The server checks an overlay's added must-asks against the kit-wide cap on their own. The
+  modal also counts the kit's own must-asks this candidate still faces, but a client that
+  bypasses the modal can store up to 5 added must-asks on top of the kit's.
+- Neither surface has been driven in a browser. The pure parts and the write door are unit
+  tested; the rendering, both themes and the new-tab behaviour are not.
+
 ## Rehearsing a kit
 
 ### Rehearsing a kit

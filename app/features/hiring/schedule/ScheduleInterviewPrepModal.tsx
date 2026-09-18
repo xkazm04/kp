@@ -11,11 +11,13 @@ import { PrepHeader } from "./ScheduleInterviewPrepHeader";
 import { RunOfShow } from "./ScheduleInterviewPrepRunOfShow";
 import { SignalsToConfirm, ImportedQuestionsSection } from "./ScheduleInterviewPrepQuestions";
 import { InterviewerAndNotes } from "./ScheduleInterviewPrepNotes";
+import { PrepKitOverlay } from "./ScheduleInterviewPrepOverlay";
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const {
     t,
     prep,
+    kit,
     loading,
     error,
     reload,
@@ -115,6 +117,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             setBlock={setBlock}
             t={t}
           />
+
+          {/* The job interview kit this candidate's AI interview runs on, with the
+              recruiter's per-candidate overlay (spark interview-kit-template): drop,
+              rewrite or add a question for THIS candidate. Renders nothing when the
+              role has no kit. */}
+          <PrepKitOverlay entryId={entry.id} kit={kit} prep={prep} />
 
           <InterviewerAndNotes
             interviewer={interviewer}

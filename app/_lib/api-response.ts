@@ -1636,6 +1636,12 @@ export const REFUSAL_ERRORS = {
   INTERVIEW_PREP_QUESTIONS_REQUIRED: "Pick at least one question to add to the prep pack.",
   /** A weave/unassign arrived without naming the question to move (400). */
   INTERVIEW_PREP_QUESTION_REQUIRED: "Say which question to move.",
+  /** A recruiter's per-candidate overlay on the job interview kit could not be stored
+   *  (400): not an overlay at all, an entry the reader would have to discard, or a cap
+   *  the prep modal shows before saving (too many additions, drops or rewrites, too many
+   *  must-asks, an empty or over-long question). ONE refusal; which rule tripped rides
+   *  beside it as `reason` data (interview-prep-kit.ts parseKitOverlayWrite). */
+  INTERVIEW_PREP_OVERLAY_INVALID: "These changes to the candidate's interview questions could not be saved.",
   /** A kit arrived that cannot be stored as one (400): no competency, a competency with
    *  no question, a weight outside the three steps, or a budget that is not a positive
    *  number of minutes. Deliberately ONE refusal for all of them — the recruiter's next
