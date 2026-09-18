@@ -488,9 +488,11 @@ erased entry's sessions. A session stops storing new events once it has 4000.
 - If OpenAI Realtime's input transcription arrives after the model's
   `mark_topic_covered` call, a true quote is rejected as `no_match`. The model is then
   told to ask again, which costs one question.
-- A call's `updated_at` is stamped only at connect. A directed call running longer than
-  `LIVE_INTERVIEW_RECENCY_MIN` (30 min) therefore stops counting as "live" for
-  `/create`'s reissue guard.
+- ~~A directed call longer than `LIVE_INTERVIEW_RECENCY_MIN` stopped counting as
+  live~~ — fixed: every director exchange stamps `interview_sessions.last_activity_at`
+  (`touchInterviewActivity`), and `isInterviewSessionLive` reads the later of it and
+  `updated_at`. `updated_at` stays the connect time, because the minutes debit and the
+  director's clock read it as the current attempt's start.
 - ElevenLabs sessions stay undirected until the agent is re-provisioned with the client
   tools.
 

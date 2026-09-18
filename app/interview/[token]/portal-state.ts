@@ -30,6 +30,7 @@ export function interviewPortalView(session: {
   status: string;
   createdAt: string;
   updatedAt?: string | null;
+  lastActivityAt?: string | null;
 }): InterviewPortalView {
   if (session.status === "completed") return "completed";
   if (session.status === "revoked" || isInterviewLinkExpired(session)) return "inactive";
@@ -38,6 +39,7 @@ export function interviewPortalView(session: {
       status: session.status,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt ?? null,
+      lastActivityAt: session.lastActivityAt ?? null,
     })
   ) {
     return "live";

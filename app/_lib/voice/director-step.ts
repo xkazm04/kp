@@ -27,7 +27,7 @@ import {
   type InterviewEvent,
   type NewInterviewEvent,
 } from "../db/interview-events";
-import type { InterviewSession } from "../db/interviews";
+import { touchInterviewActivity, type InterviewSession } from "../db/interviews";
 import {
   applyDirectorTool,
   decideDirective,
@@ -167,6 +167,9 @@ export function runDirectorStep(input: DirectorStepInput): DirectorResponse {
     deriveDirectorState({ agenda, events, currentAttempt: attempt, attemptStartedAtMs: startedAt, nowMs });
 
   return withInterviewEventsLock(() => {
+    // Keep the call LIVE for the single-live and reissue guards while its browser is
+    // talking to the director (a directed call can outlast the connect-time window).
+    touchInterviewActivity(session.id, nowIso);
     let events = listInterviewEvents(session.id, workspaceId, { limit: MAX_INTERVIEW_EVENTS_PER_SESSION + 100 });
     const before = stateOf(events);
     // Past the per-session ceiling nothing more is stored — the director still answers.

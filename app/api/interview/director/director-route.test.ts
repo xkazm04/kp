@@ -260,6 +260,40 @@ test("end_interview(complete) before the topics are covered is refused and audit
   assert.equal(stop.endCall, true, "the candidate may stop whenever they want");
 });
 
+// ---- liveness ---------------------------------------------------------------------
+// A directed call may run to the agenda's hard cap + 2 min — past the 30-minute live
+// window measured from its connect. updated_at IS the connect (billing and the
+// director's clock read it as the attempt's start), so each exchange stamps a separate
+// last_activity_at, and the single-live / reissue guards read the later of the two.
+test("an exchange keeps the call live without moving its connect time", async () => {
+  const { getInterviewSessionById, isInterviewSessionLive } = await import("../../../_lib/db/interviews.ts");
+  const session = liveSession();
+  const longAgo = new Date(Date.now() - 40 * 60_000).toISOString();
+  ensureDb().prepare(`UPDATE interview_sessions SET updated_at = ? WHERE id = ?`).run(longAgo, session.id);
+  const stale = getInterviewSessionById(session.id)!;
+  assert.equal(isInterviewSessionLive(stale), false, "40 minutes after connect, an undirected call is a zombie");
+
+  const res = await exchange(session);
+  assert.equal(res.status, 200);
+  const after = getInterviewSessionById(session.id)!;
+  assert.equal(after.updatedAt, longAgo, "the connect time is the attempt's start — never refreshed mid-call");
+  assert.ok(after.lastActivityAt && Date.parse(after.lastActivityAt) > Date.parse(longAgo));
+  assert.equal(isInterviewSessionLive(after), true, "a call still talking to the director is live");
+});
+
+test("liveness reads the later of connect and activity, and only for in_progress", async () => {
+  const { isInterviewSessionLive } = await import("../../../_lib/db/interviews.ts");
+  const now = Date.now();
+  const iso = (minAgo: number) => new Date(now - minAgo * 60_000).toISOString();
+  const base = { status: "in_progress", createdAt: iso(60) };
+  assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(5) }), true);
+  assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(45) }), false);
+  assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(45), lastActivityAt: iso(1) }), true);
+  assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(45), lastActivityAt: iso(31) }), false);
+  assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(45), lastActivityAt: "not a date" }), false);
+  assert.equal(isInterviewSessionLive({ ...base, status: "failed", updatedAt: iso(1), lastActivityAt: iso(1) }), false);
+});
+
 // LAST in the file: it drops the table out from under the store.
 test("a store failure answers a coded 500 and never the raw error", async () => {
   const s = liveSession();

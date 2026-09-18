@@ -161,6 +161,9 @@ export type InterviewSession = {
   recordingConsentAt: string | null;
   /** One entry per recorded attempt, including deleted ones (the deletion is the record). */
   recordings: RecordingMeta[];
+  /** The last director exchange of a live call (touchInterviewActivity). NULL before
+   *  the first one and on every undirected call. Liveness only — never a clock. */
+  lastActivityAt: string | null;
 };
 
 type InterviewRow = {
@@ -190,6 +193,7 @@ type InterviewRow = {
   agenda_json: string | null;
   recording_consent_at: string | null;
   recordings_json: string | null;
+  last_activity_at: string | null;
 };
 
 function rowToInterview(r: InterviewRow): InterviewSession {
@@ -226,6 +230,7 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     agenda: safeRowParse<InterviewAgenda>(r.agenda_json ?? null, "interview.agenda", r.id),
     recordingConsentAt: r.recording_consent_at ?? null,
     recordings: safeRowParse<RecordingMeta[]>(r.recordings_json ?? null, "interview.recordings", r.id) ?? [],
+    lastActivityAt: r.last_activity_at ?? null,
   };
 }
 
@@ -447,11 +452,33 @@ export const LIVE_INTERVIEW_RECENCY_MIN = 30;
 
 /** Single live-call authority for an interview session — /create's reissue
  *  guard reads this so "don't revoke an active conversation" can never drift
- *  from the recency window above. */
-export function isInterviewSessionLive(session: { status: string; createdAt: string; updatedAt: string | null }): boolean {
+ *  from the recency window above.
+ *
+ *  The window runs from the LATER of the connect (updated_at) and the last director
+ *  exchange (last_activity_at). A directed call can outlast the window measured from
+ *  its connect alone — it may run to the agenda's hard cap + 2 min — and while its
+ *  browser keeps talking to the director it is live, however long ago it connected. */
+export function isInterviewSessionLive(session: {
+  status: string;
+  createdAt: string;
+  updatedAt: string | null;
+  lastActivityAt?: string | null;
+}): boolean {
   if (session.status !== "in_progress") return false;
-  const touched = Date.parse(session.updatedAt ?? session.createdAt);
+  const connected = Date.parse(session.updatedAt ?? session.createdAt);
+  const active = session.lastActivityAt ? Date.parse(session.lastActivityAt) : Number.NaN;
+  const touched = Math.max(Number.isFinite(connected) ? connected : -Infinity, Number.isFinite(active) ? active : -Infinity);
   return Number.isFinite(touched) && touched > Date.now() - LIVE_INTERVIEW_RECENCY_MIN * 60_000;
+}
+
+/** Stamp a live call's last director exchange (liveness only). Never touches
+ *  updated_at, which is the current attempt's start for billing and the director's
+ *  clock. Guarded to in_progress rows: a completed or revoked call stays as it ended. */
+export function touchInterviewActivity(id: string, atIso: string): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE interview_sessions SET last_activity_at=? WHERE id=? AND status='in_progress'`)
+    .run(atIso, id);
+  return res.changes > 0;
 }
 
 /** Revoke one open interview session. Concurrency guard in the WHERE (repo

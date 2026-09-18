@@ -848,6 +848,10 @@ export function ensureDb(): Database.Database {
       recording_consent_at TEXT,
       -- RecordingMeta[] — one entry per recorded attempt, with its deletion record.
       recordings_json TEXT,
+      -- The last director exchange of a live call. Liveness reads it beside updated_at
+      -- (which stays the CONNECT time: billing and the director's clock use it as the
+      -- current attempt's start, so it must not be refreshed mid-call).
+      last_activity_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -2026,6 +2030,12 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE interview_sessions ADD COLUMN agenda_json TEXT",
     "ALTER TABLE interview_sessions ADD COLUMN recording_consent_at TEXT",
     "ALTER TABLE interview_sessions ADD COLUMN recordings_json TEXT",
+    // Liveness for a DIRECTED call. updated_at is stamped at connect and read as the
+    // current attempt's start (the minutes debit, the director's clock), so it cannot be
+    // refreshed mid-call — and a directed call runs up to the agenda's hard cap + 2 min
+    // (38 min on a 30-min booking), past LIVE_INTERVIEW_RECENCY_MIN. Without a separate
+    // activity stamp a second tab could open the same link mid-call.
+    "ALTER TABLE interview_sessions ADD COLUMN last_activity_at TEXT",
     // The candidate's own opt-out timestamp on an outreach_state row that predates it.
     // It has to live in THIS loop rather than the one beside the pipeline_entries
     // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws
