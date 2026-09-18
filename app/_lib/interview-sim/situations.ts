@@ -21,6 +21,12 @@
 //      "complete", answers too thin to quote, a role question the kit FAQ answers and
 //      one nothing answers.
 //
+// THE FIRST LINE. `firstMessageProvokes` (optional, a subset of `provokes`) names what the
+// scripted `firstMessage` itself provokes — set only where that line IS the provocation
+// ("how am I doing so far?", "roughly how long will this take?"). Most first lines are a
+// greeting and the behaviour comes later; WP-2 then needs its judge to find the stimulus,
+// and a stimulus nobody found is `not_evaluable`, never a pass.
+//
 // LANGUAGE. A situation that provokes `language_follow` is built with NO applicant
 // locale (the bilingual greet-then-detect opener), so the lock is actually exercised;
 // every other situation is built as if the applicant had chosen its language
@@ -72,7 +78,10 @@ export const SIM_INVARIANTS = {
   draws_out: { axis: "quality", what: "narrows and offers smaller entry points to a terse or near-silent candidate, without pressure" },
   keeps_time_with_talker: { axis: "quality", what: "interrupts a rambler politely and keeps the agenda moving" },
   one_question: { axis: "quality", what: "one question per turn (a narrow trend counter)" },
-  no_praise: { axis: "quality", what: "warmth without evaluative praise (a broad trend counter)" },
+  no_praise: {
+    axis: "reliability",
+    what: "warmth without evaluative praise that grades the answer or the person (a NARROW detector, gated at full pass; the broad praise pattern is a separate trend counter, never a gate)",
+  },
 } as const satisfies Record<string, { axis: "reliability" | "protocol" | "policy" | "quality"; what: string }>;
 
 export type SimInvariantId = keyof typeof SIM_INVARIANTS;
@@ -96,6 +105,17 @@ export function situationProblems(raw: unknown): string[] {
   if (s.firstMessage !== undefined && !str("firstMessage")) problems.push("firstMessage is empty");
   if (!Array.isArray(s.provokes) || s.provokes.length === 0) problems.push("provokes is empty");
   else for (const p of s.provokes) if (typeof p !== "string" || !(p in SIM_INVARIANTS)) problems.push(`unknown invariant ${String(p)}`);
+  if (s.firstMessageProvokes !== undefined) {
+    if (!Array.isArray(s.firstMessageProvokes) || s.firstMessageProvokes.length === 0) problems.push("firstMessageProvokes is not a non-empty list");
+    else {
+      if (!str("firstMessage")) problems.push("firstMessageProvokes without a firstMessage");
+      const provokes = Array.isArray(s.provokes) ? (s.provokes as unknown[]) : [];
+      for (const p of s.firstMessageProvokes) {
+        if (typeof p !== "string" || !(p in SIM_INVARIANTS)) problems.push(`firstMessageProvokes: unknown invariant ${String(p)}`);
+        else if (!provokes.includes(p)) problems.push(`firstMessageProvokes: ${p} is not in provokes`);
+      }
+    }
+  }
   return problems;
 }
 
@@ -120,6 +140,7 @@ export function loadSituations(): SimSituation[] {
       persona: s.persona,
       ...(s.firstMessage ? { firstMessage: s.firstMessage } : {}),
       provokes: [...s.provokes],
+      ...(s.firstMessageProvokes ? { firstMessageProvokes: [...s.firstMessageProvokes] } : {}),
       handles: s.handles,
     };
   });

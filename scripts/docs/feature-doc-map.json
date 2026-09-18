@@ -213,7 +213,8 @@
         "app/_components/voice/**",
         "app/features/tools/interview/**",
         "app/_lib/interview-sim/**",
-        "scripts/interview-sim.ts"
+        "scripts/interview-sim.ts",
+        "scripts/interview-sim-verdict.ts"
       ]
     },
     {

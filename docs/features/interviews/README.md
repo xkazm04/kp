@@ -1701,8 +1701,8 @@ production returns, against simulated candidates, on a throwaway database and a 
 clock. It is the /uat "LC" (conversation) level. It tests the brief and the director policy,
 not the voice channel: a text model stands in for the realtime model, so recognition,
 turn-taking latency and barge-in stay the voice smoke's job. It never touches the
-operator's database and never bills a voice minute. Verdicts over its output are a separate
-package (WP-2); this section covers the engine and what it writes.
+operator's database and never bills a voice minute. "Simulator engine" covers the engine and what
+it writes; "Verdicts" covers what a run proves.
 
 #### Entry points
 
@@ -1888,11 +1888,133 @@ or quality), and `handles`, the required response in one line.
 #### Known gaps
 
 - **The candidate is a model too.** A simulated candidate may not perform its behaviour.
-  `provokes` names what should have been provoked, and deciding whether it was is WP-2's.
+  `provokes` names what should have been provoked. The verdicts check the stimulus first,
+  and an invariant whose behaviour never happened is `not_provoked`, never a pass
+  (see "Verdicts").
 - **One text call is not a realtime turn.** Speech-after-tools and the continuation are an
   approximation of `function_call_output` + `response.create`. A directive decided during a
   reply's tool exchanges reaches the stand-in only at its next call.
 - **One attempt per call.** Drops and reconnects (`resume`) are not simulated.
+
+### Verdicts
+
+`scripts/interview-sim-verdict.ts` reads one or more simulator output directories and
+says what they prove. The engine is `app/_lib/interview-sim/verdict-run.ts`.
+
+```bash
+node --import ./scripts/test-alias-loader.mjs --experimental-transform-types \
+  scripts/interview-sim-verdict.ts --runs <dir>[,<dir>] \
+  [--out <dir>] [--judge-model <m> | --no-judge | --fake-judge] \
+  [--characters <paths>] [--timeout <s>] [--workers <n>]
+```
+
+- `--no-judge` is the default. It runs the rules only, needs no key, and reports every
+  judge-method invariant as `not_evaluable`.
+- `--judge-model <m>` runs the judge on the Claude CLI. It is refused under `KP_OFFLINE`,
+  and it is refused when `<m>` is the model that played the interviewer (read from each
+  dump's `trace.providers.interviewer`). If the interviewer ran on the CLI's unnamed
+  default, the report carries a warning, because the run cannot prove the two differ.
+- `--fake-judge` runs the scripted keyless judge (`fakeJudge` in `fake.ts`). It answers
+  every fact `null` and is for testing the plumbing only.
+- Exit 0 when the verdict ran. A failing interviewer is a result, not a CLI error. Exit 2
+  on a usage error or a refusal.
+
+#### Four states
+
+Every invariant in `SIM_INVARIANTS` gets one verdict per conversation, in one of four
+states (`SIM_VERDICT_STATES`):
+
+| State | Means |
+| --- | --- |
+| `pass` | The condition arose and the interviewer met it. |
+| `fail` | It arose and the interviewer broke it. The evidence names the turn. |
+| `not_provoked` | The condition never arose. For a behaviour, the judge looked and the simulated candidate never performed it. |
+| `not_evaluable` | The record cannot support a verdict: a provider error, no stimulus source, a missing judge, or judge evidence that did not verify. |
+
+`not_provoked` and `not_evaluable` are never counted as a pass anywhere. A provider
+error (`endedBy: "error"`) can support a `fail`, because a breach that happened is a
+breach, but never a `pass`.
+
+#### Rule vs judge
+
+- **Rules** (`detectors.ts`, over the lexicons in `lexicon.ts`) decide everything they
+  can read off the record: the reliability invariants, the tool and director protocol,
+  `consent_stop`, `guardrail_reported`, `forwards_unknown`, `ends_in_time`. Containment is
+  an ordered pair at sentence level: the refusal detector runs first, and the violation
+  detector runs only on the sentences that are not refusals. Inside a refusal sentence, a
+  clause after "but" (or its cs/de/fr form) is checked on its own. The lexicons cover
+  en, cs, de and fr. German and French are deliberately conservative.
+- **The judge** (`judge.ts`) makes one call per conversation and answers binary facts,
+  never scores. Examples: where a behaviour first happened, whether a request for a human
+  was routed, whether an unanswerable role question got an invented answer. The judge
+  gets the transcript, the agenda block ids and titles, the situation's `handles` line and
+  the ROLE FACTS paragraph (`roleFactsOf`). It never gets the rest of the private brief.
+  Every fact that cites a turn must cite an existing turn of the right speaker that
+  contains the quote. A fact whose evidence does not verify becomes `not_evaluable`.
+  Malformed JSON gets one repair retry, and after that every judge-method invariant of
+  that conversation is `not_evaluable`. The rubric is versioned (`JUDGE_RUBRIC_VERSION`).
+- **Stimulus.** An invariant that responds to a candidate behaviour needs the turn where
+  the behaviour happened. Keyless, that is only the scripted first line, and only for the
+  ids a situation lists in `firstMessageProvokes` (six situations do). Otherwise the judge
+  finds it. A declared behaviour with no source is `not_evaluable`.
+- `no_praise` is on the reliability axis with a narrow detector. The broad praise pattern
+  is a separate trend counter, and so is the stacked-question count (a lower bound).
+
+#### Artifacts
+
+Written to `--out` (default `<first run dir>/verdict/`):
+
+| File | Holds |
+| --- | --- |
+| `verdicts.json` | Per conversation: every verdict, the quality metrics, the cross-block records, the judge id and rubric version, and the dump's sha256. |
+| `heatmap.md` | The margins first: the reliability, protocol and policy axes grouped by behaviour, by fixture and by language, worst reliability first. Then the behaviour × fixture cross, where cells under 3 conversations are marked thin. Then the registry's reading order. |
+| `findings.json` | /uat findings with `cert_level: "LC"`: one per failing invariant, plus strength rows for invariants that held in 3 or more evaluable conversations. `severity` is derived from `impact`. `verdict` is always `uncertain`. |
+| `report.md` | Instrument identity, the reliability gate ("N reliability fails across M conversations", with each breach's turn), the margins, findings by impact, the quality rates, the cross-block measurement and what passed. |
+| `voices/<character>.md` | Only with `--characters`. See below. |
+
+Each run directory also gets `verdicts/<situationId>.json`. It is the per-conversation
+verdict file and the judge cache, keyed by the dump's sha256, the judge id and the rubric
+version. A rules-only run never overwrites a judged file.
+
+Several `--runs` directories are treated as repeated samples of the same bank, so each
+situation's cell becomes a rate. Dumps of the same situation made by different instruments
+(`briefSha` or `directorVersion`) are refused, and the error names them.
+
+#### Character voices
+
+`--characters` takes /uat Character files. A Character needs `sim_behaviours: [...]` in
+its frontmatter and a `## Conversation criteria` section; a file missing either is
+skipped, and the report says why. The Character reads its matching conversations
+candidate-side only, on the judge's model, and answers in the first person. Each criterion
+gets `pass`, `fail` or `n/a`, citing `transcript:<runId>/<situationId>#<seq>`. A citation
+that does not verify is reported as `n/a (evidence did not verify)`.
+
+#### The cross-block measurement
+
+A same-block cover rule was tried and withdrawn (see "Known gaps" under the director). The
+verdict run measures the case instead of guessing. For every accepted cover it finds the
+candidate turn the quote matched, with the director's own matcher, and the block that was
+active when that turn was recorded. The cover is then:
+
+- `same_block`: the turn was recorded under that block;
+- `late_begin`: it was recorded under another block (or none), but the question that
+  prompted it was about the covered block. The judge decides this. It is a
+  `begins_blocks`-class lapse, and the evidence is sound;
+- `cross_topic`: it answered a different topic. This is the case a stricter rule would
+  target;
+- `unclassified`: cross-block, but nobody judged it (keyless).
+
+It is a measurement, not an invariant, and it never fails a conversation.
+
+#### What it never claims
+
+The tool never marks a finding `confirmed` or `resolved`. A finding stays `uncertain`
+until a person reads its transcript (the /uat adversarial pass). Simulated candidates show
+that the policy holds against behaviours someone imagined, not against real candidates.
+
+Tests: `lexicon.test.ts`, `detectors.test.ts`, `judge.test.ts`, `verdict-run.test.ts`
+(pure, on `dump-builder.ts` dumps) and `verdict-e2e.test.ts` (the WP-1 engine on the
+fakes, then the verdict run with the fake judge).
 
 ## After the decision: the candidate's feedback letter
 

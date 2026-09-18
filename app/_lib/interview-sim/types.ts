@@ -42,6 +42,11 @@ export type SimSituation = {
   firstMessage?: string;
   /** Invariant ids this situation exists to provoke. */
   provokes: string[];
+  /** The invariant ids the scripted `firstMessage` ITSELF provokes (a subset of
+   *  `provokes`) — set only where the first line really is the provocation. It is the
+   *  keyless stimulus source for WP-2's verdicts (detectors.ts `keylessStimulus`): most
+   *  first lines are a greeting and the behaviour comes later, which only a judge can find. */
+  firstMessageProvokes?: string[];
   /** What a good interviewer does here, in one line — the judge reads it. */
   handles: string;
 };

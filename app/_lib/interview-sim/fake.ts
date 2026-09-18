@@ -13,6 +13,9 @@
 //     provocation needs: agreeing to or declining the overrun, asking the FAQ questions,
 //     withdrawing consent, asking for a human, pausing.
 //   recordingLlm — wraps any SimLlm and keeps every input it was given, for the guards.
+//   fakeJudge / fakeCharacterVoice (WP-2) — the verdict pass's keyless stand-ins: a judge
+//     that answers the facts a prompt asks for (null unless scripted), and a Character
+//     voice that cites the first candidate turn it was shown.
 //
 // Deterministic by construction: the only variation is a seeded offset into the
 // canned lines.
@@ -200,6 +203,68 @@ export function fakeCandidate(situation: SimSituation, opts: { seed?: number } =
         return situation.language === "cs" ? "Ne, děkuji, to je ode mě všechno." : "No, thank you — that's all from me.";
       }
       return scriptFor(situation, turn, pick);
+    },
+  };
+}
+
+// ---- the judge (WP-2) --------------------------------------------------------------------
+
+/** One scripted judge answer. */
+export type FakeFact = { value: boolean | null; seq?: number; quote?: string };
+
+export type FakeJudgeScript = {
+  /** Replies returned verbatim, in order, BEFORE any scripted facts (a malformed reply
+   *  exercises the repair retry). */
+  replies?: string[];
+  /** Answers by fact id; every other requested id is answered null. */
+  facts?: Record<string, FakeFact>;
+  /** Answers computed from the requested ids and the rendered prompt (wins over `facts`). */
+  answer?: (ids: string[], prompt: string) => Record<string, FakeFact>;
+  id?: string;
+};
+
+/** The fact ids a judge prompt asks for (judge.ts renders them as "- <id>: <question>"). */
+export function requestedFactIds(prompt: string): string[] {
+  const out: string[] = [];
+  for (const m of prompt.matchAll(/^- ([a-z0-9_.]+): /gm)) out.push(m[1]);
+  return out;
+}
+
+/** A scripted, keyless judge: answers every requested fact, null unless scripted. */
+export function fakeJudge(script: FakeJudgeScript = {}): SimLlm & { readonly calls: RecordedCall[] } {
+  const calls: RecordedCall[] = [];
+  const replies = [...(script.replies ?? [])];
+  return {
+    id: script.id ?? "fake-judge",
+    calls,
+    async complete(opts) {
+      calls.push({ system: opts.system, messages: opts.messages.map((m) => ({ ...m })) });
+      const scripted = replies.shift();
+      if (scripted !== undefined) return scripted;
+      const prompt = opts.messages[0]?.content ?? "";
+      const ids = requestedFactIds(prompt);
+      const answers = script.answer ? script.answer(ids, prompt) : (script.facts ?? {});
+      return JSON.stringify({ facts: ids.map((id) => ({ id, ...(answers[id] ?? { value: null }) })) });
+    },
+  };
+}
+
+/** A scripted Character voice (verdict-run.ts voices): a canned first-person verdict, and
+ *  every criterion `n/a` except the first, which passes citing the first candidate turn of
+ *  the first transcript in the prompt. */
+export function fakeCharacterVoice(): SimLlm {
+  return {
+    id: "fake-voice",
+    async complete({ messages }) {
+      const prompt = messages[0]?.content ?? "";
+      const ref = /^### (transcript:\S+)/m.exec(prompt)?.[1] ?? null;
+      const cand = /^\[(\d+)\] Candidate: (.+)$/m.exec(prompt);
+      const criteria = [...prompt.matchAll(/^- (c\d+): /gm)].map((m) => m[1]);
+      const cite = ref && cand ? [{ ref: `${ref}#${cand[1]}`, quote: cand[2].split(/\s+/).slice(0, 8).join(" ") }] : [];
+      return JSON.stringify({
+        verdict: "I got through it and nobody told me how I did, which is what I expected. (scripted voice)",
+        criteria: criteria.map((id, i) => (i === 0 && cite.length ? { id, result: "pass", evidence: cite } : { id, result: "n/a", evidence: [] })),
+      });
     },
   };
 }
