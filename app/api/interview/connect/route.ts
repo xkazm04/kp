@@ -276,7 +276,13 @@ export async function POST(request: NextRequest) {
         // minutes debit clamps against — not to whatever the prep plans today. A
         // RESUMED attempt keeps the stored agenda: the resume state's block ids were
         // recorded against it (interview-agenda.ts::reconcileKitWithStoredAgenda).
-        const fresh = await buildInterviewKit(session.entryId, undefined, { bookedMin: session.durationMin });
+        // `kitId` is the JOB KIT VERSION this link was PINNED to at mint — not the
+        // job's latest published one: candidates in one round face the same questions
+        // even when the recruiter publishes an edit mid-round.
+        const fresh = await buildInterviewKit(session.entryId, undefined, {
+          bookedMin: session.durationMin,
+          kitId: session.kitId,
+        });
         kit = reconcileKitWithStoredAgenda(fresh, started.agenda, resume !== null);
         if (kit) setInterviewAgenda(session.id, kit.agenda);
       } catch (agendaErr) {

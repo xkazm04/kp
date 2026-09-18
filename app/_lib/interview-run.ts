@@ -38,6 +38,7 @@ import {
   candidateSafeTopic,
   composeCandidateBrief,
   sanitizeChronologyBlock,
+  sanitizeFaqEntries,
   sanitizeFollowupQuestion,
   sanitizeScenarioPhase,
   type CandidateSafeBlock,
@@ -386,7 +387,9 @@ export async function buildGroundedInterview(
 
   const { company, title, roleLine, preferredLang, roleFacts } = entryBriefContext(entry);
   const kit = opts?.kit ?? null;
-  const directed = kit ? privateDirectedBrief(kit.agenda, kit.privateNotes, roleFacts) : null;
+  // The kit FAQ goes through the SAME allow-list sanitizer the candidate-safe brief uses
+  // (buildCandidateSafeBrief below), so both providers answer from identical words.
+  const directed = kit ? privateDirectedBrief(kit.agenda, kit.privateNotes, roleFacts, sanitizeFaqEntries(kit.faq)) : null;
   const finish = (text: string) => withResume(withOpeningLanguage(text, preferredLang), opts?.resume, kit?.agenda ?? null);
 
   // Entries promoted from an evaluated dev-case submission get the SUBMISSION
@@ -548,6 +551,8 @@ export async function buildCandidateSafeBrief(entryId: string, opts?: DirectedBu
           intro,
           agenda: kit.agenda,
           roleFacts,
+          // Raw: composeCandidateBrief sanitizes it at the boundary.
+          faq: kit.faq,
         }),
         preferredLang
       ),

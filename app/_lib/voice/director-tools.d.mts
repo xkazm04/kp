@@ -7,10 +7,12 @@ export const DIRECTOR_TOOL_NAMES: readonly [
   "mark_topic_covered",
   "report_guardrail",
   "forward_question",
+  "report_extra_time",
   "end_interview",
 ];
 export const GUARDRAIL_KINDS: readonly ["score_request", "instruction_override", "prompt_disclosure", "off_topic"];
 export const END_REASONS: readonly ["complete", "time", "candidate_request"];
+export const OVERRUN_ANSWERS: readonly ["agreed", "declined"];
 export const MAX_EVIDENCE_QUOTE_CHARS: number;
 export type DirectorToolDef = {
   name: (typeof DIRECTOR_TOOL_NAMES)[number];

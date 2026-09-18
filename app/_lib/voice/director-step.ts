@@ -33,7 +33,7 @@ import {
   decideDirective,
   deriveDirectorState,
   directorAgendaState,
-  END_GRACE_MIN,
+  endCeilingMin,
   type DirectorToolCallInput,
   type DirectorToolOutcome,
 } from "./director";
@@ -243,7 +243,10 @@ export function runDirectorStep(input: DirectorStepInput): DirectorResponse {
       );
     }
 
-    const overTime = agenda !== null && state.elapsedMs >= (agenda.hardCapMin + END_GRACE_MIN) * 60_000;
+    // The SAME ceiling `end_now` fires at (director.ts::endCeilingMin) — hard cap plus
+    // the grace, or 2× the booking once the candidate agreed to the overrun. Two
+    // definitions here would hang up a call the candidate had just bought time for.
+    const overTime = agenda !== null && state.elapsedMs >= endCeilingMin(agenda, state) * 60_000;
     return {
       ok: true,
       ackSeq: maxInterviewTurnSeq(session.id, attempt, workspaceId),
@@ -251,6 +254,9 @@ export function runDirectorStep(input: DirectorStepInput): DirectorResponse {
       directive,
       agenda: directorAgendaState(state),
       endCall: Boolean(outcome?.endCall) || state.endRequested || overTime,
+      // Two numbers, no agenda content: how much live time has run and where the end
+      // limit now sits — what the browser's fallback stop re-arms from.
+      clock: agenda !== null ? { elapsedMs: state.elapsedMs, endLimitMs: endCeilingMin(agenda, state) * 60_000 } : null,
     };
   });
 }

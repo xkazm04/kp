@@ -48,7 +48,10 @@ import {
   candidateAgendaListing,
   directorProtocol,
   leadershipFrame,
+  MAX_ROLE_FACTS_FAQ,
+  MAX_ROLE_FACTS_FAQ_ANSWER_CHARS,
   type RoleFacts,
+  type RoleFaqEntry,
 } from "./director-brief";
 import type { InterviewAgenda } from "./director-types";
 
@@ -154,6 +157,41 @@ export function scenarioPhaseAloudQuestions(phase: unknown): string[] {
   return probe ? [probe] : [];
 }
 
+/** Allow-list pick from a job kit's recruiter FAQ ({ id, question, answer }): ONLY the
+ *  question and the answer survive — each collapsed to one line, entries with either
+ *  half empty dropped, at most MAX_ROLE_FACTS_FAQ of them, every answer capped at
+ *  MAX_ROLE_FACTS_FAQ_ANSWER_CHARS at a word boundary. The id, and anything a future
+ *  FAQ entry grows, never survive, because nothing is copied that is not picked.
+ *
+ *  The answers are recruiter-written ROLE FACTS whose purpose is to be said to the
+ *  candidate, so they ride the client-sent brief — and the SAME output feeds the
+ *  private brief (interview-run.ts), so the two providers answer the candidate's
+ *  questions from the same words. What must never ride is everything else about the
+ *  kit: the must-ask marker, the weights and the author's note do not pass through
+ *  here at all. */
+export function sanitizeFaqEntries(faq: unknown): RoleFaqEntry[] {
+  if (!Array.isArray(faq)) return [];
+  const out: RoleFaqEntry[] = [];
+  for (const entry of faq) {
+    if (out.length >= MAX_ROLE_FACTS_FAQ) break;
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as Record<string, unknown>;
+    const question = asCleanString(e.question)?.replace(/\s+/g, " ") ?? null;
+    const answer = asCleanString(e.answer)?.replace(/\s+/g, " ") ?? null;
+    if (!question || !answer) continue;
+    out.push({ question, answer: capAtWord(answer, MAX_ROLE_FACTS_FAQ_ANSWER_CHARS) });
+  }
+  return out;
+}
+
+/** Cap at a word boundary with an ellipsis (the posting text's rule, capPostingText). */
+function capAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
 /** Allow-list pick from a submission-debrief followup ({ question, listenFor,
  *  redFlag, decision, id }): ONLY the question — the thing asked aloud —
  *  survives. */
@@ -183,6 +221,9 @@ export function composeCandidateBrief(opts: {
   intro?: string | null;
   agenda?: InterviewAgenda | null;
   roleFacts?: RoleFacts | null;
+  /** The job kit's recruiter FAQ, RAW — sanitized here, at the boundary, by
+   *  sanitizeFaqEntries before it can reach the prompt. */
+  faq?: unknown;
 }): string {
   const agenda = opts.agenda ?? null;
   const name = opts.candidateLabel ? ` You are speaking with ${opts.candidateLabel}.` : "";
@@ -206,7 +247,7 @@ export function composeCandidateBrief(opts: {
       ? [`After your introduction${agenda ? " and the warm-up" : ""}, narrate this context to the candidate conversationally in at most two minutes: ${opts.intro}`]
       : []),
     ...(agenda
-      ? [agendaHeader(agenda), candidateAgendaListing(agenda), directorProtocol(opts.roleFacts ?? null)]
+      ? [agendaHeader(agenda), candidateAgendaListing(agenda), directorProtocol(opts.roleFacts ?? null, sanitizeFaqEntries(opts.faq))]
       : [
           `Then lead the conversation through this run of show (about ${opts.durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
           runOfShow,

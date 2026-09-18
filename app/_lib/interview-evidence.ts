@@ -22,7 +22,10 @@
 //   3. IT IS A PROJECTION, NOT THE ROW. The agenda's `competency` and its planned
 //      `questions` are private brief material and never cross this boundary; a
 //      recording's `file` never does either, because a path is not a fact a browser
-//      needs. Tool bookkeeping (`callId`, `toolResult`) stays server-side.
+//      needs. Tool bookkeeping (`callId`, `toolResult`) stays server-side. The ONE
+//      planned question that does cross is a job-kit must-ask the call ended without
+//      (`must_ask_unasked`): the recruiter wrote it, marked it required, and needs to
+//      know it is still owed — the question is the finding.
 //
 // PURE: no DB, no clock, no randomness — the route reads the rows and hands them in,
 // exactly like voice/director.ts, so the whole projection is a table a test can pin.
@@ -117,9 +120,17 @@ export type EvidenceEvent = {
   turnSeq?: number;
   preSilenceMs?: number | null;
   durationMs?: number | null;
-  // end_requested
+  // end_requested (and must_ask_unasked: why the call ended with the question owed)
   endReason?: string;
   refused?: boolean;
+  // must_ask_unasked — a REQUIRED question from the job's interview kit that the record
+  // cannot show was asked before the call ended (spark interview-kit-template). It is
+  // the INTERVIEWER's own question, never the candidate's words, which is why it has a
+  // field of its own rather than riding `question`: redactEvidenceEvent strips the
+  // candidate's verbatim words when consent lapses, and this is not one of them — it is
+  // a fact about how the interview ran.
+  unaskedQuestion?: string;
+  unaskedQuestionId?: string;
 };
 
 /** How this provider measured `answer_timing`. The two are NOT the same quantity and
@@ -262,8 +273,20 @@ export function projectEvidenceEvent(e: EvidenceSourceEvent, originMs: number): 
       if (p.refused === true) out.refused = true;
       break;
     }
+    case "must_ask_unasked": {
+      const question = str(p.question);
+      if (question !== undefined) out.unaskedQuestion = question;
+      const id = str(p.questionId);
+      if (id !== undefined) out.unaskedQuestionId = id;
+      const reason = str(p.endReason);
+      if (reason !== undefined) out.endReason = reason;
+      break;
+    }
     default:
       // recording_started / resumed carry nothing a surface needs beyond kind+attempt.
+      // overrun_answered is deliberately left at kind+block too: whether a candidate
+      // agreed to stay longer is not a fact a recruiter should read about THEM — the
+      // unasked questions it led to are projected above, as a fact about the interview.
       break;
   }
   return out;
@@ -272,7 +295,8 @@ export function projectEvidenceEvent(e: EvidenceSourceEvent, originMs: number): 
 /** Strip every verbatim word from a projection — what the consent gate leaves behind.
  *  The STRUCTURE survives (a guardrail happened, in this block, at this minute), the
  *  candidate's words do not. Same doctrine as redactTranscriptForConsent: withhold the
- *  verbatim synthesis, keep the fact that there was one. */
+ *  verbatim synthesis, keep the fact that there was one. `unaskedQuestion` survives on
+ *  purpose: it is the job kit's own question, not anything the candidate said. */
 export function redactEvidenceEvent(e: EvidenceEvent): EvidenceEvent {
   const out = { ...e };
   delete out.text;

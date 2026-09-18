@@ -162,8 +162,8 @@ two providers could disagree about the topics a candidate was asked.
 | `app/_lib/interview-agenda.ts` | `buildInterviewKit` / `buildInterviewAgenda` (read-only), `toCandidateAgendaView`, `reconcileKitWithStoredAgenda`, `fitAgendaDrafts`. |
 | `app/_lib/voice/director-brief.ts` | The director section of every directed brief: leadership frame, agenda listing (candidate allow-list vs private), tool protocol, `[Director]` rule, ROLE FACTS, resumed-call addendum. |
 | `app/_lib/interview-run.ts` | `buildGroundedInterview(entryId, ws, { readOnly, kit, resume })` (private brief) and `buildCandidateSafeBrief(entryId, { kit, resume })`. Without options both produce the pre-director brief, which is what `/api/interview/create` still stores as the fallback snapshot. |
-| `app/_lib/voice/director-tools.mjs` | The five tools (`begin_topic`, `mark_topic_covered`, `report_guardrail`, `forward_question`, `end_interview`) and `DIRECTOR_NOTE_PREFIX` (`[Director]`), shared by both providers. |
-| `scripts/setup-eleven-agent.mjs` | `--deploy` creates or reuses the five tools as ElevenLabs **client** tools and references them in `conversation_config.agent.prompt.tool_ids`. `--check` follows those ids and diffs each tool's config (`app/_lib/voice/eleven-agent-diff.mjs`). |
+| `app/_lib/voice/director-tools.mjs` | The six tools (`begin_topic`, `mark_topic_covered`, `report_guardrail`, `forward_question`, `report_extra_time`, `end_interview`) and `DIRECTOR_NOTE_PREFIX` (`[Director]`), shared by both providers. |
+| `scripts/setup-eleven-agent.mjs` | `--deploy` creates or reuses the six tools as ElevenLabs **client** tools and references them in `conversation_config.agent.prompt.tool_ids`. `--check` follows those ids and diffs each tool's config (`app/_lib/voice/eleven-agent-diff.mjs`). |
 
 ### Flow at connect
 
@@ -704,6 +704,191 @@ The table is created in the main `core.ts` schema block.
   edited, not which engine wrote it. After the task has been pruned, a stored draft cannot
   say whether a model or the template wrote it.
 
+## The kit in the interview
+
+### The kit in the interview
+
+A job can carry a published **interview kit**: its competencies, their questions, which
+questions are must-asks, a weight and a time budget for each competency, and a short
+recruiter FAQ. The kit is the **spine** of every AI interview for that job. The
+competencies replace the topics the agenda used to generate from each candidate's own
+CV, so candidates in one round face the same questions. The kit itself is authored and
+versioned by the job's kit store (see the kit section of this doc). This section covers
+what the interview does with it.
+
+#### Entry points
+
+| Where | What |
+| --- | --- |
+| `app/_lib/interview-invite.ts` (`mintAndInviteVoiceScreen`) | **Pins the kit at mint.** It resolves `latestPublishedKit(jobId, workspace)` and stores that version's id on the new session (`interview_sessions.kit_id`, via `createInterviewSession({ kitId })`). A job with no kit pins `NULL`. A kit that can't be read is logged and also pins `NULL`, and the invite still goes out. |
+| `POST /api/interview/connect` | Passes the session's **pinned** `kitId`, not the job's latest kit, to `buildInterviewKit`. |
+| `app/_lib/interview-agenda.ts` | `buildInterviewKit(entryId, ws, { bookedMin, kitId })` reads the pinned version with `kitById`, applies the candidate's overlay (`applyKitOverlay`) and drafts the branch from it. `cvProbeId(text)` gives a per-candidate probe an id the overlay can name. |
+| `app/_lib/voice/director-brief.ts` | The private listing states each must-ask and marks the heaviest weight. `directorProtocol(facts, faq)` renders the kit FAQ into ROLE FACTS. |
+| `app/_lib/voice/candidate-brief.ts` | `sanitizeFaqEntries` is the allow-list pick for the FAQ: question and answer only, one line each, the first 6 entries, answers capped at 300 characters. **Both** briefs take the FAQ through it. |
+| `app/_components/voice/useDirector.ts` + `call-observations.ts` | The browser's fallback hard stop re-arms from each director response's `clock` (`extendedHardStopDeadline`). |
+| `app/_lib/interview-evidence.ts` + `app/features/hiring/schedule/ScheduleInterviewObservations.tsx` | `must_ask_unasked` is projected as `unaskedQuestion` / `unaskedQuestionId` / `endReason` and rendered as "Required questions not asked". |
+| `app/_lib/voice/director.ts` | The must-ask rule: `outstandingMustAsks`, `endCeilingMin`, the `ask_overrun` directive, `report_extra_time`, the extended `prematureCompletion`, and `must_ask_unasked` rows when a call ends. |
+| `app/_lib/voice/director-tools.mjs` | A sixth tool, `report_extra_time(answer: agreed \| declined)`, and `OVERRUN_ANSWERS`. The README's entry-point table must say **six** tools now. |
+
+#### The agenda, per branch
+
+The branch order is unchanged: **debrief > case-grounded student > generic student > prep
+chronology**. A fifth branch, `kit`, applies when a candidate has no prep of their own.
+The kit is a complete agenda without one. Before the kit, such a candidate had no agenda,
+and the call fell back to the generic prompt.
+
+| Branch | With a pinned kit |
+| --- | --- |
+| **Work-sample debrief** | The branch **keeps** its authorship probes (the approach block and one "Decision n" block per minted question). The kit's must-ask questions are **appended** as one extra block. This is the only branch the kit doesn't spine, because it is the only place the product checks that a candidate authored their submission. |
+| **Case-grounded / generic student** | The script's first phase (the opening move) and last phase (the closing move) stay. The kit's competencies replace the phases in between. The case narration lives in the brief and is unaffected. |
+| **Prep chronology** | The kit's competencies replace the per-candidate topics. The plan's frame stays: the opening's minutes, its `open` slack block and the wrap-up's minutes. |
+| **Kit only** (no prep) | Warm-up, the kit's competencies, then the closing pair. |
+
+Each kit competency becomes **one `topic` block**, in the kit's order, with the kit's
+budget as its planned minutes. The block carries the competency's questions as `questions`
+(aloud material) and two fields that exist only on kit blocks:
+
+- `mustAsks: { id, text }[]` lists the questions the kit marks as required. The director
+  reads it.
+- `weight: 1 | 2 | 3` sets emphasis in the **private** brief only. It orders nothing, since
+  the kit's own order is the agenda's order, and nothing ever adds weights up into a total.
+
+**This candidate's own probes ride on top.** In the prep branch, the recruiter's imported
+questions come first, then the chronology's aloud questions. Both are de-duplicated
+against what the kit already asks, capped at `MAX_KIT_CV_PROBES = 3`, and put in one block
+titled with the catalog's "recruiter-added questions" string. The cap is three because the
+kit already fills the booking. Every added probe shortens every kit block
+(per-question-time-budget-that-tightens), and the point of the kit is a shared instrument.
+The prep pack still lists every generated question. Only the agenda drops them.
+
+**The recruiter's overlay rides over all of it.** It is stored as `kitOverlay` on the
+candidate's prep payload. That key is human-owned, so `mergeRegeneratedPrep` keeps it
+across a Regenerate. It is narrowed by `coerceKitOverlay` and applied to the authored kit
+**before** any branch drafts from it:
+
+- `dropped` removes a question by id. A dropped must-ask stops being required for this
+  candidate.
+- `edited` rewrites a question's text in place and keeps its id, position and must-ask flag.
+- `added` appends to the named competency. With no competency, or one this kit version no
+  longer has, it goes into one trailing block at weight 1. At most
+  `MAX_OVERLAY_ADDED_QUESTIONS` (6) additions are applied.
+- An id that the pinned version doesn't carry is ignored.
+- A malformed overlay counts as no overlay.
+
+The overlay can also name **this candidate's own probes**. A prep chronology carries no
+question ids, so each probe's id is derived from its text: `cvProbeId(text)`, which is
+`cv-` plus the 32-bit FNV-1a hash of the trimmed text. `dropped` and `edited` apply to the
+probes before the cap of 3, so dropping one lets the next probe move up. A regeneration
+that rewrites a probe gives it a new id, so the old overlay entry stops matching and is not
+applied.
+
+The agenda invariants hold unchanged on every kit-spined agenda: ids `b0..bN`, Σ budget
+equal to the **booked** duration, `hardCapMin = round(duration × 1.2)`, `closeReserveMin =
+role_qa + close`, and `scored` only on topic/open. With no kit, every block has exactly the
+seven fields it always had. `interview-kit-agenda.test.ts` pins that a missing or
+unresolvable pin produces the same agenda as no pin.
+
+#### The two briefs
+
+| | Private brief (server-minted, OpenAI) | Candidate-safe brief (client-sent, ElevenLabs) |
+| --- | --- | --- |
+| The kit's questions | Listed. | Listed (they are asked aloud). |
+| Must-asks | `Required, never skipped even if you are over time: “…”` on the block. | Not marked. |
+| Weight | Only weight 3 gets a line: "carries the most of the decision — protect its time". | No. |
+| Kit FAQ | In ROLE FACTS: "The recruiter also answered these, and you may answer them the same way: …" | The **same** sentence, word for word. |
+| `report_extra_time` | Named in the protocol. | Named in the protocol. |
+
+FAQ answers are recruiter-written role facts meant to be said to candidates, so both
+providers carry them. Otherwise the two providers would answer the same question
+differently, which is the split the directed agenda removed. Both briefs take the FAQ
+through `sanitizeFaqEntries` in `voice/candidate-brief.ts`, the allow-list boundary.
+Only the question and the answer survive: an entry's id and anything else never do.
+The must-ask marker, the weights and the author's note never reach the candidate-safe
+brief.
+
+#### Must-asks and the overrun
+
+A must-ask is asked even when the clock has run out. The overrun is **asked for, never
+taken silently**. The absolute ceiling is `MUST_ASK_CEILING_FACTOR × booked = 2×`, which is
+the reservation the mint already took (`maxBillableInterviewMin`).
+
+"Asked" is **block-grained**. `mark_topic_covered` is the only per-block evidence the
+protocol has, so an uncovered block's must-asks count as outstanding. This errs toward
+telling the recruiter that a required question may have been missed.
+
+| Condition | What the interviewer is told or does | What is recorded |
+| --- | --- | --- |
+| Before the close reserve | Ordinary pacing. `end_interview("complete")` is refused with the ordinary "N topics remain". | `end_requested { refused: true }` |
+| Close reserve reached, a must-ask outstanding, not yet asked | **`ask_overrun`** (once per session, before `close_now`, even if the model already wandered into the closing): say you are at time, name how many required questions remain, ask for a few more minutes, and call `report_extra_time` with the answer. | `directive { kind: ask_overrun }` |
+| Asked, no answer yet, under 60 s (`OVERRUN_ANSWER_GRACE_MS`) | Nothing. The question gets its minute. | — |
+| `report_extra_time("agreed")` | Tool result: ask the required questions that remain. The director says nothing while the active block owes one, and otherwise sends `move_on` to the first block that does. `close_now` and the hard-cap `end_now` are suspended. | `overrun_answered { answer: agreed, remaining }` |
+| `report_extra_time("declined")`, or no answer after 60 s | `close_now` immediately. Ends at the ordinary hard cap + 2. | `overrun_answered { answer: declined }` (nothing when silent) |
+| `report_extra_time` with no request outstanding | "No extra time was requested". The model can't grant itself an extension. | nothing |
+| `end_interview("complete")` past the reserve with a must-ask owed | Refused: "N required questions remain. Continue with bX · …", until the candidate declines or the call reaches its end ceiling. | `end_requested { refused: true }` |
+| Agreed, elapsed ≥ 2 × booked | `end_now`, `endCall: true`. | `directive { end_now }` |
+| Any accepted `end_interview` (complete, time or candidate_request) | Closing line, then the call ends. | `end_requested` plus **one `must_ask_unasked { questionId, question, endReason }` per outstanding must-ask** |
+
+`candidate_request` is never refused: the candidate may stop at any time. The server's
+`endCall` in `director-step.ts` reads the same `endCeilingMin` as `end_now`.
+
+**The browser's fallback stop follows the moved limit.** Every `POST /api/interview/director`
+response now carries `clock: { elapsedMs, endLimitMs } | null`. Both values are live
+milliseconds on the server clock. `endLimitMs` is `endCeilingMin × 60 000`. `clock` is null
+when the call has no agenda. `useDirector` still arms the stop at connect (hardCap + 2,
+minus the time earlier attempts used). That arming is the **floor**, so the stop still
+fires if the director can't be reached. After each response,
+`extendedHardStopDeadline` computes `now + (endLimitMs − elapsedMs)`:
+
+- The stop is re-armed only when that deadline is at least 1 s later than the armed one.
+  It is never moved earlier.
+- The deadline is bounded by `max(hardCap + 2, 2 × booked)` from the candidate agenda view,
+  so a garbled body can't hold a call open past what the booking allows.
+- The re-arm cancels the one stop timer it replaces through the timer registry's per-timer
+  cancel. It never calls `clearAll`.
+- A reconnect retires the previous attempt's stop instead of leaving two armed.
+
+#### Data model
+
+- `interview_sessions.kit_id` (TEXT, nullable). The pinned kit version is written once, at
+  create, and never moved.
+- `interview_events` gains two kinds: `overrun_answered` (`payload.answer`,
+  `payload.remaining`) and `must_ask_unasked` (`payload.questionId`, `payload.question`,
+  `payload.endReason`). The unasked question is the kit's own text, not the candidate's
+  words.
+- Prep payload: the `kitOverlay` key (a human-owned `KitOverlay`, version 1).
+
+#### Keyless behaviour
+
+Nothing here calls a model or a key. The pin, the agenda, the overlay, the briefs and the
+director policy are all deterministic reads and pure functions. A job with no kit behaves
+exactly as it did before.
+
+#### What the recruiter sees
+
+The evidence door projects `must_ask_unasked` into dedicated fields: `unaskedQuestion`,
+`unaskedQuestionId` and `endReason`. They are not the candidate's words, so they are
+separate from the candidate-words `question` field. `redactEvidenceEvent` removes the
+candidate's words when consent lapses and leaves these fields in place.
+
+The Observations panel (`ScheduleInterviewObservations.tsx`) shows **"Required questions
+not asked"** with each question, its block and why the call ended (the interviewer closed
+it, it ran out of time, or the candidate asked to end it). The panel says in words that
+this describes how the interview ran, not the candidate. The section appears only when
+there is a row: a call with no kit had nothing required, and "none missed" would claim a
+check that never ran. `overrun_answered` is deliberately projected as a bare kind, because
+whether a candidate agreed to stay longer is not something a recruiter should read about
+them. Catalog keys: `scheduleTab.transcript.evidence.mustAsk*` (4 locales).
+
+#### Known gaps
+
+- **The ElevenLabs agent must be redeployed** (`scripts/setup-eleven-agent.mjs --deploy`)
+  before it can call `report_extra_time`. Until then an EL call's overrun request can't be
+  answered, which is treated as no agreement, so the call closes on time.
+- **Must-asks are block-grained.** A covered block counts as having asked all its
+  must-asks.
+- **The candidate-safe brief doesn't mark which questions are required.** The `ask_overrun`
+  and `move_on` directives carry the requirement at the moment it matters.
+
 ## Candidate call — the browser half of the director loop
 
 The candidate meets the directed interview at `/interview/[token]`. The realtime
@@ -776,7 +961,13 @@ The **client hard stop** is the one rule that does not depend on any of this: at
 `hardCapMin + 2` minutes of live time — including the seconds earlier attempts spent
 (`resume.elapsedSec`) — the browser ends the call itself. The grace is the same
 `END_GRACE_MIN` the server's director uses, pinned by a test, so a reachable director
-and an unreachable one cannot end the same call minutes apart.
+and an unreachable one cannot end the same call minutes apart. The connect-time stop is
+a FLOOR: every director response carries `clock: { elapsedMs, endLimitMs }`, and
+`useDirector` re-arms the one stop timer later whenever the server's limit moved — which
+it does when a candidate agrees to a must-ask overrun (2x the booked length). It never
+moves earlier than the server last said, and it is capped at max(hard cap + 2, 2x
+booked) from the agenda view, so a garbled response cannot hold a call open
+(`extendedHardStopDeadline` in `call-observations.ts`).
 
 ### Observations
 
@@ -853,7 +1044,7 @@ rule byte for byte. Pinned in `app/_lib/voice/finalize-status.test.ts`.
   arguments are handed to the director **unparsed** — it accepts an object or the
   provider's JSON string, and parsing here would turn a provider quirk into a dropped
   tool call.
-- **ElevenLabs Agents (SDK).** All five tools are registered as `clientTools` on
+- **ElevenLabs Agents (SDK).** All six tools are registered as `clientTools` on
   `startSession`; each awaits the director and returns its result string. Directives go
   through `sendContextualUpdate`. Speaking/listening comes from `onModeChange` (which is
   also how the interviewer's audio end is observed), candidate speech from `onVadScore`

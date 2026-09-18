@@ -182,7 +182,7 @@ export function startElevenLabsSession(args: {
   // THE DIRECTOR'S TOOLS, as CLIENT tools (spark ai-interview-parity). The agent
   // references them by id in its workspace config (scripts/setup-eleven-agent.mjs
   // --deploy); the browser is what actually answers them, by asking our director.
-  // One handler for all five names — the director validates the name, so a tool the
+  // One handler for every name in the vocabulary — the director validates the name, so a tool the
   // agent has and we have not is impossible by construction, and a call we cannot
   // route still gets an answer rather than a 10-second platform timeout.
   //

@@ -7,6 +7,10 @@ import {
   applyDirectorTool,
   decideDirective,
   deriveDirectorState,
+  endCeilingMin,
+  MUST_ASK_CEILING_FACTOR,
+  outstandingMustAsks,
+  prematureCompletion,
   slackMs,
   TOOL_RESULT_CONTINUE,
   type DirectorEvent,
@@ -427,4 +431,210 @@ test("a refused completion is an audit row, never an end", () => {
   assert.equal(state([...ON_SCHEDULE, refused], 6).endRequested, false);
   const accepted = ev("end_requested", 6, { payload: { reason: "candidate_request" } });
   assert.equal(state([...ON_SCHEDULE, refused, accepted], 7).endRequested, true);
+});
+
+// ---- a job kit's must-asks (spark interview-kit-template) ------------------------------
+//
+// The same 30-minute agenda, with the kit's REQUIRED questions on two topic blocks: one
+// on b2, two on b3. The rule under test: a must-ask is asked even when the clock has run
+// out, but the overrun is ASKED FOR — once, at the close reserve — and only the
+// candidate's agreement buys time, up to 2× the booking (what the meter can bill).
+
+const KIT_AGENDA: InterviewAgenda = {
+  ...AGENDA,
+  blocks: AGENDA.blocks.map((b) =>
+    b.id === "b2"
+      ? { ...b, mustAsks: [{ id: "q-must-1", text: "MUSTASK-ONE" }], weight: 3 as const }
+      : b.id === "b3"
+        ? { ...b, mustAsks: [{ id: "q-must-2", text: "MUSTASK-TWO" }, { id: "q-must-3", text: "MUSTASK-THREE" }] }
+        : b,
+  ),
+};
+const kitOpts = { agenda: KIT_AGENDA };
+/** Every topic begun on time, none covered; the close reserve is reached at minute 31. */
+const REACHED_RESERVE = [begun("b0", 0), begun("b1", 2), begun("b2", 12), begun("b3", 24)];
+const answered = (answer: string, minute: number) => ev("overrun_answered", minute, { payload: { answer } });
+const askedAt = (minute: number) => directive("ask_overrun", "b2", minute);
+
+test("outstanding must-asks are block-grained: a covered block's required questions count as asked", () => {
+  const cases: { name: string; events: DirectorEvent[]; ids: string[] }[] = [
+    { name: "nothing covered: all three", events: [], ids: ["q-must-1", "q-must-2", "q-must-3"] },
+    { name: "b2 covered", events: [covered("b2", 5)], ids: ["q-must-2", "q-must-3"] },
+    { name: "both covered", events: [covered("b2", 5), covered("b3", 9)], ids: [] },
+    { name: "a REJECTED cover proves nothing", events: [ev("topic_cover_rejected", 5, { blockId: "b2" })], ids: ["q-must-1", "q-must-2", "q-must-3"] },
+  ];
+  for (const c of cases) {
+    const out = outstandingMustAsks(KIT_AGENDA, state(c.events, 10, kitOpts));
+    assert.deepEqual(out.map((m) => m.id), c.ids, c.name);
+  }
+  assert.deepEqual(outstandingMustAsks(AGENDA, state([], 10)), [], "an agenda with no kit owes nothing");
+  assert.deepEqual(outstandingMustAsks(null, state([], 10)), []);
+});
+
+test("at the close reserve with a must-ask outstanding: ONE ask_overrun instead of close_now", () => {
+  assert.notEqual(decide(REACHED_RESERVE, 30.9, kitOpts)?.kind, "ask_overrun", "not before the reserve");
+  const d = decide(REACHED_RESERVE, 31, kitOpts);
+  assert.equal(d?.kind, "ask_overrun");
+  assert.equal(d?.blockId, "b2", "names the first block still owing a required question");
+  assert.ok(d!.text.startsWith(`${DIRECTOR_NOTE_PREFIX} `));
+  assert.match(d!.text, /3 required questions/, "it names HOW MANY remain");
+  assert.match(d!.text, /at time/);
+  assert.match(d!.text, /few more minutes/);
+  assert.match(d!.text, /report_extra_time/);
+  assert.doesNotMatch(d!.text, /MUSTASK|SECRET|competenc/i, "no question text, no competency — it transits the browser");
+  // The same clock on an agenda with no kit is exactly today's close_now.
+  assert.equal(decide(REACHED_RESERVE, 31)?.kind, "close_now");
+  // Everything required already covered: no overrun to ask for.
+  assert.equal(decide([...REACHED_RESERVE, covered("b2", 20), covered("b3", 30)], 31, kitOpts)?.kind, "close_now");
+  // …and a model that wandered into the closing early is still asked: the rule is the clock's.
+  assert.equal(decide([...REACHED_RESERVE, begun("b5", 29)], 31, kitOpts)?.kind, "ask_overrun");
+});
+
+test("the overrun is asked ONCE: no answer inside a minute waits, then silence closes the call", () => {
+  const asked = [...REACHED_RESERVE, askedAt(31)];
+  assert.equal(decide(asked, 31.5, kitOpts), null, "the question gets its minute");
+  const d = decide(asked, 32, kitOpts);
+  assert.equal(d?.kind, "close_now", "no answer is no agreement");
+  for (const now of [32.5, 33, 35]) assert.notEqual(decide(asked, now, kitOpts)?.kind, "ask_overrun", `never re-asked at ${now}`);
+  assert.equal(decide(asked, 38, kitOpts)?.kind, "end_now", "and the ordinary hard stop still holds");
+  // Reconnecting does not re-ask either.
+  assert.notEqual(decide([...asked, ev("turn", 34, { attempt: 2 })], 35, { ...kitOpts, attempt: 2 })?.kind, "ask_overrun");
+});
+
+test("declined: the call closes at once and ends at the ordinary ceiling", () => {
+  const declined = [...REACHED_RESERVE, askedAt(31), answered("declined", 31.2)];
+  assert.equal(state(declined, 31.3, kitOpts).overrunAnswer, "declined");
+  assert.equal(decide(declined, 31.3, kitOpts)?.kind, "close_now", "no minute of grace after a refusal");
+  assert.equal(endCeilingMin(KIT_AGENDA, state(declined, 32, kitOpts)), 38);
+  assert.notEqual(decide([...declined, begun("b5", 32)], 37.9, kitOpts)?.kind, "end_now");
+  assert.equal(decide([...declined, begun("b5", 32)], 38, kitOpts)?.kind, "end_now");
+});
+
+test("agreed: the time goes to the required questions, up to 2× the booking and never past it", () => {
+  const agreed = [...REACHED_RESERVE, askedAt(31), answered("agreed", 31.2)];
+  // Inside b3, which owes two required questions: let it run — no close, no move.
+  assert.equal(decide(agreed, 31.5, kitOpts), null);
+  assert.equal(decide(agreed, 37, kitOpts), null, "no close_now while the candidate's minutes run");
+  assert.equal(decide(agreed, 38, kitOpts), null, "the ordinary hard stop (hardCap + 2) no longer ends it");
+  // Covering b3 leaves b2's question owed: move there, not to the closing.
+  const b3Done = [...agreed, covered("b3", 33)];
+  const move = decide(b3Done, 33.1, kitOpts);
+  assert.deepEqual([move?.kind, move?.blockId], ["move_on", "b2"]);
+  // The ceiling: 2 × 30 booked = 60.
+  assert.equal(MUST_ASK_CEILING_FACTOR, 2);
+  assert.equal(endCeilingMin(KIT_AGENDA, state(agreed, 40, kitOpts)), 60);
+  assert.equal(decide(agreed, 59.9, kitOpts), null);
+  assert.equal(decide(agreed, 60, kitOpts)?.kind, "end_now", "past 2× the booking nothing holds the call open");
+  // Everything required covered after agreeing: the ordinary close resumes.
+  assert.equal(decide([...agreed, covered("b2", 34), covered("b3", 36)], 36.1, kitOpts)?.kind, "close_now");
+});
+
+test("endCeilingMin never shrinks below the ordinary grace", () => {
+  const tiny: InterviewAgenda = { ...KIT_AGENDA, durationMin: 1, hardCapMin: 1, closeReserveMin: 0 };
+  const agreed = deriveDirectorState({ agenda: tiny, events: [answered("agreed", 0)], currentAttempt: 1, attemptStartedAtMs: null, nowMs: T0 });
+  assert.equal(endCeilingMin(tiny, agreed), 3, "max(hardCap + grace, 2 × booking)");
+});
+
+test("the state derivation: first request and first valid answer win; junk is ignored", () => {
+  const s = state([askedAt(31), directive("ask_overrun", "b2", 33), answered("maybe", 31.5), answered("agreed", 32), answered("declined", 32.5)], 34, kitOpts);
+  assert.equal(s.overrunRequestedAtMs, T0 + 31 * MIN);
+  assert.equal(s.overrunAnswer, "agreed");
+  const none = state(REACHED_RESERVE, 34, kitOpts);
+  assert.equal(none.overrunRequestedAtMs, null);
+  assert.equal(none.overrunAnswer, null);
+});
+
+function kitTool(name: string, args: unknown, s: DirectorState, callId = `kit-${name}-${JSON.stringify(args)}`) {
+  return applyDirectorTool({ tool: { callId, name, args }, agenda: KIT_AGENDA, state: s, candidateTurnTexts: CANDIDATE_TURNS });
+}
+
+test("report_extra_time records the candidate's answer — only to a question that was actually put", () => {
+  const notAsked = kitTool("report_extra_time", { answer: "agreed" }, state(REACHED_RESERVE, 31, kitOpts));
+  assert.deepEqual(notAsked.events, [], "the model cannot grant itself an extension");
+  assert.match(notAsked.toolResult, /No extra time was requested/);
+
+  const asked = state([...REACHED_RESERVE, askedAt(31)], 31.3, kitOpts);
+  const yes = kitTool("report_extra_time", { answer: "agreed" }, asked);
+  assert.deepEqual(yes.events.map((e) => [e.kind, e.blockId, e.payload.answer, e.payload.remaining]), [["overrun_answered", "b3", "agreed", 3]]);
+  assert.match(yes.toolResult, /Ask the required questions that remain/);
+  assert.equal(yes.endCall, false);
+
+  const no = kitTool("report_extra_time", { answer: "declined" }, asked);
+  assert.equal(no.events[0].payload.answer, "declined");
+  assert.match(no.toolResult, /closing now/);
+  assert.equal(no.endCall, false, "the closing still runs; the director ends it");
+
+  const again = kitTool("report_extra_time", { answer: "declined" }, state([...REACHED_RESERVE, askedAt(31), answered("agreed", 31.2)], 31.5, kitOpts));
+  assert.deepEqual(again.events, [], "the first answer stands");
+  assert.match(again.toolResult, /Already recorded/);
+
+  for (const bad of [{ answer: "maybe" }, {}, null]) {
+    assert.deepEqual(kitTool("report_extra_time", bad, asked), { toolResult: TOOL_RESULT_CONTINUE, events: [], endCall: false }, JSON.stringify(bad));
+  }
+});
+
+test("end_interview(complete) is refused while a must-ask is owed and time remains — past the reserve too", () => {
+  type Row = { name: string; events: DirectorEvent[]; now: number; refused: string | null };
+  const rows: Row[] = [
+    {
+      name: "before the reserve: the ORDINARY refusal and pacing, unchanged",
+      events: ON_SCHEDULE,
+      now: 5,
+      refused: "Not yet — 4 topics remain. Continue with b1 · System design.",
+    },
+    {
+      name: "past the reserve, nothing asked yet: the required questions hold the call",
+      events: REACHED_RESERVE,
+      now: 31.5,
+      refused: "Not yet — 3 required questions remain. Continue with b2 · Debugging.",
+    },
+    {
+      name: "the closing has begun: still refused, one required question left",
+      events: [...REACHED_RESERVE, covered("b3", 30), begun("b6", 32)],
+      now: 33,
+      refused: "Not yet — 1 required question remains. Continue with b2 · Debugging.",
+    },
+    {
+      name: "asked and agreed, inside the 2× ceiling: refused",
+      events: [...REACHED_RESERVE, askedAt(31), answered("agreed", 31.2)],
+      now: 50,
+      refused: "Not yet — 3 required questions remain. Continue with b2 · Debugging.",
+    },
+    { name: "the candidate DECLINED: accepted — their refusal ends the call", events: [...REACHED_RESERVE, askedAt(31), answered("declined", 31.2)], now: 32, refused: null },
+    { name: "past the agreed ceiling: accepted", events: [...REACHED_RESERVE, askedAt(31), answered("agreed", 31.2)], now: 60, refused: null },
+    { name: "asked, never answered, past the ordinary ceiling: accepted", events: [...REACHED_RESERVE, askedAt(31)], now: 38, refused: null },
+    { name: "every required question's block covered, past the reserve: accepted", events: [...REACHED_RESERVE, covered("b2", 20), covered("b3", 30)], now: 31.5, refused: null },
+  ];
+  for (const r of rows) {
+    const s = state(r.events, r.now, kitOpts);
+    const early = prematureCompletion(KIT_AGENDA, s);
+    assert.equal(early?.toolResult ?? null, r.refused, r.name);
+    const out = kitTool("end_interview", { reason: "complete" }, s, `end-${r.name}`);
+    assert.equal(out.endCall, r.refused === null, `${r.name}: endCall`);
+    if (r.refused) assert.deepEqual(out.events.map((e) => [e.kind, e.payload.refused]), [["end_requested", true]], `${r.name}: audited, nothing else`);
+  }
+});
+
+test("an ending call writes one must_ask_unasked row per required question the record cannot show was asked", () => {
+  const declined = state([...REACHED_RESERVE, covered("b3", 30), askedAt(31), answered("declined", 31.2)], 32, kitOpts);
+  for (const reason of ["complete", "candidate_request", "time"]) {
+    const out = kitTool("end_interview", { reason }, declined, `end-${reason}`);
+    assert.equal(out.endCall, true, reason);
+    assert.deepEqual(
+      out.events.map((e) => [e.kind, e.blockId, e.payload.questionId, e.payload.question]),
+      [
+        ["end_requested", null, undefined, undefined],
+        ["must_ask_unasked", "b2", "q-must-1", "MUSTASK-ONE"],
+      ],
+      reason,
+    );
+    assert.equal(out.events[1].payload.endReason, reason, `${reason}: why the call ended rides along`);
+  }
+  // Everything required covered: the end record is exactly the pre-kit one.
+  const allAsked = state([...REACHED_RESERVE, covered("b2", 20), covered("b3", 30)], 31.5, kitOpts);
+  assert.deepEqual(kitTool("end_interview", { reason: "complete" }, allAsked).events.map((e) => e.kind), ["end_requested"]);
+  // The candidate may ALWAYS stop — even with every required question owed and time left.
+  const early = kitTool("end_interview", { reason: "candidate_request" }, state(ON_SCHEDULE, 5, kitOpts), "end-early-stop");
+  assert.equal(early.endCall, true);
+  assert.deepEqual(early.events.filter((e) => e.kind === "must_ask_unasked").map((e) => e.payload.questionId), ["q-must-1", "q-must-2", "q-must-3"]);
 });

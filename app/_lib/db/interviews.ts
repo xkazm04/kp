@@ -373,6 +373,13 @@ export function createInterviewSession(input: {
    *  so the gate and the debit read two different tenants. An entry, when present,
    *  still wins: it is the authoritative tenant for a real candidate. */
   workspaceId?: string | null;
+  /** The job kit VERSION this link is pinned to (interview_kits.id), resolved by the
+   *  mint (interview-invite.ts) from the job's latest PUBLISHED kit. Written once, at
+   *  create, and never moved: a kit edit publishes a new version, and a candidate
+   *  already holding a link must keep facing the questions their round opened with.
+   *  NULL when the job has no kit — every pre-kit path passes nothing and behaves
+   *  exactly as it did. */
+  kitId?: string | null;
 }): InterviewSession {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -393,8 +400,8 @@ export function createInterviewSession(input: {
   }
   db.prepare(
     `INSERT INTO interview_sessions
-       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?, ?)`
+       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at, workspace_id, kit_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     token,
@@ -409,7 +416,8 @@ export function createInterviewSession(input: {
     input.runOfShow && input.runOfShow.length ? JSON.stringify(input.runOfShow) : null,
     input.durationMin ?? null,
     now,
-    workspaceId
+    workspaceId,
+    input.kitId ?? null
   );
   return getInterviewSessionById(id)!;
 }

@@ -17,7 +17,7 @@
 // (ai-interviewer-brief-authoring): every tool is a way to leave a record or ask the
 // producer for direction, never a way to judge the candidate aloud.
 
-/** @typedef {"begin_topic"|"mark_topic_covered"|"report_guardrail"|"forward_question"|"end_interview"} DirectorToolName */
+/** @typedef {"begin_topic"|"mark_topic_covered"|"report_guardrail"|"forward_question"|"report_extra_time"|"end_interview"} DirectorToolName */
 
 /** Every tool the interviewer may call, in the order the brief introduces them. */
 export const DIRECTOR_TOOL_NAMES = /** @type {const} */ ([
@@ -25,8 +25,16 @@ export const DIRECTOR_TOOL_NAMES = /** @type {const} */ ([
   "mark_topic_covered",
   "report_guardrail",
   "forward_question",
+  "report_extra_time",
   "end_interview",
 ]);
+
+/** The candidate's answer to the director's ONE request for extra time (spark
+ *  interview-kit-template). A job kit's must-asks are asked even when the clock has
+ *  run out, but the overrun is ASKED FOR: the interviewer reports what the candidate
+ *  said and the director does the rest. There is deliberately no "no answer" value —
+ *  a missing report IS no agreement, and the director closes the call. */
+export const OVERRUN_ANSWERS = /** @type {const} */ (["agreed", "declined"]);
 
 /** What a candidate may try that the interviewer must decline and record. */
 export const GUARDRAIL_KINDS = /** @type {const} */ ([
@@ -108,6 +116,23 @@ export const DIRECTOR_TOOL_DEFS = [
         question: { type: "string", description: "The candidate's question, in their words." },
       },
       required: ["question"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "report_extra_time",
+    description:
+      "Call ONLY after a producer note has told you to ask the candidate for a few more minutes, and only once they have answered: answer \"agreed\" when they agreed to continue, \"declined\" when they did not. Never ask for extra time on your own initiative, and never call this without their answer.",
+    parameters: {
+      type: "object",
+      properties: {
+        answer: {
+          type: "string",
+          enum: ["agreed", "declined"],
+          description: "agreed: the candidate agreed to a few more minutes. declined: they did not.",
+        },
+      },
+      required: ["answer"],
       additionalProperties: false,
     },
   },

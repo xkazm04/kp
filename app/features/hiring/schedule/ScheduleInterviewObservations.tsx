@@ -43,6 +43,14 @@ const FOCUS_DURING_KEY = {
   idle: "evidence.focusDuringIdle",
 } as const;
 
+/** Why the call ended with a required question owed → its catalog key (the director's
+ *  END_REASONS). Anything else reads as a plain "the call ended". */
+const MUST_ASK_END_KEY = {
+  complete: "evidence.mustAskEndComplete",
+  time: "evidence.mustAskEndTime",
+  candidate_request: "evidence.mustAskEndCandidate",
+} as const;
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-stone-200 pt-2.5 first:border-t-0 first:pt-0">
@@ -75,6 +83,13 @@ export function InterviewObservations({
   const timing = summarizeAnswerTiming(events);
   const guardrails = events.filter((e) => e.kind === "guardrail");
   const questions = events.filter((e) => e.kind === "candidate_question");
+  // One row per question: a resumed call that ended twice names the same question once,
+  // with its LAST recorded ending.
+  const unasked = [
+    ...new Map(
+      events.filter((e) => e.kind === "must_ask_unasked").map((e, i) => [e.unaskedQuestionId ?? `#${i}`, e] as const),
+    ).values(),
+  ];
 
   return (
     <section className={`${PANEL_SUNKEN} p-3`}>
@@ -190,6 +205,31 @@ export function InterviewObservations({
               </>
             )}
           </Row>
+
+          {/* Required questions the call ended without — the job kit's must-asks the
+              record cannot show were asked. A fact about how the INTERVIEW ran, never a
+              finding about the candidate, and the copy says so. Only rendered when there
+              is one: a call with no kit had nothing required, and "none missed" there
+              would claim a check that never ran. */}
+          {unasked.length > 0 ? (
+            <Row label={t("evidence.mustAskHeading")}>
+              <ul className="space-y-1.5">
+                {unasked.map((u, i) => (
+                  <li key={u.unaskedQuestionId ?? `#${i}`}>
+                    {u.unaskedQuestion ? <p>“{u.unaskedQuestion}”</p> : null}
+                    <p className="text-steel">
+                      {blockTitle(u.blockId)}
+                      {" · "}
+                      {u.endReason && u.endReason in MUST_ASK_END_KEY
+                        ? t(MUST_ASK_END_KEY[u.endReason as keyof typeof MUST_ASK_END_KEY])
+                        : t("evidence.mustAskEndOther")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-steel">{t("evidence.mustAskNote")}</p>
+            </Row>
+          ) : null}
         </div>
       )}
     </section>

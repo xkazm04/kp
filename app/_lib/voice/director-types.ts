@@ -21,7 +21,11 @@ import {
   DIRECTOR_TOOL_NAMES,
   END_REASONS,
   GUARDRAIL_KINDS,
+  OVERRUN_ANSWERS,
 } from "./director-tools.mjs";
+// Type-only (erased at build): keeps this module free of runtime imports so the
+// browser transports can keep importing it.
+import type { KitWeight } from "../interview-kit-types";
 
 export {
   DIRECTOR_NOTE_PREFIX,
@@ -30,6 +34,7 @@ export {
   END_REASONS,
   GUARDRAIL_KINDS,
   MAX_EVIDENCE_QUOTE_CHARS,
+  OVERRUN_ANSWERS,
 } from "./director-tools.mjs";
 
 // ---- agenda ---------------------------------------------------------------------
@@ -57,6 +62,25 @@ export type AgendaBlock = {
   scored: boolean;
   /** The questions asked ALOUD in this block (candidate-safe by construction). */
   questions: string[];
+  /** JOB-KIT ONLY (spark interview-kit-template), absent on every other agenda.
+   *  The questions in `questions` the kit marks as REQUIRED, each with the kit
+   *  question id so an overlay and the record can name one and the text so the
+   *  record of an unasked must-ask reads as the question rather than as an opaque
+   *  id. The DIRECTOR reads it: a must-ask is asked even when the clock has run out
+   *  (voice/director.ts — outstandingMustAsks, the overrun request, the refusal of
+   *  a premature `complete`, and the `must_ask_unasked` rows an ended call leaves).
+   *  SERVER-SIDE: toCandidateAgendaView constructs its blocks from four fields and
+   *  cannot carry it; the texts themselves already ride `questions`, which is aloud
+   *  material, but the REQUIRED marker is the recruiter's, not the candidate's. */
+  mustAsks?: { id: string; text: string }[];
+  /** JOB-KIT ONLY. How much of the decision this competency carries (1–3). It
+   *  ORDERS nothing by itself — the kit's own order is the agenda's order — and no
+   *  total is ever computed from it: it is emphasis, rendered in the PRIVATE brief
+   *  so the interviewer knows which block to protect (registry:
+   *  per-question-time-budget-that-tightens — "mark it in the plan so the
+   *  interviewer knows which one to protect"). Never on the candidate view and
+   *  never in the candidate-safe listing. */
+  weight?: KitWeight;
 };
 
 export type InterviewAgenda = {
@@ -83,6 +107,8 @@ export type CandidateAgendaView = {
 export type DirectorToolName = (typeof DIRECTOR_TOOL_NAMES)[number];
 export type GuardrailKind = (typeof GUARDRAIL_KINDS)[number];
 export type EndReason = (typeof END_REASONS)[number];
+/** The candidate's answer to the ONE overrun request, as the interviewer reports it. */
+export type OverrunAnswer = (typeof OVERRUN_ANSWERS)[number];
 
 /** A tool call as the model emits it — arguments keep their snake_case wire names. */
 export type DirectorToolCall =
@@ -90,6 +116,7 @@ export type DirectorToolCall =
   | { name: "mark_topic_covered"; args: { block_id: string; evidence_quote: string } }
   | { name: "report_guardrail"; args: { kind: GuardrailKind; quote: string } }
   | { name: "forward_question"; args: { question: string } }
+  | { name: "report_extra_time"; args: { answer: OverrunAnswer } }
   | { name: "end_interview"; args: { reason: EndReason } };
 
 // ---- the director exchange ---------------------------------------------------------
@@ -132,7 +159,9 @@ export type DirectorRequest = {
   tool: { callId: string; name: string; args: unknown } | null;
 };
 
-export const DIRECTIVE_KINDS = ["stay_narrow", "move_on", "close_now", "end_now", "resume"] as const;
+/** `ask_overrun` (spark interview-kit-template) is the ONE request for extra time a
+ *  kit's must-asks can trigger: the overrun is ASKED FOR, never taken silently. */
+export const DIRECTIVE_KINDS = ["stay_narrow", "move_on", "close_now", "ask_overrun", "end_now", "resume"] as const;
 export type DirectiveKind = (typeof DIRECTIVE_KINDS)[number];
 
 /** A stage direction for the model. `text` is injected verbatim, prefixed with
@@ -150,6 +179,27 @@ export type DirectorAgendaState = {
   coveredBlockIds: string[];
 };
 
+/** The director's clock as of this answer, for the browser's FALLBACK hard stop — the
+ *  one rule that must still end the call if the director becomes unreachable. The
+ *  connect-time arming only knows the agenda's `hardCapMin`; this is how it learns that
+ *  the end limit MOVED (spark interview-kit-template: a candidate who agreed to finish a
+ *  job kit's required questions bought time up to 2× the booking, and a browser still
+ *  armed at hardCap + 2 would hang up on them).
+ *
+ *  Both values are LIVE time on the server clock (voice/director.ts deriveDirectorState:
+ *  every attempt summed, the gaps between dropped attempts excluded), so the browser
+ *  never has to reconcile its own clock with the server's — it only needs "how much
+ *  live time is left", which is `endLimitMs − elapsedMs`. */
+export type DirectorClock = {
+  /** Live milliseconds of the call so far, every attempt included. */
+  elapsedMs: number;
+  /** The live-time point, in milliseconds, at which the director ends the call
+   *  (voice/director.ts endCeilingMin): (hardCap + 2 min) normally, and 2× the booked
+   *  length once the candidate AGREED to the must-ask overrun — never more, because
+   *  2× booked is what the mint reserved and what the meter can bill. */
+  endLimitMs: number;
+};
+
 export type DirectorResponse = {
   ok: true;
   /** Highest turn seq persisted for this attempt — the browser resends anything above. */
@@ -160,6 +210,9 @@ export type DirectorResponse = {
   agenda: DirectorAgendaState;
   /** The browser must end the call once the interviewer's current utterance finishes. */
   endCall: boolean;
+  /** The director's clock (see DirectorClock), or null for a call with no agenda —
+   *  an undirected call has no end limit to report and no fallback stop to move. */
+  clock: DirectorClock | null;
 };
 
 // ---- resume ------------------------------------------------------------------------
@@ -222,5 +275,13 @@ export const INTERVIEW_EVENT_KINDS = [
   "resumed",
   "recording_started",
   "recording_deleted",
+  /** The candidate's answer to the overrun request (`payload.answer`: agreed |
+   *  declined). Its absence after an `ask_overrun` directive means no answer ever
+   *  reached the director — which closes the call exactly like a refusal. */
+  "overrun_answered",
+  /** A kit must-ask the record cannot show was asked, written once per outstanding
+   *  question when the call ends (`payload.questionId`, `payload.question`). The
+   *  recruiter's answer to "which required question went unasked". */
+  "must_ask_unasked",
 ] as const;
 export type InterviewEventKind = (typeof INTERVIEW_EVENT_KINDS)[number];

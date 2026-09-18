@@ -21,7 +21,12 @@
 //  3. THE HARD STOP DOES NOT NEED THE SERVER. hardCap + 2 min of live time (resumed
 //     attempts included) ends the call from the browser even if the director has been
 //     unreachable the whole time — the one thing that must not depend on the channel
-//     that may be down.
+//     that may be down. That connect-time arming is the FLOOR: every director response
+//     carries its clock, and the stop is re-armed LATER when the end limit moved (a
+//     candidate who agreed to finish a job kit's required questions bought time up to
+//     2× the booking) — never earlier (call-observations.ts extendedHardStopDeadline).
+//     The re-arm cancels exactly the one stop timer it replaces through the registry's
+//     per-timer cancel; `clearAll` is the unmount teardown and is never used mid-call.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -33,14 +38,14 @@ import type {
   DirectorTurn,
   ResumeContext,
 } from "@/app/_lib/voice/director-types";
-import { endHandshakeDone, hardStopDelayMs } from "./call-observations";
+import { asDirectorClock, endHandshakeDone, extendedHardStopDeadline, hardStopDelayMs } from "./call-observations";
 import {
   TOOL_RESULT_FALLBACK,
   createDirectorChannel,
   type DirectorChannel,
   type DirectorToolCall,
 } from "./director-channel";
-import type { TimerRegistry } from "./timer-registry";
+import type { TimerCancel, TimerRegistry } from "./timer-registry";
 
 /** How often the browser posts with nothing queued. The clock-driven directives
  *  (`close_now`, `end_now`) and `endCall` only reach the browser in a response, so
@@ -127,6 +132,7 @@ function asDirectorResponse(body: unknown): DirectorResponse | null {
         : [],
     },
     endCall: b.endCall === true,
+    clock: asDirectorClock(b.clock),
   };
 }
 
@@ -144,6 +150,9 @@ export function useDirector({
 
   const channelRef = useRef<DirectorChannel | null>(null);
   const endingRef = useRef(false);
+  // The ONE fallback hard stop: its wall-clock deadline and the cancel for exactly that
+  // timer, so a re-arm replaces it without touching any other timer the call holds.
+  const hardStopRef = useRef<{ atMs: number | null; cancel: TimerCancel | null }>({ atMs: null, cancel: null });
   // Latest callbacks, so the channel built once in `begin` never closes over a
   // stale transport (the ElevenLabs conversation object is rebuilt every render).
   const injectRef = useRef(injectDirective);
@@ -184,6 +193,20 @@ export function useDirector({
     };
     timers.current.set(poll, END_POLL_MS);
   }, [timers]);
+
+  /** (Re-)arm the fallback hard stop at a wall-clock deadline, retiring the previous
+   *  one through its own cancel. */
+  const armHardStop = useCallback(
+    (atMs: number) => {
+      hardStopRef.current.cancel?.();
+      const cancel = timers.current.set(() => {
+        console.warn("[voice] director: client hard stop reached — ending the call.");
+        endAfterUtterance();
+      }, Math.max(0, atMs - Date.now()));
+      hardStopRef.current = { atMs, cancel };
+    },
+    [endAfterUtterance, timers],
+  );
 
   const stop = useCallback(() => {
     channelRef.current?.close();
@@ -243,23 +266,30 @@ export function useDirector({
           // which the brief never described.
           if (res.directive) injectRef.current(res.directive.text);
           if (res.endCall) endAfterUtterance();
+          // The end limit may have MOVED (an agreed must-ask overrun): extend the
+          // fallback stop to it. Only ever later — the connect-time arming is the floor.
+          const extended = extendedHardStopDeadline({
+            armedAtMs: hardStopRef.current.atMs,
+            clock: res.clock,
+            nowMs: Date.now(),
+            agenda,
+          });
+          if (extended !== null) armHardStop(extended);
         },
       });
       setLive(true);
 
-      // The one rule that must survive the director being unreachable.
+      // The one rule that must survive the director being unreachable. A re-begin (a
+      // reconnect) retires the previous attempt's stop rather than leaving two armed.
+      hardStopRef.current.cancel?.();
+      hardStopRef.current = { atMs: null, cancel: null };
       const delay = hardStopDelayMs({
         hardCapMin: agenda?.hardCapMin ?? null,
         priorElapsedSec: session.resume?.elapsedSec ?? 0,
       });
-      if (delay !== null) {
-        timers.current.set(() => {
-          console.warn("[voice] director: client hard stop reached — ending the call.");
-          endAfterUtterance();
-        }, delay);
-      }
+      if (delay !== null) armHardStop(Date.now() + delay);
     },
-    [endAfterUtterance, timers],
+    [armHardStop, endAfterUtterance],
   );
 
   // The keep-alive. Every tick is also how `close_now` / `end_now` / endCall reach a

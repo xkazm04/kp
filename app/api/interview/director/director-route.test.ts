@@ -69,6 +69,7 @@ type Body = {
   directive: { id: string; kind: string; blockId: string | null; text: string } | null;
   agenda: { activeBlockId: string | null; coveredBlockIds: string[] };
   endCall: boolean;
+  clock: { elapsedMs: number; endLimitMs: number } | null;
   code?: string;
   error?: string;
 };
@@ -193,6 +194,7 @@ test("a session with no agenda is recorded but never directed", async () => {
   const res = (await (await exchange(s, { turns: [{ seq: 1, role: "candidate", text: "hello there" }] })).json()) as Body;
   assert.equal(res.directive, null);
   assert.equal(res.endCall, false, "no agenda, no clock");
+  assert.equal(res.clock, null, "…and no end limit for the browser to re-arm to");
   assert.equal(res.ackSeq, 1);
 });
 
@@ -202,8 +204,11 @@ test("the response is a projection: nothing private reaches the candidate's brow
   const res = await exchange(s, { turns: TURNS, tool: { callId: "p1", name: "forward_question", args: { question: "Is it remote?" } } });
   const raw = await res.text();
   const body = JSON.parse(raw) as Body;
-  assert.deepEqual(Object.keys(body).sort(), ["ackSeq", "agenda", "directive", "endCall", "ok", "toolResult"]);
+  assert.deepEqual(Object.keys(body).sort(), ["ackSeq", "agenda", "clock", "directive", "endCall", "ok", "toolResult"]);
   assert.deepEqual(Object.keys(body.agenda).sort(), ["activeBlockId", "coveredBlockIds"]);
+  // The clock is two numbers and nothing else — no agenda content rides it.
+  assert.deepEqual(Object.keys(body.clock ?? {}).sort(), ["elapsedMs", "endLimitMs"]);
+  assert.equal(body.clock?.endLimitMs, (36 + 2) * 60_000, "hardCap + 2 while nobody agreed to more");
   assert.ok(body.directive, "fixture: a directive rides this response");
   for (const marker of ["PRIVATE", "never say this aloud", "red flag", "competency", "architecture", "How are you?", s.workspaceId]) {
     assert.ok(!raw.includes(marker), `“${marker}” must never reach the candidate's browser`);
@@ -292,6 +297,69 @@ test("liveness reads the later of connect and activity, and only for in_progress
   assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(45), lastActivityAt: iso(31) }), false);
   assert.equal(isInterviewSessionLive({ ...base, updatedAt: iso(45), lastActivityAt: "not a date" }), false);
   assert.equal(isInterviewSessionLive({ ...base, status: "failed", updatedAt: iso(1), lastActivityAt: iso(1) }), false);
+});
+
+// ---- a job kit's must-asks through the real exchange (spark interview-kit-template) ----
+
+const KIT_AGENDA: InterviewAgenda = {
+  ...AGENDA,
+  blocks: AGENDA.blocks.map((b) => (b.id === "b2" ? { ...b, mustAsks: [{ id: "q-must", text: "PRIVATE-MUSTASK" }] } : b)),
+};
+
+function backdate(s: { id: string; workspaceId: string }, minutesAgo: number, kind: "topic_begun" | "directive" | "overrun_answered", payload: Record<string, unknown> = {}) {
+  appendInterviewEvents(
+    [{ sessionId: s.id, attempt: 1, kind, blockId: "b2", payload }],
+    s.workspaceId,
+    new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+  );
+}
+
+test("kit must-asks: the overrun is asked at the reserve, reported by tool, and only agreement outlasts the hard stop", async () => {
+  // At the close reserve (31 of 30 booked / 36 cap / 5 reserve) with the required question owed.
+  const atReserve = liveSession({ agenda: KIT_AGENDA });
+  backdate(atReserve, 31.5, "topic_begun");
+  const asked = (await (await exchange(atReserve)).json()) as Body;
+  assert.equal(asked.directive?.kind, "ask_overrun");
+  assert.match(asked.directive!.text, /1 required question/);
+  assert.doesNotMatch(JSON.stringify(asked), /PRIVATE-MUSTASK/, "the question text never reaches the browser");
+
+  // The interviewer reports the answer through the tool; the record keeps it.
+  const reported = (await (
+    await exchange(atReserve, { tool: { callId: "x1", name: "report_extra_time", args: { answer: "agreed" } } })
+  ).json()) as Body;
+  assert.match(reported.toolResult!, /Ask the required questions that remain/);
+  assert.equal(listInterviewEvents(atReserve.id, atReserve.workspaceId, { kinds: ["overrun_answered"] })[0]?.payload.answer, "agreed");
+
+  // 40 minutes in — past hardCap + 2 = 38 — the ordinary stop holds a call nobody agreed to extend…
+  const silent = liveSession({ agenda: KIT_AGENDA });
+  backdate(silent, 40, "topic_begun");
+  backdate(silent, 9, "directive", { kind: "ask_overrun" });
+  const stopped = (await (await exchange(silent)).json()) as Body;
+  assert.equal(stopped.endCall, true);
+  assert.equal(stopped.clock?.endLimitMs, 38 * 60_000, "no agreement: the limit the browser was armed at stands");
+
+  // …but not one the candidate agreed to: it runs on toward 2 × 30 = 60.
+  const agreed = liveSession({ agenda: KIT_AGENDA });
+  backdate(agreed, 40, "topic_begun");
+  backdate(agreed, 9, "directive", { kind: "ask_overrun" });
+  backdate(agreed, 8.5, "overrun_answered", { answer: "agreed" });
+  const running = (await (await exchange(agreed)).json()) as Body;
+  assert.equal(running.endCall, false);
+  assert.notEqual(running.directive?.kind, "end_now");
+  assert.equal(running.clock?.endLimitMs, 60 * 60_000, "the browser learns the moved limit and re-arms its fallback stop");
+  assert.ok((running.clock?.elapsedMs ?? 0) >= 40 * 60_000 - 5_000);
+
+  // Past the absolute ceiling nothing holds it.
+  const over = liveSession({ agenda: KIT_AGENDA });
+  backdate(over, 61, "topic_begun");
+  backdate(over, 30, "directive", { kind: "ask_overrun" });
+  backdate(over, 29.5, "overrun_answered", { answer: "agreed" });
+  assert.equal(((await (await exchange(over)).json()) as Body).endCall, true);
+
+  // Ending records which required question went unasked.
+  await exchange(silent, { tool: { callId: "x2", name: "end_interview", args: { reason: "time" } } });
+  const unasked = listInterviewEvents(silent.id, silent.workspaceId, { kinds: ["must_ask_unasked"] });
+  assert.deepEqual(unasked.map((e) => [e.blockId, e.payload.questionId, e.payload.question]), [["b2", "q-must", "PRIVATE-MUSTASK"]]);
 });
 
 // LAST in the file: it drops the table out from under the store.

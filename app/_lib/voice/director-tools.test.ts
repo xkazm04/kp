@@ -10,6 +10,7 @@ import {
   DIRECTOR_TOOL_NAMES,
   END_REASONS,
   GUARDRAIL_KINDS,
+  OVERRUN_ANSWERS,
 } from "./director-tools.mjs";
 
 test("every tool name has exactly one definition, in the same order", () => {
@@ -34,6 +35,7 @@ test("the enum-bearing arguments use the exported vocabularies", () => {
   const byName = Object.fromEntries(DIRECTOR_TOOL_DEFS.map((d) => [d.name, d]));
   assert.deepEqual(byName.report_guardrail.parameters.properties.kind.enum, [...GUARDRAIL_KINDS]);
   assert.deepEqual(byName.end_interview.parameters.properties.reason.enum, [...END_REASONS]);
+  assert.deepEqual(byName.report_extra_time.parameters.properties.answer.enum, [...OVERRUN_ANSWERS]);
 });
 
 test("the stage-direction prefix is a bracketed tag the brief can name", () => {

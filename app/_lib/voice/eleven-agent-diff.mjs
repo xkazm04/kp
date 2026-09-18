@@ -22,7 +22,7 @@
 // .prompt.tools` was deprecated in July 2025 and requests carrying it are rejected.
 // A tool is now a WORKSPACE resource — POST /v1/convai/tools with a `tool_config` —
 // and the agent references it by id in `conversation_config.agent.prompt.tool_ids`.
-// So the deploy creates (or reuses) five client tools and lists their ids, and
+// So the deploy creates (or reuses) one client tool per DIRECTOR_TOOL_DEFS entry and lists their ids, and
 // --check follows those ids back to each tool's config and diffs it here.
 //
 // A client tool's parameter properties must each carry exactly one of description /

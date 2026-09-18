@@ -21,7 +21,7 @@ import type { DirectorRequest, DirectorResponse } from "@/app/_lib/voice/directo
 const AT = "2026-09-18T10:00:00.000Z";
 
 function ok(over: Partial<DirectorResponse> = {}): DirectorResponse {
-  return { ok: true, ackSeq: -1, toolResult: null, directive: null, agenda: { activeBlockId: null, coveredBlockIds: [] }, endCall: false, ...over };
+  return { ok: true, ackSeq: -1, toolResult: null, directive: null, agenda: { activeBlockId: null, coveredBlockIds: [] }, endCall: false, clock: null, ...over };
 }
 
 /** A recording transport. `answer` decides each exchange's reply; null = unreachable. */

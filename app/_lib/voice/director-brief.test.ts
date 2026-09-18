@@ -16,6 +16,7 @@ import {
   leadershipFrame,
   MAX_ROLE_FACTS_POSTING_CHARS,
   privateAgendaListing,
+  privateDirectedBrief,
   RESUME_TURN_MAX_CHARS,
   resumeAddendum,
   resumeBlock,
@@ -111,6 +112,50 @@ test("resume addendum: continue at the active block, list what is covered, quote
   assert.doesNotMatch(a, /\[Director\] move on/, "a stage direction is never quoted");
   assert.ok(a.includes(`${"x".repeat(RESUME_TURN_MAX_CHARS)}…`), "a long turn is capped");
   assert.doesNotMatch(a, /missing must-have/, "the addendum names blocks by title, never by competency");
+});
+
+// ---- the job kit (spark interview-kit-template) ------------------------------------------
+
+const KIT_BRIEF_AGENDA: InterviewAgenda = {
+  ...AGENDA,
+  blocks: AGENDA.blocks.map((b) =>
+    b.id === "b1"
+      ? {
+          ...b,
+          questions: ["How do you decide what to automate first?", "What does a healthy suite look like?"],
+          mustAsks: [{ id: "q-first", text: "How do you decide what to automate first?" }],
+          weight: 3 as const,
+        }
+      : b,
+  ),
+};
+const FAQ = [
+  { question: "Is the team hybrid?", answer: "Two days in the office." },
+  { question: "   ", answer: "an entry with no question never rides" },
+];
+
+test("private listing states the must-asks as un-skippable and marks the heaviest weight; the candidate listing carries neither", () => {
+  const priv = privateAgendaListing(KIT_BRIEF_AGENDA, {});
+  assert.match(priv, /b1 · Test automation fundamentals \(8 min\) — .*Required, never skipped even if you are over time: “How do you decide what to automate first\?”\./);
+  assert.match(priv, /This competency carries the most of the decision — protect its time\./);
+  assert.doesNotMatch(priv, /Ask: “How do you decide what to automate first\?”/, "the required question is not listed twice");
+  const cand = candidateAgendaListing(KIT_BRIEF_AGENDA);
+  assert.ok(cand.includes("“How do you decide what to automate first?”"), "the question itself is aloud material");
+  assert.doesNotMatch(cand, /Required|never skipped|protect its time|carries the most/);
+  // A weight of 1 or 2 adds nothing: only the block to PROTECT is marked.
+  const light = privateAgendaListing({ ...KIT_BRIEF_AGENDA, blocks: KIT_BRIEF_AGENDA.blocks.map((b) => ({ ...b, weight: 1 as const })) }, {});
+  assert.doesNotMatch(light, /protect its time|weight/i);
+});
+
+test("the kit FAQ rides ROLE FACTS, after the public facts, whenever a caller passes it", () => {
+  const withFaq = directorProtocol(FACTS, FAQ);
+  assert.match(withFaq, /The recruiter also answered these, and you may answer them the same way: “Is the team hybrid\?” — Two days in the office\./);
+  assert.doesNotMatch(withFaq, /never rides/, "an entry without a question is dropped");
+  assert.ok(withFaq.indexOf("Published posting") < withFaq.indexOf("The recruiter also answered"), "after the public facts");
+  assert.doesNotMatch(directorProtocol(FACTS), /recruiter also answered|hybrid\?/, "no FAQ argument, no FAQ");
+  assert.match(directorProtocol(null, FAQ), /none are available for this call.*Is the team hybrid\?/, "still reachable with no job facts");
+  assert.match(privateDirectedBrief(KIT_BRIEF_AGENDA, {}, FACTS, FAQ).protocol, /Is the team hybrid\?/);
+  assert.doesNotMatch(privateDirectedBrief(KIT_BRIEF_AGENDA, {}, FACTS).protocol, /Is the team hybrid\?/);
 });
 
 test("resumeBlock: a covered active block moves on to the first uncovered one", () => {

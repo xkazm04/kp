@@ -21,8 +21,8 @@
 // are all inert until a deploy and drift silently thereafter. --check GETs the
 // current agent (ELEVENLABS_AGENT_ID, from the env or .env.local) and diffs it
 // field-by-field against this script's intended PROMPT, ASR_KEYWORDS and
-// override flags — and follows the agent's tool_ids to the five interview-director
-// CLIENT tools, diffing each tool's config. It creates NOTHING and exits 0 on match,
+// override flags — and follows the agent's tool_ids to the interview-director
+// CLIENT tools (one per DIRECTOR_TOOL_DEFS entry), diffing each tool's config. It creates NOTHING and exits 0 on match,
 // 1 on drift, 2 when it cannot verify (no key / no agent id / the API would not
 // return the config).
 //

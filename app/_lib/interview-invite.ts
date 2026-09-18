@@ -24,6 +24,7 @@ import {
   type InterviewSession,
 } from "@/app/_lib/db/interviews";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { latestPublishedKit } from "@/app/_lib/interview-kit";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
@@ -116,6 +117,24 @@ export async function mintAndInviteVoiceScreen(input: VoiceScreenMintInput): Pro
   // one link is live per entry.
   const revoked = revokeOpenInterviewSessions(entryId, workspaceId);
 
+  // PIN THE KIT AT MINT (spark interview-kit-template). The link carries the job kit
+  // VERSION that was published when it was created, so an edit landing mid-round
+  // cannot change what a candidate already holding a link is asked and the round's
+  // ratings stay comparable. Resolved here rather than at connect for exactly that
+  // reason: connect runs when the candidate clicks, which may be days later.
+  // Best-effort — a job with no kit, or a kit that cannot be read, mints the link the
+  // way it always did rather than failing the invite.
+  let kitId: string | null = null;
+  if (grounded.jobId) {
+    try {
+      kitId = latestPublishedKit(grounded.jobId, workspaceId)?.id ?? null;
+    } catch (kitErr) {
+      // Not silent: the round loses its shared spine and the recruiter would want to
+      // know, but a candidate must still get their link.
+      console.error(`[interview:mint] interview kit unreadable for job ${grounded.jobId}:`, kitErr);
+    }
+  }
+
   const session = createInterviewSession({
     provider,
     mode: "candidate",
@@ -131,6 +150,7 @@ export async function mintAndInviteVoiceScreen(input: VoiceScreenMintInput): Pro
     // inside the store; stating the caller's team too keeps the gate above and the
     // row below reading the same tenant on any path that loses the entry.
     workspaceId,
+    kitId,
   });
 
   // Deliver the link TO the candidate (the screen is candidate-mode — they take the

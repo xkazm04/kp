@@ -13,7 +13,11 @@
 //   - the block may then overrun by up to half its budget, bounded by the slack the
 //     rest of the agenda leaves under the hard cap — after that, move on;
 //   - once the clock reaches the close reserve, skip to the candidate's questions and
-//     the closing; two minutes past the hard cap, end.
+//     the closing; two minutes past the hard cap, end;
+//   - EXCEPT that a job kit's must-asks outlive the clock: at the close reserve with a
+//     required question outstanding the director asks the CANDIDATE for a few more
+//     minutes (once), agreement buys time up to 2× the booking, and a refusal — or no
+//     answer — closes the call with the unasked questions written to the record.
 //
 // (registry: interview-run-of-show — per-question-time-budget-that-tightens,
 // slack-absorbing-open-block, fixed-opening-and-closing-blocks.)
@@ -34,6 +38,7 @@ import {
   END_REASONS,
   GUARDRAIL_KINDS,
   MAX_EVIDENCE_QUOTE_CHARS,
+  OVERRUN_ANSWERS,
   type AgendaBlock,
   type AgendaBlockKind,
   type Directive,
@@ -41,6 +46,7 @@ import {
   type DirectorAgendaState,
   type InterviewAgenda,
   type InterviewEventKind,
+  type OverrunAnswer,
 } from "./director-types";
 import { matchQuoteToTurn, normalizeQuoteText, type QuoteMatchOptions } from "../quote-match";
 
@@ -57,6 +63,19 @@ export const MAX_FORWARDED_QUESTION_CHARS = 500;
 /** A covered-topic quote must carry at least this many words — "yes" is provenance,
  *  not evidence. */
 export const MIN_EVIDENCE_QUOTE_WORDS = 3;
+
+/** THE ABSOLUTE CEILING for a call the candidate agreed to extend, as a multiple of
+ *  the BOOKED length. 2× is not a taste: `maxBillableInterviewMin(booked) = booked*2`
+ *  (billing/enforce.ts) is the worst case the mint already reserved against and the
+ *  exact ceiling the minutes debit clamps to, so a call may not be allowed to run
+ *  past what the meter can bill. */
+export const MUST_ASK_CEILING_FACTOR = 2;
+/** How long the director waits for the candidate's answer to the overrun request
+ *  before treating the silence as no agreement and closing the call. The same minute
+ *  a just-sent stay_narrow gets before its topic is cut — long enough for the
+ *  question to be asked and answered, short enough that a model that never reports
+ *  the answer does not strand the closing. */
+export const OVERRUN_ANSWER_GRACE_MS = 60_000;
 
 const MINUTE_MS = 60_000;
 
@@ -130,6 +149,13 @@ export type DirectorState = {
   hasPriorAttemptEvents: boolean;
   /** The model called end_interview during the current attempt. */
   endRequested: boolean;
+  /** Server time of the ONE `ask_overrun` directive, or null when the director has
+   *  not asked the candidate for extra time. Session-wide, not per attempt: the
+   *  candidate is asked once, not once per reconnect. */
+  overrunRequestedAtMs: number | null;
+  /** What the interviewer reported the candidate answered, or null when nothing has
+   *  been reported yet. Null is NOT agreement (see OVERRUN_ANSWER_GRACE_MS). */
+  overrunAnswer: OverrunAnswer | null;
   /** callId → the tool result already returned for it (a retried POST replays it). */
   toolResultsByCallId: Record<string, string>;
 };
@@ -206,6 +232,8 @@ export function deriveDirectorState(input: DirectorStateInput): DirectorState {
   let resumeSentThisAttempt = false;
   let hasPriorAttemptEvents = false;
   let endRequested = false;
+  let overrunRequestedAtMs: number | null = null;
+  let overrunAnswer: OverrunAnswer | null = null;
 
   const closeActive = (at: number) => {
     if (active !== null) spent[active] = (spent[active] ?? 0) + Math.max(0, at - activeSince);
@@ -245,6 +273,16 @@ export function deriveDirectorState(input: DirectorStateInput): DirectorState {
         if (Number.isFinite(t)) lastDirectiveMs[key] = Math.max(lastDirectiveMs[key] ?? -Infinity, t);
         if (kind === "stay_narrow" && e.blockId) stayNarrow.add(e.blockId);
         if (kind === "resume" && e.attempt === currentAttempt) resumeSentThisAttempt = true;
+        // Session-wide and FIRST-wins: the candidate is asked for extra time once.
+        if (kind === "ask_overrun" && Number.isFinite(t) && overrunRequestedAtMs === null) overrunRequestedAtMs = t;
+        break;
+      }
+      case "overrun_answered": {
+        const answer = typeof e.payload?.answer === "string" ? e.payload.answer : "";
+        // First answer wins: the candidate answered the one question they were asked.
+        if (overrunAnswer === null && (OVERRUN_ANSWERS as readonly string[]).includes(answer)) {
+          overrunAnswer = answer as OverrunAnswer;
+        }
         break;
       }
       case "end_requested": {
@@ -271,6 +309,8 @@ export function deriveDirectorState(input: DirectorStateInput): DirectorState {
     resumeSentThisAttempt,
     hasPriorAttemptEvents,
     endRequested,
+    overrunRequestedAtMs,
+    overrunAnswer,
     toolResultsByCallId,
   };
 }
@@ -310,14 +350,78 @@ export function nextAgendaBlock(agenda: InterviewAgenda, state: DirectorState, f
   return agenda.blocks.slice(from + 1).find(eligible) ?? agenda.blocks.find(eligible) ?? null;
 }
 
+// ---- must-asks (spark interview-kit-template) ------------------------------------------
+//
+// A job kit marks some of its questions REQUIRED. The rule the operator chose is that a
+// must-ask is asked even when the clock has run out — but the overrun is ASKED FOR,
+// never taken silently: at the close reserve, with a must-ask outstanding, the director
+// sends ONE `ask_overrun` stage direction; the interviewer says it is at time, names how
+// many required questions remain and asks the candidate to agree to a few more minutes;
+// and the answer comes back through `report_extra_time`. Agreement raises the end ceiling
+// to MUST_ASK_CEILING_FACTOR × the booking. A refusal — or no answer at all — closes the
+// call, and every still-outstanding must-ask is written to the record as `must_ask_unasked`
+// so the recruiter learns which required question went unasked.
+
+/** One outstanding must-ask: its block, the kit question id and the question itself. */
+export type OutstandingMustAsk = { blockId: string; id: string; text: string };
+
+/**
+ * The must-asks the record cannot show were asked: every must-ask question of every
+ * block that is NOT covered.
+ *
+ * DELIBERATELY BLOCK-GRAINED. `mark_topic_covered` is the only per-block evidence the
+ * protocol collects, and there is no per-question one — so "covered" is read as "this
+ * block happened", and an uncovered block's required questions are reported as unasked.
+ * That errs toward telling the recruiter a required question may have been missed, which
+ * is the safe direction: the opposite reading (assume it was asked) would be a claim the
+ * record does not hold.
+ */
+export function outstandingMustAsks(agenda: InterviewAgenda | null, state: DirectorState): OutstandingMustAsk[] {
+  if (!agenda || !Array.isArray(agenda.blocks)) return [];
+  const covered = new Set(state.coveredBlockIds);
+  const out: OutstandingMustAsk[] = [];
+  for (const b of agenda.blocks) {
+    if (!b || covered.has(b.id) || !Array.isArray(b.mustAsks)) continue;
+    for (const m of b.mustAsks) {
+      if (m && typeof m.id === "string" && typeof m.text === "string") out.push({ blockId: b.id, id: m.id, text: m.text });
+    }
+  }
+  return out;
+}
+
+/** The minute past which the director ends the call, whatever else is true: the hard cap
+ *  plus the grace, raised to the absolute ceiling only once the candidate has AGREED to
+ *  the overrun (and never lowered — `Math.max`, so a short booking keeps its grace). */
+export function endCeilingMin(agenda: InterviewAgenda, state: DirectorState): number {
+  const base = agenda.hardCapMin + END_GRACE_MIN;
+  if (state.overrunAnswer !== "agreed") return base;
+  return Math.max(base, Math.round(agenda.durationMin * MUST_ASK_CEILING_FACTOR));
+}
+
 function label(b: AgendaBlock): string {
   const title = String(b.title ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
   return title ? `${b.id} (“${title}”)` : b.id;
 }
 
-function directiveText(kind: DirectiveKind, block: AgendaBlock | null, from: AgendaBlock | null): string {
+function directiveText(kind: DirectiveKind, block: AgendaBlock | null, from: AgendaBlock | null, count = 0): string {
   const body = (() => {
     switch (kind) {
+      case "ask_overrun": {
+        // The one meta move the must-ask rule cannot avoid (registry:
+        // rule-ordering-adjacency-and-form — a turn that must BEGIN with something
+        // other than the interview's substance costs consistency). It is paid ONCE,
+        // as an injected stage direction rather than a standing brief rule, so the
+        // brief's length discipline and every other turn are untouched. No sample
+        // wording is given: a worked example here would plant the token the
+        // language lock then has to fight.
+        const n = Math.max(1, count);
+        const required = `${n} required question${n === 1 ? "" : "s"}`;
+        return (
+          `The interview has reached its time limit and ${required} from the recruiter's kit ${n === 1 ? "has" : "have"} not been asked. ` +
+          `Tell the candidate you are at time, say that ${required} remain, and ask whether they can give you a few more minutes. ` +
+          `Call report_extra_time with their answer. If they decline, move to their questions and your closing.`
+        );
+      }
       case "stay_narrow":
         return `Block ${label(block!)} has used its time without a concrete example. Ask one narrower question for a concrete instance from the candidate's own experience.`;
       case "move_on":
@@ -348,8 +452,8 @@ export type DecideDirectiveInput = {
 
 /**
  * At most ONE stage direction for the model, or null. Priority, highest first:
- * end_now › close_now › resume › stay_narrow / move_on for the active block. When the
- * highest-priority candidate was already sent for the same block inside
+ * end_now › ask_overrun › close_now › resume › stay_narrow / move_on for the active
+ * block. When the highest-priority candidate was already sent for the same block inside
  * DIRECTIVE_DEDUPE_MS, nothing is sent (a lower-priority one would contradict it).
  */
 export function decideDirective({ agenda, state, currentAttempt, nowMs }: DecideDirectiveInput): Directive | null {
@@ -362,27 +466,52 @@ export function decideDirective({ agenda, state, currentAttempt, nowMs }: Decide
     id: `dir-${currentAttempt}-${Math.max(0, Math.trunc(nowMs)).toString(36)}-${candidate.kind}`,
     kind: candidate.kind,
     blockId: candidate.block?.id ?? null,
-    text: directiveText(candidate.kind, candidate.block, candidate.from ?? null),
+    text: directiveText(candidate.kind, candidate.block, candidate.from ?? null, candidate.count ?? 0),
   };
 }
 
-type Candidate = { kind: DirectiveKind; block: AgendaBlock | null; from?: AgendaBlock | null };
+type Candidate = { kind: DirectiveKind; block: AgendaBlock | null; from?: AgendaBlock | null; count?: number };
 
 function pickDirective(agenda: InterviewAgenda, state: DirectorState, currentAttempt: number, nowMs: number): Candidate | null {
   const blocks = blockIndex(agenda);
   const elapsed = state.elapsedMs;
 
-  // 1. Past the hard cap by the grace: end.
-  if (elapsed >= (agenda.hardCapMin + END_GRACE_MIN) * MINUTE_MS) return { kind: "end_now", block: null };
+  // 1. Past the end ceiling: end. The ceiling is the hard cap plus the grace, or the
+  //    absolute 2× booking once the CANDIDATE agreed to the overrun — never longer.
+  if (elapsed >= endCeilingMin(agenda, state) * MINUTE_MS) return { kind: "end_now", block: null };
 
-  // 2. The clock reached the close reserve and the closing has not started: skip to it.
+  // 2. The clock reached the close reserve.
   const active = state.activeBlockId ? (blocks.get(state.activeBlockId) ?? null) : null;
   const closingStarted =
     (active !== null && CLOSING_KINDS.has(active.kind)) ||
     state.begunBlockIds.some((id) => CLOSING_KINDS.has(blocks.get(id)?.kind as AgendaBlockKind));
-  if (elapsed >= (agenda.hardCapMin - agenda.closeReserveMin) * MINUTE_MS && !closingStarted) {
-    const closing = agenda.blocks.find((b) => CLOSING_KINDS.has(b.kind) && !state.coveredBlockIds.includes(b.id)) ?? null;
-    return { kind: "close_now", block: closing };
+  if (elapsed >= (agenda.hardCapMin - agenda.closeReserveMin) * MINUTE_MS) {
+    // 2a. A kit must-ask still outstanding: the overrun protocol comes first — ahead of
+    //     skipping to the closing, and whether or not the model already wandered into
+    //     it, because the rule is about the CLOCK. Asked ONCE per session; a call that
+    //     reconnects is not asked again.
+    const pending = outstandingMustAsks(agenda, state);
+    if (pending.length > 0) {
+      if (state.overrunRequestedAtMs === null) {
+        return { kind: "ask_overrun", block: blocks.get(pending[0].blockId) ?? null, count: pending.length };
+      }
+      if (state.overrunAnswer === "agreed") {
+        // The candidate bought the time: spend it on the required questions and on
+        // nothing else. Already inside one of them → say nothing and let it run to
+        // the ceiling; anywhere else → move to the first one still owed.
+        if (active && pending.some((m) => m.blockId === active.id)) return null;
+        const target = blocks.get(pending[0].blockId) ?? null;
+        return target ? { kind: "move_on", block: target, from: active } : null;
+      }
+      // Asked, not yet answered: give the question its minute before closing. Past
+      // that, silence is no agreement and the call closes exactly like a refusal.
+      if (state.overrunAnswer === null && nowMs - state.overrunRequestedAtMs < OVERRUN_ANSWER_GRACE_MS) return null;
+    }
+    // 2b. …and the closing has not started: skip to it.
+    if (!closingStarted) {
+      const closing = agenda.blocks.find((b) => CLOSING_KINDS.has(b.kind) && !state.coveredBlockIds.includes(b.id)) ?? null;
+      return { kind: "close_now", block: closing };
+    }
   }
 
   // 3. First request of a reconnected attempt: tell the model where it is.
@@ -423,6 +552,12 @@ const SCORED_KINDS: ReadonlySet<AgendaBlockKind> = new Set<AgendaBlockKind>(["to
  * uncovered, the clock has not reached hardCap − closeReserve, and the closing block
  * has not begun. Returns the refusal (naming the block to continue with) or null when
  * "complete" is acceptable.
+ *
+ * MUST-ASKS OUTLIVE THE CLOSE RESERVE (spark interview-kit-template). A kit's required
+ * question is asked even when the clock has run out, so while one is outstanding the
+ * refusal keeps standing past the close reserve and past a begun closing — bounded by
+ * the absolute end ceiling, and released the moment the CANDIDATE declines the overrun,
+ * because their refusal ends the call and is not the model's to override.
  */
 export function prematureCompletion(
   agenda: InterviewAgenda,
@@ -431,22 +566,48 @@ export function prematureCompletion(
   const covered = new Set(state.coveredBlockIds);
   const uncovered = agenda.blocks.filter((b) => SCORED_KINDS.has(b.kind) && !covered.has(b.id));
   if (uncovered.length === 0) return null;
-  if (state.elapsedMs >= (agenda.hardCapMin - agenda.closeReserveMin) * MINUTE_MS) return null;
   const begun = new Set(state.begunBlockIds);
-  if (agenda.blocks.some((b) => b.kind === "close" && begun.has(b.id))) return null;
-  // Continue with the active block when it is one of them; else the next one after it
-  // in agenda order; else the first one.
-  const activeIdx = state.activeBlockId === null ? -1 : agenda.blocks.findIndex((b) => b.id === state.activeBlockId);
-  const next =
-    uncovered.find((b) => b.id === state.activeBlockId) ??
-    uncovered.find((b) => agenda.blocks.indexOf(b) > activeIdx) ??
-    uncovered[0];
+  // The ordinary rule, unchanged: scored topics are open, the clock allows them, and
+  // the closing has not begun.
+  const ordinaryOpen =
+    state.elapsedMs < (agenda.hardCapMin - agenda.closeReserveMin) * MINUTE_MS &&
+    !agenda.blocks.some((b) => b.kind === "close" && begun.has(b.id));
+  // The must-ask rule, which outlives it: a required question is outstanding, the
+  // candidate has not declined the overrun, and the call is inside its end ceiling.
+  const pendingMustAsks = outstandingMustAsks(agenda, state);
+  const mustAskOpen =
+    pendingMustAsks.length > 0 &&
+    state.overrunAnswer !== "declined" &&
+    state.elapsedMs < endCeilingMin(agenda, state) * MINUTE_MS;
+  if (!ordinaryOpen && !mustAskOpen) return null;
+
+  let next: AgendaBlock;
+  let what: string;
+  let n: number;
+  if (ordinaryOpen) {
+    // Pacing is the ordinary agenda's while its clock still runs — the must-ask blocks
+    // are reached in their order like every other: continue with the active block when
+    // it is uncovered, else the next one after it in agenda order, else the first one.
+    const activeIdx = state.activeBlockId === null ? -1 : agenda.blocks.findIndex((b) => b.id === state.activeBlockId);
+    next =
+      uncovered.find((b) => b.id === state.activeBlockId) ??
+      uncovered.find((b) => agenda.blocks.indexOf(b) > activeIdx) ??
+      uncovered[0];
+    n = uncovered.length;
+    what = `${n} ${n === 1 ? "topic remains" : "topics remain"}`;
+  } else {
+    // Past the clock only the required questions hold the call open: name the first
+    // block still owing one.
+    const owing = new Set(pendingMustAsks.map((m) => m.blockId));
+    next = uncovered.find((b) => owing.has(b.id)) ?? uncovered[0];
+    n = pendingMustAsks.length;
+    what = `${n} required question${n === 1 ? " remains" : "s remain"}`;
+  }
   const title = String(next.title ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
-  const n = uncovered.length;
   return {
     remaining: n,
     blockId: next.id,
-    toolResult: `Not yet — ${n} ${n === 1 ? "topic remains" : "topics remain"}. Continue with ${next.id}${title ? ` · ${title}` : ""}.`,
+    toolResult: `Not yet — ${what}. Continue with ${next.id}${title ? ` · ${title}` : ""}.`,
   };
 }
 
@@ -580,6 +741,28 @@ function applyDirectorToolUnsafe(
         "Recorded. Tell the candidate the recruiter will follow up, then continue with the agenda.",
       );
     }
+    case "report_extra_time": {
+      // The candidate's answer to the ONE overrun request. The director decided to ASK;
+      // the interviewer only reports what came back, so an answer to a question that was
+      // never put is not an extension the model can grant itself.
+      const answer = typeof args.answer === "string" ? args.answer : "";
+      if (!(OVERRUN_ANSWERS as readonly string[]).includes(answer)) return cont;
+      if (state.overrunRequestedAtMs === null) {
+        return { toolResult: "No extra time was requested. Continue with the agenda.", events: [], endCall: false };
+      }
+      if (state.overrunAnswer !== null) {
+        return { toolResult: "Already recorded. Continue with the agenda.", events: [], endCall: false };
+      }
+      const remaining = agenda ? outstandingMustAsks(agenda, state).length : 0;
+      return record(
+        "overrun_answered",
+        state.activeBlockId,
+        { answer, remaining },
+        answer === "agreed"
+          ? "Recorded. Ask the required questions that remain, then move to the candidate's questions and your closing."
+          : "Recorded. Move to the candidate's questions and your closing now, then call end_interview.",
+      );
+    }
     case "end_interview": {
       const reason = typeof args.reason === "string" ? args.reason : "";
       if (!(END_REASONS as readonly string[]).includes(reason)) return cont;
@@ -597,13 +780,23 @@ function applyDirectorToolUnsafe(
           return record("end_requested", state.activeBlockId, { reason, refused: true, remaining: early.remaining }, early.toolResult);
         }
       }
-      return record(
+      // The call is ending: write down every kit must-ask the record cannot show was
+      // asked, one row each. This is the ONLY point at which "went unasked" is a fact
+      // rather than a forecast — and a call that drops instead of ending leaves no
+      // end_interview and therefore no rows, which is honest: nothing was concluded.
+      const accepted = record(
         "end_requested",
         state.activeBlockId,
         { reason },
         "Recorded. Say your short closing line now; the call ends after it.",
         true,
       );
+      const unasked: DirectorEventDraft[] = outstandingMustAsks(agenda, state).map((m) => ({
+        kind: "must_ask_unasked",
+        blockId: m.blockId,
+        payload: { questionId: m.id, question: m.text, endReason: reason },
+      }));
+      return unasked.length === 0 ? accepted : { ...accepted, events: [...accepted.events, ...unasked] };
     }
     default:
       return cont;

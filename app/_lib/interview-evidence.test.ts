@@ -188,6 +188,36 @@ test("withheld consent keeps the structure and drops every verbatim word", () =>
   assert.equal(bare.role, "candidate");
 });
 
+test("an unasked kit must-ask reaches the recruiter — in its own field, kept even when consent is withheld", () => {
+  const unasked = ev(
+    {
+      kind: "must_ask_unasked",
+      blockId: "b2",
+      payload: { questionId: "q-must", question: "How do you decide what to automate first?", endReason: "time", callId: "c9", toolResult: "Recorded." },
+    },
+    19 * 60_000,
+  );
+  const p = projectEvidenceEvent(unasked, T0);
+  assert.equal(p.unaskedQuestion, "How do you decide what to automate first?");
+  assert.equal(p.unaskedQuestionId, "q-must");
+  assert.equal(p.endReason, "time");
+  assert.equal(p.blockId, "b2");
+  assert.equal(p.question, undefined, "never the field that carries the CANDIDATE's forwarded words");
+  assert.equal(JSON.stringify(p).includes("toolResult"), false, "tool bookkeeping stays server-side");
+
+  // The consent gate strips the candidate's words, not the interviewer's own question.
+  const out = build(
+    [ev({ kind: "turn", seq: 0, blockId: "b1", payload: { role: "candidate", text: "SECRET WORDS" } }, 0), unasked],
+    { withholdVerbatim: true },
+  );
+  assert.equal(JSON.stringify(out).includes("SECRET"), false);
+  assert.equal(out.events[1].unaskedQuestion, "How do you decide what to automate first?");
+
+  // The candidate's answer to the overrun request stays a bare kind: not a fact about them.
+  const answered = projectEvidenceEvent(ev({ kind: "overrun_answered", blockId: "b2", payload: { answer: "declined", remaining: 1 } }, 18 * 60_000), T0);
+  assert.equal(JSON.stringify(answered).includes("declined"), false);
+});
+
 test("a recording's state is what the playback door will do — and never its file name", () => {
   const recordings: RecordingMeta[] = [
     { attempt: 1, file: "iv-1-a1.webm", bytes: 900, mime: "audio/webm", startedAt: iso(0), endedAt: iso(100), partial: true, deletedAt: null, deleteReason: null },

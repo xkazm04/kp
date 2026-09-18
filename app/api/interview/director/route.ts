@@ -2,7 +2,7 @@
 // "provider brain + our director").
 //   POST /api/interview/director  { token, sessionId, attempt, turns: DirectorTurn[],
 //        events: DirectorClientEvent[], tool: { callId, name, args } | null }
-//        -> DirectorResponse { ok, ackSeq, toolResult, directive, agenda, endCall }
+//        -> DirectorResponse { ok, ackSeq, toolResult, directive, agenda, endCall, clock }
 //        (every shape in app/_lib/voice/director-types.ts)
 //
 // The candidate's browser posts here during the call: the turns that finalized since

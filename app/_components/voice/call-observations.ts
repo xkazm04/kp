@@ -11,7 +11,7 @@
 // bearing). A long pre-answer silence is a candidate thinking; a tab switch is a
 // candidate reading the job ad. The record says what happened, and a human reads it.
 
-import type { DirectorClientEvent } from "@/app/_lib/voice/director-types";
+import type { DirectorClientEvent, DirectorClock } from "@/app/_lib/voice/director-types";
 
 /** Who held the floor when something was observed — the contract's own vocabulary,
  *  narrowed off the event union so a change there is a type error here. */
@@ -122,4 +122,69 @@ export function hardStopDelayMs(args: {
   const grace = args.graceMin ?? CLIENT_HARD_STOP_GRACE_MIN;
   const prior = Number.isFinite(args.priorElapsedSec) ? Math.max(0, args.priorElapsedSec) : 0;
   return Math.max(0, Math.round((cap + grace) * 60_000 - prior * 1000));
+}
+
+// ---- re-arming the fallback stop from the director (spark interview-kit-template) ---
+//
+// The connect-time arming above only knows the agenda's hard cap. The director can
+// MOVE the end limit: a candidate who agreed to answer a job kit's remaining required
+// questions bought time up to 2× the booking, and a browser still armed at hardCap + 2
+// would hang up on them mid-question. So every director response carries its clock
+// (DirectorClock) and the browser re-arms from it — under three rules:
+//
+//   1. THE CONNECT-TIME ARMING IS THE FLOOR. The stop exists for the director being
+//      unreachable; a response may only move it LATER. The server ends a call earlier
+//      than the fallback through `endCall`, which it can only do while reachable — and
+//      while it is reachable the fallback is not what ends the call anyway.
+//   2. BOUNDED BY WHAT THE BOOKING ALLOWS. However the response reads, the stop never
+//      moves past max(hardCap + grace, 2 × booked) — the most the director itself would
+//      ever allow, and what the mint reserved against the meter. A garbled or proxied
+//      body cannot keep a call open past that.
+//   3. NOT FOR NOISE. A move of under a second (latency, rounding) re-arms nothing, so a
+//      heartbeat every 20 s does not churn a timer for no change.
+
+/** The absolute ceiling as a multiple of the booked length — the same factor the
+ *  server's director uses (voice/director.ts MUST_ASK_CEILING_FACTOR), pinned equal by
+ *  a test. Mirrored rather than imported: director.ts is a server module, and this file
+ *  ships in the candidate's bundle. */
+export const CLIENT_HARD_STOP_CEILING_FACTOR = 2;
+/** A re-arm must move the stop later by at least this much to be worth a timer. */
+export const HARD_STOP_MIN_EXTENSION_MS = 1000;
+
+/** Narrow an untrusted `clock` off a director response. Anything that is not two
+ *  finite, non-negative numbers is no clock at all — and no clock moves nothing. */
+export function asDirectorClock(value: unknown): DirectorClock | null {
+  if (value === null || typeof value !== "object") return null;
+  const v = value as { elapsedMs?: unknown; endLimitMs?: unknown };
+  const ok = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
+  return ok(v.elapsedMs) && ok(v.endLimitMs) ? { elapsedMs: v.elapsedMs, endLimitMs: v.endLimitMs } : null;
+}
+
+/**
+ * Where the fallback stop should now sit, as a wall-clock deadline (ms since epoch), or
+ * null when the one it is armed at stands. Pure: the hook supplies `nowMs` and does the
+ * cancel-and-set.
+ *
+ * `armedAtMs` is the deadline currently armed (null = none, e.g. an undirected call —
+ * which a response never arms). `agenda` is the candidate view's two numbers the bound
+ * is computed from.
+ */
+export function extendedHardStopDeadline(args: {
+  armedAtMs: number | null;
+  clock: DirectorClock | null | undefined;
+  nowMs: number;
+  agenda: { durationMin: number; hardCapMin: number } | null | undefined;
+  graceMin?: number;
+}): number | null {
+  const { armedAtMs, clock, nowMs, agenda } = args;
+  if (armedAtMs === null || !Number.isFinite(armedAtMs) || !Number.isFinite(nowMs)) return null;
+  if (!clock || !agenda) return null;
+  const duration = agenda.durationMin;
+  const cap = agenda.hardCapMin;
+  if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(cap) || cap <= 0) return null;
+  const grace = args.graceMin ?? CLIENT_HARD_STOP_GRACE_MIN;
+  const ceilingMs = Math.max(cap + grace, Math.round(duration * CLIENT_HARD_STOP_CEILING_FACTOR)) * 60_000;
+  const limitMs = Math.min(clock.endLimitMs, ceilingMs);
+  const deadline = Math.round(nowMs + Math.max(0, limitMs - clock.elapsedMs));
+  return deadline - armedAtMs >= HARD_STOP_MIN_EXTENSION_MS ? deadline : null;
 }

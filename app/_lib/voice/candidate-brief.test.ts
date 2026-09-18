@@ -11,10 +11,12 @@ import {
   candidateSafeTopic,
   composeCandidateBrief,
   sanitizeChronologyBlock,
+  sanitizeFaqEntries,
   sanitizeFollowupQuestion,
   sanitizeScenarioPhase,
   type CandidateSafeBlock,
 } from "./candidate-brief.ts";
+import { MAX_ROLE_FACTS_FAQ, MAX_ROLE_FACTS_FAQ_ANSWER_CHARS } from "./director-brief.ts";
 
 // Unmistakably-internal markers (the annotation styles TP-L2-VOICE-01 found leaking).
 const LISTEN_FOR = "Listen for: hedging about who actually wrote the migration";
@@ -273,4 +275,63 @@ test("without an agenda the candidate brief is the pre-director brief (no protoc
   });
   assert.match(brief, /Then lead the conversation through this run of show \(about 20 minutes total\)/);
   assert.doesNotMatch(brief, /Director protocol|begin_topic|b0 · /);
+});
+
+// ---- the job kit's recruiter FAQ (spark interview-kit-template) ------------------------
+//
+// FAQ answers are recruiter-written role facts meant to be SAID to the candidate, so they
+// ride the client-sent prompt — but only through the allow-list pick: the question and
+// the answer, nothing else an entry carries.
+
+test("sanitizeFaqEntries: question + answer only, one line, capped, empties dropped", () => {
+  const out = sanitizeFaqEntries([
+    { id: "f-internal-id", question: "  Is the team\n hybrid? ", answer: "Two days\tin the office.", note: RED_FLAG, weight: 3 },
+    { id: "f2", question: "   ", answer: "no question — dropped" },
+    { id: "f3", question: "No answer?", answer: "" },
+    null,
+    "not an entry",
+    { question: "Long?", answer: "word ".repeat(200) },
+  ]);
+  assert.deepEqual(out[0], { question: "Is the team hybrid?", answer: "Two days in the office." });
+  assert.deepEqual(Object.keys(out[0]).sort(), ["answer", "question"], "nothing but the two picked fields");
+  assert.equal(out.length, 2);
+  assert.ok(out[1].answer.length <= MAX_ROLE_FACTS_FAQ_ANSWER_CHARS + 1 && out[1].answer.endsWith("…"), "a long answer is capped at a word");
+  assert.equal(sanitizeFaqEntries(Array.from({ length: 20 }, (_, i) => ({ question: `Q${i}?`, answer: "A." }))).length, MAX_ROLE_FACTS_FAQ);
+  for (const junk of [null, undefined, "faq", 7, { question: "x", answer: "y" }]) assert.deepEqual(sanitizeFaqEntries(junk), []);
+});
+
+test("directed candidate brief: the FAQ rides ROLE FACTS, and nothing but its two picked fields does", () => {
+  const brief = composeCandidateBrief({
+    company: "Acme",
+    roleLine: "QA Engineer",
+    durationMin: 12,
+    blocks: [],
+    agenda: {
+      version: 1,
+      durationMin: 12,
+      hardCapMin: 14,
+      closeReserveMin: 4,
+      blocks: [
+        { id: "b0", kind: "warmup", title: "Warm-up", budgetMin: 2, competency: null, scored: false, questions: [] },
+        {
+          id: "b1",
+          kind: "topic",
+          title: "Test strategy",
+          budgetMin: 6,
+          competency: "Test strategy",
+          scored: true,
+          questions: ["How do you decide what to automate first?"],
+          mustAsks: [{ id: "q1", text: "How do you decide what to automate first?" }],
+          weight: 3,
+        },
+        { id: "b2", kind: "role_qa", title: "Your questions", budgetMin: 2, competency: null, scored: false, questions: [] },
+        { id: "b3", kind: "close", title: "Wrap-up", budgetMin: 2, competency: null, scored: false, questions: [] },
+      ],
+    },
+    roleFacts: { title: "QA Engineer", company: "Acme", location: null, workMode: null, posting: null },
+    faq: [{ id: "f-internal-id", question: "Is the team hybrid?", answer: "Two days in the office.", note: RED_FLAG }],
+  });
+  assert.match(brief, /ROLE FACTS — .*The recruiter also answered these, and you may answer them the same way: “Is the team hybrid\?” — Two days in the office\./);
+  assertNoInternal(brief);
+  assert.doesNotMatch(brief, /f-internal-id|Required|never skipped|protect its time/, "no id, no must-ask marker, no weight");
 });
