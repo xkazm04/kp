@@ -127,8 +127,10 @@ const KIT: InterviewKit = {
   ],
   faq: [],
 };
-/** The kit's planned length: max(GROUNDED_DEFAULT_MIN 20, 1 warm-up + 12 + 2 + 2). */
-const KIT_PLANNED_MIN = 20;
+/** The kit's booked length: the ONE kit-booking rule's no-plan value
+ *  (interview-kit-booking.ts kitBookedMin) — 1 warm-up + 12 + 2 + 2 = 17, inside the
+ *  15–30 band — the length a no-prep candidate's link on this version is booked for. */
+const KIT_PLANNED_MIN = 17;
 
 function kitFor(jobId: string, ws: string, status: "draft" | "published" = "draft", title = "Service ownership") {
   const kit: InterviewKit = { ...KIT, competencies: [{ ...KIT.competencies[0], title }, KIT.competencies[1]] };
@@ -196,7 +198,7 @@ test("a DRAFT kit is rehearsable: the door mints a test session with no entry, p
   assert.equal(session.jobId, jobId);
   assert.equal(session.workspaceId, team.id, "stamped with the CALLER's team, not the default one");
   assert.equal(session.status, "created");
-  assert.equal(session.durationMin, KIT_PLANNED_MIN, "booked for the kit's own planned length");
+  assert.equal(session.durationMin, KIT_PLANNED_MIN, "booked like a no-plan candidate link on this version (kitBookedMin)");
   assert.equal(session.language, "en", "the recruiter's language (no cookie here → the default locale)");
   assert.equal(session.consentAt, null);
   // The rail the portal paints before /connect answers: the agenda's candidate-safe
@@ -317,7 +319,7 @@ test("the reservation is the WORST case /complete can debit — 2x the booked le
   assert.equal(remaining(), worstCase, "the mint itself debits nothing");
 
   // One minute short of the worst case: refused, coded, and nothing minted — a booked
-  // 20-minute rehearsal can bill 40, so a meter with 39 left must not start it.
+  // 17-minute rehearsal can bill 34, so a meter with 33 left must not start it.
   recordMeterUsage("interview_minutes", 1, new Date(), paidTeam.id);
   const before = sessionCount();
   const refused = await rehearse(jobId, { kitId: kit.id });

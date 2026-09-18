@@ -59,6 +59,8 @@ import {
   type RoleFacts,
 } from "./voice/director-brief";
 import type { InterviewAgenda, ResumeContext } from "./voice/director-types";
+import { kitBookedMin, kitSpinesAnInterview } from "./interview-kit-booking";
+import type { InterviewKit as JobKit } from "./interview-kit-types";
 
 // Re-exported for back-compat: the transcript→notes flattener now lives with the
 // rest of the documented truncation policy in ./interview-transcript.
@@ -176,7 +178,10 @@ export function composeBrief(
   directed?: DirectedBrief | null
 ): string {
   const chron = prep?.chronology ?? [];
-  if (chron.length === 0 && !directed) return defaultInterviewerInstructions({ role: roleLine });
+  // With no plan the quick-screen prompt states the booked length: the quick screen's
+  // own 5 minutes, or a kit-pinned link's kit length (buildGroundedInterview), so the
+  // saved fallback never promises a different call than the one booked.
+  if (chron.length === 0 && !directed) return defaultInterviewerInstructions({ role: roleLine, durationMin });
   const runOfShow = chron
     .map((b, i) => {
       const qs = (b.questions ?? []).filter(Boolean).map((q) => `“${q}”`).join(" ");
@@ -377,7 +382,15 @@ export function candidateRunOfShow(chronology: ChronologyBlock[] | undefined | n
 export async function buildGroundedInterview(
   entryId: string,
   workspaceId?: string,
-  opts?: DirectedBuildOptions & { readOnly?: boolean }
+  opts?: DirectedBuildOptions & {
+    readOnly?: boolean;
+    /** The job kit VERSION the link being minted will PIN (interview-invite.ts). A kit
+     *  spines the interview of a candidate with no plan and of one with a CV plan, so
+     *  it — not the plan, not the quick screen — sets `durationMin` there
+     *  (interview-kit-booking.ts kitBookedMin), and the saved brief states that length.
+     *  A work-sample debrief and a student script keep their own length. */
+    pinnedKit?: JobKit | null;
+  }
 ): Promise<{
   instructions: string;
   runOfShow: string[];
@@ -483,9 +496,16 @@ export async function buildGroundedInterview(
   // The session's canonical length: a grounded plan carries its own run-of-show
   // duration (15–30 min, GROUNDED_DEFAULT_MIN if a plan omits it); with no
   // chronology we fall back to the ungrounded quick screen, so the candidate
-  // portal shows the truthful ~5 min rather than a 20-minute promise it won't keep.
+  // portal shows the truthful ~5 min rather than a 20-minute promise it won't keep…
   const grounded = (prep?.chronology?.length ?? 0) > 0;
-  const durationMin = grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
+  // …unless the link pins a job kit: then the kit decides, with or without a plan — ONE
+  // rule the mint, the rehearsal, the scheduling estimate and connect all read.
+  const pinnedKit = opts?.pinnedKit ?? null;
+  const durationMin = kitSpinesAnInterview(pinnedKit)
+    ? kitBookedMin(pinnedKit, prep)
+    : grounded
+      ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN
+      : QUICK_SCREEN_MIN;
   const runOfShow = candidateRunOfShow(prep?.chronology);
   // Phase 3 (role-intake): a job promoted from an intake carries the requestor's
   // stated intent (90-day outcomes, dealbreakers) — ground the interviewer on it.

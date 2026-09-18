@@ -11,29 +11,37 @@
 //   - the overlay's three operations (dropped / edited / added);
 //   - weights and must-asks reaching the PRIVATE brief and nothing else, and the kit
 //     FAQ reaching ROLE FACTS in BOTH briefs, identically;
-//   - a job with no kit producing today's agenda, field for field.
+//   - a job with no kit producing today's agenda, field for field;
+//   - a kit block's questions reaching the interviewer in the kit's authored order;
+//   - ONE booked length for a kit-pinned interview, whichever surface asks for it.
 //
 // testing/unit-db.ts MUST be the first project import (it sets KP_DB_PATH).
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPipelineEntry } from "./db/pipeline.ts";
+import { createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { createPosting, createSubmission, saveDevCase, saveDevCaseScenario, saveSubmissionEvaluation } from "./db/devcase.ts";
 import { createInterviewSession, getInterviewSessionById } from "./db/interviews.ts";
 import { interviewKitAppendVersion } from "./db/interview-kits.ts";
-import { saveInterviewPrep } from "./interview-prep.ts";
+import { getInterviewPrep, saveInterviewPrep } from "./interview-prep.ts";
 import { insertJob } from "./job-ingest.ts";
-import { buildRunOfShow } from "./run-of-show.ts";
+import { buildRunOfShow, MAX_DURATION_MIN, MIN_DURATION_MIN } from "./run-of-show.ts";
 import { interviewBriefStrings, rosStrings } from "./interview-prep-strings.ts";
 import { DEMO_CASE_SCENARIO, STUDENT_SCRIPT } from "./student-interview.ts";
 import {
   applyKitOverlay,
   buildInterviewKit,
+  buildKitOnlyInterviewKit,
   cvProbeId,
+  kitBookedMin,
   MAX_KIT_CV_PROBES,
   toCandidateAgendaView,
   type InterviewKit,
 } from "./interview-agenda.ts";
+import { getJobWorkspace } from "./db/jobs.ts";
+import { QUICK_SCREEN_MIN } from "./interview-duration.mjs";
+import { plannedInterviewMinutes } from "./interview-planned-minutes.ts";
 import { latestPublishedKit } from "./interview-kit.ts";
 import { mintAndInviteVoiceScreen } from "./interview-invite.ts";
 import { buildCandidateSafeBrief, buildGroundedInterview } from "./interview-run.ts";
@@ -265,7 +273,11 @@ test("prep branch: the kit's competencies replace the generated topics, in the k
   assert.equal(strategy.weight, 3);
   assert.equal(strategy.competency, "Test strategy");
   assert.match(built.privateNotes[strategy.id], /Optional follow-up: “And an unhealthy one\?”/);
-  assert.doesNotMatch(built.privateNotes[strategy.id] ?? "", /automate first/, "a must-ask is not also listed as an ordinary Ask");
+  assert.equal(
+    (built.privateNotes[strategy.id] ?? "").split("automate first").length - 1,
+    1,
+    "the must-ask is listed once, in its own place, marked inline",
+  );
 
   const collab = topics[1];
   assert.equal(collab.weight, 1);
@@ -440,8 +452,9 @@ test("must-asks and weights reach the PRIVATE brief only; the kit FAQ reaches BO
   const privateBrief = (await buildGroundedInterview(entryId, undefined, { readOnly: true, kit })).instructions;
   const candidateBrief = (await buildCandidateSafeBrief(entryId, { kit })) ?? "";
 
-  // The private brief states the requirement and the emphasis.
-  assert.match(privateBrief, /Required, never skipped even if you are over time: “How do you decide what to automate first\?”/);
+  // The private brief states the requirement — on the question itself — and the emphasis.
+  assert.match(privateBrief, /“How do you decide what to automate first\?” — Required, never skipped even if you are over time\./);
+  assert.equal(privateBrief.split("How do you decide what to automate first?").length - 1, 1, "a required question is stated once");
   assert.match(privateBrief, /This competency carries the most of the decision — protect its time\./);
   assert.equal(privateBrief.split("protect its time").length - 1, 1, "only the heaviest competency is marked");
 
@@ -475,4 +488,193 @@ test("the candidate's own view of a kit-spined agenda carries no weight and no m
   assert.deepEqual(Object.keys(view).sort(), ["blocks", "durationMin", "hardCapMin"]);
   for (const b of view.blocks) assert.deepEqual(Object.keys(b).sort(), ["budgetMin", "id", "kind", "title"]);
   assert.doesNotMatch(JSON.stringify(view), /"(mustAsks|weight|competency|questions|scored)":/);
+});
+
+// ---- 6. the ORDER a kit's questions reach the interviewer in ------------------------
+//
+// The interview simulator's first live sweep read a private brief that listed a block's
+// optional question and its follow-up BEFORE the must-ask that introduces the subject,
+// so the interviewer met "What would you change in THAT service?" before the question
+// that names the service. The listing is now the kit's authored order, each must-ask
+// marked on its own question, each follow-up right after the question it follows.
+
+/** First question optional, second a must-ask WITH a follow-up, third leaning on the
+ *  second ("that service") with a follow-up of its own. */
+const ORDER_KIT: JobKit = {
+  version: 1,
+  competencies: [
+    {
+      id: "c-own",
+      title: "Service ownership",
+      weight: 3,
+      budgetMin: 6,
+      questions: [
+        { id: "q-enjoy", text: "Which part of your current stack do you enjoy most?", mustAsk: false },
+        { id: "q-own", text: "Walk me through a service you owned end to end.", mustAsk: true, followUp: "Which decision in it was yours alone?" },
+        { id: "q-change", text: "What would you change in that service today?", mustAsk: false, followUp: "Why not before?" },
+      ],
+    },
+  ],
+  faq: [],
+};
+
+/** A candidate with no candidate profile, so no prep exists and none can be generated:
+ *  the quick-screen fallback of buildGroundedInterview. */
+function noPlanEntry(jobId: string) {
+  const n = next();
+  const { entry } = createPipelineEntry({ candidateId: `noplan-kit-${n}`, candidateLabel: `N ${n}`, jobId, jobTitle: "QA Engineer", locale: "en" });
+  return { entryId: entry.id, workspaceId: entry.workspaceId };
+}
+
+test("the private listing keeps the kit's authored order: must-ask marked inline, follow-up right after its question", async () => {
+  const jobId = job();
+  const kitId = publishKit(jobId, ORDER_KIT);
+  const { entryId } = noPlanEntry(jobId);
+  const kit = (await buildInterviewKit(entryId, undefined, { kitId, bookedMin: kitBookedMin(ORDER_KIT) })) as InterviewKit;
+  assert.ok(kit);
+  assert.equal(kit.branch, "kit");
+  const privateBrief = (await buildGroundedInterview(entryId, undefined, { readOnly: true, kit })).instructions;
+  const candidateBrief = (await buildCandidateSafeBrief(entryId, { kit })) ?? "";
+
+  const LISTING =
+    "Ask in this order: 1) “Which part of your current stack do you enjoy most?” " +
+    "2) “Walk me through a service you owned end to end.” — Required, never skipped even if you are over time. " +
+    "Optional follow-up: “Which decision in it was yours alone?” " +
+    "3) “What would you change in that service today?” Optional follow-up: “Why not before?”";
+  const head = privateBrief.indexOf("b1 ·");
+  assert.ok(privateBrief.includes(LISTING), `the listing, in order:\n${privateBrief.slice(head, head + 700)}`);
+  const at = (s: string) => privateBrief.indexOf(s);
+  assert.ok(at("enjoy most") < at("service you owned") && at("service you owned") < at("that service today"), "questions in authored order");
+  assert.ok(at("service you owned") < at("yours alone") && at("yours alone") < at("that service today"), "a follow-up follows ITS question, before the next one");
+  assert.equal(privateBrief.split("Required, never skipped").length - 1, 1, "the requirement is stated once, on its own question — no second must-ask line");
+
+  // The client-sent brief keeps its allow-list: the questions are aloud material and ride
+  // in the same order; the follow-ups and the must-ask marker are the recruiter's.
+  const c = (s: string) => candidateBrief.indexOf(s);
+  assert.ok(c("enjoy most") >= 0 && c("enjoy most") < c("service you owned") && c("service you owned") < c("that service today"));
+  for (const privateOnly of ["Which decision in it was yours alone?", "Why not before?", "Required, never skipped", "Optional follow-up"]) {
+    assert.ok(!candidateBrief.includes(privateOnly), `${JSON.stringify(privateOnly)} must not reach the client-sent prompt`);
+  }
+});
+
+// ---- 7. ONE booking rule for a kit-pinned interview --------------------------------
+//
+// The kit's length used to be computed in four places that disagreed: the mint booked
+// the quick screen's 5 minutes for a candidate with no plan (connect then squeezed a
+// 20-minute kit to its floors) and the CV plan's own length for one with a plan (whose
+// topics the kit REPLACES), the rehearsal booked max(20, natural) with no ceiling, the
+// scheduling estimate knew nothing of the kit, and the saved fallback brief said "under
+// 5 minutes". Every surface now reads interview-kit-booking.ts kitBookedMin.
+
+/** 1 warm-up + 9 + 7 + 2 role questions + 2 closing = 21 with no plan. */
+const BOOKING_KIT: JobKit = { ...KIT, competencies: KIT.competencies.map((c, i) => ({ ...c, budgetMin: i === 0 ? 9 : 7 })) };
+
+test("ONE booking rule: the mint, connect, the rehearsal and the scheduling estimate agree on a kit-pinned interview's length", async () => {
+  type Row = { name: string; entry: { entryId: string; workspaceId: string }; jobId: string; expected: number; topicBudgets: number[] };
+  const noPlanJob = job();
+  const planned = await prepEntry({ questions: 6, imported: ["How do you handle flaky tests?"] });
+  const rows: Row[] = [
+    {
+      name: "no plan — the kit-only agenda",
+      jobId: noPlanJob,
+      entry: noPlanEntry(noPlanJob),
+      expected: 21,
+      topicBudgets: [9, 7],
+    },
+    {
+      // The plan's own opening (3) + the kit (16) + the three CV probes that ride (a
+      // 3-minute block) + the plan's role questions and closing (2 + 2). The plan's slack
+      // block is not booked: it is slack, and connect drops it instead of a competency.
+      name: "a CV plan — the kit replaces its topics, three probes ride",
+      jobId: planned.jobId,
+      entry: { entryId: planned.entryId, workspaceId: planned.workspaceId },
+      expected: 3 + 16 + 3 + 2 + 2,
+      topicBudgets: [9, 7, 3],
+    },
+  ];
+  for (const r of rows) {
+    const kitId = publishKit(r.jobId, BOOKING_KIT);
+    const prep = getInterviewPrep(r.entry.entryId, r.entry.workspaceId)?.payload as Parameters<typeof kitBookedMin>[1];
+    assert.equal(kitBookedMin(BOOKING_KIT, prep), r.expected, `${r.name}: the rule itself`);
+
+    // The scheduling estimate, BEFORE any link exists — the kit a link would pin now.
+    const entry = getPipelineEntry(r.entry.entryId, r.entry.workspaceId);
+    assert.ok(entry);
+    assert.equal(plannedInterviewMinutes(entry), r.expected, `${r.name}: the scheduling estimate`);
+
+    // The mint: the booking, the reservation it sizes, and the saved fallback brief.
+    const minted = await mintAndInviteVoiceScreen({ entryId: r.entry.entryId, workspaceId: r.entry.workspaceId });
+    assert.ok(minted.ok);
+    assert.equal(minted.session.kitId, kitId);
+    assert.equal(getInterviewSessionById(minted.session.id)?.durationMin, r.expected, `${r.name}: the minted booking`);
+    const saved = getInterviewSessionById(minted.session.id)?.instructions ?? "";
+    assert.ok(saved.includes(`${r.expected} minutes`), `${r.name}: the saved fallback brief states the booked length`);
+    assert.ok(!saved.includes("under 5 minutes"), `${r.name}: …not the quick screen's`);
+
+    // Connect, exactly as /api/interview/connect builds it: every competency at its
+    // authored budget — nothing squeezed.
+    const built = (await buildInterviewKit(r.entry.entryId, undefined, { kitId, bookedMin: minted.session.durationMin })) as InterviewKit;
+    assert.ok(built);
+    assertInvariants(built.agenda);
+    assert.equal(built.agenda.durationMin, r.expected, `${r.name}: the agenda fills the booking exactly`);
+    assert.deepEqual(
+      built.agenda.blocks.filter((b) => b.kind === "topic").map((b) => b.budgetMin),
+      r.topicBudgets,
+      `${r.name}: no competency squeezed`,
+    );
+    // …and a build with no booking at all reads the same rule.
+    const unbooked = (await buildInterviewKit(r.entry.entryId, undefined, { kitId })) as InterviewKit;
+    assert.equal(unbooked.agenda.durationMin, r.expected, `${r.name}: a build with no booking`);
+  }
+
+  // The rehearsal: what the rehearse door books is the kit-only agenda's own length —
+  // the SAME no-plan value a candidate link is minted at (the door itself is pinned in
+  // connect-rehearsal.test.ts).
+  const rehearsed = await buildKitOnlyInterviewKit(publishKit(job(), BOOKING_KIT), DEFAULT_WORKSPACE_ID, { locale: "en" });
+  assert.ok(rehearsed);
+  assert.equal(rehearsed.agenda.durationMin, rows[0].expected, "the rehearsal books the no-plan value");
+});
+
+test("with NO kit every length is exactly today's: the quick screen for no plan, the plan's own otherwise", async () => {
+  const bare = noPlanEntry(job());
+  const bareEntry = getPipelineEntry(bare.entryId, bare.workspaceId);
+  assert.ok(bareEntry);
+  assert.equal(plannedInterviewMinutes(bareEntry), QUICK_SCREEN_MIN);
+  const bareMint = await mintAndInviteVoiceScreen({ entryId: bare.entryId, workspaceId: bare.workspaceId });
+  assert.ok(bareMint.ok);
+  assert.equal(bareMint.session.kitId, null);
+  assert.equal(bareMint.session.durationMin, QUICK_SCREEN_MIN);
+  assert.match(getInterviewSessionById(bareMint.session.id)?.instructions ?? "", /under 5 minutes/, "the quick-screen prompt, unchanged");
+
+  const planned = await prepEntry();
+  const planMin = (getInterviewPrep(planned.entryId, planned.workspaceId)?.payload as { durationMin?: number } | undefined)?.durationMin;
+  assert.ok(typeof planMin === "number");
+  const plannedEntry = getPipelineEntry(planned.entryId, planned.workspaceId);
+  assert.ok(plannedEntry);
+  assert.equal(plannedInterviewMinutes(plannedEntry), planMin);
+  const plannedMint = await mintAndInviteVoiceScreen({ entryId: planned.entryId, workspaceId: planned.workspaceId });
+  assert.ok(plannedMint.ok);
+  assert.equal(plannedMint.session.durationMin, planMin);
+});
+
+test("kitBookedMin is clamped to the grounded run-of-show band, and a floored kit keeps every competency's budget", async () => {
+  assert.deepEqual([MIN_DURATION_MIN, MAX_DURATION_MIN], [15, 30], "the band a CV-based plan is clamped to");
+  const kitOf = (...budgets: number[]): JobKit => ({
+    ...KIT,
+    competencies: budgets.map((b, i) => ({ ...KIT.competencies[1], id: `c-band-${i}`, title: `Competency ${i + 1}`, budgetMin: b })),
+  });
+  assert.equal(kitBookedMin(kitOf(9, 7)), 21, "1 + 16 + 2 + 2");
+  assert.equal(kitBookedMin(kitOf(3, 2)), 15, "1 + 5 + 4 = 10 is a stub, not an interview: floored at 15");
+  assert.equal(kitBookedMin(kitOf(20, 20)), 30, "1 + 40 + 4 = 45 would outrun the provider's hard cap: capped at 30");
+
+  // At the floor the surplus goes to the candidate's questions, never into a competency
+  // and never out of one.
+  const shortKit = kitOf(3, 2);
+  const shortJob = job();
+  const floored = await buildKitOnlyInterviewKit(publishKit(shortJob, shortKit), getJobWorkspace(shortJob), { locale: "en" });
+  assert.ok(floored);
+  assertInvariants(floored.agenda);
+  assert.equal(floored.agenda.durationMin, 15);
+  assert.deepEqual(floored.agenda.blocks.filter((b) => b.kind === "topic").map((b) => b.budgetMin), [3, 2]);
+  assert.equal(floored.agenda.blocks.find((b) => b.kind === "role_qa")?.budgetMin, 2 + 5);
 });

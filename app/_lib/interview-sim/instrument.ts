@@ -21,10 +21,11 @@
 // mint takes from buildGroundedInterview's `durationMin`. For prep, debrief and student
 // that equals the branch's own planned length, which is what buildInterviewKit falls
 // back to with no booking — so no booking is passed. For the kit and rehearsal
-// fixtures the kit's own planned length is used, as the rehearsal door books it; a
-// candidate with NO prep on a kit-pinned link would in fact be minted at the quick
-// screen's 5 minutes (interview-invite.ts: a prep that could not be generated leaves
-// `grounded.durationMin = QUICK_SCREEN_MIN`) — see the WP-1 report.
+// fixtures that fallback is interview-kit-booking.ts kitBookedMin: the one booking rule
+// the mint, the rehearse door and the scheduling estimate read too, so the fixtures'
+// 20 minutes are exactly what a real no-prep link on SIM_KIT is booked for. (Before
+// that rule a no-prep kit-pinned link was minted at the quick screen's 5 minutes — a
+// WP-1 finding.)
 //
 // NEVER THE OPERATOR'S DATABASE. Every seed here writes, so assertThrowawayDb() runs
 // first and refuses unless KP_DB_PATH is set, matches the path db-path.ts froze, and

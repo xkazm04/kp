@@ -59,7 +59,7 @@ the repo's unit runner has no component renderer; same idiom as
 ## Flows
 
 1. **Mint.** `POST /api/schedule/invite` creates a `schedule_invites` row with
-   `durationMin = plannedInterviewMinutes(entry)` and mails the link.
+   `durationMin = plannedInterviewMinutes(entry)` (for a job with a published interview kit, that is the kit's booked length from `interview-kit-booking.ts` `kitBookedMin`, the same number the voice-screen mint books) and mails the link.
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
    `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
    comms-failed entry never aborts the batch and the response reports each

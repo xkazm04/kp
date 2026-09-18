@@ -13,8 +13,10 @@ import {
   candidateAgendaListing,
   capPostingText,
   directorProtocol,
+  kitQuestionListing,
   leadershipFrame,
   MAX_ROLE_FACTS_POSTING_CHARS,
+  MUST_ASK_MARK,
   privateAgendaListing,
   privateDirectedBrief,
   RESUME_TURN_MAX_CHARS,
@@ -145,6 +147,39 @@ test("private listing states the must-asks as un-skippable and marks the heavies
   // A weight of 1 or 2 adds nothing: only the block to PROTECT is marked.
   const light = privateAgendaListing({ ...KIT_BRIEF_AGENDA, blocks: KIT_BRIEF_AGENDA.blocks.map((b) => ({ ...b, weight: 1 as const })) }, {});
   assert.doesNotMatch(light, /protect its time|weight/i);
+});
+
+test("kitQuestionListing: authored order, the must-ask marked on its own question, each follow-up right after its question", () => {
+  const listing = kitQuestionListing([
+    { text: "Which part of your stack do you enjoy most?", mustAsk: false, followUp: null },
+    { text: "Walk me through a service you owned end to end.", mustAsk: true, followUp: "Which decision in it was yours alone?" },
+    { text: "What would you change in that service today?", mustAsk: false, followUp: "Why not before?" },
+  ]);
+  assert.equal(
+    listing,
+    "Ask in this order: 1) “Which part of your stack do you enjoy most?” " +
+      `2) “Walk me through a service you owned end to end.” — ${MUST_ASK_MARK}. Optional follow-up: “Which decision in it was yours alone?” ` +
+      "3) “What would you change in that service today?” Optional follow-up: “Why not before?”",
+  );
+  // One question needs no numbering; a clause that ends without punctuation gets its stop.
+  assert.equal(kitQuestionListing([{ text: "Tell me about a hard bug", mustAsk: false, followUp: "What fixed it" }]), "Ask: “Tell me about a hard bug”. Optional follow-up: “What fixed it”.");
+  assert.equal(kitQuestionListing([{ text: "   ", mustAsk: true, followUp: "orphan" }]), "", "nothing to ask, nothing listed");
+});
+
+test("the private listing never states a must-ask twice: a note that marks it inline replaces the separate line", () => {
+  const MUST = "How do you decide what to automate first?";
+  const note = kitQuestionListing([
+    { text: "What does a healthy suite look like?", mustAsk: false, followUp: null },
+    { text: MUST, mustAsk: true, followUp: null },
+  ]);
+  const priv = privateAgendaListing(KIT_BRIEF_AGENDA, { b1: note });
+  assert.equal(priv.split(MUST).length - 1, 1, "the required question appears once");
+  assert.equal(priv.split(MUST_ASK_MARK).length - 1, 1, "…and so does its marker");
+  assert.ok(priv.indexOf("healthy suite") < priv.indexOf(MUST), "in the order the note lists them");
+  // A note that does NOT mark a must-ask (a note from before this listing, or any other
+  // author) still gets the separate required line — a requirement is never lost.
+  const legacy = privateAgendaListing(KIT_BRIEF_AGENDA, { b1: "Ask: “What does a healthy suite look like?”." });
+  assert.match(legacy, new RegExp(`${MUST_ASK_MARK}: “How do you decide what to automate first\\?”\\.`));
 });
 
 test("the kit FAQ rides ROLE FACTS, after the public facts, whenever a caller passes it", () => {

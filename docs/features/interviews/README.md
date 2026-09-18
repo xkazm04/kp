@@ -206,7 +206,9 @@ nothing to direct.
   - The booked length is an input. It is the session's `duration_min`: what the
     portal promised the candidate, and what the minutes debit clamps against. The
     kit's own length (prep, script or debrief) is used only when a session has none.
-    Fixed blocks come off first, and the kit is fitted into the rest.
+    Fixed blocks come off first, and the kit is fitted into the rest. When the link pins
+    a job kit and the interview is the kit-only or the CV-plan branch, that booking is
+    the kit's own length (see "The kit in the interview").
   - Slack goes to the `open` block, or to `role_qa` when there is no `open` block.
   - An overrun is taken from the `open` block first, then from the warm-up, then
     spread proportionally across the topic blocks. It never comes out of the closing
@@ -495,6 +497,15 @@ erased entry's sessions. A session stops storing new events once it has 4000.
 - If OpenAI Realtime's input transcription arrives after the model's
   `mark_topic_covered` call, a true quote is rejected as `no_match`. The model is then
   told to ask again, which costs one question.
+- **A same-block cover rule was tried and withdrawn (2026-09-18).** The rule accepted a
+  cover only for words said while that block was active. In a live simulator re-run it
+  refused true evidence 3 times out of 3, because the interviewer often asks a block's
+  question before it calls `begin_topic` for that block, so the answer is recorded under
+  the previous block. Coverage fell from 6 of 6 scored blocks to 2 of 6, which would also
+  have triggered needless overrun requests and false "required question not asked" rows.
+  A quote may therefore match any persisted candidate turn of the session. The
+  simulator's verdicts measure how often a cover quotes an answer recorded under another
+  block, and whether that answer was about the covered topic, before any rule is designed.
 - ~~A directed call longer than `LIVE_INTERVIEW_RECENCY_MIN` stopped counting as
   live~~ — fixed: every director exchange stamps `interview_sessions.last_activity_at`
   (`touchInterviewActivity`), and `isInterviewSessionLive` reads the later of it and
@@ -720,10 +731,11 @@ what the interview does with it.
 
 | Where | What |
 | --- | --- |
-| `app/_lib/interview-invite.ts` (`mintAndInviteVoiceScreen`) | **Pins the kit at mint.** It resolves `latestPublishedKit(jobId, workspace)` and stores that version's id on the new session (`interview_sessions.kit_id`, via `createInterviewSession({ kitId })`). A job with no kit pins `NULL`. A kit that can't be read is logged and also pins `NULL`, and the invite still goes out. |
+| `app/_lib/interview-invite.ts` (`mintAndInviteVoiceScreen`) | **Pins the kit at mint.** It resolves `latestPublishedKit(jobId, workspace)` and stores that version's id on the new session (`interview_sessions.kit_id`, via `createInterviewSession({ kitId })`). A job with no kit pins `NULL`. A kit that can't be read is logged and also pins `NULL`, and the invite still goes out. It pins the kit **before** the grounded build and hands the pinned version to `buildGroundedInterview` (`pinnedKit`), which books the kit's length and states it in the saved fallback brief. The reservation and the invite email use that booking. |
+| `app/_lib/interview-kit-booking.ts` | `kitBookedMin(kit, prep?)`, the single rule for a kit-pinned interview's booked length. It also holds the pure rules it shares with the agenda builder: the overlay (`applyKitOverlay`), the capped CV probes (`kitCvProbes`), the plan's frame (`prepFrame`) and the fixed-block minutes. They moved out of `interview-agenda.ts`, which re-exports them, and the module stays out of the agenda builder's import graph because the scheduling estimate reads it. |
 | `POST /api/interview/connect` | Passes the session's **pinned** `kitId`, not the job's latest kit, to `buildInterviewKit`. |
 | `app/_lib/interview-agenda.ts` | `buildInterviewKit(entryId, ws, { bookedMin, kitId })` reads the pinned version with `kitById`, applies the candidate's overlay (`applyKitOverlay`) and drafts the branch from it. `cvProbeId(text)` gives a per-candidate probe an id the overlay can name. |
-| `app/_lib/voice/director-brief.ts` | The private listing states each must-ask and marks the heaviest weight. `directorProtocol(facts, faq)` renders the kit FAQ into ROLE FACTS. |
+| `app/_lib/voice/director-brief.ts` | `kitQuestionListing` lists a kit block's questions in authored order with each must-ask marked on its own question; the private listing marks the heaviest weight. `directorProtocol(facts, faq)` renders the kit FAQ into ROLE FACTS. |
 | `app/_lib/voice/candidate-brief.ts` | `sanitizeFaqEntries` is the allow-list pick for the FAQ: question and answer only, one line each, the first 6 entries, answers capped at 300 characters. **Both** briefs take the FAQ through it. |
 | `app/_components/voice/useDirector.ts` + `call-observations.ts` | The browser's fallback hard stop re-arms from each director response's `clock` (`extendedHardStopDeadline`). |
 | `app/_lib/interview-evidence.ts` + `app/features/hiring/schedule/ScheduleInterviewObservations.tsx` | `must_ask_unasked` is projected as `unaskedQuestion` / `unaskedQuestionId` / `endReason` and rendered as "Required questions not asked". |
@@ -788,12 +800,45 @@ role_qa + close`, and `scored` only on topic/open. With no kit, every block has 
 seven fields it always had. `interview-kit-agenda.test.ts` pins that a missing or
 unresolvable pin produces the same agenda as no pin.
 
+**The booking is the kit's.** Before this, a kit's length was computed in several places
+that disagreed. The mint booked the quick screen's 5 minutes for a candidate with no plan,
+and connect then squeezed a 20-minute kit to its floors. A candidate with a plan was booked
+at the plan's own length, sized for the CV topics the kit replaces. The rehearsal booked
+`max(20, natural)` with no ceiling, the scheduling estimate ignored the kit, and the saved
+fallback brief said "under 5 minutes". Every surface now asks `kitBookedMin`
+(`interview-kit-booking.ts`):
+
+- **No plan:** a 1-minute warm-up, the kit's competency budgets, 2 minutes of role
+  questions and a 2-minute closing.
+- **A CV plan:** the plan's own opening, the kit's competency budgets, the block the capped
+  CV probes take (2 to 4 minutes), then the plan's role questions and closing. These are
+  the same probes and frame the agenda builder uses. The plan's slack block is not booked,
+  so connect drops it rather than shorten a competency.
+
+The recruiter's overlay applies exactly as it does in the agenda. The result is clamped to
+the 15 to 30 minute band a CV-based plan is clamped to (`run-of-show.ts`):
+
+- Below 15 minutes a screen is a stub. A short kit's surplus goes to the candidate's
+  questions or the plan's slack block, never into or out of a competency.
+- At 30 minutes the director's own end stays inside the provider's 40-minute hard cap
+  (`PROVIDER_CAP_MIN`): round(30 × 1.2) + 2 = 38 minutes. A kit authored past 30 minutes
+  is fitted into 30 proportionally.
+
+The rule is read by the mint (`interview-invite.ts`, for the booking and the saved fallback
+brief), by connect's build when no booking is passed (`buildInterviewKit`), by the
+rehearsal (`buildKitOnlyInterviewKit`, whose length the rehearse door books) and by the
+scheduling estimate (`plannedInterviewMinutes`, using the job's latest published kit, the
+one a link minted now would pin). A work-sample debrief and a student script keep their own
+length. With no kit, everything books exactly as before. Pinned by
+`interview-kit-agenda.test.ts` ("ONE booking rule …", "with NO kit …", "kitBookedMin is
+clamped …"), `connect-rehearsal.test.ts` and `interview-spend-doors.test.ts`.
+
 #### The two briefs
 
 | | Private brief (server-minted, OpenAI) | Candidate-safe brief (client-sent, ElevenLabs) |
 | --- | --- | --- |
 | The kit's questions | Listed. | Listed (they are asked aloud). |
-| Must-asks | `Required, never skipped even if you are over time: “…”` on the block. | Not marked. |
+| Must-asks | Each question listed in the kit's authored order, numbered when a block has more than one; a must-ask carries `— Required, never skipped even if you are over time.` on its own question, and a follow-up comes straight after the question it follows. | Not marked. |
 | Weight | Only weight 3 gets a line: "carries the most of the decision — protect its time". | No. |
 | Kit FAQ | In ROLE FACTS: "The recruiter also answered these, and you may answer them the same way: …" | The **same** sentence, word for word. |
 | `report_extra_time` | Named in the protocol. | Named in the protocol. |
@@ -805,6 +850,18 @@ through `sanitizeFaqEntries` in `voice/candidate-brief.ts`, the allow-list bound
 Only the question and the answer survive: an entry's id and anything else never do.
 The must-ask marker, the weights and the author's note never reach the candidate-safe
 brief.
+
+**The order is the author's.** A kit block's private note is built by
+`kitQuestionListing` (`voice/director-brief.ts`, called from `interview-agenda.ts`). It
+lists the questions in the kit's authored order, marks each must-ask on its own question,
+and puts each follow-up straight after the question it follows. The note used to list the
+optional questions and every follow-up first and the must-asks last, and a live
+interviewer then read "What would you change in *that* service?" before the question that
+introduces the service. `privateAgendaListing` never states a must-ask twice: it prints no
+separate "Required …" line for a must-ask the note already marks. A block with no note
+keeps that line, which covers the work-sample debrief's appended required questions and a
+resumed call whose stored agenda no longer matches the fresh notes. The candidate-safe
+brief is unchanged. Pinned by `interview-kit-agenda.test.ts` and `director-brief.test.ts`.
 
 #### Must-asks and the overrun
 
@@ -1042,7 +1099,7 @@ portal then runs the call.
 **What the door mints** (`app/api/jobs/[id]/interview-kit/rehearse/route.ts`): an
 `interview_sessions` row with `mode: "test"`, **no `entry_id`**, `kit_id` pinned to the
 named version, `job_id` set to the job, `workspace_id` set to the caller's team,
-`duration_min` set to the kit's own planned length (`max(20, 1 + Σ competency budgets + 2 + 2)`),
+`duration_min` set to the no-plan value of `kitBookedMin` (1 + Σ competency budgets + 2 + 2, clamped to 15 to 30, the same length a no-prep candidate's link on that version is booked for),
 `language` set to the recruiter's UI locale, and `run_of_show` set to the kit-only agenda's
 candidate-safe titles. The stored `instructions` are only a fallback. They hold the plain
 quick-screen prompt with no director protocol, because a brief that describes tools the
@@ -1835,10 +1892,6 @@ or quality), and `handles`, the required response in one line.
 - **One text call is not a realtime turn.** Speech-after-tools and the continuation are an
   approximation of `function_call_output` + `response.create`. A directive decided during a
   reply's tool exchanges reaches the stand-in only at its next call.
-- **The kit fixture books the kit's own length.** A real candidate with no prep on a
-  kit-pinned link is booked for the quick screen's 5 minutes (`interview-invite.ts` books
-  `buildGroundedInterview`'s `durationMin`, which is `QUICK_SCREEN_MIN` when no prep could be
-  generated), and the agenda is then squeezed to its floors.
 - **One attempt per call.** Drops and reconnects (`resume`) are not simulated.
 
 ## After the decision: the candidate's feedback letter

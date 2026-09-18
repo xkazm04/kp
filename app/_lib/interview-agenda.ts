@@ -54,12 +54,9 @@ import { coerceKitOverlay, kitById } from "./interview-kit";
 import {
   EMPTY_KIT_OVERLAY,
   KIT_MAX_MUST_ASKS,
-  KIT_MAX_QUESTIONS_PER_COMPETENCY,
   type InterviewKit as JobKit,
-  type KitCompetency,
   type KitFaqEntry,
   type KitOverlay,
-  type KitQuestion,
   type KitWeight,
 } from "./interview-kit-types";
 import { getInterviewPrep } from "./interview-prep";
@@ -69,6 +66,26 @@ import type { ChronologyBlock } from "./run-of-show";
 import { isEarlyCareer } from "./archetypes";
 import { devCaseIdForEntry } from "./devcase-identity";
 import { GROUNDED_DEFAULT_MIN } from "./interview-duration.mjs";
+import {
+  applyKitOverlay,
+  chronologyBlockMin,
+  cleanText,
+  CLOSE_MIN,
+  cvProbeBlockMin,
+  cvProbeId,
+  DEFAULT_WARMUP_MIN,
+  importedQuestionsForBrief,
+  kitBookedMin,
+  kitCompetencyMin,
+  kitCvProbes,
+  kitQuestionText,
+  MAX_KIT_CV_PROBES,
+  MAX_OVERLAY_ADDED_QUESTIONS,
+  positiveMinutes,
+  prepFrame,
+  ROLE_QA_MIN,
+  type PrepPayload,
+} from "./interview-kit-booking";
 import {
   phaseMinutes,
   STUDENT_SCRIPT,
@@ -82,6 +99,7 @@ import {
   scenarioPhaseAloudQuestions,
   sanitizeFollowupQuestion,
 } from "./voice/candidate-brief";
+import { kitQuestionListing, type KitQuestionLine } from "./voice/director-brief";
 import type {
   AgendaBlock,
   AgendaBlockKind,
@@ -89,62 +107,18 @@ import type {
   InterviewAgenda,
 } from "./voice/director-types";
 
-// ---- the prep payload + imported questions (moved from interview-run.ts) ----------
-
-/** The stored interview-prep payload as the briefs and the agenda read it. */
-export type PrepPayload = {
-  scenario?: string;
-  durationMin?: number;
-  focusAreas?: string[];
-  chronology?: ChronologyBlock[];
-  /** The recruiter's per-candidate edits to the job kit (interview-kit-types.ts
-   *  KitOverlay). A HUMAN-owned key: the generator never writes it, so
-   *  mergeRegeneratedPrep carries it across a Regenerate untouched. Untrusted on
-   *  read — coerceKitOverlay narrows it, and a malformed one is simply no overlay. */
-  kitOverlay?: unknown;
-  // Interview-kit questions imported into the pack (written by /api/interview-prep
-  // POST, rendered in the prep modal). Aloud-material the recruiter wants asked —
-  // now carried into the voice brief alongside the generated chronology.
-  importedQuestions?: string[];
-  /** The language the pack was generated in (interview-prep-run stamps it). */
-  lang?: string;
-};
+// ---- the prep payload + imported questions ------------------------------------------
+//
+// PrepPayload and importedQuestionsForBrief moved on to interview-kit-booking.ts with
+// the rest of the pure kit/overlay/probe rules the booked length shares with this
+// builder; re-exported here so every existing import keeps working.
+export type { PrepPayload };
+export { importedQuestionsForBrief };
 
 /** Cap on imported interview-kit questions carried into a grounded brief, so a
  *  40-question import (the /api/interview-prep import cap) can't overwhelm the
  *  brief's length discipline. What is dropped is stated in the brief prose. */
 export const MAX_BRIEF_IMPORTED_QUESTIONS = 8;
-
-/** The imported interview-kit questions (prep payload `importedQuestions`) that
- *  should ride a grounded brief: trimmed, de-duplicated, and — the coordination
- *  guard with the sibling "weave into chronology" work — dropped when their exact
- *  text is already asked in a chronology block, so a woven question never
- *  double-renders. Pure/exported for the brief-construction unit tests. */
-export function importedQuestionsForBrief(importedQuestions: unknown, alreadyAsked: Iterable<string>): string[] {
-  const seen = new Set<string>();
-  for (const q of alreadyAsked) if (typeof q === "string") seen.add(q.trim());
-  const out: string[] = [];
-  if (Array.isArray(importedQuestions)) {
-    for (const raw of importedQuestions) {
-      // Entries are legacy plain strings OR { question, blockRef? } objects (the
-      // round-8 weave shape). Both must reach the brief — a woven question keeps
-      // its single home in importedQuestions, so skipping objects would silently
-      // drop exactly the questions the recruiter planned most deliberately.
-      const text =
-        typeof raw === "string"
-          ? raw
-          : raw && typeof raw === "object" && typeof (raw as { question?: unknown }).question === "string"
-            ? (raw as { question: string }).question
-            : null;
-      if (text === null) continue;
-      const q = text.trim();
-      if (!q || seen.has(q)) continue;
-      seen.add(q);
-      out.push(q);
-    }
-  }
-  return out;
-}
 
 /** The dev case's generated interview scenario behind an early-career entry, or null
  *  when the role has no designed case (the generic student script then applies). */
@@ -179,33 +153,15 @@ export type InterviewKit = {
   faq: KitFaqEntry[];
 };
 
-/** Minimum minutes of the protected closing reserve. */
-export const ROLE_QA_MIN = 2;
-export const CLOSE_MIN = 2;
-/** Warm-up length when the kit has no opening block of its own to map onto. */
-export const DEFAULT_WARMUP_MIN = 1;
+// The fixed blocks' minutes and the kit caps live with the booked length
+// (interview-kit-booking.ts), which must count them exactly as this builder lays them out.
+export { CLOSE_MIN, DEFAULT_WARMUP_MIN, MAX_KIT_CV_PROBES, MAX_OVERLAY_ADDED_QUESTIONS, ROLE_QA_MIN };
 /** Minutes per decision block in the submission debrief (debriefDurationMin's 3/question). */
 const DEBRIEF_MIN_PER_QUESTION = 3;
 /** The debrief's open walkthrough of their approach. */
 const DEBRIEF_APPROACH_MIN = 3;
 /** Coverage-first may overrun into slack up to this multiple of the booking. */
 export const HARD_CAP_FACTOR = 1.2;
-
-/** How many of THIS candidate's own CV probes ride on top of a kit-spined agenda.
- *
- *  Three, because the kit already fills the booking: every probe added to a full plan
- *  shortens every kit block (registry: per-question-time-budget-that-tightens — "adding
- *  one question to a full plan shortens every other question"), and the whole point of
- *  the kit is that candidates in one round face the same instrument. Three is enough to
- *  chase what is distinctive about this CV without changing what the round measures.
- *  What is dropped is dropped silently from the AGENDA only — the recruiter's prep pack
- *  still lists every question it generated. */
-export const MAX_KIT_CV_PROBES = 3;
-
-/** How many questions ONE candidate's overlay may add. The kit's own per-competency
- *  cap, reused: an overlay that can add more than a competency may hold has stopped
- *  being an overlay on the round and become a different interview. */
-export const MAX_OVERLAY_ADDED_QUESTIONS = KIT_MAX_QUESTIONS_PER_COMPETENCY;
 
 type Draft = {
   kind: AgendaBlockKind;
@@ -219,11 +175,6 @@ type Draft = {
   mustAsks?: { id: string; text: string }[];
   weight?: KitWeight;
 };
-
-const cleanText = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
-
-const positiveMinutes = (v: unknown, fallback: number): number =>
-  typeof v === "number" && Number.isFinite(v) && v > 0 ? v : fallback;
 
 function warmupDraft(s: InterviewBriefStrings["agenda"], budgetMin: number): Draft {
   return { kind: "warmup", title: s.warmup, budgetMin, competency: null, questions: [s.warmupQuestion], note: null };
@@ -352,80 +303,9 @@ function finalizeKit(branch: InterviewKitBranch, drafts: Draft[], durationMin: n
 
 // ---- the job kit: overlay, then drafts ------------------------------------------------
 
-const kitQuestionText = (q: KitQuestion | undefined | null): string | null =>
-  q && typeof q.id === "string" && q.id !== "" ? cleanText(q.text) : null;
-
-/** Every question a kit asks aloud, in kit order — what a CV probe is de-duplicated
- *  against so the same question is never asked twice under two labels. */
-function kitAloudQuestions(kit: JobKit): string[] {
-  const out: string[] = [];
-  for (const c of kit.competencies ?? []) {
-    for (const q of c.questions ?? []) {
-      const text = kitQuestionText(q);
-      if (text) out.push(text);
-    }
-  }
-  return out;
-}
-
-/**
- * Lay a recruiter's per-candidate edits over the AUTHORED kit and return a new kit.
- * Pure — no DB, no clock — and applied BEFORE anything is drafted, so every downstream
- * reader (the blocks, the must-asks, the debrief's appended required questions) sees
- * one already-edited kit rather than each re-deciding what the overlay meant.
- *
- * The three operations, by kit question id:
- *   - `dropped` removes the question (a dropped must-ask stops being required too —
- *     the recruiter decided it does not apply to this candidate, and a requirement the
- *     recruiter withdrew must not hold the call past its time);
- *   - `edited` rewrites its text in place, keeping its id, its must-ask flag and its
- *     position, so the record still names the same question;
- *   - `added` appends to the competency it names, or — with no competency, or one this
- *     kit version no longer has — to ONE trailing competency of its own.
- *
- * An entry naming an id this kit version does not carry is ignored rather than
- * refused: the overlay outlives the kit it was written against (a published edit mints
- * a new version), and an intent that no longer applies is simply not applied.
- */
-export function applyKitOverlay(kit: JobKit, overlay: KitOverlay, addedBlockTitle: string): JobKit {
-  const dropped = new Set(overlay.dropped);
-  const edits = new Map(overlay.edited.map((e) => [e.id, e.text]));
-  const known = new Set((kit.competencies ?? []).map((c) => c.id));
-  const added = overlay.added.slice(0, MAX_OVERLAY_ADDED_QUESTIONS).filter((a) => !dropped.has(a.id));
-  const addedByCompetency = new Map<string, KitQuestion[]>();
-  const loose: KitQuestion[] = [];
-  for (const a of added) {
-    const q: KitQuestion = { id: a.id, text: a.text, mustAsk: a.mustAsk === true };
-    if (!cleanText(q.text)) continue;
-    if (a.competencyId && known.has(a.competencyId)) {
-      addedByCompetency.set(a.competencyId, [...(addedByCompetency.get(a.competencyId) ?? []), q]);
-    } else {
-      loose.push(q);
-    }
-  }
-  const competencies: KitCompetency[] = (kit.competencies ?? []).map((c) => ({
-    ...c,
-    questions: [
-      ...(c.questions ?? [])
-        .filter((q) => !dropped.has(q.id))
-        .map((q) => (edits.has(q.id) ? { ...q, text: edits.get(q.id) as string } : q)),
-      ...(addedByCompetency.get(c.id) ?? []),
-    ],
-  }));
-  if (loose.length > 0) {
-    // Its own block, last, at the lowest weight: a per-candidate addition is not a
-    // competency the ROLE is hired on, and the emphasis the private brief renders
-    // must not say otherwise.
-    competencies.push({
-      id: "overlay-added",
-      title: addedBlockTitle,
-      weight: 1,
-      budgetMin: Math.min(4, Math.max(2, loose.length)),
-      questions: loose,
-    });
-  }
-  return { ...kit, competencies };
-}
+// applyKitOverlay (and the kit/probe helpers below it) moved to interview-kit-booking.ts
+// so the booked length applies the SAME overlay; re-exported for every existing import.
+export { applyKitOverlay };
 
 /** One block per kit competency, in the KIT's order — the spine. The order is the
  *  author's; `weight` marks which block to protect and orders nothing by itself. */
@@ -433,30 +313,27 @@ function kitCompetencyDrafts(kit: JobKit, s: InterviewBriefStrings): Draft[] {
   return (kit.competencies ?? []).map((c, i) => {
     const questions: string[] = [];
     const mustAsks: { id: string; text: string }[] = [];
-    const followUps: string[] = [];
+    const lines: KitQuestionLine[] = [];
     for (const q of c.questions ?? []) {
       const text = kitQuestionText(q);
       if (!text) continue;
       questions.push(text);
       if (q.mustAsk === true) mustAsks.push({ id: q.id, text });
-      const followUp = cleanText(q.followUp);
-      if (followUp) followUps.push(followUp);
+      lines.push({ text, mustAsk: q.mustAsk === true, followUp: cleanText(q.followUp) });
     }
-    // The private note lists what is NOT a must-ask: privateAgendaListing spells the
-    // required ones out on their own line, and a brief that says the same question
-    // twice is length every other rule in it pays for.
-    const required = new Set(mustAsks.map((m) => m.text));
-    const optional = questions.filter((q) => !required.has(q));
-    const note =
-      [optional.length ? `Ask: ${quoteAll(optional)}.` : "", followUps.length ? `Optional follow-up: ${quoteAll(followUps)}.` : ""]
-        .filter(Boolean)
-        .join(" ") || null;
+    // The private note is the block's questions IN THE KIT'S ORDER, each must-ask marked
+    // on its own question and each follow-up right after the question it follows. It
+    // used to list the optional questions and every follow-up first and the must-asks
+    // last, so an interviewer read "What would you change in THAT service?" before the
+    // question that introduces the service. privateAgendaListing does not repeat a
+    // must-ask this note already marks.
+    const note = kitQuestionListing(lines) || null;
     return {
       kind: "topic",
       // Authored by a human for this role, but scrubbed on the same shape rule as every
       // other candidate-facing label — an author may still park an aside in a title.
       title: candidateSafeTopic(c.title) ?? s.agenda.topicFallback(i + 1),
-      budgetMin: positiveMinutes(c.budgetMin, 3),
+      budgetMin: kitCompetencyMin(c),
       competency: cleanText(c.title),
       questions,
       note,
@@ -489,21 +366,7 @@ function kitMustAskDraft(kit: JobKit, s: InterviewBriefStrings): Draft | null {
   };
 }
 
-/** A stable id for one of THIS candidate's generated probes, so the recruiter's overlay
- *  can drop or rewrite it exactly like a kit question (KitOverlay names "a question the
- *  generator or the kit produced"). A prep chronology carries no question ids, so the id
- *  is derived from the text (32-bit FNV-1a over the trimmed text): stable across reads,
- *  computable by any surface that shows the probe, and it simply stops matching when a
- *  regeneration rewrites the probe — the same "an intent that no longer applies is not
- *  applied" rule as a kit id that a newer version no longer carries. */
-export function cvProbeId(text: string): string {
-  let h = 0x811c9dc5;
-  for (const ch of text.trim()) {
-    h ^= ch.codePointAt(0) ?? 0;
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return `cv-${h.toString(16).padStart(8, "0")}`;
-}
+export { cvProbeId };
 
 /** THIS candidate's own probes, riding on top of a kit-spined agenda as one block:
  *  the recruiter's imported questions first, then the prep chronology's aloud
@@ -512,32 +375,12 @@ export function cvProbeId(text: string): string {
  *  an edited one is asked as rewritten — and what survives is capped at
  *  MAX_KIT_CV_PROBES. Null when the candidate has nothing of their own to add. */
 function cvProbeDraft(prep: PrepPayload | undefined, kit: JobKit, s: InterviewBriefStrings, overlay: KitOverlay): Draft | null {
-  if (!prep) return null;
-  const asked = kitAloudQuestions(kit);
-  // The recruiter's own imports come first: a question a human chose outranks one the
-  // generator proposed when only three of them fit.
-  const imported = importedQuestionsForBrief(prep.importedQuestions, asked);
-  const ordered: string[] = [...imported];
-  const seen = new Set(ordered.concat(asked).map((q) => q.trim()));
-  for (const b of prep.chronology ?? []) {
-    for (const q of chronologyAloudQuestions(b)) {
-      const text = q.trim();
-      if (!text || seen.has(text)) continue;
-      seen.add(text);
-      ordered.push(text);
-    }
-  }
-  const dropped = new Set(overlay.dropped);
-  const edits = new Map(overlay.edited.map((e) => [e.id, e.text]));
-  const kept = chronologyAloudQuestions({ questions: ordered })
-    .filter((q) => !dropped.has(cvProbeId(q)))
-    .map((q) => edits.get(cvProbeId(q)) ?? q);
-  const probes = chronologyAloudQuestions({ questions: kept }).slice(0, MAX_KIT_CV_PROBES);
+  const probes = kitCvProbes(prep, kit, overlay);
   if (probes.length === 0) return null;
   return {
     kind: "topic",
     title: s.recruiterAddedQuestions,
-    budgetMin: Math.min(4, Math.max(2, probes.length)),
+    budgetMin: cvProbeBlockMin(probes.length),
     competency: "Per-candidate probes",
     questions: probes,
     note: null,
@@ -612,9 +455,6 @@ function phaseDrafts(phases: StudentScriptPhase[], s: InterviewBriefStrings, kit
   return [warmupDraft(s.agenda, DEFAULT_WARMUP_MIN), ...middle, ...closingDrafts(s.agenda, ROLE_QA_MIN, CLOSE_MIN)];
 }
 
-const minutesOf = (b: ChronologyBlock) =>
-  positiveMinutes(typeof b?.toMin === "number" && typeof b?.fromMin === "number" ? b.toMin - b.fromMin : NaN, 3);
-
 /** Map a prep chronology onto the agenda. The plan already has a fixed opening
  *  ("Intro & rapport") and a fixed closing ("Candidate questions & wrap-up") — both
  *  recognisable structurally as a first/last block with nothing to ask aloud — so
@@ -628,13 +468,10 @@ function prepDrafts(
   kit: JobKit | null,
   overlay: KitOverlay = EMPTY_KIT_OVERLAY
 ): Draft[] {
-  const chron = (prep.chronology ?? []).filter((b) => b && typeof b === "object");
+  // The plan's frame (its opening, its wrap-up, the middle between them) is read by the
+  // ONE function the booked length reads it with (interview-kit-booking.ts prepFrame).
+  const { chron, middle, warmupMin, roleQaMin, closeMin } = prepFrame(prep);
   const aloudOf = (b: ChronologyBlock) => chronologyAloudQuestions(b);
-  const first = chron[0];
-  const last = chron.length > 1 ? chron[chron.length - 1] : undefined;
-  const hasOpening = !!first && aloudOf(first).length === 0;
-  const hasClosing = !!last && aloudOf(last).length === 0;
-  const middle = chron.slice(hasOpening ? 1 : 0, hasClosing ? chron.length - 1 : chron.length);
 
   const topics: Draft[] = [];
   let open: Draft | null = null;
@@ -644,7 +481,7 @@ function prepDrafts(
     const rawTopic = cleanText(b.topic);
     const goal = cleanText(b.goal);
     if (aloud.length === 0 && openTopic && rawTopic === openTopic && !open) {
-      open = { kind: "open", title: s.agenda.open, budgetMin: minutesOf(b), competency: rawTopic, questions: [], note: goal };
+      open = { kind: "open", title: s.agenda.open, budgetMin: chronologyBlockMin(b), competency: rawTopic, questions: [], note: goal };
       continue;
     }
     ordinal += 1;
@@ -659,7 +496,7 @@ function prepDrafts(
     topics.push({
       kind: "topic",
       title: candidateSafeTopic(b.topic) ?? s.agenda.topicFallback(ordinal),
-      budgetMin: minutesOf(b),
+      budgetMin: chronologyBlockMin(b),
       competency: rawTopic,
       questions: aloud,
       note,
@@ -682,8 +519,6 @@ function prepDrafts(
     });
   }
 
-  const warmupMin = hasOpening ? minutesOf(first) : DEFAULT_WARMUP_MIN;
-  const wrapMin = hasClosing && last ? minutesOf(last) : ROLE_QA_MIN + CLOSE_MIN;
   // With a kit the SPINE replaces the plan's per-candidate topics (including the
   // imported-questions block, whose contents ride the bounded CV-probe block instead,
   // recruiter-imports first). What the plan still contributes is its FRAME: the
@@ -696,7 +531,7 @@ function prepDrafts(
     warmupDraft(s.agenda, warmupMin),
     ...scripted,
     ...(open ? [open] : []),
-    ...closingDrafts(s.agenda, Math.max(ROLE_QA_MIN, wrapMin - CLOSE_MIN), CLOSE_MIN),
+    ...closingDrafts(s.agenda, roleQaMin, closeMin),
   ];
 }
 
@@ -712,12 +547,10 @@ function kitOnlyDrafts(kit: JobKit, s: InterviewBriefStrings): Draft[] {
   ];
 }
 
-/** The kit's own planned length: its competencies plus the fixed blocks. Used only
- *  when the session has no booking to fit to. */
-function kitPlannedMin(kit: JobKit): number {
-  const topics = (kit.competencies ?? []).reduce((n, c) => n + positiveMinutes(c.budgetMin, 3), 0);
-  return Math.max(GROUNDED_DEFAULT_MIN, DEFAULT_WARMUP_MIN + topics + ROLE_QA_MIN + CLOSE_MIN);
-}
+// The booked length of a kit-spined interview is interview-kit-booking.ts kitBookedMin —
+// ONE rule for the mint, the rehearsal, the scheduling estimate and a build with no
+// booking below. Re-exported for the callers that read it from here.
+export { kitBookedMin };
 
 // ---- entry points -----------------------------------------------------------------------
 
@@ -801,12 +634,14 @@ export async function buildInterviewKit(
 
   if (!prep?.chronology?.length) {
     // No plan of their own — but a kit is a complete agenda on its own.
-    return kit ? finalizeKit("kit", kitOnlyDrafts(kit, strings), lengthOr(kitPlannedMin(kit)), faq) : null;
+    return kit && authored ? finalizeKit("kit", kitOnlyDrafts(kit, strings), lengthOr(kitBookedMin(authored, prep)), faq) : null;
   }
   // The open-discussion topic in the PACK's language (the recruiter's, stamped at
   // generation) — that is the language the chronology's scaffolding was written in.
   const openTopic = (await rosStrings(prep.lang ?? entry.locale)).openTopic;
-  const durationMin = lengthOr(positiveMinutes(prep.durationMin, GROUNDED_DEFAULT_MIN));
+  // With a kit the kit decides the length (it replaced the plan's topics); without one,
+  // the plan's own.
+  const durationMin = lengthOr(authored ? kitBookedMin(authored, prep) : positiveMinutes(prep.durationMin, GROUNDED_DEFAULT_MIN));
   return finalizeKit("prep", prepDrafts(prep, strings, openTopic, kit, overlay), durationMin, faq);
 }
 
@@ -832,7 +667,9 @@ export async function buildKitOnlyInterviewKit(
   if (!authored) return null;
   const strings = await interviewBriefStrings(opts?.locale ?? null);
   const booked = positiveMinutes(opts?.bookedMin, NaN);
-  const durationMin = Number.isFinite(booked) ? booked : kitPlannedMin(authored);
+  // No booking: the kit's own, the SAME no-plan value a candidate link is minted at — which
+  // is what the rehearse door books, since it books this agenda's length.
+  const durationMin = Number.isFinite(booked) ? booked : kitBookedMin(authored);
   return finalizeKit("kit", kitOnlyDrafts(authored, strings), durationMin, authored.faq ?? []);
 }
 

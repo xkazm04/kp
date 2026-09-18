@@ -129,26 +129,70 @@ const WEIGHT_TAIL: Record<number, string> = {
   3: "This competency carries the most of the decision — protect its time.",
 };
 
-/** The must-asks of a block, stated as a constraint on what the block may end without
- *  (registry: rule-ordering-adjacency-and-form — a rule that bounds a turn's content
- *  holds; one that asks for an extra conversational move does not). */
-function mustAskTail(block: AgendaBlock): string {
-  const musts = (block.mustAsks ?? []).filter((m) => m && typeof m.text === "string" && m.text.trim() !== "");
+/** How a job kit's must-ask is stated to the interviewer: a constraint on what the block
+ *  may end without (registry: rule-ordering-adjacency-and-form — a rule that bounds a
+ *  turn's content holds; one that asks for an extra conversational move does not). */
+export const MUST_ASK_MARK = "Required, never skipped even if you are over time";
+
+/** A must-ask as it reads INLINE, on its own question. The one spelling both
+ *  kitQuestionListing writes and mustAskTail looks for, so a required question is
+ *  never stated twice. */
+const inlineMustAsk = (text: string) => `${quoted(text)} — ${MUST_ASK_MARK}`;
+
+/** End a clause with a full stop unless the quoted question already ends one. */
+const stop = (s: string) => (/[.?!…]”?$/.test(s) ? s : `${s}.`);
+
+/** One job-kit question as the INTERVIEWER's listing states it. */
+export type KitQuestionLine = { text: string; mustAsk: boolean; followUp: string | null };
+
+/**
+ * A job-kit block's questions for the PRIVATE listing, in the kit's AUTHORED order —
+ * the order is the author's, and it carries meaning: a later question may lean on an
+ * earlier one ("What would you change in THAT service?"). Each must-ask is marked on its
+ * own question, and each follow-up sits immediately after the question it follows,
+ * never before it. Numbered when there is more than one, so the order is unmistakable.
+ *
+ * Interviewer-internal (the must-ask marker and the follow-ups are the recruiter's): it
+ * is composed into a kit block's PRIVATE note (interview-agenda.ts) and never into the
+ * candidate listing, which reads only the block's aloud `questions`.
+ */
+export function kitQuestionListing(items: readonly KitQuestionLine[]): string {
+  const qs = items.filter((q) => q && typeof q.text === "string" && q.text.trim() !== "");
+  if (qs.length === 0) return "";
+  const numbered = qs.length > 1;
+  const parts = qs.map((q, i) => {
+    const head = `${numbered ? `${i + 1}) ` : ""}${q.mustAsk ? `${inlineMustAsk(q.text)}.` : stop(quoted(q.text))}`;
+    const followUp = typeof q.followUp === "string" && q.followUp.trim() !== "" ? ` Optional follow-up: ${stop(quoted(q.followUp))}` : "";
+    return head + followUp;
+  });
+  return `${numbered ? "Ask in this order:" : "Ask:"} ${parts.join(" ")}`;
+}
+
+/** The must-asks of a block that its private note does not already mark INLINE (a kit
+ *  block's note is kitQuestionListing, which does), stated as one line. A block with no
+ *  note — the debrief's appended required questions, or a resumed call whose notes no
+ *  longer fit the stored agenda — still gets every required question here. */
+function mustAskTail(block: AgendaBlock, note = ""): string {
+  const musts = (block.mustAsks ?? [])
+    .filter((m) => m && typeof m.text === "string" && m.text.trim() !== "")
+    .filter((m) => !note.includes(inlineMustAsk(m.text)));
   if (musts.length === 0) return "";
-  return `Required, never skipped even if you are over time: ${musts.map((m) => quoted(m.text)).join(" ")}.`;
+  return `${MUST_ASK_MARK}: ${musts.map((m) => quoted(m.text)).join(" ")}.`;
 }
 
 /** The INTERVIEWER's agenda listing (server-side only): the same heads as the
  *  candidate listing, plus the competency the block gathers evidence for, the kit's
- *  private note (goal, listen-for, scripted hint, red flag), and — for a job-kit
- *  block — which of its questions may not be skipped and how much of the decision it
- *  carries. A block with no note falls back to its aloud questions. */
+ *  private note (goal, listen-for, scripted hint, red flag — for a job-kit block, its
+ *  questions in authored order with the must-asks marked inline: kitQuestionListing),
+ *  and how much of the decision a job-kit block carries. A block with no note falls
+ *  back to its aloud questions. */
 export function privateAgendaListing(agenda: InterviewAgenda, notes: Readonly<Record<string, string>>): string {
   return agenda.blocks
     .map((b) => {
       const competency = b.competency && oneLine(b.competency) !== oneLine(b.title) ? `Evidence for: ${oneLine(b.competency)}.` : "";
       const note = notes[b.id]?.trim();
-      const musts = mustAskTail(b);
+      // A must-ask the note already marks on its own question is not stated again.
+      const musts = mustAskTail(b, note ?? "");
       // A block whose required questions are spelled out below does not also get the
       // bare question list: the same text twice in one line is length the rest of the
       // brief pays for (registry: rule-ordering-adjacency-and-form).

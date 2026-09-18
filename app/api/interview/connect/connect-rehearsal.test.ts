@@ -32,6 +32,7 @@ import { setDecisionConfig } from "../../../_lib/decision-config-store.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../../_lib/db/workspaces.ts";
 import { DIRECTOR_TOOL_NAMES } from "../../../_lib/voice/director-tools.mjs";
 import type { InterviewKit } from "../../../_lib/interview-kit-types.ts";
+import { kitBookedMin } from "../../../_lib/interview-kit-booking.ts";
 
 const realFetch = globalThis.fetch;
 const openAiPayloads: string[] = [];
@@ -157,7 +158,7 @@ test("OpenAI rehearsal: the directed private brief, the director tools and the k
   assert.deepEqual(tools.map((t) => t.name), [...DIRECTOR_TOOL_NAMES], "the director's tools ride with the brief");
   const instructions = minted.instructions as string;
   assert.match(instructions, /Director protocol/);
-  assert.match(instructions, /Required, never skipped even if you are over time: “How do you decide what to automate first\?”/);
+  assert.match(instructions, /“How do you decide what to automate first\?” — Required, never skipped even if you are over time\./);
   assert.match(instructions, /This competency carries the most of the decision — protect its time\./);
   assert.ok(instructions.includes("Two days in the Prague office, three remote."), "the kit FAQ is a role fact the interviewer may give");
   assert.ok(!/You are speaking with/.test(instructions), "no candidate is named — there is none");
@@ -193,6 +194,9 @@ test("EQUALITY: a no-prep candidate on the same kit version gets the same agenda
   const kitId = draftKit(jobId);
   const rehearsalToken = await mintRehearsal(jobId, kitId);
   const booked = getInterviewSessionByToken(rehearsalToken)?.durationMin ?? null;
+  // The door books the ONE kit-booking rule's no-plan value — the length a no-prep
+  // candidate's link on this version is minted at — not a rehearsal-only max(20, …).
+  assert.equal(booked, kitBookedMin(KIT), "the rehearsal is booked like a no-plan candidate link");
 
   // The candidate: same job, an explicit locale (so both open in English), no prep of
   // their own, a link pinned to the SAME version and booked for the same length.

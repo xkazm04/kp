@@ -61,13 +61,18 @@ test("/create refuses cheaply, throttles, grounds, reserves, THEN revokes and mi
   assert.ok(promote < handoff, "the entry is resolved before the mint is asked for");
 
   const live = at(door, "liveInterviewByEntry(entryId, workspaceId)", "the live-call guard");
-  const grounded = at(door, "await buildGroundedInterview(entryId, workspaceId)", "the grounding build");
+  const kitPin = at(door, "pinned = latestPublishedKit(jobId, workspaceId)", "the job-kit pin");
+  const grounded = at(door, "await buildGroundedInterview(entryId, workspaceId, { pinnedKit:", "the grounding build, handed the pinned kit");
   const reserve = at(door, "maxBillableInterviewMin(grounded.durationMin)", "the authoritative reservation");
   const revoke = at(door, "revokeOpenInterviewSessions(entryId, workspaceId)", "the reissue revoke");
   const mint = at(door, "const session = createInterviewSession({", "the session mint");
   const dispatch = at(door, "await dispatchInterviewInvite(", "the invite dispatch");
 
   assert.ok(live < grounded, "a call in progress is refused before any model-backed work");
+  assert.ok(
+    live < kitPin && kitPin < grounded,
+    "the pinned kit sets the booked length (interview-kit-booking.ts kitBookedMin), so it is read before the build that books it",
+  );
   assert.ok(
     grounded < reserve,
     "the reservation is sized from the run-of-show's booked length, so the build must come first",

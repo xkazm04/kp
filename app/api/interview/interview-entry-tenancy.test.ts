@@ -120,7 +120,7 @@ test("every entry-keyed interview route threads the caller's tenant", () => {
   assert.match(create, /mintAndInviteVoiceScreen\(\{[\s\S]*?workspaceId:\s*workspace,/, "create hands the caller's team to the mint door");
   assert.match(mint, /liveInterviewByEntry\(entryId,\s*workspaceId\)/, "the reissue guard is scoped");
   assert.match(mint, /revokeOpenInterviewSessions\(entryId,\s*workspaceId\)/, "the revoke-first is scoped");
-  assert.match(mint, /buildGroundedInterview\(entryId,\s*workspaceId\)/, "a foreign entry must 404 out of the brief build");
+  assert.match(mint, /buildGroundedInterview\(entryId,\s*workspaceId[,)]/, "a foreign entry must 404 out of the brief build");
   assert.match(mint, /getPipelineEntry\(entryId,\s*workspaceId\)/, "the invite-locale read is scoped");
   assert.match(revoke, /revokeOpenInterviewSessions\(entryId,\s*await currentWorkspace\(\)\)/, "revoke is scoped");
   assert.match(byEntry, /latestInterviewByEntry\(entry,\s*workspace\)/, "the ?entry= read is scoped");
