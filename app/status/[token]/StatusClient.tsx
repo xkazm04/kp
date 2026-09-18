@@ -7,6 +7,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { BTN_GHOST, BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
+import {
+  RECORDING_BACKSTOP_DAYS,
+  RECORDING_RETENTION_AFTER_DECISION_DAYS,
+} from "@/app/_lib/interview-recording-paths";
 import { StatusNpsCard } from "./StatusNpsCard";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
@@ -346,7 +350,12 @@ export function StatusClient({
               <h2 id="status-recording-title" className="text-body font-semibold text-ink">
                 {t("recording.title")}
               </h2>
-              <p className="mt-1 text-base text-steel">{t("recording.body")}</p>
+              <p className="mt-1 text-base text-steel">
+                {t("recording.body", {
+                  decisionDays: RECORDING_RETENTION_AFTER_DECISION_DAYS,
+                  backstopDays: RECORDING_BACKSTOP_DAYS,
+                })}
+              </p>
               {recordingStep === "confirm" || recordingStep === "deleting" ? (
                 <div className="mt-3">
                   <p className="text-base text-ink">{t("recording.confirm")}</p>
