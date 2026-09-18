@@ -750,6 +750,21 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
   wider AI/Human/Hybrid mechanism design lives in
   `docs/concepts/interview-rounds.md`.
+  - **Finished AI interviews are now reachable from this tab too** (2026-09-18).
+    The ledger's awaiting/live scope above is unchanged; a separate completed list
+    (`ScheduleAiRoundCompleted.tsx`) sits beside it and opens the same transcript
+    modal, because an AI-only hiring plan renders only `ScheduleAiRound` and could
+    otherwise reach neither the prep pack nor a finished conversation.
+  - **The transcript modal carries the directed interview's record.** Turns are
+    grouped under their agenda block with mm:ss timestamps, an observations panel
+    states in its own heading that focus departures, guardrail attempts and answer
+    timing are observations and never a reason to reject, and an opt-in audio
+    recording plays per attempt. The mechanism, the event vocabulary and the
+    retention rules belong to the interview feature, not to scheduling:
+    [`docs/features/interviews/README.md`](../interviews/README.md) §"Recruiter
+    evidence", §"Director engine" and §"Opt-in audio recording". Files here:
+    `ScheduleInterviewEvidenceSection.tsx`, `ScheduleInterviewObservations.tsx`,
+    `ScheduleInterviewRecordings.tsx`, `scheduleInterviewEvidence.ts`.
   - **A `failed` session lands back in "Awaiting link".** `/api/interview/complete`
     downgrades a silent-mic call to `failed` so it is never scored, and
     `revokeOpenInterviewSessions` treats a failed row as reissuable — so
