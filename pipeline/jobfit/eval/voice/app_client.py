@@ -97,6 +97,19 @@ def _post(base_url: str, path: str, body: dict, *, timeout: int = 60) -> dict[st
         raise AppError(f"POST {path} failed ({exc.reason}). Is the dev server running at {base_url}?") from exc
 
 
+def _get(base_url: str, path: str, *, timeout: int = 60) -> dict[str, Any]:
+    base_url = validate_base_url(base_url)
+    try:
+        # validate_base_url above has already proven the host is loopback/private/allowlisted.
+        with urllib.request.urlopen(f"{base_url}{path}", timeout=timeout) as resp:  # noqa: S310 (validated above)
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:400]
+        raise AppError(f"GET {path} -> {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise AppError(f"GET {path} failed ({exc.reason}). Is the dev server running at {base_url}?") from exc
+
+
 def get_availability(base_url: str = DEFAULT_BASE_URL, *, timeout: int = 30) -> dict[str, bool]:
     """Read the app's provider availability. A loopback GET: legal under KP_OFFLINE."""
     base_url = validate_base_url(base_url)
@@ -191,3 +204,16 @@ def complete(
         {"token": token, "sessionId": session_id, "transcript": transcript, "status": status},
         timeout=180,  # scorecard synthesis can spawn the LLM pipeline
     )
+
+
+def scorecard_for_entry(base_url: str, *, entry_id: str, timeout: int = 60) -> dict | None:
+    """The scorecard of the entry's latest interview, read through the RECRUITER door
+    (/api/interview/by-entry). /complete no longer returns it: that reply goes to the
+    candidate's own browser, and the scorecard is a verdict about them. A loopback GET,
+    so it needs the dev server's open/dev auth like every other recruiter read here."""
+    from urllib.parse import quote
+
+    data = _get(base_url, f"/api/interview/by-entry?entry={quote(entry_id)}", timeout=timeout)
+    session = data.get("session") or {}
+    scorecard = session.get("scorecard")
+    return scorecard if isinstance(scorecard, dict) else None

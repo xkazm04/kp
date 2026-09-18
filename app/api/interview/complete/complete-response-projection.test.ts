@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
-import { createInterviewSession, markInterviewStarted } from "../../../_lib/db/interviews.ts";
+import { attachInterviewScorecard, createInterviewSession, markInterviewStarted } from "../../../_lib/db/interviews.ts";
 
 after(() => {
   cleanupUnitDb();
@@ -109,4 +109,28 @@ test("the empty-transcript-after-a-real-one guard answers with the same projecti
   assert.equal(body.alreadyCompleted, true, "the empty finalize must not overwrite the stored transcript");
   assertNoInterviewerInternals(body, "empty-finalize guard");
   assert.ok(!("instructions" in body.session) && !("runOfShow" in body.session));
+});
+
+// The AI scorecard is a VERDICT about the caller — `recommendation: "reject"`, the
+// per-axis ratings, the evidence summary — and this door is the candidate's own
+// browser. It rode every reply here (the fresh completion's synthesized scorecard and
+// the stored one on each already-completed path), unrendered but a Network tab away,
+// while the interviewer brief forbids the model from saying any of it aloud. The
+// stored scorecard is attached directly so no LLM hop is needed to prove the line.
+test("no reply ever carries the AI scorecard or its recommendation", async () => {
+  const session = startedCandidateSession();
+  const fresh = await POST(completeRequest({ token: session.token, transcript: TRANSCRIPT }));
+  const freshBody = (await fresh.json()) as Record<string, unknown>;
+  assert.ok(!("scorecard" in freshBody), "the fresh completion reply has no scorecard field");
+
+  attachInterviewScorecard(session.id, {
+    recommendation: "reject",
+    summary: "Weak on test automation; SCORECARD_MARKER",
+    ratings: [{ key: "technical", rating: 2, evidence: "I built a test harness." }],
+  });
+  const retry = await POST(completeRequest({ token: session.token, transcript: TRANSCRIPT }));
+  assert.equal(retry.status, 200);
+  const raw = await retry.text();
+  assert.ok(!raw.includes("scorecard"), "the already-completed reply must not name a scorecard");
+  assert.ok(!raw.includes("SCORECARD_MARKER") && !raw.includes("recommendation"), "no verdict reaches the candidate");
 });

@@ -151,7 +151,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         alreadyCompleted: true,
         session: publicSessionView(session),
-        scorecard: session.scorecard ?? null,
       });
     }
 
@@ -236,7 +235,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         alreadyCompleted: true,
         session: publicSessionView(session),
-        scorecard: session.scorecard ?? null,
       });
     }
 
@@ -265,7 +263,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         alreadyCompleted: true,
         session: publicSessionView(persisted),
-        scorecard: persisted?.scorecard ?? null,
       });
     }
 
@@ -393,7 +390,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, session: publicSessionView(updated), scorecard });
+    // The scorecard is NOT on this reply. The caller is the candidate's own browser
+    // (the session token is the only credential), and the scorecard carries the AI
+    // recommendation about them — a verdict the interviewer itself is forbidden to
+    // give (noJudgementClose) and a store row this public door must project, never
+    // forward. It used to ride all four replies here, a Network-tab away from every
+    // candidate. Recruiters read it through their own authenticated doors
+    // (/api/interview/by-entry, the transcript modal).
+    return NextResponse.json({ ok: true, session: publicSessionView(updated) });
   } catch (error) {
     return safeJsonError(error, "api:interview:complete", "INTERVIEW_COMPLETE_FAILED");
   }

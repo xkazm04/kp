@@ -83,7 +83,11 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    **interviewer** brief (`composeBrief`) deliberately keeps the raw topic: it
    is server-side and interviewer-internal, which is why
    `/api/interview/complete`'s public projection strips it. Pinned by
-   `app/_lib/interview-run.test.ts`.
+   `app/_lib/interview-run.test.ts`. That reply carries **no scorecard** either:
+   it goes to the candidate's own browser, and the scorecard is the AI's verdict
+   about them (`recommendation`, ratings, summary). It rode every reply until
+   2026-09-18; recruiters and the voice eval harness now read it through
+   `/api/interview/by-entry` (`complete-response-projection.test.ts`).
 3. **Live call.** `app/_components/voice/VoiceInterview.tsx` (+
    `VoiceInterviewClient.tsx`, `InterviewSidebar.tsx`) drives either adapter —
    the two realtime transports live side by side under

@@ -378,7 +378,10 @@ async def run_voice_scenario(
         try:
             saved = app_client.complete(base_url, token=tok, session_id=sid, transcript=run.turns, status="completed")
             run.stored_turns = len((saved.get("session") or {}).get("transcript") or [])
-            run.scorecard = saved.get("scorecard")
+            # The scorecard is read through the recruiter door: /complete answers the
+            # candidate's browser and never carries the verdict about them.
+            if entry_id:
+                run.scorecard = app_client.scorecard_for_entry(base_url, entry_id=entry_id)
         except app_client.AppError as exc:
             run.errored = run.errored or f"persist failed: {exc}"
     return run
