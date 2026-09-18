@@ -855,6 +855,31 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_interview_token ON interview_sessions (token);
     CREATE INDEX IF NOT EXISTS idx_interview_entry ON interview_sessions (entry_id);
 
+    -- The interview DIRECTOR's append-only record (db/interview-events.ts; ADR 0010):
+    -- every finalized turn, every tool call the interviewer model made (topic begun /
+    -- covered / rejected, guardrail, forwarded question, end request), every stage
+    -- direction the director injected, and the browser-only observations (focus,
+    -- answer timing — never scored). One row per event, never UPDATEd; the only
+    -- other write is the erasure DELETE (db/pipeline.ts scrubEntryLinkedPii).
+    -- seq numbers turns per attempt so a retried POST is idempotent (the partial
+    -- unique index below); at = when it happened, created_at = when the server
+    -- recorded it (the one clock the director does its arithmetic on).
+    CREATE TABLE IF NOT EXISTS interview_events (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      attempt INTEGER NOT NULL,
+      seq INTEGER,
+      kind TEXT NOT NULL,
+      block_id TEXT,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_events_turn ON interview_events (session_id, attempt, seq) WHERE kind = 'turn';
+    CREATE INDEX IF NOT EXISTS idx_interview_events_session_at ON interview_events (session_id, at);
+
     -- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md). llm_config pins
     -- provider+model per use case (explicit rows only — absence means the
     -- built-in default, i.e. Claude CLI locally); provider_keys holds

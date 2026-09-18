@@ -33,6 +33,7 @@ const ROUTES = [
   "./create/route.ts",
   "./connect/route.ts",
   "./complete/route.ts",
+  "./director/route.ts",
   "./by-entry/route.ts",
   "./compare/route.ts",
   "./revoke/route.ts",
@@ -98,6 +99,7 @@ test("the stable-code catalogue covers every interview failure path", () => {
     "INTERVIEW_COMPLETE_FAILED",
     "INTERVIEW_LOOKUP_FAILED",
     "INTERVIEW_PREP_FAILED",
+    "INTERVIEW_DIRECTOR_FAILED",
   ]) {
     assert.match(src, new RegExp(code), `STORE_ERRORS must define a generic message for ${code}`);
   }

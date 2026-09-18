@@ -1,8 +1,10 @@
 # Voice conversation plane — transport-only providers, our brain
 
-Status: implemented for the role-intake dialog (2026-08-07); the candidate
-voice interview still runs the older provider-brain design (migration is
-future work, see the end). Companion feature doc:
+Status: implemented for the role-intake dialog (2026-08-07). The candidate
+voice interview deliberately does NOT use this plane: it keeps the provider
+brain for each spoken turn and adds a server-side director around it — see
+[ADR 0010](decisions/0010-candidate-interview-keeps-provider-brain-plus-director.md)
+and the end of this document. Companion feature doc:
 [docs/features/intake/README.md](../features/intake/README.md).
 
 ## The principle
@@ -101,9 +103,19 @@ completion) runs 30–40 s — unusable at speech pace. So the work splits:
 
 ## Future work
 
-- Migrate the candidate voice interview to this plane (it still ships the
-  provider-brain design with the candidate-safe-brief apparatus; the relay
-  design would retire the client-sent-prompt security seam wholesale).
+- The candidate voice interview is NOT being migrated here for now.
+  [ADR 0010](decisions/0010-candidate-interview-keeps-provider-brain-plus-director.md)
+  records why: this plane's fast thread runs in seconds per exchange (and
+  proposes a filler past ~3 s, below), while a live candidate interview is held
+  to a ~700 ms p50 reply bar that only the provider's own speech-to-speech brain
+  meets today. The interview instead keeps the provider brain and adds OUR
+  director — an agenda with stable block ids, tool calls recorded in
+  `interview_events`, and stage directions injected back
+  (`app/_lib/voice/director.ts`, `POST /api/interview/director`). The cost is the
+  one this plane would have removed: the brief still reaches the provider, so the
+  client-sent-prompt seam and the candidate-safe-brief apparatus stay. The ADR
+  names the measurement that reopens the migration (a relay fast thread at
+  p50 ≤ ~1 s on the harness below).
 - Latency dressing: a short localized filler ("moment…") when the fast thread
   exceeds ~3 s, and streamed TTS of partial replies.
 - Harness: drive this plane with the existing audio-in-the-loop rig

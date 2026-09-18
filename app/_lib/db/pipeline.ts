@@ -2227,6 +2227,15 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
       `UPDATE interview_sessions SET candidate_label = ?, transcript_json = '[]', scorecard_json = NULL WHERE entry_id = ?`
     ).run(masked, entryId);
   }
+  // The interview director's record (db/interview-events.ts): every live turn verbatim,
+  // the evidence quotes, the guardrail quotes and the forwarded questions — the same
+  // raw-PII class as transcript_json above, and append-only by design, so it is DELETED
+  // rather than masked. Keyed by session, reached through the entry's sessions.
+  if (tables.has("interview_events")) {
+    db.prepare(
+      `DELETE FROM interview_events WHERE session_id IN (SELECT id FROM interview_sessions WHERE entry_id = ?)`
+    ).run(entryId);
+  }
   // Outbound comms outbox (ref = entry id): recipient is the candidate's email when it
   // was captured; subject/body are personalized (name + details). Blank all three; the
   // kind/status/created_at columns stay as the "a message was sent" delivery audit.

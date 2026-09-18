@@ -145,6 +145,186 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
    deliberately omits it). See `docs/features/intake/README.md`.
 
+## Director engine
+
+The candidate interview keeps the realtime provider's own model for each spoken turn
+(sub-second speech-to-speech) and adds **our director** around it
+([ADR 0010](../../architecture/decisions/0010-candidate-interview-keeps-provider-brain-plus-director.md)).
+The director keeps the record, holds the clock and injects stage directions. It never
+writes the interviewer's words. The leadership policy is **coverage first, then clock**.
+
+### Flows
+
+1. **An exchange.** During the call the candidate's browser posts
+   `POST /api/interview/director` with the turns finalized since the last acknowledged
+   seq, the browser-only observations (`focus_lost`, `focus_returned`,
+   `answer_timing`) and at most one tool call the model is waiting on. The server,
+   inside one IMMEDIATE transaction:
+   1. persists the new turns, tagged with the active block. A turn is idempotent per
+      `(session, attempt, seq)`, so a retried POST changes nothing.
+   2. applies the tool call and records it.
+   3. derives the state (active block, covered blocks, live time) from the record and
+      decides at most one stage direction. The direction is recorded too, so the dedupe
+      still works across requests.
+   4. answers `{ ok, ackSeq, toolResult, directive, agenda: { activeBlockId,
+      coveredBlockIds }, endCall }`.
+
+   The browser injects `directive.text`, which already carries the `[Director]`
+   prefix, into the provider session unchanged. It hands `toolResult` back to the
+   model as the tool's output. When `endCall` is true, it ends the call once the
+   interviewer's current utterance finishes. It resends every turn above `ackSeq`.
+2. **Tool calls** (`app/_lib/voice/director-tools.mjs`).
+   - `begin_topic`: records `topic_begun` for a known block id. An unknown id gets
+     "continue", and a covered block is refused.
+   - `mark_topic_covered`: accepted only when `evidence_quote` (trimmed, at most 400
+     characters, at least 3 words) matches a **persisted candidate turn** of the session.
+     The match ignores case, punctuation, diacritics and whitespace. The quote must sit
+     inside what the candidate said, or across two adjacent candidate turns. Otherwise
+     at least 60% of its distinctive words (and at least 2) must appear in one turn
+     (`app/_lib/quote-match.ts`).
+     - Accepted: `topic_covered`.
+     - Rejected: `topic_cover_rejected` with a `reason` of `empty`, `too_short`,
+       `too_long` or `no_match`. The model is told the evidence was not recorded and
+       that it should ask one narrower question for a concrete instance.
+   - `report_guardrail`: records `guardrail` as `{kind, quote, verified}`, where
+     `verified` means the quote matched the candidate's persisted words. It is an
+     observation only. It is never scored and never a reason to act.
+   - `forward_question`: records `candidate_question`.
+   - `end_interview`: records `end_requested` and answers `endCall: true` for the rest
+     of that attempt. There is one exception, because the interviewer leads with
+     coverage first: reason `complete` is **refused** while all three of these hold:
+     - a scored (`topic`/`open`) block is still uncovered;
+     - elapsed is below hardCap − closeReserve;
+     - the closing block has not begun.
+
+     A refused call is still written as an `end_requested` row with
+     `payload.refused: true` (and `remaining`), so it stays on the audit trail. That row
+     never ends the call. The model is told `Not yet — N topics remain. Continue with
+     bX · <title>.` Reasons `time` and `candidate_request` are always accepted: the
+     candidate may stop whenever they want.
+   - Every tool event stores its `callId` and the result it was given. If a retried POST
+     sends the same call again, it gets the same answer and nothing new is recorded.
+3. **A reconnect.** `buildResumeContext(sessionId, workspaceId)` (`voice/resume.ts`)
+   returns the earlier attempts' most recent 40 turns, the active and covered blocks,
+   the live seconds already spent and the attempt being resumed into. Call it **after**
+   `markInterviewStarted` has counted the reconnect. The first exchange of a resumed
+   attempt also gets one `resume` direction naming the block to continue with.
+
+### Directive policy
+
+The time arithmetic runs on the **server clock only**. The time for each attempt is
+measured from its first event, or from its connect if that is earlier, to its last
+event. The current attempt runs to now. The gaps between dropped attempts don't count.
+
+Slack = hardCap − closeReserve − elapsed − Σ budgets of blocks not yet started. The
+closing blocks are left out of that sum because the close reserve already holds them.
+
+| Condition (highest priority first) | Directive |
+| --- | --- |
+| elapsed ≥ hardCap + 2 min | `end_now`, and `endCall: true` |
+| elapsed ≥ hardCap − closeReserve, and neither role questions nor closing has begun | `close_now` naming the first role-questions/closing block |
+| first exchange of a reconnected attempt | `resume` naming the active block (or the next one) |
+| active block under its budget | nothing (coverage first) |
+| active `topic`/`open` block at budget, uncovered, no narrowing sent yet | `stay_narrow` (once per block) |
+| overrun ≥ 50% of the budget, or slack ≤ 0 (and any `stay_narrow` is more than 60 s old) | `move_on` naming the next unstarted, uncovered block |
+| the same (kind, block) already sent within 60 s | nothing |
+| no agenda | nothing, ever |
+
+Warm-up, role-questions and closing blocks never get `stay_narrow`. Directive text names
+blocks by id and candidate-safe title only, never a competency, question or goal,
+because it passes through the candidate's browser.
+
+### API / lib surface
+
+| Surface | Role |
+| --- | --- |
+| `POST /api/interview/director` (`app/api/interview/director/route.ts`) | Public token route. Body capped at 64 KB. Per-token limit of 240 per 10 min (`interview-director:<token>`). The tenant is the session's own workspace. |
+| `app/_lib/voice/director-step.ts` | Parses the untrusted request (at most 50 turns and 20 observations per request, turns clamped like the hang-up transcript) and runs one exchange in one IMMEDIATE transaction. |
+| `app/_lib/voice/director.ts` | Pure policy: `deriveDirectorState`, `decideDirective`, `applyDirectorTool`. No DB, no clock. |
+| `app/_lib/voice/resume.ts` | `buildResumeContext` for `/connect`. |
+| `app/_lib/quote-match.ts` | Shared, pure quote-to-turn matcher. |
+| `app/_lib/db/interview-events.ts` | `appendInterviewEvents`, `listInterviewEvents`, `maxInterviewTurnSeq`, `withInterviewEventsLock`. |
+
+Refusals, all coded:
+
+| Condition | Status | Code |
+| --- | --- | --- |
+| No token | 400 | `INTERVIEW_LINK_NOT_FOUND` |
+| Unknown token, or a `sessionId` that is not the token's | 404 | `INTERVIEW_LINK_NOT_FOUND` |
+| Session completed | 409 | `INTERVIEW_ALREADY_COMPLETED` |
+| Session revoked | 409 | `INTERVIEW_LINK_INACTIVE` |
+| Session never connected, a dropped call, or a stale `attempt` | 409 | `INTERVIEW_NOT_LIVE` |
+| Candidate session with no consent on record | 403 | `INTERVIEW_CONSENT_REQUIRED` |
+| Body over 64 KB | 413 | `PAYLOAD_TOO_LARGE` |
+| Over the per-token rate limit | 429 | `TOO_MANY_REQUESTS` |
+| Any store failure | 500 | `INTERVIEW_DIRECTOR_FAILED` |
+
+### Data model
+
+`interview_events` is append-only. The only other write is the GDPR erasure `DELETE`.
+
+| Column | Meaning |
+| --- | --- |
+| `id` | Primary key |
+| `session_id` | The interview session |
+| `workspace_id` | The tenant |
+| `attempt` | The connect the event belongs to |
+| `seq` | Per-attempt turn number (turns only) |
+| `kind` | One of `INTERVIEW_EVENT_KINDS` |
+| `block_id` | The agenda block, when there is one |
+| `payload_json` | The event's fields |
+| `at` | When it happened: the browser stamp, clamped to the server clock |
+| `created_at` | When the server recorded it |
+
+Indexes: a unique index on `(session_id, attempt, seq) WHERE kind = 'turn'`, and an
+index on `(session_id, at)`.
+
+What each kind's payload holds:
+
+| Kind | Payload |
+| --- | --- |
+| `turn` | `{role, text}` |
+| `topic_covered` | `{quote, callId, toolResult}` |
+| `topic_cover_rejected` | `{quote, reason, …}` |
+| `guardrail` | `{kind, quote, verified, …}` |
+| `candidate_question` | `{question, …}` |
+| `end_requested` | `{reason, …}` |
+| `directive` | `{directiveId, kind, text}` |
+| `focus_lost` | `{during}` |
+| `focus_returned` | `{awayMs}` |
+| `answer_timing` | `{turnSeq, preSilenceMs, durationMs}` |
+
+The table is workspace-scoped in `app/_lib/tenancy.ts`, with the proof in
+`interview-events-tenancy.test.ts`. The append is an INSERT…SELECT against the session
+row in the same workspace. Erasure (`scrubEntryLinkedPii`) deletes every event of the
+erased entry's sessions. A session stops storing new events once it has 4000.
+
+### Keyless and failure behaviour
+
+- **No agenda** (a pre-director session, or an agenda that failed to build): the
+  exchange still records turns and tool calls, but no direction is ever sent and there
+  is no clock-driven end.
+- **Every tool failure answers "continue".** A malformed call (unknown name, bad or
+  unparseable arguments, unknown block, invalid enum) gets `Continue with the agenda.`
+  and nothing is recorded. The handler never throws to the model.
+- **A director outage never stalls a call.** Any non-2xx, including the coded 500, is
+  answered "continue" to the waiting model by the browser, and the call goes on
+  undirected. The transcript still reaches `/complete` at hang-up as before.
+- **The director needs no LLM and no key.** It is deterministic server code. Directions
+  are advisory: the provider's model can ignore one. The director repeats a direction
+  at most once every 60 s, and at hard cap + 2 min it ends the call through the browser.
+
+### Known gaps
+
+- If OpenAI Realtime's input transcription arrives after the model's
+  `mark_topic_covered` call, a true quote is rejected as `no_match`. The model is then
+  told to ask again, which costs one question.
+- A call's `updated_at` is stamped only at connect. A directed call running longer than
+  `LIVE_INTERVIEW_RECENCY_MIN` (30 min) therefore stops counting as "live" for
+  `/create`'s reissue guard.
+- ElevenLabs sessions stay undirected until the agent is re-provisioned with the client
+  tools.
+
 ## Automatic invites on stage entry
 
 **The one manual step left in the AI-interview loop is gone.** When a candidate

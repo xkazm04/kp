@@ -138,6 +138,10 @@ export const STORE_ERRORS = {
   INTERVIEW_COMPLETE_FAILED: "Could not save the interview. Please try again.",
   INTERVIEW_LOOKUP_FAILED: "Could not load interview data. Please try again.",
   INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
+  // POST /api/interview/director — the live call's producer channel. The browser never
+  // shows this to the candidate: a failed exchange answers the model "continue" and the
+  // call goes on (a director outage must never stall an interview).
+  INTERVIEW_DIRECTOR_FAILED: "Could not update the interview's progress. The call continues.",
   // Pipeline board routes (idea-66f52a3a): all sit directly on better-sqlite3.
   PIPELINE_LIST_FAILED: "Could not load the pipeline. Please try again.",
   STAGE_IMPACT_FAILED: "Could not check who is on each pipeline step. Please try again.",
@@ -662,6 +666,11 @@ export const REFUSAL_ERRORS = {
   INTERVIEW_PROVIDER_UNCONFIGURED: "The voice provider isn't configured on this server, so the call can't start.",
   /** A tokenless connect while the dev lab harness is off (403). */
   INTERVIEW_LAB_DISABLED: "The interview lab is not enabled on this server.",
+  /** The director was called for a session that is not the LIVE call it names (409):
+   *  a link never connected (`created`), a dropped call awaiting its reconnect
+   *  (`failed`), or an `attempt` other than the session's current one — a stale tab of
+   *  an earlier connect. Completed and revoked sessions keep their own codes. */
+  INTERVIEW_NOT_LIVE: "This interview isn't running right now.",
   // ---- Document-upload refusals (app/_lib/upload-constraints.ts). The document
   // twins of AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE: the gate that guards every
   // CV / JD / company file answered hardcoded English on BOTH sides of the wire

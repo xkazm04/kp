@@ -137,6 +137,7 @@ const ALLOWED = new Map<string, string>([
   ["interview/complete/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/connect/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/create/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  ["interview/director/route.ts", "public token door — authed by the interview link's capability token, never a seat (public-routes.ts); the candidate's live call posts here"],
   ["interview/revoke/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/simulate/attach/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/simulate/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

@@ -186,6 +186,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
   // by-id/token/entry_id ops are exempt (interviews-tenancy.test.ts).
   "interview_sessions",
+  // The interview director's append-only record (db/interview-events.ts, ADR 0010):
+  // turns, tool calls, stage directions and browser observations of a live call. EVERY
+  // statement binds workspace_id — the append is an INSERT…SELECT against the session
+  // row filtered by the same workspace, so an event cannot be filed under another team's
+  // session — with NO by-id exemption; the only other writer is the erasure DELETE,
+  // keyed by the entry's sessions (interview-events-tenancy.test.ts).
+  "interview_events",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).

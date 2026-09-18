@@ -678,6 +678,25 @@ const ROUTES: RouteSpec[] = [
     // The idempotent retry reply must keep answering for free, forever.
     servedBefore: "alreadyCompleted: true",
   },
+  {
+    // ADDED with the route (spark ai-interview-parity, ADR 0010). The live call's
+    // producer channel: a public token door that WRITES — every finalized turn, the
+    // interviewer model's tool calls, the director's stage directions — so it is
+    // budgeted like its siblings. Per-TOKEN only, like /connect: the link is the
+    // credential, and one candidate's call is exactly one token. 240/10min = one
+    // exchange every 2.5 s sustained, above an honest call's pace (one post per
+    // finalized turn and per tool call, plus a slow heartbeat).
+    rel: "./interview/director/route.ts",
+    key: "`interview-director:${token}`",
+    limit: 240,
+    optsSrc: "DIRECTOR_RATE_LIMIT",
+    optsDef: "const DIRECTOR_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The whole exchange — persist, apply the tool, decide, record — is one call.
+    expensive: "runDirectorStep(",
+    // The lifecycle refusals keep their 404/409 semantics ahead of the budget.
+    servedBefore: 'jsonRefusal("INTERVIEW_NOT_LIVE", 409)',
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it
@@ -2075,6 +2094,13 @@ test("./interview/connect/route.ts throttles by token, not by caller IP", () => 
     src.includes("if (token && !rateLimit(`interview-connect:"),
     "tokenless lab sessions carry no token to charge — they stay on their own dev-only gate",
   );
+});
+
+// The director channel is the same candidate on the same link, mid-call: keyed by the
+// token alone, never by an IP the candidate's network may share or rotate.
+test("./interview/director/route.ts throttles by token, not by caller IP", () => {
+  const src = read("./interview/director/route.ts");
+  assert.doesNotMatch(src, /clientIpFrom/, "the director throttle must be keyed by token only");
 });
 
 // Same rule for the dev-case chat aggregate: the apply link is the credential, and an
