@@ -2286,7 +2286,9 @@
       "tipQuiet": "Suchen Sie sich einen ruhigen Ort mit wenig Hintergrundgeräuschen.",
       "tipHeadphones": "Verwenden Sie nach Möglichkeit Kopfhörer. Das hält den Sprecherwechsel sauber.",
       "tipMic": "Erlauben Sie den Mikrofonzugriff, wenn Ihr Browser danach fragt.",
-      "durationChip": "~{min} Min."
+      "durationChip": "~{min} Min.",
+      "stepNow": "läuft gerade",
+      "stepDone": "erledigt"
     },
     "voice": {
       "loading": "Voice-Interview wird geladen…",
@@ -2319,7 +2321,7 @@
       "errMicDenied": "Der Mikrofonzugriff ist blockiert. Klicken Sie auf das Mikrofonsymbol in der Adressleiste Ihres Browsers, wählen Sie „Zulassen“ und drücken Sie erneut auf Start.",
       "errMicNotFound": "Es wurde kein Mikrofon gefunden. Schließen Sie ein Mikrofon an (oder prüfen Sie Ihr Headset) und drücken Sie erneut auf Start.",
       "errMicBusy": "Ihr Mikrofon wird von einer anderen App verwendet. Schließen Sie die andere App und drücken Sie dann erneut auf Start.",
-      "errConnectionLost": "Die Verbindung wurde unterbrochen. Ihr Fortschritt wurde gespeichert. Drücken Sie auf Start, um die Verbindung wiederherzustellen.",
+      "errConnectionLost": "Die Verbindung wurde unterbrochen. Drücken Sie auf Start, um sich erneut zu verbinden und dort weiterzumachen, wo Sie aufgehört haben.",
       "noAudioTitle": "Wir haben nichts gehört",
       "noAudioBody": "Von Ihrem Mikrofon kam offenbar kein Ton an. Prüfen Sie, ob es stummgeschaltet ist oder von einer anderen App verwendet wird, und drücken Sie dann auf Start, um es erneut zu versuchen.",
       "retrySave": "Speichern erneut versuchen",
@@ -2359,7 +2361,8 @@
         "error": "Fehler",
         "aiSpeaking": "AI spricht",
         "listening": "Hört zu",
-        "unstable": "Verbindung instabil, Wiederverbindung…"
+        "unstable": "Verbindung instabil, Wiederverbindung…",
+        "thinking": "Denkt nach…"
       },
       "transcriptLabel": "Live-Transkript des Interviews",
       "ttsCompare": {
@@ -2390,7 +2393,29 @@
       "micTestLevel": "Mikrofonpegel: {level} %",
       "transcriptFolded": "Ältere Redebeiträge sind eingeklappt ({count} insgesamt). Das vollständige Transkript wird zu Ihrem Interview gespeichert.",
       "closingTurnLostNote": "[Ihre abschließende Antwort konnte vor Ende des Gesprächs nicht transkribiert werden und fehlt daher in diesem Transkript.]",
-      "discardedTurns": "Diese Aufzeichnung wurde nicht gespeichert: Ein anderes Fenster hat dieses Interview zuerst abgeschlossen, daher fehlen {count} Redebeiträge aus diesem Gespräch im Protokoll."
+      "discardedTurns": "Diese Aufzeichnung wurde nicht gespeichert: Ein anderes Fenster hat dieses Interview zuerst abgeschlossen, daher fehlen {count} Redebeiträge aus diesem Gespräch im Protokoll.",
+      "presence": {
+        "idle": "Bereit, wenn Sie es sind",
+        "connecting": "Verbindung wird aufgebaut",
+        "listening": "Sie sind dran",
+        "thinking": "Einen Moment",
+        "speaking": "Interviewer spricht",
+        "ended": "Gespräch beendet"
+      },
+      "speakerCheck": {
+        "btn": "Testton abspielen",
+        "playing": "Wird abgespielt…",
+        "ask": "Haben Sie ihn gehört?",
+        "yes": "Ja, gehört",
+        "no": "Nein, nichts",
+        "heard": "Ihre Lautsprecher funktionieren.",
+        "unheard": "Prüfen Sie die Lautstärke und ob die richtigen Lautsprecher oder Kopfhörer ausgewählt sind, und spielen Sie den Ton erneut ab. Sie können das Gespräch trotzdem starten.",
+        "unsupported": "Dieser Browser kann keinen Testton abspielen. Sie können das Gespräch trotzdem starten."
+      },
+      "resume": {
+        "continuing": "Wir machen dort weiter, wo Sie aufgehört haben. Ihre bisherigen Antworten sind gespeichert, und der Interviewer weiß, was Sie bereits besprochen haben.",
+        "transcriptSeam": "Aus Ihrer früheren Verbindung"
+      }
     },
     "brief": {
       "debriefApproach": "Ihre Take-home-Aufgabe: Ihr Vorgehen",
@@ -3772,6 +3797,9 @@
       "title": "Compliance & Fairness",
       "subtitle": "Legen Sie Ihre Rechtsordnung fest, damit die Hinweise an Kandidaten den richtigen Rahmen nennen. Die Plattform ist ehrlich darüber, was sie durchsetzt und was nicht.",
       "jurisdictionLabel": "Compliance-Rechtsordnung",
+      "recordingLabel": "Kandidat/innen eine Audioaufnahme ihres AI-Interviews anbieten",
+      "recordingHint": "Standardmäßig aus. Ist es an, kann ein/e Kandidat/in über ein eigenes Kästchen die Aufnahme des eigenen Mikrofons erlauben; dieses Audio wird {decisionDays} Tage nach der Einstellungsentscheidung gelöscht, spätestens {backstopDays} Tage nach dem Gespräch.",
+      "recordingUnread": "Die Einstellung dieses Workspace wird gelesen.",
       "saved": "Gespeichert.",
       "saveFailed": "Speichern fehlgeschlagen.",
       "jur": {

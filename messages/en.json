@@ -2286,7 +2286,9 @@
       "tipQuiet": "Find a quiet spot with little background noise.",
       "tipHeadphones": "Use headphones if you can. It keeps the turn-taking clean.",
       "tipMic": "Allow microphone access when your browser prompts you.",
-      "durationChip": "~{min} min"
+      "durationChip": "~{min} min",
+      "stepNow": "happening now",
+      "stepDone": "done"
     },
     "voice": {
       "loading": "Loading voice interview…",
@@ -2319,7 +2321,7 @@
       "errMicDenied": "Microphone access is blocked. Click the microphone icon in your browser's address bar, choose Allow, then press Start again.",
       "errMicNotFound": "No microphone was found. Connect a microphone (or check your headset) and press Start again.",
       "errMicBusy": "Your microphone is in use by another app. Close the other app, then press Start again.",
-      "errConnectionLost": "The connection dropped. Any progress was saved. Press Start to reconnect.",
+      "errConnectionLost": "The connection dropped. Press Start to reconnect and carry on from where you left off.",
       "noAudioTitle": "We didn't hear anything",
       "noAudioBody": "It looks like no audio came through from your microphone. Check that it isn't muted or in use by another app, then press Start to try again.",
       "retrySave": "Retry saving",
@@ -2359,7 +2361,8 @@
         "error": "Error",
         "aiSpeaking": "AI speaking",
         "listening": "Listening",
-        "unstable": "Connection unstable, reconnecting…"
+        "unstable": "Connection unstable, reconnecting…",
+        "thinking": "Thinking…"
       },
       "transcriptLabel": "Live interview transcript",
       "ttsCompare": {
@@ -2390,7 +2393,29 @@
       "micTestLevel": "Mic level: {level}%",
       "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
       "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]",
-      "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record."
+      "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record.",
+      "presence": {
+        "idle": "Ready when you are",
+        "connecting": "Connecting",
+        "listening": "Your turn",
+        "thinking": "One moment",
+        "speaking": "Interviewer speaking",
+        "ended": "Call ended"
+      },
+      "speakerCheck": {
+        "btn": "Play a test sound",
+        "playing": "Playing…",
+        "ask": "Did you hear it?",
+        "yes": "Yes, I heard it",
+        "no": "No, nothing",
+        "heard": "Your speakers are working.",
+        "unheard": "Check your volume, and that the right speakers or headphones are selected, then play it again. You can still start the call.",
+        "unsupported": "This browser can't play a test sound. You can still start the call."
+      },
+      "resume": {
+        "continuing": "Picking up where you left off. Your earlier answers are saved, and the interviewer knows what you have already covered.",
+        "transcriptSeam": "From your earlier connection"
+      }
     },
     "brief": {
       "debriefApproach": "Your take-home: how you approached it",
@@ -3772,6 +3797,9 @@
       "title": "Compliance & fairness",
       "subtitle": "Set your jurisdiction so candidate disclosures cite the right framework. The platform is honest about what it does and doesn't enforce.",
       "jurisdictionLabel": "Compliance jurisdiction",
+      "recordingLabel": "Offer candidates an audio recording of their AI interview",
+      "recordingHint": "Off by default. When it is on, a candidate can tick a separate box to have their own microphone recorded; that audio is deleted {decisionDays} days after the hiring decision, and at the latest {backstopDays} days after the call.",
+      "recordingUnread": "Reading this workspace's setting.",
       "saved": "Saved.",
       "saveFailed": "Save failed.",
       "jur": {

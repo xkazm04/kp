@@ -2286,7 +2286,9 @@
       "tipQuiet": "Najděte si klidné místo s minimem hluku v pozadí.",
       "tipHeadphones": "Pokud můžete, použijte sluchátka. Udrží to střídání mluvčích čisté.",
       "tipMic": "Až vás prohlížeč vyzve, povolte přístup k mikrofonu.",
-      "durationChip": "~{min} min"
+      "durationChip": "~{min} min",
+      "stepNow": "právě probíhá",
+      "stepDone": "hotovo"
     },
     "voice": {
       "loading": "Načítá se hlasový pohovor…",
@@ -2319,7 +2321,7 @@
       "errMicDenied": "Přístup k mikrofonu je zablokován. Klikněte na ikonu mikrofonu v adresním řádku prohlížeče, zvolte Povolit a potom znovu stiskněte Spustit.",
       "errMicNotFound": "Nebyl nalezen žádný mikrofon. Připojte mikrofon (nebo zkontrolujte náhlavní soupravu) a znovu stiskněte Spustit.",
       "errMicBusy": "Váš mikrofon používá jiná aplikace. Zavřete druhou aplikaci a potom znovu stiskněte Spustit.",
-      "errConnectionLost": "Spojení se přerušilo. Případný postup se uložil. Stiskněte Spustit a připojte se znovu.",
+      "errConnectionLost": "Spojení se přerušilo. Stiskněte Spustit a pokračujte tam, kde jste skončili.",
       "noAudioTitle": "Nic jsme neslyšeli",
       "noAudioBody": "Vypadá to, že z vašeho mikrofonu nepřišel žádný zvuk. Zkontrolujte, že není ztlumený ani používaný jinou aplikací, a potom stiskněte Spustit a zkuste to znovu.",
       "retrySave": "Zkusit uložit znovu",
@@ -2359,7 +2361,8 @@
         "error": "Chyba",
         "aiSpeaking": "AI mluví",
         "listening": "AI poslouchá",
-        "unstable": "Nestabilní spojení, obnovování…"
+        "unstable": "Nestabilní spojení, obnovování…",
+        "thinking": "Přemýšlí…"
       },
       "transcriptLabel": "Živý přepis pohovoru",
       "ttsCompare": {
@@ -2390,7 +2393,29 @@
       "micTestLevel": "Úroveň mikrofonu: {level} %",
       "transcriptFolded": "Starší repliky jsou skryté (celkem {count}). Celý přepis se ukládá k vašemu pohovoru.",
       "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]",
-      "discardedTurns": "Tato nahrávka nebyla uložena: pohovor dříve dokončilo jiné okno, takže {count} promluv z tohoto hovoru v záznamu není."
+      "discardedTurns": "Tato nahrávka nebyla uložena: pohovor dříve dokončilo jiné okno, takže {count} promluv z tohoto hovoru v záznamu není.",
+      "presence": {
+        "idle": "Až budete chtít",
+        "connecting": "Připojování",
+        "listening": "Jste na řadě",
+        "thinking": "Okamžik",
+        "speaking": "Mluví tazatel",
+        "ended": "Hovor ukončen"
+      },
+      "speakerCheck": {
+        "btn": "Přehrát zkušební zvuk",
+        "playing": "Přehrává se…",
+        "ask": "Slyšeli jste ho?",
+        "yes": "Ano, bylo to slyšet",
+        "no": "Ne, nebylo nic slyšet",
+        "heard": "Reproduktory fungují.",
+        "unheard": "Zkontrolujte hlasitost a to, zda jsou vybrané správné reproduktory nebo sluchátka, a zvuk přehrajte znovu. Hovor můžete spustit i tak.",
+        "unsupported": "Tento prohlížeč neumí přehrát zkušební zvuk. Hovor můžete spustit i tak."
+      },
+      "resume": {
+        "continuing": "Navazujeme tam, kde jste skončili. Vaše dřívější odpovědi jsou uložené a tazatel ví, co už jste probrali.",
+        "transcriptSeam": "Z dřívějšího spojení"
+      }
     },
     "brief": {
       "debriefApproach": "Vaše domácí úloha: jak jste k ní přistupovali",
@@ -3772,6 +3797,9 @@
       "title": "Soulad a spravedlnost",
       "subtitle": "Nastavte jurisdikci, aby informace pro kandidáty uváděly správný právní rámec. Platforma poctivě uvádí, co vynucuje a co ne.",
       "jurisdictionLabel": "Jurisdikce souladu",
+      "recordingLabel": "Nabízet uchazečům zvukový záznam jejich AI pohovoru",
+      "recordingHint": "Ve výchozím stavu vypnuto. Když je zapnuto, uchazeč může samostatným políčkem povolit nahrávání svého mikrofonu; tento zvuk se smaže {decisionDays} dní po rozhodnutí o obsazení pozice, nejpozději {backstopDays} dní po hovoru.",
+      "recordingUnread": "Načítá se nastavení tohoto pracovního prostoru.",
       "saved": "Uloženo.",
       "saveFailed": "Uložení selhalo.",
       "jur": {

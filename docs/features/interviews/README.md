@@ -503,6 +503,185 @@ erased entry's sessions. A session stops storing new events once it has 4000.
 - ElevenLabs sessions stay undirected until the agent is re-provisioned with the client
   tools.
 
+## Candidate call — the browser half of the director loop
+
+The candidate meets the directed interview at `/interview/[token]`. The realtime
+provider still runs every spoken turn; the browser is the wire between that provider
+and our director, and it owns four things the server cannot: the observations only a
+browser can make, the presence the candidate looks at, the end-of-call handshake, and
+the hard stop that has to work when the director is unreachable.
+
+### Entry points
+
+| Where | What |
+| --- | --- |
+| `app/interview/[token]/page.tsx` | The server page. Resolves the session, the AI-disclosure regime, the recording offer and the candidate's `/status` link, then renders one client island. |
+| `app/_components/voice/InterviewPortalClient.tsx` | That island: the agenda rail + the call card. It holds the agenda the connect returned and the director's live agenda state, and passes both to the rail. |
+| `app/_components/voice/VoiceInterview.tsx` | The call shell: phase, consent, transcript, finalize. |
+| `app/_components/voice/useDirector.ts` | The producer channel's React lifecycle — the fetch, the heartbeat, the end handshake, the client hard stop. |
+| `app/_components/voice/director-channel.ts` | The wire discipline, pure: seq numbering, resend-above-ack, one tool call per request, serialization, the unreachable-director fallback. |
+| `app/_components/voice/useCallObservations.ts` | `focus_lost` / `focus_returned` / `answer_timing`. |
+| `app/_components/voice/call-observations.ts` | The arithmetic behind all of the above, plus the end handshake and the hard stop, pure. |
+| `app/_components/voice/transport/openai.ts`, `transport/oai-events.ts` | The raw-WebRTC path: tool calls, speech and audio boundaries, the tool-result and directive messages, the two level meters. |
+| `app/_components/voice/transport/elevenlabs.ts` | The SDK path: `clientTools`, `sendContextualUpdate`, `onModeChange` / `onVadScore` / `onAgentChatResponsePart`. |
+| `app/_components/voice/InterviewPresence.tsx`, `presence-state.ts` | The presence orb and the one derivation behind it. |
+| `app/_components/voice/useSpeakerTest.ts` | The keyless speaker check in the pre-call panel. |
+
+### The loop, from the browser's side
+
+1. **Connect.** `POST /api/interview/connect` answers with `agenda`, `attempt`,
+   `resume` and `recording` beside everything it answered before. The shell stores the
+   agenda (the sidebar switches from the server's run-of-show to the director's block
+   titles), seeds a resumed attempt's prior turns into the visible transcript, and arms
+   `useDirector` with `{token, sessionId, attempt, agenda, resume}`.
+2. **Turns.** Every finalized turn is numbered **per attempt from 0** and queued.
+   Anything above the answer's `ackSeq` is resent. Prior turns from a resumed attempt
+   are seeded straight into the transcript and never enter this numbering — they carry
+   their own attempts' numbers server-side.
+3. **Tool calls.** At most one per request, and requests are serialized: a second call
+   queues behind the in-flight one. Every answer is handed back to the model —
+   OpenAI as a `function_call_output` item plus `response.create`, ElevenLabs as the
+   `clientTools` return value.
+4. **Directives.** `directive.text` already carries the `[Director] ` prefix and is
+   injected **verbatim**: OpenAI as a `system` message with **no** `response.create`
+   (a direction is read before the model's next turn; forcing one would talk over a
+   candidate mid-answer), ElevenLabs as `sendContextualUpdate`.
+5. **Heartbeat.** Every 20 s while live, even with nothing queued — the clock-driven
+   directives and `endCall` only reach the browser in a response.
+6. **End.** On `endCall` the browser waits for the interviewer's closing line to
+   *start* (up to 4 s) and then to *finish* (1.2 s of quiet), then ends through the
+   same path the End button uses. A speaking flag that never clears is capped at 30 s.
+
+#### The transcription race is closed
+
+The model quotes the candidate's exact words for `mark_topic_covered` as soon as it
+hears them — often before OpenAI's input transcription has finished, so the director
+was checking a true quote against a record that did not contain it yet and rejecting
+it as `no_match`. The browser now holds the channel for up to **1.5 s** when a
+candidate utterance is still being transcribed, and sends the turn and the tool call
+in the **same** exchange. Past the grace the call proceeds undirected for that call:
+an un-recorded topic costs one question, a stalled tool call costs the interview.
+
+#### A director outage costs direction, never the interview
+
+Every non-2xx — 409 `INTERVIEW_NOT_LIVE`, 429, the coded 500, an offline fetch —
+resolves to "unreachable". The waiting model is answered `Continue with the agenda.`
+by the browser itself (the exact string `voice/director.ts` would have sent, pinned by
+`director-channel.test.ts`), turns stay queued for the next trigger, and nothing is
+rendered at the candidate. A 409 additionally closes the channel: that call is no
+longer the live one, so posting again cannot help.
+
+The **client hard stop** is the one rule that does not depend on any of this: at
+`hardCapMin + 2` minutes of live time — including the seconds earlier attempts spent
+(`resume.elapsedSec`) — the browser ends the call itself. The grace is the same
+`END_GRACE_MIN` the server's director uses, pinned by a test, so a reachable director
+and an unreachable one cannot end the same call minutes apart.
+
+### Observations
+
+| Event | When | Fields |
+| --- | --- | --- |
+| `focus_lost` | `visibilitychange` to hidden, or window `blur`, while live | `during`: who held the floor (`interviewer` wins a tie) |
+| `focus_returned` | the tab comes back | `awayMs`, never negative, `0` when the departure was not recorded |
+| `answer_timing` | a candidate turn finalizes | `turnSeq`, `preSilenceMs`, `durationMs` |
+
+`preSilenceMs` is the candidate's speech start minus the interviewer's last audio end;
+`durationMs` is speech stop minus start. **Either is `null` when the provider does not
+expose the event it would come from** — never `0`, which would read as "answered
+instantly", a claim about the candidate made by a gap in an SDK. A barge-in (speech
+starting before the interviewer finished) records no pre-silence at all. Blur and
+`visibilitychange` fire together on a tab switch and are collapsed into one departure.
+
+Nothing in the UI changes because of any of this. No warning, no chip, nothing that
+tells a candidate they are "flagged" (registry:
+`ai-assistance-detection-and-fairness` — observed-process-is-supporting-not-load-bearing).
+
+### What the candidate sees
+
+- **Presence.** One orb: idle / connecting / listening / thinking / speaking / ended,
+  derived once (`presence-state.ts`) and read by the orb, the status pill and a
+  `role="status"` live region, so the three cannot disagree. While listening it follows
+  the microphone level, while speaking the interviewer's audio; the level is written to
+  a mutable box and read on the orb's own animation frame, never through React. Under
+  `prefers-reduced-motion` the loop is never armed and the rings are static — the state
+  stays fully legible in color, label and live region.
+- **Thinking.** The stretch between the candidate finishing and the interviewer's first
+  word used to read "Listening", i.e. "your turn" at exactly the moment it was not.
+  It is now its own state on both the orb and the pill.
+- **The live agenda.** The rail ticks covered blocks and highlights the active one
+  (`aria-current="step"`, plus an `sr-only` "happening now" / "done"). Before connect it
+  shows the server-rendered run-of-show, unchanged.
+- **A streaming caption.** The interviewer's line as it is spoken
+  (`response.output_audio_transcript.delta`), rendered **outside** the transcript's live
+  region — a caption that re-announced every fragment would talk over the interviewer it
+  transcribes — and replaced by the real turn when the provider finalizes it.
+- **A speaker check.** A WebAudio two-note tone (no asset, no network, keyless) with an
+  "I heard it" confirmation, beside the microphone test. Purely advisory: no browser API
+  can confirm a sound was heard, so the verdict is the candidate's own answer and
+  nothing about it can block Start.
+- **A resumed call.** The earlier attempt's turns are seeded into the visible transcript
+  with a seam marker, a line says the call is continuing, and those turns are included
+  in the transcript POSTed to `/api/interview/complete`, so the stored record is the
+  whole interview rather than whatever happened after the drop.
+- **An ending that goes somewhere.** The live closing card now carries the same durable
+  `/status/<token>` link the already-completed reload has had for a while.
+
+### A dropped DIRECTED call finalizes `failed`
+
+`interviewFinalStatus` takes an optional `DirectedEndContext` (`directed`, `ending`,
+`closingBegun`). A call that was being directed and **dropped** — not the candidate's
+End, not the director's `end_interview` — before any `role_qa` / `close` block had
+begun is persisted `failed`.
+
+That is not a downgrade, it is the point: `failed` keeps the link reconnectable, and a
+reconnect now *resumes* — same agenda, covered blocks intact, the interviewer briefed
+not to start over. Calling such a call "completed" would lock the candidate out at
+minute 12 of 30 and score half a conversation. Once the closing block has begun the old
+rule applies again, so a socket blip at goodbye is still a completed interview.
+Undirected calls (the lab, a session with nothing grounded to talk about) keep today's
+rule byte for byte. Pinned in `app/_lib/voice/finalize-status.test.ts`.
+
+### Provider specifics
+
+- **OpenAI Realtime (raw WebRTC).** Tool calls arrive as
+  `response.function_call_arguments.done` *or* as a `function_call` item on
+  `response.output_item.done` (the spelling differs by model line); both are accepted
+  and de-duplicated by `call_id`. Speech boundaries come from
+  `input_audio_buffer.speech_started` / `.speech_stopped`, interviewer audio from
+  `…audio.delta` / `…audio.done`, and "thinking" starts at `response.created`. The
+  arguments are handed to the director **unparsed** — it accepts an object or the
+  provider's JSON string, and parsing here would turn a provider quirk into a dropped
+  tool call.
+- **ElevenLabs Agents (SDK).** All five tools are registered as `clientTools` on
+  `startSession`; each awaits the director and returns its result string. Directives go
+  through `sendContextualUpdate`. Speaking/listening comes from `onModeChange` (which is
+  also how the interviewer's audio end is observed), candidate speech from `onVadScore`
+  with two thresholds so the flag does not chatter between consonants, and the streaming
+  caption from `onAgentChatResponsePart` where the agent emits `text_response_part` —
+  otherwise the transcript is turn-final, exactly as before. A tool the agent references
+  but the browser has not registered is reported once to the console
+  (`onUnhandledClientToolCall`), because from the candidate's side it looks like an
+  interviewer that quietly stopped keeping the record.
+
+### Recording
+
+The portal resolves `isInterviewRecordingOffered(workspace)` server-side and passes it
+down. When recording is on offer the main consent line switches to its recordable
+variant (`interview.voice.consentRecordable`), the separate opt-in tick renders
+directly beneath it, `recordingConsent` rides in the connect body, and a calm
+"recording" chip shows during the call while audio is actually being kept. Declining
+never blocks the call, and a workspace that does not offer recording renders none of it.
+
+### Known gaps
+
+- `onAgentChatResponsePart` is registered but unverified against a live ElevenLabs
+  voice agent; when it does not fire, the interviewer's caption is turn-final.
+- The ElevenLabs path has no input-transcription-pending signal of its own, so the
+  transcription-race hold is driven by its VAD boundaries rather than by a transcription
+  state.
+- The presence orb's level meters are best-effort: a browser without `AudioContext`
+  gets a static ring.
+
 ## Opt-in audio recording
 
 Opt-in audio recording of an AI voice interview. A candidate who is offered one, and who

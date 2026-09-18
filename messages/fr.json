@@ -2286,7 +2286,9 @@
       "tipQuiet": "Trouvez un endroit calme, avec peu de bruit de fond.",
       "tipHeadphones": "Utilisez un casque si possible. Cela facilite l’alternance de parole.",
       "tipMic": "Autorisez l’accès au microphone lorsque votre navigateur vous le demande.",
-      "durationChip": "~{min} min"
+      "durationChip": "~{min} min",
+      "stepNow": "en cours",
+      "stepDone": "terminé"
     },
     "voice": {
       "loading": "Chargement de l’entretien vocal…",
@@ -2319,7 +2321,7 @@
       "errMicDenied": "L’accès au microphone est bloqué. Cliquez sur l’icône de microphone dans la barre d’adresse de votre navigateur, choisissez Autoriser, puis appuyez de nouveau sur Démarrer.",
       "errMicNotFound": "Aucun microphone détecté. Connectez un microphone (ou vérifiez votre casque) et appuyez de nouveau sur Démarrer.",
       "errMicBusy": "Votre microphone est utilisé par une autre application. Fermez-la, puis appuyez de nouveau sur Démarrer.",
-      "errConnectionLost": "La connexion a été interrompue. Votre progression a été enregistrée. Appuyez sur Démarrer pour vous reconnecter.",
+      "errConnectionLost": "La connexion a été interrompue. Vous pouvez vous reconnecter et reprendre là où vous en étiez : appuyez sur Démarrer.",
       "noAudioTitle": "Nous n’avons rien entendu",
       "noAudioBody": "Il semble qu’aucun son ne soit parvenu de votre microphone. Vérifiez qu’il n’est pas coupé ni utilisé par une autre application, puis appuyez sur Démarrer pour réessayer.",
       "retrySave": "Réessayer l’enregistrement",
@@ -2359,7 +2361,8 @@
         "error": "Erreur",
         "aiSpeaking": "L’AI parle",
         "listening": "À l’écoute",
-        "unstable": "Connexion instable, reconnexion…"
+        "unstable": "Connexion instable, reconnexion…",
+        "thinking": "Réflexion…"
       },
       "transcriptLabel": "Transcription en direct de l’entretien",
       "ttsCompare": {
@@ -2390,7 +2393,29 @@
       "micTestLevel": "Niveau du micro : {level} %",
       "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
       "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]",
-      "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu."
+      "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu.",
+      "presence": {
+        "idle": "Prêt quand vous l’êtes",
+        "connecting": "Connexion en cours",
+        "listening": "À vous",
+        "thinking": "Un instant",
+        "speaking": "L’intervieweur parle",
+        "ended": "Appel terminé"
+      },
+      "speakerCheck": {
+        "btn": "Écouter un son test",
+        "playing": "Lecture en cours…",
+        "ask": "L’avez-vous entendu ?",
+        "yes": "Oui, je l’ai entendu",
+        "no": "Non, rien",
+        "heard": "Vos haut-parleurs fonctionnent.",
+        "unheard": "Vérifiez le volume et que les bons haut-parleurs ou écouteurs sont sélectionnés, puis réécoutez. Vous pouvez quand même démarrer l’appel.",
+        "unsupported": "Ce navigateur ne peut pas jouer de son test. Vous pouvez quand même démarrer l’appel."
+      },
+      "resume": {
+        "continuing": "Nous reprenons là où vous en étiez. Vos réponses précédentes sont enregistrées, et l’intervieweur sait ce que vous avez déjà abordé.",
+        "transcriptSeam": "De votre connexion précédente"
+      }
     },
     "brief": {
       "debriefApproach": "Votre exercice à emporter : votre approche",
@@ -3772,6 +3797,9 @@
       "title": "Conformité et équité",
       "subtitle": "Définissez votre juridiction pour que les informations communiquées aux candidats citent le bon cadre. La plateforme est transparente sur ce qu’elle applique et ce qu’elle n’applique pas.",
       "jurisdictionLabel": "Juridiction de conformité",
+      "recordingLabel": "Proposer aux candidats un enregistrement audio de leur entretien AI",
+      "recordingHint": "Désactivé par défaut. Une fois activé, un candidat peut cocher une case distincte pour que son propre microphone soit enregistré ; cet audio est supprimé {decisionDays} jours après la décision de recrutement, et au plus tard {backstopDays} jours après l’entretien.",
+      "recordingUnread": "Lecture du réglage de cet espace de travail.",
       "saved": "Enregistré.",
       "saveFailed": "Échec de l’enregistrement.",
       "jur": {

@@ -36,7 +36,12 @@ const PUBLIC_SURFACES = [
   "apply/[id]/ConversationalApply.tsx",
   "apply/[id]/quick/QuickApplyForm.tsx",
   "devcase/apply/[token]/page.tsx",
-  "interview/[token]/page.tsx",
+  // The interview portal renders the disclosure from its CLIENT island now (the
+  // director's agenda state has to reach the rail, so the rail and the call card
+  // became one component). The guarantee is unchanged and is what `serverOwner`
+  // below pins: the two values are still resolved server-side, in
+  // interview/[token]/page.tsx, and handed down as props.
+  "_components/voice/InterviewPortalClient.tsx",
   "schedule/[token]/page.tsx",
   "status/[token]/StatusClient.tsx",
   "offer/[token]/OfferClient.tsx",
@@ -136,6 +141,7 @@ test("each public surface resolves the regime from its OWN workspace, not a bare
     "apply/[id]/quick/QuickApplyForm.tsx": "apply/[id]/quick/page.tsx",
     "status/[token]/StatusClient.tsx": "status/[token]/page.tsx",
     "offer/[token]/OfferClient.tsx": "offer/[token]/page.tsx",
+    "_components/voice/InterviewPortalClient.tsx": "interview/[token]/page.tsx",
   };
   for (const site of PUBLIC_SURFACES) {
     const owner = serverOwner[site] ?? site;
