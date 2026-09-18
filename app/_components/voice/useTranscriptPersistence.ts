@@ -42,6 +42,9 @@ export function useTranscriptPersistence({
   // Every delayed callback this hook schedules, in the registry unmount empties.
   const timersRef = useRef(createTimerRegistry());
   useEffect(() => {
+    // A remount (dev StrictMode: mount → cleanup → mount) must not inherit the
+    // registry the first cleanup made inert — the save backoff would stop waiting.
+    if (timersRef.current.cleared) timersRef.current = createTimerRegistry();
     const timers = timersRef.current;
     return () => timers.clearAll();
   }, []);

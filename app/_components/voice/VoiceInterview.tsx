@@ -12,7 +12,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
 import { BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
 import { canStart, voiceStartGate, type AvailabilityProbe } from "./availability-gate";
-import { createTimerRegistry } from "./timer-registry";
+import { createTimerRegistry, type TimerCancel } from "./timer-registry";
 // Default + fallback provider order, single-sourced in voice/types (browser-safe
 // pure data) so the picker can't default to a different provider than the server's
 // pickDefaultProvider — they previously kept inverted copies.
@@ -236,8 +236,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     providerRef.current = provider;
   }, [provider]);
 
+  // The ONE timer "clear the connect timer" may touch. It used to call
+  // timersRef.current.clearAll() — the unmount teardown, which leaves the registry
+  // inert for good — at the start of every call and again when it went live, so the
+  // connect timeout was never armed, the ElevenLabs end fallback never fired, and
+  // the closing-answer grace became a busy-loop (timer-registry.ts).
+  const connectTimerCancelRef = useRef<TimerCancel | null>(null);
   const clearConnectTimer = useCallback(() => {
-    timersRef.current.clearAll();
+    connectTimerCancelRef.current?.();
+    connectTimerCancelRef.current = null;
   }, []);
 
   const pushTurn = useCallback((role: VoiceTurn["role"], text: string) => {
@@ -509,6 +516,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
 
   // Teardown on unmount.
   useEffect(() => {
+    // A remount (React's dev StrictMode runs mount → cleanup → mount) finds the
+    // registry the first cleanup tore down, and a cleared registry is inert for
+    // good — every timer this call schedules would silently no-op. Each mount owns
+    // a live one.
+    if (timersRef.current.cleared) timersRef.current = createTimerRegistry();
     // Copied inside the effect: the cleanup must clear THIS call's registry, not
     // whatever the ref points at by the time React runs the teardown.
     const timers = timersRef.current;
@@ -612,7 +624,8 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
     clearConnectTimer();
-    timersRef.current.set(() => {
+    connectTimerCancelRef.current = timersRef.current.set(() => {
+      connectTimerCancelRef.current = null;
       finalizedRef.current = true; // don't POST a transcript for a failed connect
       teardownOpenAi();
       try {

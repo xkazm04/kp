@@ -24,9 +24,23 @@ const realClock: Clock = {
   clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
 };
 
+/** Cancels ONE scheduled timer. Idempotent; a no-op once the timer fired or the
+ *  registry was cleared. */
+export type TimerCancel = () => void;
+
 export type TimerRegistry = {
-  /** Schedule `fn`; it is forgotten once it fires, and never runs after `clearAll`. */
-  set(fn: () => void, ms: number): void;
+  /** Schedule `fn`; it is forgotten once it fires, and never runs after `clearAll`.
+   *  Returns a cancel for THIS timer only — the way a caller retires one timer
+   *  (the connect timeout, once the call is live) without touching the others.
+   *
+   *  `clearAll` is NOT that: it is the unmount teardown and leaves the registry
+   *  inert for good. VoiceInterview used to call it as "clear the connect timer",
+   *  at the start of every call and again the moment the call went live — so the
+   *  30 s connect timeout was never armed, the ElevenLabs end fallback never ran,
+   *  and the finalize poll's `sleep` resolved instantly, turning the 3 s closing-
+   *  answer grace into a microtask busy-loop that starved the data channel it was
+   *  waiting on. */
+  set(fn: () => void, ms: number): TimerCancel;
   /** Await `ms`, or resolve IMMEDIATELY if the registry is cleared meanwhile.
    *  Resolving (rather than hanging) matters: the finalize path awaits this, and
    *  a promise that never settles on unmount leaks the whole closure. */
@@ -44,8 +58,10 @@ export function createTimerRegistry(clock: Clock = realClock): TimerRegistry {
   const wakers = new Set<() => void>();
   let cleared = false;
 
-  const set = (fn: () => void, ms: number): void => {
-    if (cleared) return;
+  const noop: TimerCancel = () => {};
+
+  const set = (fn: () => void, ms: number): TimerCancel => {
+    if (cleared) return noop;
     // The handle has to be reachable from inside its own callback (so a fired
     // timer forgets itself) — a box, because the value only exists after the call.
     const box: { handle?: TimerHandle } = {};
@@ -54,6 +70,13 @@ export function createTimerRegistry(clock: Clock = realClock): TimerRegistry {
       fn();
     }, ms);
     handles.add(box.handle);
+    return () => {
+      // Only a still-outstanding timer reaches the clock: a fired one already
+      // forgot itself, and clearAll already cleared everything.
+      if (!handles.has(box.handle)) return;
+      handles.delete(box.handle);
+      clock.clear(box.handle);
+    };
   };
 
   return {

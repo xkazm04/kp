@@ -117,6 +117,61 @@ test("sleep resolves on clearAll instead of hanging the finalize path", async ()
   await timers.sleep(100); // already cleared — resolves immediately
 });
 
+// The defect this pins: VoiceInterview retired its connect timeout with clearAll(),
+// the unmount teardown — so the 30 s connect timeout was never armed (start()
+// "cleared" right before arming it), the ElevenLabs end fallback never fired, and the
+// finalize poll's sleep() resolved instantly, spinning a 3 s busy-loop that starved
+// the data channel carrying the candidate's closing answer. Retiring ONE timer must
+// leave the call's other timers — and the registry — fully working.
+test("cancelling one timer leaves the registry usable for the call's other timers", async () => {
+  const { clock, queued, run } = fakeClock();
+  const timers = createTimerRegistry(clock);
+  let connectTimeout = 0;
+  let endFallback = 0;
+
+  const cancelConnect = timers.set(() => (connectTimeout += 1), 30_000);
+  cancelConnect(); // the call went live
+  assert.equal(queued.size, 0, "the cancelled handle must reach the clock's clear()");
+  assert.equal(timers.cleared, false, "cancelling one timer is not a teardown");
+
+  timers.set(() => (endFallback += 1), 3_000); // End pressed on ElevenLabs
+  assert.equal(timers.pending, 1, "a timer scheduled after a cancel must be armed");
+  run();
+  assert.equal(connectTimeout, 0);
+  assert.equal(endFallback, 1);
+
+  // The finalize poll must actually WAIT — a sleep that resolves before its tick
+  // is the busy-loop.
+  let slept = false;
+  const waited = timers.sleep(100).then(() => {
+    slept = true;
+  });
+  await Promise.resolve();
+  assert.equal(slept, false, "sleep must not resolve before its timer fires");
+  run();
+  await waited;
+  assert.equal(slept, true);
+});
+
+test("a timer's cancel is idempotent and harmless after it fired or after clearAll", () => {
+  const { clock, run } = fakeClock();
+  const timers = createTimerRegistry(clock);
+  let fired = 0;
+  const cancel = timers.set(() => (fired += 1), 10);
+  run();
+  cancel();
+  cancel();
+  assert.equal(fired, 1);
+  const late = timers.set(() => (fired += 1), 10);
+  timers.clearAll();
+  late();
+  assert.equal(timers.pending, 0);
+  const afterTeardown = timers.set(() => (fired += 1), 10);
+  afterTeardown();
+  run();
+  assert.equal(fired, 1);
+});
+
 // ---- provider picker (wave 20) ---------------------------------------------
 // The picker was left on the pre-18b rule (`availability ? !availability[p] : false`),
 // so a FAILED probe rendered every provider selectable — the same "we could not
