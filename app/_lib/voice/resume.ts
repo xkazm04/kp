@@ -16,7 +16,7 @@
 import { listInterviewEvents } from "../db/interview-events";
 import { getInterviewSessionInWorkspace } from "../db/interviews";
 import { deriveDirectorState } from "./director";
-import type { DirectorTurn, ResumeContext } from "./director-types";
+import type { DirectorTurn, InterviewAgenda, ResumeContext } from "./director-types";
 
 /** How many of the earlier attempts' turns a resume carries (the most recent ones). */
 export const RESUME_PRIOR_TURNS = 40;
@@ -62,4 +62,33 @@ export function buildResumeContext(sessionId: string, workspaceId: string): Resu
     coveredBlockIds: state.coveredBlockIds,
     elapsedSec: Math.round(state.priorAttemptsMs / 1000),
   };
+}
+
+/** Live milliseconds of a RESUMED directed call across all of its attempts, or null
+ *  when the session is not a resumed directed call (no agenda, or no events from an
+ *  earlier attempt) — the caller then keeps its current-attempt reading.
+ *
+ *  Why billing needs it: /api/interview/complete bills the CURRENT attempt so a
+ *  next-day retry of a dead link is not charged for the gap. That rule was written
+ *  when a failed attempt was a blip. A directed call that drops mid-interview now
+ *  finalizes `failed` ON PURPOSE so it can be resumed, and the earlier attempt is real
+ *  conversation of the same interview — the director's own clock (which counts each
+ *  attempt from its first to its last event and skips the gaps between them) is the
+ *  honest measure of what was spoken. */
+export function resumedCallElapsedMs(
+  session: { id: string; workspaceId: string; agenda: InterviewAgenda | null; attempts: number },
+  attemptStartedAtMs: number | null,
+  nowMs: number,
+): number | null {
+  if (!session.agenda || session.attempts < 2) return null;
+  const events = listInterviewEvents(session.id, session.workspaceId);
+  if (!events.some((e) => e.attempt < session.attempts)) return null;
+  const state = deriveDirectorState({
+    agenda: session.agenda,
+    events,
+    currentAttempt: session.attempts,
+    attemptStartedAtMs,
+    nowMs,
+  });
+  return state.elapsedMs;
 }

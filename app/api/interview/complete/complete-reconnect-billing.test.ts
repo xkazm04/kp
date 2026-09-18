@@ -22,6 +22,7 @@ import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
 import { createInterviewSession, markInterviewStarted } from "../../../_lib/db/interviews.ts";
 import { ensureDb } from "../../../_lib/db/core.ts";
+import { appendInterviewEvents } from "../../../_lib/db/interview-events.ts";
 import { aggregateLlmUsage } from "../../../_lib/db/llm.ts";
 import { voiceMinuteCostUsd } from "../../../_lib/voice/minute-prices.ts";
 
@@ -110,5 +111,43 @@ test("a stale in_progress row with no reconnect still bills from started_at", as
   assert.ok(
     Math.abs(billed - voiceMinuteCostUsd("openai", BOOKED_MIN * 2)) < 1e-9,
     `a genuinely long call is still bounded by the 2× ceiling — billed ${billed}`
+  );
+});
+
+// A DIRECTED call that drops mid-interview finalizes `failed` on purpose so the
+// candidate can reconnect and continue (the resume). Its earlier attempt is real
+// conversation of the same interview, so the resumed completion bills every attempt on
+// the director's clock — first to last event of each attempt, the gap between them not
+// counted — instead of the current-attempt rule that exists for next-day retries.
+test("a resumed directed call bills the live time of every attempt, not just the last", async () => {
+  const before = voiceCostUsd();
+  const session = reconnectedSession(0);
+  const agenda = {
+    version: 1,
+    durationMin: BOOKED_MIN,
+    hardCapMin: 24,
+    closeReserveMin: 4,
+    blocks: [
+      { id: "b0", kind: "warmup", title: "Warm-up", budgetMin: 2, competency: null, scored: false, questions: [] },
+      { id: "b1", kind: "topic", title: "Design", budgetMin: 14, competency: "design", scored: true, questions: [] },
+      { id: "b2", kind: "role_qa", title: "Your questions", budgetMin: 2, competency: null, scored: false, questions: [] },
+      { id: "b3", kind: "close", title: "Wrap-up", budgetMin: 2, competency: null, scored: false, questions: [] },
+    ],
+  };
+  ensureDb()
+    .prepare(`UPDATE interview_sessions SET agenda_json = ?, attempts = 2 WHERE id = ?`)
+    .run(JSON.stringify(agenda), session.id);
+  const minAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  // Attempt 1 spoke from 40 to 30.5 minutes ago (9.5 live minutes), then dropped; the
+  // 30-minute gap before the reconnect is not conversation.
+  appendInterviewEvents([{ sessionId: session.id, attempt: 1, seq: 0, kind: "turn", payload: { role: "interviewer", text: "Hello" } }], session.workspaceId, minAgo(40));
+  appendInterviewEvents([{ sessionId: session.id, attempt: 1, seq: 1, kind: "turn", payload: { role: "candidate", text: "Hi, thanks for having me today." } }], session.workspaceId, minAgo(30.5));
+
+  const res = await POST(completeRequest({ token: session.token, transcript: TRANSCRIPT }));
+  assert.equal(res.status, 200);
+  const billed = voiceCostUsd() - before;
+  assert.ok(
+    Math.abs(billed - voiceMinuteCostUsd("openai", 10)) < 1e-9,
+    `9.5 live minutes across the drop bill 10 — not the 1-minute current-attempt floor, not the 40-minute wall clock; billed ${billed}`
   );
 });

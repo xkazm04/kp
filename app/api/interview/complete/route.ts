@@ -5,6 +5,7 @@ import { attachInterviewScorecard, completeInterviewSession, getInterviewSession
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
+import { resumedCallElapsedMs } from "@/app/_lib/voice/resume";
 import { isSelfHostedProvider } from "@/app/_lib/voice";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
@@ -286,7 +287,8 @@ export async function POST(request: NextRequest) {
       // markInterviewStarted (and by nothing else while a call is live), so the
       // later of the two timestamps is when the current attempt actually started.
       // On a single-attempt session both are the same write, so the number is
-      // unchanged. The earlier, failed attempt stays unbilled — the existing rule.
+      // unchanged. The earlier, failed attempt stays unbilled — the existing rule —
+      // EXCEPT on a resumed directed call (below).
       // Read only while the row is still `in_progress`: that is precisely when the
       // last write WAS a connect. On a 'failed'/'created' row updated_at is an END
       // (or absent) timestamp, and trusting it there would under-bill to the
@@ -296,7 +298,20 @@ export async function POST(request: NextRequest) {
         session.status === "in_progress" && session.updatedAt ? Date.parse(session.updatedAt) : NaN;
       const attemptMs =
         Number.isFinite(touchedMs) && (!Number.isFinite(startedMs) || touchedMs > startedMs) ? touchedMs : startedMs;
-      const elapsedMin = Number.isFinite(attemptMs) ? Math.ceil((Date.now() - attemptMs) / 60_000) : bookedMin;
+      let elapsedMin = Number.isFinite(attemptMs) ? Math.ceil((Date.now() - attemptMs) / 60_000) : bookedMin;
+      // A RESUMED directed call bills every attempt of the conversation, measured on the
+      // director's clock (voice/resume.ts resumedCallElapsedMs): its earlier attempt
+      // finalized `failed` on purpose so the candidate could continue, and those minutes
+      // were spoken. Anything else keeps the current-attempt rule above. The 2× clamp
+      // below still bounds it.
+      try {
+        const resumedMs = resumedCallElapsedMs(session, Number.isFinite(attemptMs) ? attemptMs : null, Date.now());
+        if (resumedMs !== null) elapsedMin = Math.ceil(resumedMs / 60_000);
+      } catch (resumeErr) {
+        // The current-attempt reading stands: under-billing a resumed call is the safe
+        // direction, and the completion must not fail over a meter read.
+        console.error(`[interview:complete] resumed-call minutes unreadable for session ${sessionId}:`, resumeErr);
+      }
       // The 2× ceiling is single-sourced (maxBillableInterviewMin) so /create can
       // RESERVE exactly this amount — gate and debit read one function, never two
       // different numbers (the reserve-vs-debit bug this seam closes).

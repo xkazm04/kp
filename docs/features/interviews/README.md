@@ -378,6 +378,13 @@ writes the interviewer's words. The leadership policy is **coverage first, then 
    the live seconds already spent and the attempt being resumed into. Call it **after**
    `markInterviewStarted` has counted the reconnect. The first exchange of a resumed
    attempt also gets one `resume` direction naming the block to continue with.
+   **Billing a resumed call.** `/api/interview/complete` normally bills only the
+   current attempt, so a next-day retry of a dead link is not charged for the gap. A
+   resumed directed call is different: its earlier attempt finalized `failed` on
+   purpose so the candidate could continue, and those minutes were spoken. Its
+   completion therefore bills `resumedCallElapsedMs` (`voice/resume.ts`), the
+   director's clock summed across every attempt with the gaps left out, still clamped
+   to 2× the booked length. Pinned in `complete-reconnect-billing.test.ts`.
 
 ### Directive policy
 
