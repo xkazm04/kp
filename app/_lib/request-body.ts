@@ -11,9 +11,15 @@
  *  reader with one set of tests beats two that drift (see `agent-hire/bridge-client`). */
 export type BoundedBodySource = { body: Request["body"] };
 
-export async function readTextWithLimit(source: BoundedBodySource, maxBytes: number): Promise<string | null> {
+/** The same hard byte budget, but for a body that is NOT text: an uploaded audio chunk
+ *  (POST /api/interview/recording) is binary, and decoding it as UTF-8 to measure it
+ *  would both corrupt the bytes and lose the cap's meaning. Identical contract to
+ *  `readTextWithLimit` — `null` when the budget is exceeded, an empty array for an
+ *  absent body — because the rule ("count what was READ, never what was DECLARED") is
+ *  the one thing both readers must state the same way. */
+export async function readBytesWithLimit(source: BoundedBodySource, maxBytes: number): Promise<Uint8Array | null> {
   const body = source.body;
-  if (!body) return "";
+  if (!body) return new Uint8Array(0);
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -38,6 +44,12 @@ export async function readTextWithLimit(source: BoundedBodySource, maxBytes: num
     merged.set(chunk, offset);
     offset += chunk.byteLength;
   }
+  return merged;
+}
+
+export async function readTextWithLimit(source: BoundedBodySource, maxBytes: number): Promise<string | null> {
+  const merged = await readBytesWithLimit(source, maxBytes);
+  if (merged === null) return null;
   return new TextDecoder().decode(merged);
 }
 

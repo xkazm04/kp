@@ -34,6 +34,11 @@ const ROUTES = [
   "./connect/route.ts",
   "./complete/route.ts",
   "./director/route.ts",
+  // The opt-in audio doors (WP3): both sit on better-sqlite3 AND the local filesystem,
+  // so a thrown message carries the absolute recordings path beside the db path — and
+  // the upload one is reached by the CANDIDATE'S browser mid-call.
+  "./recording/route.ts",
+  "./recording/[sessionId]/route.ts",
   "./by-entry/route.ts",
   "./compare/route.ts",
   "./revoke/route.ts",
@@ -100,6 +105,7 @@ test("the stable-code catalogue covers every interview failure path", () => {
     "INTERVIEW_LOOKUP_FAILED",
     "INTERVIEW_PREP_FAILED",
     "INTERVIEW_DIRECTOR_FAILED",
+    "INTERVIEW_RECORDING_FAILED",
   ]) {
     assert.match(src, new RegExp(code), `STORE_ERRORS must define a generic message for ${code}`);
   }

@@ -27,6 +27,10 @@ type StatusView = {
   // REC-10 — false when no delivery relay is configured (no email will ever
   // arrive), so the stage copy must not say "watch your email".
   relayConfigured?: boolean;
+  // WP3 — the candidate opted into an audio recording of their AI interview and we
+  // still hold it. A BOOLEAN and nothing more: the projection deliberately carries no
+  // file name, size, attempt count or date (api/status/[token]/route.ts).
+  hasInterviewRecording?: boolean;
 };
 
 // Public, token-gated candidate application-status page (idea-e76a6fb2). Shows
@@ -51,6 +55,11 @@ export function StatusClient({
   // condition; a `retryable` fault (offline / 5xx) gets a Retry affordance.
   const [error, setError] = useState<StatusFetchError | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // WP3 — the candidate's own control over the audio they agreed to. Local state only:
+  // `idle` → `confirm` → `deleting` → `deleted` | `failed`. The confirm step exists
+  // because the delete is irreversible; the section disappears on success rather than
+  // waiting for the next poll, so the page never invites the same deletion twice.
+  const [recordingStep, setRecordingStep] = useState<"idle" | "confirm" | "deleting" | "deleted" | "failed">("idle");
   // Art. 86 — the candidate's own REDACTED decision history (see
   // /api/status/[token]/decisions). Fetched once per page view, not polled: the
   // sealed history only grows when a decision is taken, and the status poll
@@ -324,6 +333,74 @@ export function StatusClient({
               {/* Echoes aiDisclosure.body's promise on the surface where it matters most. */}
               <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote")}</p>
             </section>
+          ) : null}
+
+          {/* WP3 — "delete my interview recording". Shown ONLY while audio we hold
+              actually exists: a control offering to delete nothing would read as a
+              promise the page cannot keep. The deletion removes the AUDIO alone, which
+              the copy says out loud — the application, the transcript and the decision
+              history all stand, and the heavier right-to-erasure path is still the
+              /data link in every message we send. */}
+          {token && view.hasInterviewRecording && recordingStep !== "deleted" ? (
+            <section className="mt-8 rounded-lg border border-stone-200 bg-paper p-4" aria-labelledby="status-recording-title">
+              <h2 id="status-recording-title" className="text-body font-semibold text-ink">
+                {t("recording.title")}
+              </h2>
+              <p className="mt-1 text-base text-steel">{t("recording.body")}</p>
+              {recordingStep === "confirm" || recordingStep === "deleting" ? (
+                <div className="mt-3">
+                  <p className="text-base text-ink">{t("recording.confirm")}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={recordingStep === "deleting"}
+                      onClick={() => {
+                        setRecordingStep("deleting");
+                        fetch(`/api/status/${token}/recording`, { method: "DELETE" })
+                          .then((r) => {
+                            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                            setRecordingStep("deleted");
+                          })
+                          .catch(() => {
+                            // Never a silent failure on a deletion: a candidate told
+                            // nothing would believe the audio is gone when it is not.
+                            setRecordingStep("failed");
+                          });
+                      }}
+                      className={`${BTN_GHOST} h-11 px-3 text-meta font-semibold`}
+                    >
+                      {recordingStep === "deleting" ? t("recording.deleting") : t("recording.confirmYes")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={recordingStep === "deleting"}
+                      onClick={() => setRecordingStep("idle")}
+                      className={`${BTN_GHOST} h-11 px-3 text-meta font-semibold`}
+                    >
+                      {t("recording.confirmNo")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setRecordingStep("confirm")}
+                  className={`${BTN_GHOST} mt-3 h-11 px-3 text-meta font-semibold`}
+                >
+                  {t("recording.delete")}
+                </button>
+              )}
+              {recordingStep === "failed" ? (
+                <p role="alert" className="mt-2 text-base font-semibold text-coral">
+                  {t("recording.failed")}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+          {recordingStep === "deleted" ? (
+            <p role="status" aria-live="polite" className="mt-8 rounded-lg border border-stone-200 bg-paper p-4 text-base text-steel">
+              {t("recording.deleted")}
+            </p>
           ) : null}
 
           {/* W0.6b — cNPS, asked only on a terminal outcome (the route decides). This is

@@ -68,6 +68,29 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       log: `jobseeker scan: ${totals.workspaces} workspace(s), matched ${totals.matched}, deep-dived ${totals.deepDived}, blocked ${totals.blocked}, collapsed ${totals.collapsed}`,
     };
   },
+  // Opt-in interview-audio retention (spark ai-interview-parity, WP3): delete the audio
+  // files whose window has run out — 30 days past the hiring decision, or the 180-day
+  // backstop for a candidate who was never decided — and stamp the deletion on the row
+  // that held them. Synchronous and deployment-wide (the sweep scopes each write to the
+  // workspace the row itself names), idempotent, and silent when nothing is due: at a
+  // daily cadence a "kept everything" row every night is noise.
+  //
+  // NOTE on the autonomy pause below: this handler runs from the REGISTERED-JOBS loop,
+  // which sits under the pause with the other discretionary passes. That is deliberate
+  // even though the duty is statutory, because the duty is ALSO enforced on the read
+  // path (the playback door re-checks the same predicate), so a paused deployment stops
+  // SERVING the audio even while it stops deleting it. Unlike the consent sweep, which
+  // has no read-side twin, nothing here goes unlawful-and-invisible while halted.
+  interview_recording_retention: async () => {
+    const { runInterviewRecordingRetention } = await import("./app/_lib/interview-recording");
+    const summary = runInterviewRecordingRetention();
+    if (summary.deleted === 0 && summary.failed === 0) return null;
+    return {
+      status: "ok",
+      summary,
+      log: `interview recordings deleted: ${summary.deleted} (scanned ${summary.scanned}, failed ${summary.failed})`,
+    };
+  },
 };
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------

@@ -25,6 +25,10 @@ import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, sta
 import { knownStageIds } from "../pipeline-axis";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
+// The opt-in interview AUDIO's deletion, called AFTER anonymizeEntry's transaction
+// commits (see its tail). interview-recording.ts reaches the compliance config and the
+// interview stores, neither of which imports this module, so this is not a cycle.
+import { deleteEntryRecordings } from "../interview-recording";
 
 /** POST-COMMIT seam: "this entry now STANDS on stage X".
  *
@@ -2471,7 +2475,27 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
   // rather than at the first write. The claim UPDATE's `anonymized_at IS NULL`
   // re-assert above is the second half of the same decision, for a writer on another
   // connection. See actOnPipelineEntry for the canonical pairing.
-  return tx.immediate();
+  const erased = tx.immediate();
+  // POST-COMMIT, and it has to be: the candidate's opt-in interview AUDIO lives in
+  // FILES under the data dir, and unlinking a file is irreversible — a rollback cannot
+  // put it back, so deleting inside the transaction above would destroy audio for an
+  // erasure that then failed. Running it here, at the ONE chokepoint both erasure doors
+  // pass through (the candidate's /data/[token] request and the consent-expiry sweep),
+  // is also what stops the two call sites from drifting.
+  //
+  // Best-effort by classification, never by shrug: the entry is already scrubbed and
+  // stamped, so throwing here would report a failed erasure that in fact succeeded. The
+  // audio that was not deleted is still reached by the retention sweep and refused by
+  // the playback door's read-time gate, and the log names the entry so an operator can
+  // finish it by hand.
+  if (erased) {
+    try {
+      deleteEntryRecordings(entryId, workspaceId, "erasure");
+    } catch (recErr) {
+      console.error(`[consent] interview audio not deleted for erased entry ${entryId}`, recErr);
+    }
+  }
+  return erased;
 }
 
 /** Sweep: anonymize every entry whose consent has lapsed (expires_at in the past)

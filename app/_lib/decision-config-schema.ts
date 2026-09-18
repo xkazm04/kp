@@ -84,6 +84,14 @@ export function effectiveHoldoutPercent(cfg: ScreeningRule): number {
 // "eu", which reproduces the app's pre-P1-1 GDPR framing exactly.
 export type ComplianceRule = {
   jurisdiction: RegimeId;
+  /** Whether candidates are OFFERED an audio recording of their AI interview (spark
+   *  ai-interview-parity). Default OFF, expressed as ABSENT rather than `false` for the
+   *  same reason `holdoutPercent` is: the persisted rule shape is pinned byte-identical
+   *  by the config tests, and a compliance row saved before recording existed must keep
+   *  validating unchanged. Resolve it at the point of use through
+   *  `isInterviewRecordingOffered` (app/_lib/interview-recording.ts), never by reading
+   *  the field and defaulting per call site. */
+  interviewRecordingOffered?: boolean;
 };
 
 export const COMPLIANCE_DEFAULT: ComplianceRule = {
@@ -345,7 +353,7 @@ export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan"
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
-const COMPLIANCE_KEYS = ["jurisdiction"] as const;
+const COMPLIANCE_KEYS = ["jurisdiction", "interviewRecordingOffered"] as const;
 const INTERVIEW_PLAN_KEYS = ["steps"] as const;
 const LEGACY_INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as const;
 const INTERVIEW_PLAN_STEP_KEYS = ["stageId", "gate", "rounds"] as const;
@@ -648,7 +656,19 @@ function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigRes
   if (typeof j !== "string" || !(REGIME_IDS as readonly string[]).includes(j)) {
     return { ok: false, error: `jurisdiction must be one of: ${REGIME_IDS.join(", ")}.` };
   }
-  return { ok: true, phase: "compliance", config: { jurisdiction: j as RegimeId } };
+  // ABSENT ≠ false. An omitted flag is "no opinion" — the writer predates the field, or
+  // is only changing the jurisdiction — and the key is left off the validated config so
+  // a plain compliance rule stays byte-identical to what it was before recording
+  // existed. The store then carries any stored value forward (decision-config-store's
+  // writeConfigRow, the familyFloors rule). An EXPLICIT false still writes false, which
+  // is how turning the offer back OFF stays expressible.
+  const offered = raw.interviewRecordingOffered;
+  if (offered !== undefined && typeof offered !== "boolean") {
+    return { ok: false, error: "interviewRecordingOffered must be true or false." };
+  }
+  const config: ComplianceRule = { jurisdiction: j as RegimeId };
+  if (offered !== undefined) config.interviewRecordingOffered = offered;
+  return { ok: true, phase: "compliance", config };
 }
 
 /**

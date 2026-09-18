@@ -319,6 +319,11 @@ npm run secrets:rotate            # add -- --dry-run first to see the counts
   pins it for you.
 - **WAL mode.** The DB runs in WAL; a boot checkpoint bounds the `-wal` file. Keep
   `kp.sqlite`, `kp.sqlite-wal` and `kp.sqlite-shm` together.
+- **Opt-in interview audio** (off unless a workspace turns it on) is stored as files in
+  `<dirname(KP_DB_PATH)>/recordings/<workspace>/`, i.e. `/data/recordings` on the image —
+  the same volume as the database, so one backup covers both, and a daily retention job
+  deletes each recording 30 days after the hiring decision (180 days after the call at
+  the latest).
 - **Backups.** Snapshot the single file. Either stop the container briefly and copy
   `/data`, or take a consistent online copy with `sqlite3 /data/kp.sqlite ".backup
   /data/backup.sqlite"` (or `npm run db:dump`). Schedule it; test a restore.

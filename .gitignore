@@ -39,6 +39,10 @@ pipeline-sidecar*.log
 data/*.sqlite
 data/*.sqlite-wal
 data/*.sqlite-shm
+# Opt-in candidate interview AUDIO (app/_lib/interview-recording.ts). Candidate
+# personal data, kept beside the database on the same persistent volume and deleted
+# by the retention sweep — never something a checkout carries.
+data/recordings/
 
 # Local gate/steward runtime state — SQLite written by the review + gate tooling.
 # Never committed: binary local state in a public repo, and every checkout's is

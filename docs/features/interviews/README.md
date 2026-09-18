@@ -503,6 +503,161 @@ erased entry's sessions. A session stops storing new events once it has 4000.
 - ElevenLabs sessions stay undirected until the agent is re-provisioned with the client
   tools.
 
+## Opt-in audio recording
+
+Opt-in audio recording of an AI voice interview. A candidate who is offered one, and who
+ticks a **separate** box, has their **microphone only** captured during the call; the
+audio is stored on this server beside the database and deleted on a stated schedule.
+
+It exists for one job: a recruiter re-listening to a passage to repair a
+speech-recognition error on a technology or product name (registry:
+`recruiting/voice-interview-fidelity`). It is an **observation aid**. Nothing scores it,
+no verdict is derived from it, and no surface presents it as evidence for a decision.
+
+Off unless a workspace turns it on. A deployment that never touches the setting behaves
+exactly as it did before the feature existed — the consent line still reads "No audio is
+stored", and it is true.
+
+### Entry points
+
+| Surface | What it is |
+| --- | --- |
+| Settings → Decision rules → Compliance (`app/features/hiring/decisions/DecisionsComplianceSection.tsx`) | The operator toggle, "Offer candidates an audio recording of their AI interview". Default OFF. |
+| `/interview/<token>` (portal) | `RecordingConsent` — the candidate's separate, unticked box, rendered only when the workspace offers it. `useInterviewRecording` does the capture; `RecordingIndicator` is the optional calm in-call chip. |
+| `/status/<token>` (candidate) | "Delete my interview recording", with a confirm step. Shown only while audio exists. |
+| Recruiter playback | `GET /api/interview/recording/<sessionId>` — the stream. The player UI is WP4's. |
+| Automation clock | The daily `interview_recording_retention` job in Settings → the scheduler panel. |
+
+### Flows
+
+**Offer → consent → capture.** The operator turns the setting on
+(`compliance.interviewRecordingOffered`, per workspace). `/interview/<token>` asks the
+server whether recording is offered; the portal then renders `RecordingConsent` beside
+the main consent, unticked. `POST /api/interview/connect` stamps `recording_consent_at`
+only when the workspace offers recording **and** the body says `recordingConsent: true`.
+During the call `useInterviewRecording` runs `MediaRecorder` over the candidate's
+microphone — the transport's own stream when it exposes one (OpenAI), otherwise a stream
+the hook acquires and stops itself (ElevenLabs owns the SDK's) — preferring
+`audio/webm;codecs=opus`, falling back to `audio/mp4` (Safari) then `audio/ogg`. A 10 s
+timeslice; chunks upload strictly sequentially with a monotonic index; the falling edge
+of the call flushes the last chunk.
+
+**Nothing here may disturb the call.** Every failure — no `MediaRecorder`, a denied
+second `getUserMedia`, a refused upload, a dead network — lands on state `"failed"` and
+stops. Nothing throws out of the hook, nothing awaits on the call's own path, and no
+error is shown to the candidate as an interruption.
+
+**Playback.** A recruiter's authenticated `GET` streams the file with HTTP Range, so an
+`<audio>` element can seek. The files sit outside the public tree; this door is the only
+way audio leaves the server.
+
+**Deletion**, by any of four paths:
+1. **Retention sweep** (`interview_recording_retention`, daily): 30 days after the hiring
+   decision, or the 180-day backstop measured from the call, whichever comes first.
+2. **Read-time gate**: the playback door re-evaluates the same predicate on every read,
+   so a deployment whose clock never started stops *serving* audio on time even while it
+   is not deleting it (registry: `read-time-gate-not-just-the-sweep`).
+3. **Candidate request** from `/status/<token>` → `DELETE /api/status/<token>/recording`.
+   Deletes the audio and nothing else: the application, the transcript and the decision
+   history stand.
+4. **GDPR erasure** (`anonymizeEntry`), after its transaction commits.
+
+In every case the **file is unlinked and the metadata row is kept**, stamped with when it
+was deleted and why. The deletion is the record.
+
+### API / lib surface
+
+| Surface | Auth | What it does |
+| --- | --- | --- |
+| `POST /api/interview/recording` (`app/api/interview/recording/route.ts`) | PUBLIC, interview token in `x-kp-token` | One raw audio chunk. Headers `x-kp-token`, `x-kp-session`, `x-kp-attempt`, `x-kp-chunk`; content-type allow-list; ≤ 2 MB per chunk on the bytes read; ≤ 80 MB per session; per-token limiter 240/10min. |
+| `GET /api/interview/recording/[sessionId]?attempt=N` | Operator + workspace | Streams the file, serves Range, 404 when deleted, absent, foreign or past its window. |
+| `DELETE /api/status/[token]/recording` | PUBLIC, status token in the URL | The candidate's own deletion. Idempotent (`{ ok: true, deleted: n }`), limiter 10/min per client + token. |
+| `GET /api/status/[token]` | PUBLIC, status token | Gains **one boolean**, `hasInterviewRecording`. |
+| `app/_lib/interview-recording.ts` | — | `isInterviewRecordingOffered`, the file store, `deleteSessionRecordings` / `deleteEntryRecordings`, `entryDecisionAt`, `recordingRetentionDue`, `runInterviewRecordingRetention`, `entryHasRecording`. |
+| `app/_lib/interview-recording-paths.ts` | — | Pure: the mime allow-list, the byte budgets, the retention windows, file-name construction, the accept-a-chunk state machine, the Range parse. |
+| `app/_lib/db/interviews.ts` | — | `claimInterviewRecordingChunk`, `markInterviewRecordingPartial`, `markInterviewRecordingsDeleted`, `interviewRecordingsForSession`, `interviewRecordingRowForSession`, `listInterviewRecordingsDue`, `listInterviewRecordingsForEntry`. |
+| `app/_components/voice/useInterviewRecording.ts` | — | The browser capture + sequential upload. |
+| `app/_components/voice/RecordingConsent.tsx` | — | The separate consent box and the in-call indicator. |
+
+#### Refusals
+
+`INTERVIEW_RECORDING_NOT_OFFERED` (403, not offered *or* no audio consent on the row —
+one refusal for both), `INTERVIEW_RECORDING_CLOSED` (409), `INTERVIEW_RECORDING_TYPE_UNSUPPORTED`
+(415), `INTERVIEW_RECORDING_FULL` (413), `INTERVIEW_RECORDING_NOT_FOUND` (404),
+`PAYLOAD_TOO_LARGE` (413), `TOO_MANY_REQUESTS` (429). Faults answer
+`INTERVIEW_RECORDING_FAILED` / `STATUS_RECORDING_DELETE_FAILED`. All seven have
+`errors.<CODE>` in the four catalogs.
+
+### Data model
+
+**The setting** is one field on the per-workspace compliance config,
+`compliance.interviewRecordingOffered` (`app/_lib/decision-config-schema.ts`), read
+through `getDecisionConfig<ComplianceRule>("compliance", workspaceId)`. It is **optional
+and absent-by-default**, the `holdoutPercent` precedent: a compliance row saved before
+this feature existed keeps validating byte-identically. Because the compliance row is
+written wholesale, `decision-config-store.writeConfigRow` carries a stored value forward
+when a write omits the key (the `familyFloors` rule) — otherwise changing the
+jurisdiction would silently withdraw the offer.
+
+**The ledger** is `interview_sessions.recordings_json`, an array of `RecordingMeta`
+(`app/_lib/voice/director-types.ts`): `attempt`, `file`, `bytes`, `mime`, `startedAt`,
+`endedAt`, `partial`, `deletedAt`, `deleteReason`, and `lastChunk` (the replay cursor).
+`recording_consent_at` on the same row is the consent fact. Two event kinds land on the
+append-only `interview_events` record: `recording_started` (once per attempt, on the
+first chunk) and `recording_deleted` (with its reason).
+
+**The files** live at
+`<dirname(KP_DB_PATH)>/recordings/<workspaceId>/<sessionId>-a<attempt>.<ext>` — on the
+shipped image `/data/recordings`, the same persistent volume as the database, so one
+backup covers both (`docs/architecture/self-hosting.md` §4). `data/recordings/` is
+gitignored. Both path segments and the file name are built from **server-minted ids
+only**; a caller-supplied string never reaches a path.
+
+### Retention
+
+Two windows, both constants in `interview-recording-paths.ts`, both interpolated into the
+candidate-facing copy so the number enforced and the number promised cannot drift
+(registry: `retention-ttl-and-derived-disclosure`):
+
+- `RECORDING_RETENTION_AFTER_DECISION_DAYS = 30`
+- `RECORDING_BACKSTOP_DAYS = 180` (from the call; an absolute ceiling)
+
+**The decision timestamp is the one the code actually records** (`entryDecisionAt`):
+
+- a terminal status (`rejected` / `declined` / `rematched` / `role_closed`) is written
+  with `updated_at` and does **not** move `stage_changed_at`
+  (`app/_lib/db/pipeline.ts:3021`, `:3244`, `:863`) — so `updated_at` is the stamp;
+- a **hire** keeps `status='active'`, moves the stage to `Hired` and stamps
+  `stage_changed_at`, which that code deliberately never moves again because it anchors
+  time-to-hire (`:3047`, `:3072`).
+
+Caveat, stated rather than hidden: `updated_at` also moves if someone edits a closed
+entry later, which can only **delay** a deletion. The 180-day backstop bounds it, and it
+is measured from the call rather than from the entry. Audio whose dates cannot be read at
+all is treated as **due** — uncertainty resolves toward the candidate.
+
+### Keyless behaviour
+
+Nothing here calls a model or a paid provider. Capture is `MediaRecorder` in the
+candidate's browser; storage is the local filesystem; retention is a local sweep. A
+keyless, fully offline self-host has the whole feature. The only reason it does nothing on
+a given deployment is the operator setting being off, which is the default.
+
+### Known gaps
+
+- **No browser was driven.** `MediaRecorder` container support, the `dataavailable`
+  cadence and the final-flush timing are per-browser behaviours no test here exercised.
+  Safari's `audio/mp4` path in particular is coded from the spec, not observed.
+- **No recruiter player.** The playback route exists and streams; the UI that opens it is
+  WP4's.
+- **Multi-range requests** are served whole rather than as a multipart body. No player is
+  known to need one.
+- **Attempt selection on playback** defaults to the latest attempt that still has audio;
+  a session with several recorded attempts has no UI to choose between them yet.
+- **Per-chunk atomicity.** A crash between the ledger claim and the file append leaves the
+  attempt marked `partial` rather than repaired. That is the honest direction, but it does
+  mean a flaky upload can mark a recording partial that is only missing ten seconds.
+
 ## Automatic invites on stage entry
 
 **The one manual step left in the AI-interview loop is gone.** When a candidate

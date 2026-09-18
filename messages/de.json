@@ -1398,6 +1398,12 @@
     "INTERVIEW_LOOKUP_FAILED": "Die Interviewdaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "INTERVIEW_PREP_FAILED": "Die Interviewvorbereitung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "INTERVIEW_DIRECTOR_FAILED": "Der Fortschritt des Interviews konnte nicht gespeichert werden. Das Gespräch läuft weiter.",
+    "INTERVIEW_RECORDING_FAILED": "Das Interview-Audio konnte nicht gespeichert werden. Auf das Interview selbst hat das keine Auswirkung.",
+    "INTERVIEW_RECORDING_NOT_OFFERED": "Dieses Interview wird nicht aufgezeichnet.",
+    "INTERVIEW_RECORDING_CLOSED": "Dieses Interview nimmt kein Audio mehr an.",
+    "INTERVIEW_RECORDING_TYPE_UNSUPPORTED": "Dieses Audioformat kann nicht gespeichert werden.",
+    "INTERVIEW_RECORDING_FULL": "Dieses Interview hat so viel Audio gespeichert, wie es fassen kann.",
+    "INTERVIEW_RECORDING_NOT_FOUND": "Diese Interviewaufnahme ist nicht mehr verfügbar.",
     "PIPELINE_LIST_FAILED": "Die Pipeline konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "PIPELINE_CREATE_FAILED": "Der Eintrag konnte nicht zur Pipeline hinzugefügt werden. Bitte versuchen Sie es erneut.",
     "PIPELINE_ACTION_FAILED": "Diese Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
@@ -1418,6 +1424,7 @@
     "STATUS_DECISIONS_FAILED": "Ihr Entscheidungsverlauf konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "STATUS_NPS_READ_FAILED": "Die Feedback-Frage konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "STATUS_NPS_WRITE_FAILED": "Ihr Feedback konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "STATUS_RECORDING_DELETE_FAILED": "Ihre Interviewaufnahme konnte gerade nicht gelöscht werden. Bitte versuchen Sie es erneut.",
     "APPLY_FAILED": "Ihre Bewerbung konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.",
     "FOLLOWUP_FAILED": "Diese Antworten konnten nicht gespeichert werden. Ihre Bewerbung ist sicher hinterlegt. Bitte versuchen Sie es erneut.",
     "REDISCOVERY_ALERTS_FAILED": "Die Hinweise auf frühere Kandidaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -2049,6 +2056,17 @@
     "forRole": "Ihre Bewerbung für {role}",
     "forRoleGeneric": "Ihre Bewerbung",
     "updated": "Zuletzt aktualisiert {date}",
+    "recording": {
+      "title": "Ihre Interviewaufnahme",
+      "body": "Sie haben einer Audioaufnahme Ihres AI-Interviews zugestimmt. Sie wird automatisch gelöscht, und Sie können sie auch jetzt löschen.",
+      "delete": "Meine Interviewaufnahme löschen",
+      "confirm": "Die Aufnahme endgültig löschen? Das lässt sich nicht rückgängig machen und hat keine Auswirkung auf Ihre Bewerbung.",
+      "confirmYes": "Ja, löschen",
+      "confirmNo": "Behalten",
+      "deleting": "Wird gelöscht…",
+      "deleted": "Ihre Interviewaufnahme wurde gelöscht.",
+      "failed": "Die Aufnahme konnte gerade nicht gelöscht werden. Bitte versuchen Sie es erneut."
+    },
     "steps": {
       "received": "Eingegangen",
       "under_review": "In Prüfung",
@@ -2278,6 +2296,17 @@
       "notSet": "nicht festgelegt",
       "keysNotConfigured": "{provider}-Schlüssel nicht konfiguriert",
       "consent": "Ich verstehe, dass dies ein <b>AI-durchgeführtes</b> Screening der ersten Runde ist und dass das Gespräch <b>transkribiert</b> wird, damit ein/e Recruiter/in es prüfen kann. Es wird kein Audio gespeichert.",
+      "consentRecordable": "Ich verstehe, dass dies ein <b>AI-durchgeführtes</b> Screening der ersten Runde ist und dass das Gespräch <b>transkribiert</b> wird, damit ein/e Recruiter/in es prüfen kann. Audio wird nur gespeichert, wenn Sie das Kästchen unten ankreuzen.",
+      "recording": {
+        "optInLabel": "Zusätzlich eine Audioaufnahme meiner Antworten speichern",
+        "what": "Aufgenommen wird nur Ihr Mikrofon: nie die Stimme des Interviewers, Ihr Bildschirm oder Ihre Kamera.",
+        "why": "So kann die recruitende Person eine Stelle erneut anhören und einen falsch transkribierten Technologie- oder Produktnamen korrigieren.",
+        "when": "Sie wird {decisionDays} Tage nach der Einstellungsentscheidung gelöscht, spätestens {backstopDays} Tage nach diesem Gespräch.",
+        "control": "Sie können sie jederzeit selbst auf der Statusseite Ihrer Bewerbung löschen.",
+        "optional": "Eine Ablehnung ändert nichts an Ihrem Interview.",
+        "indicator": "Aufnahme",
+        "indicatorLabel": "Ihr Mikrofon wird aufgezeichnet"
+      },
       "connecting": "Verbindung wird hergestellt…",
       "awaitingMic": "Erlauben Sie den Mikrofonzugriff in der Abfrage Ihres Browsers, um das Gespräch zu starten.",
       "startAgain": "Erneut starten",
@@ -3441,7 +3470,8 @@
       "job": {
         "policyPass": "Regel-Durchlauf",
         "reminders": "Interview-Erinnerungen",
-        "jobseekerScan": "Stellenmarkt-Scan"
+        "jobseekerScan": "Stellenmarkt-Scan",
+        "interviewRecordingRetention": "Aufbewahrung von Interviewaufnahmen"
       },
       "unverified": "Starten Sie zuerst einen Scan von Hand. Der Timer lässt sich einschalten, sobald ein Scan erfolgreich war.",
       "jobToggleTitle": "{job} pausieren oder fortsetzen",

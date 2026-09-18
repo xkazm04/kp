@@ -76,6 +76,25 @@ footers, claimed by `claimConsentExpiryNotice` in an IMMEDIATE transaction so a
 re-tick cannot double-send. Opted-out, anonymized, and already-expired rows are
 skipped — expiry itself stays the anonymize sweep's job.
 
+**Interview audio has its own consent and its own clock.** The AI voice interview is
+transcript-only unless a workspace turns on `compliance.interviewRecordingOffered`
+(Settings → Decision rules → Compliance; default OFF), and then only if the candidate
+ticks a **separate** box on the portal — the transcript consent never covers audio.
+When both hold, `interview_sessions.recording_consent_at` is the fact, and the candidate's
+microphone (never the interviewer's voice, screen or camera) is stored as a file under
+`<dirname(KP_DB_PATH)>/recordings/<workspace>/`. **The promise the candidate is shown is
+the one the code enforces**: deleted 30 days after the hiring decision, at the latest 180
+days after the call (`RECORDING_RETENTION_AFTER_DECISION_DAYS` /
+`RECORDING_BACKSTOP_DAYS` in `app/_lib/interview-recording-paths.ts`, interpolated into
+`interview.voice.recording.when`), on their own request from `/status/<token>`, or with an
+Art. 17 erasure — which deletes the files AFTER `anonymizeEntry`'s transaction commits,
+because unlinking a file is irreversible and a rollback cannot put it back. The daily
+`interview_recording_retention` job enforces the two windows and the recruiter's playback
+door re-checks the same predicate on every read, so a deployment whose clock never started
+stops *serving* audio on time even while it is not yet deleting it. In every path the file
+is unlinked and the `RecordingMeta` row is kept, stamped with when and why: the deletion is
+the record. Full surface in [`../interviews/README.md`](../interviews/README.md).
+
 **Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
 
 **The erasure list is pinned to the tenancy manifest.** The full-scrub test used to
@@ -620,6 +639,11 @@ name variants — this closes what was gap G3 in the original conformity pack.
   nullable `actor` (`auto:<engine>` / `human:<Name>` / `human:recruiter` / NULL).
   Rows written before the column existed stay NULL — deliberately not backfilled,
   since inventing an approver for them would be the overclaim G5 was about.
+- `interview_sessions`: `recording_consent_at` (the candidate's SEPARATE audio consent,
+  distinct from `consent_at`) and `recordings_json` — one `RecordingMeta` per recorded
+  attempt, **including deleted ones**, each carrying `deletedAt` and a `deleteReason`
+  (`retention` | `candidate_request` | `recruiter` | `erasure`). The audio itself is a
+  file under the data dir, not a column.
 - `llm_usage`: usage ledger including a `deterministic` source flag.
 
 ## Known gaps

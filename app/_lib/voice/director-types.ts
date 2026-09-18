@@ -178,7 +178,11 @@ export type ResumeContext = {
 
 // ---- recording ---------------------------------------------------------------------
 
-export type RecordingDeleteReason = "retention" | "candidate_request" | "recruiter";
+/** `erasure` is the GDPR Art. 17 path (WP3): it is NOT `candidate_request`, which is
+ *  the status page's "delete just my recording" control — one erases the whole
+ *  candidate, the other only the audio, and a deletion record that cannot tell them
+ *  apart cannot answer what was asked of it. */
+export type RecordingDeleteReason = "retention" | "candidate_request" | "recruiter" | "erasure";
 
 /** One recorded attempt (candidate microphone only), stored under the data dir. */
 export type RecordingMeta = {
@@ -193,6 +197,11 @@ export type RecordingMeta = {
   partial: boolean;
   deletedAt: string | null;
   deleteReason: RecordingDeleteReason | null;
+  /** The highest chunk index APPENDED to this attempt's file, so a replayed upload is
+   *  acknowledged instead of doubling the audio. OPTIONAL: a row written before the
+   *  cursor existed parses unchanged, and its absence simply means "nothing to replay
+   *  against yet". (WP3 addition to the contract — see the package report.) */
+  lastChunk?: number;
 };
 
 // ---- the stored event vocabulary -------------------------------------------------------

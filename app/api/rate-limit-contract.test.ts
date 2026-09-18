@@ -697,6 +697,46 @@ const ROUTES: RouteSpec[] = [
     // The lifecycle refusals keep their 404/409 semantics ahead of the budget.
     servedBefore: 'jsonRefusal("INTERVIEW_NOT_LIVE", 409)',
   },
+  {
+    // ADDED with the route (spark ai-interview-parity, WP3). The candidate's opt-in
+    // microphone upload: a public token door whose body is RAW AUDIO, so every accepted
+    // call buffers up to 2 MB and then appends to a file on the operator's volume — the
+    // ./extract-text rationale, with a disk write at the end of it. Per-TOKEN only, like
+    // its /connect and /director siblings: the interview link IS the credential and one
+    // call is exactly one token, so an IP component would only punish a shared NAT.
+    // 240/10min = one chunk every 2.5 s sustained, well above the hook's 10 s timeslice
+    // plus its sequential retries.
+    rel: "./interview/recording/route.ts",
+    key: "`interview-recording:${token}`",
+    limit: 240,
+    optsSrc: "RECORDING_RATE_LIMIT",
+    optsDef: "const RECORDING_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The body read is the expensive work: the heap, and the filesystem append behind it.
+    expensive: "readBytesWithLimit(",
+    // The consent/offer 403 and the lifecycle 409 keep their semantics ahead of the
+    // budget — a call that is not being recorded must never spend a slot, and the
+    // refusal it gets is what stops the browser's hook.
+    servedBefore: 'jsonRefusal("INTERVIEW_RECORDING_NOT_OFFERED", 403)',
+  },
+  {
+    // ADDED with the route (spark ai-interview-parity, WP3). The candidate's own
+    // "delete my interview recording" door, on the PUBLIC status token. Same posture as
+    // its /data and /stop cousins and for the same reason: an anonymous, token-authed
+    // public door whose verb is an IRREVERSIBLE write, so the limiter runs BEFORE the
+    // token lookup and a flood never reaches the store. Keyed per client AND token, so
+    // the shared client key an untrusted proxy produces still gives each candidate
+    // their own bucket. 10/min: this is a decision a person makes once.
+    rel: "./status/[token]/recording/route.ts",
+    key: "`status-recording-delete:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "RECORDING_DELETE_RATE_LIMIT",
+    optsDef: "const RECORDING_DELETE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "deleteEntryRecordings(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it

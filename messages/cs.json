@@ -1398,6 +1398,12 @@
     "INTERVIEW_LOOKUP_FAILED": "Nepodařilo se načíst data pohovoru. Zkuste to prosím znovu.",
     "INTERVIEW_PREP_FAILED": "Nepodařilo se načíst přípravu na pohovor. Zkuste to prosím znovu.",
     "INTERVIEW_DIRECTOR_FAILED": "Průběh pohovoru se nepodařilo uložit. Hovor pokračuje.",
+    "INTERVIEW_RECORDING_FAILED": "Zvuk pohovoru se nepodařilo uložit. Na samotný pohovor to nemá vliv.",
+    "INTERVIEW_RECORDING_NOT_OFFERED": "Tento pohovor se nenahrává.",
+    "INTERVIEW_RECORDING_CLOSED": "Tento pohovor už zvuk nepřijímá.",
+    "INTERVIEW_RECORDING_TYPE_UNSUPPORTED": "Tento zvukový formát nelze uložit.",
+    "INTERVIEW_RECORDING_FULL": "Tento pohovor už uložil maximum zvuku, které pojme.",
+    "INTERVIEW_RECORDING_NOT_FOUND": "Tento záznam pohovoru už není k dispozici.",
     "PIPELINE_LIST_FAILED": "Nepodařilo se načíst pipeline. Zkuste to prosím znovu.",
     "PIPELINE_CREATE_FAILED": "Nepodařilo se přidat do pipeline. Zkuste to prosím znovu.",
     "PIPELINE_ACTION_FAILED": "Nepodařilo se provést tuto akci. Zkuste to prosím znovu.",
@@ -1418,6 +1424,7 @@
     "STATUS_DECISIONS_FAILED": "Nepodařilo se načíst historii rozhodnutí. Zkuste to prosím znovu.",
     "STATUS_NPS_READ_FAILED": "Nepodařilo se načíst otázku ke zpětné vazbě. Zkuste to prosím znovu.",
     "STATUS_NPS_WRITE_FAILED": "Nepodařilo se zaznamenat vaši zpětnou vazbu. Zkuste to prosím znovu.",
+    "STATUS_RECORDING_DELETE_FAILED": "Záznam vašeho pohovoru se teď nepodařilo smazat. Zkuste to prosím znovu.",
     "APPLY_FAILED": "Nepodařilo se odeslat vaši přihlášku. Zkuste to prosím znovu.",
     "FOLLOWUP_FAILED": "Nepodařilo se uložit tyto odpovědi. Vaše přihláška je v bezpečí uložená. Zkuste to prosím znovu.",
     "REDISCOVERY_ALERTS_FAILED": "Nepodařilo se načíst upozornění na dřívější kandidáty. Zkuste to prosím znovu.",
@@ -2049,6 +2056,17 @@
     "forRole": "Vaše přihláška na pozici {role}",
     "forRoleGeneric": "Vaše přihláška",
     "updated": "Naposledy aktualizováno {date}",
+    "recording": {
+      "title": "Záznam vašeho pohovoru",
+      "body": "Souhlasili jste se zvukovým záznamem svého AI pohovoru. Maže se automaticky a můžete jej smazat i hned teď.",
+      "delete": "Smazat záznam mého pohovoru",
+      "confirm": "Opravdu záznam trvale smazat? Nelze to vrátit zpět a na vaši přihlášku to nemá vliv.",
+      "confirmYes": "Ano, smazat",
+      "confirmNo": "Ponechat",
+      "deleting": "Maže se…",
+      "deleted": "Záznam vašeho pohovoru byl smazán.",
+      "failed": "Záznam se teď nepodařilo smazat. Zkuste to prosím znovu."
+    },
     "steps": {
       "received": "Přijato",
       "under_review": "V posuzování",
@@ -2278,6 +2296,17 @@
       "notSet": "není nastaveno",
       "keysNotConfigured": "Klíče {provider} nejsou nastavené",
       "consent": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že se konverzace <b>přepisuje</b> k přezkoumání člověkem. Zvukový záznam se neukládá.",
+      "consentRecordable": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že se konverzace <b>přepisuje</b> k přezkoumání člověkem. Zvuk se uloží, jen pokud zaškrtnete políčko níže.",
+      "recording": {
+        "optInLabel": "Souhlasím i s uložením zvukového záznamu mých odpovědí",
+        "what": "Nahrává se pouze váš mikrofon: nikdy hlas tazatele, vaše obrazovka ani kamera.",
+        "why": "Náboráři to umožní si pasáž znovu poslechnout a opravit název technologie nebo produktu, který přepis zachytil špatně.",
+        "when": "Smaže se {decisionDays} dní po rozhodnutí o obsazení pozice, nejpozději {backstopDays} dní po tomto hovoru.",
+        "control": "Kdykoli jej můžete sami smazat na stránce se stavem vaší přihlášky.",
+        "optional": "Odmítnutí nijak neovlivní váš pohovor.",
+        "indicator": "Nahrává se",
+        "indicatorLabel": "Váš mikrofon se nahrává"
+      },
       "connecting": "Připojování…",
       "awaitingMic": "Chcete-li hovor spustit, povolte ve výzvě prohlížeče přístup k mikrofonu.",
       "startAgain": "Začít znovu",
@@ -3441,7 +3470,8 @@
       "job": {
         "policyPass": "Průchod pravidel",
         "reminders": "Připomenutí pohovorů",
-        "jobseekerScan": "Sken pracovního trhu"
+        "jobseekerScan": "Sken pracovního trhu",
+        "interviewRecordingRetention": "Uchovávání záznamů pohovorů"
       },
       "unverified": "Nejdřív spusťte jeden sken ručně. Časovač lze zapnout, až sken proběhne úspěšně.",
       "jobToggleTitle": "Pozastavit nebo obnovit: {job}",

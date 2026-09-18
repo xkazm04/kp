@@ -1,7 +1,7 @@
 import { coerceInterviewRecommendation, type InterviewRecommendation } from "../interview-recommendation";
 import type { ScorecardRating } from "../interview-scorecard";
 import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "../voice/types";
-import type { InterviewAgenda, RecordingMeta } from "../voice/director-types";
+import type { InterviewAgenda, RecordingDeleteReason, RecordingMeta } from "../voice/director-types";
 import { randomId, randomToken } from "../random-id";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { ensureDb, safeRowParse } from "./core";
@@ -737,6 +737,294 @@ export function markInterviewRecordingConsent(id: string): boolean {
     )
     .run(now, id);
   return res.changes > 0;
+}
+
+// ---- Recordings (opt-in candidate microphone audio) -----------------------
+//
+// The FILES live under the data dir (app/_lib/interview-recording.ts); this column is
+// their ledger. Every function here is module-prefixed (`…InterviewRecording…`) because
+// the route-tenancy ratchet matches store functions by NAME across the tree, and every
+// one is workspace-scoped: a recording is candidate audio, the single most sensitive
+// artifact the product holds, and it must never be reachable by session id alone.
+//
+// A DELETED recording keeps its row. The deletion IS the record — "we held audio of
+// this call and it is gone, for this reason, at this time" is exactly what a candidate
+// or a regulator asks, and an erased entry in an array cannot answer it.
+
+/** The per-attempt ledger's read→compute→write helpers all share this shape. */
+export type RecordingChunkClaim = {
+  /** `claimed` — the chunk is ours to append. `duplicate` — a replay at or below the
+   *  stored cursor, already on disk, acknowledge and append nothing. `full` — the
+   *  session's byte budget is spent (the attempt is marked partial). `missing` — no
+   *  such session in this workspace. */
+  outcome: "claimed" | "duplicate" | "full" | "missing";
+  meta: RecordingMeta | null;
+  /** True when this claim CREATED the attempt's record — the caller writes the
+   *  `recording_started` event exactly once off this flag. */
+  first: boolean;
+};
+
+function readRecordings(db: ReturnType<typeof ensureDb>, sessionId: string, workspaceId: string): RecordingMeta[] | null {
+  const row = db
+    .prepare(`SELECT recordings_json FROM interview_sessions WHERE id = ? AND workspace_id = ?`)
+    .get(sessionId, workspaceId) as { recordings_json: string | null } | undefined;
+  if (!row) return null;
+  return safeRowParse<RecordingMeta[]>(row.recordings_json ?? null, "interview.recordings", sessionId) ?? [];
+}
+
+/**
+ * Claim ONE chunk of an attempt's recording: the cursor bump, the byte accounting and
+ * the per-session ceiling, decided under the write lock and written back in the same
+ * statement batch.
+ *
+ * IMMEDIATE, not a plain `tx()` — this is the canonical read→compute→write (read the
+ * ledger, decide duplicate/full/claimed, write the new ledger) and two chunks of the
+ * same call arriving together on different connections must not both pass the read.
+ * Synchronous throughout: the FILE append happens in the caller, AFTER this returns,
+ * so no await can ever sit between BEGIN and COMMIT.
+ *
+ * The claim is deliberately taken BEFORE the bytes are written: a crash between the two
+ * leaves the ledger claiming bytes the file does not have, which the caller answers by
+ * marking the attempt `partial` — the honest direction. The reverse order would let a
+ * replay append the same audio twice.
+ */
+export function claimInterviewRecordingChunk(input: {
+  sessionId: string;
+  workspaceId: string;
+  attempt: number;
+  /** 0-based, per attempt. */
+  chunk: number;
+  bytes: number;
+  mime: string;
+  /** File name relative to the workspace's recordings folder — built by the caller
+   *  from SERVER ids only (interview-recording-paths.recordingFileName). */
+  file: string;
+  maxSessionBytes: number;
+  nowIso?: string;
+}): RecordingChunkClaim {
+  const db = ensureDb();
+  const now = input.nowIso ?? new Date().toISOString();
+  const tx = db.transaction((): RecordingChunkClaim => {
+    const recordings = readRecordings(db, input.sessionId, input.workspaceId);
+    if (recordings === null) return { outcome: "missing", meta: null, first: false };
+    const idx = recordings.findIndex((r) => r.attempt === input.attempt);
+    const existing = idx >= 0 ? recordings[idx]! : null;
+    // A replayed chunk (a retried POST, a browser that re-sent after a timeout) is
+    // ALREADY on disk. Acknowledge it — a client that cannot settle keeps retrying —
+    // and change nothing.
+    if (existing && typeof existing.lastChunk === "number" && input.chunk <= existing.lastChunk) {
+      return { outcome: "duplicate", meta: existing, first: false };
+    }
+    // The ceiling counts every attempt of this session, including deleted ones: what is
+    // bounded is how much audio ONE interview link may ever push onto the disk.
+    const held = recordings.reduce((sum, r) => sum + (Number.isFinite(r.bytes) ? r.bytes : 0), 0);
+    if (held + input.bytes > input.maxSessionBytes) {
+      const marked: RecordingMeta[] = existing
+        ? recordings.map((r, i) => (i === idx ? { ...r, partial: true, endedAt: r.endedAt ?? now } : r))
+        : recordings;
+      db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+        JSON.stringify(marked),
+        input.sessionId,
+        input.workspaceId
+      );
+      return { outcome: "full", meta: idx >= 0 ? marked[idx]! : null, first: false };
+    }
+    const next: RecordingMeta = existing
+      ? { ...existing, bytes: existing.bytes + input.bytes, endedAt: now, lastChunk: input.chunk }
+      : {
+          attempt: input.attempt,
+          file: input.file,
+          bytes: input.bytes,
+          mime: input.mime,
+          startedAt: now,
+          endedAt: now,
+          partial: false,
+          deletedAt: null,
+          deleteReason: null,
+          lastChunk: input.chunk,
+        };
+    const merged = existing ? recordings.map((r, i) => (i === idx ? next : r)) : [...recordings, next];
+    db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+      JSON.stringify(merged),
+      input.sessionId,
+      input.workspaceId
+    );
+    return { outcome: "claimed", meta: next, first: existing === null };
+  });
+  return tx.immediate();
+}
+
+/** Flag an attempt's recording as incomplete — an upload that failed after its claim,
+ *  or a session that hit the byte ceiling. Never deletes: a partial recording is still
+ *  the candidate's audio, and the recruiter is told it is partial rather than shown
+ *  nothing. */
+export function markInterviewRecordingPartial(sessionId: string, workspaceId: string, attempt: number): boolean {
+  const db = ensureDb();
+  const tx = db.transaction((): boolean => {
+    const recordings = readRecordings(db, sessionId, workspaceId);
+    if (!recordings || !recordings.some((r) => r.attempt === attempt)) return false;
+    const merged = recordings.map((r) => (r.attempt === attempt ? { ...r, partial: true } : r));
+    db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+      JSON.stringify(merged),
+      sessionId,
+      workspaceId
+    );
+    return true;
+  });
+  return tx.immediate();
+}
+
+/** Record that an attempt's FILE is gone. Called AFTER the unlink, never before: a
+ *  crash between the two then leaves a row that still says "held", which the next sweep
+ *  simply re-runs — the opposite order would leave a row claiming a deletion that never
+ *  happened. Returns the attempts actually marked (a second call is a no-op). */
+export function markInterviewRecordingsDeleted(
+  sessionId: string,
+  workspaceId: string,
+  attempts: readonly number[],
+  reason: RecordingDeleteReason,
+  nowIso: string = new Date().toISOString()
+): number[] {
+  if (attempts.length === 0) return [];
+  const db = ensureDb();
+  const wanted = new Set(attempts);
+  const tx = db.transaction((): number[] => {
+    const recordings = readRecordings(db, sessionId, workspaceId);
+    if (!recordings) return [];
+    const marked: number[] = [];
+    const merged = recordings.map((r) => {
+      if (!wanted.has(r.attempt) || r.deletedAt) return r;
+      marked.push(r.attempt);
+      return { ...r, deletedAt: nowIso, deleteReason: reason };
+    });
+    if (marked.length === 0) return [];
+    db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+      JSON.stringify(merged),
+      sessionId,
+      workspaceId
+    );
+    return marked;
+  });
+  return tx.immediate();
+}
+
+/** One session's recording ledger, scoped to the team that owns it. Null when the id
+ *  names no session of THIS workspace — the same answer an unknown id gives, so the
+ *  door is never an existence oracle across tenants. */
+export function interviewRecordingsForSession(sessionId: string, workspaceId: string): RecordingMeta[] | null {
+  return readRecordings(ensureDb(), sessionId, workspaceId);
+}
+
+/** A session that still holds at least one undeleted recording, with the timestamps the
+ *  retention rule needs. */
+export type RecordingRetentionRow = {
+  sessionId: string;
+  workspaceId: string;
+  entryId: string | null;
+  recordings: RecordingMeta[];
+  /** The call's own clock — the backstop is measured from here. */
+  callAt: string | null;
+  /** The entry's status/stage/stamps, for the hiring-decision anchor. Null for a
+   *  session with no pipeline entry (a lab or simulation run). */
+  entryStatus: string | null;
+  entryStage: string | null;
+  entryStageChangedAt: string | null;
+  entryUpdatedAt: string | null;
+};
+
+function toRetentionRows(rows: RetentionRow[]): RecordingRetentionRow[] {
+  const out: RecordingRetentionRow[] = [];
+  for (const r of rows) {
+    const recordings = safeRowParse<RecordingMeta[]>(r.recordings_json ?? null, "interview.recordings", r.id) ?? [];
+    if (!recordings.some((m) => !m.deletedAt)) continue;
+    out.push({
+      sessionId: r.id,
+      workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+      entryId: r.entry_id,
+      recordings,
+      callAt: r.started_at ?? r.created_at,
+      entryStatus: r.entry_status ?? null,
+      entryStage: r.entry_stage ?? null,
+      entryStageChangedAt: r.entry_stage_changed_at ?? null,
+      entryUpdatedAt: r.entry_updated_at ?? null,
+    });
+  }
+  return out;
+}
+
+type RetentionRow = {
+  id: string;
+  workspace_id: string | null;
+  entry_id: string | null;
+  recordings_json: string | null;
+  started_at: string | null;
+  created_at: string;
+  entry_status: string | null;
+  entry_stage: string | null;
+  entry_stage_changed_at: string | null;
+  entry_updated_at: string | null;
+};
+
+// The three reads below spell their SELECT list out rather than sharing a constant.
+// That is deliberate and it is not style: the tenancy guards in this repo are SOURCE
+// scans over the template literals in this file (interviews-tenancy.test.ts), and a
+// query assembled from `${COLUMNS}` hides its own scoping from every one of them — a
+// guard that cannot read the SQL is a guard that passes on a name.
+
+/** EVERY tenant's sessions that still hold audio — the nightly retention sweep's read.
+ *  Deliberately unscoped (`-- tenancy:global`, the shape `anonymizeExpiredConsents`
+ *  uses): storage limitation is a deployment-wide duty, and each row carries its own
+ *  workspace_id so every WRITE the sweep performs is scoped again. */
+export function listInterviewRecordingsDue(limit = 2000): RecordingRetentionRow[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.workspace_id, s.entry_id, s.recordings_json, s.started_at, s.created_at,
+              e.status AS entry_status, e.stage AS entry_stage,
+              e.stage_changed_at AS entry_stage_changed_at, e.updated_at AS entry_updated_at
+         FROM interview_sessions s -- tenancy:global
+         LEFT JOIN pipeline_entries e ON e.id = s.entry_id
+        WHERE s.recordings_json IS NOT NULL AND s.recordings_json != '[]'
+        ORDER BY s.created_at ASC
+        LIMIT ?`
+    )
+    .all(Math.max(1, Math.min(Math.trunc(limit), 20_000))) as RetentionRow[];
+  return toRetentionRows(rows);
+}
+
+/** ONE session's retention row, scoped to the caller's team — the recruiter playback
+ *  door's read. Null when the session holds no live recording, when the id belongs to
+ *  another workspace, or when it names nothing: one answer for all three, so the door
+ *  cannot be used to learn which candidates were recorded. */
+export function interviewRecordingRowForSession(sessionId: string, workspaceId: string): RecordingRetentionRow | null {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.workspace_id, s.entry_id, s.recordings_json, s.started_at, s.created_at,
+              e.status AS entry_status, e.stage AS entry_stage,
+              e.stage_changed_at AS entry_stage_changed_at, e.updated_at AS entry_updated_at
+         FROM interview_sessions s
+         LEFT JOIN pipeline_entries e ON e.id = s.entry_id
+        WHERE s.id = ? AND s.workspace_id = ?`
+    )
+    .all(sessionId, workspaceId) as RetentionRow[];
+  return toRetentionRows(rows)[0] ?? null;
+}
+
+/** One entry's sessions that still hold audio, scoped to its team — the GDPR erasure
+ *  path and the candidate's own "delete my recording" door. */
+export function listInterviewRecordingsForEntry(entryId: string, workspaceId: string): RecordingRetentionRow[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.workspace_id, s.entry_id, s.recordings_json, s.started_at, s.created_at,
+              e.status AS entry_status, e.stage AS entry_stage,
+              e.stage_changed_at AS entry_stage_changed_at, e.updated_at AS entry_updated_at
+         FROM interview_sessions s
+         LEFT JOIN pipeline_entries e ON e.id = s.entry_id
+        WHERE s.entry_id = ? AND s.workspace_id = ?
+          AND s.recordings_json IS NOT NULL AND s.recordings_json != '[]'
+        ORDER BY s.created_at ASC`
+    )
+    .all(entryId, workspaceId) as RetentionRow[];
+  return toRetentionRows(rows);
 }
 
 /** Attach the synthesized scorecard to an already-persisted session. Separate

@@ -142,6 +142,12 @@ export const STORE_ERRORS = {
   // shows this to the candidate: a failed exchange answers the model "continue" and the
   // call goes on (a director outage must never stall an interview).
   INTERVIEW_DIRECTOR_FAILED: "Could not update the interview's progress. The call continues.",
+  /** The opt-in audio-recording doors (WP3): the candidate's chunk upload and the
+   *  recruiter's playback. Both sit on better-sqlite3 AND the local filesystem, so a
+   *  thrown message carries the absolute recordings path and the db path. The upload is
+   *  reached by the CANDIDATE's browser mid-call, where a failure must never interrupt
+   *  or alter the interview — it is logged here and the call goes on. */
+  INTERVIEW_RECORDING_FAILED: "Could not save the interview audio. The interview itself is unaffected.",
   // Pipeline board routes (idea-66f52a3a): all sit directly on better-sqlite3.
   PIPELINE_LIST_FAILED: "Could not load the pipeline. Please try again.",
   STAGE_IMPACT_FAILED: "Could not check who is on each pipeline step. Please try again.",
@@ -222,6 +228,10 @@ export const STORE_ERRORS = {
   // the candidate re-answers into the same error.
   STATUS_NPS_READ_FAILED: "Could not load the feedback question. Please try again.",
   STATUS_NPS_WRITE_FAILED: "Could not record your feedback. Please try again.",
+  /** The candidate's own "delete my interview recording" door (public status token).
+   *  Its own code, and never a read code: a failed deletion must not read as "we could
+   *  not load the page", or the candidate walks away believing the audio is gone. */
+  STATUS_RECORDING_DELETE_FAILED: "Could not delete your interview recording right now. Please try again.",
   // The two PUBLIC apply submissions (conversational + quick lead form). Their
   // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
   // temp write and the comms dispatcher — every one throws messages carrying
@@ -671,6 +681,34 @@ export const REFUSAL_ERRORS = {
    *  (`failed`), or an `attempt` other than the session's current one — a stale tab of
    *  an earlier connect. Completed and revoked sessions keep their own codes. */
   INTERVIEW_NOT_LIVE: "This interview isn't running right now.",
+  // ---- Opt-in audio recording (WP3). Every one of these is answered to the
+  // CANDIDATE'S OWN BROWSER mid-call, which is why they are coded rather than prose:
+  // the portal was opened from an invite written in their language. None of them is
+  // ever shown as an interruption — the hook simply stops recording (state "failed")
+  // and the interview continues, because an observation aid must never be able to
+  // damage the thing it observes.
+  /** Audio arrived for a workspace that does not offer recording, or for a session
+   *  whose candidate never gave the separate audio consent (403). ONE refusal for both:
+   *  "we are not keeping audio for this call" is the whole fact, and which half of it
+   *  applies is operator detail. */
+  INTERVIEW_RECORDING_NOT_OFFERED: "This interview is not being recorded.",
+  /** Audio arrived for a call that is not running and is past the final-flush window —
+   *  a link never connected, one the recruiter revoked, or a call that ended minutes
+   *  ago (409). */
+  INTERVIEW_RECORDING_CLOSED: "This interview is no longer accepting audio.",
+  /** The chunk's content type is not one of the container formats a browser's recorder
+   *  produces (415). The file name's extension comes from this allow-list, so anything
+   *  outside it has nowhere to be stored. */
+  INTERVIEW_RECORDING_TYPE_UNSUPPORTED: "That audio format can't be stored.",
+  /** This interview's audio budget is spent (413). The recording so far is KEPT and
+   *  marked partial — what was captured stays, and the recruiter is told it is
+   *  incomplete rather than shown nothing. */
+  INTERVIEW_RECORDING_FULL: "This interview has stored all the audio it can hold.",
+  /** No such recording on this team's record (404) — never uploaded, already deleted,
+   *  past its retention window, or belonging to another workspace. All four share one
+   *  refusal on purpose: distinguishing them would make the door an oracle for which
+   *  candidates were recorded. */
+  INTERVIEW_RECORDING_NOT_FOUND: "That interview recording is no longer available.",
   // ---- Document-upload refusals (app/_lib/upload-constraints.ts). The document
   // twins of AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE: the gate that guards every
   // CV / JD / company file answered hardcoded English on BOTH sides of the wire

@@ -1398,6 +1398,12 @@
     "INTERVIEW_LOOKUP_FAILED": "Impossible de charger les données de l’entretien. Veuillez réessayer.",
     "INTERVIEW_PREP_FAILED": "Impossible de charger la préparation à l’entretien. Veuillez réessayer.",
     "INTERVIEW_DIRECTOR_FAILED": "Impossible d’enregistrer la progression de l’entretien. L’appel continue.",
+    "INTERVIEW_RECORDING_FAILED": "Impossible d’enregistrer l’audio de l’entretien. L’entretien lui-même n’est pas affecté.",
+    "INTERVIEW_RECORDING_NOT_OFFERED": "Cet entretien n’est pas enregistré.",
+    "INTERVIEW_RECORDING_CLOSED": "Cet entretien n’accepte plus d’audio.",
+    "INTERVIEW_RECORDING_TYPE_UNSUPPORTED": "Ce format audio ne peut pas être conservé.",
+    "INTERVIEW_RECORDING_FULL": "Cet entretien a conservé tout l’audio qu’il peut contenir.",
+    "INTERVIEW_RECORDING_NOT_FOUND": "Cet enregistrement d’entretien n’est plus disponible.",
     "PIPELINE_LIST_FAILED": "Impossible de charger le pipeline. Veuillez réessayer.",
     "PIPELINE_CREATE_FAILED": "Impossible d’ajouter au pipeline. Veuillez réessayer.",
     "PIPELINE_ACTION_FAILED": "Impossible d’appliquer cette action. Veuillez réessayer.",
@@ -1418,6 +1424,7 @@
     "STATUS_DECISIONS_FAILED": "Impossible de charger votre historique de décisions. Veuillez réessayer.",
     "STATUS_NPS_READ_FAILED": "Impossible de charger la question de retour d’expérience. Veuillez réessayer.",
     "STATUS_NPS_WRITE_FAILED": "Impossible d’enregistrer votre retour. Veuillez réessayer.",
+    "STATUS_RECORDING_DELETE_FAILED": "Impossible de supprimer votre enregistrement d’entretien pour le moment. Veuillez réessayer.",
     "APPLY_FAILED": "Impossible d’envoyer votre candidature. Veuillez réessayer.",
     "FOLLOWUP_FAILED": "Impossible d’enregistrer ces réponses. Votre candidature est bien conservée. Veuillez réessayer.",
     "REDISCOVERY_ALERTS_FAILED": "Impossible de charger les alertes d’anciens candidats. Veuillez réessayer.",
@@ -2049,6 +2056,17 @@
     "forRole": "Votre candidature pour {role}",
     "forRoleGeneric": "Votre candidature",
     "updated": "Dernière mise à jour {date}",
+    "recording": {
+      "title": "Votre enregistrement d’entretien",
+      "body": "Vous avez accepté un enregistrement audio de votre entretien AI. Il est supprimé automatiquement, et vous pouvez le supprimer dès maintenant.",
+      "delete": "Supprimer mon enregistrement d’entretien",
+      "confirm": "Supprimer définitivement l’enregistrement ? C’est irréversible, et cela n’affecte pas votre candidature.",
+      "confirmYes": "Oui, supprimer",
+      "confirmNo": "Conserver",
+      "deleting": "Suppression…",
+      "deleted": "Votre enregistrement d’entretien a été supprimé.",
+      "failed": "Impossible de supprimer l’enregistrement pour le moment. Veuillez réessayer."
+    },
     "steps": {
       "received": "Reçue",
       "under_review": "En cours d’examen",
@@ -2278,6 +2296,17 @@
       "notSet": "non défini",
       "keysNotConfigured": "Clés {provider} non configurées",
       "consent": "Je comprends qu’il s’agit d’une présélection de premier tour <b>menée par AI</b> et que la conversation est <b>transcrite</b> pour être examinée par un recruteur humain. Aucun audio n’est conservé.",
+      "consentRecordable": "Je comprends qu’il s’agit d’une présélection de premier tour <b>menée par AI</b> et que la conversation est <b>transcrite</b> pour être examinée par un recruteur humain. L’audio n’est conservé que si vous cochez la case ci-dessous.",
+      "recording": {
+        "optInLabel": "Conserver aussi un enregistrement audio de mes réponses",
+        "what": "Seul votre microphone est enregistré : jamais la voix de l’intervieweur, ni votre écran, ni votre caméra.",
+        "why": "Cela permet au recruteur de réécouter un passage et de corriger un nom de technologie ou de produit mal transcrit.",
+        "when": "Il est supprimé {decisionDays} jours après la décision de recrutement, et au plus tard {backstopDays} jours après cet entretien.",
+        "control": "Vous pouvez le supprimer vous-même à tout moment depuis la page de suivi de votre candidature.",
+        "optional": "Refuser ne change rien à votre entretien.",
+        "indicator": "Enregistrement",
+        "indicatorLabel": "Votre microphone est en cours d’enregistrement"
+      },
       "connecting": "Connexion…",
       "awaitingMic": "Autorisez l’accès au microphone dans la demande de votre navigateur pour démarrer l’appel.",
       "startAgain": "Recommencer",
@@ -3441,7 +3470,8 @@
       "job": {
         "policyPass": "Passage des règles",
         "reminders": "Rappels d’entretien",
-        "jobseekerScan": "Analyse du marché de l’emploi"
+        "jobseekerScan": "Analyse du marché de l’emploi",
+        "interviewRecordingRetention": "Conservation des enregistrements d’entretien"
       },
       "unverified": "Lancez d’abord une analyse à la main. Le minuteur pourra être activé dès qu’une analyse aura réussi.",
       "jobToggleTitle": "Mettre en pause ou reprendre : {job}",

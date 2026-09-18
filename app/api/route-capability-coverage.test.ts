@@ -138,6 +138,10 @@ const ALLOWED = new Map<string, string>([
   ["interview/connect/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/create/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/director/route.ts", "public token door — authed by the interview link's capability token, never a seat (public-routes.ts); the candidate's live call posts here"],
+  [
+    "interview/recording/route.ts",
+    "public token door — the candidate's own microphone upload mid-call, authed by the interview link's capability token in x-kp-token, never a seat (public-routes.ts)",
+  ],
   ["interview/revoke/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/simulate/attach/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["interview/simulate/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
@@ -176,6 +180,10 @@ const ALLOWED = new Map<string, string>([
   ["sim/reset/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["sim/screen-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["status/[token]/nps/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
+  [
+    "status/[token]/recording/route.ts",
+    "public token door — the candidate deleting their OWN interview audio, authed by the status link in the URL, never a seat (public-routes.ts)",
+  ],
   [
     "stop/[token]/route.ts",
     "public token door — the candidate's ePrivacy Art. 13(4) opt-out, authed by the capability link in the URL, never a seat. " +

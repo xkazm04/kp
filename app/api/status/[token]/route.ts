@@ -6,6 +6,7 @@ import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
+import { entryHasRecording } from "@/app/_lib/interview-recording";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -55,6 +56,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       // configured no email will ever arrive, so the copy says "the team will
       // reach out" instead. Capability only — no secrets on the public wire.
       relayConfigured: isRelayConfigured(),
+      // WP3 — a BOOLEAN and nothing else. It gates the candidate's own "delete my
+      // interview recording" control, so the page must know whether audio exists; it
+      // must NOT learn a file name, a size, an attempt count or a date, all of which
+      // would be facts about the interview riding on a public projection.
+      hasInterviewRecording: entryHasRecording(entryId, workspaceId),
     });
   } catch (error) {
     // Raw err.message would surface SQLite internals on a public token route.

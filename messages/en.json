@@ -1398,6 +1398,12 @@
     "INTERVIEW_LOOKUP_FAILED": "Could not load interview data. Please try again.",
     "INTERVIEW_PREP_FAILED": "Could not load interview prep. Please try again.",
     "INTERVIEW_DIRECTOR_FAILED": "Could not update the interview's progress. The call continues.",
+    "INTERVIEW_RECORDING_FAILED": "Could not save the interview audio. The interview itself is unaffected.",
+    "INTERVIEW_RECORDING_NOT_OFFERED": "This interview is not being recorded.",
+    "INTERVIEW_RECORDING_CLOSED": "This interview is no longer accepting audio.",
+    "INTERVIEW_RECORDING_TYPE_UNSUPPORTED": "That audio format can't be stored.",
+    "INTERVIEW_RECORDING_FULL": "This interview has stored all the audio it can hold.",
+    "INTERVIEW_RECORDING_NOT_FOUND": "That interview recording is no longer available.",
     "PIPELINE_LIST_FAILED": "Could not load the pipeline. Please try again.",
     "PIPELINE_CREATE_FAILED": "Could not add to the pipeline. Please try again.",
     "PIPELINE_ACTION_FAILED": "Could not apply that action. Please try again.",
@@ -1418,6 +1424,7 @@
     "STATUS_DECISIONS_FAILED": "Could not load your decision history. Please try again.",
     "STATUS_NPS_READ_FAILED": "Could not load the feedback question. Please try again.",
     "STATUS_NPS_WRITE_FAILED": "Could not record your feedback. Please try again.",
+    "STATUS_RECORDING_DELETE_FAILED": "Could not delete your interview recording right now. Please try again.",
     "APPLY_FAILED": "Could not submit your application. Please try again.",
     "FOLLOWUP_FAILED": "Could not save those answers. Your application is safely filed. Please try again.",
     "REDISCOVERY_ALERTS_FAILED": "Could not load rediscovery alerts. Please try again.",
@@ -2049,6 +2056,17 @@
     "forRole": "Your application for {role}",
     "forRoleGeneric": "Your application",
     "updated": "Last updated {date}",
+    "recording": {
+      "title": "Your interview recording",
+      "body": "You agreed to an audio recording of your AI interview. It is deleted automatically, and you can delete it now.",
+      "delete": "Delete my interview recording",
+      "confirm": "Delete the recording permanently? This cannot be undone, and it does not affect your application.",
+      "confirmYes": "Yes, delete it",
+      "confirmNo": "Keep it",
+      "deleting": "Deleting…",
+      "deleted": "Your interview recording has been deleted.",
+      "failed": "We couldn't delete the recording just now. Please try again."
+    },
     "steps": {
       "received": "Received",
       "under_review": "Under review",
@@ -2278,6 +2296,17 @@
       "notSet": "not set",
       "keysNotConfigured": "{provider} keys not configured",
       "consent": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b> for a human recruiter to review. No audio is stored.",
+      "consentRecordable": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b> for a human recruiter to review. Audio is kept only if you tick the box below.",
+      "recording": {
+        "optInLabel": "Also keep an audio recording of my answers",
+        "what": "Only your microphone is recorded: never the interviewer's voice, your screen or your camera.",
+        "why": "It lets the recruiter listen back and correct a technology or product name the transcript misheard.",
+        "when": "It is deleted {decisionDays} days after the hiring decision, and at the latest {backstopDays} days after this call.",
+        "control": "You can delete it yourself at any time from your application status page.",
+        "optional": "Declining changes nothing about your interview.",
+        "indicator": "Recording",
+        "indicatorLabel": "Your microphone is being recorded"
+      },
       "connecting": "Connecting…",
       "awaitingMic": "Allow microphone access in your browser's prompt to start the call.",
       "startAgain": "Start again",
@@ -3441,7 +3470,8 @@
       "job": {
         "policyPass": "Policy pass",
         "reminders": "Interview reminders",
-        "jobseekerScan": "Job-market scan"
+        "jobseekerScan": "Job-market scan",
+        "interviewRecordingRetention": "Interview recording retention"
       },
       "unverified": "Run one scan by hand first. The timer can be switched on once a scan has succeeded.",
       "jobToggleTitle": "Pause or resume {job}",
