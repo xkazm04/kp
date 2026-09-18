@@ -5,6 +5,9 @@
 // Every case is a real unified diff fragment, because the failure mode this
 // suite exists to prevent is a rule that reads well and never fires.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 // The masker's own fixtures, run FIRST (an ESM import is hoisted). `test:review`
 // names this file, so importing the mask suite here is how the new module's checks
 // reach CI without editing a package.json line another lot owns this wave.
@@ -24,6 +27,8 @@ import {
 } from '../constitution-check.mjs';
 import { budgetDiff, buildPrompt, extractJson, renderMarkdown, verdictFor } from '../agent-review.mjs';
 import { adrSummaries, buildRubric, section } from '../rubric.mjs';
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 let passed = 0;
 function check(name, fn) {
@@ -445,6 +450,32 @@ check('allowlistCovers matches by prefix and exact path', () => {
   assert.equal(allowlistCovers(ROUTES_SRC, 'app/api/auth/route.ts'), true);
   assert.equal(allowlistCovers(ROUTES_SRC, 'app/api/widgets/route.ts'), false);
   assert.equal(allowlistCovers('', 'app/api/apply/x/route.ts'), false);
+});
+
+// public-routes.ts carries a second list, PUBLIC_API_EXACT (a Set of whole paths), and
+// the proxy honours it. The rule read only the prefix list, so a new exact-path public
+// door was blocked as "no auth posture" although it was allow-listed.
+check('allowlistCovers honours PUBLIC_API_EXACT by the whole path, not as a prefix', () => {
+  const src = `
+export const PUBLIC_API_PREFIXES = [
+  "/api/auth/",
+];
+export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([
+  "/api/health",
+  "/api/interview/director", // candidate token door
+]);
+`;
+  assert.equal(allowlistCovers(src, 'app/api/interview/director/route.ts'), true);
+  assert.equal(allowlistCovers(src, 'app/api/health/route.ts'), true);
+  assert.equal(allowlistCovers(src, 'app/api/interview/director/extra/route.ts'), false, 'exact is not a prefix');
+  assert.equal(allowlistCovers(src, 'app/api/interview/create/route.ts'), false);
+  assert.equal(allowlistCovers(src, 'app/api/auth/login/route.ts'), true);
+});
+
+check('the real allow-list: an exact-path interview door is covered', () => {
+  const real = fs.readFileSync(path.join(REPO_ROOT, 'app/_lib/auth/public-routes.ts'), 'utf8');
+  assert.equal(allowlistCovers(real, 'app/api/interview/connect/route.ts'), true);
+  assert.equal(allowlistCovers(real, 'app/api/interview/create/route.ts'), false, 'create is recruiter-only');
 });
 
 // --- skip baseline ----------------------------------------------------------

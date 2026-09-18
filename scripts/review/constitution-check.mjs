@@ -540,15 +540,28 @@ export function runRules(files, context = {}) {
   return out;
 }
 
-/** Does any PUBLIC_API_PREFIXES entry in `source` cover this route path? */
+/** Does the public allow-list in `source` cover this route path — a
+ *  PUBLIC_API_PREFIXES entry by prefix, or a PUBLIC_API_EXACT entry by the whole path?
+ *
+ *  It used to read the prefix list only. public-routes.ts has TWO lists and the proxy
+ *  honours both (`isPublicPath`), so every new exact-path public door — the shape the
+ *  interview family uses (`/api/interview/connect`, `/complete`, `/director`) — was
+ *  flagged as a route with no auth posture although it was allow-listed exactly where
+ *  the rule's own remedy says to put it. */
 export function allowlistCovers(source, routePath) {
   if (!source) return false;
-  const block = source.match(/PUBLIC_API_PREFIXES\s*=\s*\[([\s\S]*?)\]/);
-  if (!block) return false;
-  const prefixes = [...block[1].matchAll(/["'`](\/api\/[^"'`]*)["'`]/g)].map((m) => m[1]);
+  const listed = (re) => {
+    const block = source.match(re);
+    return block ? [...block[1].matchAll(/["'`](\/api\/[^"'`]*)["'`]/g)].map((m) => m[1]) : [];
+  };
+  const prefixes = listed(/PUBLIC_API_PREFIXES[^=]*=\s*\[([\s\S]*?)\]/);
+  const exact = listed(/PUBLIC_API_EXACT[^=]*=\s*new Set\(\s*\[([\s\S]*?)\]/);
   // `app/api/foo/bar/route.ts` -> `/api/foo/bar`
   const url = `/${routePath.replace(/^app\//, '').replace(/\/route\.ts$/, '')}`;
-  return prefixes.some((prefix) => url === prefix.replace(/\/$/, '') || url.startsWith(prefix));
+  return (
+    exact.includes(url) ||
+    prefixes.some((prefix) => url === prefix.replace(/\/$/, '') || url.startsWith(prefix))
+  );
 }
 
 /** Detect a raise of the CI skip baseline across the diff. */
