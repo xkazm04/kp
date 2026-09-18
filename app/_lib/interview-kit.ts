@@ -1,27 +1,27 @@
 // Reading a job's interview kit, and laying a recruiter's per-candidate edits over a
 // plan (spark interview-kit-template).
 //
-// STUBS — WP-A replaces `latestPublishedKit` (the versioned store read) and WP-B wires
-// `applyKitOverlay` into the agenda builder. Until then every job reads as having no
-// kit and every overlay is a no-op, which is exactly today's behaviour.
+// This is the READ SEAM the interview side consumes: the agenda builder and the two
+// provider briefs ask for "the kit for this job" or "the kit this link pinned" and get a
+// `StoredInterviewKit` or null. The versioned store behind it is db/interview-kits.ts —
+// kept one module away so the interview path imports a two-function read surface rather
+// than the whole append/publish vocabulary, and so a job with no kit stays a plain null
+// (exactly today's behaviour) instead of a special case at every call site.
 
+import { interviewKitById, interviewKitLatestPublished } from "./db/interview-kits";
 import { EMPTY_KIT_OVERLAY, type KitOverlay, type StoredInterviewKit } from "./interview-kit-types";
 
 /** The kit version new links for this job are minted from: the highest PUBLISHED
  *  version, or null when the job has no published kit. Workspace-scoped like every
  *  job-keyed read. */
 export function latestPublishedKit(jobId: string, workspaceId: string): StoredInterviewKit | null {
-  void jobId;
-  void workspaceId;
-  return null;
+  return interviewKitLatestPublished(jobId, workspaceId);
 }
 
 /** One stored kit version by id — what a MINTED link pinned, which may be older than
  *  the latest published one. */
 export function kitById(kitId: string, workspaceId: string): StoredInterviewKit | null {
-  void kitId;
-  void workspaceId;
-  return null;
+  return interviewKitById(kitId, workspaceId);
 }
 
 /** Narrow an untrusted stored value to a KitOverlay, falling back to the empty one. A

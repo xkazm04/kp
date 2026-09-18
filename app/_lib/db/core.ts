@@ -1392,6 +1392,50 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_jobseeker_dialogs_ws_profile ON jobseeker_dialogs (workspace_id, profile_id, updated_at DESC);
+
+    -- The JOB-LEVEL interview kit (db/interview-kits.ts): the competencies a role is
+    -- hired on, the questions asked about each, the per-competency time budget, and the
+    -- FAQ the interviewer may answer role questions from. One kit per job, and it is the
+    -- SPINE of every interview for that job.
+    --
+    -- APPEND-ONLY AND VERSIONED, for the reason agent_fit_specs states above: a
+    -- regeneration must never silently clobber an operator's edit. This table adds the
+    -- second half of that argument — a candidate's interview link is PINNED to the
+    -- version it was minted with, so everyone in one round is asked the same things and
+    -- their ratings stay comparable. An edit therefore INSERTS a new version; it never
+    -- rewrites one. (version, not created_at, is the ordering: two versions saved inside
+    -- one ISO millisecond are a real case here — a generated draft published
+    -- immediately — and agent_fit_specs had to learn that the hard way.)
+    --
+    -- THE ONE PERMITTED UPDATE is status 'draft' -> 'published' (interviewKitPublish).
+    -- It is allowed because it does not change what a version ASKS: kit_json is
+    -- untouched, so every link already pinned to that version keeps asking exactly what
+    -- it asked. All it changes is which version NEW links mint from. Expressing it as a
+    -- new row instead would duplicate an identical kit under a second id and break the
+    -- pin that the duplicate was supposed to preserve.
+    --
+    -- NO CANDIDATE DATA EVER LANDS HERE. The GDPR erasure scrub is entry-keyed
+    -- (db/pipeline.ts scrubEntryLinkedPii), so it cannot reach a job-keyed row: a pasted
+    -- candidate name or a CV-derived probe stored here would be undeletable by design.
+    -- Per-candidate material belongs in interview_preps, which the scrub does blank.
+    -- Pinned by db/interview-kits-shape.test.ts.
+    CREATE TABLE IF NOT EXISTS interview_kits (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+      kit_json TEXT NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('generated','edited')),
+      created_at TEXT NOT NULL
+    );
+
+    -- Monotonic versions per (team, job). The store computes the next version inside an
+    -- IMMEDIATE transaction; this index is what makes that correct rather than merely
+    -- likely — two writers racing on the same job collide at the DB rather than both
+    -- minting "version 4".
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_kits_version ON interview_kits (workspace_id, job_id, version);
+    CREATE INDEX IF NOT EXISTS idx_interview_kits_job ON interview_kits (workspace_id, job_id, created_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

@@ -1153,6 +1153,28 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "jobVisibleToWorkspace(id, ws)",
   },
   {
+    // ADDED with the route (spark interview-kit-template, 2026-09-18). The ninth jobs
+    // spend door: POST accepts a BACKGROUNDED `interview_kit` task — one model call that
+    // authors the whole kit (every competency, every question, the FAQ) from the role's
+    // own text plus its promoted RoleBrief. Capability-gated, and open mode makes that
+    // gate a documented no-op for the whole API, so it self-limits on the same 20/10min
+    // budget its sibling once-per-role doors carry. The PUT and ./publish beside it are
+    // NOT limited and deliberately so: they are ordinary authenticated row writes that
+    // spend nothing and spawn nothing, which is where this app draws the line.
+    rel: "./jobs/[id]/interview-kit/route.ts",
+    key: "`jobs-interview-kit:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "INTERVIEW_KIT_RATE_LIMIT",
+    optsDef: "const INTERVIEW_KIT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its first argument: a bare `startTask(` also appears in the
+    // import line, which precedes the limiter.
+    expensive: 'startTask("interview_kit"',
+    // Authority and ownership both answer ahead of the throttle, so a refused seat and an
+    // other-tenant role never consume budget — and never learn which job ids exist.
+    servedBefore: "canWriteJobLifecycle(id, ws)",
+  },
+  {
     // ADDED /perfect (schedule-door-speaks-the-candidates-language), with the limiter
     // itself. The candidate's own READ was the last public token read in the product with
     // no throttle — and it is not a cheap one: every hit runs proposeFreeSlots, which

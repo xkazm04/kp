@@ -2156,6 +2156,7 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["job_ingests", "Content-hash dedup keys for job ingest — hashes of JD text, no candidate data."],
   ["job_translations", "A role's advertisement rendered into another language — company-authored role copy, the same class as `jobs` / `job_postings`; written for an opening, never keyed to a candidate."],
   ["role_pattern_priorities", "A team's weighting of a ROLE's requirement patterns (critical / important / minor) — operator judgement about the opening, no candidate data."],
+  ["interview_kits", "A ROLE's versioned interview kit — the competencies, questions and FAQ every candidate for one job is asked from, authored by the team or generated from the posting before any candidate exists. Job-keyed and never keyed to an entry, so this scrub has no path to it; that is exactly why it may hold no candidate data, which db/interview-kits-shape.test.ts pins (per-candidate material lives in interview_preps, which scrubEntryLinkedPii below does blank)."],
   ["dev_cases", "The work-sample assignment itself (scenario, seed tree), authored before any candidate exists."],
   ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
   ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],

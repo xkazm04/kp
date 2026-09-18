@@ -503,6 +503,207 @@ erased entry's sessions. A session stops storing new events once it has 4000.
 - ElevenLabs sessions stay undirected until the agent is re-provisioned with the client
   tools.
 
+## The job interview kit
+
+### The job interview kit
+
+Target: `docs/features/interviews/README.md` (owns `app/_lib/interview-*.ts`). The
+doc-sync diff check will also name `docs/features/jobs/README.md` (`app/api/jobs/**`),
+`docs/features/pipeline/README.md` (`automation.py` / `automation_cli.py`),
+`docs/features/compliance/README.md` (`db/pipeline.ts` — the ERASURE_EXEMPT row),
+`docs/features/organization/README.md` (`tenancy.ts`) and
+`docs/architecture/api-contracts.md` (`api-response.ts`). A one-line pointer to this
+section from each is enough; the substance lives here.
+
+Before this, every candidate's interview questions came from that candidate's own CV. Two
+people applying for the same role were asked different things, so their ratings could not
+be compared, and a recruiter had nothing to write, review or reuse. The job interview kit
+is the job-level material every interview for a role is run from: the competencies the
+role is hired on, what is asked about each, how long each gets, which questions can never
+be skipped, and a short FAQ the interviewer may answer role questions from. The
+per-candidate plan still adds probes from the CV, and a recruiter's per-candidate edits
+(`KitOverlay`) sit on top of both.
+
+#### Entry points
+
+| Surface | What it does |
+| --- | --- |
+| `GET /api/jobs/[id]/interview-kit` | The latest **published** version, the latest **draft**, and the version list (summaries, no payloads). |
+| `POST /api/jobs/[id]/interview-kit` | Starts the background task `interview_kit`, which generates a new **draft**. Returns `{ taskId }`. Spends one model call. |
+| `PUT /api/jobs/[id]/interview-kit` | Saves an edited kit `{ kit }` as a **new** draft version with `source: "edited"`. Returns `{ kit, adjusted }`. |
+| `POST /api/jobs/[id]/interview-kit/publish` | `{ kitId }`. Makes one version the one new links are minted from. |
+| `latestPublishedKit(jobId, ws)` / `kitById(kitId, ws)` (`app/_lib/interview-kit.ts`) | The read seam the interview side uses. It returns the kit new links mint from, or the one version a link pinned. |
+
+#### Versioned and append-only
+
+`interview_kits` stores one row per **version** (`db/interview-kits.ts`). An edit, a
+regeneration and a hand-authored save each insert a new version. Nothing ever rewrites a
+version's `kit_json`. There are two reasons:
+
+- A regeneration must never silently overwrite a recruiter's edit. This is the reason
+  `agent_fit_specs` already records.
+- A candidate's interview link is **pinned** to the version it was minted with. Everyone in
+  one round is asked the same things, and a later edit cannot change what an interview
+  that already happened asked.
+
+The only UPDATE the table allows is `status` going from `draft` to `published`
+(`interviewKitPublish`). It is allowed because it leaves `kit_json` untouched: it changes
+which version new links mint from, and it does not change what any version asks. The flip
+is a single guarded statement (`… AND status = 'draft'`), so two publishes racing each
+other end with one winner and one 404.
+
+Versions are numbered per `(workspace, job)` inside an IMMEDIATE transaction, and a UNIQUE
+index on `(workspace_id, job_id, version)` backs this up. The read order is `version`, not
+`created_at`: a draft generated and then published within the same millisecond is a real
+case.
+
+**Publish semantics.** `latestPublishedKit` returns the highest published version. An older
+published version is not demoted. It stops being the highest and stays readable, so links
+pinned to it keep resolving. A generated version is **never** auto-published: the runner
+only appends drafts, and a person has to publish.
+
+#### What a kit is
+
+The contract is `app/_lib/interview-kit-types.ts`:
+
+- **Competencies**, 1–8. Each has a title that is read to the candidate, so it carries no
+  assessment wording, and a **weight** of 1, 2 or 3. Weights set the order and mark
+  emphasis, and no total is ever computed from them. Each also has a **budget** in whole
+  minutes, 1–240. The agenda fits the kit to the length the candidate was actually booked
+  for, so the budget works as a ratio as much as a duration.
+- **Questions**, 1–6 per competency. A **must-ask** is asked even after time runs out.
+  There are at most 5 must-asks across the whole kit, and each question can have an
+  optional narrowing follow-up.
+- **FAQ**, at most 12 entries. These are role facts the interviewer may answer from,
+  never a promise about the candidate's chances.
+- An optional **note** from the author to the interviewer. It is never read aloud.
+
+#### The trust boundary (`app/_lib/interview-kit-validate.ts`)
+
+Both ways a kit arrives are untrusted in the same way: a recruiter's PUT is arbitrary JSON
+from a browser, and the generator's output is arbitrary JSON from a model. So one pure
+normalizer serves both, and it follows one rule:
+
+- **Caps are repaired by truncation**, keeping the author's own order. A must-ask over the
+  cap is **demoted**, never dropped. Every repair is reported in `adjusted`
+  (`competencies_truncated`, `questions_truncated`, `faq_truncated`, `must_asks_demoted`,
+  `text_truncated`, `ids_minted`), so the editor can say what changed.
+- **A wrong value is refused**, not replaced with a default: a weight outside 1–3, or a
+  budget that is not a positive whole number of minutes. Silently putting in a weight
+  nobody typed would present the product's guess as the recruiter's emphasis.
+- **A kit with nothing to ask is refused**: no competency, a competency with no title, or a
+  competency with no question.
+- **IDs are unique across the whole kit.** Questions, competencies and FAQ entries share one
+  namespace, because an overlay drops a question by id. A valid incoming id is kept, so an
+  edit does not orphan overlays already written against it. Missing, malformed or
+  colliding ids are minted.
+
+A refusal is `INTERVIEW_KIT_INVALID` (400), with `reason` and `at` sent alongside as data.
+The normalizer never throws.
+
+#### Generation, and the keyless path
+
+`interview-kit-run.ts` writes the job and a projection of its promoted RoleBrief
+(`kitBriefProjection`: summary, responsibilities, success criteria, dealbreakers,
+outcomes; never the per-requirement rationale or provenance) to a workdir. It then spawns
+`python -m pipeline.jobfit.automation_cli interview-kit --job-json … [--brief-json …] --lang …`,
+sends the result through the same normalizer, and appends it as a **draft** with
+`source: "generated"`. `--brief-json` is omitted when the role never went through an
+intake, so "no brief" and "an empty brief" look different to the prompt. The kit is written
+in the workspace's default language.
+
+The Python side is `automation.interview_kit(job, brief, *, lang, provider)`, prompt
+`interview-kit-v1`. Its prompt draws on the registry's `interview-round-design` and
+`structured-interview-scorecards` subjects:
+
+- 4–6 competencies, each a separate basis for the decision and observable in a
+  conversation, not in a certificate or a work sample.
+- 2–4 questions per competency, each asking what the candidate **did**. No
+  self-ratings, no hypotheticals, and no assumptions about the candidate.
+- A FAQ drawn **only** from facts it was given. It never invents a salary, a start
+  date, a team size or a process step.
+
+The coercer holds weights and budgets inside what the TS boundary accepts. The TS side
+**refuses** a wrong number from a person, and the Python side **coerces** one from a model,
+so one bad number does not throw away a paid call. A model answer that coerces to nothing
+falls back to the template as a whole and is reported as `deterministic`.
+
+**Keyless is a supported path.** With no provider, `deterministic()` builds the kit from the
+role's own stated requirements: must-haves first (weight 3, opening question marked
+must-ask up to the cap), then nice-to-haves (weight 2), then detected skills (weight 1).
+Duplicate skills are merged regardless of case, and there are at most 6 competencies. Each
+gets two behaviourally anchored template questions. A role with no parsed requirements gets
+one "Recent work" competency rather than an empty kit. The keyless FAQ answers only from
+fields the posting **stated**: a location, work mode or seniority that `normalize_job`
+filled in as a phantom default is never presented as a fact. The task result's `source`
+says which engine wrote the kit, and the task drawer shows it.
+
+The task kind `interview_kit` is scoped to the workspace, deduplicated per job (a second
+click while a draft is being generated joins the run already in progress instead of
+appending a stray version), and budgeted as `metered`. It uses the `automation` model use
+case.
+
+#### No candidate data, ever
+
+A kit row holds nothing about a person, and this is a hard boundary. The GDPR erasure
+scrub is keyed by pipeline entry (`scrubEntryLinkedPii`), so it cannot reach a row keyed by
+job: anything about a candidate stored here could never be deleted. The generator takes
+no candidate input, and its signature is pinned. The normalizer emits only the contract's
+keys, so a pasted `candidateName` never reaches the column. The table's columns contain no
+field that identifies a person. `interview_kits` is in `ERASURE_EXEMPT` (`db/pipeline.ts`)
+as role material, and `db/interview-kits-shape.test.ts` keeps that statement true.
+Per-candidate material belongs in `interview_preps`, which the scrub does blank.
+
+#### Tenancy
+
+Every statement binds `workspace_id`, including point reads, and there is no exception for
+reads by id (`interview-kits-tenancy.test.ts`, with an empty exemption list). A shared
+corpus role can have a separate kit in each team. A leaked kit id is what a minted link
+carries, so it must not resolve for another team. Every route resolves the caller's
+workspace. GET applies the list's visibility check, and the writes apply
+`canWriteJobLifecycle`. A job that is unknown or belongs to another team gets 404
+(`JOB_NOT_FOUND`), not 403, on every verb.
+
+The **runner checks ownership itself** (`runInterviewKit` → `canWriteJobLifecycle`). The
+route is not the only way in: `POST /api/tasks` starts any known task kind with parameters
+the client supplies. Without this check, a team could name another team's private role,
+spend its own model call on it, and read that role's requirements and stated facts back
+out of the task result.
+
+#### Authorization, limits, refusals
+
+- All three writes ask for `pipeline:write` (`requireCapabilityCoded`) **first**, before
+  the 404 and before the throttle.
+- The generate POST is rate-limited per IP at 20 per 10 minutes, the same budget as
+  agent-fit and campaign, and this is pinned in `app/api/rate-limit-contract.test.ts`. PUT
+  and publish are ordinary authenticated row writes and are deliberately not limited.
+- A PUT body is capped at 64 KB and a publish body at 4 KB (`PAYLOAD_TOO_LARGE`, 413).
+- Publish answers `INTERVIEW_KIT_NOT_FOUND` (404) for an unknown version, a version
+  belonging to another role (checked **before** the flip, because the table cannot undo a
+  publish), and an already-published version. These are one answer on purpose, so the
+  endpoint does not reveal which ids exist.
+- A store or spawn fault returns `INTERVIEW_KIT_FAILED` through `safeJsonError`.
+
+#### Data model
+
+`interview_kits (id, workspace_id, job_id, version, status 'draft'|'published', kit_json,
+source 'generated'|'edited', created_at)`. It has a UNIQUE index on
+`(workspace_id, job_id, version)` and an index on `(workspace_id, job_id, created_at)`.
+The table is created in the main `core.ts` schema block.
+
+#### Known gaps
+
+- The generator's model path (`source: "llm"`) is exercised only with a fake provider in
+  `test_interview_kit.py`. No live-model output has been reviewed against the prompt.
+- The generate POST is backgrounded. The unit suite drives it up to its refusals and
+  checks the order of gate, throttle and enqueue from the source, because the enqueue
+  spawns Python and `test:unit` is Node-only.
+- There is no way to delete or archive a stale draft. The version list only grows.
+- A run's `adjusted` notes and its engine `source` (`llm` / `deterministic`) are in the
+  task result but not on the row. The row's `source` field records generated versus
+  edited, not which engine wrote it. After the task has been pruned, a stored draft cannot
+  say whether a model or the template wrote it.
+
 ## Candidate call — the browser half of the director loop
 
 The candidate meets the directed interview at `/interview/[token]`. The realtime

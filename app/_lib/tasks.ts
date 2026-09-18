@@ -23,6 +23,7 @@ import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
+import { runInterviewKit } from "./interview-kit-run";
 import { runRepoScan } from "./repo-scan-run";
 import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
@@ -312,6 +313,15 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // The JOB-level interview kit (interview-kit-run.ts): one LLM call with a keyless
+  // deterministic fallback, saved as a DRAFT version of the role's kit. Backgrounded for
+  // the reason `agent_fit` is — the durable result is the `interview_kits` row, so the
+  // recruiter can leave the Interview tab and come back to a draft waiting for them.
+  interview_kit: {
+    run: (ctx) => runInterviewKit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("interviewKit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
   // App master (P2): read a codebase into a RepoDossier. Backgrounded because the
   // in-repo agent path is minutes, not seconds — and because the repo_scans row is

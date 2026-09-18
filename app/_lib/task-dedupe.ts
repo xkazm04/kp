@@ -141,6 +141,12 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     return k && `${k}:${localePart(p.lang)}`;
   },
   agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
+  // One kit draft per job in flight. Deliberately NOT keyed by language the way
+  // interview_prep is: the kit is the ROLE's shared material and a job has one kit, so a
+  // second click while a draft is generating must coalesce rather than append a second
+  // version nobody asked for — the whole table is append-only, so a duplicate run would
+  // leave a permanent stray version behind.
+  interview_kit: (p) => stableKey("interview_kit", p.jobId),
   // One run per TENANT + TARGET. It used to key by `scanId`, which startRepoScan
   // mints fresh on every POST — a key unique by construction is a dedupe that can
   // never fire, so a double-click cloned the repository and ran the in-repo agent

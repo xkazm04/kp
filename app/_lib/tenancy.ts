@@ -193,6 +193,18 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // session — with NO by-id exemption; the only other writer is the erasure DELETE,
   // keyed by the entry's sessions (interview-events-tenancy.test.ts).
   "interview_events",
+  // The job-level interview kit (db/interview-kits.ts): the versioned, append-only
+  // competencies + questions + FAQ every interview for one role is run from. Scoped with
+  // NO by-id carve-out even though the ROLE may be a shared corpus row (jobs.workspace_id
+  // NULL) — the same reasoning as job_translations: the kit is authored by one team,
+  // against one team's LLM spend, and a leaked kit id is what a minted interview link
+  // resolves, so an unscoped by-id read would hand another team the questions they wrote.
+  // The version key is (workspace_id, job_id, version), so one team publishing a new
+  // version can never renumber or overwrite another's (interview-kits-tenancy.test.ts,
+  // whose exemption list is empty). The rows hold NO candidate data by construction —
+  // the erasure scrub is entry-keyed and could not reach them — which is pinned
+  // separately by interview-kits-shape.test.ts.
+  "interview_kits",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).

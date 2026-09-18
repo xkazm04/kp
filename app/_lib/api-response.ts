@@ -138,6 +138,11 @@ export const STORE_ERRORS = {
   INTERVIEW_COMPLETE_FAILED: "Could not save the interview. Please try again.",
   INTERVIEW_LOOKUP_FAILED: "Could not load interview data. Please try again.",
   INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
+  /** The four verbs of /api/jobs/[id]/interview-kit. All sit on better-sqlite3 (a
+   *  JSON.parse of the stored kit included) and the generate door additionally spawns the
+   *  Python engine, so a thrown message here carries SQLITE_* text, the absolute db path,
+   *  or a traceback off python-runner. */
+  INTERVIEW_KIT_FAILED: "Could not load or save this role's interview kit. Please try again.",
   // POST /api/interview/director — the live call's producer channel. The browser never
   // shows this to the candidate: a failed exchange answers the model "continue" and the
   // call goes on (a director outage must never stall an interview).
@@ -1631,6 +1636,20 @@ export const REFUSAL_ERRORS = {
   INTERVIEW_PREP_QUESTIONS_REQUIRED: "Pick at least one question to add to the prep pack.",
   /** A weave/unassign arrived without naming the question to move (400). */
   INTERVIEW_PREP_QUESTION_REQUIRED: "Say which question to move.",
+  /** A kit arrived that cannot be stored as one (400): no competency, a competency with
+   *  no question, a weight outside the three steps, or a budget that is not a positive
+   *  number of minutes. Deliberately ONE refusal for all of them — the recruiter's next
+   *  step is the same (fix the field the editor is pointing at), and WHICH rule tripped
+   *  rides beside the code as `reason`/`at` data rather than as a second English
+   *  sentence. Caps are NOT in this list: they are repaired by trimming, not refused
+   *  (app/_lib/interview-kit-validate.ts states that line). */
+  INTERVIEW_KIT_INVALID: "This interview kit is not complete enough to save yet.",
+  /** A publish (or a by-version read) named a kit version this team does not have, or one
+   *  that is already published (404). The two are ONE refusal on purpose: a version id is
+   *  handed to every recruiter on the team, so distinguishing them would turn the door
+   *  into an existence oracle for another team's ids without telling this one anything
+   *  they cannot see by reloading. */
+  INTERVIEW_KIT_NOT_FOUND: "That version of the interview kit is not available.",
   // ---- Engine admission (app/_lib/python-runner.ts). Every request that needed the
   // Python pipeline used to fork its own interpreter with nothing counting them, so a
   // burst was a burst of ~150 MB processes and the box — not the request — paid.

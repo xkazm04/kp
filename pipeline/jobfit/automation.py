@@ -1409,6 +1409,356 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", 
     return result, source
 
 
+# ============================================================================
+# The JOB-level interview kit (spark interview-kit-template)
+# ============================================================================
+#
+# The sibling above (``interview_prep``) builds ONE CANDIDATE's probes from their CV.
+# This builds the ROLE's kit: the competencies the job is hired on, what is asked about
+# each, how long each gets, which questions may never be skipped, and a short FAQ the
+# interviewer may answer role questions from. It is the same material for every candidate
+# in the round, which is the entire point — the registry's ``shared-material-for-
+# comparability`` technique: two candidates asked different questions produce two ratings
+# that cannot be compared, so the per-candidate probes ride ON TOP of this rather than
+# instead of it.
+#
+# NO CANDIDATE IS AN INPUT HERE. That is a property of the signature, not a discipline:
+# this function takes a Job and a RoleBrief and has nothing else to leak. The row it ends
+# up in is job-keyed and the GDPR erasure scrub is entry-keyed, so anything candidate-
+# derived that reached it would be undeletable (app/_lib/db/interview-kits.ts states it).
+
+INTERVIEW_KIT_PROMPT_VERSION = "interview-kit-v1"
+
+# The kit's collection caps. MIRRORED into TypeScript — these are the contract's
+# KIT_MAX_* in app/_lib/interview-kit-types.ts, which is the enforcing boundary (the TS
+# normalizer truncates anything over them before a kit is ever stored). They are repeated
+# here so the GENERATOR stops short of the cap instead of producing work the normalizer
+# then throws away, and the hand-mirror is guarded by tests/test_automation_constant_sync.py.
+KIT_MAX_COMPETENCIES = 8
+KIT_MAX_QUESTIONS_PER_COMPETENCY = 6
+KIT_MAX_MUST_ASKS = 5
+KIT_MAX_FAQ = 12
+
+# What the prompt ASKS for, inside those caps. A loop's validity plateaus early
+# (registry: interview-round-design) — four to six competencies is a round somebody can
+# actually run, and two to four questions is enough to reach the behaviour behind a claim.
+_KIT_TARGET_COMPETENCIES = (4, 6)
+_KIT_TARGET_QUESTIONS = (2, 4)
+# The FAQ is a short answer sheet, not a careers page; the cap above is the ceiling the
+# store enforces, this is what a generated first draft should come back with.
+_KIT_TARGET_FAQ = 6
+
+# Planned minutes per competency when the model gives none, and the band it is asked to
+# stay inside. The agenda refits the kit to whatever length the candidate was actually
+# booked for, so these are a RATIO as much as a duration.
+_KIT_DEFAULT_BUDGET_MIN = 10
+_KIT_MIN_BUDGET_MIN = 5
+_KIT_MAX_BUDGET_MIN = 30
+
+# The JD body forwarded to the prompt, bounded like every other whole-document prompt
+# input here (agentfit._DESCRIPTION_PROMPT_CHARS, devcase analyze).
+_KIT_DESCRIPTION_PROMPT_CHARS = 4_000
+
+# Weight by where a requirement came from: a stated must-have carries the decision, a
+# nice-to-have marks emphasis, a merely-detected skill is context. Three coarse steps, and
+# NO total is computed from them (registry: presenting-a-score-to-a-recruiter).
+_KIT_WEIGHT_MUST = 3
+_KIT_WEIGHT_NICE = 2
+_KIT_WEIGHT_DETECTED = 1
+
+
+def _kit_brief_facts(brief: Any | None) -> dict[str, Any]:
+    """The promoted RoleBrief, flattened to the four things a kit is built from.
+
+    Takes the TS-side projection (camelCase, already workspace-scoped when it was read)
+    rather than a pydantic model: the brief's schema belongs to the intake dialog, and a
+    kit only ever needs the requestor's own words about what the role must achieve.
+    Absent or malformed reads as "no brief", never as an error — a job can be published
+    without ever having been through an intake.
+    """
+    if not isinstance(brief, dict):
+        return {}
+    facts = {
+        "summary": str(brief.get("summary") or "").strip(),
+        "responsibilities": _str_list(brief.get("responsibilities")),
+        "successCriteria": _str_list(brief.get("successCriteria")),
+        "dealbreakers": _str_list(brief.get("dealbreakers")),
+        "outcomes": _str_list(brief.get("outcomes")),
+    }
+    return {k: v for k, v in facts.items() if v}
+
+
+def kit_context(job: Job, brief: Any | None = None) -> dict[str, Any]:
+    """The fact base a kit is built from — the ONE place the job row and the brief become
+    prompt input, so the deterministic fallback and the model read exactly the same facts.
+
+    Nothing candidate-authored is in scope here, so unlike ``reasoning_context`` there is
+    no untrusted half to fence: the job row is the operator's own posting and the brief is
+    the hiring requestor's own words.
+    """
+    musts = [r.skill for r in job.requirements if r.kind == "must_have" and r.skill]
+    nices = [r.skill for r in job.requirements if r.kind != "must_have" and r.skill]
+    # A DEFAULTED field is a phantom this repo never presents as stated (jobs.py
+    # DEFAULT_POLICY): a kit FAQ that answered "Where is this role based? Praha" from an
+    # ad that named no city would put a fact in the interviewer's mouth that nobody wrote.
+    defaulted = set(job.defaulted_fields or ())
+    stated: dict[str, Any] = {}
+    if "location" not in defaulted and job.location:
+        stated["location"] = job.location
+    if "work_mode" not in defaulted and job.work_mode:
+        stated["workMode"] = job.work_mode
+    if "seniority" not in defaulted and job.seniority:
+        stated["seniority"] = job.seniority
+    if job.employment_type:
+        stated["employmentType"] = job.employment_type
+    if job.languages:
+        stated["languages"] = list(job.languages)
+    if job.min_years_experience is not None:
+        stated["minYearsExperience"] = job.min_years_experience
+    return {
+        "role": {
+            "title": job.title,
+            "roleFamily": job.role_family,
+            "stated": stated,
+            "description": cap_block(job.description or "", _KIT_DESCRIPTION_PROMPT_CHARS),
+        },
+        "requirements": {
+            "mustHaves": musts[:12],
+            "niceToHaves": nices[:12],
+            "detectedSkills": list(job.detected_skills or ())[:12],
+        },
+        "brief": _kit_brief_facts(brief),
+    }
+
+
+def _kit_question(skill: str, index: int) -> dict[str, Any]:
+    """One deterministic question. Behaviourally anchored by construction (registry:
+    behaviourally-anchored-level-writing) — it asks what the person DID on a named piece
+    of their own work, so there is a fact to confirm rather than a quality to rate."""
+    if index == 0:
+        return {
+            "text": f"Walk me through a concrete piece of work where you used {skill}. What was your exact part in it?",
+            "mustAsk": False,
+            "followUp": "Who else was involved, and which decisions were yours?",
+        }
+    return {
+        "text": f"On that same work, what went wrong around {skill}, and what did you change because of it?",
+        "mustAsk": False,
+        "followUp": "What would you do differently if you started it again today?",
+    }
+
+
+def interview_kit(job: Job, brief: Any | None = None, *, lang: str = "en", provider: Any | None = None):
+    """Draft a job's interview kit: competencies, questions, budgets and a role FAQ.
+
+    Returns ``(result, source)`` in this module's usual shape. ``result`` is the kit
+    WITHOUT ids — the TypeScript boundary (app/_lib/interview-kit-validate.ts) mints and
+    de-duplicates those, because ids are what a per-candidate overlay names and only the
+    store knows which ones are already spoken for.
+
+    The keyless path is mandatory, not a courtesy: a deployment with no model configured
+    must still get a kit it can edit, so ``deterministic()`` below builds one from the
+    role's own stated requirements and detected skills.
+    """
+    from .i18n import language_directive
+
+    ctx = kit_context(job, brief)
+    low_c, high_c = _KIT_TARGET_COMPETENCIES
+    low_q, high_q = _KIT_TARGET_QUESTIONS
+    prompt = (
+        "Author the INTERVIEW KIT for this role — the shared material every candidate for "
+        "it is interviewed from. Use ONLY these facts:\n"
+        f"{context_block(ctx)}\n\n"
+        f"Choose {low_c}-{high_c} COMPETENCIES. Each one must name a distinct basis for the "
+        "hiring decision: someone strong on all the others and weak on this one does not get "
+        "the job. Never two competencies that are the same thing reworded, and never one that "
+        "can only be judged from a certificate, a reference or a work sample — this kit is "
+        "read aloud in a conversation, so every competency must be observable in that "
+        "conversation. Title them the way a recruiter would say them out loud; a title is "
+        "read to the candidate, so it carries no assessment language.\n"
+        f"Give each competency a weight of {_KIT_WEIGHT_DETECTED}, {_KIT_WEIGHT_NICE} or "
+        f"{_KIT_WEIGHT_MUST}. The weight ORDERS the kit and marks emphasis — it is not a "
+        "percentage and nothing is totalled from it. Give each a budgetMin: a whole number "
+        f"of minutes between {_KIT_MIN_BUDGET_MIN} and {_KIT_MAX_BUDGET_MIN}.\n"
+        f"Write {low_q}-{high_q} QUESTIONS per competency. Every question asks what the "
+        "candidate DID: a named piece of their own work, their part in it, what they decided "
+        "and what happened. Never ask them to rate themselves, never ask a hypothetical, and "
+        "never assume a fact about them — this kit is written before anyone has read a CV. "
+        "Add a followUp that narrows the question when the first answer stays general.\n"
+        f"Mark at most {KIT_MAX_MUST_ASKS} questions across the WHOLE kit as mustAsk: true — "
+        "only the ones without which the decision cannot be made, because a must-ask is asked "
+        "even when the clock has run out.\n"
+        f"Finally write up to {_KIT_TARGET_FAQ} FAQ entries: questions candidates actually ask "
+        "about a role, answered ONLY from the facts above. If the facts do not answer it, do "
+        "not include it — never invent a salary, a start date, a team size or a process step, "
+        "and never say anything about this candidate's chances.\n"
+        '\nReturn JSON: { "competencies": [ { "title": str, "weight": int, "budgetMin": int, '
+        '"questions": [ { "text": str, "mustAsk": bool, "followUp": str } ] } ], '
+        '"faq": [ { "question": str, "answer": str } ] }. JSON only.\n'
+        + language_directive(lang)
+    )
+
+    def deterministic() -> dict:
+        """The keyless kit: the role's own stated requirements, turned into competencies.
+
+        Deliberately the same source the matcher scores on, so a keyless deployment's kit
+        and its shortlist are talking about the same role. The questions are templates and
+        say so by being obviously uniform — an operator opening this in the editor can see
+        at a glance that nobody wrote it for them, which is the honest degrade.
+        """
+        reqs = ctx["requirements"]
+        buckets: list[tuple[str, int]] = []
+        seen: set[str] = set()
+        for skill, weight in (
+            [(s, _KIT_WEIGHT_MUST) for s in reqs["mustHaves"]]
+            + [(s, _KIT_WEIGHT_NICE) for s in reqs["niceToHaves"]]
+            + [(s, _KIT_WEIGHT_DETECTED) for s in reqs["detectedSkills"]]
+        ):
+            key = skill.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            buckets.append((skill, weight))
+            if len(buckets) >= high_c:
+                break
+
+        competencies: list[dict[str, Any]] = []
+        must_asks = 0
+        for skill, weight in buckets:
+            questions = [_kit_question(skill, i) for i in range(low_q)]
+            # A stated must-have is what the role cannot do without, so its opening
+            # question is the one the director overruns for — up to the kit-wide cap.
+            if weight == _KIT_WEIGHT_MUST and must_asks < KIT_MAX_MUST_ASKS:
+                questions[0]["mustAsk"] = True
+                must_asks += 1
+            competencies.append(
+                {"title": skill, "weight": weight, "budgetMin": _KIT_DEFAULT_BUDGET_MIN, "questions": questions}
+            )
+
+        if not competencies:
+            # A role with no structured requirements at all (a pasted ad nothing parsed).
+            # One honest competency beats an empty kit: the recruiter still gets something
+            # to edit, and the interview still has a shape.
+            competencies = [
+                {
+                    "title": "Recent work",
+                    "weight": _KIT_WEIGHT_MUST,
+                    "budgetMin": _KIT_DEFAULT_BUDGET_MIN,
+                    "questions": [
+                        {
+                            "text": "Walk me through the most significant piece of work you have finished, end to end.",
+                            "mustAsk": True,
+                            "followUp": "Which parts were yours, and which were somebody else's?",
+                        },
+                        {
+                            "text": "What was the hardest trade-off in it, and what did you decide?",
+                            "mustAsk": False,
+                            "followUp": "What did that decision cost, and would you make it again?",
+                        },
+                    ],
+                }
+            ]
+
+        # The FAQ is built ONLY from facts the posting actually stated — `kit_context`
+        # already dropped every phantom `normalize_job` filled in, so an ad that named no
+        # city contributes no location answer rather than an invented one.
+        stated = ctx["role"]["stated"]
+        faq: list[dict[str, str]] = []
+        if stated.get("location"):
+            mode = stated.get("workMode")
+            faq.append(
+                {
+                    "question": "Where is this role based?",
+                    "answer": f"{stated['location']}" + (f" ({mode})" if mode else ""),
+                }
+            )
+        elif stated.get("workMode"):
+            faq.append({"question": "Is this role remote?", "answer": f"The posting states: {stated['workMode']}."})
+        if stated.get("employmentType"):
+            faq.append({"question": "What kind of contract is this?", "answer": str(stated["employmentType"])})
+        if stated.get("languages"):
+            faq.append(
+                {
+                    "question": "Which languages does the team work in?",
+                    "answer": ", ".join(str(x) for x in stated["languages"]),
+                }
+            )
+        return {"competencies": competencies, "faq": faq[:_KIT_TARGET_FAQ]}
+
+    def coerce(payload: Any) -> dict:
+        det = deterministic()
+        if not isinstance(payload, dict) or not isinstance(payload.get("competencies"), list):
+            return det
+        competencies: list[dict[str, Any]] = []
+        must_asks = 0
+        for raw in payload["competencies"][:KIT_MAX_COMPETENCIES]:
+            if not isinstance(raw, dict):
+                continue
+            title = str(raw.get("title") or "").strip()
+            if not title:
+                continue
+            raw_questions = raw.get("questions")
+            questions: list[dict[str, Any]] = []
+            for raw_q in (raw_questions if isinstance(raw_questions, list) else [])[:KIT_MAX_QUESTIONS_PER_COMPETENCY]:
+                if not isinstance(raw_q, dict):
+                    continue
+                text = str(raw_q.get("text") or "").strip()
+                if not text:
+                    continue
+                # The must-ask budget is spent in the model's own order and the overflow
+                # is DEMOTED, never dropped: an over-eager model must not cost the kit a
+                # question, only its unskippable status.
+                # `is True`, not bool(): a model answering the string "false" must not
+                # mint an unskippable question. Same rule as the TS side (=== true).
+                must = raw_q.get("mustAsk") is True and must_asks < KIT_MAX_MUST_ASKS
+                if must:
+                    must_asks += 1
+                follow = str(raw_q.get("followUp") or "").strip()
+                questions.append({"text": text, "mustAsk": must, **({"followUp": follow} if follow else {})})
+            if not questions:
+                continue
+            # Weight and budget are COERCED here rather than refused, because the TS
+            # boundary refuses them: a model that answers weight 7 would otherwise have
+            # its whole (usable) kit rejected at the store. A recruiter's own edit gets
+            # the opposite treatment there — their wrong number is told to them.
+            weight = raw.get("weight")
+            # `bool` is checked first because it IS an int in Python: `True in (1, 2, 3)`
+            # holds, and a `true` would then serialize as JSON `true` — which the TS
+            # boundary (typeof === "number") refuses.
+            if isinstance(weight, bool) or weight not in (_KIT_WEIGHT_DETECTED, _KIT_WEIGHT_NICE, _KIT_WEIGHT_MUST):
+                weight = _KIT_WEIGHT_NICE
+            budget = raw.get("budgetMin")
+            if not isinstance(budget, int) or isinstance(budget, bool) or not (
+                _KIT_MIN_BUDGET_MIN <= budget <= _KIT_MAX_BUDGET_MIN
+            ):
+                budget = _KIT_DEFAULT_BUDGET_MIN
+            competencies.append({"title": title, "weight": weight, "budgetMin": budget, "questions": questions})
+
+        raw_faq = payload.get("faq")
+        faq: list[dict[str, str]] = []
+        for raw_f in (raw_faq if isinstance(raw_faq, list) else [])[:KIT_MAX_FAQ]:
+            if not isinstance(raw_f, dict):
+                continue
+            question = str(raw_f.get("question") or "").strip()
+            answer = str(raw_f.get("answer") or "").strip()
+            # Both halves or neither: a question with no answer invites the interviewer to
+            # improvise a role fact, which is the one thing the FAQ exists to prevent.
+            if question and answer:
+                faq.append({"question": question, "answer": answer})
+
+        # No usable competency means the model's kit is discarded WHOLE, FAQ included —
+        # returning the template's competencies beside the model's FAQ would be a hybrid
+        # that `_generate` then reports as "llm", because it is no longer byte-identical
+        # to the template. The recruiter would be told a model wrote a kit it did not.
+        if not competencies:
+            return det
+        return {"competencies": competencies, "faq": faq}
+
+    result, source = _generate(provider, prompt, deterministic, coerce)
+    result["promptVersion"] = INTERVIEW_KIT_PROMPT_VERSION
+    return result, source
+
+
 # Scorecard rubrics — the SAME competency axes for every candidate of a given
 # archetype, so interviews stay structured and directly comparable WITHIN a
 # cohort (Greenhouse/HireVue-style). The rubrics live in ONE place,

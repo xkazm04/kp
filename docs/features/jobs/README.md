@@ -690,6 +690,30 @@ toggle, ready to be copied onto a German job board. A reload of the *same* pair
 (the refetch after a finished generation task) keeps its record, so a refresh
 still never blanks content that is already correct.
 
+## The job's interview kit (2026-09)
+
+A job can now carry an **interview kit**: the competencies it is hired on, with a coarse
+weight, a time budget, the questions asked about each, must-ask flags and a recruiter
+FAQ the AI interviewer may answer from. It is the spine of every AI interview for that
+job. The routes sit under this job's namespace and gate like its siblings: every write
+asks `pipeline:write` first, then `canWriteJobLifecycle`, and an invisible job is a 404,
+never a 403.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/jobs/[id]/interview-kit` | The latest published version, the latest draft and the version list. |
+| `POST /api/jobs/[id]/interview-kit` | Queues the `interview_kit` task that drafts a new version from the posting and the promoted RoleBrief (a model call; 20 per 10 min, pinned in the rate-limit contract). Keyless installs get a deterministic draft from `requirements[]`. |
+| `PUT /api/jobs/[id]/interview-kit` | Saves an edited kit as a NEW version (`source: "edited"`). |
+| `POST /api/jobs/[id]/interview-kit/publish` | Publishes a version; new interview links for this job are minted from the highest published one. |
+
+Versions are append-only (`interview_kits`), so a regeneration never overwrites an edit
+and a link pinned to version N keeps asking what version N asked. A kit holds **no
+candidate data** — the erasure scrub is entry-keyed and cannot reach a job-keyed row —
+and a shape test keeps that sentence true. How the kit becomes an agenda, a brief and a
+director policy is the interview feature's story:
+[`docs/features/interviews/README.md`](../interviews/README.md) §"The job interview
+kit" and §"The kit in the interview".
+
 ## Surface
 
 | Module / route | Purpose |
