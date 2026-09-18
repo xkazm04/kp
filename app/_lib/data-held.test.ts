@@ -7,11 +7,11 @@ import { heldDataCategories, renderableHeldCategories } from "./data-held.ts";
 // that over-claims interview records / scores for a candidate who only applied.
 
 test("a bare applicant is only told we hold their CV + answers", () => {
-  assert.deepEqual(heldDataCategories({ hasContact: false, hasInterview: false, hasScore: false }), ["cv", "answers"]);
+  assert.deepEqual(heldDataCategories({ hasContact: false, hasInterview: false, hasScore: false, hasFeedbackLetter: false }), ["cv", "answers"]);
 });
 
 test("contact / interview / scores are listed only when captured, in a stable order", () => {
-  assert.deepEqual(heldDataCategories({ hasContact: true, hasInterview: true, hasScore: true }), [
+  assert.deepEqual(heldDataCategories({ hasContact: true, hasInterview: true, hasScore: true, hasFeedbackLetter: false }), [
     "cv",
     "contact",
     "answers",
@@ -19,18 +19,35 @@ test("contact / interview / scores are listed only when captured, in a stable or
     "scores",
   ]);
   // partial capture: contact + score but never interviewed → no "interview" over-claim
-  assert.deepEqual(heldDataCategories({ hasContact: true, hasInterview: false, hasScore: true }), [
+  assert.deepEqual(heldDataCategories({ hasContact: true, hasInterview: false, hasScore: true, hasFeedbackLetter: false }), [
     "cv",
     "contact",
     "answers",
     "scores",
   ]);
   // interviewed but no stored contact
-  assert.deepEqual(heldDataCategories({ hasContact: false, hasInterview: true, hasScore: false }), [
+  assert.deepEqual(heldDataCategories({ hasContact: false, hasInterview: true, hasScore: false, hasFeedbackLetter: false }), [
     "cv",
     "answers",
     "interview",
   ]);
+});
+
+// Spark interview-feedback-letter — a requested letter is held data about the candidate, and
+// its own category: listed only when a letter row exists, last, after everything it follows.
+test("a requested feedback letter is listed only when one exists, after the interview it is about", () => {
+  assert.deepEqual(heldDataCategories({ hasContact: true, hasInterview: true, hasScore: true, hasFeedbackLetter: true }), [
+    "cv",
+    "contact",
+    "answers",
+    "interview",
+    "scores",
+    "feedbackLetter",
+  ]);
+  assert.ok(
+    !heldDataCategories({ hasContact: true, hasInterview: true, hasScore: true, hasFeedbackLetter: false }).includes("feedbackLetter"),
+    "no letter, no claim"
+  );
 });
 
 // Lot CP — the RENDER side of the same over-claim. The /data client used to do
@@ -38,7 +55,7 @@ test("contact / interview / scores are listed only when captured, in a stable or
 // older server, a truncated payload) told the candidate we hold all five categories
 // — the hardcoded list heldDataCategories was written to remove, re-armed on the one
 // surface where over-claiming is a transparency failure.
-const LABELLED = ["cv", "contact", "answers", "interview", "scores"] as const;
+const LABELLED = ["cv", "contact", "answers", "interview", "scores", "feedbackLetter"] as const;
 
 test("a missing / malformed held field renders NOTHING, never everything", () => {
   assert.deepEqual(renderableHeldCategories(undefined, LABELLED), []);

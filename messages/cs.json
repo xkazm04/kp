@@ -1426,6 +1426,7 @@
     "STATUS_NPS_READ_FAILED": "Nepodařilo se načíst otázku ke zpětné vazbě. Zkuste to prosím znovu.",
     "STATUS_NPS_WRITE_FAILED": "Nepodařilo se zaznamenat vaši zpětnou vazbu. Zkuste to prosím znovu.",
     "STATUS_RECORDING_DELETE_FAILED": "Záznam vašeho pohovoru se teď nepodařilo smazat. Zkuste to prosím znovu.",
+    "STATUS_LETTER_REQUEST_FAILED": "Vaši žádost o zpětnou vazbu se nepodařilo zaznamenat. Zkuste to prosím znovu.",
     "APPLY_FAILED": "Nepodařilo se odeslat vaši přihlášku. Zkuste to prosím znovu.",
     "FOLLOWUP_FAILED": "Nepodařilo se uložit tyto odpovědi. Vaše přihláška je v bezpečí uložená. Zkuste to prosím znovu.",
     "REDISCOVERY_ALERTS_FAILED": "Nepodařilo se načíst upozornění na dřívější kandidáty. Zkuste to prosím znovu.",
@@ -1733,6 +1734,8 @@
     "OFFER_RESPONSE_INVALID": "Odpovězte prosím přijetím, nebo odmítnutím nabídky.",
     "STATUS_LINK_INVALID": "Tento odkaz na stav přihlášky už neplatí.",
     "STATUS_NPS_NOT_APPLICABLE": "Tato otázka se otevře, až bude vaše výběrové řízení uzavřeno.",
+    "STATUS_LETTER_NOT_ELIGIBLE": "Písemná zpětná vazba k vašemu pohovoru není u této přihlášky k dispozici.",
+    "STATUS_LETTER_ALREADY_REQUESTED": "O zpětnou vazbu k tomuto pohovoru už jste požádali.",
     "NPS_SCORE_REQUIRED": "Vyplňte skóre.",
     "NPS_SCORE_INVALID": "Skóre musí být celé číslo od 0 do 10.",
     "DATA_LINK_INVALID": "Tento odkaz na vaše údaje už neplatí.",
@@ -2039,7 +2042,8 @@
       "contact": "Vaše kontaktní údaje (e-mail)",
       "answers": "Odpovědi, které jste uvedli při podání přihlášky",
       "interview": "Případné záznamy a poznámky z pohovoru",
-      "scores": "Naše hodnoticí skóre pro tuto pozici"
+      "scores": "Naše hodnoticí skóre pro tuto pozici",
+      "feedbackLetter": "Vaše žádost o zpětnou vazbu k pohovoru a případný dopis s odpovědí"
     },
     "appliedOn": "Přihlášku jste podali {date}.",
     "keptUntil": "Tato data uchováváme do {date}.",
@@ -9707,6 +9711,22 @@
       "overTimeboxTitle": "Měřeno od začátku pracovní relace proti časovému rámci zadání. Jde o záznam, ne o odmítnutí."
     }
   },
+  "interviewLetter": {
+    "template": {
+      "greeting": "Dobrý den,",
+      "thanksRole": "děkujeme za Váš čas při pohovoru na pozici {role}.",
+      "thanks": "děkujeme za Váš čas při pohovoru.",
+      "frameNotSelected": "Na Vaši žádost posíláme krátké shrnutí toho, jak pohovor proběhl. Doufáme, že Vám bude užitečné v dalších krocích.",
+      "frameHired": "Na Vaši žádost posíláme krátké shrnutí toho, jak pohovor proběhl. Berte ho jako výchozí bod pro první měsíce na nové pozici.",
+      "wentWellIntro": "V rozhovoru dobře vyzněly tyto oblasti:",
+      "toWorkOnIntro": "Oblasti, které by stálo za to dál rozvíjet:",
+      "bullet": "• {area}",
+      "noSpecifics": "Záznam z pohovoru neukazuje na konkrétní oblasti, a proto je raději nebudeme odhadovat.",
+      "closeNotSelected": "Ještě jednou děkujeme za Váš zájem a přejeme hodně úspěchů.",
+      "closeHired": "Těšíme se na spolupráci.",
+      "signoff": "S pozdravem\nNáborový tým"
+    }
+  },
   "rubric": {
     "ratingAnchor": {
       "1": "Hluboko pod laťkou",
@@ -10292,6 +10312,7 @@
       "interviewPrep": "Příprava na pohovor · {candidate}",
       "agentFit": "Vhodnost agenta · {job}",
       "interviewKit": "Sada otázek k pohovoru · {job}",
+      "interviewLetter": "Návrh dopisu se zpětnou vazbou · {job}",
       "campaign": "Kampaňový balíček · {job}",
       "profileDraft": "AI návrh profilu",
       "companionDigest": "Přehled pracovního prostoru",

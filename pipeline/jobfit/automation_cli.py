@@ -7,6 +7,7 @@
     python -m pipeline.jobfit.automation_cli scorecard   --candidate-json P --job-id J --notes-file N
     python -m pipeline.jobfit.automation_cli rematch     --candidate-json P --current-job-id J
     python -m pipeline.jobfit.automation_cli interview-kit --job-json J [--brief-json B]  # JOB-level, no candidate
+    python -m pipeline.jobfit.automation_cli interview-letter --letter-json L [--scorecard-file S] --lang X
     python -m pipeline.jobfit.automation_cli policy-pass --entries-json E      # Task 7, LLM-free
 
 Input candidate via --candidate-json (MatchCandidate) or --profile-json (CandidateProfileV2, transformed).
@@ -14,6 +15,10 @@ Input candidate via --candidate-json (MatchCandidate) or --profile-json (Candida
 --job-json (the TS JobRecord payload, camelCase — the same shape agentfit_cli reads) plus the optional
 --brief-json (the promoted RoleBrief projection). Nothing candidate-derived may reach it — the kit is stored
 job-keyed, where the entry-keyed erasure scrub could never reach it again.
+`interview-letter` is the other command that loads no candidate PROFILE: it drafts the feedback letter a
+candidate asked for after a person decided on them, from --letter-json ({outcome, jobTitle, company,
+kitTopics}) and the entry's stored interview scorecard (--scorecard-file). Only competency NAMES from that
+scorecard reach the prompt (automation.letter_evidence); its quotes are used solely to check the draft.
 Optional --github-evidence G (compact GithubEvidenceSummary JSON, GH7) enriches the screen/prep/scorecard
 prompts with a "Public repo evidence" block; the other commands ignore it.
 Optional --scorecard-file S (the entry's stored interview scorecard) grounds the rejection and offer letters
@@ -102,7 +107,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="HR automation tasks (Claude CLI only).")
     parser.add_argument(
         "command",
-        choices=["screen", "outreach", "rejection", "prep", "scorecard", "rematch", "offer", "interview-kit", "policy-pass"],
+        choices=[
+            "screen",
+            "outreach",
+            "rejection",
+            "prep",
+            "scorecard",
+            "rematch",
+            "offer",
+            "interview-kit",
+            "interview-letter",
+            "policy-pass",
+        ],
     )
     parser.add_argument("--candidate-json", type=Path)
     parser.add_argument("--profile-json", type=Path)
@@ -113,6 +129,10 @@ def main(argv: list[str] | None = None) -> int:
     # job, absent when the role was never opened through an intake dialog.
     parser.add_argument("--job-json", type=Path)
     parser.add_argument("--brief-json", type=Path)
+    # The feedback letter's own input (app/_lib/interview-letter-run.ts): the decision
+    # outcome that frames it, the role's title/company, and the pinned kit's competency
+    # titles. Its interview evidence rides --scorecard-file like the rejection's does.
+    parser.add_argument("--letter-json", type=Path)
     parser.add_argument("--job-id")
     parser.add_argument("--current-job-id")
     parser.add_argument("--strengths-json", type=Path)
@@ -188,6 +208,33 @@ def main(argv: list[str] | None = None) -> int:
             # 400 below, the same contract --github-evidence and --scorecard-file carry.
             kit_brief = json.loads(args.brief_json.read_text(encoding="utf-8")) if args.brief_json else None
             result, source = automation.interview_kit(job, kit_brief, lang=lang or "en", provider=provider)
+            if source == "deterministic":
+                emit_deterministic(use_case, reason=descent or automation.take_degradation_reason())
+            print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
+            return 0
+
+        if args.command == "interview-letter":
+            # Returns HERE, before `_load_candidate`, like interview-kit: the letter is drafted
+            # from the interview RECORD (the stored scorecard) and the decision, never from
+            # the candidate's profile or CV — nothing the letter may not say is handed in.
+            if not args.letter_json:
+                raise ValueError("interview-letter requires --letter-json")
+            spec = json.loads(args.letter_json.read_text(encoding="utf-8"))
+            if not isinstance(spec, dict):
+                raise ValueError("--letter-json must hold one object")
+            # A malformed scorecard is a 400 (json.JSONDecodeError is a ValueError), the
+            # same honest contract the rejection's --scorecard-file carries. Absent = no
+            # evidence: the letter then names no areas rather than inventing any.
+            letter_scorecard = json.loads(args.scorecard_file.read_text(encoding="utf-8")) if args.scorecard_file else None
+            result, source = automation.draft_interview_letter(
+                letter_scorecard,
+                outcome=str(spec.get("outcome") or ""),
+                kit_titles=spec.get("kitTopics"),
+                job_title=str(spec.get("jobTitle") or ""),
+                company=str(spec.get("company") or ""),
+                lang=lang or "en",
+                provider=provider,
+            )
             if source == "deterministic":
                 emit_deterministic(use_case, reason=descent or automation.take_degradation_reason())
             print(json.dumps({"result": result, "source": source}, ensure_ascii=False))

@@ -237,6 +237,10 @@ export const STORE_ERRORS = {
    *  Its own code, and never a read code: a failed deletion must not read as "we could
    *  not load the page", or the candidate walks away believing the audio is gone. */
   STATUS_RECORDING_DELETE_FAILED: "Could not delete your interview recording right now. Please try again.",
+  /** The candidate's "ask for feedback on my interview" door (public status token). Its
+   *  own code: a failed request must not read as "we could not load the page", or the
+   *  candidate walks away believing they asked. */
+  STATUS_LETTER_REQUEST_FAILED: "Could not record your feedback request. Please try again.",
   // The two PUBLIC apply submissions (conversational + quick lead form). Their
   // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
   // temp write and the comms dispatcher — every one throws messages carrying
@@ -551,6 +555,15 @@ export const REFUSAL_ERRORS = {
    *  rather than stored: a response captured mid-process would be folded into a
    *  "candidate experience" figure that claims to measure completed journeys. */
   STATUS_NPS_NOT_APPLICABLE: "This question opens once your application has finished.",
+  /** A feedback-letter request for an application where none may be asked (409): no
+   *  decision yet, a decision no person made about this candidate (an automated screen-out,
+   *  a closed role), no interview on record, or consent withheld. ONE code for all of them,
+   *  on purpose: the public door must not become a way to learn which one applies. */
+  STATUS_LETTER_NOT_ELIGIBLE: "Written feedback on your interview is not available for this application.",
+  /** A second feedback-letter request for the same application (409). The response carries
+   *  the existing request's state beside the code (`letter`), so a repeated click still
+   *  shows the candidate where their one request stands — never a second letter. */
+  STATUS_LETTER_ALREADY_REQUESTED: "You have already asked for feedback on this interview.",
   /** Public NPS POST with no score at all (400). parseNpsSubmission used to put
    *  the English sentence "score is required" on the wire; the status page
    *  localizes `errors.NPS_SCORE_REQUIRED` instead. */

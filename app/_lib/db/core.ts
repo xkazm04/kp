@@ -1436,6 +1436,40 @@ export function ensureDb(): Database.Database {
     -- minting "version 4".
     CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_kits_version ON interview_kits (workspace_id, job_id, version);
     CREATE INDEX IF NOT EXISTS idx_interview_kits_job ON interview_kits (workspace_id, job_id, created_at);
+
+    -- The interview FEEDBACK LETTER a candidate may ask for after a person decided on
+    -- their application (db/interview-letters.ts; contract in
+    -- app/_lib/interview-letter-types.ts). One row per application: the request, the
+    -- machine's draft, the recruiter's final text, who decided and when, and what delivery
+    -- reported. NOT named "feedback" — that table is operators' product feedback.
+    --
+    -- CANDIDATE PERSONAL DATA: draft_text and final_text are written about one person, so
+    -- the entry-keyed erasure scrub (db/pipeline.ts scrubEntryLinkedPii) blanks both and
+    -- stamps erased_at. The row stays as the record that a letter was requested.
+    CREATE TABLE IF NOT EXISTS interview_letters (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'requested' CHECK(state IN ('requested','drafted','sent','declined')),
+      outcome TEXT NOT NULL CHECK(outcome IN ('not_selected','hired')),
+      lang TEXT NOT NULL,
+      requested_at TEXT NOT NULL,
+      draft_text TEXT,
+      draft_source TEXT CHECK(draft_source IS NULL OR draft_source IN ('model','template')),
+      draft_created_at TEXT,
+      final_text TEXT,
+      decided_by TEXT,
+      decided_at TEXT,
+      delivery TEXT CHECK(delivery IS NULL OR delivery IN ('sent','queued','failed')),
+      erased_at TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    -- ONE letter per application, per team. The candidate's request door is idempotent
+    -- because of this index (an INSERT … ON CONFLICT DO NOTHING), not because of a
+    -- read-then-insert two clicks could race.
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

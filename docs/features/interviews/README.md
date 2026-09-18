@@ -1634,6 +1634,16 @@ self-host has the whole feature.
   session id the first one returns. A single door serving both was not built because
   `by-entry` is consumed by several other surfaces that do not want the record.
 
+## After the decision: the candidate's feedback letter
+
+After a HUMAN decision, a candidate may ask from their status page for a short letter
+about their AI interview. It names competencies in plain words, never quotes the
+candidate or mentions a rating, is drafted in their language, and reaches them only
+after a recruiter edits and approves it. The request door, the eligibility rule, the
+record and the draft live with the candidate's other rights:
+[`docs/features/compliance/README.md`](../compliance/README.md) §"Interview feedback
+letters — request, record, draft".
+
 ## Automatic invites on stage entry
 
 **The one manual step left in the AI-interview loop is gone.** When a candidate

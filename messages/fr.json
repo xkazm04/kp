@@ -1426,6 +1426,7 @@
     "STATUS_NPS_READ_FAILED": "Impossible de charger la question de retour d’expérience. Veuillez réessayer.",
     "STATUS_NPS_WRITE_FAILED": "Impossible d’enregistrer votre retour. Veuillez réessayer.",
     "STATUS_RECORDING_DELETE_FAILED": "Impossible de supprimer votre enregistrement d’entretien pour le moment. Veuillez réessayer.",
+    "STATUS_LETTER_REQUEST_FAILED": "Impossible d’enregistrer votre demande de retour. Veuillez réessayer.",
     "APPLY_FAILED": "Impossible d’envoyer votre candidature. Veuillez réessayer.",
     "FOLLOWUP_FAILED": "Impossible d’enregistrer ces réponses. Votre candidature est bien conservée. Veuillez réessayer.",
     "REDISCOVERY_ALERTS_FAILED": "Impossible de charger les alertes d’anciens candidats. Veuillez réessayer.",
@@ -1733,6 +1734,8 @@
     "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre.",
     "STATUS_LINK_INVALID": "Ce lien de suivi n'est pas valide.",
     "STATUS_NPS_NOT_APPLICABLE": "Cette question s'ouvrira une fois votre candidature terminée.",
+    "STATUS_LETTER_NOT_ELIGIBLE": "Un retour écrit sur votre entretien n’est pas disponible pour cette candidature.",
+    "STATUS_LETTER_ALREADY_REQUESTED": "Vous avez déjà demandé un retour sur cet entretien.",
     "NPS_SCORE_REQUIRED": "Une note est requise.",
     "NPS_SCORE_INVALID": "La note doit être un nombre entier entre 0 et 10.",
     "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide.",
@@ -2039,7 +2042,8 @@
       "contact": "Vos coordonnées (e-mail)",
       "answers": "Les réponses que vous avez données en postulant",
       "interview": "Les comptes rendus et notes d’entretien éventuels",
-      "scores": "Nos scores d’évaluation pour ce poste"
+      "scores": "Nos scores d’évaluation pour ce poste",
+      "feedbackLetter": "Votre demande de retour sur l’entretien et, le cas échéant, la lettre écrite en réponse"
     },
     "appliedOn": "Vous avez postulé le {date}.",
     "keptUntil": "Nous conservons ces données jusqu'au {date}.",
@@ -9707,6 +9711,22 @@
       "overTimeboxTitle": "Mesuré depuis le début de la session de travail, par rapport au temps imparti de l'exercice. Une information, pas un refus."
     }
   },
+  "interviewLetter": {
+    "template": {
+      "greeting": "Bonjour,",
+      "thanksRole": "Merci pour le temps que vous nous avez accordé lors de l’entretien pour le poste de {role}.",
+      "thanks": "Merci pour le temps que vous nous avez accordé lors de l’entretien.",
+      "frameNotSelected": "Vous avez souhaité un bref retour sur le déroulement de l’entretien. Le voici, en espérant qu’il vous soit utile pour la suite.",
+      "frameHired": "Vous avez souhaité un bref retour sur le déroulement de l’entretien. Le voici, comme point de départ pour vos premiers mois dans le poste.",
+      "wentWellIntro": "Ce qui est ressorti positivement de l’échange :",
+      "toWorkOnIntro": "Ce qu’il serait utile de développer davantage :",
+      "bullet": "• {area}",
+      "noSpecifics": "Le compte rendu de l’entretien ne permet pas d’identifier des points précis, et nous préférons ne pas les deviner.",
+      "closeNotSelected": "Merci encore pour votre intérêt. Nous vous souhaitons pleine réussite.",
+      "closeHired": "Nous nous réjouissons de travailler avec vous.",
+      "signoff": "Bien cordialement,\nL’équipe de recrutement"
+    }
+  },
   "rubric": {
     "ratingAnchor": {
       "1": "Nettement sous le niveau",
@@ -10292,6 +10312,7 @@
       "interviewPrep": "Préparation d’entretien · {candidate}",
       "agentFit": "Adéquation de l’agent · {job}",
       "interviewKit": "Guide d’entretien · {job}",
+      "interviewLetter": "Brouillon de lettre de retour · {job}",
       "campaign": "Pack de campagne · {job}",
       "profileDraft": "Brouillon de profil IA",
       "companionDigest": "Synthèse de l’espace de travail",

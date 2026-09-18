@@ -1759,6 +1759,333 @@ def interview_kit(job: Job, brief: Any | None = None, *, lang: str = "en", provi
     return result, source
 
 
+# ============================================================================
+# The interview FEEDBACK LETTER (spark interview-feedback-letter, WP-alpha)
+# ============================================================================
+#
+# After a PERSON decided on a candidate — not selected, or hired — the candidate may ask,
+# from their own status page, for a short letter about their AI interview. This drafts it.
+# A recruiter then edits it, owns every sentence, and approves or declines it
+# (app/_lib/interview-letter-types.ts states the lifecycle); nothing here reaches a
+# candidate on its own.
+#
+# WHAT THE LETTER MAY SAY is decided by what the prompt is GIVEN, not by what it is asked.
+# It receives competency NAMES — the areas that came through well and the ones worth
+# developing — plus the role's title and the kit's competency titles, and nothing else about
+# the interview: no rating, no verdict, no evidence quote, no summary, no confidence band. A
+# model cannot quote words it was never shown or cite a number it never saw; that is the
+# control. `letter_problem` below is the backstop for a model that invents one anyway, and
+# it discards the draft WHOLE (the `_letter_is_safe` doctrine: a letter with a sentence cut
+# out is no longer the letter the model wrote).
+#
+# THE KEYLESS LETTER IS NOT BUILT HERE. It is assembled on the TypeScript side from the four
+# message catalogs (app/_lib/interview-letter-template.ts), because it must exist in the
+# candidate's language in all four locales and the catalogs are where this product's
+# candidate-facing copy lives, is reviewed and is parity-checked. So `deterministic()`
+# returns an EMPTY body plus the competency names the template needs, and `_generate`
+# reports it as `deterministic` exactly as it does for every other task. The TS runner
+# treats an empty body as "use the template" — never as a letter.
+#
+# NOT CACHED: every request is one letter for one person, drafted once (and again only when
+# a recruiter asks for a redraft), so there is no cache key to keep in lockstep
+# (tests/test_prompt_version_sync.py lists it with the uncached versions).
+
+INTERVIEW_LETTER_PROMPT_VERSION = "interview-letter-v1"
+
+# Mirrors LETTER_MAX_CHARS in app/_lib/interview-letter-types.ts — the TS store is the
+# enforcing boundary; a draft over it is DISCARDED here, never truncated (a cut sentence is
+# no longer a sentence anyone wrote). tests/test_automation_constant_sync.py pins the mirror.
+LETTER_MAX_CHARS = 2400
+# What the prompt asks for: well under the cap. A requested note, not a report.
+LETTER_TARGET_CHARS = 1200
+
+# How many areas each half may name. The registry's feedback-line ceiling
+# (rejection-with-dignity: past about three points feedback reads as a case being built,
+# and the record rarely supports more than two genuine observations) applied to a letter the
+# candidate asked for: at most two strengths and two areas to develop, in the record's own
+# order (strongest / weakest first).
+LETTER_MAX_WENT_WELL = 2
+LETTER_MAX_TO_WORK_ON = 2
+# Axes a letter may praise but never hand back as something to "work on", because they are
+# not a skill the candidate can develop from a note — they are a reading of the PERSON:
+#   * "Experience & fit" is the relevance of their background to this role. As advice it
+#     becomes "gain more experience", the registry's worst letter (rejection-with-dignity:
+#     never assert a gap the evidence disproves — the gap was on the CV the day they were
+#     invited, and the interview is not where it was measured).
+#   * "Motivation" / "Motivation & direction" is their interest in the role. "Work on your
+#     motivation" is a verdict on a person, not a next step.
+# Named by the rubric's canonical label (interview-rubrics.json); a renamed axis falls out
+# of this set and back into the ordinary lists, which is the safe direction for PRAISE and
+# is caught for advice by test_interview_letter.py pinning each name against the rubric.
+LETTER_NOT_A_DEVELOPMENT_AREA: frozenset[str] = frozenset({"Experience & fit", "Motivation", "Motivation & direction"})
+# The kit's competency titles: operator-authored, candidate-facing by design, and bounded
+# like any list a prompt reads.
+_LETTER_MAX_TOPICS = KIT_MAX_COMPETENCIES
+_LETTER_TOPIC_CHARS = 120
+
+# The two decisions that may produce a letter (app/_lib/interview-letter-policy.ts
+# LETTER_OUTCOMES). The outcome shapes the FRAME — how the letter opens and closes — and
+# never the content: the same record yields the same areas either way.
+LETTER_OUTCOMES: tuple[str, ...] = ("not_selected", "hired")
+
+# The shortest run of the candidate's recorded words that counts as quoting them back.
+# Five words is a phrase nobody reproduces by accident; a recorded quote shorter than that
+# (but at least three words) must not appear whole.
+_QUOTE_SHINGLE_WORDS = 5
+_QUOTE_MIN_WORDS = 3
+
+# The vocabulary of the machinery behind a letter, in the four product languages: a score,
+# a rating, a rubric, a scorecard, a points scale. A letter that names one is reading the
+# recruiter's file back to the candidate. Deliberately NARROW — a false positive costs one
+# model draft (the catalog template takes over), not a letter — and a BACKSTOP only: the
+# prompt is never given a rating to mention. Numbers are refused separately (any digit
+# outside the role's own title), which is what actually catches "4/5", "3 z 5" or "80 %".
+_LETTER_MACHINERY_RE = re.compile(
+    r"\b(scor\w*|skór\w*|rating\w*|rated|rubri\w*|punktzahl\w*|bewertungs(?:bogen|skala)\w*|"
+    r"bodov\w*|hodnot[ií]c[ií]\w*|barème\w*|notation\w*)\b",
+    re.IGNORECASE,
+)
+_DIGIT_RE = re.compile(r"\d")
+
+
+def _rubric_competency_names() -> list[str]:
+    """Every competency any rubric scores on — the base rubrics and the industry axes.
+
+    The ONLY names a letter may carry. A scorecard competency is model output synthesized
+    from the candidate's own speech (see `_UNTRUSTED_CONTEXT_KEYS`), and a human scorecard
+    may carry an off-rubric axis from an older revision; allowlisting to the rubric's own
+    vocabulary means nothing the candidate said can reach the letter as a "competency", and
+    it is what lets the TS template localize every name through the rubric catalog
+    (`rubric.competency.<key>.label`, all four locales)."""
+    names: list[str] = []
+    for rubric in INTERVIEW_RUBRICS.values():
+        names.extend(str(c["competency"]) for c in rubric)
+    for axes in INDUSTRY_AXES.values():
+        names.extend(str(c["competency"]) for c in axes)
+    return list(dict.fromkeys(names))
+
+
+def letter_evidence(scorecard: Any, kit_titles: Any = None) -> dict[str, list[str]]:
+    """The whole of what an interview may contribute to a feedback letter: NAMES.
+
+    Built on :func:`interview_evidence` — the letter-safe projection the rejection and offer
+    letters already read (not-assessed axes excluded, weak = 1-2, strong = 4-5) — and then
+    narrowed further, because this letter goes to the candidate as FEEDBACK rather than as a
+    decision notice: the ratings are dropped (the letter may never mention one), the verdict
+    is dropped (the decision is the outcome, told separately), and every name is matched to
+    the rubric's own vocabulary or dropped (`_rubric_competency_names`).
+
+    ``kit_titles`` are the pinned interview kit's competency titles when the session ran on
+    one — what the conversation was built around. They are the operator's words, cleaned and
+    capped here; they never say how anything went.
+    """
+    ev = interview_evidence(scorecard) or {}
+    allowed = _rubric_competency_names()
+
+    def names(items: Any, cap: int, exclude: list[str]) -> list[str]:
+        out: list[str] = []
+        for item in items if isinstance(items, list) else []:
+            name = _match_competency(item.get("competency") if isinstance(item, dict) else None, allowed)
+            if name and name not in out and name not in exclude:
+                out.append(name)
+            if len(out) >= cap:
+                break
+        return out
+
+    went_well = names(ev.get("strongestCompetencies"), LETTER_MAX_WENT_WELL, [])
+    to_work_on = names(
+        ev.get("weakestCompetencies"), LETTER_MAX_TO_WORK_ON, [*went_well, *sorted(LETTER_NOT_A_DEVELOPMENT_AREA)]
+    )
+
+    topics: list[str] = []
+    seen: set[str] = set()
+    for raw in kit_titles if isinstance(kit_titles, list) else []:
+        title = " ".join(str(raw or "").split())[:_LETTER_TOPIC_CHARS].strip()
+        if not title or title.casefold() in seen:
+            continue
+        seen.add(title.casefold())
+        topics.append(title)
+        if len(topics) >= _LETTER_MAX_TOPICS:
+            break
+    return {"wentWell": went_well, "toWorkOn": to_work_on, "topics": topics}
+
+
+def scorecard_quotes(scorecard: Any) -> list[str]:
+    """The candidate's own recorded words on a scorecard: every rating's evidence quote,
+    placeholders excluded. NEVER a prompt input — this is the list `letter_problem` checks a
+    draft against, so a letter that reads the candidate's words back is caught even though
+    the model was never shown them."""
+    if not isinstance(scorecard, dict):
+        return []
+    ratings = scorecard.get("ratings")
+    out: list[str] = []
+    for r in ratings if isinstance(ratings, list) else []:
+        evidence = str((r or {}).get("evidence") or "").strip() if isinstance(r, dict) else ""
+        if evidence and not evidence.startswith("Not assessed"):
+            out.append(evidence)
+    return out
+
+
+def quotes_candidate(body: str, candidate_words: Any) -> bool:
+    """True when ``body`` reproduces a run of the candidate's recorded words.
+
+    Folded with the SAME normalizer the scorecard's own quote grounding uses
+    (`_normalize_for_grounding`: case, punctuation and whitespace drift are ignored,
+    paraphrase is not), then checked two ways: any five-word run of a recorded quote, and a
+    short quote (three or four words) appearing whole."""
+    words = _normalize_for_grounding(body).split()
+    if not words:
+        return False
+    joined = f" {' '.join(words)} "
+    grams = {tuple(words[i : i + _QUOTE_SHINGLE_WORDS]) for i in range(len(words) - _QUOTE_SHINGLE_WORDS + 1)}
+    for quote in candidate_words if isinstance(candidate_words, list) else []:
+        q = _normalize_for_grounding(str(quote or "")).split()
+        if len(q) < _QUOTE_MIN_WORDS:
+            continue
+        if len(q) < _QUOTE_SHINGLE_WORDS:
+            if f" {' '.join(q)} " in joined:
+                return True
+            continue
+        for i in range(len(q) - _QUOTE_SHINGLE_WORDS + 1):
+            if tuple(q[i : i + _QUOTE_SHINGLE_WORDS]) in grams:
+                return True
+    return False
+
+
+def letter_problem(body: Any, *, candidate_words: Any = None, role_terms: Any = None) -> str | None:
+    """Why a drafted letter body cannot be a draft, or None when it can.
+
+    Every reason discards the draft WHOLE; none of them is repaired. ``role_terms`` are the
+    role's own title and company — the one place a digit may legitimately appear ("Level 2
+    Support", "Web3"), so they are blanked before the number check and nowhere else."""
+    text = str(body or "").strip()
+    if not text:
+        return "empty"
+    if len(text) > LETTER_MAX_CHARS:
+        return "too_long"
+    if protected_language(text):
+        return "protected_language"
+    scrubbed = text
+    for term in role_terms if isinstance(role_terms, list) else []:
+        term = str(term or "").strip()
+        if term:
+            scrubbed = scrubbed.replace(term, " ")
+    if _DIGIT_RE.search(scrubbed):
+        return "number"
+    if _LETTER_MACHINERY_RE.search(text):
+        return "machinery"
+    if quotes_candidate(text, candidate_words):
+        return "quotes_candidate"
+    return None
+
+
+def draft_interview_letter(
+    scorecard: Any,
+    *,
+    outcome: str,
+    kit_titles: Any = None,
+    job_title: str = "",
+    company: str = "",
+    lang: str = "en",
+    provider: Any | None = None,
+):
+    """Draft the feedback letter a candidate asked for after a person decided on them.
+
+    Returns ``(result, source)`` in this module's usual shape. ``result["body"]`` is the
+    model's letter, or ``""`` when the keyless / discarded path served — the TS runner then
+    builds the catalog template from ``wentWell`` / ``toWorkOn``, which are present either
+    way. ``source`` is ``llm`` only when the model's letter survived every check.
+
+    The scorecard goes IN, and only :func:`letter_evidence`'s names come out into the
+    prompt; the recorded quotes are kept aside solely to check the draft against
+    (:func:`scorecard_quotes`).
+    """
+    from .i18n import language_name
+
+    if outcome not in LETTER_OUTCOMES:
+        raise ValueError(f"outcome must be one of {', '.join(LETTER_OUTCOMES)}")
+    lang_name = language_name(lang)
+    evidence = letter_evidence(scorecard, kit_titles)
+    candidate_words = scorecard_quotes(scorecard)
+    role_terms = [t for t in (str(job_title or "").strip(), str(company or "").strip()) if t]
+
+    ctx: dict[str, Any] = {
+        "role": {"title": str(job_title or "").strip() or None, "company": str(company or "").strip() or None},
+        # The areas, and nothing else about the interview. Carried under the fenced
+        # `interview` key (context_block): the names are allowlisted to the rubric's own
+        # vocabulary, but they came off a record synthesized from candidate speech, and the
+        # house rule is that such a record is fenced wherever it is rendered.
+        "interview": evidence,
+    }
+    if outcome == "not_selected":
+        frame = (
+            "The decision on this application has already been made and told to them: they were NOT "
+            "selected for this role. Do not restate, justify or soften the decision, do not hint that it "
+            "could change, and do not mention other candidates.\n"
+        )
+        close = "Close respectfully: thank them again and wish them well, without any promise about the future.\n"
+    else:
+        frame = (
+            "They were HIRED for this role. Write as the team that is glad to have them, and frame the "
+            "areas to develop as things to grow into in the role — never as reservations about the hire.\n"
+        )
+        close = "Close by saying the team looks forward to working with them.\n"
+
+    prompt = (
+        f"Draft a short feedback letter in {lang_name} for a candidate who ASKED for feedback on their "
+        "interview. A recruiter will read, edit and approve it before anything is sent, so write it as "
+        "the hiring team, signed as the hiring team.\n"
+        + frame
+        + "Use ONLY these facts:\n"
+        f"{context_block(ctx)}\n\n"
+        "Write, in this order and nothing more:\n"
+        "1. Thank them for the time they gave the interview.\n"
+        "2. What came through well: the areas in `interview.wentWell`, said in plain, everyday words "
+        f"in {lang_name} — translate each area's name into natural language, never as a label or a "
+        "heading. Skip this part entirely when the list is empty.\n"
+        "3. What would be worth developing: the areas in `interview.toWorkOn`, each with one short, "
+        "practical next step, phrased as development and never as a verdict on them as a person. "
+        "Skip this part entirely when the list is empty — never invent an area.\n"
+        "4. " + close
+        + "`interview.topics`, when present, are the subjects the conversation was built around. You "
+        "may use them to say what the interview covered; never say how any of them went — only the two "
+        "lists above say that.\n"
+        "Hard rules: never quote or paraphrase anything the candidate said (you have not been given "
+        "their words, so any quote would be invented); never mention a score, a rating, a scale, "
+        "points, a scorecard, a rubric, an assessment tool, an AI, or anyone's confidence, and write no "
+        "numbers at all; never name an area that is not in the two lists; never compare them with "
+        "anyone; never use protected-characteristic language.\n"
+        f"Keep the whole letter under {LETTER_TARGET_CHARS} characters.\n"
+        + _NEUTRAL_STYLE
+        + 'Return JSON: { "body": str, "language": str }. JSON only.'
+    )
+
+    def deterministic() -> dict:
+        # An EMPTY body is the signal, not a letter: the keyless letter is the catalog
+        # template the TS side builds from these two lists, in the candidate's language.
+        return {
+            "body": "",
+            "language": lang_name,
+            "wentWell": list(evidence["wentWell"]),
+            "toWorkOn": list(evidence["toWorkOn"]),
+        }
+
+    def coerce(payload: Any) -> dict:
+        det = deterministic()
+        if not isinstance(payload, dict):
+            return det
+        body = str(payload.get("body") or "").strip()
+        # Discarded WHOLE on any problem, and reported as `deterministic` for free —
+        # `_generate` compares the coerced result against the template.
+        if letter_problem(body, candidate_words=candidate_words, role_terms=role_terms) is not None:
+            return det
+        return {**det, "body": body}
+
+    result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=("body",))
+    result["promptVersion"] = INTERVIEW_LETTER_PROMPT_VERSION
+    return result, source
+
+
 # Scorecard rubrics — the SAME competency axes for every candidate of a given
 # archetype, so interviews stay structured and directly comparable WITHIN a
 # cohort (Greenhouse/HireVue-style). The rubrics live in ONE place,

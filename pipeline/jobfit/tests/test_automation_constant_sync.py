@@ -39,6 +39,7 @@ TRANSCRIPT_TS = REPO_ROOT / "app" / "_lib" / "interview-transcript.ts"
 CALIBRATION_TS = REPO_ROOT / "app" / "_lib" / "calibration.ts"
 CACHE_KEY_TS = REPO_ROOT / "app" / "_lib" / "automation-cache-key.ts"
 INTERVIEW_KIT_TS = REPO_ROOT / "app" / "_lib" / "interview-kit-types.ts"
+INTERVIEW_LETTER_TS = REPO_ROOT / "app" / "_lib" / "interview-letter-types.ts"
 
 # TS file -> {TS constant: the Python value it must equal}. Explicit so the map
 # itself is checkable (see test_the_map_names_live_python_constants).
@@ -67,6 +68,12 @@ MIRRORED: dict[Path, dict[str, int]] = {
         "KIT_MAX_MUST_ASKS": automation.KIT_MAX_MUST_ASKS,
         "KIT_MAX_FAQ": automation.KIT_MAX_FAQ,
     },
+    # The feedback letter's length cap. TS is the ENFORCING side (the store refuses a text
+    # over it at every write); the generator DISCARDS a draft over it rather than handing the
+    # store a letter it would refuse. If Python grew past TS, a model draft would pass here
+    # and fail the store write; if it shrank below, drafts the product accepts would be
+    # thrown away for no stated reason.
+    INTERVIEW_LETTER_TS: {"LETTER_MAX_CHARS": automation.LETTER_MAX_CHARS},
 }
 
 

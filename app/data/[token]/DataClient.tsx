@@ -149,6 +149,7 @@ export function DataClient() {
     answers: t("held.answers"),
     interview: t("held.interview"),
     scores: t("held.scores"),
+    feedbackLetter: t("held.feedbackLetter"),
   };
   // #5 — render only the categories the API says we actually hold. The fallback that
   // used to sit here (`?? Object.keys(heldLabel)`) re-armed the hardcoded five-item

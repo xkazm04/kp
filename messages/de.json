@@ -1426,6 +1426,7 @@
     "STATUS_NPS_READ_FAILED": "Die Feedback-Frage konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "STATUS_NPS_WRITE_FAILED": "Ihr Feedback konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
     "STATUS_RECORDING_DELETE_FAILED": "Ihre Interviewaufnahme konnte gerade nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+    "STATUS_LETTER_REQUEST_FAILED": "Ihre Anfrage nach Feedback konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "APPLY_FAILED": "Ihre Bewerbung konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.",
     "FOLLOWUP_FAILED": "Diese Antworten konnten nicht gespeichert werden. Ihre Bewerbung ist sicher hinterlegt. Bitte versuchen Sie es erneut.",
     "REDISCOVERY_ALERTS_FAILED": "Die Hinweise auf frühere Kandidaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -1733,6 +1734,8 @@
     "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen.",
     "STATUS_LINK_INVALID": "Dieser Statuslink ist nicht gültig.",
     "STATUS_NPS_NOT_APPLICABLE": "Diese Frage wird freigeschaltet, sobald Ihre Bewerbung abgeschlossen ist.",
+    "STATUS_LETTER_NOT_ELIGIBLE": "Schriftliches Feedback zu Ihrem Interview ist für diese Bewerbung nicht verfügbar.",
+    "STATUS_LETTER_ALREADY_REQUESTED": "Sie haben bereits Feedback zu diesem Interview angefordert.",
     "NPS_SCORE_REQUIRED": "Eine Bewertung ist erforderlich.",
     "NPS_SCORE_INVALID": "Die Bewertung muss eine ganze Zahl zwischen 0 und 10 sein.",
     "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig.",
@@ -2039,7 +2042,8 @@
       "contact": "Ihre Kontaktdaten (E-Mail)",
       "answers": "Die Antworten, die Sie bei der Bewerbung gegeben haben",
       "interview": "Etwaige Interviewaufzeichnungen und Notizen",
-      "scores": "Unsere Bewertungs-Scores für diese Stelle"
+      "scores": "Unsere Bewertungs-Scores für diese Stelle",
+      "feedbackLetter": "Ihre Anfrage nach Feedback zum Interview und ein etwaiges Antwortschreiben"
     },
     "appliedOn": "Sie haben sich am {date} beworben.",
     "keptUntil": "Wir bewahren diese Daten bis {date} auf.",
@@ -9707,6 +9711,22 @@
       "overTimeboxTitle": "Gemessen ab dem Start der Arbeitssitzung, gegen den Zeitrahmen der Aufgabe. Eine Angabe, keine Ablehnung."
     }
   },
+  "interviewLetter": {
+    "template": {
+      "greeting": "Guten Tag,",
+      "thanksRole": "vielen Dank für die Zeit, die Sie sich für das Interview für die Stelle {role} genommen haben.",
+      "thanks": "vielen Dank für die Zeit, die Sie sich für das Interview genommen haben.",
+      "frameNotSelected": "Sie haben um eine kurze Rückmeldung zum Verlauf des Interviews gebeten. Hier ist sie, und wir hoffen, dass sie Ihnen für Ihre nächsten Schritte nützt.",
+      "frameHired": "Sie haben um eine kurze Rückmeldung zum Verlauf des Interviews gebeten. Hier ist sie, als Ausgangspunkt für Ihre ersten Monate in der neuen Rolle.",
+      "wentWellIntro": "Was im Gespräch besonders überzeugt hat:",
+      "toWorkOnIntro": "Was sich weiterzuentwickeln lohnt:",
+      "bullet": "• {area}",
+      "noSpecifics": "Die Aufzeichnung des Interviews weist nicht auf bestimmte Bereiche hin, deshalb möchten wir hier nicht raten.",
+      "closeNotSelected": "Nochmals vielen Dank für Ihr Interesse. Wir wünschen Ihnen viel Erfolg.",
+      "closeHired": "Wir freuen uns auf die Zusammenarbeit mit Ihnen.",
+      "signoff": "Mit freundlichen Grüßen\nIhr Recruiting-Team"
+    }
+  },
   "rubric": {
     "ratingAnchor": {
       "1": "Deutlich unter Niveau",
@@ -10292,6 +10312,7 @@
       "interviewPrep": "Interview-Vorbereitung · {candidate}",
       "agentFit": "Agent-Eignung · {job}",
       "interviewKit": "Interviewleitfaden · {job}",
+      "interviewLetter": "Entwurf Feedbackschreiben · {job}",
       "campaign": "Kampagnenpaket · {job}",
       "profileDraft": "KI-Profilentwurf",
       "companionDigest": "Überblick zum Arbeitsbereich",

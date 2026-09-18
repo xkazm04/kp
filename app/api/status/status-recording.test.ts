@@ -95,7 +95,7 @@ test("the status projection gains a BOOLEAN and nothing else about the audio", a
   // name or a date would be a fact about the interview on a public, token-only wire.
   assert.deepEqual(
     Object.keys(body).sort(),
-    ["company", "hasInterviewRecording", "jobTitle", "relayConfigured", "status", "updatedAt"],
+    ["company", "hasInterviewRecording", "jobTitle", "letter", "relayConfigured", "status", "updatedAt"],
     "the candidate projection must not grow silently"
   );
   const serialized = JSON.stringify(body);

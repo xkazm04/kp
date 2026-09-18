@@ -7,6 +7,7 @@ import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { entryHasRecording } from "@/app/_lib/interview-recording";
+import { candidateLetterViewFor } from "@/app/_lib/interview-letter";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -61,6 +62,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       // must NOT learn a file name, a size, an attempt count or a date, all of which
       // would be facts about the interview riding on a public projection.
       hasInterviewRecording: entryHasRecording(entryId, workspaceId),
+      // Spark interview-feedback-letter — the candidate's own feedback-letter request, as
+      // the contract's CandidateLetterView and NOTHING else: whether they may ask, the
+      // request's state and date, and the approved text once it is sent. No draft, no
+      // reviewer, no ids, no delivery detail; consent withheld blanks it entirely
+      // (interview-letter-policy.ts). Pinned by status-letter.test.ts.
+      letter: candidateLetterViewFor(entry, workspaceId),
     });
   } catch (error) {
     // Raw err.message would surface SQLite internals on a public token route.

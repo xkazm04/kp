@@ -185,6 +185,10 @@ const ALLOWED = new Map<string, string>([
     "public token door — the candidate deleting their OWN interview audio, authed by the status link in the URL, never a seat (public-routes.ts)",
   ],
   [
+    "status/[token]/letter/route.ts",
+    "public token door — the candidate asking for feedback on their OWN interview, authed by the status link in the URL, never a seat (public-routes.ts)",
+  ],
+  [
     "stop/[token]/route.ts",
     "public token door — the candidate's ePrivacy Art. 13(4) opt-out, authed by the capability link in the URL, never a seat. " +
       "It is also the RFC 8058 one-click target a mail provider POSTs unattended, so a seat check would make the header inert",

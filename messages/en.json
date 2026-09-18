@@ -1426,6 +1426,7 @@
     "STATUS_NPS_READ_FAILED": "Could not load the feedback question. Please try again.",
     "STATUS_NPS_WRITE_FAILED": "Could not record your feedback. Please try again.",
     "STATUS_RECORDING_DELETE_FAILED": "Could not delete your interview recording right now. Please try again.",
+    "STATUS_LETTER_REQUEST_FAILED": "Could not record your feedback request. Please try again.",
     "APPLY_FAILED": "Could not submit your application. Please try again.",
     "FOLLOWUP_FAILED": "Could not save those answers. Your application is safely filed. Please try again.",
     "REDISCOVERY_ALERTS_FAILED": "Could not load rediscovery alerts. Please try again.",
@@ -1733,6 +1734,8 @@
     "OFFER_RESPONSE_INVALID": "Respond with either accept or decline.",
     "STATUS_LINK_INVALID": "This status link is not valid.",
     "STATUS_NPS_NOT_APPLICABLE": "This question opens once your application has finished.",
+    "STATUS_LETTER_NOT_ELIGIBLE": "Written feedback on your interview is not available for this application.",
+    "STATUS_LETTER_ALREADY_REQUESTED": "You have already asked for feedback on this interview.",
     "NPS_SCORE_REQUIRED": "A score is required.",
     "NPS_SCORE_INVALID": "Score must be a whole number from 0 to 10.",
     "DATA_LINK_INVALID": "This data link is no longer valid.",
@@ -2039,7 +2042,8 @@
       "contact": "Your contact details (email)",
       "answers": "The answers you gave when applying",
       "interview": "Any interview records and notes",
-      "scores": "Our assessment scores for this role"
+      "scores": "Our assessment scores for this role",
+      "feedbackLetter": "Your request for feedback on your interview, and any letter written in reply"
     },
     "appliedOn": "You applied on {date}.",
     "keptUntil": "We keep this data until {date}.",
@@ -9707,6 +9711,22 @@
       "overTimeboxTitle": "Measured from the start of the work session against the assignment timebox. A record, not a rejection."
     }
   },
+  "interviewLetter": {
+    "template": {
+      "greeting": "Hello,",
+      "thanksRole": "Thank you for the time you gave us in your interview for the {role} role.",
+      "thanks": "Thank you for the time you gave us in your interview.",
+      "frameNotSelected": "You asked for a short note on how the interview went. Here it is, and we hope it is useful for whatever comes next.",
+      "frameHired": "You asked for a short note on how the interview went. Here it is, as a starting point for your first months in the role.",
+      "wentWellIntro": "What came through well in the conversation:",
+      "toWorkOnIntro": "What would be worth developing further:",
+      "bullet": "• {area}",
+      "noSpecifics": "The record of the interview does not point to specific areas, so we would rather not guess at any.",
+      "closeNotSelected": "Thank you again for your interest, and we wish you every success.",
+      "closeHired": "We look forward to working with you.",
+      "signoff": "Kind regards,\nThe hiring team"
+    }
+  },
   "rubric": {
     "ratingAnchor": {
       "1": "Well below bar",
@@ -10292,6 +10312,7 @@
       "interviewPrep": "Interview prep · {candidate}",
       "agentFit": "Agent fit · {job}",
       "interviewKit": "Interview kit · {job}",
+      "interviewLetter": "Feedback letter draft · {job}",
       "campaign": "Campaign pack · {job}",
       "profileDraft": "AI profile draft",
       "companionDigest": "Workspace digest",

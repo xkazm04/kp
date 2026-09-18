@@ -737,6 +737,24 @@ const ROUTES: RouteSpec[] = [
     windowMs: 60_000,
     windowSrc: "60_000",
   },
+  {
+    // ADDED with the route (spark interview-feedback-letter, WP-alpha). The candidate's
+    // "ask for feedback on my interview" door, on the PUBLIC status token — the NPS door's
+    // posture: an anonymous, token-authed WRITE, and this one also queues a model-backed
+    // draft. The limiter runs BEFORE the token lookup, so a flood never reaches the store
+    // or the task queue. Keyed per client AND token, like every status sibling. 10/min: a
+    // candidate asks once, and a repeat is answered from the row without queuing anything.
+    rel: "./status/[token]/letter/route.ts",
+    key: "`status-letter:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "LETTER_REQUEST_RATE_LIMIT",
+    optsDef: "const LETTER_REQUEST_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The first store read — the record, the insert and the queued draft all follow it.
+    expensive: "getEntryIdByStatusToken(token)",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it

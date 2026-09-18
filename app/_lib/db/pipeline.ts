@@ -2284,6 +2284,17 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
   if (tables.has("candidate_nps")) {
     db.prepare(`UPDATE candidate_nps SET comment = NULL WHERE entry_id = ?`).run(entryId);
   }
+  // The interview feedback letter (db/interview-letters.ts): the machine's draft and the
+  // recruiter's approved text are both written ABOUT this person, so both are blanked.
+  // The row itself stays — state, outcome, language, dates and the reviewer's actor token
+  // are the record that a letter was asked for and what became of it, and they name
+  // nobody. `erased_at` closes the row to every later write, so a draft still being
+  // generated when the erasure lands cannot write the text back.
+  if (tables.has("interview_letters")) {
+    db.prepare(
+      `UPDATE interview_letters SET draft_text = NULL, final_text = NULL, erased_at = COALESCE(erased_at, ?) WHERE entry_id = ?`
+    ).run(new Date().toISOString(), entryId);
+  }
   // --- The DEV-CASE family, reached through the entry's work-sample link. ---
   //
   // These rows are keyed by SUBMISSION, never by entry id, which is exactly why the

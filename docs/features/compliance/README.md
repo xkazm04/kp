@@ -599,6 +599,112 @@ now pins byte-identity of the deterministic scorer's output across
 Czech-male/Czech-female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated
 name variants — this closes what was gap G3 in the original conformity pack.
 
+## Interview feedback letters — request, record, draft
+
+### Feedback letters — request, record, draft
+
+After a **person** decided on an application (not selected, or hired), the candidate can ask,
+from their own `/status/<token>` page, for a short letter about their AI interview. A draft is
+prepared in their language from the recorded scorecard; a recruiter edits it, owns every
+sentence and approves or declines it (the review queue, delivery and the status-page UI are
+WP-beta). Only an approved letter ever reaches the candidate. Contract:
+`app/_lib/interview-letter-types.ts`.
+
+#### Who may ask (read from the record)
+
+`app/_lib/interview-letter-policy.ts` `letterEligibility` — pure, pinned by
+`interview-letter-policy.test.ts`:
+
+| Entry | Eligible | Why |
+| --- | --- | --- |
+| `rejected`, deciding event names a human (`human:…`, or an actor-less legacy `rejected` row) | yes, `not_selected` | a person decided about this candidate |
+| `rejected`, deciding event is `auto_rejected` / `auto:…` (screen wave, guided sim) | no | an automated screen-out — even when a named person approved the batch; the batch approval is about a cohort |
+| `rejected`, no reject event at all | no | fail closed: who decided is unknowable |
+| live entry at the board's terminal stage (`candidateStatusFor` = `hired`) | yes, `hired` | |
+| `role_closed`, `rematched` | no | nobody decided about this candidate |
+| `declined` | no | the candidate's own decision (reads "withdrawn") |
+| any other live entry | no | no decision yet |
+| consent withheld (`consentWithholdsPii`) | no | and the page is told nothing at all |
+| no interview scorecard on record | no | the letter is about the interview; there is nothing to report |
+
+**The deciding event** is the newest `rejected` / `auto_rejected` pipeline event on the entry
+(`interviewLetterDecidingEvent`). `actOnPipelineEntry('reject')` is the only writer of
+`status='rejected'` and writes exactly one of those kinds in the same transaction; a
+reinstatement flips the status back to `active`, so on a still-rejected entry the newest
+reject event is the one that put it there. Attribution (`letterEventAttribution`) is the
+candidate decision history's own three-state rule (`status-decisions.ts`
+`sealedActorAttribution`), restated for the two reject kinds and pinned equal to it by test.
+
+#### The request door
+
+`POST /api/status/[token]/letter` — body `{ lang?: "en"|"cs"|"de"|"fr" }` (the language the
+page was showing; otherwise the entry's comms locale via `resolveCommsLocale`).
+
+| Answer | When |
+| --- | --- |
+| `200 { ok: true, letter: CandidateLetterView }` | recorded; the `interview_letter` draft task is queued |
+| `409 STATUS_LETTER_ALREADY_REQUESTED` + `{ letter }` | a letter already exists: its state is returned, never a second letter or a second queued draft |
+| `409 STATUS_LETTER_NOT_ELIGIBLE` | one code for every reason above — the door is not a way to learn which applies |
+| `404 STATUS_LINK_INVALID` · `413 PAYLOAD_TOO_LARGE` (1 KB) · `429 TOO_MANY_REQUESTS` (10/min per client+token) · `500 STATUS_LETTER_REQUEST_FAILED` | |
+
+Gate order: throttle → token → entry (tenant from `getEntryWorkspace`) → body cap →
+eligibility / idempotency → insert → queue. Public under the `/api/status/` prefix; pinned in
+`app/api/rate-limit-contract.test.ts` and `status-letter.test.ts`. If the task queue refuses,
+the request is still recorded (the candidate is told so) and the letter waits in the
+recruiter's queue without a draft.
+
+`GET /api/status/[token]` gains `letter: CandidateLetterView` — `{ canRequest, state,
+requestedAt, text }` and nothing else: no draft, no reviewer, no ids, no delivery detail;
+`text` only once `sent`; consent withheld blanks it.
+
+#### The record
+
+`interview_letters` (DDL in `app/_lib/db/core.ts`, store `app/_lib/db/interview-letters.ts`):
+one row per application, unique on `(workspace_id, entry_id)` — the request is an
+`INSERT … ON CONFLICT DO NOTHING`, so two clicks produce one letter. States
+`requested → drafted → sent | declined`; every write is a compare-and-swap on the state it
+leaves (a late draft never overwrites a person's decision). `decidedBy` must be a `human:…`
+actor; texts are capped at `LETTER_MAX_CHARS` at the store. Workspace-scoped with no by-id
+carve-out (`interview-letters-tenancy.test.ts`). **Erasure** (`scrubEntryLinkedPii`) blanks
+`draft_text` and `final_text` and stamps `erased_at`; the row stays as the record that a letter
+was asked for, and is closed to further writes. Listed on `/data` as its own category
+(`feedbackLetter`) whenever a row exists.
+
+#### The draft
+
+`app/_lib/interview-letter-run.ts` (task kind `interview_letter`, budget `cheap`, deduped on
+the letter id) spawns the candidate-free `automation_cli interview-letter` with
+`--letter-json {outcome, jobTitle, company, kitTopics}` and the entry's stored scorecard.
+`pipeline/jobfit/automation.py`:
+
+- `letter_evidence` — built on `interview_evidence`, then narrowed to **names only**: at most
+  two strengths and two areas to develop, each matched to the rubric's own vocabulary
+  (anything off-rubric is dropped). "Experience & fit" and "Motivation" are never handed back
+  as something to work on. Kit competency titles ride along as the topics the conversation
+  was built around. No rating, verdict, quote, summary or confidence reaches the prompt.
+- `draft_interview_letter` (`INTERVIEW_LETTER_PROMPT_VERSION = "interview-letter-v1"`,
+  uncached) — thanks, what went well, what to work on, a respectful close; the outcome
+  shapes only the frame and the close. `letter_problem` discards a model letter **whole** if
+  it is empty, over the cap, uses protected-characteristic language, carries any digit
+  outside the role's own title, names the scoring machinery (score, rating, rubric,
+  scorecard, points…), or reproduces a run of the candidate's recorded words.
+
+**Keyless** (or a discarded model letter): the CLI returns an empty body plus the names, and
+the runner builds the template from `interviewLetter.template.*` and
+`rubric.competency.<key>.label` in the letter's language (`interview-letter-template.ts`); a
+name the rubric catalog does not know is dropped, never printed. The stored draft says
+`source: "model"` or `"template"`. The task result carries the engine, the language and
+whether a draft was stored — never the text or the candidate's name (the tasks table
+outlives an erasure). If the drafting CLI itself fails, the task fails and the letter stays
+`requested` for a recruiter to redraft or write by hand.
+
+#### Known gaps
+
+- No UI yet: the recruiter queue, approve/decline/redraft doors, delivery and the status-page
+  controls are WP-beta.
+- One letter per application: an application that is reopened and decided again keeps its
+  first letter.
+
 ## Surface
 
 | Concern | Files |

@@ -24,6 +24,7 @@ import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
 import { runInterviewKit } from "./interview-kit-run";
+import { runInterviewLetter } from "./interview-letter-run";
 import { runRepoScan } from "./repo-scan-run";
 import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
@@ -322,6 +323,16 @@ const HANDLERS: Record<string, Spec> = {
     run: (ctx) => runInterviewKit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("interviewKit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // The interview FEEDBACK LETTER a candidate asked for (interview-letter-run.ts): one
+  // drafting CLI call with the keyless catalog template behind it, stored as the draft on
+  // the interview_letters row for a recruiter to edit and approve. Queued by the
+  // candidate's own request door, so its label names the ROLE and never the candidate —
+  // the tasks table outlives an erasure (ERASURE_EXEMPT["tasks"]).
+  interview_letter: {
+    run: (ctx) => runInterviewLetter(String(ctx.params.letterId), ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("interviewLetter", { job: detail(p.jobTitle, p.letterId) ?? "" }),
   },
   // App master (P2): read a codebase into a RepoDossier. Backgrounded because the
   // in-repo agent path is minutes, not seconds — and because the repo_scans row is

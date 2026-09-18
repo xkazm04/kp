@@ -57,6 +57,12 @@ UNCACHED_PROMPT_VERSIONS = {
     # version of a durable, append-only interview_kits row, and "draft the kit again"
     # must mean a fresh pass. The version is stamped on the result for provenance only.
     "INTERVIEW_KIT_PROMPT_VERSION": "job-level kit; uncached, stored as a versioned row",
+    # The candidate-requested interview FEEDBACK LETTER (spark interview-feedback-letter).
+    # Runs through automation_cli's `interview-letter` command from its own background task
+    # (app/_lib/interview-letter-run.ts), never through runAutomationTask, and is never
+    # cached: one request is one letter for one person, stored as the draft on its
+    # interview_letters row, and a recruiter's "redraft" must mean a fresh pass.
+    "INTERVIEW_LETTER_PROMPT_VERSION": "one letter per request; uncached, stored as the letter row's draft",
 }
 
 

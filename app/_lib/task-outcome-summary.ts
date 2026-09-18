@@ -202,6 +202,9 @@ const TABLE: Record<string, Mapper> = {
   // so the one fact worth a line here is which engine wrote it — a deterministic kit is a
   // template the recruiter must rewrite, and a keyless install deserves to be told.
   interview_kit: (r) => sourceLine(r.source),
+  // The letter itself is never on the result (the tasks table outlives an erasure), so the
+  // facts are which engine wrote the draft and the language it was written in.
+  interview_letter: (r) => [...sourceLine(r.source), ...fact("language", str(r.lang))],
   repo_scan: (r) => sourceLine(r.source),
   campaign: (r) => sourceLine(obj(r.pack)?.source),
   profile_draft: (r) => sourceLine(r.source),

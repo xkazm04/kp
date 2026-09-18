@@ -205,6 +205,18 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // the erasure scrub is entry-keyed and could not reach them — which is pinned
   // separately by interview-kits-shape.test.ts.
   "interview_kits",
+  // The interview FEEDBACK LETTER (db/interview-letters.ts): one row per application —
+  // the candidate's request, the machine's draft, the recruiter's final text, who decided
+  // and what delivery reported. Scoped with NO by-id carve-out: every read and write,
+  // point reads included, binds workspace_id, because a letter id travels through the
+  // recruiter's review queue and the task runner (whose params POST /api/tasks accepts from
+  // a client), so an unscoped by-id read would hand one team another team's letter about a
+  // named person. The PUBLIC request door never takes a letter id at all — it resolves the
+  // status token to the entry and derives the tenant from it (getEntryWorkspace), the rule
+  // every /api/status/[token] sibling follows. The unique key is (workspace_id, entry_id).
+  // Holds candidate personal data, so the erasure scrub blanks it
+  // (interview-letters-tenancy.test.ts, exemption list empty).
+  "interview_letters",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).

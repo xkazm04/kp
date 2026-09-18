@@ -68,6 +68,9 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   profile_draft: "cheap",
   // One assistant call that files a message into a thread.
   companion_digest: "cheap",
+  // One short letter for one candidate, over a handful of competency names; at most one
+  // per application from the candidate's door, plus a recruiter's occasional redraft.
+  interview_letter: "cheap",
 
   // ── metered ──
   // A CV (or several variants) through the Python pipeline + a paid multimodal call.
