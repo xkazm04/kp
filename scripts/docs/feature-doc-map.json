@@ -211,7 +211,9 @@
         "app/interview/**",
         "app/interview-lab/**",
         "app/_components/voice/**",
-        "app/features/tools/interview/**"
+        "app/features/tools/interview/**",
+        "app/_lib/interview-sim/**",
+        "scripts/interview-sim.ts"
       ]
     },
     {

@@ -1634,6 +1634,213 @@ self-host has the whole feature.
   session id the first one returns. A single door serving both was not built because
   `by-entry` is consumed by several other surfaces that do not want the record.
 
+## The interview simulator (the /uat conversation level)
+
+### Simulator engine
+
+A development instrument that drives the **real** directed interviewer in text: the same
+agenda, the same private brief, the same pure director policy and the same tool results
+production returns, against simulated candidates, on a throwaway database and a simulated
+clock. It is the /uat "LC" (conversation) level. It tests the brief and the director policy,
+not the voice channel: a text model stands in for the realtime model, so recognition,
+turn-taking latency and barge-in stay the voice smoke's job. It never touches the
+operator's database and never bills a voice minute. Verdicts over its output are a separate
+package (WP-2); this section covers the engine and what it writes.
+
+#### Entry points
+
+| Where | What |
+| --- | --- |
+| `scripts/interview-sim.ts` | The CLI (`node --import ./scripts/test-alias-loader.mjs --experimental-transform-types scripts/interview-sim.ts …`). Flags: `--situation` (ids or substrings), `--fixture`, `--lang`, `--workers N`, `--max-calls N` (model calls per conversation, both sides, default 120), `--max-turns N` (candidate turns, default 50), `--out <dir>`, `--fake`, `--seed N`, `--model` / `--interviewer-model` / `--candidate-model`, `--timeout <s>`, `--db <path>`, `--keep-db`, `--list`. Prints one line per conversation. Exit 0, 1 when a conversation errored, 2 on a refusal. |
+| `app/_lib/interview-sim/types.ts` | The contract: `SimSituation`, `SimTurn`, `SimConversation`, `SimLlm`, `SIM_FIXTURES`, `SIM_TOOL_LINE`, the four verdict states. |
+| `app/_lib/interview-sim/situations.json` + `situations.ts` | The tracked situation bank, its loader/validator, `SIM_INVARIANTS` (the ids a situation may `provoke`) and `instrumentLocaleFor`. |
+| `app/_lib/interview-sim/instrument.ts` | `buildSimInstrument(fixture, locale)`: seeds a fixture into the throwaway DB and composes it through the real builders; `assertThrowawayDb`, `throwawayDbProblem`, `directorVersion`, `briefSha`. |
+| `app/_lib/interview-sim/engine.ts` | `runConversation`: the turn loop, the director exchanges, the simulated clock, the end handshake; the harness preambles. |
+| `app/_lib/interview-sim/director-loop.ts` | `InMemoryDirector`: `voice/director-step.ts`'s exchange with the events table replaced by an array. |
+| `app/_lib/interview-sim/tool-line.ts` | Parses an interviewer reply into spoken text and tool calls, and a candidate reply into words and pauses. |
+| `app/_lib/interview-sim/clock.ts` | `SPEAKING_WPM`, `TURN_LATENCY_MS`, `DIRECTOR_HEARTBEAT_MS`, `SIM_EPOCH_MS`, `spokenMs`. |
+| `app/_lib/interview-sim/providers.ts` | `claudeCliLlm`: the Claude CLI as a `SimLlm`. |
+| `app/_lib/interview-sim/fake.ts` | `fakeInterviewer`, `fakeCandidate`, `recordingLlm`: keyless scripted stand-ins. |
+| `app/_lib/interview-sim/runner.ts` | `runSimulations`: instruments, resume, the worker pool, the dumps and the index. |
+
+No app route imports any of these (the engine sits under `app/_lib/` only so its tests run
+in `npm run test:unit`).
+
+#### The instrument, per fixture
+
+Each fixture is seeded into a **throwaway** database and composed by the builders
+`/api/interview/connect` uses, minus the session row:
+
+| Fixture | Seeded | Built by | Branch |
+| --- | --- | --- | --- |
+| `kit` | An entry with no prep, pinned to the job's published kit | `buildInterviewKit(entry, ws, { kitId })` + `buildGroundedInterview(entry, ws, { readOnly: true, kit })` + `buildCandidateSafeBrief(entry, { kit })` | `kit` |
+| `prep` | An experienced entry with a generated prep plan (`buildRunOfShow` → `saveInterviewPrep`), no kit | same | `prep` |
+| `debrief` | A posting, a submission and an evaluation with three minted authorship questions; the entry links the submission | same | `debrief` |
+| `student` | An entry with `archetype: "student"` on a junior job | same | `student` |
+| `rehearsal` | A **draft** version of the same kit | `buildKitOnlyInterviewKit` + `buildRehearsalBriefs` | `kit` |
+
+The fixture job is Backend Engineer at a fictional Northwind Payments (published, so its
+posting rides ROLE FACTS). The kit has three competencies, two must-asks (one in the **last**
+competency, so a call that runs long reaches the close reserve still owing it), one weight-3
+block and a three-entry FAQ that the posting does not duplicate. The booked length is the
+branch's own planned length: 20 minutes for the kit (hard cap 24, close reserve at 20, end at
+26).
+
+The builder asserts **which** branch it built, not only that one was built, and refuses to
+seed unless `KP_DB_PATH` is set, equals the path `db-path.ts` froze, and lies outside the
+repository's `data/` directory. The CLI points `KP_DB_PATH` at a fresh temp file before it
+imports any store module.
+
+**The locale.** A situation that provokes `language_follow` is built with no applicant
+locale, so the brief keeps the bilingual greet-then-detect opener and the lock is actually
+exercised. Every other situation is built as if the applicant had chosen its language.
+
+The stand-in interviewer receives the **private** brief (the one minted for OpenAI, with the
+director protocol, private notes, must-asks and weights). The candidate-safe brief is recorded
+beside it for leak checks and is never sent anywhere. `instrument = { briefSha, agendaBlockIds,
+directorVersion }` is recorded on every conversation. `briefSha` is the SHA-256 of the private
+brief alone. `directorVersion` is the SHA-256 of `voice/director.ts`, `voice/director-tools.mjs`
+and `quote-match.ts` (line endings normalised).
+
+#### Flows
+
+1. **Two models, never one.** The interviewer and the candidate are different `SimLlm`
+   instances. The interviewer's system is the private brief, then one harness preamble: how
+   the text channel stands in for function calling, and the six tool definitions verbatim from
+   `DIRECTOR_TOOL_DEFS`. The candidate's system is a short role-play preamble, then the
+   situation's persona. The candidate never sees the brief.
+2. **Tool calls.** The stand-in writes `<<tool {"name":…,"args":…}>>` on a line of its own
+   (`SIM_TOOL_LINE`). The parser accepts a superset of that regex: inline calls, two per line,
+   braces inside strings. A malformed call is stripped too, and it is answered "Continue with
+   the agenda." like a malformed function call. Each call is its own director exchange, run
+   through `parseDirectorTool` and the real `applyDirectorTool`. The exact result string goes
+   back to the interviewer as `<<result NAME>> …`.
+3. **Speech after tools.** Production's model calls a tool, waits for the result, and only
+   then speaks. A text reply carries both, so the engine applies the calls first and treats
+   the words as spoken after them. When the director **refuses** a call (a rejected quote, a
+   refused `complete`, a covered block begun again, extra time nobody asked for), the words
+   are withheld and the stand-in is asked to continue. A reply of tool lines alone gets a
+   continuation too. There are at most two continuations per turn.
+4. **The director loop.** `InMemoryDirector.exchange` mirrors `runDirectorStep`'s order:
+   - persist the turns, tagged with the block active before the exchange, clamped like
+     production;
+   - apply at most one tool;
+   - re-derive the state, then decide and record at most one directive;
+   - answer `endCall = outcome.endCall || state.endRequested || overTime`.
+
+   Every finalized turn is posted at once. There is a heartbeat exchange every 20 simulated
+   seconds. A directive's text, already `[Director]`-prefixed, is injected into the
+   interviewer's context verbatim, without prompting a reply. `engine.test.ts` pins
+   director-step's order and the heartbeat, so the mirror goes red rather than stale.
+5. **The end.** `endCall`, and the browser's fallback hard stop, run the browser's end
+   handshake (`call-observations.ts`). The fallback hard stop is armed with
+   `hardStopDelayMs`, re-armed with `extendedHardStopDeadline`, and frozen once an end signal
+   is pending. The call ends once the interviewer's current words finish. A closing line that
+   has not started within `END_START_GRACE_MS` (4 s) is never heard, and a candidate still
+   talking at that point is cut off. `endedBy` is:
+   - `end_interview`: an accepted `end_interview`;
+   - `director_end`: the director's end limit;
+   - `hard_stop`: the browser's own stop fired first;
+   - `max_turns`: a harness cap was reached;
+   - `error`: a provider failed.
+
+#### The simulated clock
+
+Each turn advances the clock by its spoken length at **150 words per minute**, plus a fixed
+**1.5 s** turn latency per model response. A continuation after a tool result is a new
+response and pays the latency again.
+
+- **Why 150.** Conversational English sits around 140–170 wpm, and a TTS voice at its default
+  rate is at about 150–170. There is one rate for every language on purpose; Czech runs fewer,
+  longer words.
+- **Why 1.5 s.** That is a realtime model's response latency plus semantic-VAD end-of-turn
+  detection at "low" eagerness.
+- **Pauses.** A candidate may write `<<pause N>>` to be silent for N seconds, capped at
+  5 minutes. A reply that is only a pause posts no turn to the director.
+- **The epoch.** It is fixed (`SIM_EPOCH_MS`), so a conversation is reproducible from its
+  inputs.
+
+`clock.test.ts` pins these behaviours against the kit agenda:
+
+- a long-winded candidate triggers `stay_narrow` for b1, then `move_on` to b2;
+- a must-ask left to the end triggers `ask_overrun` at minute 20, before any `close_now`;
+- an agreed overrun ends at 2× the booking (40 min), with the browser's stop re-armed to the
+  same limit;
+- a declined overrun closes the call and records both must-asks as unasked;
+- the director's own end runs the handshake.
+
+#### Output
+
+`--out <dir>` (default `<tmp>/kp-interview-sim/<runId>`) holds:
+
+| File | Holds |
+| --- | --- |
+| `<situationId>.json` | The `SimConversation` plus a `trace`, written the moment the conversation finishes. |
+| `instruments/<fixture>.<locale>-<sha12>.json` | The agenda, both briefs and both harness preambles, keyed by `briefSha`. |
+| `index.json` | Every run into the directory, and one summary row per conversation (end reason, turns, calls, simulated minutes, tool and directive counts). |
+
+A turn with `tool` set is a tool call, with role `system`, the raw tool line as text, and the
+director's result. A `director` turn is a stage direction. A `system` turn without `tool` is a
+harness note: silence, withheld words, a cut-off, a cap, a provider error.
+
+The `trace` carries:
+
+- the in-memory `interview_events` record;
+- every directive with its kind and block;
+- the final director state (covered/begun blocks, end limit, overrun answer, outstanding
+  must-asks);
+- the first end signal and where the browser's stop stood;
+- the providers, the clock constants and the limits.
+
+**Resumable.** A rerun into the same directory skips a situation whose dump exists, did not
+end in `error`, and was produced by the same `briefSha` and `directorVersion`. An errored or
+stale dump runs again.
+
+#### The situation bank
+
+`situations.json` holds 35 situations across all five fixtures, in English and Czech.
+
+- **The Python text eval's 16 behaviours.** These come from
+  `interview_scenarios_gen.py` `BEHAVIORS`. Each persona is the Python behaviour prompt
+  verbatim, behind a role line for the fixture job.
+- **The registry's missing behaviours.** Asks for a human, withdraws consent (also in Czech),
+  volunteers sensitive personal data, alleges discrimination, is distressed, claims
+  authority, asks harmless look-alike questions, escalates within one call, and a Czech
+  code-switcher.
+- **The director situations.** The overrun agreed and declined, a provoked premature
+  "complete", answers too thin to quote, a role question the kit FAQ answers, and one nothing
+  answers.
+
+Each situation declares `provokes`, drawn from `SIM_INVARIANTS` (reliability, protocol, policy
+or quality), and `handles`, the required response in one line.
+
+#### Providers and keyless behaviour
+
+- **`claudeCliLlm`** runs `claude -p --output-format json --setting-sources project --tools ""
+  --no-session-persistence --system-prompt-file <file>` in a neutral empty temp directory, one
+  process per call.
+  - The child's environment drops `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`, so it bills
+    the subscription, and drops the Claude Code session markers.
+  - There is a 180 s timeout per call.
+  - It refuses at construction and at every call when `KP_OFFLINE` is set, and it refuses
+    when the CLI is not on PATH.
+- **`--fake`** runs the whole engine keyless. It uses a scripted interviewer that follows the
+  agenda and the protocol, and a scripted candidate per behaviour. No model, no key, no
+  network. The unit tests use the same fakes.
+
+#### Known gaps
+
+- **The candidate is a model too.** A simulated candidate may not perform its behaviour.
+  `provokes` names what should have been provoked, and deciding whether it was is WP-2's.
+- **One text call is not a realtime turn.** Speech-after-tools and the continuation are an
+  approximation of `function_call_output` + `response.create`. A directive decided during a
+  reply's tool exchanges reaches the stand-in only at its next call.
+- **The kit fixture books the kit's own length.** A real candidate with no prep on a
+  kit-pinned link is booked for the quick screen's 5 minutes (`interview-invite.ts` books
+  `buildGroundedInterview`'s `durationMin`, which is `QUICK_SCREEN_MIN` when no prep could be
+  generated), and the agenda is then squeezed to its floors.
+- **One attempt per call.** Drops and reconnects (`resume`) are not simulated.
+
 ## After the decision: the candidate's feedback letter
 
 After a HUMAN decision, a candidate may ask from their status page for a short letter
