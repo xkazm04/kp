@@ -26,13 +26,21 @@ import {
   type VoiceProviderId,
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
-import { buildCandidateSafeBrief, buildGroundedInterview, interviewAsrKeywords } from "@/app/_lib/interview-run";
+import {
+  buildCandidateSafeBrief,
+  buildGroundedInterview,
+  buildRehearsalBriefs,
+  interviewAsrKeywords,
+  jobAsrKeywords,
+} from "@/app/_lib/interview-run";
 import {
   buildInterviewKit,
+  buildKitOnlyInterviewKit,
   reconcileKitWithStoredAgenda,
   toCandidateAgendaView,
   type InterviewKit,
 } from "@/app/_lib/interview-agenda";
+import { isCandidateInterview, isKitRehearsal } from "@/app/_lib/interview-rehearsal";
 import { buildResumeContext } from "@/app/_lib/voice/resume";
 import { resumeAddendum } from "@/app/_lib/voice/director-brief";
 import { DIRECTOR_TOOL_DEFS, type ResumeContext } from "@/app/_lib/voice/director-types";
@@ -297,6 +305,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // A REHEARSAL of a job kit (spark interview-kit-template, WP-D — interview-rehearsal.ts):
+    // a test-mode session with no entry, pinned at mint to one kit version, in the
+    // recruiter's workspace. It gets what a candidate on a link pinned to that version
+    // gets from the kit — the kit-only agenda fitted to the booked length, BOTH directed
+    // briefs, the director's tools — and nothing only a candidate carries (no CV probes,
+    // no overlay, no entry). Built from the session's own workspace and job; the
+    // recruiter's language (this request's, else the one stored at mint) stands in for
+    // the language a candidate chose at apply. A test session with NO kit — the lab —
+    // never enters here and keeps its behaviour byte for byte. Enrichment like the branch
+    // above: a failure falls back to the stored snapshot (and no tools), logged, because
+    // the recruiter would otherwise be rehearsing something that is not their kit.
+    const rehearsal = isKitRehearsal(session);
+    if (rehearsal && session.kitId) {
+      const locale = language ?? session.language;
+      try {
+        resume = buildResumeContext(session.id, session.workspaceId);
+      } catch (resumeErr) {
+        console.error(`[interview:connect] resume context unreadable for rehearsal ${session.id}:`, resumeErr);
+      }
+      try {
+        const fresh = await buildKitOnlyInterviewKit(session.kitId, session.workspaceId, {
+          bookedMin: session.durationMin,
+          locale,
+        });
+        const reconciled = reconcileKitWithStoredAgenda(fresh, started.agenda, resume !== null);
+        if (reconciled && session.jobId) {
+          const briefs = buildRehearsalBriefs(session.jobId, reconciled, { locale, resume });
+          kit = reconciled;
+          directedInstructions = briefs.instructions;
+          groundedCandidateBrief = briefs.candidateBrief;
+          setInterviewAgenda(session.id, kit.agenda);
+        } else {
+          console.error(
+            `[interview:connect] rehearsal ${session.id} has no directable kit (kit ${session.kitId}, job ${session.jobId}); ` +
+              `running the stored snapshot instead.`
+          );
+        }
+      } catch (rehearsalErr) {
+        kit = null;
+        directedInstructions = null;
+        groundedCandidateBrief = null;
+        console.error(`[interview:connect] kit rehearsal build failed for session ${session.id}:`, rehearsalErr);
+      }
+    }
+
     // THE INTERVIEWER BRIEF IS SERVER-SIDE ONLY (backlog #29 / TP-L2-VOICE-01).
     // `instructions` is the recruiter's PRIVATE brief — gap/provenance
     // annotations, "internal red flag — never say this aloud" notes — so it must
@@ -334,7 +387,11 @@ export async function POST(request: NextRequest) {
     // addendum is candidate-safe (block ids/titles and the words said aloud only).
     const resumeNote = (text: string) => (resume ? `${text} ${resumeAddendum(resume, kit?.agenda ?? null)}` : text);
     const resolveAgentPrompt = (served: VoiceProviderId): string | null => {
-      if (served !== "elevenlabs" || session.mode !== "candidate") return null;
+      if (served !== "elevenlabs") return null;
+      // A rehearsal sends its candidate-safe brief exactly as a candidate's ElevenLabs
+      // session would. Every other test session (the lab) keeps the dashboard agent's
+      // own prompt — null, as it always has.
+      if (session.mode !== "candidate") return rehearsal ? groundedCandidateBrief : null;
       return (
         groundedCandidateBrief ??
         resumeNote(defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin }))
@@ -392,8 +449,10 @@ export async function POST(request: NextRequest) {
       // the same trail every other unattended action writes, so "why did this screen
       // run on ElevenLabs?" is answerable months later from the activity log rather
       // than from server logs that have long rotated. Best-effort: the audit marker
-      // must never fail a call the candidate is waiting on.
-      if (session.entryId) {
+      // must never fail a call the candidate is waiting on. A CANDIDATE interview only
+      // (interview-rehearsal.ts): a test session — a rehearsal, a lab call — writes
+      // nothing onto anyone's timeline, even one that somehow carries an entry.
+      if (isCandidateInterview(session)) {
         try {
           recordAutomationEvent(
             session.entryId,
@@ -426,7 +485,10 @@ export async function POST(request: NextRequest) {
     // only place the ElevenLabs SDK accepts them — hence PUBLIC JOB FACTS ONLY,
     // enforced at the source in interviewAsrKeywords. OpenAI sessions get null:
     // their transcription is configured server-side and takes no keyword bias.
-    const asrKeywords = served === "elevenlabs" ? interviewAsrKeywords(session.entryId) : null;
+    // A rehearsal has no entry to find the job through, so it reads the job it was
+    // minted for — the same public terms a candidate on that job gets.
+    const asrKeywords =
+      served === "elevenlabs" ? (rehearsal ? jobAsrKeywords(session.jobId) : interviewAsrKeywords(session.entryId)) : null;
 
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is

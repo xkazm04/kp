@@ -15,6 +15,7 @@ import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
+import { isCandidateInterview } from "@/app/_lib/interview-rehearsal";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
@@ -72,9 +73,10 @@ function publicSessionView(session: InterviewSession | null): PublicSessionView 
 const COMPLETE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
 // POST → end of call: persist the transcript (transcript-only, no audio). When
-// the session is linked to a pipeline entry, also synthesize the scorecard
-// (Task 5) from the transcript and set the scorecard_review approval, so it
-// lands in the Decisions queue for the human Interview→Offer gate.
+// the session is a CANDIDATE interview (candidate mode AND a pipeline entry — never a
+// test-mode rehearsal or lab call), also synthesize the scorecard (Task 5) from the
+// transcript and set the scorecard_review approval, so it lands in the Decisions
+// queue for the human Interview→Offer gate.
 /** Hard cap on this public door's request body: a whole interview transcript. The turn count and per-turn text are clamped below; this is the bound BEFORE the heap holds it.
  *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
 const MAX_COMPLETE_BODY_BYTES = 1024 * 1024;
@@ -274,6 +276,15 @@ export async function POST(request: NextRequest) {
     // consent-gated start, clamped to [1, 2× the booked length] so a clock
     // anomaly can't drain the meter; no start timestamp falls back to the
     // booked duration.
+    //
+    // MODE-BLIND ON PURPOSE (spark interview-kit-template, WP-D). A `mode: "test"`
+    // session — a recruiter's kit rehearsal, a lab call — spent real provider minutes
+    // exactly like a candidate screen, so it is debited and priced exactly like one:
+    // the rehearse door reserved this worst case at mint (meterGate, the same shape as
+    // /simulate) and this is the matching debit. What a test session must NOT get is
+    // the CANDIDATE half below (scorecard, approval, decision) — and neither of these two
+    // writes names a candidate: the meter row is a per-org quantity, and the ledger row's
+    // only link back is the session id (interview-rehearsal.ts states the decision).
     if (status === "completed") {
       const bookedMin = session.durationMin ?? 8;
       // Bill THIS attempt, not the whole life of the link. markInterviewStarted
@@ -366,13 +377,27 @@ export async function POST(request: NextRequest) {
     // truncated transcript is NEVER scored and never sets the scorecard_review
     // approval that feeds the Interview→Offer gate. Running this only on the
     // call whose write applied also means a duplicate POST can't double-score.
+    //
+    // THE CANDIDATE GUARD (spark interview-kit-template, WP-D). Every side effect in
+    // this block writes against a CANDIDATE, so the block runs for a CANDIDATE
+    // INTERVIEW only — candidate mode AND an entry (interview-rehearsal.ts
+    // isCandidateInterview). A `mode: "test"` session never enters it, even one that
+    // somehow carries an entryId: a kit rehearsal or a lab call is the RECRUITER's own
+    // voice, and scoring it would put an AI verdict about a named person on the board,
+    // set the approval that opens their Interview→Offer gate, and seal it in their
+    // decision record. It used to gate on `session.entryId` alone, with no mode check.
+    // A test session keeps its transcript (persisted above) and is billed like any call
+    // (the debit above is mode-blind on purpose — see the billing block); it gets none
+    // of what follows.
     let scorecard: Record<string, unknown> | null = null;
     let updated = persisted;
-    if (session.entryId && status === "completed" && transcript.length > 0) {
+    if (isCandidateInterview(session) && status === "completed" && transcript.length > 0) {
       // Token-driven flow (no session workspace): derive the entry's team so the scorecard
       // + its Interview→Offer approval scope to the right tenant.
       const ws = getEntryWorkspace(session.entryId);
       try {
+        // Candidate-only (the guard above): the scorecard_review APPROVAL on the entry is
+        // set inside this run (runAutomationTask), so it is reachable from nowhere else.
         scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
       } catch (scoringErr) {
         // Best-effort by design: the transcript is already persisted, and a failed
@@ -389,9 +414,11 @@ export async function POST(request: NextRequest) {
         );
       }
       if (scorecard) {
+        // Candidate-only (the guard above): a test session's row never carries a scorecard.
         updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
         // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
         // its model/prompt version as the actor. Best-effort — never blocks complete.
+        // Candidate-only (the guard above): no decision is ever sealed from a test session.
         const rec = typeof scorecard.recommendation === "string" ? scorecard.recommendation : "(none)";
         sealDecisionSafe({
           kind: "ai_scorecard",

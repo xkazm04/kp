@@ -75,6 +75,9 @@ test("the quota code the routes name is the registered one", () => {
     "devcase/lifecycle/route.ts",
     "interview/create/route.ts",
     "interview/simulate/route.ts",
+    // spark interview-kit-template WP-D: the kit REHEARSAL door reserves interview
+    // minutes exactly like /simulate (a rehearsal spends real provider minutes).
+    "jobs/[id]/interview-kit/rehearse/route.ts",
     "jobs/[id]/publish/route.ts",
   ]);
 });

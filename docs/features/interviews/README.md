@@ -889,6 +889,99 @@ them. Catalog keys: `scheduleTab.transcript.evidence.mustAsk*` (4 locales).
 - **The candidate-safe brief doesn't mark which questions are required.** The `ask_overrun`
   and `move_on` directives carry the requirement at the moment it matters.
 
+## Rehearsing a kit
+
+### Rehearsing a kit
+
+A recruiter can hear the real interviewer run a job's kit — its agenda, both briefs, the
+director and its tools — before any candidate meets it. A rehearsal runs the job
+**template** with no candidate attached. You can rehearse any version of the job's kit,
+including an unpublished draft, which is the main reason the feature exists.
+
+**Entry point.** The kit editor's "Try this kit" button calls
+`POST /api/jobs/[id]/interview-kit/rehearse` with `{ kitId }` and opens the returned
+`{ url }`, a same-origin `/interview/<token>` path with no `?lang=`. The ordinary public
+portal then runs the call.
+
+**What the door mints** (`app/api/jobs/[id]/interview-kit/rehearse/route.ts`): an
+`interview_sessions` row with `mode: "test"`, **no `entry_id`**, `kit_id` pinned to the
+named version, `job_id` set to the job, `workspace_id` set to the caller's team,
+`duration_min` set to the kit's own planned length (`max(20, 1 + Σ competency budgets + 2 + 2)`),
+`language` set to the recruiter's UI locale, and `run_of_show` set to the kit-only agenda's
+candidate-safe titles. The stored `instructions` are only a fallback. They hold the plain
+quick-screen prompt with no director protocol, because a brief that describes tools the
+session was not given makes the model call tools at random. Rehearsing never publishes
+the draft.
+
+Checks run in this order, and each one refuses before anything is written:
+
+| Check | Refusal |
+| --- | --- |
+| session (`requireOperator`; also refuses a demo cookie) | 401 |
+| `pipeline:write` | `FORBIDDEN_CAPABILITY` 403 `{capability}` |
+| job ownership (`canWriteJobLifecycle`) | `JOB_NOT_FOUND` 404 |
+| body ≤ 4 KB | `PAYLOAD_TOO_LARGE` 413 `{maxBytes}` |
+| a kit version of **this** job in **this** team (`kitById(kitId, ws)` + `jobId` re-assert) | `INTERVIEW_KIT_NOT_FOUND` 404 (unknown, another team's, another role's: one answer) |
+| a configured voice provider | `INTERVIEW_PROVIDER_UNCONFIGURED` 503 `{provider, need}` |
+| the version directs something | `INTERVIEW_KIT_INVALID` 400 `{reason: "no_competencies"}` (the normalizer makes this unreachable) |
+| minutes reservation (skipped for a self-hosted provider) | `BILLING_QUOTA_EXCEEDED` 402 `{meter, plan}` |
+| throttle `interview-kit-rehearse:<ip>`, 20 / 10 min | `TOO_MANY_REQUESTS` 429 |
+
+Any other failure answers `INTERVIEW_CREATE_FAILED` 500 through `safeJsonError`.
+
+**At connect** (`app/api/interview/connect/route.ts`), a session is a rehearsal when
+`isKitRehearsal` is true (`app/_lib/interview-rehearsal.ts`), meaning test mode with a
+`kit_id`. A rehearsal gets:
+
+- the **kit-only agenda** from `buildKitOnlyInterviewKit` (`app/_lib/interview-agenda.ts`),
+  fitted to the booked length and persisted to `agenda_json`;
+- **both briefs** from `buildRehearsalBriefs` (`app/_lib/interview-run.ts`). These are
+  composed by the same `composeBrief` / `composeCandidateBrief` the candidate path uses,
+  with the director protocol, must-ask markers, weights, the role's intake intent and the
+  kit FAQ;
+- the **director tools**, the job's own ASR keywords (`jobAsrKeywords`), and the
+  resume state on a reconnect.
+
+It gets no CV probes, no per-candidate overlay, no entry, and no "You are speaking with …"
+line. A test pins this as an equality. A no-prep candidate on a link pinned to the same
+version, booked for the same length, receives the same agenda and a byte-identical private
+brief. The ElevenLabs brief differs only by the line that names the candidate. The
+recruiter's language (from the connect request, otherwise the one stored at mint) stands
+in for the language a candidate chose at apply. If the pinned version cannot be read, for
+example because it belongs to another team, the call falls back to the stored snapshot
+with no agenda and no tools, and logs the fallback. A test session **without** a kit (the
+lab) keeps its old behaviour exactly: no agenda, no tools, and no client-sent prompt.
+
+**On the portal** (`app/interview/[token]/page.tsx` → `interviewPortalOffers` in
+`portal-state.ts`), a rehearsal is offered **no audio recording**. `/connect` already
+stamped recording consent only for candidate mode, and the page now uses the same rule.
+The portal also shows **no status link**, and minting one would be a write against a
+candidate's entry. Consent is not required for a test session, but the consent UI still
+renders, so the recruiter sees what a candidate sees.
+
+**At completion** (`app/api/interview/complete/route.ts`), the transcript is kept. The
+scorecard, the `scorecard_review` approval and the sealed `ai_scorecard` decision are only
+created for a **candidate interview**, meaning candidate mode **and** an entry
+(`isCandidateInterview`). A test session never gets them, even one that somehow carries
+an `entry_id`. The provider-failover marker in `/connect` follows the same rule.
+
+**Billing.** A rehearsal is metered like `/simulate`. It uses real provider minutes, so
+the door reserves the worst case at mint (`maxBillableInterviewMin` = 2× the booked
+length, on the caller's org). `/complete` debits the actual minutes and writes the
+`llm_usage` cost row (`use_case: interview_realtime`) on a completed call. The row links
+back only through `request_id` = the session id, and that session has no entry, so the
+spend appears in the usage panel without being attributed to any candidate. A
+self-hosted provider is neither gated nor debited.
+
+**Keyless.** With no voice provider configured, the door refuses with
+`INTERVIEW_PROVIDER_UNCONFIGURED` and mints nothing.
+
+**Known gaps.** The portal shows the candidate's own copy ("A human recruiter reviews the
+transcript") because a rehearsal is meant to show the candidate experience. There is no
+"rehearsal" banner yet. Rehearsal transcripts are ordinary test-mode rows, hidden from
+recruiter lists (which filter on `mode = 'candidate'`). No retention sweep targets them
+specifically.
+
 ## Candidate call — the browser half of the director loop
 
 The candidate meets the directed interview at `/interview/[token]`. The realtime

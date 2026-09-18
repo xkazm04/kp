@@ -705,6 +705,7 @@ never a 403.
 | `POST /api/jobs/[id]/interview-kit` | Queues the `interview_kit` task that drafts a new version from the posting and the promoted RoleBrief (a model call; 20 per 10 min, pinned in the rate-limit contract). Keyless installs get a deterministic draft from `requirements[]`. |
 | `PUT /api/jobs/[id]/interview-kit` | Saves an edited kit as a NEW version (`source: "edited"`). |
 | `POST /api/jobs/[id]/interview-kit/publish` | Publishes a version; new interview links for this job are minted from the highest published one. |
+| `POST /api/jobs/[id]/interview-kit/rehearse` | Mints a test call on any version of this job's kit, draft or published, with no candidate attached, and answers the `/interview/<token>` URL. It gets the real agenda, brief and director, is metered like `/simulate`, and can never score, approve or write to a pipeline entry. |
 
 Versions are append-only (`interview_kits`), so a regeneration never overwrites an edit
 and a link pinned to version N keeps asking what version N asked. A kit holds **no

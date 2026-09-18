@@ -9,7 +9,7 @@ import { CHIP } from "@/app/_components/ui/recipes";
 import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { isInterviewRecordingOffered } from "@/app/_lib/interview-recording";
 import { InterviewPortalClient } from "@/app/_components/voice/InterviewPortalClient";
-import { interviewInactiveCopyKeys, interviewPortalView } from "./portal-state";
+import { interviewInactiveCopyKeys, interviewPortalOffers, interviewPortalView } from "./portal-state";
 
 
 // Candidate-facing portal: a tokenized link runs the first-round voice screen
@@ -37,8 +37,11 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   // entry (the interview token they hold already proves this entry is theirs). It
   // used to be computed ONLY for the already-completed reload, so the ending a
   // candidate actually experiences — the live one — was the one with no next step.
-  // Best-effort: a session with no entry keeps the plain card.
-  const statusHref = session.entryId ? safeStatusHref(session.entryId) : null;
+  // Best-effort: a session with no entry keeps the plain card. A candidate interview
+  // only (interviewPortalOffers): a recruiter's kit rehearsal is a test-mode session and
+  // never links to — or mints — a candidate's status page.
+  const offers = interviewPortalOffers(session);
+  const statusHref = offers.statusLink && session.entryId ? safeStatusHref(session.entryId) : null;
 
   if (view === "completed") {
     // Not a cul-de-sac: hand the candidate the same durable /status link the
@@ -133,7 +136,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         runOfShow={session.runOfShow ?? []}
         regimeId={compliance.regimeId}
         retentionMonths={compliance.retentionMonths}
-        recordingOffered={recordingOffer(session.workspaceId)}
+        recordingOffered={offers.recording && recordingOffer(session.workspaceId)}
         statusHref={statusHref}
       />
     </main>

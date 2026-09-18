@@ -43,6 +43,9 @@
 // candidate view cannot carry; the kit's follow-ups and author note never reach
 // `questions` at all.
 // With no kit every path below is byte-for-byte what it was before.
+//
+// A REHEARSAL (buildKitOnlyInterviewKit) is the kit-only branch with no entry at all:
+// the recruiter hears the kit before any candidate does.
 
 import { getDevCase } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
@@ -805,6 +808,32 @@ export async function buildInterviewKit(
   const openTopic = (await rosStrings(prep.lang ?? entry.locale)).openTopic;
   const durationMin = lengthOr(positiveMinutes(prep.durationMin, GROUNDED_DEFAULT_MIN));
   return finalizeKit("prep", prepDrafts(prep, strings, openTopic, kit, overlay), durationMin, faq);
+}
+
+/** A job kit version ALONE as the agenda — no entry, no prep, no overlay. This is what
+ *  a recruiter's REHEARSAL of a kit runs (spark interview-kit-template, WP-D): the
+ *  kit-only branch above, built from the kit id instead of from a candidate, so the
+ *  blocks, budgets, must-asks, weights, private notes and FAQ are exactly what a
+ *  candidate with no prep of their own meets on a link pinned to the same version.
+ *  What it leaves out is what only a candidate carries: CV probes, the recruiter's
+ *  per-candidate overlay, a work-sample debrief, a student script.
+ *
+ *  `locale` stands in for the entry's language (the titles and the warm-up question
+ *  are written for whoever takes the call — here, the recruiter). `bookedMin` is the
+ *  rehearsal session's booked length; absent, the kit's own planned length. Null when
+ *  the version cannot be read or directs nothing, so the caller refuses or falls back
+ *  rather than rehearsing something that is not the kit. */
+export async function buildKitOnlyInterviewKit(
+  kitId: string,
+  workspaceId: string,
+  opts?: { bookedMin?: number | null; locale?: string | null }
+): Promise<InterviewKit | null> {
+  const authored = pinnedJobKit(kitId, workspaceId);
+  if (!authored) return null;
+  const strings = await interviewBriefStrings(opts?.locale ?? null);
+  const booked = positiveMinutes(opts?.bookedMin, NaN);
+  const durationMin = Number.isFinite(booked) ? booked : kitPlannedMin(authored);
+  return finalizeKit("kit", kitOnlyDrafts(authored, strings), durationMin, authored.faq ?? []);
 }
 
 /** The director's agenda for an entry, built at connect — READ-ONLY (it must never

@@ -1175,6 +1175,25 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "canWriteJobLifecycle(id, ws)",
   },
   {
+    // ADDED with the route (spark interview-kit-template WP-D, 2026-09-18). The kit
+    // REHEARSAL door mints the same kind of billable, entry-less practice session
+    // /simulate does — a test-mode interview pinned to one kit version — and on a
+    // SELF-HOSTED install it skips meterGate, so there this limiter is the only bound on
+    // how many sessions one caller can mint. Same budget as /simulate: 20/10min per IP.
+    rel: "./jobs/[id]/interview-kit/rehearse/route.ts",
+    key: "`interview-kit-rehearse:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "REHEARSE_RATE_LIMIT",
+    optsDef: "const REHEARSE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The session row IS the billable artifact here, exactly as on /simulate.
+    expensive: "const session = createInterviewSession({",
+    // Every refusal answers ahead of the budget — the seat, the job, the kit, the
+    // keyless 503 and the billing 402 spend nothing and must not be masked by a 429.
+    // The 402 is the LAST of them, so pinning it pins the rest's order too.
+    servedBefore: 'jsonRefusal("BILLING_QUOTA_EXCEEDED", 402',
+  },
+  {
     // ADDED /perfect (schedule-door-speaks-the-candidates-language), with the limiter
     // itself. The candidate's own READ was the last public token read in the product with
     // no throttle — and it is not a cheap one: every hit runs proposeFreeSlots, which

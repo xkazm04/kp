@@ -6,7 +6,7 @@ import { getJob, getJobWorkspace } from "./db/jobs";
 import { promotedBriefForJob } from "./db/intakes";
 import { briefIntentSummary } from "./intake-brief";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
-import type { PipelineEntry } from "./db/core";
+import type { JobRecord, PipelineEntry } from "./db/core";
 import type { VoiceTurn } from "./voice/types";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
@@ -239,8 +239,16 @@ export { debriefDurationMin, plannedInterviewMinutes, submissionFollowups, type 
  *  to disagree about the role line they name. */
 function entryBriefContext(entry: PipelineEntry) {
   const job = entry.jobId ? getJob(entry.jobId) : null;
+  return jobBriefContext(job, entry.jobTitle || job?.title || "the role", entry.locale);
+}
+
+/** The JOB half of entryBriefContext — everything in it is a fact about the role, not
+ *  about the person on the call, which is what lets a kit REHEARSAL (no entry) build
+ *  the same role line, role facts and opening language a candidate's brief is built
+ *  from. `locale` is the language whoever takes the call chose (an entry's, or the
+ *  rehearsing recruiter's); only a real locale fixes the opening language. */
+function jobBriefContext(job: JobRecord | null, title: string, locale: string | null | undefined) {
   const company = job?.company || "Česká spořitelna";
-  const title = entry.jobTitle || job?.title || "the role";
   const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
   // The ROLE FACTS the director protocol lets the interviewer answer from (spark
   // ai-interview-parity). Public job facts only — they ride the CLIENT-SENT
@@ -261,7 +269,7 @@ function entryBriefContext(entry: PipelineEntry) {
     // Only an EXPLICIT candidate locale (not the workspace-default guess) is confident
     // enough to fix the opening language and the agenda language; anything unknown keeps
     // the bilingual greet-then-detect opener and the default catalog.
-    preferredLang: (isLocale(entry.locale) ? entry.locale : null) as Locale | null,
+    preferredLang: (isLocale(locale) ? locale : null) as Locale | null,
     roleFacts,
   };
 }
@@ -636,6 +644,65 @@ export async function buildCandidateSafeBrief(entryId: string, opts?: DirectedBu
   );
 }
 
+/** Both briefs for a recruiter's REHEARSAL of a job kit (spark interview-kit-template,
+ *  WP-D) — the entry-less counterpart of buildGroundedInterview + buildCandidateSafeBrief
+ *  on the kit branch, and deliberately composed through the SAME functions so that what
+ *  the recruiter hears is what a candidate on a link pinned to this kit version would
+ *  hear:
+ *    - `instructions`: the private, server-minted brief — composeBrief with the directed
+ *      agenda listing (private notes, must-asks, weights), the role's intake intent and
+ *      the director protocol, exactly as the kit branch builds it;
+ *    - `candidateBrief`: the client-sent (ElevenLabs) brief — composeCandidateBrief over
+ *      the same agenda, through the same allow-list sanitizers.
+ *  Minus what only a candidate carries: there is no name to greet ("You are speaking
+ *  with …"), no CV, no prep and no overlay — the kit's agenda is the whole plan.
+ *
+ *  `kit` MUST be buildKitOnlyInterviewKit's (or a stored agenda reconciled against it):
+ *  this function trusts it to carry nothing candidate-specific. `locale` is the
+ *  rehearsing recruiter's language, standing in for the one a candidate chose at apply. */
+export function buildRehearsalBriefs(
+  jobId: string,
+  kit: InterviewKit,
+  opts?: { locale?: string | null; resume?: ResumeContext | null }
+): { instructions: string; candidateBrief: string } {
+  const job = getJob(jobId);
+  const { company, title, roleLine, preferredLang, roleFacts } = jobBriefContext(job, job?.title || "the role", opts?.locale ?? null);
+  // The role's intake intent is a JOB fact, so a rehearsal carries it exactly like the
+  // candidate path does (same read, same best-effort fallback).
+  let roleIntent: string | null = null;
+  try {
+    roleIntent = briefIntentSummary(promotedBriefForJob(jobId, getJobWorkspace(jobId)));
+  } catch {
+    /* grounding is enrichment — a missing/legacy intake rehearses without it, as a candidate would */
+  }
+  const directed = privateDirectedBrief(kit.agenda, kit.privateNotes, roleFacts, sanitizeFaqEntries(kit.faq));
+  const instructions = withResume(
+    withOpeningLanguage(composeBrief(company, title, roleLine, undefined, kit.agenda.durationMin, roleIntent, directed), preferredLang),
+    opts?.resume,
+    kit.agenda
+  );
+  const candidateBrief = withResume(
+    withOpeningLanguage(
+      composeCandidateBrief({
+        company,
+        roleLine,
+        candidateLabel: null,
+        durationMin: kit.agenda.durationMin,
+        blocks: [],
+        intro: null,
+        agenda: kit.agenda,
+        roleFacts,
+        // Raw: composeCandidateBrief sanitizes it at the boundary.
+        faq: kit.faq,
+      }),
+      preferredLang
+    ),
+    opts?.resume,
+    kit.agenda
+  );
+  return { instructions, candidateBrief };
+}
+
 /** The ASR keyword bias for ONE ElevenLabs conversation: the job's own stack in
  *  front of the account-wide floor, capped at the platform's per-conversation
  *  limit (app/_lib/voice/asr-keywords.mjs).
@@ -655,7 +722,14 @@ export async function buildCandidateSafeBrief(entryId: string, opts?: DirectedBu
 export function interviewAsrKeywords(entryId: string | null | undefined): string[] {
   if (!entryId) return buildAsrKeywords();
   const entry = getPipelineEntry(entryId, getEntryWorkspace(entryId));
-  const job = entry?.jobId ? getJob(entry.jobId) : null;
+  return jobAsrKeywords(entry?.jobId ?? null);
+}
+
+/** The same keyword bias, keyed by the JOB — what a kit rehearsal (no entry) uses, and
+ *  what interviewAsrKeywords resolves to once it has found the entry's job. The same
+ *  public-job-facts-only rule applies: nothing here may be about a person. */
+export function jobAsrKeywords(jobId: string | null | undefined): string[] {
+  const job = jobId ? getJob(jobId) : null;
   if (!job) return buildAsrKeywords();
   // Requirements first: a must-have skill is likelier to be discussed (and so to
   // be misheard) than a term merely detected somewhere in the ad's prose.
