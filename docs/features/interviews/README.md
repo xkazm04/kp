@@ -837,6 +837,182 @@ a given deployment is the operator setting being off, which is the default.
   attempt marked `partial` rather than repaired. That is the honest direction, but it does
   mean a flaky upload can mark a recording partial that is only missing ten seconds.
 
+## Recruiter evidence
+
+The director keeps a complete record of an AI interview (see "Director engine"), and
+until WP4 none of it reached a recruiter: the transcript modal showed a flat wall of
+turns, the agenda was invisible, the observations the browser made were invisible, and
+the audio a candidate opted into had a streaming door and no player.
+
+**One rule governs the whole surface. Integrity observations are OBSERVATIONS.** Focus
+departures, guardrails and answer timing are shown as facts with their provenance.
+Nothing scores them, nothing ranks on them, and no field exists that a surface could
+mistake for a verdict. The panel says so in its own heading, not only in this document
+(registry: `ai-assistance-detection-and-fairness` —
+`observed-process-is-supporting-not-load-bearing`; `never-infer-from-how-a-person-sounds`).
+
+### Entry points
+
+| Surface | What it shows |
+| --- | --- |
+| Schedule → human round → a finished candidate → "View transcript & scorecard" | The transcript modal, now with the agenda grouping, the observations panel and the audio players. |
+| Schedule → AI round → **Completed** (`ScheduleAiRoundCompleted.tsx`) | The same modal. This list is new: in an AI-only hiring plan `ScheduleTab` renders `ScheduleAiRound` **instead of** the calendar surface, and the modals hung off that surface's aside — so the evidence view was unreachable for exactly the plan that produces the most of it. The list sits BESIDE the ledger; the ledger's "awaiting / live only" scope is unchanged. |
+| Pipeline → candidate drawer → interview outcome card | A not-assessed competency now says so instead of showing a filled 3/5. |
+| Decisions → an AI review card's rubric dots | Same. |
+| Library → a job → Compare interviews | Same, in the grid cells and in the CSV export. |
+
+### The evidence door
+
+`GET /api/interview/sessions/[id]/evidence` → `{ evidence }`
+(`app/api/interview/sessions/[id]/evidence/route.ts`).
+
+Operator-gated and workspace-scoped exactly like its siblings: a foreign or unknown id
+answers the same `INTERVIEW_SESSION_NOT_FOUND` (404), so the door cannot be used to learn
+which candidates a neighbouring team interviewed. A store failure answers
+`INTERVIEW_LOOKUP_FAILED` (500).
+
+**Consent is re-checked at read time**, the same synchronous gate the entry-keyed
+transcript read applies. When consent has expired or the entry is anonymized, every
+verbatim word is withheld — turn text, evidence quotes, the candidate's forwarded
+questions — and the structure survives: a guardrail still shows as a guardrail, in its
+block, at its minute.
+
+The projection (`app/_lib/interview-evidence.ts`, pure — the route reads the rows and
+hands them in):
+
+| Field | Meaning |
+| --- | --- |
+| `agenda` | `{durationMin, hardCapMin, closeReserveMin, blocks}`, or null for a call that was never directed. Each block: `id`, `kind`, `title`, `budgetMin`, `scored`, plus the derived `begun`, `covered`, `spentMs`. **No `competency` and no planned `questions`** — private brief material does not cross this boundary. |
+| `events` | The projected record, oldest first. Per kind: `turn` → `role`, `text`; `topic_covered` → `quote`; `topic_cover_rejected` → `quote`, `reason`; `guardrail` → `guardrail` (the kind), `quote`, `verified`; `candidate_question` → `question`; `directive` → `directive` (the KIND only); `focus_lost` → `during`; `focus_returned` → `awayMs`; `answer_timing` → `turnSeq`, `preSilenceMs`, `durationMs`; `end_requested` → `endReason`, `refused`. Every event also carries `kind`, `attempt`, `seq`, `blockId`, `at` and `offsetMs`. |
+| `offsetMs` | Milliseconds from the call's clock origin, measured on the **server** clock only — the same rule the director's own arithmetic runs under. Null when unreadable. |
+| `startedAt`, `elapsedMs` | The clock origin, and live time across every attempt with the gaps left out (`deriveDirectorState`, reused rather than re-derived, so the recruiter's "what was covered" and the live call's cannot disagree). `elapsedMs` for a finished call is measured to its END, not to the reader's wall clock. |
+| `limit`, `truncated` | The read returns at most `EVIDENCE_EVENT_LIMIT` = **1500** rows, the most recent ones. A session stops storing events at 4000, so this bounds the pathological case; past it the oldest turns lose their block tag and read as off-agenda, and the modal says so. The transcript itself is served whole by the sibling door and is never truncated. |
+| `recordings` | Per recorded attempt: `attempt`, `mime`, `bytes`, `partial`, `startedAt`, `endedAt`, `deletedAt`, `deleteReason` and `state`. **Never the file name.** |
+| `state` | What the playback door will actually do: `available`, `deleted` (the row is the record of its deletion), or `expired` (the read-time retention gate already refuses it, swept or not). The panel therefore never renders a control that would 404. |
+| `observed` | False when the call left no director record at all. This is the difference between "the candidate never left the tab" and "nobody was watching the tab", and the panel prints the second rather than four zeroes. |
+| `timingSource` | `speech_boundaries` (OpenAI) or `vad_windows` (ElevenLabs), null otherwise. |
+
+Never on the wire: `callId` / `toolResult` (the model's bookkeeping), the directive's
+injected `text` (a stage direction is an instruction to a model, not a finding about a
+person), the candidate's bearer token, and the brief.
+
+### The transcript, by block
+
+The stored transcript stays the rendered list — it is the complete one (the hang-up POST
+carries turns the live director loop may never have seen, and a resumed call's earlier
+attempts are seeded into it) and the scorecard's quote→turn jump indexes into it. The
+record is **aligned onto it** instead: a forward two-pointer walk on (role, normalized
+text) with a bounded lookahead (`alignTurnsToBlocks`), so a repeated one-word turn cannot
+anchor itself to an unrelated moment minutes later.
+
+Sections then render with blocks in **agenda order**, each showing its title, its budget
+and whether it was covered; a block nothing was recorded under still renders, because
+"nothing happened here" is a fact. Runs of turns that belong to no block — the greeting
+before the first `begin_topic`, and the gaps between topics — render where they actually
+happened, under "Between topics". **No turn is ever dropped or reordered**, which the
+colocated test asserts as conservation over the index set. Turns carry `m:ss` from the
+call's start when the record anchored them, and nothing when it did not.
+
+Warm-up, role questions and closing are labelled **not assessed**: they carry
+`scored: false` and their turns never reach the scorer.
+
+A call with no agenda, a failed evidence read and a legacy session row all fall back to
+the flat list this modal has always rendered. The evidence is an enrichment of content
+that is already on screen, so it can never cost the recruiter the conversation.
+
+### Observations
+
+`ScheduleInterviewObservations.tsx`, under a heading that says these are observations and
+are not scored.
+
+| Row | What it says |
+| --- | --- |
+| Left the interview tab | The departures, each with the block it fell in and who held the floor, the total away time, and — separately counted — how many departures have **no measurable length**. The browser records `awayMs: 0` for "the departure was not recorded" and a call that ended while the tab was away records no return at all; neither contributes a zero to the total. |
+| Asked for something the interviewer declined | Each guardrail: its kind, the block, the candidate's quoted words, and what the interviewer did — declined in one sentence and carried on. The interviewer's move is identical every time, which is exactly why it is stated: a recruiter reading a quote has to see that nothing was withheld or penalised. A quote that could not be matched to a recorded turn says so. |
+| Answer timing | Per block: how many answers, the **median** pause before answering and the median answer length (median, so one 90-second story does not redraw a block's typical answer), and the number of samples behind each. A provider that exposed no boundary yields `null`, which renders "not measured". |
+| Questions forwarded to you | The role questions the interviewer could not answer from the posting and told the candidate you would follow up on. The one part of this panel a recruiter can act on. |
+
+**Answer timing names its instrument.** OpenAI Realtime measures from the transcription's
+speech boundaries; ElevenLabs measures from voice-activity windows with hysteresis. They
+are not the same quantity, so the panel says which one produced the figures and says they
+compare only inside this call. When the provider is neither, it says the method is not
+recorded.
+
+### Audio
+
+`ScheduleInterviewRecordings.tsx`. One `<audio controls preload="none">` per recorded
+attempt, fed by `GET /api/interview/recording/<sessionId>?attempt=N` — a link that dropped
+and was retried has two recordings, and "the recording" would silently mean the last of
+them. `preload="none"` so opening the modal never pulls megabytes of a candidate's voice
+nobody asked to hear. No caption track: the interview's own transcript is on the same
+screen, verbatim, which is the text alternative.
+
+A recording that is not playable renders **no control**: `deleted` prints when and why,
+`expired` says it is past its retention window. A `partial` recording says it is partial,
+so the silence at the end reads as an upload that failed rather than an answer the
+candidate did not give. A session with no recording renders nothing at all.
+
+#### Recruiter deletion
+
+`DELETE /api/interview/sessions/[id]/recording[?attempt=N]`
+(`app/api/interview/sessions/[id]/recording/route.ts`) — the fourth door onto
+`deleteSessionRecordings`, beside the retention sweep, the candidate's own control on
+`/status/<token>` and GDPR erasure. `deleteReason: "recruiter"` had been in the vocabulary
+since the recording feature landed with nowhere to come from.
+
+It asks the **capability**, not only "is an operator present": `pipeline:write`, which a
+viewer seat does not hold — a viewer may listen (playback is a read) and may not destroy.
+Workspace-scoped; a foreign id, an unknown id and a session with no live audio all answer
+`INTERVIEW_RECORDING_NOT_FOUND` (404). `?attempt=N` deletes one attempt, no `attempt`
+deletes every live one, and the answer is `{ ok: true, deleted: n }`. Faults answer
+`INTERVIEW_RECORDING_FAILED`. The UI is confirm-guarded per attempt and a failure names
+itself rather than leaving a recruiter believing audio is gone when it is not.
+
+The file is unlinked, the ledger row is **kept** stamped with when and why, and a
+`recording_deleted` event is appended: the deletion is the record.
+
+### "Not assessed", everywhere a rating is rendered
+
+The AI synthesis stores a competency the interview never reached as a real **3 carrying
+"Not assessed…" evidence** (`interview-scorecard.ts`, `isNotAssessedRating`). Only the
+transcript modal's rating row consulted that guard, so the same untouched axis rendered as
+a confident mid-band score on every other surface. It is now consulted on all of them:
+
+- `PipelineInterviewOutcomeCard.tsx` — the drawer's outcome card;
+- `DecisionsAiReviewCardLadder.tsx` — the rubric dots on the card where a reviewer
+  ratifies the verdict;
+- `JobsCompareInterviewsCohortTable.tsx` — the compare grid's cells, where the confusion
+  was worst: a candidate asked about an axis and one never asked about it rendered
+  identically on the surface built to rank them against each other;
+- `jobsCompareCohorts.ts` `compareCsvRows` — the export, because in a spreadsheet the
+  caveat cannot travel with the number, so the number must not travel either. A genuine
+  observed 3 still does.
+
+### Keyless behaviour
+
+Nothing on this surface calls a model or a paid provider. The evidence door is a SQLite
+read plus the director's pure derivation; the grouping, the summaries and the clock codes
+are pure functions in the browser; playback streams a local file. A keyless, fully offline
+self-host has the whole feature.
+
+### Known gaps
+
+- **No browser was driven.** The players, the confirm step and the grouped transcript are
+  coded and unit-pinned but never rendered against a real DOM in this package.
+- **Alignment is text-based.** A turn whose stored text and recorded text differ (a
+  provider that re-punctuates a finalized turn after the director saw it) loses its block
+  tag and reads as off-agenda. It is never dropped and never mis-anchored, but it is also
+  not recovered.
+- **`offsetMs` is a server stamp.** A turn's time code is when the server recorded it, not
+  when it was spoken; on a healthy call the two differ by the round trip, on a degraded one
+  by more.
+- **Answer timing is not comparable across calls.** The panel says so, but nothing prevents
+  a recruiter comparing two candidates' figures by eye when the two calls ran on different
+  providers.
+- **The evidence read is a second round trip** after the transcript read, keyed by the
+  session id the first one returns. A single door serving both was not built because
+  `by-entry` is consumed by several other surfaces that do not want the record.
+
 ## Automatic invites on stage entry
 
 **The one manual step left in the AI-interview loop is gone.** When a candidate

@@ -93,6 +93,7 @@ const { DELETE: agentsBridgeDisconnect } = await import("./agents/bridge/route.t
 const { POST: agentsDispatch } = await import("./agents/dispatch/route.ts");
 const { POST: agentsRefresh } = await import("./agents/[id]/refresh/route.ts");
 const { POST: commsResend } = await import("./comms/[id]/resend/route.ts");
+const { DELETE: interviewRecordingDelete } = await import("./interview/sessions/[id]/recording/route.ts");
 
 const { createWorkspace } = await import("../_lib/db/workspaces.ts");
 const { createUser } = await import("../_lib/db/users.ts");
@@ -191,6 +192,14 @@ const DOORS: Door[] = [
   // (requireOperator) is not authority: a viewer still passed it, and comms_relay_config
   // is a single global row, so a viewer click dispatched a real candidate envelope.
   { name: "POST /api/comms/[id]/resend", capability: "pipeline:write", call: () => commsResend(req(), params({ id: "x" })) },
+  // WP4 — the recruiter's deletion of a candidate's interview audio. Irreversible, and
+  // the file is the candidate's own voice, so identity is not authority here either: a
+  // viewer seat may listen (the playback door is a read) and may not destroy.
+  {
+    name: "DELETE /api/interview/sessions/[id]/recording",
+    capability: "pipeline:write",
+    call: () => interviewRecordingDelete(req(), params({ id: "iv-1" })),
+  },
 ];
 
 // ---- a viewer is refused, with a CODE that names the capability ----------------
