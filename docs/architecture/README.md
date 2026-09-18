@@ -84,6 +84,17 @@ line; `app/_lib/tasks-pump.test.ts` fails on a kind that declares neither, and o
 queueing remains out of scope — the `tasks` row is the source of truth, and a run
 orphaned mid-flight is marked `interrupted` rather than resumed.
 
+Three kinds are **late-bound**: `jobseeker_scan`, `interview_kit` and `interview_letter`
+call `externalRunner(kind)` (`app/_lib/task-external-runners.ts`, a leaf registry on
+`globalThis`) instead of importing their runner. `tasks.ts` sits on every route that
+starts or polls a task, and the perf budget counts every module it reaches, dynamic
+imports included. `registerLateBoundImplementations()` (`app/_lib/late-bound-boot.ts`)
+registers the implementations at boot: `instrumentation-node.ts` calls it at server
+start, and `app/_lib/testing/unit-db.ts` calls it in every unit-test process. Each
+runner module still loads lazily on first use. An unregistered kind fails its task
+with an error naming the registration, and `app/_lib/late-bound-boot.test.ts` fails on
+a kind `tasks.ts` delegates that the boot list does not register.
+
 **Task identity.** `app/_lib/task-dedupe.ts` keys each in-flight run so a retry
 coalesces and a different request does not. `batch_screen` used to be a process-wide
 singleton (`"batch_screen"`); it is now the sorted `entryIds` cohort (the board

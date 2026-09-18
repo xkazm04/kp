@@ -134,8 +134,14 @@ usually fixes it:
    the path; import the slice instead.
 2. **A helper living in a hub module.** Move it to a leaf — that is what
    `plannedInterviewMinutes` → `app/_lib/interview-planned-minutes.ts` was.
-3. **`import type` written as a value import.** Free once it is a type import.
-4. **The route genuinely needs it.** Raise the ceiling with a `why`.
+3. **A heavy implementation behind a hub.** When a hub (`tasks.ts`, `db/pipeline.ts`)
+   needs to *run* something large but not to *know* it, late-bind it: a leaf registry
+   on `globalThis` (`task-external-runners.ts`, `stage-hooks-invite.ts`), filled at
+   boot by `app/_lib/late-bound-boot.ts` from `instrumentation-node.ts`. A dynamic
+   `import()` in the hub does not help, because the walker counts it. That is what took
+   `/api/tasks` from 256 to 229 modules on 2026-09-18.
+4. **`import type` written as a value import.** Free once it is a type import.
+5. **The route genuinely needs it.** Raise the ceiling with a `why`.
 
 ```bash
 node scripts/perf/check-budget.mjs --explain app/api/schedule/route.ts

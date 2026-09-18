@@ -1112,6 +1112,15 @@ already committed.**
 this store and into the billing, comms and interview layers, so a static edge would
 make a cycle out of a one-way notification (and would pull `next/server` into a
 store the node:test suite must be able to load outside a Next runtime).
+The lazy edge still counts toward every route's import graph, because the perf budget
+follows dynamic imports. So the AI-interview mint behind the hook is reached through a
+**boot-registered seam** rather than a static import: `stage-hooks.ts` calls
+`stageHookInvite()` (`app/_lib/stage-hooks-invite.ts`), which `late-bound-boot.ts` fills
+with `mintAndInviteVoiceScreen` at server boot. That is the same door
+`POST /api/interview/create` imports directly. It keeps the mint's graph (the grounded
+build, the job-kit pin and booking, the directed agenda, the voice providers; 21
+modules on `/api/tasks`, measured 2026-09-18) off every route that touches
+`db/pipeline.ts`.
 
 There are two hooks, both dispatched by **stage role** rather than by column name, so
 a team that renamed or reordered its board gets the same behaviour:

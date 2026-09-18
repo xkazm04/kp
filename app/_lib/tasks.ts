@@ -23,8 +23,6 @@ import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
-import { runInterviewKit } from "./interview-kit-run";
-import { runInterviewLetter } from "./interview-letter-run";
 import { runRepoScan } from "./repo-scan-run";
 import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
@@ -319,8 +317,11 @@ const HANDLERS: Record<string, Spec> = {
   // deterministic fallback, saved as a DRAFT version of the role's kit. Backgrounded for
   // the reason `agent_fit` is — the durable result is the `interview_kits` row, so the
   // recruiter can leave the Interview tab and come back to a draft waiting for them.
+  // Late-bound like `jobseeker_scan` (late-bound-boot.ts reads `params.jobId`): the
+  // runner and its validator stay off this hub's path.
   interview_kit: {
-    run: (ctx) => runInterviewKit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("interview_kit")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("interviewKit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
@@ -328,9 +329,12 @@ const HANDLERS: Record<string, Spec> = {
   // drafting CLI call with the keyless catalog template behind it, stored as the draft on
   // the interview_letters row for a recruiter to edit and approve. Queued by the
   // candidate's own request door, so its label names the ROLE and never the candidate —
-  // the tasks table outlives an erasure (ERASURE_EXEMPT["tasks"]).
+  // the tasks table outlives an erasure (ERASURE_EXEMPT["tasks"]). Late-bound like
+  // `interview_kit` (late-bound-boot.ts reads `params.letterId`): the letter's template,
+  // policy and store stay off this hub's path.
   interview_letter: {
-    run: (ctx) => runInterviewLetter(String(ctx.params.letterId), ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("interview_letter")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("interviewLetter", { job: detail(p.jobTitle, p.letterId) ?? "" }),
   },
@@ -389,12 +393,13 @@ const HANDLERS: Record<string, Spec> = {
   //
   // The scan's implementation is NOT imported here: it reaches the whole acquisition
   // graph (adapters, rules engine, reconciliation), and this hub sits on ~60 routes'
-  // paths, so it is registered at boot from instrumentation-node.ts and looked up
-  // through task-external-runners.ts (the perf budget counts dynamic imports too).
+  // paths, so it is registered at boot (late-bound-boot.ts, called from
+  // instrumentation-node.ts) and looked up through task-external-runners.ts (the perf
+  // budget counts dynamic imports too).
   jobseeker_scan: {
     run: async (ctx) => {
       const startedAt = new Date().toISOString();
-      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress })) as ScanSummary;
+      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params })) as ScanSummary;
       recordRun({
         job: SCAN_JOB_NAME,
         trigger: "manual",

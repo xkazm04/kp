@@ -1982,11 +1982,19 @@ defeated guard yields one live link rather than two.
 A failure to mint or dispatch **never fails the stage move** — the move has
 already committed. When the hook cannot act (no deliverable contact address, an
 exhausted `interview_minutes` allowance, a call already in progress, an
-unexpected error) it *fails open towards the human*: nothing is minted, nothing is
+unregistered mint door, an unexpected error) it *fails open towards the human*: nothing is minted, nothing is
 sent, nothing anywhere claims an invite went out, and the candidate is left on the
 `calendar` gate exactly where a `human`-gated step would have left them — visible
 in the AI-round docket under "Awaiting link". The reason goes to the server log
 (`[stage-hooks] <entry>: AI interview link not minted (<reason>) — <why>`).
+
+The hook reaches the mint through a boot-registered seam
+(`app/_lib/stage-hooks-invite.ts`, filled by `app/_lib/late-bound-boot.ts` from
+`instrumentation-node.ts`), which keeps the mint's graph off every route. A process that
+never registered it does not skip the invite silently: the lookup throws inside the
+hook's own `try`, the candidate is parked on the `calendar` gate like any other
+failure, and the log line names the missing registration. Pinned by the last case of
+`app/_lib/stage-hooks.test.ts`.
 
 The unaddressable check runs **before** the mint, not after: minting burns an LLM
 grounding build and reserves voice minutes for a link nobody can receive. It uses

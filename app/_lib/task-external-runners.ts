@@ -12,6 +12,13 @@
 // instrumentation-node.ts — which is not on any route's path — and tasks.ts only
 // holds this registry. Nothing here imports anything; the module is a leaf.
 //
+// The kinds on this seam: `jobseeker_scan`, and — since 2026-09-18 — `interview_kit`
+// and `interview_letter`. The two interview runners put the kit validator, the letter
+// template/policy and their stores on tasks.ts's path, +7 modules on every route that
+// starts or polls a task. The registrations themselves live in late-bound-boot.ts, the
+// one list instrumentation-node.ts calls at boot and the unit-test DB bootstrap calls
+// too, so a test exercises the same wiring the server runs.
+//
 // Contract: a spec in tasks.ts that delegates to `externalRunner(kind)` still declares
 // its own `tenancy` and still passes `ctx` (the pump test reads the spec text). An
 // unregistered kind is a boot-order bug, answered with a thrown error the task
@@ -21,6 +28,9 @@ export type ExternalTaskCtx = {
   workspaceId: string;
   signal: AbortSignal;
   progress: (done: number, total: number, msg?: string) => void;
+  /** The task row's params, exactly as tasks.ts hands them to an in-module spec
+   *  (CLIENT-SUPPLIED through POST /api/tasks — a runner validates what it reads). */
+  params: Record<string, unknown>;
 };
 
 export type ExternalTaskRunner = (ctx: ExternalTaskCtx) => Promise<unknown>;

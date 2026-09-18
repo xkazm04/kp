@@ -186,19 +186,19 @@ async function sweepExpiredConsents(): Promise<void> {
 }
 
 export async function startClock(): Promise<void> {
-  // Late-bound task runners (app/_lib/task-external-runners.ts): the job-seeker scan's
-  // implementation is registered HERE, off every route's import path, so the task hub
-  // stays light. Idempotent — the dev server re-runs instrumentation on reload.
+  // Late-bound implementations (app/_lib/late-bound-boot.ts): the heavy task runners
+  // (job-seeker scan, interview kit, feedback letter) and the stage hook's interview
+  // mint are registered HERE, off every route's import path, so the task hub and the
+  // pipeline store stay light. Idempotent — the dev server re-runs instrumentation on
+  // reload.
   try {
-    const { registerTaskRunner } = await import("./app/_lib/task-external-runners");
-    registerTaskRunner("jobseeker_scan", async (ctx) => {
-      const { runJobseekerScan } = await import("./app/_lib/jobseeker/scan");
-      return runJobseekerScan(ctx.workspaceId, { trigger: "manual", signal: ctx.signal, onProgress: ctx.progress });
-    });
+    const { registerLateBoundImplementations } = await import("./app/_lib/late-bound-boot");
+    registerLateBoundImplementations();
   } catch (e) {
-    // A failed registration surfaces the first time a scan task runs (externalRunner
-    // throws by name); log it here too so the boot log names the cause.
-    console.error("[clock] task runner registration failed:", e);
+    // A failed registration surfaces the first time a late-bound kind runs (the
+    // registries throw by name — a failed task, an invite parked for a human); log it
+    // here too so the boot log names the cause.
+    console.error("[clock] late-bound registration failed:", e);
   }
   const g = globalThis as typeof globalThis & { __kpClockStarted?: boolean };
   if (g.__kpClockStarted) return; // guard against duplicate intervals across HMR
