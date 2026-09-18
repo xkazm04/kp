@@ -5,9 +5,10 @@ import { getTranslations } from "next-intl/server";
 import { getInterviewSessionByToken, LIVE_INTERVIEW_RECENCY_MIN } from "@/app/_lib/db/interviews";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
-import { CHIP } from "@/app/_components/ui/recipes";
+import { CHIP, NOTICE } from "@/app/_components/ui/recipes";
 import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { isInterviewRecordingOffered } from "@/app/_lib/interview-recording";
+import { isKitRehearsal } from "@/app/_lib/interview-rehearsal";
 import { InterviewPortalClient } from "@/app/_components/voice/InterviewPortalClient";
 import { interviewInactiveCopyKeys, interviewPortalOffers, interviewPortalView } from "./portal-state";
 
@@ -95,8 +96,20 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
     );
   }
 
+  // A recruiter REHEARSING a job's kit reaches this same portal. It must not read the
+  // candidate's promises as if they applied: nothing here is scored, no human reviews
+  // it, and no candidate's record is touched (/api/interview/complete refuses every
+  // candidate side effect for a test session). Say so above everything else.
+  const rehearsal = isKitRehearsal(session);
+
   return (
     <main className="mx-auto max-w-[1380px] px-4 py-10">
+      {rehearsal ? (
+        <div role="status" className={`${NOTICE("info")} mb-6 max-w-3xl px-4 py-3`}>
+          <p className="text-base font-semibold">{t("rehearsalTitle")}</p>
+          <p className="mt-1 text-sm">{t("rehearsalBody")}</p>
+        </div>
+      ) : null}
       <header className="max-w-3xl">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">
@@ -110,9 +123,11 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
           <span className={CHIP}>
             <Sparkles size={13} className="text-moss" /> {t("chipAiLed")}
           </span>
-          <span className={CHIP}>
-            <ShieldCheck size={13} className="text-moss" /> {t("chipHuman")}
-          </span>
+          {rehearsal ? null : (
+            <span className={CHIP}>
+              <ShieldCheck size={13} className="text-moss" /> {t("chipHuman")}
+            </span>
+          )}
         </div>
       </header>
 

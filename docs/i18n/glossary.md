@@ -77,6 +77,9 @@ Columns: **en** · **cs** · **de** · **fr** · note. Add a column per new loca
 | stub (thin candidate record) | neúplný záznam | Stub | ébauche | a record created from CV text too thin to parse |
 | decline (recruiter refusing proposed times) | zamítnout | ablehnen | refuser | cs: **zamítnout**, matching *reject*. *odmítnout* stays reserved for the CANDIDATE declining |
 | n/a (no measurement) | n/a | k. A. | n.d. | the empty-metric cell. Replaced a bare `—` glyph that carried meaning as punctuation |
+| interview kit (a job's versioned question set) | sada otázek k pohovoru | Interviewleitfaden | guide d'entretien | `jobs.kit.*`, `scheduleTab.prep.overlay.*`. Short form once the context is set: *sada (otázek)* / *Leitfaden* / *guide*. cs tab label is the short form *Sada otázek*: the full name was twice the length of every sibling tab. Settled 2026-09-18 |
+| must-ask (kit question) | povinná otázka | Pflichtfrage | question obligatoire | one term for both the English "must-ask" and "required question" (`evidence.mustAsk*`); the source uses both for one concept. Any copy that explains it keeps BOTH halves: asked past the booked time, and only if the candidate agrees to extra minutes |
+| emphasis (a kit competency's weight) | důraz | Schwerpunkt | importance | NOT a score weight. de *Gewichtung* was **rejected** 2026-09-18: it is the German term for a scoring weight, so it tells a recruiter the opposite of "never added up into a score". Never render as points, a rating or a percentage in any locale |
 
 **cs grammatical gender of loanwords:** *pipeline* is **feminine** (*ta pipeline*,
 "v její pipeline", "samostatná pipeline"). The catalog was already overwhelmingly
