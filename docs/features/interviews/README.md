@@ -94,7 +94,10 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    `app/_components/voice/transport/` (`openai.ts` raw WebRTC, `elevenlabs.ts`
    the SDK hook) while the component keeps the shared shell (phase, consent,
    transcript, finalize). It
-   sends `overrides.agent.language` (candidate locale) to ElevenLabs so the
+   sends `overrides.agent.language` (candidate locale — any of the four shipped
+   locales via `portalLanguageHint`; it used to collapse everything that was not
+   Czech to English, pinning English into a German or French applicant's agent
+   language and OpenAI transcription language) to ElevenLabs so the
    agent doesn't default to its Czech dashboard language, shows a live
    speaking/listening indicator for both providers, recovers from a
    transient network drop without freezing the mic, and offers a pre-call mic

@@ -209,3 +209,18 @@ test("an unconfigured provider stays pickable-refused, a configured one pickable
   assert.equal(canPickProvider(probe, "openai"), true);
   assert.equal(canPickProvider({ status: "loading" }, "elevenlabs"), true, "the fast probe must not block the picker");
 });
+
+// ---- spoken-language seed (spark ai-interview-parity P0) ------------------------
+// The portal used to seed `locale === "cs" ? "cs" : "en"`, pinning English into the
+// ElevenLabs agent language and the OpenAI transcription language for every German
+// and French applicant — the two transport settings that outrank the brief's
+// "open in their language" line.
+test("the portal's spoken-language hint follows every shipped locale", async () => {
+  const { portalLanguageHint } = await import("./ui-types.ts");
+  assert.equal(portalLanguageHint("cs"), "cs");
+  assert.equal(portalLanguageHint("en"), "en");
+  assert.equal(portalLanguageHint("de"), "de");
+  assert.equal(portalLanguageHint("fr"), "fr");
+  assert.equal(portalLanguageHint("pl"), "auto", "an unshipped locale is detection, never a wrong pin");
+  assert.equal(portalLanguageHint("cs-CZ"), "auto");
+});

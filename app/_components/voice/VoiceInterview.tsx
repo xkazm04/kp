@@ -41,7 +41,7 @@ import { useMicTest } from "./useMicTest";
 import { useTranscriptPersistence } from "./useTranscriptPersistence";
 import { micErrorText } from "./micErrorText";
 import { connectStartFailureMessage } from "./connect-start-failure";
-import { PROVIDER_LABEL, type LangHint, type Phase } from "./ui-types";
+import { PROVIDER_LABEL, portalLanguageHint, type LangHint, type Phase } from "./ui-types";
 import { MicTestPanel } from "./MicTestPanel";
 import { StatusPill } from "./VoiceStatusPill";
 import { VoiceLiveControls } from "./VoiceLiveControls";
@@ -144,9 +144,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   // the spoken-agent language hint from the candidate's UI locale — the agent then
   // speaks Czech for a cs visitor instead of falling to "auto". The lab keeps the
   // explicit "auto" default + the visible picker.
-  const [language, setLanguage] = useState<LangHint>(
-    lockSettings ? (locale === "cs" ? "cs" : "en") : "auto"
-  );
+  const [language, setLanguage] = useState<LangHint>(lockSettings ? portalLanguageHint(locale) : "auto");
   const [phase, setPhase] = useState<Phase>("idle");
   // True only while the OS/browser microphone-permission prompt is open — drives an
   // actionable "grant the mic" hint so the candidate knows the wait is on THEM, not a

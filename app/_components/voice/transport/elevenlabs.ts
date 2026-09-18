@@ -9,6 +9,7 @@
 
 import { useConversation } from "@elevenlabs/react";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
+import type { LangHint } from "../ui-types";
 
 // Everything crosses this boundary as a callback rather than as a ref box: the
 // React Compiler's `react-hooks/immutability` rule forbids a hook from writing
@@ -89,7 +90,7 @@ export function startElevenLabsSession(args: {
   signedUrl: string;
   agentPrompt?: string;
   asrKeywords?: string[];
-  language: "auto" | "cs" | "en";
+  language: LangHint;
   /** Some SDK versions return a promise; a rejection is surfaced here instead of hanging. */
   onAsyncError: (err: unknown) => void;
 }) {
@@ -100,7 +101,7 @@ export function startElevenLabsSession(args: {
   // agent replying in Czech to an English candidate ~2/3 of the time). The agent allows the
   // language override, so send it whenever we have a concrete hint (candidate portal seeds it
   // from the visitor's locale; the lab's "auto" leaves detection to the agent).
-  const agentOverride: { prompt?: { prompt: string }; language?: "cs" | "en" } = {};
+  const agentOverride: { prompt?: { prompt: string }; language?: Exclude<LangHint, "auto"> } = {};
   if (agentPrompt) agentOverride.prompt = { prompt: agentPrompt };
   if (language !== "auto") agentOverride.language = language;
   // Built once so an empty keyword list sends no `asr` branch at all rather than
