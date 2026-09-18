@@ -852,6 +852,8 @@ export function ensureDb(): Database.Database {
       -- (which stays the CONNECT time: billing and the director's clock use it as the
       -- current attempt's start, so it must not be refreshed mid-call).
       last_activity_at TEXT,
+      -- The interview_kits version this link was minted from; NULL when the job has none.
+      kit_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -2036,6 +2038,11 @@ export function ensureDb(): Database.Database {
     // (38 min on a 30-min booking), past LIVE_INTERVIEW_RECENCY_MIN. Without a separate
     // activity stamp a second tab could open the same link mid-call.
     "ALTER TABLE interview_sessions ADD COLUMN last_activity_at TEXT",
+    // The kit VERSION this link was minted from (interview_kits.id). Pinned at mint so a
+    // recruiter editing the job's kit cannot change what a candidate who already holds a
+    // link will be asked — candidates in one round stay comparable. NULL on every link
+    // minted before kits existed, and on every job that has no kit.
+    "ALTER TABLE interview_sessions ADD COLUMN kit_id TEXT",
     // The candidate's own opt-out timestamp on an outreach_state row that predates it.
     // It has to live in THIS loop rather than the one beside the pipeline_entries
     // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws

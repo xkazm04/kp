@@ -164,6 +164,10 @@ export type InterviewSession = {
   /** The last director exchange of a live call (touchInterviewActivity). NULL before
    *  the first one and on every undirected call. Liveness only — never a clock. */
   lastActivityAt: string | null;
+  /** The job kit version this link was minted from (interview_kits.id), pinned at mint
+   *  so an edit cannot change what a candidate already holding a link is asked. NULL
+   *  when the job has no kit. */
+  kitId: string | null;
 };
 
 type InterviewRow = {
@@ -194,6 +198,7 @@ type InterviewRow = {
   recording_consent_at: string | null;
   recordings_json: string | null;
   last_activity_at: string | null;
+  kit_id: string | null;
 };
 
 function rowToInterview(r: InterviewRow): InterviewSession {
@@ -231,6 +236,7 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     recordingConsentAt: r.recording_consent_at ?? null,
     recordings: safeRowParse<RecordingMeta[]>(r.recordings_json ?? null, "interview.recordings", r.id) ?? [],
     lastActivityAt: r.last_activity_at ?? null,
+    kitId: r.kit_id ?? null,
   };
 }
 
