@@ -14,7 +14,7 @@ numpy==2.5.2
 # released and dependabot offers it, but taking it would mean pinning google-genai
 # back below 2.20.0 — the Gemini adapter is load-bearing and websockets 17 buys us
 # nothing here. Revisit when google-genai widens the range.
-websockets==16.1.1
+websockets==17.1
 
 pydantic==2.13.4
 google-genai==2.20.0
