@@ -147,7 +147,7 @@ export function useImpactCopy(axis: readonly StageDef[]) {
  *  definition (the gate only governs AI rounds). */
 export type GateRow = {
   key: string;
-  kind: "screening" | "round" | "offer";
+  kind: "screening" | "homework" | "round" | "offer";
   /** The board column this ratification point sits at — so the ledger can name
    *  the recruiter's own column instead of a generic station word. */
   stageId: string;
@@ -176,6 +176,10 @@ export function gateLedger(plan: PipelinePlan, axis: readonly StageDef[] = DEFAU
     const step = live.steps.find((s) => s.stageId === stage.id);
     if (!step) continue;
     if (stage.role === "screening") rows.push({ key: `${stage.id}:gate`, kind: "screening", stageId: stage.id, mode: step.gate });
+    // The case step's checkpoint: who lets the assignment go out. Drawn like any
+    // other gate so a recruiter can see it left on `auto` — the one reading the
+    // queue-name row could never give.
+    if (stage.role === "homework") rows.push({ key: `${stage.id}:gate`, kind: "homework", stageId: stage.id, mode: step.gate });
     step.rounds.forEach((r, i) => {
       n += 1;
       rows.push({

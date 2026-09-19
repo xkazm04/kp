@@ -70,6 +70,29 @@ test("an interpreter that is absent, or a stub that refuses, is not selected", (
   assert.equal(findInterpreter(["python3", "python"], run), null);
 });
 
+test("Python 3.10 is skipped; 3.11.0 is accepted", () => {
+  const run = (cmd) => {
+    if (cmd === "old") return { status: 0, stdout: "Python 3.10.14\n", stderr: "" };
+    if (cmd === "ok") return { status: 0, stdout: "Python 3.11.0\n", stderr: "" };
+    return { error: Object.assign(new Error("ENOENT"), { code: "ENOENT" }) };
+  };
+  assert.equal(findInterpreter(["old"], run), null);
+  assert.equal(findInterpreter(["old", "ok"], run), "ok");
+});
+
+test("only a too-old interpreter: exit 1 with the 3.11+ hint, codegen never spawned", () => {
+  let codegenSpawns = 0;
+  const run = (_cmd, args) => {
+    if (args?.[0] === "-m") codegenSpawns += 1;
+    return { status: 0, stdout: "Python 3.10.14\n", stderr: "" };
+  };
+  const res = capture(() => main([], { env: { PYTHON_CMD: "python" }, run }));
+  assert.equal(res.status, 1);
+  assert.equal(codegenSpawns, 0);
+  assert.match(res.stderr, /could not find a Python interpreter/);
+  assert.match(res.stderr, /Install Python 3\.11\+/);
+});
+
 test("no interpreter at all: exit 1 with the install hint, and codegen is never spawned", () => {
   let codegenSpawns = 0;
   const run = (_cmd, args) => {

@@ -7,7 +7,7 @@ import {
   parseInboundCandidate,
   toAtsEntryInput,
 } from "./inbound.ts";
-import { applyFieldMap, mapStage, parseFieldMap, readPath, AtsFieldMapError } from "./field-map.ts";
+import { applyFieldMap, DEFAULT_FIELD_MAPS, mapStage, parseFieldMap, readPath, AtsFieldMapError } from "./field-map.ts";
 
 const minimal = { provider: "recruitee", externalId: "42" };
 
@@ -123,6 +123,21 @@ test("ROUND TRIP: an imported candidate emits a stable egress record", () => {
   assert.equal(record.pipeline.matchScore, null);
   assert.equal(record.decision, null);
   assert.equal(record.offer, null);
+});
+
+test("the Recruitee default map round-trips the same vendor fixture to externalId 907", () => {
+  const vendorPayload = {
+    id: 907,
+    candidate: { name: "Jana Nováková", emails: ["jana@example.com"] },
+    offer: { id: "req-12", title: "Backend Engineer" },
+    stage: { name: "1st round" },
+    created_at: "2026-03-01T08:00:00Z",
+  };
+  assert.ok(DEFAULT_FIELD_MAPS.recruitee, "Recruitee is the one provider with a shipped default");
+  const inbound = applyFieldMap(DEFAULT_FIELD_MAPS.recruitee, "recruitee", vendorPayload);
+  assert.equal(inbound.externalId, "907");
+  assert.equal(inbound.displayName, "Jana Nováková");
+  assert.equal(inbound.stage, "Interview");
 });
 
 test("an unresolved job keeps the EXTERNAL id rather than detaching the candidate", () => {

@@ -29,6 +29,7 @@ const CaseDetail = dynamic(() => import("./DevCaseDetail").then((m) => ({ defaul
 export function DevTabCasesView({
   cases,
   casesTruncated,
+  onLoadMoreCases,
   casesState,
   lifecycles,
   lifecyclesState,
@@ -48,6 +49,7 @@ export function DevTabCasesView({
 }: {
   cases: DevCaseDetail[];
   casesTruncated: boolean;
+  onLoadMoreCases?: () => void;
   casesState: LoadState;
   lifecycles: Lifecycle[];
   lifecyclesState: LoadState;
@@ -90,6 +92,7 @@ export function DevTabCasesView({
         state={casesState}
         onOpen={onOpenCase}
         onDefine={onDefine}
+        onLoadMore={onLoadMoreCases}
       />
       {/* Tier 3: secondary to the cases table above it — one frame later
           so the tab's entry payload is the table alone. */}

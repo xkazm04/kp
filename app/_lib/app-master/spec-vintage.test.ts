@@ -6,7 +6,7 @@
 // second ago.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SPEC_VINTAGE_GRACE_MS, specVintage } from "./spec-vintage.ts";
+import { SPEC_VINTAGE_GRACE_MS, specVintage, vintageDispatch } from "./spec-vintage.ts";
 
 const at = (msFromEpoch: number) => new Date(msFromEpoch).toISOString();
 const T = Date.UTC(2026, 8, 5, 12, 0, 0);
@@ -37,4 +37,22 @@ test("an unreadable vintage says nothing rather than guessing", () => {
   assert.equal(specVintage({ composedAt: "", briefUpdatedAt: at(T) }), "unknown");
   assert.equal(specVintage({ composedAt: "not a date", briefUpdatedAt: at(T) }), "unknown");
   assert.equal(specVintage({ composedAt: at(T), briefUpdatedAt: "yesterday" }), "unknown");
+});
+
+const STALE = { composedAt: at(T), briefUpdatedAt: at(T + 60_000) };
+const CURRENT = { composedAt: at(T), briefUpdatedAt: at(T) };
+const UNKNOWN = { composedAt: null, briefUpdatedAt: at(T) };
+
+test("vintageDispatch: stale without acknowledgement is AGENT_DISPATCH_SPEC_VINTAGE", () => {
+  assert.deepEqual(vintageDispatch(STALE), { ok: false, code: "AGENT_DISPATCH_SPEC_VINTAGE" });
+});
+
+test("vintageDispatch: stale with acknowledgement is allowed", () => {
+  assert.deepEqual(vintageDispatch({ ...STALE, acknowledgeStale: true }), { ok: true });
+});
+
+test("vintageDispatch: current and unknown never refuse", () => {
+  assert.deepEqual(vintageDispatch(CURRENT), { ok: true });
+  assert.deepEqual(vintageDispatch(UNKNOWN), { ok: true });
+  assert.deepEqual(vintageDispatch({ ...UNKNOWN, acknowledgeStale: false }), { ok: true });
 });

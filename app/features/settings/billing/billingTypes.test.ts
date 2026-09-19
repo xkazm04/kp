@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isUnmeteredInstall, planChangeVia, STATUS_TONE } from "./billingTypes.ts";
+import { dunningBanner, isUnmeteredInstall, planChangeVia, STATUS_TONE } from "./billingTypes.ts";
 import { PLANS, type PlanDef } from "../../../_lib/billing/plans.ts";
 
 // The catalog's "Buy" vs "Change in portal" decision MUST agree with the server-side
@@ -76,4 +76,16 @@ test("STATUS_TONE covers every status the webhook reducer can store", () => {
     assert.ok(STATUS_TONE[status], `${status} must map to a tone, not fall back to neutral`);
   }
   assert.notEqual(STATUS_TONE.unpaid, "neutral");
+});
+
+test("dunningBanner is silent on a healthy or absent subscription", () => {
+  assert.equal(dunningBanner("active"), null);
+  assert.equal(dunningBanner("trialing"), null);
+  assert.equal(dunningBanner("canceled"), null);
+  assert.equal(dunningBanner("none"), null);
+});
+
+test("dunningBanner names the recovery copy for the two failed-payment statuses", () => {
+  assert.equal(dunningBanner("past_due"), "pastDue");
+  assert.equal(dunningBanner("unpaid"), "unpaid");
 });

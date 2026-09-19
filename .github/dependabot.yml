@@ -28,10 +28,17 @@ updates:
       time: "06:00"
       timezone: Europe/Prague
     open-pull-requests-limit: 8
+    # No `include: scope`: for a GROUPED update dependabot has no single
+    # dependency name to substitute, so it appends the generic "(deps)" /
+    # "(deps-dev)" scope instead — landing right after `prefix-development`'s
+    # own baked-in "(dev)", as `deps(dev)(deps-dev): …`. commit-msg.mjs's
+    # SUBJECT_RE takes exactly one `(scope)`, so every grouped PR failed
+    # "Commit convention" (2026-09-19 hygiene: #52 and siblings). Every group
+    # below already names itself in the subject text ("bump the react group"),
+    # so the appended scope was never carrying information the summary lacked.
     commit-message:
       prefix: "deps"
       prefix-development: "deps(dev)"
-      include: scope
     labels:
       - dependencies
     groups:
@@ -73,9 +80,11 @@ updates:
       time: "06:00"
       timezone: Europe/Prague
     open-pull-requests-limit: 4
+    # No `include: scope` — see the root npm block's note: `prefix` already
+    # carries a scope, and the appended one only collides with it on a
+    # grouped update.
     commit-message:
       prefix: "deps(edge)"
-      include: scope
     labels:
       - dependencies
       - edge
@@ -92,9 +101,9 @@ updates:
       time: "06:00"
       timezone: Europe/Prague
     open-pull-requests-limit: 6
+    # No `include: scope` — see the root npm block's note.
     commit-message:
       prefix: "deps(python)"
-      include: scope
     labels:
       - dependencies
       - python
@@ -117,9 +126,9 @@ updates:
       time: "06:00"
       timezone: Europe/Prague
     open-pull-requests-limit: 4
+    # No `include: scope` — see the root npm block's note.
     commit-message:
       prefix: "ci(actions)"
-      include: scope
     labels:
       - dependencies
       - github-actions

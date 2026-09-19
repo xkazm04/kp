@@ -6,9 +6,36 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coachHandoffBlock, jdLibraryFooter, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jdsLibrary.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { coachHandoffBlock, jdBuildFailureCode, jdLibraryFooter, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jdsLibrary.ts";
 
 const row = (over: Partial<JdRow> = {}): JdRow => ({ slug: "s", title: "T", preview: "", created_at: "2026-01-01", ...over });
+
+test("FailedPanel never interpolates a traceback-shaped analysis_error", () => {
+  const traceback = "Traceback (most recent call last):\n  File \"/opt/kp/pipeline/jobfit/jd_build.py\", line 12, in run\nRuntimeError: spawn failed";
+  assert.equal(jdBuildFailureCode(traceback), "JD_GENERATE_FAILED");
+  assert.equal(jdBuildFailureCode("JD_SAVE_FAILED"), "JD_SAVE_FAILED");
+  assert.equal(jdBuildFailureCode(null), "JD_GENERATE_FAILED");
+  const panel = readFileSync(fileURLToPath(new URL("./JdsLedgerDetailPanels.tsx", import.meta.url)), "utf8");
+  assert.match(panel, /jdBuildFailureCode\(error\)/);
+  assert.match(panel, /errMsg\(\{ code \}/);
+  assert.doesNotMatch(panel, />\{error\}</);
+});
+
+test("the library intro names the default All-but-live filter and the ledger still starts there", () => {
+  for (const loc of ["en", "cs", "de", "fr"] as const) {
+    const tab = (JSON.parse(readFileSync(new URL(`../../../../messages/${loc}.json`, import.meta.url), "utf8")) as {
+      library: { tab: { intro: string; filterNotLive: string } };
+    }).library.tab;
+    assert.ok(
+      tab.intro.includes(tab.filterNotLive),
+      `${loc} library.tab.intro must name the default filter (${tab.filterNotLive})`,
+    );
+  }
+  const logic = readFileSync(fileURLToPath(new URL("./jdsLedgerLogic.ts", import.meta.url)), "utf8");
+  assert.match(logic, /useState<StatusFilter>\("notLive"\)/);
+});
 
 test("analysis_status takes precedence over jobStatus in statusCategory", () => {
   // A backgrounded build wins even over a linked job's lifecycle status.

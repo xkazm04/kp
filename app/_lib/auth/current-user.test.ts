@@ -85,12 +85,15 @@ const recruiter = createUser({ orgId: ORG, email: "caps.rec@csas.cz", name: "Rec
 const viewer = createUser({ orgId: ORG, email: "caps.view@csas.cz", name: "View", status: "active", password: "view-pw-1234" });
 const stranger = createUser({ orgId: ORG, email: "caps.none@csas.cz", name: "None", status: "active", password: "none-pw-1234" });
 const suspended = createUser({ orgId: ORG, email: "caps.off@csas.cz", name: "Off", status: "active", password: "off-pw-12345" });
+const disabledAdmin = createUser({ orgId: ORG, email: "caps.offadmin@csas.cz", name: "OffAdmin", status: "active", password: "offadmin-pw-1" });
 upsertMembership(owner.id, team.id, "owner");
 upsertMembership(admin.id, team.id, "admin");
 upsertMembership(recruiter.id, team.id, "recruiter");
 upsertMembership(viewer.id, team.id, "viewer");
 upsertMembership(suspended.id, team.id, "recruiter");
+upsertMembership(disabledAdmin.id, team.id, "admin");
 setUserStatus(suspended.id, "disabled");
+setUserStatus(disabledAdmin.id, "disabled");
 
 function signedInAs(user: { id: string; orgId: string } | null, workspace: string = team.id): void {
   cookieValue = user === null ? null : signSession(workspace, Date.now(), { sub: user.id, org: user.orgId });
@@ -187,6 +190,15 @@ test("a DISABLED user keeps a valid cookie and loses every capability", async ()
   signedInAs(suspended);
   assert.equal(await can("read"), false);
   assert.equal((await requireCapability("pipeline:write"))?.status, 403);
+});
+
+test("a DISABLED admin keeps a valid cookie and loses org-wide administrative capabilities", async () => {
+  // The recruiter fixture above cannot catch this: team:manage / members:manage
+  // come from orgMembershipGrants, which used to skip users.status.
+  signedInAs(disabledAdmin);
+  assert.deepEqual([...(await callerOrgCapabilities())], []);
+  assert.equal((await requireOrgCapability("team:manage"))?.status, 403);
+  assert.equal((await requireWorkspaceCapability(sisterTeam.id, "members:manage"))?.status, 403);
 });
 
 test("per-user overrides resolve LIVE — a permission change lands without a re-login", async () => {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { ProfileDraftError, runProfileDraft } from "@/app/_lib/profile-draft-run";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -47,10 +47,21 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json(draft);
   } catch (error) {
+    // ANSWERED BY CODE, never by the thrown message (api-contracts.md §1.1). Both
+    // branches used to forward it: `ProfileDraftError.message` is parseStderrError's
+    // text — profile_draft_cli's traceback, the temp workdir path, provider stderr —
+    // and the catch-all forwarded whatever fs/spawn threw. Neither belongs on the
+    // wire, and a client cannot localize a sentence, so every locale read English.
     if (error instanceof ProfileDraftError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      // The ONE deliberate refusal on this path: runProfileDraft rejects an empty
+      // `text` before it spawns anything. It is the same fact the seeker's dialog
+      // door already answers with INTAKE_TEXT_REQUIRED ("There is nothing to send"),
+      // so it reuses that code rather than minting a second word for it.
+      if (error.status === 400) return jsonRefusal("INTAKE_TEXT_REQUIRED", 400);
+      // Everything else the engine raised is a FAULT wearing the engine's status —
+      // kept, so a 504 still reads as a timeout to anything counting statuses.
+      return safeJsonError(error, "api:profile/draft", "PROFILE_DRAFT_FAILED", error.status);
     }
-    const message = error instanceof Error ? error.message : "AI draft failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:profile/draft", "PROFILE_DRAFT_FAILED");
   }
 }

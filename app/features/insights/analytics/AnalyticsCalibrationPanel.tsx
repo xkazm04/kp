@@ -188,6 +188,8 @@ export function CalibrationPanel() {
                   threshold={source === "pipeline" ? data.currentThreshold ?? null : null}
                   thresholdEnforced={data.autoRejectEnabled ?? null}
                   baseRate={baseRate}
+                  source={source}
+                  outcome={axis}
                 />
                 <div className="space-y-3 text-sm">
                   <div>

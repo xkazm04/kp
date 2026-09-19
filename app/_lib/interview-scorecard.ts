@@ -157,7 +157,9 @@ export type Scorecard = {
   // WHAT that rubric actually covered — specifically whether the role-family
   // industry axes were in it, and if not, why (rubricCoverage). `rubricKeys` shows
   // the axes that WERE scored; this states the ones that weren't, which a key list
-  // can never do. Absent on a legacy row and on the AI-synthesized scorecard (the
-  // Python scorer does not stamp it yet), so consumers must treat it as optional.
+  // can never do. The human POST stamps it at write time; `runInterviewScorecard`
+  // stamps the same resolver on the AI result after the Python spawn (and will
+  // not overwrite if Python later starts writing it). Absent on a legacy row, so
+  // consumers must treat it as optional.
   rubricCoverage?: RubricCoverage;
 };

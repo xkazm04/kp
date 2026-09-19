@@ -39,6 +39,87 @@ test("chat knockout buttons are tonally neutral — neither answer is signposted
   }
 });
 
+function mainBlocks(src: string): string[] {
+  return src.split(/return\s*\(/).slice(1).filter((block) => block.includes("<main"));
+}
+
+function closedRoleBlock(src: string): string {
+  const start = src.indexOf("if (!isJobOpenForApplications");
+  assert.ok(start >= 0, "could not locate the closed-role gate");
+  const rest = src.slice(start);
+  const end = rest.indexOf("\n  }\n");
+  assert.ok(end > 0, "could not find the end of the closed-role block");
+  return rest.slice(0, end);
+}
+
+test("a closed role renders apply.roleClosed and does not mount the chat or the quick form", () => {
+  const pages: { rel: string; form: string }[] = [
+    { rel: "page.tsx", form: "ConversationalApply" },
+    { rel: "quick/page.tsx", form: "QuickApplyForm" },
+  ];
+  for (const { rel, form } of pages) {
+    const src = read(rel);
+    const closed = closedRoleBlock(src);
+    assert.match(closed, /t\("roleClosed"\)/, `${rel} closed branch must render apply.roleClosed`);
+    assert.match(closed, /status === "draft"\) notFound\(\)/, `${rel} drafts 404`);
+    assert.doesNotMatch(closed, new RegExp(form), `${rel} closed branch must not mount ${form}`);
+    assert.match(src, new RegExp(`<${form}`), `${rel} open path still mounts ${form}`);
+    const mutated = closed.replace("{t(\"roleClosed\")}", `<${form} />`);
+    assert.match(mutated, new RegExp(form), `non-vacuity: ${rel} closed branch that mounts ${form} fails this pin`);
+  }
+});
+
+test("ApplyFollowup buttons compose the shared recipes instead of the banned primary literal", () => {
+  const src = read("ApplyFollowup.tsx");
+  assert.match(src, /from "@\/app\/_components\/ui\/recipes"/, "ApplyFollowup must import the button recipes");
+  assert.match(src, /BTN_PRIMARY/, "Submit is BTN_PRIMARY");
+  assert.match(src, /BTN_GHOST/, "Skip is BTN_GHOST");
+  assert.doesNotMatch(
+    src,
+    /bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel/,
+    "ApplyFollowup hand-rolls the primary the a11y contract bans"
+  );
+  assert.doesNotMatch(src, /rounded-md border border-stone-200 bg-white px-\d/, "ApplyFollowup hand-rolls the secondary");
+});
+
+test("every apply-page HTML return mounts LanguageSwitcher, including the closed-role card", () => {
+  for (const rel of ["page.tsx", "quick/page.tsx"] as const) {
+    const src = read(rel);
+    const blocks = mainBlocks(src);
+    assert.ok(blocks.length >= 2, `${rel} expected closed + open HTML returns`);
+    for (const block of blocks) {
+      assert.match(block, /LanguageSwitcher/, `${rel} HTML return missing LanguageSwitcher`);
+    }
+    const closed = blocks.find((b) => b.includes('t("roleClosed")'));
+    assert.ok(closed, `${rel} has no closed-role <main>`);
+    const without = closed.replace(/<LanguageSwitcher\s*\/>/, "");
+    assert.doesNotMatch(
+      without,
+      /LanguageSwitcher/,
+      `non-vacuity: ${rel} closed-role branch without the switcher fails this pin`
+    );
+  }
+});
+
+test("the conversational done card renders the status link the way quick is pinned", () => {
+  const card = read("ApplyDoneCard.tsx");
+  const view = read("ConversationalApply.tsx");
+  assert.match(
+    card,
+    /done\.result === "accepted" && done\.statusToken/,
+    "the done card only links when the outcome is accepted and carries a token"
+  );
+  assert.match(card, /\/status\/\$\{done\.statusToken\}/, "the done screen links to /status/<token>");
+  assert.match(card, /t\("trackStatus"\)/, "the link uses the shared apply.trackStatus label");
+  assert.match(view, /<ApplyDoneCard done=\{done\}/, "ConversationalApply still mounts the done card");
+  const mutated = card.replace("/status/${done.statusToken}", "/");
+  assert.doesNotMatch(
+    mutated,
+    /\/status\/\$\{done\.statusToken\}/,
+    "non-vacuity: a copy of ApplyDoneCard without the href fails this pin"
+  );
+});
+
 test("a declined outcome is recoverable in place", () => {
   // The done card, the view that wires it, and the submit hook that owns `done`
   // — the three links of the restart chain, since the card was split out.
@@ -77,6 +158,18 @@ test("the quick form's submit is always live and names what is missing", () => {
   assert.match(src, /jumpTo\(missing\)/, "…through the one shared jump helper");
 });
 
+test("every painted apply-page main, including the closed-role card, mounts LanguageSwitcher", () => {
+  const src = read("page.tsx");
+  const mains = [...src.matchAll(/<main[\s\S]*?<\/main>/g)].map((m) => m[0]);
+  assert.ok(mains.length >= 2, "open path and closed-role path each have a main");
+  for (const main of mains) {
+    assert.match(main, /<LanguageSwitcher \/>/, "a closed-role visit is still escapable into the candidate's language");
+  }
+  const draftGate = src.slice(src.indexOf('if (status === "draft")'), src.indexOf("return ("));
+  assert.match(draftGate, /notFound\(\)/, "drafts 404 rather than painting a card");
+  assert.doesNotMatch(draftGate, /LanguageSwitcher/, "the draft notFound path does not mount a switcher");
+});
+
 test("the quick form keeps its honeypot and the strict server KO contract untouched", () => {
   const src = read("quick/QuickApplyForm.tsx");
   assert.match(src, /company_url/, "the honeypot field is still posted");
@@ -84,4 +177,15 @@ test("the quick form keeps its honeypot and the strict server KO contract untouc
   // Every KO answer is still gathered client-side before any POST — the server
   // reads an ABSENT key as a fail, so an incomplete form must never reach it.
   assert.match(src, /koSteps\.find\(\(s\) => ko\[s\.id\] === undefined\)/, "an unanswered KO gate still blocks the POST");
+});
+
+test("the conversational chat posts the same company_url honeypot as the quick form", () => {
+  const view = read("ConversationalApply.tsx");
+  const submit = read("use-apply-submit.ts");
+  assert.match(view, /name="company_url"/, "the off-screen field is named company_url");
+  assert.match(view, /aria-hidden="true"/, "…and is out of the a11y tree");
+  assert.match(view, /tabIndex=\{-1\}/, "…and out of the tab order");
+  assert.match(view, /autoComplete="off"/, "…and not autofilled as a real company URL");
+  assert.doesNotMatch(view, /type="hidden"/, "not type=hidden — bots skip those");
+  assert.match(submit, /company_url: companyUrl/, "the final POST body includes company_url");
 });

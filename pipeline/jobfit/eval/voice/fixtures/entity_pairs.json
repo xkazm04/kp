@@ -1,0 +1,29 @@
+{
+  "_comment": "Committed (said, heard) ASR pairs for keyless entity-fidelity. No Piper, no network, no EL minutes. The V1 Czech call transcribed Reactem as Rustem and PostgreSQL as později SQL: aggregate WER stayed inside budget while two spoken skills were lost. voice_checks gates that class via entity_fidelity; this file is the corpus that test:python:gate can run without a live agent.",
+  "pairs": [
+    {
+      "id": "v1_corruption",
+      "lang": "cs",
+      "said": "Poslední rok dělám hlavně s Pythonem a Reactem, k tomu PostgreSQL a Docker.",
+      "heard": "Poslední rok dělám hlavně s Pythonem a Rustem, k tomu později SQL a Docker.",
+      "expect_ok": false,
+      "expect_missing": ["postgresql", "react"]
+    },
+    {
+      "id": "clean_en",
+      "lang": "en",
+      "said": "Last year I worked mainly with Python and React, plus PostgreSQL and Docker.",
+      "heard": "Last year I worked mainly with Python and React, plus PostgreSQL and Docker.",
+      "expect_ok": true,
+      "expect_missing": []
+    },
+    {
+      "id": "inflected_cs",
+      "lang": "cs",
+      "said": "Dělám hlavně s Pythonem a Reactem, k tomu PostgreSQL a Docker.",
+      "heard": "Dělám hlavně s Pythonem a Reactem, k tomu PostgreSQL a Docker.",
+      "expect_ok": true,
+      "expect_missing": []
+    }
+  ]
+}

@@ -31,9 +31,10 @@ const METRIC_PACK_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 const MIN_WINDOW_DAYS = 7;
 const MAX_WINDOW_DAYS = 365;
 
-// Who counts as "a recruiter carrying open roles". Owners and admins run the account;
-// hiring managers and viewers do not carry a req. Narrow on purpose: inflating the
-// denominator would understate capacity, which is the direction that flatters us.
+// Who counts as "a recruiter carrying open roles". Owners and recruiters carry a
+// req; admins, hiring managers and viewers do not. Narrow on purpose: a capacity
+// metric is roles PER recruiter, so a larger denominator gives a LOWER (more
+// modest) ratio — widening this set would understate capacity, not flatter it.
 const CARRYING_ROLES = new Set(["owner", "recruiter"]);
 
 function parseWindowDays(raw: string | null): number | null {

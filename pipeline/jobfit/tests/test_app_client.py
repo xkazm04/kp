@@ -42,6 +42,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.server.seen.append(("POST", self.path, body))
         if self.path == "/api/interview/connect":
             self._send({"sessionId": "s1", "token": "tok", "agentPrompt": "brief",
+                        "asrKeywords": ["PostgreSQL"],
                         "connect": {"signedUrl": "wss://example.invalid/x"}})
         elif self.path == "/api/interview/simulate":
             self._send({"sessionId": "s1", "token": "tok"})
@@ -176,6 +177,7 @@ class TestAgainstFakeServer(unittest.TestCase):
             self.assertEqual(minted["token"], "tok")
             session = app_client.connect(fake, token="tok", language="cs")
             self.assertEqual(session["connect"]["signedUrl"], "wss://example.invalid/x")
+            self.assertEqual(session.get("asrKeywords"), ["PostgreSQL"])
             saved = app_client.complete(fake, token="tok", session_id="s1",
                                         transcript=[{"role": "candidate", "text": "hi"}])
             self.assertEqual(len(saved["session"]["transcript"]), 1)

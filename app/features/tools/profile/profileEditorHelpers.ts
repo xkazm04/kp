@@ -19,11 +19,13 @@ export function focusProfileField(key: ProfileFieldKey) {
 
 // Inline field validation: catch a non-numeric "years" (would POST NaN) and a
 // malformed graduation year before the request, and gate Save on validity.
-// Validate years only while the field is visible for the chosen archetype — a
-// stale, hidden value won't be submitted, so it must not block Save either.
+// Validate years and graduation only while the field is visible — a stale, hidden
+// value won't be submitted, so it must not block Save either. Graduation is shown
+// for studentish archetypes (`isStudentish` in ProfileEditor), not via
+// archetypeFieldVisibility, so callers pass `graduation` beside `years`.
 export function validateProfileEditorFields(
   t: Translator,
-  fieldVis: { years: boolean },
+  fieldVis: { years: boolean; graduation: boolean },
   yearsExperience: string,
   expectedGraduation: string
 ) {
@@ -32,7 +34,7 @@ export function validateProfileEditorFields(
       ? t("yearsError")
       : undefined;
   const gradError =
-    expectedGraduation.trim() !== "" && !/^(19|20)\d{2}$/.test(expectedGraduation.trim())
+    fieldVis.graduation && expectedGraduation.trim() !== "" && !/^(19|20)\d{2}$/.test(expectedGraduation.trim())
       ? t("gradError")
       : undefined;
   return { yearsError, gradError, hasFieldErrors: Boolean(yearsError || gradError) };

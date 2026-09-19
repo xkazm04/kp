@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { ensureDb, type JobRecord } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { deleteJobTranslations } from "./db/job-translations";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 
@@ -105,6 +106,13 @@ export function insertJob(
     if (free !== job.id) job = { ...job, id: free };
   }
   const now = new Date().toISOString();
+  // A re-ingest under an existing id rewrites the role's fields, so the renderings
+  // of the PREVIOUS text in other languages are no longer translations of this role:
+  // drop them here, on the one write that changes what a posting says, rather than
+  // leaving a stale German ad live under a rewritten English one. Same connection,
+  // so a caller's transaction covers both writes. The posting tab regrows them on
+  // demand (its empty state + "generate translation").
+  if (targetsExisting) deleteJobTranslations(job.id, workspaceId);
   // `status` is set ONLY on first INSERT — the ON CONFLICT UPDATE deliberately
   // omits it so re-upserting an existing row preserves its stored lifecycle
   // value. setJobStatus is the sole writer of transitions; if this UPDATE wrote

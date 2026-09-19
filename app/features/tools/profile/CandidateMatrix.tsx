@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { buildUrl } from "@/app/features/shell/tabs";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
 import { CandidateDetailModal } from "./CandidateDetailModal";
@@ -43,6 +41,7 @@ import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTy
 export function CandidateMatrix({
   archetypes,
   onEditProfile,
+  onBuildFromAnalysis,
   onNewProfile,
   reloadKey = 0,
   archivedArchetypeIds,
@@ -50,6 +49,11 @@ export function CandidateMatrix({
   archetypes: ArchetypeDef[];
   /** Open the editor for a saved profile (same ?edit= flow the roster uses). */
   onEditProfile: (id: string) => void;
+  /** Save an analysed CV as a profile. A CALLBACK, not a same-tab URL push: this
+   *  matrix only ever renders inside the archetypes tab, so pushing
+   *  `?tab=archetypes&fromAnalysis=` never remounts the panel and the mount-only
+   *  deep-link effect never reads the intent. Same shape as `onEditProfile`. */
+  onBuildFromAnalysis: (slug: string) => void;
   /** Create CTA for the EMPTY state only — the always-on create button lives next
    *  to the projection toggle on ProfileTab, reachable from List and Matrix alike. */
   onNewProfile?: () => void;
@@ -62,7 +66,6 @@ export function CandidateMatrix({
   const t = useTranslations("profile.matrix");
   const locale = useLocale();
   const enumLabel = useEnumLabel();
-  const router = useRouter();
   const [candidates, setCandidates] = useState<CandidateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>(NO_CANDIDATE_FILTERS);
@@ -112,22 +115,19 @@ export function CandidateMatrix({
 
   const patchFilters = useCallback((patch: Partial<CandidateFilters>) => setFilters((f) => ({ ...f, ...patch })), []);
   // Promote an analysed CV into a saved, matchable profile — prefilled and STAMPED
-  // with source lineage (?fromAnalysis=), so a later re-analysis of the same CV
-  // surfaces as staleness on the profile.
-  const buildFromAnalysis = useCallback(
-    (slug: string) => router.push(buildUrl({ tab: "archetypes", fromAnalysis: slug }, "")),
-    [router]
-  );
+  // with source lineage (`sourceAnalysisSlug`), so a later re-analysis of the same CV
+  // surfaces as staleness on the profile. Direct callback: a same-tab `fromAnalysis`
+  // URL push never remounts this panel.
   // The chip's single action icon: edit a saved profile, or save an analysis as one.
   const onSave = useCallback(
     (cand: CandidateRow) => {
       if (cand.source === "profile") {
         if (cand.id) onEditProfile(cand.id);
       } else if (cand.slug) {
-        buildFromAnalysis(cand.slug);
+        onBuildFromAnalysis(cand.slug);
       }
     },
-    [onEditProfile, buildFromAnalysis]
+    [onEditProfile, onBuildFromAnalysis]
   );
 
   return (
@@ -177,7 +177,7 @@ export function CandidateMatrix({
           cand={detail}
           onClose={() => setDetail(null)}
           onEditProfile={onEditProfile}
-          onBuildFromAnalysis={buildFromAnalysis}
+          onBuildFromAnalysis={onBuildFromAnalysis}
         />
       ) : null}
     </section>

@@ -19,6 +19,7 @@ to be true for it to change?*
 - weaken, skip or reconfigure a repo gate (design tokens, locale parity, tenancy, rate limits) → [0007](0007-repo-laws-are-gates.md)
 - add a new comms delivery path, or change how delivery status is labelled → [0008](0008-row-declares-its-own-outcome.md)
 - add a new ATS webhook event id or promote one from `reserved` to `live` → [0008](0008-row-declares-its-own-outcome.md)
+- add a runtime dependency, or fetch a third party's pages on a schedule → [0009](0009-one-html-parser-for-owner-consented-acquisition.md)
 
 ## Index
 
@@ -32,6 +33,7 @@ to be true for it to change?*
 | [0006](0006-agpl-with-cla.md) | AGPL-3.0-only plus a CLA; hosting is the commercial boundary | accepted | 2026-08-26 |
 | [0007](0007-repo-laws-are-gates.md) | A repo law that isn't a gate isn't a law | accepted | 2026-08-26 |
 | [0008](0008-row-declares-its-own-outcome.md) | A row declares its own outcome — no green lies | accepted | 2026-09-07 |
+| [0009](0009-one-html-parser-for-owner-consented-acquisition.md) | One HTML parser dependency, for owner-consented acquisition only | accepted | 2026-09-16 |
 
 ## Writing a new one
 

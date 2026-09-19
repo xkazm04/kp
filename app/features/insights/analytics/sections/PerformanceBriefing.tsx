@@ -18,7 +18,7 @@
 //   • copy voice is the product's ("no robots in charge"), not a dashboard's.
 import { useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { Defer } from "@/app/_components/ui/Defer";
@@ -29,7 +29,7 @@ import { AnalyticsExportButton } from "../AnalyticsExportButton";
 import { GoalsEditor } from "../AnalyticsGoalsEditor";
 import { AnalyticsByRoleTable } from "../AnalyticsByRoleTable";
 import { FunnelEmptyGuide } from "../AnalyticsFunnelEmptyGuide";
-import { funnelCsvRows } from "../analyticsFunnelCsv";
+import { analyticsCsvProvenance, funnelCsvRows } from "../analyticsFunnelCsv";
 import { funnelBandState, hasUngoaledStage, stageVerdict } from "../analyticsFunnelEmptyState";
 import { StageDwellPanel } from "../AnalyticsStageDwellPanel";
 import { AnalyticsArchetypePanel } from "../AnalyticsArchetypePanel";
@@ -106,6 +106,8 @@ function Band({
 
 export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaByStage, boardHref, reload }: PerformanceProps) {
   const t = useTranslations("analytics");
+  const tLog = useTranslations("analytics.log");
+  const locale = useLocale();
   // UAT TOM-ANA-9 — the no-goal note needs to open the editor two bands down in
   // one click, so the editor's disclosure state is lifted here.
   const [goalsOpen, setGoalsOpen] = useState(false);
@@ -158,7 +160,30 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
             conversion: t("csvFunnelConversion"),
             goal: t("csvFunnelGoal"),
           },
-          (stage) => enumLabel("stage", stage)
+          (stage) => enumLabel("stage", stage),
+          {
+            provenance: analyticsCsvProvenance(
+              "kp-funnel.csv",
+              {
+                window: data.windowDays == null ? t("windowAll") : t("windowDays", { days: data.windowDays }),
+                bucketTz: data.bucketTz ?? "UTC",
+                locale,
+                truncated: !!data.truncated,
+                excludedSim: data.excludedSim ?? 0,
+                truncatedNote: t("cohortTruncatedNote", { count: data.total }),
+                excludedNote: t("simExcludedNote", { count: data.excludedSim ?? 0 }),
+              },
+              {
+                export: tLog("provExport"),
+                generated: tLog("provGenerated"),
+                window: t("windowLabel"),
+                tz: tLog("provZone"),
+                locale: tLog("provLocale"),
+                truncated: t("exportProvTruncated"),
+                excludedSim: t("exportProvExcludedSim"),
+              }
+            ),
+          }
         )
       ),
       "text/csv"
@@ -222,7 +247,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         noDataContext={t("briefNoDataContext")}
         action={
           showFunnelRows ? (
-            <AnalyticsExportButton label={t("exportCsv")} title={t("exportFunnelTitle")} onClick={exportFunnel} />
+            <AnalyticsExportButton label={t("exportCsv")} artifact="kp-funnel.csv" title={t("exportFunnelTitle")} onClick={exportFunnel} />
           ) : null
         }
         claim={

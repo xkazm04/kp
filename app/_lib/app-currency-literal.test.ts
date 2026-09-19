@@ -29,6 +29,8 @@ const ALLOWED: Record<string, string> = {
     "Polar pack prices are quoted in CZK as a price list (catalog.packs.*.priceCzk), not a salary band",
   "features/settings/billing/BillingPlanPrice.tsx":
     "the same CZK-quoted plan price list (price.czk)",
+  "_lib/jobseeker/adapters/mpsvBulk.ts":
+    "the MPSV vacancy register (Czech labour office open data) states pay in CZK by nature; the adapter labels the source's own figure, it prices nothing",
 };
 
 // `currency: "CZK"`, `currency="CZK"` and `?? "CZK"` — the three shapes a stranded

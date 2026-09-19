@@ -14,6 +14,8 @@
 //   node scripts/run-unit-tests.mjs "app/_lib/getting-started.test.ts"
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { companyStep } from "./getting-started.ts";
 import { DEFAULT_ORG_NAME } from "./org-settings.ts";
 
@@ -65,4 +67,13 @@ test("with no org on the session the deployment-wide read stands — and is labe
 
 test("whitespace-only cookie is not a stored name", () => {
   assert.equal(companyStep("   ", NO_BRAND, null).company, false);
+});
+
+test("the team step counts the pending (redeemable) invite list, not every row", () => {
+  // computeGettingStarted ticks `team` on `listInvitesForOrg(org, "pending")`.
+  // That filter now drops expired rows (invites.test.ts), so a lapsed invite
+  // cannot complete the step. Pin the call site so a future rewrite that lists
+  // without a status (or with a homemade expiry check) is a deliberate change.
+  const src = readFileSync(fileURLToPath(new URL("./getting-started.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  assert.match(src, /listInvitesForOrg\(org,\s*"pending"\)/, "team invited = redeemable pending, not every invite row");
 });

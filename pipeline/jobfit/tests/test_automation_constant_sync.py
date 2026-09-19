@@ -37,11 +37,20 @@ from pipeline.jobfit import automation, calibration_drift
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRANSCRIPT_TS = REPO_ROOT / "app" / "_lib" / "interview-transcript.ts"
 CALIBRATION_TS = REPO_ROOT / "app" / "_lib" / "calibration.ts"
+CACHE_KEY_TS = REPO_ROOT / "app" / "_lib" / "automation-cache-key.ts"
 
 # TS file -> {TS constant: the Python value it must equal}. Explicit so the map
 # itself is checkable (see test_the_map_names_live_python_constants).
 MIRRORED: dict[Path, dict[str, int]] = {
     TRANSCRIPT_TS: {"MAX_SCORECARD_NOTES_CHARS": automation.MAX_SCORECARD_NOTES_CHARS},
+    # The screening VOLUME tier boundaries. Python tiers on them (POLICY /
+    # screening_volume_tier) and TS BUCKETS the cache key on them — if the two
+    # disagreed, one cache bucket would span two strictness rules and a lenient
+    # verdict computed in a sparse pipeline would be served to a strict, dense one.
+    CACHE_KEY_TS: {
+        "SCREEN_VOLUME_SPARSE_MAX": automation.POLICY["screen_volume_sparse_max"],
+        "SCREEN_VOLUME_MODERATE_MAX": automation.POLICY["screen_volume_moderate_max"],
+    },
     CALIBRATION_TS: {
         "MIN_CALIBRATION_OUTCOMES": calibration_drift.MIN_CALIBRATION_OUTCOMES,
         "CALIBRATION_BIN_COUNT": calibration_drift.CALIBRATION_BIN_COUNT,
@@ -99,6 +108,17 @@ class AutomationConstantSyncTest(unittest.TestCase):
             len(calibration_drift.compute_calibration([{"score": 50, "outcome": 1}] * 25)["bins"]),
             calibration_drift.CALIBRATION_BIN_COUNT,
             "compute_calibration no longer emits CALIBRATION_BIN_COUNT bins",
+        )
+        # The volume thresholds must still be the ones the tier function reads — a
+        # rename in POLICY would otherwise leave this map checking a dead key.
+        self.assertEqual(
+            automation.screening_volume_tier(automation.POLICY["screen_volume_sparse_max"]), "sparse"
+        )
+        self.assertEqual(
+            automation.screening_volume_tier(automation.POLICY["screen_volume_sparse_max"] + 1), "moderate"
+        )
+        self.assertEqual(
+            automation.screening_volume_tier(automation.POLICY["screen_volume_moderate_max"] + 1), "dense"
         )
 
     def test_extractor_rejects_a_documented_value(self) -> None:

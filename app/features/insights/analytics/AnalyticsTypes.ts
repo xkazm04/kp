@@ -63,6 +63,9 @@ export type Analytics = {
   byJobTotal: number;
   koDeclined: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
+  /** Echo of the request's job-scoped cohort filter — null when the read is
+   *  workspace-wide. Mirrors PipelineAnalytics.jobId (db/analytics.ts). */
+  jobId: string | null;
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;
@@ -102,6 +105,7 @@ export const WINDOW_CHOICES = [null, 30, 90] as const;
 
 // 82c2b8e8 / b39992b1 — mirror the server's reserved analytics_targets keys.
 // Declared locally so the client doesn't import the db barrel (better-sqlite3)
-// for two strings.
+// for three strings.
 export const TIME_TO_HIRE_KEY = "time_to_hire";
 export const RECRUITER_HOURLY_KEY = "recruiter_hourly_czk";
+export const MANUAL_HOURS_KEY = "manual_hours_per_hire";

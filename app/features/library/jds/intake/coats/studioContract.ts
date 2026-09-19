@@ -1,34 +1,18 @@
-// The intake studio's CONTRACT: the doctrine the one surface obeys, plus the
-// small vocabulary it needs to obey it.
+// The intake studio's CONTRACT: what is INTAKE'S about the one surface, now that
+// the surface itself is the Studio kit (app/_components/studio).
 //
 // This file used to be `coatKit.ts`, the JSX-free vocabulary behind a three-way
 // coat switch (classic · atelier · console). The switch is gone — Atelier won,
-// with Console's Job-description sheet fused into it — so the coat id, its
-// storage and its store hook went with it. What survives is what has a caller:
-// the doctrine below, the editability rule, the promote defaults, and the zone
-// vocabulary the desk's fold preference is written in (it arrived here from
-// `intakeLayoutShared.ts`, which described a layout that no longer exists).
+// with Console's Job-description sheet fused into it — and in WP1 the desk it
+// described was extracted into the kit, where a second consumer (the job-seeker
+// dialogs) shares it. The doctrine that travelled with it — NO SENTENCE OCCUPIES
+// LAYOUT — is stated once, in the kit's `studioZones.ts`, beside the toggle rule
+// it constrains. What survives here is what has an intake caller: the editability
+// rule, the promote defaults, and the zone vocabulary the desk's fold preference
+// is written in, bound to intake's storage key.
 
+import { readStoredZones, storeZones, toggleZone, zoneKeyGuard } from "@/app/_components/studio/studioZones";
 import type { IntakeSession } from "../jdsIntakeLogic";
-
-/* ── What the two new coats agree on ────────────────────────────────────────
- *
- * NO SENTENCE OCCUPIES LAYOUT. A control that needs explaining carries a glyph
- * and a tooltip; the explanation is one hover or one focus away and never
- * takes a line of the desk. Three consequences the coats implement identically:
- *
- *  1. A capability that is absent is drawn in its NEGATIVE state (a struck
- *     microphone, a muted speaker) with the reason in its tooltip — not a
- *     paragraph telling the reader to continue in text.
- *  2. An option is a togglable icon with `aria-pressed`, not a checkbox beside
- *     a sentence.
- *  3. An empty region shows the SHAPE of what will fill it, not a sentence
- *     promising that it will.
- *
- * A failure the reader must act on is the exception and stays visible: an error
- * is not chrome. So is a degraded engine, because a brief built by the fallback
- * script is a different artifact and hiding that would be a lie of omission.
- */
 
 /** Is this session still writable? Promoted sessions are frozen by contract. */
 export function coatEditable(active: IntakeSession): boolean {
@@ -46,40 +30,28 @@ export const DEFAULT_PROMOTE_OPTIONS: PromoteOptions = { caseDesign: false, mark
 /* ── The desk's zones ───────────────────────────────────────────────────────
  *
  * Which zones a requestor keeps open is a per-browser layout PREFERENCE, not
- * data, so it lives in localStorage and never on the server. SSR-safe: read
- * lazily, swallow storage errors. */
+ * data, so it lives in localStorage and never on the server. The vocabulary and
+ * the key are intake's; the SSR-safe reader, the writer and the min-one-open
+ * toggle are the kit's, generic over the vocabulary. Intake pins nothing: its
+ * conversation folds like any other zone, as it always has. */
 
-export type IntakeColumnKey = "draft" | "chat" | "brief" | "materials";
+export const INTAKE_COLUMN_KEYS = ["draft", "chat", "brief", "materials"] as const;
+export type IntakeColumnKey = (typeof INTAKE_COLUMN_KEYS)[number];
+export const isIntakeColumnKey = zoneKeyGuard(INTAKE_COLUMN_KEYS);
+
+/** localStorage key of the fold preference — intake's own, never the kit's. */
+export const INTAKE_COLUMNS_STORAGE_KEY = "kp-intake-atelier-cols";
 
 export function readStoredColumns(storageKey: string, fallback: IntakeColumnKey[]): IntakeColumnKey[] {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return fallback;
-    const valid = parsed.filter((v): v is IntakeColumnKey => v === "draft" || v === "chat" || v === "brief" || v === "materials");
-    return valid.length > 0 ? valid : fallback;
-  } catch {
-    /* best-effort: a browser that refuses storage still gets the default zones */
-    return fallback;
-  }
+  return readStoredZones(storageKey, fallback, isIntakeColumnKey);
 }
 
 export function storeColumns(storageKey: string, open: IntakeColumnKey[]): void {
-  try {
-    window.localStorage.setItem(storageKey, JSON.stringify(open));
-  } catch {
-    /* storage unavailable — the preference just doesn't persist */
-  }
+  storeZones(storageKey, open);
 }
 
 /** Toggle with the min-one-open guard: the last open zone cannot be hidden (an
  *  all-spine desk would strand the requestor with no content at all). */
 export function toggleColumn(open: IntakeColumnKey[], key: IntakeColumnKey): IntakeColumnKey[] {
-  if (open.includes(key)) {
-    if (open.length === 1) return open;
-    return open.filter((k) => k !== key);
-  }
-  return [...open, key];
+  return toggleZone(open, key);
 }

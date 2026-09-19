@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { publicBaseUrl } from "./public-base-url.ts";
+import { publicBaseUrl, publicOriginConflict, resetPublicOriginConflictWarnForTests } from "./public-base-url.ts";
 
 const ORIGINAL_APP = process.env.APP_BASE_URL;
 const ORIGINAL_PUBLIC = process.env.NEXT_PUBLIC_APP_BASE_URL;
@@ -24,6 +24,7 @@ afterEach(() => {
   setEnv("APP_BASE_URL", ORIGINAL_APP);
   setEnv("NEXT_PUBLIC_APP_BASE_URL", ORIGINAL_PUBLIC);
   setEnv("NEXT_PUBLIC_SITE_URL", ORIGINAL_SITE);
+  resetPublicOriginConflictWarnForTests();
 });
 
 // ── Precedence: an explicit deploy override always wins ──────────────────────
@@ -132,4 +133,55 @@ test("a configured override still beats a poisoned Host outright", () => {
   setEnv("NEXT_PUBLIC_APP_BASE_URL", undefined);
   setEnv("NEXT_PUBLIC_SITE_URL", "https://app.example.com");
   assert.equal(publicBaseUrl("https://evil.attacker.example"), "https://public.example.com");
+});
+
+// Dual-override disagreement: the server honors APP_BASE_URL while the browser
+// only sees NEXT_PUBLIC_APP_BASE_URL. Precedence is unchanged; the pair is
+// reported so a misconfigured boot is loud.
+
+test("publicOriginConflict is null when fewer than two absolute overrides are set", () => {
+  setEnv("APP_BASE_URL", undefined);
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", undefined);
+  assert.equal(publicOriginConflict(), null);
+
+  setEnv("APP_BASE_URL", "https://hire.example");
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", undefined);
+  assert.equal(publicOriginConflict(), null);
+
+  setEnv("APP_BASE_URL", undefined);
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://hire.example");
+  assert.equal(publicOriginConflict(), null);
+});
+
+test("publicOriginConflict is null when both overrides name the same origin (trailing slash ignored)", () => {
+  setEnv("APP_BASE_URL", "https://hire.example/");
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://hire.example");
+  assert.equal(publicOriginConflict(), null);
+});
+
+test("publicOriginConflict reports the pair when the two overrides name different hosts", () => {
+  setEnv("APP_BASE_URL", "https://server.example.com");
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://mirror.example.com");
+  assert.deepEqual(publicOriginConflict(), {
+    server: "https://server.example.com",
+    client: "https://mirror.example.com",
+  });
+});
+
+test("publicBaseUrl warns once when the two overrides disagree, without changing precedence", () => {
+  setEnv("APP_BASE_URL", "https://server.example.com");
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://mirror.example.com");
+  const warnings: string[] = [];
+  const orig = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(String(args[0]));
+  };
+  try {
+    assert.equal(publicBaseUrl("http://localhost:3000"), "https://server.example.com");
+    assert.equal(publicBaseUrl("http://localhost:3000"), "https://server.example.com");
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0] ?? "", /disagree/);
+  } finally {
+    console.warn = orig;
+  }
 });

@@ -5,6 +5,7 @@ import { verifySession, currentWorkspaceId, currentUserId, currentOrgId, isOpera
 import { roleCapabilities, type Capability, type MemberRole } from "./roles";
 import { orgAdminCapabilities, orgCapabilityCeiling, workspaceCapabilities, type MembershipGrant } from "./org-authority";
 import { getMembership, capabilitiesForUserInWorkspace, listMembershipsForUser } from "../db/memberships";
+import { getUserById } from "../db/users";
 import { getWorkspaceOrgId, listWorkspacesByOrg } from "../db/workspaces";
 
 // Per-user identity + capability gate for REQUEST scope (route handlers / server
@@ -109,8 +110,13 @@ export async function requireCapability(cap: Capability): Promise<NextResponse |
 // team-private. org-authority.ts owns the policy; these two wrappers feed it the
 // live DB rows. Both fail closed outside the caller's org.
 
-/** The caller's memberships within one org (their own org), as capability grants. */
+/** The caller's memberships within one org (their own org), as capability grants.
+ *  Empty when the account is missing or disabled — same predicate as
+ *  `capabilitiesForUserInWorkspace`, so a live cookie cannot keep org-wide
+ *  `team:manage` / `members:manage` after offboarding. */
 function orgMembershipGrants(userId: string, orgId: string): MembershipGrant[] {
+  const user = getUserById(userId);
+  if (!user || user.status === "disabled") return [];
   const orgWorkspaces = new Set(listWorkspacesByOrg(orgId).map((w) => w.id));
   return listMembershipsForUser(userId)
     .filter((m) => orgWorkspaces.has(m.workspaceId))

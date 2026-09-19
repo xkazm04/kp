@@ -59,6 +59,10 @@ export type RediscoverResult = {
    *  lapsed consent). A COUNT, never a list: naming them in `skipped` would put the
    *  identity back on the wire that the suppression exists to keep off it. */
   suppressed: number;
+  /** True when `buildCandidatePool` hit a cap, so older members were never ranked.
+   *  A boolean, never a list of dropped identities (same rule as `suppressed`).
+   *  The ranked subset is still returned — the flag says it is not the whole corpus. */
+  poolTruncated: boolean;
 };
 
 /** Choose the ONE prior outcome that justifies resurfacing this candidate against
@@ -115,8 +119,8 @@ export async function rediscoverForJob(
   // Workspace-scoped pool: the on-demand route + publish thread their request's
   // currentWorkspace(); the background sweep leaves it at the default tenant
   // (its current behavior — a per-tenant sweep is a separate feature).
-  const { entries: pool } = buildCandidatePool(opts.workspaceId);
-  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0 };
+  const { entries: pool, truncated } = buildCandidatePool(opts.workspaceId);
+  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0, poolTruncated: truncated };
 
   // CONSENT AT RANK TIME, not only at the send door. `candidateOutreachSuppression`
   // lived in this very module and was called from ONE place — /candidates/outreach —
@@ -147,7 +151,7 @@ export async function rediscoverForJob(
       `[rediscovery] job "${job.id}": ${suppressed} of ${pool.length} pool members withheld (consent gate + candidate opt-outs).`
     );
   }
-  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed };
+  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed, poolTruncated: truncated };
 
   const ranked = await rankPoolForJob<{
     candidates: {
@@ -218,6 +222,7 @@ export async function rediscoverForJob(
     skipped: [...(ranked.skipped ?? []), ...unscored],
     more: Math.max(0, rediscovered.length - shown.length),
     suppressed,
+    poolTruncated: truncated,
   };
 }
 

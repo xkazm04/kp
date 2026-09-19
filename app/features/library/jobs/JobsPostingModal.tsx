@@ -1,29 +1,24 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef } from "react";
-import { BarChart3, Bot, FileText, Gauge, History, Megaphone, Scale } from "lucide-react";
+import { BarChart3, Bot, FileText, Gauge, History, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
-import { Markdown } from "@/app/_components/Markdown";
 import { JobLifecycleStrip } from "./JobsLifecycleStrip";
 import { RecruiterCandidates } from "./JobsRecruiterCandidates";
 import { RediscoverPanel } from "./JobsRediscoverPanel";
 import { CompareInterviews } from "./JobsCompareInterviews";
-import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
-import { POSTING_LOCALES } from "./jobsMarkdown";
+import { JobsPostingTab } from "./JobsPostingTab";
+import { JobsPublishDialog } from "./JobsPublishDialog";
 import { POSTING_TAB_IDS, type PostingTabId } from "./jobsPostingModalTabs";
 import { useTablist } from "@/app/_components/ui/useTablist";
 import type { Job } from "./JobsTypes";
 import { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { JobsPostingModalFooter } from "./JobsPostingModalFooter";
 
-// Tier 3 (docs/design/loading-choreography.md): these two tabs are click-only (only the
+// Tier 3 (docs/design/loading-choreography.md): these tabs are click-only (only the
 // active tab mounts) and are each >250 lines, so they get their own chunk — the
 // modal's default "posting" tab never pays for either bundle. The chunk gap is a
 // quiet reserved-height box, never a skeleton.
-const CampaignTab = dynamic(() => import("./JobsCampaignTab").then((m) => ({ default: m.CampaignTab })), {
-  loading: () => <div className="reveal-quiet min-h-[20rem]" aria-hidden />,
-});
 const CoachPanel = dynamic(() => import("./JobsCoachPanel").then((m) => ({ default: m.CoachPanel })), {
   loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
 });
@@ -34,10 +29,9 @@ const AgentFitTab = dynamic(() => import("./JobsAgentFitTab").then((m) => ({ def
 // Label key + icon per tab id. The IDS live once, in jobsPostingModalTabs.ts —
 // this is only their presentation, and `Record<PostingTabId, …>` means adding an
 // id there is a type error here until the strip learns to render it.
-const TAB_META: Record<PostingTabId, { labelKey: "tabPosting" | "tabCoach" | "tabCampaign" | "tabCandidates" | "tabRediscover" | "tabCompare" | "tabAgentFit"; Icon: typeof FileText }> = {
+const TAB_META: Record<PostingTabId, { labelKey: "tabPosting" | "tabCoach" | "tabCandidates" | "tabRediscover" | "tabCompare" | "tabAgentFit"; Icon: typeof FileText }> = {
   posting: { labelKey: "tabPosting", Icon: FileText },
   coach: { labelKey: "tabCoach", Icon: Gauge },
-  campaign: { labelKey: "tabCampaign", Icon: Megaphone },
   candidates: { labelKey: "tabCandidates", Icon: BarChart3 },
   rediscover: { labelKey: "tabRediscover", Icon: History },
   compare: { labelKey: "tabCompare", Icon: Scale },
@@ -65,7 +59,24 @@ export function JobPostingModal({
   // from "Posting" cost six Tab presses through a widget whose ARIA said otherwise.
   // …now the shared hook (app/_components/ui/useTablist.ts), which was the
   // promotion jobsPostingModalTabs.ts's note asked for on the third caller.
-  const { t, tab, setTab, postingLang, setPostingLang, markdown, statusSuffix, confirmingClose, setConfirmingClose, closeRole, lifecycleToken } = logic;
+  const {
+    t,
+    tab,
+    setTab,
+    postingLang,
+    setPostingLang,
+    appLocale,
+    markdown,
+    statusSuffix,
+    confirmingClose,
+    setConfirmingClose,
+    closeRole,
+    confirmingPublish,
+    setConfirmingPublish,
+    publishRole,
+    isClosed,
+    lifecycleToken,
+  } = logic;
   const tablist = useTablist({ ids: POSTING_TAB_IDS, active: tab, onSelect: setTab });
   return (
     <Modal
@@ -79,7 +90,7 @@ export function JobPostingModal({
           the tab that owns it (JD → channels → board → decisions → offers). */}
       <JobLifecycleStrip jobId={job.id} jobTitle={job.title} refreshToken={lifecycleToken} />
 
-      {/* Seven tabs do not fit a phone or a narrow split: the strip scrolls
+      {/* Six tabs do not fit a phone or a narrow split: the strip scrolls
           horizontally instead of squeezing the labels off the modal's edge. */}
       <div
         {...tablist.tablistProps}
@@ -103,32 +114,23 @@ export function JobPostingModal({
         })}
       </div>
 
-      <div {...tablist.panelProps} className="focus-ring rounded-lg">
+      {/* ONE SIZE ACROSS THE TABS. The six panels have wildly different natural
+          heights — a posting is a page, "Agent fit" is a few rows — so switching
+          tabs used to resize the whole dialog under the reader's cursor, moving the
+          strip they were aiming at. A floor on the PANEL (not on the modal) keeps
+          the chrome still while letting a long posting grow past it, which is the
+          only direction that does not hide content. */}
+      <div {...tablist.panelProps} className="focus-ring min-h-[32rem] rounded-lg">
         {tab === "posting" ? (
-          <>
-            {/* JOB3 — choose the posting's language independently of the app. */}
-            <div className="mb-2 flex items-center gap-1.5">
-              <span className="text-meta uppercase text-steel">{t("postingLanguage")}</span>
-              {POSTING_LOCALES.map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => setPostingLang(loc)}
-                  aria-pressed={postingLang === loc}
-                  className={`${CHIP_TOGGLE(postingLang === loc)} px-2.5 py-0.5 uppercase`}
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
-            <article className="rounded-lg border border-stone-200 bg-paper/40 p-4">
-              <Markdown content={markdown} />
-            </article>
-          </>
+          <JobsPostingTab
+            jobId={job.id}
+            postingLang={postingLang}
+            setPostingLang={setPostingLang}
+            markdown={markdown}
+            appLocale={appLocale}
+          />
         ) : tab === "coach" ? (
           <CoachPanel jobId={job.id} jobTitle={job.title} />
-        ) : tab === "campaign" ? (
-          <CampaignTab jobId={job.id} jobTitle={job.title} />
         ) : tab === "candidates" ? (
           <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
         ) : tab === "rediscover" ? (
@@ -172,6 +174,20 @@ export function JobPostingModal({
         >
           <p className="text-base text-steel">{t("closeConfirm")}</p>
         </Modal>
+      ) : null}
+
+      {/* Opening a role asks for its terms first — how many hires fill it, and the
+          languages it is advertised in — and only then posts. Same stacked-confirm
+          shape as the close above, and the same dialog the Drafts panel opens. */}
+      {confirmingPublish ? (
+        <JobsPublishDialog
+          reopen={isClosed}
+          onCancel={() => setConfirmingPublish(false)}
+          onConfirm={(terms) => {
+            setConfirmingPublish(false);
+            void publishRole(terms);
+          }}
+        />
       ) : null}
     </Modal>
   );

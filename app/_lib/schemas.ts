@@ -305,9 +305,10 @@ export type CodeReview = z.infer<typeof codeReviewSchema>;
 // hand-edited row or a pack from an older campaign_cli decoded happily and painted
 // `undefined` into ad copy a recruiter was about to publish.
 //
-// LOOSE on purpose (`z.looseObject`): campaign.py owns this shape and adds to it
-// (defaulted_fields is queued), so the schema is a FLOOR — the fields the tab actually
-// dereferences — not a filter. Unknown keys survive the round trip.
+// LOOSE on purpose (`z.looseObject`): campaign.py owns this shape and adds to it,
+// so the schema is a FLOOR — the fields a pack surface dereferences — not a filter.
+// Unknown keys survive the round trip. `defaultedFields` is now on the floor
+// (assumed DEFAULT_POLICY slugs the copy already withheld).
 const campaignVideoScriptSchema = z.looseObject({
   hook: z.string(),
   offer: z.string(),
@@ -334,7 +335,10 @@ export const campaignPackSchema = z.looseObject({
   // catalog keys, so a warning object here would render nothing.
   warnings: z.array(z.string()).optional(),
   applyUrl: z.string().optional(),
-  language: z.string().optional()
+  language: z.string().optional(),
+  // Assumed facts normalize_job recorded. Optional so packs written before the
+  // field existed still decode; empty list is a fully-stated job.
+  defaultedFields: z.array(z.string()).optional()
 });
 
 export type CampaignPack = z.infer<typeof campaignPackSchema>;

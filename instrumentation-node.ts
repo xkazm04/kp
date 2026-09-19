@@ -11,6 +11,64 @@
 // free leaf module — safe for the edge/client tree-shake) so the clock's cadence
 // and the liveness staleness threshold share ONE source and can never drift.
 import { SCHEDULER_TICK_MS } from "./app/_lib/scheduler-health.ts";
+import type { SchedulerJobName } from "./app/_lib/scheduler-jobs.ts";
+
+// --- The registered jobs' WORK (WP4a) ---------------------------------------------
+// One handler per registry entry except `policy_pass`, whose run path (single-flight
+// pass, forced "Run now", off-means-off) is tickScheduler's. The clock loop below
+// iterates SCHEDULER_JOBS and looks the handler up here, so a job registered without
+// a handler is a TYPE error at this map, not a silent no-op at 3am. A handler answers
+// what to RECORD: `null` for "nothing worth a row" (a zero-send sweep), otherwise the
+// status the store should write and the summary that goes with it. Throwing records
+// an `error` row — the loop does that, handlers don't.
+type JobOutcome = { status: "ok" | "skipped"; summary: unknown; log?: string } | null;
+const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promise<JobOutcome>> = {
+  // Interview reminders (AUTO6) — verbatim the body the hand-written block ran.
+  reminders: async () => {
+    const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+    const n = await sendDueInterviewReminders();
+    return n ? { status: "ok", summary: { sent: n }, log: `interview reminders sent: ${n}` } : null;
+  },
+  // The seeker's job-market scan (WP4c, app/_lib/jobseeker/scan.ts). Fan-out is per
+  // WORKSPACE: the one cross-tenant read is the id list (`-- tenancy:global`, ids only);
+  // every workspace then runs the same `runJobseekerScan` the manual door runs, bound to
+  // its own tenant. Sequential under ONE wall budget shared by every workspace — the
+  // politeness budget is per host, and two tenants on the same board would otherwise
+  // queue on one host slot anyway. `null` when no workspace qualifies (no row for a
+  // clock that had nothing to do); `ok` only when a scan actually ran — an ok row is
+  // what verifies the job (hasVerifiedRun), and the FIRST one comes from the manual
+  // door, never from the clock, because the clock cannot be armed before it exists.
+  jobseeker_scan: async () => {
+    const { listWorkspacesWithEnabledSources } = await import("./app/_lib/db/jobseeker-sources");
+    const { runJobseekerScan, SCAN_WALL_BUDGET_MS } = await import("./app/_lib/jobseeker/scan");
+    const workspaces = listWorkspacesWithEnabledSources();
+    if (workspaces.length === 0) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("jobseeker_scan: clock wall budget exhausted")), SCAN_WALL_BUDGET_MS);
+    const totals = { workspaces: 0, matched: 0, deepDived: 0, blocked: 0, collapsed: 0, skipped: 0 };
+    try {
+      for (const ws of workspaces) {
+        if (controller.signal.aborted) {
+          totals.skipped += 1;
+          continue;
+        }
+        const summary = await runJobseekerScan(ws, { trigger: "clock", signal: controller.signal });
+        totals.workspaces += 1;
+        totals.matched += summary.matched;
+        totals.deepDived += summary.deepDived;
+        totals.blocked += summary.sources.filter((s) => s.outcome === "blocked").length;
+        totals.collapsed += summary.sources.filter((s) => s.outcome === "collapsed").length;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    return {
+      status: totals.workspaces > 0 ? "ok" : "skipped",
+      summary: totals,
+      log: `jobseeker scan: ${totals.workspaces} workspace(s), matched ${totals.matched}, deep-dived ${totals.deepDived}, blocked ${totals.blocked}, collapsed ${totals.collapsed}`,
+    };
+  },
+};
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
 // The Control Room's autonomy pause is presented to the operator as "Pause to halt
@@ -72,8 +130,10 @@ async function clockIsPaused(): Promise<boolean> {
 
 /** GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
  *  Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
- *  scores/notes/stage retained for re-engagement). The candidate erasure path also
- *  anonymizes on demand; this sweep is what honors a silent expiry on time.
+ *  scores/notes/stage retained for re-engagement) and, in the 30-day window before
+ *  that, sends the one pre-expiry reminder the drawer already had copy for. The
+ *  candidate erasure path also anonymizes on demand; this sweep is what honors a
+ *  silent expiry on time, and what warns before it.
  *
  *  DELIBERATELY EXEMPT from the autonomy pause, and the reasoning is the decision
  *  itself rather than an accident of imports: this is not an automated DECISION about
@@ -87,6 +147,13 @@ async function clockIsPaused(): Promise<boolean> {
  *  the consent record where it can be per-candidate and audited — not on this pause. */
 async function sweepExpiredConsents(): Promise<void> {
   try {
+    const { notifyExpiringConsents } = await import("./app/_lib/consent-expiry-reminders");
+    const notified = await notifyExpiringConsents();
+    if (notified) console.log("[clock] consent expiry reminders sent:", notified);
+  } catch (e) {
+    console.error("[clock] consent expiry reminder sweep failed:", e);
+  }
+  try {
     const { anonymizeExpiredConsents } = await import("./app/_lib/db");
     const anonymized = anonymizeExpiredConsents();
     if (anonymized) console.log("[clock] consents expired → anonymized:", anonymized);
@@ -96,6 +163,20 @@ async function sweepExpiredConsents(): Promise<void> {
 }
 
 export async function startClock(): Promise<void> {
+  // Late-bound task runners (app/_lib/task-external-runners.ts): the job-seeker scan's
+  // implementation is registered HERE, off every route's import path, so the task hub
+  // stays light. Idempotent — the dev server re-runs instrumentation on reload.
+  try {
+    const { registerTaskRunner } = await import("./app/_lib/task-external-runners");
+    registerTaskRunner("jobseeker_scan", async (ctx) => {
+      const { runJobseekerScan } = await import("./app/_lib/jobseeker/scan");
+      return runJobseekerScan(ctx.workspaceId, { trigger: "manual", signal: ctx.signal, onProgress: ctx.progress });
+    });
+  } catch (e) {
+    // A failed registration surfaces the first time a scan task runs (externalRunner
+    // throws by name); log it here too so the boot log names the cause.
+    console.error("[clock] task runner registration failed:", e);
+  }
   const g = globalThis as typeof globalThis & { __kpClockStarted?: boolean };
   if (g.__kpClockStarted) return; // guard against duplicate intervals across HMR
   g.__kpClockStarted = true;
@@ -179,37 +260,52 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] tick failed:", e);
     }
+    // The REGISTERED jobs (scheduler-jobs.ts) other than the policy pass, which
+    // tickScheduler above owns. WP4a generalized the hand-written reminders block
+    // into this loop: for each job, its row is created with the registry's defaults,
+    // claimDueRun gates the work (one caller per due window, durable across
+    // restarts, and pausing it from the UI actually pauses it), last_run_at proves
+    // the job is alive, and outcomes land in scheduler_runs instead of only in
+    // server logs. Each job keeps its own bookkeeping try/catch so one job's broken
+    // import cannot take the others down with it.
+    //
     // Interview reminders — independent of the policy schedule (time-sensitive,
-    // no auto-advance opt-in required) but, since AUTO6, a REGISTERED scheduler
-    // job: claimDueRun gates the sweep (its row defaults ON at the historical
-    // every-minute cadence, and pausing it from the UI actually pauses sends),
-    // last_run_at proves the sweep is alive, and sends/failures land in
-    // scheduler_runs instead of living only in server logs. Zero-send sweeps
-    // record no run row — at a 1-minute cadence that would be pure noise.
+    // no auto-advance opt-in required) — is the first of them: its row defaults ON
+    // at the historical every-minute cadence. Zero-send sweeps record no run row —
+    // at a 1-minute cadence that would be pure noise. `jobseeker_scan` is registered
+    // DISABLED and armed only after a manual scan recorded an `ok` row; its handler
+    // (JOB_HANDLERS above) fans the real scan out per workspace.
     try {
-      const { ensureReminderJob, claimDueRun, recordRun, REMINDERS_JOB } = await import("./app/_lib/scheduler-store");
-      ensureReminderJob();
-      if (claimDueRun(REMINDERS_JOB)) {
-        const startedAt = new Date().toISOString();
+      const { SCHEDULER_JOBS } = await import("./app/_lib/scheduler-jobs");
+      const { ensureRegisteredSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+      for (const job of SCHEDULER_JOBS) {
+        if (job.name === "policy_pass") continue; // tickScheduler's — see above
         try {
-          const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
-          const n = await sendDueInterviewReminders();
-          if (n) {
-            recordRun({ job: REMINDERS_JOB, status: "ok", summary: { sent: n }, startedAt });
-            console.log("[clock] interview reminders sent:", n);
+          ensureRegisteredSchedule(job);
+          if (claimDueRun(job.name)) {
+            const startedAt = new Date().toISOString();
+            try {
+              const outcome = await JOB_HANDLERS[job.name]();
+              if (outcome) {
+                recordRun({ job: job.name, status: outcome.status, summary: outcome.summary, startedAt });
+                if (outcome.log) console.log(`[clock] ${outcome.log}`);
+              }
+            } catch (e) {
+              recordRun({
+                job: job.name,
+                status: "error",
+                error: e instanceof Error ? e.message : String(e),
+                startedAt,
+              });
+              console.error(`[clock] ${job.name} run failed:`, e);
+            }
           }
         } catch (e) {
-          recordRun({
-            job: REMINDERS_JOB,
-            status: "error",
-            error: e instanceof Error ? e.message : String(e),
-            startedAt,
-          });
-          console.error("[clock] reminder sweep failed:", e);
+          console.error(`[clock] ${job.name} job bookkeeping failed:`, e);
         }
       }
     } catch (e) {
-      console.error("[clock] reminder job bookkeeping failed:", e);
+      console.error("[clock] scheduler job registry unavailable:", e);
     }
     // Lapse expired offers (idea-29361408) — independent, best-effort, idempotent.
     // The candidate read/respond paths also lazily lapse on access; this sweep is
@@ -337,6 +433,21 @@ export async function startClock(): Promise<void> {
       if (pruned) console.log("[clock] ATS delivery ledger pruned:", pruned);
     } catch (e) {
       console.error("[clock] ATS delivery retention sweep failed:", e);
+    }
+    // ATS delivery retry (ats-egress.ts) — the sibling of the prune. The ledger claims
+    // at-least-once delivery with a backoff ladder, but due retries used to run only
+    // when someone POSTed /api/ats/deliveries (an operator, or an external cron this
+    // self-hosted studio does not ship). A hire that failed at 18:00 then waited until
+    // a human opened Integrations. Same tick, under the autonomy pause: this POSTs
+    // candidate PII, so a halted clock must not drain the queue. Best-effort. POST
+    // remains the manual flush. No jitter in this increment — the tick is already
+    // spaced by HEARTBEAT_MS.
+    try {
+      const { retryDueAtsDeliveries } = await import("./app/_lib/ats-egress");
+      const summary = await retryDueAtsDeliveries();
+      if (summary.due) console.log("[clock] ATS delivery retry:", JSON.stringify(summary));
+    } catch (e) {
+      console.error("[clock] ATS delivery retry sweep failed:", e);
     }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();

@@ -40,10 +40,19 @@ export const WHITE = "#ffffff";
 
 /**
  * Studio Light mirror, keyed by ROLE rather than token name — the twin of DARK
- * below, so a component that forks on useTheme() reads the same three keys on
- * both sides instead of pairing named tokens against role names.
+ * below, so a component that forks on useTheme() reads the same keys on both
+ * sides instead of pairing named tokens against role names. Named hues alias
+ * the top-level constants so a fork never imports the bare light-only literal.
  */
 export const LIGHT = {
+  INK,
+  PAPER,
+  MOSS,
+  CORAL,
+  STEEL,
+  LIMEWASH,
+  DIAL_STONE,
+  DIAL_AMBER,
   /** Raised card surface (`white`). */
   SURFACE: WHITE,
   /** Subtle fill (`stone-100`) — chart hover cursors. */
@@ -57,11 +66,19 @@ export const LIGHT = {
  * globals.css, for the same stylesheet-less surfaces as above. Components
  * pick a side with useTheme() (app/_components/ui/useTheme.ts); see
  * FactorChart for the pattern. Keep in lockstep with the dark block.
+ * Named hues (moss/coral/limewash/dial) live here too: importing the bare
+ * Studio Light constant into a themed surface is the class of bug
+ * docs/design/README.md already recorded twice.
  */
 export const DARK = {
   INK: "#f4efe3",
   PAPER: "#141b24",
+  MOSS: "#84b27a",
+  CORAL: "#ff7e68",
   STEEL: "#9db5c3",
+  LIMEWASH: "#2a382b",
+  DIAL_STONE: "#6e7787",
+  DIAL_AMBER: "#e5bd62",
   /** Raised card surface (`bg-white` remap). */
   SURFACE: "#1d2630",
   /** Subtle fill (`stone-100` remap) — chart hover cursors. */

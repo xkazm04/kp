@@ -14,7 +14,7 @@
 // is unit-testable under `node --test`.
 
 /** The writes finish() performs, in the order the toast should name them. */
-export const SETUP_FINISH_PARTS = ["orgName", "language", "invites", "brand", "pipeline", "companion"] as const;
+export const SETUP_FINISH_PARTS = ["orgName", "language", "currency", "invites", "brand", "pipeline", "companion"] as const;
 export type SetupFinishPart = (typeof SETUP_FINISH_PARTS)[number];
 
 /**

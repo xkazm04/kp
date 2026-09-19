@@ -25,9 +25,12 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // `repo_scan` belongs here rather than under "profiles": it reads a CODEBASE to
   // compose an App-master role (docs/features/app-master/README.md), so it is a way
   // a role gets into the system — the third one, beside a parsed JD and a dialog.
-  { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice", "repo_scan"] },
+  // `posting_translate` belongs here and not under "automation": it renders the
+  // ROLE's own posting into the languages the role was opened in, so it is part of
+  // getting a role into the system rather than a message sent to a candidate.
+  { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice", "repo_scan", "posting_translate"] },
   // Reading candidates: CVs, profiles, public footprint.
-  { key: "profiles", useCases: ["cv_analysis", "profile_extract", "profile_draft", "github_analysis"] },
+  { key: "profiles", useCases: ["cv_analysis", "profile_draft", "github_analysis"] },
   // Interview outputs.
   { key: "interviews", useCases: ["interview_scorecard"] },
   // The operator's own companion. Its own section rather than a guest in one of
@@ -36,6 +39,11 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // outreach" or "Roles & intake" would mislabel it in the one place an operator
   // goes to decide which model reads what.
   { key: "companion", useCases: ["assistant"] },
+  // The job-seeker module (/me): the seeker's own CV polish and fit dialogs, and
+  // the one-off authoring of extraction rules for a board without JSON-LD. Serves
+  // the person LOOKING for a job, so it is neither a hiring artifact nor the
+  // operator companion.
+  { key: "jobseeker", useCases: ["cv_polish", "fit_dialog", "extraction_rules"] },
   // The work-sample (dev-case) assignment lifecycle, design → evaluation.
   {
     key: "assignments",
@@ -48,8 +56,6 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
       "devcase_reflect",
       "devcase_evaluate",
       "devcase_judge",
-      "devcase_tooling",
-      "devcase_transfer",
     ],
   },
 ] as const;

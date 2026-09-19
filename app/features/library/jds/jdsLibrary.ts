@@ -34,23 +34,20 @@ export function jdMarketResearchAvailable(
   return normalizeMarketSalary(artifacts.salary).available;
 }
 
-// Below this many characters the "describe the need" body is too thin to lint
-// usefully — every short draft would trip missing-salary/place, which reads as
-// nagging rather than advice. So the builder holds the advisory panel until the
-// draft is substantive, then engages. Named here so the wiring test pins it.
+// Below this many characters a JD body is too thin to lint usefully — every
+// short draft would trip missing-salary/place, which reads as nagging rather
+// than advice. Named here so the wiring test pins it. The Generate form's editor
+// is the NEED, not a posting, so this threshold is for post-build editors only.
 export const LINT_MIN_BODY_CHARS = 40;
 
-// The builder's advisory specificity/inclusivity lint over its rich-editor body —
-// the SAME finished jd-lint engine that already backs the public-page panel, wired
-// (finally) to the authoring surface. Findings are ADVISORY; the panel hides at
-// zero (below the threshold this returns none). `marketResearch` feeds the
-// engine's `salaryAvailable` seam — "a grounded figure exists outside the prose,
-// so don't nag about pay". It is resolved per surface: PRE-build (JdBuilder) it's
-// the ticked "market research" checkbox, an intent whose result isn't knowable
-// yet; POST-build (the ledger read-view/editor, the public page's editor) it MUST
+// Advisory specificity/inclusivity lint over a finished JD body — the same
+// engine on the ledger read-view/editor and the public-page editor. Findings are
+// ADVISORY; the panel hides at zero (below the threshold this returns none).
+// `marketResearch` feeds the engine's `salaryAvailable` seam — "a grounded
+// figure exists outside the prose, so don't nag about pay". Post-build it MUST
 // come from jdMarketResearchAvailable above, which checks the band the build
-// actually produced rather than re-trusting the tick. The engine itself is
-// bilingual by content (EN+CS regexes) — no lang argument to thread.
+// actually produced rather than re-trusting the pre-build tick. The engine
+// itself is bilingual by content (EN+CS regexes) — no lang argument to thread.
 export function builderLintFindings(
   body: string,
   opts: { marketResearch: boolean; mustHaveCount?: number }
@@ -60,14 +57,25 @@ export function builderLintFindings(
 }
 
 /** The structured must-have count from a build's artifacts, for the lint's
- *  manyMustHaves rule. Only the artifact-bearing surfaces can supply it — the
- *  builder lints the recruiter's PROMPT and has no RoleSpec yet, so it passes
- *  nothing and the rule falls back to counting marker words in prose. */
+ *  manyMustHaves rule. Only the artifact-bearing post-build surfaces can supply
+ *  it — a prompt has no RoleSpec yet, so the rule falls back to counting marker
+ *  words in prose. */
 export function jdMustHaveCount(
   artifacts: { role?: { mustHaves?: unknown[] } } | null | undefined
 ): number | undefined {
   const n = artifacts?.role?.mustHaves?.length;
   return typeof n === "number" && n > 0 ? n : undefined;
+}
+
+// analysis_error used to be Python spawn prose (paths, traceback). A short
+// ALL_CAPS code is resolvable; anything else is JD_GENERATE_FAILED and the raw
+// string stays out of the DOM.
+const JD_BUILD_CODE_RE = /^[A-Z][A-Z0-9_]{2,64}$/;
+export function jdBuildFailureCode(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (JD_BUILD_CODE_RE.test(s)) return s;
+  if (s) console.error("[jd-build] analysis_error is not a code");
+  return "JD_GENERATE_FAILED";
 }
 
 // Mirrors the JdRow the /api/jds list endpoint returns (identity + a
@@ -102,6 +110,12 @@ export type JdRow = {
   // (hasAdvancedPastScreening), so the two surfaces cannot report different
   // numbers for the same role.
   pipeline?: JdPipelineStats | null;
+  // May THIS reader delete this description — the server's fold of "you created it,
+  // or you hold an owner/admin seat" (app/_lib/jds-delete-access.ts). A boolean, not
+  // the author's id and not the reader's role: the ledger only needs to know whether
+  // to draw the trash icon. Absent on an older payload, which reads as "no", so a
+  // stale client silently hides the door rather than offering one the route refuses.
+  canDelete?: boolean;
 };
 
 export type JdPipelineStats = {
@@ -242,6 +256,10 @@ export function facetCounts(rows: JdRow[], pick: (r: JdRow) => string | null | u
 
 export const STATUS_FILTERS = [
   { value: "all", label: "All" },
+  // The library's default: every draft regardless of liveness EXCEPT the roles that
+  // are live — those are the Roles tab's business; here they are noise on a shelf
+  // of descriptions a recruiter reuses.
+  { value: "notLive", label: "All but live" },
   { value: "analyzing", label: "Analyzing" },
   { value: "live", label: "Live" },
   { value: "draft", label: "Draft" },
@@ -262,16 +280,13 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 //
 // Kept alongside the accessor map below so the map and the header cells can never
 // name a column the other doesn't have.
-export const JD_SORT_COLS = ["pipeline", "analyzed", "saved"] as const;
+export const JD_SORT_COLS = ["analyzed", "saved"] as const;
 export type JdSortCol = (typeof JD_SORT_COLS)[number];
 
-/** What each sortable column contributes to the ordering. Null means "no value"
- *  and sorts LAST in both directions (see useTableSort/compareCells) — which is
- *  the point for `pipeline`: an analysis-only JD has no linked job, so it has no
- *  pipeline at all. Ranking it as a zero would bury real but quiet roles beneath
- *  JDs that were never even ingested. */
+/** What each sortable column contributes to the ordering. The pipeline column
+ *  used to sort here too; it left with the 2026-09 split — a role's live state is
+ *  the Roles tab's business, this ledger is the shelf of descriptions. */
 export const JD_SORT_ACCESSORS: Record<JdSortCol, (r: JdRow) => string | number | null> = {
-  pipeline: (r) => r.pipeline?.total ?? null,
   analyzed: (r) => r.analysisCount ?? 0,
   saved: (r) => r.created_at,
 };
@@ -285,7 +300,8 @@ export function filterAndSortJds(
 ): JdRow[] {
   const q = opts.query.trim().toLowerCase();
   const filtered = rows.filter((r) => {
-    if (opts.status !== "all" && statusCategory(r) !== opts.status) return false;
+    const cat = statusCategory(r);
+    if (opts.status === "notLive" ? cat === "live" : opts.status !== "all" && cat !== opts.status) return false;
     if (opts.field && (r.roleFamily ?? "") !== opts.field) return false;
     if (opts.seniority && (r.seniority ?? "").trim().toLowerCase() !== opts.seniority.toLowerCase()) return false;
     if (!q) return true;
@@ -304,9 +320,10 @@ export function filterAndSortJds(
 // Per-status counts for the facet rail / filter badges — computed once per render
 // from the full row set (not the filtered view) so the facet totals stay stable.
 export function statusCounts(rows: JdRow[]): Record<StatusFilter, number> {
-  const counts: Record<StatusFilter, number> = { all: rows.length, analyzing: 0, live: 0, draft: 0, unlinked: 0 };
+  const counts: Record<StatusFilter, number> = { all: rows.length, notLive: 0, analyzing: 0, live: 0, draft: 0, unlinked: 0 };
   for (const r of rows) {
     const c = statusCategory(r);
+    if (c !== "live") counts.notLive += 1;
     if (c === "analyzing") counts.analyzing += 1;
     else if (c === "live") counts.live += 1;
     else if (c === "draft") counts.draft += 1;

@@ -53,6 +53,7 @@ export function SchedulePicker({ token }: { token: string }) {
       proposalStatus={s.proposalStatus}
       proposeTimes={s.proposeTimes}
       proposing={s.proposing}
+      interviewTz={s.interviewTz}
       onChangeTime={s.setProposeTime}
       onSubmit={s.submitProposals}
     />
@@ -96,6 +97,7 @@ export function SchedulePicker({ token }: { token: string }) {
           confirmed={s.confirmed}
           confirmationDelivery={s.confirmationDelivery}
           canReschedule={s.canReschedule}
+          reschedulesRemaining={s.reschedulesRemaining}
           capReached={s.capReached}
           rsvpPending={s.rsvpPending}
           onReschedule={s.startReschedule}

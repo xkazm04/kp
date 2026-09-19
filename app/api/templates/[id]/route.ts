@@ -3,7 +3,7 @@ import { deleteTemplate, editTemplate, getTemplate, setDefaultTemplate } from "@
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateUpdate } from "@/app/features/shared/renderTemplate";
+import { validateTemplateUpdate } from "@/app/features/shared/renderTemplate";
 
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -40,13 +40,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     // name/body or blow past the caps.
     const fields = validateTemplateUpdate(body);
     if (!fields.ok) return NextResponse.json({ error: fields.error }, { status: 400 });
-    // Block unknown {{tokens}} on a body edit before they can be stored and
-    // rendered raw onto a public JD page (see render-template.ts). Skipped when
-    // body is absent — e.g. a rename-only edit.
-    if (fields.body !== undefined) {
-      const unknown = findUnknownPlaceholders(fields.body);
-      if (unknown.length) return NextResponse.json({ error: unknownPlaceholderMessage(unknown) }, { status: 400 });
-    }
+    // Unknown {{tokens}} fail inside validateTemplateUpdate when a body is present
+    // (skipped on a rename-only edit, same as before).
     // Compare-and-swap on the stamp the editor loaded: a second recruiter's save
     // is REFUSED (409, carrying the winning row so the client can reload it) rather
     // than silently erasing the first. A client with no base stamp keeps the old

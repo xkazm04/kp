@@ -12,6 +12,7 @@ import type { Posting } from "./DevTypes";
 
 export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: Posting[]; onDone: () => void }) {
   const t = useTranslations("devcase.studio.channels");
+  const tChannel = useTranslations("devcase.studio.channel");
   if (casePostings.length === 0) return null;
   return (
     <section>
@@ -23,7 +24,11 @@ export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: 
         {casePostings.map((p) => (
           <div key={p.id} className={`${PANEL} p-3`}>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-paper px-2 py-0.5 text-micro font-semibold uppercase text-steel">{p.channel}</span>
+              <span className="rounded-full bg-paper px-2 py-0.5 text-micro font-semibold uppercase text-steel">
+                {tChannel.has(p.channel as Parameters<typeof tChannel>[0])
+                  ? tChannel(p.channel as Parameters<typeof tChannel>[0])
+                  : p.channel}
+              </span>
               <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{p.caseTitle || p.roleTitle || t("posting")}</span>
               <span className="text-micro text-steel">{t("received", { count: p.submissions?.length ?? p.submissionCount ?? 0 })}</span>
             </div>

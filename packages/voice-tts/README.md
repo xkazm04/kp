@@ -34,7 +34,7 @@ export const tts = createTts({
 
 The host names its own preference variables. `preferred` is what onboarding/settings wrote
 down; `allowed` is the compare set the UI may expose (unset = every registered provider — a
-local install; one id = locked — a team deploy). Unknown ids normalize away on read.
+local install; one id = locked — a team deploy). An unknown id in a set variable throws, naming the variable; it is never read as unset.
 
 ## Wrap it in a route (the host wrapper)
 

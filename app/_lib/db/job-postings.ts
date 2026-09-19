@@ -134,12 +134,18 @@ function normalizeTitle(title: string): string {
 const SUMMARY_COLUMNS = `id, source, source_ref, title, company, role_family, seniority, lang,
      fetched_at, created_at, LENGTH(body_text) AS body_chars`;
 
+/** One page of the posting ledger plus an HONEST truncation flag — same contract as
+ *  listJobsPage. `truncated` is true when at least one more matching row than `limit`
+ *  exists, so a caller can say "first 200 of more" instead of presenting a cut slice
+ *  as the whole corpus. */
+export type JobPostingsPage = { postings: JobPostingSummary[]; truncated: boolean; limit: number };
+
 /** The workspace's posting ledger, newest first. `q` matches title or company
- *  case-insensitively. */
-export function listJobPostings(
+ *  case-insensitively. Reads one row past the page so `truncated` needs no COUNT. */
+export function listJobPostingsPage(
   workspaceId: string = DEFAULT_WORKSPACE_ID,
   options: { q?: string; roleFamily?: string; limit?: number } = {}
-): JobPostingSummary[] {
+): JobPostingsPage {
   const limit = Math.max(1, Math.min(500, Math.trunc(options.limit ?? 200) || 200));
   const q = options.q?.trim();
   const roleFamily = options.roleFamily?.trim();
@@ -160,7 +166,7 @@ export function listJobPostings(
     clauses.push("role_family = ?");
     args.push(roleFamily);
   }
-  args.push(limit);
+  args.push(limit + 1);
   const rows = ensureDb()
     .prepare(
       `SELECT ${SUMMARY_COLUMNS} FROM job_postings
@@ -169,7 +175,22 @@ export function listJobPostings(
        LIMIT ?`
     )
     .all(...args) as SummaryRow[];
-  return rows.map(fromSummaryRow);
+  const truncated = rows.length > limit;
+  const postings = (truncated ? rows.slice(0, limit) : rows).map(fromSummaryRow);
+  return { postings, truncated, limit };
+}
+
+/** The posting ledger as a bare array (unchanged contract for existing callers).
+ *
+ *  WARNING for new callers: this is a PAGE, not the corpus — no `limit` still binds
+ *  LIMIT 200 and a supplied one is capped at 500. `.length` on the result is the size
+ *  of the slice, NOT a count. Use listJobPostingsPage when you need to know the slice
+ *  was cut. */
+export function listJobPostings(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  options: { q?: string; roleFamily?: string; limit?: number } = {}
+): JobPostingSummary[] {
+  return listJobPostingsPage(workspaceId, options).postings;
 }
 
 /** Point read — workspace-scoped with NO by-id exemption: a leaked posting id must not

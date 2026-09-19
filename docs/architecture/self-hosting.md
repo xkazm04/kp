@@ -374,7 +374,7 @@ off). This is the list to hand your security team.
 | GitHub | `api.github.com` | GitHub repo-analysis feature | anon | Candidate repo signal. `GITHUB_TOKEN` only raises rate limits; skip the feature to avoid entirely. |
 | Polar | `api.polar.sh`, `sandbox-api.polar.sh` | `POLAR_ACCESS_TOKEN` | off | Billing (Merchant of Record). Unset ⇒ billing routes 503; self-host typically leaves this off. See `docs/features/billing/README.md`. |
 | LightTrack | your `LIGHTTRACK_URL` | `LIGHTTRACK_URL` | off | LLM observability (self-hosted sibling). Unset ⇒ off. |
-| Sentry | your DSN's ingest host (`*.sentry.io`, or self-hosted) | `SENTRY_DSN` (server) / `NEXT_PUBLIC_SENTRY_DSN` (browser, baked at build) | off | Error reporting (`instrumentation.ts`, error boundaries). Unset ⇒ no init, no SDK load. `KP_OFFLINE=1` skips it even with a DSN set. **Candidate capability tokens are redacted before egress**: both roots install a `beforeSend`/`beforeBreadcrumb` pair that rewrites the segment after a token-bearing prefix (`/schedule/`, `/interview/`, `/status/`, `/offer/`, `/data/`, `/invite/`, `/skill(-profile)/`, `/devcase/apply|session/`, `/agents/report/`, `/channels/inbound/`, and their `/api/` twins) to `[token]`, plus any `?token=`/`?t=` value. Without it a single error on a candidate page shipped a WORKING capability link to a third party — the `/data/<erasureToken>` page most of all. Route shape and non-token query context (`?tab=hiring`, `/jds/<slug>`) are deliberately preserved so traces stay debuggable. Keep the two lists in `instrumentation.ts` and `instrumentation-client.ts` in sync when adding a token surface. |
+| Sentry | your DSN's ingest host (`*.sentry.io`, or self-hosted) | `SENTRY_DSN` (server) / `NEXT_PUBLIC_SENTRY_DSN` (browser, baked at build) | off | Error reporting (`instrumentation.ts`, error boundaries). Unset ⇒ no init, no SDK load. `KP_OFFLINE=1` skips it even with a DSN set. **Candidate capability tokens are redacted before egress**: both roots install a `beforeSend`/`beforeBreadcrumb` pair that rewrites the segment after a token-bearing prefix (`/schedule/`, `/interview/`, `/status/`, `/offer/`, `/data/`, `/invite/`, `/skill(-profile)/`, `/stop/`, `/devcase/apply|session/`, `/agents/report/`, `/channels/inbound/`, and their `/api/` twins) to `[token]`, plus any `?token=`/`?t=` value. Without it a single error on a candidate page shipped a WORKING capability link to a third party — the `/data/<erasureToken>` page most of all. Route shape and non-token query context (`?tab=hiring`, `/jds/<slug>`) are deliberately preserved so traces stay debuggable. Keep the two lists in `instrumentation.ts` and `instrumentation-client.ts` in sync when adding a token surface. |
 | Next.js telemetry | `telemetry.nextjs.org` | — | **off** | Disabled by `NEXT_TELEMETRY_DISABLED=1` (set in the image). |
 | Your pull sources | whatever `pullUrl` you configured on a receiver | a receiver's `pullUrl` (`PATCH /api/channels/webhooks`) | off | The clock GETs each source per tick to collect leads that arrived while KP was down (§7b). `https` + public host enforced. Clear `pullUrl` ⇒ off. |
 | Your edge | your `KP_EDGE_URL` (a Worker in **your** Cloudflare account) | `KP_EDGE_URL` + `KP_EDGE_SECRET` | off | Draining held inbound events + the presence heartbeat (§7b). Unset ⇒ off. |
@@ -558,10 +558,14 @@ candidates:
      else would be CSS injection), and it must clear **3:1 WCAG contrast** against
      both white button labels and the paper canvas. An illegible accent is refused,
      with the reason shown in the editor, rather than shipped app-wide.
-   - *Logo* — an `https://` URL of at most 500 characters, **rejected** (not
-     truncated) when longer, so a signed CDN URL can't be stored as a half-signature
-     that renders as a broken image. It is browser-loaded from that host with
-     `referrerPolicy="no-referrer"`; air-gapped installs should self-host the file.
+   - *Logo* — at most 500 characters, **rejected** (not truncated) when longer, so
+     a signed CDN URL can't be stored as a half-signature that renders as a broken
+     image. Storable shapes: an `https://` URL, a path-absolute `/brand/logo.png`
+     (the browser resolves it against the install origin), or `http://` only when
+     the host is loopback (`127.0.0.1`, `localhost`, `::1`). `javascript:` /
+     `data:` / `ftp:` / remote `http://` are refused. It is browser-loaded with
+     `referrerPolicy="no-referrer"`; air-gapped installs self-host the file and
+     store the path, not a public CDN.
    - *Display name* — whitespace-collapsed and clamped to 60 characters.
 2. **Custom domain.** Point your domain at the reverse proxy in front of KP
    (§8: Caddy / nginx / Traefik terminates TLS and proxies to `:3000`):
@@ -637,6 +641,9 @@ the test.
 | `env-contract-dropped` | an env key in `ENV_CONTRACT_REQUIRED` the chart **stopped** setting |
 | `secret-renders-empty-instead-of-failing` | a `required` removed from `KP_OPERATOR_PASSWORD` / `KP_SECRET` in the Secret template |
 | `open-mode-shipped-on` | a chart that sets `KP_ALLOW_OPEN` truthy, or an `.env.example` that never documents it |
+| `ingress-public-origin` | `ingress.enabled` with `env.NEXT_PUBLIC_APP_BASE_URL` empty or not an absolute http(s) origin — candidate links would resolve to `siteUrl()` while the cluster is reached at the ingress host |
+
+`ingress-public-origin` is the same shape as `secret-renders-empty-instead-of-failing`: `NOTES.txt` already warned when the origin was empty, and an operator who ignored it got a green `deploy:check` and a cluster whose offer/schedule emails used `siteUrl()`. The policy fails that install; ingress off with an empty URL stays clean.
 
 The gate reads **every file in `deploy/helm/kp/templates/`**, not a list of five.
 The five named in `CHART_FILES` stay required — a policy that must read the
@@ -739,7 +746,8 @@ docker run -d --name kp -p 3000:3000 \
 Pin an exact Python minor by overriding the base image:
 `docker build --build-arg NODE_IMAGE=node:24-bookworm-slim -t kp:local .`
 (The image uses Debian's `python3`, 3.11; CI validates 3.12 — the pipeline
-supports 3.11+.)
+supports 3.11+. `schemas:gen` refuses any interpreter older than 3.11 and
+prints the same install hint as a missing interpreter.)
 
 > **Prefer a published image to a local build.** Tagged releases publish
 > `ghcr.io/xkazm04/kp:<version>` (plus an immutable `sha-<commit>` tag) with a
