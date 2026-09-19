@@ -31,8 +31,13 @@ export type TimerRegistry = {
    *  Resolving (rather than hanging) matters: the finalize path awaits this, and
    *  a promise that never settles on unmount leaks the whole closure. */
   sleep(ms: number): Promise<void>;
+  /** Cancel everything outstanding and settle every sleeper, WITHOUT latching:
+   *  the registry keeps scheduling. For "this attempt is over, the call is not"
+   *  — the connect path clears a prior attempt's timeout and arms a fresh one. */
+  cancelAll(): void;
   /** Cancel everything outstanding. Idempotent; the registry stays usable-but-inert
-   *  afterwards, so a late callback path cannot resurrect a torn-down call. */
+   *  afterwards, so a late callback path cannot resurrect a torn-down call.
+   *  TEARDOWN ONLY: a latched registry silently drops every later `set`. */
   clearAll(): void;
   /** Outstanding timers — the assertion an unmount test needs. */
   readonly pending: number;
@@ -56,6 +61,14 @@ export function createTimerRegistry(clock: Clock = realClock): TimerRegistry {
     handles.add(box.handle);
   };
 
+  const cancelAll = (): void => {
+    for (const h of handles) clock.clear(h);
+    handles.clear();
+    // Settle every sleeper so an awaiting caller unwinds instead of hanging.
+    for (const wake of [...wakers]) wake();
+    wakers.clear();
+  };
+
   return {
     set,
     sleep(ms: number) {
@@ -69,13 +82,10 @@ export function createTimerRegistry(clock: Clock = realClock): TimerRegistry {
         set(wake, ms);
       });
     },
+    cancelAll,
     clearAll() {
       cleared = true;
-      for (const h of handles) clock.clear(h);
-      handles.clear();
-      // Settle every sleeper so an awaiting caller unwinds instead of hanging.
-      for (const wake of [...wakers]) wake();
-      wakers.clear();
+      cancelAll();
     },
     get pending() {
       return handles.size;
@@ -84,4 +94,13 @@ export function createTimerRegistry(clock: Clock = realClock): TimerRegistry {
       return cleared;
     },
   };
+}
+
+/** Arm the connect timeout for a NEW attempt: cancel whatever the previous
+ *  attempt left outstanding, then schedule. Cancelling with `clearAll` here was
+ *  the bug — it latched the registry, so the `set` straight after it was a no-op
+ *  and a hung connect sat on "Connecting…" forever, on the first attempt too. */
+export function armConnectTimeout(timers: TimerRegistry, onTimeout: () => void, ms: number): void {
+  timers.cancelAll();
+  timers.set(onTimeout, ms);
 }
