@@ -63,6 +63,9 @@ export type Analytics = {
   byJobTotal: number;
   koDeclined: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
+  /** Echo of the request's job-scoped cohort filter — null when the read is
+   *  workspace-wide. Mirrors PipelineAnalytics.jobId (db/analytics.ts). */
+  jobId: string | null;
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;

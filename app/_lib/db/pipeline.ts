@@ -2529,8 +2529,8 @@ export function claimConsentExpiryNotice(
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
     if (!row) return null;
     const already = db
-      .prepare(`SELECT 1 AS ok FROM consent_events WHERE entry_id = ? AND kind = 'expiring_notified' LIMIT 1`)
-      .get(entryId) as { ok: number } | undefined;
+      .prepare(`SELECT 1 AS ok FROM consent_events WHERE entry_id = ? AND kind = 'expiring_notified' AND workspace_id = ? LIMIT 1`)
+      .get(entryId, workspaceId) as { ok: number } | undefined;
     const snap = {
       givenAt: row.consent_given_at ?? null,
       expiresAt: row.consent_expires_at ?? null,

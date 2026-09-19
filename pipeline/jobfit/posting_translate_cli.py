@@ -27,10 +27,8 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT
 from .llm import emit_deterministic, provider_availability, resolve_provider
-
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
 
 #: Name each locale in ENGLISH, the language the system prompt itself is written
 #: in — naming the target in its own language ("cestina") is one more thing for a

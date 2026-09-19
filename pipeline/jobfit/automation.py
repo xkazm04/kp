@@ -418,6 +418,24 @@ def _call_failure_reason(exc: BaseException) -> str:
     return "provider_error"
 
 
+# The message-text mirror of `_call_failure_reason`, for the one caller
+# (rematch_candidate) that only ever sees `describe_fallback`'s formatted
+# "<Type>: <message>" line, never the exception `.subtype` is read off. The
+# phrases matched are base.py's own, not a test's: "exhausted its …s deadline"
+# is raised in exactly the one place subtype="deadline_exceeded" is (llm/base.py
+# retry loop), and "parseable JSON" only appears on the two subtype=
+# "unparseable_json" raises (truncated finish_reason has its own subtype and its
+# own wording, "is incomplete", so it correctly falls through to provider_error
+# here exactly as _call_failure_reason falls through for any subtype it does not
+# name). Re-derive both if base.py's wording changes.
+def _classify_fallback_text(text: str) -> str:
+    if "deadline" in text and "exhausted" in text:
+        return "provider_timeout"
+    if "parseable JSON" in text:
+        return "unparseable_output"
+    return "provider_error"
+
+
 def _note_degradation(reason: str | None) -> None:
     _degradation.reason = reason
 
@@ -1918,12 +1936,19 @@ def rematch_candidate(
     # `_generate`, which is where that reset normally happens — without it a reason
     # left by an earlier call on this thread would be attributed to this one, which
     # is precisely the lie take_degradation_reason's consume-once rule exists to
-    # prevent. The WORDS differ from DEGRADATION_REASONS: `match_reasoning.generate`
-    # hands its `on_fallback` a `describe_fallback` "<Type>: <message>" line, the
-    # same text reasoning_cli already writes to the ledger for this same callee.
+    # prevent. `match_reasoning.generate` hands its `on_fallback` a `describe_fallback`
+    # "<Type>: <message>" line (the same text reasoning_cli writes to the ledger for
+    # this same callee) rather than one of DEGRADATION_REASONS — every other task's
+    # reason is classified from the exception's own `.subtype` inside `_generate`
+    # (`_call_failure_reason`), which this task bypasses by calling
+    # `match_reasoning.generate` directly, so `_classify_fallback_text` recovers the
+    # same classification from the message text `_call_failure_reason` would have read
+    # off the subtype (fault_eval, idea-9ad8a777's own gate: a rematch descent must
+    # be nameable exactly like every other task's).
     _note_degradation(None)
     reasoning, source = generate_reasoning(
-        candidate, job, result, lang=lang, provider=provider, on_fallback=_note_degradation
+        candidate, job, result, lang=lang, provider=provider,
+        on_fallback=lambda text: _note_degradation(_classify_fallback_text(text)),
     )
     return {
         "found": True,

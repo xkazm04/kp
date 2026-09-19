@@ -72,7 +72,7 @@ const ENGLISH_ERROR_LEAK = /\.error\s*(?:\|\||\?\?)|typeof\s+\w+\??\.error\s*===
 // Ceiling, not a suggestion: appending a path is a silent policy change.
 // Raise ERROR_LEAK_ALLOW_MAX in the same commit that adds a member, with a
 // reason. The gate fails if the set grows past this or names a missing file.
-const ERROR_LEAK_ALLOW_MAX = 7;
+const ERROR_LEAK_ALLOW_MAX = 8;
 const ERROR_LEAK_ALLOW = new Set([
   "app/_lib/task-view.ts",
   "app/_lib/scheduler-store.ts",
@@ -91,6 +91,14 @@ const ERROR_LEAK_ALLOW = new Set([
   // honest state is "documented English", not a silent generic.
   "app/features/hiring/channels/useChannelsData.ts",
   "app/features/hiring/pipeline/pipelineTabHelpers.ts",
+  // The onboarding wizard's session hook talks to a SEPARATE local installer
+  // process directly over fetch/EventSource (not one of our own route
+  // handlers), so its JSON never carries our `{ error, code }` envelope —
+  // there is no code to resolve. Its `error` text is the installer's own
+  // diagnostic (port down, bad token, install step failed) and IS the
+  // information the operator needs to act on; a generic fallback would
+  // discard it for no gain.
+  "app/features/setup-studio/useWizardSession.ts",
 ]);
 const HARDCODED_ATTR = /(?:^|\s)(aria-label|title|placeholder|alt)="[^"{]/;
 const LINE_BREAK = /\r?\n/;

@@ -299,7 +299,12 @@ class TestRematchReadsLang(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertEqual(_last_json(out)["source"], "deterministic")
         self.assertIsNotNone(seen.get("reason"), "a deterministic serve with no reason at all")
-        self.assertIn("provider exploded", seen["reason"])
+        # DEGRADATION_REASONS, not the raw message — same contract as every other
+        # task's mid-flight descent (`_generate`/`_call_failure_reason`), which
+        # `_classify_fallback_text` gives this bypass-of-`_generate` task too. An
+        # unannotated RuntimeError carries no LLMError subtype to read, so it falls
+        # to the generic bucket exactly as `_call_failure_reason` would.
+        self.assertEqual(seen["reason"], "provider_error")
 
 
 class TestScreenPipelineSizeFlag(unittest.TestCase):
