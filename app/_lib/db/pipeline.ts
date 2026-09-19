@@ -2166,6 +2166,11 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
+  ["role_runs", "One row per (job, cycle) role run: a job id, a cycle label and a status. It is keyed to an OPENING, not to a person, and holds nothing about any candidate — the same class as `dev_lifecycle`."],
+  [
+    "role_run_stages",
+    "The role run's append-only stage-artifact log (ADR-0009). It holds NO candidate personal data by construction, not by convention: a payload may carry ids, scores, reason codes and hashes and may not carry a name, contact, CV text or transcript, and that rule is enforced at the single write door (assertStagePayloadPiiFree in appendStageArtifact) and asserted in both directions by role-run-stages.test.ts. What it references is an entry id, whose own erasure nulls everything the reference resolves to — the same reasoning as `application_status_links`. It is also the Art. 22 accountability record of WHICH human approved a rejection, an interview invite or an offer, and at WHAT moment, over WHICH set; editing or deleting a row would destroy the proof that the person-affecting decision was not solely automated, the same Art. 17(3)(b)/(e) ground as `decision_records`. The approver is stored as a hash for the same reason.",
+  ],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
   ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
   ["channel_spend", "Per-channel spend totals — money, no candidate data."],
