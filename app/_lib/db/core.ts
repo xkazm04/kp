@@ -1210,6 +1210,149 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_job_postings_ws_family ON job_postings (workspace_id, role_family);
+
+    -- The role posting in a language other than the one it was written in
+    -- (db/job-translations.ts, docs/features/jobs/README.md). Opening a role names
+    -- the languages it is advertised in; the LLM layer renders the posting into each
+    -- of them AFTER the publish has committed, and each rendering lands here.
+    --
+    -- A TABLE OF ITS OWN rather than a job_postings row: that table is the IMPORT
+    -- corpus (ads a team pasted, fetched or seeded), its source column is a CHECK-pinned
+    -- import vocabulary with no value that means "we wrote this", and its dedupe
+    -- UNIQUE is (content_hash, workspace_id) — which would make two roles whose
+    -- postings happen to render identically one row. The key here is the one this
+    -- surface actually asks by: (workspace_id, job_id, lang), so re-generating a
+    -- language REPLACES its body instead of accumulating drafts.
+    --
+    -- workspace_id is NOT NULL and every read binds it, point reads included: a
+    -- translation is written on a team's own order and against a team's own spend,
+    -- even for a role from the shared (workspace_id NULL) corpus, so there is no
+    -- shared tier here (job-translations-tenancy.test.ts).
+    CREATE TABLE IF NOT EXISTS job_translations (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      lang TEXT NOT NULL,
+      source_lang TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body_md TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (workspace_id, job_id, lang)
+    );
+
+    -- Job-seeker module (app/_lib/jobseeker/types.ts, stores in db/jobseeker-*.ts): the
+    -- SEEKER's own record — the flip side of the recruiter tables above. Four tables,
+    -- every one workspace-scoped with NO by-id carve-out (a leaked id must not resolve
+    -- another workspace's seeker, source, posting or dialog).
+    --
+    -- One profile per (workspace, user). user_id is nullable for the single-operator
+    -- install with no user rows, and SQLite treats NULL as distinct in a UNIQUE, so the
+    -- null-user upsert is a SELECT-then-write inside an IMMEDIATE transaction in the
+    -- store rather than ON CONFLICT.
+    CREATE TABLE IF NOT EXISTS jobseeker_profiles (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT,
+      profile_json TEXT NOT NULL,
+      preferences_json TEXT NOT NULL,
+      cv_source_text TEXT,
+      cv_polished_md TEXT,
+      cv_hash TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (workspace_id, user_id)
+    );
+
+    -- A source is owner-CONFIRMED acquisition: enabled starts at 0 and a tier-B board
+    -- flips it only together with acknowledged_at/acknowledged_terms_hash, so a changed
+    -- terms clause (new hash) re-asks. paused_reason 'blocked' is set by the fetcher and
+    -- cleared by nobody but the owner (resumeSource).
+    CREATE TABLE IF NOT EXISTS jobseeker_sources (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('feed','ats','board')),
+      adapter TEXT NOT NULL,
+      tier TEXT NOT NULL CHECK(tier IN ('A','B','C')),
+      host TEXT NOT NULL,
+      config_json TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      acknowledged_at TEXT,
+      acknowledged_terms_hash TEXT,
+      paused_reason TEXT,
+      paused_at TEXT,
+      rules_json TEXT,
+      rules_baseline_json TEXT,
+      last_run_at TEXT,
+      last_outcome TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_sources_ws_enabled ON jobseeker_sources (workspace_id, enabled);
+
+    -- The reconciled dataset: one row per real-world posting per source, keyed by the
+    -- source's own external key so a re-scan UPDATES instead of duplicating. content_hash
+    -- (sha256 over the normalized body, as job_postings) is what decides "changed";
+    -- gone_at is the first-miss marker — a posting is 'gone' only after TWO consecutive
+    -- scans failed to see it (one miss is a flaky page, not a withdrawn opening), and a
+    -- re-seen posting comes back to 'new' with gone_at cleared.
+    CREATE TABLE IF NOT EXISTS jobseeker_postings (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      external_key TEXT NOT NULL,
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      company TEXT,
+      location TEXT,
+      country TEXT,
+      work_mode TEXT,
+      posted_at TEXT,
+      salary_min REAL,
+      salary_max REAL,
+      salary_currency TEXT,
+      salary_period TEXT,
+      body_text TEXT NOT NULL,
+      jsonld_json TEXT,
+      content_hash TEXT NOT NULL,
+      job_json TEXT,
+      job_source TEXT CHECK(job_source IN ('deterministic','llm')),
+      match_json TEXT,
+      match_total REAL,
+      fit_tier TEXT,
+      match_version TEXT,
+      matched_at TEXT,
+      reasoning_json TEXT,
+      status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','shortlisted','applied','dismissed','gone')),
+      dismiss_reason TEXT,
+      dismiss_note TEXT,
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      gone_at TEXT,
+      UNIQUE (workspace_id, source_id, external_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_postings_ws_status_total ON jobseeker_postings (workspace_id, status, match_total DESC);
+
+    -- The Studio kit's two seeker dialogs (cv_polish, fit). transcript_json is replaced
+    -- whole on every exchange under a compare-and-swap on updated_at (intakes.ts shape):
+    -- a turn computed during a long LLM call lands on the version it read or answers
+    -- "moved", never splices.
+    CREATE TABLE IF NOT EXISTS jobseeker_dialogs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      profile_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('cv_polish','fit')),
+      posting_id TEXT,
+      transcript_json TEXT NOT NULL,
+      artifact_json TEXT,
+      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
+      lang TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_dialogs_ws_profile ON jobseeker_dialogs (workspace_id, profile_id, updated_at DESC);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
@@ -1360,6 +1503,10 @@ export function ensureDb(): Database.Database {
     // sessions where no user id exists (current-user.ts short-circuits to null).
     "ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT",
     "ALTER TABLE users ADD COLUMN onboarding_skipped_at TEXT",
+    // Last successful password login. NULL = never signed in (or invited and not yet
+    // redeemed). Stamped only by verifyCredentials after a hit, so a miss cannot
+    // move it. Org admins list dormant seats off this column without parsing logs.
+    "ALTER TABLE users ADD COLUMN last_login_at TEXT",
     // First-run onboarding (workspace fallback): 'completed' | 'skipped' | NULL.
     // The authority when the session has no user claim (open dev mode, operator
     // password) — mirrors the default_locale per-workspace-scalar pattern.
@@ -1553,6 +1700,20 @@ export function ensureDb(): Database.Database {
     // 'published' and left alone afterwards, so a close/republish keeps the
     // original cycle start. NULL = seeded corpus, or authored before this column.
     "ALTER TABLE jobs ADD COLUMN published_at TEXT",
+    // How many candidates this role has to HIRE before it is filled (the
+    // open/close review system, docs/features/jobs/README.md). NULL = 1 — the
+    // overwhelming default and the value every row that predates the column
+    // carries, so the reader (roleTargetHires) folds NULL to 1 rather than
+    // backfilling the whole corpus. Written by POST /api/jobs/[id]/publish; the
+    // role auto-closes once its hired count reaches this number.
+    "ALTER TABLE jobs ADD COLUMN target_hires INTEGER",
+    // The languages the posting was opened in: a JSON array of app locale codes
+    // (["en","cs"]). NULL/absent = never stated, which the posting modal reads as
+    // "the source language only". It is the ORDER for a translation, not a
+    // translation: the bodies themselves live in job_translations, one row per
+    // (job, lang), so a role whose LLM translation never ran still records which
+    // languages were asked for and can be retried.
+    "ALTER TABLE jobs ADD COLUMN posting_langs TEXT",
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
@@ -1655,6 +1816,13 @@ export function ensureDb(): Database.Database {
     // re-seed from intent (not the rendered output) and Retry replay even after the
     // task row is pruned. NULL on legacy rows (draft saves + pre-migration builds).
     "ALTER TABLE jds ADD COLUMN build_input_json TEXT",
+    // Who authored this JD — the user id from the session that created the row
+    // (saveJd / insertAnalyzingJd stamp it). NULL on legacy rows, on an open-dev
+    // install with no identity, and on any path that saves without a session. It
+    // is authorization INPUT for exactly one door: DELETE /api/jds/[slug] is open
+    // to the creator or to an owner/admin, and a NULL here simply means "no
+    // creator claim", never "anyone" (see app/_lib/jds-delete-access.ts).
+    "ALTER TABLE jds ADD COLUMN created_by TEXT",
     // DEVP5 — the candidate-facing language for this role's case artifacts
     // (brief/tasks, seed README+DECISIONS, interview narration), captured at
     // need intake. NULL ⇒ "en" when threaded to the dev-case CLIs.
@@ -1823,6 +1991,20 @@ export function ensureDb(): Database.Database {
     // "no such table" (only "duplicate column"/"already exists" are benign), so an
     // earlier ALTER would hard-fail every fresh boot.
     "ALTER TABLE outreach_state ADD COLUMN candidate_halt_at TEXT",
+    // The seeker's LAST-SEEN anchor on their own feed (docs/features/jobseeker/README.md,
+    // "Feed, fit dialog, sources UI"): ONE durable anchor per profile, carrying the
+    // ordering TUPLE the feed already pages by — (first_seen_at, id) — so "new since your
+    // last visit" is DERIVED by one comparison instead of a counter somebody has to keep
+    // correct. NULL on every existing row and on a seeker who has never had a settled
+    // feed load, which is the quiet first-run state: no badge, no divider.
+    "ALTER TABLE jobseeker_profiles ADD COLUMN feed_seen_at TEXT",
+    "ALTER TABLE jobseeker_profiles ADD COLUMN feed_seen_id TEXT",
+    // WHEN the seeker applied, which the status alone could never say: `applied` is a
+    // status, and the card was showing the CRAWLER's last_seen_at beside it — the date
+    // the board was re-read, not the date the seeker acted. NULL for every row that is
+    // not applied (and for rows applied before this column existed: unknown, never a
+    // fabricated date).
+    "ALTER TABLE jobseeker_postings ADD COLUMN applied_at TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -1956,12 +2138,16 @@ export function ensureDb(): Database.Database {
   db.prepare(`UPDATE workspaces SET type = 'team' WHERE type IS NULL`).run();
   // The per-tenant scan indexes. Every statement is `IF NOT EXISTS`, so "already exists"
   // is the ONE error SQLite cannot raise here — which is what made the single bare
-  // `catch { /* index already exists */ }` that used to wrap all nine a pure loss: it
-  // named an impossible error, absorbed the possible ones (lock contention, I/O, a name
-  // collision with a real table) and, because one try covered the whole block, ABORTED
-  // every index after the failing one. A tenant read then scanned the whole table for the
-  // life of the deployment with nothing logged. migrateExec tolerates only the benign
-  // re-run and is loud about the rest, per statement.
+  // `catch { /* index already exists */ }` that used to wrap the original nine a pure
+  // loss: it named an impossible error, absorbed the possible ones (lock contention, I/O,
+  // a name collision with a real table) and, because one try covered the whole block,
+  // ABORTED every index after the failing one. A tenant read then scanned the whole table
+  // for the life of the deployment with nothing logged. migrateExec tolerates only the
+  // benign re-run and is loud about the rest, per statement.
+  //
+  // The last four close the Phase-1 tenancy ALTER gap: interview_sessions, campaign_packs,
+  // tasks and skill_profiles gained workspace_id without a matching idx_*_workspace, so
+  // interviewedForJob / campaign pack get / task poll still table-scanned.
   for (const sql of [
     `CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`,
@@ -1972,6 +2158,10 @@ export function ensureDb(): Database.Database {
     `CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_interview_sessions_workspace ON interview_sessions (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_skill_profiles_workspace ON skill_profiles (workspace_id)`,
   ]) {
     migrateExec(sql);
   }
@@ -2194,13 +2384,12 @@ export function ensureDb(): Database.Database {
 type BootMaintenanceDb = { pragma: (source: string) => unknown };
 
 /**
- * The boot TAIL: the two housekeeping steps that run once the schema is ready.
+ * The boot TAIL: the housekeeping steps that run once the schema is ready.
  *
- * Both are deliberately best-effort. Neither reclaims correctness — they reclaim SPACE —
- * so a failure in either must be logged and survived, never allowed to wedge a boot that
- * would otherwise serve. That "best-effort" is a decision, not an accident, which is why
- * it is a named, tested seam rather than two bare try/catch at the end of a 900-line
- * initializer (`core-boot-tail.test.ts`).
+ * Each is deliberately best-effort. A failure must be logged and survived, never allowed
+ * to wedge a boot that would otherwise serve. That "best-effort" is a decision, not an
+ * accident, which is why it is a named, tested seam rather than bare try/catch at the
+ * end of a 900-line initializer (`core-boot-tail.test.ts`).
  *
  * 1. Prune expired (and, once their TTL lapses, superseded-PROMPT_VERSION) prompt-cache
  *    rows. lookupPromptCache only SKIPS expired rows — it never deletes them — so without
@@ -2210,11 +2399,19 @@ type BootMaintenanceDb = { pragma: (source: string) => unknown };
  *    nothing else forces one. TRUNCATE both checkpoints AND shrinks the -wal to zero.
  *    Every store opens the same kp.sqlite, so this one call bounds the shared WAL. A
  *    concurrent reader holding the WAL open is an ordinary, expected failure here.
+ * 3. Sample getRowHealth(). The ledger counts unreadable JSON columns since boot; a
+ *    non-zero total is the only boot-time signal that a restored dump has corrupt
+ *    payload_json (otherwise it stays silent until a user opens that row). Zero is the
+ *    ordinary case and must not add a log line.
  *
- * `prune` is injected only so a failing prune can be exercised; production always passes
- * the real one.
+ * `prune` and `rowHealth` are injected only so a failing / non-zero sample can be
+ * exercised; production always passes the real ones.
  */
-export function runBootMaintenance(db: BootMaintenanceDb, prune: () => number = prunePromptCache): void {
+export function runBootMaintenance(
+  db: BootMaintenanceDb,
+  prune: () => number = prunePromptCache,
+  rowHealth: () => { ok: boolean; total: number; issues: RowIssue[] } = getRowHealth
+): void {
   try {
     const pruned = prune();
     if (pruned > 0) console.log(`[db] pruned ${pruned} expired prompt-cache row(s) on boot`);
@@ -2225,6 +2422,14 @@ export function runBootMaintenance(db: BootMaintenanceDb, prune: () => number = 
     db.pragma("wal_checkpoint(TRUNCATE)");
   } catch (error) {
     console.error("[db] boot WAL checkpoint failed", error);
+  }
+  try {
+    const health = rowHealth();
+    if (health.total > 0) {
+      console.warn(`[db] row-health: ${health.total} unreadable column(s) since boot ${JSON.stringify(health.issues)}`);
+    }
+  } catch (error) {
+    console.error("[db] row-health boot sample failed", error);
   }
 }
 
@@ -2416,6 +2621,17 @@ export type JobRecord = {
   // 'draft' is not publicly live, 'closed' no longer accepts applications
   // (isJobOpenForApplications in job-ingest.ts is the one open-for-apply gate).
   status?: "draft" | "published" | "closed" | null;
+  // The open/close review system, decorated from the jobs COLUMNS beside `status`
+  // (never payload_json). `targetHires` is how many candidates the role has to hire
+  // before it is filled — always a number on a decorated row, because the stored
+  // NULL means 1. `postingLangs` is the locales the role was opened in, [] when the
+  // role predates the column or was never published through the wizard.
+  targetHires?: number;
+  postingLangs?: string[];
+  // How many candidates this role has actually hired — NOT a jobs column: it is the
+  // pipeline's own terminal-stage count, decorated by the route that has the axis
+  // (listJobPipelineStats). Absent when the caller did not ask for it.
+  hired?: number;
 };
 
 const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.normalized.json");

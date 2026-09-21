@@ -7,6 +7,7 @@ import {
   consentWithholdsPii,
   maskCandidateName,
   outreachSuppressionReason,
+  consentNeedsExpiryNotice,
   redactTranscriptForConsent,
   scrubPiiFromPayload,
   type ConsentSnapshot,
@@ -104,6 +105,14 @@ test("consentStatus walks none → active → expiring → expired, and anonymiz
   assert.equal(consentStatus({ givenAt: "x", expiresAt: null, anonymizedAt: null }, NOW), "active");
 });
 
+test("consentNeedsExpiryNotice is true only for expiring and not-yet-notified", () => {
+  const expiring: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW + 10 * DAY).toISOString(), anonymizedAt: null };
+  assert.equal(consentNeedsExpiryNotice(expiring, NOW, false), true, "expiring + unnotified notifies");
+  assert.equal(consentNeedsExpiryNotice(expiring, NOW, true), false, "already-notified is a no-op");
+  const expired: ConsentSnapshot = { givenAt: "x", expiresAt: new Date(NOW - DAY).toISOString(), anonymizedAt: null };
+  assert.equal(consentNeedsExpiryNotice(expired, NOW, false), false, "expired is the anonymize sweep's job, not this one");
+});
+
 test("maskCandidateName reduces to First L. and degrades safely", () => {
   assert.equal(maskCandidateName("Monika Marešová"), "Monika M.");
   assert.equal(maskCandidateName("  jan  novák  "), "Jan N.");
@@ -155,6 +164,28 @@ test("scrubPiiFromPayload blanks PII but retains scoring signal", () => {
   assert.ok(!JSON.stringify(scrubbed).includes("monika@example.com"));
   // input not mutated
   assert.equal(profile.candidate.name, "Monika Marešová");
+});
+
+test("scrubPiiFromPayload empties parsingNotes / parsing_notes so Art. 17 cannot leave the CV name in metadata", () => {
+  // Key match is lowercased exact: parsingNotes → parsingnotes, parsing_notes stays
+  // underscored. Arrays not in PII_ARRAY_KEYS are mapped element-wise, so a note
+  // like "Extracted name Monika Marešová from header" used to survive the walk.
+  const camel = {
+    metadata: { parsingNotes: ["Extracted name Monika Marešová from header"] },
+    score: 82,
+  };
+  const snake = {
+    metadata: { parsing_notes: ["Extracted name Monika Marešová from header"] },
+    score: 82,
+  };
+  const camelScrubbed = scrubPiiFromPayload(camel) as typeof camel;
+  const snakeScrubbed = scrubPiiFromPayload(snake) as typeof snake;
+  assert.deepEqual(camelScrubbed.metadata.parsingNotes, []);
+  assert.deepEqual(snakeScrubbed.metadata.parsing_notes, []);
+  assert.equal(camelScrubbed.score, 82, "numeric score is a retained signal");
+  assert.equal(snakeScrubbed.score, 82);
+  assert.ok(!JSON.stringify(camelScrubbed).includes("Marešová"));
+  assert.ok(!JSON.stringify(snakeScrubbed).includes("Marešová"));
 });
 
 test("scrubPiiFromPayload tolerates non-object input", () => {

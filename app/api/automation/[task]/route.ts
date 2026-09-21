@@ -23,6 +23,7 @@ const REFUSAL_FOR: Record<AutomationRefusal, RefusalErrorCode> = {
   unknown_task: "AUTOMATION_TASK_UNKNOWN",
   entry_not_found: "AUTOMATION_ENTRY_NOT_FOUND",
   entry_has_no_profile: "AUTOMATION_ENTRY_NO_PROFILE",
+  task_not_offered: "AUTOMATION_TASK_NOT_OFFERED",
 };
 
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
     // Background/task-runner paths pass none → runAutomationTask falls back to the
     // workspace default.
     const lang = await getServerLocale();
-    const out = await runAutomationTask(body.entryId, task, typeof body.notes === "string" ? body.notes : "", undefined, lang, await currentWorkspace());
+    const out = await runAutomationTask(body.entryId, task, typeof body.notes === "string" ? body.notes : "", undefined, lang, await currentWorkspace(), { manual: true });
     return NextResponse.json(out);
   } catch (error) {
     // A refusal THIS module decided: its message is the information, so it is

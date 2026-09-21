@@ -45,11 +45,24 @@ export type NpsSummary = {
   belowSampleFloor: boolean;
 };
 
-/** Validate a submitted response. Returns the clean value or a reason — callers must not
- *  coerce, because a coerced 0 is a detractor the candidate never chose. */
-export function parseNpsSubmission(raw: { score?: unknown; comment?: unknown }):
+/** The refusals this validator can produce. Each name is a key in `REFUSAL_ERRORS`
+ *  with an `errors.<CODE>` entry in all four catalogs — a public token door must
+ *  never put an English sentence on the fail object (the sibling feedback
+ *  validator is the same shape). */
+export const NPS_REFUSALS = ["NPS_SCORE_REQUIRED", "NPS_SCORE_INVALID"] as const;
+export type NpsRefusalCode = (typeof NPS_REFUSALS)[number];
+
+export function isNpsRefusalCode(value: unknown): value is NpsRefusalCode {
+  return typeof value === "string" && (NPS_REFUSALS as readonly string[]).includes(value);
+}
+
+export type NpsParseResult =
   | { ok: true; score: number; comment: string | null }
-  | { ok: false; reason: string } {
+  | { ok: false; code: NpsRefusalCode };
+
+/** Validate a submitted response. Returns the clean value or a REFUSAL code — callers
+ *  must not coerce, because a coerced 0 is a detractor the candidate never chose. */
+export function parseNpsSubmission(raw: { score?: unknown; comment?: unknown }): NpsParseResult {
   // Number(null), Number(""), Number("  ") and Number([]) are all 0 — a valid-looking
   // detractor the candidate never chose. Accept a real number, or a string that is
   // non-empty AFTER trimming; everything else is absent input, not a zero.
@@ -59,10 +72,10 @@ export function parseNpsSubmission(raw: { score?: unknown; comment?: unknown }):
   } else if (typeof raw.score === "string" && raw.score.trim() !== "") {
     n = Number(raw.score);
   } else {
-    return { ok: false, reason: "score is required" };
+    return { ok: false, code: "NPS_SCORE_REQUIRED" };
   }
-  if (!Number.isFinite(n) || !Number.isInteger(n)) return { ok: false, reason: "score must be a whole number" };
-  if (n < NPS_MIN || n > NPS_MAX) return { ok: false, reason: `score must be between ${NPS_MIN} and ${NPS_MAX}` };
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return { ok: false, code: "NPS_SCORE_INVALID" };
+  if (n < NPS_MIN || n > NPS_MAX) return { ok: false, code: "NPS_SCORE_INVALID" };
   const rawComment = typeof raw.comment === "string" ? raw.comment.trim() : "";
   return { ok: true, score: n, comment: rawComment ? rawComment.slice(0, NPS_COMMENT_MAX) : null };
 }

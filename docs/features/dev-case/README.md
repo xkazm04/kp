@@ -47,9 +47,18 @@ palette. The full mapping table and the five reading states are in
   mis-sold the office/marketing/finance cases it also ships):
   `app/features/tools/devcases/DevTab.tsx`, routed through `DevTabSwitcher.tsx` /
   `DevTabDefineView.tsx` (need intake + analysis) / `DevTabCasesView.tsx` (case
-  list) / `DevCaseDetail.tsx` (per-case lifecycle, submissions, evaluation).
+  list; stalled collecting rows show the coral SLA chip on the stage cell, same
+  `devcase.lifecycle.stalled*` copy as the lifecycle strip) / `DevCaseDetail.tsx`
+  (per-case lifecycle, submissions, evaluation). The
+  internal panel (`DevCaseDetailInternal`) renders a read-only **Voice screen script**
+  when the frozen interview scenario has phases: intro clip, phase titles and spoken
+  probes (not listen-for / red-flag notes). A template/deterministic source reuses
+  `devcase.studio.degradedReason.scenario`. A case with no phases renders nothing,
+  not an empty script.
 - Outbox — `OutboxSection.tsx` (filter state, dead-letter chip, pager) over
-  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` and
+  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` (kind,
+  status, free text, and a `ref` facet so one posting's dead letters are a one-click
+  subset) and
   the re-dispatch button in `ResendButton.tsx` (also used by the Channels comms
   modal). Every message the pipeline sent, dead letters sorted to the top, paged 20
   at a time via `app/_components/table/TablePager.tsx`. It previously rendered a
@@ -57,23 +66,37 @@ palette. The full mapping table and the five reading states are in
   sit past row 50 with nothing on screen admitting it existed.
   - **The delivery column is the derived verdict, never the raw `status`.**
     `outboxView.ts` runs the rows through the same `deriveCommsView` +
-    `commsVerdict` pair the Comms Center and the candidate drawer read
+    `commsVerdict` pair the Comms Center and the candidate modal read
     (`app/_lib/comms-view.ts`), so this surface cannot disagree with them about the
     same message: a bounce RECEIPT folds onto the send it concerns (that send reads
     **Bounced**, not the green `sent` its column still stores), a dead letter a
     resend already recovered reads **Recovered** and leaves the "needs attention"
     chip, and a receipt matching no send in the window reads **Unmatched receipt**.
-    The one-click resend is offered on an *unrecovered* `failed` only — a bounce
-    needs the corrected-address form, and a recovered row would only earn a 409.
+    The one-click resend is offered on an *unrecovered* `failed` only. A bounce
+    mounts Channels' `BouncedResend` (corrected-address form, same
+    `channels.comms` copy) in the status cell so the recruiter can recover the
+    letter without leaving Assignments; a recovered row would only earn a 409.
+    Dead-letter rows also show the store's `failureDetail` (relay refusal or
+    bounce reason) truncated under the verdict, full string in the tooltip — empty
+    detail keeps the verdict word only.
     Labels come from the shared `channels.comms` status catalog (a surface picks its
     own tone, never its own delivery vocabulary). Caveat: supersession is computed
-    over what `GET /api/devcase/comms` returned, currently the newest 50 rows.
+    over what `GET /api/devcase/comms` returned. The door defaults to the newest 50
+    rows and now accepts `?limit=` (clamped to 500, same envelope as the case list:
+    `{ outbox, truncated, limit, relayConfigured }`) so older dead letters are
+    fetchable without a schema change. Today's client still asks for the default.
   - `ResendButton` reports four outcomes, because only one of them is a delivery:
     refused (non-2xx, with the server's reason), dead-lettered again
     (`failed`/`bounced`), recorded-but-undeliverable (`queued` — the relay is gone,
     so it shows the "no relay configured" warning rather than "Resent"), and relayed.
 - Candidate apply/work surface — `app/devcase/apply/[token]/page.tsx` +
-  `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`.
+  `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`. The page
+  subtitle matches the submit path that actually renders (`subtitleLive` when a
+  seed is present and the Live Work Surface mounts, `subtitleRepo` for the
+  repository-link form). The repo-link field uses a localized placeholder and
+  rejects a value that is not an http(s) URL. A closed posting still renders
+  `AiDisclosure` (without the data-consent line) so a late visitor is told that
+  AI evaluates the work.
 
 ## Flows
 
@@ -111,7 +134,13 @@ palette. The full mapping table and the five reading states are in
    identically. A role with no must-haves is designed exactly as before (the
    key is omitted from the prompt rather than sent empty), and the
    deterministic keyless template is unchanged — it has no way to design
-   terrain, so it does not pretend to.
+   terrain, so it does not pretend to. CV-hypothesis covert probes
+   (`soft_signals.panel_to_probe_briefs`, each `{kind, focus, rationale}`)
+   reach `design_case` through the production CLI:
+   `design-artifacts --focus-probes-json`. The `--no-llm` path appends one
+   targeted cover-probe per brief (`id` `t1`…). `runDesignArtifacts` in TS
+   does not yet forward a panel, so a recruiter's soft-signal sheet still
+   cannot change the exercise the candidate sits from the app.
 3. **Human gate.** The role/case is a Decisions approval
    (`app/api/devcase/lifecycle/route.ts`, `.../[id]/approve/route.ts`) before
    it is published/sent. The manual (non-lifecycle) gate in the Define-need
@@ -126,7 +155,10 @@ palette. The full mapping table and the five reading states are in
    the in-product **Live Work Surface** (`LiveWorkSurface.tsx`) — every
    open/edit/decision-log/submit/paste event is server-recorded
    (`pipeline/jobfit/devcase/process_events.py`), so there is a first-party
-   observed trace with no reliance on a private git log.
+   observed trace with no reliance on a private git log. The per-token local
+   draft (`kp:devcase:livework:<token>`) also holds the captured chat transcript
+   and the candidate's name/contact, so a reload does not wipe the prompt-channel
+   evidence or force them to retype identity before Submit.
 5. **Evaluation.** `pipeline/jobfit/devcase/evaluate.py` +
    `reflect.py` run `reflect_commits → assess_tooling → evaluate_submission →
    score_transfer` (or the observed-event equivalent), producing dimension
@@ -134,15 +166,22 @@ palette. The full mapping table and the five reading states are in
    review cards in `app/features/tools/devcases/DevEvalPanel*.tsx`,
    `DevCompareSubmissions.tsx`, `DevCohortProbePanel.tsx`. The rubric-compare
    matrix caps its columns at the top 5 by transfer fit (`rubricCompare`'s
-   `maxColumns`), so it labels itself `top 5 of N` and states that the moss
+   `maxColumns`; `0` means no cap) and can expand to the full evaluated set, so
+   it labels itself `top 5 of N` while collapsed and states that the moss
    per-axis leader is the strongest of the columns *shown*, not of the whole
    evaluated cohort — a hidden submission with lower transfer fit can lead an
-   individual axis.
+   individual axis. Expanding drops that caveat because every evaluated column
+   is on screen. Each compared column carries `authenticityBand` /
+   `authenticityScore` from the bundle (null when absent, never defaulted to
+   authentic), so a consumer cannot present a suspect row as just a transfer
+   number. The matrix paints that band as a row under transfer fit (authentic /
+   mixed / suspect / not scored).
 6. **Promotion.** `app/api/devcase/promote/route.ts` + `dev-control.ts`
    (autonomy level, promote floor) — auto-promotion is gated: a submission
    flagged `suspect` by the authenticity score, or with a broken integrity
    chain, is held for a live ownership-verifying interview rather than
-   advanced on transfer score alone.
+   advanced on transfer score alone. The copyable interview kit includes those
+   held/suspect submissions (ordered first), not only the transfer leader.
 
    **A hold holds the profile write too.** Promotion also bridges the take-home
    into the candidate's saved profile — `mintObservedFromSubmission`
@@ -498,16 +537,17 @@ reads `perStepSources.evaluate` and falls back to `source` only for bundles save
 before the per-step envelope (pinned in `DevHelpers.test.ts`).
 
 **The probe gate's refusal reaches the reviewer.** `enforceProbeGate` answers 422
-`{ code: "probe_audit_failed" }` for a case with no load-bearing probes, and the
-`errors` catalog has no entry for that code — so `useErrorMessage` fell through to
-`DevLifecycleReviewPanel`'s generic "Approve failed." and the reviewer lost both the
-cause and the way out, while the *editless* approve path (`useDevTabActions.runAction`)
-showed the server's full English sentence. The panel now selects its fallback from the
-code (`DevHelpers.approveFallbackFor`) and states the refusal in the reader's language
-by reusing the two strings already on screen: the probe banner's `none` verdict plus
-`review.engineOwned`, which names the exit — Regenerate with note, the button beside
-Approve. The test pins the code literal against `enforceProbeGate` itself, so a rename
-cannot silently restore the generic message.
+`{ code: "probe_audit_failed" }` for a case with no load-bearing probes (the `error`
+field is that code, not an English paragraph). The `errors` catalog has no entry for
+that code — so `useErrorMessage` fell through to `DevLifecycleReviewPanel`'s generic
+"Approve failed." and the reviewer lost both the cause and the way out. The panel now
+selects its fallback from the code (`DevHelpers.approveFallbackFor`) and states the
+refusal in the reader's language by reusing the two strings already on screen: the
+probe banner's `none` verdict plus `review.engineOwned`, which names the exit —
+Regenerate with note, the button beside Approve. Dead-probe reasons are catalog keys
+(`devcase.probeAudit.issue.no_choice` / `no_seam` / `no_reveals`) resolved in the
+banner in all four locales. The test pins the issue codes against `auditProbe` and the
+catalogs, so a rename cannot silently restore English.
 
 **The timebox the reviewer approves is the timebox the candidate receives.** The
 cap on a candidate's unpaid work is policy, generated from
@@ -548,9 +588,13 @@ The client half mattered more than the wire half: `LiveWorkSurface.ensureSession
 drop a failed mint on the floor and answer `null`, so a candidate whose link had closed or
 whose quota was spent kept typing into a surface that recorded nothing and learned about
 it only when Submit failed with the generic line. It now reads the code through
-`useErrorMessage` and shows it as an alert beside the sync banner; the submit path resolves
-its code the same way, with the existing `errorClosed`/`error` strings as fallback so a
-future code with no catalog entry still degrades to a sentence. Statuses are unchanged —
+`useErrorMessage` and shows it as an alert beside the sync banner. A thrown fetch
+(offline, DNS, CORS) used to take the same silent path — `catch { return null }` with
+no refusal — and now folds to `{ code: null, error: null }` so the generic
+`workSurface.error` line paints beside the sync banner while the next tick can retry
+(`foldMintRefusal` in `liveWorkMint.ts`). The submit path resolves its code the same
+way, with the existing `errorClosed`/`error` strings as fallback so a future code with
+no catalog entry still degrades to a sentence. Statuses are unchanged —
 `session-intake-guards.test.ts` and `inbound/route.test.ts` still pin 404/410/429 against
 the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins the
 source: no route may re-type the closed-intake sentence, and the work surface may never
@@ -696,7 +740,10 @@ product, and nothing was ever going to catch them: `eslint.config.mjs` deliberat
 Twelve components now read from the `devcase.studio.*` namespace in all four catalogs:
 `DevTab`, `DevCasesTable`, `DevCasesEmpty`, `DevAnalysisView`, `DevAnalysisReflectionCard`,
 `DevAnalysisDesignCard`, `DevCaseDetail`, `DevCaseDetailHeader`, `DevCaseDetailInternal`,
-`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Three
+`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Posting
+channel chips on the assignment detail resolve `devcase.studio.channel.<id>` (`local` /
+`link` / `email`, pinned to the distribution producer) with a `t.has` fallback to the
+raw store value for anything unknown. Three
 non-component seams moved with them:
 
 - `degradedReasons` (`DevCaseDetail.publish.ts`) returns CODES (`"scenario"`, `"seed"`)
@@ -832,6 +879,10 @@ Six places where the studio was quietly less honest than it looked, closed in on
   so a freshly-published assignment rendered three nothings in a row and simply stopped
   after the internal panels. One "waiting for the first submission" panel now stands in
   for all three, and only when the assignment is actually published.
+- **The case-level interview kit can export a held shortlist row.** It used to always
+  assemble the highest-transfer submission with follow-ups. The shortlist already ranks
+  everyone; a one-line select (candidateRef + transfer + authenticity band) now picks
+  any followup-bearing row. Default remains the transfer leader.
 - **`source()` is single-flight.** It was the one write action on the tab without a
   guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
   row it was clicked on: a click on a second row seeded the pipeline twice.
@@ -1028,6 +1079,16 @@ credential. These rules keep that honest, all sized so a real candidate never me
   re-sends everything. That flush also carries **no `keepalive`** — the flag caps a request
   body at 64KB (the same rule `useTranscriptPersistence.ts` documents) and this is the one
   request that must carry the complete tree, which the server accepts at 50 files × 256KB.
+- **The local draft keeps chat and identity across a reload.** `LiveWorkDraft`
+  (`app/devcase/apply/[token]/liveWorkDraft.ts`) used to store only `sessionId`,
+  `files` and `pending` events, so a refresh wiped the captured assistant/stakeholder
+  transcript (LLM-era control #2, the evidence the candidate can see) and the
+  name/contact the finalize door requires — Submit disabled until they retyped.
+  The blob now round-trips `chat[]`, `name` and `contact` too, with the same
+  size/shape caps as files; `decodeDraft` drops unknown channels/roles and fills
+  empty values for a legacy blob that lacks the new keys. `LiveWorkSurface`
+  writes them on chat send and identity edits, and hydrates them on mount. A
+  successful submit still clears the key.
 - **Intake throttling.** `/api/devcase/inbound` accepts an application against the apply
   token, and each accepted call writes a submission row, sends the candidate
   acknowledgement over the relay to a **caller-supplied address**, and resumes a collecting
@@ -1058,7 +1119,9 @@ either exposes a credential or kills a link a candidate already gave an employer
 
 - **One public address.** The shareable value is the CSPRNG `access_token`
   (`randomToken`, ~192 bits) — the sole auth on `/skill/[token]` and
-  `GET /api/skill-profile/[token]/verify`. The row's PK is an *internal* `randomId`
+  `GET /api/skill-profile/[token]/verify`. A store fault on that verify door
+  answers `safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")` so the public
+  credential URL never prints English or a raw store message. The row's PK is an *internal* `randomId`
   (`Math.random`-derived, time-ordered) and resolves a credential **only on legacy rows**
   (`access_token IS NULL`, minted before the token was hardened), so an already-shared old
   link keeps working while a hardened credential answers to its CSPRNG token alone. The
@@ -1258,7 +1321,10 @@ It now takes `?limit` (a positive integer, clamped to 500; anything malformed fa
 back to 50 rather than 400-ing a read), reads one row more than the page, and answers
 `{ cases, limit, truncated }`. `CasesTable` renders `truncated` as a `role="status"`
 line under the table (`devcase.casesTable.truncated`, four locales), so a cut page
-looks different from a studio that has exactly that many cases.
+looks different from a studio that has exactly that many cases. When the page is cut
+and the door can still raise `?limit=` (50 → 150 → 500), a **Load older assignments**
+control refetches through `useDevTabData` with the next step so assignments past the
+first fifty are reachable.
 
 ### The control room asks authority, and reports its writes
 
@@ -1383,7 +1449,7 @@ What replaced each of them:
 
 | Field | Now | Fallback, and when |
 | --- | --- | --- |
-| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one |
+| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one. The persisted `jobTitle` beside that synthetic id is the opening's title, else the assignment's role title, else the product word **Assignment** (`caseJobIdentity`) — never the retired English "Dev case", which used to mint a board column labelled that in every locale |
 | `candidate_id` | a real `profiles` row | a **minimal profile minted at promote**, when this team has never seen the person |
 | `archetype` | the resolved person's own | `unknown` on a minted profile — the fail-closed sentinel (`FALLBACK_ARCHETYPE`, `app/_lib/apply.ts`), never `bau` |
 | `role_family` | the linked job's | then `need_json.roleFamily`, then the documented `software_engineering` literal |
@@ -1451,10 +1517,10 @@ Now:
   every ranking, banding and threshold read in the app goes through them — board sort
   and score bands, decisions peer rank, screen-wave. So Matrix and Match never rank a
   candidate on a transfer score.
-- **The board says which kind it is.** The drawer header's caption under the number is
+- **The board says which kind it is.** The candidate modal's score caption is
   the score kind; the card wears a `transfer` marker beside the badge (a bare badge means
   match); the board legend (`PipelineShared.tsx`) states the vocabulary once, including
-  that the drawer scorecard's 1..5 rubric is a third kind.
+  that the interview scorecard's 1..5 rubric is a third kind.
 
 Pinned in `app/_lib/pipeline-transfer-score.test.ts`.
 
@@ -1520,6 +1586,100 @@ resolution, the non-collapse of a provider-only wildcard row, the pinned-same-mo
 and the three emission states) and `app/_lib/devcase-judge-independence.test.ts` (the
 panel state, including that a legacy bundle never starts reading as self-graded).
 
+### The homework column sends the assignment
+
+Until this landed, **nothing in the product ever sent an assignment to a named
+candidate.** A case was published as a *posting* — a shareable apply token candidates
+had to find — while sourced candidates were seeded straight onto the board. Two halves
+of one step, joined by a recruiter remembering to copy a link. A `homework` column (the
+Enterprise funnel's Accepted → **Homework** → AI interview → Screened → Human interview
+→ Offer → Hired) therefore did nothing on arrival, and the AI interview that follows had
+no submission to be grounded in.
+
+`app/_lib/stage-hooks-homework.ts` is the arrival hook that closes it. It is reached from
+`app/_lib/stage-hooks.ts` by **stage role**, never by a column literally named
+"Homework", and it holds the same three rules the interview hook does: it runs after the
+stage write has committed (never inside the transaction), it is best-effort (no failure
+may turn a completed move into a failed one), and it never claims more than happened.
+
+On arrival, for the entry's job:
+
+1. **The job's newest approved case** (`listDevCasesForJob`, workspace-scoped, status
+   `approved`) is the assignment to send.
+2. **No case yet?** The column's plan step gate decides. `auto` creates a lifecycle from
+   a need built off the job's **saved JD** (`need.jdSlug`, which is what
+   `resolveCaseJobId` re-derives so the designed case is linked back to this job and the
+   next arrival finds it rather than designing a second one), runs it, and comes back
+   around to send the result. `human` creates the lifecycle with `auto: false`, so it
+   parks at its own `awaiting_approval` gate — **the column's gate governs the
+   lifecycle's own human gate rather than adding a second one** — and the recruiter
+   approves it in Dev → Cases, the same Approve button
+   `POST /api/devcase/lifecycle/[id]/approve` is behind. Nothing is sent until then.
+   The gate is resolved by exactly the rule `effectiveInterviewGate` states: a saved
+   hiring plan is honored as saved, and only a workspace that has never saved one falls
+   to `auto`. A saved plan with **no** step for the column resolves to `human` — the safe
+   reading of silence on a step that spends a design run and mails a candidate.
+3. **The case goes live once.** An existing open posting is reused verbatim
+   (`getOpenPosting`); otherwise `getAdapter("local").publish` mints one. Two candidates
+   on one case must be handed the identical materials and the identical submit channel,
+   so a second token for one case is never the right answer.
+4. **`dispatchCaseInvite`** (`app/_lib/comms-dispatch.ts`) mails
+   `/devcase/apply/<token>` in the candidate's own language, through the same
+   `sendCandidateComm` path as every other candidate comm: the recipient contract,
+   consent suppression, the GDPR footer, and the outbox's **real** delivery claim
+   (`queued` with no relay configured, `failed` when the relay threw) handed straight
+   back to the caller. Comms kind `case_invite`, in `KNOWN_COMM_KINDS`.
+
+**The seam for "re-run once the case is published"** is that the hook awaits the
+orchestrator in place and re-enters once (bounded at one re-entry). `startTask` is
+fire-and-forget — it returns a task row, not a promise, and `tasks.ts` exposes no
+completion callback — so chaining onto it would mean polling a task row from a
+post-commit hook or adding a completion notification to a module several features
+share. The hook is already a background task with its own lifetime (`afterResponse`),
+so it calls the same `runLifecycle` the `lifecycle` task kind wraps, with the same
+tenant assertion. The cost: this design run does not appear in the task tray; it is
+recorded on the lifecycle itself, which the Dev/Cases control room lists.
+
+**Idempotence is (entry, posting), read off the outbox.** One `case_invite` row for this
+entry whose body carries this posting's token means the letter has already gone out, so
+re-entry, a bulk move touching the row twice and a retried poll all resolve to the same
+pair. The hook adds **no pipeline event kind** — the event vocabulary is pinned by set
+equality across `decision-attribution.ts`, `pipelineEventCatalog.ts` and four catalogs,
+and `stage-hooks.ts` states the same constraint for the interview invite. The durable
+record is the outbox row, which the Comms Center and the candidate drawer's Messages
+section already read by `ref`.
+
+**Refusals never claim a send.** An unaddressable candidate is refused *before* anything
+is published (minting a live token for a letter with nowhere to go is a side effect
+nobody asked for); an exhausted `case_designs` allowance, a lifecycle that finished with
+no approved case, and any thrown error all log and stop. In every case the stage move
+stands and the candidate simply waits in the column, where a recruiter sees them. No
+approval gate is armed, unlike the interview hook's fail-open: the `calendar` approval
+means "waiting for an interview link", which would be a false claim about someone waiting
+for an assignment.
+
+**Binding back.** When the invited candidate hands their work in through that link,
+`resolvePromotedCandidate` (`app/_lib/devcase-run.ts`) now asks the invite ledger first
+(`app/_lib/devcase-invite-binding.ts`): the outbox row's `ref` is the invited entry, its
+`recipient` is what `candidateRecipient` resolved for that entry, and its body carries
+the posting token — so a submitter presenting that address (or that name) resolves to the
+entry's **own** profile id. `createPipelineEntry` then dedups on (candidate, job) and
+backfills `dev_submission_id` onto the existing row instead of minting a second entry for
+a person the board was already tracking. That link is what
+`buildGroundedInterview` reads the submission through (`submissionFollowups` →
+`entry.devSubmissionId`), so the AI interview that follows is grounded in the work they
+actually did. Nothing about this puts an internal id on the public wire: the join is
+server-side and reads only what the invite already recorded, and an ambiguous match
+(more than one invited entry, or none) resolves to *null* and falls back to the existing
+resolution — attaching one candidate's work to another's hiring record is the one failure
+worse than promoting a stranger.
+
+Pinned in `app/_lib/stage-hooks-homework.test.ts`: one invite with the outbox's own
+claim, no second invite on re-entry, a second candidate reusing the same posting, the
+unaddressable refusal (nothing sent, nothing published, the move stands), the human gate
+parking at `awaiting_approval`, the auto gate designing-then-sending, and both binding
+cases (invited → their entry; uninvited → the old resolution).
+
 ### The voice screen is reachable from the assignment
 
 The evaluation's minted follow-up questions exist to be asked **out loud**: an artifact
@@ -1554,7 +1714,7 @@ entry while the evaluation stayed on the submission.
   every evaluated submission: session status, the scorecard's verdict and its mean
   **observed** rating (not-assessed axes excluded, so a partial interview cannot average
   toward a middling 3 that looks like a judgement), and otherwise the same
-  `PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+  `PipelineVoiceScreenPanel` the candidate modal uses, pointed at this submission. One
   minting affordance, not a second copy of one; reissue/revoke and the full transcript
   stay on the board, where the entry is.
 
@@ -1621,6 +1781,10 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
 - Sub-specialty drift (a Frontend role handed a backend-stack repo, iOS handed
   Android) still falls back to "generic engineering" in `design_case` — see
   `docs/_archive/dev-d3-hardening-findings.md` residuals.
+- `design-artifacts --focus-probes-json` is the Python half of Rec B (CV
+  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run-design.ts`)
+  still has no argument to forward a panel, so designed cases from the app
+  never confirm over-claimed skills.
 - Apply tokens and work sessions never expire: `getPostingByToken`
   (`app/_lib/db/devcase.ts`) has no expiry column, so only `status === "closed"`
   invalidates a link.

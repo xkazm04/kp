@@ -113,6 +113,27 @@ test("under partial language coverage gaps are dropped while found matches survi
 
 test("the tracked-skill count is reported so 'no gaps' can be stated honestly", () => {
   const r = fit("anything");
-  assert.ok(r.trackedSkillCount > 20, "the taxonomy is the 26-bucket one, not the old 10");
+  assert.ok(r.trackedSkillCount > 20, "the taxonomy is the expanded disjoint set, not the old 10");
   assert.equal(typeof r.complexityAssessment.kind, "string", "the assessment rides along as a finding");
+});
+
+test("a Vue JD matches a vue repo and gaps a react-only repo", () => {
+  const matched = fit("We need Vue.", [repo({ language: "Vue", topics: ["vue"] })]);
+  assert.deepEqual(matched.matchingSkills, ["vue"]);
+  assert.ok(!matched.potentialGaps.includes("vue"));
+
+  const gapped = fit("We need Vue.", [repo({ language: "JavaScript", topics: ["react"] })]);
+  assert.ok(!gapped.matchingSkills.includes("vue"));
+  assert.ok(gapped.potentialGaps.includes("vue"), "a Vue JD vs a react-only repo must surface vue as a gap");
+  assert.ok(!gapped.potentialGaps.includes("javascript"), "vue is disjoint from javascript");
+});
+
+test("vue.js in a JD is the vue bucket, not a silent miss", () => {
+  assert.deepEqual(fit("Vue.js and Nuxt required.").potentialGaps.sort(), ["vue"]);
+});
+
+test("a Svelte JD matches sveltekit evidence", () => {
+  const matched = fit("Svelte required", [repo({ name: "app", topics: ["sveltekit"] })]);
+  assert.deepEqual(matched.matchingSkills, ["svelte"]);
+  assert.deepEqual(matched.potentialGaps, []);
 });

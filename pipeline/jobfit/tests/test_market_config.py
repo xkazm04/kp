@@ -400,12 +400,30 @@ class MarketApplyRoundTripTest(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("node not on PATH — integration round-trip skipped")
-        (tmp / "scripts").mkdir(parents=True, exist_ok=True)
+        (tmp / "scripts" / "lib").mkdir(parents=True, exist_ok=True)
         (tmp / "data").mkdir(parents=True, exist_ok=True)
         script = REPO_ROOT / "scripts" / "apply-market-salaries.mjs"
         shutil.copy(script, tmp / "scripts" / script.name)
+        # The script imports its freshness check from lib/market-earnings.mjs (added
+        # alongside the market_pulse staleness refusal) — an isolated copy that skips
+        # this local import fails with ERR_MODULE_NOT_FOUND before it ever touches the
+        # data it's meant to round-trip.
+        shutil.copy(
+            REPO_ROOT / "scripts" / "lib" / "market-earnings.mjs", tmp / "scripts" / "lib" / "market-earnings.mjs"
+        )
         for name in ("salary_benchmarks.json", "salary_benchmarks.manual.json", "market_pulse.json"):
             shutil.copy(REPO_ROOT / "data" / name, tmp / "data" / name)
+        # The committed market_pulse.json is real, dated data — it ages past
+        # STALE_AFTER_DAYS (assertFresh in lib/market-earnings.mjs) on an ordinary
+        # calendar, which would fail this round-trip on wall-clock time alone rather
+        # than on anything the script did. Pin the copy's meta.generated_at to now so
+        # the test verifies the write-safety contract, not the fixture's age.
+        import datetime as _datetime
+
+        pulse_path = tmp / "data" / "market_pulse.json"
+        pulse = json.loads(pulse_path.read_text(encoding="utf-8"))
+        pulse.setdefault("meta", {})["generated_at"] = _datetime.datetime.now(_datetime.timezone.utc).isoformat()
+        pulse_path.write_text(json.dumps(pulse), encoding="utf-8")
         subprocess.run(
             [node, str(tmp / "scripts" / script.name), *args],
             check=True,

@@ -7,6 +7,7 @@
 // Runner: Node's built-in test runner with type stripping.  npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { classifyLoginResult, isInlineCredentialError, safeNextPath, type LoginOutcome } from "./login-result.ts";
 
 test("2xx statuses classify as success", () => {
@@ -90,4 +91,33 @@ test("protocol-relative and scheme-bearing targets fall back to the root", () =>
 
 test("even a same-origin ABSOLUTE url is refused — only in-app paths are legitimate", () => {
   assert.equal(safeNextPath(`?next=${encodeURIComponent(`${ORIGIN}/jobs?x=1`)}`, ORIGIN), "/");
+});
+
+test("LoginPage redirects an entered session into the workspace", () => {
+  const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  assert.match(page, /hasEnteredWorkspace\(\)/, "the server wrapper must consult the home gate");
+  assert.match(page, /redirect\(/, "an entered session leaves /login");
+  assert.match(page, /safeNextPath\(/, "a phishing next cannot escape the request origin");
+});
+
+test("the default login subtitle does not mention the operator password", () => {
+  const catalogs = ["en", "cs", "de", "fr"].map((locale) =>
+    JSON.parse(readFileSync(new URL(`../../messages/${locale}.json`, import.meta.url), "utf8")),
+  );
+  for (const cat of catalogs) {
+    assert.doesNotMatch(cat.login.subtitle, /operator/i, "subtitle must not advertise the operator path");
+  }
+  const client = readFileSync(new URL("./LoginClient.tsx", import.meta.url), "utf8");
+  assert.match(client, /email\.trim\(\) === ""/, "emailHint renders only while the email field is empty");
+  assert.match(client, /t\("emailHint"\)/);
+});
+
+test("LoginPage threads signupEnabled into LoginClient; the footer is gated on signupOpen", () => {
+  const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  const client = readFileSync(new URL("./LoginClient.tsx", import.meta.url), "utf8");
+  assert.match(page, /signupOpen=\{signupEnabled\(\)\}/, "the server wrapper resolves the flag, never a public env mirror");
+  assert.doesNotMatch(page, /process\.env/);
+  assert.match(client, /signupOpen\s*=\s*false/, "LoginClient takes the server boolean");
+  assert.match(client, /signupOpen\s*\?/, "the /signup footer renders only when the prop is true");
+  assert.match(client, /href="\/signup"/);
 });

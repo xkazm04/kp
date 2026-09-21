@@ -261,7 +261,7 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
                     ["design-artifacts", "--no-llm", "--need-json", str(need), "--analysis-json", str(analysis)]
                 )
             self.assertEqual(code, 0)
-            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(rows), 2)  # one per deterministic step: role, case
         for row in rows:
             self.assertEqual(row["source"], "deterministic")
@@ -287,7 +287,7 @@ class TestDevcaseCliProvenanceContract(unittest.TestCase):
             self._assert_envelope(payload)
             self.assertEqual(set(payload["result"]), {"role"}, "case must be skipped")
             self.assertEqual(set(payload["perStepSources"]), {"role"})
-            rows = [json.loads(l) for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(rows), 1)  # only the role step ran
 
 
@@ -559,6 +559,87 @@ class TestDevcaseCliSharedErrorVocabulary(unittest.TestCase):
                 self.assertEqual(payload["code"], expected_code)
                 self.assertEqual(payload["status"], expected_status)
                 self.assertEqual(exit_code, expected_exit)
+
+
+class TestDevcaseCliFocusProbes(unittest.TestCase):
+    """--focus-probes-json is the production door for Rec B (CV hypothesis → covert
+    probe). design_case already bakes the briefs; without the flag the CLI could
+    never pass them, so designed cases never confirmed over-claimed skills."""
+
+    def _need_analysis(self, d: str) -> tuple[str, str]:
+        need = Path(d) / "need.json"
+        analysis = Path(d) / "analysis.json"
+        need.write_text(json.dumps({"title": "Backend", "stack": ["Python"]}), encoding="utf-8")
+        analysis.write_text(json.dumps({"realStack": ["Python"], "trueComplexity": "medium"}), encoding="utf-8")
+        return str(need), str(analysis)
+
+    def test_one_probe_brief_appears_in_cover_probes(self):
+        with tempfile.TemporaryDirectory() as d:
+            need, analysis = self._need_analysis(d)
+            probes = Path(d) / "probes.json"
+            probes.write_text(
+                json.dumps(
+                    [
+                        {
+                            "kind": "verification_trap",
+                            "focus": "Kubernetes",
+                            "rationale": "CV claims strong K8s with no evidence",
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            code, out, _err = _run(
+                [
+                    "design-artifacts",
+                    "--no-llm",
+                    "--need-json",
+                    need,
+                    "--analysis-json",
+                    analysis,
+                    "--focus-probes-json",
+                    str(probes),
+                ]
+            )
+        self.assertEqual(code, 0)
+        case = _last_json(out)["result"]["case"]
+        targeted = [p for p in case["coverProbes"] if str(p.get("id") or "").startswith("t")]
+        self.assertEqual(len(targeted), 1, "expected the one CV brief as a targeted cover-probe")
+        self.assertEqual(targeted[0]["kind"], "verification_trap")
+        self.assertIn("Kubernetes", targeted[0]["where"])
+        self.assertIn("CV claims strong K8s", targeted[0]["reveals"])
+
+    def test_omitted_flag_adds_no_targeted_probe(self):
+        with tempfile.TemporaryDirectory() as d:
+            need, analysis = self._need_analysis(d)
+            code, out, _err = _run(
+                ["design-artifacts", "--no-llm", "--need-json", need, "--analysis-json", analysis]
+            )
+        self.assertEqual(code, 0)
+        probes = _last_json(out)["result"]["case"]["coverProbes"]
+        self.assertFalse([p for p in probes if str(p.get("id") or "").startswith("t")])
+
+    def test_wrong_shape_is_400(self):
+        with tempfile.TemporaryDirectory() as d:
+            need, analysis = self._need_analysis(d)
+            probes = Path(d) / "probes.json"
+            probes.write_text(json.dumps({"kind": "verification_trap"}), encoding="utf-8")
+            code, _out, err = _run(
+                [
+                    "design-artifacts",
+                    "--no-llm",
+                    "--need-json",
+                    need,
+                    "--analysis-json",
+                    analysis,
+                    "--focus-probes-json",
+                    str(probes),
+                ]
+            )
+        self.assertEqual(code, 2)
+        payload = _last_json(err)
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_input")
 
 
 if __name__ == "__main__":

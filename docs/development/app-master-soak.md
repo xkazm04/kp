@@ -9,6 +9,9 @@ $0, keyed API calls do not. The abort criterion below keys on that delta. Note: 
 nights of history (P2 passed — `app-master-c1-exam.md` §8c). This document is
 the protocol and the taxonomy; the per-night record is
 `bench/app-master/soak/log.jsonl` (one JSON line per night, misses included).
+`node scripts/app-master-bench/soak/night.mjs --matrix` reduces that log to a
+scenario × window pass-rate table (`--from` / `--to` inclusive YYYY-MM-DD);
+the default night run still appends one line.
 
 **What it measures** (close-out §9 gap 5, registry `agent-memory`): what breaks
 when an App master runs for weeks, not rings — memory that decays wrongly, recall
@@ -22,7 +25,10 @@ gap in the log does not.
 
 - **Scheduler:** Windows Task Scheduler, task `kp-app-master-soak`, nightly
   02:47 local → `scripts/app-master-bench/soak/soak-night.cmd` →
-  `soak/night.mjs`. **Registered by the committed installer**
+  `soak/night.mjs`. POSIX twin: `soak/soak-night.sh` (cron or a systemd timer)
+  derives the repo root from its own location, uses the same `SOAK_*` defaults
+  `night.mjs` does, and exits 0 unless the runner itself is missing. **Registered
+  by the committed installer**
   `soak/install.cmd` (idempotent, paths derived from its own location, prints
   the task back for verification) — run it once per machine; the teardown
   command is in its header. **The task runs LATE rather than not at all**
@@ -98,6 +104,7 @@ soak night exhibits it:
 | `memory-nonmonotonic` | tier counts moved in a way no night explains (wrong decay / wrong consolidation) | — |
 | `recall-wrong` | a night's output contradicts something the memory should have carried (requires reading the proposals — the weekly human pass) | — |
 | `driver-timeout` | the driver exceeded the runner's 40-min ceiling — observed directly, distinct from a crash | — |
+| `driver-crashed` | the driver spawn failed, or produced no new run directory — observed directly, distinct from a timeout | — |
 | `record-unreadable` | a fresh run dir whose result.json carries no `tickOk` — partial write or driver shape change; the night may even have run | — |
 | `unclassified` | no code path recorded a reason — the record-keeping itself failed; classify by hand at the weekly pass and fix the silent path | — |
 | `no-record` | BACKFILLED at the next firing for any calendar day with no row (`backfilled: true`): the task never fired OR it fired and the runner died before writing — the row states both hypotheses and names the evidence (runner.log, Task Scheduler history); the weekly pass hand-classifies it to `machine` or `unclassified` | — |

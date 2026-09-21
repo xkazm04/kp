@@ -45,6 +45,21 @@ test("an invited user with no password cannot authenticate until one is set", ()
   assert.equal(verifyCredentials("invited@csas.cz", "chosen-pw")?.id, u.id);
 });
 
+test("a successful password login stamps last_login_at; a miss does not", () => {
+  const u = createUser({ orgId: DEFAULT_ORG_ID, email: "dormant@csas.cz", password: "dormant-pw-1" });
+  assert.equal(u.lastLoginAt, null);
+  assert.equal(getUserByEmail("dormant@csas.cz")?.lastLoginAt, null);
+
+  assert.equal(verifyCredentials("dormant@csas.cz", "wrong-password"), null);
+  assert.equal(getUserByEmail("dormant@csas.cz")?.lastLoginAt, null, "a failed password leaves the stamp null");
+
+  const ok = verifyCredentials("dormant@csas.cz", "dormant-pw-1");
+  assert.ok(ok?.lastLoginAt, "a hit returns the ISO stamp");
+  assert.match(ok.lastLoginAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(getUserByEmail("dormant@csas.cz")?.lastLoginAt, ok.lastLoginAt);
+  assert.ok(listUsersByOrg(DEFAULT_ORG_ID).some((row) => row.id === u.id && row.lastLoginAt === ok.lastLoginAt));
+});
+
 test("listUsersByOrg scopes to the org", () => {
   const before = listUsersByOrg(DEFAULT_ORG_ID).length;
   createUser({ orgId: DEFAULT_ORG_ID, email: `scoped${before}@csas.cz` });

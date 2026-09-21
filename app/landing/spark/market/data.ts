@@ -160,8 +160,10 @@ export const FAMILY_ORDER = snapshot.reference_salaries.map((r) => r.family);
  *
  * So: Intl does the work, per reader locale, and the currency is always named.
  * `cs` output is byte-identical to what the hand-rolled versions produced (NBSP
- * groups, "81 800 Kč"), which is why the default locale is `cs` and why
- * regionLabel.test.ts still passes unchanged. */
+ * groups, "81 800 Kč"), which is why the default locale is `cs`. The default is
+ * for the Czech data itself; every rendered call passes the reader's locale,
+ * because the koruna is Kč in Czech only and CZK in every other language
+ * (operator ruling 2026-09-14). */
 export const MARKET_LOCALE = "cs";
 const CURRENCY = snapshot.meta.currency || "CZK";
 

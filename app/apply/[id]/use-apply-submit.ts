@@ -34,6 +34,7 @@ export type { ApplySubmitError } from "./apply-submit-outcome";
 export function useApplySubmit({
   jobId,
   lead,
+  companyUrl,
   submitFailedMessage,
   networkFailedMessage,
   hasErrorCode,
@@ -43,6 +44,9 @@ export function useApplySubmit({
   jobId: string;
   /** The enrichment lead token, or null when this is a first-time visit. */
   lead: string | null;
+  /** Anti-bot honeypot. A real applicant never fills this; the server drops a
+   *  non-empty value. Always posted (including "") so the field is on the wire. */
+  companyUrl: string;
   submitFailedMessage: string;
   networkFailedMessage: string;
   /** The `errors` catalog, unbound from React — a refusal is rendered from its
@@ -82,6 +86,7 @@ export function useApplySubmit({
         // unavailable, in which case the attempt simply stays unlinked.
         body: JSON.stringify({
           answers: finalAnswers,
+          company_url: companyUrl,
           ...(lead !== null ? { lead } : {}),
           applySessionId: readApplySession(jobId, "chat"),
         }),

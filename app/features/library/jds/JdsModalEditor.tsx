@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, History, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
+import { locateLintPhrase } from "@/app/_lib/jd-lint";
 import { builderLintFindings } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
 import { JdRevisionPanel } from "./JdsRevisionPanel";
@@ -116,6 +117,14 @@ export function JdModalEditor({
   // Live advisory lint over the edited body — the SAME engine + threshold the
   // builder uses (hidden below the min-body length, so a short draft isn't nagged).
   const lintFindings = useMemo(() => builderLintFindings(draftBody, { marketResearch }), [draftBody, marketResearch]);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const locatePhrase = (phrase: string) => {
+    const loc = locateLintPhrase(draftBody, phrase);
+    const el = bodyRef.current;
+    if (!loc || !el) return;
+    el.focus();
+    el.setSelectionRange(loc.start, loc.end);
+  };
 
   const disabled = editor.busy || editor.gateBlocked;
 
@@ -137,6 +146,7 @@ export function JdModalEditor({
         <label className="block text-sm font-semibold text-steel">
           {t("editBodyLabel")}
           <TextArea
+            ref={bodyRef}
             value={draftBody}
             onChange={(e) => setDraftBody(e.target.value)}
             disabled={editor.gateBlocked}
@@ -147,7 +157,7 @@ export function JdModalEditor({
         </label>
 
         {/* The wired lint panel (J1) — the same advisory seam as the builder. */}
-        {lintFindings.length > 0 ? <JdLintPanel findings={lintFindings} /> : null}
+        {lintFindings.length > 0 ? <JdLintPanel findings={lintFindings} onLocate={locatePhrase} /> : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <button

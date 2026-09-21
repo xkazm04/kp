@@ -20,7 +20,7 @@ export async function GET() {
   const denied = await requireOperator();
   if (denied) return denied;
   const ws = await currentWorkspace();
-  const items = listReconsiderQueue(50, ws);
+  const { items, total } = listReconsiderQueue(50, ws);
   // Stamp the canonical score + provenance for the whole (bounded) batch through
   // the same read path the board/drawer/queue use, so the reconsider row shows THE
   // match number with an honest "from CV analysis · <date>" / "snapshot at add"
@@ -69,5 +69,5 @@ export async function GET() {
       reason,
     };
   });
-  return NextResponse.json({ items: projected });
+  return NextResponse.json({ items: projected, truncated: total > 50, total });
 }

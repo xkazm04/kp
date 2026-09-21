@@ -22,7 +22,7 @@ machine can check are checked by `app/features/insights/about/chapters.test.ts`.
 | --- | --- |
 | `?tab=about` | `app/features/insights/about/AboutTab.tsx` |
 | Deep link to one chapter | `?tab=about#<id>` — ids in `app/features/insights/about/chapters.ts` (`job-descriptions`, `scoring`, `screening`, `archetypes`, `assignments`, `human-gates`) |
-| Out to the architecture diagrams | `/diagrams` (header link, shown only to a caller holding `read` — the explorer is operator-only, see below) |
+| Out to the architecture diagrams | `/diagrams` (header link, shown only to a caller holding `read` — the explorer is operator-only, see below). A funnel step is addressable as `/diagrams?step=<alias>` (`jd`, `screen`, `decide`, `offer`, `cron`, … — the keys in `app/diagrams/pipelineSteps.ts`); an unknown alias is ignored and the page still renders. |
 | Out to the guided tour | the shell's `SimulationProvider` (header button, hidden while a tour is running) |
 
 **The architecture link is gated.** `/diagrams` (`app/diagrams/page.tsx`) draws
@@ -35,7 +35,11 @@ while the set is still unknown, exactly as the nav rail treats a locked tab. The
 step titles and summaries the explorer's drawer renders live in
 `messages/*.json` under `diagrams.steps.<id>`; only the status, the cited repo
 paths and the PlantUML body stay in `app/diagrams/pipelineSteps.ts`, and
-`pipelineSteps.test.ts` holds the two halves in bijection.
+`pipelineSteps.test.ts` holds the two halves in bijection. A docs citation or
+chat paste can open a drawer directly with `?step=<alias>`; the explorer writes
+the same query on node click (`history.replaceState`) so refresh and share keep
+the step. Each `files[]` row in the drawer copies the repo-relative path on
+click (parenthetical notes like `(actOnPipelineEntry)` are stripped first).
 
 The chapter frames — number, eyebrow, title, lede, anchor, handoff link — are
 always in the server HTML (`stage/Scene.tsx`). Only the art is code-split, one
@@ -46,12 +50,12 @@ argument survive with JavaScript still in flight.
 
 | # | Chapter | Claims quoted from | Guarded by |
 | --- | --- | --- | --- |
-| 1 | Job descriptions — nothing invented | the grounding rule ("every mustHave must trace to something the inputs state") | prose; the orphan row is the argument |
+| 1 | Job descriptions — nothing invented | the grounding rule ("every mustHave must trace to something the inputs state") | `chapters.test.ts` — `design.py` grounding paragraph plus `about.jd.status.s3` |
 | 2 | Candidate scoring — three answers, not two | `_MATCH_THRESHOLD = 0.5` (`pipeline/jobfit/matching.py`), `_SIBLING_MATCH = 0.4` (`pipeline/jobfit/taxonomy.py`) | `chapters.test.ts` — both constants, their ordering, the en copy that prints them, and the painted line's derived position |
 | 3 | Screening — cheap filters first | `ko_filter` / `score_job` (`pipeline/jobfit/matching.py`), `match_reasoning` (its own module), `KoReasonKey` | `chapters.test.ts` — the layer names exist and every gate reason shown is a real `KoReasonKey` |
 | 4 | Archetypes — the same three slots, weighted differently | `pipeline/jobfit/archetypes.json` (rule weights, `selfDeclaredConfidence`, `defaultArchetype`, `defaultConfidence`, `lowConfidenceThreshold`) | `chapters.test.ts` — the tally board is parsed back out and compared to the registry |
 | 5 | Assignments — a work sample that survives delegation | the `sim >= 0.85` prompt gate (`pipeline/jobfit/devcase/artifact_checks.py`), `dev_cases.baseline_json` | `chapters.test.ts` — the gate, the scene's `AIM`, and that the worked example sits below it |
-| 6 | Human gates — the machine ranks, a person decides | the approval path in `app/_lib/automation-pass.ts` | prose |
+| 6 | Human gates — the machine ranks, a person decides | `APPROVAL_KINDS` / `needsHumanDecision` (`app/_lib/approval-kinds.ts`), the approval path in `app/_lib/automation-pass.ts` | `chapters.test.ts` — every non-empty `ACTIONS.kind` is `isApprovalKind`, parks iff kind is set, and `needsHumanDecision` still exists |
 
 **One deliberate exception.** Chapter 3's `120 / 74 / 8` are *not* quoted from
 anything: the shortlist width is whatever the caller asks `match_reasoning` for
@@ -77,12 +81,15 @@ without a DOM.
 | `stage/parts.tsx` | the dumb parts: `Field`, `Slot`, `Part`, `Wire`, `Wires` |
 | `stage/Scene.tsx` | chapter chrome: number, eyebrow, title, lede, handoff link |
 | `scenes/status.ts` | pure — the status line's phase → text lookup (`status.test.ts`) |
-| `scenes/shared.tsx` | `SceneStatus`, `LaneLabel`, `CodeLabel`, `Bar` |
+| `scenes/shared.tsx` | `SceneStatus`, `LaneLabel`, `CodeLabel`, `Bar`. `SceneStatus`'s outer `p` is a persistent `aria-live="polite"` `aria-atomic` region (`scene-status.test.ts`) so each beat's identifier is announced; the keyed inner span still crossfades for sighted readers. |
 
 **Clock contract.** Off screen the interval is torn down. Re-entering rewinds to
 beat 0, so nobody joins a sentence half-typed. Reduced motion pins `stillTick` —
 the first beat at which every module has reached its final stage — and never
-creates a timer. A **backgrounded tab pauses and keeps its tick**: `useInView`
+creates a timer. `chapters.test.ts` parses `CYCLE` / `STILL` from all six scenes
+and fails if `STILL` is missing, `>= CYCLE`, not passed explicitly, or earlier
+than the last `statusPicker` key (a reduced-motion reader would miss the closing
+sentence). A **backgrounded tab pauses and keeps its tick**: `useInView`
 measures geometry, which a hidden tab retains, so without the
 `visibilitychange` term every scrolled-to scene kept re-rendering its diagram
 every 900ms in a tab nobody was looking at. Pause, not rewind — returning to a

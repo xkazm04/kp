@@ -47,15 +47,16 @@ export async function POST(request: NextRequest) {
   if (!rateLimit(`llm-canary:${clientIpFrom(request.headers)}`, CANARY_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
-  // Build the config env once so we can also mine the decrypted key bytes out of
-  // it for the response scrub backstop (below).
+  // Config env for the response scrub backstop (mine decrypted key bytes). The
+  // spawn options pin `env: buildLlmConfigEnv()` in the literal so the
+  // llm-spawn-contract cannot be satisfied by this local alone.
   const configEnv = buildLlmConfigEnv();
   const configKeys = extractConfigKeys(configEnv);
   try {
     const { result } = spawnPython(["-m", "pipeline.jobfit.llm.test_cli", "--use-case", body.useCase], {
       signal: request.signal,
       timeoutMs: 90_000,
-      env: configEnv,
+      env: buildLlmConfigEnv(),
     });
     const { stdout, stderr, exitCode } = await result;
     // The canary runs with the decrypted key in env (KP_LLM_CONFIG), and test_cli

@@ -3,7 +3,8 @@ import path from "node:path";
 import { getJob } from "./db/jobs";
 import { actOnPipelineEntry, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, pythonSpawnLoad, spawnPython } from "./python-runner";
+import { positiveNumericEnv } from "./env";
 import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
@@ -125,7 +126,19 @@ export type AutomationDecision = {
 // counted in `held`. The field is kept because scheduler_runs rows persisted before
 // the retirement carry real values, and the run history must still read them. Neither
 // the preview nor the commit increments it — that parity is the point.
-export type AutomationSummary = { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
+export type AutomationSummary = {
+  advanced: number;
+  rejected: number;
+  held: number;
+  alerts: number;
+  errors: number;
+  evaluated: number;
+  /** Job groups the pre-policy scoring sweep did not reach because the pass's total
+   *  spawn budget was spent. Absent when the budget did not fire, so a persisted
+   *  summary from before the budget existed reads identically. Optional rather than
+   *  zero-filled for that reason. */
+  scoringDeferred?: number;
+};
 export type AutomationPassResult = { summary: AutomationSummary; decisions: AutomationDecision[] };
 
 export class AutomationPassError extends Error {
@@ -167,6 +180,60 @@ export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<Automati
   return inFlightPass;
 }
 
+// How many sequential rounds of the interpreter ceiling one scheduled pass may
+// spend on scoring. The budget below is this times the ceiling, so raising the
+// machine's capacity raises the sweep's allowance with it instead of leaving it
+// pinned at a number somebody typed once.
+const SCORING_ROUNDS_PER_PASS = 8;
+
+/** The TOTAL paid interpreters one scoring sweep may issue, DERIVED from the
+ *  process-wide admission ceiling (`KP_PYTHON_MAX_CONCURRENT`, python-runner) rather
+ *  than typed beside it.
+ *
+ *  Why a second number at all: the admission semaphore is a STOCK cap, released on
+ *  settle, and this sweep is sequential — it never holds more than one slot, so the
+ *  ceiling can never fire on it however low it is set. The ceiling bounds the machine
+ *  at an instant; nothing bounded what one pass may spend, and the sweep's length is
+ *  read out of the database at run time (distinct jobs with unscored entries, across
+ *  every workspace), not enumerated in code.
+ *
+ *  `KP_AUTOMATION_SCORING_SPAWNS_MAX` overrides the derivation for an operator who
+ *  wants a flat allowance. */
+export function scoringSpawnBudget(): number {
+  const derived = pythonSpawnLoad().ceiling * SCORING_ROUNDS_PER_PASS;
+  return Math.max(1, Math.floor(positiveNumericEnv("KP_AUTOMATION_SCORING_SPAWNS_MAX", derived)));
+}
+
+/** Admission for a sequential sweep whose work list is re-derived every pass.
+ *
+ *  `scoreGroup` returns whether it actually issued a paid interpreter, so the budget
+ *  counts spawns and not iterations — a group with no resolvable candidate costs
+ *  nothing and must not consume the allowance.
+ *
+ *  The groups past the budget are DEFERRED, never dropped, and that is only safe
+ *  because an admitted group's work LEAVES the work list: the score is persisted, so
+ *  the filter that builds the next pass's list no longer selects it and the next pass
+ *  starts where this one stopped. Over a list that is re-derived identically each
+ *  pass, the same prefix would be admitted forever and the tail would starve — so a
+ *  total cap needs persisted progress in a way a concurrency cap does not, because
+ *  the concurrency cap only ever delays the work it refuses. */
+export async function runScoringSweep<G>(
+  groups: Iterable<[string, G]>,
+  budget: number,
+  scoreGroup: (jobId: string, group: G) => Promise<boolean>,
+): Promise<{ spawned: number; deferred: number }> {
+  let spawned = 0;
+  let deferred = 0;
+  for (const [jobId, group] of groups) {
+    if (spawned >= budget) {
+      deferred += 1;
+      continue;
+    }
+    if (await scoreGroup(jobId, group)) spawned += 1;
+  }
+  return { spawned, deferred };
+}
+
 // AUTO1 — the pre-policy scoring sweep. Every inbound applicant (conversational
 // apply, sim/inbound) lands in Accepted with matchScore null; the policy pass
 // deterministically holds them "awaiting match score" and NOTHING ever computed
@@ -176,7 +243,7 @@ export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<Automati
 // same deterministic recruiter_cli ranking the candidates/rediscovery surfaces
 // use (LLM-free, sub-second). Best-effort per job: a scoring failure leaves the
 // entry held exactly as before, never blocks the pass.
-async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean): Promise<void> {
+async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean): Promise<number> {
   // The "ds-" exclusion is a LEGACY carve-out, not a rule about dev-case candidates:
   // a synthetic "ds-<submissionId>" id has no `profiles` row, so the pool lookup can
   // only miss. Since the one-thread milestone a promoted submission carries a REAL
@@ -185,7 +252,7 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   const unscored = entries.filter(
     (e) => e.matchScore == null && !e.intakeDegraded && e.candidateId && e.jobId && !e.candidateId.startsWith("ds-")
   );
-  if (unscored.length === 0) return;
+  if (unscored.length === 0) return 0;
 
   // Group by job — one recruiter_cli spawn scores all of a job's newcomers.
   const byJob = new Map<string, AutomationEntry[]>();
@@ -195,20 +262,22 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
     byJob.set(e.jobId as string, list);
   }
 
-  for (const [jobId, group] of byJob) {
+  const { deferred } = await runScoringSweep(byJob, scoringSpawnBudget(), async (jobId, group) => {
+    let issued = false;
     try {
       const candidates = group
         // Each entry resolves within its OWN workspace — the global sweep spans
         // tenants, so a candidate must never resolve against another team's store.
         .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel, e.workspaceId))
         .filter((c): c is NonNullable<typeof c> => c !== null);
-      if (candidates.length === 0) continue;
+      if (candidates.length === 0) return false;
 
       // Pass the DB job directly when it exists, so ingested (non-corpus) jobs
       // score too — same contract as the candidates route. A CLI failure throws a
       // PipelineError, caught below so the bad job is skipped and the sweep
       // continues (the entry stays held exactly as before).
       const job = getJob(jobId);
+      issued = true;
       const payload = await rankPoolForJob<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(
         jobId,
         candidates,
@@ -243,7 +312,19 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
         console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
       }
     }
+    return issued;
+  });
+
+  // The stop is recorded, never silent: a pass that leaves jobs unscored says so,
+  // and the count is what tells an operator whether the derived budget is binding
+  // every pass (raise the ceiling) or never (the bound is not the constraint).
+  if (deferred > 0) {
+    console.warn(
+      `[automation-pass] scoring budget reached: ${deferred} job group(s) deferred to the next pass ` +
+        `(budget ${scoringSpawnBudget()} spawns/pass, derived from the interpreter ceiling ${pythonSpawnLoad().ceiling})`,
+    );
   }
+  return deferred;
 }
 
 async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassResult> {
@@ -253,7 +334,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
 
   // AUTO1 — score the unscored BEFORE the policy step, so an inbound applicant
   // is triaged on this very pass instead of held "awaiting match score" forever.
-  await scoreUnscoredEntries(entries, dryRun);
+  const scoringDeferred = await scoreUnscoredEntries(entries, dryRun);
+  if (scoringDeferred > 0) summary.scoringDeferred = scoringDeferred;
 
   let workdir: string | null = null;
   try {

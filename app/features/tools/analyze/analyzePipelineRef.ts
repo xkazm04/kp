@@ -29,7 +29,25 @@ function detectArchetype(analysis: Analysis): string | null {
   return typeof v2Profile?.archetype === "string" && v2Profile.archetype ? v2Profile.archetype : null;
 }
 
-export function deriveAnalyzePipelineAffordance(analysis: Analysis | null): AnalyzePipelineAffordance | null {
+// The picker's JdSummary row (slug + title). Live Analyze already holds this
+// list; the saved-report page loads the same title via loadJd. Passing the
+// library in keeps this helper pure and render-free.
+export type AnalyzeJobTitleRow = { slug: string; title?: string | null };
+
+// Same fallback the saved-report page uses: the library title when it exists,
+// `JD ${slug}` only when the row is missing (deleted, or outside the picker page).
+export function resolveAnalyzeJobTitle(
+  jdSlug: string,
+  library?: ReadonlyArray<AnalyzeJobTitleRow> | null,
+): string {
+  const title = library?.find((row) => row.slug === jdSlug)?.title?.trim();
+  return title || `JD ${jdSlug}`;
+}
+
+export function deriveAnalyzePipelineAffordance(
+  analysis: Analysis | null,
+  library?: ReadonlyArray<AnalyzeJobTitleRow> | null,
+): AnalyzePipelineAffordance | null {
   if (!analysis) return null;
   const persistence = analysis.persistence;
   // No saved row (persistence failed) → nothing to address; the candidateId the
@@ -56,7 +74,7 @@ export function deriveAnalyzePipelineAffordance(analysis: Analysis | null): Anal
       matchScore: analysis.score ? reconcileScoreTotal(analysis.score) : null,
       roleFamily: analysis.candidate?.roleFamily ?? null,
       jobId: jdSlug,
-      jobTitle: `JD ${jdSlug}`,
+      jobTitle: resolveAnalyzeJobTitle(jdSlug, library),
     },
   };
 }

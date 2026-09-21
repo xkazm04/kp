@@ -16,6 +16,7 @@ import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as reportPost } from "./report/[token]/route.ts";
 import { POST as dispatchPost } from "./dispatch/route.ts";
 import { POST as refreshPost } from "./[id]/refresh/route.ts";
+import { GET as agentsGet } from "./route.ts";
 import { AGENT_BRIDGE_KEY_INVALID } from "../../_lib/agent-hire/bridge-client.ts";
 import {
   createHiredAgent,
@@ -31,7 +32,7 @@ import {
   updateHiredAgentStatus,
 } from "../../_lib/db.ts";
 import { createIntake, updateIntakeAppMaster } from "../../_lib/db/intakes.ts";
-import { backboneFromRollup, backboneScore } from "../../_lib/app-master/backbone.ts";
+import { backboneFreshness, backboneFromRollup, backboneScore } from "../../_lib/app-master/backbone.ts";
 import { insertJob } from "../../_lib/job-ingest.ts";
 import type { JobRecord } from "../../_lib/db/core.ts";
 
@@ -582,4 +583,50 @@ test("report route: a v2 rollup's backbone reading lands in the ledger and score
   const score = backboneScore(backboneFromRollup(raw));
   assert.equal(score.verdict, "pass");
   assert.equal(score.rules.find((r) => r.rule === "delivery")?.value, 1, "5 of 5 merged, not 180%");
+});
+
+test("GET /api/agents: a 2026-08 rollup round-trips its period and freshness", async () => {
+  const agent = createHiredAgent({ jobTitle: "App master", intakeId: "intake-period", appMaster: APP_MASTER_SPEC, spec: SPEC });
+  const reported = await report(agent.reportToken, {
+    kind: "rollup",
+    period: "2026-08",
+    runs: 4,
+    successes: 4,
+    failures: 0,
+    costUsd: 1,
+    proposalsOpened: 2,
+    proposalsMerged: 2,
+    proposalsReverted: 0,
+    gatePassRate: 1,
+    forbiddenClassViolations: 0,
+    budgetReservedUsd: 10,
+    budgetSettledUsd: 1,
+    budgetUnmeasured: false,
+    ledgerConsistent: true,
+  });
+  assert.equal(reported.status, 200);
+
+  const res = await agentsGet();
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    agents: Array<{
+      id: string;
+      backbonePeriod: string | null;
+      backboneFreshness: "current" | "stale" | "unknown" | null;
+    }>;
+  };
+  const row = body.agents.find((a) => a.id === agent.id);
+  assert.ok(row, "the hire is on the roster");
+  assert.equal(row.backbonePeriod, "2026-08");
+  assert.equal(
+    row.backboneFreshness,
+    backboneFreshness({ period: "2026-08", now: new Date(), windowDays: 30 }),
+    "freshness is the helper's reading of the named period",
+  );
+
+  const quiet = createHiredAgent({ jobTitle: "App master", intakeId: "intake-quiet", appMaster: APP_MASTER_SPEC, spec: SPEC });
+  const quietRes = await agentsGet();
+  const quietRow = ((await quietRes.json()) as { agents: typeof body.agents }).agents.find((a) => a.id === quiet.id);
+  assert.equal(quietRow?.backbonePeriod, null, "no rollup ⇒ no period");
+  assert.equal(quietRow?.backboneFreshness, null, "no rollup ⇒ no freshness");
 });

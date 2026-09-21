@@ -8,8 +8,8 @@ import { listInvitesForOrg } from "@/app/_lib/db/invites";
 import { inviteMember } from "@/app/_lib/org-service";
 import { isMemberRole, canAssignRole } from "@/app/_lib/auth/roles";
 
-// Pending invites for the org. members:manage-gated (viewing invites is part of
-// managing members).
+// Redeemable pending invites for the org (status=pending and not past
+// expires_at). members:manage-gated — viewing invites is part of managing members.
 export async function GET() {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;

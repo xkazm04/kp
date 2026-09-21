@@ -29,6 +29,7 @@ const LIBRARY_SEGMENTS = [
   "/stores/",
   "/shared/",
   "/ui/",
+  "/_components/",
   "/utils/",
   "/i18n/",
   "/_dev-inspector/",
@@ -37,6 +38,13 @@ const LIBRARY_SEGMENTS = [
 export function isLibraryPath(path: string): boolean {
   const p = `/${path}`;
   return LIBRARY_SEGMENTS.some((seg) => p.includes(seg));
+}
+
+export type InspectorMode = "off" | "nav" | "armed";
+
+/** Corner Inspect control: only when source mapping is on and the overlay is off. */
+export function shouldShowArm(mappingOn: boolean, mode: InspectorMode): boolean {
+  return mappingOn && mode === "off";
 }
 
 export function parseLoc(raw: string): Omit<LocEntry, "el"> | null {

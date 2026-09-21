@@ -48,6 +48,15 @@ export type VariantRecommendation = {
   groupTotal: number;
 };
 
+/** Pipeline-board filter for a pause recommendation. Same `q=jobTitle` the
+ *  funnel uses. Empty/missing title → no link (the line stays text). */
+export function variantPauseBoardHref(
+  rec: Pick<VariantRecommendation, "jobTitle">
+): { tab: "pipeline"; q: string } | null {
+  const q = rec.jobTitle?.trim() ?? "";
+  return q ? { tab: "pipeline", q } : null;
+}
+
 // The sourcing playbook's iteration rule ("run 6–12 variants, pause bottom
 // performers within 72 hours"), translated to the signal we actually hold —
 // lead counts per variant, not ad-platform CTR/spend:

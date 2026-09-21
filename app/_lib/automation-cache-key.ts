@@ -41,6 +41,41 @@ export const UI_LANG_TASKS: ReadonlySet<string> = new Set(["prep", "screen", "sc
 // the cache axis and the prompt input can never drift apart.
 export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set([...LETTER_LANG_TASKS, ...UI_LANG_TASKS]);
 
+// --- Screening strictness by pipeline VOLUME -------------------------------
+//
+// The AI screener's strictness scales with how many ACTIVE candidates sit on the
+// role (automation.py::screening_volume_tier): a related-area near-miss is held for
+// a human while the pipeline is sparse/moderate, and may be rejected once it is
+// dense. That makes the volume a genuine PROMPT INPUT, so it must be a key axis — a
+// verdict computed at 3 candidates must never be served at 80.
+//
+// It is keyed as the BUCKET, not the count: bucketing is what keeps the key stable
+// as candidates trickle in (every arrival would otherwise mint a fresh key and the
+// 168h cache would never hit on an active role), and the bucket is exactly what the
+// prompt was written under — two runs in the same bucket saw the same rule.
+//
+// THESE TWO NUMBERS ARE HAND-MIRRORED from automation.POLICY's
+// `screen_volume_sparse_max` / `screen_volume_moderate_max`. The drift guard is
+// pipeline/jobfit/tests/test_automation_constant_sync.py: if TS bucketed on
+// different boundaries than Python tiers on, one bucket would span two rules and a
+// lenient verdict would be served to a strict run.
+export const SCREEN_VOLUME_SPARSE_MAX = 5;
+export const SCREEN_VOLUME_MODERATE_MAX = 30;
+
+/** sparse | moderate | dense — the cache bucket AND the tier Python resolves. */
+export type ScreenVolumeTier = "sparse" | "moderate" | "dense";
+
+/** The tier for `n` active candidates on the role. `null`/undefined (the caller
+ *  could not count — no job on the entry, a legacy call) is the most lenient tier,
+ *  mirroring automation.SCREENING_VOLUME_FALLBACK: an unknown volume must never
+ *  produce the strict rule. */
+export function screenVolumeTier(n: number | null | undefined): ScreenVolumeTier {
+  if (n == null || !Number.isFinite(n) || n < 0) return "sparse";
+  if (n <= SCREEN_VOLUME_SPARSE_MAX) return "sparse";
+  if (n <= SCREEN_VOLUME_MODERATE_MAX) return "moderate";
+  return "dense";
+}
+
 export type AutomationKeyInput = {
   /** AUTOMATION_VERSION[task] — bumps retire prior cache entries. */
   version: string;
@@ -92,6 +127,11 @@ export type AutomationKeyInput = {
    *  it would keep serving is the ungrounded one. Absent for every other task and
    *  for entries with no interview (which keys as "", so attaching one re-keys). */
   scorecardJson?: string;
+  /** Only folded into the key for the `screen` task: how many ACTIVE candidates sit
+   *  on the role, which sets the screening strictness tier the prompt states and the
+   *  verdict is gated by. Keyed as the BUCKET (see screenVolumeTier above). Absent
+   *  for every other task and for legacy callers, which key as the lenient tier. */
+  pipelineSize?: number | null;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -136,6 +176,9 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       // VALUE rather than a task set: automation-run passes it only for the tasks
       // whose prompt reads it, and one authority for that is enough.
       input.scorecardJson ? shortHash(input.scorecardJson) : "",
+      // The screening strictness bucket — a hold computed under the sparse rule must
+      // not be served once the role went dense (and vice versa).
+      input.task === "screen" ? screenVolumeTier(input.pipelineSize) : "",
       // Degraded (template) vs LLM output never share a key — see `degraded` above.
       input.degraded ? "no-llm" : "llm",
     ].join("|")

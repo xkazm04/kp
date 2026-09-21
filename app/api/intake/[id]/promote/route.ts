@@ -5,6 +5,7 @@ import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief"
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { currentUser } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -85,6 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       options,
       buildInput,
       workspaceId: ws,
+      createdBy: (await currentUser()).userId,
       params: {
         company: typeof body.company === "string" ? body.company : undefined,
         seniority: brief.seniority,

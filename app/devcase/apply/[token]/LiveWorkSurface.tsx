@@ -5,7 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
-import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft } from "./liveWorkDraft";
+import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft, type LiveWorkChatMessage } from "./liveWorkDraft";
+import { foldMintRefusal } from "./liveWorkMint";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTICE, PANEL, PANEL_SUNKEN, toggleBtn } from "@/app/_components/ui/recipes";
 import { useTablist } from "@/app/_components/ui/useTablist";
 
@@ -68,8 +69,15 @@ export function LiveWorkSurface({
   const locale = useLocale();
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
+  const nameRef = useRef("");
+  const contactRef = useRef("");
   const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
   const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
+  // Captured chat (LLM-era control #2): persisted in the local draft so a reload
+  // does not wipe the prompt-channel evidence the candidate can see. Channel/input
+  // chrome stays in-memory; only the transcript is durable here.
+  const [chatMessages, setChatMessages] = useState<LiveWorkChatMessage[]>([]);
+  const chatMessagesRef = useRef<LiveWorkChatMessage[]>([]);
 
   const sessionIdRef = useRef<string | null>(null);
   // The IN-FLIGHT mint, not a boolean. A bare "already starting" flag made
@@ -126,6 +134,9 @@ export function LiveWorkSurface({
         sessionId: sessionIdRef.current,
         files: filesRef.current,
         pending: pendingRef.current,
+        chat: chatMessagesRef.current,
+        name: nameRef.current,
+        contact: contactRef.current,
         savedAt: Date.now(),
       };
       window.localStorage.setItem(draftStorageKey(token), encodeDraft(draft));
@@ -145,11 +156,26 @@ export function LiveWorkSurface({
     /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe), the kp ConversationalApply convention */
     if (draft.files.length > 0) {
       filesDirtyRef.current = true; // restored tree may be newer than the server's copy
+      filesRef.current = draft.files;
       setFiles(draft.files);
     }
     if (draft.sessionId) sessionIdRef.current = draft.sessionId;
     pendingRef.current = draft.pending;
-    if (draft.files.length > 0 || draft.pending.length > 0) setRestored(true);
+    if (draft.chat.length > 0) {
+      chatMessagesRef.current = draft.chat;
+      setChatMessages(draft.chat);
+    }
+    if (draft.name) {
+      nameRef.current = draft.name;
+      setName(draft.name);
+    }
+    if (draft.contact) {
+      contactRef.current = draft.contact;
+      setContact(draft.contact);
+    }
+    if (draft.files.length > 0 || draft.pending.length > 0 || draft.chat.length > 0 || draft.name || draft.contact) {
+      setRestored(true);
+    }
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, []);
@@ -160,6 +186,15 @@ export function LiveWorkSurface({
     filesRef.current = files;
     persistDraft();
   }, [files, persistDraft]);
+  useEffect(() => {
+    nameRef.current = name;
+    contactRef.current = contact;
+    persistDraft();
+  }, [name, contact, persistDraft]);
+  useEffect(() => {
+    chatMessagesRef.current = chatMessages;
+    persistDraft();
+  }, [chatMessages, persistDraft]);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Lazily mint the session on first interaction — never orphan a session for a
@@ -180,7 +215,7 @@ export function LiveWorkSurface({
           // link has spent its day of sessions) are both terminal-ish and both have a
           // code. Show it; retrying into a wall silently is the failure being fixed.
           const payload = (await r.json().catch(() => null)) as ApiErrorPayload | null;
-          setRefusal(payload?.code ? payload : { code: null, error: null });
+          setRefusal(foldMintRefusal({ ok: false, payload }));
           return null;
         }
         setRefusal(null);
@@ -204,6 +239,10 @@ export function LiveWorkSurface({
         }
         return sessionIdRef.current;
       } catch {
+        // Offline / DNS / CORS: the coded 404/429 path above never runs. Paint the
+        // generic workSurface.error line (null code) so the candidate is not typing
+        // into an unrecorded session; startingRef is still cleared in `finally`.
+        setRefusal(foldMintRefusal({ networkError: true }));
         return null;
       }
     })();
@@ -399,9 +438,6 @@ export function LiveWorkSurface({
   // `deterministic` marks a reply produced by the keyless fallback rather than a model.
   // Degrading without keys is a product property here; letting the candidate believe a
   // stub was their stakeholder is not, so the bubble says so.
-  const [chatMessages, setChatMessages] = useState<
-    { channel: string; role: "user" | "model"; text: string; deterministic?: boolean }[]
-  >([]);
   const [chatInput, setChatInput] = useState("");
   // "limited" is a distinct terminal state from "error": the budget is a stated
   // product limit, not a fault, and it must never read as "your work was lost".

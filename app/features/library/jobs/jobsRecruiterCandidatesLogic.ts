@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { isEarlyCareer } from "./JobsTypes";
 import { fairnessCsvRows, indexFairnessMatrix } from "./jobsFairnessMatrix";
 import type { CandRow, FairnessMatrix, SkippedCandidate } from "./JobsTypes";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
@@ -163,12 +162,16 @@ export function useRecruiterCandidatesLogic({
     return {
       eligible,
       poolFitCount: poolFit.length,
-      earlyCareer: shown.filter((c) => isEarlyCareer(c.archetype)),
-      experienced: shown.filter((c) => !isEarlyCareer(c.archetype)),
+      // ONE ranked list, not two columns. The early-career cohort is no longer a
+      // separate pipeline on screen — the fairness guarantee it carried (scored on
+      // potential, never auto-rejected) is stated on the frame and is a property of
+      // the ENGINE, not of a column, so splitting the pool bought nothing a reader
+      // could act on while costing every layout its ranking.
+      shown,
       notEligibleRows: all.filter((c) => !c.koPassed),
     };
   }, [data, poolFitOnly]);
-  const { eligible, poolFitCount, earlyCareer, experienced, notEligibleRows } = cohorts;
+  const { eligible, poolFitCount, shown, notEligibleRows } = cohorts;
   const notEligible = notEligibleRows.length;
   const skipped = data?.skipped ?? [];
   // Strictly `=== true`: an older/partial payload without the flag reads as "not
@@ -204,10 +207,10 @@ export function useRecruiterCandidatesLogic({
     () => (fairActive ? (id: string) => fairById.get(id) : undefined),
     [fairActive, fairById]
   );
-  // The ordered arrays themselves, so a column's `rows` prop keeps its identity
-  // across renders that changed neither the cohort nor the ordering.
-  const experiencedOrdered = useMemo(() => orderRows(experienced), [orderRows, experienced]);
-  const earlyCareerOrdered = useMemo(() => orderRows(earlyCareer), [orderRows, earlyCareer]);
+  // The ordered array itself, so the variant's `rows` prop keeps its identity
+  // across renders that changed neither the cohort nor the ordering — and so the
+  // row model derived from it (buildLadderRows) is not rebuilt on every keystroke.
+  const shownOrdered = useMemo(() => orderRows(shown), [orderRows, shown]);
 
   // Export the auditable matrix: per-scheme scores (matrix[i] = candidate i under
   // every candidate's weights) plus own / robust / delta. Reuses the shared CSV toolkit.
@@ -260,11 +263,8 @@ export function useRecruiterCandidatesLogic({
     reachOut,
     eligible,
     poolFitCount,
-    earlyCareer,
-    experienced,
-    // Pre-ordered and memoized: what the columns actually render.
-    experiencedOrdered,
-    earlyCareerOrdered,
+    // Pre-ordered and memoized: what the active layout actually renders.
+    shownOrdered,
     fairLookup,
     notEligibleRows,
     notEligible,

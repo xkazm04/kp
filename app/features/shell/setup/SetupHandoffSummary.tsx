@@ -13,7 +13,12 @@
 // `ctrl.finish()`: it set a highlight flag for a surface that no longer exists. A
 // button that promises a screen the operator will not find is worse than one fewer
 // exit, so the step now ends where the choice is.
-import { ArrowRight, Check, Columns3, Play, Rocket } from "lucide-react";
+//
+// THE SEEK VARIANT (2026-09-16). A job seeker walked Welcome → here; there is no
+// org, no board and no guided hiring demo to offer them. Their hand-off says the
+// one true thing — the search starts with the CV — and has ONE exit: finish(),
+// which persists the language, stamps the run and lands on /me.
+import { ArrowRight, Check, Columns3, FileText, Play, Rocket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { languageNative } from "@/app/features/shared/memberUi";
@@ -26,6 +31,53 @@ import { SetupPipelineChain } from "./SetupPipelineChain";
 import type { OnboardingCtrl } from "./setupSteps";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
+  if (ctrl.state.intent === "seek") return <SeekHandoff ctrl={ctrl} />;
+  return <HireHandoff ctrl={ctrl} />;
+}
+
+function SeekHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
+  const t = useTranslations("setup.handoff.seek");
+  const lang = languageNative(ctrl.state.language);
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-3 rounded-lg border border-moss/30 bg-moss/5 p-4">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-moss/15 text-moss">
+          <Check size={20} aria-hidden />
+        </span>
+        <div className="text-sm">
+          <p className="font-semibold text-ink">{t("readyTitle")}</p>
+          <p className="text-steel">{t("readyMeta", { language: lang })}</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white p-4">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
+          <FileText size={18} aria-hidden />
+        </span>
+        <div className="min-w-0 text-sm">
+          <p className="font-semibold text-ink">{t("cvTitle")}</p>
+          <p className="mt-1 max-w-[90%] text-steel">{t("cvBody")}</p>
+        </div>
+      </div>
+      <p className={`${EYEBROW} pt-2`}>{t("chooseLabel")}</p>
+      <button
+        type="button"
+        onClick={ctrl.finish}
+        className="focus-ring group flex w-full items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0 sm:w-auto sm:min-w-[50%]"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
+          <Rocket size={18} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 text-sm">
+          <span className="block font-semibold text-ink">{t("goTitle")}</span>
+          <span className="text-steel">{t("goBody")}</span>
+        </span>
+        <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+      </button>
+    </div>
+  );
+}
+
+function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
   const sim = useSimulation();
   const displayLabel = useStageDisplayLabel();

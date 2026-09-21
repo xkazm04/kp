@@ -66,6 +66,41 @@ export const JOB_STATUS_TONE: Record<JobStatus, StatusTone> = {
   closed: "stopped",
 };
 
+/** The ROLE status the Roles desk reads — a DERIVED vocabulary, deliberately not a
+ *  fourth stored value. `jobs.status` records what a recruiter DID to the role
+ *  (wrote it, took it live, retired it); this records what the role IS right now,
+ *  which needs the pipeline's hired count as well:
+ *
+ *    draft   never taken live
+ *    open    live, and still short of its target hires
+ *    filled  it reached its target — whether or not the auto-close has retired it yet
+ *    closed  retired short of its target (a manual close, or an abandoned req)
+ *
+ *  Keeping `filled` derived rather than stored is what makes the two facts agree:
+ *  a role closed at 3-of-3 and a role still open at 3-of-3 (the window between the
+ *  hire committing and the post-commit close hook running) are the same thing to the
+ *  reader, and no migration can leave a stored `filled` contradicting the count. */
+export const ROLE_STATUSES = ["draft", "open", "filled", "closed"] as const;
+export type RoleStatus = (typeof ROLE_STATUSES)[number];
+
+export const ROLE_STATUS_TONE: Record<RoleStatus, StatusTone> = {
+  // Written, nothing has happened to it.
+  draft: "neutral",
+  // Live and being worked.
+  open: "active",
+  // It reached its successful end state — the one role status that earns `done`.
+  filled: "done",
+  // It ended without reaching that state.
+  closed: "stopped",
+};
+
+/** A derived role status → tone. An unrecognised value tones neutral, the honest
+ *  "we do not know what state this is in". */
+export function roleStatusTone(status?: string | null): StatusTone {
+  const v = (status ?? "").trim();
+  return isKey(ROLE_STATUS_TONE, v) ? ROLE_STATUS_TONE[v] : "neutral";
+}
+
 // ---- Axis 2: the assignment (dev case) lifecycle ----------------------------
 
 /** The 10 stages `app/_lib/devcase-orchestrator.ts` can write. Pinned to that
@@ -116,6 +151,11 @@ export const PIPELINE_ROLE_TONE: Record<StageRole, StatusTone> = {
   entry: "neutral",
   // Work in flight — automated screening, an interview round, the scoring pass.
   screening: "active",
+  // The case is generated, sent and evaluated by the product. The candidate's own
+  // turn is inside that window, but the board row cannot tell "not sent yet" from
+  // "sent, waiting on them", so it reads as work in flight rather than blaming a
+  // person — the same honesty rule the offer column's tone is argued from.
+  homework: "active",
   interview: "active",
   scoring: "active",
   // An offer sits on a person: the recruiter drafting it, the candidate answering.

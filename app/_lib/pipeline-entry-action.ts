@@ -229,7 +229,7 @@ export async function extendDraftedOffer(
       candidateRef: entry.id,
       rationale: `Offer extended: ${offer.salary ?? "—"} ${offer.currency ?? ""} for ${entry.jobTitle ?? "role"}.`,
       reasonCode: "offer",
-      inputs: { salary: offer.salary, currency: offer.currency, jobTitle: entry.jobTitle },
+      inputs: { salary: offer.salary, currency: offer.currency, jobTitle: entry.jobTitle, notes: terms.notes },
     });
   }
 

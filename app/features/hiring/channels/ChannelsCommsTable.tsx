@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { ChannelEmpty } from "./ChannelsEmpty";
-import { commsStatusLabels, isActionable, statusTone, type Message, commsReceiptLabels, displayRecipient, displaySubject } from "./channelsCommsHelpers";
+import { commsStatusLabels, isActionable, statusTone, type Message, commsReceiptLabels, displayRecipient, displaySubject, matchesCommsQuery } from "./channelsCommsHelpers";
 import { ChannelsCommsMessageModal } from "./ChannelsCommsMessageModal";
 import { ChannelsCommsRows } from "./ChannelsCommsRows";
 import { EMPTY_COMMS_PAGE, mergeCommsPage, type CommsPageState } from "./channelsCommsPaging";
@@ -155,12 +155,8 @@ export function CommsTable() {
   const loading = messages === null;
   const all = messages ?? [];
 
-  const needle = nameQuery.trim().toLowerCase();
   const matchesQuery = (m: Message) =>
-    !needle ||
-    nameOf(m).toLowerCase().includes(needle) ||
-    (displaySubject(m, receiptLabels) ?? "").toLowerCase().includes(needle) ||
-    (displayRecipient(m, receiptLabels) ?? "").toLowerCase().includes(needle);
+    matchesCommsQuery(nameOf(m), displaySubject(m, receiptLabels), displayRecipient(m, receiptLabels), nameQuery);
 
   const failedCount = all.filter(isActionable).length;
   // Dead letters first, then newest-first within each group.

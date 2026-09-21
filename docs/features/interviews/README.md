@@ -10,7 +10,10 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 ## Entry points
 
 - Candidate portal: `app/interview/[token]/page.tsx` (+ `error.tsx`,
-  `loading.tsx`) — the real, token-bound candidate flow.
+  `loading.tsx`) — the real, token-bound candidate flow. Revoked and expired
+  links paint distinct closed cards (`interview.revokedTitle` /
+  `revokedBody` vs `expiredTitle` / `expiredBody`) so the candidate's next
+  mail names the actual reason.
 - Recruiter dev/demo harness: `app/interview-lab/page.tsx` — a keyless lab for
   trying the agent as a recruiter would; gated by `INTERVIEW_LAB_ENABLED=1`
   outside production.
@@ -20,9 +23,22 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 
 ## Flows
 
+0. **Automatic creation on stage entry.** A candidate who *enters* a board column
+   whose hiring-plan round is run by the AI no longer waits for a recruiter to
+   press "Create link" — see [Automatic invites on stage
+   entry](#automatic-invites-on-stage-entry) below. The mint itself is the same
+   door in both cases.
 1. **Session creation.** A real candidate session is minted via
    `app/api/interview/create/route.ts` (entry-backed, `mode="candidate"`,
-   produces a scorecard on completion). A recruiter demo/simulation goes
+   produces a scorecard on completion). The route owns the transport half —
+   the cheap `interview_minutes` pre-gate, body validation, the per-IP throttle,
+   `submissionId` → entry resolution — and hands the work to
+   **`mintAndInviteVoiceScreen` (`app/_lib/interview-invite.ts`)**, the one
+   server-side door that holds the live-call guard, the grounded build, the
+   authoritative billing reservation, revoke-then-create and the truthful invite
+   dispatch. That door is shared verbatim with the stage hook, so the recruiter's
+   button and the automatic path can never disagree about reissue semantics,
+   spend, or what `delivery` claims. A recruiter demo/simulation goes
    through `app/api/interview/simulate/route.ts` (`mode: "student" |
    "student-case" | "regular"` picks the brief and run-of-show); both are
    billing-metered the same way (`interview_minutes`).
@@ -122,6 +138,115 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
    deliberately omits it). See `docs/features/intake/README.md`.
 
+## Automatic invites on stage entry
+
+**The one manual step left in the AI-interview loop is gone.** When a candidate
+comes to *stand* on a board column whose hiring-plan round is run by the AI, the
+system mints the voice screen and invites them — immediately when that column's
+gate is `auto`, parked for a human when it is `human`.
+
+**Where it hangs.** `app/_lib/stage-hooks.ts`, called from the two writers in
+`app/_lib/db/pipeline.ts` that are the *only* places a pipeline entry's stage
+changes — `actOnPipelineEntry` (accept / approve_event / the automation pass /
+the offer finalizer) and `setPipelineEntryStage` (the recruiter's manual override,
+the drag move, the batch route). Both call `notifyStageEntered` **after**
+`tx.immediate()` has returned, never inside it: minting does an LLM grounding
+build and a comms round trip, and better-sqlite3 transactions are synchronous, so
+an `await` between BEGIN and COMMIT would silently destroy the move's atomicity.
+Scheduling goes through `afterResponse`, so the work is off the request's critical
+path and survives on serverless.
+
+**When it applies.** All three must hold, asked of *this workspace's* axis by role
+rather than of a column named "Interview":
+
+1. the entry now stands on a column with `role: "interview"`;
+2. the hiring plan's step for that column exists and its **first round is
+   `kind: "ai"`** (a human round is somebody else's job — a person books it on the
+   Schedule tab's calendar);
+3. no invite has already been dealt with for this (entry, stage).
+
+**The gate.** `auto` → mint + dispatch now. `human` → hold: no link, no mail, no
+spend; the entry is parked on the existing **`calendar`** approval, which *is* the
+Schedule tab's AI-round docket — the candidate appears under "Awaiting link"
+beside the button that calls the same mint door. No new approval kind was
+introduced: the human surface for "this candidate is waiting for their interview
+link" already existed and was already wired to the right action. The park is
+CAS'd on `approval_kind IS NULL`, so an entry already waiting on a human
+(a scorecard or offer review) never has its gate overwritten.
+
+### The unsaved-gate asymmetry — read this before "fixing" it
+
+The shipped default plan (`INTERVIEW_PLAN_DEFAULT`) gates its one AI interview
+round as **`human`**, and the plan editor (`PipelineStepPolicy.tsx`) paints an
+untouched step as `human` for the same reason. The product decision for this hook
+is the opposite: *an AI step nobody has configured should run unattended.*
+
+`effectiveInterviewGate` resolves it narrowly — an **explicitly saved** plan's gate
+is honored exactly as saved, and only a workspace that has **never saved a hiring
+plan at all** falls to `auto` for an AI round.
+`getDecisionConfigVersion("interviewPlan", ws) === null` is the discriminator.
+
+**Known inconsistency, deliberately left:** on a never-saved workspace the editor
+*shows* "human" while the hook *acts* "auto". Closing it properly means changing
+either the shipped default (a behaviour change for every existing install) or the
+editor's unsaved paint — both decisions for the owner, not for this hook.
+
+### Idempotence — at most one link per (entry, stage)
+
+Entering the same column twice, a retried poll and a bulk move that touches the
+same row twice all resolve to the same pair and are caught by two reads, which
+cover different races:
+
+- **the event half** — a `interview_invite_sent` row in `pipeline_events` whose
+  `to_stage` is this stage. That row is written by `dispatchInterviewInvite`, so
+  it is the *same* row the board's Create-link button and the Schedule docket
+  write: a recruiter who already handed out the link while the candidate stood
+  here never gets a second one mailed over the top of it;
+- **the session half** — any interview session for the entry that is not
+  `revoked`. This catches what the event cannot: a link minted moments ago whose
+  dispatch has not recorded yet. A *revoked* session does not block — the
+  recruiter pulled that credential, and a later arrival may legitimately mint a
+  fresh one.
+
+Beneath both, `mintAndInviteVoiceScreen` still revokes-then-creates, so even a
+defeated guard yields one live link rather than two.
+
+### Best-effort, and it fails towards the human
+
+A failure to mint or dispatch **never fails the stage move** — the move has
+already committed. When the hook cannot act (no deliverable contact address, an
+exhausted `interview_minutes` allowance, a call already in progress, an
+unexpected error) it *fails open towards the human*: nothing is minted, nothing is
+sent, nothing anywhere claims an invite went out, and the candidate is left on the
+`calendar` gate exactly where a `human`-gated step would have left them — visible
+in the AI-round docket under "Awaiting link". The reason goes to the server log
+(`[stage-hooks] <entry>: AI interview link not minted (<reason>) — <why>`).
+
+The unaddressable check runs **before** the mint, not after: minting burns an LLM
+grounding build and reserves voice minutes for a link nobody can receive. It uses
+`isDeliverableAddress(candidateRecipient(entry))`, the same predicate the comms
+layer itself uses, so "unaddressable" means here exactly what it means in the
+Outbox.
+
+The automatic path reserves budget exactly as the manual one does: the cheap
+`interview_minutes` pre-gate before the grounded build, then the authoritative
+`maxBillableInterviewMin(bookedMin)` reservation inside the shared door. It never
+passes `force`, so a candidate mid-call can never have their session revoked and a
+second invite mailed over the top of it by an automatic move.
+
+**Known gap.** The hook emits **no event kinds of its own**. The event vocabulary
+is pinned by set equality across three registries — `app/_lib/decision-attribution.ts`,
+the feed's `app/features/hiring/pipeline/pipelineEventCatalog.ts`, and a localized
+label per kind in all four catalogs — and a kind present in one but not the others
+is a red build or an UNKNOWN badge in the candidate's history. So the *sent* case
+rides the dispatcher's existing `interview_invite_sent` row and the *held* and
+*failed* cases are visible as state (the `calendar` gate) plus a server log line,
+rather than as timeline rows. Turning held/failed into first-class timeline rows
+(`interview_invite_held` / `interview_invite_failed`) is a good follow-up and needs
+all three registries updated in one change.
+
+Tests: `app/_lib/stage-hooks.test.ts`.
+
 ## Link lifecycle
 
 The candidate link is a capability — a 192-bit token, auto-emailed on create —
@@ -158,7 +283,10 @@ by both the portal page and `/api/interview/connect`:
   real conversations for one screen — and at hang-up the second to finish was
   answered `{ok: true, alreadyCompleted: true}`, its transcript discarded behind
   a saved confirmation. `/connect` now refuses a second dial on a live session
-  with `INTERVIEW_ALREADY_LIVE` (409) plus `retryAfterMin` as data. The window is
+  with `INTERVIEW_ALREADY_LIVE` (409) plus `retryAfterMin` as data. The portal
+  page paints the same fact as a busy card (no Start) when
+  `interviewPortalView` reads live, so a second window never mounts the client.
+  The window is
   `isInterviewSessionLive` — `LIVE_INTERVIEW_RECENCY_MIN = 30`, the **same**
   authority `/create`'s reissue guard uses, so a link can never be at once too
   live to reissue and free to re-dial. A genuinely dropped call does not wait the
@@ -192,7 +320,7 @@ path between them a UI could act on.
 The create door now accepts **either** id:
 
 ```jsonc
-POST /api/interview/create  { "entryId": "…" }        // the board drawer, unchanged
+POST /api/interview/create  { "entryId": "…" }        // the candidate modal, unchanged
 POST /api/interview/create  { "submissionId": "…" }   // the assignment's eval surface
 ```
 
@@ -235,7 +363,7 @@ exactly what was asked. The same read-time consent gate as `?entry=` applies.
 The recruiter-facing half is `DevVoiceScreenPanel` (`app/features/tools/devcases/`),
 rendered under the eval panel for every evaluated submission: the screen's status, its
 verdict and mean observed rating when a scorecard exists, and otherwise the **same**
-`PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+`PipelineVoiceScreenPanel` the candidate modal uses, pointed at this submission. One
 affordance, one endpoint, one set of semantics (billing gate, reissue guard, delivery
 truth) — the revoke control stays entry-scoped and is therefore not rendered there.
 Pinned in `app/_lib/devcase-interview-entry.test.ts`.
@@ -307,7 +435,7 @@ predicate, source-level for the route contract).
 | `app/_lib/voice/index.ts` | Adapter registry, default-provider policy, candidate-safe default brief |
 | `app/_lib/voice/elevenlabs.ts`, `openai.ts` | The two provider adapters |
 | `app/_lib/voice/self-hosted.ts` | Self-hosted ElevenLabs-compatible endpoint detection (see below) |
-| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider) |
+| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider). Pre-flight names the environment as a code (`VOICE_PREFLIGHT_INSECURE` / `_NO_MEDIA` / `_NO_WEBRTC`), resolved through `useErrorMessage` in the candidate's language — never a hardcoded English sentence |
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
@@ -317,7 +445,7 @@ predicate, source-level for the route contract).
 | `app/_lib/interview-prep-run.ts` | Builds the prep pack (run-of-show + checklist) and stamps its provenance |
 | `app/_components/RubricCoverageNote.tsx` | The shared rubric-coverage disclosure, rendered by the prep pack header and the human scorecard form |
 | `app/_lib/interview-reminders.ts`, `interview-reminder-policy.ts` | Scheduling reminders |
-| `app/_components/voice/VoiceInterview.tsx` | The live-call shell — phase, consent, finalize/beacon, and the call controls |
+| `app/_components/voice/VoiceInterview.tsx` | The live-call shell — phase, consent, finalize/beacon, and the call controls. A `/connect` 409/403 paints `errors.<CODE>` (and `retryAfterMinutes` for `INTERVIEW_ALREADY_LIVE`) instead of the generic start failure |
 | `app/_components/voice/transport/openai.ts` | OpenAI Realtime over raw WebRTC: connection setup, the H3 speaking meter, the H4 drop debounce, teardown, and the transcript-buffer half of the wire protocol |
 | `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language + `asr.keywords` overrides |
 | `app/_components/voice/availability-gate.ts` | The portal's start gate. The `/api/interview/connect` probe has THREE outcomes — `loading` / `ok` / `failed` — and `voiceStartGate` maps them to `checking` / `available` / `unavailable` / `unknown`. A **failed** probe used to be stored as `null`, the same value as "not asked yet", and the render read that as available: a keyless or unreachable server therefore rendered a normal Start that died at connect, while the `unavailableCandidate` copy written for that moment was unreachable. `unknown` now renders "we could not check" plus a **Check again** control and never a plain Start |
@@ -328,7 +456,7 @@ predicate, source-level for the route contract).
 | `app/_components/voice/transport/transport-error.ts` | `VoiceTransportError` + the status/throw classifier. Four client-origin codes (`VOICE_TRANSPORT_NETWORK` / `_AUTH` / `_TIMEOUT` / `_PROVIDER`) resolved through `errors.<CODE>`; the provider's response body goes to the console, never to the candidate |
 | `app/_components/voice/transcript-follow.ts` | `shouldFollow` (autoscroll only while the reader is at the tail), `foldTranscript` + `turnKey` (a bounded live log with full-transcript-stable keys) |
 | `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
-| `app/_components/voice/VoiceSettings.tsx` (the provider picker consumes the same `availability-gate` the Start button does — an unchecked provider is disabled, with the same **Check again** line), `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
+| `app/_components/voice/VoiceSettings.tsx` (the provider picker consumes the same `availability-gate` the Start button does — an unchecked provider is disabled, with the same **Check again** line), `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log). The live clock is elapsed-only in the lab; the portal passes the grounded `durationMin` so `live-clock.ts` shows remaining (`durationMin*60 - elapsed`, clamped at 0) beside elapsed |
 
 ## Data model
 
@@ -420,22 +548,29 @@ The first two now come from `interviewBriefStrings(entry.locale)` in
 `interview-prep-strings.ts` — the same locale-pinned catalog loader as the prep
 pack, reading the `interview.brief` namespace in all four catalogs. The third is
 `OPENING_LANGUAGE_NAMES` in `interview-run.ts`, a `Record<Locale, string>` so a
-new locale is a tsc error rather than a silent fallback to English. Because the
-topics now load a catalog, `buildCandidateSafeBrief` is **async**; the connect
-route resolves it once before `connectWithFailover` (whose `resolveAgentPrompt`
-is synchronous by contract, so a failover never awaits between attempts).
-`interview-run-locale.test.ts` pins all of it against a real entry: a `de` entry
-stores a German agenda, an absent or unsupported locale keeps English, and the
-opening-language table is checked for parity with `LOCALES`.
+new locale is a tsc error rather than a silent fallback to English. A preferred
+locale **replaces** the shared Czech+English greet-then-detect paragraph
+(`PERSONA_LANGUAGE_DETECT`) rather than appending after it: that paragraph used
+to say it outranked every other instruction, so a German or French applicant
+still heard a CS+EN opener. A null locale keeps the bilingual greet
+byte-identical (the Python eval port's default student brief stays in lockstep).
+Because the topics now load a catalog, `buildCandidateSafeBrief` is **async**;
+the connect route resolves it once before `connectWithFailover` (whose
+`resolveAgentPrompt` is synchronous by contract, so a failover never awaits
+between attempts). `interview-run-locale.test.ts` pins all of it against a real
+entry: a `de` entry stores a German agenda, an absent or unsupported locale
+keeps English, a `de`/`fr` brief opens in that language with no CS+EN greet, and
+the opening-language table is checked for parity with `LOCALES`.
 
 The disclosure renders in **both** places a recruiter meets the rubric — the prep
 pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form
 (`ScheduleHumanScorecardForm`) — through one component,
 `app/_components/RubricCoverageNote.tsx`, translated in all four locales under the
 `rubricCoverage` message namespace. The `gap` is **persisted for all three cases**
-— on the prep payload (a generator-owned key, `interview-prep-run.ts`) and on the
-stored human `Scorecard` beside `rubricVersion`/`rubricKeys` — so the record stays
-complete even where the UI stays quiet.
+— on the prep payload (a generator-owned key, `interview-prep-run.ts`), on the
+stored human `Scorecard` beside `rubricVersion`/`rubricKeys`, and on the
+AI-synthesized scorecard after `runInterviewScorecard`'s post-pass — so the
+record stays complete even where the UI stays quiet.
 
 `rubricCoverage` is a pure *report*: it never infers or defaults a role family,
 and it leaves `rubricForArchetype()` output byte-identical (pinned by the
@@ -451,10 +586,11 @@ archetype × family combination's version hash). Guards:
 - `app/_components/rubric-coverage-catalog.test.ts` — pins the message catalog to
   `RUBRIC_COVERAGE_DISCLOSED_GAPS`, and asserts the silent gap has **no** key.
 
-**Not covered yet:** the AI-synthesized scorecard written by the Python scorer
-(`pipeline/jobfit/automation.py`, which mirrors `industry_axes_for`) carries no
-`rubricCoverage` stamp — the field is optional and consumers must treat it as
-absent there.
+The AI-synthesized scorecard gets the same stamp in TypeScript after the Python
+spawn (`runInterviewScorecard` → `stampAiScorecardRubricCoverage`), so a recruiter
+comparing two AI screens can see when one was scored without industry axes. Python
+still does not write the field; the post-pass will not overwrite it if that
+changes. The field stays optional for legacy rows.
 
 ## The sealed `ai_scorecard` carries what the verdict was made of
 
@@ -566,7 +702,7 @@ money but were the last unmetered writes on the surface, and are now bounded too
 | `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
 | `POST /api/interview/complete` | 10 / 10 min per **token + IP** (`COMPLETE_RATE_LIMIT`) | The transcript write, the `interview_minutes` debit and the LLM scorecard run + sealed decision |
 | `PUT` / `POST` / `PATCH /api/interview-prep` | 600 / 10 min per IP, ONE shared bucket (`PREP_WRITE_RATE_LIMIT`) | Three read-merge-writes against the same prep artifact |
-| `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation also sets the `scorecard_review` approval, records an automation event and seals a decision |
+| `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation for an active **interview-role** column (not the literal name `Interview`) also sets the `scorecard_review` approval, records an automation event and seals a decision |
 
 The prep budget looks loose next to its neighbours and the reason is pinned in
 `rate-limit-contract.test.ts` so nobody tightens it into a bug: the interviewer's
@@ -596,8 +732,9 @@ are gone. Those two modules are the PREDICATE and the GATE; the wording is the
 catalog's. `interview-lab.test.ts` now pins the gate itself — production closed by
 default, open only on the exact `INTERVIEW_LAB_ENABLED=1` opt-in (not "true", not
 `0`), read per call rather than captured at import, and actually consulted by
-`/connect` before it mints. The lab page's disabled-state copy comes from
-`interview.lab.*` in all four catalogs.
+`/connect` before it mints. The lab page's disabled-state and enabled-state copy
+(`interview.lab.disabledBody`, `enabledBody`, `candidatePortalNote`,
+`diagramsLink`) comes from `interview.lab.*` in all four catalogs.
 
 The candidate sidebar's duration chip was the other English leak: `durationChip` /
 `durationLabel` composed "~20 min" / "About 20 minutes" inside
@@ -814,8 +951,9 @@ deciding whether to run another screen could not see what the last one cost.
 `InterviewSessionSummary` now carries `costUsd`, read in the same query that builds
 the AI-round docket (a correlated `SUM(cost_usd)` over `llm_usage` keyed by request
 id **and** use case — no extra round trip, and the left side is already
-workspace-scoped). The completed card in `ScheduleAiDocket` renders it beside the
-provider that served the call, in all four locales.
+workspace-scoped). The Schedule tab's AI ledger no longer lists completed calls
+(2026-09), so the figure's reader is Insights → Activity: the `interview_realtime`
+row carries the cost, and its detail opens the conversation.
 
 The answer has **three** states and the third is the one that had no way to be said
 before:
@@ -864,10 +1002,9 @@ event (`recordAutomationEvent`, actor `auto:interview-connect`, best-effort with
 loud log on failure), so the swap is answerable from the candidate's timeline months
 later rather than from rotated server logs.
 
-The completed docket card renders the pair as a single amber line — `"2 attempts ·
-fell back from Openai"` — and **only when there is something to say**: an ordinary
-one-attempt call on the chosen provider stays quiet rather than carrying a "1 attempt"
-badge. Four locales.
+The pair rides `InterviewSessionSummary` (`attempts`, `failoverFrom`); the completed
+docket card that rendered it as an amber line is gone with the docket (2026-09), so
+the timeline event is currently its only reader.
 
 `app/_lib/db/interview-failover-attempts.test.ts` pins the columns on a fresh DB, the
 first-connect-does-not-increment rule, the refused-connect case, the COALESCE'd first
@@ -956,7 +1093,9 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
   `@elevenlabs/client` 1.21.0 added `overrides.asr.keywords` — a **per-job**
   list the server builds from `requirements[].skill` + `detectedSkills`
   (`interviewAsrKeywords` → `/api/interview/connect` → the SDK override, capped
-  at 50 terms with the floor list filling the remainder).
+  at 50 terms with the floor list filling the remainder). The spoken eval's
+  headless init frame forwards the same list (`conversation_config_override.asr.keywords`)
+  so WER/entity numbers describe the biased recogniser, not the dashboard default.
   Both need the agent to have been created with the `asr.keywords` override
   unlocked, or the platform silently ignores the per-session list and the call
   runs on the account-wide one. **Deployed 2026-08-21** — `--check` reports zero

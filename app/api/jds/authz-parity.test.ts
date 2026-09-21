@@ -73,6 +73,28 @@ test("/api/jds gates POST but leaves GET open", () => {
   assert.match(postBody, GATE_CALL, "POST (write a JD to the library) must be operator-gated");
 });
 
+test("/api/jds/[slug] gates BOTH PATCH and DELETE, leaves GET open", () => {
+  const src = read("./[slug]/route.ts");
+  assert.match(src, GATE_IMPORT, "must import the shared gate");
+  const getAt = src.indexOf("export async function GET");
+  const patchAt = src.indexOf("export async function PATCH");
+  const deleteAt = src.indexOf("export async function DELETE");
+  assert.ok(getAt >= 0 && patchAt >= 0 && deleteAt >= 0, "must export GET, PATCH and DELETE");
+  // Handlers appear in source order GET → PATCH → DELETE.
+  const getBody = src.slice(getAt, patchAt);
+  const patchBody = src.slice(patchAt, deleteAt);
+  const deleteBody = src.slice(deleteAt);
+  assert.doesNotMatch(getBody, GATE_CALL, "GET (the JD detail the Ledger reads) must stay OPEN");
+  assert.match(patchBody, GATE_CALL, "PATCH (edit / archive) must be operator-gated");
+  // DELETE is the one irreversible door in the JD library, so the gate is not
+  // optional and it must precede resolving params — the same ordering the POST-only
+  // surfaces above are held to.
+  assert.match(deleteBody, GATE_CALL, "DELETE (hard-remove a description) must be operator-gated");
+  const gateAt = deleteBody.search(GATE_CALL);
+  const paramsAt = deleteBody.indexOf("context.params");
+  assert.ok(paramsAt < 0 || gateAt < paramsAt, "the gate must precede resolving params in DELETE");
+});
+
 test("/api/templates gates POST but leaves GET open", () => {
   const src = read("../templates/route.ts");
   assert.match(src, GATE_IMPORT, "must import the shared gate");

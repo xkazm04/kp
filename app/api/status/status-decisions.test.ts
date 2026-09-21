@@ -338,6 +338,13 @@ test("the decisions route throttles before the store reads, scopes by candidateR
     "the consent gate sees the entry's real snapshot"
   );
   assert.match(routeSrc, /jsonOk\(\{ records \}\)/, "the response is exactly the redacted view");
+  assert.match(routeSrc, /jsonRefusal\("STATUS_LINK_INVALID", 404\)/, "unknown token and missing entry share the parent status door's coded 404");
+  assert.equal(
+    (routeSrc.match(/jsonRefusal\("STATUS_LINK_INVALID", 404\)/g) ?? []).length,
+    2,
+    "both not-found branches are STATUS_LINK_INVALID"
+  );
+  assert.doesNotMatch(routeSrc, /error:\s*"not found"/, "no English not-found body on this public token door");
   // CODE only (comments legitimately explain what is withheld and why).
   const code = routeSrc.replace(/\/\/[^\n]*/g, "");
   for (const forbidden of ["rationale", "payloadJson", "contentHash", "verifyDecisionChain", "requireOperator"]) {

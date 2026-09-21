@@ -1,11 +1,11 @@
 "use client";
 
-import { BarChart3, Check, Copy, Link2, Megaphone, Users, Zap } from "lucide-react";
+import { BarChart3, Check, Copy, Link2, Users, Zap } from "lucide-react";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { PublishFlightNote, PublishSentences } from "./JobsPublishNote";
 
-// The modal footer (close/reopen, publish notes, campaign-pack CTA, apply links,
+// The modal footer (close/reopen, publish notes, apply links,
 // matrix + copy-markdown actions) — extracted verbatim from JobsPostingModal.tsx
 // so that file stays under the 200-line split threshold.
 export function JobsPostingModalFooter({
@@ -20,7 +20,6 @@ export function JobsPostingModalFooter({
     td,
     router,
     search,
-    setTab,
     copied,
     applyCopied,
     quickCopied,
@@ -32,15 +31,13 @@ export function JobsPostingModalFooter({
     closeError,
     withdrawFailed,
     publishing,
-    published,
-    packExists,
     publishNote,
     publishOutcome,
     cancelPublish,
     goToBilling,
     isDraft,
     isClosed,
-    publishRole,
+    setConfirmingPublish,
     copyApplyLink,
     copyQuickApplyLink,
     copy,
@@ -51,9 +48,14 @@ export function JobsPostingModalFooter({
         // JOB #3 — close was a one-way trap (the only recovery was editing the DB).
         // Reopen re-publishes (idempotent + quota-gated, so the active-jobs cap is
         // re-checked) and clears the closed badge on success.
+        //
+        // Both go-live buttons open the TERMS dialog rather than posting straight
+        // away (JobsPublishDialog, rendered by the modal): a role now opens FOR a
+        // number of hires and in a set of languages, and a reopen is the moment to
+        // restate them — the role that was closed may be reopening for two seats.
         <button
           type="button"
-          onClick={publishRole}
+          onClick={() => setConfirmingPublish(true)}
           disabled={publishing}
           title={t("reopenTitle")}
           className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-60"
@@ -114,25 +116,13 @@ export function JobsPostingModalFooter({
           </span>
         )
       ) : null}
-      {published && packExists !== null ? (
-        // pack-on-publish — the natural next step after going live: build (or
-        // open) the campaign pack you'd post the role WITH. No auto-generation
-        // — generating spends an LLM call, so it stays a human click on the tab.
-        <button
-          type="button"
-          onClick={() => setTab("campaign")}
-          className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
-        >
-          <Megaphone size={14} /> {packExists ? t("viewCampaignPack") : t("createCampaignPack")}
-        </button>
-      ) : null}
       {isDraft ? (
         // A draft's apply pages 404 — offering its links ships a campaign
         // pointing at nothing. Offer the go-live action instead (DraftsPanel's
         // /publish call); the links appear once the role is actually live.
         <button
           type="button"
-          onClick={publishRole}
+          onClick={() => setConfirmingPublish(true)}
           disabled={publishing}
           title={td("sourceTitle")}
           className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"

@@ -64,7 +64,7 @@ registerHooks({
 process.env.KP_SECRET = "org-actions-test-secret";
 process.env.KP_OPERATOR_PASSWORD = "org-actions-test-password";
 
-const { setOrgLanguage, setOrgName } = await import("./org-actions.ts");
+const { setOrgCurrency, setOrgLanguage, setOrgName } = await import("./org-actions.ts");
 const { createWorkspace, getWorkspaceDefaultLocale } = await import("./db/workspaces.ts");
 const { createUser } = await import("./db/users.ts");
 const { upsertMembership } = await import("./db/memberships.ts");
@@ -133,6 +133,21 @@ test("a language that is not one of the app's four answers its OWN code", async 
   // Not a permission problem: telling an owner they lack a capability because they
   // sent nonsense is the kind of wrong answer that costs a support round.
   assert.deepEqual(await setOrgLanguage("kl" as "en"), { ok: false, code: "ORG_LANGUAGE_INVALID" });
+});
+
+test("the salary currency is an administrator's setting too", async () => {
+  signedInAs(plain);
+  assert.deepEqual(await setOrgCurrency("EUR"), { ok: false, code: "ORG_SETTINGS_FORBIDDEN" });
+  assert.equal(written.length, 0, "a refused currency mints no cookie");
+  signedInAs(owner);
+  assert.deepEqual(await setOrgCurrency("EUR"), { ok: true });
+  assert.equal(written.at(-1)?.value, "EUR");
+});
+
+test("a currency the app does not offer answers its OWN code", async () => {
+  signedInAs(owner);
+  assert.deepEqual(await setOrgCurrency("XYZ"), { ok: false, code: "ORG_CURRENCY_INVALID" });
+  assert.equal(written.length, 0);
 });
 
 test("the language write reaches EVERY team in the org, not just the caller's", async () => {

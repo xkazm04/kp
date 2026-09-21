@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jobPostGate, recordMeterUsage } from "@/app/_lib/billing";
 import { ensureDb } from "@/app/_lib/db/core";
-import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
+import { afterResponse } from "@/app/_lib/after-response";
+import { canWriteJobLifecycle, getJob, getRoleOpenConfig, setRoleOpenConfig } from "@/app/_lib/db/jobs";
+import { runPostingTranslations } from "@/app/_lib/job-translate-run";
+import { isLocale, type Locale } from "@/i18n/locales";
 import { createPipelineEntry, reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { classifyPublish, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -28,10 +31,54 @@ export const maxDuration = 180;
 // User-facing this is "Source into Pipeline" (internal go-live), NOT external
 // "Publish to job boards". The route name and the 'published' DB status are kept
 // as a stable contract. See docs/features/jobs/README.md.
+/** The publish body's two new fields, validated at the trust boundary.
+ *
+ *  Both are OPTIONAL and both are absent on every publish this route served before
+ *  the open/close review system existed — the Drafts panel's one-click go-live still
+ *  posts an empty body, and it must keep working. Absent means "do not change it":
+ *  `setRoleOpenConfig` COALESCEs, so a reopen that states nothing keeps the target
+ *  the role was opened with rather than silently resetting a 3-hire req to 1.
+ *
+ *  `ok: false` is a REFUSAL about the caller's own input (JOB_TARGET_HIRES_INVALID),
+ *  never a store error: 1..50 is the range the wizard's number field already holds,
+ *  and this is what makes it true for anything that is not the wizard. A non-integer
+ *  ("3.5", "abc") is refused rather than truncated — a role opened for a number
+ *  nobody typed is worse than a rejected form. */
+export function parsePublishBody(
+  body: unknown
+): { ok: true; targetHires: number | null; langs: Locale[] | null } | { ok: false } {
+  const raw = (body ?? {}) as { targetHires?: unknown; langs?: unknown };
+  let targetHires: number | null = null;
+  if (raw.targetHires !== undefined && raw.targetHires !== null) {
+    const n = Number(raw.targetHires);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_TARGET_HIRES) return { ok: false };
+    targetHires = n;
+  }
+  // An unknown locale is DROPPED rather than refused: the list is a set of
+  // languages to advertise in, a client sending a fifth is asking for something
+  // this deployment cannot render, and the four it CAN render are still the right
+  // answer. An empty result is the same as "not stated".
+  const langs =
+    raw.langs === undefined || raw.langs === null
+      ? null
+      : [...new Set((Array.isArray(raw.langs) ? raw.langs : []).filter((l): l is Locale => isLocale(l)))];
+  return { ok: true, targetHires, langs: langs && langs.length ? langs : null };
+}
+
+/** The ceiling on a role's target hires. Not a technical bound — it is the point
+ *  past which "a role" is really a hiring campaign, and a mistyped 300 would keep a
+ *  req open forever while the desk reported honest, useless progress. */
+const MAX_TARGET_HIRES = 50;
+
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const ws = await currentWorkspace();
   try {
+    // Read before anything else: a malformed target must not take the billing gate,
+    // spawn a sourcing child, or leave the role live under a 400.
+    const parsed = parsePublishBody(await request.json().catch(() => null));
+    if (!parsed.ok) return jsonRefusal("JOB_TARGET_HIRES_INVALID", 400);
+
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     // Ownership gate (mirrors /close): setJobStatus is a bare by-id UPDATE, so without
@@ -91,6 +138,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const quota = transition.billable ? jobPostGate(new Date(), ws) : null;
       if (!quota) {
         setJobStatus(id, "published");
+        // The role's review terms are part of the SAME atomic act as the flip: a
+        // role can never be live under a target the auto-close hook has not seen
+        // yet, which is the window in which a filled role would keep chasing
+        // candidates. Synchronous and by-id, so it adds no await to the block.
+        setRoleOpenConfig(id, { targetHires: parsed.targetHires, postingLangs: parsed.langs });
         if (transition.billable) recordMeterUsage("job_posts", 1, new Date(), ws);
       }
       // A reopen is a closed→published transition; remember it so the entries this
@@ -187,6 +239,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const raise = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
       silverMedalists = raise.raised;
       silverMedalistsFailed = raise.failed;
+    }
+
+    // THE TRANSLATIONS, post-commit and off the response's critical path. Opening a
+    // role names the languages it is advertised in; rendering them is a whole-document
+    // LLM call per language, so it happens through `afterResponse` (on a Node server
+    // once the response is finished; on serverless it extends the invocation, which a
+    // bare detached promise would not survive) and the languages run IN PARALLEL —
+    // they share nothing, and a recruiter opening a role in three languages should
+    // wait for the slowest, not for the sum. Nothing here can reach back into the
+    // publish: `runPostingTranslations` resolves an outcome per language instead of
+    // throwing, and a language with no model configured simply has no document — the
+    // posting tab's empty state says so and offers the retry.
+    //
+    // Deliberately NOT threaded with `request.signal`: the request is already over.
+    const langsToRender = parsed.langs ?? getRoleOpenConfig(id).postingLangs;
+    if (!already && langsToRender.length > 1) {
+      afterResponse("role-translations", () => runPostingTranslations(id, langsToRender, { workspaceId: ws }));
     }
 
     // `skipped` = candidates whose payload failed to parse (not low matches), so an empty

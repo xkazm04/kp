@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Briefcase, Copy, ExternalLink, Loader2, Pencil, Sparkles } from "lucide-react";
+import { Briefcase, Copy, ExternalLink, Link2, Loader2, Pencil, Sparkles } from "lucide-react";
 import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, DIVIDER, META_LABEL, STAT, STAT_LABEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { isUnlinked, shortDate, type JdRow } from "./jdsLibrary";
+import { copyPublicJdUrl } from "./jdsLedgerNav";
 import { JdCandidateList } from "./JdsCandidateList";
 import { AnalyzingChip, StatusBadge } from "./JdsLedgerBadges";
 import type { useIngestJob } from "./jdsHooks";
@@ -44,6 +46,20 @@ export function JdsLedgerDetailRail({
   // announced. The machine `code` resolves in the reader's language; the route's
   // English `error` is never shown (app/_lib/use-error-message.ts).
   const errMsg = useErrorMessage();
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
+  const copyPublic = async () => {
+    const ok = await copyPublicJdUrl(
+      (text) => navigator.clipboard.writeText(text),
+      window.location.origin,
+      row.slug,
+    );
+    if (!ok) return;
+    setCopied(true);
+    window.clearTimeout(copiedTimer.current);
+    copiedTimer.current = window.setTimeout(() => setCopied(false), 1500);
+  };
   return (
     <aside className="space-y-4">
       <div className="space-y-2">
@@ -113,6 +129,13 @@ export function JdsLedgerDetailRail({
         <Link href={`/jds/${encodeURIComponent(row.slug)}`} className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold`}>
           <ExternalLink size={15} aria-hidden /> {t("detailOpenPublic")}
         </Link>
+        <button
+          type="button"
+          onClick={() => void copyPublic()}
+          className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold`}
+        >
+          <Link2 size={15} aria-hidden /> {copied ? t("publicLinkCopied") : t("copyPublicLink")}
+        </button>
         <Link href={`/?tab=analyze&jd=${encodeURIComponent(row.slug)}`} className={`${BTN_PRIMARY} w-full gap-2 bg-ink px-3 py-2 text-sm font-semibold hover:bg-steel`}>
           <Sparkles size={15} aria-hidden /> {t("detailAnalyzeCv")}
         </Link>

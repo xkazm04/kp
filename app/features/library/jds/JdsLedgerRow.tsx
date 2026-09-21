@@ -3,10 +3,10 @@
 import { Copy, History, Loader2, Maximize2, Users } from "lucide-react";
 import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
-import { PipelineShapeBar } from "@/app/_components/ui/PipelineShapeBar";
-import { isUnlinked, shortDate, type JdRow } from "./jdsLibrary";
+import { isUnlinked, shortDate, statusCategory, type JdRow } from "./jdsLibrary";
 import { AnalyzingChip, SeniorityCell, StatusBadge } from "./JdsLedgerBadges";
 import { RowIngest } from "./JdsLedgerRowIngest";
+import { RowDelete } from "./JdsLedgerRowDelete";
 
 const ICON_BTN =
   "focus-ring inline-grid h-8 w-8 place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral disabled:opacity-40";
@@ -18,7 +18,6 @@ export function JdsLedgerRow({
   enumLabel,
   reload,
   duplicating,
-  peak,
   onOpenRow,
   onDuplicate,
   onIngested,
@@ -29,8 +28,6 @@ export function JdsLedgerRow({
   enumLabel: (cat: string, value: string | null | undefined) => string;
   reload: () => void;
   duplicating: string | null;
-  /** Largest pipeline in the visible set — the shape bar's width scale. */
-  peak: number;
   onOpenRow: (row: JdRow, opts?: { history?: boolean }) => void;
   onDuplicate: (row: JdRow) => void;
   onIngested: (slug: string, jobId: string | null) => void;
@@ -42,18 +39,16 @@ export function JdsLedgerRow({
   // The saved-on stamp follows the APP locale, not the browser/OS one (see shortDate).
   const locale = useLocale();
   const analyzed = row.analysisCount ?? 0;
-  const pipeline = row.pipeline ?? null;
   return (
     <tr className="group transition-colors hover:bg-paper">
-      {/* Role. The title is width-capped so the eight-column table fits its panel
-          instead of scrolling the row actions off-screen — it already overflowed
-          by ~136px before the Pipeline column existed. The full title stays
-          available via the tooltip and the detail modal the row opens. */}
+      {/* Role. Width-capped so the table fits its panel instead of scrolling the
+          row actions off-screen; the cap grew when the Pipeline column left. The
+          full title stays available via the tooltip and the detail modal. */}
       <td className="px-3 py-2.5 align-middle">
         <button
           type="button"
           onClick={() => onOpenRow(row)}
-          className="focus-ring block max-w-[13rem] truncate text-left text-sm font-semibold text-ink hover:text-coral"
+          className="focus-ring block max-w-[24rem] truncate text-left text-sm font-semibold text-ink hover:text-coral"
           title={row.title}
         >
           {row.title}
@@ -86,39 +81,6 @@ export function JdsLedgerRow({
           </button>
         ) : null}
       </td>
-      {/* Pipeline — the role's live state as ONE cell: a comparable shape, the
-          headcount, and the hires when there are any. Deliberately not split into
-          separate Pipeline / Hired columns — that overflowed the table and pushed
-          Analyzed, Saved and the row actions off-screen, and "how is this role
-          doing" is one question anyway.
-          `null` (no linked job) reads as a dash, not a zero: "this JD was never
-          ingested" and "this role has nobody in it yet" are different facts and
-          the recruiter acts differently on each. */}
-      <td className="px-3 py-2.5 align-middle">
-        {pipeline ? (
-          <span className="flex items-center gap-2">
-            <span className="w-16 shrink-0">
-              <PipelineShapeBar
-                label={row.title}
-                total={pipeline.total}
-                reachedInterview={pipeline.reachedInterview}
-                hired={pipeline.hired}
-                peak={peak}
-              />
-            </span>
-            <span className={`nums text-sm ${pipeline.total ? "text-ink" : "text-stone-400"}`}>{pipeline.total}</span>
-            {pipeline.hired > 0 ? (
-              <span className="nums whitespace-nowrap text-sm font-semibold text-moss">
-                {t("hiredInline", { n: pipeline.hired, pct: pipeline.hireRatePct })}
-              </span>
-            ) : null}
-          </span>
-        ) : (
-          <span className="text-sm text-stone-400" title={t("noLinkedJob")}>
-            —
-          </span>
-        )}
-      </td>
       <td className="px-3 py-2.5 text-right align-middle">
         <span className={`inline-flex items-center gap-1.5 text-sm ${analyzed ? "text-ink" : "text-stone-400"}`}>
           <Users size={14} aria-hidden />
@@ -144,6 +106,14 @@ export function JdsLedgerRow({
           {isUnlinked(row) ? (
             <RowIngest row={row} reload={reload} onIngested={(jobId) => onIngested(row.slug, jobId)} />
           ) : null}
+          {/* Delete. TWO conditions, and both are the server's own: `canDelete` is
+              the authority fold (creator or admin) that GET /api/jds computed for
+              this reader, and a LIVE role is never deletable from the library — the
+              description belongs to an opening candidates are applying to, and
+              closing the role on the Roles tab is the move that comes first. A row
+              that fails either test shows NOTHING rather than a disabled icon: an
+              action a reader can never take is noise in a ledger they scan. */}
+          {row.canDelete && statusCategory(row) !== "live" ? <RowDelete row={row} reload={reload} /> : null}
         </div>
       </td>
     </tr>

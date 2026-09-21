@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { listDecisionRecords } from "@/app/_lib/decision-record-store";
@@ -34,12 +34,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entryId = getEntryIdByStatusToken(token);
-    if (!entryId) return NextResponse.json({ error: "not found" }, { status: 404 });
+    // Same coded 404 as the parent status door: invalid token ≡ no entry, so
+    // this is not an existence oracle. English "not found" never goes on the wire.
+    if (!entryId) return jsonRefusal("STATUS_LINK_INVALID", 404);
     // Tenant scope from the entry itself (token-driven flow, no session): the
     // record read below MUST be scoped to the entry's own workspace chain.
     const workspaceId = getEntryWorkspace(entryId);
     const entry = getPipelineEntry(entryId, workspaceId);
-    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!entry) return jsonRefusal("STATUS_LINK_INVALID", 404);
     const records = candidateDecisionHistory(
       { givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt },
       listDecisionRecords({ candidateRef: entryId, workspaceId })

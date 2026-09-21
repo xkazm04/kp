@@ -6,7 +6,7 @@ import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { clientIpFrom, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
-import { isThrottled, recordFailedAttempt, clearFailures, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
+import { isThrottled, recordFailedAttempt, clearFailures, throttleRetryAfterMs, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Brute-force / credential-stuffing throttle (bug-ui-scan-2026-07-09 #4). Fixed
@@ -40,6 +40,22 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 const COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
+
+/** 429 + Retry-After delta-seconds from the persisted window. `otherKey` is the
+ *  IP bucket on the per-user path: remaining is the longer of the tripped
+ *  windows, capped at this caller's window. */
+function throttledRefusal(key: string, opts: ThrottleOpts, otherKey?: string | null, otherOpts?: ThrottleOpts): NextResponse {
+  const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
+  const remainingMs = Math.max(
+    throttleRetryAfterMs(key, opts) ?? 0,
+    otherKey && otherOpts ? (throttleRetryAfterMs(otherKey, otherOpts) ?? 0) : 0,
+  );
+  if (remainingMs > 0) {
+    const seconds = Math.min(Math.max(1, Math.ceil(remainingMs / 1000)), Math.ceil(opts.windowMs / 1000));
+    res.headers.set("Retry-After", String(seconds));
+  }
+  return res;
+}
 
 // The readable "entered the workspace" marker (see session.ts) — set on every
 // successful sign-in so the '/' gate + theme script can distinguish an entered
@@ -91,7 +107,7 @@ export async function POST(request: Request) {
     // header note): a shared key would make this one global lockout.
     const perClientIp = ip !== SHARED_CLIENT_KEY;
     if (isThrottled(acctKey, ACCOUNT_THROTTLE) || (perClientIp && isThrottled(ipKey, IP_THROTTLE))) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+      return throttledRefusal(acctKey, ACCOUNT_THROTTLE, perClientIp ? ipKey : null, IP_THROTTLE);
     }
     // Uniform 401 for both "no such user" and "wrong password" — never leak which.
     const user = password ? verifyCredentials(email, password) : null;
@@ -145,7 +161,7 @@ export async function POST(request: Request) {
   // (which makes the key per-client) or per-user operator accounts, not a wider gate.
   const opKey = `login:op:${ip}`;
   if (isThrottled(opKey, OPERATOR_THROTTLE)) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    return throttledRefusal(opKey, OPERATOR_THROTTLE);
   }
   if (!password || !constantTimeEqual(password, expected)) {
     recordFailedAttempt(opKey, OPERATOR_THROTTLE);

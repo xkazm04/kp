@@ -4,6 +4,7 @@ still use the others (available() reports the gap instead of crashing)."""
 
 from .anthropic_api import AnthropicProvider
 from .azure_openai import AzureOpenAIProvider
+from .gateway import GatewayProvider
 from .gemini_api import GeminiProvider
 from .ollama import OllamaProvider
 from .openai_api import OpenAIProvider
@@ -14,6 +15,7 @@ ADAPTERS = {
     "anthropic": AnthropicProvider,
     "openai": OpenAIProvider,
     "azure_openai": AzureOpenAIProvider,
+    "gateway": GatewayProvider,
     "gemini": GeminiProvider,
     "openrouter": OpenRouterProvider,
     "ollama": OllamaProvider,
@@ -24,6 +26,7 @@ __all__ = [
     "ADAPTERS",
     "AnthropicProvider",
     "AzureOpenAIProvider",
+    "GatewayProvider",
     "GeminiProvider",
     "OllamaProvider",
     "OpenAIProvider",

@@ -319,7 +319,7 @@ export default function SectionRail({
    * `"rail"` passes `null` and so subscribes to nothing, which is why the
    * homepage's behaviour is untouched rather than merely unchanged-looking.
    *
-   * A media STORE and not a `min-[…]:hidden` pair: CSS would need both navs in
+   * A media STORE and not a `min-[width]` / `hidden` pair: CSS would need both navs in
    * the document at every width, and a `display:none` nav is still a second
    * scroll-spy, a second IntersectionObserver over the same eight rows and a
    * second thing to keep in step. This way exactly one exists, and the swap on

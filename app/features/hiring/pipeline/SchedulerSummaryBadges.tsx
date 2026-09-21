@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { type DecisionOutcome } from "@/app/_lib/decision-attribution";
+import type { SchedulerJobName } from "@/app/_lib/scheduler-jobs";
 import { SUMMARY_BUCKETS } from "./schedulerRunState";
 
 export type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number; errors?: number; evaluated?: number };
@@ -45,6 +46,19 @@ export type Schedule = {
   intervalMinutes: number;
   lastRunAt: string | null;
   lastSummary: Summary | null;
+};
+// WP4a — one entry of the route's `jobs[]`: a registry job (scheduler-jobs.ts) with
+// its schedule row, its recent runs and the verification gate the panel renders.
+// `verified` is "at least one run the store marked ok"; a job with
+// `requiresVerifiedRun && !verified` renders its toggle disabled.
+export type SchedulerJobView = {
+  name: SchedulerJobName;
+  /** Catalog key under `pipeline.scheduler.job.<labelKey>`. */
+  labelKey: string;
+  schedule: Schedule;
+  runs: SchedulerRun[];
+  requiresVerifiedRun: boolean;
+  verified: boolean;
 };
 // Mirrors tickScheduler()'s return shape (scheduler.ts) as forwarded by the POST route.
 export type Tick = { ran: boolean; summary?: Summary | null; error?: string };

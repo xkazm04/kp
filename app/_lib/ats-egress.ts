@@ -103,7 +103,14 @@ export function getAtsRecordResult(
 
 export type DeliveryResult =
   | { delivered: true; status: number }
-  | { delivered: false; reason: string; status?: number };
+  | { delivered: false; reason: string; status?: number; terminal?: boolean };
+
+/** A re-read of the authoritative state, run by `deliver` immediately before the POST —
+ *  after every awaited preparation step, because the preparation IS the staleness window
+ *  (the SSRF re-vet resolves DNS; the signing secret is decrypted). It may only REFUSE:
+ *  the body and the idempotency key are already promised to the receiver, so a check that
+ *  swapped the content would make attempt N+1 a different delivery under the same key. */
+export type FreshnessCheck = () => { ok: true } | { ok: false; reason: string; terminal?: boolean };
 
 /** POST one envelope to the configured webhook, signed when a secret is set.
  *  5s timeout. Returns a structured result (never throws) so the test-ping route
@@ -122,7 +129,11 @@ export async function deliver(
    *  receiver that already accepted attempt N can drop attempt N+1 instead of recording a
    *  second hire. Omitted (the operator's test ping) the instant is now and there is no
    *  key — a ping has no ledger row and nothing to deduplicate. */
-  delivery?: { id: number; createdAt: string }
+  delivery?: { id: number; createdAt: string },
+  /** Re-read of the state the record's gates were decided against. Checked LAST, with no
+   *  await between it and the fetch. Omitted (the operator's test ping) there is no record
+   *  and nothing to go stale. */
+  freshness?: FreshnessCheck
 ): Promise<DeliveryResult> {
   const cfg = getAtsConfig();
   if (!cfg.webhookUrl) return { delivered: false, reason: "No webhook URL configured." };
@@ -165,6 +176,17 @@ export async function deliver(
     return { delivered: false, reason: `signing secret unavailable: ${e instanceof Error ? e.message : "decrypt failed"}` };
   }
   if (secret) headers[SIGNATURE_HEADER] = signWebhookBody(secret, body, signedAt);
+  // THE LAST STATEMENT BEFORE THE IRREVERSIBLE STEP. Everything above this line was
+  // preparation, and two steps of it awaited: the DNS resolve inside the SSRF re-vet and
+  // the dynamic import it does. The consent gate that admitted this record ran before all
+  // of it, so an erasure committed in between would otherwise be mirrored to a third party
+  // with the gate's stale blessing. No await may be added between here and the fetch.
+  if (freshness) {
+    const verdict = freshness();
+    if (!verdict.ok) {
+      return { delivered: false, reason: verdict.reason, ...(verdict.terminal ? { terminal: true } : {}) };
+    }
+  }
   try {
     // `redirect: "manual"` is part of the SSRF boundary, not a nicety. The guard above
     // vets ONLY the URL we dial; with the default `follow`, a webhook host that passes
@@ -192,10 +214,38 @@ export async function deliver(
 }
 
 /** Fold a DeliveryResult into the ledger-store outcome shape. */
-function toOutcome(result: DeliveryResult): { delivered: boolean; status?: number; reason?: string } {
+function toOutcome(result: DeliveryResult): { delivered: boolean; status?: number; reason?: string; terminal?: boolean } {
   return result.delivered
     ? { delivered: true, status: result.status }
-    : { delivered: false, status: result.status, reason: result.reason };
+    : { delivered: false, status: result.status, reason: result.reason, ...(result.terminal ? { terminal: true } : {}) };
+}
+
+/** The consent re-read for one PREPARED delivery, as a `FreshnessCheck`. It asks the same
+ *  gate `getAtsRecordResult` asks — one validation door, not a second copy of the consent
+ *  rules — and converts its answer into a refusal only:
+ *    • anonymized in the window → terminal (an erasure will not become mirrorable);
+ *    • entry gone in the window → retryable;
+ *    • consent EXPIRED in the window → retryable, because the prepared body carries PII the
+ *      gate would now withhold, and the retry rebuilds it masked. The body is never swapped
+ *      here: the receiver was promised these bytes under this idempotency key. */
+function consentStillPermits(
+  prepared: AtsCandidateRecord,
+  entryId: string,
+  workspaceId: string | undefined,
+  exportedAt: string
+): FreshnessCheck {
+  return () => {
+    const { record, refusal } = getAtsRecordResult(entryId, workspaceId, exportedAt);
+    if (refusal) return { ok: false, reason: refusal.message, terminal: true };
+    if (!record) return { ok: false, reason: `pipeline entry ${entryId} no longer exists — nothing to mirror` };
+    if (record.candidate.piiWithheld && !prepared.candidate.piiWithheld) {
+      return {
+        ok: false,
+        reason: `consent for pipeline entry ${entryId} expired while the delivery was being prepared — the prepared body over-discloses`,
+      };
+    }
+    return { ok: true };
+  };
 }
 
 /** Fire a lifecycle event for an entry to the webhook. Non-blocking for the caller's
@@ -241,7 +291,12 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       );
       return;
     }
-    const result = await deliver(event, record, { id: deliveryId, createdAt: openedAt.toISOString() });
+    const result = await deliver(
+      event,
+      record,
+      { id: deliveryId, createdAt: openedAt.toISOString() },
+      consentStillPermits(record, entryId, tenant, openedAt.toISOString())
+    );
     finalizeAtsDelivery(deliveryId, toOutcome(result));
     if (!result.delivered) {
       console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason}`);
@@ -259,9 +314,11 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
 }
 
 /** Retry every failed delivery whose backoff window has elapsed (and that still has
- *  retry budget). Called by an operator via POST /api/ats/deliveries or an external
- *  cron on a timer. Re-builds the record from CURRENT entry state (a mirror wants the
- *  latest), so a since-deleted entry is finalized off the queue. Never throws per row.
+ *  retry budget). Called by the process clock each tick (instrumentation-node.ts,
+ *  under the autonomy pause), by an operator via POST /api/ats/deliveries, or by an
+ *  external cron on a timer. Re-builds the record from CURRENT entry state (a mirror
+ *  wants the latest), so a since-deleted entry is finalized off the queue. Never
+ *  throws per row.
  *
  *  Two sweeps can run at once (an operator pressing Retry while the cron fires), and both
  *  read the same due list. Each row is therefore CLAIMED before it is delivered — a
@@ -287,7 +344,8 @@ export async function retryDueAtsDeliveries(
       // the tenant is re-derived from the entry itself. Unscoped, this read defaulted to
       // the DEFAULT workspace and finalized every non-default team's LIVE entry with the
       // false terminal reason "pipeline entry no longer exists".
-      const { record, refusal } = getAtsRecordResult(row.entryId, getEntryWorkspace(row.entryId), row.createdAt);
+      const tenant = getEntryWorkspace(row.entryId);
+      const { record, refusal } = getAtsRecordResult(row.entryId, tenant, row.createdAt);
       if (!record) {
         // A candidate anonymized between the first attempt and this one: the retry is
         // dropped terminally rather than continuing to offer their data to the receiver.
@@ -301,7 +359,12 @@ export async function retryDueAtsDeliveries(
       }
       // The SAME body and key the first attempt sent (the row's creation instant is the
       // envelope's sentAt), so a receiver that already accepted it can drop this one.
-      const result = await deliver(row.event, record, { id: row.id, createdAt: row.createdAt });
+      const result = await deliver(
+        row.event,
+        record,
+        { id: row.id, createdAt: row.createdAt },
+        consentStillPermits(record, row.entryId, tenant, row.createdAt)
+      );
       finalizeAtsDelivery(row.id, toOutcome(result));
       if (result.delivered) delivered++;
       else failed++;

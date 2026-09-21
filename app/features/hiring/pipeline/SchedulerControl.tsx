@@ -8,10 +8,17 @@ import { useRelativeTime } from "./PipelineShared";
 import { useSchedulerControlState } from "./useSchedulerControlState";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { SchedulerRunHistory } from "./SchedulerRunHistory";
-import { SchedulerRemindersRow } from "./SchedulerRemindersRow";
+import { SchedulerJobRow, jobRowCopy, type JobRowCopy } from "./SchedulerJobRow";
+import type { SchedulerJobView, SchedulerRun } from "./SchedulerSummaryBadges";
+import type { SchedulerTranslator } from "./pipelineTranslator";
 
 // Direction #5 — control + status for the automation clock (the durable
 // scheduler that runs the Task-7 policy pass on a cadence). Disabled by default.
+//
+// WP4a — the panel iterates the job REGISTRY the route ships as `jobs[]`
+// (scheduler-jobs.ts): the policy pass keeps its toolbar (the "Run now" door, the
+// engine notice, the decision history), and every other registered job renders one
+// generic SchedulerJobRow. Registering a fourth job adds a row here with no edit.
 export function SchedulerControl({
   onRan,
   className = "",
@@ -82,20 +89,45 @@ export function SchedulerControl({
         <SchedulerRunHistory t={t} runs={st.runs} relativeTime={relativeTime} labelFor={labelFor} />
       ) : null}
 
-      {/* AUTO6 — the second registered job: candidate interview reminders. The
-          most candidate-visible automation finally shows it's alive (last sweep
-          time), what it sent (latest run), and can be paused. */}
-      {st.reminders ? (
-        <SchedulerRemindersRow
-          t={t}
-          reminders={st.reminders}
-          reminderRuns={st.reminderRuns}
-          relativeTime={relativeTime}
-          relayConfigured={relayConfigured}
-          busy={st.busy}
-          onToggle={() => st.update({ remindersEnabled: !st.reminders!.enabled })}
-        />
-      ) : null}
+      {/* WP4a — one generic row per registered job other than the policy pass, in
+          registry order. The reminders job (AUTO6 — the most candidate-visible
+          automation) keeps its historical copy; a job that must be verified by a
+          manual run first renders its toggle disabled until one succeeded. */}
+      {st.jobs
+        .filter((job) => job.name !== "policy_pass")
+        .map((job) => (
+          <SchedulerJobRow
+            key={job.name}
+            t={t}
+            job={job}
+            copy={rowCopyFor(t, job, relayConfigured)}
+            relativeTime={relativeTime}
+            busy={st.busy}
+            onToggle={() => st.setJob(job.name, { enabled: !job.schedule.enabled })}
+            onInterval={(minutes) => st.setJob(job.name, { intervalMinutes: minutes })}
+          />
+        ))}
     </div>
   );
+}
+
+// The reminders row's strings predate the registry and are the ones operators know
+// ("checked 2m ago", "{n} sent", "{n} queued in Outbox … (not delivered)"); they
+// override the generic defaults for that one job. Every other job reads the generic set.
+function rowCopyFor(t: SchedulerTranslator, job: SchedulerJobView, relayConfigured: boolean | null): JobRowCopy {
+  const generic = jobRowCopy(t, job);
+  if (job.name !== "reminders") return generic;
+  return {
+    ...generic,
+    toggleTitle: t("remindersToggleTitle"),
+    on: t("remindersOn"),
+    off: t("remindersOff"),
+    checked: (time) => t("remindersChecked", { time }),
+    never: t("remindersNever"),
+    lastOk: (run: SchedulerRun, time) =>
+      t(relayConfigured === false ? "remindersLastQueued" : "remindersLastSent", {
+        n: Number((run.summary as { sent?: number } | null)?.sent ?? 0),
+        time,
+      }),
+  };
 }

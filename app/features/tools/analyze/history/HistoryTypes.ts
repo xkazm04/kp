@@ -21,6 +21,25 @@ export type AnalysisRow = {
   // Content-addressed identity: how many OLDER re-runs of the same CV+JD this row
   // supersedes (the list collapses them to the newest). 0/absent = a first/only run.
   prior_runs?: number | null;
+  // Which producer scored this row. listAnalyses already SELECTs both; NULL on a
+  // row saved before the columns existed is unknown, never assumed to be an LLM.
+  engine?: string | null;
+  engine_provider?: string | null;
+};
+
+export const ANALYSIS_PRODUCERS = ["llm", "deterministic", "unknown"] as const;
+export type AnalysisProducer = (typeof ANALYSIS_PRODUCERS)[number];
+
+/** Map the stored engine marker to the chip the History row paints. A null, blank,
+ *  or unrecognised value is unknown — never "llm". */
+export function analysisProducer(engine: string | null | undefined): AnalysisProducer {
+  return engine === "llm" || engine === "deterministic" ? engine : "unknown";
+}
+
+export const PRODUCER_STYLE: Record<AnalysisProducer, string> = {
+  llm: "bg-moss/10 text-moss",
+  deterministic: "bg-stone-100 text-steel",
+  unknown: "bg-amber-100 text-amber-800",
 };
 
 // RES5 — the recruiter's recorded decision on a saved analysis, shown as a pill on
@@ -38,6 +57,22 @@ export const DISPOSITION_STYLE: Record<string, string> = {
 // sortOptionsByLabel.
 export function distinct(values: (string | null)[]): string[] {
   return [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
+}
+
+/**
+ * Case- and diacritic-insensitive search key. Same fold as the profile roster
+ * and the analytics audit log: a recruiter who cannot type Č still finds Čapek.
+ * Copied rather than imported across feature modules (three lines).
+ */
+export function foldForSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** True when the History search needle hits the candidate label or the slug. */
+export function historyRowMatchesQuery(row: Pick<AnalysisRow, "candidate_label" | "slug">, q: string): boolean {
+  const needle = foldForSearch(q.trim());
+  if (!needle) return true;
+  return foldForSearch(row.candidate_label).includes(needle) || foldForSearch(row.slug).includes(needle);
 }
 
 // Filter-dropdown options ordered by what is ON SCREEN, in the reader's locale.
@@ -59,4 +94,33 @@ export function sortOptionsByLabel<T extends { label: string }>(options: T[], lo
   // an unsupported tag makes the Intl constructor fall back rather than throw.
   const collator = new Intl.Collator(locale, { numeric: true });
   return [...options].sort((a, b) => collator.compare(a.label, b.label));
+}
+
+// GET /api/analyses now answers `{ analyses, truncated, limit }` so a workspace
+// past the cap can stop claiming completeness. Inventing `truncated: false` when
+// the route said nothing would be a completeness claim the server never made.
+export type AnalysesListPage = {
+  analyses: AnalysisRow[];
+  truncated: boolean;
+  limit: number | null;
+};
+
+/** Read a `/api/analyses` body into what History renders. A missing/non-array
+ *  `analyses` is an empty list, never `undefined` reaching the table. */
+export function readAnalysesListPayload(payload: unknown): AnalysesListPage {
+  const body = (
+    payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {}
+  ) as { analyses?: unknown; truncated?: unknown; limit?: unknown };
+  const analyses = Array.isArray(body.analyses) ? (body.analyses as AnalysisRow[]) : [];
+  const limit =
+    typeof body.limit === "number" && Number.isFinite(body.limit) && body.limit > 0
+      ? Math.floor(body.limit)
+      : null;
+  return { analyses, truncated: body.truncated === true, limit };
+}
+
+/** The Showing-of line may name a total only when the page is complete. A
+ *  truncated slice has no population figure — `rows.length` is the loaded cap. */
+export function historyShowingTotal(loadedCount: number, truncated: boolean): number | null {
+  return truncated ? null : loadedCount;
 }

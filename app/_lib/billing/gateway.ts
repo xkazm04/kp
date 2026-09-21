@@ -36,6 +36,12 @@ export type BillingEvent = {
   // pre-org subscriptions and hand-built test events — the ingest then falls
   // back to the stored-state lookup, then the default org (sync.resolveBillingOrg).
   orgId?: string | null;
+  // The provider contract version this payload was serialized under, as the
+  // delivery declared it. Optional so hand-built events and providers that publish
+  // no versions may omit it; null/absent means "not declared", never "current".
+  // Provenance only — no decision reads it, it is what makes a field whose meaning
+  // moved between contracts diagnosable after the fact.
+  apiVersion?: string | null;
   raw: unknown;
 };
 
@@ -60,8 +66,15 @@ export interface BillingGateway {
   /** Map of provider product ids → plans/packs (drives the reducer). */
   productMap(): ProductMap;
   /** `orgId` (when given) is stamped into the checkout metadata so the resulting
-   *  subscription/order events attribute to the buying org (org-plan Phase 3). */
-  createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout>;
+   *  subscription/order events attribute to the buying org (org-plan Phase 3).
+   *  `customerId` (when given) attaches the session to an existing MoR customer
+   *  so a pack or win-back checkout does not mint a second one. Omitted on first
+   *  purchase — Polar CheckoutCreate treats a missing `customer_id` as "create
+   *  the customer at payment". An invalid id must THROW, never be dropped. */
+  createCheckout(
+    req: CheckoutRequest,
+    opts: { successUrl: string; orgId?: string | null; customerId?: string | null }
+  ): Promise<Checkout>;
   createPortalSession(customerId: string): Promise<{ url: string }>;
   /** Verify signature + freshness and normalize. MUST throw on a bad signature. */
   verifyWebhook(rawBody: string, headers: Record<string, string | null>): BillingEvent;

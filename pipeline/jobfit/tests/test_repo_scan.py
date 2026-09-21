@@ -33,8 +33,12 @@ from pipeline.jobfit.claude_cli import (
     ClaudeCliProvider,
 )
 from pipeline.jobfit.repo_scan import (
+    DOSSIER_MAX_AGE_DAYS,
     FALLBACK_CLASSES,
     FENCE_STATES,
+    FRESHNESS_CURRENT,
+    FRESHNESS_STALE,
+    FRESHNESS_UNKNOWN,
     REDACTED,
     SECRET_FILE_GLOBS,
     SOURCE_HEURISTIC,
@@ -44,6 +48,8 @@ from pipeline.jobfit.repo_scan import (
     claude_deny_rules,
     classify_fallback,
     coerce_repo_dossier,
+    dossier_freshness,
+    dossier_payload_with_freshness,
     fence_stamp,
     fence_state_for,
     is_secret_file,
@@ -182,6 +188,20 @@ class HeuristicWalkTest(unittest.TestCase):
         self.assertIn("declaredGates", refs)
         self.assertIn("ci", refs)
         self.assertIn("context-map.json", refs)
+
+    def test_dossier_freshness_classifies_current_stale_and_unknown(self) -> None:
+        now = "2026-09-17T00:00:00+00:00"
+        self.assertEqual(DOSSIER_MAX_AGE_DAYS, 14)
+        self.assertEqual(dossier_freshness(now, now), FRESHNESS_CURRENT)
+        self.assertEqual(dossier_freshness("2026-08-18T00:00:00+00:00", now), FRESHNESS_STALE)
+        self.assertEqual(dossier_freshness("not-a-stamp", now), FRESHNESS_UNKNOWN)
+        self.assertEqual(dossier_freshness("", now), FRESHNESS_UNKNOWN)
+        stamped = dossier_payload_with_freshness(
+            {"generatedAt": "2026-08-18T00:00:00+00:00", "source": SOURCE_HEURISTIC},
+            now,
+        )
+        self.assertEqual(stamped["freshness"], FRESHNESS_STALE)
+        self.assertEqual(stamped["source"], SOURCE_HEURISTIC)
 
     def test_the_walk_is_byte_reproducible(self) -> None:
         stamp = "2026-01-01T00:00:00+00:00"

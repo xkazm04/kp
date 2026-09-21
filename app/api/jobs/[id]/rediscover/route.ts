@@ -35,7 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     // Threads the request's AbortSignal so abandoning rediscovery (clicking to the
     // next role, closing the panel) promptly SIGKILLs the recruiter_cli child.
-    const { rediscovered, skipped, more, suppressed } = await rediscoverForJob(job, {
+    const { rediscovered, skipped, more, suppressed, poolTruncated } = await rediscoverForJob(job, {
       signal: request.signal,
       workspaceId: ws,
     });
@@ -53,6 +53,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       // an unexplained short list is the one thing this surface, whose promise is
       // that nobody falls through the cracks, must never show.
       suppressed,
+      // Honest cap: older pool members were never ranked. A boolean, never identities
+      // (same rule as `suppressed`). A capped pool still returns its ranked subset.
+      poolTruncated,
     });
   } catch (error) {
     return safeJsonError(error, "api:jobs/rediscover", "JOB_REDISCOVER_FAILED");

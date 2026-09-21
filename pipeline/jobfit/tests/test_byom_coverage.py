@@ -17,10 +17,13 @@ use case Python routes but TS cannot configure just quietly keeps using the defa
 however the customer sets up BYOM. Nothing else in the build compares the two, so these
 tests do — by reading the actual source, never a copied list that would drift with it.
 
-(Deliberately NOT asserted here: that no TS call site ever reaches a vendor SDK directly.
-`github_analysis` does, by design — it is metered and BYOM-aware but bypasses the Python
-wrapper — and a source-grep proxy for that property would be a guess dressed as a gate.
-Tiger tracks it as a known bypass.)
+The reverse of TestEveryCallSiteIsDeclared is asserted too: every catalog id is a
+scanned ``resolve_provider`` site or a named exemption. Without that, the Models tab
+can offer a row no call site honours (a saved pin is inert). ``github_analysis`` is
+the documented TS-direct exemption (``app/_lib/github/code-review.ts``); it is
+metered and BYOM-aware but bypasses the Python wrapper. A source-grep proxy for
+"no TS call site ever reaches a vendor SDK directly" would be a guess dressed as
+a gate, so that property is not asserted here.
 """
 
 from __future__ import annotations
@@ -38,6 +41,21 @@ PIPELINE_DIR = REPO_ROOT / "pipeline"
 # The TS catalog carries a "*" wildcard row (route everything to one provider) that has no
 # Python counterpart — it is a config convenience, not a call site.
 WILDCARD = "*"
+
+# Catalog ids that are pinnable on purpose but never passed to Python
+# ``resolve_provider``. Each entry needs a comment pointing at the real call
+# site (or the command that collapsed it into a sibling). A new member without
+# that comment is how an inert Models-tab row sneaks back in as an "exemption".
+DIRECT_EXEMPTIONS = frozenset({
+    # Metered and BYOM-aware; honors configuredModelFor("github_analysis") in
+    # app/_lib/github/code-review.ts rather than the Python wrapper.
+    "github_analysis",
+    # design-artifacts routes BOTH role and case design through
+    # ``devcase_case_design`` (pipeline/jobfit/devcase/devcase_cli.py
+    # ``_USE_CASE_BY_COMMAND``). The role_design catalog row is the bench/quality
+    # identity for that step, not a production resolve_provider site.
+    "devcase_role_design",
+})
 
 
 def _ts_use_cases() -> set[str]:
@@ -221,6 +239,42 @@ class TestEveryCallSiteIsDeclared(unittest.TestCase):
         self.assertEqual(undeclared_py, set(), f"call sites routing an undeclared use case: {sorted(undeclared_py)}")
         undeclared_ts = routed - _ts_use_cases()
         self.assertEqual(undeclared_ts, set(), f"call sites the customer cannot pin: {sorted(undeclared_ts)}")
+
+    def test_no_catalog_use_case_lacks_a_call_site(self):
+        """The Models tab must not offer a row that no call site honours.
+
+        TestEveryCallSiteIsDeclared asserts routed ⊆ catalogs. The opposite
+        drift is a different lie: a customer pins a model and nothing changes.
+        """
+        unaccounted = _ts_use_cases() - _routed_use_cases() - DIRECT_EXEMPTIONS
+        self.assertEqual(
+            unaccounted,
+            set(),
+            "these use cases are offered in the Models tab but no resolve_provider "
+            f"call site honours them, so a saved pin is inert: {sorted(unaccounted)}. "
+            "Wire the call site, drop the catalog row, or add a DIRECT_EXEMPTIONS "
+            "entry with a comment pointing at the real path.",
+        )
+
+    def test_direct_exemptions_are_still_unrouted_and_declared(self):
+        """A stale exemption hides the next regression: if the site is now routed,
+        delete it from DIRECT_EXEMPTIONS; if it left the catalog, the exemption
+        is documenting a row that no longer exists."""
+        ts = _ts_use_cases()
+        routed = _routed_use_cases()
+        self.assertTrue(DIRECT_EXEMPTIONS, "DIRECT_EXEMPTIONS is empty — the scan has nothing to check against")
+        stale = DIRECT_EXEMPTIONS & routed
+        self.assertEqual(
+            stale,
+            set(),
+            f"these exemptions now have a resolve_provider site; drop them from DIRECT_EXEMPTIONS: {sorted(stale)}",
+        )
+        missing = DIRECT_EXEMPTIONS - ts
+        self.assertEqual(
+            missing,
+            set(),
+            f"these exemptions are no longer in LLM_USE_CASES; drop them from DIRECT_EXEMPTIONS: {sorted(missing)}",
+        )
 
     def test_the_map_driven_call_sites_are_actually_scanned(self):
         """Non-vacuity for the AST harvest: these use cases exist ONLY as values in a

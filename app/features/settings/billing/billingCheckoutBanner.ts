@@ -20,3 +20,11 @@ export function checkoutBannerState(input: {
   if (input.pollWindowElapsed) return "unconfirmed";
   return "confirming";
 }
+
+/** Fire `checkout_completed` once, on the rising edge onto `confirmed`.
+ *  `confirming` / `unconfirmed` mean the webhook has not entitled the org yet,
+ *  so they must not count as conversion. `confirmed → confirmed` is a re-render
+ *  of the same success and must not double-fire. */
+export function shouldTrackCheckoutCompleted(prev: CheckoutBanner, next: CheckoutBanner): boolean {
+  return next === "confirmed" && prev !== "confirmed";
+}

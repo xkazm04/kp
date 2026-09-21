@@ -69,6 +69,7 @@ export function ChatComposer({
         className={`${FIELD} flex-1 resize-y ${dense ? "min-h-[2.5rem]" : tall ? "min-h-[6.5rem]" : "min-h-[3.25rem]"}`}
         rows={dense ? 1 : tall ? 4 : 2}
         value={draft}
+        aria-label={labels.composerLabel}
         placeholder={closed && labels.closed ? labels.closed : labels.placeholder}
         disabled={closed || busy || disabled}
         onChange={(e) => setDraft(e.target.value)}
