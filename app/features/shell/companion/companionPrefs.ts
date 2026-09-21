@@ -8,7 +8,7 @@
 // right now, they carry nothing another operator needs to see, and putting them
 // on the server would mean a schema, a route and a round trip to answer "which
 // window am I in". So localStorage, the same call the pipeline's saved views and
-// the intake layout already made (usePipelineSavedViews, intakeLayoutShared).
+// the intake layout already made (usePipelineSavedViews, the intake desk's studioContract).
 //
 // ONE key holds both fields rather than two keys. A preference set is
 // read at exactly one moment (mount) and written as a whole on every change, so

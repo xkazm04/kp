@@ -16,14 +16,18 @@ import { DecisionsAiReviewsSection } from "./DecisionsAiReviewsSection";
 import { DecisionsReconsiderQueue } from "./DecisionsReconsiderQueue";
 import { DecisionsModals } from "./DecisionsModals";
 import { useDecisionsQueue } from "./useDecisionsQueue";
+import { useDecisionsCandidate } from "./useDecisionsCandidate";
+import { CandidateModal } from "../pipeline/candidate/CandidateModal";
+import { AnimatePresence } from "framer-motion";
 
 export function DecisionsTab() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const {
-    t, setJobFilter, armIds, armJobId, entries, error,
+    t, setJobFilter, armIds, armJobId, entries, error, axis,
     leavingWrapClass, queuedLabels, setQueuedLabels,
     sentOffers, setSentOffers, copiedOfferId, setCopiedOfferId, relayConfigured,
     waveCommsFailed, setWaveCommsFailed,
+    waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry, waveRole, setWaveRole,
     evalRole, setEvalRole, evalMode, setEvalMode, evalData, setEvalData,
     evalGovernanceMismatch,
@@ -39,6 +43,9 @@ export function DecisionsTab() {
     visibleGroups, act, openGroupEval, decide, evalGroup, evalDrift, staleSinceOf,
     peersOf, peerFactsOf, load,
   } = useDecisionsQueue();
+  // The candidate modal a ledger row's Decide opens — the board's own modal, with
+  // the recommendation and the ladder attached.
+  const candidate = useDecisionsCandidate({ visibleAiReviews, act, staleSinceOf, peersOf, peerFactsOf });
 
   const pendingHeaderCount = activeFilter
     ? visibleAiReviews.length + visibleGroups.reduce((n, g) => n + g.entries.length, 0)
@@ -77,6 +84,8 @@ export function DecisionsTab() {
         onDismissSentOffers={() => setSentOffers([])}
         waveCommsFailed={waveCommsFailed}
         onDismissWaveComms={() => setWaveCommsFailed([])}
+        waveSealFailed={waveSealFailed}
+        onDismissWaveSeal={() => setWaveSealFailed(0)}
       />
 
       {error ? (
@@ -98,6 +107,7 @@ export function DecisionsTab() {
           ]}
           recordCount={entries.length}
           reconsiderCount={reconsider.length}
+          onRevealReconsider={revealReconsider}
         />
       ) : (
         <div className="space-y-6">
@@ -121,10 +131,8 @@ export function DecisionsTab() {
             bulkDecideReviews={bulkDecideReviews}
             leavingWrapClass={leavingWrapClass}
             act={act}
-            setSummaryEntry={setSummaryEntry}
+            onDecide={candidate.open}
             staleSinceOf={staleSinceOf}
-            peersOf={peersOf}
-            peerFactsOf={peerFactsOf}
           />
 
           <section>
@@ -167,6 +175,23 @@ export function DecisionsTab() {
         reconsiderReasonText={reconsiderReasonText}
       />
 
+      <AnimatePresence>
+        {candidate.view ? (
+          <CandidateModal
+            key="decisions-candidate"
+            view={candidate.view}
+            boardCohort={candidate.cohort}
+            axis={axis}
+            onClose={candidate.close}
+            onChanged={() => void load()}
+            onOpenEntry={candidate.openById}
+            onNavigate={candidate.navigate}
+            onTab={candidate.setTab}
+            decision={candidate.decision}
+          />
+        ) : null}
+      </AnimatePresence>
+
       <DecisionsModals
         summaryEntry={summaryEntry}
         setSummaryEntry={setSummaryEntry}
@@ -192,6 +217,7 @@ export function DecisionsTab() {
         setWaveRole={setWaveRole}
         load={load}
         setWaveCommsFailed={setWaveCommsFailed}
+        setWaveSealFailed={setWaveSealFailed}
       />
     </div>
   );

@@ -31,6 +31,98 @@ and a date rather than silence.
 Please give us a reasonable window to ship a fix before disclosing publicly. We
 will credit you in the advisory unless you'd rather we didn't.
 
+## Disclosing a vulnerability — the outbound half
+
+Everything above is how a report reaches **us**. This section is how a fix
+reaches **you**, and until 2026-09-08 this file did not describe it at all: an
+operator running a self-hosted KandiDate had no way to learn that a KandiDate
+vulnerability affected them except by watching the commit log.
+
+**The channel is a GitHub Security Advisory, one per fixed vulnerability.** They
+are published from Security → Advisories on this repository, they name the
+affected versions and the fixed version, and a CVE can be requested from the same
+draft (GitHub is a CNA). The fix is prepared in the advisory's private fork, so
+the advisory and the release land together rather than the commit arriving first
+and explaining itself later.
+
+**Target latency: the advisory is published within 5 working days of the fix
+landing in a tagged release.** That is a *target*, not a guarantee — it is set
+where a small team can actually meet it rather than where it looks best. One case
+is tighter, and it is a rule rather than a target: where we know a vulnerability
+to be **actively exploited**, the advisory goes out *with* the release, not after
+it. That case is also the one the **Cyber Resilience Act** (Regulation (EU)
+2024/2847) puts on a statutory clock from **11 September 2026**, when its Art. 14
+reporting obligations start applying (the rest of the Regulation applies from 11
+December 2027). Art. 14(1) requires an actively exploited vulnerability to be
+notified to the **CSIRT designated as coordinator and to ENISA via the single
+reporting platform** — an early warning within **24 hours** of becoming aware, a
+fuller notification within **72 hours**, and a final report within **14 days** of
+a corrective or mitigating measure being available. Art. 14(8) separately
+requires *impacted users* to be told about the vulnerability and about the
+mitigation they can deploy. So this is one process with two addressees, not two
+processes: the advisory is how Art. 14(8) is discharged here, and the regulator
+notification runs beside it on the shorter clock.
+
+**What this channel does not do, and you should not assume it does.** KandiDate
+is not a published npm package (`"private": true` in `package.json`); it is
+distributed as a git checkout and as the `ghcr.io/xkazm04/kp` image. A GitHub
+advisory about a *dependency* reaches you through `npm audit` and Dependabot
+because that package has a registry coordinate to match on. An advisory about
+**KandiDate itself** has no such coordinate, so nothing surfaces it in your build
+automatically. The channel is real, and it is pull, not push.
+
+**Which means: if you self-host, subscribe to it now.** The duty to act on an
+advisory is yours, and it costs a minute to make sure you will see one.
+
+- **Watch this repository** — Watch → Custom → **Releases**. (Custom → *Security
+  alerts* is about Dependabot alerts on repositories you administer; it is not
+  the option you want here.)
+- Or point whatever already reads feeds at
+  <https://github.com/xkazm04/kp/releases.atom>, if you would rather not carry a
+  GitHub notification.
+- **Security → Advisories** on this repository is the canonical list. Check it
+  when a release note points at one.
+- **Record the version you run.** Every release ships a CycloneDX SBOM (see
+  below), which is what turns "does this affect me" into something answerable
+  rather than guessed.
+
+**Whose duty this is, stated as a reading rather than as a fact.** Art. 3 of the
+CRA defines an *open-source software steward* as a legal person, other than a
+manufacturer, that systematically provides sustained support for the development
+of a free and open-source product intended for commercial activities and ensures
+its viability. That is our best characterisation of this project's vendor, and it
+puts us under **Art. 24** rather than the manufacturer chain: a documented
+cybersecurity policy (this file and the process it describes), cooperation with
+market surveillance authorities, and Art. 14(1) *"to the extent that they are
+involved in the development of the products"*, with Art. 14(3) and (8) reaching
+severe incidents affecting systems the steward itself provides.
+
+Three things that reading does **not** license us to say:
+
+- **It is not settled, and we do not resolve the ambiguity in our own favour.**
+  Art. 24(3) names Art. 14(1), (3) and (8). It does **not** name Art. 14(2) —
+  which is where the 24-hour / 72-hour / 14-day mechanics actually live. Whether
+  that clock binds a steward as such is arguable. We treat it as binding.
+- **A heavier classification is plausible.** A steward must be a *legal person*,
+  and free and open-source software developed outside a commercial activity is
+  outside the Regulation altogether; both of those readings mean *less* duty than
+  the one above. The reading that means *more* is that a hosted offering makes
+  the vendor a **manufacturer** for what it places on the market, which pulls in
+  the full Art. 13/14 chain — conformity assessment, CE marking and all. We have
+  not settled that question, and this file describes the steward-level process
+  only.
+- **There is no compliance claim here and no certification.** KandiDate is not
+  "CRA compliant". There is no CE marking, no conformity assessment and no
+  notified body. What exists is a named channel, a stated latency and a written
+  process — the part a reviewer can actually check.
+
+If you are yourself an essential or important entity under NIS2, the same
+advisories are your notification source and your own clock is separate from ours;
+that is set out in
+[`docs/architecture/self-hosting.md` §1b](./docs/architecture/self-hosting.md).
+
+*This section is an engineering artifact, not legal advice.*
+
 ## Scope
 
 In scope: this repository's application code, the Python pipeline, the container

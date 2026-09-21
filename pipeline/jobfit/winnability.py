@@ -75,7 +75,7 @@ def assess_winnability(
     # (dropping it can only restore candidates KO'd by it alone).
     loose_gates: list[dict] = []
     for lang in dict.fromkeys(job.languages):  # de-dupe, keep order
-        variant = job.model_copy(update={"languages": [l for l in job.languages if l != lang]})
+        variant = job.model_copy(update={"languages": [other for other in job.languages if other != lang]})
         delta = len(_eligible(candidates, variant)) - len(base_elig)
         if delta > 0:
             loose_gates.append({"kind": "language", "value": lang, "eligibleDelta": delta})

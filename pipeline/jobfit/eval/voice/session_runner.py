@@ -22,9 +22,9 @@ from typing import Any
 
 from ...claude_cli import ClaudeCliProvider
 from . import app_client, audio
-from .el_ws import ElVoiceSession
+from .el_ws import ElVoiceSession, asr_keywords_from_connect
 from .seal import refuse_if_offline
-from .wer import WerResult, corpus_entity_fidelity, corpus_wer, entity_fidelity, normalize, wer
+from .wer import WerResult, corpus_entity_fidelity, corpus_wer, normalize, wer
 
 # Speech streams at REAL-TIME pace, so every word costs ElevenLabs seconds. A written-style answer
 # ran 25 s in the first V0 run.
@@ -285,15 +285,19 @@ async def run_voice_scenario(
     tok = session.get("token") or token
     agent_prompt = session.get("agentPrompt")
     run.agent_prompt_used = bool(agent_prompt)
-    say("session", f"{sid} agentPrompt={'yes' if agent_prompt else 'NO (dashboard prompt!)'}")
+    asr_keywords = asr_keywords_from_connect(session)
+    say("session", f"{sid} agentPrompt={'yes' if agent_prompt else 'NO (dashboard prompt!)'}"
+        f" asrKeywords={len(asr_keywords) if asr_keywords else 0}")
 
     import asyncio as _a
 
-    # Mirror the production fix (VoiceInterview.tsx): pin the agent's language via the override, not
-    # just the prompt — the EL agent's dashboard default is Czech and the prompt loses to it.
+    # Mirror the production path (VoiceInterview.tsx / startElevenLabsSession): pin the
+    # agent's language AND the per-job asr.keywords override /connect now returns.
+    # Without the keywords the spoken WER/entity gates measure the dashboard-default
+    # recogniser the production client no longer uses.
     t0 = time.monotonic()
     async with ElVoiceSession(session["connect"]["signedUrl"], agent_prompt=agent_prompt,
-                              language=scenario.language) as call:
+                              language=scenario.language, asr_keywords=asr_keywords) as call:
 
         async def _say_and_hear(text: str, *, wait_full: bool) -> bool:
             """Speak one utterance; capture the transcript window it produced. When ``wait_full`` we

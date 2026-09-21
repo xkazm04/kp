@@ -149,6 +149,7 @@ export function ProfileTab() {
                 reloadKey={dataRev}
                 archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 onEditProfile={(id) => void openEditor(id)}
+                onBuildFromAnalysis={(slug) => void openFromAnalysis(slug, null)}
                 onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
               />
             )}

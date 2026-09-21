@@ -1040,7 +1040,7 @@ def _aggregate(rows: list[Row], uncovered: list[str] | None = None) -> dict[str,
         # Corpus WER pools errors over pooled reference words — NOT the mean of per-session WERs.
         S = sum(r.voice["substitutions"] for r in vrows)
         D = sum(r.voice["deletions"] for r in vrows)
-        I = sum(r.voice["insertions"] for r in vrows)
+        INS = sum(r.voice["insertions"] for r in vrows)
         N = sum(r.voice["wer_words"] for r in vrows)
         lat = [x for r in vrows for x in r.voice.get("latencies", [])]
         ent_total = sum(r.voice.get("entities_total", 0) for r in vrows)
@@ -1048,7 +1048,7 @@ def _aggregate(rows: list[Row], uncovered: list[str] | None = None) -> dict[str,
         barge_rows = [r for r in vrows if r.voice.get("barge_in")]
         out["voice"] = {
             "sessions": len(vrows),
-            "corpus_wer": round((S + D + I) / N, 4) if N else None,
+            "corpus_wer": round((S + D + INS) / N, 4) if N else None,
             "wer_words": N,
             "entity_recall": round((ent_total - len(ent_missing)) / ent_total, 4) if ent_total else None,
             "entities_total": ent_total,

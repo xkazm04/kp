@@ -145,7 +145,8 @@ are correct German; the surplus is English word order preserved by punctuation.
 
 ## DE-NBSP · Non-breaking space between number and unit
 
-> **Rule** — `45 min`, `240 Kč`, `23 h`, currency codes — all U+00A0.
+> **Rule** — `45 min`, `240 CZK`, `23 h`, currency codes — all U+00A0. (German names the
+> koruna `CZK`, never `Kč`: operator ruling 2026-09-14, see style-en.md.)
 > **Source** — MS §4.1.18 (Symbols & nonbreaking spaces).
 
 ---

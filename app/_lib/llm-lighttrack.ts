@@ -46,9 +46,42 @@ export type LightTrackInput = {
   costUsd?: number | null;
   latencyMs?: number | null;
   tags?: string[];
-  /** When set, records a failed call (error event) instead of a success. */
+  /** When set, records a failed call (error event) instead of a success.
+   *
+   *  MUST be a CODE, not a message. This is the one field on this event that a
+   *  provider's own text could reach, and a provider message can echo the prompt —
+   *  which on this product means a candidate's CV. The Python half already refuses
+   *  that (`monitor._reason_code`: a prose line collapses to `provider_error`
+   *  before it reaches a durable column), and this half forwarded 500 bytes of
+   *  whatever it was handed. `reasonCode()` below now applies the same rule, so the
+   *  discipline holds on both runtimes rather than on one. */
   error?: string;
 };
+
+/** A bare snake_case token — the same shape `monitor._REASON_CODE` accepts. */
+const REASON_CODE = /^[a-z][a-z0-9_]{0,63}$/;
+
+/** Exception type names worth keeping when a prose reason collapses. Mirrors
+ *  `monitor._PROSE_TYPE_REASON`: the type half of "<Type>: <message>" is ours, the
+ *  message half is the provider's, so mapping the few types that name a distinct
+ *  descent keeps a timeout reading as a timeout without ever storing the message. */
+const PROSE_TYPE_REASON: Record<string, string> = {
+  TimeoutError: "provider_timeout",
+  AbortError: "provider_timeout",
+  ReadTimeout: "provider_timeout",
+  ConnectTimeout: "provider_timeout",
+};
+
+/** Reduce a caller's error to a code before it leaves the process. Anything that is
+ *  not already a bare token becomes `provider_error` — the word reserved for
+ *  "anything else the call raised" — after one look at the leading type name. */
+export function reasonCode(reason: string | null | undefined): string | null {
+  if (reason == null) return null;
+  const token = reason.trim();
+  if (!token) return null;
+  if (REASON_CODE.test(token)) return token;
+  return PROSE_TYPE_REASON[token.split(":", 1)[0]!.trim()] ?? "provider_error";
+}
 
 /** Timeout for the fire-and-forget POST — mirrors the SDK default (2s). */
 const LIGHTTRACK_TIMEOUT_MS = 2000;
@@ -100,8 +133,9 @@ export function trackLlmToLightTrack(input: LightTrackInput): void {
     event.operation = OPERATION;
     const latency = intOrUndef(input.latencyMs);
     if (latency != null) event.latency_ms = latency;
-    if (input.error) {
-      event.error = input.error.slice(0, 500);
+    const failure = reasonCode(input.error);
+    if (failure) {
+      event.error = failure;
       event.status = "error";
     }
     // Tag TS-direct traffic so it's distinguishable from the Python-metered

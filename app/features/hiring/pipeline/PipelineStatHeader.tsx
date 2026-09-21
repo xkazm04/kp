@@ -7,6 +7,7 @@
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import { EYEBROW, INTRO, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { Fade } from "./PipelineMotion";
+import { Skeleton } from "@/app/_components/Skeleton";
 import type { Entry, Position } from "@/app/features/shared/pipelineTypes";
 
 // Compact header stat: label over value, optionally clickable. Replaces the old
@@ -78,29 +79,38 @@ export function PipelineStatHeader({
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
         </div>
-        {/* Fades in when the board fetch lands rather than popping into the row. */}
-        <Fade show={Boolean(entries && entries.length > 0)}>
-          <div className="flex flex-wrap items-stretch gap-1.5">
-            <StatChip label={t("statPositions")} value={positions.length} />
-            <StatChip label={t("statActive")} value={activeCount} />
-            <StatChip label={t("statInterview")} value={interviewCount} />
-            <StatChip
-              label={t("statAging")}
-              value={staleCount}
-              tone={staleCount > 0 ? "amber" : "neutral"}
-              onClick={staleCount > 0 ? onToggleAging : undefined}
-            />
-            {degradedCount > 0 ? (
-              <StatChip label={t("statNeedsIntake")} value={degradedCount} tone="red" onClick={onFocusDegraded} />
-            ) : null}
-            <StatChip
-              label={t("statAwaitingYou")}
-              value={approvals.length}
-              tone={approvals.length > 0 ? "coral" : "neutral"}
-              onClick={onGoToDecisions}
-            />
+        {entries === null ? (
+          // Hold the row's height while data loads to prevent layout shift.
+          <div className="flex flex-wrap items-stretch gap-1.5" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-[3.25rem] w-20" />
+            ))}
           </div>
-        </Fade>
+        ) : (
+          /* Fades in when the board fetch lands rather than popping into the row. */
+          <Fade show={entries.length > 0}>
+            <div className="flex flex-wrap items-stretch gap-1.5">
+              <StatChip label={t("statPositions")} value={positions.length} />
+              <StatChip label={t("statActive")} value={activeCount} />
+              <StatChip label={t("statInterview")} value={interviewCount} />
+              <StatChip
+                label={t("statAging")}
+                value={staleCount}
+                tone={staleCount > 0 ? "amber" : "neutral"}
+                onClick={staleCount > 0 ? onToggleAging : undefined}
+              />
+              {degradedCount > 0 ? (
+                <StatChip label={t("statNeedsIntake")} value={degradedCount} tone="red" onClick={onFocusDegraded} />
+              ) : null}
+              <StatChip
+                label={t("statAwaitingYou")}
+                value={approvals.length}
+                tone={approvals.length > 0 ? "coral" : "neutral"}
+                onClick={onGoToDecisions}
+              />
+            </div>
+          </Fade>
+        )}
       </div>
       <p className={`mt-3 ${INTRO}`}>{t("intro")}</p>
     </header>

@@ -50,9 +50,22 @@ test("sanitizeBrandName collapses whitespace, clamps, empty → null", () => {
   assert.equal(sanitizeBrandName(42 as unknown), null);
 });
 
-test("sanitizeLogoUrl allows https only", () => {
+test("sanitizeLogoUrl allows https, path-absolute, and loopback http", () => {
   assert.equal(sanitizeLogoUrl("https://cdn.acme.com/logo.png"), "https://cdn.acme.com/logo.png");
-  for (const bad of ["http://x/logo.png", "javascript:alert(1)", "data:image/png;base64,AAA", "ftp://x/l", "not a url", ""]) {
+  assert.equal(sanitizeLogoUrl("/logo.png"), "/logo.png");
+  assert.equal(sanitizeLogoUrl("/brand/logo.png"), "/brand/logo.png");
+  assert.equal(sanitizeLogoUrl("http://127.0.0.1/l.png"), "http://127.0.0.1/l.png");
+  assert.equal(sanitizeLogoUrl("http://localhost/l.png"), "http://localhost/l.png");
+  for (const bad of [
+    "http://x/logo.png",
+    "javascript:alert(1)",
+    "data:image/png;base64,AAA",
+    "ftp://x/l",
+    "//cdn.acme.com/logo.png",
+    "logo.png",
+    "not a url",
+    "",
+  ]) {
     assert.equal(sanitizeLogoUrl(bad), null, `${bad} must be rejected`);
   }
 });
@@ -71,6 +84,10 @@ test("sanitizeLogoUrl REJECTS an over-length URL instead of truncating it", () =
   const exact = "https://a.co/" + "b".repeat(MAX_LOGO_URL - "https://a.co/".length);
   assert.equal(exact.length, MAX_LOGO_URL);
   assert.equal(sanitizeLogoUrl(exact), exact);
+
+  const longPath = `/${"a".repeat(MAX_LOGO_URL)}`;
+  assert.ok(longPath.length > MAX_LOGO_URL);
+  assert.equal(sanitizeLogoUrl(longPath), null);
 });
 
 test("sanitizeBrand validates every field together", () => {

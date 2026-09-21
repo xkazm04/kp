@@ -51,7 +51,9 @@ completion) runs 30–40 s — unusable at speech pace. So the work splits:
   the STORED transcript through the same coerce + `merge_brief` path as text —
   prior `stated` content survives, provenance discipline applies. The live
   brief panel therefore fills DURING the call, lagging the conversation by up
-  to a couple of exchanges — honest lag, by design.
+  to a couple of exchanges — honest lag, by design. While the sweep fetch is
+  in flight the voice bar shows a localized "Updating the brief…" status so
+  that lag is visible, not mistaken for a dead capture.
 
 ## Keyless honesty
 

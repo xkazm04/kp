@@ -53,7 +53,7 @@ const modules = readdirSync(GLYPHS_DIR)
   .sort();
 
 // Anything inside this folder is the glyph corpus talking to itself — its own
-// data contract test names all 20 by construction.
+// data contract test names all 13 by construction.
 const corpus = SEARCH_ROOTS.flatMap((root) => sourceFiles(join(REPO_ROOT, root)))
   .filter((path) => resolve(path, "..") !== resolve(GLYPHS_DIR))
   .map((path) => ({ path, text: readFileSync(path, "utf8") }));

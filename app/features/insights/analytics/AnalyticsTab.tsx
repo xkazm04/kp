@@ -9,6 +9,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { useUrlInboxState } from "@/app/features/shell/nav/useUrlInboxState";
+import { track } from "@/app/_lib/analytics/track";
 import { AnalyticsHeader } from "./AnalyticsHeader";
 import { AnalyticsSectionNav } from "./sections/AnalyticsSectionNav";
 import { isAnalyticsSectionId, resolveAnalyticsSection, type AnalyticsSectionId } from "./sections/analyticsSections";
@@ -73,11 +74,15 @@ export function AnalyticsTab() {
   //
   // `parse` returns null for an unknown value so the current section is left
   // alone; resolveAnalyticsSection's default only applies to the cold start.
-  const [section, setSection] = useUrlInboxState<AnalyticsSectionId>(
+  const [section, setSectionState] = useUrlInboxState<AnalyticsSectionId>(
     "sec",
     (raw) => (raw != null && isAnalyticsSectionId(raw) ? raw : null),
     resolveAnalyticsSection(search.get("sec"))
   );
+  const setSection = (next: AnalyticsSectionId) => {
+    track("analytics_section", { sec: next });
+    setSectionState(next);
+  };
 
   const { data, error, reload } = useJsonFetch<Analytics>(
     days ? `/api/analytics?days=${days}` : "/api/analytics",

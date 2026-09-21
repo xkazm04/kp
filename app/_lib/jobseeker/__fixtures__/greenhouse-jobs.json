@@ -1,0 +1,31 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4400111",
+      "internal_job_id": 990001,
+      "location": { "name": "Prague, Czechia" },
+      "metadata": [],
+      "id": 4400111,
+      "updated_at": "2026-09-11T14:02:11-04:00",
+      "requisition_id": "R-2211",
+      "title": "Senior Backend Engineer (Go)",
+      "content": "&lt;div&gt;&lt;p&gt;Acme builds payments infrastructure.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;5+ years with Go or Java&lt;/li&gt;&lt;li&gt;PostgreSQL, Kafka&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;Nice to have&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Kubernetes&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Hybrid: 2 days a week in the Prague office.&lt;/p&gt;&lt;/div&gt;",
+      "departments": [{ "id": 1, "name": "Engineering" }],
+      "offices": [{ "id": 7, "name": "Prague", "location": "Prague, Czechia" }]
+    },
+    {
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4400112",
+      "internal_job_id": 990002,
+      "location": { "name": "Remote - EU" },
+      "metadata": [],
+      "id": 4400112,
+      "updated_at": "2026-09-12T09:10:00-04:00",
+      "requisition_id": "R-2212",
+      "title": "Staff Data Engineer",
+      "content": "&lt;p&gt;Remote-first role for the data platform team. Python, Spark, dbt.&lt;/p&gt;",
+      "departments": [{ "id": 2, "name": "Data" }],
+      "offices": []
+    }
+  ],
+  "meta": { "total": 2 }
+}

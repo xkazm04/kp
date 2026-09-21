@@ -5,6 +5,7 @@ import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief"
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { currentUser } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -44,7 +45,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // throttles, so the budget and the ordering stay contract-locked. That spec's
     // `expensive` marker is the INSERT CALL below including its opening brace, not
     // the bare function name - the name also appears in prose above the limiter.
-    if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+    // 20/10min is far above human pace (a promote produces a JD to read). KP_BENCH_MODE=1
+    // (server env, local sweeps only) raises it to 600 so a scripted 50-role intake
+    // simulation can promote every session; the raise is never reachable from a request.
+    const benchMode = process.env.KP_BENCH_MODE === "1";
+    if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: benchMode ? 600 : 20, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
@@ -81,6 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       options,
       buildInput,
       workspaceId: ws,
+      createdBy: (await currentUser()).userId,
       params: {
         company: typeof body.company === "string" ? body.company : undefined,
         seniority: brief.seniority,

@@ -290,6 +290,16 @@ test("every locale uses ONE word for the assignment wherever it names it bare", 
   }
 });
 
+test("the cohort heatmap localizes probe kinds through useProbeKindLabel, not de-underscore", () => {
+  const src = read("app", "features", "tools", "devcases", "DevCohortProbePanel.tsx");
+  assert.match(src, /useProbeKindLabel/, "cohort kinds must go through the same catalog as ProbeRow");
+  assert.equal(
+    src.includes("kind.replace(/_/g"),
+    false,
+    "de-underscoring kind is the English fallback this panel used to ship into every locale"
+  );
+});
+
 test("every locale markets exactly the six controls, name and claim both present", () => {
   assert.equal(LEDGER_CONTROL_IDS.length, 6, "the module ships six anti-delegation controls");
   for (const locale of LOCALES) {

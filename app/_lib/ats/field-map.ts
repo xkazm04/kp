@@ -175,3 +175,30 @@ export function parseFieldMap(raw: unknown, allowed: readonly string[] = PIPELIN
   }
   return { paths, stages };
 }
+
+/** Per-provider default maps a connector ships so a connection saved without a
+ *  `fieldMap` can still sync. Recruitee is the one vendor whose payload shape is
+ *  pinned in-tree (inbound.test.ts round-trip). Recruitis / Teamio stay null until
+ *  W1.3 — we do not guess a vendor shape; an empty stored map then fails loudly
+ *  (no `externalId` path) rather than importing under a bad identity. */
+export const DEFAULT_FIELD_MAPS: Record<"recruitee" | "recruitis" | "teamio", AtsFieldMap | null> = {
+  recruitee: parseFieldMap({
+    paths: {
+      externalId: "id",
+      displayName: "candidate.name",
+      contact: "candidate.emails.0",
+      externalJobId: "offer.id",
+      jobTitle: "offer.title",
+      externalStage: "stage.name",
+      appliedAt: "created_at",
+    },
+    stages: { "1st round": "Interview" },
+  }),
+  recruitis: null,
+  teamio: null,
+};
+
+export function defaultFieldMap(provider: string): AtsFieldMap | null {
+  if (provider === "recruitee") return DEFAULT_FIELD_MAPS.recruitee;
+  return null;
+}

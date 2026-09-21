@@ -17,6 +17,8 @@ import {
   Info,
   LayoutDashboard,
   Library,
+  MessageSquarePlus,
+  MessagesSquare,
   Mic,
   Palette,
   Plug,
@@ -56,6 +58,7 @@ export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   agents: Bot,
   jobs: Briefcase,
   library: FileText,
+  intake: MessageSquarePlus,
   archetypes: UserCircle,
   analyze: FileSearch,
   interview: Mic,
@@ -71,4 +74,5 @@ export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   integrations: Plug,
   workspace: SlidersHorizontal,
   hiring: GitBranch,
+  templates: MessagesSquare,
 };

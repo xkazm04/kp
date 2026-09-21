@@ -30,7 +30,7 @@ const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 // module would have to be safe in the browser bundle AND in the edge compile of the
 // instrumentation hook, and these two files are its only consumers.
 const TOKEN_PATH =
-  /(\/(?:api\/)?(?:schedule|interview|status|offer|data|invite|skill|skill-profile|agents\/report|channels\/inbound|devcase\/apply|devcase\/session)\/)[^/?#]+/gi;
+  /(\/(?:api\/)?(?:schedule|interview|status|offer|data|invite|skill|skill-profile|stop|agents\/report|channels\/inbound|devcase\/apply|devcase\/session)\/)[^/?#]+/gi;
 
 /** Replace a capability token with a placeholder, leaving the route shape readable. */
 export function redactTokens(value: string): string {

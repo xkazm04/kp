@@ -124,3 +124,17 @@ export function thresholdEffectClaim(effect: ThresholdEffect | null | undefined)
   if (effect.before == null || effect.before.n < effect.minOutcomes) return { kind: "after-only", after };
   return { kind: "delta", before: { n: effect.before.n, advanceRatePct: effect.before.advanceRatePct }, after };
 }
+
+/** Which catalog key the strip may print. `after-only` still covers a true empty
+ *  before side; a thin-but-real before side must not reuse the zero-history sentence. */
+export type ThresholdEffectCopy = "too-few" | "after-only" | "before-thin" | "delta";
+
+export function thresholdEffectCopy(
+  effect: ThresholdEffect,
+  claim: ThresholdEffectClaim
+): ThresholdEffectCopy {
+  if (claim.kind === "too-few") return "too-few";
+  if (claim.kind === "delta") return "delta";
+  if (effect.before != null && effect.before.n > 0 && effect.before.n < effect.minOutcomes) return "before-thin";
+  return "after-only";
+}

@@ -8,7 +8,7 @@
 // Runner: node --test with the repo's test:alias loader (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCohorts, mergeRubricRows, isUnrecognizedCohort } from "./jobsCompareCohorts.ts";
+import { buildCohorts, mergeRubricRows, isUnrecognizedCohort, compareCsvRows } from "./jobsCompareCohorts.ts";
 
 const R = (competency: string, description = "") => ({ competency, description });
 
@@ -66,4 +66,30 @@ test("mergeRubricRows: an unrecognized cohort (empty rubric) still surfaces ever
   const rows = mergeRubricRows([], [{ ratings: [{ competency: "Some axis", rating: 3 }] }]);
   assert.equal(rows.length, 1);
   assert.ok(rows[0].offRubric);
+});
+
+test("compareCsvRows: two candidates produce aligned columns; a missing human rating is blank, not 0", () => {
+  const rubric = [R("Technical depth"), R("Communication")];
+  const candidates = [
+    {
+      candidateLabel: "Ada",
+      recommendation: "advance",
+      ratings: [
+        { competency: "Technical depth", rating: 4 },
+        { competency: "Communication", rating: 3 },
+      ],
+      humanScorecard: { ratings: [{ competency: "Technical depth", rating: 5 }], recommendation: "advance" },
+    },
+    {
+      candidateLabel: "Grace",
+      recommendation: "hold",
+      ratings: [{ competency: "Technical depth", rating: 2 }],
+      humanScorecard: null,
+    },
+  ];
+  const rows = compareCsvRows(rubric, candidates);
+  assert.equal(rows[0].length, 7, "competency + 3 cells per candidate");
+  assert.deepEqual(rows[0], ["Technical depth", 4, 5, "advance", 2, "", "hold"]);
+  assert.deepEqual(rows[1], ["Communication", 3, "", "advance", "", "", "hold"]);
+  assert.ok(!rows.flat().includes(0), "a missing rating must not fabricate 0");
 });

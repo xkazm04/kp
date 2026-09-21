@@ -1,5 +1,5 @@
 {
-  "_comment": "Source -> doc map used by scripts/docs/check-doc-sync.mjs (Stop hook). Each entry couples a set of source globs to the doc that describes them: when a turn edits matching source and touches no file under docs/features/, docs/architecture/ or docs/design/, the hook exits 2 and names the doc. Globs support * (within a path segment) and ** (any depth) only \u2014 no brace expansion. Skip patterns (tests, generated code, .claude/, docs themselves, app/landing) live in the script. When you add a feature area, add its entry here in the same change.",
+  "_comment": "Source -> doc map used by scripts/docs/check-doc-sync.mjs (Stop hook). Each entry couples a set of source globs to the doc that describes them: when a turn edits matching source and touches no file under docs/features/, docs/architecture/ or docs/design/, the hook exits 2 and names the doc. Globs support * (within a path segment) and ** (any depth) only — no brace expansion. Skip patterns (tests, generated code, .claude/, docs themselves, app/landing) live in the script. When you add a feature area, add its entry here in the same change.",
   "entries": [
     {
       "doc": "docs/features/hiring-pipeline/README.md",
@@ -25,6 +25,7 @@
         "app/_lib/interview-recommendation.ts",
         "app/_lib/pipeline-stages.ts",
         "app/_lib/pipeline-entry-action.ts",
+        "app/_lib/stage-hooks*.ts",
         "app/features/hiring/decisions/**",
         "app/features/hiring/pipeline/**"
       ]
@@ -35,11 +36,14 @@
         "app/_lib/intake-run.ts",
         "app/_lib/intake-brief.ts",
         "app/_lib/db/intakes.ts",
+        "app/_lib/db/job-postings.ts",
         "app/api/intake/**",
+        "app/api/job-postings/**",
         "app/features/library/jds/intake/**",
         "pipeline/jobfit/intake.py",
         "pipeline/jobfit/intake_cli.py",
-        "pipeline/jobfit/rolebrief.py"
+        "pipeline/jobfit/rolebrief.py",
+        "app/_components/studio/**"
       ]
     },
     {
@@ -49,11 +53,15 @@
         "app/_lib/jd-lint.ts",
         "app/_lib/jd-limits.ts",
         "app/_lib/db/jobs.ts",
+        "app/_lib/db/job-translations.ts",
+        "app/_lib/job-translate-run.ts",
+        "app/_lib/stage-hooks-role-fill.ts",
         "app/api/jds/**",
         "app/api/jobs/**",
         "app/jds/**",
         "pipeline/jobfit/campaign.py",
         "pipeline/jobfit/campaign_cli.py",
+        "pipeline/jobfit/posting_translate_cli.py",
         "app/features/library/jobs/**",
         "app/features/library/jds/**",
         "app/api/templates/**",
@@ -83,6 +91,9 @@
         "app/_lib/comms-view.ts",
         "app/_lib/comms-truth.ts",
         "app/_lib/outreach-halt.ts",
+        "app/_lib/outreach-state-store.ts",
+        "app/api/stop/**",
+        "app/stop/**",
         "app/_lib/interview-reminder-policy.ts",
         "app/api/comms/**",
         "app/api/channels/**",
@@ -207,6 +218,7 @@
       "doc": "docs/features/compliance/README.md",
       "sourceGlobs": [
         "app/_lib/consent.ts",
+        "app/_lib/consent-expiry-reminders.ts",
         "app/_lib/data-held.ts",
         "app/_lib/compliance-regimes.ts",
         "app/_lib/db/pipeline.ts",
@@ -357,7 +369,7 @@
       ]
     },
     {
-      "_comment": "The candidate-data path \u2014 CVs, contact details, interview transcripts. These globs are the hops the map traces: the analyze intake and its upload bounds, the subprocess bridge that carries the file to Python, the two egress seals (TS fetch guard + the Python half the fetch guard cannot see), the stores the data comes to rest in, and the self-service surfaces a candidate reads it back through. Several of them are also owned by a feature doc (candidates, compliance, llm-provider-layer) and that is deliberate: a change to how a CV reaches a model provider should name BOTH the feature doc and this map. A hop this list misses is a hop the map will drift on.",
+      "_comment": "The candidate-data path — CVs, contact details, interview transcripts. These globs are the hops the map traces: the analyze intake and its upload bounds, the subprocess bridge that carries the file to Python, the two egress seals (TS fetch guard + the Python half the fetch guard cannot see), the stores the data comes to rest in, and the self-service surfaces a candidate reads it back through. Several of them are also owned by a feature doc (candidates, compliance, llm-provider-layer) and that is deliberate: a change to how a CV reaches a model provider should name BOTH the feature doc and this map. A hop this list misses is a hop the map will drift on.",
       "doc": "docs/architecture/candidate-data-flow.md",
       "sourceGlobs": [
         "app/api/analyze/**",
@@ -419,7 +431,7 @@
       ]
     },
     {
-      "_comment": "P2 landed the repo scan under repo-scan* / repo_scan* rather than the app-master/** directories P1 anticipated \u2014 the scan is one task and one store, not a module tree, so the globs name the files that exist. P4 created app/_lib/app-master/** (the TS port of the performance backbone plus its Python-generated parity fixtures) and registered it here in the same change, as that note required. The P4 dispatch/report/roster surfaces live under app/api/agents/** and app/features/agents-workforce/**, which the agents doc already owns \u2014 the App-master doc links to it rather than claiming the same globs twice. P6b added scripts/app-master-bench/** (the mass-test driver, its scenarios and its stub Personas), whose behaviour the doc's \u2018Mass-test driver\u2019 section describes \u2014 a change to the driver that the doc does not follow is exactly the drift this map exists to catch.",
+      "_comment": "P2 landed the repo scan under repo-scan* / repo_scan* rather than the app-master/** directories P1 anticipated — the scan is one task and one store, not a module tree, so the globs name the files that exist. P4 created app/_lib/app-master/** (the TS port of the performance backbone plus its Python-generated parity fixtures) and registered it here in the same change, as that note required. The P4 dispatch/report/roster surfaces live under app/api/agents/** and app/features/agents-workforce/**, which the agents doc already owns — the App-master doc links to it rather than claiming the same globs twice. P6b added scripts/app-master-bench/** (the mass-test driver, its scenarios and its stub Personas), whose behaviour the doc's ‘Mass-test driver’ section describes — a change to the driver that the doc does not follow is exactly the drift this map exists to catch.",
       "doc": "docs/features/app-master/README.md",
       "sourceGlobs": [
         "app/_lib/app-master/**",
@@ -454,7 +466,7 @@
       ]
     },
     {
-      "_comment": "The release machinery: cutting a version, the commit convention the CHANGELOG is cut from, and the bill of materials shipped with each tag. docs/architecture/releases.md is what an operator reads to decide what to pin to and how to go back \u2014 a change to any of these scripts that the doc does not follow is precisely the drift this map exists to catch. db-dump/db-load are here because they ARE the rollback: the doc's 'Going back' runbook is those two commands, and the drill that rehearses it (app/_lib/db/rollback-drill.test.ts) asserts their round trip.",
+      "_comment": "The release machinery: cutting a version, the commit convention the CHANGELOG is cut from, and the bill of materials shipped with each tag. docs/architecture/releases.md is what an operator reads to decide what to pin to and how to go back — a change to any of these scripts that the doc does not follow is precisely the drift this map exists to catch. db-dump/db-load are here because they ARE the rollback: the doc's 'Going back' runbook is those two commands, and the drill that rehearses it (app/_lib/db/rollback-drill.test.ts) asserts their round trip.",
       "doc": "docs/architecture/releases.md",
       "sourceGlobs": [
         "scripts/release/**",
@@ -487,10 +499,11 @@
       ]
     },
     {
-      "_comment": "The Insights -> About explainer deck. Its whole value is being TRUE: every number it prints is a constant in pipeline/jobfit or app/_lib, and chapters.test.ts pins the couplings a machine can check. A change to a scene, a chapter frame or the stage primitives has to reach the doc that records WHICH constant each chapter quotes \u2014 otherwise the deck goes on teaching a rule the engine no longer implements, which is the one failure this tab cannot survive.",
+      "_comment": "The Insights -> About explainer deck. Its whole value is being TRUE: every number it prints is a constant in pipeline/jobfit or app/_lib, and chapters.test.ts pins the couplings a machine can check. A change to a scene, a chapter frame or the stage primitives has to reach the doc that records WHICH constant each chapter quotes — otherwise the deck goes on teaching a rule the engine no longer implements, which is the one failure this tab cannot survive. app/diagrams/** is the operator /diagrams explorer that README's 'Out to the architecture diagrams' section describes (pipelineSteps.ts, the 404, diagrams.steps.*); a renamed step or a new funnel node cannot land with About still teaching the old contract.",
       "doc": "docs/features/about/README.md",
       "sourceGlobs": [
-        "app/features/insights/about/**"
+        "app/features/insights/about/**",
+        "app/diagrams/**"
       ]
     },
     {
@@ -515,6 +528,42 @@
         "app/_lib/task-view.ts",
         "app/_lib/tasks-window.ts",
         "app/api/tasks/**"
+      ]
+    },
+    {
+      "doc": "docs/development/recipe-candidates.md",
+      "sourceGlobs": [
+        "pipeline/jobfit/eval/recipe_candidates.py"
+      ]
+    },
+    {
+      "_comment": "The doc-sync / ADR / guidance / API-reference scripts. check-doc-sync.mjs is the machine that enforces this map, and a skip-pattern or DOC_PREFIX change had no Stop-hook reminder. docs/development/change-review.md already names check-guidance.mjs and the review lenses; this entry watches the rest of the gate scripts (scripts/i18n-check.mjs is mapped from localization.md). __tests__/ stay unmapped via the skip patterns.",
+      "doc": "docs/development/change-review.md",
+      "sourceGlobs": [
+        "scripts/docs/**"
+      ]
+    },
+    {
+      "_comment": "The import-graph budget, the pipeline wall-clock budget, the local SQLite writer-knee probe, and the committed ceiling files. docs/development/performance-budget.md is what an operator reads to decide whether a ceiling fails a build; a header rewrite that leaves Status behind is the failure that page exists to prevent. __tests__/ stay unmapped via the skip patterns.",
+      "doc": "docs/development/performance-budget.md",
+      "sourceGlobs": [
+        "scripts/perf/**",
+        "perf-budget.json",
+        "ci-budget.json"
+      ]
+    },
+    {
+      "doc": "docs/features/jobseeker/README.md",
+      "sourceGlobs": [
+        "app/me/**",
+        "app/api/jobseeker/**",
+        "app/_lib/jobseeker/**",
+        "app/_lib/db/jobseeker-profiles.ts",
+        "app/_lib/db/jobseeker-sources.ts",
+        "app/_lib/db/jobseeker-postings.ts",
+        "app/_lib/db/jobseeker-dialogs.ts",
+        "app/_lib/scheduler-jobs.ts",
+        "pipeline/jobfit/jobseeker_cli.py"
       ]
     }
   ]

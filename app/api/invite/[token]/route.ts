@@ -6,7 +6,7 @@ import { getUserByEmail } from "@/app/_lib/db/users";
 import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
-import { isThrottled, recordFailedAttempt, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
+import { isThrottled, recordFailedAttempt, throttleRetryAfterMs, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // PUBLIC (proxy allow-listed): the invited-member accept flow. GET previews a
@@ -34,11 +34,21 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // the token, so one leaked link cannot spend another invitee's budget.
 const INVITE_THROTTLE: ThrottleOpts = { limit: 10, windowMs: 60_000 };
 
+function throttledRefusal(key: string): NextResponse {
+  const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
+  const remainingMs = throttleRetryAfterMs(key, INVITE_THROTTLE);
+  if (remainingMs != null) {
+    const seconds = Math.min(Math.max(1, Math.ceil(remainingMs / 1000)), Math.ceil(INVITE_THROTTLE.windowMs / 1000));
+    res.headers.set("Retry-After", String(seconds));
+  }
+  return res;
+}
+
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   const viewKey = `invite-view:${clientIpFrom(request.headers)}:${token}`;
   if (isThrottled(viewKey, INVITE_THROTTLE)) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    return throttledRefusal(viewKey);
   }
   recordFailedAttempt(viewKey, INVITE_THROTTLE);
   const invite = getRedeemableInvite(token);
@@ -68,7 +78,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   // membership and a session, so the flood must be refused at the door.
   const redeemKey = `invite-redeem:${clientIpFrom(request.headers)}:${token}`;
   if (isThrottled(redeemKey, INVITE_THROTTLE)) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    return throttledRefusal(redeemKey);
   }
   recordFailedAttempt(redeemKey, INVITE_THROTTLE);
   const body = await readJsonWithLimit<{ name?: unknown; password?: unknown }>(request, MAX_INVITE_BODY_BYTES, {});

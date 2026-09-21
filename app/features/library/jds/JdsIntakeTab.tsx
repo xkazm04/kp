@@ -2,18 +2,17 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowRight } from "lucide-react";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { BTN_GHOST, PANEL } from "@/app/_components/ui/recipes";
-import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
+import { useOptionalSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { switchTab, duplicateToBuilder, type AuthorNavState } from "./jdsLedgerNav";
 import { readBuildIntent } from "./jdsLedgerArtifacts";
 import type { GeneratePrefill } from "./jdsLibrary";
-import { DUPLICATE_PARAM, opensOnGenerate } from "./jdsIntakeTabEntry";
+import { DUPLICATE_PARAM, NEW_INTAKE_PARAM, opensNewIntake, opensOnGenerate } from "./jdsIntakeTabEntry";
 
 // JOB INTAKE — the authoring half of the JD surfaces, split out of the library
 // tab. The library page used to carry a Saved / Generate / Intake strip, which
@@ -41,18 +40,46 @@ const LibraryIntakePanel = dynamic(() => import("./intake/JdsIntakePanel").then(
 
 export function JdsIntakeTab() {
   const t = useTranslations("library.intakeTab");
-  const router = useRouter();
   const search = useSearchParams();
-  // The entry mode is decided from the URL ONCE, at mount: a deep link carrying a
-  // JD prefill (the guided demo's ?jdTitle=…, a finished build's ?jdTask=, a
-  // Duplicate's ?duplicate=) is asking for the builder, and anything else lands on
-  // the dialog. Read in the state initializer so a later param strip (below)
+  // The guided demo's in-app handoff. The tour is a component handing a JD to
+  // another component inside this same provider, so it does that in state — the
+  // five `?jd*` params it used to write made a 252-character address bar that
+  // carried CONTENT (a whole prose paragraph) rather than state. The deep link
+  // itself is untouched and still read below and in jdsBuilderLogic.ts: a person
+  // linking in from outside has no other channel, the tour did. Null outside the
+  // shell (no provider) and null whenever no run is mid-design-chapter.
+  const simHandoff = useOptionalSimulation()?.jdHandoff ?? null;
+  // The entry mode is decided ONCE, at mount, from both doors: a JD handoff — the
+  // demo's `jdHandoff`, a deep link's ?jdTitle=…, a finished build's ?jdTask=, a
+  // Duplicate's ?duplicate= — is asking for the builder, and anything else lands
+  // on the dialog. Read in the state initializer so a later param strip (below)
   // cannot flip the tab under the reader.
   const [nav, setNav] = useState<AuthorNavState>(() => ({
-    tab: opensOnGenerate(search) ? "generate" : "intake",
+    tab: opensOnGenerate(search, simHandoff) ? "generate" : "intake",
     builderKey: 0,
   }));
-  const [prefill, setPrefill] = useState<GeneratePrefill | null>(null);
+  // Seeded at mount from the handoff, for the same reason the mode is: the builder
+  // reads its own seeds at mount, and it mounts behind a `Defer` well after this
+  // component does — so the value has to be here waiting for it, not arrive later.
+  // Field-by-field rather than a spread: this mapping is where tsc checks that the
+  // shell's handoff shape still says what the builder's prefill expects.
+  const [prefill, setPrefill] = useState<GeneratePrefill | null>(() =>
+    simHandoff
+      ? {
+          title: simHandoff.title,
+          company: simHandoff.company,
+          seniority: simHandoff.seniority,
+          roleFamily: simHandoff.roleFamily,
+          need: simHandoff.need,
+        }
+      : null
+  );
+  // `?intake=new` (the command palette's door into the studio). Read ONCE in the
+  // state initializer, like the entry mode above, and handed to the panel as a
+  // one-shot instruction it reports back on — a param strip alone would not be
+  // enough, because the panel mounts behind a `Defer` and may not exist yet at the
+  // moment the URL is cleaned.
+  const [autoStartIntake, setAutoStartIntake] = useState(() => opensNewIntake(search, simHandoff));
 
   // Duplicate handoff (?duplicate=<slug>): the ledger no longer shares a page with
   // the builder, so the prefill can't be handed over in memory. The SLUG rides the
@@ -115,23 +142,25 @@ export function JdsIntakeTab() {
     // what makes the one-shot honest rather than asserted by a disabled lint rule.
   }, [search, loadDuplicate]);
 
+  useEffect(() => {
+    if (!opensNewIntake(search)) return;
+    // One-shot, the same raw history write ?duplicate= uses: no setState, so no
+    // nav churn, and a refresh or a shared link can never start a second
+    // conversation. The instruction itself already lives in state above.
+    const url = new URL(window.location.href);
+    url.searchParams.delete(NEW_INTAKE_PARAM);
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  }, [search]);
+
   return (
     <section className={`${PANEL} stagger-children p-5`}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
-        <div className="min-w-0">
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-          <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
-        </div>
-        {/* The other half of the split, one click away — an authored role's
-            destination is the ledger, and the ledger's "write a new one" is here. */}
-        <button
-          type="button"
-          className={`${BTN_GHOST} h-9 shrink-0 px-3 text-sm`}
-          onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
-        >
-          {t("toLibrary")} <ArrowRight size={14} aria-hidden />
-        </button>
+      {/* No cross-link to the ledger here: "Job descriptions" is its own sidebar
+          row one click away, and a second door in the corner bought nothing but a
+          width cap on the intro — which now runs the full tab. */}
+      <header className="min-w-0 border-b border-stone-200 pb-4">
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
+        <p className="mt-2 text-body text-steel">{t("intro")}</p>
       </header>
 
       <div className="mt-5">
@@ -154,7 +183,11 @@ export function JdsIntakeTab() {
 
       <div className={nav.tab === "intake" ? "animate-fade-in mt-5" : "hidden"}>
         <Defer strategy="idle" placeholder={chunkGap()}>
-          <LibraryIntakePanel onPromoted={notifyDataChanged} />
+          <LibraryIntakePanel
+            onPromoted={notifyDataChanged}
+            autoStart={autoStartIntake}
+            onAutoStarted={() => setAutoStartIntake(false)}
+          />
         </Defer>
       </div>
       {/* `animate-fade-in` on a display-toggled wrapper replays on each show: a CSS

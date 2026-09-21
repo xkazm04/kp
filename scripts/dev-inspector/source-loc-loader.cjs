@@ -22,27 +22,29 @@
 
 let babel; // lazily required only when actually transforming
 
-module.exports = function sourceLocLoader(source, inputMap, meta) {
-  const callback = this.async();
-
-  // Hard gate: do nothing unless explicitly launched in inspect mode.
-  if (process.env.DEV_INSPECT !== "1") {
-    return callback(null, source, inputMap, meta);
-  }
-
-  const resourcePath = (this.resourcePath || "").replace(/\\/g, "/");
-  const base = resourcePath.slice(resourcePath.lastIndexOf("/") + 1);
-
-  // Only our own .tsx/.jsx source — never dependencies or generated output.
-  // Also skip Next's image-metadata routes (icon / apple-icon / opengraph-image
-  // / twitter-image): they render through satori (ImageResponse), not the DOM,
-  // so a `data-loc` attribute is meaningless there and can confuse the renderer.
+/** True only when this resource should pay a Babel pass.
+ *  Extracted so the DEV_INSPECT hard gate, the node_modules/.next skip, and the
+ *  satori image-metadata skip can be pinned without spinning a loader `this`. */
+function shouldTransform(resourcePath, env = process.env) {
+  if (env.DEV_INSPECT !== "1") return false;
+  const path = String(resourcePath || "").replace(/\\/g, "/");
+  const base = path.slice(path.lastIndexOf("/") + 1);
   if (
-    !/\.[jt]sx$/.test(resourcePath) ||
-    resourcePath.includes("/node_modules/") ||
-    resourcePath.includes("/.next/") ||
+    !/\.[jt]sx$/.test(path) ||
+    path.includes("/node_modules/") ||
+    path.includes("/.next/") ||
     /^(icon|apple-icon|opengraph-image|twitter-image)\d*\.[jt]sx$/.test(base)
   ) {
+    return false;
+  }
+  return true;
+}
+
+module.exports = function sourceLocLoader(source, inputMap, meta) {
+  const callback = this.async();
+  const resourcePath = (this.resourcePath || "").replace(/\\/g, "/");
+
+  if (!shouldTransform(resourcePath, process.env)) {
     return callback(null, source, inputMap, meta);
   }
 
@@ -77,3 +79,5 @@ module.exports = function sourceLocLoader(source, inputMap, meta) {
     })
     .catch((err) => callback(err));
 };
+
+module.exports.shouldTransform = shouldTransform;

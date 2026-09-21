@@ -121,6 +121,7 @@ test("the committed banner IS a polite live region, mounted before the commit la
   assert.ok(region, "a role=status / aria-live=polite paragraph exists at the top of the modal body");
   assert.match(region[1], /committedBanner/, "…and it is the committed banner, not a second element that could drift from it");
   assert.match(region[1], /commsFailures/, "…including the partial-commit warning");
+  assert.match(region[1], /sealFailures/, "…and a missed Art. 22 seal, not only SMTP");
 });
 
 test("the live region is not inside the committed branch, so it exists to be updated", () => {

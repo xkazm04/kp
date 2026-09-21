@@ -63,7 +63,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   try {
     const ws = await currentWorkspace();
     const jd = loadJd(slug, ws);
-    if (!jd) return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    if (!jd) return jsonRefusal("JD_NOT_FOUND", 404);
     if (jd.analysis_status !== "failed") {
       return NextResponse.json({ error: "This JD isn't in a failed state." }, { status: 409 });
     }

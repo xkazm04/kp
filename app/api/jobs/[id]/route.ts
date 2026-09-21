@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // Point-read one job by id. GET /api/jobs enumerates a ranked, LIMIT-300 slice, so a
 // ?job=<id> deep link (minted by the Command Palette, the Pipeline board and the JD
@@ -19,7 +19,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const ws = await currentWorkspace();
     const job = getJob(id);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
-      return NextResponse.json({ error: "Job not found." }, { status: 404 });
+      return jsonRefusal("JOB_NOT_FOUND", 404);
     }
     return NextResponse.json({ job });
   } catch (error) {

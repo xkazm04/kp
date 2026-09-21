@@ -2,14 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoleBrief } from "@/app/_lib/rolespec";
+import type { IntakeChoiceSet } from "@/app/_lib/intake-choices";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
 
 // State + API client for the role-intake dialog surface (Phase 1 of
 // docs/concepts/role-intake-dialog.md). Pure fetch/state — rendering lives in
-// JdsIntakePanel/JdsIntakeChat/JdsIntakeBriefPanel (200-line rule).
+// JdsIntakePanel / the Studio kit's StudioTranscript / AtelierBriefPlane (200-line rule).
 
-export type IntakeTurn = { role: "interviewer" | "candidate" | "system"; text: string; at?: string };
+export type IntakeTurn = {
+  role: "interviewer" | "candidate" | "system";
+  text: string;
+  at?: string;
+  /** The agent's DECISION CARDS for this turn (app/_lib/intake-choices.ts) —
+   *  stored on the turn, so a reload re-offers the set attached to the question
+   *  it answers. Only the newest turn's set is interactive. */
+  choices?: IntakeChoiceSet;
+};
 
 export type IntakeShape = "power_unit" | "story" | "app_master" | null;
 
@@ -287,6 +296,12 @@ async function refusalCode(res: Response): Promise<string | null> {
  *  failure to retry: the truth is on the server, so the session is re-read. */
 const MOVED = "INTAKE_BRIEF_MOVED";
 
+/** Everything the surface gets from the hook. Named so the studio's parts can be
+ *  handed the whole seam instead of re-declaring twenty props each — the ledger
+ *  owns the hook (it also owns the App-master watcher's clock), and the overlay
+ *  and the desk are views over it. */
+export type IntakeLogic = ReturnType<typeof useIntakeLogic>;
+
 export function useIntakeLogic(onPromoted?: () => void) {
   const [sessions, setSessions] = useState<IntakeSummary[] | null>(null);
   const [active, setActive] = useState<IntakeSession | null>(null);
@@ -445,6 +460,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
           source: "llm" | "deterministic";
           fallbackReason?: string;
           fallbackLang?: string;
+          choices?: IntakeChoiceSet;
         };
         setDegradation(
           data.source === "deterministic"
@@ -459,7 +475,10 @@ export function useIntakeLogic(onPromoted?: () => void) {
           s && s.id === id
             ? {
                 ...s,
-                transcript: [...s.transcript, { role: "interviewer", text: data.reply }],
+                transcript: [
+                  ...s.transcript,
+                  { role: "interviewer", text: data.reply, ...(data.choices ? { choices: data.choices } : {}) },
+                ],
                 brief: data.brief,
                 shape: data.shape,
                 status: data.done ? "complete" : s.status,

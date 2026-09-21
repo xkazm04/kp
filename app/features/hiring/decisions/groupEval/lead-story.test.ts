@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { isTopPick } from "./groupEvalHelpers.ts";
+import { isTopPick, ranWhen } from "./groupEvalHelpers.ts";
 import type { EvalCandidate, GroupEvalPayload } from "@/app/features/shared/groupEvalTypes.ts";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
@@ -83,4 +83,23 @@ test("the hedge copy exists in every locale", () => {
 test("the sealed separation contract still names its reader (no orphan field)", () => {
   const types = readFileSync(path.join(dir, "..", "..", "..", "shared", "groupEvalTypes.ts"), "utf8");
   assert.match(types, /ComparisonTable/, "the leadSeparation comment must name the surface that renders it");
+});
+
+// ---- ran-at stamp ---------------------------------------------------------
+
+test("ranWhen returns the ISO (or null) and never formats via toLocaleString", () => {
+  assert.equal(ranWhen("2026-09-03T14:30:00.000Z"), "2026-09-03T14:30:00.000Z");
+  assert.equal(ranWhen(null), null);
+  assert.equal(ranWhen(undefined), null);
+  assert.equal(ranWhen(""), null);
+  assert.equal(ranWhen("not-a-date"), null);
+  const src = read("groupEvalHelpers.ts").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
+  assert.equal(src.includes("toLocaleString"), false, "groupEvalHelpers must not call toLocaleString");
+});
+
+test("useGroupEval formats ranAt through useDateFormat().dateTime", () => {
+  const src = read("useGroupEval.ts").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
+  assert.match(src, /useDateFormat\(\)/, "the hook must use the shared date formatter");
+  assert.match(src, /fmt\.dateTime\(/, "the stamp must use dateTime, not a raw Intl bag");
+  assert.equal(src.includes("toLocaleString"), false, "the hook must not call toLocaleString");
 });

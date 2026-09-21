@@ -42,6 +42,8 @@ test("every enforced part of the mandate reaches the view", () => {
   assert.equal(v.reviewCadenceDays, 14);
   assert.deepEqual(v.retireCriteria, ["two windows below the bar"]);
   assert.equal(v.reservationPolicy, "fixed");
+  assert.equal(v.scopeRung, 2, "the rung cap is a bound the requestor is about to grant");
+  assert.deepEqual(v.forbiddenClasses, ["test_deletion_or_skip"], "forbidden-change classes ride the view");
   assert.equal(v.isEmpty, false);
 });
 
@@ -66,7 +68,7 @@ test("an absent value becomes nothing, never a fabricated default", () => {
   const v = mandateSections(
     spec({
       objectives: [{ kpiKey: "k", label: "  ", baseline: null, target: null, unit: "  ", direction: "gte", windowDays: 0 }],
-      mandate: { scopeRung: 0, forbiddenClasses: [], approvalGates: [], owner: "" },
+      mandate: { scopeRung: 3, forbiddenClasses: ["  "], approvalGates: [], owner: "" },
       tenure: { probationDays: 30, reviewCadenceDays: 0, retireCriteria: [] },
     })
   );
@@ -77,9 +79,11 @@ test("an absent value becomes nothing, never a fabricated default", () => {
   assert.equal(v.reviewCadenceDays, null);
   assert.deepEqual(v.approvalGates, []);
   assert.deepEqual(v.retireCriteria, []);
+  assert.equal(v.scopeRung, null, "a rung outside 0..2 is not grantable, so it is absent rather than clamped");
+  assert.deepEqual(v.forbiddenClasses, [], "whitespace is not a forbidden class");
 });
 
-test("a spec with nothing enforced reports empty, so the card renders no heading", () => {
+test("rung 0 is a bound, so a spec that only has a rung still renders a section", () => {
   const v = mandateSections(
     spec({
       objectives: [],
@@ -88,7 +92,22 @@ test("a spec with nothing enforced reports empty, so the card renders no heading
       budget: { monthlyUsd: 0, reservationPolicy: "nonsense", onCap: "drain" },
     })
   );
+  assert.equal(v.scopeRung, 0, "read-only is still a rung, unlike a zero-day window");
+  assert.equal(v.isEmpty, false);
+});
+
+test("a spec with nothing enforced reports empty, so the card renders no heading", () => {
+  const v = mandateSections(
+    spec({
+      objectives: [],
+      mandate: { scopeRung: -1, forbiddenClasses: [], approvalGates: [], owner: "" },
+      tenure: { probationDays: 30, reviewCadenceDays: 0, retireCriteria: [] },
+      budget: { monthlyUsd: 0, reservationPolicy: "nonsense", onCap: "drain" },
+    })
+  );
   assert.equal(v.isEmpty, true);
+  assert.equal(v.scopeRung, null);
+  assert.deepEqual(v.forbiddenClasses, []);
   assert.equal(v.reservationPolicy, null, "an unrecognised policy is a disclosed unknown, not `estimate`");
 });
 

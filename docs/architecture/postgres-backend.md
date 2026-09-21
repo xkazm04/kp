@@ -76,11 +76,17 @@ translations — and they now run through a `rebuildTable` helper that drops the
 table and wraps the swap in a transaction, since the unguarded version could wedge boot
 after an interrupted migration.
 
+`users.last_login_at` is an ALTER-added TEXT column (NULL until the first successful
+`verifyCredentials` hit). A port keeps it nullable: a miss must not stamp it, and a
+fresh install's invited rows stay NULL until the person actually signs in.
+
 A third: the boot DDL is deliberately loud. Every `ALTER`/`CREATE` runs through
 `migrateExec`, which tolerates ONLY the benign "already applied" error and re-throws the
-rest — and, since wave 40, so do the nine per-tenant scan indexes (previously one bare
+rest — and, since wave 40, so do the per-tenant scan indexes (previously one bare
 `catch` wrapped all nine, so a single unexpected failure silently skipped the remaining
-eight) and the four UNIQUE indexes, which now go through `migrateUniqueIndex`: it tolerates
+eight; the block now also covers `interview_sessions`, `campaign_packs`, `tasks` and
+`skill_profiles`, which gained `workspace_id` in Phase 1 without an `idx_*_workspace`)
+and the four UNIQUE indexes, which now go through `migrateUniqueIndex`: it tolerates
 `SQLITE_CONSTRAINT_UNIQUE` — a legacy DB whose existing rows block the constraint, where
 the app-level read-then-insert coalescing stays the guarantee — logs which index was
 skipped and why, and re-throws everything else. A port keeps that split: the "duplicate
@@ -88,9 +94,12 @@ rows already exist" case is real on Postgres too (`CREATE UNIQUE INDEX` raises
 `unique_violation`), a locked or broken database is not something to boot past.
 
 And a fourth, at the other end of boot: `runBootMaintenance()` (exported from `db/core.ts`,
-pinned by `app/_lib/db/core-boot-tail.test.ts`) prunes expired prompt-cache rows and runs
-`wal_checkpoint(TRUNCATE)`. Both reclaim SPACE, not correctness, so both are best-effort —
-a failure is logged and survived, never allowed to wedge a boot that would otherwise serve.
+pinned by `app/_lib/db/core-boot-tail.test.ts`) prunes expired prompt-cache rows, runs
+`wal_checkpoint(TRUNCATE)`, and samples `getRowHealth()`. The first two reclaim SPACE, not
+correctness; the third is the only boot-time signal that a restored dump has unreadable
+JSON columns (`total > 0` warns the count and the bounded issue sample; zero is silent).
+All three are best-effort — a failure is logged and survived, never allowed to wedge a
+boot that would otherwise serve.
 On Postgres the checkpoint half disappears entirely (no WAL sidecar to fold back; autovacuum
 owns the equivalent), while the prune must stay: nothing else bounds `gemini_cache`, because
 `lookupPromptCache` skips expired rows without deleting them. Fixture seeding runs BEFORE

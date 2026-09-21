@@ -59,7 +59,84 @@ export function classifyInviteResult(result: InviteFetchResult): InviteOutcome {
 }
 
 /** Outcomes the invitee can act on by trying again. `dead` deliberately is not
- *  one: a retry button over a consumed invite is a loop with no exit. */
+ *  one: a retry button over a consumed invite is a loop with no exit. The two
+ *  409s are not either: `already_active` / `email_taken` can never succeed on
+ *  retry, so they swap to the failed panel with a sign-in link. */
 export function isRetryableInviteOutcome(outcome: InviteOutcome): boolean {
   return outcome === "retry" || outcome === "rateLimited";
+}
+
+/** Redeem (and preview) endings that must leave the password form. `dead` is
+ *  the link itself; the 409s mean "sign in instead". `weakPassword` stays on
+ *  the form so the invitee can pick a longer password. */
+export function isTerminalInviteOutcome(outcome: InviteOutcome): boolean {
+  return outcome === "dead" || outcome === "alreadyActive" || outcome === "emailTaken";
+}
+
+/** Catalog keys the failed panel paints for a classified outcome. The two 409s
+ *  reuse their inline copy rather than falling through to "Couldn't load your
+ *  invitation" — that line is a lie once we already know the account exists. */
+export type InviteFailedCopyKey =
+  | "unavailableTitle"
+  | "unavailableBody"
+  | "rateLimitedTitle"
+  | "rateLimitedBody"
+  | "loadFailedTitle"
+  | "loadFailedBody"
+  | "alreadyActive"
+  | "emailTaken";
+
+export function inviteFailedCopy(outcome: InviteOutcome): { title: InviteFailedCopyKey; body: InviteFailedCopyKey } {
+  if (outcome === "dead") return { title: "unavailableTitle", body: "unavailableBody" };
+  if (outcome === "rateLimited") return { title: "rateLimitedTitle", body: "rateLimitedBody" };
+  if (outcome === "alreadyActive") return { title: "alreadyActive", body: "alreadyActive" };
+  if (outcome === "emailTaken") return { title: "emailTaken", body: "emailTaken" };
+  return { title: "loadFailedTitle", body: "loadFailedBody" };
+}
+
+// Client pre-check for the redeem form. GET preview sets `needsName` when the
+// user row has no display name; posting `name: name.trim() || undefined` used
+// to create the account as `name: null`, so Art. 22 seals fell back to email.
+// Empty name is the same class of client refusal as an empty password: do not
+// fetch. Redeem is single-use, so a mistyped password that meets the floor
+// still consumes the invite: length and confirmation are refused here too.
+
+export type InviteSubmitInput = {
+  needsName: boolean;
+  name: string;
+  password: string;
+  /** When set (including ""), a mismatch is a client refusal. */
+  passwordConfirm?: string;
+  /** When set, a password shorter than this is a client refusal. */
+  minPasswordLength?: number;
+  /** When explicitly false, the privacy/terms checkbox is unchecked. */
+  legalAck?: boolean;
+};
+
+export type InviteSubmitBlock = "missingName" | "emptyPassword" | "weakPassword" | "passwordMismatch" | "legalAck";
+
+export type InvitePasswordCheck = "ok" | "tooShort" | "mismatch";
+
+export function invitePasswordCheck(password: string, confirm: string, minLength: number): InvitePasswordCheck {
+  if (password.length < minLength) return "tooShort";
+  if (password !== confirm) return "mismatch";
+  return "ok";
+}
+
+export function inviteSubmitBlock(input: InviteSubmitInput): InviteSubmitBlock | null {
+  if (input.needsName && input.name.trim() === "") return "missingName";
+  if (!input.password) return "emptyPassword";
+  if (input.minPasswordLength != null || input.passwordConfirm !== undefined) {
+    const min = input.minPasswordLength ?? 0;
+    const confirm = input.passwordConfirm ?? input.password;
+    const pw = invitePasswordCheck(input.password, confirm, min);
+    if (pw === "tooShort") return "weakPassword";
+    if (pw === "mismatch") return "passwordMismatch";
+  }
+  if (input.legalAck === false) return "legalAck";
+  return null;
+}
+
+export function canSubmitInvite(input: InviteSubmitInput): boolean {
+  return inviteSubmitBlock(input) === null;
 }

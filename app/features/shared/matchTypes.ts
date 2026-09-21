@@ -1,3 +1,4 @@
+import type { EligibilityFlag } from "@/app/_lib/jobseeker/types";
 import { APP_CURRENCY, formatGrouped } from "@/app/_lib/format";
 
 export type AnalysisRow = {
@@ -64,6 +65,10 @@ export type MatchResult = {
   personalScore: number;
   scoreBreakdown?: ScoreDimension[];
   confidence: Confidence;
+  // Seeker-side eligibility FLAGS (salary / location / seniority / language /
+  // work_mode) — honesty on the card, never an input to total or tier. Additive;
+  // absent means the engine did not read them (pre-WP4b payloads, recruiter paths).
+  eligibility?: EligibilityFlag[];
   matchedSkills?: string[];
   matchedSkillProvenance?: Record<string, string>;
   // Per-matched-skill strength in (0,1]: 1.0 exact, lower = taxonomy/sibling or
@@ -200,19 +205,22 @@ export type ProvenanceKey =
   | "self_declared"
   | "open_source"
   | "certification"
-  | "academic";
+  | "academic"
+  | "unknown";
 
 export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
   // `observed` is the highest-trust provenance the pipeline can mint (a passed
   // live case or case-grounded interview) — it gets the strongest visual stamp,
-  // and must never fall through to the generic "academic" bucket.
+  // and must never fall through to the generic "academic" bucket. An unrecognized
+  // slug is `unknown` (muted), never academic: academic is a claim about evidence.
   if (p === "observed") return { key: "observed", tone: "bg-moss/15 text-moss" };
   if (p === "professional") return { key: "professional", tone: "bg-stone-200 text-ink" };
   if (p === "internship") return { key: "internship", tone: "bg-blue-50 text-blue-700" };
   if (p === "self_declared") return { key: "self_declared", tone: "bg-stone-100 text-steel" };
   if (p === "open_source") return { key: "open_source", tone: "bg-blue-50 text-blue-700" };
   if (p === "certification") return { key: "certification", tone: "bg-blue-50 text-blue-700" };
-  return { key: "academic", tone: "bg-amber-50 text-amber-800" };
+  if (p === "academic") return { key: "academic", tone: "bg-amber-50 text-amber-800" };
+  return { key: "unknown", tone: "bg-stone-100 text-steel" };
 }
 
 /** Compact "k CZK" salary band for the match surfaces, e.g. `"45–60k CZK"`, or
@@ -224,8 +232,10 @@ export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
  *  `locale` (format.ts number-locale contract) so a four-digit band ("1 200k")
  *  groups the way the rest of the page does, and the unit is {@link APP_CURRENCY}
  *  rather than a "CZK" literal that would lie if that constant ever moved. The
- *  rounding, the "k" scale, and the en-dash are unchanged. */
-export function formatBandCompact(band?: number[], locale?: string): string {
+ *  compact scale marker defaults to `"k"` so tests/logs stay stable; callers with
+ *  a catalog pass `match.shared.bandUnit`. The rounding and the en-dash are
+ *  unchanged. */
+export function formatBandCompact(band?: number[], locale?: string, unit = "k"): string {
   if (!band || band.length !== 2) return "—";
-  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}k ${APP_CURRENCY}`;
+  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}${unit} ${APP_CURRENCY}`;
 }

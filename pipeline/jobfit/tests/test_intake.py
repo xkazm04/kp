@@ -1052,5 +1052,122 @@ class AppMasterScriptedPathTest(unittest.TestCase):
         self.assertIn("Jak byste roli nazvali", result["reply"])
 
 
+# A REAL captured Claude payload from the JD-grounded live smoke
+# (bench/intake-sim/smoke, "Remote Website Designer"), trimmed to the rows that
+# matter. Two shapes in it defeated extraction and produced the "eloquent empty
+# brief" — rich facets and summary beside `requirements: []`:
+#   * every requirement row names the condition `label`, not `skill` (the
+#     extraction contract named kind/hardness/weight and never `skill`, and the
+#     neighbouring facet rows carry `label`);
+#   * successCriteria arrives as OBJECTS carrying the provenance the contract
+#     demands, not as the plain strings the schema holds.
+# A third shape lost the family: the contract spells the spine key `roleFamily`
+# while the coercer only read `role_family`.
+_CAPTURED_LLM_TURN = {
+    "reply": "Three it is - responsive command, scalable design system experience in-house, and "
+             "pixel-perfect documented output. What did I get wrong or miss?",
+    "shape": "story",
+    "done": False,
+    "brief": {
+        "title": "Digital / Web Designer",
+        "seniority": "medior",
+        "roleFamily": "creative_design",
+        "summary": "A medior IC design role on a remote team.",
+        "responsibilities": ["Finish design production before handover to development"],
+        "successCriteria": [
+            {"text": "Fully carrying assigned projects through to development handover",
+             "provenance": "stated", "confidence": 1.0, "sourceTurn": 7},
+            {"text": "Running client-feedback adjustments without a design manager shadowing",
+             "provenance": "stated", "confidence": 1.0, "sourceTurn": 7},
+        ],
+        "requirements": [
+            {"label": "Designs websites with real command of responsive design patterns and systems",
+             "kind": "must_have", "hardness": "prerequisite", "weight": 0.9,
+             "provenance": "stated", "confidence": 1.0, "sourceTurn": 11},
+            {"label": "Scalable design system experience inside an in-house design team",
+             "kind": "must_have", "hardness": "prerequisite", "weight": 0.9,
+             "provenance": "stated", "confidence": 1.0, "sourceTurn": 11},
+            {"label": "Detail-oriented, pixel-perfect, well-documented output for development handover",
+             "kind": "must_have", "hardness": "prerequisite", "weight": 1.0,
+             "provenance": "stated", "confidence": 1.0, "sourceTurn": 11},
+        ],
+        "facets": [
+            {"key": "dealbreaker_context", "label": "The three that survive screening",
+             "value": "Everything else I'd coach.", "importance": "core",
+             "provenance": "stated", "confidence": 1.0, "sourceTurn": 11},
+        ],
+        "spineProvenance": {"title": "inferred", "seniority": "stated", "roleFamily": "inferred"},
+    },
+}
+
+
+class LiveExtractionRoutingTest(unittest.TestCase):
+    """The live-smoke findings, pinned offline (bench/intake-sim, 2026-09-08)."""
+
+    def _turn(self, payload: dict) -> dict:
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, timeout=None, expected_keys=None):
+                return payload
+
+        return run_intake_turn(FakeProvider(), [], None, "three dealbreakers", lang="en")
+
+    def test_captured_payload_keeps_its_requirement_rows(self) -> None:
+        brief = coerce_role_brief(self._turn(_CAPTURED_LLM_TURN)["brief"])
+        skills = [r.skill for r in brief.requirements]
+        self.assertEqual(len(skills), 3, skills)
+        self.assertTrue(any("responsive design patterns" in s for s in skills))
+        self.assertTrue(any("in-house design team" in s for s in skills))
+        self.assertTrue(any("pixel-perfect" in s for s in skills))
+        for req in brief.requirements:
+            self.assertEqual(req.kind, "must_have")
+            self.assertEqual(req.provenance, "stated")  # never downgraded to inferred
+            self.assertEqual(req.source_turn, 11)       # traceability survives the rename
+
+    def test_captured_payload_keeps_its_success_criteria(self) -> None:
+        brief = coerce_role_brief(self._turn(_CAPTURED_LLM_TURN)["brief"])
+        self.assertEqual(len(brief.success_criteria), 2)
+        self.assertIn("development handover", brief.success_criteria[0])
+
+    def test_role_family_provenance_survives_the_camelcase_spine_key(self) -> None:
+        brief = coerce_role_brief(self._turn(_CAPTURED_LLM_TURN)["brief"])
+        self.assertEqual(brief.role_family, "creative_design")
+        self.assertEqual(brief.spine_provenance.get("role_family"), "inferred")
+
+    def test_family_with_no_provenance_is_floored_at_inferred(self) -> None:
+        payload = json.loads(json.dumps(_CAPTURED_LLM_TURN))
+        payload["brief"]["spineProvenance"] = {"title": "inferred"}
+        brief = coerce_role_brief(self._turn(payload)["brief"])
+        self.assertEqual(brief.role_family, "creative_design")
+        self.assertEqual(brief.spine_provenance.get("role_family"), "inferred")
+
+    def test_the_schema_default_family_is_still_reported_as_defaulted(self) -> None:
+        payload = json.loads(json.dumps(_CAPTURED_LLM_TURN))
+        payload["brief"]["roleFamily"] = "software_engineering"
+        payload["brief"]["spineProvenance"] = {"title": "inferred"}
+        brief = coerce_role_brief(self._turn(payload)["brief"])
+        self.assertEqual(brief.spine_provenance.get("role_family", "default"), "default")
+
+    def test_a_stated_row_is_never_regressed_by_the_alias_read(self) -> None:
+        """The tolerant name read is not a door: merge rules still apply."""
+        base = RoleBrief(
+            requirements=[BriefRequirement(skill="Responsive design", provenance="stated")],
+            spine_provenance={"role_family": "stated"},
+            role_family="creative_design",
+        )
+        update = coerce_role_brief(
+            {"requirements": [{"label": "responsive design", "provenance": "inferred", "weight": 0.1}]}
+        )
+        merged = merge_brief(base, update)
+        self.assertEqual(len(merged.requirements), 1)
+        self.assertEqual(merged.requirements[0].provenance, "stated")
+        self.assertEqual(merged.spine_provenance["role_family"], "stated")
+
+    def test_extraction_rules_name_the_row_field(self) -> None:
+        rules = intake_system_brief("en")
+        self.assertIn("the condition itself goes in `skill`", rules)
+        self.assertIn("arrays of PLAIN STRINGS", rules)
+
+
+
 if __name__ == "__main__":
     unittest.main()

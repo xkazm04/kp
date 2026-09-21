@@ -33,14 +33,19 @@ export interface RegionLabelText {
  * (matching the detail card), and degrades to `medianUnavailable` when a region
  * has no median so the label never announces a bare "—".
  *
- * e.g. `regionAriaLabel(praha, text)` → "Hlavní město Praha: 7 163 open
- * vacancies, median earnings 53 600 Kč".
+ * `locale` is the READER's locale, the same one the sighted card formats with.
+ * It is required: the formatters default to `cs`, so an English page used to
+ * announce Czech grouping and "Kč" while its card read "CZK 53,600" (the koruna
+ * is Kč in Czech only, CZK in every other language: operator ruling 2026-09-14).
+ *
+ * e.g. `regionAriaLabel(praha, text, "en")` → "Hlavní město Praha: 7,163 open
+ * vacancies, median earnings CZK 53,600".
  */
-export function regionAriaLabel(region: Region, text: RegionLabelText): string {
-  const vacancies = `${fmtInt(region.vacancies)} ${text.vacancies}`;
+export function regionAriaLabel(region: Region, text: RegionLabelText, locale: string): string {
+  const vacancies = `${fmtInt(region.vacancies, locale)} ${text.vacancies}`;
   const median =
     isFigure(region.medianSalary)
-      ? `${text.median} ${fmtCzk(region.medianSalary)}`
+      ? `${text.median} ${fmtCzk(region.medianSalary, locale)}`
       : text.medianUnavailable;
   return `${region.name}: ${vacancies}, ${median}`;
 }

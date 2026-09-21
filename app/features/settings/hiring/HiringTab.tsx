@@ -151,7 +151,7 @@ export function HiringTab() {
           ) : null}
 
           {/* The live preview: the board these steps and this policy produce. */}
-          <PlanImpactStrip plan={c.plan} axis={c.axis.stages} />
+          <PlanImpactStrip plan={c.plan} axis={c.axis.stages} counts={c.counts} countsLoaded={c.countsLoaded} />
         </>
       )}
     </div>

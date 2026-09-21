@@ -57,17 +57,48 @@ _REASON_SOURCE_FILES = (
 )
 
 
+def _module_string_constants(tree: ast.Module) -> dict[str, str]:
+    """Module-level ``NAME = "literal"`` bindings, so a reason returned through a
+    named constant is still visible to the scan below.
+
+    Without this the scan saw only bare literals, and a reason spelled as a
+    constant — which is the RIGHT way to spell one that a second module also
+    needs (``claude_cli.CONSUMER_TERMS_REASON`` is the error subtype too) — was
+    invisible: the gate then reported the vocabulary as declaring a member
+    nothing returns, i.e. it failed in the direction that says "delete this
+    reason" about a reason that is live. Constants only, one level, no
+    resolution across modules: enough for the shape the code actually uses."""
+    constants: dict[str, str] = {}
+    for node in tree.body:
+        targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets = [node.target]
+        else:
+            continue
+        value = node.value
+        if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+            continue
+        for target in targets:
+            if isinstance(target, ast.Name):
+                constants[target.id] = value.value
+    return constants
+
+
 def _returned_availability_reasons() -> set[str]:
-    """Every descent reason ``availability()`` literally returns, read off the AST.
+    """Every descent reason ``availability()`` returns, read off the AST.
 
     Ground truth for the closed vocabulary: parse each module, find the
     ``availability`` methods, and collect the second element of every
-    ``return <bool>, "<reason>"``. Derived from the code that answers rather than
+    ``return <bool>, <reason>`` — whether the reason is written as a literal or
+    as a module-level constant. Derived from the code that answers rather than
     from a second list a human keeps in step by hand."""
     reasons: set[str] = set()
     for path in _REASON_SOURCE_FILES:
         with open(path, encoding="utf-8") as fh:
             tree = ast.parse(fh.read(), filename=path)
+        constants = _module_string_constants(tree)
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef) or node.name != "availability":
                 continue
@@ -77,6 +108,8 @@ def _returned_availability_reasons() -> set[str]:
                 for element in inner.value.elts:
                     if isinstance(element, ast.Constant) and isinstance(element.value, str):
                         reasons.add(element.value)
+                    elif isinstance(element, ast.Name) and element.id in constants:
+                        reasons.add(constants[element.id])
     return reasons
 
 
@@ -110,10 +143,10 @@ class AvailabilityReasonTests(unittest.TestCase):
     """Every adapter answers WHY, from the one closed vocabulary."""
 
     def test_every_adapter_reports_missing_key_not_a_bare_false(self) -> None:
-        # ollama is the exception by design: it authenticates nothing, so a missing
-        # key is not a descent for it (its endpoint always resolves).
+        # ollama and gateway are the exceptions by design: they authenticate
+        # nothing, so a missing key is not a descent (their endpoints always resolve).
         for name in sorted(ADAPTERS):
-            if name == "ollama":
+            if name in ("ollama", "gateway"):
                 continue
             with self.subTest(provider=name), env(
                 OPENAI_API_KEY=None, ANTHROPIC_API_KEY=None, GEMINI_API_KEY=None,
@@ -134,7 +167,7 @@ class AvailabilityReasonTests(unittest.TestCase):
         """THE case this exists for: a fully-credentialed cloud adapter under
         KP_OFFLINE must report the policy, not a missing key."""
         for name in sorted(ADAPTERS):
-            if name == "ollama":  # on-box by default — stays usable offline
+            if name in ("ollama", "gateway"):  # on-box by default — stay usable offline
                 continue
             with self.subTest(provider=name):
                 provider = _adapter(name, api_key="k")

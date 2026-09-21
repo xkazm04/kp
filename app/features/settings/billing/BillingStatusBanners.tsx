@@ -3,6 +3,7 @@
 import { CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { supportContactHref } from "@/app/_lib/sales-contact";
 import type { CheckoutBanner } from "./billingCheckoutBanner";
 
 // Billing tab — the load-failed retry banner, the post-checkout confirmation
@@ -16,6 +17,8 @@ export function BillingStatusBanners({
   onRecheck,
   hasData,
   configured,
+  showCheckoutRefresh = false,
+  showCheckoutSupport = false,
 }: {
   checkout: CheckoutBanner;
   planName: string;
@@ -28,6 +31,12 @@ export function BillingStatusBanners({
   onRecheck: () => void;
   hasData: boolean;
   configured: boolean;
+  /** Show a 'Refresh plan status' button while the banner is still in the
+   *  'confirming' state — fires 10 s after the checkout return. */
+  showCheckoutRefresh?: boolean;
+  /** Show a 'Contact support' mailto link while confirming — fires 30 s after
+   *  the checkout return when the webhook is unusually slow. */
+  showCheckoutSupport?: boolean;
 }) {
   const t = useTranslations("billing");
 
@@ -53,10 +62,26 @@ export function BillingStatusBanners({
                 ? t("checkoutPending")
                 : t("checkoutConfirming")}
           </p>
-          {/* The automatic poll backs off to a one-minute cap and then stops. Before
-              this the banner simply froze on "payment received, updating" with no way
-              to ask again short of reloading the page — for a webhook that was merely
-              slow. The manual re-check is the affordance that ends that dead end. */}
+          {/* Progressive recovery while the webhook is still landing: a Refresh button
+              appears at 10 s so a paying customer isn't left with a frozen banner, and
+              a support mailto link appears at 30 s for the long-tail slow-webhook case.
+              The automatic poll backs off to a one-minute cap and then stops; once the
+              window closes the banner moves to 'unconfirmed' and the recheck button
+              below takes over. */}
+          {checkout === "confirming" && showCheckoutRefresh ? (
+            <button type="button" onClick={onRecheck} className={`${BTN_SECONDARY} h-8 shrink-0 px-3 text-sm`}>
+              <RefreshCw size={14} aria-hidden />
+              {t("checkoutRefresh")}
+            </button>
+          ) : null}
+          {checkout === "confirming" && showCheckoutSupport ? (
+            <a
+              href={supportContactHref(t("checkoutSupportSubject"))}
+              className="shrink-0 text-sm text-steel underline hover:text-ink"
+            >
+              {t("checkoutSupportLink")}
+            </a>
+          ) : null}
           {checkout === "unconfirmed" ? (
             <button type="button" onClick={onRecheck} className={`${BTN_SECONDARY} h-8 shrink-0 px-3 text-sm`}>
               <RefreshCw size={14} aria-hidden />

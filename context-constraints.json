@@ -248,7 +248,7 @@
         {
           "rule": "Never make a provider mandatory, and never remove a deterministic fallback.",
           "why": "Keyless degradation is a product property, not a dev convenience — a fresh install with no API key must work. It is certified by the automation_eval and fault_eval gates, and it is on record as an ADR.",
-          "enforced_by": "npm run test:eval:ci (matching_eval, automation_eval --no-llm, fault_eval — all strict, keyless, in ci.yml python-gate)"
+          "enforced_by": "npm run test:eval:ci (matching_eval, automation_eval --no-llm, fault_eval, intake_eval --no-llm — all strict, keyless, in ci.yml python-gate)"
         },
         {
           "rule": "Keep app/_lib/llm-config.ts and pipeline/jobfit/llm/capabilities.py in step.",

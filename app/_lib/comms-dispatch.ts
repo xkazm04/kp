@@ -3,7 +3,7 @@ import { recordOutbox, type OutboxEntry } from "./db/devcase";
 import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import type { OutboxStatus } from "./comms-status";
 import type { PipelineEntry } from "./db/core";
-import { ensureErasureToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
+import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";
@@ -154,18 +154,67 @@ type CandidateCommTarget = {
   workspaceId?: string | null;
 };
 
-async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator, locale: Locale): Promise<string> {
-  if (entry.anonymizedAt || !entry.id) return ""; // already scrubbed, or no entry to manage
-  const token = ensureErasureToken(entry.id, entry.workspaceId ?? undefined);
-  if (!token) return "";
-  // ?lang= pins the page to the language the LETTER is written in, exactly as the status
-  // link that rides beside it does (proxy.ts turns the param into the NEXT_LOCALE cookie).
-  // Unpinned, the page resolved from a cookie the candidate does not have and then from
-  // Accept-Language — so a cs-locale candidate reading on an English-configured browser
-  // opened the erasure explainer (a legal affordance) in a language they never chose,
-  // while the other link in the same letter opened in Czech.
-  const link = `${await candidateLinkBase()}/data/${encodeURIComponent(token)}?lang=${locale}`;
-  return "\n\n" + t("dataFooter", { link });
+// THE TWO CANDIDATE-FACING LEGAL AFFORDANCES, built together because they must ride
+// together and are constantly mistaken for each other.
+//
+//   dataFooter — GDPR Art. 15/17: "review or erase your data" → /data/<erasureToken>.
+//   stopFooter — ePrivacy Art. 13(4) (and Czech § 7(4)(c) with § 11(2)(a)(4) of zák. č.
+//     480/2004 Sb., a standalone offence up to 10,000,000 Kč; German UWG § 7(2) No. 2):
+//     "stop sending me messages" → /stop/<optOutToken>.
+//
+// THEY ARE NOT INTERCHANGEABLE, and for years this module shipped only the first. A
+// candidate who simply wanted the mail to stop — including the people talent
+// rediscovery contacts who never applied to anything — was offered exactly one lever:
+// erase the entire application. Making the only way to decline further messages the
+// destruction of your own candidacy is the coupling the law forbids, so the opt-out is
+// its own link, its own token and its own page.
+//
+// Both are skipped for an already-anonymized entry (nothing left to manage, and nobody
+// left to mail) or one we cannot mint a token for. Both are ABSOLUTE via
+// candidateLinkBase(), resolved ONCE per letter and shared, so a detached send warns
+// about a missing public origin once rather than twice.
+async function candidateFooters(
+  entry: CandidateCommTarget,
+  t: CommsTranslator,
+  locale: Locale
+): Promise<{ text: string; unsubscribeUrl: string | null }> {
+  if (entry.anonymizedAt || !entry.id) return { text: "", unsubscribeUrl: null };
+  const workspaceId = entry.workspaceId ?? undefined;
+  const erasureToken = ensureErasureToken(entry.id, workspaceId);
+  const optOutToken = ensureOptOutToken(entry.id, workspaceId);
+  if (!erasureToken && !optOutToken) return { text: "", unsubscribeUrl: null };
+  const base = await candidateLinkBase();
+  // ?lang= pins each page to the language the LETTER is written in, exactly as the status
+  // link that rides beside them does (proxy.ts turns the param into the NEXT_LOCALE
+  // cookie). Unpinned, the page resolved from a cookie the candidate does not have and
+  // then from Accept-Language — so a cs-locale candidate reading on an English-configured
+  // browser opened the erasure explainer (a legal affordance) in a language they never
+  // chose, while the other link in the same letter opened in Czech.
+  const lines: string[] = [];
+  if (erasureToken) {
+    lines.push(t("dataFooter", { link: `${base}/data/${encodeURIComponent(erasureToken)}?lang=${locale}` }));
+  }
+  // TWO URLS FOR ONE OPT-OUT, and they are DIFFERENT ROUTES on purpose — this is the
+  // half that shipped wrong, so it is spelled out:
+  //   • the FOOTER link is read by a PERSON. It opens the /stop/<token> explainer page
+  //     (app/stop/[token]/page.tsx), ?lang=-pinned like the erasure link beside it, so
+  //     the page speaks the language the letter was written in.
+  //   • `unsubscribeUrl` is the MACHINE header target. It rides the wire envelope into
+  //     `List-Unsubscribe` beside `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+  //     (RFC 8058), which means a mail provider POSTs it UNATTENDED. Only
+  //     /api/stop/<token> (app/api/stop/[token]/route.ts) exports a POST; the page route
+  //     exports none, so aiming the header at the page answered every provider a 405 and
+  //     the opt-out was never recorded — a legal affordance that looked shipped and did
+  //     nothing. No ?lang= on it: nobody reads a JSON 200, and the route ignores it.
+  const stopToken = optOutToken ? encodeURIComponent(optOutToken) : null;
+  if (stopToken) lines.push(t("stopFooter", { link: `${base}/stop/${stopToken}?lang=${locale}` }));
+  // A BLANK line between the two, not a bare newline: they are two different rights and
+  // two different links, and running them together reads as one paragraph in which the
+  // second URL looks like a continuation of the first.
+  return {
+    text: lines.length > 0 ? "\n\n" + lines.join("\n\n") : "",
+    unsubscribeUrl: stopToken ? `${base}/api/stop/${stopToken}` : null,
+  };
 }
 
 // --- The SIMULATION guard ------------------------------------------------------
@@ -223,15 +272,21 @@ async function sendCandidateComm(
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
 ): Promise<OutboxStatus> {
+  const footers = await candidateFooters(entry, t, locale);
   const recorded = await sendCommUnlessSim({
     to: candidateRecipient(entry),
     subject: msg.subject,
-    body: msg.body + (await dataFooter(entry, t, locale)),
+    body: msg.body + footers.text,
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
     // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
     // ref on an entry-less dispatch). Ignored whenever the entry resolves.
     workspaceId: msg.workspaceId,
+    // The machine-readable half of the opt-out: the relay turns it into the
+    // List-Unsubscribe / List-Unsubscribe-Post mail headers (see comms-envelope.ts for
+    // why kp cannot set those itself). The visible link in the body is the half a
+    // candidate reads; this is the one their mail client offers them.
+    unsubscribeUrl: footers.unsubscribeUrl ?? undefined,
   }, entry.jobTitle);
   return recorded.status;
 }
@@ -281,12 +336,20 @@ export async function dispatchApplicationReceived(
   recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
 }
 
-/** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
- *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
-// `replied`/`manual` join the consent reasons (W2.3): every way a send can be refused
-// is one union, so a caller cannot handle the compliance refusals and silently miss the
-// sequence-stopped ones.
-export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason };
+/** Outcome of an outreach dispatch: delivered (or honestly queued with no relay),
+ *  SUPPRESSED for a consent/halt reason, or a dead-lettered relay handoff.
+ *
+ *  REC-10: `{ sent: true }` is keyed on the outbox row, never on "the call resolved".
+ *  Terminal `queued` (no relay — the local outbox IS the destination) and `sent`
+ *  (relay 2xx) are both `{ sent: true }`. A dead-letter (`failed`) is not — that
+ *  must not write `outreach_sent`, or automation will treat the person as reached
+ *  and refuse the retry. */
+// `replied`/`manual`/`candidate` join the consent reasons (W2.3); `delivery_failed`
+// is the relay dead-letter, so a caller cannot handle the compliance refusals and
+// silently miss a drop that should be retried.
+export type OutreachResult =
+  | { sent: true; status: "queued" | "sent" }
+  | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason | "delivery_failed"; status?: "failed" };
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
@@ -333,13 +396,20 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
-  // Recorded only after the send actually happened — counting an attempt would make a
-  // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
-  // from a fresh application.
+  const status = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
+  // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
+  // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
+  // — and that must not consume the one-shot `outreach_sent` marker automation-run
+  // uses for `already_sent`. Terminal `queued` (no relay) is honest keyless success.
+  if (status === "failed") {
+    return { sent: false, reason: "delivery_failed", status: "failed" };
+  }
+  // Recorded only after a non-failed handoff — counting an attempt would make a
+  // dead-letter look like a contact, and `sends > 0` is what later distinguishes a
+  // reply from a fresh application.
   recordOutreachSend(entry.id, entry.workspaceId);
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId);
-  return { sent: true };
+  return { sent: true, status: status === "sent" ? "sent" : "queued" };
 }
 
 /**
@@ -689,6 +759,55 @@ export async function dispatchInterviewInvite(
   return status;
 }
 
+/** Deliver a work-sample ASSIGNMENT to one named candidate on the board.
+ *
+ *  THE GAP THIS CLOSES. A dev case was published as a POSTING — a shareable apply
+ *  token candidates had to find — and sourced candidates were seeded straight onto the
+ *  board at Accepted. Nothing ever put the two together: no code path sent the case to
+ *  a specific person, so a candidate standing in a homework column was waiting for a
+ *  letter the product could not write. `dispatchCaseInvite` is that letter, and the
+ *  homework arrival hook (stage-hooks-homework.ts) is its caller.
+ *
+ *  It is modelled on `dispatchInterviewInvite` line for line — same recipient contract,
+ *  same consent/suppression path through `sendCandidateComm`, same GDPR footer, same
+ *  locale resolution against the candidate's OWN team, and the same truthful delivery
+ *  claim handed straight back to the caller (`queued` with no relay configured,
+ *  `failed` when the relay threw; never a blanket "sent").
+ *
+ *  ONE DIFFERENCE, deliberate: it records NO pipeline event. The event vocabulary is
+ *  pinned by set equality across `decision-attribution.ts`, the feed's
+ *  `pipelineEventCatalog.ts` and a localized label per kind in all four catalogs, and
+ *  the arrival hooks introduce no kind of their own (stage-hooks.ts states the same
+ *  rule for the interview invite). The durable record is the OUTBOX row this writes —
+ *  which the Comms Center and the candidate drawer's Messages section already read by
+ *  `ref` — and that row, not an event, is also the hook's idempotence key.
+ *
+ *  `link` must be ABSOLUTE: the candidate opens the apply surface outside the app, so
+ *  the caller resolves it through publicBaseUrl. */
+export async function dispatchCaseInvite(
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
+  link: string,
+  // Same structural-subtype reasoning as the interview invite: the caller supplies the
+  // tenant, because an entry-shaped argument is not guaranteed to carry one.
+  opts?: { workspaceId?: string | null }
+): Promise<OutboxStatus> {
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const subject = t("caseInvite.subject", { role });
+  // The apply surface is a public page rendered in the reader's language, so the link
+  // is pinned to the letter's locale exactly as the offer/nudge links are.
+  const body = t("caseInvite.body", { name, role, link: pinLinkLocale(link, locale), team: t("team") });
+  return sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "case_invite",
+    ref: entry.id ?? link,
+    workspaceId: opts?.workspaceId,
+  }, locale);
+}
+
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
  *  (offers in the reminder window always carry one; the guard keeps the body clean). */
 /** The slot line a LETTER states, formatted from the absolute `slot_at` in the
@@ -792,4 +911,28 @@ export async function dispatchOfferReminder(entry: PipelineEntry, link: string, 
   } catch (e) {
     console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
+}
+
+function formatConsentExpiryDate(iso: string, locale: string | null | undefined, workspaceId?: string | null): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const loc = candidateLocale(locale, workspaceId);
+  return dateFormatter(loc, { dateStyle: "medium" }).format(new Date(ms));
+}
+
+/** Pre-expiry consent notice: one letter in the 30-day window before the anonymize
+ *  sweep, so the candidate can renew or erase before storage limitation fires.
+ *  `sendCandidateComm` already appends the `/data/[token]` and `/stop/[token]`
+ *  footers. A throw means the message did NOT go out; the sweep claims the
+ *  `expiring_notified` event before calling, so a throw is logged, not retried. */
+export async function dispatchConsentExpiryReminder(entry: PipelineEntry): Promise<void> {
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const date = formatConsentExpiryDate(entry.consentExpiresAt ?? "", entry.locale, entry.workspaceId)
+    || (entry.consentExpiresAt ?? "").slice(0, 10);
+  const subject = t("consentExpiryReminder.subject", { role, date });
+  const body = t("consentExpiryReminder.body", { name, role, date, team: t("team") });
+  await sendCandidateComm(entry, t, { subject, body, kind: "consent_expiry" }, locale);
 }

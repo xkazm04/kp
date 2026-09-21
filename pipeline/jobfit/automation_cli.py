@@ -1,6 +1,6 @@
 """CLI for HR automation tasks (Direction 2). Mirrors reasoning_cli.py.
 
-    python -m pipeline.jobfit.automation_cli screen      --candidate-json P --job-id J [--no-llm]
+    python -m pipeline.jobfit.automation_cli screen      --candidate-json P --job-id J [--pipeline-size N] [--no-llm]
     python -m pipeline.jobfit.automation_cli outreach    --profile-json P --job-id J [--strengths-json S]
     python -m pipeline.jobfit.automation_cli rejection   --candidate-json P --job-id J --stage Screened [--scorecard-file S]
     python -m pipeline.jobfit.automation_cli prep        --candidate-json P --job-id J
@@ -112,6 +112,12 @@ def main(argv: list[str] | None = None) -> int:
     # GH7 — compact GitHub evidence summary written by automation-run.ts
     # (github.json). Read by screen/prep/scorecard; ignored elsewhere.
     parser.add_argument("--github-evidence", type=Path)
+    # How many ACTIVE candidates sit on the same job in the same workspace. Read by
+    # `screen` only: it sets the screening strictness tier (automation.POLICY's
+    # screen_volume_* thresholds) so a near-miss in a 4-candidate pipeline is held
+    # for a human while a busy role may be screened strictly. Omitted = unknown,
+    # which resolves to the most lenient tier — never to 0.
+    parser.add_argument("--pipeline-size", type=int, default=None)
     parser.add_argument("--entries-json", type=Path)
     parser.add_argument("--jobs", type=Path, default=None)
     # PREP2 — output locale for the recruiter-facing narrative (interview prep, and
@@ -182,7 +188,9 @@ def main(argv: list[str] | None = None) -> int:
         m = score_job(candidate, job)
 
         if args.command == "screen":
-            result, source = automation.screen_candidate(candidate, job, m, lang=lang or "en", provider=provider, github=github)
+            result, source = automation.screen_candidate(
+                candidate, job, m, lang=lang or "en", provider=provider, github=github, pipeline_size=args.pipeline_size
+            )
         elif args.command == "outreach":
             strengths = json.loads(args.strengths_json.read_text(encoding="utf-8")) if args.strengths_json else m.matched_skills
             result, source = automation.draft_outreach(candidate, job, strengths, lang=lang, provider=provider)

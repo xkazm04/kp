@@ -51,7 +51,7 @@ export function useLedgerLogic() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("notLive");
   const [field, setField] = useState<string | null>(null);
   const [seniority, setSeniority] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<JdRow | null>(null);
@@ -194,6 +194,8 @@ export function useLedgerLogic() {
         return t("chipDraft");
       case "unlinked":
         return t("chipUnlinked");
+      case "notLive":
+        return t("filterNotLive");
       default:
         return t("filterAll");
     }

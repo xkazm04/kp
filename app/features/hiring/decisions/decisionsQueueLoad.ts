@@ -46,11 +46,19 @@ export function readQueueResponse(payload: unknown): QueueRead {
   return { entries: null, failure: { code: str(p?.code), capability: str(p?.capability), status: answered ? 200 : null } };
 }
 
-/** Fold a THROWN read into the same shape. sharedGetJson turns a non-OK response
- *  into `Error("HTTP <status>")` and never hands the body back, so the status is
- *  recovered from that one known message and the code stays null — the message
- *  itself is never a code and never reaches a screen. */
+/** Fold a THROWN read, or a non-OK `{ status, body }` from a direct fetch, into
+ *  the same machine shape. A coded body (`FORBIDDEN_CAPABILITY`,
+ *  `PIPELINE_LIST_FAILED`) keeps its code and capability; a bare
+ *  `Error("HTTP 403")` still recovers only the status — the message itself is
+ *  never a code and never reaches a screen. */
 export function foldQueueLoadThrow(err: unknown): QueueLoadFailure {
+  if (err && typeof err === "object") {
+    const o = err as { status?: unknown; body?: unknown; code?: unknown; capability?: unknown };
+    const nested = o.body != null && typeof o.body === "object" ? (o.body as { code?: unknown; capability?: unknown }) : null;
+    const code = str(nested?.code) ?? str(o.code);
+    const capability = str(nested?.capability) ?? str(o.capability);
+    if (typeof o.status === "number") return { code, capability, status: o.status };
+  }
   const m = err instanceof Error ? /^HTTP (\d{3})$/.exec(err.message) : null;
   return { code: null, capability: null, status: m ? Number(m[1]) : null };
 }

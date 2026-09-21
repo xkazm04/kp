@@ -3,19 +3,65 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { listRepoScans } from "@/app/_lib/db/repo-scans";
 import { RepoScanRequestError, startRepoScan } from "@/app/_lib/repo-scan";
 
-// App master (P2) — start a repo scan: POST { repoUrl? } | { rootPath? } →
-// { scanId, taskId }. The scan runs as the `repo_scan` background task; the
-// caller polls GET /api/repo-scan/[id] for the row.
+// GET /api/repo-scan  -> { scans }  this workspace's recent rows, same allow-list
+//                                   as GET /api/repo-scan/[id] (no error / rootPath /
+//                                   fallbackReason / workspaceId).
+// POST /api/repo-scan  { repoUrl? } | { rootPath? } -> { scanId, taskId, reused }.
+// The scan runs as the `repo_scan` background task; the caller polls
+// GET /api/repo-scan/[id] for the row, or recovers the id from this list after a
+// refresh. GET is operator-gated and does not spend, so it has no limiter.
 //
-// Two gates, and they guard different things. requireOperator keeps a stranger
-// from pointing kp at a codebase at all (a no-op in open dev mode, by design). The
-// limiter guards the SPEND: every accepted scan is a git clone plus a Python
-// subprocess plus, when a provider is configured, an in-repo agent session — the
-// same premise as /api/extract-text, one tier tighter because the unit of work is
-// far larger. 10/10min is well past an operator composing one App-master role and
-// well under a loop.
+// POST has two gates, and they guard different things. requireOperator keeps a
+// stranger from pointing kp at a codebase at all (a no-op in open dev mode, by
+// design). The limiter guards the SPEND: every accepted scan is a git clone plus
+// a Python subprocess plus, when a provider is configured, an in-repo agent
+// session — the same premise as /api/extract-text, one tier tighter because the
+// unit of work is far larger. 10/10min is well past an operator composing one
+// App-master role and well under a loop.
+
+/** The detail route's allow-list, applied per row. A spread of `listRepoScans`
+ *  would put `error` / `rootPath` / `fallbackReason` / `workspaceId` on the
+ *  wire — the same leak GET /api/repo-scan/[id] was rewritten to close. Keep
+ *  the two lists in lockstep; both tests enumerate the keys. */
+function publicRepoScanView(scan: {
+  id: string;
+  repoUrl: string | null;
+  status: string;
+  source: string | null;
+  dossier: unknown;
+  errorCode: string | null;
+  fallbackClass: string | null;
+  rootPath: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}) {
+  return {
+    id: scan.id,
+    repoUrl: scan.repoUrl,
+    status: scan.status,
+    source: scan.source,
+    dossier: scan.dossier,
+    errorCode: scan.errorCode,
+    fallbackClass: scan.fallbackClass,
+    isLocal: scan.rootPath !== null,
+    createdAt: scan.createdAt,
+    updatedAt: scan.updatedAt,
+  };
+}
+
+export async function GET() {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  try {
+    const scans = listRepoScans(await currentWorkspace(), 25).map(publicRepoScanView);
+    return NextResponse.json({ scans });
+  } catch (error) {
+    return safeJsonError(error, "api:repo-scan", "REPO_SCAN_READ_FAILED");
+  }
+}
 
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();

@@ -58,6 +58,18 @@ test("every inline field error is ASSOCIATED with the control it is about", () =
   assert.match(quick, /aria-describedby=\{submitError \? "qa-submit-error" : incompleteError \? "qa-incomplete-error" : undefined\}/);
 });
 
+test("the chat names remaining work as a progressbar bound to visible-lane totals", () => {
+  const view = read("ConversationalApply.tsx");
+  assert.match(view, /visibleStepProgress/, "the view must import the visible-lane helper, not count raw idx");
+  assert.match(view, /role="progressbar"/);
+  assert.match(view, /aria-valuenow=\{progress\.current\}/);
+  assert.match(view, /aria-valuemin=\{0\}/);
+  assert.match(view, /aria-valuemax=\{progress\.total\}/);
+  assert.match(view, /t\("progress"/);
+  assert.match(view, /t\("progressAria"/);
+  assert.match(view, /!done && progress\.total > 0/, "the done card must hide the meter");
+});
+
 test("the door's buttons compose the shared recipes instead of re-typing them", () => {
   for (const rel of ["ApplyStepControls.tsx", "ApplyDoneCard.tsx", "ApplyErrorBlock.tsx", "quick/QuickApplyForm.tsx"]) {
     const src = read(rel);

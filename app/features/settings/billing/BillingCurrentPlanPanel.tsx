@@ -1,11 +1,11 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
-import { BTN_SECONDARY, DIVIDER, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, DIVIDER, META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { PlanPrice } from "./BillingPlanPrice";
-import { STATUS_TONE, type BillingPayload } from "./billingTypes";
+import { dunningBanner, STATUS_TONE, type BillingPayload } from "./billingTypes";
 
 // Billing tab — the current-plan card: name, price, lifecycle status, period
 // end, manage-in-portal. Split out of BillingTab.tsx.
@@ -29,6 +29,21 @@ export function BillingCurrentPlanPanel({
 }) {
   const t = useTranslations("billing");
   const format = useFormatter();
+  // Recovery, not chrome: past_due/unpaid used to share the Manage-subscription
+  // weight of an active sub. Polar's portal is the only place to update the card,
+  // so a failed payment gets an alert + Update-payment CTA on the same handler.
+  const dunning = data.configured ? dunningBanner(data.status) : null;
+  const dunningCopy =
+    dunning === "unpaid"
+      ? t("dunning.unpaid")
+      : dunning === "pastDue"
+        ? t("dunning.pastDue", {
+            hasDate: data.periodEnd ? "yes" : "no",
+            date: data.periodEnd
+              ? format.dateTime(new Date(data.periodEnd), { dateStyle: "long" })
+              : "",
+          })
+        : null;
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -56,6 +71,23 @@ export function BillingCurrentPlanPanel({
           className="shrink-0"
         />
       </div>
+      {dunning && dunningCopy ? (
+        <div
+          role="alert"
+          className={`${NOTICE(dunning === "unpaid" ? "critical" : "amber")} mt-4 flex flex-wrap items-center gap-3 p-3`}
+        >
+          <AlertTriangle size={16} className="shrink-0" aria-hidden />
+          <p className="min-w-0 flex-1 text-sm">{dunningCopy}</p>
+          <button
+            type="button"
+            onClick={onManage}
+            disabled={portalBusy}
+            className={`${BTN_PRIMARY} h-9 shrink-0 px-3 text-sm`}
+          >
+            {portalBusy ? t("manageOpening") : t("dunning.updatePayment")}
+          </button>
+        </div>
+      ) : null}
       <div className={`mt-4 flex flex-wrap items-center gap-3 ${DIVIDER} pt-4`}>
         <button
           type="button"

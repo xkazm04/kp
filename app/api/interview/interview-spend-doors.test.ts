@@ -39,21 +39,35 @@ function at(src: string, needle: string, what: string): number {
 // ---- /create: the order of its five decisions ------------------------------
 
 test("/create refuses cheaply, throttles, grounds, reserves, THEN revokes and mints", () => {
+  // The sequence now spans TWO files: the route owns the transport half (refuse
+  // cheaply, throttle, promote) and hands off to the shared mint door, which owns
+  // the spend half (ground, reserve, revoke, mint). The door is shared with the
+  // pipeline stage hook (app/_lib/stage-hooks.ts), which is exactly why the order
+  // below must be pinned where the calls live rather than where they used to live —
+  // an automatic, unattended caller now walks the same five decisions.
   const src = read("./create/route.ts");
+  const door = read("../../_lib/interview-invite.ts");
 
   const cheapGate = at(src, 'const quota = meterGate("interview_minutes"', "the cheap pre-gate");
   const named = at(src, 'jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400)', "the named-nothing refusal");
   const throttle = at(src, "rateLimit(`interview-create:", "the per-IP throttle");
   const promote = at(src, "resolveEntryForSubmission(submissionId, workspace)", "the submission promote");
-  const grounded = at(src, "await buildGroundedInterview(entryId, workspace)", "the grounding build");
-  const reserve = at(src, "maxBillableInterviewMin(grounded.durationMin)", "the authoritative reservation");
-  const revoke = at(src, "revokeOpenInterviewSessions(entryId, workspace)", "the reissue revoke");
-  const mint = at(src, "const session = createInterviewSession({", "the session mint");
+  const handoff = at(src, "await mintAndInviteVoiceScreen({", "the handoff to the shared mint door");
 
   assert.ok(cheapGate < throttle, "an empty meter is refused before it can spend another caller's budget");
   assert.ok(named < throttle, "a call naming no candidate is refused before the throttle, not counted by it");
   assert.ok(throttle < promote, "the throttle precedes the PROMOTE - that door writes a board row");
-  assert.ok(throttle < grounded, "the throttle precedes the model-backed grounding");
+  assert.ok(throttle < handoff, "the throttle precedes every expensive thing the door does");
+  assert.ok(promote < handoff, "the entry is resolved before the mint is asked for");
+
+  const live = at(door, "liveInterviewByEntry(entryId, workspaceId)", "the live-call guard");
+  const grounded = at(door, "await buildGroundedInterview(entryId, workspaceId)", "the grounding build");
+  const reserve = at(door, "maxBillableInterviewMin(grounded.durationMin)", "the authoritative reservation");
+  const revoke = at(door, "revokeOpenInterviewSessions(entryId, workspaceId)", "the reissue revoke");
+  const mint = at(door, "const session = createInterviewSession({", "the session mint");
+  const dispatch = at(door, "await dispatchInterviewInvite(", "the invite dispatch");
+
+  assert.ok(live < grounded, "a call in progress is refused before any model-backed work");
   assert.ok(
     grounded < reserve,
     "the reservation is sized from the run-of-show's booked length, so the build must come first",
@@ -63,15 +77,28 @@ test("/create refuses cheaply, throttles, grounds, reserves, THEN revokes and mi
     "a 402 must never reach the revoke: refusing AFTER killing the candidate's live link is the worst of both",
   );
   assert.ok(revoke < mint, "exactly one link is live per entry - the prior ones die before the new one exists");
+  assert.ok(mint < dispatch, "nothing is mailed before the link it points at exists");
 });
 
 test("/create's two meter gates are the cheap default and the authoritative worst case", () => {
   const src = read("./create/route.ts");
-  const gates = [...src.matchAll(/meterGate\("interview_minutes"/g)];
-  assert.equal(gates.length, 2, "the two-stage gate is deliberate: a cheap pre-check, then the true ceiling");
+  const door = read("../../_lib/interview-invite.ts");
+  // One per file now: the route keeps the cheap pre-check (it can refuse before even
+  // parsing a body), the shared door owns the authoritative one so every caller —
+  // the recruiter's button AND the stage hook — reserves the true ceiling.
+  assert.equal(
+    [...src.matchAll(/meterGate\("interview_minutes"/g)].length,
+    1,
+    "the route keeps exactly the cheap pre-check",
+  );
+  assert.equal(
+    [...door.matchAll(/meterGate\("interview_minutes"/g)].length,
+    1,
+    "the door keeps exactly the authoritative reservation",
+  );
   assert.match(src, /minUnits: GROUNDED_DEFAULT_MIN/, "the pre-check reserves the 20-min default");
   assert.match(
-    src,
+    door,
     /minUnits: maxBillableInterviewMin\(grounded\.durationMin\)/,
     "the authoritative one reserves bookedMin*2 - the exact ceiling /complete's debit clamps to",
   );
@@ -79,22 +106,25 @@ test("/create's two meter gates are the cheap default and the authoritative wors
 
 test("only the EMAILED interview link is locale-pinned; the recruiter's copy is not", () => {
   const src = read("./create/route.ts");
-  const langQuery = at(src, "const langQuery = inviteLocale ?", "the ?lang= pin");
-  const link = at(src, "const link = `${publicBaseUrl(", "the emailed absolute link");
+  const door = read("../../_lib/interview-invite.ts");
+  const langQuery = at(door, "const langQuery = inviteLocale ?", "the ?lang= pin");
+  const link = at(door, "invitedLink = `${publicBaseUrl(", "the emailed absolute link");
   assert.ok(langQuery < link, "the pin is computed before the link it goes on");
-  assert.match(src, /\/interview\/\$\{session\.token\}\$\{langQuery\}/, "the emailed link carries ?lang=");
+  assert.match(door, /\/interview\/\$\{session\.token\}\$\{langQuery\}/, "the emailed link carries ?lang=");
   // The `url` in the JSON body is opened by the RECRUITER; ?lang= there would rewrite
   // their own NEXT_LOCALE cookie and flip the whole console's language.
-  assert.match(src, /url: `\/interview\/\$\{session\.token\}`/, "the response url stays unpinned");
+  assert.match(src, /url: `\/interview\/\$\{minted\.session\.token\}`/, "the response url stays unpinned");
 });
 
 test("/create tells the recruiter WHY an invite did not go out, as a code", () => {
   const src = read("./create/route.ts");
-  assert.match(src, /INVITE_PROVIDER_UNCONFIGURED/, "no keys on this server is one class");
-  assert.match(src, /INVITE_DISPATCH_FAILED/, "a relay/outbox failure is the other");
-  assert.match(src, /\n\s+deliveryError,/, "the class rides back on the response, not only in a server log");
+  const door = read("../../_lib/interview-invite.ts");
+  assert.match(door, /INVITE_PROVIDER_UNCONFIGURED/, "no keys on this server is one class");
+  assert.match(door, /INVITE_DISPATCH_FAILED/, "a relay/outbox failure is the other");
+  assert.match(src, /deliveryError: minted\.deliveryError,/, "the class rides back on the response, not only in a server log");
   // The truthful outbox claim stays: the class says WHY, `delivery` says WHAT happened.
-  assert.match(src, /delivery = deliveryClaim\(isRelayConfigured\(\), status\)/, "the delivery claim is unchanged");
+  assert.match(door, /delivery = deliveryClaim\(isRelayConfigured\(\), status\)/, "the delivery claim is unchanged");
+  assert.match(src, /delivery: minted\.delivery,/, "and it reaches the wire unmodified");
 });
 
 // ---- the refusal vocabulary ------------------------------------------------

@@ -169,14 +169,14 @@ def wer(reference: str, hypothesis: str) -> WerResult:
 def corpus_wer(pairs: list[tuple[str, str]]) -> WerResult:
     """Aggregate WER over (reference, hypothesis) pairs — errors and ref-words pooled, which is the
     standard corpus-level definition (NOT the mean of per-utterance WERs)."""
-    S = D = I = N = 0
+    S = D = INS = N = 0
     for ref, hyp in pairs:
         r = wer(ref, hyp)
         S += r.substitutions
         D += r.deletions
-        I += r.insertions
+        INS += r.insertions
         N += r.ref_words
-    return WerResult((S + D + I) / N if N else 0.0, S, D, I, N)
+    return WerResult((S + D + INS) / N if N else 0.0, S, D, INS, N)
 
 
 # ---------------------------------------------------------------------------

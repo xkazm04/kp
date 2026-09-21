@@ -9,7 +9,7 @@ import { kindLabel, type AutomationImpact } from "@/app/_lib/decision-attributio
 import type { AutomationRoi } from "@/app/_lib/automation-roi";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { TargetInput } from "./AnalyticsTargetInput";
-import { RECRUITER_HOURLY_KEY } from "./AnalyticsTypes";
+import { MANUAL_HOURS_KEY, RECRUITER_HOURLY_KEY } from "./AnalyticsTypes";
 import { PANEL } from "@/app/_components/ui/recipes";
 
 // ANA3 — "how much is the automation actually doing": the auto/human split plus
@@ -173,6 +173,13 @@ function RoiLedger({
               label={t("rateLabel")}
               value={roi.hourlyRateCzk}
               suffix={t("rateSuffix")}
+              onSaved={onSaved}
+            />
+            <TargetInput
+              metric={MANUAL_HOURS_KEY}
+              label={t("hoursLabel")}
+              value={roi.manualBaselineHoursPerHire}
+              suffix={t("hoursSuffix")}
               onSaved={onSaved}
             />
             <button

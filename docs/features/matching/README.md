@@ -8,7 +8,12 @@ archetype detection are `docs/features/candidates/README.md`.
 ## Entry points
 
 - **Fit matrix** (`?tab=matrix`) — `app/features/insights/matrix/MatrixTab.tsx`. One
-  surface, two modes behind a segmented control:
+  surface, two modes behind a segmented control. `GET /api/matrix` forwards three
+  "don't swallow" channels from `matrix_cli`: `missing` (unresolved ids),
+  `missingCandidates` (profile validate/transform failures), and `missingJobs`
+  (jobs-json rows that failed `Job.model_validate`). A poison-pill ingested JD
+  is listed rather than dropping a column the recruiter thought was open;
+  `respond()` defaults `missingJobs` to `[]` when an older CLI omitted it.
   - **Grid** (pool-first: every candidate × every open role) — `MatrixGrid.tsx`,
     `MatrixReasoningPopover.tsx`.
   - **Candidate focus** (candidate-first: one candidate ranked against every role) —
@@ -145,7 +150,10 @@ For `student`/`career_switcher` archetypes, `pipeline/jobfit/matching.py`
 (`_DIM_SLUG_EARLY`) replaces the `career` dimension (seniority/family fit —
 undefined for someone with no track record) with **`potential_score`**, and
 `personal` (JD keyword overlap) with **motivation** (aspirations coherence +
-role-family hit + language). `potential_score` is a deterministic rubric over
+role-family hit + language). `score_motivation`'s aspiration term is whole-token
+title containment with a glue stopword set (`_MOTIVATION_STOPWORDS`), so a
+two-letter target like `"UX"` hits *UX Designer* and glue (`in`, `v`, `na`) does
+not — pinned by `MotivationAspirationTermTest`. `potential_score` is a deterministic rubric over
 the evidence structure — 35% depth + 25% learning velocity + 25% foundation +
 15% initiative — validated to `[0,1]` at the Pydantic boundary
 (`MatchCandidate.potential_score`), clamped so out-of-range values can't
@@ -257,7 +265,14 @@ claim on full coverage, so a partial matrix reports `unavailable`
 ("could not assess") instead of sealing a check that never re-scored the
 crowned lead. The panel still renders whatever matrix exists;
 `robustOrderVerdict` already declines the agrees/diverges line on the same
-mismatch.
+mismatch. `isFairnessAligned` (`app/features/shared/groupEvalTypes.ts`) also
+requires `own` and `ranking` to lockstep with `labels` (ranking may be shorter
+only when the blob's `koFailed` list accounts for the dropped KO labels), so a
+truncated persist cannot crown a robust order or paint a lockstep cell the
+panel does not have. `assessRobustness` itself returns `insufficient_sample`
+when that aligned field is below `GROUP_EVAL_MIN_COHORT`, so a one-person
+comparison cannot seal as robustness-checked even on the record path that never
+mounts the panel.
 
 **The fairness track rides on every compared candidate.** `fairness_track`
 (`recruiter.py`) marks each ranked row `early_career` or `experienced` because
@@ -447,6 +462,51 @@ extraction prompt (`jobs.py`) gained fidelity rules in the same round: duties
 never filed as requirements, `min_education` consistent with the stated
 requirements, company/location/work-mode never guessed.
 
+### 7. Eligibility flags (seeker side)
+
+The job-seeker module scores the seeker's own profile against harvested
+postings, so `MatchResult.eligibility` (`matching.eligibility_flags`) carries
+five `EligibilityFlag { key, state, detail }` rows per pair — one per axis
+`salary | location | seniority | language | work_mode`, states
+`ok | flag | unknown`. The inputs ride on `MatchCandidate` as
+`salary_expectation` (`SalaryExpectation { amount, currency, period }`),
+`preferred_locations` and `preferred_countries`, all default-empty; the
+`match_cli --preferences-json <path>` flag (and `transform.build_match_candidate(profile,
+preferences)` / `apply_preferences`) maps the TS `JobseekerPreferences` shape
+(`salaryFloor`, `locations`, `countries`, `workModes`, `seniority`) onto them.
+
+- **Never a KO, never a multiplier.** A flag is honesty on the card: it does not
+  move `total`, `fit_tier`, the weights or the KO filter. `seniority` /
+  `language` / `work_mode` only *mirror* `ko_filter`'s verdict so the seeker UI
+  shows every axis uniformly. Pinned by `tests/test_matching_eligibility.py`
+  (identical totals with and without preferences; `koFiltered` stays 0).
+- **Missing is `unknown`, never `flag`.** A posting with no stated pay — including
+  a band `normalize_job` stamped from the market anchor and recorded in
+  `defaulted_fields` — reads `unknown` ("posting states no pay"); so does a seeker
+  with no expectation, and a `location` the ad never stated.
+- **The posting's own units first.** `Job.salary_currency` / `Job.salary_period`
+  (`month | year | hour`, both optional and never defaulted) carry what the ad
+  actually stated; `posting_structure.structure_posting` fills them whenever it
+  detected a salary. The salary flag reads those, and falls back to
+  `market_config.ACTIVE_MARKET`'s currency only for a `Job` that carries none —
+  saying so in the detail (`… (cz market units — the posting stated no currency)`).
+- **Same currency only, no FX.** A seeker floor in a currency other than the
+  posting's is `unknown` with `not comparable: <cur> vs <cur>` — including a
+  posting whose own currency the market cannot hold, which used to reach the
+  reader as "posting states no pay" while the seeker's detail panel called the
+  same posting "not comparable".
+- **Period is arithmetic, not a rate.** `salary_band` stays denominated in the
+  market's period, so a CZK/year ad is restated ×12 for the *band only*
+  (`salary_period_converted:year->month` in `structure_posting`'s notes) while
+  `salary_period` keeps `"year"`; the flag's detail states the restatement. The
+  expectation is converted month↔year ×12 the same way. An **hourly** ad builds no
+  band but reads `unknown` with `hourly pay stated (<cur>/hour)` — never "no pay".
+  Pinned by `tests/test_matching_eligibility.py::StatedPeriodAndCurrencyTest`.
+- **Location** is a soft text match, case- and diacritics-insensitive ("plzen"
+  hits "Plzeň"); a stated `remote` work mode is `ok` anywhere; a preferred country
+  can match only as a token of the location text (the `Job` model has no country
+  field).
+
 ## Surface
 
 | Concern | Files |
@@ -491,14 +551,19 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
 - **Grid.** `/api/matrix` scores at most `MATRIX_POOL_CAP` profiles and returns the
   unclamped `poolTotal` beside it; `MatrixDataNotices.tsx` renders `matrix.ofCount`
   ("200 of 350") whenever `poolTotal > poolCap`.
-- **Candidate focus.** `useMatchTabRun` posts `limit: 25` and `matching.py::match`
-  returns `scored[:limit]`, reporting BOTH `meta.survivors` (roles that cleared every
-  KO gate and were scored) and `meta.returned` (the slice). `rankedField` compares
-  them and `MatchResultsHeader.tsx` renders the "Ranked" chip as the same
-  `matrix.ofCount` sentence — "25 of 74" — when the cap cut the list, plain "25" when
-  it didn't. Without it the chip row read "Evaluated 120 · KO-filtered 46 · Ranked
-  25": arithmetic that doesn't close, with 49 scored roles invisible (the CSV export
-  carries the same slice).
+- **Candidate focus.** `useMatchTabRun` posts `MATCH_FOCUS_LIMIT` (25) on first
+  paint and `matching.py::match` returns `scored[:limit]`, reporting BOTH
+  `meta.survivors` (roles that cleared every KO gate and were scored) and
+  `meta.returned` (the slice). `rankedField` compares them and
+  `MatchResultsHeader.tsx` renders the "Ranked" chip as the same `matrix.ofCount`
+  sentence — "25 of 74" — when the cap cut the list, plain "25" when it didn't.
+  When it is a cut, the header also offers a control that re-posts the same ref
+  at `min(survivors, MATCH_LIMIT_MAX)` (`offersRankedExpand` /
+  `expandRankedLimit` in `focus/matchView.ts`) so the missing roles fill in and
+  the CSV can leave as the real field. First paint stays at 25 (cost); a
+  re-weight after expand keeps the raised limit. Without the chip the row read
+  "Evaluated 120 · KO-filtered 46 · Ranked 25": arithmetic that doesn't close,
+  with 49 scored roles invisible.
 - **Candidate picker.** The `/api/profile` and `/api/analyses` option reads check
   `r.ok` before trusting the body, so `candidateOptionsPlaceholder` can tell the
   three cases apart — in flight ("Loading…"), the read failed (`matrix.loadFailed`),
@@ -665,6 +730,31 @@ column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
 `aria-colcount` that make those indices "of" something. Pinned structurally by
 `matrixGridRoles.test.ts` — indices only mean anything while the counts agree
 with them.
+
+### A failed Explain-fit can retry in place
+`ReasoningPanel` is the async face (pending / error / resolved) mounted per match
+card. A failed start, empty payload, or failed background task used to leave a
+static red paragraph, so the operator had to hunt for the original Explain control.
+An optional `onRetry` paints a `BTN_GHOST` `match.shared.retryReasoning` control on
+the error face; callers that cannot retry omit the prop and stay text-only.
+`MatchCard` passes `explain` from `useMatchCardReasoning`. Pinned by
+`MatchReasoningPanel.test.ts`.
+
+An empty Strengths / Gaps / Probes column is data, not a forgotten list: the
+heading still paints and the body uses `match.shared.emptyReasons` ("None named")
+instead of three hollow columns on a keyless fallback verdict.
+
+`NoMatchesExplainer` accepts an optional `action` (`href` or `onClick` + `label`)
+so a 0-match run is not a dead-end card. `MatchResults` supplies a JD-library
+deep link when the corpus is empty, and a roles-library link when every role was
+KO-filtered. Omit the prop and the explainer stays hint-only. Pinned by
+`MatchPresentation.test.ts`.
+
+`formatBandCompact` still groups thousands in the reader locale and keeps the
+en-dash plus `APP_CURRENCY`, but the compact scale marker is an optional `unit`
+argument (default `"k"`). Match cards and job-compare pass `match.shared.bandUnit`
+so a Czech chip can read `45–60 tis. CZK` instead of a stray English `k`. Pinned
+by `matchTypes.test.ts`.
 
 ### The narrative says what it is, on both surfaces
 `/api/match/reasoning` reports three things about an answer besides the answer:
@@ -1041,13 +1131,15 @@ side either; it was removed, and a test asserts it does not come back.
   `matrix.ofCount`); closing it needs the two routes to return the count, following
   the `listJobsPage`/`countJobs` template in `app/_lib/db/jobs.ts`. Deep links
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
-- The grid's cells carry **no per-cell confidence or provenance**: a cell shows one
-  number, and whether that number rests on evidenced or self-declared skills is
-  only readable after opening the cell's reasoning popover. Surfacing it in the
-  cell needs a per-cell provenance summary from the Python pass (`/api/matrix`
-  currently returns `{score, blocked, koKeys}` only) — a pipeline change, not a
-  UI one, so the match card's three-bucket split above is the honest interim:
-  the unproven bucket is visible on the card, not yet in the grid.
+- The grid's cells still **paint one number**: whether that number rests on
+  evidenced or self-declared skills is only readable after opening the cell's
+  reasoning popover. The GET `/api/matrix` `Cell` type now enumerates optional
+  `fitTier`, `confidence`, `unprovenCount`, and `provenanceMix` (additive: a
+  `{score, blocked}` cell still validates, and `respond()` spreads the parsed
+  matrix so a future CLI cannot be stripped by a typed mapper). `matrix_cli`
+  still emits `{score, blocked, koKeys?}` only — filling those fields is a
+  pipeline change. Until then the match card's three-bucket split is the honest
+  interim: the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.
@@ -1080,15 +1172,6 @@ side either; it was removed, and a test asserts it does not come back.
   uncertainty guard fails open for a blank field and closed for a partly-stated
   one. Fixing it is a data split of the term plus a knockout-policy decision on
   where an unstated degree level ranks; both are product calls, not a code fix.
-- `score_motivation`'s aspiration term still drops tokens of ≤3 characters
-  (`len(t) > 3`), the same guard `score_personal` removed 20 lines above as
-  "redundant AND discriminatory". A student whose stated aspiration is `"UX"`
-  scores `motivation` 0.65 / total 33 against a *UX Designer* role where the
-  same student writing `"UX design"` scores 1.0 / 40. Reach is thin (real
-  aspirations are usually multi-word, so a short token is rarely the only one),
-  and the safe fix is not simply deleting the guard: the term matches by raw
-  substring, so unfiltered short tokens would let glue words (`in`, `for`, `v`,
-  `na`) hit a title. It needs whole-token matching plus a stopword set.
 - Student/switcher end-to-end mechanics (observed-evidence minting from a
   live case or case-grounded interview, the dev-case module itself) are only
   summarized here; the devcase/interview build is owned by other feature docs

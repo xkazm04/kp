@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getJob, listJdRevisions, loadJd, revertJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
@@ -16,7 +16,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
   const { slug } = await context.params;
   const ws = await currentWorkspace();
   try {
-    if (!loadJd(slug, ws)) return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    if (!loadJd(slug, ws)) return jsonRefusal("JD_NOT_FOUND", 404);
     return NextResponse.json({ revisions: listJdRevisions(slug, 30, ws) });
   } catch (error) {
     return safeJsonError(error, "api:jds/revisions", "JD_LOAD_FAILED");
@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: "Revision or JD not found." }, { status: 404 });
+      return jsonRefusal("JD_NOT_FOUND", 404);
     }
     const restored = { title: result.title, body: result.body };
 

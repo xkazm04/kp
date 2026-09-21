@@ -8,7 +8,7 @@ import {
 } from "@/app/_lib/inbound-lead";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
@@ -218,9 +218,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Processing failed → the provider will retry; release the claim so the retry
     // isn't wrongly treated as a duplicate of work that never completed.
     if (claimedIdemKey) releaseWebhookIdempotency(claimedIdemKey);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Lead intake failed." },
-      { status: 500 }
-    );
+    // PUBLIC webhook: the raw message names our internals (SQLITE_* text, the db
+    // path, a CV-extractor traceback) to an unauthenticated caller. Log it, answer
+    // generically — the same contract the sibling /api/agents/report token route uses.
+    return safeJsonError(error, "api:channels/inbound", "CHANNEL_INBOUND_FAILED");
   }
 }

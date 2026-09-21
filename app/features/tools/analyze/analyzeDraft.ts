@@ -10,14 +10,23 @@
 // straight into a controlled <textarea> — the white-screen shape this repo has
 // already been bitten by once on the ?jd= deep link.
 //
-// Text only, deliberately: File objects cannot be serialized, so attachments must
-// be re-added after a switch and the draft never pretends otherwise.
+// Text plus the two run-config flags (blind, reportLang). File objects cannot
+// be serialized, so attachments must be re-added after a switch and the draft
+// never pretends otherwise.
+
+import { isLocale } from "@/i18n/locales";
 
 export const ANALYZE_DRAFT_KEY = "kp.analyzeDraft";
 
-export type AnalyzeDraft = { jd?: string; company?: string; github?: string };
+export type AnalyzeDraft = {
+  jd?: string;
+  company?: string;
+  github?: string;
+  reportLang?: string;
+  blind?: boolean;
+};
 
-/** The draft's fields, in the order the restore applies them. */
+/** The draft's text fields, in the order the restore applies them. */
 export const ANALYZE_DRAFT_FIELDS = ["jd", "company", "github"] as const;
 export type AnalyzeDraftField = (typeof ANALYZE_DRAFT_FIELDS)[number];
 
@@ -25,6 +34,7 @@ export type AnalyzeDraftField = (typeof ANALYZE_DRAFT_FIELDS)[number];
  * Parse whatever is under the key into a draft, or null. Every field is checked
  * to be a string and non-string fields are DROPPED rather than the whole draft
  * refused — a corrupted `github` should not cost the recruiter their JD.
+ * `reportLang` must pass `isLocale`; `blind` is kept only as a real boolean.
  */
 export function parseAnalyzeDraft(raw: string | null | undefined): AnalyzeDraft | null {
   if (!raw) return null;
@@ -43,6 +53,8 @@ export function parseAnalyzeDraft(raw: string | null | undefined): AnalyzeDraft 
     const value = source[field];
     if (typeof value === "string" && value !== "") draft[field] = value;
   }
+  if (isLocale(source.reportLang)) draft.reportLang = source.reportLang;
+  if (typeof source.blind === "boolean") draft.blind = source.blind;
   return Object.keys(draft).length > 0 ? draft : null;
 }
 
@@ -50,7 +62,8 @@ export function parseAnalyzeDraft(raw: string | null | undefined): AnalyzeDraft 
  * What to persist for the current inputs — `null` means REMOVE the key. An
  * all-empty draft must not be written: leaving `{"jd":"","company":"",...}`
  * behind is how a reset would resurrect itself as a stale-looking entry, and an
- * empty string is not a draft.
+ * empty string is not a draft. `blind: false` is the mount default and is
+ * omitted; `reportLang` is kept only when `isLocale`.
  */
 export function serializeAnalyzeDraft(draft: AnalyzeDraft): string | null {
   const kept: AnalyzeDraft = {};
@@ -58,6 +71,8 @@ export function serializeAnalyzeDraft(draft: AnalyzeDraft): string | null {
     const value = draft[field];
     if (typeof value === "string" && value !== "") kept[field] = value;
   }
+  if (isLocale(draft.reportLang)) kept.reportLang = draft.reportLang;
+  if (draft.blind === true) kept.blind = true;
   if (Object.keys(kept).length === 0) return null;
   return JSON.stringify(kept);
 }
@@ -69,4 +84,16 @@ export function serializeAnalyzeDraft(draft: AnalyzeDraft): string | null {
  */
 export function restoreDraftValue(current: string, drafted: string | undefined): string {
   return current || drafted || "";
+}
+
+/** Restore reportLang only when it is still at the locale this mount started with. */
+export function restoreDraftLocale(current: string, drafted: string | undefined, mountDefault: string): string {
+  if (current !== mountDefault) return current;
+  return drafted && isLocale(drafted) ? drafted : current;
+}
+
+/** Restore blind only when it is still at the mount default (false). */
+export function restoreDraftBlind(current: boolean, drafted: boolean | undefined, mountDefault = false): boolean {
+  if (current !== mountDefault) return current;
+  return typeof drafted === "boolean" ? drafted : mountDefault;
 }

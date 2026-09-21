@@ -15,6 +15,7 @@ import {
 import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "@/app/_lib/fit-thresholds";
 import { labelize } from "@/app/_lib/format";
 import { isInterviewRecommendation, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
+import { Tooltip } from "./Tooltip";
 
 // One semantic badge system for every qualitative signal the pipeline emits
 // (confidence, code-review status, extractor recommendation, engine provenance),
@@ -286,8 +287,9 @@ export function CodeReviewStatusBadge({ status, className }: { status: string; c
   return <Badge {...codeReviewStatusToken(status)} className={className} />;
 }
 
-/** A confidence-band level badge whose native tooltip lists the drivers behind
- *  the band width (early-career, thin skills, unknown education, …). */
+/** A confidence-band level badge whose Tooltip lists the drivers behind the
+ *  band width (early-career, thin skills, unknown education, …). Native `title=`
+ *  is forbidden here: it never appears on keyboard focus. */
 export function ConfidenceBandBadge({
   level,
   drivers = [],
@@ -301,14 +303,16 @@ export function ConfidenceBandBadge({
   className?: string;
 }) {
   return (
-    <span title={confidenceBandTitle(drivers, copy.title)} className="inline-flex">
-      <Badge {...confidenceBandToken(level, copy)} className={className} />
-    </span>
+    <Tooltip label={confidenceBandTitle(drivers, copy.title)}>
+      <span tabIndex={0} className="focus-ring inline-flex rounded-full">
+        <Badge {...confidenceBandToken(level, copy)} className={className} />
+      </span>
+    </Tooltip>
   );
 }
 
-/** The titled `low–high` confidence-range text — the numeric band whose native
- *  tooltip re-reads the same drivers as ConfidenceBandBadge. Shared by every match
+/** The titled `low–high` confidence-range text — the numeric band whose Tooltip
+ *  re-reads the same drivers as ConfidenceBandBadge. Shared by every match
  *  surface so the band rendering (and its drivers tooltip) lives in one place
  *  instead of being hand-rolled beside each badge. `className` carries the
  *  per-surface text styling (e.g. text-sm vs nums). */
@@ -328,9 +332,11 @@ export function ConfidenceRange({
   className?: string;
 }) {
   return (
-    <span className={className} title={confidenceBandTitle(drivers, copy.title)}>
-      {low}–{high}
-    </span>
+    <Tooltip label={confidenceBandTitle(drivers, copy.title)}>
+      <span tabIndex={0} className={`focus-ring ${className ?? ""}`}>
+        {low}–{high}
+      </span>
+    </Tooltip>
   );
 }
 

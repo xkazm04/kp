@@ -10,14 +10,12 @@ import { JdsLedgerTableHead } from "./JdsLedgerTableHead";
 import { JdsLedgerRow } from "./JdsLedgerRow";
 
 // The table's column count; kept in one place so the "no match" / empty / loading
-// rows span them all. Role · Field · Seniority · Status · Pipeline · Analyzed ·
-// Saved · Actions — 8, matching JdsLedgerTableHead's five <th> + three <ColumnHead>
-// and JdsLedgerRow's eight <td>. It read 9 from the moment the Analytics scoreboard
-// columns landed as a SPLIT Pipeline + Hired pair; they were merged back into the
-// single Pipeline cell (see JdsLedgerRow's note) without walking this back, so every
-// colSpan below declared a phantom ninth column that no header names — an extra
-// headerless column in the accessibility tree on the empty / no-match / loading rows.
-const COLS = 8;
+// rows span them all. Role · Field · Seniority · Status · Analyzed · Saved ·
+// Actions — 7, matching JdsLedgerTableHead's five <th> + two <ColumnHead> and
+// JdsLedgerRow's seven <td>. (It was 8 with the Pipeline column, and 9 for a while
+// before that — a phantom column no header named; the count is pinned here so the
+// colSpans and the header can't drift apart again.)
+const COLS = 7;
 
 // The saved-JD table: filterable column headers + rows, plus its own empty/no-
 // match/loading states — extracted verbatim from LibrarySavedJdsLedger.tsx so
@@ -80,7 +78,6 @@ export function JdsLedgerTable({
   // filtered view: rescaling on every filter change would make the same role's
   // bar jump size for no reason the reader caused, and the comparison it exists
   // to support is between roles, not between filter states.
-  const peak = Math.max(1, ...(rows ?? []).map((r) => r.pipeline?.total ?? 0));
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -149,7 +146,6 @@ export function JdsLedgerTable({
                 enumLabel={enumLabel}
                 reload={reload}
                 duplicating={duplicating}
-                peak={peak}
                 onOpenRow={onOpenRow}
                 onDuplicate={onDuplicate}
                 onIngested={onIngested}
