@@ -245,10 +245,33 @@ test("the default window is the documented one", () => {
 });
 
 // --- the committed baseline must describe the committed scenarios -----------
+// Scenario files that are committed but not (yet) a gate subject. Empty on
+// purpose: a new scenarios/*.json must either join baseline.json or be named
+// here with a why. Silence is how coverage regressions hid as `unbaselined`.
+const UNBASELINED_ALLOW = {
+  // none — every shipped scenario is a gate subject
+};
+
 test("every baselined scenario has a scenario file", () => {
   const known = new Set(listScenarioFiles().map((f) => path.basename(f, ".json")));
   for (const name of Object.keys(BASELINE.scenarios)) {
     assert.ok(known.has(name), `baseline names "${name}", which has no scenarios/${name}.json`);
+  }
+});
+
+test("every scenario file is either baselined or on the explicit unbaselined allow list", () => {
+  const files = listScenarioFiles().map((f) => path.basename(f, ".json"));
+  const baselined = new Set(Object.keys(BASELINE.scenarios));
+  const allowed = new Set(Object.keys(UNBASELINED_ALLOW));
+  for (const name of files) {
+    assert.ok(
+      baselined.has(name) || allowed.has(name),
+      `scenarios/${name}.json is neither in baseline.json nor UNBASELINED_ALLOW — pick one, or a live sweep reports it as an unbaselined extra and does not fail`,
+    );
+  }
+  for (const name of allowed) {
+    assert.ok(!baselined.has(name), `"${name}" is on UNBASELINED_ALLOW AND baselined — drop it from the allow list`);
+    assert.ok(files.includes(name), `UNBASELINED_ALLOW names "${name}", which has no scenarios/${name}.json`);
   }
 });
 
@@ -264,6 +287,33 @@ test("every required expectation is actually declared by its scenario", () => {
         declared.includes(required),
         `baseline requires "${required}" for ${name}, but its expect block declares only: ${declared.join(", ")}`,
       );
+    }
+  }
+});
+
+// Expect keys a baselined scenario declares but the gate does not require.
+// Empty on purpose: a declared check that is not required is an ungated exam,
+// and it used to hide as sweep-time "unmeasured" only if a run existed.
+const UNGATED_EXPECTATIONS = {
+  // none — every shipped expect key of a baselined scenario is a requiredExpectation
+};
+
+test("every declared expect key is required by the baseline, or listed as ungated", () => {
+  for (const [name, spec] of Object.entries(BASELINE.scenarios)) {
+    const file = listScenarioFiles().find((f) => path.basename(f, ".json") === name);
+    if (!file) continue;
+    const declared = Object.keys(readScenario(file).expect ?? {});
+    const required = new Set(spec.requiredExpectations ?? []);
+    const ungated = new Set(UNGATED_EXPECTATIONS[name] ?? []);
+    for (const key of declared) {
+      assert.ok(
+        required.has(key) || ungated.has(key),
+        `${name} declares expect.${key} but baseline.json does not require it and it is not on UNGATED_EXPECTATIONS`,
+      );
+    }
+    for (const key of ungated) {
+      assert.ok(declared.includes(key), `UNGATED_EXPECTATIONS[${name}] names "${key}", which the scenario does not declare`);
+      assert.ok(!required.has(key), `UNGATED_EXPECTATIONS[${name}] names "${key}", which is already required — drop it from the list`);
     }
   }
 });
@@ -368,6 +418,7 @@ const FLOOR = {
   "personas-self": { requiredExpectations: ["probation", "noViolations"] },
   ascent: { requiredExpectations: ["probation", "noViolations", "minProposalsOpened"] },
   "systedo-case": { requiredExpectations: ["probation", "noViolations", "minProposalsOpened"] },
+  "kp-c1-night": { requiredExpectations: ["noViolations", "rankVsBacklog", "declineQuality", "valueLiteracy"] },
 };
 
 test("no baselined scenario may be deleted", () => {

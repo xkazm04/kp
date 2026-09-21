@@ -11,8 +11,8 @@ import type { AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
 import {
   INITIAL_SETUP,
-  SETUP_STEPS,
   reachedCeiling as ceilingOf,
+  relevantSteps,
   stepSatisfied,
   type OnboardingCtrl,
   type SetupInvite,
@@ -45,6 +45,10 @@ import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 //               org writes, no invites, no axis write, no stamp, no draft (fixes
 //               the ambiguity-ui finding that "Preview" wrote for real). The axis
 //               is still READ, so the walkthrough shows this workspace's real board.
+//
+// THE INTENT FORK. Every index here is a position in `relevantSteps(state)` — the
+// declared sequence for THIS run (setupSteps.ts). A seeker's run is Welcome →
+// Hand-off, and its finish() persists only the language and routes to /me.
 export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "live" | "preview"; onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("setup");
@@ -61,14 +65,21 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const finishing = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // The steps THIS run walks. The intent is answered on step 0, so the sequence can
+  // only shrink while the operator stands on Welcome — but the clamp below holds
+  // regardless, so an index can never point past the sequence it indexes.
+  const steps = useMemo(() => relevantSteps(state), [state]);
+  const lastIndex = steps.length - 1;
+  const safeIndex = Math.min(stepIndex, lastIndex);
+
   // Highest step legitimately reached (Continue / Skip both route through the
   // movers below, so the high-water mark is exactly "reached through the gates").
   const [maxVisited, setMaxVisited] = useState(0);
 
-  const canAdvance = stepSatisfied(SETUP_STEPS[stepIndex].id, state);
+  const canAdvance = stepSatisfied(steps[safeIndex].id, state);
   // …and the ceiling that mark buys, which the current step can REVOKE — see
   // reachedCeiling in setupSteps.ts for why the raw high-water mark is unsafe.
-  const reachedCeiling = ceilingOf(maxVisited, stepIndex, canAdvance);
+  const reachedCeiling = ceilingOf(Math.min(maxVisited, lastIndex), safeIndex, canAdvance);
 
   // Rail navigation is GATED like the Continue button: freely back to anything
   // already reached, forward only one step and only when the current step's
@@ -77,22 +88,21 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // raises the high-water mark legitimately.)
   const goTo = useCallback(
     (i: number) => {
-      const target = Math.max(0, Math.min(SETUP_STEPS.length - 1, i));
+      const target = Math.max(0, Math.min(lastIndex, i));
       const allowed =
-        target <= Math.max(reachedCeiling, stepIndex) ||
-        (target === stepIndex + 1 && stepSatisfied(SETUP_STEPS[stepIndex].id, state));
+        target <= Math.max(reachedCeiling, safeIndex) || (target === safeIndex + 1 && stepSatisfied(steps[safeIndex].id, state));
       if (!allowed) return;
       setStepIndex(target);
       setMaxVisited((m) => Math.max(m, target));
     },
-    [stepIndex, reachedCeiling, state]
+    [safeIndex, lastIndex, reachedCeiling, state, steps]
   );
   const next = useCallback(() => {
-    const target = Math.min(SETUP_STEPS.length - 1, stepIndex + 1);
+    const target = Math.min(lastIndex, safeIndex + 1);
     setStepIndex(target);
     setMaxVisited((m) => Math.max(m, target));
-  }, [stepIndex]);
-  const back = useCallback(() => setStepIndex((s) => Math.max(0, s - 1)), []);
+  }, [safeIndex, lastIndex]);
+  const back = useCallback(() => setStepIndex((s) => Math.max(0, Math.min(s, lastIndex) - 1)), [lastIndex]);
   const update = useCallback((patch: Partial<SetupState>) => setState((s) => ({ ...s, ...patch })), []);
   const addInvite = useCallback((invite: SetupInvite) => setState((s) => ({ ...s, invites: [...s.invites, invite] })), []);
   const removeInvite = useCallback(
@@ -114,14 +124,16 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const restore = useCallback(
     (draft: SetupDraft) => {
       setState((s) => mergeSetupDraft(s, draft, initial));
-      const at = restoredStepIndex(draft, SETUP_STEPS.length);
+      // The restored position is a position in the sequence the restored INTENT
+      // implies — a seeker's draft claiming step 4 clamps to its two-step run.
+      const at = restoredStepIndex(draft, relevantSteps({ ...initial, intent: draft.intent }).length);
       setStepIndex((s) => (s === 0 ? at.stepIndex : s));
       setMaxVisited((m) => Math.max(m, at.maxVisited));
       pendingAxis.current = draft.axisDraft;
     },
     [initial]
   );
-  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex, maxVisited, restore });
+  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex: safeIndex, maxVisited, restore });
   useEffect(() => {
     if (!pendingAxis.current || !state.pipeline) return;
     const draft = pendingAxis.current;
@@ -197,6 +209,9 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // can 409. Anything that did not land is named — by part and by the server's
   // machine code, resolved in the reader's language — instead of collapsing into a
   // green "Your workspace is set up".
+  //
+  // A SEEKER's finish writes only the parts of the steps they walked (the language)
+  // and lands on /me — their workspace — instead of refreshing the recruiter's.
   const finish = useCallback(async () => {
     if (finishing.current) return;
     finishing.current = true;
@@ -226,7 +241,8 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       // affordance reads it (`useSetupUnfinished`) through its own fetch, so without
       // this it would keep offering "pick up where you left off".
       void stamp("completed").then(notifyDataChanged);
-      router.refresh();
+      if (state.intent === "seek") router.push("/me");
+      else router.refresh();
       onClose();
     }
   }, [state, mode, stamp, clearDraft, onClose, router, t, resolveError]);
@@ -244,7 +260,8 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
 
   const ctrl: OnboardingCtrl = {
     mode,
-    stepIndex,
+    steps,
+    stepIndex: safeIndex,
     // The REACHABLE ceiling, not the raw high-water mark — see above. The rail
     // draws its disabled state from the same number goTo enforces, so a step the
     // stepper offers is always a step a click can actually open.
@@ -263,7 +280,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     cancelLeave,
     finish,
     canAdvance,
-    isLast: stepIndex === SETUP_STEPS.length - 1,
+    isLast: safeIndex === lastIndex,
   };
 
   return (

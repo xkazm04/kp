@@ -165,8 +165,10 @@ callers need one, give them the code and let them resolve it.
   longer re-exported from `matchTypes` / `profileTypes`: a barrel handing feature
   code the raw map is how this reached three surfaces.
 
-`ERROR_LEAK_ALLOW` in the script lists the verified exceptions. Two kinds
-qualify, and both are commented at the entry:
+`ERROR_LEAK_ALLOW` in the script lists the verified exceptions. The set is
+held to `ERROR_LEAK_ALLOW_MAX` (currently 7): appending a path without raising
+the ceiling (with a reason) fails `i18n:check`, as does an entry that is not
+on disk. Two kinds qualify, and both are commented at the entry:
 
 - **Not an API envelope** — e.g. a background `Task` record's own diagnostic
   field. There is no `code`, so there is nothing to resolve.
@@ -300,19 +302,23 @@ the next section draws for *copy*.
 
 ## Choosing the app language
 
-`LOCALES` in `i18n/locales.ts` is the **only** enumeration of languages. Three
-surfaces let a user pick one, and all three write the same two authorities:
+`LOCALES` in `i18n/locales.ts` is the **only** enumeration of languages. Four
+surfaces let a user pick one; they do not all write the same authorities:
 
-| Surface | File |
-| --- | --- |
-| Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` |
-| Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` |
-| Organization settings + first-run wizard | `app/features/settings/organization/OrganizationGeneralPanel.tsx`, `app/features/shell/setup/SetupLanguageSwitch.tsx` |
+| Surface | File | Writes |
+| --- | --- | --- |
+| Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` | UI cookie (`setLocale`) |
+| Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` | UI cookie (`setLocale`) |
+| First-run wizard strip | `app/features/shell/setup/SetupLanguageSwitch.tsx` | UI cookie now (`setLocale`); workspace default on `finish()` |
+| Organization settings | `app/features/settings/organization/OrganizationGeneralPanel.tsx` | both, through `setOrgLanguage` |
 
-The public switcher writes only the UI cookie (`setLocale`, `i18n/actions.ts`).
-The two **org-level** surfaces write both authorities through `setOrgLanguage`
-(`app/_lib/org-actions.ts`), because an org's language has to reach code that
-runs with no request cookie:
+The public switcher, the studio rail and the wizard strip write only the UI
+cookie (`setLocale`, `i18n/actions.ts`) so the reader can keep going in the
+language they just picked. Skip/leave after a strip tap must not re-home
+candidate mail: `persistOnboardingSetup` is the one wizard writer of
+`setOrgLanguage`, and a skip never calls it. Organization settings writes both
+authorities through `setOrgLanguage` (`app/_lib/org-actions.ts`), because an
+org's language has to reach code that runs with no request cookie:
 
 1. the **`NEXT_LOCALE` cookie** — the UI and request-scoped generation (CV
    analysis, JD build, match reasoning);
@@ -346,9 +352,18 @@ resolution path shared by `i18n/request.ts` and every API route that threads a
 language into a backend call. Its precedence is **cookie → `Accept-Language` →
 `en`**, with `isLocale()` guarding each step: an unsupported cookie value does
 not win and does not stop the chain, it falls through to the header.
+`setLocale("auto")` or `setLocale(null)` deletes `NEXT_LOCALE` with the same
+path / SameSite / `secure` options the writer used, so a one-off override can
+return to "whatever this browser speaks". Invalid values stay no-ops.
 `resolveAcceptLanguage` folds a regional tag onto its primary subtag (`cs-CZ` →
 `cs`) and honours the header's own order, so the first *supported* tag wins
-rather than the first tag. All of it is pinned by `i18n/locales.test.ts`.
+rather than the first tag. Tags with `q=0` are skipped (RFC 9110: not
+acceptable) without re-sorting the list, so `en;q=0,cs` resolves to Czech and
+`de;q=0.2,fr;q=0.9` still resolves to German. The `?lang=` proxy and `setLocale` fold the same way
+through `coerceLocale`, so a candidate link `?lang=cs-CZ` writes `cs` instead of
+being ignored. `isLocale` stays strict so a catalog import never sees a regional
+tag; `es-ES` and path-like values stay unset. All of it is pinned by
+`i18n/locales.test.ts`.
 
 ### `AppLanguage` is `Locale`, not a subset of it
 
@@ -366,10 +381,12 @@ actually ships** — a picker that silently could not reach half the product.
 `tsc` error. The two vocabularies cannot drift again.
 
 **In the first-run wizard, language lives in the left rail**
-(`SetupLanguageSwitch.tsx`), visible on every step, and it switches the app
-immediately. Two earlier positions were both wrong: step 2 as a draft value that
-only reached the server at `finish()` (a reader who could not read English picked
-their language and then watched the wizard stay in English for three more steps),
+(`SetupLanguageSwitch.tsx`), visible on every step, and it switches the UI
+immediately (`setLocale` + `router.refresh()`). The workspace default waits for
+`finish()` (`persistOnboardingSetup` → `setOrgLanguage`). Two earlier positions
+were both wrong: step 2 as a draft value that only reached the server at
+`finish()` (a reader who could not read English picked their language and then
+watched the wizard stay in English for three more steps),
 then step 1 above the value props — better, but gone the moment you pressed
 Continue, so realising on step 3 meant navigating back to find it. In the rail it
 is a four-code strip (`EN CS DE FR`, the `TOGGLE_GROUP` recipe, same shape as the
@@ -674,7 +691,7 @@ of attribute literals elsewhere.
   (`jdsLibrary.SORTS`). A grammar constant that a parser round-trips
   (`ScheduleTypes.DEFAULT_SLOT`) is not copy at all — comment it and leave it.
 - `ERROR_LEAK_ALLOW` in `scripts/i18n-check.mjs` still lists
-  `usePipelineCandidateDrawerState.ts`, `analyzeRunAnalysis.ts` and
+  `analyzeRunAnalysis.ts` and
   `useDevSubmissionRow.ts`, whose GitHub call sites now resolve a real code. The
   entries are stale and can be dropped, which would re-arm the guard on those
   files.

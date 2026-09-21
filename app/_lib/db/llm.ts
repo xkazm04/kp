@@ -184,11 +184,55 @@ export function deleteProviderKey(provider: string, scope: string): boolean {
 
 export type { LlmUsageInput };
 
-export function insertLlmUsage(input: LlmUsageInput): void {
+/** A TS-direct ledger write: the sidecar fold's input plus an optional replay key. */
+export type LlmUsageWrite = LlmUsageInput & {
+  /** Replay identity for this write. When omitted, derived from requestId +
+   *  useCase + source + billed unit iff `requestId` is present. NULL keys stay
+   *  distinct under the unique index (unkeyed writers and every pre-column row). */
+  ingestKey?: string | null;
+};
+
+/** The billed unit that distinguishes two meters of the same request (a cache
+ *  miss vs its hit, a reconnect that bills a second amount) without collapsing
+ *  them onto one ingest_key. */
+function billedUnit(input: LlmUsageInput): string {
+  if (input.costUsd != null) return `usd:${input.costUsd}`;
+  return `tok:${input.inputTokens ?? ""}:${input.outputTokens ?? ""}:${input.cachedTokens ?? ""}`;
+}
+
+/**
+ * Replay key for one TS-direct `insertLlmUsage` write. An explicit `ingestKey`
+ * wins (stored as-is). Otherwise a requestId-bearing row hashes
+ * (requestId, useCase, source, billed unit) — the recipe the voice/TTS/GitHub
+ * writers already have enough fields for. No requestId → null, and SQLite
+ * treats those NULLs as distinct, so unkeyed tests and STT (which does not yet
+ * pass a request id) keep inserting.
+ */
+export function llmUsageIngestKey(input: LlmUsageWrite): string | null {
+  if (typeof input.ingestKey === "string") {
+    const trimmed = input.ingestKey.trim();
+    if (trimmed) return trimmed;
+  }
+  const requestId = input.requestId?.trim();
+  if (!requestId) return null;
+  return createHash("sha256")
+    .update(`${requestId}\0${input.useCase}\0${input.source}\0${billedUnit(input)}`)
+    .digest("hex");
+}
+
+/**
+ * Stamp one TS-direct metered call. Replay-safe: `ON CONFLICT(ingest_key) DO
+ * NOTHING` so a retried TTS/STT/interview/GitHub write with the same key is a
+ * counted skip rather than a second bill. Returns inserted vs skipped the way
+ * {@link ingestLlmUsageResult} does for the sidecar fold.
+ */
+export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
+  const ingestKey = llmUsageIngestKey(input);
   const db = ensureDb();
-  db.prepare(
-    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  const written = db.prepare(
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(ingest_key) DO NOTHING`
   ).run(
     new Date().toISOString(),
     input.useCase,
@@ -201,8 +245,17 @@ export function insertLlmUsage(input: LlmUsageInput): void {
     input.source,
     input.outcome,
     input.reason ?? null,
-    input.requestId ?? null
-  );
+    input.requestId ?? null,
+    ingestKey
+  ).changes;
+  const inserted = written;
+  const skipped = inserted === 1 ? 0 : ingestKey ? 1 : 0;
+  if (skipped > 0) {
+    console.warn(
+      `[llm-usage] insertLlmUsage refused a duplicate ingest_key for ${input.useCase} — spend was NOT double-counted`
+    );
+  }
+  return { inserted, skipped };
 }
 
 /**

@@ -100,6 +100,9 @@ export type MeterOverview = {
   credits: number;
   /** Units still spendable this month (included remainder + credits); null = unlimited. */
   remaining: number | null;
+  /** Units used past the included limit this period. 0 when unlimited or used <= limit.
+   *  Credits do not reduce this — they are a different bucket (`remaining` still includes them). */
+  overage: number;
 };
 
 export type BillingOverview = {
@@ -221,6 +224,9 @@ export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(
     used,
     credits,
     remaining: limit === null ? null : splitSpend(limit, used, credits, 0).remainingAfter,
+    // Named so GET /api/billing (and Polar usage ingest later) can read hire
+    // overage without parsing used vs limit. Credits must not shrink it.
+    overage: limit === null ? 0 : Math.max(0, used - limit),
   };
 }
 

@@ -4,6 +4,7 @@ import {
   EMPTY_OUTREACH_STATE,
   isReplyToOutreach,
   outreachHaltReason,
+  withoutManualHalt,
   withReply,
   withSend,
 } from "./outreach-halt.ts";
@@ -59,5 +60,17 @@ test("the transitions are pure — the input state is never mutated", () => {
   const base = { ...EMPTY_OUTREACH_STATE };
   withSend(base, AT);
   withReply(base, AT);
+  withoutManualHalt(base);
   assert.deepEqual(base, EMPTY_OUTREACH_STATE);
+});
+
+test("withoutManualHalt clears only the recruiter pause", () => {
+  const halted = { ...EMPTY_OUTREACH_STATE, sends: 1, lastSentAt: AT, manualHaltAt: AT, repliedAt: LATER, candidateHaltAt: LATER };
+  const resumed = withoutManualHalt(halted);
+  assert.equal(resumed.manualHaltAt, null);
+  assert.equal(resumed.repliedAt, LATER, "a reply is still a reply");
+  assert.equal(resumed.candidateHaltAt, LATER, "the legal objection is not a recruiter pause");
+  assert.equal(outreachHaltReason(resumed), "candidate", "opt-out still outranks everything");
+  assert.equal(outreachHaltReason(withoutManualHalt({ ...EMPTY_OUTREACH_STATE, manualHaltAt: AT })), null);
+  assert.equal(outreachHaltReason(withoutManualHalt({ ...EMPTY_OUTREACH_STATE, manualHaltAt: AT, repliedAt: LATER })), "replied");
 });

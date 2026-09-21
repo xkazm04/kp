@@ -80,6 +80,17 @@ test("integrations.calendar.scopes covers exactly the requested Google scopes, i
   }
 });
 
+test("calendar disconnect confirm copy exists in every locale", () => {
+  for (const locale of LOCALES) {
+    const catalog = load(locale);
+    for (const key of ["disconnectConfirm", "disconnectConfirmAction", "disconnectCancel"]) {
+      const value = at(catalog, `integrations.calendar.${key}`);
+      assert.equal(typeof value, "string", `${locale}: calendar.${key} must be a string`);
+      assert.ok((value as string).trim().length > 0, `${locale}: calendar.${key} must not be blank`);
+    }
+  }
+});
+
 test("integrations.ats.providers covers exactly ATS_PROVIDERS, in every locale", () => {
   const expected = [...ATS_PROVIDERS].sort();
   for (const locale of LOCALES) {

@@ -1,13 +1,13 @@
 "use client";
 
-// The Schedule tab's AI round (the "Docket" layout — winner of the /prototype
-// round, 2026-08-10): fully AI-conducted first-round interviews as a link-out
-// → interview → evaluation loop, no calendar at all. Three stations mirror the
-// funnel (Awaiting link → Out / live → Completed); a completed card opens the
-// compact evaluation preview (ScheduleAiEvalPreview) with the full transcript
-// one click deeper. Data: GET /api/interview/sessions (workspace history) +
-// the pending calendar-gated entries the tab already holds. Link generation
-// reuses POST /api/interview/create (mints + emails the tokenized
+// The Schedule tab's AI round: fully AI-conducted first-round interviews as a
+// link-out → interview loop, no calendar at all. Rendered as a LEDGER
+// (ScheduleAiLedger) of the two states a recruiter can act on — Awaiting link and
+// Link out / live. Completed interviews leave this surface: their verdict is a
+// scorecard review in Decisions, and the conversation is logged in Insights →
+// Activity under the voice-interview use case. Data: GET /api/interview/sessions
+// (workspace history) + the pending calendar-gated entries the tab already holds.
+// Link generation reuses POST /api/interview/create (mints + emails the tokenized
 // /interview/<token> link; the URL is also copied to the clipboard here).
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -17,47 +17,25 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { InterviewSessionSummary } from "@/app/_lib/db/interviews";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { IvStatus } from "./useScheduleTab";
-import { ScheduleAiDocket } from "./ScheduleAiDocket";
-import { ScheduleAiEvalPreview } from "./ScheduleAiEvalPreview";
+import { ScheduleAiLedger } from "./ScheduleAiLedger";
 
-/** A row's target for the evaluation modals — the minimal entry shape the
- *  existing transcript modal reads (id + labels). Sessions keep their entry id
- *  even after the pipeline entry advances, so history stays reviewable. */
-export type EvalTarget = { id: string; candidateLabel: string; jobTitle: string | null };
-
-export function ScheduleAiRound({
-  calendarEntries,
-  interviews,
-  onOpenTranscript,
-}: {
-  calendarEntries: SchedEntry[];
-  interviews: Record<string, IvStatus>;
-  onOpenTranscript: (target: EvalTarget) => void;
-}) {
+export function ScheduleAiRound({ calendarEntries, interviews }: { calendarEntries: SchedEntry[]; interviews: Record<string, IvStatus> }) {
   const t = useTranslations("scheduleTab");
   const tAi = useTranslations("scheduleTab.aiRound");
   const errMsg = useErrorMessage();
   const [generating, setGenerating] = useState<string | null>(null);
-  const [preview, setPreview] = useState<EvalTarget | null>(null);
-  const { data, error, reload } = useJsonFetch<{ sessions?: InterviewSessionSummary[] }>(
-    "/api/interview/sessions",
-    t("loadFailed")
-  );
+  const { data, error, reload } = useJsonFetch<{ sessions?: InterviewSessionSummary[] }>("/api/interview/sessions", t("loadFailed"));
   const sessions = data?.sessions ?? [];
 
   // A session is a DEAD END when it can no longer produce an interview: `revoked`,
-  // or `failed` — /api/interview/complete downgrades a silent-mic call (muted OS,
-  // hardware fault, VAD never firing) to "failed" so it is never scored, and
-  // revokeOpenInterviewSessions treats a failed row as reissuable exactly like an
-  // open one. Neither may keep a candidate out of the Awaiting station: a failed
-  // call matched none of the three stations (not created/in_progress, not
-  // completed), so the candidate VANISHED from the docket entirely and the
-  // recruiter had no card to reissue a link from.
+  // or `failed` — /api/interview/complete downgrades a silent-mic call to "failed"
+  // so it is never scored. Neither may keep a candidate out of the Awaiting state:
+  // the recruiter needs a row to reissue a link from.
   const deadSession = (status: string | undefined) => status === "revoked" || status === "failed";
   const sessionEntryIds = new Set(sessions.filter((s) => !deadSession(s.status)).map((s) => s.entryId).filter(Boolean));
-  // Candidates still awaiting an AI-interview link: pending calendar-gated
-  // entries with no live/completed session yet. A failed call's interviewer-only
-  // transcript is not an interview either, so it must not mask the entry here.
+  // Candidates still awaiting an AI-interview link: pending calendar-gated entries
+  // with no live/completed session yet. A failed call's interviewer-only transcript
+  // is not an interview either, so it must not mask the entry here.
   const awaiting = calendarEntries.filter((e) => {
     if (sessionEntryIds.has(e.id)) return false;
     const iv = interviews[e.id];
@@ -65,8 +43,8 @@ export function ScheduleAiRound({
   });
 
   // Mint + dispatch the tokenized interview link, and put the URL on the
-  // recruiter's clipboard for manual channels. Reuses the create route's
-  // guards (409 while a call is live; billing meter; link TTL + revoke).
+  // recruiter's clipboard for manual channels. Reuses the create route's guards
+  // (409 while a call is live; billing meter; link TTL + revoke).
   const generateLink = async (e: SchedEntry) => {
     setGenerating(e.id);
     try {
@@ -90,34 +68,7 @@ export function ScheduleAiRound({
     }
   };
 
-  return (
-    <div className="space-y-4">
-      {error ? (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
-      ) : data === null ? (
-        <div className="reveal-quiet min-h-[16rem]" aria-hidden />
-      ) : (
-        <ScheduleAiDocket
-          sessions={sessions}
-          awaiting={awaiting}
-          interviews={interviews}
-          generating={generating}
-          onGenerate={generateLink}
-          onPreview={setPreview}
-        />
-      )}
-
-      {preview ? (
-        <ScheduleAiEvalPreview
-          target={preview}
-          onClose={() => setPreview(null)}
-          onOpenFull={() => {
-            const p = preview;
-            setPreview(null);
-            onOpenTranscript(p);
-          }}
-        />
-      ) : null}
-    </div>
-  );
+  if (error) return <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>;
+  if (data === null) return <div className="reveal-quiet min-h-[16rem]" aria-hidden />;
+  return <ScheduleAiLedger sessions={sessions} awaiting={awaiting} interviews={interviews} generating={generating} onGenerate={generateLink} />;
 }

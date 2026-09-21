@@ -6,7 +6,7 @@ import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/locales";
 import { requireOrgCapability } from "./auth/current-user";
 import { currentWorkspace } from "./auth/current-workspace";
 import { getWorkspaceOrgId, listWorkspacesByOrg, setWorkspaceDefaultLocale } from "./db/workspaces";
-import { ORG_NAME_COOKIE, sanitizeOrgName } from "./org-settings";
+import { isOrgCurrency, ORG_CURRENCY_COOKIE, ORG_NAME_COOKIE, sanitizeOrgName } from "./org-settings";
 
 // One year — the org identity should persist across sessions, matching the
 // NEXT_LOCALE cookie's lifetime (LOCALE_COOKIE_MAX_AGE in i18n/cookie.ts).
@@ -16,7 +16,9 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
  *  NextResponse, so the refusal travels as the same machine CODE every route uses
  *  (`useErrorMessage` resolves `errors.<CODE>`); the caller never renders English
  *  of its own. */
-export type OrgSettingResult = { ok: true } | { ok: false; code: "ORG_SETTINGS_FORBIDDEN" | "ORG_LANGUAGE_INVALID" };
+export type OrgSettingResult =
+  | { ok: true }
+  | { ok: false; code: "ORG_SETTINGS_FORBIDDEN" | "ORG_LANGUAGE_INVALID" | "ORG_CURRENCY_INVALID" };
 
 /**
  * The authority gate both settings below share.
@@ -51,6 +53,22 @@ async function orgManageDenied(): Promise<boolean> {
 export async function setOrgName(name: string): Promise<OrgSettingResult> {
   if (await orgManageDenied()) return { ok: false, code: "ORG_SETTINGS_FORBIDDEN" };
   (await cookies()).set(ORG_NAME_COOKIE, sanitizeOrgName(name), {
+    path: "/",
+    maxAge: ONE_YEAR_SECONDS,
+    sameSite: "lax",
+  });
+  return { ok: true };
+}
+
+/** Persist the organization's salary currency in the `kp_org_currency` cookie —
+ *  the unit every salary band on the board and its overlay is labelled with.
+ *  Same storage and the same gate as the name: it is a per-browser cookie, and
+ *  choosing it is still an administrator's act. An unknown code answers its own
+ *  refusal, never the permission one. */
+export async function setOrgCurrency(currency: string): Promise<OrgSettingResult> {
+  if (!isOrgCurrency(currency)) return { ok: false, code: "ORG_CURRENCY_INVALID" };
+  if (await orgManageDenied()) return { ok: false, code: "ORG_SETTINGS_FORBIDDEN" };
+  (await cookies()).set(ORG_CURRENCY_COOKIE, currency, {
     path: "/",
     maxAge: ONE_YEAR_SECONDS,
     sameSite: "lax",

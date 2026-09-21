@@ -13,8 +13,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { intakeLang } from "./intake-lang.ts";
+import { dictationLang, intakeLang } from "./intake-lang.ts";
 import { LOCALES } from "../../i18n/locales.ts";
+
+test("a null session lang dictates in the viewer locale, not a hard-coded en", () => {
+  assert.equal(dictationLang(null, "de"), "de");
+  assert.equal(dictationLang(undefined, "fr"), "fr");
+  assert.equal(dictationLang("cs", "de"), "cs", "a stamped session lang still wins");
+  const desk = readFileSync(fileURLToPath(new URL("../features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx", import.meta.url)), "utf8");
+  assert.match(desk, /dictationLang\(active\.lang, viewerLocale\)/);
+  assert.doesNotMatch(desk, /active\.lang \?\? "en"/);
+});
 
 test("every locale this product ships is a dialog language", () => {
   for (const locale of LOCALES) assert.equal(intakeLang(locale), locale);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
 
 
 // Usage/cost read surface for the Models tab — the first reader of the llm_usage
@@ -25,9 +26,20 @@ export async function GET(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
   const days = windowDays(request.nextUrl.searchParams.get("days"));
+  const rawUseCase = request.nextUrl.searchParams.get("useCase");
+  // Omit / blank = all. Unknown is 400 with the catalog, never a silent empty.
+  let useCase: (typeof LLM_USE_CASES)[number] | null = null;
+  if (rawUseCase !== null && rawUseCase !== "") {
+    if (!isLlmUseCase(rawUseCase)) {
+      return NextResponse.json({ error: "Unknown useCase.", useCases: LLM_USE_CASES }, { status: 400 });
+    }
+    useCase = rawUseCase;
+  }
+  const rows = aggregateLlmUsage(days);
   return NextResponse.json({
     days,
-    rows: aggregateLlmUsage(days),
+    useCase,
+    rows: useCase ? rows.filter((r) => r.useCase === useCase) : rows,
     promptCache: promptCacheStats(),
   });
 }

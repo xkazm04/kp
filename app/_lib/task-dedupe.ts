@@ -90,7 +90,17 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     const k = stableKey("reasoning", p.profileId ?? p.analysisSlug ?? identityJson(p.candidate), p.jobId);
     return k && `${k}:${localePart(p.lang)}`;
   },
-  batch_screen: () => "batch_screen", // singleton: one batch-screen at a time, by design
+  // Keyed by the SORTED cohort fingerprint (same shape as batch_outreach): a
+  // line-menu AI-evaluate of Role A must not join an in-flight screen of Role B
+  // and inherit B's verdicts. Empty/absent entryIds is the legacy full-board
+  // sweep — a workspace-level singleton via workspaceId, never the process-wide
+  // constant `batch_screen` (a missing workspace does not collapse to that).
+  batch_screen: (p) => {
+    const ids = Array.isArray(p.entryIds)
+      ? (p.entryIds as unknown[]).filter((x): x is string => typeof x === "string").sort()
+      : [];
+    return ids.length ? stableKey("batch_screen", ids.join(",")) : stableKey("batch_screen", p.workspaceId);
+  },
   // Keyed by the SORTED cohort fingerprint: a double-click (or retried fetch) on the
   // same selection dedupes onto the in-flight run, while a different cohort starts its
   // own. Empty/absent selection → null (no identity), so it never merges spuriously.
@@ -157,6 +167,10 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   // so without it the day alone would be the identity and two tenants would share
   // one digest, the exact collapse this module's header describes.
   companion_digest: (p) => stableKey("companion_digest", p.workspaceId, p.dayIso),
+  // ONE scan per tenant at a time: a second "scan now" while one is running coalesces
+  // onto it instead of fetching the same boards twice under one politeness budget. The
+  // workspace is in the key for the same reason as above — a builder sees only params.
+  jobseeker_scan: (p) => stableKey("jobseeker_scan", p.workspaceId),
 };
 
 /**

@@ -5,7 +5,14 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { switchTab, duplicateToBuilder, nextMenuIndex, type AuthorNavState } from "./jdsLedgerNav.ts";
+import {
+  switchTab,
+  duplicateToBuilder,
+  nextMenuIndex,
+  publicJdShareUrl,
+  copyPublicJdUrl,
+  type AuthorNavState,
+} from "./jdsLedgerNav.ts";
 
 // --- #2: draft-preserving tab navigation -------------------------------------
 
@@ -42,6 +49,26 @@ test("nextMenuIndex handles Home/End and ignores non-navigation keys", () => {
   assert.equal(nextMenuIndex(0, "End", 4), 3);
   assert.equal(nextMenuIndex(1, "Enter", 4), null);
   assert.equal(nextMenuIndex(1, "a", 4), null);
+});
+
+test("copy-link writes the public /jds/<slug> URL", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const rail = readFileSync(fileURLToPath(new URL("./JdsLedgerDetailRail.tsx", import.meta.url)), "utf8");
+  assert.match(rail, /copyPublicJdUrl\(/);
+  assert.match(rail, /t\("copyPublicLink"\)/);
+  assert.equal(publicJdShareUrl("https://app.example", "backend-eng"), "https://app.example/jds/backend-eng");
+  assert.equal(publicJdShareUrl("https://app.example/", "a/b"), "https://app.example/jds/a%2Fb");
+  const written: string[] = [];
+  const ok = await copyPublicJdUrl(async (text) => {
+    written.push(text);
+  }, "https://kp.example", "role-1");
+  assert.equal(ok, true);
+  assert.deepEqual(written, ["https://kp.example/jds/role-1"]);
+  const blocked = await copyPublicJdUrl(async () => {
+    throw new Error("denied");
+  }, "https://kp.example", "role-1");
+  assert.equal(blocked, false);
 });
 
 test("nextMenuIndex tolerates an out-of-range or empty current index / count", () => {

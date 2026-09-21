@@ -172,6 +172,10 @@ it, the primitive is missing something.
 ## Anti-patterns (do not ship these)
 
 - A `<Skeleton>` block standing in for content. Delete it; reserve the height.
+  Existing call sites are a per-file ceiling in
+  `app/_components/skeleton-debt.json` (enforced by `skeleton-debt.test.ts` in
+  the unit gate). A new file with `<Skeleton` is undeclared and fails the
+  build; never raise a number to go green. Prefer `<LoadingGap>`.
 - `animate-pulse` on anything.
 - A bare `<p>Loading…</p>` as a tab's whole first state.
 - A spinner for *tab entry*. Spinners are for user-triggered actions

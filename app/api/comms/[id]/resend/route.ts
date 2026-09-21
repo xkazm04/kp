@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { getOutboxEntry, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { CommsSuppressedError, sendComm } from "@/app/_lib/comms";
 import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
@@ -16,11 +18,11 @@ const resendInFlight = new Set<string>();
 
 // Per-IP budget. This is the ONE door in the assignments loop that spends real
 // email on demand: every accepted call dispatches through the live relay and
-// writes an outbox row. It is operator-gated, and open mode
-// (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the ENTIRE
-// API, so the limiter is the real bound. 60/10min sits far above a recruiter
-// working a dead-letter list by hand (one click per message, each one read
-// first) and pins a scripted loop at 6/min.
+// writes an outbox row. requireOperator (and pipeline:write) run first; open mode
+// (KP_OPERATOR_PASSWORD unset) makes that identity gate a documented no-op for the
+// ENTIRE API, so the limiter is the real bound on a scripted loop. 60/10min sits
+// far above a recruiter working a dead-letter list by hand (one click per message,
+// each one read first) and pins a scripted loop at 6/min.
 const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 // W6-1 (SIM2/DEVO5/DEVS4) — re-deliver a dead-lettered (or stuck-queued) comm.
@@ -32,8 +34,19 @@ const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 // original row is untouched, the trail stays append-only), and the resend is
 // stamped on the candidate's history when the ref resolves to an entry.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  // Identity first: a demo cookie is a valid session the proxy accepts, and
+  // comms_relay_config is a single global row — without this, an anonymous demo
+  // workspace dead-letter POSTs a real candidate-shaped envelope at the install's
+  // live relay. Viewer seats still pass requireOperator, so pipeline:write follows
+  // (invite/reject shape): this is a recruiter recovery, not org:manage.
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
+
   const { id } = await context.params;
   // Collapse a concurrent double-fire within this process before any send work.
+  // After the cheap identity refusals so a demo/viewer click never occupies the slot.
   if (resendInFlight.has(id)) {
     return jsonRefusal("COMM_RESEND_IN_PROGRESS", 409, { recovered: true });
   }

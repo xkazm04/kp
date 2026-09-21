@@ -53,3 +53,31 @@ export function familyOverrideRejectCount(
   }
   return n;
 }
+
+// How many KEEP rows are the calibration clean arm — spared from auto-reject
+// (holdout) or spared-but-unsealed (holdoutSealFailed). Both codes count: a
+// missed clean-arm seal is still a holdout fact the wave must disclose.
+export function holdoutCount(
+  decisions: { reasonCode?: string }[] | undefined | null
+): number {
+  if (!decisions) return 0;
+  let n = 0;
+  for (const d of decisions) {
+    if (d.reasonCode === "holdout" || d.reasonCode === "holdoutSealFailed") n += 1;
+  }
+  return n;
+}
+
+// Keep-row kind for the wave lists. Holdout is a first-class arm, not an
+// ordinary keep: `holdout` is the sealed clean arm, `holdoutSealFailed` is
+// spared-but-unsealed, `fairness` is the early-career / unknown-archetype
+// gate. Everything else (slider keeps, unscored, reinstated, staleSkipped)
+// is `other` so the UI cannot forget the calibration codes again.
+export type WaveKeepKind = "holdout" | "holdoutSealFailed" | "fairness" | "other";
+
+export function waveKeepKind(reasonCode: string | undefined | null): WaveKeepKind {
+  if (reasonCode === "holdout") return "holdout";
+  if (reasonCode === "holdoutSealFailed") return "holdoutSealFailed";
+  if (reasonCode === "earlyCareer" || reasonCode === "unknownArchetype") return "fairness";
+  return "other";
+}

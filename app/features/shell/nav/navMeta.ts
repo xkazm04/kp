@@ -18,6 +18,7 @@ import {
   LayoutDashboard,
   Library,
   MessageSquarePlus,
+  MessagesSquare,
   Mic,
   Palette,
   Plug,
@@ -73,4 +74,5 @@ export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   integrations: Plug,
   workspace: SlidersHorizontal,
   hiring: GitBranch,
+  templates: MessagesSquare,
 };

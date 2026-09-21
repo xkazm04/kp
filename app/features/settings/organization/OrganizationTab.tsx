@@ -8,8 +8,8 @@ import { Rocket } from "lucide-react";
 import { isLocale } from "@/i18n/locales";
 import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
-import { readClientOrgName } from "@/app/_lib/org-settings";
+import { setOrgCurrency, setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
+import { readClientOrgCurrency, readClientOrgName, type OrgCurrency } from "@/app/_lib/org-settings";
 import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO, PAGE_HEADER, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { OnboardingExperience } from "@/app/features/shell/setup/OnboardingExperience";
@@ -107,6 +107,30 @@ export function OrganizationTab() {
     });
   }
 
+  // Salary currency — a cookie like the name, but a discrete pick like the language,
+  // so it writes at once (no debounce) and a refusal springs the toggle back.
+  const [currency, setCurrency] = useState<OrgCurrency>(() => readClientOrgCurrency());
+  const [currencySave, setCurrencySave] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  async function onCurrencyChange(next: OrgCurrency) {
+    if (next === currency) return;
+    const previous = currency;
+    setCurrency(next);
+    setCurrencySave("saving");
+    try {
+      const res = await setOrgCurrency(next);
+      if (res.ok) {
+        setCurrencySave("saved");
+        return;
+      }
+      setCurrency(previous);
+      setCurrencySave("error");
+      toast.error(errMsg({ code: res.code }, t("saveFailed")));
+    } catch {
+      setCurrency(previous);
+      setCurrencySave("error");
+    }
+  }
+
   return (
     // Tier 1 (docs/design/loading-choreography.md): this tab has no fetch of its own
     // (name is cookie-hydrated, language is the app locale), so everything below is
@@ -138,9 +162,12 @@ export function OrganizationTab() {
           name={name}
           nameSave={nameSave}
           languageSave={languageSave}
+          currencySave={currencySave}
           language={language}
+          currency={currency}
           onNameChange={editName}
           onLanguageChange={onLanguageChange}
+          onCurrencyChange={onCurrencyChange}
         />
       </div>
 

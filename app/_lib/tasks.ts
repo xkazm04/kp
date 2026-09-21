@@ -1,5 +1,7 @@
 import { lifecycleByPosting } from "./db/devcase";
 import { getPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { screeningStageIds } from "./pipeline-stages";
 import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskEntries, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { withLlmRequestId } from "./llm-request-context";
@@ -26,6 +28,10 @@ import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { runCompanionDigestTask } from "./companion-digest-run";
+import { externalRunner } from "./task-external-runners";
+import type { ScanSummary } from "./jobseeker/types";
+import { SCAN_JOB_NAME } from "./jobseeker/types";
+import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
 import { encodeTaskLabel } from "./task-label";
@@ -113,8 +119,18 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   // 2026-08-22 it ignored the ctx.workspaceId the runner threads in. Team A's click
   // spent A's LLM budget screening team B's board and wrote advance/hold decisions
   // into B's pipeline, while the summary A read back counted candidates A cannot see.
+  //
+  // WHICH entries: an explicit cohort when the caller names one (the board row's
+  // "AI evaluate" passes the position's entry-column candidates), else every
+  // candidate standing on a PRE-GATE column of this workspace's axis. The gate used to
+  // be the literal "Screened" — a renamed axis screened nobody, and the entry column
+  // (where triage volume is highest) was never swept from here.
+  const wanted = Array.isArray(ctx.params.entryIds)
+    ? new Set((ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string"))
+    : null;
+  const preGate = new Set(screeningStageIds(getPipelineAxis(ctx.workspaceId).stages));
   const entries = listActiveEntriesForAutomation().filter(
-    (e) => e.stage === "Screened" && e.workspaceId === ctx.workspaceId
+    (e) => e.workspaceId === ctx.workspaceId && (wanted ? wanted.has(e.id) : preGate.has(e.stage))
   );
   const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
   ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
@@ -184,7 +200,7 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
 
 const HANDLERS: Record<string, Spec> = {
   automation: {
-    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
+    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId, { manual: true }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("automation", { task: String(p.task ?? ""), entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },
@@ -342,6 +358,33 @@ const HANDLERS: Record<string, Spec> = {
     run: runCompanionDigestTask,
     tenancy: "scoped",
     label: () => encodeTaskLabel("companionDigest"),
+  },
+  // The seeker's manual "scan now" (WP4c): acquire from every enabled source, structure
+  // and match what is stored, deep-dive the shortlist. The task is ALSO what verifies the
+  // clock job: `recordRun(ok)` here is the row `hasVerifiedRun` reads before the route
+  // lets the operator arm `jobseeker_scan` — so `ok` is written only when at least one
+  // source actually ran (whatever its outcome) and the run completed; a scan with no
+  // enabled source (or no profile) is `skipped`, which verifies nothing.
+  //
+  // The scan's implementation is NOT imported here: it reaches the whole acquisition
+  // graph (adapters, rules engine, reconciliation), and this hub sits on ~60 routes'
+  // paths, so it is registered at boot from instrumentation-node.ts and looked up
+  // through task-external-runners.ts (the perf budget counts dynamic imports too).
+  jobseeker_scan: {
+    run: async (ctx) => {
+      const startedAt = new Date().toISOString();
+      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress })) as ScanSummary;
+      recordRun({
+        job: SCAN_JOB_NAME,
+        trigger: "manual",
+        status: summary.sources.length > 0 && !ctx.signal.aborted ? "ok" : "skipped",
+        summary,
+        startedAt,
+      });
+      return summary;
+    },
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("jobseekerScan"),
   },
 };
 

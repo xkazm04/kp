@@ -115,7 +115,13 @@ test("the rule is read, never re-derived, by every hook that loads JSON", () => 
   for (const hook of ["./useJsonFetch.ts", "./useLoader.ts", "./useInfiniteScroll.ts"]) {
     const src = readSrc(hook);
     assert.match(src, /from "\.\/load-state"/, `${hook} must read the shared rule`);
-    assert.match(src, /isLoadFailure\(/, `${hook} must CALL it`);
+    // useInfiniteScroll goes through jsonFetchFailure (which itself calls
+    // isLoadFailure) so the coded envelope and the body-failure rule stay one.
+    if (hook === "./useInfiniteScroll.ts") {
+      assert.match(src, /jsonFetchFailure\(/, `${hook} must CALL jsonFetchFailure`);
+    } else {
+      assert.match(src, /isLoadFailure\(/, `${hook} must CALL it`);
+    }
     assert.doesNotMatch(
       src,
       /!res\.ok \|\| !body \|\| body\.error/,

@@ -166,8 +166,16 @@ export function TrustContent() {
             A reviewer's actual questions are: does it see candidate data, does it
             train on it, how long does it keep it, and can it run in the EU. Those are
             now DATA on each row rather than something a reader has to ask us for. */}
-        <div className={`mt-4 overflow-x-auto ${PANEL}`}>
-          <table className="w-full min-w-[56rem] text-left">
+        {/* A `min-w-[56rem]` table inside `overflow-x-auto` is a scroll container,
+            and a scroll container a keyboard cannot reach is content a keyboard
+            cannot read: on a narrow viewport the last two columns — retention and
+            EU region, the two a reviewer came for — are simply unreachable without
+            a mouse. `role="region"` + `tabIndex={0}` + a name is the pattern the
+            app's other wide tables already use (DecisionRecordsTable.tsx:160,
+            DecisionLogTable.tsx:315); this one had been missed, and axe's
+            `scrollable-region-focusable` was failing on it. */}
+        <div className={`mt-4 overflow-x-auto ${PANEL}`} role="region" tabIndex={0} aria-label="Subprocessors">
+          <table className="w-full min-w-[56rem] text-left" aria-label="Subprocessors">
             <thead>
               <tr className="border-b border-stone-200">
                 {["Processor", "Handles", "Trains on inputs", "Retention", "EU region"].map((heading) => (

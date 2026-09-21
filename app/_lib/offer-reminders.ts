@@ -1,5 +1,5 @@
 import { dispatchOfferReminder } from "./comms-dispatch";
-import { getPipelineEntry } from "./db/pipeline";
+import { getPipelineEntry, recordAutomationEvent } from "./db/pipeline";
 import { dueOfferReminders, markOfferReminded } from "./offers-store";
 import { publicBaseUrl } from "./public-base-url";
 
@@ -42,10 +42,18 @@ export async function sendDueOfferReminders(): Promise<number> {
     } catch (err) {
       // Claimed but not delivered. Logged, not re-armed (reminded_at is set): a missed
       // nudge is benign; a duplicate on this channel is not. An operator can reach out.
+      // The miss is also a pipeline event so Overview/Outbox/Decisions can show it —
+      // reuse offer_comms_failed (the live comms-failed kind) rather than a new kind.
       console.error(
         `[offer-reminder] claimed but dispatch failed for token ${offer.token} (entry ${offer.entryId}): ${
           err instanceof Error ? err.message : String(err)
         }`
+      );
+      recordAutomationEvent(
+        entry.id,
+        "offer_comms_failed",
+        "The T-48h offer reminder was claimed but the message did not go out.",
+        offer.workspaceId
       );
     }
   }

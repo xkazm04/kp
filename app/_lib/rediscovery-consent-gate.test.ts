@@ -127,7 +127,7 @@ test("a candidate with VALID consent is still contactable (no over-suppression /
 
   assert.equal(candidateOutreachSuppression(cand, { givenAt: y.consentGivenAt, expiresAt: y.consentExpiresAt, anonymizedAt: y.anonymizedAt }), null);
   const result = await dispatchOutreach(y, DRAFT);
-  assert.deepEqual(result, { sent: true });
+  assert.deepEqual(result, { sent: true, status: "queued" });
   assert.equal(listOutboxFiltered({ ref: y.id, kind: "outreach" }).length, 1, "the outreach email is queued");
   assert.equal(hasEvent(y.id, "outreach_sent"), true);
 });
@@ -138,5 +138,5 @@ test("a purely recruiter-sourced candidate (no consent record anywhere) is conta
   assert.deepEqual(candidateConsentSnapshots(cand).length > 0, true, "the entry exists");
   assert.equal(candidateOutreachSuppression(cand, { givenAt: y.consentGivenAt, expiresAt: y.consentExpiresAt, anonymizedAt: y.anonymizedAt }), null);
   const result = await dispatchOutreach(y, DRAFT);
-  assert.deepEqual(result, { sent: true });
+  assert.deepEqual(result, { sent: true, status: "queued" });
 });

@@ -10,9 +10,10 @@ import { ColumnHeaderFilter, type FilterOption } from "./JdsLedgerFilterMenu";
 
 // The saved-JD table's column-header row (Role search + Field/Seniority/Status
 // filter menus) — extracted verbatim from JdsLedgerTable.tsx so that file stays
-// under the 200-line split threshold.
+// under the 200-line split threshold. No Pipeline column: a role's live state is
+// the Roles tab's business; this is the shelf of descriptions.
 //
-// The QUANTITATIVE columns (Pipeline / Analyzed / Saved) use the shared
+// The QUANTITATIVE columns (Analyzed / Saved) use the shared
 // table/ColumnHead, so they sort and carry aria-sort. The four categorical ones
 // keep their existing bare headers: each already IS a filter trigger, and this
 // file's ColumnHeaderFilter has no icon-only mode like the shared ColumnFilter's
@@ -118,11 +119,6 @@ export function JdsLedgerTableHead({
             onSelect={(v) => setStatus((v as StatusFilter) ?? "all")}
           />
         </th>
-        {/* The role's live pipeline state, brought here from the Analytics
-            scoreboard prototype: this is where a recruiter is already looking at
-            their roles, so "how is this one doing" belongs beside "does this JD
-            exist" rather than one tab away. */}
-        <ColumnHead title={t("colPipeline")} sortCol="pipeline" sort={sort} onSort={onSort} className="whitespace-nowrap px-3 py-2.5" />
         <ColumnHead title={t("colAnalyzed")} sortCol="analyzed" sort={sort} onSort={onSort} align="right" className="whitespace-nowrap px-3 py-2.5" />
         <ColumnHead title={t("colSaved")} sortCol="saved" sort={sort} onSort={onSort} className="whitespace-nowrap px-3 py-2.5" />
         <th scope="col" className={`${META_LABEL} px-3 py-2.5 text-right`}>{t("colActions")}</th>

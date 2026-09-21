@@ -11,7 +11,7 @@ import { Chip, useMatchLabels } from "@/app/features/shared/MatchPresentation";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { rankedField } from "./matchView";
+import { expandRankedLimit, offersRankedExpand, rankedField } from "./matchView";
 
 export function MatchResultsHeader({
   matchRef,
@@ -23,6 +23,8 @@ export function MatchResultsHeader({
   archetype,
   early,
   onExportCsv,
+  onShowRemaining,
+  busy = false,
 }: {
   matchRef: MatchRef;
   error: string | null;
@@ -33,8 +35,15 @@ export function MatchResultsHeader({
   archetype: string;
   early: boolean;
   onExportCsv: () => void;
+  // Re-post the same ref at min(survivors, MATCH_LIMIT_MAX). Omitted where the
+  // parent has not wired a higher-limit rerun (tests, isolated stories).
+  onShowRemaining?: (limit: number) => void;
+  busy?: boolean;
 }) {
   const t = useTranslations("match.results");
+  // "+N more" already lives on the match card for a truncated chip list; reuse
+  // it here rather than mint a parallel catalog key for the same sentence.
+  const tCard = useTranslations("match.card");
   // This surface IS the Matrix tab's focus mode (MatrixTab owns the page header for
   // both modes), so the grid's "{shown} of {total}" string is the same sentence in
   // the same feature — reused rather than duplicated, exactly as MatrixDataNotices
@@ -88,6 +97,16 @@ export function MatchResultsHeader({
           value={ranked.total == null ? ranked.shown : tMatrix("ofCount", { shown: ranked.shown, total: ranked.total })}
           tone="green"
         />
+        {onShowRemaining && offersRankedExpand(ranked) ? (
+          <button
+            type="button"
+            onClick={() => onShowRemaining(expandRankedLimit(ranked.total))}
+            disabled={busy}
+            className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-sm font-semibold text-ink hover:bg-paper disabled:opacity-40"
+          >
+            {tCard("moreCount", { count: ranked.total - ranked.shown })}
+          </button>
+        ) : null}
         {early && candidate.potentialScore != null ? (
           <PotentialBadge
             potential={{

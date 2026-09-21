@@ -10,7 +10,20 @@ import { SetupCompanionStep } from "./SetupCompanionStep";
 import { WelcomeStep } from "./SetupWelcomeStep";
 import { SetupHandoffSummary } from "./SetupHandoffSummary";
 import { SETUP_PROSE } from "./setupProse";
-import { SETUP_STEPS, type OnboardingCtrl, type SetupStepId } from "./setupSteps";
+import type { OnboardingCtrl, SetupIntent, SetupStepId } from "./setupSteps";
+
+/** The hand-off's copy forks on the intent: a seeker is not "all set" for hiring,
+ *  their job search starts with their CV. Three keys, one rule, used by the pane
+ *  AND the wizard's live announcement so the two never disagree. */
+export function stepTitleKey(stepId: SetupStepId, intent: SetupIntent | null) {
+  return stepId === "handoff" && intent === "seek" ? ("steps.handoff.seekTitle" as const) : (`steps.${stepId}.title` as const);
+}
+function stepBlurbKey(stepId: SetupStepId, intent: SetupIntent | null) {
+  return stepId === "handoff" && intent === "seek" ? ("steps.handoff.seekBlurb" as const) : (`steps.${stepId}.blurb` as const);
+}
+function stepEyebrowKey(stepId: SetupStepId, intent: SetupIntent | null) {
+  return stepId === "handoff" && intent === "seek" ? ("steps.handoff.seekEyebrow" as const) : (`steps.${stepId}.eyebrow` as const);
+}
 
 /**
  * One step's pane — heading, blurb, body.
@@ -37,6 +50,9 @@ export function SetupWizardStepPane({ ctrl, stepId }: { ctrl: OnboardingCtrl; st
   const t = useTranslations("setup");
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isWelcome = stepId === "welcome";
+  const intent = ctrl.state.intent;
+  // Position in THIS run's sequence (the intent fork), never in the full list.
+  const position = ctrl.steps.findIndex((s) => s.id === stepId) + 1;
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -44,21 +60,19 @@ export function SetupWizardStepPane({ ctrl, stepId }: { ctrl: OnboardingCtrl; st
 
   return (
     <div>
-      <p className={EYEBROW}>{t(`steps.${stepId}.eyebrow`)}</p>
+      <p className={EYEBROW}>{t(stepEyebrowKey(stepId, intent))}</p>
       <h2
         ref={headingRef}
         tabIndex={-1}
         className={`focus-ring mt-1 rounded-sm font-serif text-ink ${isWelcome ? "text-display" : "text-h2"}`}
       >
-        <span className="sr-only">
-          {t("aria.stepPosition", { index: SETUP_STEPS.findIndex((s) => s.id === stepId) + 1, total: SETUP_STEPS.length })}{" "}
-        </span>
-        {t(`steps.${stepId}.title`)}
+        <span className="sr-only">{t("aria.stepPosition", { index: position, total: ctrl.steps.length })} </span>
+        {t(stepTitleKey(stepId, intent))}
       </h2>
-      <p className={`mt-2 ${SETUP_PROSE} ${INTRO}`}>{t(`steps.${stepId}.blurb`)}</p>
+      <p className={`mt-2 ${SETUP_PROSE} ${INTRO}`}>{t(stepBlurbKey(stepId, intent))}</p>
 
       <div className="mt-6">
-        {stepId === "welcome" ? <WelcomeStep /> : null}
+        {stepId === "welcome" ? <WelcomeStep ctrl={ctrl} /> : null}
         {stepId === "company" ? <CompanyStep ctrl={ctrl} /> : null}
         {stepId === "team" ? <InviteEditor ctrl={ctrl} /> : null}
         {stepId === "pipeline" ? <SetupPipelineStep ctrl={ctrl} /> : null}

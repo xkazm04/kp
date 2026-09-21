@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { INITIAL_SETUP, reachedCeiling, SETUP_STEPS, stepSatisfied, type SetupState } from "./setupSteps";
+import { INITIAL_SETUP, reachedCeiling, relevantSteps, SETUP_STEPS, stepSatisfied, type SetupState } from "./setupSteps";
 import { draftFromStored } from "@/app/features/shared/pipelineAxisDraft";
 import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 
 // The two gates the whole wizard hangs off — one decides whether Continue is
 // live, the other decides which steps a click may open — and neither was pinned.
+// Since the intent fork there is a third authority: `relevantSteps`, the sequence
+// every index in the wizard is a position in.
 
 const STORED: PipelineStagesRule = {
   stages: [
@@ -16,31 +18,61 @@ const STORED: PipelineStagesRule = {
   retired: [],
 } as unknown as PipelineStagesRule;
 
+const HIRE: SetupState = { ...INITIAL_SETUP, intent: "hire" };
+const SEEK: SetupState = { ...INITIAL_SETUP, intent: "seek" };
+
 function withBoard(over: Partial<SetupState> = {}): SetupState {
   return {
-    ...INITIAL_SETUP,
+    ...HIRE,
     pipelineLoad: "ready",
     pipeline: { stored: STORED, draft: draftFromStored(STORED), counts: {} },
     ...over,
   };
 }
 
-test("the org name is the wizard's ONE required input", () => {
-  assert.equal(stepSatisfied("company", INITIAL_SETUP), false);
-  assert.equal(stepSatisfied("company", { ...INITIAL_SETUP, orgName: "   " }), false, "whitespace is not a name");
-  assert.equal(stepSatisfied("company", { ...INITIAL_SETUP, orgName: "Acme" }), true);
+/* ── the intent fork ──────────────────────────────────────────────────────── */
+
+test("the hire path is the journey it always was: welcome → company → team → pipeline → companion → handoff", () => {
+  const ids = relevantSteps(HIRE).map((s) => s.id);
+  assert.deepEqual(ids, ["welcome", "company", "team", "pipeline", "companion", "handoff"]);
+  // …and so is an undecided run: nothing is hidden before the fork is answered.
+  assert.deepEqual(relevantSteps(INITIAL_SETUP).map((s) => s.id), ids);
+  assert.deepEqual(SETUP_STEPS.map((s) => s.id), ids, "the declared list is the hire sequence");
 });
 
-test("welcome, team and companion are always satisfied — each ships a real default answer", () => {
-  for (const id of ["welcome", "team", "companion", "handoff"] as const) {
+test("a seeker's run is welcome → handoff — no company, team, board or Candi", () => {
+  assert.deepEqual(
+    relevantSteps(SEEK).map((s) => s.id),
+    ["welcome", "handoff"]
+  );
+  // The indicator count the rail and the phone counter draw is this length.
+  assert.equal(relevantSteps(SEEK).length, 2);
+});
+
+test("welcome is satisfied only once the intent is answered", () => {
+  assert.equal(stepSatisfied("welcome", INITIAL_SETUP), false, "no intent → Continue stays disabled");
+  assert.equal(stepSatisfied("welcome", HIRE), true);
+  assert.equal(stepSatisfied("welcome", SEEK), true);
+});
+
+/* ── the required inputs ──────────────────────────────────────────────────── */
+
+test("the org name is the hiring run's ONE required input after the fork", () => {
+  assert.equal(stepSatisfied("company", HIRE), false);
+  assert.equal(stepSatisfied("company", { ...HIRE, orgName: "   " }), false, "whitespace is not a name");
+  assert.equal(stepSatisfied("company", { ...HIRE, orgName: "Acme" }), true);
+});
+
+test("team, companion and handoff are always satisfied — each ships a real default answer", () => {
+  for (const id of ["team", "companion", "handoff"] as const) {
     assert.equal(stepSatisfied(id, INITIAL_SETUP), true, id);
   }
 });
 
 test("the pipeline gate is a VALIDITY check, not a completeness one", () => {
   // An untouched board is a legitimate answer, so an unloaded/loading axis passes.
-  assert.equal(stepSatisfied("pipeline", INITIAL_SETUP), true);
-  assert.equal(stepSatisfied("pipeline", { ...INITIAL_SETUP, pipelineLoad: "failed" }), true);
+  assert.equal(stepSatisfied("pipeline", HIRE), true);
+  assert.equal(stepSatisfied("pipeline", { ...HIRE, pipelineLoad: "failed" }), true);
   assert.equal(stepSatisfied("pipeline", withBoard()), true);
 });
 

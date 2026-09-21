@@ -14,9 +14,10 @@
 //    120–140k role on a column headed "Salary".
 
 import type { SortAccessors } from "@/app/_components/table/useTableSort";
+import { roleStatusRank } from "./jobsRoleStatus";
 import type { Job } from "./JobsTypes";
 
-export type JobSortCol = "title" | "location" | "mode" | "seniority" | "family" | "salary" | "entry";
+export type JobSortCol = "title" | "location" | "mode" | "seniority" | "family" | "salary" | "status";
 
 /** The band's floor, or null when the role carries no usable band. */
 export function bandFloor(band?: number[]): number | null {
@@ -26,7 +27,13 @@ export function bandFloor(band?: number[]): number | null {
 /** Entry-eligibility as a sortable number: the graduate-friendliness share for an
  *  eligible role, and null — not 0 — for one that is not eligible or was never
  *  profiled. "Not eligible" and "eligible, scored 0%" are different facts, and
- *  only the second belongs in the ranking. */
+ *  only the second belongs in the ranking.
+ *
+ *  No longer a COLUMN — the eighth column is the role's own status since the desk
+ *  became the register of open and historical roles — but still the one honest
+ *  reading of the entry profile as a number, and the entry-eligible share is still
+ *  a stat chip above the table. Kept here, beside the other accessors, rather than
+ *  re-derived at whatever surface needs it next. */
 export function entryScore(job: Job): number | null {
   const ep = job.entryProfile;
   if (!ep?.isEntryEligible) return null;
@@ -40,5 +47,11 @@ export const JOB_SORT_ACCESSORS: SortAccessors<Job, JobSortCol> = {
   seniority: (j) => j.seniority || null,
   family: (j) => j.roleFamily || null,
   salary: (j) => bandFloor(j.salaryBand),
-  entry: (j) => entryScore(j),
+  // The role's own lifecycle, ranked in the desk's READING order (open → draft →
+  // filled → closed) rather than alphabetically: what a recruiter wants from an
+  // ascending sort on this column is "everything still to be worked first, the
+  // history last", which no alphabetisation of the labels gives in any of the four
+  // locales. Never null — every role has a status, so this column has no bottom
+  // bucket.
+  status: (j) => roleStatusRank(j),
 };

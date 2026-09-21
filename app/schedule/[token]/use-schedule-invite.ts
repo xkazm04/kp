@@ -64,6 +64,7 @@ export function useScheduleInvite(token: string) {
   // The candidate may still self-reschedule a confirmed booking (server-gated by
   // MAX_RESCHEDULES). `rescheduling` swaps the booked card for the slot picker.
   const [canReschedule, setCanReschedule] = useState(false);
+  const [reschedulesRemaining, setReschedulesRemaining] = useState(0);
   const [rescheduling, setRescheduling] = useState(false);
   // REC-10 — the confirmation's TRUTHFUL delivery claim from the booking POST:
   // "sent" (relayed), "queued" (recorded in the local outbox, nothing delivers
@@ -81,6 +82,10 @@ export function useScheduleInvite(token: string) {
   const [capReached, setCapReached] = useState(false);
   const [proposeTimes, setProposeTimes] = useState<string[]>(["", "", ""]);
   const [proposing, setProposing] = useState(false);
+  // The propose form's working-hours window is fenced in INTERVIEW_TZ, not the
+  // browser clock the datetime-local inputs use. Named from GET so the form can
+  // say which zone 08:00-18:00 is in.
+  const [interviewTz, setInterviewTz] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -102,7 +107,9 @@ export function useScheduleInvite(token: string) {
         setCalendarChecked(d.calendarChecked === true);
         setCanReschedule(Boolean(d.canReschedule));
         setCapReached(Boolean(d.rescheduleCapReached));
+        setReschedulesRemaining(typeof d.reschedulesRemaining === "number" ? Math.max(0, d.reschedulesRemaining) : 0);
         setProposalStatus(d.invite?.proposalStatus ?? null);
+        setInterviewTz(typeof d.interviewTz === "string" ? d.interviewTz : "");
         if (d.closed) setClosedReason(typeof d.closedReason === "string" ? d.closedReason : "closed");
         if (d.invite?.status === "confirmed") setConfirmed(d.invite.slot ?? "");
       })
@@ -138,6 +145,13 @@ export function useScheduleInvite(token: string) {
         // Adopt the server's confirmed invite (carries the ISO slotAt) so the
         // booked card's "Add to calendar" has a real datetime for a fresh booking.
         if (d.invite) setInvite(d.invite);
+        // First-confirm POST used to omit these, so the booked card hid Change
+        // time until reload even though the server would accept a move. Read
+        // them from THIS response (outside the isReschedule GET) so a first
+        // booking shows the affordance without a free/busy-hitting refresh.
+        setCanReschedule(Boolean(d.canReschedule));
+        setCapReached(Boolean(d.rescheduleCapReached));
+        setReschedulesRemaining(typeof d.reschedulesRemaining === "number" ? Math.max(0, d.reschedulesRemaining) : 0);
         if (isReschedule) {
           // Back to the booked card showing the new time; refresh the remaining
           // reschedule allowance + slot pool so the affordance disappears at the cap.
@@ -154,6 +168,7 @@ export function useScheduleInvite(token: string) {
                 // server would still have accepted — the exact dead-end the escalation
                 // exists to remove, until the candidate reloaded the page.
                 setCapReached(Boolean(nd.rescheduleCapReached));
+                setReschedulesRemaining(typeof nd.reschedulesRemaining === "number" ? Math.max(0, nd.reschedulesRemaining) : 0);
                 setSlots(nd.slots ?? []);
                 setCalendarChecked(nd.calendarChecked === true);
               }
@@ -333,6 +348,7 @@ export function useScheduleInvite(token: string) {
     picking,
     confirmed,
     canReschedule,
+    reschedulesRemaining,
     rescheduling,
     confirmationDelivery,
     rsvpPending,
@@ -341,6 +357,7 @@ export function useScheduleInvite(token: string) {
     capReached,
     proposeTimes,
     proposing,
+    interviewTz,
     pick,
     rsvp,
     withdraw,

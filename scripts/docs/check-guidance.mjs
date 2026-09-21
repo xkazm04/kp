@@ -28,6 +28,17 @@
 //   projection-not-pointing  a projection never names the canonical file, so a
 //                         reader that starts there has no way to reach it. An
 //                         `@include` counts — naming the path is the whole test.
+//   remedy-unreachable    a HOOK's refusal message tells a blocked contributor
+//                         to run a path that does not exist relative to the
+//                         repository root, which is the directory the hook runs
+//                         in. The rules here all read guidance documents; the
+//                         instruction a contributor actually obeys is the one
+//                         that arrives when the push stops, and nothing read it.
+//                         The copy gate's announced skip named a path that
+//                         resolved only from this repository's PARENT, so the
+//                         installer it pointed at could not be run from where
+//                         the reader was standing — while `registry.local` in
+//                         .ai/manifest.yaml had declared that location all along.
 //   dangling-command      a guidance file tells an agent to run `npm run <x>`
 //                         and package.json does not define `<x>`. The same drift
 //                         shape `hooks:check` catches: instructions that read
@@ -266,6 +277,77 @@ export function commandsIn(source) {
   return [...new Set([...source.matchAll(/npm run ([\w:-]+)/g)].map((m) => m[1]))];
 }
 
+/**
+ * THE OTHER PLACE AN INSTRUCTION LIVES. Every rule above reads a guidance
+ * *document*. The instruction a contributor is likeliest to obey is not in one:
+ * it is the sentence a blocked hook prints, arriving at the moment the push
+ * stops. Those sentences name remedies too, and nothing read them.
+ *
+ * The one that was wrong here is the copy gate's announced skip. It named
+ * `ai-registry/scripts/link-registry.mjs` — correct relative to the directory
+ * that holds this repository, and resolvable from nowhere the reader is
+ * standing, because a hook runs at the repository root. The installer is real;
+ * the path to it was a guess at a location `.ai/manifest.yaml` already declares
+ * (`registry.local`), written once by hand and never resolved. The same line,
+ * copied, is in three sibling repositories.
+ *
+ * A remedy is verified against the ROOT A HOOK RUNS IN, which is the repository
+ * root — not against the file that prints it, and not against the parent
+ * directory, because the reader is not standing there either.
+ */
+export const REFUSAL_SOURCES = ['.githooks/pre-push', '.githooks/pre-commit', '.githooks/commit-msg'];
+
+/** A line that instructs. Narration names paths too and tells nobody to do anything. */
+const INSTRUCTS = /\b(?:run|rerun|re-run|install|execute|see|read)\b/i;
+/** A runnable path. End-anchored, so `copy-contract.json` is not read as a `.js` file. */
+const REMEDY_PATH = /(?<![\w./@-])((?:\.{1,2}\/)?[\w.-]+(?:\/[\w.-]+)+\.(?:mjs|cjs|js|ts|tsx|py|sh|ps1))(?![\w.])/g;
+
+/**
+ * Pure. `[{line, ref}]` for every runnable path an instructing line names.
+ *
+ * Two exclusions, and both are the rule rather than leniency:
+ *
+ * - **Narration is not instruction.** A script logging `write … scripts/x.mjs`
+ *   is reporting, and reporting it as an unreachable remedy is the
+ *   false-positive class that gets a rule suppressed.
+ * - **A path assembled at emit time is not a literal.** `$registry/scripts/…`
+ *   or a template hole is a message that resolves its own remedy before
+ *   printing it, which is exactly what this rule is asking for. Flagging it
+ *   would make the fix for the finding into the finding.
+ */
+export function remediesIn(source) {
+  const out = [];
+  source.split(/\r?\n/).forEach((line, i) => {
+    if (!INSTRUCTS.test(line)) return;
+    REMEDY_PATH.lastIndex = 0;
+    let m;
+    while ((m = REMEDY_PATH.exec(line))) {
+      const before = line[m.index - 1] ?? '';
+      if (before === '$' || before === '}' || before === '%') continue; // computed at emit time
+      out.push({ line: i + 1, ref: m[1] });
+    }
+  });
+  return out;
+}
+
+/**
+ * `[{file, line, ref, exists}]` for every refusal source that is present.
+ * A source that is absent contributes nothing and is NOT silently skipped —
+ * a fixture in the test file asserts the population is non-empty, because a
+ * renamed hooks directory would otherwise retire this rule reporting clean.
+ */
+export function loadRemedies(root = REPO_ROOT, sources = REFUSAL_SOURCES) {
+  const out = [];
+  for (const rel of sources) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue;
+    for (const r of remediesIn(fs.readFileSync(abs, 'utf8'))) {
+      out.push({ file: rel, line: r.line, ref: r.ref, exists: fs.existsSync(path.resolve(root, r.ref)) });
+    }
+  }
+  return out;
+}
+
 const finding = (rule, message, fix) => ({ rule, message, fix });
 
 /**
@@ -276,8 +358,25 @@ const finding = (rule, message, fix) => ({ rule, message, fix });
  * (`ciCommands()` above). `ci = null` means the caller did not read the workflow,
  * and the gate rules DO NOT RUN rather than guessing.
  */
-export function runChecks(guidance, files, scripts, ci = null) {
+export function runChecks(guidance, files, scripts, ci = null, remedies = null) {
   const out = [];
+
+  // `remedies = null` means the caller did not read the refusal sources, and
+  // this rule does not run rather than guessing — the same discipline the gate
+  // rules below follow.
+  for (const r of remedies ?? []) {
+    if (r.exists) continue;
+    out.push(
+      finding(
+        'remedy-unreachable',
+        `${r.file}:${r.line} tells a blocked contributor to run \`${r.ref}\`, which does not exist relative to the repository root — the directory a hook runs in.`,
+        'Resolve the path where the message is built, from whatever already declares it (`registry.local` in ' +
+          `${MANIFEST_PATH} for anything in the knowledge registry), and print the resolved command. Where the ` +
+          'target may be absent, say what is missing and where it was looked for. A refusal whose remedy cannot be ' +
+          'run leaves the reader one move: bypass the gate.',
+      ),
+    );
+  }
   const canonical = guidance?.canonical ?? null;
   const declared = new Set([canonical, ...(guidance?.projections ?? [])].filter(Boolean));
 
@@ -585,6 +684,7 @@ if (process.argv[1]?.endsWith('check-guidance.mjs')) {
     loadGuidanceFiles(REPO_ROOT, declaredPaths(guidance)),
     pkg.scripts ?? {},
     loadCiCommands(REPO_ROOT),
+    loadRemedies(REPO_ROOT),
   );
   console.log(render(findings, guidance ?? { canonical: null, projections: [], verify: [], gates: [], gatesDoc: null }));
   process.exit(findings.length === 0 ? 0 : 1);

@@ -396,6 +396,49 @@ check('the flag must be documented, because an operator meets it as a refused bo
   assert.match(f.find((x) => x.rule === 'open-mode-shipped-on').message, /does not document KP_ALLOW_OPEN/);
 });
 
+// --- a public ingress must name the origin candidate links resolve to ----------
+
+function withPublicOrigin(values, { ingressEnabled, url }) {
+  const envLine =
+    url === undefined ? '  APP_ORIGIN: ""' : `  APP_ORIGIN: ""\n  NEXT_PUBLIC_APP_BASE_URL: ${JSON.stringify(url)}`;
+  return `${values.replace('  APP_ORIGIN: ""', envLine)}\ningress:\n  enabled: ${ingressEnabled}\n`;
+}
+
+const originDocumented = `${GOOD.envExample}NEXT_PUBLIC_APP_BASE_URL=\n`;
+
+check('an ingress install with an empty public origin is a finding', () => {
+  const f = broken({
+    values: withPublicOrigin(GOOD.values, { ingressEnabled: true, url: '' }),
+    envExample: originDocumented,
+  });
+  assert.ok(has(f, 'ingress-public-origin'));
+  assert.match(f.find((x) => x.rule === 'ingress-public-origin').message, /NEXT_PUBLIC_APP_BASE_URL is empty/);
+});
+
+check('an ingress install with an absolute public origin is clean', () => {
+  assert.deepEqual(
+    runPolicies(
+      patched({
+        values: withPublicOrigin(GOOD.values, { ingressEnabled: true, url: 'https://hire.example' }),
+        envExample: originDocumented,
+      }),
+    ),
+    [],
+  );
+});
+
+check('ingress off with an empty public origin is clean', () => {
+  assert.deepEqual(
+    runPolicies(
+      patched({
+        values: withPublicOrigin(GOOD.values, { ingressEnabled: false, url: '' }),
+        envExample: originDocumented,
+      }),
+    ),
+    [],
+  );
+});
+
 // --- against the real chart ---------------------------------------------------
 
 check('every policy carries the reason it exists', () => {

@@ -113,6 +113,31 @@ class FairnessCheckTest(unittest.TestCase):
         self.assertIn("Baseline", fm["weightNotes"]["b"][0])
         # The stronger, observed-skill candidate is robustly first across schemes.
         self.assertEqual(fm["ranking"][0], "Ada")
+        # Same-track cohort: both early-career, nobody KO'd on an entry job.
+        self.assertEqual(fm["tracks"], ["early_career", "early_career"])
+        self.assertEqual(fm["koFailed"], [])
+
+    def test_mixed_tracks_are_labelled_not_silently_merged(self) -> None:
+        # EXPERIENCED + STUDENT on an entry job: both eligible, two incomparable
+        # scales. The producer must carry a track per row so Fair Rank cannot
+        # re-merge them without a red gate.
+        fm = fairness_check([("e1", EXPERIENCED), ("s1", STUDENT)], ENTRY_JOB)
+        self.assertEqual(fm["candidateIds"], ["e1", "s1"])
+        self.assertEqual(fm["tracks"], ["experienced", "early_career"])
+        self.assertEqual(set(fm["tracks"]), {"experienced", "early_career"})
+        self.assertEqual(fm["koFailed"], [])
+        self.assertEqual(set(fm["ranking"]), {"Senior Dev", "Student A"})
+
+    def test_ko_failed_id_is_absent_from_ranking(self) -> None:
+        # SENIOR_JOB knocks the student out (same fixture as RecruiterTest).
+        # fairness_check is a separate function the CLI calls with the raw list;
+        # a KO-failed id must not headline the audit ranking.
+        fm = fairness_check([("e1", EXPERIENCED), ("s1", STUDENT)], SENIOR_JOB)
+        self.assertEqual(fm["koFailed"], ["s1"])
+        self.assertEqual(fm["tracks"], ["experienced", "early_career"])
+        self.assertNotIn("Student A", fm["ranking"])
+        self.assertEqual(fm["ranking"], ["Senior Dev"])
+        self.assertEqual(fm["candidateIds"], ["e1", "s1"], "matrix lockstep keeps the KO row")
 
 
 if __name__ == "__main__":

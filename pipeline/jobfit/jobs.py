@@ -45,6 +45,10 @@ HARDNESS = ("prerequisite", "learnable")
 # high_school added 2026-08-11: postings demanding a HS diploma had no legal value,
 # so extraction was forced into the "none"-vs-diploma self-contradiction the bench flagged.
 EDU_LEVELS = ("phd", "master", "bachelor", "university", "high_school", "none")
+# The pay periods a posting may STATE (Job.salary_currency / Job.salary_period).
+# "hour" is in the vocabulary although no band is ever built from it: an hourly ad
+# stated pay, and a reader told "posting states no pay" would be told a falsehood.
+SALARY_PERIODS = ("month", "year", "hour")
 
 # -- default policy (single source of truth) --------------------------------
 # THE one place the locale/market defaults live. ``normalize_job`` stamps these onto
@@ -137,6 +141,15 @@ class Job(_Base):
     requirements: list[JobRequirement] = Field(default_factory=list)
     detected_skills: list[str] = Field(default_factory=list)
     salary_band: list[int] = Field(default_factory=list)
+    # What the posting itself STATED its pay in, when it stated any — never a default
+    # and never a phantom (absent stays None). ``salary_band`` is always denominated in
+    # the ACTIVE market's currency/period so every consumer reads one unit; these two
+    # fields keep the raw statement, so a CZK/year ad can be compared honestly (x12 on
+    # the band only) instead of being answered "posting states no pay", and an hourly
+    # ad can say "hourly" instead of "no pay". ``salary_period`` is one of
+    # :data:`SALARY_PERIODS`.
+    salary_currency: str | None = None
+    salary_period: str | None = None
     entry_profile: JobEntryProfile | None = None
     # Provenance: names of the fields normalize_job filled with an assumed value —
     # the DEFAULT_POLICY locale defaults, plus "salary_band" when the taxonomy
@@ -371,6 +384,12 @@ def normalize_job(raw: dict[str, Any], *, job_id: str | None = None) -> Job:
         if salary_min is not None and salary_max is not None
         else None
     )
+    # The units the posting stated, when it stated any. Additive and never defaulted:
+    # an off-vocabulary period is dropped rather than guessed.
+    salary_currency = _str(raw.get("salary_currency")).upper() or None
+    salary_period = _str(raw.get("salary_period")).lower() or None
+    if salary_period not in SALARY_PERIODS:
+        salary_period = None
     if stated_band:
         salary_band = list(stated_band)
     else:
@@ -407,6 +426,8 @@ def normalize_job(raw: dict[str, Any], *, job_id: str | None = None) -> Job:
         requirements=requirements,
         detected_skills=detected_unique,
         salary_band=salary_band,
+        salary_currency=salary_currency,
+        salary_period=salary_period,
         entry_profile=entry,
         defaulted_fields=defaulted,
         source=_str(raw.get("source")) or "synthetic",

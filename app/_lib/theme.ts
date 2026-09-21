@@ -11,6 +11,33 @@ export const THEME_STORAGE_KEY = "kp-theme";
 
 const listeners = new Set<() => void>();
 
+let storageBound = false;
+
+function applyThemeAttr(next: Theme): void {
+  if (next === "dark") document.documentElement.dataset.theme = "dark";
+  else delete document.documentElement.dataset.theme;
+}
+
+function onThemeStorage(ev: StorageEvent): void {
+  if (ev.key !== THEME_STORAGE_KEY) return;
+  // Foreign-tab write: apply the attribute the same way setTheme does, but do
+  // not re-write localStorage (this tab did not choose; the other tab already stored).
+  applyThemeAttr(ev.newValue === "dark" ? "dark" : "light");
+  listeners.forEach((listener) => listener());
+}
+
+function bindThemeStorage(): void {
+  if (storageBound || typeof window === "undefined") return;
+  window.addEventListener("storage", onThemeStorage);
+  storageBound = true;
+}
+
+function unbindThemeStorage(): void {
+  if (!storageBound || typeof window === "undefined") return;
+  window.removeEventListener("storage", onThemeStorage);
+  storageBound = false;
+}
+
 export function getTheme(): Theme {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
@@ -22,8 +49,7 @@ export function getServerTheme(): Theme {
 }
 
 export function setTheme(next: Theme): void {
-  if (next === "dark") document.documentElement.dataset.theme = "dark";
-  else delete document.documentElement.dataset.theme;
+  applyThemeAttr(next);
   try {
     localStorage.setItem(THEME_STORAGE_KEY, next);
   } catch {
@@ -34,5 +60,9 @@ export function setTheme(next: Theme): void {
 
 export function subscribeTheme(listener: () => void): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  bindThemeStorage();
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) unbindThemeStorage();
+  };
 }

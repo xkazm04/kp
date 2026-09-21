@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { adText?: string; jobId?: unknown };
     const adText = (body.adText ?? "").trim();
     if (adText.length < MIN_AD_CHARS) {
-      return NextResponse.json({ error: `Provide the full job ad text (at least ~${MIN_AD_CHARS} chars).` }, { status: 400 });
+      return jsonRefusal("JOB_AD_TOO_SHORT", 400);
     }
     const ws = await currentWorkspace();
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // documented canWriteJobLifecycle decision.
     const explicitJobId = typeof body.jobId === "string" && body.jobId.trim() ? body.jobId.trim() : undefined;
     if (explicitJobId && !canWriteJobLifecycle(explicitJobId, ws)) {
-      return NextResponse.json({ error: "Job not found." }, { status: 404 });
+      return jsonRefusal("JOB_NOT_FOUND", 404);
     }
 
     // Per-IP, AFTER the cheap refusals (too-short ad, unknown/foreign jobId) so a

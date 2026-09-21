@@ -85,3 +85,34 @@ export function mergeRubricRows(rubric: RubricComp[], candidates: WithRatings[])
 export function isUnrecognizedCohort(rubric: RubricComp[]): boolean {
   return rubric.length === 0;
 }
+
+export type CompareCsvCandidate = {
+  candidateLabel?: string | null;
+  recommendation?: string | null;
+  ratings: { competency: string; rating: number }[];
+  humanScorecard?: { ratings?: { competency: string; rating: number }[]; recommendation?: string | null } | null;
+};
+
+/** One cell: a real rating number, or blank when that side was never scored.
+ *  Never `?? 0` — a missing human (or AI) rating is not a zero. */
+function csvRating(ratings: { competency: string; rating: number }[] | undefined, competency: string): number | "" {
+  const hit = ratings?.find((r) => r.competency.toLowerCase() === competency.toLowerCase());
+  return typeof hit?.rating === "number" ? hit.rating : "";
+}
+
+/** Data rows of the compare grid: competency × (AI, human, recommendation) per
+ *  candidate. Header is the caller's (localized). Missing ratings stay blank. */
+export function compareCsvRows(rubric: RubricComp[], candidates: CompareCsvCandidate[]): (string | number)[][] {
+  const axes = mergeRubricRows(rubric, candidates);
+  return axes.map((axis) => {
+    const cells: (string | number)[] = [axis.competency];
+    for (const c of candidates) {
+      cells.push(
+        csvRating(c.ratings, axis.competency),
+        csvRating(c.humanScorecard?.ratings, axis.competency),
+        c.recommendation ?? c.humanScorecard?.recommendation ?? ""
+      );
+    }
+    return cells;
+  });
+}

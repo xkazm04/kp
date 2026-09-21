@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { AnalyticsExportButton } from "./AnalyticsExportButton";
+import { analyticsCsvProvenance, rolesCsvRows } from "./analyticsFunnelCsv";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { AnalyticsEmptyPreview } from "./AnalyticsEmptyPreview";
 import { hasRoleRows } from "./performanceBands";
@@ -26,6 +27,8 @@ import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 // role does not exist.
 export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boardHref: (filter: { q?: string; stage?: string }) => string }) {
   const t = useTranslations("analytics");
+  const tLog = useTranslations("analytics.log");
+  const locale = useLocale();
   const [query, setQuery] = useState("");
   const needle = query.trim().toLocaleLowerCase();
   const rows = needle ? data.byJob.filter((j) => j.jobTitle.toLocaleLowerCase().includes(needle)) : data.byJob;
@@ -51,16 +54,47 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
               with the visible filter would be the same defect one layer down. */}
           <AnalyticsExportButton
             label={t("exportCsv")}
+            artifact="kp-roles.csv"
             disabled={rows.length === 0}
             onClick={() =>
               downloadFile(
                 "kp-roles.csv",
-                toCsv([
-                  [t("colJob"), t("colKoDeclined"), t("colInPipeline"), t("colReachedInterview"), t("colHired"), t("colHireRate")],
-                  // The dash travels with the row: a file that printed "0%" where the
-                  // screen shows "—" would re-introduce the fabricated zero one layer down.
-                  ...rows.map((j) => [j.jobTitle, j.koDeclined, j.total, j.reachedInterview, j.hired, j.total === 0 ? "—" : `${j.hireRatePct}%`]),
-                ]),
+                toCsv(
+                  rolesCsvRows(
+                    rows,
+                    {
+                      job: t("colJob"),
+                      koDeclined: t("colKoDeclined"),
+                      inPipeline: t("colInPipeline"),
+                      reachedInterview: t("colReachedInterview"),
+                      hired: t("colHired"),
+                      hireRate: t("colHireRate"),
+                    },
+                    {
+                      provenance: analyticsCsvProvenance(
+                        "kp-roles.csv",
+                        {
+                          window: data.windowDays == null ? t("windowAll") : t("windowDays", { days: data.windowDays }),
+                          bucketTz: data.bucketTz ?? "UTC",
+                          locale,
+                          truncated: !!data.truncated,
+                          excludedSim: data.excludedSim ?? 0,
+                          truncatedNote: t("cohortTruncatedNote", { count: data.total }),
+                          excludedNote: t("simExcludedNote", { count: data.excludedSim ?? 0 }),
+                        },
+                        {
+                          export: tLog("provExport"),
+                          generated: tLog("provGenerated"),
+                          window: t("windowLabel"),
+                          tz: tLog("provZone"),
+                          locale: tLog("provLocale"),
+                          truncated: t("exportProvTruncated"),
+                          excludedSim: t("exportProvExcludedSim"),
+                        }
+                      ),
+                    }
+                  )
+                ),
                 "text/csv"
               )
             }

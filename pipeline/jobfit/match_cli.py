@@ -17,6 +17,7 @@ from pathlib import Path
 
 from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
 from .matching import match
+from .transform import apply_preferences
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +29,13 @@ def main(argv: list[str] | None = None) -> int:
         "--profile-json",
         type=Path,
         help="CandidateProfileV2 JSON — transformed into a MatchCandidate (skills+provenance, potential).",
+    )
+    parser.add_argument(
+        "--preferences-json",
+        type=Path,
+        default=None,
+        help="Seeker JobseekerPreferences JSON (salaryFloor, locations, countries, workModes, seniority) — "
+        "overlaid on the candidate; drives MatchResult.eligibility flags, never the score or the KO filter.",
     )
     parser.add_argument("--jobs", type=Path, default=None, help="Override corpus path.")
     parser.add_argument(
@@ -48,6 +56,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         candidate = load_candidate_arg(args.profile_json, args.candidate_json)
+        if args.preferences_json is not None:
+            preferences = json.loads(args.preferences_json.read_text(encoding="utf-8"))
+            # Applied to BOTH load paths (profile or raw candidate) so the seeker
+            # module can pass its preferences beside either representation.
+            candidate = apply_preferences(candidate, preferences if isinstance(preferences, dict) else None)
         # Corpus augmented by --jobs-json DB overrides (overrides win on id
         # collision): without it a recruiter-ingested/published job scored by the
         # Fit Matrix never appeared in the Match ranking at any rank.

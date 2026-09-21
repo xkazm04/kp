@@ -1,0 +1,14 @@
+# Hand-written fixture: a board that lets crawlers read offers but not the search
+# machinery, and asks for a five-second gap. The kp-jobseeker group is deliberately
+# ABSENT so the `*` group binds — the Crawl-delay test rides on that.
+User-agent: *
+Disallow: /search
+Disallow: /api/
+Disallow: /*?sort=
+Allow: /api/public/
+Crawl-delay: 5
+
+User-agent: SomeOtherBot
+Disallow: /
+
+Sitemap: https://board.example/sitemap.xml

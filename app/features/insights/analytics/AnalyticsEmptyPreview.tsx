@@ -1,32 +1,39 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { PANEL_SUNKEN, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
+import { buildUrl } from "@/app/features/shell/tabs";
 import { UpstreamLinks, type AnalyticsEmptyProps } from "./AnalyticsEmptyShared";
 
 // VARIANT A — "the readout, previewed".
 //
 // Metaphor: the report already exists; it is simply waiting for its first
 // number. Instead of apologising for having no data, the empty state shows the
-// three figures Analytics will hand back and what each one will let the
-// recruiter decide. The glyph is deliberately SECONDARY here (a small mark
-// beside the copy) — the promised metrics are the hero.
+// four figures Analytics will hand back (hire rate, time-to-hire, cost-per-hire,
+// and the Quality/trust verdict) and what each one will let the recruiter
+// decide. The glyph is deliberately SECONDARY here (a small mark beside the
+// copy) — the promised metrics are the hero.
 //
 // Honesty rule, inherited from the rest of this tab (see the ROI ledger /
 // forecast panels): nothing is fabricated. Every tile shows a literal em-dash,
 // never a plausible-looking sample figure — a fake chart on an empty state is a
 // lie the user only detects after trusting it once.
 
-// The three figures this tab leads with once a single candidate exists. Kept as
+// The four figures this tab leads with once a single candidate exists. Kept as
 // data (not markup) so the row is one map and the set is easy to re-order — each
 // entry is a pair of `analytics.empty.*` catalog keys, resolved at render.
-const PROMISED_METRICS: { labelKey: "metricHireRate" | "metricTimeToHire" | "metricCostPerHire"; meaningKey: "metricHireRateBody" | "metricTimeToHireBody" | "metricCostPerHireBody" }[] = [
+const PROMISED_METRICS: {
+  labelKey: "metricHireRate" | "metricTimeToHire" | "metricCostPerHire" | "metricTrust";
+  meaningKey: "metricHireRateBody" | "metricTimeToHireBody" | "metricCostPerHireBody" | "metricTrustBody";
+}[] = [
   { labelKey: "metricHireRate", meaningKey: "metricHireRateBody" },
   { labelKey: "metricTimeToHire", meaningKey: "metricTimeToHireBody" },
   { labelKey: "metricCostPerHire", meaningKey: "metricCostPerHireBody" },
+  { labelKey: "metricTrust", meaningKey: "metricTrustBody" },
 ];
 
 /** One promised-but-empty figure: label, an honest em-dash, and what it will mean. */
@@ -44,6 +51,8 @@ function MetricPreviewTile({ label, meaning, noValue }: { label: string; meaning
 
 export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProps) {
   const t = useTranslations("analytics.empty");
+  const search = useSearchParams();
+  const qualityHref = buildUrl({ tab: "analytics", sec: "quality" }, search.toString());
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-left`}>
       <div className="flex items-start gap-4">
@@ -63,7 +72,7 @@ export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProp
       </div>
 
       <p className="mt-5 text-meta uppercase tracking-wide text-steel">{t("willReport")}</p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {PROMISED_METRICS.map((m) => (
           <MetricPreviewTile
             key={m.labelKey}
@@ -73,6 +82,12 @@ export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProp
           />
         ))}
       </div>
+
+      <p className="mt-4 max-w-xl text-sm text-steel">
+        <a href={qualityHref} className="focus-ring rounded font-semibold text-coral hover:underline">
+          {t("metricTrustLink")}
+        </a>
+      </p>
 
       <UpstreamLinks links={links} className="mt-5" />
     </div>

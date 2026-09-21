@@ -21,6 +21,10 @@ import { useTranslations } from "next-intl";
 //     `inline-block h-4 w-24 rounded bg-stone-100` shape). Those are decoration:
 //     the row around them already says what is there, and announcing "Loading"
 //     once per cell would be far worse than saying nothing.
+//
+// Remaining silent boxes are a per-file ceiling in `loading-gap-debt.json`
+// (enforced by `loading-gap-debt.test.ts`). A new block-level
+// `reveal-quiet` + `aria-hidden` file is undeclared.
 //   • Where several gaps mount at once BELOW an already-rendered heading, prefer
 //     one status region on the section over one per panel, for the same reason.
 //

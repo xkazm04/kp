@@ -31,6 +31,19 @@ test("a slot renders as <date> · <time>, in the locale asked for", () => {
   assert.notEqual(formatSlotLabel("2026-06-10T12:00:00.000Z", "cs"), out);
 });
 
+test("a Prague winter instant includes a short zone when a timeZone is given", () => {
+  const out = formatSlotLabel("2026-01-15T10:00:00.000Z", "en", null, { timeZone: "Europe/Prague" });
+  assert.match(out, / · /, "keeps the date · time shape");
+  assert.match(out, /GMT\+|CET/, "names the zone so 16:00 is not anonymous");
+});
+
+test("an unparsable instant with a timeZone still uses the fallback only", () => {
+  assert.equal(
+    formatSlotLabel("not-a-date", "en", "Tue 10 Jun · 10:00", { timeZone: "Europe/Prague" }),
+    "Tue 10 Jun · 10:00"
+  );
+});
+
 test("an absent or unparsable instant degrades to the fallback, never to blank", () => {
   // The fallback is the STORED English label; a booked slot rendering empty is
   // the failure this guard exists for.

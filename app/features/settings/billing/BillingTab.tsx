@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { checkoutBannerState } from "./billingCheckoutBanner";
+import { checkoutBannerState, shouldTrackCheckoutCompleted, type CheckoutBanner } from "./billingCheckoutBanner";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
@@ -100,6 +100,11 @@ export function BillingTab() {
     pollWindowElapsed,
     planReflectsPaid: Boolean(data && data.plan.id !== "free"),
   });
+  // Conversion is webhook confirmation, not the Buy click. Latch the previous
+  // banner so `confirmed` re-renders (and the poll that keeps returning paid)
+  // cannot double-fire checkout_completed. The catalog item is stashed around
+  // the Polar redirect because this tree remounts on return.
+  const prevCheckout = useRef<CheckoutBanner>(null);
 
   // Only the NEWEST /api/billing read may land — see billingTabState.ts.
   const latch = useRef(createLoadLatch()).current;
@@ -171,6 +176,25 @@ export function BillingTab() {
     return () => timers.forEach(clearTimeout);
   }, [checkoutReturn, load]);
 
+  useEffect(() => {
+    if (!shouldTrackCheckoutCompleted(prevCheckout.current, checkout)) {
+      prevCheckout.current = checkout;
+      return;
+    }
+    prevCheckout.current = checkout;
+    let item = data?.plan.id ?? "unknown";
+    try {
+      const stored = sessionStorage.getItem("kp.billing.checkoutItem");
+      if (stored) {
+        item = stored;
+        sessionStorage.removeItem("kp.billing.checkoutItem");
+      }
+    } catch {
+      /* best-effort: analytics must never break the billing tab */
+    }
+    track("checkout_completed", { item });
+  }, [checkout, data?.plan.id]);
+
   // Catalog-key helpers with the app-wide has() fallback so an unknown enum
   // value (new meter, new provider status) renders labelized, never crashes.
   const meterName = (meter: string): string => {
@@ -187,6 +211,11 @@ export function BillingTab() {
     // Fire-and-forget analytics (no-op when Plausible isn't configured): the
     // checkout intent, before the provider redirect can navigate away.
     track("checkout_started", { item: key });
+    try {
+      sessionStorage.setItem("kp.billing.checkoutItem", key);
+    } catch {
+      /* best-effort: analytics must never break checkout */
+    }
     setPurchase({ key, error: null });
     try {
       const r = await fetch("/api/billing/checkout", {

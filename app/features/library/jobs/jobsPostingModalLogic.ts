@@ -15,7 +15,6 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { derivePostingLifecycle } from "./jobsPostingLifecycle";
-import { makeLatestRequestGuard, requestKey } from "./jobsRequestGuard";
 import {
   lastPublishResult,
   publishNoteSentences,
@@ -24,6 +23,7 @@ import {
   type PublishResponse,
 } from "./jobsPublishResult";
 import type { PostingTabId } from "./jobsPostingModalTabs";
+import type { PublishTerms } from "./JobsPublishDialog";
 import {
   buildJobMarkdownStrings,
   jobToMarkdown,
@@ -98,57 +98,6 @@ export function useJobPostingModalLogic(
   // transitions on top of the server-decorated job.status.
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
-  // pack-on-publish — after a successful publish, point the recruiter at the
-  // campaign pack (the thing they'd post the role WITH). null = not checked yet
-  // (no CTA), false = no pack for this job/lang (→ "Create"), true = one exists
-  // (→ "View"). The publish response carries no pack info, so we settle it with
-  // one lightweight GET on success — the cheapest honest existence check.
-  const [packExists, setPackExists] = useState<boolean | null>(null);
-  // The probe is keyed by job AND posting language, and this modal is REUSED
-  // across roles — so it needs the same "latest request wins" guard every other
-  // keyed fetch in this context runs under (jobsRequestGuard.ts). Without it a
-  // slow probe for Role A resolving after the modal moved to Role B decided B's
-  // CTA from A's answer: "View campaign pack" pointing at a pack B has not got.
-  const packGuard = useRef(makeLatestRequestGuard());
-  const packAbort = useRef<AbortController | null>(null);
-  const probeCampaignPack = (jobId: string, lang: PostingLocale) => {
-    const key = requestKey(jobId, lang);
-    packGuard.current.begin(key);
-    packAbort.current?.abort();
-    const controller = new AbortController();
-    packAbort.current = controller;
-    void fetch(`/api/jobs/${encodeURIComponent(jobId)}/campaign?lang=${lang}`, { signal: controller.signal })
-      .then((cr) => cr.json().catch(() => null))
-      .then((cd: { pack?: unknown } | null) => {
-        if (packGuard.current.isCurrent(key)) setPackExists(Boolean(cd?.pack));
-      })
-      .catch(() => {
-        // An abort is a supersede or a teardown, never a finding: leave the CTA
-        // as the current role left it rather than blanking it from a dead probe.
-        if (!controller.signal.aborted && packGuard.current.isCurrent(key)) setPackExists(null);
-      });
-  };
-  // Switching the modal to another role invalidates the CTA outright: drop the
-  // previous role's answer (null = no CTA) rather than showing role A's "View
-  // campaign pack" over role B's posting. React's "adjust state when a prop
-  // changes" render-time shape, not an effect — an effect here would need a
-  // set-state-in-effect suppression and would paint one frame of A's CTA first.
-  const [packProbeJob, setPackProbeJob] = useState(job.id);
-  if (packProbeJob !== job.id) {
-    setPackProbeJob(job.id);
-    setPackExists(null);
-  }
-  // The probe's teardown, keyed on the role: the cleanup runs both when the modal
-  // is reused for another job and when it unmounts, so an in-flight probe for the
-  // role we just left is cancelled rather than resolving into the new role's CTA
-  // (or into a dead tree). Refs are read here, not in the render pass above.
-  useEffect(
-    () => () => {
-      packAbort.current?.abort();
-      packAbort.current = null;
-    },
-    [job.id]
-  );
   // tone "quota" = hit the plan's active-job cap (402 BILLING_QUOTA_EXCEEDED): a monetization
   // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
   // This state now carries FAILURES only — a successful publish is a list of
@@ -181,7 +130,11 @@ export function useJobPostingModalLogic(
   // Same call DraftsPanel makes, surfaced where the draft actually opens: take
   // the JD live and source matching candidates into the pipeline. tone "warn" =
   // published but sourcing errored — not to be mistaken for a clean "sourced 0".
-  const publishRole = async () => {
+  // Opening a role now carries TERMS (JobsPublishDialog): how many hires fill it,
+  // and the languages it is advertised in. The dialog collects them; this state is
+  // only whether it is open.
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
+  const publishRole = async (terms?: PublishTerms) => {
     if (publishing) return;
     setPublishing(true);
     setPublishNote(null);
@@ -190,6 +143,11 @@ export function useJobPostingModalLogic(
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // An EMPTY body when no terms were given, not `{}` with nulls: the route
+        // reads an absent field as "do not change it", so a reopen that restates
+        // nothing keeps the target the role was opened with.
+        body: JSON.stringify(terms ? { targetHires: terms.targetHires, langs: terms.langs } : {}),
         signal: controller.signal,
       });
       const p = (await r.json().catch(() => null)) as (PublishResponse & { code?: string }) | null;
@@ -215,10 +173,6 @@ export function useJobPostingModalLogic(
       // pipeline and changes the attention counts, so every other open view (board,
       // sidebar badges, another window) re-fetches instead of waiting out its poll.
       notifyDataChanged();
-      // Settle the pack-on-publish CTA (see probeCampaignPack) — fire-and-forget,
-      // guarded, so a slow probe for the role the modal has since left behind
-      // can't decide THIS role's CTA.
-      probeCampaignPack(job.id, appLocale);
       // Every fact the route answered, as its own sentence — and remembered, so
       // closing the modal no longer loses it.
       rememberPublishResult(job.id, p);
@@ -345,10 +299,11 @@ export function useJobPostingModalLogic(
     closeRole,
     publishing,
     published,
-    packExists,
     publishNote,
     publishOutcome,
     cancelPublish,
+    confirmingPublish,
+    setConfirmingPublish,
     lifecycleToken,
     goToBilling,
     isDraft,
@@ -356,6 +311,7 @@ export function useJobPostingModalLogic(
     publishRole,
     postingLang,
     setPostingLang,
+    appLocale,
     markdown,
     copyApplyLink,
     copyQuickApplyLink,

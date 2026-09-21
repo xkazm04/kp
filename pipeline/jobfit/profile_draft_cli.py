@@ -197,7 +197,22 @@ def build_draft(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _extract(text: str, lang: str = "en") -> dict[str, Any]:
+def _extract(text: str, lang: str = "en") -> tuple[dict[str, Any], str]:
+    """(payload, source) — ``source`` is "llm" or "deterministic". A provider that is
+    unavailable (no key, KP_OFFLINE, a refused route) yields the deterministic twin
+    (cv_draft.py) instead of an error: an install without a model can still import a
+    CV, and the caller shows what produced the draft.
+    """
+    try:
+        return _extract_llm(text, lang), "llm"
+    except Exception as exc:  # noqa: BLE001 - every provider failure degrades to the twin
+        from .cv_draft import deterministic_draft
+
+        print(f"[profile_draft] deterministic twin: {type(exc).__name__}: {str(exc)[:160]}", file=sys.stderr)
+        return deterministic_draft(text, lang), "deterministic"
+
+
+def _extract_llm(text: str, lang: str = "en") -> dict[str, Any]:
     """Single Gemini call: free text -> DRAFT_SCHEMA payload.
 
     ``lang`` localizes only the free-form text fields; archetype/provenance
@@ -287,8 +302,9 @@ def main(argv: list[str] | None = None) -> int:
             # seam (parseStderrError) read exit 1 as a 500.
             emit_error(invalid_input("No notes supplied."))
             return 2
-        payload = _extract(text, lang=args.lang)
+        payload, source = _extract(text, lang=args.lang)
         draft = build_draft(payload)
+        draft["source"] = source
     except ValueError as exc:
         # bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #5): a malformed input
         # JSON (json.JSONDecodeError) or a draft that fails validation (pydantic

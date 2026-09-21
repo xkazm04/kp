@@ -617,8 +617,12 @@ needs a key" is never an acceptable reason for a 500.
   follows; finding *which* routes exist is still a walk of `app/api/**`.
 - Request **body** schemas are validated per handler rather than declared, so
   the accepted fields of a given endpoint still come from reading it.
-- No route sends `Retry-After`. `rateLimit()` returns a boolean and keeps its
-  window's `resetAt` private, so no call site knows what to promise; the client
+- The in-process `rateLimit()` still returns a boolean and keeps its window's
+  `resetAt` private, so those ~90 call sites send no `Retry-After`; the client
   reads a `Retry-After` when a fronting proxy sends one
-  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it. Surfacing
-  the reset would change the limiter's return shape at ~90 call sites.
+  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it. The
+  persisted login-throttle store is the exception: `throttleRetryAfterMs` reports
+  remaining window, and `/api/auth/login` plus `/api/invite/[token]` 429s set
+  `Retry-After` (delta-seconds, capped at the window) from it. Surfacing reset
+  from `rateLimit()` itself would still change that limiter's return shape at
+  every in-process call site.

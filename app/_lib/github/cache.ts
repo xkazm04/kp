@@ -20,7 +20,10 @@ const githubCache = new Map<string, { at: number; payload: unknown }>();
 const GITHUB_CACHE_JD_KEY_MAX = 4000;
 export function githubCacheKey(username: string, jobDescription: string): string {
   const normJd = jobDescription.toLowerCase().replace(/\s+/g, " ").trim().slice(0, GITHUB_CACHE_JD_KEY_MAX);
-  return createHash("sha1").update(`${username.toLowerCase()}\n${normJd}`).digest("hex");
+  // sha256, not sha1: no security property is needed for an in-process
+  // dedup key, but js/weak-cryptographic-algorithm flags sha1 on principle
+  // and sha256 costs nothing here (js/weak-cryptographic-algorithm).
+  return createHash("sha256").update(`${username.toLowerCase()}\n${normJd}`).digest("hex");
 }
 
 /** The cached payload for `key`, or undefined on a miss. An expired entry is

@@ -7,6 +7,7 @@ import type { JdTemplate } from "@/app/_lib/templates-store";
 export type TemplateData = {
   title?: string;
   company?: string;
+  location?: string;
   seniority?: string;
   salary?: string;
   about?: string;
@@ -18,6 +19,7 @@ export type TemplateData = {
 export const TEMPLATE_PLACEHOLDERS = [
   "title",
   "company",
+  "location",
   "seniority",
   "salary",
   "about",
@@ -36,7 +38,9 @@ export const TEMPLATE_PLACEHOLDERS = [
 // USER-authored template keeps its literal headings — the author's choice, never
 // machine-translated — but MAY opt into these tokens. Two example-filler tokens
 // (offer_note/apply_note) localize the seeded default's sample bullets too, so a
-// cs build from the default is single-language throughout. These are NOT data
+// cs build from the default is single-language throughout. fallback_title and
+// fallback_company do the same for empty data slots, so a partial generate cannot
+// stamp English "Role title" / "Company" onto a Czech posting. These are NOT data
 // placeholders (they take no value from `data`); they resolve from the TemplateTokens
 // map the caller passes in.
 export const TEMPLATE_LOCALIZED_TOKENS = [
@@ -48,6 +52,8 @@ export const TEMPLATE_LOCALIZED_TOKENS = [
   "heading_apply",
   "offer_note",
   "apply_note",
+  "fallback_title",
+  "fallback_company",
 ] as const;
 
 export type LocalizedToken = (typeof TEMPLATE_LOCALIZED_TOKENS)[number];
@@ -85,7 +91,7 @@ const ALL_KNOWN_TOKENS: readonly string[] = [...TEMPLATE_PLACEHOLDERS, ...TEMPLA
 // rendered from this is surfaced through JdLintPanel (Ledger read-view + editor),
 // and the old "Competitive pay…" line was exactly the boilerplate jd-lint flags.
 export const DEFAULT_TEMPLATE_BODY = `# {{title}}
-**{{company}}** · {{seniority}} · {{salary}}
+**{{company}}** · {{location}} · {{seniority}} · {{salary}}
 
 ## {{heading_about}}
 {{about}}
@@ -105,9 +111,10 @@ export const DEFAULT_TEMPLATE_BODY = `# {{title}}
 ## {{heading_apply}}
 - {{apply_note}}`;
 
-// The middot separator used by the default template's `**company** · seniority ·
-// salary` header line. Kept as a named constant so the collapse contract below
-// and the unit tests (render-template.test.ts) reference one source of truth.
+// The middot separator used by the default template's
+// `**company** · location · seniority · salary` header line. Kept as a named
+// constant so the collapse contract below and the unit tests
+// (render-template.test.ts) reference one source of truth.
 export const TEMPLATE_SEPARATOR = " · ";
 
 // Private-use sentinel (U+E000) that marks where a placeholder rendered to an
@@ -126,16 +133,17 @@ const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 // ----------------------------
 // `renderTemplate` substitutes every `{{key}}` with its value from `data`
 // (trimmed, with the fallbacks in `map`); an unknown `{{key}}` is left verbatim.
-// Some placeholders can render empty (today only `{{seniority}}` and
+// Some placeholders can render empty (`{{location}}`, `{{seniority}}`,
 // `{{salary}}`), which on the default header line
-//     **{{company}}** · {{seniority}} · {{salary}}
+//     **{{company}}** · {{location}} · {{seniority}} · {{salary}}
 // would otherwise leave dangling `TEMPLATE_SEPARATOR`s. The contract:
 //
 //   • A separator immediately adjacent to a placeholder that rendered empty is
 //     removed together with that empty value — on EITHER side, in ANY ordering:
+//         location empty  → **Acme** · Senior
 //         seniority empty → **Acme** · 120k
 //         salary empty    → **Acme** · Senior
-//         both empty      → **Acme**
+//         all empty       → **Acme**
 //   • A literal `TEMPLATE_SEPARATOR` typed into static template text is NEVER
 //     removed, regardless of layout — only separators touching an empty
 //     placeholder collapse. (The previous implementation regex-scanned the
@@ -151,10 +159,14 @@ const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 // ship raw `{{heading_about}}` onto a public posting, so the type system asks the
 // caller which language the document is in.
 export function renderTemplate(body: string, data: TemplateData, localized: TemplateTokens): string {
-  const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "- —");
+  // Empty lists must be actually empty so the section-collapse pass can drop the
+  // heading, matching {{about}}. A literal "- —" is never EMPTY_MARK, so it used
+  // to leave hollow Requirements / Nice-to-have sections on a generated JD.
+  const bullets = (arr?: string[]) => (arr && arr.length ? arr.map((s) => `- ${s}`).join("\n") : "");
   const map: Record<string, string> = {
-    title: data.title?.trim() || "Role title",
-    company: data.company?.trim() || "Company",
+    title: data.title?.trim() || localized.fallback_title,
+    company: data.company?.trim() || localized.fallback_company,
+    location: data.location?.trim() || "",
     seniority: data.seniority?.trim() || "",
     salary: data.salary?.trim() || "",
     // No canned company blurb: the build supplies no real `about`, and emitting the
@@ -194,8 +206,8 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
   // (e.g. an unfilled `{{about}}` alone under "## About us") is dropped header-and-all,
   // so the section vanishes cleanly rather than leaving a dangling empty heading. Only
   // a header immediately followed by a lone marker line matches — inline empties on the
-  // `**company** · seniority · salary` line aren't ATX headers, so they're untouched
-  // and still handled by the separator collapse below.
+  // `**company** · location · seniority · salary` line aren't ATX headers, so they're
+  // untouched and still handled by the separator collapse below.
   // Then collapse a separator adjacent to an empty marker (either side), and finally
   // drop any lone markers that had no separator beside them.
   return substituted
@@ -210,7 +222,7 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
 // Unknown-token policy: BLOCKED
 // -----------------------------
 // renderTemplate leaves any {{token}} not in TEMPLATE_PLACEHOLDERS verbatim in
-// its output, so a typo ({{tilte}}) or an out-of-set token ({{location}},
+// its output, so a typo ({{tilte}}) or an out-of-set token ({{department}},
 // {{roleFamily}}) would render raw onto a public, shareable JD page. We make
 // that impossible at save time by BLOCKING — not stripping or keeping — bodies
 // that reference unknown tokens:
@@ -314,6 +326,14 @@ function templateTooLong(field: "name" | "body", value: string, max: number): Te
   return value.length > max ? { code: "tooLong", field, max } : null;
 }
 
+// Unknown {{tokens}} used to be a second, forgettable call at every write door.
+// Both validators run it so a caller that only uses validateTemplateFields still
+// cannot store {{tilte}}.
+function unknownTokensIn(body: string): TemplateFieldError | null {
+  const tokens = findUnknownPlaceholders(body);
+  return tokens.length ? { code: "unknownTokens", tokens } : null;
+}
+
 // A failure result carrying BOTH the English `error` (API/consumer + route) and
 // the stable `reason` code (manager localizes it). One helper so the two never drift.
 function fail(reason: TemplateFieldError): { ok: false; error: string; reason: TemplateFieldError } {
@@ -324,19 +344,22 @@ export type TemplateFieldsResult =
   | { ok: true; name: string; body: string }
   | { ok: false; error: string; reason: TemplateFieldError };
 
-/** Required-and-length validation for a NEW template's name/body (POST
- *  /api/templates) — the single source for both the caps AND the exact error
- *  wording, shared by the write boundary and the manager form so they can't
- *  drift. Trims both fields and rejects a whitespace-only name (which the store
- *  would otherwise silently coerce to "Untitled template") or body. Returns the
- *  trimmed fields on success, or one user-facing error. Accepts `unknown` so a
- *  raw request field can be passed without re-implementing the string guard. */
+/** Required-and-length-and-unknown-token validation for a NEW template's
+ *  name/body (POST /api/templates) — the single source for the caps, the
+ *  unknown-token policy, AND the exact error wording, shared by the write
+ *  boundary and the manager form so they can't drift. Trims both fields and
+ *  rejects a whitespace-only name (which the store would otherwise silently
+ *  coerce to "Untitled template") or body. Returns the trimmed fields on
+ *  success, or one user-facing error. Accepts `unknown` so a raw request field
+ *  can be passed without re-implementing the string guard. */
 export function validateTemplateFields(name: unknown, body: unknown): TemplateFieldsResult {
   const n = typeof name === "string" ? name.trim() : "";
   const b = typeof body === "string" ? body.trim() : "";
   if (!n || !b) return fail({ code: "bothRequired" });
   const lenError = templateTooLong("name", n, TEMPLATE_NAME_MAX_LENGTH) ?? templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
   if (lenError) return fail(lenError);
+  const unknown = unknownTokensIn(b);
+  if (unknown) return fail(unknown);
   return { ok: true, name: n, body: b };
 }
 
@@ -349,7 +372,7 @@ export type TemplateUpdateResult =
  *  promote-to-default carries neither). Only the fields actually present are
  *  trimmed, capped, and returned — and a present field may not be whitespace-only
  *  — so a partial edit can neither store an empty name/body nor exceed the caps.
- *  Same caps and wording as validateTemplateFields, via templateTooLong. */
+ *  Same caps, unknown-token policy, and wording as validateTemplateFields. */
 export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }): TemplateUpdateResult {
   const out: { name?: string; body?: string } = {};
   if (input.name !== undefined) {
@@ -362,7 +385,7 @@ export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }
   if (input.body !== undefined) {
     const b = typeof input.body === "string" ? input.body.trim() : "";
     if (!b) return fail({ code: "bodyEmpty" });
-    const e = templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH);
+    const e = templateTooLong("body", b, TEMPLATE_BODY_MAX_LENGTH) ?? unknownTokensIn(b);
     if (e) return fail(e);
     out.body = b;
   }

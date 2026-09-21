@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import {
   saveAnalysis,
   listAnalyses,
+  listAnalysesPage,
   listAnalysesByCvHash,
   hasLabelCollision,
   loadAnalysis,
@@ -78,6 +79,21 @@ test("hasLabelCollision flags two different CVs under one filename-derived label
   // A unique label doesn't collide; a NULL hash can't be judged.
   assert.equal(hasLabelCollision("Unique.pdf", "hash-alice", WS), false);
   assert.equal(hasLabelCollision("Alice.pdf", null, WS), false);
+});
+
+test("listAnalysesPage reports truncated when more than the cap of distinct groups exist", () => {
+  const ws = "ws-truncated-analyses";
+  for (let i = 0; i < 101; i += 1) {
+    saveAnalysis({ ...base, candidateLabel: `Cap${i}.pdf`, jdSlug: "jd-cap", cvHash: `hash-cap-${i}` }, ws);
+  }
+  const page = listAnalysesPage(100, ws);
+  assert.equal(page.rows.length, 100);
+  assert.equal(page.truncated, true);
+  assert.equal(page.limit, 100);
+  const exact = listAnalysesPage(101, ws);
+  assert.equal(exact.rows.length, 101);
+  assert.equal(exact.truncated, false);
+  assert.equal(listAnalyses(100, ws).length, 100, "the array wrapper still returns the slice");
 });
 
 test("legacy NULL-cv_hash rows are never grouped and carry prior_runs 0", () => {

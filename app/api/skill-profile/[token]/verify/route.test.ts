@@ -41,6 +41,15 @@ test("verify route gates behind the ONE shared per-IP limiter (30/10min)", () =>
   assert.ok(workAt > at, "the limiter must run before verifySkillProfileToken(token)");
 });
 
+test("verify catch answers a STORE code, not jsonError English", () => {
+  assert.doesNotMatch(routeSrc, /\bjsonError\(/, "jsonError forwards err.message onto a public credential URL");
+  assert.match(
+    routeSrc,
+    /safeJsonError\(error, "api:skill-profile:verify", "SKILL_PROFILE_VERIFY_FAILED"\)/,
+    "a thrown store error must answer the code, not the Error message",
+  );
+});
+
 test("verify route keys the throttle by client IP, not by token", () => {
   // Per-TOKEN keying would be useless here: enumeration presents a DIFFERENT token each
   // hit, so every guess would land in its own fresh bucket. It must be per-IP.
