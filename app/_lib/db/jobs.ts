@@ -24,6 +24,11 @@ export type JdRow = {
   // templateId the Generate took. NULL on legacy rows + plain draft saves. Powers
   // Duplicate's prompt re-seed and Retry's row-fallback replay.
   build_input_json?: string | null;
+  // The user id of the session that created the row. NULL on legacy rows and on
+  // any save with no identity behind it (open dev). Read ONLY by the delete
+  // door's authority check (app/_lib/jds-delete-access.ts) — a NULL is "no
+  // creator claim", which no user can satisfy.
+  created_by?: string | null;
 };
 
 // The recruiter's original build intent, persisted on the JD row at Generate so it
@@ -51,6 +56,9 @@ export type JdListItem = {
   created_at: string;
   analysis_status?: JdAnalysisStatus | null;
   analysis_task_id?: string | null;
+  // Authoring identity, for the list route's per-row `canDelete` fold. The id
+  // itself never leaves the server: the route folds it to a boolean.
+  created_by?: string | null;
 };
 
 const JD_PREVIEW_CHARS = 280;
@@ -72,11 +80,19 @@ export type SaveJdInput = {
 // A JD is a team's private draft/opening — INSERT stamps it, the LIST + edit paths
 // filter by it. The candidate-facing public JD page reads by slug (loadJd) in the
 // default workspace, treating a published JD as shareable content.
-export function saveJd(input: SaveJdInput, workspaceId: string = DEFAULT_WORKSPACE_ID): { slug: string; createdAt: string } {
+// `createdBy` is the authoring user id (null in open dev / any session without an
+// identity claim). It is stamped at INSERT and read by nothing except the delete
+// door's authority check, so an unstamped row is simply undeletable by anyone but
+// an owner/admin — the safe direction.
+export function saveJd(
+  input: SaveJdInput,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  createdBy: string | null = null
+): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
-  const stmt = db.prepare(`INSERT INTO jds (slug, title, body, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`);
-  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, input.body, createdAt, workspaceId));
+  const stmt = db.prepare(`INSERT INTO jds (slug, title, body, created_at, workspace_id, created_by) VALUES (?, ?, ?, ?, ?, ?)`);
+  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, input.body, createdAt, workspaceId, createdBy));
   return { slug, createdAt };
 }
 
@@ -92,17 +108,20 @@ export function saveJd(input: SaveJdInput, workspaceId: string = DEFAULT_WORKSPA
  *  survives the build for Duplicate/Retry. Returns the minted slug. */
 export function insertAnalyzingJd(
   input: { title: string; options: unknown; buildInput?: JdBuildIntent },
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  createdBy: string | null = null
 ): { slug: string; createdAt: string } {
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, build_input_json, workspace_id)
-     VALUES (?, ?, '', ?, 'analyzing', ?, ?, ?)`
+    `INSERT INTO jds (slug, title, body, created_at, analysis_status, analysis_json, build_input_json, workspace_id, created_by)
+     VALUES (?, ?, '', ?, 'analyzing', ?, ?, ?, ?)`
   );
   const analysisJson = JSON.stringify({ options: input.options });
   const buildInputJson = input.buildInput ? JSON.stringify(input.buildInput) : null;
-  const slug = insertWithUniqueSlug((s) => stmt.run(s, input.title, createdAt, analysisJson, buildInputJson, workspaceId));
+  const slug = insertWithUniqueSlug((s) =>
+    stmt.run(s, input.title, createdAt, analysisJson, buildInputJson, workspaceId, createdBy)
+  );
   return { slug, createdAt };
 }
 
@@ -239,7 +258,7 @@ export function listJdsPage(limit?: number, workspaceId: string = DEFAULT_WORKSP
   // full body is never read into memory for the list view.
   const rows = db
     .prepare(
-      `SELECT slug, title, created_at, analysis_status, analysis_task_id,
+      `SELECT slug, title, created_at, analysis_status, analysis_task_id, created_by,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
        FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`
@@ -250,6 +269,7 @@ export function listJdsPage(limit?: number, workspaceId: string = DEFAULT_WORKSP
     created_at: string;
     analysis_status: JdAnalysisStatus | null;
     analysis_task_id: string | null;
+    created_by: string | null;
     body_head: string;
     body_len: number;
   }>;
@@ -262,6 +282,7 @@ export function listJdsPage(limit?: number, workspaceId: string = DEFAULT_WORKSP
     created_at: r.created_at,
     analysis_status: r.analysis_status,
     analysis_task_id: r.analysis_task_id,
+    created_by: r.created_by,
     preview: r.body_len > JD_PREVIEW_CHARS ? `${r.body_head.slice(0, JD_PREVIEW_CHARS)}…` : r.body_head,
   }));
   return { jds, truncated, limit: bound };
@@ -310,7 +331,7 @@ export function loadJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID)
   const row = db
     .prepare(
       `SELECT slug, title, body, created_at, archived_at,
-              analysis_status, analysis_task_id, analysis_error, analysis_json, build_input_json
+              analysis_status, analysis_task_id, analysis_error, analysis_json, build_input_json, created_by
        FROM jds WHERE slug = ? AND workspace_id = ?`
     )
     .get(slug, workspaceId) as JdRow | undefined;
@@ -486,6 +507,36 @@ export function setJdArchived(slug: string, archived: boolean, workspaceId: stri
   );
 }
 
+/** HARD-delete a JD and its revision history (the Ledger's trash door). Archive
+ *  (above) is the reversible, link-preserving move and stays the default; this is
+ *  the deliberate removal of a draft that should never have existed.
+ *
+ *  Scope and blast radius, stated because a delete cannot be re-read later:
+ *   - `jds` + `jd_revisions` only. Both are keyed by the slug and belong to the
+ *     description; nothing else is the JD's own data.
+ *   - `analyses` rows keyed on jd_slug are NOT touched. A candidate's analysis is
+ *     a record of work done on a person, not a property of the description, and
+ *     erasing it here would silently rewrite the decision history.
+ *   - the linked `jd-<slug>` job is NOT touched either. The caller refuses the
+ *     delete while that job is live; a draft/closed job is a separate lifecycle
+ *     object with its own door on the Roles tab.
+ *
+ *  IMMEDIATE, because the two DELETEs must land or not land together: a crash
+ *  between them would leave orphan revisions that the next JD to mint the same
+ *  slug would inherit. Returns false when no row matched — a wrong slug, or
+ *  another workspace's JD (the tenant predicate is the whole guard here). */
+export function deleteJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const db = ensureDb();
+  const tx = db.transaction((): boolean => {
+    const removed = db.prepare(`DELETE FROM jds WHERE slug = ? AND workspace_id = ?`).run(slug, workspaceId).changes > 0;
+    // Only after the row itself proved to be ours: a revision sweep that ran on a
+    // foreign slug would delete another team's history on a 404.
+    if (removed) db.prepare(`DELETE FROM jd_revisions WHERE slug = ? AND workspace_id = ?`).run(slug, workspaceId);
+    return removed;
+  });
+  return tx.immediate();
+}
+
 export type JobFilter = {
   roleFamily?: string;
   seniority?: string;
@@ -539,6 +590,102 @@ function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; 
   return { extra: where.length ? `AND ${where.join(" AND ")}` : "", params };
 }
 
+// ---- the role's open/close review config ------------------------------------
+
+/** The stored `target_hires` folded to its meaning. NULL is not "no target": it is
+ *  the DEFAULT of 1, the value every row that predates the column carries and the
+ *  one a role opened without stating a number has. Folding it here (rather than
+ *  backfilling 100k corpus rows) keeps "unstated" and "stated as 1" the same fact,
+ *  which is what they are. A stored 0 or a negative — neither reachable through the
+ *  publish route's validation — also folds to 1, so the fill rule can never divide
+ *  a role into a target nobody can reach. */
+export function roleTargetHires(stored: number | null | undefined): number {
+  return typeof stored === "number" && Number.isFinite(stored) && stored >= 1 ? Math.trunc(stored) : 1;
+}
+
+/** The stored `posting_langs` JSON read back as a list of locale codes. Anything
+ *  that is not an array of strings (NULL, a legacy row, a corrupted value) is an
+ *  EMPTY list, never a throw: the posting modal treats [] as "the source language
+ *  only", which is exactly right for a role that never named any. */
+export function parsePostingLangs(stored: string | null | undefined): string[] {
+  if (!stored) return [];
+  const parsed = safeRowParse<unknown>(stored, "parsePostingLangs");
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= 8);
+}
+
+/** The two review columns for one role, folded. Used by the publish route (to read
+ *  what a previous publish set) and the auto-close hook (to know the target). */
+export type RoleOpenConfig = { targetHires: number; postingLangs: string[] };
+
+export function getRoleOpenConfig(id: string): RoleOpenConfig {
+  const row = ensureDb().prepare(`SELECT target_hires, posting_langs FROM jobs WHERE id = ?`).get(id) as
+    | { target_hires: number | null; posting_langs: string | null }
+    | undefined;
+  return { targetHires: roleTargetHires(row?.target_hires), postingLangs: parsePostingLangs(row?.posting_langs) };
+}
+
+/** Record what opening this role means: how many hires fill it, and which languages
+ *  it is advertised in. Synchronous and by-id, so the publish route can call it from
+ *  INSIDE its go-live transaction beside `setJobStatus` — the target and the flip to
+ *  'published' are one atomic act, and a role can never be live under a target the
+ *  auto-close hook has not seen yet.
+ *
+ *  `COALESCE` on both columns is the re-publish rule: reopening a closed role without
+ *  restating a target keeps the target it was opened with, rather than silently
+ *  resetting a 3-hire req to 1. Pass a value to change it. */
+export function setRoleOpenConfig(id: string, config: { targetHires?: number | null; postingLangs?: string[] | null }): void {
+  const langs = config.postingLangs && config.postingLangs.length > 0 ? JSON.stringify(config.postingLangs) : null;
+  const target =
+    typeof config.targetHires === "number" && Number.isFinite(config.targetHires) ? Math.trunc(config.targetHires) : null;
+  ensureDb()
+    .prepare(`UPDATE jobs SET target_hires = COALESCE(?, target_hires), posting_langs = COALESCE(?, posting_langs) WHERE id = ?`)
+    .run(target, langs, id);
+}
+
+/** Retire a role, but ONLY if it is still open — and say whether THIS call is the
+ *  one that did it.
+ *
+ *  The auto-close hook's whole correctness rests on this being a compare-and-swap
+ *  rather than a read-then-write. Two candidates reaching the terminal stage in the
+ *  same moment both commit, both post-commit hooks then read "3 hired, target 3",
+ *  and both would call `setJobStatus(id, 'closed')` — a bare by-id UPDATE that
+ *  succeeds twice. The visible damage is not the status (closing a closed role is
+ *  idempotent) but everything the winner does NEXT: two withdrawal sweeps and two
+ *  role-filled announcements for one role.
+ *
+ *  So the predicate the hook READ is re-asserted in the WHERE, and `changes === 0`
+ *  is the loser's answer. No transaction is needed and none is used: this is a
+ *  single atomic statement, which is a stronger guarantee than a DEFERRED
+ *  transaction around a SELECT and an UPDATE would be.
+ *
+ *  `(status IS NULL OR status = 'published')` is isJobOpenForApplications' own
+ *  definition — a seeded corpus role a team adopted and filled is closable too —
+ *  and it is what makes a manual close racing the hook safe in the other direction:
+ *  whichever lands first, the second is a no-op. `published_at` is deliberately
+ *  left alone; it records when the role FIRST went live and a reopen must keep it. */
+export function closeRoleIfOpen(id: string): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE jobs SET status = 'closed' WHERE id = ? AND (status IS NULL OR status = 'published')`)
+    .run(id);
+  return res.changes > 0;
+}
+
+/** Decorate a parsed payload with the lifecycle COLUMNS — the authority for all
+ *  three of status, target and languages, none of which payload_json carries. One
+ *  function so the page read and the point read can never decorate differently. */
+function withLifecycle(
+  parsed: JobRecord,
+  row: { status: JobRecord["status"]; target_hires: number | null; posting_langs: string | null }
+): JobRecord {
+  return {
+    ...parsed,
+    status: row.status ?? null,
+    targetHires: roleTargetHires(row.target_hires),
+    postingLangs: parsePostingLangs(row.posting_langs),
+  };
+}
+
 /** One page of the browse read plus an HONEST truncation flag — same contract as
  *  buildCandidatePool's `{ entries, truncated }`. `truncated` is true when the corpus
  *  held at least one more matching row than `limit` returned, so a caller can say
@@ -558,19 +705,25 @@ export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAU
   // to know whether the slice was cut.
   const rows = db
     .prepare(
-      `SELECT payload_json, status FROM jobs
+      `SELECT payload_json, status, target_hires, posting_langs FROM jobs
        WHERE (workspace_id IS NULL OR workspace_id = @workspaceId) ${extra}
        ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
     )
-    .all({ ...params, limit: limit + 1 }) as { payload_json: string; status: JobRecord["status"] }[];
+    .all({ ...params, limit: limit + 1 }) as {
+    payload_json: string;
+    status: JobRecord["status"];
+    target_hires: number | null;
+    posting_langs: string | null;
+  }[];
   const truncated = rows.length > limit;
-  // Decorate each parsed payload with the status COLUMN — payload_json predates
+  // Decorate each parsed payload with the lifecycle COLUMNS — payload_json predates
   // the lifecycle and never carries it, so without this the UI can't tell a
-  // draft (dead apply link) or a closed role from a live opening.
+  // draft (dead apply link) or a closed role from a live opening, nor how many
+  // hires the role is open for.
   const jobs = (truncated ? rows.slice(0, limit) : rows)
     .map((r): JobRecord | null => {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "listJobs");
-      return parsed ? { ...parsed, status: r.status ?? null } : null;
+      return parsed ? withLifecycle(parsed, r) : null;
     })
     .filter((j): j is JobRecord => j !== null);
   return { jobs, truncated, limit };
@@ -638,13 +791,13 @@ export function countOpenRoles(workspaceId: string = DEFAULT_WORKSPACE_ID): Open
 
 export function getJob(id: string): JobRecord | null {
   const db = ensureDb();
-  const row = db.prepare(`SELECT payload_json, status FROM jobs WHERE id = ?`).get(id) as
-    | { payload_json: string; status: JobRecord["status"] }
+  const row = db.prepare(`SELECT payload_json, status, target_hires, posting_langs FROM jobs WHERE id = ?`).get(id) as
+    | { payload_json: string; status: JobRecord["status"]; target_hires: number | null; posting_langs: string | null }
     | undefined;
   if (!row) return null;
   const parsed = safeRowParse<JobRecord>(row.payload_json, "getJob", id);
-  // Same status decoration as listJobs — the column is the lifecycle authority.
-  return parsed ? { ...parsed, status: row.status ?? null } : null;
+  // Same lifecycle decoration as listJobs — the columns are the authority.
+  return parsed ? withLifecycle(parsed, row) : null;
 }
 
 /** The owning team of a job — a by-id point read (exempt: a job id is a globally-unique

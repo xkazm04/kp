@@ -40,6 +40,7 @@ import {
 import { railTile } from "@/app/_components/ui/recipes";
 import { SECTION_ICON } from "./navMeta";
 import { NavPanelItem } from "./NavPanelItem";
+import { NavPanelAction } from "./NavPanelAction";
 
 export function NavSectionRail({
   groups,
@@ -160,7 +161,8 @@ export function NavSectionRail({
         }}
         onMouseEnter={() => prefetchSection(group)}
         onFocus={() => prefetchSection(group)}
-        aria-pressed={current}
+        role="tab"
+        aria-selected={current}
         title={label}
         className={railTile(current)}
       >
@@ -179,7 +181,7 @@ export function NavSectionRail({
       {/* ── Level 1 — icon rail ── */}
       <div className="flex w-[4.75rem] shrink-0 flex-col gap-1 border-r border-stone-200 bg-paper p-2">
         {railTop}
-        <div className="flex flex-1 flex-col gap-1">{groups.map((g) => railButton(g))}</div>
+        <div role="tablist" aria-label={t("sectionRailLabel")} aria-orientation="vertical" className="flex flex-1 flex-col gap-1">{groups.map((g) => railButton(g))}</div>
         {/* The rail's bottom slot: workspace-wide preferences (theme, language),
             each collapsed to its ACTIVE icon with the variants in a popup — no
             section is pinned down here anymore (Settings rides the normal flow). */}
@@ -199,6 +201,16 @@ export function NavSectionRail({
           aria-label={shownGroup ? groupLabel(shownGroup) : undefined}
           className="animate-fade-in min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3"
         >
+          {/* The group's own doors first, then the places it holds. */}
+          {shownGroup?.actions?.map((action) => (
+            <NavPanelAction
+              key={action.key}
+              action={action}
+              isLink={mode === "link"}
+              label={navText(`actions.${action.key}`, action.label)}
+              onNavigate={onSliceNav}
+            />
+          ))}
           {shownGroup?.items.map((item) => {
             const isActive = item.id === navActive;
             // SHELL2: live queue-depth pill for items that declared a badgeKey.

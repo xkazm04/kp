@@ -1,8 +1,16 @@
 {
   "projectName": "kp",
   "createdAt": "2026-05-05T16:42:43.709Z",
-  "updatedAt": "2026-05-05T16:42:43.709Z",
+  "updatedAt": "2026-09-08T00:00:00.000Z",
   "customConfig": {},
+  "permissions": {
+    "deny": [
+      "Bash(*--no-verify*)",
+      "Bash(*KP_SKIP_GATE=1*)",
+      "Bash(git push*--force*)",
+      "Bash(git push* -f *)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {
@@ -10,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/docs/check-doc-sync.mjs"
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/docs/check-doc-sync.mjs\""
           }
         ]
       }

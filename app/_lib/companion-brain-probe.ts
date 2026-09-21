@@ -31,6 +31,9 @@ export type CompanionBrainProbe = {
   episodes: number;
   identitySections: number;
   constitutionOrigin: BrainConstitutionOrigin;
+  /** `true`/`false` when origin is `kp`; `null` otherwise. Distinguishes a
+   *  stock kp constitution from a rewrite that kept the marker. */
+  constitutionMatchesTemplate: boolean | null;
 };
 
 /** What the brain route answers with: the disk facts, plus the two workspace
@@ -64,13 +67,20 @@ function count(raw: unknown): number {
  *  Python artifact in this tree crosses its boundary under. An unrecognisable
  *  payload becomes "no brain", which is the conservative direction: the wizard
  *  then offers to CREATE one, and creation is idempotent and never overwrites. */
+function matchesTemplate(raw: unknown, origin: BrainConstitutionOrigin): boolean | null {
+  if (origin !== "kp") return null;
+  return raw === true ? true : raw === false ? false : null;
+}
+
 export function coerceBrainProbe(raw: unknown): CompanionBrainProbe {
   const value = (raw ?? {}) as Record<string, unknown>;
+  const constitutionOrigin = origin(value.constitutionOrigin);
   return {
     present: value.present === true,
     episodes: count(value.episodes),
     identitySections: count(value.identitySections),
-    constitutionOrigin: origin(value.constitutionOrigin),
+    constitutionOrigin,
+    constitutionMatchesTemplate: matchesTemplate(value.constitutionMatchesTemplate, constitutionOrigin),
   };
 }
 

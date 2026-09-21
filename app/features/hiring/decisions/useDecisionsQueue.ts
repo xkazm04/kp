@@ -12,7 +12,6 @@ import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
-import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
 import type { GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
@@ -23,6 +22,8 @@ import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { createTicketGate } from "./decisionsLatestWins";
 import { foldQueueLoadThrow, readQueueResponse } from "./decisionsQueueLoad";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
 import {
   applyReinstateOutcome,
@@ -68,6 +69,9 @@ export function useDecisionsQueue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [entries, setEntries] = useState<Entry[] | null>(null);
+  // The board's columns, as GET /api/pipeline resolves them for this workspace —
+  // the candidate modal opened from the ledger reads the route across them.
+  const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_BOARD_AXIS);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
   // Candidates whose screening was accepted THIS sitting — accepting silently
@@ -174,6 +178,10 @@ export function useDecisionsQueue() {
   // each committed wave with comms failures pushes one { count, labels } group, so
   // the banner can group + cap ("+N more") instead of appending names uncapped.
   const [waveCommsFailed, setWaveCommsFailed] = useState<{ count: number; labels: string[] }[]>([]);
+  // Missed Art. 22 seals from a committed wave. Session-local like comms
+  // failures: the modal closes, this count stays until dismissed. Accumulates
+  // across successive waves so a second commit cannot hide the first gap.
+  const [waveSealFailed, setWaveSealFailed] = useState(0);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
@@ -188,13 +196,20 @@ export function useDecisionsQueue() {
   // moved. Every read takes a ticket, a confirmed decision invalidates outstanding
   // tickets, and a superseded response is dropped instead of clobbering fresher state.
   const loadTicket = useRef(0);
-  // Sharing is OPT-IN (see usePipelineBoardData): `load` is also the post-action
-  // reconcile, which must always hit the network.
-  const load = (opts?: { shared?: boolean }) => {
+  // Fetch is direct (not sharedGetJson): a non-OK pipeline read carries
+  // FORBIDDEN_CAPABILITY / PIPELINE_LIST_FAILED on the body, and sharedGetJson
+  // throws `Error("HTTP 403")` after discarding it. Always hits the network so
+  // a post-action reconcile cannot attach to a pre-write GET.
+  const load = () => {
     const ticket = ++loadTicket.current;
-    return sharedGetJson<unknown>("/api/pipeline", { refresh: !opts?.shared })
-      .then((p) => {
+    return fetch("/api/pipeline")
+      .then(async (r) => {
+        const p = await r.json().catch(() => null);
         if (ticket !== loadTicket.current) return; // superseded by a newer read or a landed decision
+        if (!r.ok) {
+          setError(capabilityAwareReason(errMsg, foldQueueLoadThrow({ status: r.status, body: p }), t("loadFailed")));
+          return;
+        }
         // the-decisions-queue-answers-codes: the body is FOLDED, never thrown. The
         // old chain re-threw `p.error` and painted `e.message`, so the queue's own
         // failure was the one English sentence on a screen where every other
@@ -206,6 +221,8 @@ export function useDecisionsQueue() {
         }
         setError(null); // a good read clears a previous failure
         setEntries(read.entries);
+        const stages = (p as { stages?: StageDef[] }).stages;
+        if (Array.isArray(stages) && stages.length > 0) setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(stages) ? cur : stages));
       })
       .catch((e) => {
         if (ticket !== loadTicket.current) return;
@@ -245,7 +262,7 @@ export function useDecisionsQueue() {
     // The gate object is created once and never replaced, so capturing it here is
     // the identity the cleanup needs (and keeps the ref out of the cleanup body).
     const gate = reconsiderGate.current;
-    latestLoaders.current.load({ shared: true }); // mount read may ride a sibling's in-flight request
+    latestLoaders.current.load(); // mount read always fetches so a 403 body still folds
     latestLoaders.current.loadReconsider();
     return () => gate.invalidate(); // an unmounted tab writes nothing
   }, []);
@@ -770,12 +787,13 @@ export function useDecisionsQueue() {
     relayConfigured,
     jobFilter, setJobFilter,
     armIds, armJobId,
-    entries, error,
+    entries, error, axis,
     resolving, leavingWrapClass,
     queuedLabels, setQueuedLabels,
     sentOffers, setSentOffers,
     copiedOfferId, setCopiedOfferId,
     waveCommsFailed, setWaveCommsFailed,
+    waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry,
     waveRole, setWaveRole,
     evalRole, setEvalRole,

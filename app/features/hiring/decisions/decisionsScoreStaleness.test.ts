@@ -23,3 +23,27 @@ test("missing data is never stale — informs, never fabricates", () => {
   assert.equal(isScoreStale(null, null), false);
   assert.equal(isScoreStale(undefined, undefined), false);
 });
+
+test("a score strictly before a later scorecard timestamp is stale", () => {
+  assert.equal(
+    isScoreStale("2026-01-01T00:00:00Z", null, "2026-03-01T00:00:00Z"),
+    true,
+    "scored before the scorecard → stale even when the JD has not moved",
+  );
+  assert.equal(
+    isScoreStale("2026-03-01T00:00:00Z", null, "2026-03-01T00:00:00Z"),
+    false,
+    "equal scorecard timestamp is NOT stale (strictly-before)",
+  );
+  assert.equal(
+    isScoreStale("2026-04-01T00:00:00Z", null, "2026-03-01T00:00:00Z"),
+    false,
+    "scored after the scorecard → fresh",
+  );
+});
+
+test("a missing scorecardAt stays non-stale on that axis", () => {
+  assert.equal(isScoreStale("2026-01-01T00:00:00Z", null), false, "two-arg call is unchanged");
+  assert.equal(isScoreStale("2026-01-01T00:00:00Z", null, null), false);
+  assert.equal(isScoreStale("2026-01-01T00:00:00Z", null, undefined), false);
+});

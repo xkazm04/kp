@@ -14,7 +14,7 @@ import { MemberConfirmModals } from "./MemberConfirmModals";
 import { WorkspaceDetailPanel } from "./WorkspaceDetailPanel";
 import { WorkspacePeoplePanel } from "./WorkspacePeoplePanel";
 import { WorkspaceRail } from "./WorkspaceRail";
-import { memberCounts, memberName, readError } from "./workspaceAdminHelpers";
+import { copyInviteUrl, memberCounts, memberName, readError } from "./workspaceAdminHelpers";
 import { useWorkspaceAdmin, type MemberTeam, type OrgMemberDto } from "./useWorkspaceAdmin";
 
 // Settings -> Workspaces. The single console for teams AND the people on them.
@@ -243,7 +243,7 @@ export function WorkspaceTab() {
   }
 
   async function copyInviteLink(token: string) {
-    const url = `${window.location.origin}/invite/${token}`;
+    const url = copyInviteUrl(window.location.origin, token);
     try {
       await navigator.clipboard.writeText(url);
       toast.success(tm("linkCopied"));

@@ -2,22 +2,82 @@
 
 // Hand-off — the last onboarding step, split out of SetupOnboardingWizard.tsx so
 // the wizard stays under the 200-line file cap. Reflects everything captured
-// (org, language, invites, the first role's pending build) and points at the
-// Getting-started checklist that takes over inside the app. Deliberately the
-// QUIETEST step: plain panels, plain voice — the marketing register ended at
-// Welcome.
-import { ArrowRight, Check, Columns3, ListChecks, Play, Rocket } from "lucide-react";
+// (org, language, invites, the board as it will be) and then offers the step's two
+// exits. Deliberately the QUIETEST step: plain panels, plain voice — the marketing
+// register ended at Welcome.
+//
+// It used to carry a THIRD affordance above those two — a card promising a
+// "Getting-started checklist" waiting on the Pipeline board. That checklist is
+// gone (it stood beside the empty board's own actions, so a first-run operator met
+// two competing to-do lists), and with it the only thing that card did beyond
+// `ctrl.finish()`: it set a highlight flag for a surface that no longer exists. A
+// button that promises a screen the operator will not find is worse than one fewer
+// exit, so the step now ends where the choice is.
+//
+// THE SEEK VARIANT (2026-09-16). A job seeker walked Welcome → here; there is no
+// org, no board and no guided hiring demo to offer them. Their hand-off says the
+// one true thing — the search starts with the CV — and has ONE exit: finish(),
+// which persists the language, stamps the run and lands on /me.
+import { ArrowRight, Check, Columns3, FileText, Play, Rocket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { languageNative } from "@/app/features/shared/memberUi";
 import { axisEqualsStored } from "@/app/features/shared/pipelineAxisDraft";
 import { useStageDisplayLabel } from "@/app/features/shared/usePipelineAxisCopy";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { Badge } from "@/app/_components/Badge";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { SetupPipelineChain } from "./SetupPipelineChain";
 import type { OnboardingCtrl } from "./setupSteps";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
+  if (ctrl.state.intent === "seek") return <SeekHandoff ctrl={ctrl} />;
+  return <HireHandoff ctrl={ctrl} />;
+}
+
+function SeekHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
+  const t = useTranslations("setup.handoff.seek");
+  const lang = languageNative(ctrl.state.language);
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-3 rounded-lg border border-moss/30 bg-moss/5 p-4">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-moss/15 text-moss">
+          <Check size={20} aria-hidden />
+        </span>
+        <div className="text-sm">
+          <p className="font-semibold text-ink">{t("readyTitle")}</p>
+          <p className="text-steel">{t("readyMeta", { language: lang })}</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white p-4">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
+          <FileText size={18} aria-hidden />
+        </span>
+        <div className="min-w-0 text-sm">
+          <p className="font-semibold text-ink">{t("cvTitle")}</p>
+          <p className="mt-1 max-w-[90%] text-steel">{t("cvBody")}</p>
+        </div>
+      </div>
+      <p className={`${EYEBROW} pt-2`}>{t("chooseLabel")}</p>
+      <button
+        type="button"
+        onClick={ctrl.finish}
+        className="focus-ring group flex w-full items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0 sm:w-auto sm:min-w-[50%]"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
+          <Rocket size={18} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 text-sm">
+          <span className="block font-semibold text-ink">{t("goTitle")}</span>
+          <span className="text-steel">{t("goBody")}</span>
+        </span>
+        <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+      </button>
+    </div>
+  );
+}
+
+function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
   const sim = useSimulation();
   const displayLabel = useStageDisplayLabel();
@@ -64,16 +124,6 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white p-4">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel">
-          <ListChecks size={18} aria-hidden />
-        </span>
-        <div className="text-sm">
-          <p className="font-semibold text-ink">{t("checklistTitle")}</p>
-          <p className="text-steel">{t("checklistBody")}</p>
-        </div>
-      </div>
-
       {/* The step's TWO exit paths, as equal explicit choices (the footer is
           suppressed here so nothing competes with them):
             — guided demo: finish (persist + stamp) and start the tour in one
@@ -94,7 +144,16 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
             <Play size={18} aria-hidden className="translate-x-px" />
           </span>
           <span className="min-w-0 flex-1 text-sm">
-            <span className="block font-semibold text-ink">{t("tourTitle")}</span>
+            {/* The two exits are still both real choices, but they are not
+                equally good for someone who has just made a workspace and has
+                no data in it yet — and weighting them neutrally left that
+                judgement to a first-time operator who has no way to make it.
+                The shared Badge carries the mark (both themes, mapped shades)
+                rather than a hand-rolled span with colors of its own. */}
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-semibold text-ink">{t("tourTitle")}</span>
+              <Badge tone="info" label={t("recommended")} />
+            </span>
             <span className="text-steel">{t("tourBody")}</span>
           </span>
           <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />

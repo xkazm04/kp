@@ -5,9 +5,18 @@
 // MatrixShared re-exports all three so existing importers are unaffected.
 import { MATRIX_BANDS } from "./matrixStats";
 
-// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
-// present only on blocked cells, localized by key via matrix.ko.* messages.
-export type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
+// Mirrors GET /api/matrix Cell. Honesty fields (fitTier, confidence,
+// unprovenCount, provenanceMix) are optional so a {score, blocked} cell still
+// type-checks; cellClass ignores them.
+export type Cell = {
+  score: number | null;
+  blocked: boolean;
+  koKeys?: string[];
+  fitTier?: "strong" | "promising" | "partial";
+  confidence?: { low: number; high: number; level?: string };
+  unprovenCount?: number;
+  provenanceMix?: string;
+};
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
 // without relying on the grey fill alone (color-independent legibility).

@@ -1,9 +1,9 @@
 "use client";
 
-// The three session-local status banners atop the Decisions queue: the
-// "queued for Schedule" handoff, extended-offer secure links, and a wave's
-// comms-delivery failures. Split out of DecisionsTab so its render shell
-// stays under the 200-line cap.
+// The session-local status banners atop the Decisions queue: the
+// "queued for Schedule" handoff, extended-offer secure links, a wave's
+// comms-delivery failures, and a wave's missed Art. 22 seals. Split out of
+// DecisionsTab so its render shell stays under the 200-line cap.
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, Copy, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,6 +11,7 @@ import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { capNames } from "./decisionsSelectionHygiene";
 import { NOTICE } from "@/app/_components/ui/recipes";
+import { committedWaveNeedsSealBanner } from "./decisionsScreenWaveTypes";
 
 export function DecisionsBanners({
   queuedLabels,
@@ -22,6 +23,8 @@ export function DecisionsBanners({
   onDismissSentOffers,
   waveCommsFailed,
   onDismissWaveComms,
+  waveSealFailed,
+  onDismissWaveSeal,
 }: {
   queuedLabels: string[];
   onDismissQueued: () => void;
@@ -32,6 +35,8 @@ export function DecisionsBanners({
   onDismissSentOffers: () => void;
   waveCommsFailed: { count: number; labels: string[] }[];
   onDismissWaveComms: () => void;
+  waveSealFailed: number;
+  onDismissWaveSeal: () => void;
 }) {
   const t = useTranslations("decisions");
   const router = useRouter();
@@ -141,6 +146,31 @@ export function DecisionsBanners({
               <X size={14} aria-hidden />
             </button>
           </span>
+        </section>
+      ) : null}
+
+      {/* A committed wave can reject-and-email while the Art. 22 hash chain
+          missed rows. Coral (not the amber comms warning, not the moss success
+          band): do not claim the wave was fully recorded. Copy is the existing
+          sealFailed reason — retry the chain; those rows were kept. */}
+      {committedWaveNeedsSealBanner({ sealFailures: waveSealFailed }) ? (
+        <section
+          role="alert"
+          aria-live="assertive"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-coral/40 bg-coral/5 px-4 py-2.5 dark:rounded-2xl"
+        >
+          <p className="min-w-0 text-sm text-ink">
+            <AlertTriangle size={14} className="-mt-0.5 mr-1 inline text-coral" aria-hidden />
+            {t("wave.reasons.sealFailed")}
+          </p>
+          <button
+            type="button"
+            onClick={onDismissWaveSeal}
+            aria-label={t("queuedDismiss")}
+            className="focus-ring rounded p-0.5 text-steel hover:text-ink"
+          >
+            <X size={14} aria-hidden />
+          </button>
         </section>
       ) : null}
     </>

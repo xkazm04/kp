@@ -310,6 +310,78 @@ also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earl
 the route's own 422 missing-fields check; expired consent is the case the gate answers.)
 Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
+## 7b. The candidate's own stop (unsubscribe)
+
+Until this shipped there was **no unsubscribe anywhere**. Every candidate comm carried
+the GDPR footer to `/data/<erasureToken>` and nothing else, so the only lever a candidate
+had for "stop writing to me" was **erase my entire application**. Those are different
+rights and they are not interchangeable — coupling them is what
+**ePrivacy Art. 13(4)** forbids (a commercial message with no valid address to decline
+further messages), and in this product's primary market **§ 7(4)(c) with
+§ 11(2)(a)(4) of zák. č. 480/2004 Sb.** makes it a standalone offence with a fine up to
+10,000,000 Kč. Germany's **UWG § 7(2) No. 2** is the same obligation. Talent
+rediscovery, which contacts people who never applied to anything, is exactly the traffic
+these rules govern.
+
+**The token.** `ensureOptOutToken` (`db/pipeline.ts`) mints a second, deliberately
+narrower CSPRNG capability into `pipeline_entries.optout_token` — fill-only
+(`COALESCE`-guarded, so a link already in someone's inbox keeps working), prefix `ob-`,
+never the raw entry id. It is a **separate column** from `erasure_token`:
+`findEntryByOptOutToken` matches only its own column, so neither key opens the other
+lock, and the opt-out door can read no held data and perform no erasure.
+
+**The record.** `outreach_state.candidate_halt_at`, written by `recordCandidateOptOut`
+(`outreach-state-store.ts`). It is a **different column** from `manual_halt_at`, which is
+the recruiter's stop: an operator halt is a workflow decision the next operator may
+clear via `resumeOutreach` (`outreach-state-store.ts`; pure twin `withoutManualHalt`),
+a candidate opt-out is a legally binding objection. `resumeOutreach` nulls only
+`manual_halt_at` when `workspace_id` matches — it never writes `candidate_halt_at`
+or `replied_at`, and a foreign tenant is a no-op. `outreachHaltReason`
+(`outreach-halt.ts`) ranks `candidate` above `manual` above `replied`, so the
+legally-significant reason is the one surfaced. `outreach_state` stays `ERASURE_EXEMPT`
+for the reason it always was, which this strengthens: it is the record that stops further
+mail, so deleting it would re-arm the contact it prevents.
+
+**It resolves at the durable candidate identity.** `candidateOptOutHalt` joins
+`outreach_state` to `pipeline_entries` on `candidate_id` — an opt-out on ANY entry the
+person owns stops mail on all of them. An entry-scoped read would be trivially bypassed:
+rediscovery mints a fresh entry per role with an empty `outreach_state`, which is the
+same hole the consent gate already had to close. It is deliberately workspace-**global**,
+like `candidateConsentSnapshots`, and **fails closed** — unlike its reply/manual siblings,
+which stay fail-open because they are workflow state rather than a legal obligation.
+
+**Where it is honoured** — in the library, so a future caller inherits the refusal:
+
+| Point | What it does |
+| --- | --- |
+| `commsSendSuppression` (`comms.ts`) | the one predicate every door into the channel shares; refuses `kind: "outreach"` (see §7a for why transactional mail is not withheld) |
+| `dispatchOutreach` (`comms-dispatch.ts`) | still gates first via `outreachHaltFor`, so it can report the reason and record `outreach_suppressed` |
+| `rediscoverForJob` (`rediscover.ts`) | `optedOutCandidateIds` filters the pool at **rank time**, beside the consent gate — so an opted-out person is never ranked, never persisted as an alert carrying their name, and never gets a "Reach out" button the channel is guaranteed to refuse |
+| `POST /api/jobs/[id]/candidates/outreach` | pre-mint 409 (`suppressed: "candidate"`), so no entry is created and no paid draft is spawned |
+
+**The surfaces.** `/stop/[token]` (public page, `StopClient.tsx`) over
+`/api/stop/[token]`: `GET` returns an explicit field allowlist (`jobTitle`, `company`,
+`stopped` — never the entry id, the name, the score or the stage), `POST` records the
+halt. Both verbs are `rateLimit`-ed **before** the token lookup (60/min read, 20/min
+write, pinned in `rate-limit-contract.test.ts`), and both answer one indistinguishable
+`STOP_LINK_INVALID` 404 for "no such token" and "no such entry" so the door is not an
+existence oracle. Both paths are in `public-routes.ts` (`/stop/`, `/api/stop/`) — a login
+wall in front of an unsubscribe link is a message with no valid address to decline.
+
+The write is **idempotent** (`COALESCE` keeps the first objection timestamp) and there is
+**no confirm dialog**: unlike the erasure door this is neither irreversible nor
+destructive, and friction on this affordance is the thing the law is about. The page is
+honest about scope, in copy and in code: it stops outreach, it **erases nothing**, and it
+**does not withdraw an application** — someone mid-process stays in the running and still
+hears back. The erasure link is not repeated on this page (that would hand the scoped
+token the capability the split exists to deny); the copy points at the "review or erase
+your data" link in the same letter instead.
+
+Audited as `outreach_opted_out` (`DECISION_META`, `EVENT_KINDS`, four catalogs) —
+attributed **human**, because a person made this decision.
+
+Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts`.
+
 ## 8. One delivery truth, on every surface
 
 - **Failure reason persisted.** `dev_outbox.failure_detail` (additive,
@@ -319,8 +391,8 @@ Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.
 - **`commsVerdict` is the single vocabulary** — one pure function
   (`comms-view.ts`) maps a derived row to exactly one of `orphaned | bounced |
   recovered | failed | sent | queued`; the Comms Center and the candidate
-  drawer both consume it, never re-deriving.
-- **The drawer payload carries the derived fields** via one exported mapping
+  candidate modal both consume it, never re-deriving.
+- **The candidate modal payload carries the derived fields** via one exported mapping
   (`candidate-timeline.ts` → `toCandidateComm`); parity locked by
   `comms-delivery-truth.test.ts`.
 - **Resend claims are honest** — both resend clients (Dev outbox
@@ -342,10 +414,13 @@ Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.
   It now renders as a calm "already being delivered" line, never in the failure
   tone, and the button settles instead of inviting a third click. Five outcomes
   pinned by `app/_lib/comms-resend-outcome.test.ts`.
-- **Resend is throttled and de-duplicated** — `POST /api/comms/[id]/resend` is
-  the one door in the outbox loop that spends real email, so it carries a per-IP
-  `rateLimit()` (60 per 10 minutes, after the cheap refusals) and answers
-  `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
+- **Resend is operator-gated, throttled and de-duplicated** — `POST /api/comms/[id]/resend`
+  is the one door in the outbox loop that spends real email. It asks `requireOperator`
+  then `pipeline:write` before the in-flight Set (a demo cookie is 401; a viewer is
+  403 `FORBIDDEN_CAPABILITY`) because `comms_relay_config` is a single global row
+  and a sandbox click would POST a candidate-shaped envelope at the install's live
+  relay. It also carries a per-IP `rateLimit()` (60 per 10 minutes, after the cheap
+  refusals) and answers `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
   entry-less KO-decline case) correlates on its own outbox id, so the refless
   shape can no longer be resent without bound (`resend-dedup.test.ts`).
 
@@ -377,6 +452,13 @@ locale. `resolveCommsLocale` (`comms-locale.ts`) is the one authority:
 1. the entry's stored `locale` — the explicit choice captured at apply;
 2. else **the entry's OWN team** `workspaces.default_locale` (`cs` on the ČS seed);
 3. else `DEFAULT_LOCALE`, only when even the workspace row is unreadable.
+
+Write paths that have no explicit choice (add-to-pipeline, sourcing, rematch)
+infer from the CV's declared languages via `inferLocaleFromLanguages` — the TS
+twin of Python `_candidate_lang`. Czech wins with English; English wins over a
+third language; a German- or French-only list stores `de` / `fr` rather than
+collapsing to `en`; empty/unmapped stays NULL and resolves through step 2 at
+read time. Locked by `comms-locale.test.ts` against `CandidateLangTest`.
 
 Step 2 is per-tenant, so every dispatcher resolves through
 `comms-dispatch.candidateLocale`, which threads `entry.workspaceId` (entry-less
@@ -411,17 +493,33 @@ links. `comms-dispatch.test.ts` now derives the key list **from the dispatcher s
 and asserts `t.has(key)` in **all four** locales, so neither a phantom key nor an
 unpinned de/fr catalog can come back.
 
-**Links.** The GDPR erasure footer is the only candidate link BUILT inside
-`comms-dispatch.ts`; the offer letter and the offer reminder receive their link from the
+**Links.** The GDPR erasure footer and the unsubscribe footer (§7b) are the only
+candidate links BUILT inside `comms-dispatch.ts` — one builder, `candidateFooters`, so a
+new dispatcher cannot ship a letter carrying the erasure link and no opt-out. Both ride
+on every send through `sendCandidateComm`. The offer letter and the offer reminder receive their link from the
 caller and PIN it here (`pinLinkLocale`, beside the same `candidateLocale` resolution the
 letter uses) — until 2026-09-01 the offer link was the one bare candidate door, so a Czech
-letter opened an English accept/decline page. Locked by `offer-link-locale.test.ts`. The
+letter opened an English accept/decline page. Locked by `offer-link-locale.test.ts`. A
+T-48h offer reminder that is CAS-claimed (`reminded_at`) and then fails to dispatch is
+not retried (at-most-once); the miss is recorded as an `offer_comms_failed` pipeline
+event so the timeline shows it, and `reminded_at` stays set. The
 erasure link is absolute (`candidateLinkBase` → `publicBaseUrl`, warning
 loudly when nothing is configured) **and `?lang=`-pinned to the language the letter is
 written in**, exactly like the status link that rides beside it — `proxy.ts` turns the
 param into the `NEXT_LOCALE` cookie, and without it the page resolved from a cookie the
 candidate does not have and then from `Accept-Language`, opening the erasure explainer
-in a language they never chose. Locked by `comms-dispatch-links.test.ts`.
+in a language they never chose. Locked by `comms-dispatch-links.test.ts`. The visible
+unsubscribe link is pinned the same way — and it is a **different route** from the
+machine-readable copy handed to the relay, which is the distinction that matters most
+here: the footer opens the `/stop/<token>` explainer **page** a person reads, while
+`unsubscribeUrl` (§7b, `List-Unsubscribe`) names `/api/stop/<token>`, the only one of the
+two that exports a `POST`. A mail provider honouring `List-Unsubscribe-Post:
+List-Unsubscribe=One-Click` POSTs that address unattended, so aiming it at the page
+answers 405 and the opt-out is silently never recorded. It carries no `?lang=`: nothing
+renders a JSON 200. Locked by `comms-optout-gate.test.ts`, which drives the real
+dispatcher and reads the envelope the relay is POSTed — the earlier assertion hand-fed
+the envelope a URL the producer never produced, which is exactly how the two halves
+diverged unnoticed.
 
 ## 11. Inbound when the studio is off: pull sources and the always-on edge
 
@@ -490,8 +588,10 @@ the only thing that can replay it); a page is clamped to 50 events and 1 MB with
 
 Configuration is API-only today: `PATCH /api/channels/webhooks`
 `{token, pullUrl, pullSecret}` (team-scoped; secret semantics are the usual
-omit-keeps / `""`-clears / string-replaces, encrypted at rest). There is no UI for
-it yet — see Known gaps.
+omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` already
+projects the recruiter-safe pull half onto every receiver (`pullUrl` /
+`hasPullSecret` / `lastPullAt` / `lastPullError`) so a failing source is visible
+on the same list as Listening. There is no editor UI for it yet — see Known gaps.
 
 **IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
 which is a dependency decision, not a code decision — and the edge's Email Routing
@@ -682,12 +782,12 @@ air-gapped.
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. The flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and `ChannelsTab` says it ONCE above the switcher (`channels.receiversTruncated`) rather than leaving each pane to guess. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and `ChannelsTab` says it ONCE above the switcher (`channels.receiversTruncated`) rather than leaving each pane to guess. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. |
+| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. Each receiver row shows `acceptedCount` (filed candidates) beside `receivedCount` (connectivity), with a quiet relative `firstAcceptedAt` when a lead has landed — an em dash when it has not — so a live-but-zero-leads Zapier mapping is visible on the row that owns the setup guide. Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
 | `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
 | `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
@@ -859,9 +959,6 @@ already returns alongside the entries. Both rules are pinned by
 
 ## Known gaps
 
-- Column-filter option lists sort with `Intl.Collator` on the active locale, but
-  the free-text Name filter still matches literally — searching `kralova` will not
-  find `Králová`.
 - **`/api/jobs?limit=200` ships 201 KB for a list the Channels tab reads two fields
   of** (`{id, title}`, for the careers links and the receiver-binding picker). It
   is the largest payload on the tab by an order of magnitude. A `?fields=` (or
@@ -881,26 +978,25 @@ already returns alongside the entries. Both rules are pinned by
   declares no length is buffered whole before `validateUploadServer` ever sees a
   size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
-- **`dispatchOutreach` reports `{ sent: true }` off "the call resolved", not off the
-  outbox row's real status.** `sendCandidateComm` returns the status precisely so a
-  caller can key its claim on it (REC-10), and the interview/schedule dispatchers do;
-  outreach ignores it, so a relay dead-letter still records `outreach_sent` — the
-  durable marker `automation-run` uses to refuse a retry ("already_sent") — for a
-  message nobody received. Its refusal vocabulary is already unambiguous at the source
-  (`anonymized | consent_expired | replied | manual`, so `suppressed_${reason}` is
-  derivable); the collapse into "consent expired" happens in `automation-run.ts`'s
-  ternary, which handles only `anonymized` and treats everything else as a consent
-  lapse. Both halves want the same change: carry the delivery status in
-  `OutreachResult` and map every reason 1:1 at the consumer.
+- **`automation-run` still collapses every non-anonymized `sent: false` into
+  `suppressed_consent_expired`.** `dispatchOutreach` now keys `{ sent: true }` on the
+  outbox row (REC-10): terminal `queued` and relay `sent` record `outreach_sent`; a
+  dead-letter returns `{ sent: false, reason: "delivery_failed" }` with no marker, so
+  the next pass retries instead of mapping the drop to `already_sent`. Pinned by
+  `comms-dispatch-outreach.test.ts`. The consumer ternary still handles only
+  `anonymized` and treats `delivery_failed` / `replied` / `manual` / `candidate` as a
+  consent lapse — map every reason 1:1 there without expanding the dispatcher's
+  contract.
 - **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
   and the encrypted store write, and the two are indistinguishable from the route, so a
   store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
   server-side) instead of a 500. Separating them needs a typed error out of
   `db/channels.ts`.
-- **Pull sources have no UI.** `PATCH /api/channels/webhooks` is the only way to
-  set `pullUrl` / `pullSecret`; the receiver table shows neither the pull URL nor
-  `last_pull_error`, so a source that has been failing for a week is visible only
-  in the clock's log. The Edge card (§11) is the model for what this needs.
+- **Pull sources have no editor UI.** `GET /api/channels/webhooks` now projects
+  `pullUrl` / `hasPullSecret` / `lastPullAt` / `lastPullError` on every receiver
+  (secret material never appears), so a week-old `last_pull_error` is on the same
+  list as Listening. `PATCH` is still the only write; the receiver table does not
+  yet bind those fields. The Edge card (§11) is the model for the editor.
 - **The edge cannot carry a CV.** Mail is headers-only by design, so an emailed
   attachment is not extracted — the candidate has to follow the enrichment link.
   Closing this means sealing the body at the edge and extracting locally on drain,

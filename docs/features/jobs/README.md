@@ -2,7 +2,9 @@
 
 Job descriptions move from an AI draft to a live, matchable role. This covers
 the JD builder/lifecycle, structured job ingestion, the campaign-pack
-generator, and the specificity linter that runs live in the builder.
+generator, and the specificity linter that runs on saved JD bodies (ledger
+and public editors), not on the Generate need prompt. Phrase findings are
+click-to-highlight locators in the ledger editor.
 
 **Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
 **Job description**; **Role brief** belongs to the intake dialog and nowhere else.
@@ -57,15 +59,22 @@ ledger:
 - `?tab=jobs` — the Jobs tab (drafts vs. published/closed, publish action). Its
   header carries **Import position** top-right (`IngestAdButton`), which opens
   the paste form directly under the header. The state is one
-  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger and the form
-  separately, so the two can never disagree about whether the panel is open; the
+  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger, the form,
+  and the empty-catalog launchpad's import CTA, so the three can never disagree
+  about whether the panel is open; the
   trigger locks while a parse is in flight, because a run costs billed LLM time
   and its one deliberate exit is the form's **Cancel run**. Copy calls what is
   pasted a **job position**, not an ad — the corpus is roles, and the ad is only
-  the format one arrived in.
-- `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now.
-- `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`).
-- `/jds/[slug]` — the public JD page (candidate-facing).
+  the format one arrived in. The launchpad's second route is a button that calls
+  `ingest.setOpen(true)` (pinned by `jobsEmptyLaunchpad.test.ts`). A `?job=` miss
+  offers the same ingest action, so a stale share link degrades to paste-the-ad
+  instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
+- `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now. It opens on the All-but-live filter so live roles (the Roles tab's business) do not clutter the shelf.
+- `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
+- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract.
+- Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
+- `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
+
 
 ## Lifecycle stages
 
@@ -75,7 +84,9 @@ ledger:
 | **Draft** | The JD is saved and reusable for analysis/matching, but no candidates are sourced and it is not live. | `POST /api/jds/save` (AI builder) or `POST /api/jds` (manual paste). | `jobs.status = 'draft'` |
 | **Live (sourced)** | The JD is live and matching candidates have been sourced into the Pipeline (they land at `Accepted`). | "Publish" button (`POST /api/jobs/[id]/publish`) — in the drafts panel and the posting modal. | `jobs.status = 'published'` |
 | **Closed** | The role is retired: its apply link stops accepting applications, it drops out of the open catalog and the matching pool, and its in-flight pipeline entries in the caller's workspace are withdrawn. | `POST /api/jobs/[id]/close` (idempotent mirror of `/publish`). | `jobs.status = 'closed'` |
-| **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`. | — |
+| **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`, shown only when `canManage` (operator on the owning team). Anonymous share-link visitors never see it. | — |
+
+A failed AI build's ledger panel resolves a machine `code` (or `JD_GENERATE_FAILED`); it never renders the Python traceback that may still sit in `analysis_error`.
 
 `setJobStatus` (`app/_lib/job-ingest.ts`) owns every transition; a seeded
 corpus job with a `NULL` status is treated as already live. `Closed` was
@@ -160,6 +171,28 @@ it). Contract:
 
 Edits live only in memory until **Save as draft** persists them; switching
 templates is the one action that can replace them, and it now always asks.
+
+Empty `responsibilities` / `mustHaves` / `niceToHaves` collapse the same way
+empty `{{about}}` already did: `renderTemplate` emits no hollow `- —` bullet, so
+the section-collapse pass drops the heading and a generated JD does not publish
+unfinished Requirements / Nice-to-have sections. A filled list still renders
+markdown bullets. Pinned by `app/features/shared/renderTemplate.test.ts`.
+
+Missing `{{title}}` / `{{company}}` no longer substitute the English literals
+"Role title" and "Company". Those fallbacks are `library.templates.token.fallback_title`
+/ `fallback_company`, resolved with the rest of the document-language tokens, so a
+partial Czech (or German/French) render cannot leak English scaffolding.
+
+Unknown `{{tokens}}` fail inside `validateTemplateFields` / `validateTemplateUpdate`
+(`reason.code: unknownTokens`) rather than as a second, forgettable call at each
+write door. POST `/api/templates` and PUT `/api/templates/[id]` still 400; a new
+caller that only uses the shared validator cannot store `{{tilte}}`. Pinned by
+`renderTemplate.test.ts`.
+
+The seeded Company-standard header is `**{{company}}** · {{location}} · {{seniority}} · {{salary}}`.
+Empty location collapses with the same middot contract as seniority/salary, so a
+Prague-less draft still reads `**Acme** · Senior`. `findUnknownPlaceholders(DEFAULT_TEMPLATE_BODY)`
+stays empty.
 
 ### A template list that could not load says so
 
@@ -252,9 +285,22 @@ two steps:
 The fallback cannot widen what is public: `loadJd` matches on the workspace it is
 given, an anonymous visitor resolves to the DEFAULT workspace (i.e. the query that
 just missed), and the only other workspace ever read is the caller's own session's.
-`canManage` (the Edit/Archive/History controls) still requires
-`isOperator() && currentWorkspace() === owner`, where `owner` is whichever of the
-two produced the row.
+`canManage` (Edit / Archive / History, plus Analyze CV and the job-board
+Publish teaser) still requires `isOperator() && currentWorkspace() === owner`,
+where `owner` is whichever of the two produced the row. A candidate on the share
+link used to see Analyze CV (`/?tab=analyze&jd=`) and a disabled "Publish to job
+boards" button in the same header as Apply — operator chrome on a job posting.
+Those two now render only when `canManage`; Apply / Not accepting stay for
+everyone. Pinned by `app/jds/[slug]/jdPublicHeader.test.ts`.
+
+**Archived means not accepting.** The archived banner and `robots: noindex`
+already claim the role is retired, but Apply used to key only on the linked
+`jd-<slug>` job (`isJobOpenForApplications`). An archived JD whose job was
+still open showed both the banner and an Apply CTA into `/apply/jd-<slug>`.
+`isPublicJdApplyOpen` requires `!archived_at` as well; the closed-job dashed
+chip (`notAccepting`) covers the archived case. The apply APIs still gate on
+job status — this is the page predicate, so the CTA stops contradicting the
+banner without waiting on a job-status write.
 
 ### Publishing a draft reports its outcome in a toast
 
@@ -291,7 +337,8 @@ all.
    `JobsDraftsPanel.tsx` and `JobsPostingModalFooter.tsx`, which share the
    `jobs.drafts` message namespace.
 2. **Publish to job boards** *(external distribution)* — not yet
-   implemented; the button on `/jds/[slug]` is disabled ("coming soon").
+   implemented; the disabled "coming soon" button on `/jds/[slug]` is
+   operator-only (`canManage`). A candidate on the share link does not see it.
 
 > The API route (`/api/jobs/[id]/publish`) and the `jobs.status = 'published'`
 > column are a stable internal contract (matching engine, the simulation
@@ -418,7 +465,8 @@ Agent-fit tabs — inherited the fix without a call-site change.
 
 Two hand-rolled reads in this area followed:
 
-- **The Campaign tab keeps the code.** `jobsCampaignTabLogic` threw `d.error` into
+- **The Campaign tab kept the code** (historical: the tab and `jobsCampaignTabLogic`
+  are deleted as of 2026-09). It threw `d.error` into
   a `catch` that ignored it, so a 429 back-off and a 500 store fault both read
   "Couldn't load the pack." The failed response's `code` is now carried to the
   catch and resolved, with `loadFailed` as the fallback. Warning codes the build
@@ -556,6 +604,10 @@ reason; `jobMarkdown.test.ts` pins both across every posting locale.
 
 ## Sourcing campaign packs (Erika gap E1)
 
+> The posting modal's **Campaign tab is gone** (2026-09, see "The Campaign tab
+> left the posting modal" below); everything in this section about "the tab"
+> describes the API/runner contract that still holds.
+
 From a published job, `pipeline/jobfit/campaign.py` (+ `campaign_cli.py`)
 generates a localized campaign pack — 6–12 short ad-copy variants and 15-second
 video **scripts** per channel (FB/IG/board) and per candidate language,
@@ -685,8 +737,23 @@ candidates rendered its top 20 under an intro that describes the list as "past
 candidates who clear the bar for this role" — a cut slice presented as the whole
 set, on the surface whose entire promise is that nobody falls through the cracks.
 The panel now appends the shared `match.card.moreCount` line ("+15 more") below
-the list whenever `more > 0`. The **standing** feed (`JobsRediscoveryFeed`) is a
+the list whenever `more > 0`. A failed on-demand load offers the same retry
+control the standing feed already has (`reload` from `useJsonFetch`), so a
+spawn timeout is recoverable without closing the modal. Pinned by
+`jobsRediscoverRetry.test.ts`. The list also filters client-side by prior kind
+(`rejected` / `closed` / `elsewhere`, default all on) so a recruiter can hide
+"we rejected them" while looking at "the req died". An empty filter shows its
+own empty state, not the pool-empty copy. Pinned by
+`jobsRediscoverKindFilter.test.ts`. The **standing** feed (`JobsRediscoveryFeed`) is a
 separate, alert-backed surface and is not paged this way.
+
+The same honesty applies one layer up. `buildCandidatePool` already computes
+`truncated` when 100 profiles or 60 analyses fill a cap, but `rediscoverForJob`
+used to destructure that flag away, so silver-medalist ranking silently omitted
+the overflow with only a `console.warn`. `RediscoverResult` now carries
+`poolTruncated` (a boolean, never a list of dropped identities — same rule as
+`suppressed`) and `GET /api/jobs/[id]/rediscover` forwards it. A capped pool still
+returns its ranked subset; the flag says the subset is not the whole corpus.
 
 A failed sweep in that feed also stopped wearing the success tone: `note` carries
 either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, and
@@ -736,15 +803,15 @@ that created nothing (`added === 0`, every ad a dedup hit or a parse failure) KE
 the textarea, because that paste is the only copy of the text the recruiter needs to
 fix and re-run.
 
-## The campaign-pack CTA is keyed to the role on screen
+## The Campaign tab left the posting modal (2026-09)
 
-The posting modal's pack-existence probe (`GET /api/jobs/[id]/campaign?lang=`) runs
-under the same latest-request guard as the candidate ranking, keyed by job **and**
-posting language via `requestKey` (`jobsRequestGuard.ts`). The modal is reused across
-roles, so an unguarded probe for Role A resolving after the switch decided Role B's
-CTA from A's answer — offering "View campaign pack" for a pack B has not got. The
-probe is aborted when the modal changes role or unmounts, and `packExists` resets
-with the role so no frame of the previous role's CTA is painted.
+`JobsCampaignTab.tsx`, its logic/types/variant card and `jobsCampaignPackKey.ts`
+are deleted; `POSTING_TAB_IDS` is six ids and the footer's pack-on-publish CTA
+(and the `packExists` probe under the latest-request guard) went with it. The
+generation side is untouched: `POST /api/jobs/[id]/campaign`, `campaign-run.ts`,
+`campaign.py`, the `campaign_packs` store and its tests all remain, reachable by
+API and by the tasks dock. Bringing a pack back to a screen is a new surface, not
+a revert.
 
 ## The Candidates tab says when the pool was capped
 
@@ -898,37 +965,35 @@ deliberately not persisted; re-sweeping a role is idempotent
 (`recordRediscoveryAlerts` is `INSERT OR IGNORE`), so losing it on restart only
 restarts the rotation.
 
-## The JD ledger shows each role's live pipeline
+## Two desks: Job descriptions is the shelf, Roles is the work (2026-09)
 
-The saved-JD table carries a **Pipeline** column: a stacked shape bar
-(`app/_components/ui/PipelineShapeBar.tsx` — width encodes volume against the
-busiest role, segments encode reached-interview and hired), the headcount, and
-the hires when there are any. It arrived from an Analytics prototype whose
-per-role league table proved useful but was one tab away from where a recruiter
-actually looks at their roles.
+The Library group's two tabs were both "a list of the roles", differently
+decorated. They now answer different questions:
 
-- **Source:** `listJobPipelineStats()` (`app/_lib/db/pipeline.ts`) — one GROUP BY
-  for every job, composed into `GET /api/jds` beside the existing
-  `listJobStatuses` / `listJobRoleMeta` / `countAnalysesByJd` passes.
-- **Join key is `job_id`** (`jdJobId(slug)` → `jd-<slug>`), the same key the
-  Field/Seniority/Status columns already use — not the title. Analytics' `byJob`
-  groups by TITLE because it reports on roles as the recruiter names them; this
-  reports on one JD's linked job.
-- **"Reached interview" is `hasAdvancedPastScreening`**, the single source
-  analytics uses, so the two surfaces cannot report different numbers for the
-  same role.
-- **No linked job renders `—`, never `0`.** "This JD was never ingested" and
-  "this role has nobody in it yet" are different facts; the sort accessor returns
-  `null` for the first so it sorts last in both directions rather than ranking as
-  a zero and burying real-but-quiet roles.
-- The quantitative columns (Pipeline / Analyzed / Saved) sort via the shared
-  `app/_components/table/ColumnHead` + `useTableSort` and carry `aria-sort`. The
-  categorical ones keep their existing filter-trigger headers — `ColumnHeaderFilter`
-  here has no icon-only mode, so nesting it would print the column name twice.
+- **Job descriptions** (`app/features/library/jds/`) is the shelf of drafts a
+  recruiter reuses, *regardless of liveness*. The Status filter defaults to
+  **All but live** (`StatusFilter` value `notLive`, `jdsLedgerLogic.ts`) so the
+  roles currently open do not sit on the shelf as noise; "All" and the single
+  states are one menu away. The **Pipeline column is gone** from this ledger,
+  along with its sort accessor and `PipelineShapeBar` cell (`JD_SORT_COLS` is now
+  `analyzed | saved`, the table is seven columns, the Role title's width cap grew
+  from 13rem to 24rem). The per-role live state that column carried is the Roles
+  tab's business. The keyless e2e spec that pinned the column
+  (`e2e/jds-pipeline-column.spec.ts`) went with it, and so did its three pins
+  (`KEYLESS_SPECS`, `ci.yml`'s release job, the CLAUDE.md list).
+- **Roles** (the tab id stays `jobs`; `nav.tabs.jobs` reads Roles / Pozice /
+  Stellen / Postes) is the desk of open and historical roles. **Open roles only**
+  is on by default (`useJobsList.ts`); an ingest still clears it so the new draft
+  can surface (`ingestNeedsOpenFilterCleared`). The role lifecycle itself (target
+  hires, auto-close on the last hire, per-language postings) is documented in its
+  own section below.
+- The intake copy under the Job descriptions title is one sentence now
+  (`library.tab.intro`); the "save it as a draft, then source it" sentence was
+  the old two-desk story.
 
-> Note: a seeded/demo database can show `—` on every row. Seeded corpus jobs
-> (`job-000…`) are ingested directly and are not JD-backed, so nothing joins.
-> The column populates for JDs ingested through the library's own "Ingest as job".
+`GET /api/jds` still composes `listJobPipelineStats()` into each row
+(`JdRow.pipeline`); nothing in the ledger reads it any more, and it is left in
+place for the Roles side rather than removed from the wire in the same change.
 
 ## The job modal's lifecycle strip reads stage ROLES, not stage names
 
@@ -1003,9 +1068,16 @@ inert on a role that is live unless every caller remembered to clear the flag by
 hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
 staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
+The Compare tab's failed load (`useJsonFetch`) offers the same retry control the
+Coach panel already has, bound to `reload` — a transient 500 is recoverable
+without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`. The
+grid itself exports as CSV (`compareCsvRows` in `jobsCompareCohorts.ts`):
+competency × candidate, AI rating, human rating, recommendation; a missing
+side is blank, never `0`. Same shape as the Fair Rank audit export.
+
 ## The winnability coach stages the number it actually computed
 
-The Coach tab's loosen list (`JobsCoachPanelLoosenList.tsx`) can hand a
+The Coach tab's pattern rows (`coach/CoachLedger.tsx`) can hand a
 recommendation into the JD editor with the change staged
 (`jobsCoachApply.ts` → `?coachEdit=<kind~slug~delta~value>`), where
 `JdsModalEditorStagedBanner` spends `delta` as "could shortlist up to +N more
@@ -1091,8 +1163,14 @@ Behavioral coverage: `app/_lib/job-ingest.test.ts`.
 form of the list's `(workspace_id IS NULL OR workspace_id = ?)` predicate. All of
 `campaign` (GET + POST), `winnability`, `rediscover`, `agent-fit`, `candidates` and
 `candidates/outreach` now do, ahead
-of the spend, answering `404` (never `403`, so the endpoint can't confirm an id
-exists); seeded corpus rows stay visible to every tenant. The last two were the
+of the spend, answering `jsonRefusal("JOB_NOT_FOUND", 404)` (never `403`, so the
+endpoint can't confirm an id exists); seeded corpus rows stay visible to every
+tenant. The point-read `GET /api/jobs/[id]`, ingest's too-short paste
+(`JOB_AD_TOO_SHORT`), outreach's missing `candidateId` (`OUTREACH_CANDIDATE_REQUIRED`)
+and GDPR 409 (`COMMS_SUPPRESSED`, with the existing `suppressed` token) use the
+same coded envelope so the Roles desk resolves them via `errors.*` in all four
+locales. The candidates empty-pool short-circuit drops the English `note` and
+answers `{ candidates: [] }` — clients already key off the empty array. The last two were the
 family members the first pass missed, and they are the two that cost the most when
 ungated: `GET .../candidates` spawns a `recruiter_cli` child fed the role's title,
 body and stated band, and `POST .../candidates/outreach` files a pipeline row
@@ -1392,24 +1470,352 @@ include `workspace_id`).
   page in memory and there is no pager, so a workspace holding 240 non-archived JDs
   is now correctly told it is seeing 200 of them but still cannot search the other
   40 from this screen. That needs server-side search or a load-more, not more copy.
-- The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
-  rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
-  `campaign.py` spends them internally to suppress unstated facts but the pack it
-  returns carries only `warnings`. So a recruiter sees "no salary stated" but not
-  "we assumed medior / Praha for you". Surfacing it is a `campaign.py` change
-  (add the list to the returned pack) plus a line under the pack in
-  `JobsCampaignTab`, not a UI-only fix.
-- **The Fair Rank audit table ranks one number across cohorts it is not
-  comparable within.** `recruiter.fairness_check` is handed *every* validated
-  candidate, so its `own` / `mean` arrays include both fairness tracks **and**
-  the KO-filtered ones. `FairnessAuditPanel` renders them as a single list
-  sorted by `mean` descending with no track and no eligibility column — so an
-  early-career candidate scored on *potential* is ranked against an experienced
-  one scored on work history (the interleave the Candidates tab promises two
-  paragraphs above it never happens: "never ranked on one number against
-  experienced candidates"), and a candidate the KO filter rejected outright can
-  sit at the top of the bias-defensible record. Fixing it needs `koPassed` +
-  `track` passed down from `JobsRecruiterCandidates.tsx`, and a column label.
+- The campaign pack now ships `defaultedFields` (camelCase, the list
+  `normalize_job` recorded) beside `warnings`. A job that defaulted location +
+  seniority includes those slugs; a fully stated job sends `[]`. Painting the
+  list is `campaignDefaultedChips` (`jobsCampaignDefaulted.ts`): known slugs get
+  a localized chip, unknown slugs get "assumed {field}", and `[]` paints none.
+  The Campaign tab is still gone, so the next pack surface calls that helper.
+  Pinned by `test_campaign.py` and `jobsCampaignDefaulted.test.ts`. Also on the
+  pack schema floor as `defaultedFields`.
+- **The Fair Rank audit table still ranks one number across cohorts it is not
+  comparable within.** The producer now labels the split: `recruiter.fairness_check`
+  carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`
+  id list, and drops KO-failed labels from `ranking` (pinned by
+  `pipeline/jobfit/tests/test_recruiter.py`). `own` / `mean` stay the full
+  validated pool so the CLI lockstep does not shrink. `FairnessAuditPanel` still
+  renders a single list sorted by `mean` descending with no track and no
+  eligibility column — so an early-career candidate scored on *potential* is
+  ranked against an experienced one scored on work history (the interleave the
+  Candidates tab promises two paragraphs above it never happens: "never ranked
+  on one number against experienced candidates"), and a KO-failed candidate can
+  still sit in the audit table even though they are gone from `ranking`. Fixing
+  the panel needs it to read `tracks` + `koFailed` (or `koPassed` from the
+  ranked rows) and a column label.
 - No structurally-tracked, independently-provenanced editable salary band yet
   (would need its own `source: "manual"` marker, not a re-parse of the
   markdown).
+
+## Deleting a job description
+
+The JD Ledger (`app/features/library/jds/`) is the shelf of DESCRIPTIONS regardless
+of liveness, and until now it was append-only in one direction: a JD could be
+edited, archived and reverted, but never removed. Archive is the right default —
+it keeps the row so existing analysis and share links resolve — yet a draft that
+should never have existed had no way out. The Actions column now carries a trash
+icon beside Open / Duplicate / Ingest.
+
+**Who sees it, and what happens.** Two conditions gate the icon, and BOTH are the
+server's own answers rather than client inference:
+
+| Condition | Where it is decided |
+| --- | --- |
+| The reader created the JD, or holds an owner/admin seat | `canDeleteJd` (`app/_lib/jds-delete-rule.ts`), folded per row into `canDelete` by `GET /api/jds` |
+| The linked `jd-<slug>` role is not live | `statusCategory(row) !== "live"` on the client; `isJobOpenForApplications` on the server |
+
+A row failing either test renders nothing — a disabled icon for an action a reader
+can never take is noise in a ledger they scan. Confirming opens a themed `Modal`
+(never `window.confirm`, which the design tokens cannot reach) and the delete runs
+`DELETE /api/jds/[slug]`.
+
+**Authority.** The rule is narrower than any existing capability on purpose.
+`pipeline:write` — what the JD edit door asks for — is held by every recruiter, and
+a recruiter deleting a colleague's draft is exactly what the rule excludes. So the
+door is per-row: `jds.created_by` (a new nullable column, stamped by `saveJd` /
+`insertAnalyzingJd`) carries the author, and `app/_lib/jds-delete-access.ts`
+resolves the actor. In **open dev** (no `KP_OPERATOR_PASSWORD`) and for an
+**operator-password session** there is no user id to stamp or match, and both
+already fold to owner everywhere else in the app, so both resolve as admin — the
+door works in the setup most operators run. Everything else reads the live
+membership role on the session's workspace. A NULL `created_by` (a legacy row) is
+"no creator claim" and matches nobody, so only an admin clears those: the
+fail-closed direction.
+
+**Blast radius, stated because a delete cannot be re-read.** `deleteJd`
+(`app/_lib/db/jobs.ts`, IMMEDIATE) removes the `jds` row and its `jd_revisions`
+history, both workspace-scoped. It does NOT touch `analyses` rows keyed on
+`jd_slug` — a candidate's analysis is a record of work done on a person, not a
+property of the description — and it does NOT touch the linked `jd-<slug>` job,
+which is a separate lifecycle object with its own door on the Roles tab.
+
+**Refusals** answer with codes, never prose: `JD_DELETE_FORBIDDEN` (403),
+`JD_LIVE_CANNOT_DELETE` (409), `JD_DELETE_FAILED` (500, via `safeJsonError`). The
+client resolves each through `useErrorMessage()` in the reader's language.
+
+Known gap: only `POST /api/jds` stamps `created_by` today. The builder's Generate
+path (`startJdBuild` accepts a `createdBy`) and `POST /api/jds/save` still pass
+nothing, so JDs created there are admin-deletable only until their doors thread
+`(await currentUser()).userId` through.
+
+## The role's Candidates tab: one ranked ladder over the pool
+
+The Candidates tab inside the posting modal (`RecruiterCandidates`,
+`app/features/library/jobs/JobsRecruiterCandidates.tsx`) is the fair-comparison
+lens over the saved pool, scored against this role by
+`GET /api/jobs/[id]/candidates`. It used to be two columns of nine-badge cards
+(experienced / early-career) that spent a screen on a dozen people and had no way
+into the one place a candidate is actually read. It is now a thin **frame** over
+ONE layout, the **Ladder** (`app/features/library/jobs/candidates/CandidatesLadder.tsx`):
+a dense ranked table on the shared table kit (`ColumnHead` sort, `ColumnFilter` by
+name and stage, `TablePager` at 20/page, `TableStatus`), where the KO-filtered rows
+sit in the same table as the rest, wearing their reason, and the whole row is the
+click target into the candidate modal. It won the 2026-09 prototype round over a
+banded "rungs" list and a card grid; both are deleted, along with the layout
+switcher and its `localStorage` memory.
+
+**One row model.** The ladder reads `LadderRow[]` built once by
+`candidates/candidatesModel.ts` (`buildLadderRows`) — rank, the displayed score
+(the robust cross-scheme mean under Fair Rank, the own-weight total otherwise),
+band, the capped strength/gap strips, the near-miss flag, and the stage of this
+candidate's active entry for this role. The pure half is pinned by
+`candidatesModel.test.ts` and the "the ladder carries the KO cohort" contract by
+`jobsCandidatesMemo.test.ts`.
+
+**The fairness facts live on the frame**, above the ladder: the
+capped-pool note (`poolTruncated`), the early-career shielding sentence, the Pool
+Fit and Fair Rank toggles with their consequences, the skipped-candidate note, and
+the cross-scheme `FairnessAuditPanel` with its CSV export. Each layout carries the
+KO-filtered cohort itself, in the shape that layout can be honest in.
+
+### The modal bridge
+
+A row click opens the candidate modal. The ranked pool and the board speak
+different nouns — a row here is a CANDIDATE (a saved profile or CV analysis),
+while `CandidateModal` is built around a pipeline ENTRY — so
+`candidates/useCandidateBridge.ts` picks one of two doors from the row's own data:
+
+- **`inPipeline != null`** (the route already decorates each row with the stage of
+  that candidate's active entry for this job) → the real
+  `app/features/hiring/pipeline/candidate/CandidateModal.tsx`, on that entry. The
+  entry and the stage `axis` both come from ONE `GET /api/pipeline` read, cached
+  per mount, so no route had to change and the modal is the same one the board and
+  the decisions ledger mount.
+- **`inPipeline == null`** → `candidates/CandidatePreviewModal.tsx`: the honest
+  read-only pre-pipeline view (score and confidence, matched skills with their
+  provenance, missing skills, assumptions, KO reasons) with the two sourcing
+  actions the deleted cards carried. A candidate with no entry has no stage, no
+  timeline and no decision to rule on, and opening the entry modal on a synthesized
+  entry would invent all three. File them, and the next click opens the full view.
+
+A lookup that finds nothing (the entry closed or moved between the ranking and the
+click) falls back to the preview rather than to an empty modal.
+
+The bridge reads `GET /api/pipeline` on EVERY open rather than caching it for the
+tab's lifetime: a stage move made on the board while this tab stays open must not
+hand the modal a stale entry, and one small GET per click is the cheaper honesty
+(the cache and its "invalidate on change" bookkeeping were the 2026-09 known gap).
+
+Known gaps: none recorded.
+
+## The Coach tab is a ledger of patterns, weighed on a three-notch dial
+
+The Coach tab no longer paints a winnability verdict. The grade underneath is the
+same one it always ran (`GET /api/jobs/[id]/winnability` → `winnability_cli`, the
+production `ko_filter` + `score_job` over the shared capped pool); what changed is
+what the recruiter does with it. `coach/rolePatterns.ts` turns the grade into a
+**ledger of patterns** — one row per finding the pool shows against this role:
+
+| Kind | Row | `affected` measured against |
+| --- | --- | --- |
+| `language` / `education` | a hard gate that drops otherwise-eligible people | the whole pool |
+| `skill` | a must-have the eligible candidates lack | the **eligible** slice, not the pool |
+| `salary` | a band under the market benchmark | nothing countable (see below) |
+
+Two honesty rules are pinned by `coach/rolePatterns.test.ts`. A pattern that costs
+nobody is not a row — the ledger is findings, not an inventory of requirements. And
+the salary row carries `share: null`, rendered as a dash: the candidates a low band
+costs are the ones who never applied, so a `0 of 34` there would read as "this costs
+nobody". A silenced salary verdict (`belowMarket === null`, the cross-currency case
+with no FX) produces no row at all.
+
+### One layout: the Ledger, fused with the Dial's control
+
+`coach/CoachLedger.tsx` is the surviving layout of the 2026-09 prototype round —
+the Ledger as the baseline (the shared table kit: `ColumnHead` sort on pattern /
+share / priority, `TablePager` at 20/page, `TableStatus`), simplified to ONE line
+per pattern: the headline with its measure inline ("Kubernetes missing · 23 of 34"),
+the share bar with its percent, the priority control, and one icon-only action (the
+"stage this edit" hand-off into the JD editor, `jobsCoachApply.ts`). The priority
+control is the Dial variant's three-notch dial (`coach/CoachPriorityDial.tsx`): one
+control with three positions rather than three chips, the active notch painted in
+the level's token. The Stack (lanes) and Dial (projected shortlist) layouts, their
+switcher, the `projectPool` projection and the lane helpers are deleted; the panel
+reads one hook (`coach/useRolePatterns.ts`) and one derivation (`rolePatterns.ts`).
+
+### The priority vocabulary
+
+`critical` · `important` · `minor` (`app/_lib/role-priorities.ts`), weighted **3 / 2 /
+1**. The words are about WEIGHT, not requirement kind: the role already carries a
+must_have / nice_to_have axis and a second must/nice control beside it would read as
+the same field spelled twice. A pattern with **no** entry is untagged, which is a
+distinct state from `minor` — "not yet judged" is not "drop it"; clicking the
+active notch clears back to it.
+
+### Where the tags persist
+
+`role_pattern_priorities`, a lazy-store table (own connection, `role-priorities-store.ts`)
+keyed **(job_id, workspace_id)**, read and written through `GET` / `PUT
+/api/jobs/[id]/priorities`. It is its own table rather than a field on the job's
+`payload_json` because the jobs corpus is dual-tier: a seeded corpus row carries
+`workspace_id NULL` and is shared by every tenant, so a priority written onto that row
+would hand one team's private judgement of a role to every other team on the
+deployment — and the next team to tag it would overwrite the first. The composite key
+keeps a corpus role taggable by everyone with nobody reading anyone else's weighting.
+Listed in `TENANCY_SCOPED_TABLES` + `TENANCY_LAZY_TABLES`, proven by
+`app/_lib/role-priorities-tenancy.test.ts` with no by-id carve-out.
+
+### The weight seam — what is wired and what is not
+
+**The scorer does not read these weights yet, and the panel says so** (the Coach
+footnote states it in all four locales). The tags are persisted and readable
+server-side; the remaining seam is exactly two hops:
+
+1. `rankPoolForJob` (`app/_lib/recruiter-run.ts`) writes `{ jobId, candidates }` into
+   `recruiter.json`. It would need to read `getRolePriorities(jobId, workspaceId)` and
+   add a `priorities` field (and the two callers that matter —
+   `app/api/jobs/[id]/candidates/route.ts` and the automation sweep — would need to
+   pass the workspace they already resolve).
+2. `pipeline/jobfit/recruiter_cli.py` → `score_job` would need to consume it as a
+   per-requirement weight. Today the only weight input in the CLI is `--weights-llm`,
+   which resolves the `weight_proposal` use case for the **fairness matrix**, not for
+   the headline score — so there is no existing weights input to thread into.
+
+Until both land, a weight is a recorded judgement and nothing more; the footnote
+says so, and nothing here re-runs the scorer.
+
+Known gaps: the weight seam above. The ledger derives only from the winnability
+payload — richer per-candidate patterns (a seniority mismatch, an archetype skew)
+would need `GET /api/jobs/[id]/candidates`, which spawns a second CLI per open.
+
+## The role lifecycle: open, filled, closed
+
+The Roles tab is the desk of **open and historical** roles. Its eighth column used to
+be `Entry` (a fairness fact about the requirements); it is now `Status`, and the
+whole open/close review system hangs off it.
+
+### The vocabulary, and why one of the four is derived
+
+`jobs.status` records what a recruiter DID to a role — wrote it (`draft`), took it
+live (`published`), retired it (`closed`); `NULL` is a seeded corpus row, live by
+contract (`isJobOpenForApplications`). What the desk shows is a different question —
+what the role IS right now — and answering it needs the pipeline's hired count as
+well. `roleStatusOf` (`app/features/library/jobs/jobsRoleStatus.ts`, pinned by
+`jobsRoleStatus.test.ts`) derives four values from the two facts:
+
+| Status | Means | Tone (`ROLE_STATUS_TONE`) |
+| --- | --- | --- |
+| `draft` | never taken live, whatever its hired count says | neutral |
+| `open` | live and still short of its target; the cell also shows `hired / target` | active |
+| `filled` | hired count reached the target, retired or not yet | done |
+| `closed` | retired short of its target (a manual close, an abandoned req) | stopped |
+
+**`filled` is deliberately not a stored status.** The auto-close hook runs *after*
+the hire commits, so a role sits at 3-of-3 and still `published` for a moment; a
+stored flag would contradict the count beside it, and no migration could ever leave
+the two disagreeing. Sorting the column uses the desk's reading order (open → draft →
+filled → closed), not the alphabet, which is not the same in any of the four locales.
+
+The Status filter is the one filter on this table that runs **client-side**, over the
+page the query returned: `filled` compares a `jobs` column against a
+`pipeline_entries` count on the workspace's own board axis, which the browse query
+cannot express, and a second server-side definition of "filled" could disagree with
+the badge in the row. The `?job=` deep link therefore resolves against the
+*unfiltered* answer (`useJobsList.allJobs`) — a link to a role the reader filtered out
+of view must not report that the role does not exist.
+
+### Opening a role
+
+Publishing asks for its terms first (`JobsPublishDialog`, opened from both the posting
+modal's footer and the Drafts panel's row button — one dialog, because it is one act
+through one route):
+
+- **target hires**, 1..50, default 1. `POST /api/jobs/[id]/publish` accepts
+  `{ targetHires?, langs? }`; an out-of-range or non-integer value is refused with
+  `JOB_TARGET_HIRES_INVALID` before the billing gate, so a malformed target can never
+  leave a role live under a 400.
+- **languages** the role is advertised in, defaulting to the app locale.
+
+Both persist in the **same transaction** as the status flip (`setRoleOpenConfig`
+beside `setJobStatus`), so a role is never live under a target the auto-close hook has
+not seen. Two new `jobs` columns carry them: `target_hires INTEGER` (NULL = 1, folded
+by `roleTargetHires` rather than backfilled) and `posting_langs TEXT` (a JSON array).
+Both are `COALESCE`d on write, so a reopen that restates nothing keeps the terms the
+role was opened with — a 3-hire req does not silently reset to 1.
+
+An empty body still works: that is what the one-click go-live posts, and it means
+"do not change the terms".
+
+### Auto-close, and why two simultaneous hires cannot double-close it
+
+`app/_lib/stage-hooks-role-fill.ts` is a post-commit arrival hook, scheduled from
+`scheduleStageEnteredHook` through `afterResponse` like the interview and homework
+hooks — never inside the move's transaction, because better-sqlite3 transactions are
+synchronous and the reconciliation is not. It asks the board's **terminal role** (not
+a column literally named "Hired"), re-reads the entry to catch a move that landed in
+the gap, and compares `listJobPipelineStats(ws)[jobId].hired` — the same rollup the
+desk shows — against the role's target.
+
+The flip itself is a **compare-and-swap**: `closeRoleIfOpen` (`app/_lib/db/jobs.ts`)
+is a single `UPDATE … WHERE id = ? AND (status IS NULL OR status = 'published')` and
+returns whether it changed a row. Two candidates dropped onto the terminal column at
+the same moment produce two hooks that both read "3 of 3"; only the one whose UPDATE
+won goes on to `closeEntriesByJobId`, so a filled role runs exactly one withdrawal
+sweep and the loser stops silently. A manual close racing the hook is safe in the same
+way, in either order. The withdrawal writes the ordinary `role_closed` events, so a
+candidate's timeline cannot tell an auto-close from a manual one — which is correct,
+because to them it is the same event.
+
+Best-effort throughout: the hire stands whatever happens here, and a withdrawal that
+throws after the close committed is logged, not surfaced as a failed hire.
+
+### Translations of the posting
+
+Opening a role in more than one language orders a **translation per language**. They
+are rendered post-commit and **in parallel** (`runPostingTranslations`, `Promise.all`
+over the languages that are not the source), through `afterResponse` so the publish
+response never waits on them.
+
+- Source of truth for the source document: `renderPostingMarkdown` runs the SAME
+  client-side renderer the modal shows (`jobToMarkdown` + a locale-pinned catalog), so
+  a translation is never a translation of a document the recruiter never saw.
+- The model call is the new `posting_translate` use case
+  (`pipeline/jobfit/posting_translate_cli.py`; registered in
+  `USE_CASE_REQUIREMENTS`/`USE_CASE_MAX_TOKENS`, `LLM_USE_CASES`, `ROUTING_SECTIONS`
+  and `.ai/use-cases.json`). Prose in, prose out, no JSON capability required.
+- Storage is `job_translations`, keyed `(workspace_id, job_id, lang)` so
+  re-generating a language REPLACES its body. Workspace-scoped with **no** shared tier
+  and no by-id carve-out even when the role itself is a shared corpus row: the body
+  was generated on one team's order and against one team's spend
+  (`app/_lib/db/job-translations-tenancy.test.ts`).
+- `GET /api/jobs/[id]/translations` lists what exists plus the role's languages and
+  its source language; `POST` with `{ lang }` generates one on demand, rate-limited
+  20/10min per IP as `jobs-translate:` (pinned in `app/api/rate-limit-contract.test.ts`).
+
+**Keyless behaviour — the one place in this app where keyless means NO output.** Every
+other LLM surface here has a deterministic twin; a translation cannot have one,
+because only a model can turn Czech prose into German prose. So with no provider
+configured the CLI exits 0 with `source: "deterministic"` and a reason, **nothing is
+persisted**, and the posting tab keeps its dashed empty state with a "Generate
+translation" button. The on-demand door answers `JOB_TRANSLATION_UNAVAILABLE` (503),
+which the client resolves through `errors.*` in the reader's own language — it never
+renders the server's string. A stub presented as a German advertisement would be far
+worse than none: the posting is the document a candidate applies against, so the
+system prompt also forbids adding, dropping or altering any requirement or figure.
+
+In the posting tab the source language keeps the client-built markdown (always
+present, always current); any other language renders the stored body, or the empty
+state. The tab panel carries a `min-h-[32rem]` floor so switching tabs does not resize
+the dialog under the reader's cursor.
+
+A re-ingest of the role under its existing id (an edited JD saved through
+`PATCH /api/jds/[slug]`, a restored revision, the library's ingest door) rewrites the
+role's fields, so `insertJob` (`app/_lib/job-ingest.ts`) drops that team's
+`job_translations` for the role on the same connection — a German advertisement of
+the previous text is not a translation of this one. The posting tab shows the empty
+state again and regrows each language on demand. Pinned by
+`app/_lib/db/job-translations-tenancy.test.ts` (one team's drop never touches the
+other team's rows).
+
+Known gaps: there is no bulk "translate every open role" action, and the auto-close hook does not notify
+anyone that a role retired itself (it writes no event kind of its own by design; the
+withdrawn candidates' `role_closed` events are the only trace).

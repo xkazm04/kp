@@ -1,20 +1,23 @@
 // board-grid-has-a-name — the board's lanes ARE a grid (positions down the side,
-// stages across the top) and were a run of bare divs, so a screen reader read a flat
-// list of candidate names with no notion of which column any of them stood in. Every
-// drag already had a keyboard twin and every move was narrated; the structure the
-// twins move THROUGH was the part with no name.
+// stages across the top). On the card board they were once a run of bare divs, so
+// a screen reader read a flat list of candidate names with no notion of which
+// column any of them stood in. The map board (Subway) inherited the contract:
+// this pins the shape rather than a snapshot, naming the element each assertion
+// guards, so a refactor that keeps the semantics keeps passing.
 //
-// A source guard: the roles live in JSX with no pure seam to call, and what has to
-// stay true is structural. It pins the shape rather than a snapshot — each assertion
-// names the element it guards, so a refactor that keeps the semantics keeps passing.
+// A source guard: the roles live in JSX with no pure seam to call. The board is
+// split across the host and its subway/ parts, so the guard reads them as one.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const board = readFileSync("app/features/hiring/pipeline/PipelineBoard.tsx", "utf8");
-const cell = readFileSync("app/features/hiring/pipeline/PipelineBoardStageCell.tsx", "utf8");
-const toolbar = readFileSync("app/features/hiring/pipeline/PipelineBoardToolbar.tsx", "utf8");
-const scroll = readFileSync("app/features/hiring/pipeline/usePipelineBoardScroll.ts", "utf8");
+const BOARD_FILES = [
+  "PipelineBoardSubway.tsx",
+  "subway/SubwayMarks.tsx",
+  "subway/SubwayLineRow.tsx",
+  "subway/SubwayBeads.tsx",
+];
+const board = BOARD_FILES.map((f) => readFileSync(`app/features/hiring/pipeline/map/${f}`, "utf8")).join("\n");
 
 test("the lanes are a named grid with a declared row and column count", () => {
   assert.match(board, /role="grid"/, "the lane container must be a grid");
@@ -24,41 +27,33 @@ test("the lanes are a named grid with a declared row and column count", () => {
 });
 
 test("both the header row and every lane are rows, with headers at their edges", () => {
-  assert.equal((board.match(/role="row"/g) ?? []).length, 2, "exactly two row sites: the header row and the lane row");
-  assert.equal((board.match(/role="columnheader"/g) ?? []).length, 2, "the position rail label and the stage header button");
-  assert.match(board, /role="rowheader"/, "the lane's position cell names its row");
+  assert.equal((board.match(/role="row"/g) ?? []).length, 2, "exactly two row sites: the header row and the line row");
+  assert.equal((board.match(/role="columnheader"/g) ?? []).length, 2, "the position rail label and the station header");
+  assert.match(board, /role="rowheader"/, "the line's position cell names its row");
 });
 
 test("a cell is a gridcell that says which position, which stage and how many", () => {
-  assert.match(cell, /role="gridcell"/);
-  assert.match(
-    cell,
-    /aria-label=\{t\("board\.cellAria", \{ position: laneLabel, stage: stageLabel, count: entries\.length \}\)\}/,
-    "position, stage and the count, all three"
-  );
+  assert.match(board, /role="gridcell"/);
+  assert.match(board, /aria-label=\{cellAria\(stageLabel\(stage\), cellEntries\.length\)\}/, "position, stage and the count, all three");
   // The RENDERED label, not the stored id: a workspace that renames a column must
   // hear its own word, the same one the column header shows.
-  assert.match(board, /stageLabel=\{stageColumnLabel\(axis\[i\]\)\}/);
+  assert.match(board, /cellAria=\{\(stage, count\) =>\s*t\("board\.cellAria", \{ position: pos\.title, stage, count \}\)/);
 });
 
-test("a drop target is described, once, and only while dragging is possible", () => {
-  assert.match(board, /id=\{dropHintId\} className="sr-only"/, "one shared sr-only description");
-  assert.match(board, /\{t\("board\.dropHint"\)\}/);
-  assert.match(board, /dropHintId=\{dragEnabled \? dropHintId : undefined\}/, "not a drop target in select mode");
-  assert.match(cell, /aria-describedby=\{dropHintId\}/);
+test("a bead is a real button that names the candidate, never a button inside a button", () => {
+  // The station button fills the cell underneath (absolute); beads are its
+  // SIBLINGS. Nested buttons are not markup and a screen reader keeps only one.
+  assert.match(board, /className="focus-ring absolute inset-0 z-0 cursor-pointer"/, "the station button is the cell's underlay");
+  assert.match(board, /aria-label=\{label\}/, "each bead carries an accessible name");
+  assert.match(board, /t\("candidateRow\.menuFor", \{ name: e\.candidateLabel \}\)/, "…the same 'Actions for {name}' the card row's menu answered to");
+  assert.match(board, /t\("scoreKind\.transferTitle"\)/, "a transfer score is never read as a match score");
 });
 
-test("an empty cell reads as empty; the dot is decoration", () => {
-  assert.match(cell, /<span aria-hidden className="px-1 text-sm text-stone-300">/, "the middle dot is decorative");
-  assert.match(cell, /<span className="sr-only">\{t\("board\.cellEmpty"\)\}<\/span>/);
-});
-
-test("the paging arrows disable at the scroll extremes instead of swallowing the click", () => {
-  assert.match(toolbar, /disabled=\{!canScrollLeft\}/);
-  assert.match(toolbar, /disabled=\{!canScrollRight\}/);
-  assert.match(scroll, /setCanScrollLeft\(el\.scrollLeft > 1\)/, "1px of slack, or a smooth scroll flickers them");
-  assert.match(scroll, /setCanScrollRight\(el\.scrollLeft < max - 1\)/);
-  // The board's width changes without a scroll (viewport resize, a column added or
-  // removed from the workspace axis), so the extents are re-measured on both.
-  assert.match(scroll, /new ResizeObserver\(syncExtents\)/);
+test("an empty station says so in words, not only by shape", () => {
+  assert.match(board, /title=\{cellEntries\.length === 0 \? cellEmpty : undefined\}/);
+  assert.match(board, /cellEmpty=\{t\("board\.cellEmpty"\)\}/);
+  // …and it is INERT: nobody stands there, so there is nothing to expand. The cell
+  // names itself; the station button (and its hover) exists only when occupied.
+  assert.match(board, /aria-label=\{empty \? cellAria\(stageLabel\(stage\), 0\) : undefined\}/);
+  assert.match(board, /\{empty \? null : \(\s*<button/, "no station button on an empty cell");
 });

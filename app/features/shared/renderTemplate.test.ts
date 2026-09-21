@@ -30,12 +30,26 @@ const renderTemplate = (body: string, data: Parameters<typeof renderWithTokens>[
 const SEP = TEMPLATE_SEPARATOR; // " · "
 // The default template's header line in isolation, so each case asserts the
 // collapse behavior without the surrounding document.
-const HEADER = `**{{company}}**${SEP}{{seniority}}${SEP}{{salary}}`;
+const HEADER = `**{{company}}**${SEP}{{location}}${SEP}{{seniority}}${SEP}{{salary}}`;
 
 test("header: all three fields present render verbatim with separators", () => {
   assert.equal(
     renderTemplate(HEADER, { company: "Acme", seniority: "Senior", salary: "120k" }),
     `**Acme**${SEP}Senior${SEP}120k`,
+  );
+});
+
+test("header: filled location sits between company and seniority", () => {
+  assert.equal(
+    renderTemplate(HEADER, { company: "Acme", location: "Prague", seniority: "Senior", salary: "120k" }),
+    `**Acme**${SEP}Prague${SEP}Senior${SEP}120k`,
+  );
+});
+
+test("header: empty location collapses its orphaned separator", () => {
+  assert.equal(
+    renderTemplate(HEADER, { company: "Acme", location: "   ", seniority: "Senior" }),
+    `**Acme**${SEP}Senior`,
   );
 });
 
@@ -89,12 +103,27 @@ test("unknown placeholders are left verbatim", () => {
   assert.equal(renderTemplate("{{company}} — {{unknown}}", { company: "Acme" }), "Acme — {{unknown}}");
 });
 
-test("default template: header collapses and lists fall back to a dash", () => {
+test("default template: header collapses and empty list sections drop their headings", () => {
   const out = renderTemplate(DEFAULT_TEMPLATE_BODY, { title: "Engineer", company: "Acme" });
   assert.match(out, /^# Engineer$/m);
   assert.match(out, /^\*\*Acme\*\*$/m); // no seniority/salary → header is just the company
-  assert.match(out, /^- —$/m); // empty responsibilities/mustHaves/niceToHaves fall back
+  assert.ok(!out.includes(TOKENS.heading_role), "empty responsibilities drop the role heading");
+  assert.ok(!out.includes(TOKENS.heading_requirements), "empty mustHaves drop the requirements heading");
+  assert.ok(!out.includes(TOKENS.heading_nice), "empty niceToHaves drop the nice-to-have heading");
+  assert.doesNotMatch(out, /^- —$/m, "empty lists must not emit a hollow dash bullet");
+  assert.ok(out.includes(TOKENS.heading_offer), "localized offer filler still keeps its section");
   assert.ok(!out.includes(`${SEP}\n`), "no separator should be left dangling before a newline");
+});
+
+test("a filled list keeps its heading; the other empty lists still collapse", () => {
+  const out = renderTemplate(DEFAULT_TEMPLATE_BODY, {
+    title: "Engineer",
+    company: "Acme",
+    mustHaves: ["TypeScript"],
+  });
+  assert.ok(out.includes(TOKENS.heading_requirements) && out.includes("- TypeScript"));
+  assert.ok(!out.includes(TOKENS.heading_role), "empty responsibilities still drop");
+  assert.ok(!out.includes(TOKENS.heading_nice), "empty niceToHaves still drop");
 });
 
 // ---- findUnknownPlaceholders — the save-time linter -------------------------
@@ -117,24 +146,24 @@ test("linter: a typo'd token is reported", () => {
 
 test("linter: out-of-set tokens are reported", () => {
   assert.deepEqual(
-    findUnknownPlaceholders("{{title}} in {{location}} — {{roleFamily}}"),
-    ["location", "roleFamily"],
+    findUnknownPlaceholders("{{title}} in {{department}} — {{roleFamily}}"),
+    ["department", "roleFamily"],
   );
 });
 
 test("linter: unknown tokens are de-duped, in first-seen order", () => {
   assert.deepEqual(
-    findUnknownPlaceholders("{{location}} {{title}} {{roleFamily}} {{location}}"),
-    ["location", "roleFamily"],
+    findUnknownPlaceholders("{{department}} {{title}} {{roleFamily}} {{department}}"),
+    ["department", "roleFamily"],
   );
 });
 
 test("linter: what the linter flags is exactly what renderTemplate leaves raw", () => {
   // The linter and renderer must agree: any token the linter passes is one
   // renderTemplate substitutes, and any token it flags renders verbatim.
-  const body = "{{title}} — {{location}}";
-  assert.deepEqual(findUnknownPlaceholders(body), ["location"]);
-  assert.equal(renderTemplate(body, { title: "Engineer" }), "Engineer — {{location}}");
+  const body = "{{title}} — {{department}}";
+  assert.deepEqual(findUnknownPlaceholders(body), ["department"]);
+  assert.equal(renderTemplate(body, { title: "Engineer" }), "Engineer — {{department}}");
 });
 
 test("linter: a token naming an Object.prototype member is unknown AND renders raw", () => {
@@ -165,8 +194,8 @@ test("linter message: singular vs plural and the supported list", () => {
   assert.match(one, /^Unknown placeholder: \{\{tilte\}\}\./);
   assert.match(one, /\{\{title\}\}/); // names the supported set
 
-  const many = unknownPlaceholderMessage(["location", "roleFamily"]);
-  assert.match(many, /^Unknown placeholders: \{\{location\}\}, \{\{roleFamily\}\}\./);
+  const many = unknownPlaceholderMessage(["department", "roleFamily"]);
+  assert.match(many, /^Unknown placeholders: \{\{department\}\}, \{\{roleFamily\}\}\./);
 });
 
 // ---- validateTemplateFields — the create write boundary --------------------
@@ -204,6 +233,16 @@ test("create: caps name and body at the limits the team trusts", () => {
   assert.equal(validateTemplateFields("a".repeat(TEMPLATE_NAME_MAX_LENGTH + 1), "body").ok, false);
   assert.equal(validateTemplateFields("Name", "b".repeat(TEMPLATE_BODY_MAX_LENGTH)).ok, true);
   assert.equal(validateTemplateFields("Name", "b".repeat(TEMPLATE_BODY_MAX_LENGTH + 1)).ok, false);
+});
+
+test("create: unknown tokens fail with unknownTokens", () => {
+  const r = validateTemplateFields("n", "# {{tilte}}");
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.reason.code, "unknownTokens");
+    if (r.reason.code === "unknownTokens") assert.deepEqual(r.reason.tokens, ["tilte"]);
+    assert.match(r.error, /\{\{tilte\}\}/);
+  }
 });
 
 test("create: each failure carries a distinct, user-facing message", () => {
@@ -266,6 +305,17 @@ test("update: a present-but-empty name or body is rejected, not silently kept", 
   assert.equal(validateTemplateUpdate({ name: "ok", body: "   " }).ok, false);
 });
 
+test("update: unknown tokens in a present body fail with unknownTokens", () => {
+  const r = validateTemplateUpdate({ body: "# {{tilte}}" });
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.reason.code, "unknownTokens");
+    if (r.reason.code === "unknownTokens") assert.deepEqual(r.reason.tokens, ["tilte"]);
+  }
+  const rename = validateTemplateUpdate({ name: "Renamed" });
+  assert.equal(rename.ok, true, "a rename-only edit does not lint an absent body");
+});
+
 test("update: present fields are capped to the same limits as create", () => {
   assert.equal(validateTemplateUpdate({ name: "a".repeat(TEMPLATE_NAME_MAX_LENGTH + 1) }).ok, false);
   assert.equal(validateTemplateUpdate({ body: "b".repeat(TEMPLATE_BODY_MAX_LENGTH + 1) }).ok, false);
@@ -289,4 +339,15 @@ test("a provided {{about}} renders under its heading", () => {
   const out = renderTemplate(`## About us
 {{about}}`, { about: "We are Acme." });
   assert.ok(out.includes("About us") && out.includes("We are Acme."));
+});
+
+test("empty title and company fallbacks follow the document language", async () => {
+  const cs = await jdTemplateTokens("cs");
+  const out = renderWithTokens("# {{title}}\n**{{company}}**", {}, cs);
+  assert.equal(out, `# ${cs.fallback_title}\n**${cs.fallback_company}**`);
+  assert.ok(!out.includes("Role title"), "cs tokens must not leak the English title fallback");
+  assert.ok(!out.includes("Company"), "cs tokens must not leak the English company fallback");
+  const en = renderTemplate("# {{title}}\n**{{company}}**", {});
+  assert.match(en, /Role title/);
+  assert.match(en, /\*\*Company\*\*/);
 });

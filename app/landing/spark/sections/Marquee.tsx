@@ -18,6 +18,12 @@ export default function Marquee() {
   const reduceMotion = useStillMotion();
   // Arrays come back raw from the catalog (next-intl returns them verbatim).
   const items = t.raw("marquee") as string[];
+  const claim = (item: string, i: number) => (
+    <span key={i} className={`${DISPLAY} flex items-center gap-10 text-lg font-bold text-[#fdf8ee]`}>
+      {item}
+      <Sparkles aria-hidden className="h-4 w-4 text-[#caa54c]" />
+    </span>
+  );
   return (
     <div className="overflow-hidden border-y-[3px] border-[#17202a] bg-[#d65a4a] py-3">
       <motion.div
@@ -25,13 +31,16 @@ export default function Marquee() {
         animate={reduceMotion ? undefined : { x: ["0%", "-50%"] }}
         transition={{ duration: 26, ease: "linear", repeat: Infinity }}
       >
-        {/* Doubled so the -50% loop is seamless. */}
-        {[...items, ...items].map((item, i) => (
-          <span key={i} className={`${DISPLAY} flex items-center gap-10 text-lg font-bold text-[#fdf8ee]`}>
-            {item}
-            <Sparkles aria-hidden className="h-4 w-4 text-[#caa54c]" />
-          </span>
-        ))}
+        {items.map(claim)}
+        {/* Doubled so the -50% loop is seamless — but only VISUALLY: the clone
+         * half is aria-hidden, so a screen reader reads the eight claims once
+         * instead of sixteen. The wrapper repeats the track's own
+         * `flex items-center gap-10`, so it contributes exactly the gaps the
+         * flattened clones did and the doubled width (and thus -50%) is
+         * unchanged. */}
+        <span aria-hidden="true" className="flex items-center gap-10">
+          {items.map(claim)}
+        </span>
       </motion.div>
     </div>
   );

@@ -15,7 +15,7 @@
 // Runner: npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { economicsRows, hireRate, type EconomicsRow } from "./economicsRows.ts";
+import { economicsCsvRows, economicsRows, hireRate, type EconomicsKind, type EconomicsRow } from "./economicsRows.ts";
 import type { EconomicsAnalytics } from "./economicsTypes.ts";
 
 /** Only the three group arrays are read; the rest of the payload is irrelevant here. */
@@ -103,4 +103,74 @@ test("the stored channel id, not the label, is what the row carries as its write
   );
   assert.equal(rows[0].channelId, "linkedin", "the spend endpoint and the board's ?source= filter key off the stored id");
   assert.equal(rows[0].name, "#linkedin", "…while the display name is the localized label");
+});
+
+// ---------------------------------------------------------------------------
+// The board as a file. Same rule as the screen: the absent case is absent.
+// ---------------------------------------------------------------------------
+
+const CSV_LABELS = {
+  surface: "Surface",
+  kind: "Type",
+  leads: "Leads",
+  reachedInterview: "Reached interview",
+  hired: "Hired",
+  hireRate: "Hire rate",
+  spend: "Spend (CZK)",
+  perHire: "Per hire (CZK)",
+  spendUpdated: "Spend updated",
+};
+const csvKind = (k: EconomicsKind) => k.toUpperCase();
+
+const csvRow = (rows: EconomicsRow[], name: string) => economicsCsvRows(rows, CSV_LABELS, csvKind).find((r) => r[0] === name)!;
+
+test("the export carries the taxonomy as a column", () => {
+  // The board refuses to merge the three groups on screen because they measure
+  // different things; a file that dropped the group label would be the flat ranking
+  // the board's own header warns against, one layer down.
+  const rows = economicsRows(
+    payload({
+      byChannel: [{ channel: "linkedin", total: 20, reachedInterview: 8, hired: 3, hireRatePct: 15, spendCzk: 5000, spendUpdatedAt: "2026-01-01T00:00:00.000Z", costPerHireCzk: 1667 }],
+      bySource: [{ source: "referral", total: 8, reachedInterview: 4, hired: 1, hireRatePct: 13 }],
+    } as unknown as Partial<EconomicsAnalytics>),
+    names
+  );
+  const csv = economicsCsvRows(rows, CSV_LABELS, csvKind);
+  assert.equal(csv[0][1], "Type");
+  assert.deepEqual(
+    csv.slice(1).map((r) => r[1]),
+    ["CHANNEL", "SOURCE"]
+  );
+});
+
+test("an empty surface exports a dash, never 0%", () => {
+  const rows = economicsRows(
+    payload({ byVariant: [{ variant: "A", jobTitle: "Backend Engineer", campaign: "spring", total: 0, hired: 0, reachedInterview: 0 }] } as unknown as Partial<EconomicsAnalytics>),
+    names
+  );
+  assert.equal(csvRow(rows, "A · Backend Engineer")[5], "—");
+});
+
+test("spend that is not measured for a taxonomy is a dash, not a zero", () => {
+  const rows = economicsRows(
+    payload({ bySource: [{ source: "referral", total: 8, reachedInterview: 4, hired: 1, hireRatePct: 13 }] } as unknown as Partial<EconomicsAnalytics>),
+    names
+  );
+  const row = csvRow(rows, "~referral");
+  assert.equal(row[6], "—", "a 0 here would tell a budget review that referrals were free");
+  assert.equal(row[7], "—");
+  assert.equal(row[8], "—");
+});
+
+test("money stays a raw number so a budget review can sum the column", () => {
+  const rows = economicsRows(
+    payload({
+      byChannel: [{ channel: "linkedin", total: 20, reachedInterview: 8, hired: 3, hireRatePct: 15, spendCzk: 5000, spendUpdatedAt: "2026-01-01T00:00:00.000Z", costPerHireCzk: 1667 }],
+    } as unknown as Partial<EconomicsAnalytics>),
+    names
+  );
+  const row = csvRow(rows, "#linkedin");
+  assert.equal(row[6], 5000, "not the grouped '5 000 Kč' the screen renders — a spreadsheet imports that as text");
+  assert.equal(row[7], 1667);
+  assert.equal(row[8], "2026-01-01T00:00:00.000Z", "the per-hire figure is exactly as current as the spend behind it");
 });

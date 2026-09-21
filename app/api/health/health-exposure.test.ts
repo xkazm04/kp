@@ -89,6 +89,7 @@ type HealthBody = {
   engines?: { gemini: boolean; claudeCli: boolean };
   tables?: Record<string, number>;
   queue?: { running: number; queued: number };
+  catalog?: string;
   degradedReasons?: string[];
 
   config?: string;
@@ -207,4 +208,40 @@ test("a healthy config store says so and adds no reason", async () => {
     "a clean ledger must not manufacture a reason"
   );
   assert.deepEqual(body.configIssues, [], "an empty sample, not a missing key — the operator can tell the two apart");
+});
+
+// ---- an empty catalog is not a page-worthy outage (cx-billing-spend) ----------------
+//
+// This probe answered 503 to an uptime monitor whenever the jobs table had no rows —
+// a brand-new install paging its operator for being brand new. Only an empty catalog
+// whose SEED failed is a fault now (seed-catalog-verdict.test.ts proves that half
+// against a genuinely unreadable seed file); the seeds load here, so an empty catalog
+// is a STATE. It rides the operator gate with `tables`, because how much business a
+// deployment holds has never been a public readiness fact.
+
+test("an empty catalog with healthy seeds moves no verdict, and stays operator-only", async () => {
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+  const before = await probe();
+  assert.equal(before.catalog, "ok", "the seeded corpus is the baseline this case moves away from");
+
+  const raw2 = new Database(UNIT_DB_PATH);
+  raw2.prepare(`DELETE FROM jobs`).run();
+  raw2.close();
+
+  const op = await probe();
+  assert.equal(op.catalog, "empty");
+  assert.equal(
+    op.degradedReasons?.some((r) => r.includes("catalog")),
+    false,
+    `a monitor must not be paged because nobody has written a role yet — got ${JSON.stringify(op.degradedReasons)}`
+  );
+  // Not `ok === true`: this process runs no automation clock, so it carries a
+  // legitimate "scheduler starting" reason of its own. The claim is the defect
+  // itself — emptying the catalog moves NO verdict and no status code.
+  assert.deepEqual(op.degradedReasons, before.degradedReasons, "emptying the catalog changed no verdict");
+  assert.equal(op.ok, before.ok, "…nor the boolean an uptime monitor gates on");
+
+  cookieValue = null;
+  const anon = await probe();
+  assert.equal(anon.catalog, undefined, "zero jobs is business volume, gated like `tables`");
 });

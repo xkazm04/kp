@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { localeCookieOptions } from "./i18n/cookie";
-import { isLocale, LOCALE_COOKIE } from "./i18n/locales";
+import { coerceLocale, LOCALE_COOKIE } from "./i18n/locales";
 import { SESSION_COOKIE, verifySessionEdge } from "./app/_lib/auth/edge-verify";
 import { isPublicPath } from "./app/_lib/auth/public-routes";
 
@@ -163,11 +163,13 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // 2) Locale override — honour `?lang=cs` on candidate-facing links by translating
-  //    it into the NEXT_LOCALE cookie the switcher uses (set on the FORWARDED request
-  //    so the current render sees it, and on the response for later navigations).
-  const lang = req.nextUrl.searchParams.get("lang");
-  if (!lang || !isLocale(lang)) return forward();
+  // 2) Locale override — honour `?lang=cs` (and regional tags `?lang=cs-CZ`) on
+  //    candidate-facing links by translating them into the NEXT_LOCALE cookie the
+  //    switcher uses (set on the FORWARDED request so the current render sees it,
+  //    and on the response for later navigations). coerceLocale folds the regional
+  //    form onto a shipped catalog; isLocale stays strict for catalog imports.
+  const lang = coerceLocale(req.nextUrl.searchParams.get("lang"));
+  if (!lang) return forward();
   if (req.cookies.get(LOCALE_COOKIE)?.value === lang) return forward();
 
   // `req.cookies.set` rewrites the request's own `cookie` header, so cloning the

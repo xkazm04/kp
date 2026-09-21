@@ -1,12 +1,14 @@
-// The boot TAIL — the two maintenance steps that run after the schema is ready — and the
+// The boot TAIL — the maintenance steps that run after the schema is ready — and the
 // order the boot body runs in.
 //
-// Both tail steps are deliberately best-effort: a prompt-cache prune failure and a WAL
-// checkpoint failure must be logged and survived, never allowed to wedge a boot. That is a
-// real decision, and until now it had NO test at all: `grep wal_checkpoint|prunePromptCache
-// app/_lib/db/*.test.ts` returned nothing, so deleting either call, or turning either catch
-// into a re-throw, was a silent change. The prune in particular is the only thing bounding
-// the gemini_cache table and its WAL for the life of a deployment.
+// Each tail step is deliberately best-effort: a prompt-cache prune failure, a WAL
+// checkpoint failure, and a getRowHealth sample failure must be logged and survived,
+// never allowed to wedge a boot. That is a real decision, and until now it had NO test
+// at all: `grep wal_checkpoint|prunePromptCache app/_lib/db/*.test.ts` returned nothing,
+// so deleting either call, or turning either catch into a re-throw, was a silent change.
+// The prune in particular is the only thing bounding the gemini_cache table and its WAL
+// for the life of a deployment. A non-zero getRowHealth total is the boot log for a
+// restored dump with unreadable JSON columns.
 //
 // The tail is exercised through `runBootMaintenance`, the seam ensureDb() calls: the
 // failure halves need a db/prune that fails on demand, which no real database offers
@@ -58,7 +60,7 @@ test("a prompt-cache prune failure is logged and survived — boot is never wedg
   const { out, threw } = captureConsole(() =>
     runBootMaintenance(okDb, () => {
       throw new Error("cannot modify gemini_cache because it is a view");
-    })
+    }, () => ({ ok: true, total: 0, issues: [] }))
   );
   assert.equal(threw, undefined, "a prune failure must not propagate out of boot");
   assert.match(out, /prompt-cache boot prune failed/, "and it must be logged, not swallowed silently");
@@ -71,7 +73,9 @@ test("a WAL checkpoint failure is logged and survived, and does not skip the pru
       throw new Error("database is locked");
     },
   };
-  const { out, threw } = captureConsole(() => runBootMaintenance(failingDb, () => 7));
+  const { out, threw } = captureConsole(() =>
+    runBootMaintenance(failingDb, () => 7, () => ({ ok: true, total: 0, issues: [] }))
+  );
   assert.equal(threw, undefined, "a checkpoint failure must not propagate out of boot");
   assert.match(out, /boot WAL checkpoint failed/, "and it must be logged");
   assert.match(out, /database is locked/, "with the underlying reason");
@@ -79,9 +83,30 @@ test("a WAL checkpoint failure is logged and survived, and does not skip the pru
 });
 
 test("a clean tail says nothing when there was nothing to prune", () => {
-  const { out, threw } = captureConsole(() => runBootMaintenance(okDb, () => 0));
+  const { out, threw } = captureConsole(() => runBootMaintenance(okDb, () => 0, () => ({ ok: true, total: 0, issues: [] })));
   assert.equal(threw, undefined);
   assert.equal(out, "", "zero pruned rows is the ordinary case — it must not add a boot log line");
+});
+
+test("a non-zero row-health total is logged once, and a throw is survived", () => {
+  const sample = {
+    ok: false,
+    total: 1,
+    issues: [{ ctx: "analyses", id: "slug-x", reason: "corrupt" as const, detail: "not json", at: "2026-01-01T00:00:00.000Z" }],
+  };
+  const { out, threw } = captureConsole(() => runBootMaintenance(okDb, () => 0, () => sample));
+  assert.equal(threw, undefined, "a non-zero sample must not wedge boot");
+  assert.match(out, /row-health: 1 unreadable column/, "the count is logged");
+  assert.match(out, /slug-x/, "the bounded issue sample is logged");
+
+  const boom = captureConsole(() =>
+    runBootMaintenance(okDb, () => 0, () => {
+      throw new Error("ledger exploded");
+    })
+  );
+  assert.equal(boom.threw, undefined, "a throwing sample is survived");
+  assert.match(boom.out, /row-health boot sample failed/, "and it is logged");
+  assert.match(boom.out, /ledger exploded/, "with the underlying reason");
 });
 
 // ---- End to end: a real boot really prunes, and really folds the WAL back -----------

@@ -293,6 +293,27 @@ export function listBillingAlerts(opts: { includeResolved?: boolean; limit?: num
   }));
 }
 
+/** Stamp `resolved_at` so a paid-but-unmapped Polar signal can leave the open
+ *  worklist. Compensating WHERE: only an unresolved row for this org matches, so
+ *  a second call (or a missing id) is a no-op that returns false. `expectedUnresolved`
+ *  defaults true — the documented call; passing false is not a restamp, it is the
+ *  same gate (already-resolved stays a skip). */
+export function resolveBillingAlert(input: {
+  id: number;
+  orgId?: string;
+  expectedUnresolved?: boolean;
+}): boolean {
+  const db = ensureDb();
+  const orgId = input.orgId ?? DEFAULT_ORG_ID;
+  const at = new Date().toISOString();
+  // Compensating predicate: never overwrite a stamp that already exists. The
+  // documented call passes `expectedUnresolved: true`; already-resolved is a skip.
+  const info = db
+    .prepare(`UPDATE billing_alerts SET resolved_at = ? WHERE id = ? AND org_id = ? AND resolved_at IS NULL`)
+    .run(at, input.id, orgId);
+  return Number(info.changes) > 0;
+}
+
 export function creditBalance(meter: string, orgId: string = DEFAULT_ORG_ID): number {
   const db = ensureDb();
   const row = db

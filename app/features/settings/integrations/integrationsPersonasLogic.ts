@@ -10,7 +10,7 @@
 // hook below is the DOM wiring around them.
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -64,6 +64,49 @@ export function claimStep(input: {
  *  banner for a request they abandoned. */
 export function isSupersededAttempt(current: number, mine: number): boolean {
   return current !== mine;
+}
+
+/** Milliseconds left on the pairing TTL. Floor at 0 so a late tick is not negative. */
+export function remainingMs(nowMs: number, deadline: number): number {
+  return Math.max(0, deadline - nowMs);
+}
+
+/** Seconds to paint while waiting. `null` when the tab is hidden: we must not
+ *  claim a live countdown nobody is watching. */
+export function waitingRemainingSeconds(nowMs: number, deadline: number, visible: boolean): number | null {
+  if (!visible) return null;
+  return Math.ceil(remainingMs(nowMs, deadline) / 1000);
+}
+
+function subscribeRemaining(onStoreChange: () => void) {
+  const id = window.setInterval(onStoreChange, 1000);
+  document.addEventListener("visibilitychange", onStoreChange);
+  return () => {
+    window.clearInterval(id);
+    document.removeEventListener("visibilitychange", onStoreChange);
+  };
+}
+
+/** Live remaining seconds for the waiting card. Pauses (returns null) while hidden. */
+export function useWaitingRemainingSeconds(deadline: number | null): number | null {
+  const cacheRef = useRef<{ key: string; value: number | null }>({ key: "", value: null });
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => (deadline == null ? () => {} : subscribeRemaining(onStoreChange)),
+    [deadline],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      const visible = typeof document === "undefined" || document.visibilityState === "visible";
+      const sec = Math.floor(Date.now() / 1000);
+      const key = `${deadline ?? "x"}:${visible}:${sec}`;
+      if (cacheRef.current.key === key) return cacheRef.current.value;
+      const value = deadline == null ? null : waitingRemainingSeconds(Date.now(), deadline, visible);
+      cacheRef.current = { key, value };
+      return value;
+    },
+    () => null,
+  );
 }
 
 export function usePersonasPairing(onPaired: () => void) {

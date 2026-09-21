@@ -22,7 +22,17 @@ import { ImpactOverviewCard } from "./ImpactOverviewCard";
 import { ImpactScheduleCard } from "./ImpactScheduleCard";
 import { useImpactCopy } from "./impactShared";
 
-export function PlanImpactStrip({ plan, axis = DEFAULT_STAGE_AXIS }: { plan: PipelinePlan; axis?: readonly StageDef[] }) {
+export function PlanImpactStrip({
+  plan,
+  axis = DEFAULT_STAGE_AXIS,
+  counts,
+  countsLoaded = false,
+}: {
+  plan: PipelinePlan;
+  axis?: readonly StageDef[];
+  counts?: Record<string, number>;
+  countsLoaded?: boolean;
+}) {
   const t = useTranslations("hiringPlan.impact");
   const { stationLabel } = useImpactCopy(axis);
   const impact = deriveImpact(plan, axis);
@@ -31,7 +41,12 @@ export function PlanImpactStrip({ plan, axis = DEFAULT_STAGE_AXIS }: { plan: Pip
     <section aria-label={t("heading")}>
       <p className="text-meta uppercase text-steel">{t("heading")}</p>
       <div className="mt-2 grid gap-3 lg:grid-cols-3">
-        <ImpactOverviewCard stations={impact.overview} stationLabel={stationLabel} />
+        <ImpactOverviewCard
+          stations={impact.overview}
+          stationLabel={stationLabel}
+          counts={counts}
+          countsLoaded={countsLoaded}
+        />
         <ImpactDecisionsCard plan={plan} touchpoints={impact.humanTouchpoints} axis={axis} />
         {/* Bookings are counted against the SAME axis the other two cards walk —
             a round at a column this draft dropped is not a booking anybody makes,

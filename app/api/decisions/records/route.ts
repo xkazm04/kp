@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listDecisionRecords, verifyDecisionChain } from "@/app/_lib/decision-record-store";
 import { listPipeline } from "@/app/_lib/db/pipeline";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createTtlCache, decisionRecordsCacheKey } from "@/app/_lib/analytics-cache";
@@ -60,6 +60,9 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(payload);
   } catch (error) {
-    return jsonError(error, "Failed to load decision records.");
+    // verify + listPipeline sit on better-sqlite3, so the thrown message carries
+    // SQLITE_* text and the absolute db path. The sealed Art. 22 dossier must
+    // not forward that onto an operator JSON body.
+    return safeJsonError(error, "api:decisions/records", "DECISION_RECORDS_READ_FAILED");
   }
 }

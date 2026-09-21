@@ -128,6 +128,9 @@ export const STALE_DAYS = 10; // legacy flat default — fallback for unknown st
 export const ROLE_SLA_DEFAULTS: Record<StageRole, number> = {
   entry: 14,
   screening: 7,
+  // A case takes real evenings to do. Chasing at day 5 reads as pressure on unpaid
+  // work; a week is the point at which silence is genuinely worth a nudge.
+  homework: 7,
   interview: 5,
   scoring: 5,
   offer: 3,

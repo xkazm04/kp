@@ -11,7 +11,16 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { candidateOptionsPlaceholder, rankedField, selectMatchView } from "./matchView.ts";
+import { MATCH_LIMIT_MAX } from "@/app/api/match/match-request.ts";
+import {
+  candidateOptionsPlaceholder,
+  expandRankedLimit,
+  MATCH_FOCUS_LIMIT,
+  matchPostPayload,
+  offersRankedExpand,
+  rankedField,
+  selectMatchView,
+} from "./matchView.ts";
 
 test("a prior ranking survives a re-rank error — the error becomes a non-destructive banner", () => {
   const view = selectMatchView({ hasResult: true, error: "Match failed (500).", loading: false });
@@ -70,6 +79,43 @@ test("an older payload without `survivors` falls back to the rendered length and
   assert.deepEqual(rankedField({ returned: 7 }, 7), { shown: 7, total: null });
   // A genuine zero-survivor run is still a number, not a missing value.
   assert.deepEqual(rankedField({ survivors: 0, returned: 0 }, 0), { shown: 0, total: null });
+});
+
+// ---------------------------------------------------------------------------
+// Expanding a cut ranked field — the header control + the posted limit.
+//
+// Non-vacuity: a payload of survivors=74 / returned=25 is the measured 120-role
+// run. The pre-fix header could name the cut ("25 of 74") but had no way to
+// fetch the rest; asserting offersRankedExpand + a posted limit >= 74 fails
+// against a UI that only chips the truncation.
+
+test("a cut ranked field offers a higher-limit rerun at the survivor count", () => {
+  const field = rankedField({ survivors: 74, returned: 25 }, 25);
+  assert.equal(offersRankedExpand(field), true);
+  const limit = expandRankedLimit(field.total!);
+  assert.ok(limit >= 74, `follow-up limit must cover the survivors, got ${limit}`);
+  assert.ok(limit <= MATCH_LIMIT_MAX);
+  const body = matchPostPayload({ profileId: "p1" }, { limit });
+  assert.equal(body.limit, 74);
+  assert.equal(body.profileId, "p1");
+});
+
+test("first paint (and a fresh run) still posts the focus default, not the max", () => {
+  assert.equal(MATCH_FOCUS_LIMIT, 25);
+  assert.equal(matchPostPayload({ analysisSlug: "a1" }).limit, MATCH_FOCUS_LIMIT);
+  assert.equal(offersRankedExpand(rankedField({ survivors: 14, returned: 14 }, 14)), false);
+});
+
+test("a field already at MATCH_LIMIT_MAX does not offer another expand", () => {
+  assert.equal(expandRankedLimit(250), MATCH_LIMIT_MAX);
+  assert.equal(offersRankedExpand(rankedField({ survivors: 250, returned: 200 }, 200)), false);
+});
+
+test("a re-weight of a cut field keeps the posted weights beside the higher limit", () => {
+  const weights = { skills: 0.5, career: 0.3, personal: 0.2 };
+  const body = matchPostPayload({ profileId: "p1" }, { weights, limit: expandRankedLimit(74) });
+  assert.equal(body.limit, 74);
+  assert.deepEqual(body.weights, weights);
 });
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
@@ -46,6 +46,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       },
     });
   } catch (error) {
-    return jsonError(error, "Failed to verify the skill profile.");
+    return safeJsonError(error, "api:skill-profile:verify", "SKILL_PROFILE_VERIFY_FAILED");
   }
 }

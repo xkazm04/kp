@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { NPS_COMMENT_MAX, NPS_MIN_SAMPLE, npsBucket, parseNpsSubmission, summarizeNps } from "./candidate-nps.ts";
+import {
+  NPS_COMMENT_MAX,
+  NPS_MIN_SAMPLE,
+  NPS_REFUSALS,
+  isNpsRefusalCode,
+  npsBucket,
+  parseNpsSubmission,
+  summarizeNps,
+} from "./candidate-nps.ts";
 
 test("buckets follow the standard NPS bands", () => {
   assert.equal(npsBucket(10), "promoter");
@@ -15,12 +23,23 @@ test("a submission is validated, never coerced", () => {
   // A coerced 0 is a detractor the candidate never chose — the reason this rejects
   // instead of clamping.
   assert.deepEqual(parseNpsSubmission({ score: 9 }), { ok: true, score: 9, comment: null });
-  assert.equal(parseNpsSubmission({ score: "not a number" }).ok, false);
-  assert.equal(parseNpsSubmission({}).ok, false);
-  assert.equal(parseNpsSubmission({ score: null }).ok, false);
-  assert.equal(parseNpsSubmission({ score: 11 }).ok, false);
-  assert.equal(parseNpsSubmission({ score: -1 }).ok, false);
-  assert.equal(parseNpsSubmission({ score: 7.5 }).ok, false);
+  assert.deepEqual(parseNpsSubmission({ score: "not a number" }), { ok: false, code: "NPS_SCORE_INVALID" });
+  assert.deepEqual(parseNpsSubmission({}), { ok: false, code: "NPS_SCORE_REQUIRED" });
+  assert.deepEqual(parseNpsSubmission({ score: null }), { ok: false, code: "NPS_SCORE_REQUIRED" });
+  assert.deepEqual(parseNpsSubmission({ score: 11 }), { ok: false, code: "NPS_SCORE_INVALID" });
+  assert.deepEqual(parseNpsSubmission({ score: -1 }), { ok: false, code: "NPS_SCORE_INVALID" });
+  assert.deepEqual(parseNpsSubmission({ score: 7.5 }), { ok: false, code: "NPS_SCORE_INVALID" });
+});
+
+test("no fail branch puts an English sentence on the fail object", () => {
+  for (const raw of [{}, { score: "not a number" }, { score: 11 }]) {
+    const r = parseNpsSubmission(raw);
+    assert.equal(r.ok, false);
+    assert.deepEqual(Object.keys(r).sort(), ["code", "ok"], "a refusal carries ok + code and nothing else");
+    assert.ok(!r.ok && isNpsRefusalCode(r.code));
+    assert.ok(!r.ok && !r.code.includes(" "), "the code is a REFUSAL_ERRORS token, not prose");
+  }
+  assert.deepEqual([...NPS_REFUSALS], ["NPS_SCORE_REQUIRED", "NPS_SCORE_INVALID"]);
 });
 
 test("a numeric string is accepted but a blank one is not", () => {

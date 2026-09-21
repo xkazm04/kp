@@ -58,6 +58,10 @@ export const WORKSPACE_TAB_IDS = [
   // Hiring-pipeline composer (Settings): how this workspace combines AI/human
   // interview rounds and approval gates. Appended last (chord rule below).
   "hiring",
+  // Message templates (Settings): the messages a recruiter sends at each pipeline
+  // state — CV acknowledged, screened, interview invite, offer cover note,
+  // rejection. Appended last, same chord rule.
+  "templates",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -166,7 +170,21 @@ export const AGENTS_TAB_IN_NAV =
 // `label` is the English source/fallback; `key` is the i18n key (under the `nav`
 // catalog: tabs.<id> for items, groups.<key> for group headers) the renderers
 // translate through, falling back to `label` for any not-yet-translated entry.
-export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] };
+/** A door a GROUP owns that is not one of its destinations: it opens a tab AND
+ *  carries a parameter that starts something there. Kept off `items` on purpose —
+ *  an action is not a tab, so it earns no chord, no badge and no active state, and
+ *  the tab vocabulary (and every test that pins it) is untouched by adding one.
+ *  `label` is the English fallback; the catalog key is `nav.actions.<key>`. */
+export type NavGroupAction = {
+  key: string;
+  label: string;
+  tab: WorkspaceTabId;
+  /** Appended to the tab's href. The target surface consumes it and strips it —
+   *  the one-shot inbox `?tab=` already is (see `resolveTabParam`). */
+  params: Readonly<Record<string, string>>;
+};
+
+export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[]; actions?: readonly NavGroupAction[] };
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -187,7 +205,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Library",
     key: "library",
     items: [
-      { id: "jobs", label: "Jobs", badgeKey: "jobs" },
+      { id: "jobs", label: "Roles", badgeKey: "jobs" },
       { id: "library", label: "Job descriptions" },
       // The authoring surface (intake dialog + manual JD builder). chordPin, not
       // chordOverflow, and the difference is worth a line: this id sits in an EARLY
@@ -200,6 +218,11 @@ export const NAV_GROUPS: NavGroup[] = [
       // they were, and this tab still gets a one-key chord.
       { id: "intake", label: "Job intake", chordPin: "k" },
     ],
+    // Starting a role is an ACTION, not a place, so it lives here rather than on
+    // the intake page: that page is the record of what already happened, and a
+    // ledger with a create button on it is a filing cabinet with a typewriter
+    // bolted to the lid.
+    actions: [{ key: "newIntake", label: "New intake", tab: "intake", params: { intake: "new" } }],
   },
   {
     // The instrument shelf: the archetype taxonomy + candidate roster
@@ -254,6 +277,12 @@ export const NAV_GROUPS: NavGroup[] = [
       // The hiring-pipeline composer (AI/human rounds + approval gating).
       // Appended last so every prior `g`-chord assignment is untouched.
       { id: "hiring", label: "Hiring" },
+      // Message templates. Appended last so every prior `g`-chord assignment is
+      // untouched: every letter of "templates" (t/e/m/p/l/a/s) is already a
+      // single-letter chord, so the derivation sends it to the two-key pass on
+      // its own and it lands on `g f t` — no chordOverflow/chordPin needed, and
+      // nothing else moves (workspaceChords.test.ts is what proves that).
+      { id: "templates", label: "Templates" },
     ],
   },
 ];
@@ -331,6 +360,15 @@ export function tabHref(id: WorkspaceTabId): string {
 // Canonical active/inactive nav treatment, shared by the studio sidebar and the
 // deep-link tab bar so the active state reads the same on both surfaces (was
 // coral-wash on one, ink-pill on the other).
+/** The href a group action navigates to: the tab's own door plus its parameter. */
+export function navActionHref(action: NavGroupAction): string {
+  const params = new URLSearchParams();
+  if (action.tab !== DEFAULT_TAB) params.set("tab", action.tab);
+  for (const [k, v] of Object.entries(action.params)) params.set(k, v);
+  const query = params.toString();
+  return query ? `/?${query}` : "/";
+}
+
 export function navItemClass(isActive: boolean): string {
   return isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-50 hover:text-ink";
 }
@@ -390,7 +428,8 @@ export function buildUrl(updates: Record<string, string | null>, search: string)
 // inherits the previous tab's selection (Profile's ?edit= or the JD-builder
 // prefill silently leaking onto Jobs). This is the single canonical declaration
 // of which params are tab-scoped — `buildTabSwitchUrl` clears every key here, the
-// simulation reuses it to wipe the JD prefill, and the unit test pins the exact
+// simulation's every chapter clears it too (its walk is a sequence of bare tab
+// switches; it no longer WRITES any of these), and the unit test pins the exact
 // set so adding a deep-link param is a deliberate, reviewed edit rather than a
 // silent leak. Anything NOT listed here survives a tab switch by design.
 export const TAB_SCOPED_PARAM_KEYS = [

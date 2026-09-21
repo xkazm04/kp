@@ -3,12 +3,21 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRef } from "react";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
-import { SetupWizardStepPane } from "./SetupWizardStepPane";
-import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
+import { SetupLeaveConfirm } from "./SetupLeaveConfirm";
+import { SetupWizardStepPane, stepTitleKey } from "./SetupWizardStepPane";
+import type { OnboardingCtrl } from "./setupSteps";
+
+// The card's ONE body height. Fixed rather than content-driven so the card does not
+// shrink and grow as steps swap (see the right pane below), and shared with the
+// leave-confirmation pane that replaces the whole grid — answering a question must
+// not resize the surface the question is about.
+const CARD_BODY_H = "h-[min(93vh,45.2rem)]";
 
 // Spotlight Wizard — the first-run setup as a centered takeover. A branded left
 // rail carries the vertical stepper AND the language switch (visible for the
@@ -27,28 +36,51 @@ import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
 export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup");
   const reduced = useReducedMotion();
-  const step = SETUP_STEPS[ctrl.stepIndex];
+  // The steps THIS run walks (the intent fork, setupSteps.ts) — never the full list.
+  const steps = ctrl.steps;
+  const step = steps[ctrl.stepIndex];
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Escape backs out of the FRONTMOST thing: the leave confirmation while it is up
+  // (so the reflex that opened it also cancels it), the wizard otherwise — where in
+  // live mode `onClose` now opens that confirmation rather than skipping outright.
+  useDialogA11y(panelRef, ctrl.leaving ? ctrl.cancelLeave : ctrl.onClose);
   const isWelcome = step.id === "welcome";
   const isHandoff = step.id === "handoff";
 
   return (
     <div className="absolute inset-0 grid place-items-center bg-ink/55 p-4 backdrop-blur-sm dark:bg-paper/90">
-      <div className="relative w-full max-w-[69.6rem] overflow-hidden rounded-xl border-2 border-stone-300 bg-white shadow-pop dark:rounded-2xl">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wizard-title"
+        tabIndex={-1}
+        className="relative w-full max-w-[69.6rem] overflow-hidden rounded-xl border-2 border-stone-300 bg-white shadow-pop dark:rounded-2xl focus:outline-none"
+      >
+        <span id="wizard-title" className="sr-only">{t("rail.brand")}</span>
         {ctrl.mode === "preview" ? (
           <p className="border-b border-dashed border-stone-300 bg-limewash/40 px-4 py-1.5 text-center text-sm text-ink">
             {t("previewRibbon")}
           </p>
         ) : null}
-        <button
-          type="button"
-          onClick={ctrl.onClose}
-          className="focus-ring absolute right-2.5 top-2.5 z-10 rounded-full p-1.5 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
-          aria-label={t("aria.skip")}
-          title={t("aria.skip")}
-        >
-          <X size={18} aria-hidden />
-        </button>
+        {/* Gone while the leave confirmation is up: the pane below IS the answer to
+            this control, and a live close button beside it would offer a third,
+            unconfirmed exit. */}
+        {ctrl.leaving ? null : (
+          <button
+            type="button"
+            onClick={ctrl.onClose}
+            className="focus-ring absolute right-2.5 top-2.5 z-10 rounded-full p-1.5 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
+            aria-label={t("aria.skip")}
+            title={t("aria.skip")}
+          >
+            <X size={18} aria-hidden />
+          </button>
+        )}
 
+        {ctrl.leaving ? (
+          <SetupLeaveConfirm heightClass={CARD_BODY_H} onConfirm={ctrl.confirmLeave} onCancel={ctrl.cancelLeave} />
+        ) : (
         <div className="grid md:grid-cols-[14.5rem_1fr]">
           {/* Left rail — brand, vertical stepper, language */}
           <div className="hidden flex-col gap-6 border-r border-stone-200 bg-paper p-5 md:flex">
@@ -57,7 +89,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
               <span className="font-serif text-h3 text-ink">{t("rail.brand")}</span>
             </div>
             <ol className="space-y-1">
-              {SETUP_STEPS.map((p, i) => {
+              {steps.map((p, i) => {
                 const done = ctrl.stepIndex > i;
                 const active = ctrl.stepIndex === i;
                 // Mirrors the host's goTo gate: back to anything reached, forward
@@ -115,13 +147,29 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
               1fr track grows to the board's full width and the pane — footer
               included — is pushed out past the card's clipped edge instead of
               scrolling inside it. */}
-          <div className="flex h-[min(93vh,45.2rem)] min-w-0 flex-col p-6 sm:p-8">
+          <div className={`flex ${CARD_BODY_H} min-w-0 flex-col p-6 sm:p-8`}>
             {/* Below md the rail is hidden, so the language switch would be too —
                 and it is exactly the reader who can't read the current language
                 who needs it. Repeated here, compact, above the step. */}
             <div className="mb-4 md:hidden">
               <SetupLanguageSwitch ctrl={ctrl} compact />
             </div>
+            {/* …and so would the stepper, which is the only thing on the card that
+                answers "how much of this is left". A phone had NO visible progress
+                at all: a six-step takeover with no end in sight, and the only
+                position marker was the screen-reader announcement below. Restated
+                here, compact, and only where the rail cannot answer it.
+                aria-hidden: the position is already spoken twice — by the live
+                region below and by the sr-only span inside the step's own heading
+                (SetupWizardStepPane) — so this is a purely visual restatement.
+                META_LABEL, not EYEBROW: the step pane opens with its own coral
+                eyebrow ("Set up · Company") two lines down, and a second coral
+                uppercase line stacked on top of it read as a doubled eyebrow
+                rather than as position. The step's NAME is not repeated here for
+                the same reason — that eyebrow already says it. */}
+            <p aria-hidden className={`mb-3 md:hidden ${META_LABEL}`}>
+              {t("rail.stepOf", { index: ctrl.stepIndex + 1, total: steps.length })}
+            </p>
             {/* Step announcement. A PERSISTENT node, deliberately: a live region that
                 mounts with its own content is usually not announced at all, so the
                 crossfaded pane cannot carry this — it only changes the text here.
@@ -129,8 +177,8 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
             <p aria-live="polite" className="sr-only">
               {t("aria.stepAnnounce", {
                 index: ctrl.stepIndex + 1,
-                total: SETUP_STEPS.length,
-                title: t(`steps.${step.id}.title`),
+                total: steps.length,
+                title: t(stepTitleKey(step.id, ctrl.state.intent)),
               })}
             </p>
             <div className="-mx-3 -my-1 min-w-0 flex-1 overflow-y-auto px-3 py-1">
@@ -169,6 +217,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
             ) : null}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

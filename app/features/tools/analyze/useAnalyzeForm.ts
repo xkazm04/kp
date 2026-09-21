@@ -24,6 +24,8 @@ import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithu
 import {
   ANALYZE_DRAFT_KEY,
   parseAnalyzeDraft,
+  restoreDraftBlind,
+  restoreDraftLocale,
   restoreDraftValue,
   serializeAnalyzeDraft,
 } from "./analyzeDraft";
@@ -316,11 +318,15 @@ export function useAnalyzeForm() {
          behaviour and nothing an operator would act on. */
     }
     if (!draft) return;
-    const { jd, company, github } = draft;
+    const { jd, company, github, reportLang: draftedLang, blind: draftedBlind } = draft;
+    const localeDefault = isLocale(appLocale) ? appLocale : "en";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
     if (jd) setJobDescriptionText((prev) => restoreDraftValue(prev, jd));
     if (company) setCompanyText((prev) => restoreDraftValue(prev, company));
     if (github) setGithubProfile((prev) => restoreDraftValue(prev, github));
+    if (draftedLang) setReportLang((prev) => restoreDraftLocale(prev, draftedLang, localeDefault));
+    if (typeof draftedBlind === "boolean") setBlind((prev) => restoreDraftBlind(prev, draftedBlind));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot mount restore; appLocale is the locale THIS mount started with
   }, []);
 
   // Persist the draft (debounced) so it survives the tab unmount. An all-empty
@@ -334,6 +340,8 @@ export function useAnalyzeForm() {
           jd: jobDescriptionText,
           company: companyText,
           github: githubProfile,
+          reportLang,
+          blind,
         });
         if (payload === null) sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
         else sessionStorage.setItem(ANALYZE_DRAFT_KEY, payload);
@@ -344,7 +352,7 @@ export function useAnalyzeForm() {
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [jobDescriptionText, companyText, githubProfile]);
+  }, [jobDescriptionText, companyText, githubProfile, reportLang, blind]);
 
   // True once this mount re-attached to a server task after a refresh — gates
   // the GitHub-restore effect below (a fresh submit never needs the restore).

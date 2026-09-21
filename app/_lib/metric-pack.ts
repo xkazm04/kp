@@ -121,6 +121,9 @@ export type MetricPackStrings = {
   basisHoursSaved: (actions: number) => string;
   basisHoursSavedNone: string;
   basisCapacity: (roles: number, recruiters: number) => string;
+  /** Windowed pack: capacity is a current snapshot, so the basis must refuse
+   *  to look like the other rows (which ARE about last N days). */
+  basisCapacityNow: (roles: number, recruiters: number, days: number) => string;
   basisCapacityNone: string;
   basisNps: (responses: number) => string;
   caveatNotMeasurable: (metric: string, basis: string) => string;
@@ -155,6 +158,7 @@ export function buildMetricPackStrings(t: MetricPackLookup): MetricPackStrings {
     basisHoursSaved: (actions) => t("basis.hoursSaved", { actions }),
     basisHoursSavedNone: t("basis.hoursSavedNone"),
     basisCapacity: (roles, recruiters) => t("basis.capacity", { roles, recruiters }),
+    basisCapacityNow: (roles, recruiters, days) => t("basis.capacityNow", { roles, recruiters, days }),
     basisCapacityNone: t("basis.capacityNone"),
     basisNps: (responses) => t("basis.nps", { responses }),
     caveatNotMeasurable: (metric, basis) => t("caveatNotMeasurable", { metric, basis }),
@@ -223,7 +227,11 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string, s: 
       capacityRatio,
       "roles_per_recruiter",
       cap?.openRoles ?? 0,
-      cap ? s.basisCapacity(cap.openRoles, cap.recruiters) : s.basisCapacityNone,
+      cap
+        ? input.windowDays != null
+          ? s.basisCapacityNow(cap.openRoles, cap.recruiters, input.windowDays)
+          : s.basisCapacity(cap.openRoles, cap.recruiters)
+        : s.basisCapacityNone,
       MIN_OPEN_ROLES
     ),
   ];
@@ -254,9 +262,18 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string, s: 
     else if (m.status === "thin") caveats.push(s.caveatThin(s.metricLabel(m.key), m.sample));
   }
 
+  // Capacity is open roles NOW and membership NOW. Under a "Window: last N days"
+  // header that is the one row that is not a figure about the stated period.
+  // A pack whose ONLY measured row is that snapshot is not certifiable as a
+  // windowed artefact — the period header would be a lie about the one number
+  // that cleared the floor.
+  const measured = metrics.filter((m) => m.status === "measured");
+  const onlyCapacitySnapshot =
+    input.windowDays != null && measured.length > 0 && measured.every((m) => m.key === "recruiter_capacity");
+
   return {
     metrics,
-    certifiable: metrics.every((m) => m.status === "measured"),
+    certifiable: metrics.every((m) => m.status === "measured") && !onlyCapacitySnapshot,
     caveats,
     windowDays: input.windowDays,
     generatedAt,

@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 import { DEFAULT_STAGE_AXIS } from "@/app/_lib/pipeline-stages";
 import { addStage, AXIS_MAX_STAGES, axisProblems, draftFromStored, draftToStored, removeStage, renameStage } from "@/app/features/shared/pipelineAxisDraft";
+import { SETUP_STAGE_ROLES } from "./setupPipelineEdit.ts";
 import { activePipelinePreset, applyPipelinePreset, SETUP_PIPELINE_PRESETS } from "./setupPipelinePresets.ts";
 import { INITIAL_SETUP, stepSatisfied, type SetupState } from "./setupSteps.ts";
 
@@ -59,6 +60,19 @@ test("the work-sample step lands BEFORE the offer, with a locale-independent id"
   const added = technical.stages.find((s) => s.id === "Work sample");
   assert.equal(added?.label, "Praktická úloha");
   assert.equal(added?.saved, false);
+  // The column carries the product's OWN case role, not `custom`: the devcase
+  // module runs for whoever stands on it. It was `custom` only because the role did
+  // not exist yet, which left the wizard's one-click dev funnel pointing at a column
+  // nothing was bound to.
+  assert.equal(added?.role, "homework");
+});
+
+test("the wizard offers the case role for a hand-added column too", () => {
+  // The preset is the one-click path; someone building the same funnel by hand must
+  // be able to reach the same role, or the two editors of one axis disagree.
+  assert.ok(SETUP_STAGE_ROLES.includes("homework"));
+  assert.equal(SETUP_STAGE_ROLES.includes("entry"), false, "the structural roles stay out");
+  assert.equal(SETUP_STAGE_ROLES.includes("terminal"), false);
 });
 
 // The wizard also runs over an EXISTING board (Settings → "Preview onboarding"),

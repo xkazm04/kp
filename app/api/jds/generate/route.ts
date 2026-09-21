@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { readJdBuildOptions } from "@/app/_lib/jd-build-run";
 import { getTemplate } from "@/app/_lib/templates-store";
@@ -117,6 +117,7 @@ export async function POST(request: Request) {
       options,
       buildInput,
       workspaceId: ws,
+      createdBy: (await currentUser()).userId,
       params: {
         company: typeof record.company === "string" ? record.company : undefined,
         seniority: typeof record.seniority === "string" ? record.seniority : undefined,

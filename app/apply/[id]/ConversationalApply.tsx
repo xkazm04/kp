@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import type { ApplyStep } from "@/app/_lib/apply";
+import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
 import {
@@ -12,6 +13,7 @@ import {
   coerceGithubHandle,
   mergeDraftAnswers,
   nextVisibleStepIndex,
+  visibleStepProgress,
 } from "@/app/_lib/apply-intake";
 import { ensureApplySession } from "@/app/_lib/apply-session-client";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
@@ -42,10 +44,17 @@ export function ConversationalApply({
   jobId,
   steps,
   prefill,
+  compliance,
 }: {
   jobId: string;
   steps: ApplyStep[];
   prefill?: ApplyPrefill | null;
+  /** The disclosure's regime + consent-retention window, resolved SERVER-side by
+   *  page.tsx from the OPENING's workspace and carried through untouched. This
+   *  page is public and session-less, so AiDisclosure's own fetch of the (gated,
+   *  caller-scoped) /api/compliance could never answer for the right tenant — see
+   *  the header of AiDisclosure.tsx. */
+  compliance: DisclosureCompliance;
 }) {
 
   const t = useTranslations("apply");
@@ -90,12 +99,17 @@ export function ConversationalApply({
   // seeded keys ride every advance() merge into the final POST payload.
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => ({ ...(prefill?.answers ?? {}) }));
   const [input, setInput] = useState("");
+  // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
+  // tabIndex -1 + autocomplete off), but a form-filling bot populates. Posted as
+  // `company_url` on the final submit — same contract as QuickApplyForm.
+  const [companyUrl, setCompanyUrl] = useState("");
   // The final POST and its outcome — `done` (accepted / declined, plus the
   // duplicate / enriched nuances), the in-flight flag, and the recoverable
   // failure. See useApplySubmit for why a failure is never terminal.
   const { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit, clearSubmitError } = useApplySubmit({
     jobId,
     lead: prefill ? prefill.leadToken : null,
+    companyUrl,
     submitFailedMessage: t("submitFailed"),
     networkFailedMessage: t("networkFailed"),
     hasErrorCode,
@@ -406,9 +420,30 @@ export function ConversationalApply({
   // The step on screen: the one being re-asked after a rejected submit, else the
   // one the script is on.
   const cur = !done ? (fixStepId ? (steps.find((s) => s.id === fixStepId) ?? steps[idx]) : steps[idx]) : null;
+  // Visible-lane N of M — raw idx is the script slot, which is the wrong number
+  // once an archetype lane has skipped or inserted questions. Hidden on the
+  // done card; text only (no meter animation) so reduced-motion readers get
+  // the same remaining-work signal as everyone else.
+  const progressIdx = cur ? steps.indexOf(cur) : idx;
+  const progress = visibleStepProgress(steps, progressIdx === -1 ? idx : progressIdx, answers);
 
   return (
     <div>
+      {/* Honeypot — must stay empty. Off-screen + removed from the a11y + tab order so
+          only an indiscriminate form-filling bot reaches it. Same markup as the
+          quick form; posted as company_url on the final submit. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+        <label htmlFor="ca-company-url">{t("quick.honeypotLabel")}</label>
+        <input
+          id="ca-company-url"
+          type="text"
+          name="company_url"
+          tabIndex={-1}
+          autoComplete="off"
+          value={companyUrl}
+          onChange={(e) => setCompanyUrl(e.target.value)}
+        />
+      </div>
       {/* idea-939d96e9 — a restored in-progress application: tell the candidate we
           resumed and give a one-tap way to start over. */}
       {resumed && !done ? (
@@ -424,6 +459,18 @@ export function ConversationalApply({
             {t("startFresh")}
           </button>
         </div>
+      ) : null}
+      {!done && progress.total > 0 ? (
+        <p
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuenow={progress.current}
+          aria-valuemax={progress.total}
+          aria-label={t("progressAria", { current: progress.current, total: progress.total })}
+          className="nums mb-3 text-sm font-medium text-steel"
+        >
+          {t("progress", { current: progress.current, total: progress.total })}
+        </p>
       ) : null}
       {/* role="log" + aria-live so each new bot prompt (and the final outcome) is announced
           to screen readers — the conversation previously advanced visual-only, leaving SR
@@ -488,7 +535,12 @@ export function ConversationalApply({
         />
       ) : null}
 
-      <AiDisclosure className="mt-6" showDataConsent />
+      <AiDisclosure
+        className="mt-6"
+        showDataConsent
+        regimeId={compliance.regimeId}
+        retentionMonths={compliance.retentionMonths}
+      />
     </div>
   );
 }

@@ -296,6 +296,7 @@ def emit_result(
     cost_usd: float | None = None,
     duration_ms: int | None = None,
     reason: str | None = None,
+    lighttrack: bool = True,
 ) -> None:
     """Record one SUCCESSFUL provider envelope. ``reason`` is normally None — a call
     that answered usably has nothing to explain — and is here for the caller that knows
@@ -320,7 +321,10 @@ def emit_result(
         reason=reason,
     )
 
-    client = _client()
+    # ``lighttrack=False``: the endpoint records its own attempts (the lt-gateway
+    # adapter — one event per seat tried, under the same use case). The ledger line
+    # above still lands; only the second, duplicate LightTrack row is withheld.
+    client = _client() if lighttrack else None
     if client is None:
         return
     try:
@@ -348,6 +352,7 @@ def emit_error(
     error: Any,
     duration_ms: int | None = None,
     ledger: bool = True,
+    lighttrack: bool = True,
 ) -> None:
     """Record one FAILED attempt — to the durable ledger first, then LightTrack.
 
@@ -378,7 +383,7 @@ def emit_error(
             reason=_failure_reason(error),
             outcome=OUTCOME_FAILED,
         )
-    client = _client()
+    client = _client() if lighttrack else None
     if client is None:
         return
     try:

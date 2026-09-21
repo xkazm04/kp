@@ -30,10 +30,17 @@ export { statusPicker } from "./status";
  * `AnimatePresence`: the text is replaced in place, nothing needs to animate
  * out, and a JS presence wrapper here would be a third animation system in a
  * scene that already has two.
+ *
+ * The OUTER `p` is the live region, mounted from beat 0 (every scene always
+ * renders SceneStatus). A region that arrives together with its first content
+ * is announced by nothing — the trap CompanionVoiceTicker already documents —
+ * so aria-live sits here, not on the keyed inner span. `aria-atomic` makes
+ * each swap read as the new identifier, not a diff. Reduced motion pins
+ * stillTick, so the region speaks once.
  */
 export function SceneStatus({ text, reduced }: { phase: number; text: string; reduced: boolean }) {
   return (
-    <p className="mt-4 min-h-[1.5rem] font-mono text-meta text-steel">
+    <p className="mt-4 min-h-[1.5rem] font-mono text-meta text-steel" aria-live="polite" aria-atomic="true">
       <span
         key={text}
         className="inline-block"

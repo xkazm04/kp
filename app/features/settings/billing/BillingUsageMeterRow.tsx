@@ -4,14 +4,22 @@ import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import type { MeterOverview } from "@/app/_lib/billing";
+import { meterCta } from "./billingMeterCta";
 
 // One usage meter: name, used-vs-limit progress bar, pack credits, and the
 // over-quota flag. A null limit is the BYOM "unlimited" state — no bar, just
 // the running count. Split out of BillingTab.tsx.
-export function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
+//
+// Depleted interview_minutes still jumps to the minutes pack. Every other
+// limited meter that hits 0 (and remaining in the last 20% before that)
+// points at the plan catalog — the outcome-priced upgrade moment used to
+// be a dead badge.
+export function MeterRow({ meter, name, meterId }: { meter: MeterOverview; name: string; meterId?: string }) {
   const t = useTranslations("billing.usage");
   const limit = meter.limit;
-  const depleted = limit !== null && meter.remaining === 0;
+  const cta = meterCta(meterId, meter.remaining, limit);
+  const depleted = cta === "pack" || cta === "upgrade";
+  const approaching = cta === "warn";
   const pct =
     limit === null || limit === 0
       ? meter.used > 0
@@ -25,7 +33,7 @@ export function MeterRow({ meter, name }: { meter: MeterOverview; name: string }
         {limit === null ? (
           <span className="text-sm text-steel">{t("usedUnlimited", { used: meter.used })}</span>
         ) : (
-          <span className={`text-sm ${depleted ? "font-semibold text-coral" : "text-steel"}`}>
+          <span className={`text-sm ${depleted ? "font-semibold text-coral" : approaching ? "font-medium text-amber-800" : "text-steel"}`}>
             {t("used", { used: meter.used, limit })}
           </span>
         )}
@@ -41,16 +49,27 @@ export function MeterRow({ meter, name }: { meter: MeterOverview; name: string }
           aria-label={name}
           className="mt-1.5 h-2 overflow-hidden rounded-full bg-stone-100"
         >
-          <div className={`h-full rounded-full ${depleted ? "bg-coral" : "bg-moss"}`} style={{ width: `${pct}%` }} />
+          <div className={`h-full rounded-full ${depleted ? "bg-coral" : approaching ? "bg-amber-500" : "bg-moss"}`} style={{ width: `${pct}%` }} />
         </div>
       )}
       <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
         {limit === null ? <Badge tone="info" label={t("unlimited")} /> : null}
         {depleted ? <Badge tone="critical" icon={AlertTriangle} label={t("depleted")} /> : null}
+        {approaching ? <Badge tone="caution" icon={AlertTriangle} label={t("approaching")} /> : null}
         {limit !== null && !depleted ? (
-          <span className="text-steel">{t("remaining", { remaining: meter.remaining ?? 0 })}</span>
+          <span className={approaching ? "text-amber-800" : "text-steel"}>{t("remaining", { remaining: meter.remaining ?? 0 })}</span>
         ) : null}
         {meter.credits > 0 ? <span className="font-medium text-moss">{t("credits", { credits: meter.credits })}</span> : null}
+        {cta === "pack" ? (
+          <a href="#billing-minutes-pack" className="font-medium text-coral underline underline-offset-2">
+            {t("buyMinutesCta")}
+          </a>
+        ) : null}
+        {cta === "upgrade" ? (
+          <a href="#billing-plans" className="font-medium text-coral underline underline-offset-2">
+            {t("upgradeCta")}
+          </a>
+        ) : null}
       </div>
     </div>
   );

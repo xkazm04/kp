@@ -5,31 +5,36 @@ import { normalizeRegimeId } from "@/app/_lib/compliance-regimes";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
 
-// P1-1 — the workspace's active compliance jurisdiction, read by the public
-// candidate-facing AiDisclosure (a client component that can't reach the DB) so
-// the transparency note names the right legal framework. Also carries the
-// EFFECTIVE consent-retention window (derived from KP_CONSENT_TTL_DAYS) so the
-// candidate-facing consent sentence and the compliance posture always state the
-// enforced number instead of a hardcoded "12 months" (REC-08/capst-l1-005).
-// Returns only the regime id + a duration — no candidate data — so it's safe to
-// expose unauthenticated, like the rest of the public apply/offer/interview
-// token surfaces that render the disclosure.
+// P1-1 — the workspace's active compliance jurisdiction, plus the EFFECTIVE
+// consent-retention window (derived from KP_CONSENT_TTL_DAYS) so the copy states
+// the enforced number instead of a hardcoded "12 months" (REC-08/capst-l1-005).
+//
+// WHO READS THIS NOW. Session-bearing callers only: the recruiter Decisions
+// compliance card (decisionsComplianceState.ts) and the interview simulator tab
+// inside the authenticated shell. The PUBLIC candidate surfaces no longer call it
+// — they receive `regimeId`/`retentionMonths` as props, resolved server-side from
+// the token's own workspace by app/_lib/compliance-disclosure.ts. That is not a
+// stylistic preference; see the tenancy note in the handler.
+//
+// SO THIS ROUTE STAYS GATED (it is deliberately absent from
+// app/_lib/auth/public-routes.ts). Adding it to the allow-list would fix nothing:
+// an anonymous request carries no workspace, so the answer would still be the
+// default team's, and the only way to make it tenant-aware for a public caller
+// would be a caller-supplied workspace id — which would let anyone enumerate any
+// team's legal posture. A wrong answer that is also enumerable is worse than the
+// gated one. The prop path is the real answer.
 export async function GET() {
   // TENANCY — read the regime for the CALLER's workspace. Bare, getActiveRegimeId()
   // always answered for the default workspace: a team that had set its jurisdiction
   // to `us` still saw "EU equal-treatment directives / processed under GDPR" on its
   // Decisions compliance card, and shipped that same wrong law to its candidates.
   //
-  // This closes the SESSION-BEARING half only, and deliberately so. The recruiter
-  // Decisions card (decisionsComplianceState.ts) carries a cookie and is now
-  // correct; an anonymous candidate rendering AiDisclosure has none, so
-  // currentWorkspace() falls back to the default — the shipped behavior, unchanged,
-  // not a new leak. The durable fix for that half is the one AiDisclosure.tsx
-  // documents in its KNOWN GAP: resolve the regime SERVER-side from the capability
-  // token's workspace and pass it in as a prop, because a client fetch cannot prove
-  // which tenant's job the candidate is looking at. Widening this route's trust
-  // (e.g. a caller-supplied workspace id) would let anyone enumerate any team's
-  // legal posture, so it stays off the table.
+  // This closes the SESSION-BEARING half, which since the prop path landed is the
+  // ONLY half this route serves. The candidate half — where the information duty
+  // actually bites (GDPR Art. 13) — is resolved before the HTML is sent, from the
+  // workspace behind the schedule / interview / devcase / offer / status token or
+  // the job id, because a client fetch cannot prove which tenant's job the
+  // candidate is looking at. AiDisclosure.tsx's header carries the full account.
   //
   // consentRetentionMonths() stays global on purpose: it derives from the
   // KP_CONSENT_TTL_DAYS env knob, which is a deployment-level setting with no

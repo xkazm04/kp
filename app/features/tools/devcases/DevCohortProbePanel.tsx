@@ -3,6 +3,7 @@
 import { Radar } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { probeMissHeatmap } from "@/app/_lib/devcase-cohort";
+import { useProbeKindLabel } from "./DevLabels";
 import type { CoverProbe, Submission } from "./DevTypes";
 
 // fec3e23a — cohort probe-miss heatmap. Aggregates every submission's per-probe
@@ -25,6 +26,10 @@ function heatBand(rate: number): { cls: string; band: HeatBand } {
 
 export function CohortProbePanel({ probes, submissions }: { probes: CoverProbe[]; submissions: Submission[] }) {
   const t = useTranslations("devcase");
+  // Same hook as ProbeRow / ProbeStrengthBanner / the eval panel — this heatmap
+  // used to print `legacy_trap`.replace(/_/g, " ") so a Czech studio mixed an
+  // English de-underscored enum into an otherwise translated locked section.
+  const probeKind = useProbeKindLabel();
   const { cells, evaluatedCount } = probeMissHeatmap(probes, submissions);
   // Nothing to say until at least one submission has been scored against the probes.
   if (evaluatedCount === 0 || cells.length === 0) return null;
@@ -43,7 +48,7 @@ export function CohortProbePanel({ probes, submissions }: { probes: CoverProbe[]
         {cells.map((c) => (
           <li key={c.probeId} className="flex items-center gap-2 text-micro">
             <span className="rounded bg-amber-100 px-1 py-0.5 font-semibold uppercase text-amber-700">
-              {c.kind.replace(/_/g, " ")}
+              {probeKind(c.kind)}
             </span>
             <span className="min-w-0 flex-1 truncate text-steel" title={c.reveals}>
               @ {c.where || "—"}

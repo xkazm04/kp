@@ -41,8 +41,12 @@ role that was never created.
 
 `DemoUnavailableNotice.tsx` resolves the `code` through `errors.<CODE>` in the
 reader's language — the same vocabulary every coded API refusal uses — and falls back
-to the generic body for an older link with no code. Pinned by
-`app/api/demo/demo-door.test.ts` (all three deploy shapes plus the per-IP limit).
+to the generic body for an older link with no code. The banner stays dismissible
+and does not auto-redirect; it also links to `/about` (the public pipeline story,
+labelled with the existing `landing.nav.about`) so a gated deploy is not a dead
+end. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
+per-IP limit) and `app/landing/spark/DemoUnavailableNotice.test.ts` (the fallback
+href).
 
 Granting a demo session `pipeline:write` inside the isolated demo tenant, and seeding
 that tenant at first mint, is an **open owner decision** — it re-opens the
@@ -67,6 +71,26 @@ the deck onto the console, which then carries Pause/Next, Stop, Reset, Step and
 Explain while the run navigates tabs, spotlights elements and opens the offer
 frame. The run is interruptible at every beat (`SimStop`), and `reset()` waits
 for the in-flight mutation before deleting the SIM rows.
+
+**What the walk writes to the address bar: a tab, and nothing else.** Each
+chapter navigates with `nav({ tab, ...clearedTabScopedParams() })` — a bare tab
+switch, exactly like a sidebar click, so the URL through a whole run reads
+`/` or `/?sim=auto` and never grows. The design chapter used to be the exception:
+it passed the simulated role's five fields as `?jdTitle=&jdCompany=&jdSeniority=
+&jdFamily=&jdNeed=`, which made a **252-character** address bar whose longest
+component was a prose paragraph — a URL carrying CONTENT rather than state,
+unreadable, and bookmarkable into a stale fixture. The tour is one component
+handing data to another inside the same provider, so it now hands the role across
+in state (`SimState.jdHandoff`, `simulationProviderTypes.ts`): `step()` patches it
+with the phase — before the nav, because `JdsIntakeTab` picks its half and the
+builder reads its seeds at MOUNT — and the next chapter nulls it.
+
+The `?jd*` deep link itself is untouched and still prefills
+(`jdsBuilderLogic.ts`, `TAB_SCOPED_PARAM_KEYS` in `tabs.ts`): a person linking in
+from outside genuinely has no other channel. Only the simulation stopped using it
+as a transport. Which half of the Job-intake tab opens is still one pure
+predicate, `opensOnGenerate` (`jdsIntakeTabEntry.ts` + test), now answered from
+both doors — the URL, and an in-app handoff.
 
 **Asking Candi.** Her control is whichever of two things the companion's
 interface mode makes it (`candiControl()`): in `voice` a layer-2 panel of this
@@ -104,7 +128,9 @@ first measurement.
 None. Nothing in this directory owns a table.
 
 - The run's state is React state in `SimulationProvider` (`SimState`), discarded
-  on unmount.
+  on unmount. That now includes `jdHandoff`, the design chapter's JD fixture on
+  its way to the builder — transient like the overlays (it is in
+  `CLEAR_OVERLAYS`, so a run that fails mid-design leaves no prefill behind).
 - The rows the demo creates are ordinary jobs / candidates / pipeline entries,
   written through the app's own APIs and deleted again by `reset()`.
 - **`resetSim` clears thirteen tables, and reports all thirteen counts.** Five are

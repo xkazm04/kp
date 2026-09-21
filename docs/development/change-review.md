@@ -32,6 +32,13 @@ the npm script that wraps it (`nodeScriptIndex`). A gate that skips `npm run` is
 still a gate; before this, five gating steps — the two lenses, `docs:check:diff`,
 `commit:check` and `ci:budget` — owed no row anywhere.
 
+The scripts that *are* that reminder live in `scripts/docs/` and are coupled to
+this page in `scripts/docs/feature-doc-map.json`: `check-doc-sync.mjs`,
+`check-doc-sync-diff.mjs`, `check-adrs.mjs`, `check-guidance.mjs`,
+`api-reference.mjs`, and the map itself. A skip pattern, a `DOC_PREFIX`, or an
+`evaluate()` change has to reach this file (or carry a `Doc-sync:` trailer).
+Fixtures under `__tests__/` stay unmapped on purpose.
+
 ## Lens 1 — the constitution check (deterministic)
 
 ```bash

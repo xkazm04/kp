@@ -149,6 +149,14 @@ export function InterviewSimTab() {
                   record (an event in their drawer history) — annotation only,
                   the sim still moves nothing in the pipeline. */}
               <InterviewAttachToCandidate token={session.token} />
+              {/* The ONE AiDisclosure left on the client-fetch path, and the only one
+                  it is correct for. This is the recruiter-facing simulator inside the
+                  authenticated shell, not a candidate surface: the request carries a
+                  session, so GET /api/compliance is both reachable (it is gated) and
+                  tenant-correct (it resolves currentWorkspace()). The public surfaces
+                  are handed `regimeId`/`retentionMonths` server-side instead — see the
+                  header of AiDisclosure.tsx — and there is no server-side seam to hand
+                  them to this tab, which is a deep client child of the shell. */}
               <AiDisclosure className="mt-5" />
             </>
           ) : (

@@ -118,6 +118,9 @@ AVAILABILITY_REASONS: tuple[str, ...] = (
     "missing_endpoint",  # Azure: no resource endpoint (a key alone cannot route)
     "invalid_base_url",  # a configured endpoint that fails the shape check below
     "not_installed",    # claude_cli: the binary is not on PATH
+    # claude_cli: a consumer subscription seat, refused on a production deployment
+    # (no DPA, inputs may be used for training) — KP_ALLOW_CLI_ENGINE=1 unlocks it.
+    "consumer_terms_policy",
 )
 
 
@@ -271,6 +274,10 @@ class TextProvider:
     name = "base"
     # Env vars an unset api_key falls back to, first-set-wins (empty = no env key).
     _env_keys: tuple[str, ...] = ()
+    # Whether this adapter's calls are reported to LightTrack by the monitor. False
+    # for an endpoint that records every attempt itself (the lt-gateway adapter) —
+    # a second event per call there is a double count. The usage ledger is unaffected.
+    _emits_lighttrack: bool = True
     # SDK module the base ``available()``/``_import_sdk()`` probes for presence.
     _sdk_module: str | None = None
 
@@ -485,7 +492,7 @@ class TextProvider:
         def _emit_error(exc: Exception) -> None:
             monitor.emit_error(
                 provider=self.name, model=self.model, use_case=self.use_case,
-                error=exc, duration_ms=_elapsed_ms(),
+                error=exc, duration_ms=_elapsed_ms(), lighttrack=self._emits_lighttrack,
             )
 
         last: Exception | None = None
@@ -505,11 +512,14 @@ class TextProvider:
                     )
                 monitor.emit_result(
                     provider=self.name,
-                    model=self.model,
+                    # The model that SERVED: identical to the configured one on every
+                    # direct adapter, and the answering seat behind a router (gateway).
+                    model=result.model or self.model,
                     use_case=self.use_case,
                     usage=result.usage,
                     cost_usd=result.cost_usd,
                     duration_ms=result.duration_ms,
+                    lighttrack=self._emits_lighttrack,
                 )
                 return result
             except LLMError as exc:
@@ -603,7 +613,7 @@ class TextProvider:
             # for — so surface the error too, exactly as the unparseable branch does.
             monitor.emit_error(
                 provider=self.name, model=self.model, use_case=self.use_case,
-                error=err, duration_ms=result.duration_ms,
+                error=err, duration_ms=result.duration_ms, lighttrack=self._emits_lighttrack,
             )
             raise err
         # deterministic fallback. Bounded to exactly ONE extra call; it goes
@@ -624,6 +634,7 @@ class TextProvider:
             monitor.emit_error(
                 provider=self.name, model=self.model, use_case=self.use_case,
                 error=err, duration_ms=int((time.monotonic() - (deadline - budget)) * 1000),
+                lighttrack=self._emits_lighttrack,
             )
             raise err
         repair = (
@@ -660,6 +671,7 @@ class TextProvider:
                 error=err,
                 duration_ms=0,
                 ledger=False,
+                lighttrack=self._emits_lighttrack,
             )
             raise err from exc
 

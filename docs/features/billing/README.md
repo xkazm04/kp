@@ -43,6 +43,31 @@ transacted stays metered even if someone flips the flag on. Pinned by
 **Usage is still RECORDED while unmetered.** Unmetered means never refused, not
 never counted — a self-hoster's own analytics still wants the numbers.
 
+### What the Billing tab SAYS on an unmetered install
+
+One predicate decides it, and it is the payload's `metered` flag — not
+`configured` (a hosted-deploy misconfiguration signal) and not `plan.id ===
+"free"` (an entitlement a paying customer also holds mid-dunning). It is named
+and unit-tested as `isUnmeteredInstall()` in
+`app/features/settings/billing/billingTypes.ts`, because more than one part of
+the tab now reads it and two copies of the rule is how they would drift.
+
+| Region | Metered | Unmetered |
+|---|---|---|
+| Page header (`BillingTab.tsx`) | `billing.title` / `billing.intro` — "your subscription… and the plans you can move to" | `billing.selfHost.pageTitle` / `billing.selfHost.pageIntro` — what the install has used and what its AI cost. The header used to promise a subscription and a plan catalog that this install has neither of, two lines above the panel that says so |
+| Eyebrow | `billing.eyebrow` | **the same** — it is wayfinding, and must keep naming the tab in the nav rail |
+| Current-plan card | shown | replaced by `BillingSelfHostPanel` |
+| Plan catalog + minutes pack | shown | not rendered |
+| Usage & cost section | shown | shown — usage is recorded while unmetered, and the AI ledger is the useful half of the tab here |
+
+`isUnmeteredInstall(null)` — the overview has not landed yet — answers
+**metered**, so a hosted deploy never flashes self-hosted chrome. That is a
+deliberate, stated tension with loading-choreography law 1 ("chrome renders on
+the first frame"): the client cannot know the metering mode before
+`GET /api/billing` lands and this tab has no server-rendered seam to carry it, so
+the one frame of possibly-wrong wording is aimed at the self-hoster, who is told
+nothing false about money, rather than at the paying customer.
+
 ### The BYOM tier is withdrawn from sale
 
 BYOM sold "your model keys, our machinery" for 120 Kč, which is exactly what
@@ -63,7 +88,8 @@ outcomes instead.
 ## Entry points
 
 - **Settings → Billing** (`app/features/settings/billing/BillingTab.tsx`) — plan
-  card, usage meters, upgrade/checkout, portal link.
+  card, usage meters, upgrade/checkout, portal link. On an unmetered install the
+  same tab is a different page — see the table above.
 - Landing pricing band (`app/landing/spark/...`) links into checkout.
 
 ## Pricing model
@@ -82,8 +108,11 @@ any tier. CZK is the primary display currency at the app's implied ~24 Kč/$ rat
 The asymmetry is deliberate and load-bearing. Publishing is a RECRUITER action, so
 refusing it is reasonable. A hire fires on the CANDIDATE's accept — a person taking a
 job must never fail because the recruiter's org is over its allowance, so overage is
-billed and surfaced, never blocked. The debit is also best-effort there: a metering
-fault must not turn a successful acceptance into an error.
+billed and surfaced, never blocked. `MeterOverview.overage` is that count
+(`limit === null ? 0 : max(0, used - limit)`); `remaining` clamps at 0 and credits
+do not reduce it. Collecting the money is Polar usage-meter ingest — this field is
+the named figure GET /api/billing already returns. The debit is also best-effort
+there: a metering fault must not turn a successful acceptance into an error.
 
 Exactly-once on both sides comes from existing invariants rather than new bookkeeping:
 `setJobStatus` stamps `published_at` under `COALESCE`, and `markOfferResponded` is a
@@ -149,8 +178,8 @@ friction at zero users.
 | Layer | File(s) | Notes |
 |---|---|---|
 | Plan catalog | `app/_lib/billing/plans.ts` | 5 plans + 1 pack; `isSelfServePlan()`. |
-| Gateway interface | `app/_lib/billing/gateway.ts` | `BillingGateway`: `createCheckout`, `createPortalSession`, `verifyWebhook → BillingEvent`, `productMap`. |
-| Polar implementation | `app/_lib/billing/polar.ts` | Everything Polar-specific lives in this ONE file, behind the gateway. Talks Polar's REST API directly with `fetch` — no vendor SDK dependency. |
+| Gateway interface | `app/_lib/billing/gateway.ts` | `BillingGateway`: `createCheckout`, `createPortalSession`, `verifyWebhook → BillingEvent`, `productMap`. `createCheckout` opts may carry `customerId` so a pack or win-back session attaches to the existing MoR customer; omit it on first purchase (Polar then creates the customer at payment). An invalid id throws — the gateway never drops it and retries. |
+| Polar implementation | `app/_lib/billing/polar.ts` | Everything Polar-specific lives in this ONE file, behind the gateway. Talks Polar's REST API directly with `fetch` — no vendor SDK dependency. Checkout JSON includes `customer_id` only when the opts id is non-empty, so first-purchase bytes stay identical on that key. |
 | Webhook signature | `app/_lib/billing/webhook-verify.ts` | Standard Webhooks scheme, verified in-house. |
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
@@ -159,13 +188,14 @@ friction at zero users.
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
 | UI — usage & cost | `app/features/settings/billing/spend/**` | Consolidated spend section (see below); moved here from the Models tab. |
+| UI — usage meter row | `app/features/settings/billing/BillingUsageMeterRow.tsx` | `MeterRow` renders name, progress bar, remaining count, and depleted badge per meter. `meterCta()` (`billingMeterCta.ts`) decides the recovery link: depleted `interview_minutes` still jumps to `#billing-minutes-pack`; every other limited meter at 0 offers `Upgrade →` to `#billing-plans` on the catalog heading; remaining in the last 20% of a numeric limit (at least 1) paints an approaching-limit caution. Unlimited meters stay quiet. |
 
 ```
 checkout:   POST /api/billing/checkout {plan|pack} → gateway → provider URL (redirect)
 state sync: provider → POST /api/billing/webhook
               verify signature → billing_events idempotency gate →
               reduce (pure, reduce.ts) → apply (sync.ts) → billing_state / billing_credits
-read:       GET /api/billing → entitled plan + per-meter {limit, used, credits, remaining}
+read:       GET /api/billing → entitled plan + per-meter {limit, used, credits, remaining, overage}
 manage:     POST /api/billing/portal → provider customer-portal URL
 ```
 
@@ -348,7 +378,10 @@ write is reported in the ingest result's `detail` and still answers 2xx: the eve
 `listBillingAlerts` takes a `limit`, clamped to 1..500 (default 200). It is fed by a
 PROVIDER event stream — one row per distinct dark subscription or order — so an
 unbounded `SELECT … ORDER BY id DESC` was a table read whose size an external system
-decided.
+decided. `resolveBillingAlert({ id, orgId, expectedUnresolved: true })` stamps
+`resolved_at` with a compensating `WHERE resolved_at IS NULL`, so a paid-but-unmapped
+Polar signal can leave the open worklist; a second call (or a missing id) returns
+false and does not move the stamp. Pinned by `app/_lib/db/billing-store.test.ts`.
 
 `billing_events` rows are kept **forever**: the row *is* the idempotency gate, and
 deleting one would let a very late redelivery re-apply a plan change or re-grant a pack.
@@ -448,6 +481,17 @@ relaxation (a lapsed `canceled`). `STATUS_TONE` in the same file enumerates the 
 `SubscriptionStatus` union for the same reason: `unpaid` used to fall through to the
 neutral chip that also means "no subscription".
 
+**Failed payment is a recovery action, not a quieter chip.** `past_due` and `unpaid`
+used to share the current-plan card's "Manage subscription" weight with an active
+sub. Polar's customer portal is the only place to update the card, so those two
+statuses now also paint a `role="alert"` banner (`dunningBanner()` in
+`billingTypes.ts`, on `BillingCurrentPlanPanel`) with an Update-payment CTA on the
+same `openPortal` handler. `past_due` names `periodEnd` when the overview has one
+(`billing.dunning.pastDue`); `unpaid` says the retries have run out
+(`billing.dunning.unpaid`). `billing.status.unpaid` is a real catalog key in all
+four locales, so Czech no longer falls through to `labelize("unpaid")`. The banner
+is suppressed when billing is unconfigured — there is no portal to open.
+
 ### The tab's state machine (`billingTabState.ts`)
 
 Four rules that had shipped as inline refs and timer arrays inside `BillingTab.tsx`,
@@ -461,6 +505,12 @@ by `billingTabState.test.ts`:
   form, and a button that re-enables in that gap mints a second session.
 - **`isCheckoutReturn`** — the `?billing=success` flag, captured once in lazy initial
   state because the effect strips the param immediately.
+- **`checkout_completed`** — Plausible records `checkout_started` on Buy, and
+  `checkout_completed { item }` once when the webhook-backed banner first becomes
+  `confirmed` (`shouldTrackCheckoutCompleted` in `billingCheckoutBanner.ts`). It
+  does not fire on `unconfirmed` (the webhook is still missing). The catalog item
+  is stashed in `sessionStorage` across the Polar redirect because the tab remounts
+  on return. Keyless: `track` is already a no-op without Plausible.
 - **`CHECKOUT_POLL_DELAYS_MS` + `checkoutPollWindowMs()`** — the post-checkout poll now
   **backs off to a stated one-minute cap** (2s, 6s, 14s, 30s, 60s) instead of three fixed
   shots that stopped at 5.5s. When the window closes without the plan reflecting the
@@ -468,6 +518,14 @@ by `billingTabState.test.ts`:
   than freezing on "payment received, updating" with a page reload as the only recourse.
   The window is DERIVED from the last shot, so "we gave up" can never again sit half a
   second after "we are still trying".
+- **Progressive recovery in the `confirming` state** — two independent timers fire while
+  the banner is still waiting for the webhook (i.e. not yet `confirmed` or `unconfirmed`):
+  a **"Refresh plan status"** button at **10 s** and a **"Contact support if this persists"**
+  mailto link at **30 s**. Both appear inside the same banner row so a paying customer is
+  never left staring at a frozen confirmation message with no resolution path. The support
+  address comes from `NEXT_PUBLIC_SUPPORT_EMAIL` (falls back to `NEXT_PUBLIC_SALES_EMAIL`,
+  then `support@kandidate.app`). Keys: `billing.checkoutRefresh`, `billing.checkoutSupportLink`,
+  `billing.checkoutSupportSubject`.
 
 ### The Usage & cost section (`app/features/settings/billing/spend/`)
 
@@ -477,7 +535,7 @@ different tabs:
 
 | Source | Contribution |
 |---|---|
-| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits — **the caller's org** |
+| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, overage, pack credits — **the caller's org** |
 | `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
 | `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
 
@@ -496,6 +554,19 @@ has nothing to scope by. Scoping it is a schema change (a column, a backfill, an
 decision about pre-existing rows), so it is out of scope here; what changed is that the
 chart states its scope (`billing.spend.breakdownScope`, four locales) instead of letting
 a deployment total read as one team's spend against that team's allowance.
+
+**On an unmetered install the allowance rail collapses, grid track and all.**
+`isUnmeteredInstall(data)` (`billingTypes.ts`, unit-tested) keys off `metered` — the
+deployment-level flag `meteringActive` computes and the same one `BillingSelfHostPanel`
+reads — because it is downstream of `metered` that `resolvedLimit` returns null and every
+meter reads "unlimited". Five rows of "0 used / Unlimited" directly beneath a panel that
+has just said every allowance is unlimited is a reserved 16rem column spent on repetition,
+so both the `<aside>` and the `lg:grid-cols-[16rem_1fr]` track go (keeping the track would
+leave the chart against a void). The scope line switches with it:
+`breakdownScope` ends "unlike the allowance beside it", which is false once there is no
+allowance beside it, so the unmetered case reads `breakdownScopeSelfHost` — the same
+deployment-wide claim without the contrast. Nothing about the chart, the per-use-case
+bars or the estimated-cost figure changes; a metered install renders exactly as before.
 
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage
@@ -517,6 +588,39 @@ allowance and a cache-hit rate as the same instrument).
 `reconcileFailures`, `noSlotStalls`) **only when non-zero**. This footer is the
 only screen in the app carrying the latter two, so hiding them unconditionally
 would delete an alarm rather than quiet it.
+
+**A counter is a door, not a dead end.** Each one navigates to the surface that
+lists the same failures per item: dead letters to the **Channels** ledger
+(`ChannelsCommsTable`), and both schedule counters to the **Schedule** tab's
+attention section (`ScheduleInviteAttentionSection`, which renders the
+`needs_reconcile` / `needs_more_slots` flags the same events set). The move is
+in-shell — `buildTabSwitchUrl` through `useShellNavigate` — so it patches `?tab=`
+onto the history stack instead of re-fetching an RSC payload that does not depend
+on it.
+
+**An empty job catalog is a state, not a fault.** `/api/ops` and `/api/health`
+used to push `"job catalog is empty"` into `degradedReasons` for any jobs table
+with no rows, so this strip opened with a red dot and the word **Degraded** on
+every fresh install — and `/api/health` answered an uptime monitor 503 — because
+nobody had created a job yet. The two routes now draw the line `/api/jobs` already
+draws for `JOB_SEED_BROKEN`: only an empty catalog whose **jobs seed errored**
+(`getSeedHealth()`, severity `error`, never `missing`) is a degradation. The
+ordinary state rides a new `catalog: "ok" | "empty"` field — operator-gated on
+`/api/health` alongside `tables`, since zero jobs is business volume — and the
+strip says it as a neutral line beside the queue. Pinned by
+`app/api/health/seed-catalog-verdict.test.ts` (the broken half, forced against a
+genuinely unreadable seed in a throwaway cwd) plus the empty-but-healthy cases in
+`ops-route.test.ts` and `health-exposure.test.ts`.
+
+**Every dot's state is in its label, not only in its colour.** The dot is
+`aria-hidden` and always was, so a screen reader used to hear a list of nouns with
+the green-or-red meaning parked in a `title` — invisible to touch as well. Each
+label now admits its own state (`Seed data loaded` / `Seed data failed`,
+`Scheduler running` / `starting` / `stalled`), and because the engine names are
+Do-Not-Translate proper nouns (`docs/i18n/glossary.md`) their state rides a
+separate translated word beside them: `Gemini available` / `Claude CLI
+unavailable`. The `title` attributes survive only where they carry something the
+label does not — the env var and the binary on `PATH` a preflight hint needs.
 
 Known gap from the move: the per-use-case **token columns** (in / out / cached)
 and the 7-day **cache-hit rate**, **average analysis duration** and **stage

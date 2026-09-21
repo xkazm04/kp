@@ -43,7 +43,16 @@ import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress
 // that RE-SENDS an already-recorded message (the dead-letter recovery door) can
 // pass the original id so the receiver recognises the repeat instead of
 // delivering the offer a second time.
-export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null; messageId?: string };
+// `unsubscribeUrl` is the candidate's own opt-out capability link, minted by
+// sendCandidateComm alongside the visible footer — and it is the POST-capable
+// /api/stop/<token>, NOT the /stop/<token> page the footer links to: this value ends up
+// in a header a mail provider POSTs unattended, and the page route serves no POST. It is
+// NOT kp-internal
+// bookkeeping like `workspaceId`: it rides the wire envelope so the relay can emit the
+// RFC 2369 `List-Unsubscribe` and RFC 8058 `List-Unsubscribe-Post: One-Click` MAIL
+// headers — see the note on CommEnvelope.listUnsubscribe for why kp cannot set those
+// itself. Absent for an entry-less comm and for an anonymized entry.
+export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null; messageId?: string; unsubscribeUrl?: string };
 
 export interface CommsChannel {
   readonly name: string;

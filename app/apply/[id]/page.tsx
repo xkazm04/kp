@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { findEntryByLeadToken } from "@/app/_lib/db/pipeline";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { buildApplyScript } from "@/app/_lib/apply";
@@ -37,6 +38,12 @@ export default async function ApplyPage({
     if (status === "draft") notFound();
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
+        {/* Same locale toggle as the open path: a filled/retired link is still a
+            public candidate door, and a Czech reader of an English filled-role
+            ad has no other chrome. Drafts 404 above and stay switcher-less. */}
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
         <p className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">{t("roleClosed")}</p>
@@ -97,6 +104,11 @@ export default async function ApplyPage({
           jobId={job.id}
           steps={prefill ? trimSeededSteps(steps, prefill.answers) : steps}
           prefill={prefill}
+          // Same tenant the POST files this applicant into (getJobWorkspace is the
+          // public intake's existing "which team owns this opening?" authority), so
+          // the law the candidate consents under and the law their record is held
+          // under cannot disagree.
+          compliance={disclosureComplianceFor(getJobWorkspace(job.id))}
         />
       </div>
     </main>

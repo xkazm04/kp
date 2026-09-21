@@ -24,7 +24,7 @@ const files = [
 const src = files.map((f) => readFileSync(f, "utf8")).join("\n");
 const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 
-// Exempt: a candidate capability-token read (WHERE lead_token/erasure_token = ?), a
+// Exempt: a candidate capability-token read (WHERE lead_token/erasure_token/optout_token = ?), a
 // query tagged `-- tenancy:global` — the ONE automation engine's global sweep and the
 // GDPR consent sweep, which must span teams and scope each per-entry WRITE by that
 // entry's own workspace_id instead — or the TENANT-DERIVATION point read, whose whole
@@ -32,7 +32,7 @@ const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 // flow with no session workspace has nothing to scope BY until it has run).
 function isExempt(sql: string): boolean {
   return (
-    /where\s+(lead_token|erasure_token)\s*=/i.test(sql) ||
+    /where\s+(lead_token|erasure_token|optout_token)\s*=/i.test(sql) ||
     /tenancy:global/i.test(sql) ||
     /^\s*select\s+workspace_id\s+from\s+pipeline_entries\s+where\s+id\s*=\s*\?\s*$/i.test(sql.trim())
   );
