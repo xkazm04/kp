@@ -592,6 +592,37 @@ comparing two AI screens can see when one was scored without industry axes. Pyth
 still does not write the field; the post-pass will not overwrite it if that
 changes. The field stays optional for legacy rows.
 
+## The sealed `ai_scorecard` carries what the verdict was made of
+
+`/api/interview/complete` seals an `ai_scorecard` decision on the entry when a
+candidate-mode call completes. Its sealed `inputs` used to be the conclusion
+alone — `{ recommendation }` — which had two consequences: the chain recorded a
+verdict with nothing to re-check it against, and the candidate's own Art. 86
+surface (`/status/[token]`) could show the decision only as a bare label,
+because `app/_lib/status-decisions.ts` had nothing to read.
+
+The seal now also carries the **rubric axes the verdict was made of**, built by
+`sealableRubricDimensions` (`app/_lib/interview-scorecard.ts`) as
+`{ competency, rating }` pairs and nothing else. What it drops, and why:
+
+- **A not-assessed axis.** The synthesis rates an untouched competency
+  `NOT_ASSESSED_RATING` (3 of 5) with `"Not assessed…"` evidence, which reads
+  identically to an observed middling score to anything looking at the rating
+  alone — so sealing it would tell a candidate they scored mid on a competency
+  the interview never raised. `isNotAssessedRating` is the filter.
+- **An off-rubric axis**, for the mirror reason: it is not a scale the candidate
+  was told they would be measured on.
+- **The evidence quote and the summary.** Never sealed, so they can never reach
+  the candidate view. The quote is a *model's selection* of the candidate's
+  words, and a mis-transcribed one (see `ScorecardEntities` for how often voice
+  ASR needs correcting) would read as something they did not say.
+
+`MAX_SEALED_RUBRIC_DIMENSIONS` bounds the list, because `ratings` originates in
+an LLM synthesis. The read side (`aiScorecardFacts`) re-validates every one of
+these constraints independently rather than trusting the payload — records
+outlive the code that sealed them — and the two ceilings are pinned equal by
+`app/api/status/status-decisions.test.ts` rather than shared by reference.
+
 ## The scorecard fences the transcript and cites only what was said (scorecard-v7)
 
 The scorecard prompt is the one in this package whose main input is written by the

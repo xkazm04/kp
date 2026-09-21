@@ -8,6 +8,8 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { BTN_GHOST, BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
 import { StatusNpsCard } from "./StatusNpsCard";
+import { rubricLabel } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import {
@@ -44,6 +46,9 @@ export function StatusClient({
   const token = params?.token;
   const t = useTranslations("status");
   const tCommon = useTranslations("common");
+  // The `rubric` catalog namespace, for the competency keys an ai_scorecard's
+  // decisive facts carry (see the decisions section below).
+  const rubricStrings = useRubricStrings();
   const locale = useLocale();
   const [view, setView] = useState<StatusView | null>(null);
   // Typed so the copy can be honest about WHY it failed (bug-ui-scan-2026-07-09
@@ -313,9 +318,24 @@ export function StatusClient({
                     <span className="text-meta text-steel">
                       {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(d.createdAt))}
                     </span>
-                    {d.reasonCode === "reject" && d.facts ? (
+                    {/* The decisive elements behind this decision (Art. 86), rendered
+                        per FACT SHAPE rather than per reason code: the server's
+                        `facts` is a closed discriminated union, so a kind that gains
+                        an extractor renders here the moment it does, and a kind
+                        without one silently renders nothing — never a broken row. */}
+                    {d.facts?.type === "threshold" ? (
                       <span className="w-full text-base text-steel">
                         {t("decisions.reasons.reject", { score: d.facts.score, threshold: d.facts.threshold })}
+                      </span>
+                    ) : d.facts?.type === "rubric" ? (
+                      <span className="w-full text-base text-steel">
+                        {t("decisions.reasons.rubric")}{" "}
+                        {/* Canonical competency KEYS come off the wire; the reader's
+                            language comes from the rubric catalog, with the canonical
+                            English as rubricLabel's own fallback. */}
+                        {d.facts.dimensions
+                          .map((dim) => `${rubricLabel(dim.competency, rubricStrings)} ${dim.rating}/${dim.ratingMax}`)
+                          .join(" · ")}
                       </span>
                     ) : null}
                   </li>

@@ -87,7 +87,8 @@
     "db:dump": "node scripts/db-dump.mjs",
     "db:load": "node scripts/db-load.mjs",
     "secrets:rotate": "node scripts/secrets-rotate.mjs",
-    "db:pg-audit": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/pg-portability-audit.mjs"
+    "db:pg-audit": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/pg-portability-audit.mjs",
+    "kpi:reasons": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/reasons-coverage.mjs"
   },
   "dependencies": {
     "@elevenlabs/react": "^1.15.2",
