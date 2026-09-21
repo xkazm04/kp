@@ -18,8 +18,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { setAtsConfig } from "./ats-config-store.ts";
 import { dispatchAtsEvent } from "./ats-egress.ts";
 import { listAtsDeliveries } from "./ats-delivery-store.ts";
-import { createPipelineEntry } from "./db.ts";
-import { anonymizeEntry, getPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
+import { anonymizeEntry, createPipelineEntry, getPipelineEntry, recordEntryConsent } from "./db/pipeline.ts";
 
 after(() => cleanupUnitDb());
 
