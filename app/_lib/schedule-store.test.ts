@@ -297,6 +297,30 @@ test("a distinct entry still mints its own invite", () => {
   assert.notEqual(x.token, y.token, "different entries get different invites");
 });
 
+// lens-sweep round 2 (bug-hunter, context lib-scheduling): the idempotent re-confirm
+// branch answered `ok: true` for an ALREADY-confirmed invite without comparing the slot
+// the caller asked for. The candidate token route reads that `ok` as a fresh booking and
+// then advances the pipeline entry and composes the confirmation with the REQUESTED slot
+// (app/api/schedule/[token]/route.ts:384-387 uses the closure `slot`, not the returned
+// invite), so a double-submit or a lost-response retry at a different time stamped the
+// board and the letter with an hour that was never booked — while the stored invite kept
+// the first one. Idempotency must mean "the same booking", not "any booking".
+test("a re-confirm at a DIFFERENT slot is refused, not reported as an idempotent success", () => {
+  const first = "2031-11-03T10:00:00.000Z";
+  const token = makeConfirmed(first, "Mon 3 Nov · 10:00");
+
+  const same = confirmScheduleInvite(token, "Mon 3 Nov · 10:00", first);
+  assert.equal(same.ok, true, "re-confirming the SAME instant stays idempotent");
+  assert.equal(same.ok && same.invite.slotAt, first);
+
+  const other = confirmScheduleInvite(token, "Mon 3 Nov · 14:00", "2031-11-03T14:00:00.000Z");
+  assert.equal(other.ok, false, "a confirm naming a different instant must not answer ok");
+  assert.equal(other.ok === false && other.reason, "taken", "the caller is told this link no longer holds that time");
+
+  const stored = getScheduleInviteByToken(token);
+  assert.equal(stored?.slotAt, first, "the stored booking is untouched by the refused confirm");
+});
+
 // --- Direction 2: recruiter-side invite control ---------------------------------
 
 test("recruiter reschedule bypasses MAX_RESCHEDULES and doesn't spend the candidate budget", () => {

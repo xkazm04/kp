@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isDeliverableAddress, extractDeliverableAddress, extractRecipientName } from "./comms-recipient.ts";
+import { isDeliverableAddress, extractDeliverableAddress, extractRecipientName, recipientRefusal } from "./comms-recipient.ts";
 
 test("isDeliverableAddress accepts a well-formed single address", () => {
   assert.equal(isDeliverableAddress("jane@example.com"), true);
@@ -42,4 +42,11 @@ test("extractRecipientName strips the address and keeps the human name", () => {
   assert.equal(extractRecipientName("Alice Ng"), "Alice Ng");
   assert.equal(extractRecipientName("alice@co.com"), null); // address only → no name
   assert.equal(extractRecipientName(""), null);
+});
+
+test("recipientRefusal names the agent population and nothing else", () => {
+  assert.match(recipientRefusal({ population: "agent" }) ?? "", /agent_population/);
+  assert.equal(recipientRefusal({ population: "human" }), null);
+  assert.equal(recipientRefusal({ population: null }), null);
+  assert.equal(recipientRefusal({}), null, "an entry from before the column is a person");
 });

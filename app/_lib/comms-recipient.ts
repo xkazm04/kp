@@ -61,3 +61,22 @@ export function extractRecipientName(text: string | null | undefined): string | 
   const name = withoutAddr.replace(/[<>,;()]+/g, " ").replace(/\s+/g, " ").trim();
   return name || null;
 }
+
+// ---- recipients that must be REFUSED, not guessed --------------------------
+// An AI agent can stand on a role's slate beside people (the `population` column,
+// 'human' | 'agent'). It has no mailbox, and the cascade above would still resolve
+// SOMETHING for it — its label, its id, the literal — which a configured relay can
+// only dead-letter minutes later. The honest answer is known before any send: refuse.
+// Optional on the input because the column is additive; an entry without it is a
+// person, which is what every row was before the slate existed.
+
+/** The population whose members have no mailbox. */
+export const AGENT_POPULATION = "agent";
+
+/** Why a recipient is refused before any channel sees the message, or null. */
+export function recipientRefusal(entry: { population?: string | null }): string | null {
+  if ((entry.population ?? "").trim().toLowerCase() === AGENT_POPULATION) {
+    return "refused: agent_population — an AI agent on the slate has no mailbox; nothing was handed to the relay";
+  }
+  return null;
+}
