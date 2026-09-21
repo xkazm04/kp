@@ -988,6 +988,7 @@ export function journeyBoard(opts: {
     return {
       jobId,
       title,
+      roleArea: clusterRoleArea(jobId, workspaceId),
       openedAt: clusterOpenedAt(jobId, rows, workspaceId),
       sharedEvents: band.events,
       sharedEventsUnlinked: band.unlinked,
@@ -1007,6 +1008,19 @@ export function journeyBoard(opts: {
 /** When this role opened. `jobs.created_at` when the corpus holds the job; otherwise
  *  the earliest entry on the board for it — a REAL stored instant either way. A role
  *  whose job row is gone does not get a made-up opening date. */
+/** The area a role sits in (`jobs.role_family`), for grouping the role picker.
+ *  NULL when no job row exists or it records no family — never a guessed bucket. */
+function clusterRoleArea(jobId: string, workspaceId: string): string | null {
+  if (!jobId) return null;
+  // Same tenant predicate as clusterOpenedAt: `jobs.workspace_id` is NULL for the
+  // SHARED cross-company corpus, so accept this workspace's row or the shared one.
+  const job = ensureDb()
+    .prepare(`SELECT role_family FROM jobs WHERE id = ? AND (workspace_id = ? OR workspace_id IS NULL) LIMIT 1`)
+    .get(jobId, workspaceId) as { role_family: string | null } | undefined;
+  const area = job?.role_family?.trim();
+  return area ? area : null;
+}
+
 function clusterOpenedAt(jobId: string, rows: readonly EntryRow[], workspaceId: string): string {
   if (jobId) {
     // `jobs.workspace_id` is NULL for the SHARED cross-company corpus (core.ts:1809-1812),

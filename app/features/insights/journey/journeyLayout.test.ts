@@ -10,10 +10,12 @@ import {
   JOURNEY_RAIL_LEFT,
   JOURNEY_RAIL_REM,
   JOURNEY_RAIL_W,
+  JOURNEY_ROW_BASE,
   JOURNEY_ROW_MAX,
   SILENCE_DAYS,
   bandHeight,
   clusterBandHeight,
+  clusterIndexInView,
   globalBandHeights,
   nextRowUnit,
   normalizeAbsenceKey,
@@ -254,4 +256,33 @@ test("the geometry numbers and the Tailwind classes that realise them agree", ()
   assert.equal(JOURNEY_COLUMN_W, `w-[${JOURNEY_COLUMN_REM}rem]`);
   assert.equal(JOURNEY_RAIL_W, `w-[${JOURNEY_RAIL_REM}rem]`);
   assert.equal(JOURNEY_RAIL_LEFT, `left-[${JOURNEY_RAIL_REM}rem]`);
+});
+
+test("the row unit's ceiling is TWO LINES, which is what makes the grid dense", () => {
+  // The cell clamps the sentence (rowTextClass's line-clamp-2), so the probe can
+  // never measure more than two lines; this is the arithmetic bound under that
+  // clamp. It was 132 — six lines — and the real corpus settled at a 70px unit
+  // for a median one-line sentence, which is the dead space finding E named.
+  assert.ok(JOURNEY_ROW_MAX <= 64, `a two-line row cannot need ${JOURNEY_ROW_MAX}px`);
+  assert.ok(JOURNEY_ROW_MAX > JOURNEY_ROW_BASE, "the unit must still be able to grow for cs/de/fr");
+});
+
+test("the rail follows the reader: which cluster is under the view", () => {
+  // Offsets INCLUDE the rail, because the rail is the track's first flex child.
+  const rail = 256;
+  const starts = [rail, rail + 964, rail + 964 + 320];
+
+  // Parked at the start: the first cluster, not "none".
+  assert.equal(clusterIndexInView(0, rail, starts), 0);
+  // Still inside the first cluster's span.
+  assert.equal(clusterIndexInView(900, rail, starts), 0);
+  // One pixel past its right edge is the second cluster.
+  assert.equal(clusterIndexInView(964, rail, starts), 1);
+  assert.equal(clusterIndexInView(1300, rail, starts), 2);
+  // Past the end — the reader is parked on the last cluster, not off the board.
+  assert.equal(clusterIndexInView(99_999, rail, starts), 2);
+  // A trackpad bounce scrolls NEGATIVE. That is still the first cluster.
+  assert.equal(clusterIndexInView(-40, rail, starts), 0);
+  // An empty board has no cluster in view, and says so rather than answering 0.
+  assert.equal(clusterIndexInView(0, rail, []), -1);
 });

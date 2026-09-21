@@ -97,3 +97,98 @@ export function toggleRole(filters: JourneyFilterState, jobId: string): JourneyF
     : [...filters.roles, jobId];
   return { ...filters, roles };
 }
+
+/* ── The role picker ────────────────────────────────────────────────────────
+ *
+ * A chip per role was fine for the six roles in the demo corpus and unusable at
+ * the forty a real company runs: they wrapped over two lines and pushed the
+ * board itself off the first screen. The control is a single dropdown now, and
+ * the ordering is the whole value of it — the reader is looking for a role they
+ * already have a name for, so groups and roles are both sorted by name.
+ */
+
+export type RolePickerRole = { jobId: string; title: string; roleArea: string | null };
+
+/** One row of the picker. `group` rows are headings and cannot be chosen — the
+ *  repo's `Select` renders them through its `disabled` treatment, which is the
+ *  closest a custom listbox comes to `<optgroup>` without a native `<select>`
+ *  (whose option popup does not follow `[data-theme]`). */
+export type RolePickerOption = { value: string; label: string; disabled?: boolean };
+
+/** The sentinel a heading row carries. A job id is a ULID-ish string and can
+ *  never collide with it; `ALL_ROLES_VALUE` is the empty string, which is what
+ *  "no role filter" already means in `JourneyFilterState.roles`. */
+export const ROLE_GROUP_PREFIX = "group:";
+export const ALL_ROLES_VALUE = "";
+
+export type RolePickerLabels = {
+  allRoles: string;
+  ungrouped: string;
+  /** `roleArea` is `jobs.role_family`, a canonical English SLUG. The reader is
+   *  shown the localized `enums.family.*` label the rest of the app uses; a slug
+   *  outside the taxonomy degrades to the slug itself, never to a raw key path
+   *  and never to an invented pretty name (jobsMarkdown.ts's `enumLabel`). */
+  areaLabel: (slug: string) => string;
+  /** Bound to the ACTIVE locale. A plain `.sort()` compares UTF-16 code units,
+   *  so Č/Ř/Š/Ž file after Z and a Czech reader gets no order at all — the
+   *  lesson `sortOptionsByLabel` in the analyze history already paid for. */
+  collator: Intl.Collator;
+};
+
+export function rolePickerOptions(
+  roles: readonly RolePickerRole[],
+  labels: RolePickerLabels
+): RolePickerOption[] {
+  const groups = new Map<string, RolePickerRole[]>();
+  const ungrouped: RolePickerRole[] = [];
+  for (const role of roles) {
+    // An EMPTY area is the same fact as a missing one — the record does not say
+    // which area this role belongs to — and must land in the same honest bucket
+    // rather than in a group whose name is "".
+    const area = role.roleArea === null ? "" : role.roleArea.trim();
+    if (area === "") {
+      ungrouped.push(role);
+      continue;
+    }
+    const bucket = groups.get(area);
+    if (bucket) bucket.push(role);
+    else groups.set(area, [role]);
+  }
+
+  const byTitle = (a: RolePickerRole, b: RolePickerRole) => labels.collator.compare(a.title, b.title);
+  const options: RolePickerOption[] = [{ value: ALL_ROLES_VALUE, label: labels.allRoles }];
+
+  // Sorted by what the reader SEES, not by the slug underneath it.
+  const areas = [...groups.keys()]
+    .map((slug) => ({ slug, label: labels.areaLabel(slug) }))
+    .sort((a, b) => labels.collator.compare(a.label, b.label));
+
+  for (const area of areas) {
+    options.push({ value: `${ROLE_GROUP_PREFIX}${area.slug}`, label: area.label, disabled: true });
+    for (const role of (groups.get(area.slug) ?? []).slice().sort(byTitle)) {
+      options.push({ value: role.jobId, label: role.title });
+    }
+  }
+
+  // Last, and named for what it IS. A role whose area the record does not carry
+  // is not "Uncategorised admin" or any other invented bucket; `roleArea: null`
+  // is a real state and the picker says so.
+  if (ungrouped.length > 0) {
+    options.push({ value: `${ROLE_GROUP_PREFIX}`, label: labels.ungrouped, disabled: true });
+    for (const role of ungrouped.slice().sort(byTitle)) {
+      options.push({ value: role.jobId, label: role.title });
+    }
+  }
+
+  return options;
+}
+
+/** The picker is single-select; the filter state is a list because the board's
+ *  own narrowing is set-shaped. One place that translates between them. */
+export function selectedRole(filters: JourneyFilterState): string {
+  return filters.roles[0] ?? ALL_ROLES_VALUE;
+}
+
+export function withSelectedRole(filters: JourneyFilterState, jobId: string): JourneyFilterState {
+  return { ...filters, roles: jobId === ALL_ROLES_VALUE ? [] : [jobId] };
+}

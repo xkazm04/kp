@@ -1,6 +1,21 @@
 "use client";
 
-// One role cluster: its rail, its shared job-definition band, and its columns.
+// One role cluster: its shared job-definition band, and its columns.
+//
+// IT NO LONGER CARRIES A RAIL. Every cluster used to draw its own, so a sideways
+// journey read rail / columns / rail / columns and each role paid 16rem of
+// chrome. The board now draws ONE rail, pinned at the far left of the track,
+// which redraws for whichever cluster is under view (JourneyBoardView +
+// useClusterInView). The sticky offsets here still clear it — `left-[16rem]` is
+// the rail's width, not this cluster's — and `globalBandHeights` is what keeps
+// that single rail true for every cluster it floats over.
+//
+// AND ITS OWN WIDTH IS ITS COLUMNS'. The head and the shared band are `w-0
+// min-w-full`: they fill the cluster at layout time and contribute NOTHING to
+// its intrinsic width. Before, the band was a flat `w-[44rem]` and the title
+// `whitespace-nowrap`, so a role with ONE candidate measured 964px — 320px of
+// column and 644px of empty field beside it. Text is not allowed to set the
+// width of a grid; it wraps or it clamps inside whatever the columns need.
 //
 // THE SHARED BAND IS A CLAIM ABOUT THE DATA. One conversation defined this role;
 // it happened once, above every column, and drawing it once is the honest
@@ -22,7 +37,7 @@ import { NOTICE } from "@/app/_components/ui/recipes";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import type { JourneyPhaseId } from "@/app/_lib/journey/types";
 import { JourneyColumn } from "./JourneyColumn";
-import { JourneyRail, type LitRow } from "./JourneyRail";
+import type { LitRow } from "./JourneyRail";
 import { JourneyRow } from "./JourneyRow";
 import {
   JOURNEY_BAND_LABEL_PX,
@@ -43,7 +58,6 @@ export type JourneyClusterProps = {
   unit: number;
   silencePx: number;
   lit: LitRow;
-  onLight: (jobId: string, phase: JourneyPhaseId, row: number) => void;
   selectedEventId: string | null;
   onSelectRow: (entryId: string | null, eventId: string) => void;
   isMounted: (entryId: string) => boolean;
@@ -93,7 +107,6 @@ function JourneyClusterImpl({
   unit,
   silencePx,
   lit,
-  onLight,
   selectedEventId,
   onSelectRow,
   isMounted,
@@ -102,10 +115,6 @@ function JourneyClusterImpl({
   const t = useTranslations("journey");
   const { date } = useDateFormat();
   const cluster = plan.cluster;
-  const light = useCallback(
-    (phase: JourneyPhaseId, row: number) => onLight(cluster.jobId, phase, row),
-    [onLight, cluster.jobId]
-  );
   const selectRow = useCallback(
     (entryId: string, eventId: string) => onSelectRow(entryId, eventId),
     [onSelectRow]
@@ -137,33 +146,22 @@ function JourneyClusterImpl({
       aria-label={cluster.title}
       style={{ minHeight: bodyHeight }}
     >
-      <JourneyRail
-        cluster={plan}
-        phases={phases}
-        bandPx={bandPx}
-        sharedPx={sharedPx}
-        unit={unit}
-        silencePx={silencePx}
-        lit={lit}
-        onLight={light}
-      />
-
       <div className="relative flex-none">
         <header
-          className="sticky top-0 z-20 flex shrink-0 items-center border-b border-stone-200 bg-paper"
+          className="sticky top-0 z-20 flex w-0 min-w-full shrink-0 items-center border-b border-stone-200 bg-paper"
           style={{ height: JOURNEY_CLUSTER_HEAD_PX }}
         >
-          <div className={`sticky ${JOURNEY_RAIL_LEFT} flex items-baseline gap-3 whitespace-nowrap px-3`}>
-            <h2 className="font-serif text-h3 text-ink">{cluster.title}</h2>
-            <span className="nums text-xs text-steel">{date(cluster.openedAt)}</span>
+          <div className={`sticky ${JOURNEY_RAIL_LEFT} flex min-w-0 max-w-[28rem] items-baseline gap-3 px-3`}>
+            <h2 className="truncate font-serif text-h3 text-ink">{cluster.title}</h2>
+            <span className="nums shrink-0 text-xs text-steel">{date(cluster.openedAt)}</span>
           </div>
         </header>
 
         <div
-          className="relative shrink-0 border-b-2 border-ink bg-limewash/30"
+          className="relative w-0 min-w-full shrink-0 border-b-2 border-ink bg-limewash/30"
           style={{ height: JOURNEY_SHARED_HEAD_PX + sharedPx }}
         >
-          <div className={`sticky ${JOURNEY_RAIL_LEFT} flex w-[44rem] max-w-full flex-col`}>
+          <div className={`sticky ${JOURNEY_RAIL_LEFT} flex max-w-[44rem] flex-col`}>
             <div
               className="flex flex-col justify-center gap-1 overflow-hidden border-b border-stone-200 px-3"
               style={{ height: JOURNEY_SHARED_HEAD_PX }}

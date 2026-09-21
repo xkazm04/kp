@@ -11881,7 +11881,9 @@
       "activeOnly": "Active candidates only",
       "observedOnly": "Observed rows only",
       "find": "Find a candidate",
-      "testRuns": "Include test runs"
+      "testRuns": "Include test runs",
+      "roleUngrouped": "Other roles",
+      "rolePicker": "Choose a role"
     },
     "phases": {
       "job-definition": "Job definition",
@@ -11898,7 +11900,8 @@
       "reached": "{reached} of {cohort}",
       "byMachine": "{count} by the machine",
       "skipped": "Skipped, and the journey went on",
-      "neverReached": "Never reached. The journey ends here"
+      "neverReached": "Never reached. The journey ends here",
+      "forRole": "Steps in {role}"
     },
     "absence": {
       "caseNotRun": "This role runs no work-sample case.",
@@ -11997,7 +12000,8 @@
     },
     "noMatches": "No journey matches these filters.",
     "minimap": {
-      "label": "Overview of every column"
+      "label": "Overview of every column",
+      "roleColumns": "{role}: {count} journeys"
     }
   }
 }

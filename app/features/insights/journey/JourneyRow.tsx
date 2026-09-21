@@ -14,6 +14,12 @@
 //   name-only match  a leading `≈` and a wavy amber underline
 //   silence before   its own strip above the row, never a shrug
 //
+// AND IT IS TWO LINES TALL, AT MOST. The sentence is clamped by `rowTextClass`
+// and the date sets beside it, so a row is the sentence and its date and no
+// dead field under them — see JOURNEY_ROW_MAX for why the bound has to be at
+// the cell rather than at the grid. The full sentence stays in the DOM (it is
+// the button's accessible name) and the fact card prints it unclamped.
+//
 // AND NONE OF IT IS HOVER-ONLY. Every mark has a `sr-only` sentence from the
 // catalog beside it, so the button's accessible name reads "Candidate applied.
 // A human did this. Matched by name alone — may be a different person." on a
@@ -78,7 +84,7 @@ function JourneyRowImpl({
           p
         )} ${selected ? "bg-coral/10" : ""}`}
       >
-        <span className={`${ACTOR_GLYPH[p.actor]} mt-1`} aria-hidden="true" />
+        <span className={`${ACTOR_GLYPH[p.actor]} mt-1.5`} aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span className={rowTextClass(p)}>
             {p.labelOnly ? <span aria-hidden="true">≈ </span> : null}
@@ -90,7 +96,7 @@ function JourneyRowImpl({
             {p.labelOnly ? ` — ${t("mark.labelOnly")}` : ""}
           </span>
         </span>
-        <time dateTime={event.occurredAt} className="nums mt-0.5 shrink-0 text-xs text-steel">
+        <time dateTime={event.occurredAt} className="nums mt-px shrink-0 text-xs text-steel">
           {date(event.occurredAt)}
         </time>
       </button>

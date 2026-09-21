@@ -410,9 +410,29 @@ export const JOURNEY_RAIL_LEFT = "left-[16rem]";
 /** Starting row unit, px. Two lines of `text-sm` plus the row's own padding. */
 export const JOURNEY_ROW_BASE = 44;
 
-/** Ceiling for the adaptive unit. A pathological string scrolls its own cell
- *  rather than pushing every row on the board to a screenful. */
-export const JOURNEY_ROW_MAX = 132;
+/**
+ * Ceiling for the adaptive unit — TWO LINES, and no more.
+ *
+ * It was 132 (six lines) on the reasoning that a clipped sentence is a defect,
+ * so the grid should grow to whatever the longest sentence on the board needs.
+ * Measured against the real corpus that produced a 70px unit for rows whose
+ * median sentence sets in one line: ~80% of every row was dead space, which is
+ * the owner's finding E. One long sentence in one column was setting the height
+ * of all ~1,300 rows, because the unit is global by construction (it has to be,
+ * or the rail stops describing the columns beside it).
+ *
+ * So the sentence is now clamped to two lines at the CELL (`rowTextClass`'s
+ * `line-clamp-2`, and the rail step's), which bounds what the probe can ever
+ * measure, and this number is the arithmetic ceiling under that clamp: two lines
+ * of `text-sm` at `leading-snug` plus the row's `py-1.5`, with headroom for the
+ * app's larger-text preference and for a de/fr line that sets taller than en.
+ *
+ * The full sentence is not lost — it stays in the DOM (so it is the button's
+ * accessible name in full) and the fact card prints it unclamped as its
+ * headline. That is the deliberate trade the owner asked for: a visible tail on
+ * a long sentence, against a screen that shows twice as many rows.
+ */
+export const JOURNEY_ROW_MAX = 64;
 
 /** Extra height a row takes when some column opens it with a silence marker. */
 export const JOURNEY_SILENCE_PX = 22;
@@ -485,4 +505,41 @@ export function globalBandHeights(
   let shared = 0;
   for (const cluster of plan.clusters) shared = Math.max(shared, clusterSharedHeight(cluster, unit, silencePx));
   return { shared, phases };
+}
+
+/**
+ * WHICH CLUSTER IS UNDER THE READER'S VIEW, from the board's horizontal scroll.
+ *
+ * The board draws ONE rail, pinned at the far left, and it redraws for the role
+ * the reader is actually looking at. That is not a cosmetic choice: "The Ladder"
+ * derives a rail from what happened IN ONE ROLE, so equal y in two clusters is
+ * not the same rung, and a rail that stayed put while the clusters travelled
+ * beneath it would be asserting exactly the thing the rail is not allowed to
+ * assert. Naming the role (`journey.rail.forRole`) is the other half of it.
+ *
+ * `clusterStarts` are the sections' `offsetLeft` inside the track — which
+ * INCLUDE the rail, because the rail is the track's first flex child and sticky
+ * positioning leaves it in flow. So the x to test with is `scrollLeft + railPx`:
+ * the first pixel of board that is not behind the rail. The answer is the LAST
+ * cluster that starts at or before it, which is the one the rail is overlapping.
+ *
+ * Pure, and here rather than in the hook, so the edges are testable without a
+ * scroller: an empty board, an x before the first section (mid-bounce on a
+ * trackpad), and a reader parked on the final cluster.
+ */
+export function clusterIndexInView(
+  scrollLeft: number,
+  railPx: number,
+  clusterStarts: readonly number[]
+): number {
+  if (clusterStarts.length === 0) return -1;
+  // One pixel of tolerance: a sub-pixel scroll offset must not read as "the
+  // previous cluster", which would make the rail flicker between two roles.
+  const x = scrollLeft + railPx + 1;
+  let index = 0;
+  for (let i = 0; i < clusterStarts.length; i++) {
+    if (clusterStarts[i] <= x) index = i;
+    else break;
+  }
+  return index;
 }

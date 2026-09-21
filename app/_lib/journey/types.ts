@@ -196,6 +196,13 @@ export type JourneyRailCellState = "present" | "skipped" | "never-reached";
 export type RoleCluster = {
   jobId: string;
   title: string;
+  /**
+   * The area this role belongs to (`jobs.role_family`), for grouping in the role
+   * picker. NULL when the corpus has no job row for it, or the row records no
+   * family — an ungrouped role is a real state and the picker says so rather than
+   * inventing a bucket.
+   */
+  roleArea: string | null;
   openedAt: string;
   /**
    * The job-definition band. These events belong to the ROLE, not to any column,

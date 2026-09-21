@@ -1,90 +1,90 @@
 "use client";
 
-// Filters, find, and the legend — all of it permanently on screen.
+// Filters and find — one row of them, and nothing else.
 //
-// THE LEGEND IS NOT THE POINT, AND THAT IS THE POINT. The winner's bar is that a
-// reader can tell an observed row from a generated one WITHOUT looking here; the
-// legend exists to teach the vocabulary once, and to give every mark on the
-// board a visible, catalog-backed name that a `title=` attribute never could.
-// Nothing on this board is reachable only by hovering: the contest panel named
-// hover-only information as an anti-pattern, and it does not exist on touch or
-// to a screen reader at all.
+// WHAT WAS HERE AND WHY IT IS GONE. A chip per role (which wrapped over two
+// lines at six roles and is unusable at forty) and an eleven-item legend of
+// every mark on the board. Measured at 1600x1000 the two of them cost 215px of
+// a 1000px screen before a single journey row was drawn. Both are the owner's
+// findings A1 and A2.
 //
-// `journey.rail.note` lives here rather than in each cluster: "steps differ
-// between roles" is one statement about how every rail works, and repeating it
-// four times would make it furniture.
+// The legend's DELETION is not a loss of the information, because the
+// information was never only here: every mark on this board was already
+// self-describing, by the rule the contest's winner was picked for — "a reader
+// can tell an observed row from a generated one WITHOUT looking at the legend".
+// Each of the eleven states still names itself, in the catalog, on the mark,
+// without a hover:
+//
+//   human / machine / unidentified   `sr-only` in every row's accessible name
+//                                    (JourneyRow, ACTOR_MARK_KEY) beside the
+//                                    disc / square / dashed-diamond glyph
+//   observed / from a test run       same `sr-only` clause; visually the solid
+//                                    vs dotted left rule and the hatch
+//   matched by name alone            same `sr-only` clause; visually the `≈`
+//                                    and the wavy amber underline
+//   nothing happened here            printed IN the band (JourneyAbsence 1)
+//   never recorded                   printed IN the band (JourneyAbsence 2)
+//   skipped                          `sr-only` on the cell (JourneyAbsence 4)
+//   never reached                    printed IN the block (JourneyAbsence 5)
+//   N days, nothing recorded         printed as its own row (JourneyRow)
+//
+// `journey.rail.note` STAYS, as one quiet line rather than a notice box. It is
+// the statement that makes the single rail honest — steps are derived per role,
+// so the same y in two clusters is not the same step — and the rail beside it
+// names the role it is describing. Dropping it would leave one rail over a board
+// of roles with nothing saying it is not one ladder for all of them.
 
-import type { ReactNode } from "react";
-import { useTranslations } from "next-intl";
-import { CHIP_TOGGLE, FIELD, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
-import { ACTOR_GLYPH, NEVER_RECORDED_FILL, NEVER_REACHED_FILL, VOID_HATCH } from "./journeyMarks";
-import { SILENCE_DAYS } from "./journeyLayout";
-import type { JourneyFilterState } from "./journeyFilters";
+import { useLocale, useTranslations } from "next-intl";
+import { Select } from "@/app/_components/Select";
+import { CHIP_TOGGLE, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
+import {
+  rolePickerOptions,
+  selectedRole,
+  withSelectedRole,
+  type JourneyFilterState,
+  type RolePickerRole,
+} from "./journeyFilters";
 
 export type JourneyToolbarProps = {
   filters: JourneyFilterState;
   onChange: (next: JourneyFilterState) => void;
-  roles: { jobId: string; title: string }[];
-  onJumpToRole: (jobId: string) => void;
+  roles: RolePickerRole[];
 };
 
-function Swatch({ className }: { className: string }) {
-  return <span className={`inline-block h-3 w-6 shrink-0 rounded-sm border border-stone-300 ${className}`} aria-hidden="true" />;
-}
-
-function LegendItem({ children, mark }: { children: ReactNode; mark: ReactNode }) {
-  return (
-    <li className="flex items-center gap-2 whitespace-nowrap text-xs text-steel">
-      {mark}
-      <span>{children}</span>
-    </li>
-  );
-}
-
-export function JourneyToolbar({ filters, onChange, roles, onJumpToRole }: JourneyToolbarProps) {
+export function JourneyToolbar({ filters, onChange, roles }: JourneyToolbarProps) {
   const t = useTranslations("journey");
-  const allRoles = filters.roles.length === 0;
+  // `roleArea` is the canonical `jobs.role_family` slug; the picker shows the
+  // same localized label the rest of the app does, and falls back to the slug
+  // for a family the taxonomy does not know.
+  const tEnums = useTranslations("enums");
+  const locale = useLocale();
+  const options = rolePickerOptions(roles, {
+    allRoles: t("filters.allRoles"),
+    ungrouped: t("filters.roleUngrouped"),
+    areaLabel: (slug) => {
+      const key = `family.${slug}` as Parameters<typeof tEnums>[0];
+      return tEnums.has(key) ? tEnums(key) : slug;
+    },
+    collator: new Intl.Collator(locale, { numeric: true }),
+  });
 
   return (
     <div className="shrink-0 border-b border-stone-200 bg-paper px-4 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className={META_LABEL}>{t("filters.role")}</span>
-        <button
-          type="button"
-          aria-pressed={allRoles}
-          onClick={() => onChange({ ...filters, roles: [] })}
-          className={CHIP_TOGGLE(allRoles)}
-        >
-          {t("filters.allRoles")}
-        </button>
-        {roles.map((role) => {
-          const on = filters.roles.includes(role.jobId);
-          return (
-            <span key={role.jobId} className="inline-flex items-center gap-1">
-              <button
-                type="button"
-                aria-pressed={on}
-                onClick={() =>
-                  onChange({
-                    ...filters,
-                    roles: on ? filters.roles.filter((id) => id !== role.jobId) : [...filters.roles, role.jobId],
-                  })
-                }
-                className={CHIP_TOGGLE(on)}
-              >
-                {role.title}
-              </button>
-              <button
-                type="button"
-                onClick={() => onJumpToRole(role.jobId)}
-                className="focus-ring rounded px-1 text-xs text-steel underline hover:text-ink"
-              >
-                <span aria-hidden="true">&rarr;</span>
-                <span className="sr-only">{role.title}</span>
-              </button>
-            </span>
-          );
-        })}
+        {/* The app's own Select, not a native one: this board is a focus-trapped
+            dialog, and a native <select>'s option popup is drawn by the OS and
+            does not follow [data-theme]. It also gives the picker a filter box
+            past eight options, which is the actual answer to "a company can
+            have forty roles". */}
+        <Select
+          value={selectedRole(filters)}
+          onChange={(jobId) => onChange(withSelectedRole(filters, jobId))}
+          options={options}
+          ariaLabel={t("filters.rolePicker")}
+          sizeVariant="sm"
+          className="w-64"
+        />
 
         <span className="mx-1 h-5 w-px bg-stone-200" aria-hidden="true" />
 
@@ -120,42 +120,14 @@ export function JourneyToolbar({ filters, onChange, roles, onJumpToRole }: Journ
             value={filters.find}
             onChange={(event) => onChange({ ...filters, find: event.target.value })}
             placeholder={t("filters.find")}
-            className={`${FIELD} w-56 text-sm`}
+            className={`${FIELD} h-9 w-56 py-1 text-sm`}
           />
         </label>
       </div>
 
-      <p className={`${NOTICE("info")} mt-2 inline-block px-2 py-1 text-xs`} role="status">
+      <p className="mt-1 text-xs leading-snug text-steel">
         {t("rail.note")}
       </p>
-
-      <ul className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
-        <LegendItem mark={<span className={ACTOR_GLYPH.human} />}>{t("mark.human")}</LegendItem>
-        <LegendItem mark={<span className={ACTOR_GLYPH.machine} />}>{t("mark.machine")}</LegendItem>
-        <LegendItem mark={<span className={ACTOR_GLYPH.unidentified} />}>{t("mark.unidentified")}</LegendItem>
-        <LegendItem mark={<span className="h-3 w-0 border-l-2 border-solid border-ink" aria-hidden="true" />}>
-          {t("mark.observed")}
-        </LegendItem>
-        <LegendItem mark={<span className="h-3 w-0 border-l-2 border-dotted border-ink" aria-hidden="true" />}>
-          <em>{t("mark.testRun")}</em>
-        </LegendItem>
-        <LegendItem mark={<span aria-hidden="true">≈</span>}>
-          <span className="underline decoration-wavy decoration-amber-600 underline-offset-4">
-            {t("mark.labelOnly")}
-          </span>
-        </LegendItem>
-        <LegendItem mark={<Swatch className={VOID_HATCH} />}>{t("absence.nothingHappened")}</LegendItem>
-        <LegendItem mark={<Swatch className={NEVER_RECORDED_FILL} />}>{t("absence.neverRecorded")}</LegendItem>
-        <LegendItem
-          mark={<span className={`${NOTICE("amber")} inline-block h-3 w-6 shrink-0 rounded-sm border-dashed opacity-75`} aria-hidden="true" />}
-        >
-          {t("rail.skipped")}
-        </LegendItem>
-        <LegendItem mark={<Swatch className={NEVER_REACHED_FILL} />}>{t("rail.neverReached")}</LegendItem>
-        <LegendItem mark={<span className="h-0 w-6 border-t border-dotted border-stone-300" aria-hidden="true" />}>
-          <em>{t("silence", { days: SILENCE_DAYS })}</em>
-        </LegendItem>
-      </ul>
     </div>
   );
 }

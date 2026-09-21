@@ -9,7 +9,10 @@ import {
   filterBoard,
   foldForSearch,
   isFiltering,
+  rolePickerOptions,
+  selectedRole,
   toggleRole,
+  withSelectedRole,
 } from "./journeyFilters.ts";
 import { journeyBoardFixture } from "./__fixtures__/journeyBoard.ts";
 
@@ -64,4 +67,70 @@ test("toggleRole and isFiltering", () => {
   assert.equal(isFiltering(EMPTY_JOURNEY_FILTERS), false);
   assert.equal(isFiltering({ ...EMPTY_JOURNEY_FILTERS, find: "   " }), false, "whitespace is not a search");
   assert.equal(isFiltering({ ...EMPTY_JOURNEY_FILTERS, observedOnly: true }), true);
+});
+
+// `roleArea` arrives as a canonical slug; the picker heads each group with the
+// localized label and degrades to the slug when the taxonomy has no word for it.
+const LABELS = {
+  allRoles: "All roles",
+  ungrouped: "Other roles",
+  areaLabel: (slug: string) => (slug === "software_engineering" ? "Engineering" : slug),
+  collator: new Intl.Collator("en", { numeric: true }),
+};
+
+test("the role picker groups by area, sorts both levels, and never invents a bucket", () => {
+  const options = rolePickerOptions(
+    [
+      { jobId: "j1", title: "Zebra Handler", roleArea: "operations" },
+      { jobId: "j2", title: "Backend Engineer", roleArea: "software_engineering" },
+      { jobId: "j3", title: "Analyst", roleArea: null },
+      { jobId: "j4", title: "Android Engineer", roleArea: "software_engineering" },
+      // An EMPTY area is the same fact as a missing one — the record does not
+      // say — and must not become a group whose name is "".
+      { jobId: "j5", title: "Barista", roleArea: "   " },
+    ],
+    LABELS
+  );
+
+  assert.deepEqual(
+    options.map((o) => o.label),
+    [
+      "All roles",
+      // Sorted by the LABEL ("Engineering"), not by the slug it came from
+      // ("software_engineering"), which would have filed it after "operations".
+      "Engineering",
+      "Android Engineer",
+      "Backend Engineer",
+      "operations",
+      "Zebra Handler",
+      "Other roles",
+      "Analyst",
+      "Barista",
+    ]
+  );
+  // Headings are not choosable; "All roles" is.
+  assert.deepEqual(
+    options.filter((o) => o.disabled === true).map((o) => o.label),
+    ["Engineering", "operations", "Other roles"]
+  );
+  assert.equal(options[0].value, "");
+  assert.equal(options[0].disabled, undefined);
+});
+
+test("a board with no areas at all is still one honest group", () => {
+  const options = rolePickerOptions([{ jobId: "j1", title: "Analyst", roleArea: null }], LABELS);
+  assert.deepEqual(options.map((o) => o.label), ["All roles", "Other roles", "Analyst"]);
+  // And a board with no roles is just the one option, never an empty dropdown.
+  assert.deepEqual(rolePickerOptions([], LABELS).length, 1);
+});
+
+test("the picker is single-select over a set-shaped filter, and back", () => {
+  assert.equal(selectedRole(EMPTY_JOURNEY_FILTERS), "");
+  const picked = withSelectedRole(EMPTY_JOURNEY_FILTERS, "job-a");
+  assert.deepEqual(picked.roles, ["job-a"]);
+  assert.equal(selectedRole(picked), "job-a");
+  // Back to "all roles" is an EMPTY list, which is what filterBoard reads as
+  // "do not narrow" — not a list holding the empty string.
+  assert.deepEqual(withSelectedRole(picked, "").roles, []);
+  assert.equal(isFiltering(withSelectedRole(picked, "")), false);
 });

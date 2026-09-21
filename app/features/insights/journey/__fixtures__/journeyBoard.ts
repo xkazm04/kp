@@ -169,6 +169,10 @@ const COL_EMPTY: JourneyColumn = {
 export const CLUSTER_A: RoleCluster = {
   jobId: "job-a",
   title: "Senior Java Backend Engineer",
+  // The record DOES carry an area for this one; cluster B's is null, which is
+  // the state the role picker must group as "other roles" rather than invent a
+  // bucket for.
+  roleArea: "Engineering",
   openedAt: T(1),
   sharedEvents: SHARED_A,
   // The intake conversation is not linked to this role in the record, so the
@@ -184,6 +188,7 @@ export const CLUSTER_A: RoleCluster = {
 export const CLUSTER_B: RoleCluster = {
   jobId: "job-b",
   title: "Junior Risk Data Analyst",
+  roleArea: null,
   openedAt: T(4),
   sharedEvents: [ev("sh-b-1", "intake_round", "job-definition", 4, "human:requestor", { topicCode: "role-title" })],
   sharedEventsUnlinked: false,

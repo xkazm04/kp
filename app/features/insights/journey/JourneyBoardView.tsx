@@ -3,11 +3,13 @@
 // Journey Analytics — the board.
 //
 // WHAT THIS IS. One column per candidate journey, time running downward, grouped
-// into role clusters. Each cluster carries a canonical-step RAIL down its left
-// edge, so row `n` means the same step in every column of that cluster, and a
-// shared job-definition band drawn ONCE above all of them. Three phases in
-// order: job-definition -> case -> screening. It is a projection over five
-// append-only logs; there is no journey ledger.
+// into role clusters. ONE canonical-step rail is pinned at the far left of the
+// track and redraws for whichever cluster is under the reader's view, so row `n`
+// means the same step in every column of THAT cluster and the rail says which
+// role it is describing; each cluster carries a shared job-definition band drawn
+// ONCE above all of its columns. Three phases in order: job-definition -> case
+// -> screening. It is a projection over five append-only logs; there is no
+// journey ledger.
 //
 // WHERE THE DESIGN CAME FROM. A blind design contest ran on this exact problem
 // (.contest/arena/journey-analytics/). The owner's verdict picked the winner
@@ -48,14 +50,15 @@ import type { JourneyEvent, JourneyOrigin, JourneyPhaseId } from "@/app/_lib/jou
 import { JourneyCluster } from "./JourneyCluster";
 import { JourneyFactCard } from "./JourneyFactCard";
 import { JourneyMinimap } from "./JourneyMinimap";
+import { JourneyRail, type LitRow } from "./JourneyRail";
 import { JourneyToolbar } from "./JourneyToolbar";
-import type { LitRow } from "./JourneyRail";
 import { EMPTY_JOURNEY_FILTERS, filterBoard, type JourneyFilterState } from "./journeyFilters";
 import {
   JOURNEY_SILENCE_PX,
   globalBandHeights,
   planBoard,
 } from "./journeyLayout";
+import { useClusterInView } from "./useClusterInView";
 import { useJourneyBoard } from "./useJourneyBoard";
 import { useJourneyDetail } from "./useJourneyDetail";
 import { useRowUnit } from "./useRowUnit";
@@ -100,6 +103,13 @@ export function JourneyBoardView() {
     () => (plan ? globalBandHeights(plan, unit, JOURNEY_SILENCE_PX) : null),
     [plan, unit]
   );
+
+  // WHICH CLUSTER THE ONE RAIL IS DESCRIBING. Derived from the scroller rather
+  // than from a selection: the reader travels sideways, and the rail has to
+  // follow them or it silently starts describing the wrong role.
+  const activeIndex = useClusterInView(scrollerRef, trackRef, plan?.clusters.length ?? 0, plan);
+  const activeCluster = plan?.clusters[activeIndex] ?? null;
+  const activeJobId = activeCluster?.cluster.jobId ?? null;
 
   // eventId -> everything the fact card needs, built once per plan.
   const index = useMemo(() => {
@@ -147,10 +157,29 @@ export function JourneyBoardView() {
     );
   }, []);
 
+  // The rail lights a row in the cluster it is currently describing — never in
+  // "the board", which has no shared row 4.
+  const lightActiveRow = useCallback(
+    (phase: JourneyPhaseId, row: number) => {
+      if (activeJobId === null) return;
+      lightRow(activeJobId, phase, row);
+    },
+    [lightRow, activeJobId]
+  );
+
   const jumpToRole = useCallback((jobId: string) => {
     const scroller = scrollerRef.current;
-    const section = trackRef.current?.querySelector<HTMLElement>(`[data-jr-cluster="${CSS.escape(jobId)}"]`);
-    if (scroller && section) scroller.scrollTo({ left: section.offsetLeft, behavior: "smooth" });
+    const track = trackRef.current;
+    const section = track?.querySelector<HTMLElement>(`[data-jr-cluster="${CSS.escape(jobId)}"]`);
+    if (!scroller || !track || !section) return;
+    // MINUS THE RAIL. A section's `offsetLeft` counts the rail, because the rail
+    // is the track's first flex child; scrolling straight to it would park the
+    // cluster's first 16rem underneath the sticky rail — its title, its shared
+    // band's opening line and its first column's header, all covered. Landing
+    // the cluster at the rail's RIGHT edge is also what makes the arrival
+    // unambiguous to `clusterIndexInView`, which reads the same offset.
+    const railPx = track.querySelector<HTMLElement>("[data-jr-rail]")?.offsetWidth ?? 0;
+    scroller.scrollTo({ left: Math.max(0, section.offsetLeft - railPx), behavior: "smooth" });
   }, []);
 
   // The find box NARROWS the board rather than only jumping, so a search with no
@@ -161,8 +190,13 @@ export function JourneyBoardView() {
     scrollerRef.current?.scrollTo({ left: 0, behavior: "auto" });
   }, [filters.find]);
 
+  // The picker groups by area, so it needs the area — and `null` is a real
+  // state it must render as "other roles" rather than invent a bucket for.
   const roles = useMemo(
-    () => (board ? board.clusters.map((c) => ({ jobId: c.jobId, title: c.title })) : []),
+    () =>
+      board
+        ? board.clusters.map((c) => ({ jobId: c.jobId, title: c.title, roleArea: c.roleArea }))
+        : [],
     [board]
   );
 
@@ -189,8 +223,10 @@ export function JourneyBoardView() {
 
   return (
     <div className="flex h-full flex-col">
-      <JourneyToolbar filters={filters} onChange={setFilters} roles={roles} onJumpToRole={jumpToRole} />
-      {plan && plan.clusters.length > 0 ? <JourneyMinimap plan={plan} scrollerRef={scrollerRef} /> : null}
+      <JourneyToolbar filters={filters} onChange={setFilters} roles={roles} />
+      {plan && plan.clusters.length > 0 ? (
+        <JourneyMinimap plan={plan} scrollerRef={scrollerRef} onJumpToRole={jumpToRole} />
+      ) : null}
 
       <div className="flex min-h-0 flex-1">
         {/* The ONE scroller. The overlay owns the viewport, so nothing here may
@@ -206,6 +242,23 @@ export function JourneyBoardView() {
             </div>
           ) : (
             <div ref={trackRef} className="flex w-max items-start pb-16">
+              {/* ONE rail, first in the track and `sticky left-0`, so it stays
+                  at the reader's left edge while the clusters travel under it.
+                  Its steps and its title are the ACTIVE cluster's; the rungs
+                  line up with every cluster because `globalBandHeights` pads
+                  all of them to one height. */}
+              {activeCluster ? (
+                <JourneyRail
+                  cluster={activeCluster}
+                  phases={plan.columnPhases}
+                  bandPx={heights?.phases ?? NO_BANDS}
+                  sharedPx={heights?.shared ?? 0}
+                  unit={unit}
+                  silencePx={JOURNEY_SILENCE_PX}
+                  lit={lit}
+                  onLight={lightActiveRow}
+                />
+              ) : null}
               {plan.clusters.map((cluster) => (
                 <div key={cluster.cluster.jobId} data-jr-cluster={cluster.cluster.jobId} className="flex flex-none">
                   <JourneyCluster
@@ -216,7 +269,6 @@ export function JourneyBoardView() {
                     unit={unit}
                     silencePx={JOURNEY_SILENCE_PX}
                     lit={lit}
-                    onLight={lightRow}
                     selectedEventId={selectedId}
                     onSelectRow={selectRow}
                     isMounted={columns.isMounted}

@@ -9,10 +9,20 @@
 // row `n` is the SAME step in every column of the cluster, so the cohort becomes
 // readable across: "38 of 45 reached this, 31 of them by the machine".
 //
-// AND IT IS PER ROLE. `journey.rail.note` says so in the toolbar, once: a rail
-// is derived from what actually happened in this role, not from a declared
-// policy, so equal vertical position in two clusters is NOT the same step. The
-// server derives it (`RoleCluster.rail`); this component never re-derives it.
+// AND IT IS PER ROLE — which is why there is exactly ONE of it on the board.
+// A rail is derived from what actually happened in this role, not from a
+// declared policy, so equal vertical position in two clusters is NOT the same
+// step. Every cluster used to draw its own, which made a sideways journey read
+// rail / columns / rail / columns and cost 16rem per role; now one rail is
+// pinned at the far left of the track and REDRAWS for whichever cluster is
+// under the reader's view (`clusterIndexInView`, `useClusterInView`), naming
+// that role in its own header (`journey.rail.forRole`). The alignment that
+// makes one rail legitimate is `globalBandHeights`: every cluster's bands are
+// padded to one height, so the rungs sit at the same y in all of them.
+// `journey.rail.note` in the toolbar says the rest, once.
+//
+// The server derives the steps (`RoleCluster.rail`); this component never
+// re-derives them.
 
 import { memo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -63,10 +73,13 @@ function RailStep({
 }) {
   const t = useTranslations("journey");
   const sentence = useJourneySentence();
-  const cohort = Math.max(step.cohort, 1);
-  const machinePct = Math.round((step.byMachine / cohort) * 100);
-  const humanPct = Math.max(0, Math.round((step.reached / cohort) * 100) - machinePct);
 
+  // TITLE LEFT, COVERAGE RIGHT — the same two-part shape as a JourneyRow, and
+  // the same reason. The step used to stack a clamped title over a full-width
+  // cohort BAR, which cost a third line of height in every one of the board's
+  // rows (the row unit is global, so the rail sets it too) and said nothing the
+  // number beside it did not. `journey.rail.reached` IS "38 of 45"; the bar was
+  // a second encoding of it in colour, which is the weaker of the two channels.
   return (
     <button
       type="button"
@@ -74,24 +87,22 @@ function RailStep({
       aria-pressed={lit}
       onClick={onLight}
       style={{ height }}
-      className={`focus-ring flex w-full shrink-0 flex-col justify-center overflow-hidden border-b border-stone-200 px-2 py-1 text-left transition-colors hover:bg-stone-100 ${
+      className={`focus-ring flex w-full shrink-0 items-start gap-2 overflow-hidden border-b border-stone-200 px-2 py-1.5 text-left transition-colors hover:bg-stone-100 ${
         lit ? "bg-coral/10" : ""
       }`}
     >
-      <span className="block break-words text-xs leading-snug text-ink">
+      {/* Two lines, then the tail is clamped — the full step stays in the DOM,
+          so it is still the button's accessible name in full. */}
+      <span className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-snug text-ink">
         {sentence({ kind: step.kind, topicCode: step.topicCode })}
       </span>
-      <span className="mt-1 flex items-center gap-2">
-        <span className="flex h-1 flex-1 overflow-hidden rounded-full bg-stone-200" aria-hidden="true">
-          <span className="h-full bg-steel" style={{ width: `${machinePct}%` }} />
-          <span className="h-full bg-coral" style={{ width: `${humanPct}%` }} />
-        </span>
-        <span className="nums shrink-0 text-xs text-steel">
-          {t("rail.reached", { reached: step.reached, cohort: step.cohort })}
-        </span>
+      <span className="nums mt-px shrink-0 text-xs text-steel">
+        {t("rail.reached", { reached: step.reached, cohort: step.cohort })}
       </span>
-      {/* The machine share is a bar for a sighted reader and a sentence for
-          everyone else — never a colour on its own, never a tooltip. */}
+      {/* The machine's share of that cohort. It lost its visible bar with the
+          owner's density pass; it is still in the accessible name, and the
+          actor glyph on every ROW is where a sighted reader reads the same
+          fact per event. */}
       <span className="sr-only">{t("rail.byMachine", { count: step.byMachine })}</span>
     </button>
   );
@@ -161,14 +172,25 @@ function StepList({
 function JourneyRailImpl({ cluster, phases, bandPx, sharedPx, unit, silencePx, lit, onLight }: JourneyRailProps) {
   const t = useTranslations("journey");
   const jobId = cluster.cluster.jobId;
+  const roleTitle = cluster.cluster.title;
 
   return (
-    <div className={`sticky left-0 z-30 flex ${JOURNEY_RAIL_W} flex-none flex-col border-r-2 border-ink bg-paper`}>
+    <div
+      data-jr-rail=""
+      className={`sticky left-0 z-30 flex ${JOURNEY_RAIL_W} flex-none flex-col border-r-2 border-ink bg-paper`}
+    >
       <div
         className="sticky top-0 z-10 flex shrink-0 items-center border-b border-stone-200 bg-paper px-2"
         style={{ height: JOURNEY_CLUSTER_HEAD_PX }}
       >
-        <span className="text-meta uppercase text-coral">{t("rail.title")}</span>
+        {/* NEVER the bare "Steps in this role": one rail over a board of roles
+            has to say WHICH role, or it reads as a ladder that spans all of
+            them — the one claim a per-role rail may not make. Clamped to two
+            lines so a long role title cannot break the 44px head the columns
+            are aligned against; the full title stays in the DOM. */}
+        <span className="line-clamp-2 text-xs font-semibold leading-tight text-coral">
+          {t("rail.forRole", { role: roleTitle })}
+        </span>
       </div>
 
       {/* The role's own conversation, above every column — so its steps sit in

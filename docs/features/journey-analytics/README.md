@@ -33,8 +33,12 @@ highlight all work; closing the overlay returns the reader to the tab they came 
 2. Each cluster shows the **shared job-definition band** once, above all its columns — the
    conversation that defined the role happened once, before anyone was a candidate. The band says so,
    and says when the intake record is not actually linked to that role.
-3. Below it, one column per candidate, aligned to the cluster's **canonical step rail**: row *n*
-   means the same step in every column, so a gap is visible in place rather than inferred.
+3. Below it, one column per candidate, aligned to the **canonical step rail**: row *n* means the
+   same step in every column of that cluster, so a gap is visible in place rather than inferred.
+   There is **one rail for the whole board**, pinned at the far left; it re-renders for whichever
+   cluster is under view and names that role (`journey.rail.forRole`). Steps are per role — equal
+   vertical position in two clusters is NOT the same step — so a rail that did not say which role it
+   describes would be a lie. Completion reads as a number (`38 of 45`), not a bar.
 4. Filter by role, to active candidates only, or search for a person.
 5. Click any row for a **fact card** (actor, both clocks, phase, what changed, topic). "Open the
    source" is a deliberate **second** step that reveals the underlying excerpt. The board never
@@ -48,6 +52,8 @@ highlight all work; closing the overlay returns the reader to the tab they came 
 | `GET /api/journeys/[entryId]` | `app/api/journeys/[entryId]/route.ts` | One column; with `?event=` one `JourneyEventDetail` |
 | `journeyBoard` / `journeyColumn` / `journeyEventDetail` | `app/_lib/journey/project.ts` | The projection |
 | `journeyRail` / `railCellState` | `app/_lib/journey/project.ts` | The canonical rail and its cell states |
+| `clusterIndexInView` | `app/features/insights/journey/journeyLayout.ts` | Which cluster the single rail currently describes, from the scroller's offset |
+| `rolePickerOptions` | `app/features/insights/journey/journeyFilters.ts` | The role dropdown, grouped by `roleArea` and sorted by title |
 | `journeyAnalysisAttachment` | `app/_lib/journey/identity.ts` | The analysis join rule — `none` / `confirmed` / `label-only` |
 | `journeyEventMessageKey` | `app/_lib/journey/render-keys.ts` | kind (or topic) → catalog key |
 | types | `app/_lib/journey/types.ts` | The wire contract |
@@ -85,6 +91,9 @@ only DELETE.
 
 These are the feature, not decoration:
 
+- **There is no legend.** Every provenance state is carried on the mark itself and in the row's
+  accessible name, so a reader identifies an unidentified actor or a generated row without consulting
+  a key. A legend that has to be read is a legend that will not be.
 - **A row is never a stored sentence.** It is a `kind` + structured `facts` (+ an optional
   `topicCode`), rendered per locale. Storing English would ship English to cs/de/fr readers and make
   a cohort uncountable.
@@ -122,4 +131,12 @@ through its kind.
   `railCells.ts`. That is deliberate for now: `project.ts` reaches the database and a client
   component must not import it. The clean fix is to extract the pure rail logic into a shared
   dependency-free module both import.
+- **A row's sentence clamps to two lines.** This reverses the board's original "never truncate" rule
+  and is what took visible rows from 5 to 12 on a 1000px screen. The full sentence stays in the DOM as
+  the row button's accessible name and is printed unclamped in the fact card, one click away.
+- **The rail's machine-share is no longer a visual channel.** With the bar removed in favour of the
+  `n/n` number, `journey.rail.byMachine` survives only in the step's accessible name; a sighted reader
+  reads the same fact per event from the actor glyph.
+- **Minimap labels truncate on narrow spans.** Spans are proportional to column count, so a role with
+  3 of 50 journeys gets a few dozen pixels. The full name is the jump button's accessible name.
 - No arrow-key roving between rows; every row is a native button, so a deep column is a long tab.

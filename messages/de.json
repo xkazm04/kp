@@ -11881,7 +11881,9 @@
       "activeOnly": "Nur aktive Kandidaten",
       "observedOnly": "Nur beobachtete Zeilen",
       "find": "Kandidat suchen",
-      "testRuns": "Testläufe einbeziehen"
+      "testRuns": "Testläufe einbeziehen",
+      "roleUngrouped": "Weitere Rollen",
+      "rolePicker": "Rolle wählen"
     },
     "phases": {
       "job-definition": "Rollendefinition",
@@ -11898,7 +11900,8 @@
       "reached": "{reached} von {cohort}",
       "byMachine": "{count} von der Maschine",
       "skipped": "Übersprungen, der Verlauf ging weiter",
-      "neverReached": "Nie erreicht. Der Verlauf endet hier"
+      "neverReached": "Nie erreicht. Der Verlauf endet hier",
+      "forRole": "Schritte in {role}"
     },
     "absence": {
       "caseNotRun": "Für diese Rolle gibt es keine Arbeitsprobe.",
@@ -11997,7 +12000,8 @@
     },
     "noMatches": "Kein Verlauf entspricht diesen Filtern.",
     "minimap": {
-      "label": "Übersicht aller Spalten"
+      "label": "Übersicht aller Spalten",
+      "roleColumns": "{role}: {count} Verläufe"
     }
   }
 }

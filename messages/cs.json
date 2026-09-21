@@ -11881,7 +11881,9 @@
       "activeOnly": "Jen aktivní kandidáti",
       "observedOnly": "Jen zaznamenané řádky",
       "find": "Najít kandidáta",
-      "testRuns": "Včetně testovacích běhů"
+      "testRuns": "Včetně testovacích běhů",
+      "roleUngrouped": "Ostatní role",
+      "rolePicker": "Vyberte roli"
     },
     "phases": {
       "job-definition": "Definice role",
@@ -11898,7 +11900,8 @@
       "reached": "{reached} z {cohort}",
       "byMachine": "{count} udělal stroj",
       "skipped": "Přeskočeno, cesta pokračovala",
-      "neverReached": "Nikdy nedosaženo. Cesta zde končí"
+      "neverReached": "Nikdy nedosaženo. Cesta zde končí",
+      "forRole": "Kroky v roli {role}"
     },
     "absence": {
       "caseNotRun": "Tato role nepoužívá praktické zadání.",
@@ -11997,7 +12000,8 @@
     },
     "noMatches": "Žádná cesta neodpovídá těmto filtrům.",
     "minimap": {
-      "label": "Přehled všech sloupců"
+      "label": "Přehled všech sloupců",
+      "roleColumns": "{role}: {count} cest"
     }
   }
 }

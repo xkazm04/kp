@@ -140,7 +140,17 @@ export const NEVER_REACHED_FILL =
  * headline all say the same thing the same way.
  */
 export function rowTextClass(p: RowProvenance): string {
-  const parts = ["block", "text-sm", "leading-snug", "break-words"];
+  // TWO LINES, THEN THE TAIL IS CLAMPED. The row unit is global by construction
+  // — the rail has to describe the columns beside it — so without a bound at the
+  // cell, ONE long sentence in one column sets the height of every row on the
+  // board. Measured against the real corpus that was a 70px unit for a median
+  // one-line sentence: ~80% dead space per row, the owner's finding E.
+  //
+  // Nothing is hidden by it. `line-clamp` is a paint-time clamp, not a
+  // truncation: the whole sentence stays in the DOM, so it is still the row
+  // button's accessible name in full, and the fact card prints it unclamped as
+  // its headline one click away.
+  const parts = ["block", "line-clamp-2", "text-sm", "leading-snug", "break-words"];
   if (!p.observed) parts.push("italic");
   if (p.labelOnly) parts.push("underline", "decoration-wavy", "decoration-amber-600", "underline-offset-4");
   if (p.actor === "unidentified") parts.push("text-steel");

@@ -11881,7 +11881,9 @@
       "activeOnly": "Candidats actifs uniquement",
       "observedOnly": "Lignes observées uniquement",
       "find": "Rechercher un candidat",
-      "testRuns": "Inclure les exécutions de test"
+      "testRuns": "Inclure les exécutions de test",
+      "roleUngrouped": "Autres postes",
+      "rolePicker": "Choisir un poste"
     },
     "phases": {
       "job-definition": "Définition du poste",
@@ -11898,7 +11900,8 @@
       "reached": "{reached} sur {cohort}",
       "byMachine": "{count} par la machine",
       "skipped": "Ignorée, le parcours a continué",
-      "neverReached": "Jamais atteinte. Le parcours s'arrête ici"
+      "neverReached": "Jamais atteinte. Le parcours s'arrête ici",
+      "forRole": "Étapes du poste {role}"
     },
     "absence": {
       "caseNotRun": "Ce poste n'utilise pas de cas pratique.",
@@ -11997,7 +12000,8 @@
     },
     "noMatches": "Aucun parcours ne correspond à ces filtres.",
     "minimap": {
-      "label": "Vue d'ensemble de toutes les colonnes"
+      "label": "Vue d'ensemble de toutes les colonnes",
+      "roleColumns": "{role} : {count} parcours"
     }
   }
 }
