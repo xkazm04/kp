@@ -7,11 +7,20 @@
 // Step 4 used to be "First role" — the inputs of a real backgrounded JD build.
 // It is gone: authoring a job description is a Library job with its own ledger,
 // retry and engine caveats, and asking for it inside a modal made the wizard the
-// second-best place to do it. The Getting-started checklist now walks the
-// operator there (setupGettingStartedModel.ts STEPS: `firstRole` → the Library's
-// jd-builder anchor). What replaced it is the one shape decision the whole
+// second-best place to do it; the Library's own JD builder is where it lives now.
+// What replaced it is the one shape decision the whole
 // workspace hangs off and that nothing else asks about at first run: the board's
 // columns.
+//
+// THE INTENT FORK (2026-09-16, spark candidate-jobseeker). The Welcome step asks
+// ONE question before anything else: hiring, or looking for a job? A seeker has no
+// company, no team, no hiring board and no Candi — so those four steps declare
+// themselves irrelevant for `intent === "seek"` and the wizard runs Welcome →
+// Hand-off, then finish() routes to /me instead of the workspace. Branching is a
+// DECLARED PREDICATE on the step (`relevant`), and `relevantSteps()` is the one
+// authority the rail, the counter, the gates, the ceiling and the finish fold all
+// derive from — indices are positions in the relevant sequence, identity is the id.
+// The hire path is byte-for-byte what it was (setupSteps.test.ts pins the sequence).
 
 // bug-ui-scan-2026-07-09 (organizations-members-invites #4): source the role +
 // language vocabularies from the REAL identity model (auth/roles) and the shared
@@ -19,6 +28,8 @@
 // prototype fixture. Onboarding speaks the server enum natively.
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
+import { APP_CURRENCY } from "@/app/_lib/format";
+import type { OrgCurrency } from "@/app/_lib/org-settings";
 import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 // The PROBE module, never companion-brain.ts: that one spawns Python and opens
 // better-sqlite3, and this file is imported by a client component. Same
@@ -28,14 +39,36 @@ import { axisProblems, type AxisDraft } from "@/app/features/shared/pipelineAxis
 
 export type SetupStepId = "welcome" | "company" | "team" | "pipeline" | "companion" | "handoff";
 
-export const SETUP_STEPS: { id: SetupStepId }[] = [
+/** What brought the operator here. `null` until the Welcome step is answered. */
+export const SETUP_INTENTS = ["hire", "seek"] as const;
+export type SetupIntent = (typeof SETUP_INTENTS)[number];
+export function isSetupIntent(v: unknown): v is SetupIntent {
+  return typeof v === "string" && (SETUP_INTENTS as readonly string[]).includes(v);
+}
+
+export type SetupStep = {
+  id: SetupStepId;
+  /** Whether the step belongs in THIS run. Absent = always. */
+  relevant?: (state: SetupState) => boolean;
+};
+
+const hiringOnly = (state: SetupState): boolean => state.intent !== "seek";
+
+export const SETUP_STEPS: SetupStep[] = [
   { id: "welcome" },
-  { id: "company" },
-  { id: "team" },
-  { id: "pipeline" },
-  { id: "companion" },
+  { id: "company", relevant: hiringOnly },
+  { id: "team", relevant: hiringOnly },
+  { id: "pipeline", relevant: hiringOnly },
+  { id: "companion", relevant: hiringOnly },
   { id: "handoff" },
 ];
+
+/** The steps this run walks, in order — THE authority every index in the wizard is
+ *  a position in. A hire (or undecided) run is the full journey; a seek run is
+ *  Welcome → Hand-off. */
+export function relevantSteps(state: SetupState): SetupStep[] {
+  return SETUP_STEPS.filter((s) => !s.relevant || s.relevant(state));
+}
 
 export type SetupInvite = { email: string; role: MemberRole };
 
@@ -67,12 +100,13 @@ export type SetupBrainLoad = "loading" | "ready" | "failed";
 
 /** Whether a step's REQUIRED inputs are satisfied — the single gate behind the
  *  footer's Continue AND the rail's forward navigation, so the stepper can't
- *  bypass what the button enforces. Only `company` has a required input; `team`
- *  and `pipeline` are optional — `team` invites nobody by default and
- *  `pipeline` ships a working five-column board, so accepting either unchanged
- *  is a legitimate answer. The pipeline gate is therefore a
- *  VALIDITY check, not a completeness one: an axis the server would reject can't
- *  be carried to the hand-off, but an untouched one is fine.
+ *  bypass what the button enforces. `welcome` requires the INTENT (the fork
+ *  everything after it hangs off) and `company` an org name; `team` and
+ *  `pipeline` are optional — `team` invites nobody by default and `pipeline`
+ *  ships a working five-column board, so accepting either unchanged is a
+ *  legitimate answer. The pipeline gate is therefore a VALIDITY check, not a
+ *  completeness one: an axis the server would reject can't be carried to the
+ *  hand-off, but an untouched one is fine.
  *
  *  `companion` is deliberately absent too, and for a stronger reason than the
  *  others: it asks for CONSENT to keep a memory on the operator's own machine,
@@ -80,6 +114,7 @@ export type SetupBrainLoad = "loading" | "ready" | "failed";
  *  a real answer — the dock still works, memoryless — so the step is always
  *  satisfied and never gates Continue. */
 export function stepSatisfied(id: SetupStepId, state: SetupState): boolean {
+  if (id === "welcome") return state.intent !== null;
   if (id === "company") return state.orgName.trim().length > 0;
   if (id === "pipeline") {
     if (state.pipelineLoad !== "ready" || !state.pipeline) return true;
@@ -108,8 +143,12 @@ export function reachedCeiling(maxVisited: number, stepIndex: number, canAdvance
 }
 
 export type SetupState = {
+  /** The fork: hiring, or looking for a job. Answered on Welcome; null until then. */
+  intent: SetupIntent | null;
   orgName: string;
   language: AppLanguage;
+  /** The salary currency the org writes its bands in (a label, never FX). */
+  currency: OrgCurrency;
   /** Brand accent hex, or null = keep the product default (coral). */
   accentColor: string | null;
   /** https:// logo URL ("" = none). */
@@ -130,8 +169,10 @@ export type SetupState = {
 };
 
 export const INITIAL_SETUP: SetupState = {
+  intent: null,
   orgName: "",
   language: "en",
+  currency: APP_CURRENCY,
   accentColor: null,
   logoUrl: "",
   invites: [],
@@ -148,6 +189,9 @@ export type OnboardingCtrl = {
   /** "live" = the real first run (persists + stamps); "preview" = the Settings
    *  walkthrough (persists NOTHING — the wizard shows a ribbon saying so). */
   mode: "live" | "preview";
+  /** The steps THIS run walks (relevantSteps(state)); every index below is a
+   *  position in it. */
+  steps: SetupStep[];
   stepIndex: number;
   /** Highest step legitimately reached (via Continue / Skip) — the rail may
    *  navigate freely up to here; beyond it only one step ahead when the current
@@ -163,8 +207,20 @@ export type OnboardingCtrl = {
   /** Replace the board draft (the pipeline step's only writer). No-op before the
    *  stored axis has landed — there is nothing to diff against yet. */
   setPipelineDraft: (draft: AxisDraft) => void;
-  /** Cancel/skip — closes; in live mode this stamps the principal "skipped". */
+  /** The operator asked to leave (close control, Escape). In PREVIEW this closes
+   *  straight away — nothing is at stake in a walkthrough that writes nothing. In
+   *  LIVE it raises `leaving` instead, because leaving is irreversible: the skip
+   *  stamp closes the '/' gate for good. */
   onClose: () => void;
+  /** Live mode only: the leave confirmation is showing, and the wizard is rendering
+   *  it INSTEAD of the step (see SetupLeaveConfirm.tsx for why it replaces rather
+   *  than stacks). */
+  leaving: boolean;
+  /** Confirm the departure — exactly what `onClose` used to do: stamp "skipped",
+   *  drop the draft, close. */
+  confirmLeave: () => void;
+  /** Back to the step the operator was on, untouched. */
+  cancelLeave: () => void;
   /** Complete — PERSISTS the setup (org name, language, brand, invites, and the
    *  board columns when they were changed), then closes. */
   finish: () => void;

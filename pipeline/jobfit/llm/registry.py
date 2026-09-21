@@ -12,13 +12,23 @@ Adapters report missing keys/SDKs through ``available()`` (runtime degradation
 → deterministic path); *misconfiguration* — unknown provider, capability
 mismatch, missing required model — raises LLMError instead, because silently
 serving a different engine than configured is worse than failing the request.
+
+One routing decision here is a LEGAL one rather than a technical one: the
+``claude_cli`` engine bills a consumer Claude subscription, which carries no DPA
+and may train on its inputs, so it is refused on a production deployment unless
+``KP_ALLOW_CLI_ENGINE`` unlocks it. This module picks the lane
+(``strip_api_key`` below); the refusal itself lives on the provider
+(``claude_cli.consumer_terms_blocked``) so that EVERY route to the engine —
+a use-case row, the config-less default, the Models-panel probe — meets the same
+veto, and so a refusal arrives as an unavailable provider and degrades to the
+deterministic answer instead of raising through the caller's dance above.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
+from ..claude_cli import is_production_deployment
 from .adapters import ADAPTERS
 from .base import DEFAULT_TIMEOUT_S, LLMError
 from .capabilities import PROVIDER_CAPABILITIES, default_max_tokens, default_model, unsupported_caps
@@ -60,12 +70,32 @@ def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: in
     unchanged CLI default. Dev (no NODE_ENV=production) is never affected.
     Explicit routing — a config row, including ``claude_cli`` — always wins
     before this is consulted."""
-    if os.getenv("NODE_ENV") != "production":
+    if not is_production_deployment():
         return None
     if unsupported_caps(use_case, "gemini"):
         return None
     provider = _gemini_adapter(use_case, cfg, timeout)
     return provider if provider.available() else None
+
+
+def _cli_strip_api_key() -> bool:
+    """Whether a CLI provider HANDED OUT BY THIS REGISTRY strips the Anthropic key.
+
+    Stripping ``ANTHROPIC_API_KEY`` is what makes the child bill a consumer
+    subscription, and that DOWNGRADES the contract the call runs under: with the
+    key it is Commercial terms plus a DPA, without it Consumer terms with neither.
+    ``claude_cli.py``'s own default stays True — it is the dev/eval batch lane's
+    module and its mass-fixture runs exist precisely to spend a subscription seat
+    rather than tokens, so flipping the default would silently move every eval
+    script in ``pipeline/jobfit/eval/`` onto metered billing.
+
+    So the choice is made HERE, where the lane is known, and only in the direction
+    that cannot surprise anyone: on a production deployment an operator's Anthropic
+    key is let through (Commercial terms — and ``consumer_terms_blocked`` then has
+    nothing to refuse), while a dev box keeps today's byte-for-byte behavior. A
+    production box with no key stays on the consumer lane and is refused there.
+    """
+    return not is_production_deployment()
 
 
 # Providers that speak the OpenAI Chat Completions wire format and therefore accept
@@ -114,7 +144,12 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
     timeout_s = timeout or DEFAULT_TIMEOUT_S
 
     if provider_name == "claude_cli":
-        return MonitoredClaudeCli(model=model, timeout=timeout_s, use_case=KEY_PROBE_USE_CASE)
+        return MonitoredClaudeCli(
+            model=model,
+            timeout=timeout_s,
+            use_case=KEY_PROBE_USE_CASE,
+            strip_api_key=_cli_strip_api_key(),
+        )
 
     resolved_model = model or default_model(KEY_PROBE_USE_CASE, provider_name)
     if not resolved_model:
@@ -205,7 +240,16 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
         cli_model = (entry.model if entry else None) or default_model(use_case, "claude_cli")
         # MonitoredClaudeCli IS-A ClaudeCliProvider — identical behavior plus
         # LightTrack emission when observability is configured (monitor.py).
-        return MonitoredClaudeCli(model=cli_model, timeout=cli_timeout, use_case=use_case)
+        # strip_api_key is passed rather than inherited: see _cli_strip_api_key.
+        # On a production box with no Anthropic key this provider is returned and
+        # then reports itself unavailable (consumer_terms_policy) — the refusal is
+        # a degrade, not a raise, so the call site's deterministic fallback serves.
+        return MonitoredClaudeCli(
+            model=cli_model,
+            timeout=cli_timeout,
+            use_case=use_case,
+            strip_api_key=_cli_strip_api_key(),
+        )
 
     provider_name = entry.provider
 

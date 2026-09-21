@@ -246,3 +246,37 @@ test("DataClient: the loading state is a Skeleton, and the page carries a Langua
   assert.match(src, /import \{ LanguageSwitcher \} from "@\/app\/_components\/LanguageSwitcher"/);
   assert.match(src, /<LanguageSwitcher \/>/);
 });
+
+test("DataClient: consentExpiresAt is read through useDateFormat so a malformed expiry never prints Invalid Date", () => {
+  const src = read(DATA_CLIENT);
+  assert.match(src, /useDateFormat/, "dates must go through the null-safe formatter");
+  assert.match(src, /fmt\.date\(view\.consentExpiresAt\)/, "the API field must be formatted, not dropped");
+  assert.match(src, /fmt\.date\(view\.appliedAt\)/, "appliedOn uses the same formatter");
+  assert.match(src, /Number\.isFinite\(Date\.parse\(view\.consentExpiresAt\)\)/, "unparseable expiry is not rendered");
+  assert.ok(!/new Intl\.DateTimeFormat/.test(src), "the one-off Intl call is the bug this pins");
+});
+
+test("data.keptUntil exists in all four catalogs and interpolates {date}", () => {
+  for (const loc of ["en", "cs", "de", "fr"] as const) {
+    const catalog = JSON.parse(read(`../../../messages/${loc}.json`)) as { data?: { keptUntil?: string } };
+    const key = catalog.data?.keptUntil ?? "";
+    assert.ok(key.includes("{date}"), `${loc}: data.keptUntil must interpolate {date}`);
+  }
+});
+
+test("eraseExplainer and confirmBody name a hosted-voice copy the transaction cannot reach", () => {
+  const needles: Record<"en" | "cs" | "de" | "fr", RegExp> = {
+    en: /hosted voice/i,
+    cs: /hostovan/i,
+    de: /gehostet/i,
+    fr: /voix héberg/i,
+  };
+  for (const loc of ["en", "cs", "de", "fr"] as const) {
+    const catalog = JSON.parse(read(`../../../messages/${loc}.json`)) as {
+      data?: { eraseExplainer?: string; confirmBody?: string };
+    };
+    const needle = needles[loc];
+    assert.match(catalog.data?.eraseExplainer ?? "", needle, `${loc}: eraseExplainer must name the hosted-voice carve-out`);
+    assert.match(catalog.data?.confirmBody ?? "", needle, `${loc}: confirmBody must name the hosted-voice carve-out`);
+  }
+});

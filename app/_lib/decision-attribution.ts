@@ -32,6 +32,13 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // an unmapped kind renders UNKNOWN and drops out of the attribution rollup entirely.
   outreach_halted: { auto: true, tone: "text-steel" },
   outreach_suppressed: { auto: true, tone: "text-amber-600" },
+  // The CANDIDATE'S own unsubscribe (/stop/[token]). `auto: false` — this is the
+  // clearest human act on the board: a person told us to stop, exactly as `rejected`
+  // and `offer_declined` are people's acts. Badging it AUTO would credit the machine
+  // with a decision it did not make, and this is the one event a regulator would read
+  // first. Amber like its suppression sibling: it is the marker a recruiter must notice
+  // before they wonder why a campaign skipped someone.
+  outreach_opted_out: { auto: false, tone: "text-amber-600" },
   rejection_sent: { auto: true, tone: "text-coral" },
   rejected: { auto: false, tone: "text-coral" },
   applied: { auto: false, tone: "text-steel" },

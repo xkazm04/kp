@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -89,9 +89,24 @@ function StampableCv({ card, index }: { card: (typeof PILE)[number]; index: numb
   );
 }
 
-export default function Hero() {
+export default function Hero({ signupOpen = false }: { signupOpen?: boolean }) {
   const t = useTranslations("landing");
   const reduceMotion = useStillMotion();
+  // The primary CTA awaits a network round-trip and then HARD-navigates, so
+  // without this the page's only primary action is a second or more of silence.
+  // enterWorkspace() always navigates (both branches and both catch paths), so
+  // there is no success/failure reset to write — the page is gone. The one way
+  // back to a live copy of this component is the back button restoring it from
+  // the bfcache, which replays neither the click nor a remount; `pageshow` with
+  // `persisted` is that case, and the only place the flag is cleared.
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setPending(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
   return (
     <section className="relative mx-auto grid w-full max-w-7xl gap-10 px-6 pb-20 pt-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
       {CONFETTI.map((c, i) => (
@@ -166,22 +181,30 @@ export default function Hero() {
           transition={{ delay: 0.32 }}
           className="mt-8 flex flex-wrap items-center gap-4"
         >
-          {/* TODO(signup-cta): /signup exists but is gated by the server-side
-              KP_SIGNUP_ENABLED env (the page 404s when unset), which the client
-              cannot detect — so the primary CTA keeps enterWorkspace() (open mode
-              → dashboard, password mode → /login). Point it at /signup once the
-              gate is exposed to the client (e.g. an NEXT_PUBLIC_ mirror). */}
+          {/* The cold prospect this band is written for has no account, so the
+              refusal path matters as much as the happy one. Open mode: the
+              credential-less POST succeeds and we land on the dashboard. Gated
+              deploy: it is refused, and the hand-off goes to /signup when this
+              deploy opened self-serve signup, /login when it did not —
+              `signupOpen` is KP_SIGNUP_ENABLED resolved server-side in
+              app/page.tsx (the page 404s when unset, which the client cannot
+              detect), threaded down as a prop rather than mirrored into a
+              NEXT_PUBLIC_ env. */}
           <button
             type="button"
+            disabled={pending}
+            aria-busy={pending}
             onClick={() => {
+              if (pending) return;
+              setPending(true);
               // Placement-level funnel event; enterWorkspace() itself fires
               // workspace_entered (with the plan when one was picked).
               track("landing_cta_click", { placement: "hero" });
-              void enterWorkspace();
+              void enterWorkspace(undefined, { fallback: signupOpen ? "/signup" : "/login" });
             }}
-            className={`${BTN} bg-[#d65a4a] text-white`}
+            className={`${BTN} bg-[#d65a4a] text-white disabled:cursor-wait disabled:opacity-80`}
           >
-            {t("hero.ctaPrimary")}
+            {pending ? t("hero.ctaPending") : t("hero.ctaPrimary")}
             <ArrowRight className="h-5 w-5" aria-hidden />
           </button>
           {/* Public guided demo (B1): a plain navigation to /api/demo mints an
@@ -196,7 +219,17 @@ export default function Hero() {
         </motion.div>
 
         <div className="relative mt-12">
-          <p className={`${HAND} mb-3 -rotate-1 text-lg text-[#526b4f]`}>{t("hero.pileHint")}</p>
+          {/* The pile's affordance differs by input device — the cards stamp on
+              hover AND on click, but "hover the pile" is an instruction a phone
+              cannot follow. Both wordings are in the SSR markup and CSS picks
+              one, so the server and client render identically and no JS fork or
+              hydration-time device sniff is involved. `(hover: none)` (not a
+              width breakpoint) is the honest test: it asks about the pointer,
+              which is the thing the sentence is about. */}
+          <p className={`${HAND} mb-3 -rotate-1 text-lg text-[#526b4f]`}>
+            <span className="[@media(hover:none)]:hidden">{t("hero.pileHint")}</span>
+            <span className="hidden [@media(hover:none)]:inline">{t("hero.pileHintTouch")}</span>
+          </p>
           <div className="flex flex-wrap gap-4">
             {PILE.map((card, i) => (
               <StampableCv key={card.name} card={card} index={i} />

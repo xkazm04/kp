@@ -18,11 +18,21 @@ open-gap register — this file is the "what exists and where" index.
 | Public compliance summary | `app/api/compliance/route.ts` | Anyone (JSON) |
 | Adverse-impact worksheet | `Decisions → Compliance` tab (`app/_lib/adverse-impact.ts`) | Operator, browser-only |
 
-**`/trust` is currently `robots: { index: false, follow: false }` and marked
-internal-for-now** (`app/trust/page.tsx:10-17`) — it is a working posture board
-used to track what's enforced vs. outstanding, not a published marketing page.
-The plan recorded in the file itself is to delete the route once every row
-reads "enforced." Its content is single-sourced in `app/_lib/trust-posture.ts`
+**`/trust` is PUBLIC and INDEXED**, flipped on 2026-08-05 and reversing the
+2026-07-30 internal-for-now call. `app/trust/page.tsx` records the reasoning in
+its header comment: auditable, verified hiring became the headline claim, and a
+headline claim needs its evidence page indexable. The route carries no `robots`
+override, is listed in `app/sitemap.ts` (`priority: 0.5`, monthly) and on the
+public allow-list in `app/_lib/auth/public-routes.ts`, and is linked from the
+landing footer.
+
+Two consequences the earlier revision of this section got wrong. **The gap rows
+stay** — a page that admits what is outstanding is the differentiator, so the
+old plan of deleting the route once every row reads "enforced" is superseded;
+what ships publicly is `trust-posture.ts`'s projection, which already carries no
+internal evidence paths and no gap ids. And because the page is indexed, **every
+claim on it is a public claim**: a stale row there costs more than a stale row
+here. Its content is single-sourced in `app/_lib/trust-posture.ts`
 (`OBLIGATIONS`, `CLASSIFICATION`, `SUBPROCESSORS`, `DATA_RIGHTS`,
 `DISCLAIMER`) — that module is the live, tested, English-only projection of
 the article map in `ai-act-conformity.md` and should be treated as the
@@ -58,6 +68,13 @@ skill credential) and the calibration row, the retired
 onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
+The same heartbeat also runs `notifyExpiringConsents` (`app/_lib/consent-expiry-reminders.ts`):
+entries whose consent is in the 30-day `CONSENT_EXPIRING_DAYS` window and that have
+no `expiring_notified` event yet get exactly one candidate letter (kind
+`consent_expiry`) carrying the existing `/data/[token]` and `/stop/[token]`
+footers, claimed by `claimConsentExpiryNotice` in an IMMEDIATE transaction so a
+re-tick cannot double-send. Opted-out, anonymized, and already-expired rows are
+skipped — expiry itself stays the anonymize sweep's job.
 
 **Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
 
@@ -113,8 +130,9 @@ legal-claims/compliance basis for retaining the sealed chain post-erasure.
 
 Inside an analysis/profile payload the scrub is `scrubPiiFromPayload`
 (`consent.ts`), which walks the blob generically: keys in `PII_KEYS` are blanked
-(`name`, `rawText`, `email`, `phone`, `explanation`, …), `evidence` arrays are
-emptied, and the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
+(`name`, `rawText`, `email`, `phone`, `explanation`, …), arrays in
+`PII_ARRAY_KEYS` (`evidence`, `parsingNotes` / `parsing_notes`) are emptied, and
+the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
 `extractionComparison`, `interviewKit` — are deep-redacted subtree-wide. The
 last two matter because the pipeline stores the uploaded CV text **three** times:
 `candidate.rawText` plus `extractionComparison.{pypdfText,geminiText}`
@@ -122,8 +140,11 @@ last two matter because the pipeline stores the uploaded CV text **three** times
 `rawText` alone left an identical copy of the CV — name, email, phone — readable
 in History and `/api/analyses/[slug]` after an Art. 17 erasure. `explanation` and
 `interviewKit.summary` are name-bearing for the same reason: the deterministic
-(keyless) builders interpolate `candidate.name` straight into them. Retained, as
-before: scores, skills, seniority, role family, salary band, traits.
+(keyless) builders interpolate `candidate.name` straight into them.
+`metadata.parsingNotes` is the same class of leak one key over: the extractor's
+free-text commentary on the document, recruiter-visible on the saved report, and
+not a retained score. Retained, as before: scores, skills, seniority, role
+family, salary band, traits.
 
 **Erasure survives a restart.** The shipped demo corpus is not inert: `ensureDb()`
 re-runs `seedCandidates` and `seedAnalyses` on **every** boot (no empty-table guard,
@@ -165,8 +186,13 @@ four-fifths rule) — every other regime’s null is the contract, not a gap.
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET
-(projection) and POST (→ `anonymizeEntry`). The token is carried in comms
-email footers.
+(projection) and POST (→ `anonymizeEntry`). GET already projects
+`consentExpiresAt`; the page now formats it through `useDateFormat().date`
+(`data.keptUntil`) so the person the TTL is about can see how long we keep
+them, and a malformed expiry cannot print "Invalid Date". Anonymized entries
+do not show a future expiry. The erase explainer and confirm name the limit
+already stated on `/trust`: in-product erasure cannot reach a hosted voice
+provider's copy of an interview. The token is carried in comms email footers.
 
 The page distinguishes a **dead link** from a **transient fault**, because the
 two need opposite reactions from the candidate: only a `404` renders the
@@ -219,19 +245,26 @@ hand-rolling. What changed on the two doors in this document:
 - **The status page's retry and refresh** are `BTN_PRIMARY_LG` / `BTN_GHOST` at
   44px; the NPS scale's eleven cells were 36px and are now 44px (the scale keeps
   its own selected/unselected tint — no `BTN_*` recipe expresses a scale, and
-  the guard exempts `role="radio"` on that ground alone).
+  the guard exempts `role="radio"` on that ground alone). The five-step
+  timeline marks the current `<li>` with `aria-current="step"` (the WAI-ARIA
+  step-list token; the other four stay unset), same job `ChapterRail` does with
+  `aria-current="location"`. Pinned by `status-decision-kinds.test.ts`.
 - **The NPS failure is a `role="alert"` and the thanks swap a `role="status"`.**
   "That didn't go through" announced nothing: a screen-reader user pressed Send
   and heard silence over an answer that had been DROPPED, and the success case
   replaced the whole question card just as silently.
-- **The two status doors and the erasure door answer refusal CODES**, not bare
-  English. `STATUS_LINK_INVALID` (404 on both `/api/status/[token]` and its
-  `/nps` sibling — one refusal for "no such token" and "no such entry", so the
-  door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
-  feedback on a still-running application) and `DATA_LINK_INVALID` (404 for a
-  never-issued or already-spent erasure token). All three are in `REFUSAL_ERRORS`
+- **The two status doors, the Art. 86 decisions door, and the erasure door answer refusal CODES**, not bare
+  English. `STATUS_LINK_INVALID` (404 on `/api/status/[token]`, its `/nps`
+  sibling, and `GET /api/status/[token]/decisions` — one refusal for "no such token"
+  and "no such entry", so the door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
+  feedback on a still-running application), `NPS_SCORE_REQUIRED` /
+  `NPS_SCORE_INVALID` (`parseNpsSubmission` refuses with a code, never an English
+  `reason`; `POST /api/status/[token]/nps` answers `jsonRefusal(parsed.code, 400)`),
+  and `DATA_LINK_INVALID` (404 for a
+  never-issued or already-spent erasure token). All are in `REFUSAL_ERRORS`
   with four catalogue entries each; the page resolves `errors.<CODE>` in the
-  reader's language (`docs/architecture/api-contracts.md` §1.1).
+  reader's language (`docs/architecture/api-contracts.md` §1.1). Pinned by
+  `app/api/status/status-decisions.test.ts` and `app/_lib/candidate-nps.test.ts`.
 
 `e2e/token-doors-axe.spec.ts` now sweeps `/status/[token]` in two states — the
 loaded timeline and the dead-link alert — beside the offer, erasure and invite
@@ -375,7 +408,20 @@ already carries traceability.
 
 The full dossier (`GET /api/decisions/records`) stays operator-gated
 (`requireOperator()`) because it carries rationale text, chain hashes and
-policy versions. A **separate, redacted candidate-facing view** now exists:
+policy versions. A store fault on that read answers
+`DECISION_RECORDS_READ_FAILED` through `safeJsonError` rather than forwarding
+SQLITE text or the db path. The same operator-session re-verify is pinned for every
+`/api/decisions/*` handler in `app/api/decisions/decisions-auth.test.ts`,
+including `GET /api/decisions/peer-context` (salary expectations) and
+`GET /api/decisions/jd-freshness` (JD-edit times), so dropping
+`requireOperator` on either is a red test rather than a public PII leak.
+A store fault on jd-freshness answers `JD_FRESHNESS_LOOKUP_FAILED` through
+`safeJsonError`; the client already treats a missing `editedAt` as non-stale.
+`GET /api/decisions/reconsider` still pages at 50 auto-rejects, but the envelope
+now carries `truncated` and `total` so an auditor can see when the safety valve's
+window hid the rest of an irreversible wave.
+
+A **separate, redacted candidate-facing view** now exists:
 `app/_lib/status-decisions.ts` derives a `CandidateDecisionView` (kind,
 attribution, reasonCode, and — for `auto_rejected` only — the threshold facts
 that were actually decisive) from the same sealed rows, served on
@@ -386,6 +432,11 @@ sealed record, never freshly generated** (see the module header comment,
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
 (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`).
+Every non-2xx from that door is a coded envelope (`jsonRefusal` /
+`safeJsonError`): missing `jobId`, a malformed override, a 409 approval
+refusal (still carrying `reason` from `SCREEN_WAVE_REFUSAL_REASONS`), and the
+500 catch. The client resolves `errors.<CODE>`; English `error.message` and
+store detail never become the painted string.
 
 **One review authorizes ONE commit.** The token is a pure function of
 `(jobId, policyVersion, reject set, issuedAt)`, so re-POSTing the same commit body
@@ -425,20 +476,64 @@ Advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`).
 `/control` — approving an Art. 22 human gate, reconciling, and applying the
 calibrated promote floor — arm on the first click and only run on a second
 click of the *same* control (`app/control/controlRoomConfirm.ts`
-`armOrExecute`; pause/resume stay one-click, a kill switch must). The room
+`armOrExecute`; pause/resume stay one-click, a kill switch must). Each pending
+gate also carries a **Review** link to `/?tab=assignments&lifecycle=<id>` so
+sign-off can happen on `DevLifecycleReviewPanel` (case edits, probe-gate
+override) rather than a truncated title. An armed Confirm also expires after
+15s (`ARMED_TTL_MS`): a late second click disarms without executing, so a
+parked confirm cannot apply a promote floor or approve a gate after the
+operator has left the page. Escape while armed calls `cancelArmed` (execute
+false, nextArmed null) and announces the cancel on a polite live region. The room
 re-polls every 3s, so a control's identity has to include anything that can
 change under the arm: the promote-floor key carries the VALUE (`floorKey`,
-e.g. `floor:70`). With the earlier constant `"floor"` key a suggestion that
+e.g. `floor:70`), and a pending-gate Approve is keyed as `gateKey(id, detail)`
+so a polled replacement under the same lifecycle id re-arms instead of
+signing off. With the earlier constant `"floor"` key a suggestion that
 moved between the two clicks — one newly-decided outcome is enough to shift
 which band `calibrate()` picks — was applied without its own confirm and
 sealed into `dev_audit` as a human decision for a number nobody confirmed.
 
 **AI disclosure (Art. 50).** `app/_components/AiDisclosure.tsx` is rendered
 on every public candidate-facing surface, including the most recently added
-`/status/[token]` (`StatusClient.tsx:324`), plus quick/conversational apply,
-the voice interview portal, offer, and schedule pages. (`/onboarding/[token]`
-also carried it until the post-hire onboarding module was removed; the surface
-no longer exists, so the obligation no longer attaches to it.)
+`/status/[token]` (`StatusClient.tsx`), plus quick/conversational apply,
+the dev-case apply page, the voice interview portal, offer, and schedule pages.
+(`/onboarding/[token]` also carried it until the post-hire onboarding module was
+removed; the surface no longer exists, so the obligation no longer attaches to
+it.)
+
+**The regime it names is resolved server-side, per tenant (Art. 13 accuracy).**
+The note states two facts as law — the jurisdiction's anti-discrimination
+framework + data law, and the consent-retention window — and both now arrive as
+props (`regimeId`, `retentionMonths`) from `disclosureComplianceFor()`
+(`app/_lib/compliance-disclosure.ts`), called by each surface's own server
+component off the workspace it has *already* established: the invite behind a
+`/schedule` token, the session behind an `/interview` token, the posting behind a
+`/devcase/apply` token, the offer behind an `/offer` token, the status link behind
+a `/status` token (`getWorkspaceByStatusToken`), and `getJobWorkspace(job.id)` for
+both apply paths — the same tenant the applicant is actually filed into.
+
+This replaced a browser fetch of `GET /api/compliance`, which was wrong twice and
+both times toward **under**-disclosure: the route is not on the public allow-list
+(`app/_lib/auth/public-routes.ts`), so on any deployment with
+`KP_OPERATOR_PASSWORD` set the fail-closed proxy 401'd it and the EU/12-month
+pre-fetch default was the *final* state; and it answers for the **caller's**
+workspace, which for a session-less candidate is the default one. A `us` workspace
+therefore told its candidates they were assessed under EU equal-treatment
+directives and processed under GDPR.
+
+`GET /api/compliance` stays **gated** on purpose. Allow-listing it would not fix
+the candidate half — an anonymous request still carries no workspace — and making
+it tenant-aware for a public caller would mean trusting a caller-supplied
+workspace id, i.e. letting anyone enumerate any team's legal posture. Its readers
+are now session-bearing only: the recruiter Decisions compliance card and the
+interview simulator tab, which is the single render site still on the fetch path
+(it lives inside the authenticated shell, so the endpoint is both reachable and
+tenant-correct there). `app/_components/ai-disclosure-props.test.ts` pins the
+arrangement: it enumerates every `<AiDisclosure>` render site in `app/`, fails on
+one that is neither a declared public surface nor a declared session-bearing
+exemption, and requires each public element to carry both props — so a ninth
+candidate surface cannot quietly revert to the EU default. The EU default survives
+as the last-resort fallback only.
 
 **Fairness backstops.** `app/_lib/archetypes.ts` (`isFairnessProtected`,
 `isEarlyCareer`) + `app/_lib/automation-fairness.ts` re-derive the sole
@@ -489,7 +584,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 
 | Concern | Files |
 |---|---|
-| Consent core + DB lifecycle | `app/_lib/consent.ts`, `app/_lib/db/pipeline.ts` (`recordEntryConsent`, `anonymizeEntry`, `anonymizeExpiredConsents`, `scrubEntryLinkedPii`) |
+| Consent core + DB lifecycle | `app/_lib/consent.ts`, `app/_lib/db/pipeline.ts` (`recordEntryConsent`, `anonymizeEntry`, `anonymizeExpiredConsents`, `claimConsentExpiryNotice`, `scrubEntryLinkedPii`), `app/_lib/consent-expiry-reminders.ts` (`notifyExpiringConsents`) |
 | Data-held / jurisdiction resolver | `app/_lib/data-held.ts`, `app/_lib/compliance-regimes.ts` |
 | Erasure self-service | `app/data/[token]/page.tsx`, `DataClient.tsx`, `app/api/data/[token]/route.ts` |
 | Candidate status + decision explanation + NPS | `app/status/[token]/StatusClient.tsx`, `app/_lib/status-decisions.ts`, `app/api/status/[token]/nps/route.ts`, `app/_lib/candidate-nps.ts`, `app/_lib/candidate-nps-store.ts` |
@@ -500,11 +595,11 @@ name variants — this closes what was gap G3 in the original conformity pack.
 | Fairness / adverse impact | `app/_lib/archetypes.ts`, `app/_lib/automation-fairness.ts`, `app/_lib/adverse-impact.ts`, `app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` |
 | Name-neutrality eval | `pipeline/jobfit/tests/test_name_neutrality.py` |
 | Calibration / holdout / accuracy | `app/_lib/calibration.ts`, `app/_lib/screen-wave-holdout.ts`, `app/api/analytics/calibration/apply-threshold/route.ts` |
-| AI disclosure UI | `app/_components/AiDisclosure.tsx` |
+| AI disclosure UI | `app/_components/AiDisclosure.tsx`, per-tenant values from `app/_lib/compliance-disclosure.ts` (`disclosureComplianceFor`), shape in `app/_lib/compliance-regimes.ts` (`DisclosureCompliance`), pinned by `app/_components/ai-disclosure-props.test.ts` |
 | Provenance dossier | `app/_lib/provenance-dossier.ts` |
 | Compliance posture board | `app/trust/page.tsx`, `app/trust/TrustContent.tsx`, `app/_lib/trust-posture.ts` |
 | Recruiter-facing posture block (Decision Rules modal) | `app/features/hiring/decisions/DecisionsComplianceSection.tsx`, state in `decisionsComplianceState.ts`, pure folds in `decisionsComplianceFold.ts` (tested) |
-| Public compliance JSON | `app/api/compliance/route.ts` |
+| Compliance JSON (gated, session-scoped) | `app/api/compliance/route.ts` |
 | Approver identity for sealed approvals | `app/_lib/auth/operator-approver.ts` — `approverIdentity()` / `resolveApprover()` / `humanActor()` over `currentUserId()` + `app/_lib/db/users.ts`, falling back to `operatorApprover()` (env `KP_OPERATOR_NAME`) |
 | Actor on the operational log | `pipeline_events.actor` (`app/_lib/db/core.ts`) — nullable, no backfill; parsed by `parseEventActor()` in `app/_lib/decision-attribution.ts` |
 | Org backup/restore (per-tenant) | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`/`restoreOrg`), scope from `app/_lib/tenancy.ts` `orgExportClass` |
@@ -543,8 +638,8 @@ as of this doc:
 - **G8** — no training/seed-data governance artifact.
 - **G10** — no post-market monitoring or incident-reporting runbook (Art. 72/73).
 - **G12** — **closed.** The decision chain is per-tenant, and `workspace/export` / `workspace/import` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest and gated on `org:manage`. What remains is narrower and documented rather than open: a backup restores in place, into the deployment it came from, and does not carry the six singleton config tables (`ORG_CONFIG_NOT_PORTABLE`).
-- **G13** — the no-demographic-data posture needs to be documented as a deliberate choice (with its limits) rather than left implicit.
-- **G14** — no EU-database registration / CE-marking scaffolding (premature until G1/G2 ship).
+- **G13** — **closed (2026-09-08).** The no-demographic-data posture is written up as a deliberate choice in `ai-act-conformity.md` ("G13 in detail"): what it buys (no Art. 10(5) exceptional-circumstances burden, no Art. 9 special-category holding to defend), how fairness is tested instead (perturbation — byte-identity of the scorer across name variants — rather than collection), and what it costs (kp cannot measure its own disparate impact; the four-fifths primitive is the deployer’s own workflow over counts kp never sees).
+- **G14** — no EU-database registration / declaration of conformity / CE-marking scaffolding. **No longer "premature"**: G1/G2 are still its inputs, but 15 months is the horizon on which a conformity assessment gets planned rather than deferred, and the Omnibus makes an SME/small-mid-cap simplified technical-documentation template available that kp is small enough to use. See the G14 row in `ai-act-conformity.md` §3.
 
 Closed since the conformity pack was last compiled (2026-07-27):
 **G3** (name-neutrality test shipped), **G11** (AI disclosure added to
@@ -552,6 +647,33 @@ Closed since the conformity pack was last compiled (2026-07-27):
 decision-explanation view now exists on `/status/[token]`; the full sealed
 dossier remains operator-only by design).
 
-The AI Act's high-risk obligations apply in full from **2 August 2026** —
-imminent. G1/G2 (the two purely-documentation gaps) are the highest-priority
-remaining work before that date.
+## The dates
+
+**The Annex III high-risk obligations apply from 2 December 2027**, not
+2 August 2026. **Regulation (EU) 2026/1744** (the AI Omnibus) entered into force
+27 July 2026 and moved them; Annex I product-embedded systems move to 2 August
+2028. This section asserted the 2 August 2026 date and called it "imminent"
+until 2026-09-08; the correction is verified against the Commission's own page,
+<https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai>.
+
+**What was not deferred, and binds today:** the **Art. 5** prohibitions (in
+force since 2 Feb 2025, penalties from 2 Aug 2025, €35M/7% — including 5(1)(f)
+emotion inference in the workplace); **Art. 50** transparency (applied 2 Aug
+2026, €15M/3%), whose synthetic-content **marking** grace period for
+pre-existing systems ends **2 December 2026**; and **Art. 4** AI literacy
+(softened by the Omnibus to an effort obligation, enforceable from 2 Aug 2026).
+All of GDPR and the national employment layer are untouched by any AI Act date.
+
+**G1/G2 are still the highest-priority remaining work — but not because a date
+is close.** They are what an auditor, an enterprise legal team and a works
+council ask for first; they are the inputs G14 is assembled from; and **kp
+cannot fall back on Art. 111 grandfathering.** Art. 111 protects a high-risk
+system placed on the market before the applicability date *only until it is
+substantially modified*, and kp ships continuously — any material scoring or
+automation change voids it. Nobody should later propose a grandfathering
+strategy here: there is none available. Treat the deferral as a **15-month
+runway, not a reprieve**, and plan for full applicability on 2 December 2027.
+
+The full work list — Art. 5/50 exposure, the GDPR gaps, provider posture, the
+national layer, and the documentation chain this runway is for — is
+[`regulatory-backlog.md`](./regulatory-backlog.md) in this folder.

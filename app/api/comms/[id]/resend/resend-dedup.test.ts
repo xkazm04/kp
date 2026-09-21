@@ -122,6 +122,18 @@ test("a (SIM) outbox row is refused before the relay is reached", () => {
   assert.ok(relay >= 0 && guard < relay, "the guard precedes the relay call");
 });
 
+test("requireOperator and pipeline:write precede sendComm", () => {
+  const src = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  const op = src.indexOf("await requireOperator()");
+  const cap = src.indexOf('requireCapabilityCoded("pipeline:write"');
+  const inflight = src.indexOf("resendInFlight.has(id)");
+  const relay = src.indexOf("await sendComm(");
+  assert.ok(op >= 0, "the limiter's Operator-gated claim is a real requireOperator call site");
+  assert.ok(cap >= 0, "viewer seats must not spend the live relay");
+  assert.ok(relay >= 0 && inflight >= 0);
+  assert.ok(op < cap && cap < inflight && inflight < relay, "identity, then in-flight, then the relay");
+});
+
 // The recovery door is one of the three that call sendComm DIRECTLY, bypassing the
 // dispatcher that used to hold the compliance gate. The gate now lives at the channel
 // (comms.ts commsSendSuppression), and its refusal must reach the recruiter as a

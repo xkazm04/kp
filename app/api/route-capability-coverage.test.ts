@@ -98,7 +98,6 @@ const ALLOWED = new Map<string, string>([
   ["brand/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["calendar/google/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["channels/inbound/[token]/route.ts", "webhook — inbound ad/email intake, authed by the channel token in the URL"],
-  ["comms/[id]/resend/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["comms/callback/route.ts", "webhook — the relay's delivery receipt, authed by COMMS_CALLBACK_SECRET + timestamp + nonce"],
   ["companion/[id]/message/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["companion/brain/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
@@ -176,6 +175,11 @@ const ALLOWED = new Map<string, string>([
   ["sim/reset/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["sim/screen-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["status/[token]/nps/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
+  [
+    "stop/[token]/route.ts",
+    "public token door — the candidate's ePrivacy Art. 13(4) opt-out, authed by the capability link in the URL, never a seat. " +
+      "It is also the RFC 8058 one-click target a mail provider POSTs unattended, so a seat check would make the header inert",
+  ],
   ["stt/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["tasks/[id]/retry/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["tasks/[id]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

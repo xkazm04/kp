@@ -69,6 +69,11 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
           onBlur={() => setBlurred(true)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder={t("emailPlaceholder")}
+          // A placeholder is not a name (WCAG 1.3.1 / 3.3.2) — it is gone the
+          // moment the field has focus, which is exactly when AT reads it. The
+          // sibling Select names itself the same way, so the pair announces as
+          // one row.
+          aria-label={t("emailAria")}
           sizeVariant="sm"
           // The error tone (and aria-invalid) only once there is something to be
           // wrong about. No new copy: the placeholder already spells the shape

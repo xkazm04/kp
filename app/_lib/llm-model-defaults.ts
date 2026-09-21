@@ -51,12 +51,14 @@ export function providerAcceptsBaseUrl(provider: string): boolean {
 }
 
 /** Providers that authenticate nothing: `claude_cli` runs on the local CLI's own
- *  subscription login, and a stock Ollama / llama.cpp / LM Studio server checks no
- *  credential at all. A row for one of these is valid with a base URL and no key.
+ *  subscription login, a stock Ollama / llama.cpp / LM Studio server checks no
+ *  credential at all, and `gateway` (LightTrack's lt-gateway on loopback, which
+ *  fronts the seat CLIs) ignores the key. A row for one of these is valid with a
+ *  base URL and no key — or, for gateway, with nothing at all.
  *
  *  Store-free for the same reason as the rules above: the keys FORM has to decide
  *  whether its submit button is enabled, and it runs in the browser. */
-export const KEYLESS_PROVIDERS: readonly string[] = ["claude_cli", "ollama"];
+export const KEYLESS_PROVIDERS: readonly string[] = ["claude_cli", "ollama", "gateway"];
 
 export function providerIsKeyless(provider: string): boolean {
   return KEYLESS_PROVIDERS.includes(provider);

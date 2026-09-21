@@ -57,8 +57,12 @@ and its listening half by the STT one, once a streaming local engine is worth it
   it, the first ready engine still serves — silence is worse than an accent — but the
   resolution carries `unsupportedLanguage`, the host logs a `language_fallback` event, and
   the route sends `X-Tts-Unsupported-Language`. Pinned in `packages/voice-tts/src/registry.test.ts`.
-- **Retired ids normalize on read.** `preferenceFromEnv` drops unknown ids instead of
-  throwing, so a stale `KP_TTS_PROVIDER` never wedges the app.
+- **An unknown id is a misconfiguration, not an absence.** Unset or empty takes the default;
+  a present `KP_TTS_PROVIDER`/`KP_TTS_PROVIDERS` naming an unregistered id makes
+  `preferenceFromEnv` throw with the variable, the token and the registered set. Dropping it
+  used to serve a different engine with no fallback event (a typo'd local preference ran the
+  paid cloud engine). The throw is lazy, at the first `getTts()`, so it refuses the voice
+  feature, not the app. No id has been retired; a retirement maps the old id by name.
 - **A failure is a next action, not a message.** `TtsErrorCode` names what the caller should
   do: `invalid_text`/`invalid_voice` (fix the request), `unavailable` (no engine can speak —
   credentials, entitlement, nothing installed), `rate_limited` (the engine is HEALTHY and the
@@ -246,6 +250,10 @@ ladder: explicit env → shared home `bin/` → PATH.
   candidate surfaces never show a provider.
 - The conversation plane now honors `KP_VOICE_PROVIDER` (`onboardedVoiceProvider` in
   `app/_lib/voice/index.ts`) between an explicit request and the canonical order.
+- The intake composer's voice bar (`app/features/library/jds/intake/IntakeVoiceBar.tsx` over
+  `useIntakeSpeech.ts`) reads the agent's turn aloud, with a per-browser "read every reply
+  aloud" opt-in that is OFF by default and primed on mount: see
+  [docs/features/intake/README.md](../features/intake/README.md).
 
 ## Keyless / engineless behavior
 

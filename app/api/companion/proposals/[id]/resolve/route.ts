@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { currentUser } from "@/app/_lib/auth/current-user";
 import {
   claimProposal,
   getProposal,
@@ -129,6 +130,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         workspaceId: ws,
         threadId: proposal.threadId ?? id,
         locale: await getServerLocale(),
+        userId: (await currentUser()).userId,
       });
       stampProposalOutcome(id, outcome, ws);
       return NextResponse.json({ proposal: getProposal(id, ws) });

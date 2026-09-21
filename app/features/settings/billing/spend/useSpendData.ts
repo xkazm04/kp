@@ -18,6 +18,9 @@ import { createLoadLatch } from "../billingTabState";
 export type SpendOps = {
   ok: boolean;
   seeds: "ok" | "degraded";
+  /** A STATE, not a verdict: "empty" is the ordinary opening state of an install,
+   *  and never a reason `ok` is false (app/api/ops/route.ts). */
+  catalog: "ok" | "empty";
   clock: "healthy" | "starting" | "stalled";
   degradedReasons: string[];
   tables: Record<string, number>;

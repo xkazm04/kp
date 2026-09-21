@@ -1,5 +1,10 @@
 # KandiDate design system — one product, two moods
 
+> **Composition, not just paint:** this page says which paint is allowed.
+> [`surface-doctrine.md`](./surface-doctrine.md) says how a surface is composed —
+> the seven rules a September 2026 redesign of the job-intake studio was decided
+> by, written to transfer. Read both before building a surface.
+
 This document extracts the design philosophy that emerged on `/landing` (the
 "Spark" direction) and turns it into an explicit, dual-theme design system for
 the whole app. It is the reference for every new component: **write once,
@@ -36,7 +41,9 @@ appearance control on the workspace sidebar rail
 (`app/features/shell/nav/NavRailPreferences.tsx`) flips it, persists the choice
 to `localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
 inline pre-hydration script in `app/layout.tsx` applies the stored theme
-before first paint, so there is no flash.
+before first paint, so there is no flash. `subscribeTheme` also listens for
+`storage` events on that key, so a flip in one workspace tab updates this
+document's attribute (and `useTheme()`) without a reload.
 
 **`/landing` is exempt — and enforced.** The Spark landing page is a fixed art
 direction with literal hexes on purpose (`app/landing/spark/tokens.ts`) — it
@@ -243,9 +250,13 @@ element:
   `score-*` tokens, but recharts chrome (grid, ticks, tooltip) needs literal
   strings — `FactorChart` picks light/dark values from the `LIGHT` and `DARK`
   mirrors in `app/_lib/brand.ts` (the JS copies of the two token blocks, keyed
-  by role: `SURFACE`/`FILL`/`GRID`). Any new chart follows that pattern; both
-  mirrors are pinned to `globals.css` by `design:check`, so neither half can
-  drift the way the light half had.
+  by role: named hues plus `SURFACE`/`FILL`/`GRID`). `DARK` carries every named
+  brand hue (`INK`/`PAPER`/`MOSS`/`CORAL`/`STEEL`/`LIMEWASH`/`DIAL_STONE`/
+  `DIAL_AMBER`), not only the canvas trio, so a chart that needs moss or coral
+  cannot accidentally import the Studio Light constant onto `#141b24`. Any new
+  chart follows that pattern; both mirrors are pinned to `globals.css` by
+  `design:check`, and `app/_lib/brand.test.ts` asserts key parity, so neither
+  half can drift the way the light half had.
 - **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
   attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
   resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`
@@ -635,8 +646,22 @@ label, `aria-busy`). The visual is unchanged. The rule for which gaps use it:
 *announced-on-arrival*. The region unmounts when content replaces it, and a live region that
 disappears cannot announce what took its place; that needs a stable region owned by the section.
 
-Adopted across the Analytics tab (8 sites). ~80 block-level gaps elsewhere in `app/` still use
-the bare `aria-hidden` form — fix-as-you-touch, not a migration.
+Adopted across the Analytics tab (8 sites). The remaining silent block-level
+`reveal-quiet` + `aria-hidden` boxes are a per-file ceiling in
+[`loading-gap-debt.json`](../../app/_components/ui/loading-gap-debt.json), walked
+by [`loading-gap-debt.test.ts`](../../app/_components/ui/loading-gap-debt.test.ts)
+beside `LoadingGap.tsx` — the same ratchet idiom as `recipe-debt.json`. **Grew**
+and **undeclared** (a new file with a silent panel-body box) are blocking;
+inline `inline-block h-4 w-24` shimmers are the documented exception and are not
+counted. Fix-as-you-touch, not a migration: adopt `<LoadingGap>`, then
+
+```bash
+node --experimental-transform-types app/_components/ui/loading-gap-debt.test.ts --tighten
+```
+
+Seeded 2026-09-17 at `blockGap=77` over 59 files. A number is never raised to
+make a build green. A file burnt down to zero loses its entry, which locks the
+win.
 
 ### Accessible names on shared primitives
 
@@ -758,6 +783,22 @@ and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — ev
 centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
 just the record, so a fifteenth site cannot quietly invent a sixth size.
 
+### Tab id → traced glyph (`glyphForTab`)
+
+Empty-state consumers used to each import a concrete `*Glyph.ts` module, so a
+new Jobs empty state could drop a lucide icon beside a traced neighbour with
+nothing to say the jobs glyph already existed.
+[`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) maps the tabs
+that already have art (`jobs`, `library`, `analytics`, `decisions`, `channels`,
+`schedule`, `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns
+the glyph or `undefined` — it does not throw. `ChainEmptyState` takes optional
+`tab` and resolves through that map; an explicit `glyph` still wins. Channel
+pane extras (ads / careers / email) stay in `channelsEmptySpecs`; the archetypes
+matrix projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
+`glyphRegistry.test.ts` pins the lookup and that every traced module except
+the channel extras is keyed. `glyphsHaveConsumers.test.ts` still requires a
+render site outside the glyphs folder.
+
 ### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
 
 Two contracts the glyph renderer declared and did not keep:
@@ -797,7 +838,7 @@ sees. Each was resolved rather than left standing:
 | Option | Verdict |
 | --- | --- |
 | `entrance="fade-pop"` | **kept** — now used by `AnalyticsEmptyPreview`, whose glyph renders at 80px where a per-path stagger is noise, not a reveal. |
-| `ambient="pulse"` | **kept** — now used by `SetupGettingStartedNextMove` *only* while a step reports `analyzing`. Breathing means work is in flight; on an idle step it would be a lie. |
+| `ambient="pulse"` | **kept, currently unconsumed.** Its one consumer was `SetupGettingStartedNextMove`, which pulsed *only* while a first-run step reported `analyzing`; that surface was deleted with the Getting-started checklist (see [`app-structure.md`](../architecture/app-structure.md)). The rule it demonstrated stands and is the condition for the next consumer: breathing means work is in flight, and on an idle glyph it would be a lie. |
 | `entrance="draw"` | **removed.** A `pathLength` dash sweep traces a filled region's *boundary*; every traced glyph in the repo is filled, so its own docstring already forbade every existing consumer from using it. |
 | `hover="hover-response"` | **removed.** It needs an interactive parent and no glyph in the app sits inside one — all 14 render sites are empty-state illustrations. |
 | `glow` | **removed.** An emissive `feGaussianBlur` that reads well in Spark Dark and, per the motionize skill, is "usually wrong" in Studio Light — i.e. it wants a per-theme fork no consumer had asked for. |
@@ -805,6 +846,15 @@ sees. Each was resolved rather than left standing:
 The renderer is two layers now (`entrance` + `ambient`), and
 `motionPresets.test.ts` still pins the preset union to exactly the records those
 two props read.
+
+Empty-state heroes default `playOnce` (true). The IntersectionObserver
+disconnects after the first intersecting callback so switching back to an empty
+Jobs or Decisions tab does not replay the stagger. Under
+`prefers-reduced-motion` the observer is never armed — `useReducedMotion()`
+skips the effect, and
+[`shouldReplayEntrance`](../../app/_components/glyph/glyphEntrancePolicy.ts)
+returns false when `reduced` is true even for a looping (`playOnce={false}`)
+consumer. `glyphEntrancePolicy.test.ts` pins both.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

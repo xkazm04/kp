@@ -16,6 +16,11 @@
 
 export type ToastVariant = "success" | "error" | "info";
 
+export type ToastAction = {
+  label: string;
+  onAction: () => void;
+};
+
 export type ToastItem = {
   id: number;
   variant: ToastVariant;
@@ -24,6 +29,8 @@ export type ToastItem = {
   duration: number;
   /** Bumped when a duplicate re-fires, so the renderer restarts the timer. */
   nonce: number;
+  /** Optional inline action button (e.g. Undo). */
+  action?: ToastAction;
 };
 
 /** Max simultaneously stacked toasts; the oldest is dropped beyond it. */
@@ -91,21 +98,24 @@ export function subscribeToasts(listener: () => void): () => void {
   };
 }
 
-function show(variant: ToastVariant, message: string, opts?: { duration?: number }): number {
+function show(variant: ToastVariant, message: string, opts?: { duration?: number; action?: ToastAction }): number {
   const result = reduceShowToast(toasts, { variant, message, duration: opts?.duration ?? TOAST_DURATION[variant] }, nextId);
   if (result.id === nextId) nextId++;
-  toasts = result.toasts;
+  // Attach action outside the pure reducer so the reducer contract stays serializable.
+  toasts = opts?.action
+    ? result.toasts.map((t) => (t.id === result.id ? { ...t, action: opts.action } : t))
+    : result.toasts;
   emit();
   return result.id;
 }
 
 export const toast = {
   /** Confirmation of a completed mutation. Returns the toast id. */
-  success: (message: string, opts?: { duration?: number }): number => show("success", message, opts),
+  success: (message: string, opts?: { duration?: number; action?: ToastAction }): number => show("success", message, opts),
   /** A failure the user must know about (announced assertively). */
-  error: (message: string, opts?: { duration?: number }): number => show("error", message, opts),
+  error: (message: string, opts?: { duration?: number; action?: ToastAction }): number => show("error", message, opts),
   /** Neutral notice. */
-  info: (message: string, opts?: { duration?: number }): number => show("info", message, opts),
+  info: (message: string, opts?: { duration?: number; action?: ToastAction }): number => show("info", message, opts),
   /** Manual removal (dismiss button / auto-dismiss timer). */
   dismiss(id: number): void {
     const next = reduceDismissToast(toasts, id);

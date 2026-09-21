@@ -195,7 +195,12 @@ export function JdsIntakeVoice({
       inFlightRef.current = null;
       const { state, next, extract } = completeTurn(orchestratorRef.current, done, failed);
       orchestratorRef.current = state;
-      if (extract) void sweep();
+      if (extract) {
+        dispatchUi({ type: "extractStart" });
+        void sweep().finally(() => {
+          if (!finalizedRef.current) dispatchUi({ type: "extractEnd" });
+        });
+      }
       if (next) void dispatch(next);
       if (done) {
         // Let the closing line play out before hanging up — cancellable, so an
@@ -387,6 +392,11 @@ export function JdsIntakeVoice({
         >
           {tMic("enableAudio")}
         </button>
+      ) : null}
+      {ui.extracting ? (
+        <span role="status" className="self-center text-meta text-steel">
+          {t("updatingBrief")}
+        </span>
       ) : null}
       {ui.failure ? (
         <span className="order-last basis-full text-meta text-red-700">{failureText(ui.failure)}</span>

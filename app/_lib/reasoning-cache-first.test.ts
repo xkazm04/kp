@@ -9,7 +9,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 process.env.PYTHON_CMD = "kp-no-python-for-this-test";
 
 const { saveProfile, listCorpusJobs, getJob, storePromptCache } = await import("./db.ts");
-const { runReasoning, REASONING_PROMPT_VERSION } = await import("./reasoning-run.ts");
+const { runReasoning, REASONING_PROMPT_VERSION, reasoningCliArgs } = await import("./reasoning-run.ts");
 const { resolveMatchInput } = await import("./match-input.ts");
 const { reasoningCacheKey } = await import("./reasoning-cache-key.ts");
 const { computeCorpusFingerprint } = await import("./automation-cache-key.ts");
@@ -123,4 +123,57 @@ test("a cache MISS reaches the spawn seam (proving the hit above genuinely skipp
   // interpreter, which rejects. Same inputs shape as the hit test, so the ONLY
   // difference is cache presence — isolating "the cache gates the spawn".
   await assert.rejects(runReasoning({ jobId: "job-cache-miss", profileId: id }), "a miss must attempt the spawn");
+});
+
+// ---- The locale reaches the ENGINE, not only the stamp ----------------------
+// The two tests above are served from the cache, so nothing below the cache
+// check runs: they pin the narrativeLang STAMP, which is derived in-process, and
+// they cannot see the argument that actually carries the locale to the engine.
+// Measured on this file (2026-09-17): reverting `engineLang` to the old
+// `requestedLang === "cs" ? "cs" : "en"` collapse turns them red, but passing a
+// literal "en" at the spawn's `--lang`, or deleting the flag pair outright, left
+// all 8091 unit tests green while every de/fr rationale was generated in English
+// again. So the decision is asserted where it is REACHABLE (the pure argv
+// builder), plus a pin that the unreachable call site hands it `engineLang`.
+test("the requested locale reaches the engine argv, not just the narrativeLang stamp", () => {
+  // The exact argv the inline array used to build - byte-identical, flag order
+  // included, because the CLI's own parser and the workdir contract read it.
+  assert.deepEqual(reasoningCliArgs(["--input", "/w/in.json"], "job-1", "de"), [
+    "-m",
+    "pipeline.jobfit.reasoning_cli",
+    "--input",
+    "/w/in.json",
+    "--job-id",
+    "job-1",
+    "--lang",
+    "de",
+  ]);
+  // Not decorative: a different locale must change the argv (this is the assertion
+  // a literal "en" at the call site, or a dropped flag, has to fail).
+  for (const lang of ["en", "cs", "de", "fr"] as const) {
+    const argv = reasoningCliArgs([], "job-2", lang);
+    assert.equal(argv.at(-2), "--lang", `the flag must be present for ${lang}`);
+    assert.equal(argv.at(-1), lang, `the engine must be asked for ${lang}`);
+  }
+});
+
+test("the spawn site hands the builder engineLang (the caller-side half of the pin)", async () => {
+  // Read as source: the spawn itself cannot be executed in this lane (bogus
+  // PYTHON_CMD, and a real run would call a model), so this half pins the text and
+  // not the behaviour - the weaker instrument, kept narrow and named as such. Same
+  // idiom and same reason as agent-hire/transform-run.test.ts.
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  // CRLF-normalised: this checkout may carry CRLF where a worktree does not.
+  const src = readFileSync(fileURLToPath(new URL("./reasoning-run.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  assert.match(
+    src,
+    /const args = reasoningCliArgs\(inputArgs, String\(body\.jobId\), engineLang\);/,
+    "the spawn must build its argv through reasoningCliArgs, passing engineLang - never a literal locale",
+  );
+  assert.equal(
+    (src.match(/"--lang"/g) ?? []).length,
+    1,
+    "there is exactly one quoted --lang literal in this module, inside the builder: a second one is a second decision nothing pins",
+  );
 });

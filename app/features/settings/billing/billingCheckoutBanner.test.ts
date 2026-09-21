@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkoutBannerState } from "./billingCheckoutBanner.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { checkoutBannerState, shouldTrackCheckoutCompleted } from "./billingCheckoutBanner.ts";
 
 // bug-ui-scan 2026-07-09 (plans-checkout #2): the banner claimed "your plan is now X" on a
 // fixed 5.5s timer, asserting a grant a stale/failed provider round-trip never delivered.
@@ -38,4 +40,24 @@ test("the timer alone NEVER asserts success — window elapsed but plan not refl
     checkoutBannerState({ isCheckoutReturn: true, pollWindowElapsed: true, planReflectsPaid: false }),
     "unconfirmed",
   );
+});
+
+test("shouldTrackCheckoutCompleted fires once on the rising edge onto confirmed", () => {
+  assert.equal(shouldTrackCheckoutCompleted(null, "confirmed"), true);
+  assert.equal(shouldTrackCheckoutCompleted("confirming", "confirmed"), true);
+  assert.equal(shouldTrackCheckoutCompleted("unconfirmed", "confirmed"), true);
+  assert.equal(shouldTrackCheckoutCompleted("confirmed", "confirmed"), false);
+});
+
+test("shouldTrackCheckoutCompleted does not fire on unconfirmed or confirming", () => {
+  assert.equal(shouldTrackCheckoutCompleted(null, "confirming"), false);
+  assert.equal(shouldTrackCheckoutCompleted("confirming", "unconfirmed"), false);
+  assert.equal(shouldTrackCheckoutCompleted("confirming", "confirming"), false);
+  assert.equal(shouldTrackCheckoutCompleted("confirmed", "unconfirmed"), false);
+});
+
+test("plausible.tsx documents checkout_completed next to checkout_started", () => {
+  const src = readFileSync(fileURLToPath(new URL("../../../_lib/analytics/plausible.tsx", import.meta.url)), "utf-8");
+  assert.match(src, /checkout_started \{ item \}/);
+  assert.match(src, /checkout_completed \{ item \}/);
 });

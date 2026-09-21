@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import unittest
 
+from pathlib import Path
+
 from pipeline.jobfit import registry
 from pipeline.jobfit.archetype import detect_archetype, label_for
-from pipeline.jobfit.pipeline import _archetype_sanity_checks
+from pipeline.jobfit.pipeline import _archetype_needs_review, _archetype_sanity_checks
 
 
 class ArchetypeSanityCheckTest(unittest.TestCase):
@@ -81,6 +83,27 @@ class ArchetypeSanityCheckTest(unittest.TestCase):
         # OK — so the flag above is caused by the absent signals, never by the number.
         ok = _archetype_sanity_checks("student", high, ["<1 year of relevant experience"])
         self.assertNotIn("low-confidence", ok[0])
+
+    def test_dump_needs_review_follows_the_0_55_rule(self) -> None:
+        # 0.54 is below the registry threshold; 0.55 is not; a self-declared 0.9
+        # with no contradiction is settled. The dump stamps the boolean so the
+        # report does not re-implement the cutoff.
+        needs, why = _archetype_needs_review(0.54, ["currently enrolled"])
+        self.assertEqual((needs, why), (True, "low_confidence"))
+        needs, why = _archetype_needs_review(0.55, ["currently enrolled"])
+        self.assertEqual((needs, why), (False, None))
+        needs, why = _archetype_needs_review(0.9, ["self-declared: Experienced"])
+        self.assertEqual((needs, why), (False, None))
+        src = Path(__file__).resolve().parents[1].joinpath("pipeline.py").read_text(encoding="utf-8")
+        self.assertIn('dump["archetypeNeedsReview"]', src)
+        self.assertIn('dump["archetypeNeedsReviewCode"]', src)
+
+    def test_dump_needs_review_flags_a_fired_contradiction_above_the_threshold(self) -> None:
+        reasons = ["self-declared: Student", "contradiction: 3+ years of relevant experience for a 'student'"]
+        needs, why = _archetype_needs_review(0.65, reasons)
+        self.assertEqual((needs, why), (True, "contradiction"))
+        self.assertTrue(registry.contradiction_fired(reasons))
+        self.assertFalse(registry.contradiction_fired(["currently enrolled"]))
 
     def test_signals_absent_marker_matches_default_fallback_only(self) -> None:
         # Precise marker: present only on the no-signal fallback branch.

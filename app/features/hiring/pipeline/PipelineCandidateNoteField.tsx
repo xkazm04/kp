@@ -2,7 +2,7 @@
 
 // Persistent per-candidate note: the call facts ("wants 80k, available August,
 // hybrid") that used to die with the drawer live on the entry now, debounce-
-// autosaved via usePipelineCandidateDrawerState. This is just the field + its
+// autosaved via candidate/state/useCandidateNote. This is just the field + its
 // quiet saving/saved hint. Split out of PipelineCandidateDrawer.tsx.
 
 import { NotebookPen } from "lucide-react";

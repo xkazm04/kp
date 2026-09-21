@@ -37,6 +37,18 @@ test("every kind the server may expose has candidate copy on the page", () => {
   }
 });
 
+test("the current timeline item is aria-current=step inside the CANDIDATE_TIMELINE map", () => {
+  const at = clientSrc.indexOf("CANDIDATE_TIMELINE.map");
+  assert.ok(at >= 0, "StatusClient must still map CANDIDATE_TIMELINE");
+  const map = clientSrc.slice(at, clientSrc.indexOf("</ol>", at));
+  assert.match(
+    map,
+    /aria-current=\{current \? "step" : undefined\}/,
+    "the current <li> must use the WAI-ARIA step-list token; others stay unset"
+  );
+  assert.equal((map.match(/aria-current=/g) ?? []).length, 1, "only the current row sets aria-current");
+});
+
 test("the page carries no copy for a kind the server never exposes", () => {
   // The other direction, which matters just as much on this surface: dead copy for a kind
   // that is deliberately withheld (screen_wave_holdout, the policy seals) reads as a

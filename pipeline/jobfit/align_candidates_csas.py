@@ -101,7 +101,7 @@ def _aligned_skill_claims(track: Track, archetype: str, rng: random.Random) -> l
 def _aspirations(track: Track, archetype: str, seniority: str | None) -> list[str]:
     target = track["target"]
     if archetype == "bau" and seniority in ("senior", "lead"):
-        return [target, f"Tech lead / architect within a Česká spořitelna tribe"]
+        return [target, "Tech lead / architect within a Česká spořitelna tribe"]
     if archetype == "student":
         return [f"Junior {target}", "Grow into a core engineering role at a bank"]
     if archetype == "career_switcher":

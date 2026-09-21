@@ -263,11 +263,29 @@ export type DispatchResult = { ok: true; requestId: string } | BridgeFailure;
  *  Personas build that has not shipped the hire handler v2 still receives a
  *  complete, working flat spec and hires the persona as before. Its presence is
  *  the signal "this is an App-master hire". */
+/** Extra top-level keys a dispatch may carry to Personas.
+ *
+ *  Personas stores the RAW request body verbatim on the approval it queues (it
+ *  deserializes a typed struct only to VALIDATE), so a key added here reaches
+ *  the hire executor without either side needing a schema change — the same
+ *  route `budget.monthlyUsd` already travels. Kept as a narrow named type
+ *  rather than an open bag so the two fields Personas actually reads are
+ *  spelled somewhere a reader can find them. */
+export type DispatchPassthrough = {
+  /** Mark the hire as part of an unattended simulation run. Personas enrols a
+   *  simulated App master in its attention loop; an ordinary hire keeps
+   *  today's behaviour. */
+  simulation?: boolean;
+  /** The Personas persona that asked for this role, when a persona did. */
+  originPersonaId?: string;
+};
+
 export async function dispatchPersonaRequest(
   spec: DispatchSpec,
   kp: KpLink,
   reportToken: string,
-  appMaster?: unknown
+  appMaster?: unknown,
+  passthrough?: DispatchPassthrough
 ): Promise<DispatchResult> {
   const resolved = resolveBridgeOrFail();
   if (!resolved.ok) return resolved.failure;
@@ -279,7 +297,18 @@ export async function dispatchPersonaRequest(
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests`, {
       method: "POST",
       headers: headers(bridge.apiKey),
-      body: JSON.stringify({ kp, spec, reportToken, ...(appMaster ? { appMaster } : {}) }),
+      body: JSON.stringify({
+        kp,
+        spec,
+        reportToken,
+        ...(appMaster ? { appMaster } : {}),
+        // Spread LAST but built from named fields only, and each omitted when
+        // it has nothing to say: an explicit `simulation: false` on every
+        // ordinary dispatch would be a new field on a wire that has read an
+        // absent one as false since it shipped.
+        ...(passthrough?.simulation ? { simulation: true } : {}),
+        ...(passthrough?.originPersonaId ? { originPersonaId: passthrough.originPersonaId } : {}),
+      }),
       redirect: "manual",
       signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });

@@ -33,7 +33,15 @@ import type { useJobsList } from "./useJobsList";
 //                    was the server's answer cut, and at what size.
 //   list.pageIndex — which 20-row slice of the answer this client is showing.
 // The summary line reads the first; the pager owns the second.
-export function JobsTabResults({ list, onOpen }: { list: ReturnType<typeof useJobsList>; onOpen: (job: Job) => void }) {
+export function JobsTabResults({
+  list,
+  onOpen,
+  onImport,
+}: {
+  list: ReturnType<typeof useJobsList>;
+  onOpen: (job: Job) => void;
+  onImport?: () => void;
+}) {
   const t = useTranslations("jobs.tab");
   // ONE `enums` translator subscription for the whole table, passed down. Each row
   // used to open its own, so a 300-row catalog paid for 300 of them per render.
@@ -129,7 +137,7 @@ export function JobsTabResults({ list, onOpen }: { list: ReturnType<typeof useJo
             // First run, nothing posted yet: an empty catalog is a briefing, not a
             // hole — the opening move names the two routes to a first role and the
             // chain a role unlocks downstream.
-            <JobsEmptyLaunchpad />
+            <JobsEmptyLaunchpad onImport={onImport} />
           )
         ) : (
           // A refetch (filter change) never blanks or dims the rows already on

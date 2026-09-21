@@ -149,8 +149,11 @@ export function SchedulerToolbar({
       </label>
       {/* AUTO1 retired (UAT M6 / GDPR Art. 22): a clock-computed rejection is always
           QUEUED for a human click on the Decisions gate — never applied unattended —
-          so the candidate disclosure ("nothing adverse is decided automatically")
-          holds. It's now a stated fact, not an operator-selectable mode. */}
+          which is what earns the candidate disclosure's one absolute, "a rejection is
+          always a person's" (aiDisclosure.body). It's a stated fact, not an
+          operator-selectable mode. The disclosure's older and wider claim, that
+          nothing adverse is decided automatically, was retired with G16: advance and
+          offer gates are delegable, only this one is not. */}
       <span className="flex items-center gap-1" title={t("rejectModeTitle")}>
         {t("rejectModeLabel")}
         <span className="font-medium text-ink">{t("rejectModeApprove")}</span>

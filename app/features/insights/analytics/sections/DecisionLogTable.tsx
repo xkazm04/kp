@@ -17,10 +17,10 @@
 // cannot be held in memory — and sorting the 20 rows on screen would look like
 // ranking the whole trail while doing nothing of the sort. The pager therefore
 // drives `offset`, and the header drives `?sort=`/`?dir=`.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { apiErrorPayload, LocalizedFailure, localizedFailureMessage } from "../analyticsFetchError";
@@ -28,6 +28,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel, waveReasonText, type CohortProvenance } from "@/app/_lib/decision-attribution";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
+import { AnalyticsExportButton } from "../AnalyticsExportButton";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
@@ -37,14 +38,19 @@ import { META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import {
   ATTRIBUTION_BADGE,
+  actorDisplayName,
   compareNames,
   decisionMeta,
   formatAuditTime,
   resolveAuditTimeZone,
+  toggleExpandedId,
   withExportProvenance,
   type Decision,
   type DecisionPage,
 } from "../analyticsDecisionLogTypes";
+
+/** Every data column plus the spanning detail row. */
+const COLUMN_COUNT = 6;
 
 /** Page size for the whole-trail export's chained reads. The route caps `limit`
  *  at 50, so this is the largest page it will honour: 174 rows = 4 requests. */
@@ -85,6 +91,7 @@ export function DecisionLogTable({
   const [query, setQuery] = useState("");
   const [trailBusy, setTrailBusy] = useState(false);
   const [trailError, setTrailError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -130,14 +137,17 @@ export function DecisionLogTable({
   const onSort = (col: Col) => {
     setSort((prev) => (prev.col === col ? { col, dir: prev.dir === "asc" ? "desc" : "asc" } : { col, dir: "desc" }));
     setPage(0);
+    setOpenId(null);
   };
   const onFilterKind = (k: string) => {
     setKind(k);
     setPage(0);
+    setOpenId(null);
   };
   const onFilterAttribution = (a: string) => {
     setAttribution(a === "auto" || a === "human" ? a : null);
     setPage(0);
+    setOpenId(null);
   };
 
   const cohortText = (c: CohortProvenance): string =>
@@ -199,11 +209,12 @@ export function DecisionLogTable({
         // The rendered time AND the ISO instant, in that order: the first matches
         // the screen, the second is the unambiguous machine value. Dropping either
         // is what made the two disagree.
-        [t("csvTimeLocal", { zone }), t("csvTimeIso"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
+        [t("csvTimeLocal", { zone }), t("csvTimeIso"), t("csvAttribution"), t("csvActor"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
         list.map((d) => [
           formatAuditTime(d.createdAt, locale, zone),
           d.createdAt,
           t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
+          actorDisplayName(d.actor, t("actorNotIdentified")),
           kindLabel(t, d.kind, { relayConfigured }),
           d.candidateLabel,
           d.jobTitle,
@@ -269,22 +280,12 @@ export function DecisionLogTable({
           {/* UAT LUC-ANA-7 — the clock this table runs on, named once beside the
               count rather than repeated in every cell. */}
           <p className={META_LABEL}>{t("timeZoneNote", { zone })}</p>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={rows.length === 0}
-            className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
-          >
-            <Download size={12} aria-hidden /> {t("exportPage")}
-          </button>
-          <button
-            type="button"
+          <AnalyticsExportButton label={t("exportPage")} onClick={exportCsv} disabled={rows.length === 0} />
+          <AnalyticsExportButton
+            label={trailBusy ? t("exportTrailBusy") : t("exportTrail")}
             onClick={exportTrail}
             disabled={total === 0 || trailBusy}
-            className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
-          >
-            <Download size={12} aria-hidden /> {trailBusy ? t("exportTrailBusy") : t("exportTrail")}
-          </button>
+          />
         </div>
       </div>
       {trailError ? (
@@ -357,8 +358,11 @@ export function DecisionLogTable({
                 {rows.map((d) => {
                   const m = decisionMeta(d.kind);
                   const detail = detailText(d);
+                  const reason = reasonText(d);
+                  const isOpen = openId === d.id;
                   return (
-                    <tr key={d.id} className="border-b border-stone-100 align-top last:border-0 hover:bg-paper/50">
+                    <Fragment key={d.id}>
+                    <tr className="border-b border-stone-100 align-top last:border-0 hover:bg-paper/50">
                       {/* The ISO instant stays reachable on hover: the rendered value is
                           zone-bound, the title is the value the CSV's second column carries. */}
                       <td className="whitespace-nowrap py-2 pr-3 text-sm text-steel nums" title={d.createdAt}>
@@ -387,23 +391,42 @@ export function DecisionLogTable({
                         ) : null}
                       </td>
                       <td className="py-2 pr-3">
+                        <span className="block font-medium text-ink">{actorDisplayName(d.actor, t("actorNotIdentified"))}</span>
                         <span className={`rounded-full px-2 py-0.5 text-sm font-medium ${ATTRIBUTION_BADGE[m.attribution]}`}>
                           {t(`attribution.${m.attribution}` as Parameters<typeof t>[0])}
                         </span>
                       </td>
                       <td className="py-2 text-sm text-steel">
-                        {/* UAT LUC-ANA-10 (sibling of the records table's expander): a
-                            clamped legal basis with no way to read the rest is a column an
-                            auditor has to leave the screen to use. Here the full text is at
-                            least reachable on hover. */}
                         {detail ? (
-                          <span className="line-clamp-2" title={detail}>
-                            {detail}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setOpenId(toggleExpandedId(openId, d.id))}
+                            aria-expanded={isOpen}
+                            className="focus-ring flex w-full items-start gap-1 rounded text-left hover:text-ink"
+                          >
+                            {isOpen ? (
+                              <ChevronDown size={13} className="mt-0.5 shrink-0" aria-hidden />
+                            ) : (
+                              <ChevronRight size={13} className="mt-0.5 shrink-0" aria-hidden />
+                            )}
+                            <span className={isOpen ? "" : "line-clamp-2"}>{detail}</span>
+                            <span className="sr-only">{t("detailToggle")}</span>
+                          </button>
                         ) : null}
-                        {d.cohort ? <span className="block text-sm text-steel/80">{cohortText(d.cohort)}</span> : null}
+                        {d.cohort && !isOpen ? <span className="block text-sm text-steel/80">{cohortText(d.cohort)}</span> : null}
                       </td>
                     </tr>
+                    {isOpen ? (
+                      <tr className="border-b border-stone-100 last:border-0">
+                        <td colSpan={COLUMN_COUNT} className="bg-paper/60 px-3 py-2 text-sm text-steel">
+                          {detail ? <p>{detail}</p> : null}
+                          {d.detail && d.detail !== detail ? <p className="mt-1">{d.detail}</p> : null}
+                          {reason && reason !== detail ? <p className="mt-1">{reason}</p> : null}
+                          {d.cohort ? <p className="mt-1">{cohortText(d.cohort)}</p> : null}
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -416,7 +439,14 @@ export function DecisionLogTable({
             <div className="mt-3">
               {/* Server-paged: the pager reports position within `total`, not
                   within a loaded slice, so "page 3 of 47" is the real trail. */}
-              <TablePager page={Math.min(page, pageCount(total) - 1)} total={total} onPage={setPage} />
+              <TablePager
+                page={Math.min(page, pageCount(total) - 1)}
+                total={total}
+                onPage={(p) => {
+                  setPage(p);
+                  setOpenId(null);
+                }}
+              />
             </div>
           )}
         </>

@@ -42,7 +42,9 @@ test("save route supports a retry that re-ingests under an existing slug", () =>
   // duplicate draft — the JD row must NOT be re-created when a slug is supplied.
   assert.match(src, /body\.slug/, "retry must re-use the client-supplied slug");
   assert.match(src, /loadJd\(body\.slug\b/, "an unknown retry slug must be rejected, not minted");
-  assert.match(src, /status:\s*404/, "an unknown retry slug must 404");
+  // Was a literal `{ status: 404 }` object; 751c294e9 moved every JD 404 onto the
+  // shared jsonRefusal(code, status) helper, which passes 404 positionally.
+  assert.match(src, /jsonRefusal\(\s*"JD_NOT_FOUND"\s*,\s*404\s*\)/, "an unknown retry slug must 404");
 });
 
 // The other half of the same contract: an ingest that RUNS must also LAND.

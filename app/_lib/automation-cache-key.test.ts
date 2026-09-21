@@ -14,6 +14,9 @@ import {
   LANG_KEYED_TASKS,
   LETTER_LANG_TASKS,
   UI_LANG_TASKS,
+  screenVolumeTier,
+  SCREEN_VOLUME_SPARSE_MAX,
+  SCREEN_VOLUME_MODERATE_MAX,
   type AutomationKeyInput,
 } from "./automation-cache-key.ts";
 
@@ -208,6 +211,64 @@ test("THE FIX: a degraded (--no-llm) result never shares a key with an LLM resul
     computeAutomationCacheKey({ ...base }),
     computeAutomationCacheKey({ ...base, degraded: false })
   );
+});
+
+test("screenVolumeTier buckets on the mirrored thresholds, leniently for an unknown count", () => {
+  assert.equal(screenVolumeTier(0), "sparse");
+  assert.equal(screenVolumeTier(SCREEN_VOLUME_SPARSE_MAX), "sparse");
+  assert.equal(screenVolumeTier(SCREEN_VOLUME_SPARSE_MAX + 1), "moderate");
+  assert.equal(screenVolumeTier(SCREEN_VOLUME_MODERATE_MAX), "moderate");
+  assert.equal(screenVolumeTier(SCREEN_VOLUME_MODERATE_MAX + 1), "dense");
+  // The fail-safe direction, mirroring automation.SCREENING_VOLUME_FALLBACK: a
+  // caller that could not count gets the LENIENT tier, never 0-and-strict.
+  for (const unknown of [null, undefined, Number.NaN, -3]) assert.equal(screenVolumeTier(unknown), "sparse");
+  // …and the shipped numbers, hand-mirrored from automation.POLICY and pinned by
+  // pipeline/jobfit/tests/test_automation_constant_sync.py.
+  assert.equal(SCREEN_VOLUME_SPARSE_MAX, 5);
+  assert.equal(SCREEN_VOLUME_MODERATE_MAX, 30);
+});
+
+test("THE FIX: the screening volume BUCKET splits the key; other tasks ignore it", () => {
+  // A verdict computed at 3 candidates must not be served at 80 — the prompt states
+  // a different strictness rule at each tier.
+  const screen = { ...base, task: "screen" };
+  assert.notEqual(
+    computeAutomationCacheKey({ ...screen, pipelineSize: 3 }),
+    computeAutomationCacheKey({ ...screen, pipelineSize: 80 })
+  );
+  // …but it is BUCKETED, so an arrival inside the same tier is still a HIT: the key
+  // must not churn on every candidate added to an active role.
+  assert.equal(
+    computeAutomationCacheKey({ ...screen, pipelineSize: 1 }),
+    computeAutomationCacheKey({ ...screen, pipelineSize: SCREEN_VOLUME_SPARSE_MAX })
+  );
+  assert.equal(
+    computeAutomationCacheKey({ ...screen, pipelineSize: 40 }),
+    computeAutomationCacheKey({ ...screen, pipelineSize: 4000 })
+  );
+  // Crossing a boundary genuinely re-keys.
+  assert.notEqual(
+    computeAutomationCacheKey({ ...screen, pipelineSize: SCREEN_VOLUME_SPARSE_MAX }),
+    computeAutomationCacheKey({ ...screen, pipelineSize: SCREEN_VOLUME_SPARSE_MAX + 1 })
+  );
+  assert.notEqual(
+    computeAutomationCacheKey({ ...screen, pipelineSize: SCREEN_VOLUME_MODERATE_MAX }),
+    computeAutomationCacheKey({ ...screen, pipelineSize: SCREEN_VOLUME_MODERATE_MAX + 1 })
+  );
+  // An omitted count keys as the lenient tier — the same bucket a sparse role gets,
+  // which is exactly what Python resolves it to.
+  assert.equal(
+    computeAutomationCacheKey({ ...screen }),
+    computeAutomationCacheKey({ ...screen, pipelineSize: 2 })
+  );
+  // No other task's prompt reads the volume, so it must not split their keys.
+  for (const task of ["prep", "scorecard", "outreach", "rejection", "offer", "rematch"]) {
+    assert.equal(
+      computeAutomationCacheKey({ ...base, task, pipelineSize: 2 }),
+      computeAutomationCacheKey({ ...base, task, pipelineSize: 400 }),
+      task
+    );
+  }
 });
 
 test("computeCorpusFingerprint is order-independent and set-sensitive", () => {

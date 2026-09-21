@@ -188,6 +188,7 @@ class OpenAIProvider(TextProvider):
             # max_completion_tokens (not the legacy max_tokens) — required by
             # reasoning-class models and accepted by the rest.
             max_completion_tokens=self.max_tokens,
+            **self._request_extras(),
         )
 
         # bug-ui-scan-2026-07-09 (llm-provider-layer-python #3): an OpenAI-compatible
@@ -216,7 +217,7 @@ class OpenAIProvider(TextProvider):
         return LLMResult(
             text=text,
             provider=self.name,
-            model=self.model,
+            model=self._served_model(resp),
             usage={
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
@@ -225,6 +226,21 @@ class OpenAIProvider(TextProvider):
             # Stamp cost when the model is priced (base.MTOK_PRICES). Azure
             # subclasses this _call but its deployment-name models don't prefix-
             # match, so they stay cost_usd=None by design (priced server-side).
-            cost_usd=price_usd(self.model, input_tokens, output_tokens),
+            cost_usd=self._cost_of(resp, input_tokens, output_tokens),
             finish_reason=str(finish_reason) if finish_reason else None,
         )
+
+    # -- per-family hooks (declarations over method bodies, like the attrs above) --
+
+    def _request_extras(self) -> dict[str, Any]:
+        """Extra kwargs for ``chat.completions.create`` — a ``response_format`` for an
+        endpoint that enforces one (the LightTrack gateway). Empty here."""
+        return {}
+
+    def _served_model(self, resp: Any) -> str:
+        """The model the ledger records: the configured one, unless the endpoint is a
+        router whose reply names the target that actually answered."""
+        return self.model
+
+    def _cost_of(self, resp: Any, input_tokens: int, output_tokens: int) -> float | None:
+        return price_usd(self.model, input_tokens, output_tokens)

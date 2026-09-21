@@ -545,6 +545,14 @@ export function liveInterviewByEntry(entryId: string, workspaceId: string = DEFA
   return r ? rowToInterview(r) : null;
 }
 
+/** Point read for a GATED recruiter surface: the session only if it belongs to the
+ *  caller's team. Insights → Activity resolves a ledger row's session id through
+ *  this, so a foreign id answers null exactly like an unknown one. */
+export function getInterviewSessionInWorkspace(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
+  const r = ensureDb().prepare(`SELECT * FROM interview_sessions WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as InterviewRow | undefined;
+  return r ? rowToInterview(r) : null;
+}
+
 export function getInterviewSessionById(id: string): InterviewSession | null {
   const r = ensureDb().prepare(`SELECT * FROM interview_sessions WHERE id = ?`).get(id) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;

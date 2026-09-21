@@ -12,16 +12,46 @@ the existing JD build. Conversation design is normed by
 - `?tab=intake` — **Job intake**, the authoring tab (sidebar: Library → Job
   intake). Two modes behind one switcher: the **intake dialog** (default) and
   **Generate**, the manual JD builder for a recruiter who already has the text.
+  The empty Jobs catalog's "draft a role" card lands here (not on the JD shelf).
   Both panels stay mounted, so switching can never discard a half-typed draft or
   an in-flight dialog (`jdsLedgerNav.ts` pins that; only a Duplicate advances
   `builderKey` and remounts the builder).
-- The tab opens on **Generate** instead of the dialog when the URL carries a JD
-  handoff — `?duplicate=<slug>` (the ledger's Duplicate), `?jdTask=<id>` (a
-  finished background build, from the tasks tray) or the `?jdTitle=/?jdNeed=/…`
-  prefill the guided demo's design step uses. The rule is one pure predicate,
-  `opensOnGenerate` (`jdsIntakeTabEntry.ts` + test), because getting it wrong is
-  silent: the builder reads its seeds at MOUNT, so a handoff that lands on the
-  dialog drops what it was carrying.
+- **The tab is the LEDGER; a session opens the STUDIO.** The intake panel used to
+  be two views in one — a list of conversations that swapped itself out for the
+  conversation. Opening a session now opens a full-viewport dialog over the page
+  (`IntakeStudioOverlay`), so the ledger is still underneath when it closes. See
+  *Intake Studio* below.
+- `?intake=new` — start a conversation in one click: the tab creates a fresh
+  session and the studio opens on it. One-shot, exactly like `?duplicate=`: the
+  predicate is the pure `opensNewIntake` (`jdsIntakeTabEntry.ts` + test), the
+  param is stripped at mount with `history.replaceState`, and the instruction is
+  handed to the panel as a boolean it reports back on — the panel mounts behind a
+  `Defer`, so a strip alone would not be enough. The value is matched EXACTLY
+  (`new`, not "any non-empty"): the param has a side effect (a `role_intakes` row
+  and a spawned opener), so a future `?intake=<id>` must not be read as "make
+  another one". A builder handoff outranks it — a conversation must not open on
+  top of a prefill the reader can no longer see.
+- **Command palette → "New intake"** — the one palette command that CREATES
+  something, so it is a door rather than a jump: the plain *Go to → Job intake*
+  row lands on the ledger, which is right for "show me my conversations" and one
+  click short for "I have a hiring need right now". It emits the `?intake=new`
+  href above and is hidden when the tab is locked for this caller
+  (`useWorkspaceCommandPaletteItems.ts`). Its label is the intake surface's own
+  `library.tab.intake.new`, not a palette copy of it.
+- The tab opens on **Generate** instead of the dialog when a JD handoff arrives.
+  Three of them ride the URL — `?duplicate=<slug>` (the ledger's Duplicate),
+  `?jdTask=<id>` (a finished background build, from the tasks tray) and the
+  `?jdTitle=/?jdNeed=/…` prefill anyone can link in with — and a fourth is not a
+  link at all: the guided demo's `SimState.jdHandoff`, read here through
+  `useOptionalSimulation()`. The tour used to spell its simulated role out in the
+  address bar (five params, 252 characters, one of them a prose paragraph); it
+  hands it across in app state now, since a component handing data to another
+  component inside the same provider never needed the URL to do it. The `?jd*`
+  deep link is unchanged for the reader who really is linking in from outside.
+  The rule is still one pure predicate, `opensOnGenerate` (`jdsIntakeTabEntry.ts`
+  + test), taking both doors, because getting it wrong is silent: the builder
+  reads its seeds at MOUNT, so a handoff that lands on the dialog drops what it
+  was carrying.
 - `?tab=library` — the saved-JD ledger. It is the whole library page now; the
   Saved / Generate / Intake strip that used to sit on top of it is gone.
 - **Duplicate is a navigation, not a prefill.** The ledger and the builder no
@@ -46,7 +76,8 @@ the existing JD build. Conversation design is normed by
    (`updateIntakeDialog`, IMMEDIATE transaction). The right-hand **live brief
    panel** renders the brief filling in with per-value provenance chips
    (`stated` = the requestor's words · `inferred` = the agent's reading ·
-   `default` = template assumption).
+   `default` = template assumption). A minority of agent turns also carry
+   **decision cards** — see below.
 3. **Shape triage** — after 1–2 requestor turns the session is classified
    `power_unit` (backfill/clone → short confirm-and-generate path) or `story`
    (exploratory coaching path). Deterministic heuristic floor
@@ -110,8 +141,14 @@ The third shape (contract + rubric:
 start from a blank conversation, it starts from an **app** — the one input no
 JD has ever had.
 
-- **Entry**: the Intake sub-tab's **App master** start option
-  (`JdsIntakeAppMasterStart.tsx`) takes a GitHub URL or a local path, POSTs
+- **Entry**: WITHDRAWN 2026-09-09. The start card that took a GitHub URL or a
+  local path was removed from the intake page along with the page's other
+  create door: starting a role is a menu action now, and the page is the record
+  of what already happened. The shape itself is intact — `startAppMaster` on the
+  intake logic hook still opens a scan-backed session, existing `app_master`
+  sessions render and promote exactly as before, and every route below is
+  unchanged — but nothing in the UI calls it, so a new one cannot be started
+  until a door is put back. The old card POSTed
   `/api/repo-scan` (P2's contract → `{scanId, taskId}`), then POSTs
   `/api/intake` with that `scanId`. A second entry point points here from a
   job's Agent-fit tab (`JobsAgentFitTab.tsx`) — that tab answers "how much of
@@ -121,7 +158,7 @@ JD has ever had.
   running scan and no amount of "not sure, we've never had this role" can flip
   the session back to `story` (`detect_shape(turns, app_master=True)`).
 - **While the scan runs** the chat shows the shape's own deterministic opener
-  plus a scan-progress line (`JdsIntakeChat`'s `statusNote`). The clock is the
+  plus a scan-progress line (`StudioTranscript`'s `statusNote`). The clock is the
   **shared TasksProvider poll** — no second poller: its `tasks` array is
   referentially stable across no-op polls, so `useAppMasterLogic`'s effect fires
   exactly when a task's state moves.
@@ -277,7 +314,10 @@ JD has ever had.
   every label through next-intl in the four catalogs, and an **absent value
   renders nothing**: no zero, no dash, no invented default. The field mapping is
   pure and pinned — `mandateSections` in `app/_lib/app-master/mandate-view.ts`
-  (`mandate-view.test.ts`) — so the JSX stays typography. Capped lists (the fit's
+  (`mandate-view.test.ts`) — so the JSX stays typography. That mapping also
+  carries `mandate.scopeRung` (0..2, read-only included) and
+  `mandate.forbiddenClasses`, the two bounds that actually constrain the holder.
+  Capped lists (the fit's
   per-objective rows, the dossier's stack/gates/hot-spots/risks/objectives) carry
   a **"+N more"** that expands in place, the affordance
   `MatchCardSkillChips` already uses: a silent truncation is a claim about how
@@ -361,7 +401,7 @@ writes `transcriptWindow(...)`, the same bound. Equal windows are what keeps
 `sourceTurn` citations numbered identically on both sides of the boundary.
 
 Compaction is DISCLOSED, never silent: one leading `system` turn carries the
-machine token `kp:transcript-compacted:<n>`, which `JdsIntakeChat` resolves into
+machine token `kp:transcript-compacted:<n>`, which the kit's `StudioTranscript` resolves into
 the reader's language. A second compaction absorbs the count instead of stacking
 markers. Pinned by `app/_lib/intake-transcript.test.ts`.
 
@@ -398,7 +438,15 @@ anonymous 500 the runner had to guess a code out of.
 | Export builder (pure) | `app/_lib/intake-export.ts` |
 | Close sentinel strip (pure) | `app/api/intake/reply-sentinel.ts` (`stripEndSentinel`, `voice-close-guard.test.ts`) |
 | Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`); `intake-create:<ip>` 30/10min (the opener spawns Python) and `intake-promote:<ip>` 20/10min (the paid `jd_build`) — both limiters shipped, contract pins still to add; `intake-dossier:<ip>` 20/10min and `intake-compose:<ip>` 30/10min (both spawn Python and can spend on `agent_fit`), pinned in `app/api/intake/app-master-routes.test.ts` |
-| UI | `app/features/library/jds/intake/` (`JdsIntakePanel`, `JdsIntakeChat`, `JdsIntakeBriefPanel`, `jdsIntakeLogic`) |
+| Decision cards: wire contract + clamps (pure) | `app/_lib/intake-choices.ts` (`coerceIntakeChoiceSet`, `choiceMessage`, `toggleChoice`; `intake-choices.test.ts`) |
+| Decision cards: when they are earned | `pipeline/jobfit/intake.py` (`_PERSONA_CHOICES`, `_choices_payload`, `_SCRIPTED_CHOICE_OPTIONS`, `_scripted_choices`) |
+| Decision cards: UI | `app/_components/studio/StudioChoiceCards.tsx` (the Studio kit), mounted by `StudioTranscript` under the turn that offered them |
+| UI — ledger | `app/features/library/jds/intake/JdsIntakePanel.tsx` (the tab: session table + summary rail), `JdsIntakeSessionsTable.tsx` |
+| UI — studio | `IntakeStudioOverlay.tsx` (header strip + disclosure band over the kit's `StudioOverlay`, which owns the frame and the close contract), `IntakeStudioActions.tsx` (export · re-open · promote), `IntakeStudioDesk.tsx` (the desk, at full size) |
+| UI — zones | `coats/atelier/IntakeAtelierDesk` (composition over the kit's `StudioDesk` / `StudioTranscript` / `StudioComposer` / `StudioVoiceBar`), `AtelierBriefPlane`, `AtelierDraftSheet`, `JdsIntakeAttachmentsPane`, `jdsIntakeLogic` |
+| Studio kit (shared with the job-seeker dialogs) | `app/_components/studio/**` — see §*Studio kit* |
+| Per-turn arrival (pure + motion) | `intakeDelta.ts` (`diffBrief`, `diffDraft`; `intakeDelta.test.ts`), `IntakeArrivalMotion.tsx` (`useArrivalDelta`, `ArrivalList`) |
+| Tab entry predicates (pure) | `app/features/library/jds/jdsIntakeTabEntry.ts` (`opensOnGenerate`, `opensNewIntake`; `jdsIntakeTabEntry.test.ts`) |
 
 ## Data model
 
@@ -460,6 +508,37 @@ Native" to "Flutter" still passes; only prose is a miss. This pins the
 **routing** half of L2-NEW-2 — the reading half (`briefDealbreakerEvidence`
 tolerating both homes downstream) is deliberate defense in depth, not a licence
 for the extraction to skip the row.
+
+**The rows can also be lost between the model and the brief.** The JD-grounded
+live smoke (`--jd-corpus`, 2026-09-08) produced an "eloquent empty brief" on
+every dialog — a rich summary, five responsibilities, seven `stated` facets,
+and `requirements: []` beside a read-back that recited three named
+dealbreakers. The model was in fact emitting the rows, correctly graded
+(`kind: must_have`, `provenance: stated`, `sourceTurn` set); `coerce_role_brief`
+was discarding them. Three wire shapes, all now read (`rolebrief.py`):
+
+- a requirement row naming the condition **`label`** (or `name`/`requirement`)
+  rather than `skill` — the extraction contract named `kind`/`hardness`/
+  `weight` and never `skill`, and the neighbouring facet rows carry `label`, so
+  the model reached for the vocabulary it could see. `req()` required `skill`
+  and dropped the whole row for want of one key;
+- `successCriteria` / `responsibilities` as **objects** carrying the provenance
+  the contract demands (`{text, provenance, sourceTurn}`) rather than plain
+  strings — `_text_list` dropped every entry, so a session whose 90-day
+  outcomes were recited back landed none of them;
+- `spineProvenance.`**`roleFamily`** — the camelCase key `_EXTRACTION_RULES`
+  itself spells — where the coercer only read `role_family`, so a correctly
+  classified family arrived indistinguishable from the
+  `software_engineering` schema default and `check_dialog`'s `role_family`
+  invariant failed on a family that was right.
+
+The prompt now names `skill` explicitly and says the two string arrays are
+plain strings; the coercer tolerance is the safety net behind it, not a
+substitute. `merge_brief` additionally floors `spine_provenance["role_family"]`
+at `inferred` for any non-default family (the deterministic path already
+stamped it after `classify_role_family`; the LLM path only did when the model
+remembered the key). All three are pinned offline against the captured payload
+in `LiveExtractionRoutingTest` (`tests/test_intake.py`).
 
 **Market-breadth bank**: `intake_scenarios_gen.py` generates a deterministic
 100-scenario bank spanning ALL 16 taxonomy role families × seniority ×
@@ -615,6 +694,66 @@ only those (a locally configured ElevenLabs is unreachable from it, so
 "nothing billable is minted" is false here) — fast turns 60/10min per intake,
 extraction sweeps 20/10min per IP.
 
+## Voice in and out (dictation + read-aloud)
+
+The intake composer carries a voice pair — the Studio kit's `StudioVoiceBar`, mounted in
+`StudioComposer`'s `voiceSlot` by `IntakeDictationSlot` (`coats/atelier/IntakeAtelierDesk.tsx`),
+which appends dictation through `useStudioComposerDraft()`. It is **two independent pipelines
+that share a row and nothing else** — the shape the registry's voice-io subject insists on: capture → transcript and
+text → synthesis have different latency, privacy and failure physics.
+
+| Half | Hook | Route | Package |
+| --- | --- | --- | --- |
+| Dictation (in) | `app/_components/studio/useStudioDictation.ts` (intake re-exports it as `useIntakeDictation`) | `POST /api/stt` | `packages/voice-stt` (`useStt`) |
+| Read-aloud (out) | `app/_components/studio/useStudioSpeech.ts` (`useIntakeSpeech` binds intake's auto-speak key) | `POST /api/tts` | `packages/voice-tts` (`useTts`) |
+
+The rules that are the surface's own (rather than the packages') are pure and tested in
+`app/_components/studio/studioVoiceIo.ts`, pinned through intake's re-exporting
+`intakeVoiceIo.ts` / `intakeVoiceIo.test.ts` — the unavailability latch, the auto-speak
+decision, and where a transcript lands in a half-typed sentence.
+
+### Dictating
+
+Press the mic (a gesture — capture never starts from navigation). While it is open the bar shows
+a **continuously visible indicator**: the word "Listening…" plus a live level meter, which is the
+only tool a requestor has to debug their own audio. The meter taps its own analyser stream; if the
+device will not give a second reader, the bar is not painted at all — a bar stuck at zero would be
+a false "we cannot hear you" about a working microphone. Under `prefers-reduced-motion` the
+animated bar is replaced by the same number as text.
+
+Pressing again stops and transcribes. **The transcript lands in the composer draft, appended to
+whatever was already typed, and nothing sends** (`onDictated` → `appendDictation`): a transcript is
+an engine's guess, so a mis-heard word is fixed before the agent ever sees it. The append keeps a
+deliberate line break, joins closing punctuation tight (", ideally with Kafka"), and otherwise adds
+exactly one space.
+
+### Reading the agent's turn aloud
+
+The speak control appears whenever there is an agent turn to read. It has three meanings and never a
+fourth: start, stop, or resume a playback the browser refused. **Stop means now** — the package
+aborts pending synthesis and releases the audio element in the same tick, and so does unmounting the
+panel or switching to another intake session. Text passes `speechReady()` before any engine sees it,
+so a reply written for a 30rem column is not voiced as "asterisk asterisk".
+
+**"Read every reply aloud"** is a per-browser opt-in (`localStorage: kp-intake-auto-speak`), **OFF by
+default**. It is primed on mount and on a session switch, so reopening a stored session never speaks
+a week-old answer at somebody who has just arrived; it is de-duped by text identity, so a keystroke
+in the composer cannot restart an utterance; and it stays silent while the tab is hidden. Browsers
+refuse un-gestured audio, and that refusal is a designed state — the control becomes a resume.
+
+### With no engines installed (keyless)
+
+`/api/stt` (whisper.cpp) and `/api/tts` (Piper) need local binaries. Without them each route answers
+503 `STT_UNAVAILABLE` / `TTS_UNAVAILABLE`, and each half of the bar **degrades on its own**: the
+control is replaced by one honest sentence and the other pipeline keeps working. A machine with
+whisper.cpp and no Piper dictates and does not read aloud; a machine with neither leaves the intake
+session entirely reachable by typing. The latch is sticky because the fix is a server config, not
+another press — every *other* failure (a denied microphone, a throttle, an engine fault) leaves the
+control live and says what happened, resolved from the route's code in the reader's language
+(`errors.<CODE>` via `useErrorMessage`).
+
+Keys: `library.tab.intake.voiceIo.*` in all four catalogs.
+
 ## Editable brief + re-openable sessions (UAT drain §2.1)
 
 The requestor can FIX what was captured without a new session:
@@ -665,7 +804,7 @@ Claude Code read the repo and **0.6** when the heuristic file-walk did, under a
 comment stating that "the confidence the panel chips must say so". The chips
 could not: both readings are provenance `inferred` by construction (never
 "stated" — a machine read this), so the panel rendered the identical chip for
-both and the number had no consumer at all. `JdsIntakeBriefPanel` now renders a
+both and the number had no consumer at all. `JdsIntakeBriefAtoms` now renders a
 quiet confidence chip on a facet row, reusing the existing
 `library.tab.intake.defense.confidence` key (as a bare percentage beside the
 label in the two new bodies). Confidence `1` renders nothing — a
@@ -759,10 +898,99 @@ prefix — a prefix-only test missed an ack-decorated read-back and folded the
 requestor's "ok" into the last scripted slot, inventing a stated
 `budget_band: "ok"` facet and repeating the read-back instead of closing.
 
+## Decision cards — when the agent offers choices instead of asking
+
+Most turns are one open question. A **decision card set** is the exception: the
+agent puts 2–4 concrete options on the table and the requestor answers by
+picking. An open question asks them to PRODUCE vocabulary; cards offer
+vocabulary to react to, which is cheaper — and cheaper is only *better* in two
+situations. Offered anywhere else it anchors the requestor onto our words and
+the session stops being an intake and becomes a form.
+
+**The two triggers** (`_PERSONA_CHOICES` in `pipeline/jobfit/intake.py`):
+
+| Kind | Fires when | What the cards are |
+| --- | --- | --- |
+| `confirm` | the agent has been treating something load-bearing as true that the requestor never said — it sits in the brief as `inferred` | its own reading, plus the alternative(s) it would accept instead. Picking makes the value `stated`; ignoring leaves it an assumption, still labelled as one |
+| `propose` | a part of the brief the requestor has STALLED on — they said they don't know, or already answered this part once, vaguely | 2–4 disposable shapes for that part, each carrying one line of what it would cost or make true |
+
+**What keeps it a conversation**, enforced in the persona rules and clamped at
+the TypeScript boundary:
+
+- Never the first thing said about a topic, never a way to skip the laddering
+  (technique rule 4), and never on the closing read-back — that turn invites ONE
+  open correction by design, and `coerce()` drops a card set from any turn that
+  carries `done`.
+- One set per turn, at most four options. The set IS the turn's single question
+  (technique rule 1), so the reply text still reads as a normal spoken turn and
+  must not re-list the options in prose.
+- The set is escapable from inside itself: a "none of these" line under the
+  cards moves focus back to the composer. A choice you cannot decline is a
+  form field.
+- `multi` follows the underlying part: a LIST (dealbreakers, 90-day outcomes)
+  can take several; an either/or (level, role shape) is single-select and sends
+  on the click.
+
+**Picking sends an ordinary message.** The selected labels become the
+requestor's next message (`choiceMessage`), so the engine, the extraction, the
+read-back and the evals all see the conversation they already understand — and
+the value lands as `stated`, because they did state it. A card is a composer
+affordance, not a new kind of transcript turn.
+
+**Where the set lives.** On the agent turn that made it (`VoiceTurn.choices`),
+not on a session column: a reload re-offers exactly the set that was on the
+table, attached to the question it answers. Older sets stay visible as the
+record of what was offered but go quiet — only the newest turn is interactive
+(`StudioTranscript` gates on `index !== latestIndex`).
+
+**Trust boundary.** The payload is authored by a model, so `coerceIntakeChoiceSet`
+(`app/_lib/intake-choices.ts`, called in `intake-run.ts`) is the one place that
+decides what may reach a screen: 2–4 options, prompt/label/detail lengths
+clamped, duplicate labels and ids collapsed, a malformed set DROPPED rather than
+repaired — the turn keeps its own question, which it always carries anyway.
+
+**Keyless.** The scripted path ships cards too, for the one scripted slot that
+is genuinely an either/or: `seniority` (junior · medior · senior · lead, each
+with its consequence line, in all four locales — `_SCRIPTED_CHOICE_OPTIONS`).
+An operator with no API key sees the same affordance filled by the same
+contract, not a feature that exists only when a provider answers. The other
+slots have no menu on purpose: there is no set of options for "what have they
+gotten done in 90 days" that is not a leading question.
+
 ## The live brief is an ANNOTATED document
 
-`JdsIntakeBriefPanel.tsx` is the FRAME — header, edit/frozen states, the
-App-master slot, the empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
+A second `/prototype` round ran on this panel (**Notepad**, a continuous
+`bg-paper` page with a ruled margin; **Cards**, a desk of paper section cards
+with provenance as the row's left edge) and **Annotated kept the surface** —
+both losing directions, their shared frame and the switcher were deleted at
+consolidation. The round's finding was structural rather than visual: the panel
+was not the problem, the DESK was (see *Session layout* below).
+
+What survived the round is the **reveal**. A brief line now enters according to
+its own history:
+
+| The line | How it enters |
+| --- | --- |
+| landed while the requestor was talking | types itself out, character by character |
+| was already on the page when the panel opened | one linear opacity pass (`animate-arrive-in`) |
+| merely survived a re-extraction | no animation at all |
+
+That third row is the one that makes the other two possible. The engine re-emits
+the WHOLE brief on every sweep, so anything keyed by position re-animates the
+entire panel each time one line lands. Identity is therefore the SENTENCE, not
+the index (`briefSections.ts`): normalized text plus a deterministic counter for
+genuine duplicates, so a re-order by weight, a casing change or a line that
+disappears and comes back are all correctly read as "not news"
+(`briefReveal.test.ts`, 10 cases). The panel — not the body — owns the
+classification, because the edit form unmounts the body and every line would
+otherwise read as brand new when the form closes. Typing is bounded
+(`TYPE_MAX_MS`): a long success criterion types in wider steps rather than for
+longer, reduced motion collapses it to the finished string, and the full text is
+always in the DOM for assistive tech so a screen reader hears the sentence once,
+complete. The header says "writing" only while a line is actually being written.
+
+`coats/atelier/AtelierBriefPlane.tsx` is the FRAME — head, edit/frozen states, the
+App-master slot, the ghost empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
 The body is the winner of a `/prototype` round run against the shipped flat
 sections and a ranked "Scorecard"; both losers and the switcher between them were
 deleted at consolidation.
@@ -826,6 +1054,17 @@ would sort every untouched session to the bottom in BOTH directions
 (`compareCells`' missing-value rule), which is right for an unknown and wrong for
 a date we hold.
 
+**The ledger is the whole tab now**, and it gained the rail it needed once it
+stopped being replaced by the session view: a sunken summary panel
+(`lg:grid-cols-[minmax(0,1fr)_20rem]`) describing ONE session — the row the reader
+last opened, or the newest one before they have opened anything. It carries the
+brief title, the shape and status chips, the turn count, the last-updated date, an
+**Open the studio** button, and — for a promoted session — a link to the JD that
+came out of it (`/jds/<slug>`, the door `JobsLifecycleStrip` already uses; the
+library ledger has no per-JD deep-link param to aim at). "What came of this
+conversation" is the question the `promoted` chip raises and a table cell cannot
+answer.
+
 Two smaller corrections on the same surface:
 
 - **The lede is a tooltip on the title**, not a paragraph under it. It explains
@@ -838,26 +1077,147 @@ Two smaller corrections on the same surface:
   chevron) that lifts its border on hover, and the form's primary action is a
   primary button.
 
+## Intake Studio (overlay)
+
+The open conversation is a full-viewport workspace over the ledger:
+`IntakeStudioOverlay.tsx` → `Modal size="full" bare` → a header strip →
+`IntakeStudioDesk.tsx` (the desk, at full size).
+
+**Why an overlay rather than a second view of the tab.** The desk had to fit in
+whatever was left of the page under the tab header, the mode switcher and the
+intro paragraph — on a 1280px screen roughly half a viewport for three panes that
+are meant to be read together — and the tab was answering two questions at once,
+with the second one silently replacing the first. The dialog is `h-[92dvh]` and
+`max-w-[1920px]`, so the desk gets the screen; closing it returns to a ledger that
+never went anywhere.
+
+- **The a11y contract is the primitive's, not this file's.** `Modal` wires
+  `useDialogA11y` — Escape (top-of-stack gated), the focus trap, the scroll lock
+  and focus restore — and the contract is pinned by `e2e/modal-escape.spec.ts`.
+  `bare` only means the caller draws the chrome, because the header here is the
+  session's identity plus everything that can be done to it, not a title bar.
+- **The header strip**: shape eyebrow · session title (or *Untitled role*) ·
+  status chip on the left; Export, Re-open, the promote checkboxes and **Create
+  JD** (`IntakeStudioActions.tsx`) plus the close control on the right. Below it,
+  in its own band, the session-wide disclosure the panel has always carried — the
+  degraded/stand-in-language notes and the per-affordance refusal lines, each
+  resolved from the server's CODE through `useErrorMessage()`.
+- **Escape is not unconditional.** A reply takes ~30–40 s live and closing the
+  dialog does not cancel it — the exchange lands server-side and the requestor is
+  left on a ledger row that quietly gained a turn they never read. So while
+  `sending` is true, Escape / the backdrop / the close button raise one inline
+  confirm (*a reply is still arriving*) with **Stay** and **Close anyway**. Every
+  other close is immediate.
+- **A closed session is read-only where it must be, and no further.** The
+  composer and the voice controls are hidden (the `closed` branch that already
+  existed), and a `complete` session offers **Re-open**. The brief stays
+  EDITABLE on a complete session — that is the point of the edit mode (fix what
+  was captured without a new session, §*Editable brief*); only a `promoted`
+  session is frozen, because there the JD exists.
+
+## Studio kit — the desk is a primitive, intake is its first consumer
+
+Since WP1 of the job-seeker spark the studio's working surface is not intake's:
+it is **`app/_components/studio/`**, a domain-agnostic three-zone dialog desk
+(transcript · composer · plane) that the recruiter Intake Studio and the
+job-seeker CV / fit dialogs share. Intake was extracted INTO it with zero
+behaviour change — `studioContract.test.ts`, `intakeVoiceIo.test.ts` and the
+rest of the intake suite run unmodified against the re-exports. The doc-map
+entry for this feature lists `app/_components/studio/**`, so a kit change names
+this document.
+
+**What moved, and what it is called now**
+
+| Was (intake) | Is (kit) | Notes |
+| --- | --- | --- |
+| `IntakeStudioOverlay`'s `Modal size="full" bare` frame, the Escape gate while `sending`, the *a reply is still arriving* confirm | `StudioOverlay` (+ `useStudioOverlayClose()`) | Intake keeps the header strip and the disclosure band; the header's close glyph calls the kit's GATED close through the hook |
+| `coats/atelier/AtelierZone`, `ATELIER_EASE`, `ATELIER_SPRING` | `StudioZone`, `STUDIO_EASE`, `STUDIO_SPRING` | The zone walk, fold state and guards now live in `StudioDesk` |
+| `IntakeAtelierDesk`'s zone loop | `StudioDesk<K>` | Generic over the consumer's zone vocabulary `K`; `plane`, `transcript`, `composer` and `extra` are ReactNode slots; `meta` carries each zone's numeral and hint; `open`/`onOpenChange` run it controlled |
+| `coats/atelier/AtelierTranscript` | `StudioTranscript` | Same turn blocks, morphing wait mark, non-yanking autoscroll, 1.6 s citation flash |
+| `coats/atelier/AtelierComposer` | `StudioComposer` (+ `useStudioComposerDraft()`) | Bare field, Enter sends, refused send hands the draft back; the unsent draft now also lives in `sessionStorage` under the consumer's `draftKey` |
+| The composer's dictation + read-aloud glyph cluster | `StudioVoiceBar` | Two independent pipelines, struck glyphs for an absent engine, refusal lines portal onto the composer's footer line |
+| `JdsIntakeChoiceCards` | `StudioChoiceCards` | A pick still sends an ORDINARY message; `choiceMessage` / `toggleChoice` delegate to `app/_lib/intake-choices.ts`, the engine's wire contract |
+| `useIntakeDictation`, `useIntakeSpeech`, `useUnavailableLatch`, the pure `intakeVoiceIo.ts` | `useStudioDictation`, `useStudioSpeech`, `useUnavailableLatch`, `studioVoiceIo.ts` | The intake paths re-export; `useIntakeSpeech` binds intake's auto-speak key |
+| `studioContract.ts`'s `readStoredColumns` / `storeColumns` / `toggleColumn` | `studioZones.ts`: `readStoredZones<K>` / `storeZones` / `toggleZone<K>` / `zoneKeyGuard` | Generic over `K`, `storageKey` is a parameter; intake's wrappers keep the old names and `IntakeColumnKey`. `toggleZone` adds a `pinned` guard (`studioZones.test.ts`) |
+| The **NO SENTENCE OCCUPIES LAYOUT** doctrine comment | `studioZones.ts` | Stated once, beside the toggle rule it constrains |
+
+**The rule: variants are PROPS.** A consumer never writes a coat and the kit
+never carries a `variant` switch. Everything that differs between the intake
+studio and a seeker dialog arrives as a prop:
+
+- `plane` — a ReactNode (intake passes `AtelierBriefPlane` with the App-master
+  card in its `appMasterSlot`; a seeker dialog passes a CV or posting sheet).
+- `ns` — the next-intl namespace the kit reads its chrome from (`<ns>.studio.*`,
+  `<ns>.columns.*`, `<ns>.roles.*`, `<ns>.glyph.*`, `<ns>.choices.*`, …; the full
+  list is `STUDIO_KEYS` in `useStudioTranslations.ts`). Intake passes
+  `library.tab.intake`; the kit never names a consumer's branch, so
+  `grep library.tab.intake app/_components/studio` is empty by construction.
+  The price: a kit key missing from a consumer's branch is a runtime miss, not a
+  `tsc` error, because the namespace is a runtime value.
+- `storageKey` (zone preference), `autoSpeakStorageKey` (read-aloud opt-in),
+  `draftKey` (unsent draft) — three keys, because two studios on one browser
+  must not share a preference. Intake passes `kp-intake-atelier-cols`,
+  `kp-intake-auto-speak` and `kp-intake-draft:<id>`; none of those literals
+  appears under `app/_components/studio/`.
+- `zones.pinned` — zones that never fold. Intake passes `[]`: its conversation
+  has always folded like any other zone, and zero behaviour change was the
+  brief.
+
+**Layering.** The kit imports `app/_components/**`, `app/_lib/**` and
+`packages/**` and nothing from `app/features/**` — it is a primitive, and an
+import the other way would make the seeker dialogs depend on the recruiter tab.
+`IntakeAtelierDesk.tsx` is now composition + intake-specific wiring: which zones
+in what order, what the plane is, what the draft zone holds, what each numeral
+means, and the `IntakeLogic` → kit prop mapping. `IntakeDictationSlot` in that
+file is the pattern for wiring a voice pair into the composer: a component
+rendered in `voiceSlot` reaches the draft through `useStudioComposerDraft()`.
+
 ## Session layout — chat · brief · JD draft · materials
 
-The session view is the **Triptych** (`JdsIntakeLayoutTriptych.tsx` over the
-shared contract in `intakeLayoutShared.ts`): three foldable leaves — JD draft ·
-conversation · live brief — each folding to a clickable spine that still badges
-what THAT leaf holds; materials live in a disclosure at the foot of the draft
-leaf, reachable from the spine and from beside the conversation. Column
-visibility persists per browser in `localStorage`, never server-side.
+The desk is the **Atelier plane** (`coats/atelier/IntakeAtelierDesk.tsx` composing the
+Studio kit's `StudioDesk` over `StudioZone`, with intake's zone vocabulary and its
+storage key in `coats/studioContract.ts` — see §*Studio kit*): three foldable zones on ONE continuous
+surface — JD draft · conversation · live brief — separated by a hairline rather
+than nested as cards, each folding to a spine that still carries the one numeral
+that zone owes the reader; materials live in a disclosure at the foot of the
+draft zone, reachable from there and from the composer's paperclip. Zone
+visibility persists per browser in `localStorage` (`kp-intake-atelier-cols`),
+never server-side.
 
-Each leaf has ONE title row: the leaf's name and, for the draft, its status tag
-(`draftChip` on `IntakeLayoutProps`). The draft pane used to print its own title
-underneath the leaf header — "Job description" over "Job description draft" —
-followed by a two-line explainer of what the pane was, and only then the posting
-inside a SECOND bordered card. That is three chrome layers between the header and
-the words the requestor came to read, so the pane is now document-only: the chip
-moved up into the leaf header, the explainer is gone, and the markdown renders
-straight into the leaf (`Markdown` emits its own root, so the entrance animation
-rides that instead of a wrapper).
+**One desk, one height — one host.** The leaves used to size themselves: the chat
+leaf was a fixed 32rem, the brief and the draft grew with their content, and
+`items-stretch` stretched every leaf to the tallest of the three, so a long brief
+left a column of dead white under the conversation and under the draft. The desk
+now owns the height and takes it from its container — the studio is the only host,
+and the modal body is already bounded at 92dvh, so the desk is `xl:h-full
+xl:flex-1 min-h-0` and never makes a second height claim inside a box that has one.
+Below `xl` it is `shrink-0`, the zones stack with a `max-h-[50dvh]` cap each, and
+the DIALOG is the scroller — a shrinkable desk there would be squeezed with nothing
+to scroll. (The viewport-proportional clamp the old tab-hosted desk used —
+`clamp(28rem, 100dvh - 15rem, 48rem)` — went with the tab.)
 
-The **JD draft** (`JdsIntakeDraftPane.tsx` +
+Each zone is a bounded flex column with a sticky head and exactly ONE scrolling
+body, so content that overruns scrolls inside its own zone instead of pushing the
+desk taller and stranding its neighbours. Two consequences worth knowing before
+touching it:
+
+- The conversation is the exception to "the zone body scrolls": `StudioTranscript`
+  already scrolls its turn list above a composer that must stay pinned, so the zone
+  passes `scroll={false}` and adds no scroller of its own.
+- Folding is a WIDTH tween, not a swap: the section stays mounted, framer's
+  `layout` animates the width, and the zone's numeral is the shared element that
+  survives the fold (the same `layoutId` on the head numeral and on the spine
+  numeral), so the one fact a folded zone still owes the reader visibly travels
+  instead of blinking out on one side and in on the other.
+
+The zone head is quiet by construction — an uppercase mark, a bare tabular
+numeral, and a fold control that only exists while the pointer or the keyboard is
+inside the zone. The draft's numeral is a STATE rather than a count (`✓` promotable
+· `…` started · `·` empty), read from `briefPromoteBlockers`, the same computation
+the disabled **Create JD** button obeys, so the mark can never claim a readiness
+the button contradicts (UAT L2-RC-1).
+
+The **JD draft** (`coats/atelier/AtelierDraftSheet.tsx` +
 `app/_lib/intake-draft.ts`) is a DETERMINISTIC client-side render of the
 current RoleBrief in the posting shape of the real build's `composeMarkdown`
 — it updates after every exchange at zero LLM cost, is tagged a draft (the
@@ -870,9 +1230,71 @@ and out, the draft crossfades on brief change —
 all flattened under `prefers-reduced-motion`. Both themes are covered at the
 token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
 
+## Per-turn arrival — what THIS sentence bought
+
+One exchange returns the WHOLE brief, not a patch, so "the three lines your last
+sentence added" is not something the wire says: it has to be derived by comparing
+the snapshot before the turn with the one after it. That is `intakeDelta.ts` —
+pure, no React, pinned by `intakeDelta.test.ts` — and the motion for it is
+`IntakeArrivalMotion.tsx` (`useArrivalDelta` + `ArrivalList`).
+
+**It is not the reveal, and the two do not overlap.** `briefReveal.ts` classifies
+how a line's TEXT enters (type · fade · settled); the delta classifies which ROWS
+moved, which is a different question — a row can change without its sentence
+changing (a re-grading) and change its sentence without being a new row (a
+rename). So: the arrival moves the row, the reveal writes the words inside it,
+and neither animates the other's business.
+
+- **Identity.** Requirements by normalized skill, facets by their own key
+  (`budget_band`, `objective:<kpi>` — the field a correction rewrites is the
+  prose, not the key), 90-day criteria and responsibilities by normalized text,
+  spine scalars by field name (`title`, `seniority`, `roleFamily`, `summary`,
+  `languages` — the last reads as one line, so it diffs as one value). A row's
+  "everything else" is hashed into a signature, so a re-grading is a **change**,
+  not an arrival. `normalizeKey` is shared with the render walk
+  (`briefSections.ts`, which carries the delta identity per line as `arrivalId`),
+  because the two have to agree.
+- **The positional fallback.** A rename destroys the key, and a keyed diff alone
+  reports that as a deletion plus an unrelated arrival — the one story that is
+  definitely wrong. So when a key vanishes at index *i* AND an unseen key appears
+  at index *i*, the two are the same row, changed. It is a heuristic, it applies
+  only at the SAME index (a genuine insert above a genuine delete still reads as
+  both), and it is pinned in the test for exactly that reason.
+- **The first snapshot is history.** Opening a finished session must not animate
+  nineteen turns' worth of work as if it had just landed — the same rule
+  `useBriefReveal` applies. Only a snapshot that REPLACES one is a turn, and the
+  delta clears itself after 1.4 s so a row that landed and then sat there is not
+  permanently marked new.
+- **Motion.** New rows enter `{opacity: 0, y: 6}` → the house spring
+  (`stiffness: 420, damping: 34`), 40 ms apart for the first twelve and instant
+  after that (a twenty-row extraction staggered end to end would hold the last row
+  back most of a second after the reply is already readable). Changed rows replay
+  `animate-arrive-in`; removed rows fade out. A new row carries
+  `data-source-turn`, and clicking it jumps the transcript to the turn it came
+  from — the same `highlightTurn` the row's own turn chip calls, which is the
+  keyboard path.
+- **Reduced motion** collapses all of it to "the row is simply there": no
+  stagger, no transform, zero duration. `useReducedMotion`, one gate, no call site
+  remembering.
+- **The JD draft flashes what moved, not that something moved.** The whole
+  document used to fade on every brief change, which says "this changed" about a
+  posting where two words out of four hundred are new. `diffDraft` (same module,
+  counted rather than set-tested so a legitimately repeated line still reads as
+  new) marks the changed line indexes; the pane splits the markdown at its blank
+  lines into blocks, and only the blocks holding a new or replaced line animate.
+  `Markdown` is untouched — a block is exactly the text it would have seen anyway,
+  one piece at a time — and the blocks live in one wrapper with `mt-2` on the
+  non-first ones, restoring the `first:mt-0` margin each block loses by becoming
+  the first child of its own root.
+- **The leaf headers say where the work is landing.** While a turn is in flight
+  the brief and draft zone labels pulse (`busy` on `StudioZone`,
+  `animate-pulse` — the one Tailwind animation `globals.css` already stops under
+  reduced motion). The conversation is not in the list: it has its own thinking
+  bubble.
+
 ### Per-session state does not survive a session switch
 
-`JdsIntakePanel` is mounted **once** (dynamically, by `JdsSavedLedger`) and swaps
+`JdsIntakePanel` is mounted **once** (dynamically, by `JdsIntakeTab`) and swaps
 `active` underneath itself — there is no `key`, so nothing inside it remounts when
 the requestor goes Back and opens a different intake. The async half of this was
 already handled: every late voice/compose result is folded through the
@@ -882,6 +1304,164 @@ identity-checked `applySession`, "so a result must name the session it belongs t
 render-phase guard keyed on the intake id (the `jobsTabDeepLink.ts` shape — an effect would let one frame render the
 previous session's claims). `paired` is not reset: the Personas bridge is
 workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
+
+## Posting corpus (`job_postings`)
+
+Real job advertisements a team has imported: the two bundled corpora, an ad pasted
+from anywhere, or a careers page fetched by URL. It is the ground the intake studio
+compares a `RoleBrief` against, and the pool a stratified "one posting per role"
+sample is drawn from.
+
+### Entry points
+
+| Surface | What it does |
+| --- | --- |
+| `GET /api/job-postings?q=&roleFamily=&limit=` | This workspace's posting ledger → `{ postings: JobPostingSummary[] }` (no bodies — `bodyChars` instead). `q` matches title or company, case-insensitively. Default limit 200, ceiling 500. The store's `listJobPostingsPage` reads one row past the page and returns `{ postings, truncated, limit }` so a cut slice can say so; `listJobPostings` is the bare-array wrapper (same shape as `listJobs` / `listJobsPage`). |
+| `POST /api/job-postings` `{source:"seed"}` | Imports the two bundled corpora into this workspace, **once** → `{ inserted, skipped, postings: [] }`. |
+| `POST /api/job-postings` `{source:"paste", title, text, company?, lang?, roleFamily?, seniority?}` | Stores a pasted advertisement → `{ inserted, skipped, postings: [summary] }`. |
+| `POST /api/job-postings` `{source:"url", url}` | Fetches the page, extracts its text, stores it. Same response shape. |
+| `GET /api/job-postings/[id]` | One posting, body included → `{ posting: JobPosting }`. |
+
+All four are operator-gated (`requireOperator`) and are **not** on the public
+allow-list (`app/_lib/auth/public-routes.ts`).
+
+### Library surface
+
+| Module | Holds |
+| --- | --- |
+| `app/_lib/db/job-postings.ts` | The store: `listJobPostingsPage` (`{ postings, truncated, limit }`), `listJobPostings` (bare array), `getJobPosting`, `insertJobPosting`, `distinctRolePostings`, `seedJobPostingsCorpus`, plus `postingContentHash` / `normalizeBody`. |
+| `app/_lib/job-posting-fetch.ts` | `htmlToText`, `htmlTitle`, `decodeEntities`, `fetchPostingText` — dependency-free extraction, no DOM library. |
+| `app/api/job-postings/posting-import-limits.ts` | `POSTING_MIN_CHARS` (200) and `POSTING_MAX_CHARS` (60 000). A sibling module because a non-handler `export const` in a route file aborts `next build`. |
+
+### Data model
+
+`job_postings` (DDL in `app/_lib/db/core.ts`):
+
+`id`, `workspace_id`, `source` (`seed_calibration` | `seed_jobs` | `paste` | `url` |
+`crawler`, CHECK-constrained), `source_ref`, `title`, `company`, `role_family`,
+`seniority`, `lang`, `body_text`, `content_hash`, `fetched_at`, `created_at`, with
+`UNIQUE (content_hash, workspace_id)` and an index on `(workspace_id, role_family)`.
+
+`content_hash` is sha256 over the whitespace- and case-normalized body, so the same
+advertisement pasted twice — or pasted and then fetched — is one row. A conflicting
+insert returns `{ inserted: false }` **with the existing id**, not a silent no-op, so
+the caller can still link to the row.
+
+**Tenancy.** `workspace_id` is `NOT NULL` and every query filters or stamps it, point
+reads included; the manifest entry is in `app/_lib/tenancy.ts` and the proof is
+`app/_lib/db/job-postings-tenancy.test.ts` (exemption list empty). This is
+deliberately *not* the dual-tier NULL-means-org-shared model `jobs` and `jd_templates`
+use: a posting arrives by one team's import act, and `distinctRolePostings` is that
+team's own sample. The dedupe UNIQUE is scoped for the same reason — one team's
+import must not suppress another's.
+
+### The bundled corpora
+
+`{source:"seed"}` reads two files from disk:
+
+- `data/seed_calibration/jobs.json` — 100 English real-world job bodies
+  (`jd_text`), stored with `lang: "en"`.
+- `data/seed_jobs/jobs.json` — 120 Czech-market records. The body is
+  `description` followed by `\n\nRequirements:\n- ` and the requirement bullets;
+  `lang` is `languages[0]`, else `cs`.
+
+220 records in, ~219 rows out (the content hash collapses the exact duplicates).
+
+The run is guarded by a **seed mark**, `job_postings_corpus_v1:<workspace_id>` in
+`seed_marks` — never `COUNT(*) > 0`, so a team that imported the corpus and then
+deliberately cleared it does not get it injected back. The mark is per workspace
+because the import is per team: a second team importing is a first run, not a replay.
+A missing or unparseable corpus file leaves the mark **unset**, so a fixed checkout
+still seeds.
+
+### `distinctRolePostings(workspaceId, n)`
+
+One posting per normalized title, taken **round-robin across role families** so a
+sample of 50 over a corpus where `software_engineering` is 60 of 220 rows still spans
+the taxonomy instead of returning fifty flavours of "developer". Deterministic: the
+SQL order and the round-robin are both total, so the same corpus and the same `n`
+return the same rows in the same order.
+
+### Refusals
+
+| Condition | Answer |
+| --- | --- |
+| Unknown `source`, or a paste under 200 characters | `POSTING_TEXT_REQUIRED` (400) |
+| A URL that will not parse, or is not http(s) | `POSTING_FETCH_FAILED` (400) |
+| `KP_OFFLINE` is on and the import is a URL | `POSTING_OFFLINE` (503) — refused **up front**, so the operator gets a decision in their own language rather than a blocked-fetch accident from the global egress guard |
+| Fetch failed, or the page yielded under 200 characters of readable text | `POSTING_FETCH_FAILED` (502) |
+| Over 20 imports from one IP in 10 minutes | `TOO_MANY_REQUESTS` (429) |
+| An id that does not resolve in this workspace | `POSTING_NOT_FOUND` (404) |
+
+The limiter sits after every cheap refusal above and before the fetch or the corpus
+write, and is pinned in `app/api/rate-limit-contract.test.ts`.
+
+### One surface — how the studio got here (prototype, closed)
+
+The studio's working surface was prototyped as three **coats** behind a header
+switcher: `classic` (the desk as it shipped — bordered leaves, chat bubbles,
+captioned checkboxes), `atelier` (evolution: one continuous plane, hairline zones,
+brief entries as record rows, chat turns as gutter-marked blocks) and `console`
+(redesign: a question stage, a timeline rail, dossier stacks, a typeset page).
+
+**Atelier won, with ONE element fused in from Console: its Job-description
+sheet.** The switcher, the coat vocabulary, the classic desk and the whole
+`console/` directory are deleted; `IntakeStudioDesk` renders the Atelier desk and
+takes no direction argument. `coats/studioContract.ts` (formerly `coatKit.ts`) is
+what survives: the content rule below, the editability rule, the promote defaults
+the consolidation was not allowed to change, and the zone vocabulary the fold
+preference is written in. `coats/studioContract.test.ts` pins the last two.
+
+The fusion is `coats/atelier/AtelierDraftSheet.tsx`. The draft is now a PAGE — a
+`bg-paper` article with an edge and a measure it does not exceed however wide the
+desk gets — carrying Atelier's typography (display face and sized headings, a
+reading leading) and Console's unfold: a section the last turn WROTE mounts closed
+and opens to its own height (`Collapse`, the height:auto idiom), so the page grows
+a section instead of flashing one. The correctness property both sheets shared is
+unchanged — the document is split at its blank lines, matched against the previous
+render by `diffDraft`, and only a block holding a new or replaced line animates; an
+untouched block keeps its element, and the first document a sheet ever draws is
+still, so opening a finished session does not replay nineteen turns.
+
+### The content rule the surface obeys
+
+**No sentence occupies layout.** A control that needs explaining carries a glyph
+and a tooltip, so the explanation is one hover or one focus away and never takes
+a line of the desk. Three consequences:
+
+1. An absent capability is drawn in its **negative state** (a struck microphone,
+   a muted speaker) with the reason in its tooltip, rather than a paragraph
+   telling the reader to continue in text.
+2. An option is a **togglable glyph** with `aria-pressed`, not a checkbox beside
+   a sentence. The promote options are the case study: the same two flags the
+   old desk spelled out in full sentences.
+3. An empty region shows the **shape** of what will fill it, never a sentence
+   promising that it will.
+
+Two things stay visible and are not chrome: an error the reader must act on, and
+the degraded-engine notice, because a brief built by the fallback script is a
+different artifact and hiding that would be a lie of omission.
+
+The primitives are `app/_components/Tooltip.tsx` (hover **and** focus, dismissed
+by Escape, wired as `aria-describedby` — `title=` was the app's previous idiom
+and is invisible to touch and to the keyboard) and
+`app/_components/IconAction.tsx`, which takes one `label` and uses it as the accessible
+name, the tooltip and the screen-reader text at once, so a control cannot ship
+as a picture with no meaning.
+
+## Known gaps (posting corpus)
+
+- `htmlToText` reads server-rendered markup only. A JS-only careers page yields a stub,
+  which is refused as `POSTING_FETCH_FAILED` rather than stored — honest, but it means
+  several large ATS-hosted career sites cannot be imported by URL. Paste works.
+- The `crawler` source value exists in the vocabulary and the CHECK constraint; no
+  crawler writes it yet.
+- The two bundled corpora between them cover **11 of the taxonomy's 16 role families**
+  (`data/taxonomy.json`) — there is no construction/manufacturing, healthcare,
+  education, public-sector or skilled-trades advertisement in either file, so a
+  stratified sample cannot span more than eleven.
+- There is no delete or re-import route: clearing a workspace's postings is a DB
+  operation today, and the seed mark means the corpus does not come back on its own.
 
 ## Known gaps
 

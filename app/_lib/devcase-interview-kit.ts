@@ -21,13 +21,15 @@
 // Only the scaffolding localizes, exactly as jobToMarkdown leaves the recruiter's
 // own posting body alone.
 
-type KitQuestion = { question?: string; decision?: string; listenFor?: string; redFlag?: string };
+type KitQuestion = { id?: string; question?: string; decision?: string; listenFor?: string; redFlag?: string };
 
 export type InterviewKitInput = {
   caseTitle: string;
   candidateRef: string;
   transferScore: number | null;
   questions: KitQuestion[];
+  authenticityBand?: string | null;
+  recommendation?: string | null;
 };
 
 /** The kit's headings and labels, resolved for the reader. Passed in so the
@@ -97,4 +99,29 @@ export function interviewKitMarkdown(input: InterviewKitInput, s: InterviewKitSt
     lines.push("");
   });
   return lines.join("\n").trimEnd();
+}
+
+export function isHeldInterviewKit(input: {
+  authenticityBand?: string | null;
+  recommendation?: string | null;
+}): boolean {
+  return input.authenticityBand === "suspect" || input.recommendation === "hold";
+}
+
+/** Held/suspect first, then transfer fit. Stable for equal ranks. */
+export function orderInterviewKitInputs<
+  T extends { authenticityBand?: string | null; recommendation?: string | null; transferScore?: number | null },
+>(inputs: T[]): T[] {
+  return [...inputs].sort((a, b) => {
+    const held = Number(isHeldInterviewKit(b)) - Number(isHeldInterviewKit(a));
+    if (held !== 0) return held;
+    return (b.transferScore ?? -1) - (a.transferScore ?? -1);
+  });
+}
+
+/** Concatenate one `#` kit section per candidate, held/suspect first. */
+export function interviewKitMarkdownMany(inputs: InterviewKitInput[], s: InterviewKitStrings): string {
+  return orderInterviewKitInputs(inputs)
+    .map((input) => interviewKitMarkdown(input, s))
+    .join("\n\n");
 }

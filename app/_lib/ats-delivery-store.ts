@@ -157,6 +157,31 @@ export function claimAtsDelivery(id: number, expectedAttempts: number, now: Date
   return res.changes === 1;
 }
 
+/** Force-requeue a TERMINAL dead-letter so the existing claim/finalize ladder can take
+ *  one more shot under the SAME ledger id (same Idempotency-Key). The CAS is
+ *  `status='failed' AND next_attempt_at IS NULL` — a delivered, pending, or still-due
+ *  row is refused rather than rewritten. When attempts have already hit MAX_ATTEMPTS
+ *  they drop to MAX_ATTEMPTS-1 so `listDueAtsDeliveries` (attempts < MAX) will pick
+ *  the row up; a terminal refusal that never spent the ladder keeps its count.
+ *  Single UPDATE, no await. */
+export type RequeueAtsDeliveryResult = "ok" | "not-found" | "not-replayable";
+
+export function requeueAtsDelivery(id: number, now: Date = new Date()): RequeueAtsDeliveryResult {
+  if (!Number.isInteger(id) || id < 1) return "not-found";
+  const iso = now.toISOString();
+  const res = db()
+    .prepare(
+      `UPDATE ats_delivery
+       SET next_attempt_at=?,
+           attempts=CASE WHEN attempts >= ? THEN ? ELSE attempts END,
+           updated_at=?
+       WHERE id=? AND status='failed' AND next_attempt_at IS NULL`
+    )
+    .run(iso, MAX_ATTEMPTS, MAX_ATTEMPTS - 1, iso, id);
+  if (res.changes === 1) return "ok";
+  return getAtsDelivery(id) ? "not-replayable" : "not-found";
+}
+
 /** Record the outcome of ONE attempt against a ledger row. Success → `delivered`,
  *  no further retries. Failure → `failed` with attempts incremented and a backoff
  *  next_attempt_at, UNLESS MAX_ATTEMPTS is reached or the outcome is `terminal`, in
@@ -205,6 +230,16 @@ export function listDueAtsDeliveries(nowIso: string = new Date().toISOString(), 
       )
       .all(nowIso, MAX_ATTEMPTS, limit) as RawRow[]
   ).map(mapRow);
+}
+
+/** Failed rows with no next attempt scheduled — the dead-letter count on GET
+ *  /api/ats/deliveries. Distinct from `due`: these are parked until an operator
+ *  force-replays them. */
+export function countDeadAtsDeliveries(): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM ats_delivery WHERE status='failed' AND next_attempt_at IS NULL`)
+    .get() as { n: number };
+  return Number(row.n);
 }
 
 /** Recent deliveries for the operator view (newest first). */

@@ -42,7 +42,11 @@ export async function POST(request: Request) {
     // bare function name - the name also appears in this route's import and, until
     // this comment was rewritten, in the comment itself, both above the limiter, so
     // a generic marker fails on prose instead of on ordering.
-    if (!rateLimit(`intake-create:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+    // 30/10min is far above human pace. KP_BENCH_MODE=1 (server env, local sweeps
+    // only) raises it to 600 so a scripted 50-role intake simulation can open every
+    // session without stalling; the raise is never reachable from a request.
+    const benchMode = process.env.KP_BENCH_MODE === "1";
+    if (!rateLimit(`intake-create:${clientIpFrom(request.headers)}`, { limit: benchMode ? 600 : 30, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 

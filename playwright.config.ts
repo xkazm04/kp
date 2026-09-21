@@ -71,7 +71,6 @@ export const KEYLESS_SPECS = [
   // nobody maintains, and each of these is the only coverage its surface has.
   "activity-detail",
   "analytics-sections",
-  "jds-pipeline-column",
   "quality-tables",
   "shell-tab-state",
   // NOT token-doors-axe. It runs and it is right: /offer/[token]'s decline

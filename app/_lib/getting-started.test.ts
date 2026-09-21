@@ -6,14 +6,16 @@
 // — brand-store.ts), so the first tenant to set a display name, accent or logo ticked
 // this step for every other tenant on the box; and `kp_org_name` is the CALLER'S OWN
 // cookie, so one tenant read a tick or a blank depending on which browser they opened.
-// The checklist's whole promise is that "every mark reflects a real workspace fact"
-// (setupGettingStartedModel.ts), and this mark reflected another tenant's fact.
+// The derivation's whole promise is that every answer reflects a real workspace
+// fact, and this one reflected another tenant's fact.
 //
 // Pure function, no DB: computeGettingStarted feeds it the org row, the brand and the
 // cookie so the branch itself is testable without a request.
 //   node scripts/run-unit-tests.mjs "app/_lib/getting-started.test.ts"
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { companyStep } from "./getting-started.ts";
 import { DEFAULT_ORG_NAME } from "./org-settings.ts";
 
@@ -65,4 +67,13 @@ test("with no org on the session the deployment-wide read stands — and is labe
 
 test("whitespace-only cookie is not a stored name", () => {
   assert.equal(companyStep("   ", NO_BRAND, null).company, false);
+});
+
+test("the team step counts the pending (redeemable) invite list, not every row", () => {
+  // computeGettingStarted ticks `team` on `listInvitesForOrg(org, "pending")`.
+  // That filter now drops expired rows (invites.test.ts), so a lapsed invite
+  // cannot complete the step. Pin the call site so a future rewrite that lists
+  // without a status (or with a homemade expiry check) is a deliberate change.
+  const src = readFileSync(fileURLToPath(new URL("./getting-started.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  assert.match(src, /listInvitesForOrg\(org,\s*"pending"\)/, "team invited = redeemable pending, not every invite row");
 });

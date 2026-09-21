@@ -38,9 +38,12 @@ test("validation door: empty, oversized, unknown container, bad language, bad mo
   assert.equal(ok.modelId, null);
 });
 
-test("preferenceFromEnv drops unknown ids, keeps preferred inside allowed, defaults on-device first", () => {
-  const p = preferenceFromEnv(host({ A: "AssemblyAI", B: "whisper_cpp, retired-engine" }), { preferred: "A", allowed: "B" });
+test("preferenceFromEnv refuses unknown ids naming the variable, keeps preferred inside allowed, defaults on-device first", () => {
+  const p = preferenceFromEnv(host({ A: "AssemblyAI", B: "whisper_cpp, " }), { preferred: "A", allowed: "B" });
   assert.deepEqual(p, { preferred: "assemblyai", allowed: ["assemblyai", "whisper_cpp"] });
+  // The allowed list is the residency control: a misspelled id must name itself, not read as "none allowed".
+  assert.throws(() => preferenceFromEnv(host({ B: "whisper-cpp" }), { preferred: "A", allowed: "B" }), /^Error: B="whisper-cpp": unknown provider id "whisper-cpp"/);
+  assert.throws(() => preferenceFromEnv(host({ A: "assembly" }), { preferred: "A", allowed: "B" }), /A="assembly"/);
 
   const none = preferenceFromEnv(host({}), { preferred: "A", allowed: "B" });
   assert.equal(none.preferred, null);

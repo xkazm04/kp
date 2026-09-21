@@ -12,11 +12,20 @@ import {
   type InterviewPlanRule,
 } from "@/app/_lib/decision-config-schema";
 import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
+import { axisProblems, draftToStored, type AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import {
+  activePresetId,
   composerStations,
+  cohortSelectNs,
+  COHORT_N_MAX,
+  COHORT_N_MIN,
+  COHORT_SHORTCUT_NS,
   deriveImpact,
+  ENTERPRISE_AXIS_ROLES,
+  occupancyMark,
   matchesPreset,
   newRound,
+  type PresetAxisLabels,
   planEqualsStored,
   PRESETS,
   roundCount,
@@ -167,6 +176,118 @@ test("enterprise preset: every gate human, and its rounds clip to the board", ()
     "offer_review",
   ]);
   assert.deepEqual(full.schedule, { aiRound: true, humanRound: true });
+});
+
+// ---- Enterprise rewrites the BOARD, not just the policy on it ---------------
+
+const LABELS: PresetAxisLabels = {
+  homework: "Homework",
+  aiInterview: "AI interview",
+  screened: "Screened",
+  humanInterview: "Human interview",
+  offer: "Offer",
+};
+const SHIPPED_DRAFT: AxisDraft = {
+  stages: DEFAULT_STAGE_AXIS.map((s) => ({ ...s, saved: true })),
+  retired: [],
+};
+const ENTERPRISE = PRESETS.find((p) => p.id === "enterprise")!;
+
+test("Enterprise composes the seven-column, two-interview funnel", () => {
+  const axis = ENTERPRISE.axis!(SHIPPED_DRAFT, LABELS);
+  assert.deepEqual(axis.stages.map((s) => s.role), [...ENTERPRISE_AXIS_ROLES]);
+  assert.deepEqual(axis.stages.map((s) => s.label), [
+    "Accepted",
+    "Homework",
+    "AI interview",
+    "Screened",
+    "Human interview",
+    "Offer",
+    "Hired",
+  ]);
+  // The board a candidate can actually be standing on: the case precedes the AI
+  // round (which grounds its questions in the marked case), the human triage comes
+  // AFTER that round, and a person runs the last conversation.
+  assert.ok(axis.stages.findIndex((s) => s.role === "homework") < axis.stages.findIndex((s) => s.role === "interview"));
+  assert.deepEqual(axisProblems(axis), [], "the editor accepts it");
+  assert.equal(validateDecisionConfig("pipelineStages", draftToStored(axis, DEFAULT_STAGE_AXIS)).ok, true);
+});
+
+test("Enterprise REUSES every stored id it can, so applying it strands nobody on the shipped board", () => {
+  const axis = ENTERPRISE.axis!(SHIPPED_DRAFT, LABELS);
+  const ids = new Set(axis.stages.map((s) => s.id));
+  // Renaming is free (ids never move); dropping a column is what strands people.
+  // The preset reuses by ROLE, so all five shipped columns survive the rewrite and
+  // `strandedByDraft` has nothing to report — the two it adds are genuinely new.
+  for (const id of ["Accepted", "Screened", "Interview", "Offer", "Hired"]) {
+    assert.ok(ids.has(id), `${id} must survive the rewrite`);
+  }
+  assert.deepEqual(
+    axis.stages.filter((s) => !s.saved).map((s) => s.id),
+    ["Homework", "Human interview"],
+    "ASCII seeds, minted once — never derived from the localized label"
+  );
+  // Localized labels must not change the STORED keys.
+  const cs = ENTERPRISE.axis!(SHIPPED_DRAFT, { ...LABELS, homework: "Praktická úloha", humanInterview: "Pohovor s člověkem" });
+  assert.deepEqual(cs.stages.map((s) => s.id), axis.stages.map((s) => s.id));
+});
+
+test("applying Enterprise twice is idempotent", () => {
+  const once = ENTERPRISE.axis!(SHIPPED_DRAFT, LABELS);
+  const twice = ENTERPRISE.axis!(once, LABELS);
+  assert.deepEqual(twice.stages.map((s) => `${s.id}:${s.role}`), once.stages.map((s) => `${s.id}:${s.role}`));
+});
+
+test("Enterprise's plan on its own board: homework gated by a human, AI round then human round", () => {
+  const axis = ENTERPRISE.axis!(SHIPPED_DRAFT, LABELS).stages;
+  const plan = ENTERPRISE.plan(axis);
+  const impact = deriveImpact(plan, axis);
+
+  assert.equal(planStep(plan, "Homework")!.gate, "human", "a person approves sending the case");
+  assert.deepEqual(planStep(plan, "Homework")!.rounds, [], "a case is not a conversation");
+  assert.deepEqual(impact.overview.find((s) => s.stageId === "Interview")!.rounds, ["ai"]);
+  assert.deepEqual(impact.overview.find((s) => s.stageId === "Human interview")!.rounds, ["human"]);
+  // In board order, so the queues list the way a candidate meets them.
+  assert.deepEqual(impact.decisions, [
+    "homework_review",
+    "ai_scorecard_review",
+    "screening_review",
+    "human_scorecard_review",
+    "offer_review",
+  ]);
+  assert.deepEqual(impact.schedule, { aiRound: true, humanRound: true });
+  assert.equal(validateDecisionConfig("interviewPlan", plan).ok, true);
+});
+
+test("an axis-rewriting preset only reads as ACTIVE on the board it describes", () => {
+  const axis = ENTERPRISE.axis!(SHIPPED_DRAFT, LABELS).stages;
+  // On the shipped five columns Enterprise's clipped plan is byte-identical to Team
+  // hybrid's, so without the axis check both would light up and the reader could not
+  // tell which shape they were looking at.
+  assert.equal(matchesPreset(ENTERPRISE.plan(), ENTERPRISE), false, "the shipped board is not the enterprise funnel");
+  assert.equal(activePresetId(ENTERPRISE.plan(axis), axis), "enterprise");
+  assert.equal(activePresetId(PRESETS.find((p) => p.id === "lean")!.plan(), DEFAULT_STAGE_AXIS), "lean");
+});
+
+test("Lean and Hybrid keep the shipped columns — only Enterprise rewrites the axis", () => {
+  for (const id of ["lean", "hybrid"] as const) {
+    assert.equal(PRESETS.find((p) => p.id === id)!.axis, undefined, `${id} must not touch the board`);
+  }
+});
+
+test("every preset gives a homework column a HUMAN gate, wherever one exists", () => {
+  // Unpaid candidate hours are never spent unattended: "nobody chose" must not
+  // resolve to "the machine sent it".
+  const axis: StageDef[] = [
+    { id: "In", label: "In", role: "entry" },
+    { id: "Case", label: "Case", role: "homework" },
+    { id: "Talk", label: "Talk", role: "interview" },
+    { id: "Out", label: "Out", role: "terminal" },
+  ];
+  for (const p of PRESETS) {
+    assert.equal(planStep(p.plan(axis), "Case")!.gate, "human", `${p.id}`);
+    assert.equal(validateDecisionConfig("interviewPlan", p.plan(axis)).ok, true, `${p.id} must validate`);
+  }
 });
 
 test("an ungated AI round produces no Decisions queue; a human round always does", () => {
@@ -553,4 +674,22 @@ test("the plan's FIRST round carries no cohort reducer, wherever it sits", () =>
     assert.equal(rounds[0].topN, null);
     assert.equal(rounds[1].topN, 5);
   }
+});
+
+test("occupancyMark omits while unknown, paints empty at 0, and the loaded count otherwise", () => {
+  assert.equal(occupancyMark(false, 12), "omit");
+  assert.equal(occupancyMark(false, undefined), "omit");
+  assert.equal(occupancyMark(true, undefined), "empty");
+  assert.equal(occupancyMark(true, 0), "empty");
+  assert.equal(occupancyMark(true, 12), 12);
+});
+
+test("cohortSelectNs offers every legal 1–50, shortcuts first", () => {
+  const ns = cohortSelectNs();
+  assert.deepEqual(ns.slice(0, COHORT_SHORTCUT_NS.length), [...COHORT_SHORTCUT_NS]);
+  assert.equal(ns.length, COHORT_N_MAX - COHORT_N_MIN + 1);
+  assert.equal(new Set(ns).size, ns.length);
+  assert.ok(ns.includes(1) && ns.includes(10) && ns.includes(50));
+  assert.equal(Math.min(...ns), COHORT_N_MIN);
+  assert.equal(Math.max(...ns), COHORT_N_MAX);
 });

@@ -13,12 +13,13 @@
 // prints only the label above the strip; the compact variant below md, which has
 // the width for it, still spells out the active language.)
 //
-// Choosing here switches the app IMMEDIATELY (the reason the control moved to
-// step 1 in the first place): setOrgLanguage writes both authorities — the
-// NEXT_LOCALE cookie the UI reads and the workspace default that background
-// automation and candidate comms read — and router.refresh() re-renders the
-// server tree under it, wizard included, since this overlay's client state
-// survives a refresh.
+// Choosing here switches the UI IMMEDIATELY (the reason the control moved to
+// step 1 in the first place): setLocale writes the NEXT_LOCALE cookie the
+// remaining steps read, and router.refresh() re-renders the server tree under
+// it, wizard included, since this overlay's client state survives a refresh.
+// The workspace default (candidate mail, automation) waits for finish() —
+// persistOnboardingSetup still calls setOrgLanguage(state.language). A skip
+// after a strip tap must not quietly re-home every outbound email.
 //
 // Preview mode is the one exception: the ribbon promises nothing persists, so
 // there it only moves the local draft and the rest of the app is left alone.
@@ -26,7 +27,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { META_LABEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
-import { setOrgLanguage } from "@/app/_lib/org-actions";
+import { setLocale } from "@/i18n/actions";
 import { APP_LANGUAGES, languageNative, type AppLanguage } from "@/app/features/shared/memberUi";
 import type { OnboardingCtrl } from "./setupSteps";
 
@@ -41,7 +42,7 @@ export function SetupLanguageSwitch({ ctrl, compact = false }: { ctrl: Onboardin
     ctrl.update({ language });
     if (ctrl.mode !== "live") return;
     startTransition(async () => {
-      await setOrgLanguage(language);
+      await setLocale(language);
       router.refresh();
     });
   }

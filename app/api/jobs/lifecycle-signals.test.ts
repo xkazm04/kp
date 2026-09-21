@@ -17,6 +17,12 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
+
+// A 404 refusal is spelled two ways across these routes: the older literal
+// `{ status: 404 }` object, and `jsonRefusal(CODE, 404)` (751c294e9 moved several
+// JD/job routes onto the shared helper without updating every source-grep here).
+// Both are a genuine 404, so the assertions accept either spelling.
+const STATUS_404_SRC = "(?:status: 404|jsonRefusal\\([^)]*,\\s*404\\))";
 const read = (...p: string[]) => readFileSync(path.join(dir, ...p), "utf8");
 
 test("POST /api/jobs/[id]/close distinguishes a failed withdrawal from a genuine zero", () => {
@@ -40,7 +46,7 @@ test("GET /api/jobs/[id] exists and is scoped like the list query", () => {
   const src = read("[id]", "route.ts");
   assert.match(src, /export async function GET/);
   assert.match(src, /jobVisibleToWorkspace\(id, ws\)/, "a point-fetch must not hand out what the list wouldn't");
-  assert.match(src, /status: 404/, "an invisible/unknown job must 404, not leak existence");
+  assert.match(src, new RegExp(STATUS_404_SRC), "an invisible/unknown job must 404, not leak existence");
 });
 
 // GET /api/jobs paired a PAGE (listJobs binds LIMIT 300) with jobStats' real,
@@ -72,7 +78,7 @@ test("POST /api/jobs/ingest gates an explicit jobId on ownership and marks a min
   const src = read("ingest", "route.ts");
   assert.match(
     src,
-    /if \(explicitJobId && !canWriteJobLifecycle\(explicitJobId, ws\)\)[\s\S]{0,160}?status: 404/,
+    new RegExp(`if \\(explicitJobId && !canWriteJobLifecycle\\(explicitJobId, ws\\)\\)[\\s\\S]{0,160}?${STATUS_404_SRC}`),
     "an explicit jobId the caller doesn't own must 404",
   );
   const gateAt = src.indexOf("canWriteJobLifecycle(explicitJobId, ws)");
@@ -106,7 +112,7 @@ for (const { segments, spend } of VISIBILITY_GATED) {
   test(`GET/POST /api/jobs/[id]/${name} re-applies the list's visibility predicate`, () => {
     const src = read("[id]", ...segments, "route.ts");
     assert.ok(src.includes("jobVisibleToWorkspace(id, "), `${name} must not answer for a job the list would hide`);
-    assert.match(src, /status: 404/, "an invisible job must 404, not leak existence");
+    assert.match(src, new RegExp(STATUS_404_SRC), "an invisible job must 404, not leak existence");
     const gateAt = src.indexOf("jobVisibleToWorkspace(id, ");
     const spendAt = src.indexOf(spend);
     assert.ok(spendAt > 0, `${name}: the spend marker ${spend} moved — re-point this assertion`);
@@ -128,7 +134,7 @@ for (const [label, segments, wsName] of [
     const src = read(...segments);
     const gate = new RegExp(`jobVisibleToWorkspace\\(id, ${wsName}\\)`);
     assert.match(src, gate, `${label} must not answer for a job the list would hide`);
-    assert.match(src, /status: 404/, "an invisible job must 404, not leak existence");
+    assert.match(src, new RegExp(STATUS_404_SRC), "an invisible job must 404, not leak existence");
     const gateAt = src.search(gate);
     // rankPoolForJob is called with a type argument (`rankPoolForJob<…>(`).
     const spendAt = src.search(/rankPoolForJob[<(]|createPipelineEntry\(/);

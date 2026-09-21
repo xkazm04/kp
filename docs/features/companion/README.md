@@ -58,7 +58,7 @@ is that it creates nothing:
 ```bash
 python -m pipeline.jobfit.companion_cli --probe
 # {"root": "…", "present": true, "episodes": 41, "identitySections": 2,
-#  "constitutionOrigin": "kp"}
+#  "constitutionOrigin": "kp", "constitutionMatchesTemplate": true}
 python -m pipeline.jobfit.companion_cli --birth   # ensure_brain behind a flag
 ```
 
@@ -68,6 +68,7 @@ python -m pipeline.jobfit.companion_cli --birth   # ensure_brain behind a flag
 | `episodes` | episode files on disk, **capped at 999** (`EPISODE_PROBE_CAP`) — the walk stops there, because a human reads "hundreds" exactly as well as an exact five-digit count |
 | `identitySections` | `## ` headings in `identity.md` — how much of a self is written down |
 | `constitutionOrigin` | `kp` when the constitution carries this repo's `<!-- kp-constitution v1 -->` marker · `personas` when one exists WITHOUT it (Athena's own, or one the operator rewrote) · `none` when there is no constitution |
+| `constitutionMatchesTemplate` | `true`/`false` when origin is `kp` (sha256 of canonical LF bytes vs the shipped `companion_constitution.md`) · `null` otherwise. A rewrite that kept the kp marker still reads as origin `kp`; this bit is how first-run tells a stock constitution from a drifted one |
 
 `personas` is deliberately provenance rather than authorship: what the caller
 needs to decide is "was this mind made somewhere else", and an Athena tree and a
@@ -156,12 +157,13 @@ GET the wizard made minutes ago — a proposal-time check is a claim, an
 execution-time check is the guarantee — and `birth` runs *before* the stamp, so
 consent is only ever recorded over a brain that exists.
 
-> **No Getting-started checklist item was added.** `STEPS` in
-> `setupGettingStartedModel.ts` is "the four core steps a workspace genuinely
-> cannot hire without", and connecting Candi's memory gates no hiring. `team`
-> was removed from that list for precisely this reason ("the one step that never
-> gated anything"), and re-introducing the shape one step later would undo a
-> decision this repo already made.
+> **No first-run checklist item was added.** The Getting-started checklist that
+> would have carried one is itself gone (it stood beside the empty Pipeline
+> board's own actions — two competing to-do lists), but the reasoning stood
+> before that: its `STEPS` were "the core steps a workspace genuinely cannot hire
+> without", and connecting Candi's memory gates no hiring. `team` had already been
+> removed from that list for precisely this reason ("the one step that never gated
+> anything").
 
 ## Write order — disk first, indexes after
 
@@ -338,7 +340,10 @@ transcript's full width, beneath the bubble. Round 5 changed this after an
 operator click-through: a three-column table inside the old 26rem, 85 %-capped
 slot wrapped every cell to three lines and read as illegible chrome.
 
-`ChatMiniChart` is hand-rolled inline SVG — no chart library. recharts needs
+`ChatMiniChart` is hand-rolled inline SVG — no chart library. The SVG keeps
+`role="img"`; an `sr-only` table of `x.values × series` (`chatChartAlt.ts`) is
+the text alternative, so a screen-reader user can compare the numbers instead
+of hearing only the title. recharts needs
 literal color strings for its chrome and therefore a `useTheme()` fork (see
 `FactorChart`); inside a chat turn that costs more than the drawing is worth. A
 presentation attribute is parsed as CSS, so `fill="var(--color-coral)"` resolves
@@ -601,7 +606,7 @@ Operator-gated routes, all workspace-scoped through the store's own tenancy.
 | Route | Does |
 | --- | --- |
 | `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns, its proposals AND `memoryEnabled` — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
-| `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something |
+| `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something. The shared composer textarea is named by `companion.chat.composerLabel` (placeholder is not a name) |
 | `POST /api/companion/[id]/message` | one exchange. Returns the thread's full turn list AND its live proposals |
 | `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled`. Per-IP 60/10min — it creates nothing and calls no model, but it is still a Python child per request, and in open mode the operator gate above it is a no-op for the whole API |
 | `POST /api/companion/brain` | **WP4.** `{action: "connect" \| "birth"}`. Records consent; `birth` runs `ensure_brain` first, so consent is never stamped over a brain that does not exist. Per-IP 20/10min, after the 400 so a malformed call never starts a process. There is no "decline" |
@@ -910,8 +915,10 @@ rules both rejected in the two earlier shapes.
 
 ### The shared chat primitive
 
-`JdsIntakeChat` was lifted into `app/_components/chat/ChatTranscript.tsx` (+
-`ChatComposer.tsx`), which now serves both surfaces: bubble geometry and both-theme
+The intake studio's chat pane (`JdsIntakeChat`, since deleted — see
+`docs/features/intake/README.md` §*One surface*) was lifted into
+`app/_components/chat/ChatTranscript.tsx` (+ `ChatComposer.tsx`), which serves the
+companion and any future chat surface: bubble geometry and both-theme
 colors, the dark radius bump, reduced-motion-gated presence, `aria-live` polite,
 autoscroll, Enter / Shift+Enter, the `FIELD` + `BTN_PRIMARY` composer, and the
 send-failure draft restore. Which ROLE sits on which side is a caller decision
@@ -919,8 +926,11 @@ send-failure draft restore. Which ROLE sits on which side is a caller decision
 `interviewer | candidate | system` and the companion's `user | assistant` both work
 without the primitive knowing either vocabulary. Every string is a prop — it lives
 under `app/_components`, where `i18n:check` forbids a literal accessible name.
-`JdsIntakeChat` is now the intake ADAPTER; nothing about the rendered intake
-surface changed.
+Intake no longer consumes it: when the studio consolidated to one surface its
+transcript became `AtelierTranscript` (turn BLOCKS on a plane, not bubbles), so the
+primitive's remaining caller is the companion dock. It stays where it is — the
+role-agnostic side() contract and the props-only strings are what a second chat
+surface would need again.
 
 ## Voice mode (settled in round V3)
 
@@ -1249,9 +1259,11 @@ guard over exactly these decisions — the behaviour itself needs a browser.
   It is read by the dock's own state line. It is deliberately kept out of
   `decisions`, whose count beacons the ControlDock orb and whose one click routes
   to the Decisions tab — a tab with no affordance that can resolve a proposal.
-- No thread switcher. The toolbar can START a conversation, but the dock always
-  opens the most recent one and there is no way back to an older thread — the
-  ledger keeps them, nothing lists them.
+- No thread switcher. The toolbar can START a conversation, and the dock still
+  opens the most recent one by default. `GET /api/companion/threads?thread=` can
+  hydrate any workspace-owned id in the same boot payload (unknown ids keep the
+  newest, rather than 404ing the dock); the UI half that would list and switch
+  them is still missing.
 - Not verified in a running app. The dock, the proposal card and the resolve
   route have been type-checked, linted and unit-tested, but no browser has painted
   a proposal card and no accept has dispatched a real task.

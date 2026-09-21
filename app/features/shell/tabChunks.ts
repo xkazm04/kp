@@ -44,6 +44,7 @@ export const TAB_CHUNKS = {
   integrations: () => import("../settings/integrations/IntegrationsTab"),
   branding: () => import("../settings/branding/BrandingTab"),
   hiring: () => import("../settings/hiring/HiringTab"),
+  templates: () => import("../settings/templates/TemplatesTab"),
 } as const;
 
 /** Tab ids that own a chunk. `history` has none — it is Analyze in another mode. */

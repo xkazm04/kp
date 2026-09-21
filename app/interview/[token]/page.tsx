@@ -2,13 +2,15 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db/interviews";
+import { getInterviewSessionByToken, LIVE_INTERVIEW_RECENCY_MIN } from "@/app/_lib/db/interviews";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { CHIP } from "@/app/_components/ui/recipes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
+import { interviewInactiveCopyKeys, interviewPortalView } from "./portal-state";
 
 
 // Candidate-facing portal: a tokenized link runs the first-round voice screen
@@ -23,13 +25,16 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   if (!session) notFound();
 
   const t = await getTranslations("interview");
+  const view = interviewPortalView(session);
 
   // Truthful length from the session's grounded run-of-show (idea-0ecbe5a5),
   // not a hardcoded "5 minutes" — older sessions without a stored duration fall
   // back to the documented grounded default.
   const durationMin = session.durationMin ?? GROUNDED_DEFAULT_MIN;
 
-  if (session.status === "completed") {
+  const compliance = disclosureComplianceFor(session.workspaceId);
+
+  if (view === "completed") {
     // Not a cul-de-sac: hand the candidate the same durable /status link the
     // apply flows issue (idempotent mint keyed on the pipeline entry, so email
     // and this card share ONE token). The interview token they hold already
@@ -63,11 +68,30 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
   // (the /connect API refuses it regardless; this just spares the candidate a
   // dead Start button). Expiry comes from the shared authority in db.ts so the
   // page and the credential gate can never disagree.
-  if (session.status === "revoked" || isInterviewLinkExpired(session)) {
+  if (view === "inactive") {
+    const copy = interviewInactiveCopyKeys(session);
     return (
       <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-serif text-h2 text-ink">{t("inactiveTitle")}</h1>
-        <p className="mt-2 text-body text-steel">{t("inactiveBody")}</p>
+        <h1 className="font-serif text-h2 text-ink">{t(copy.title)}</h1>
+        <p className="mt-2 text-body text-steel">{t(copy.body)}</p>
+      </main>
+    );
+  }
+
+  // A live in_progress session is the same lifecycle family as completed /
+  // revoked / expired: the second tab (or a forwarded link) must not paint
+  // Start, mint a second paid provider session, and then show a generic
+  // connect failure. /connect refuses INTERVIEW_ALREADY_LIVE on the same
+  // isInterviewSessionLive window.
+  if (view === "live") {
+    const tErr = await getTranslations("errors");
+    const tVoice = await getTranslations("interview.voice");
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
+        <h1 className="font-serif text-h2 text-ink">{tErr("INTERVIEW_ALREADY_LIVE")}</h1>
+        <p role="status" className="mt-2 text-body text-steel">
+          {tVoice("retryAfterMinutes", { minutes: LIVE_INTERVIEW_RECENCY_MIN })}
+        </p>
       </main>
     );
   }
@@ -104,12 +128,21 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
           className="order-2 lg:order-1 lg:sticky lg:top-10"
         />
         <div className="order-1 lg:order-2">
-          <AiDisclosure className="mb-6" />
+          {/* The regime the candidate is assessed under is the one belonging to the
+              workspace that owns THIS session — resolved here, where the token has
+              already been redeemed, because AiDisclosure is a client component on a
+              session-less page and cannot ask (see its header). */}
+          <AiDisclosure
+            className="mb-6"
+            regimeId={compliance.regimeId}
+            retentionMonths={compliance.retentionMonths}
+          />
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
             <VoiceInterviewClient
               token={session.token}
               candidateLabel={session.candidateLabel ?? undefined}
               jobTitle={session.jobTitle ?? undefined}
+              durationMin={durationMin}
               provider={session.provider}
               lockSettings
             />

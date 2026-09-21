@@ -25,7 +25,6 @@ from pipeline.jobfit.appmaster import (
     APP_MASTER_PROMPT_VERSION,
     FORBIDDEN_CHANGE_CLASSES,
     AppMasterSpec,
-    KpiDelta,
     Mandate,
     PerformanceBackbone,
     RepoDossier,

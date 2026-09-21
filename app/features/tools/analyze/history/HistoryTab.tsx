@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { CARD_PAD, DIVIDER, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { HistoryTable } from "./HistoryTable";
-import { distinct, type AnalysisRow } from "./HistoryTypes";
+import { distinct, historyRowMatchesQuery, readAnalysesListPayload, type AnalysisRow } from "./HistoryTypes";
 
 export function HistoryTab() {
   const t = useTranslations("history");
@@ -15,6 +15,11 @@ export function HistoryTab() {
   };
   const [rows, setRows] = useState<AnalysisRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The list route's honesty flag: a full page is not "exactly this many exist".
+  // Default false is "the route has not said truncated", not a completeness claim
+  // of our own — the Showing-of line still needs this bit to refuse rows.length
+  // as a total when the payload DID say so.
+  const [truncated, setTruncated] = useState(false);
   // Client-side search + filter (RES3). History was an un-queryable flat table —
   // unusable past a few dozen runs. Filtering the loaded set (≤200 rows) needs no
   // schema/server change; server-side query params + tagging are a follow-up for
@@ -42,7 +47,9 @@ export function HistoryTab() {
         if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
         const payload = await response.json();
         if (reqGen.current === gen) {
-          setRows((payload.analyses as AnalysisRow[]) ?? []);
+          const page = readAnalysesListPayload(payload);
+          setRows(page.analyses);
+          setTruncated(page.truncated);
           setError(null);
         }
       })
@@ -50,6 +57,7 @@ export function HistoryTab() {
         if (reqGen.current === gen) {
           setError(caught instanceof Error ? caught.message : t("loadFailed"));
           setRows(null);
+          setTruncated(false);
         }
       });
   }, [t]);
@@ -69,10 +77,9 @@ export function HistoryTab() {
   const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
   const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return (rows ?? []).filter(
       (r) =>
-        (!needle || r.candidate_label.toLowerCase().includes(needle) || r.slug.toLowerCase().includes(needle)) &&
+        historyRowMatchesQuery(r, q) &&
         (!roleFamily || r.role_family === roleFamily) &&
         (!seniority || r.seniority === seniority) &&
         (!disposition || (disposition === "undecided" ? r.disposition == null : r.disposition === disposition))
@@ -121,6 +128,11 @@ export function HistoryTab() {
           </p>
         ) : (
           <>
+            {truncated ? (
+              <p role="status" className="mb-3 text-sm text-amber-800">
+                {t("truncated", { count: rows.length })}
+              </p>
+            ) : null}
             <HistoryFilterBar
               q={q}
               setQ={setQ}
@@ -135,6 +147,7 @@ export function HistoryTab() {
               filtering={filtering}
               filteredCount={filtered.length}
               totalCount={rows.length}
+              truncated={truncated}
               onClear={clearAll}
               dispLabel={dispLabel}
             />

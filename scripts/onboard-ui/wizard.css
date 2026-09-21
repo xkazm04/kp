@@ -1,0 +1,469 @@
+/*
+ * wizard.css — the whole look of the KP installer, in one sheet.
+ *
+ * This is the fusion of what used to be base.css (structure shared by three
+ * variants) and guide.css (the one that won). The base/skin split existed so
+ * three stylesheets could share a skeleton; with one design left it only meant
+ * every rule had to be looked up in two files, so it is gone. Sections below
+ * run outside-in: tokens, grid, rail, header, stage, cards, panels, drawer.
+ *
+ * The register is Guide's throughout — warm paper ground, generous type, 3rem
+ * controls, soft edges, one decision on screen at a time. The one thing carried
+ * over from Spark is the LEFT RAIL, restyled out of stickers and tilt into this
+ * language: it exists because progress dots cannot say "Capability keys", and
+ * the plan's own labels are the orientation this page was missing.
+ *
+ * No webfonts, no images, no external anything: an install may be air-gapped.
+ */
+
+/* ==================================================================== tokens */
+:root {
+  --ink: #1c2530;
+  --paper: #f6f2ea;
+  --white: #ffffff;
+  --moss: #47694a;
+  --moss-deep: #3b5a3e;
+  --coral: #c94f3f;
+  --steel: #4d6a78;
+  --limewash: #e2eedb;
+  --coralwash: #f9ddd8;
+  --stone-50: #faf7f1;
+  --stone-100: #f0eade;
+  --stone-200: #e2d9c8;
+  --stone-300: #cfc4ad;
+  --dial-amber: #b8912f;
+  --dial-stone: #857f70;
+  --amberwash: #fbf1d9;
+  --amber-ink: #7a611f;
+
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-body);
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --fs-body: 17px;
+  --rail-w: 17.5rem;
+  --mark-size: 30px;
+  --col: 48rem; /* the one column everything on the stage is measured against */
+
+  --k-fg: var(--paper);
+  --k-accent: var(--coral);
+  --ease: cubic-bezier(.2, .7, .25, 1);
+  --shadow-card: 0 6px 24px rgba(28, 37, 48, .07);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+}
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+a.btn { display: inline-block; text-decoration: none; }
+[hidden] { display: none !important; }
+code { font-family: var(--font-mono); font-size: .95em; }
+:focus-visible { outline: 3px solid var(--steel); outline-offset: 3px; }
+
+/* ====================================================================== grid */
+.wz {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "top top" "rail main";
+  min-height: 100vh;
+}
+.wz-top { grid-area: top; }
+.wz-rail { grid-area: rail; }
+.wz-main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* ====================================================================== rail
+   Calm, not a to-do list. The worry Guide had about a left rail was that seven
+   unticked rows read as six things still wrong; the answer is not to hide the
+   plan but to draw it so only the CURRENT step has weight. Upcoming steps are
+   the quietest thing on the page — no boxes, no numbers shouting, muted ink. */
+.wz-rail {
+  display: flex; flex-direction: column;
+  background: var(--stone-50);
+  border-right: 1px solid var(--stone-200);
+  padding: 1.4rem 1.15rem 1.2rem;
+}
+.wz-railtop { display: flex; align-items: center; gap: .55rem; margin-bottom: 1.6rem; }
+.wz-mark { flex: 0 0 auto; display: block; color: var(--ink); }
+.wz-mark .mark { display: block; width: var(--mark-size); height: var(--mark-size); }
+.wz-railname { font: 700 16px/1.2 var(--font-display); }
+.wz-raileyebrow {
+  margin: 0 0 .55rem .1rem;
+  font: 600 12px/1.5 var(--font-body); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dial-stone);
+}
+
+.wz-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
+.wz-step {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .55rem .7rem; border-radius: 11px;
+  color: var(--dial-stone);
+  border: 2px solid transparent;
+  transition: background-color .25s var(--ease), color .25s var(--ease);
+}
+.wz-stepdot {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 999px;
+  border: 2px solid var(--stone-300); background: var(--white);
+  font: 700 11px/1 var(--font-body); color: var(--dial-stone);
+}
+.wz-steplabel { min-width: 0; font: 600 14.5px/1.35 var(--font-body); }
+
+.wz-step.is-done { color: var(--moss); }
+.wz-step.is-done .wz-stepdot { background: var(--limewash); border-color: var(--moss); color: var(--moss); }
+/* Coral, the accent Guide already uses for "this is the live one" on the dots. */
+.wz-step.is-active {
+  color: var(--ink); background: var(--coralwash); border-color: var(--coral);
+}
+.wz-step.is-active .wz-steplabel { font-weight: 700; }
+.wz-step.is-active .wz-stepdot { background: var(--coral); border-color: var(--coral); color: #fff; }
+/* Pre-plan honesty: one live step and one openly undecided remainder. */
+.wz-step.is-pending .wz-stepdot { border-style: dashed; background: transparent; }
+.wz-step.is-pending .wz-steplabel { font-weight: 500; font-size: 13.5px; }
+/* A step added by a mid-session re-plan announces itself once, gently. */
+.wz-step.is-new { animation: wz-step-in .45s var(--ease) both; }
+@keyframes wz-step-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+.wz-railfoot { margin-top: auto; padding-top: 1.4rem; }
+.wz-meta {
+  display: flex; flex-direction: column; gap: .15rem;
+  border-top: 1px solid var(--stone-200); padding-top: .9rem;
+  font-size: 12.5px; color: var(--steel); overflow-wrap: anywhere;
+}
+.wz-meta-k {
+  display: block; margin-top: .5rem;
+  font: 600 10.5px/1.6 var(--font-body); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--dial-stone);
+}
+.wz-meta-k:first-child { margin-top: 0; }
+.wz-meta code { font-size: 12px; color: var(--ink); }
+
+/* ==================================================================== header */
+.wz-top {
+  display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;
+  padding: 1rem 1.5rem; text-align: center;
+  background: var(--white); border-bottom: 1px solid var(--stone-200);
+}
+/* The brand is the rail's while there is a rail; the header takes it back when
+   the rail folds away, so there is exactly one logomark on screen at any width. */
+.wz-brand { display: none; align-items: center; gap: .7rem; min-width: 0; }
+.wz-brandtext { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.wz-title { display: block; font: 700 19px/1.2 var(--font-display); }
+.wz-sub { display: none; }
+.wz-controls { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.wz-runwrap { display: inline-flex; align-items: center; gap: .4rem; }
+.wz-runlabel { font-size: 13px; color: var(--steel); }
+.wz-adv-panel {
+  flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: .5rem; flex-wrap: wrap;
+  margin-top: .9rem; padding-top: .85rem; border-top: 1px solid var(--stone-200);
+}
+.wz-adv-note { margin: 0; flex: 1 1 100%; text-align: center; font-size: 14px; color: var(--dial-stone); }
+
+/* ================================================================== controls */
+select, input[type=text], input[type=password] {
+  padding: .7rem .8rem; border: 2px solid var(--stone-300); border-radius: 10px;
+  background: var(--white); color: var(--ink); font-size: 16px; min-height: 3rem;
+}
+.btn {
+  border: 2px solid transparent; border-radius: 11px;
+  padding: .7rem 1.4rem; min-height: 3rem; font: 600 16px/1.3 var(--font-body);
+  transition: background-color .2s var(--ease), transform .12s var(--ease);
+}
+.btn:active:not(:disabled) { transform: scale(.985); }
+.btn-primary { background: var(--moss); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--moss-deep); }
+.btn-outline { background: var(--white); border-color: var(--stone-300); color: var(--ink); }
+.btn-outline:hover:not(:disabled) { background: var(--stone-50); }
+.btn-quiet { background: transparent; color: var(--steel); border-color: var(--stone-200); }
+.btn-quiet:hover:not(:disabled) { background: var(--stone-100); color: var(--ink); }
+.btn-danger { background: var(--white); color: var(--coral); border-color: var(--coral); }
+.btn:disabled { opacity: .4; }
+.btn-start { font-size: 17px; padding: .75rem 1.8rem; }
+.wz-adv-toggle { font-size: 14px; min-height: 2.4rem; padding: .4rem .9rem; border-color: transparent; }
+
+/* ====================================================================== dots
+   The rail's fallback, and only that: below the rail's breakpoint the plan's
+   labels do not fit, so its shape is all that survives. */
+.wz-dots { display: none; justify-content: center; gap: .45rem; padding: 1.2rem 1rem .2rem; }
+.wz-dot { display: block; width: 10px; height: 10px; border-radius: 999px; background: var(--stone-300); transition: all .3s var(--ease); }
+.wz-dot.is-done { background: var(--moss); }
+.wz-dot.is-active { background: var(--coral); width: 26px; }
+.wz-dot.is-pending { background: transparent; box-shadow: inset 0 0 0 2px var(--stone-300); }
+
+/* ===================================================================== stage */
+.wz-statusbar { display: flex; align-items: center; justify-content: center; gap: .55rem; padding: 1.1rem 1.5rem 0; text-align: center; }
+.wz-pulse { width: 8px; height: 8px; border-radius: 999px; background: var(--stone-300); }
+.wz[data-running="true"] .wz-pulse { background: var(--coral); animation: wz-pulse 1.8s var(--ease) infinite; }
+@keyframes wz-pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+.wz-status { margin: 0; font-size: 16px; color: var(--steel); }
+.wz-status.is-err { color: var(--coral); }
+
+/* The asking contract, stated once, quietly, where the eye already is. */
+.wz-enforce {
+  margin: .35rem 0 0; text-align: center;
+  font-size: 13.5px; color: var(--moss);
+}
+.wz-enforce::before { content: "🔒 "; }
+
+.wz-stage { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 1.2rem 1.5rem 4rem; }
+.wz-asks, .wz-panels, .wz-warnings { display: flex; flex-direction: column; gap: 1.2rem; max-width: var(--col); margin: 0 auto; }
+.wz-panels { margin-top: 1.2rem; }
+.wz-warnings:not(:empty) { margin-bottom: 1.2rem; }
+
+/* A command that ran without being offered. Amber and inline: something the
+   operator must see, but nothing is broken and nothing is waiting on them. */
+.wz-warn {
+  display: flex; gap: .65rem; align-items: flex-start;
+  background: var(--amberwash); border: 1px solid var(--dial-amber); border-radius: 12px;
+  padding: .8rem 1rem; font-size: 15px; color: var(--amber-ink); text-align: left;
+}
+.wz-warn-glyph {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 999px;
+  background: var(--dial-amber); color: #fff; font: 700 14px/1 var(--font-body);
+}
+.wz-warn-t { min-width: 0; }
+
+.wz-say { display: none; } /* an installer is not a chat window — see core.js */
+
+/* ===================================================================== cards */
+.card {
+  background: var(--white); border: 1px solid var(--stone-200); border-radius: 16px;
+  padding: 2rem 2rem 1.6rem; box-shadow: var(--shadow-card);
+  text-align: center; position: relative;
+  animation: wz-in .32s var(--ease) both;
+}
+@keyframes wz-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+/* One card at a time: settled cards live on as receipts, and a queued card
+   waits behind the one being answered. */
+.card.is-settled { display: none; }
+.card:not(.is-settled) ~ .card:not(.is-settled) { display: none; }
+
+.card-kicker { font: 600 13px/1.5 var(--font-body); color: var(--steel); }
+.card-title { margin: 0; margin-top: .3rem; font: 700 26px/1.25 var(--font-display); }
+.card-body { min-width: 0; margin: 1.3rem 0 1.4rem; text-align: left; }
+.card-note { margin: .4rem 0; font-size: 15px; color: var(--steel); }
+.card-note-quiet { font-size: 14px; color: var(--dial-stone); }
+.card-flag { margin: .8rem 0 0; font-size: 15px; color: var(--amber-ink); background: var(--amberwash); border-radius: 10px; padding: .6rem .8rem; }
+.card-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; justify-content: center; }
+.card-resolution { font-size: 15px; color: var(--steel); }
+
+/* The journey card IS the page: no panels behind it, one question filling the
+   column. It does not need to be bigger than its neighbours — it needs the page
+   to stop being a form and start being a proposal. */
+.card-journey { padding: 2.4rem 2.2rem 1.9rem; border-top: 5px solid var(--moss); }
+.card-journey .card-kicker { font-size: 14px; color: var(--moss); font-weight: 700; }
+.card-journey .card-title { font-size: 30px; line-height: 1.2; margin-top: .45rem; }
+.card-journey .card-body { margin: 1.6rem 0 1.5rem; }
+.card-journey .opt { padding: 1.05rem 1.1rem; align-items: flex-start; }
+.card-journey .opt input[type=radio], .card-journey .opt input[type=checkbox] { margin-top: .2rem; }
+.card-journey .opt-label { font-size: 18px; }
+.card-journey .opt-desc { font-size: 15px; line-height: 1.5; margin-top: .2rem; }
+/* An answered journey card collapses to its kicker, question and resolution:
+   four long option descriptions are the right weight for a decision and dead
+   weight the moment it is made. The answer is not lost — it is the resolution
+   line, and a receipt. */
+.card-journey.is-settled .card-body { display: none; }
+
+.opt {
+  display: flex; gap: .6rem; align-items: center; cursor: pointer;
+  padding: .9rem 1rem; border-radius: 12px; border: 2px solid var(--stone-200);
+  margin-bottom: .55rem; min-height: 3.4rem;
+}
+.opt:hover { border-color: var(--steel); background: var(--stone-50); }
+.opt:has(input:checked) { border-color: var(--moss); background: var(--limewash); }
+.opt input[type=radio], .opt input[type=checkbox] { flex: 0 0 auto; width: 20px; height: 20px; accent-color: var(--moss); }
+.opt-text { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.opt-label { font-weight: 600; font-size: 17px; }
+.opt-desc { font-size: 15px; color: var(--steel); }
+.opt-free { width: 100%; }
+.field { margin-top: .9rem; }
+.field input { width: 100%; }
+pre.cmd, .wz-narr pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+pre.cmd {
+  font-family: var(--font-mono); font-size: 14px; text-align: left;
+  background: var(--stone-50); border: 1px solid var(--stone-200); border-radius: 10px; padding: .8rem .9rem;
+}
+
+/* ==================================================== assessment summary */
+/* Sits in the asks column, directly above the journey card it is evidence for. */
+.assess-summary {
+  display: flex; flex-direction: column; align-items: center; gap: .7rem;
+  padding: 1.1rem 1.3rem 1.2rem; text-align: center;
+  background: var(--white); border: 1px solid var(--stone-200); border-radius: 14px;
+}
+.assess-line { margin: 0; font-size: 17px; font-weight: 600; color: var(--ink); }
+/* The findings are a list, so they line up as one — centring each row
+   individually would ragged-edge the names it exists to make scannable. */
+.assess-strip {
+  list-style: none; margin: 0 auto; padding: 0;
+  display: flex; flex-direction: column; gap: .4rem; align-items: stretch; text-align: left;
+}
+.assess-item { display: flex; gap: .45rem; align-items: baseline; min-width: 0; flex-wrap: wrap; font-size: 15px; color: var(--steel); }
+.assess-item-n { font-weight: 600; color: var(--ink); }
+.assess-item-d { min-width: 0; overflow-wrap: anywhere; }
+.assess-item[data-state=fail] .probe-glyph { color: var(--coral); }
+.assess-item[data-state=warn] .probe-glyph { color: var(--dial-amber); }
+.assess-more { font-size: 14px; min-height: 2.4rem; padding: .4rem 1rem; }
+.assess-all { width: 100%; border-top: 1px solid var(--stone-100); padding-top: .5rem; text-align: left; }
+
+/* ==================================================================== panels */
+.panel {
+  background: var(--white); border: 1px solid var(--stone-200); border-radius: 16px;
+  padding: 1.8rem 1.8rem 1.6rem; box-shadow: var(--shadow-card);
+  animation: wz-in .32s var(--ease) both;
+}
+/* One panel at a time: the one core last wrote to. The terminal panel always
+   shows — it is the end of the road, not a phase. */
+.panel { display: none; }
+.panel.is-current, .panel-terminal { display: block; }
+/* While a decision is open, the panel behind it steps out of the way. */
+.wz-main:has(.card:not(.is-settled)) .wz-panels { display: none; }
+.panel-title { margin: 0; font: 700 22px/1.25 var(--font-display); text-align: center; }
+.panel-note { margin: .7rem 0 1rem; font-size: 15px; color: var(--steel); text-align: center; }
+.panel-note.is-err { color: var(--coral); }
+.panel-terminal .panel-body { text-align: center; }
+
+.probe-list { list-style: none; margin: 0; padding: 0; }
+.probe {
+  display: grid; grid-template-columns: 1.6rem minmax(6rem, auto) minmax(0, 1fr) auto;
+  gap: .6rem; align-items: baseline;
+  padding: .7rem 0; border-top: 1px solid var(--stone-100); font-size: 16px;
+}
+.probe:first-child { border-top: none; }
+.probe-glyph { text-align: center; font-size: 18px; font-weight: 700; }
+.probe-name { font-weight: 600; }
+.probe-detail { min-width: 0; overflow-wrap: anywhere; font-size: 14px; color: var(--steel); }
+.probe[data-state=ok] .probe-glyph { color: var(--moss); }
+.probe[data-state=fail] .probe-glyph { color: var(--coral); }
+.probe[data-state=warn] .probe-glyph { color: var(--dial-amber); }
+.probe[data-state=running] .probe-glyph { color: var(--dial-stone); }
+
+.chip { display: inline-block; font: 600 13px/1.8 var(--font-body); border-radius: 999px; padding: 0 .7rem; border: 1px solid; white-space: nowrap; }
+.chip-ok, .chip-on { color: var(--moss); border-color: var(--moss); background: var(--limewash); }
+.chip-warn, .chip-degraded { color: var(--amber-ink); border-color: var(--dial-amber); background: var(--amberwash); }
+.chip-running, .chip-hidden { color: var(--steel); border-color: var(--stone-300); background: var(--stone-50); }
+.chip-fail, .chip-off { color: var(--coral); border-color: var(--coral); background: var(--coralwash); }
+
+.live { display: flex; align-items: center; justify-content: center; gap: .55rem; margin-bottom: 1rem; font-size: 16px; }
+.live-dot { flex: 0 0 auto; display: block; width: 12px; height: 12px; border-radius: 999px; background: var(--stone-300); }
+.live-dot[data-alive=yes] { background: var(--moss); box-shadow: 0 0 0 4px rgba(71, 105, 74, .16); }
+.live-dot[data-alive=no] { background: var(--coral); }
+.btn-open { display: block; margin: 0 auto; text-align: center; }
+
+/* The hand-off into the in-app studio. It sits under the live-app row inside
+   the boot panel, and it is the loudest thing in that panel on purpose — the
+   concept's whole point is that once kp is up, the studio is the better face.
+   Loud is not automatic: "Open kp" stays right above it, and the line under
+   the button says this page keeps working. */
+.wz-studio {
+  margin-top: 1.25rem; padding: 1.15rem 1.2rem 1.05rem;
+  border: 2px solid var(--moss); border-radius: 14px;
+  background: var(--limewash); text-align: center;
+}
+.wz-studio-k {
+  margin: 0 0 .3rem; font-size: 17px; font-weight: 650; letter-spacing: -.01em; color: var(--moss-deep);
+}
+.wz-studio-note { margin: 0 0 .9rem; font-size: 15px; line-height: 1.5; color: var(--ink); }
+.wz-studio-go { display: block; margin: 0 auto; text-align: center; }
+.wz-studio-stay { margin: .7rem 0 0; font-size: 13.5px; color: var(--dial-stone); }
+
+.voice-grid { display: grid; gap: .7rem; grid-template-columns: minmax(0, 1fr); }
+.voice-card { display: flex; flex-direction: column; gap: .35rem; border: 2px solid var(--stone-200); border-radius: 12px; padding: 1rem 1.1rem; }
+.voice-card.is-chosen { border-color: var(--moss); background: var(--limewash); }
+.voice-card[data-state=absent] { opacity: .75; }
+.voice-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.voice-name { font-weight: 700; font-size: 17px; }
+.voice-lang, .voice-reason { margin: 0; font-size: 14px; color: var(--steel); }
+.voice-reason { color: var(--amber-ink); }
+.voice-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
+.voice-skip { display: block; margin: 1.2rem auto 0; }
+
+.matrix-grid { display: grid; gap: .7rem; grid-template-columns: minmax(0, 1fr); }
+.matrix-card { display: flex; flex-direction: column; gap: .3rem; border: 2px solid var(--stone-200); border-radius: 12px; padding: .9rem 1.05rem; }
+.matrix-card[data-state=on] { border-color: var(--moss); background: var(--limewash); }
+.matrix-card[data-state=degraded] { border-color: var(--dial-amber); }
+.matrix-card[data-state=off] { border-color: var(--stone-300); }
+.matrix-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.matrix-name { font-weight: 700; font-size: 16px; }
+.matrix-extra { margin: 0; margin-top: .3rem; font-size: 14px; color: var(--steel); }
+.matrix-extra-k { display: block; font: 600 12px/1.4 var(--font-body); color: var(--dial-stone); }
+
+/* ============================================================ reward state */
+.panel-done.is-reward { border-color: var(--moss); }
+.panel-done.is-reward .panel-title { color: var(--moss); }
+.reward-lead { margin: 0 auto 1.3rem; font-size: 16px; color: var(--steel); text-align: center; max-width: 32rem; }
+.addons { display: flex; flex-direction: column; align-items: center; gap: .7rem; margin-top: 1.5rem; border-top: 1px solid var(--stone-200); padding-top: 1.2rem; }
+.addon-title { margin: 0; font-size: 15px; color: var(--steel); text-align: center; }
+.addon-row { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
+.addon { font-size: 15px; }
+
+/* ================================================================= receipts */
+.wz-receipts { max-width: var(--col); margin: 2rem auto 0; text-align: center; }
+.wz-receipts-h { margin: 0 0 .5rem; font: 600 13px/1.5 var(--font-body); color: var(--dial-stone); }
+.wz-receipts ul { list-style: none; margin: 0; padding: 0; }
+.wz-receipt { display: flex; gap: .5rem; align-items: baseline; justify-content: center; padding: .1rem 0; font-size: 14px; color: var(--dial-stone); }
+.wz-receipt-k { flex: 0 0 auto; font-weight: 600; color: var(--steel); }
+.wz-receipt-k::after { content: ":"; }
+.wz-receipt-v { min-width: 0; }
+
+/* ================================================================= activity */
+.wz-activity { position: fixed; right: 0; bottom: 0; z-index: 40; width: min(34rem, 100vw); }
+.wz-activity-toggle {
+  display: flex; align-items: center; gap: .5rem; width: 100%; cursor: pointer;
+  background: var(--stone-100); color: var(--steel); border: 1px solid var(--stone-200); border-bottom: none;
+  border-top-left-radius: 12px; padding: .6rem 1.1rem; font: 600 14px/1.4 var(--font-body);
+}
+.wz-badge { margin-left: auto; background: var(--steel); color: #fff; border-radius: 999px; font-size: 12px; padding: 0 .5rem; min-width: 1.4rem; text-align: center; }
+.wz-caret { display: inline-block; }
+.wz-activity.is-open .wz-caret { transform: rotate(180deg); }
+.wz-activity-body {
+  max-height: 46vh; overflow-y: auto;
+  background: var(--white); border-top: 1px solid var(--stone-200); border-left: 1px solid var(--stone-200);
+  padding: 1rem 1.1rem; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; color: var(--ink);
+}
+.wz-narr { border-bottom: 1px solid var(--stone-100); padding-bottom: .5rem; margin-bottom: .5rem; }
+.wz-narr table, .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+.wz-narr p:first-child, .md p:first-child { margin-top: 0; }
+.wz-narr ul, .wz-narr ol, .md ul, .md ol { padding-left: 1.25rem; }
+.wz-narr th, .wz-narr td { border: 1px solid var(--stone-200); padding: .25rem .5rem; text-align: left; }
+.wz-narr th { background: var(--stone-50); }
+.wz-narr pre { background: var(--stone-50); padding: .5rem .65rem; border-radius: 8px; }
+
+/* Host-policy notices: one line each, deliberately lighter than narration. */
+.wz-notice {
+  display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap;
+  margin: 0 0 .45rem; padding-bottom: .45rem; border-bottom: 1px solid var(--stone-100);
+  font-family: var(--font-body); font-size: 13px; color: var(--steel);
+}
+.wz-notice-k {
+  flex: 0 0 auto; border-radius: 999px; padding: 0 .55rem;
+  font: 600 11.5px/1.8 var(--font-body);
+  background: var(--stone-100); color: var(--dial-stone);
+}
+.wz-notice[data-kind="unrequested-run"] .wz-notice-k { background: var(--amberwash); color: var(--amber-ink); }
+.wz-notice[data-kind="unrequested-run"] { color: var(--amber-ink); }
+.wz-notice-t { min-width: 0; overflow-wrap: anywhere; }
+
+/* =========================================================== narrow layout
+   Under 900px the rail's labels have nowhere to live, so the rail folds away
+   and the plan degrades to its shape — Guide's dots, exactly as before the
+   fusion — while the header takes the brand back. */
+@media (max-width: 900px) {
+  .wz { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main"; }
+  .wz-rail { display: none; }
+  .wz-dots { display: flex; }
+  .wz-brand { display: flex; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

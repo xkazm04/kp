@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { checkoutBannerState } from "./billingCheckoutBanner";
+import { checkoutBannerState, shouldTrackCheckoutCompleted, type CheckoutBanner } from "./billingCheckoutBanner";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
@@ -22,7 +22,7 @@ import {
   type Purchase,
 } from "./billingTabState";
 import { useBillingPortal } from "./useBillingPortal";
-import type { BillingPayload } from "./billingTypes";
+import { isUnmeteredInstall, type BillingPayload } from "./billingTypes";
 
 // Tier 3 (docs/design/loading-choreography.md): the plan catalog + minutes pack is the
 // heaviest, most-below-the-fold region of this tab (a card grid) — its own
@@ -72,7 +72,10 @@ export function BillingTab() {
   // not-configured note are all replaced by one honest panel — see
   // BillingSelfHostPanel for why it isn't simply hidden. Defaults to metered
   // while `data` is null so a hosted deploy never flashes the self-host panel.
-  const selfHosted = data !== null && !data.metered;
+  // The predicate itself lives in billingTypes.ts (named, tested, quotable) —
+  // it now decides the page header too, and two copies of "is this metered?"
+  // is exactly how the two halves of this tab would drift apart.
+  const selfHosted = isUnmeteredInstall(data);
   // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
   // The flag is captured ONCE via lazy initial state (render-derived and sticky, so
   // it survives the URL cleanup below) rather than a synchronous setState in the
@@ -84,6 +87,12 @@ export function BillingTab() {
   // derived from the real billing state below, so a timer alone can never assert a
   // plan grant; once this flips, the banner offers a manual re-check.
   const [pollWindowElapsed, setPollWindowElapsed] = useState(false);
+  // Progressive recovery affordances shown while the banner is in the "confirming"
+  // state: a Refresh button after 10 s, a support link after 30 s.  Both are
+  // independent of the poll-window timer — the poll may still be running when they
+  // appear, and they stay visible if the poll window closes without a confirmed plan.
+  const [showCheckoutRefresh, setShowCheckoutRefresh] = useState(false);
+  const [showCheckoutSupport, setShowCheckoutSupport] = useState(false);
   // The banner is bound to the ACTUAL billing state, not the timer: we only claim
   // "your plan is now X" once /api/billing reflects a paid plan (plans-checkout #2).
   const checkout = checkoutBannerState({
@@ -91,6 +100,11 @@ export function BillingTab() {
     pollWindowElapsed,
     planReflectsPaid: Boolean(data && data.plan.id !== "free"),
   });
+  // Conversion is webhook confirmation, not the Buy click. Latch the previous
+  // banner so `confirmed` re-renders (and the poll that keeps returning paid)
+  // cannot double-fire checkout_completed. The catalog item is stashed around
+  // the Polar redirect because this tree remounts on return.
+  const prevCheckout = useRef<CheckoutBanner>(null);
 
   // Only the NEWEST /api/billing read may land — see billingTabState.ts.
   const latch = useRef(createLoadLatch()).current;
@@ -125,6 +139,21 @@ export function BillingTab() {
     load();
   }, [load]);
 
+  // Progressive recovery: show the Refresh button at 10 s and the support link at
+  // 30 s from the checkout return, so paying customers are never left staring at a
+  // frozen "confirming" message with no resolution path.  Timers are unconditional
+  // on mount so they fire even when the poll finishes early (both checks are cheap
+  // and the banner guards visibility by checkout state).
+  useEffect(() => {
+    if (!checkoutReturn) return;
+    const t10 = setTimeout(() => setShowCheckoutRefresh(true), 10_000);
+    const t30 = setTimeout(() => setShowCheckoutSupport(true), 30_000);
+    return () => {
+      clearTimeout(t10);
+      clearTimeout(t30);
+    };
+  }, [checkoutReturn]);
+
   // On a checkout return, re-poll the overview (the entitlement lands via the
   // webhook a beat after redirect) with a BACKOFF to a stated one-minute cap, then
   // hand over to the banner's manual re-check. It used to fire three fixed shots and
@@ -147,6 +176,25 @@ export function BillingTab() {
     return () => timers.forEach(clearTimeout);
   }, [checkoutReturn, load]);
 
+  useEffect(() => {
+    if (!shouldTrackCheckoutCompleted(prevCheckout.current, checkout)) {
+      prevCheckout.current = checkout;
+      return;
+    }
+    prevCheckout.current = checkout;
+    let item = data?.plan.id ?? "unknown";
+    try {
+      const stored = sessionStorage.getItem("kp.billing.checkoutItem");
+      if (stored) {
+        item = stored;
+        sessionStorage.removeItem("kp.billing.checkoutItem");
+      }
+    } catch {
+      /* best-effort: analytics must never break the billing tab */
+    }
+    track("checkout_completed", { item });
+  }, [checkout, data?.plan.id]);
+
   // Catalog-key helpers with the app-wide has() fallback so an unknown enum
   // value (new meter, new provider status) renders labelized, never crashes.
   const meterName = (meter: string): string => {
@@ -163,6 +211,11 @@ export function BillingTab() {
     // Fire-and-forget analytics (no-op when Plausible isn't configured): the
     // checkout intent, before the provider redirect can navigate away.
     track("checkout_started", { item: key });
+    try {
+      sessionStorage.setItem("kp.billing.checkoutItem", key);
+    } catch {
+      /* best-effort: analytics must never break checkout */
+    }
     setPurchase({ key, error: null });
     try {
       const r = await fetch("/api/billing/checkout", {
@@ -186,10 +239,28 @@ export function BillingTab() {
     // direct children (stagger-children, globals.css). aria-busy covers the
     // first load only — a later refresh never blanks what is already here.
     <section className="stagger-children space-y-6" aria-busy={!data && loadError === null}>
+      {/* The metered header promises three things — "your subscription, what this
+          period has used, and the plans you can move to" — and on a self-hosted
+          install two of them do not exist: there is no subscription and the plan
+          catalog below is not rendered at all. The panel two lines down already
+          says so in plain words, so the header said the opposite of the page.
+          Self-hosted gets its own title/intro, in the self-host panel's voice.
+
+          The EYEBROW stays "Billing" in both: it is wayfinding — it must keep
+          naming the tab the reader clicked in the nav rail, not the content.
+
+          Tension with loading-choreography law 1 ("chrome renders on the first
+          frame"), stated rather than hidden: the client cannot know the metering
+          mode until GET /api/billing lands, and there is no server-rendered seam
+          on this tab to carry it. isUnmeteredInstall(null) is therefore metered,
+          so the ONE frame of possibly-wrong wording lands on the self-hoster
+          (who is told nothing false about money) and never on the paying
+          customer. The swap is a plain text change in fixed geometry — no
+          reflow, no placeholder, nothing to animate. */}
       <header>
         <p className={EYEBROW}>{t("eyebrow")}</p>
-        <SectionTitle className="mt-1">{t("title")}</SectionTitle>
-        <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
+        <SectionTitle className="mt-1">{selfHosted ? t("selfHost.pageTitle") : t("title")}</SectionTitle>
+        <p className={`mt-2 max-w-2xl ${INTRO}`}>{selfHosted ? t("selfHost.pageIntro") : t("intro")}</p>
       </header>
 
       {/* `configured` drives a "billing isn't configured, purchases disabled" note —
@@ -207,6 +278,8 @@ export function BillingTab() {
         onRecheck={load}
         hasData={data !== null}
         configured={selfHosted ? true : (data?.configured ?? true)}
+        showCheckoutRefresh={showCheckoutRefresh}
+        showCheckoutSupport={showCheckoutSupport}
       />
 
       {selfHosted ? <BillingSelfHostPanel /> : null}

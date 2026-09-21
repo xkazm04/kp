@@ -31,3 +31,10 @@ export function intakeLang(input: unknown): Locale {
   const primary = input.trim().toLowerCase().split("-")[0];
   return isLocale(primary) ? primary : DEFAULT_LOCALE;
 }
+
+/** Dictation language for a live intake desk. The session row wins when it
+ *  carries a lang; a null/legacy row follows the viewer locale so a German
+ *  studio does not silently transcribe as English. */
+export function dictationLang(sessionLang: string | null | undefined, viewerLocale: unknown): Locale {
+  return intakeLang(sessionLang ?? viewerLocale);
+}

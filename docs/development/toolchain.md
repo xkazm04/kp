@@ -26,6 +26,14 @@ nothing anywhere naming the expected version.
 Bumping the line is one change in two places — the `node-version:` steps and
 `engines.node` — and the fixture fails if only one moves, in either direction.
 
+## Dev server storm breaker
+
+`npm run dev` sets `DEV_GUARD_MAX_NODE=150` (same ceiling as `dev:inspect` /
+`dev:empty`) so a Turbopack worker storm is reaped on the everyday server, not
+only on inspect. The guard itself still treats unset as off — callers that wrap
+`scripts/dev-guard.mjs` in other tools are unchanged. Pinned by
+`scripts/docs/__tests__/toolchain-pin.test.mjs`.
+
 ## Line endings
 
 This is a Windows-primary checkout with `core.autocrlf=true`: the working tree is

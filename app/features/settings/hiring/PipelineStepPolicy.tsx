@@ -33,6 +33,9 @@
 //   entry / terminal   nothing at all. Arrival and outcome are not decisions; a
 //                      guard here would govern nothing.
 //   screening          executor = AI, stated not offered; guard = a real choice.
+//   homework           executor = AI, stated (the product writes the case and marks
+//                      it); guard = who approves SENDING it, which is the decision
+//                      that costs the candidate their evening.
 //   interview          cohort (who reaches it), executor (AI or a person), guard.
 //   scoring            executor = AI, stated; guard = who ratifies the score. The
 //                      automated pass between an AI interview and a human one.
@@ -55,7 +58,7 @@ import type { StageRole } from "@/app/_lib/pipeline-stages";
 /** Types that carry policy at all. Everything else renders the em dash the row
  *  reserves space for. */
 export function stepCarriesPolicy(role: StageRole): boolean {
-  return role === "screening" || role === "interview" || role === "scoring" || role === "offer";
+  return role === "screening" || role === "homework" || role === "interview" || role === "scoring" || role === "offer";
 }
 
 /** One policy line: the three decision slots, always in this order and always at
@@ -104,9 +107,18 @@ export function PipelineStepPolicy({
   if (!stepCarriesPolicy(role)) return null;
 
   if (role !== "interview") {
-    // Screening, scoring and offer are all "the AI does it, you decide who lets it
-    // through". Same shape, different sentence.
-    const tip = role === "screening" ? "tipModeScreening" : role === "scoring" ? "tipModeScoring" : "tipModeOffer";
+    // Screening, homework, scoring and offer are all "the AI does it, you decide who
+    // lets it through". Same shape, different sentence. For homework the executor is
+    // not in question — the product generates the case and evaluates what comes back
+    // — and the guard is the one real choice: who approves sending it.
+    const tip =
+      role === "screening"
+        ? "tipModeScreening"
+        : role === "homework"
+          ? "tipModeHomework"
+          : role === "scoring"
+            ? "tipModeScoring"
+            : "tipModeOffer";
     return (
       <PolicyLine
         executor={<PolicyStatic icon={Bot} label={t("kindAi")} title={t(tip)} />}

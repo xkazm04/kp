@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { withEditProvenance } from "@/app/_lib/brief-edit";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, FIELD } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
 import { ProvenanceDot } from "./JdsIntakeBriefAtoms";
@@ -30,10 +31,11 @@ export function JdsIntakeBriefTitle({
   frozen?: boolean;
   saving?: boolean;
   /** Resolves false when the server refused — the field stays open with the
-   *  typed title still in it (see JdsIntakeBriefPanel). */
+   *  typed title still in it (see AtelierBriefPlane). */
   onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
 }) {
   const t = useTranslations("library.tab.intake.edit");
+  const enumLabel = useEnumLabel();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(brief?.title ?? "");
   const canEdit = !frozen && !!onSaveBrief && !!brief;
@@ -91,7 +93,7 @@ export function JdsIntakeBriefTitle({
       ) : null}
       {brief?.seniority ? (
         <>
-          <span className={CHIP_QUIET}>{brief.seniority}</span>
+          <span className={CHIP_QUIET}>{enumLabel("seniority", brief.seniority)}</span>
           {/* Spine provenance (UAT L1-CONV-3): a defaulted seniority must
               read as "assumed", never as captured. Missing key = default. */}
           <ProvenanceDot provenance={brief?.spineProvenance?.seniority ?? "default"} />

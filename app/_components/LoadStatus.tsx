@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { NOTICE } from "@/app/_components/ui/recipes";
+import { Tooltip } from "@/app/_components/Tooltip";
 import type { LoadState } from "@/app/_lib/useLoader";
 
 // Surfaces a loader's failure so an outage no longer renders identically to a
@@ -38,14 +39,17 @@ export function LoadStatus({
   const ago = seen ? format.relativeTime(new Date(state.lastUpdated!), new Date()) : "";
 
   if (variant === "pill") {
+    const tip = seen ? t("pillTitleStale", { label, ago }) : t("pillTitle", { label });
     return (
-      <span
-        role="status"
-        title={seen ? t("pillTitleStale", { label, ago }) : t("pillTitle", { label })}
-        className={`inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-micro font-semibold uppercase text-amber-700 ${className}`}
-      >
-        <AlertTriangle size={11} className="shrink-0" /> {seen ? t("stale", { ago }) : t("offline")}
-      </span>
+      <Tooltip label={tip}>
+        <span
+          role="status"
+          tabIndex={0}
+          className={`focus-ring inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-micro font-semibold uppercase text-amber-700 ${className}`}
+        >
+          <AlertTriangle size={11} className="shrink-0" /> {seen ? t("stale", { ago }) : t("offline")}
+        </span>
+      </Tooltip>
     );
   }
 

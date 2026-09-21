@@ -42,13 +42,14 @@
  *              the code silently re-levelled every shipped band.)
  *
  * STALENESS CONTRACT. This script reads a COMMITTED snapshot; it makes no network
- * call and cannot tell you the snapshot is old. Nothing rebuilds
- * data/market_pulse.json automatically — the /market page calls it stale past
- * STALE_AFTER_DAYS = 60 (app/landing/spark/market/data.ts), and applying a stale
- * snapshot re-levels every shipped salary band from figures the page itself is
- * apologising for. Check `meta.generated_at` before running this, and rebuild
- * (`npm run market:build && npm run market:earnings`) if it is past sixty days.
- * The cadence is stated in docs/features/marketing/README.md.
+ * call. Nothing rebuilds data/market_pulse.json automatically — the /market page
+ * calls it stale past STALE_AFTER_DAYS = 60 (app/landing/spark/market/data.ts),
+ * and applying a stale snapshot would re-level every shipped salary band from
+ * figures the page itself is apologising for. `assertFresh` (scripts/lib/
+ * market-earnings.mjs) reads `meta.generated_at` and exits 1 when the age is
+ * ≥ 60 days, naming the rebuild (`npm run market:build && npm run market:earnings`).
+ * `--force` writes anyway and prints the same sentence as a warning. Same UTC
+ * date math as the page. Cadence: docs/features/marketing/README.md.
  */
 
 const BLEND = Math.min(1, Math.max(0, Number(process.env.MARKET_BLEND ?? 0.7)));
@@ -58,6 +59,7 @@ const MIN_SAMPLE_K = 15; // ISPV employees (thousands) needed to trust the media
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { assertFresh, STALE_AFTER_DAYS } from "./lib/market-earnings.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = path.join(ROOT, "data");
@@ -78,8 +80,17 @@ const marketFromArgs = () => {
   return "cz";
 };
 const MARKET_ID = marketFromArgs() || "cz";
+const FORCE = argv.includes("--force");
 
 const pulse = JSON.parse(readFileSync(PULSE, "utf8"));
+const freshness = assertFresh(pulse, Date.now(), STALE_AFTER_DAYS, FORCE);
+if (!freshness.ok) {
+  console.error(`[apply-salaries] ${freshness.message}`);
+  process.exit(1);
+}
+if (freshness.forced) {
+  console.warn(`[apply-salaries] WARNING: ${freshness.message} Writing anyway (--force).`);
+}
 const benchRaw = JSON.parse(readFileSync(BENCH, "utf8"));
 const refByFamily = new Map(pulse.reference_salaries.map((r) => [r.family, r]));
 

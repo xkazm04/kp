@@ -89,9 +89,10 @@ export function buildKeyRequestBody(input: {
   };
 }
 
-/** Whether the add form can be submitted. A keyless provider (Ollama and friends —
- *  a stock local model server authenticates nothing) is satisfied by a base URL
- *  alone; everything else still needs a key. Mirrors the PUT's own rule so the
+/** Whether the add form can be submitted. A keyless provider that shows a Server
+ *  URL (Ollama) is satisfied by that URL alone; a keyless provider with no
+ *  visible location (gateway, not in BASE_URL_PROVIDERS) is submittable empty.
+ *  Everything else still needs a key. Mirrors the PUT's own rule so the
  *  button and the route can't disagree about what a valid row is. */
 export function canSubmitKeyForm(input: {
   provider: string;
@@ -101,5 +102,7 @@ export function canSubmitKeyForm(input: {
 }): boolean {
   if (!input.provider) return false;
   if (input.apiKey.trim()) return true;
-  return input.keylessProviders.includes(input.provider) && Boolean((input.baseUrl ?? "").trim());
+  if (!input.keylessProviders.includes(input.provider)) return false;
+  if ((input.baseUrl ?? "").trim()) return true;
+  return !providerAcceptsBaseUrl(input.provider);
 }

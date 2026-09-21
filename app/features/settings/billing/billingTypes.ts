@@ -31,6 +31,46 @@ export const STATUS_TONE: Record<string, BadgeTone> = {
   none: "neutral",
 };
 
+/** Which dunning recovery banner the current-plan card must paint, if any.
+ *
+ *  `past_due` / `unpaid` are the two statuses where Polar is still retrying (or
+ *  has given up retrying) a failed invoice, and the only place to update the
+ *  card is the customer portal. Everything else — a healthy sub, a trial, a
+ *  cancel, no subscription — is not a recovery moment, so the helper is silent.
+ *  Named and tested so the banner copy and the STATUS_TONE chip cannot drift
+ *  onto different status sets. */
+export type DunningBanner = "pastDue" | "unpaid";
+
+export function dunningBanner(status: string): DunningBanner | null {
+  if (status === "past_due") return "pastDue";
+  if (status === "unpaid") return "unpaid";
+  return null;
+}
+
+/** Does this install have a metered plan at all?
+ *
+ *  `metered` is the DEPLOYMENT's answer, computed once on the server by
+ *  `meteringActive` (app/_lib/billing/mode.ts): a payment provider is wired, OR
+ *  this org already carries billing state. False means self-hosted — no
+ *  subscription, no invoice, nobody to upgrade — and, downstream of the same
+ *  flag, `resolvedLimit` returns null for every meter, so every allowance in the
+ *  payload reads "unlimited".
+ *
+ *  That is why this is the honest predicate for "the allowance numbers carry no
+ *  information here", and why the UI must not invent a second flag for it:
+ *  `configured` is a HOSTED-deploy misconfiguration signal (a provider that
+ *  should be wired and isn't), and `plan.id === "free"` is an entitlement that a
+ *  paying customer can also hold mid-dunning. Only `metered` says the meters
+ *  themselves are decorative.
+ *
+ *  Null (the overview has not landed yet) answers FALSE — metered — so a hosted
+ *  deploy never flashes self-hosted chrome on its first frame. The failure
+ *  direction is "a self-hoster reads the subscription wording for one frame",
+ *  never "a paying customer is told they have no subscription". */
+export function isUnmeteredInstall(data: Pick<BillingOverview, "metered"> | null): boolean {
+  return data !== null && !data.metered;
+}
+
 // Stored subscription statuses that mean a LIVE provider subscription exists.
 // MIRROR of SUBSCRIBED_STATUSES in app/_lib/billing/entitlements.ts — the wire
 // payload carries the raw `status`, so the client can reproduce the server's

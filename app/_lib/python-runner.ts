@@ -5,18 +5,19 @@ import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
 import { currentLlmRequestId } from "./llm-request-context";
+import { opsLog } from "./ops-telemetry";
 
 // Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
 // monitor.emit_result) into the llm_usage ledger, then delete it. Lazy dynamic
 // import so the generic process runner doesn't eagerly pull in the DB layer, and
-// fully swallowed — the metering ledger is telemetry and must never affect the
+// non-blocking — the metering ledger is telemetry and must never affect the
 // spawn it rides on. A spawn with no LLM call leaves no file (a harmless no-op).
 async function ingestUsageLog(logPath: string): Promise<void> {
   try {
     const { ingestLlmUsageLog } = await import("./db/llm");
     ingestLlmUsageLog(logPath);
-  } catch {
-    /* ledger off the critical path */
+  } catch (err) {
+    opsLog("warn", "ledger:write:failed", { err: String(err) });
   }
 }
 

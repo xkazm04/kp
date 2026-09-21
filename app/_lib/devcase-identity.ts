@@ -100,7 +100,7 @@ export function caseJobIdentity(source: CaseJobSource, fallbackTitle?: string | 
   const jobId = (source.jobId ?? "").trim();
   const title = (source.jobTitle ?? source.roleTitle ?? fallbackTitle ?? "").trim();
   if (jobId) return { jobId, jobTitle: title || jobId, linked: true };
-  return { jobId: syntheticCaseJobId(source.caseId), jobTitle: title || "Dev case", linked: false };
+  return { jobId: syntheticCaseJobId(source.caseId), jobTitle: title || "Assignment", linked: false };
 }
 
 /** The role family a dev-case entry should carry: stated by the opening, else stated

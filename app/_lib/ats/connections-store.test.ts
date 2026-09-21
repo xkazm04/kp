@@ -84,6 +84,24 @@ test("a field map without an externalId path is refused at the write boundary", 
   assert.throws(() => setAtsConnection({ provider: "recruitee", fieldMap: { paths: { displayName: "name" } } }), Error);
 });
 
+test("a Recruitee connection created without a fieldMap still has a usable externalId path", () => {
+  const saved = setAtsConnection({ provider: "recruitee" });
+  assert.equal(saved.fieldMap.paths.externalId, "id");
+  assert.equal(saved.fieldMap.paths.displayName, "candidate.name");
+});
+
+test("a Recruitis connection created without a fieldMap stays empty and unusable", () => {
+  const saved = setAtsConnection({ provider: "recruitis" });
+  assert.deepEqual(saved.fieldMap.paths, {});
+  assert.equal(saved.fieldMap.paths.externalId, undefined);
+});
+
+test("an explicit Recruitee fieldMap is stored verbatim rather than merged with the default", () => {
+  const saved = setAtsConnection({ provider: "recruitee", fieldMap: { paths: { externalId: "uuid" } } });
+  assert.equal(saved.fieldMap.paths.externalId, "uuid");
+  assert.equal(saved.fieldMap.paths.displayName, undefined);
+});
+
 test("a connection can be parked without losing its credentials", () => {
   setAtsConnection({ provider: "recruitee", baseUrl: "https://api.recruitee.com", apiToken: TOKEN, fieldMap: MAP });
   const parked = setAtsConnection({ provider: "recruitee", enabled: false });

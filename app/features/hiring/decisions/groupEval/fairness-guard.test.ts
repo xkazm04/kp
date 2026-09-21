@@ -50,6 +50,19 @@ test("every parallel array must agree with labels in length", () => {
   assert.equal(isFairnessAligned({ ...good, candidateIds: ["c1"] } as Fairness), false);
   assert.equal(isFairnessAligned({ ...good, mean: [69] } as Fairness), false);
   assert.equal(isFairnessAligned({ ...good, matrix: [[70, 68]] } as Fairness), false);
+  assert.equal(isFairnessAligned({ ...good, own: [70] } as Fairness), false);
+  assert.equal(isFairnessAligned({ ...good, ranking: ["Ada"] } as Fairness), false);
+});
+
+test("a KO-short ranking still aligns when koFailed accounts for the dropped labels", () => {
+  // recruiter.fairness_check keeps KO rows in the matrix and drops them from ranking.
+  const koShort = { ...good, ranking: ["Ada"], koFailed: ["c2"] };
+  assert.equal(isFairnessAligned(koShort as Fairness), true);
+  assert.equal(isFairnessAligned({ ...good, ranking: ["Ada"], koFailed: [] } as Fairness), false);
+});
+
+test("ranking must name labels from the matrix field", () => {
+  assert.equal(isFairnessAligned({ ...good, ranking: ["Ada", "Cyril"] } as Fairness), false);
 });
 
 test("a ragged matrix ROW (right row count, short row) is rejected", () => {

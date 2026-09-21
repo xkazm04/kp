@@ -4,7 +4,7 @@ import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { ingestStructuredJob } from "./ingest-job";
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // the write boundary and store an unbounded or empty title/body.
     const fields = validateJdFields(body.title, body.body);
     if (!fields.ok) {
-      return NextResponse.json({ error: fields.error }, { status: 400 });
+      return jsonRefusal(fields.code, 400);
     }
 
     // The budget is spent HERE: after the field validation above, so a rejected
@@ -76,11 +76,13 @@ export async function POST(request: NextRequest) {
     let slug: string;
     if (body.slug) {
       if (!loadJd(body.slug, ws)) {
-        return NextResponse.json({ error: "JD not found." }, { status: 404 });
+        return jsonRefusal("JD_NOT_FOUND", 404);
       }
       slug = body.slug;
     } else {
-      slug = saveJd({ title: fields.title, body: fields.body }, ws).slug;
+      // The author is stamped so the library's delete door can tell creator from
+      // colleague (app/_lib/jds-delete-rule.ts); open dev mode stamps null.
+      slug = saveJd({ title: fields.title, body: fields.body }, ws, (await currentUser()).userId).slug;
     }
     const role = body.role ?? {};
 

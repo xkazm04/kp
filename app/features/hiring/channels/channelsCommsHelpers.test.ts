@@ -15,8 +15,10 @@ import {
   commsStatusLabels,
   displayRecipient,
   displaySubject,
+  foldCommsQuery,
   formatRecordedAt,
   isActionable,
+  matchesCommsQuery,
   statusTone,
   type Message,
 } from "./channelsCommsHelpers";
@@ -105,4 +107,21 @@ test("formatRecordedAt carries the TIME, not just the date", () => {
   const at = formatRecordedAt("2026-01-01T09:30:00.000Z", "en-GB");
   assert.match(at, /\d/);
   assert.notEqual(at, formatRecordedAt("2026-01-01T17:45:00.000Z", "en-GB"));
+});
+
+test("foldCommsQuery strips diacritics so ASCII finds Czech names", () => {
+  assert.equal(foldCommsQuery("Králová"), "kralova");
+  assert.equal(foldCommsQuery("Novák"), "novak");
+  assert.equal(foldCommsQuery("Černý"), "cerny");
+  assert.equal(foldCommsQuery("Ada Lovelace"), "ada lovelace");
+});
+
+test("matchesCommsQuery folds both needle and haystack", () => {
+  assert.equal(matchesCommsQuery("Králová", null, null, "kralova"), true);
+  assert.equal(matchesCommsQuery("Králová", null, null, "KRALOVA"), true);
+  assert.equal(matchesCommsQuery("Novák", "Hi", "a@b.c", "novak"), true);
+  assert.equal(matchesCommsQuery("Černý", null, null, "cerny"), true);
+  assert.equal(matchesCommsQuery("Ada Lovelace", "Offer", "ada@x", "ada"), true);
+  assert.equal(matchesCommsQuery("Ada Lovelace", "Offer", "ada@x", "kralova"), false);
+  assert.equal(matchesCommsQuery("Ada", null, null, "  "), true);
 });
