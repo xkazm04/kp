@@ -66,6 +66,44 @@ edit is not discarded.
 
 - Session claims carry real identity: `sub` (userId), `org`, `role`
   (`app/_lib/auth/session.ts`) — no longer just `{ workspace, iat, exp, epoch }`.
+- **A session can be revoked one at a time — not only all at once.** The token is a
+  stateless signed bearer credential with a 7-day TTL, so clearing the browser's copy
+  never invalidated any other copy: a cookie lifted off a stolen laptop stayed valid
+  for the rest of that week, and the only kill switch was `KP_SESSION_EPOCH`, which
+  signs **every** operator on the deployment out. `app/_lib/auth/session-revocation.ts`
+  is the targeted counterpart — a `session_revocations` table on its own connection
+  (the `login_attempts` pattern), keyed by the **principal** a signed session names:
+  `user:<sub>` for a per-user login, `op:<workspace>` for the operator password,
+  `ws:<workspace>` for a demo/claim-less cookie. Two scopes, one table: a row naming an
+  exact `iat` is "sign this device out", and the per-principal row (`session_iat =
+  ALL_SESSIONS`) is "sign out all devices" — every session issued before a cutoff, one
+  row however many cookies are out there.
+  - **`POST /api/auth/logout` writes it.** The default scope revokes the presented
+    session (so the ordinary sidebar sign-out now really signs out); `{ allDevices:
+    true }` revokes the principal. The route is self-guarding: the cookie presented *is*
+    the authority to revoke, so an anonymous caller writes nothing. It reports
+    `{ revoked }` truthfully rather than claiming a server-side sign-out it did not
+    perform.
+  - **Three seams consult it**, because each stands in front of routes the others do
+    not: `proxy.ts` (the gate, ahead of the 177 routes with no second check — via a
+    dynamic import, since Next 16 runs Proxy on the Node runtime), `currentSession()`
+    (and therefore every capability gate), and `isOperator()`. A revoked cookie reads
+    as **no session**: 401, never 403.
+  - A per-user revocation deliberately follows the **person**, not the workspace their
+    cookie sits on, which is why `session_revocations` is tenancy-EXEMPT: scoping it by
+    `workspace_id` would leave the same human's other teams' cookies alive. The cutoff
+    is exclusive, so the re-login right after the click survives.
+  - The lookup **fails open on the revocation question only** when the store is
+    unreadable, and says so once in the log. A remote caller cannot induce that error
+    (it needs the operator's own disk), while fail-closed would turn any database fault
+    into a deployment-wide 401 — a cheaper attack than the one this store stops.
+    Signature, expiry and `KP_SESSION_EPOCH` are unaffected, and the epoch stays the
+    escalation path precisely because it needs no database.
+  - Pinned by `app/_lib/auth/session-revocation.test.ts` (the store, including the
+    cross-connection durability that is the reason it is not a Map) and
+    `session-revocation-enforcement.test.ts` (the stolen-cookie flow end to end through
+    the real logout handler). **Not yet built:** the "sign out all devices" button —
+    the API is ready and the sidebar's sign-out uses the single-session scope.
 - `organizations`, `users`, `memberships`, `invites` tables exist
   (`app/_lib/db/{organizations,users,memberships,invites}.ts`), each with a test
   file. `DEFAULT_ORG_ID = "org-default"` seeds the single-org case.

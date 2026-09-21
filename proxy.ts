@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { localeCookieOptions } from "./i18n/cookie";
 import { coerceLocale, LOCALE_COOKIE } from "./i18n/locales";
-import { SESSION_COOKIE, verifySessionEdge } from "./app/_lib/auth/edge-verify";
+import { SESSION_COOKIE, verifySessionEdge, type EdgeSession } from "./app/_lib/auth/edge-verify";
 import { isPublicPath } from "./app/_lib/auth/public-routes";
 import { isJobseekerPath, jobseekerEnabled, UNKNOWN_ROUTE_PATH } from "./app/_lib/jobseeker/enabled";
 
@@ -25,6 +25,36 @@ import { isJobseekerPath, jobseekerEnabled, UNKNOWN_ROUTE_PATH } from "./app/_li
 function sessionEpochFromEnv(): number {
   const n = Number.parseInt(process.env.KP_SESSION_EPOCH ?? "", 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+// TARGETED revocation, the epoch's counterpart: has THIS session been signed out?
+// (app/_lib/auth/session-revocation.ts, which owns the store and the reasoning.)
+//
+// Asked at the gate, not only at the handlers, because the gate is what stands in front
+// of the 177 routes that hold no second check of their own — a revoked cookie that only
+// died at `requireCapability` would still reach every one of them.
+//
+// Imported DYNAMICALLY on purpose. Next 16 runs Proxy on the Node.js runtime by default
+// and the `runtime` config option is not even available in a Proxy file
+// (next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md), so a
+// better-sqlite3 read here is legitimate — and `serverExternalPackages` already keeps
+// that native module external in every server bundle (next.config.ts). But this file's
+// module graph was deliberately free of node built-ins, and widening it at load time
+// would trade a request-time question for a boot-time risk: a proxy module that fails to
+// evaluate takes the whole app down. Behind an `import()` the worst case is bounded to
+// this one check, and the handler-side checks (`currentSession`, `isOperator`) still
+// hold. The lookup itself never throws; the catch covers only the module load.
+async function isRevokedSession(session: EdgeSession): Promise<boolean> {
+  try {
+    const { isSessionRevoked } = await import("./app/_lib/auth/session-revocation");
+    return isSessionRevoked(session);
+  } catch {
+    // The revocation store is unreachable from the gate. Do NOT convert that into a
+    // deployment-wide 401: signature, expiry and KP_SESSION_EPOCH still gate this
+    // request, and the handler layer asks the same question again. session-revocation.ts
+    // logs the degraded state and explains why fail-open is the right side here.
+    return false;
+  }
 }
 
 // --- Content-Security-Policy (per-request, nonce'd) ---------------------------
@@ -171,7 +201,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         Date.now(),
         sessionEpochFromEnv()
       );
-      if (!session) {
+      // A session that is missing, forged, expired, below the epoch, or REVOKED is
+      // refused identically — one refusal shape, so a revoked cookie learns nothing
+      // about why it stopped working.
+      if (!session || (await isRevokedSession(session))) {
         if (pathname.startsWith("/api/")) {
           return withCsp(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
         }

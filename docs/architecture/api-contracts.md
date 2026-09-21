@@ -217,7 +217,21 @@ Authorisation is **fail-closed and stated in two places on purpose**:
   if (denied) return denied;          // a 401 NextResponse, already shaped
   ```
 
-Four facts about that gate that are easy to get wrong:
+Five facts about that gate that are easy to get wrong:
+
+- **A valid signature is no longer the last word.** Since 2026-09-21 the gate also asks
+  whether the session has been REVOKED
+  ([`app/_lib/auth/session-revocation.ts`](../../app/_lib/auth/session-revocation.ts)),
+  and it asks *here* rather than only at the handlers because it is the gate — not
+  `requireCapability` — that stands in front of the routes carrying no second check. A
+  revoked cookie meets the same refusal shape as a missing or forged one, so it learns
+  nothing about why it stopped working. The store is reached through a `import()`
+  instead of a static import: Next 16 runs Proxy on the **Node.js** runtime (so a
+  better-sqlite3 read is legitimate) but a proxy module that fails to evaluate takes the
+  whole app down, and an `import()` bounds that risk to this one check. The lookup
+  degrades open if the store is unreachable — signature, expiry, `KP_SESSION_EPOCH` and
+  the handler-side checks all still apply; that module states why open is the right side
+  here. `docs/features/organization/README.md` has the full contract.
 
 - `KP_OPERATOR_PASSWORD` unset = **open mode**, and `isOperator()` returns
   `true`. That is deliberate (local single-operator use); production fails

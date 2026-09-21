@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { connection, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
 import { verifySession, currentWorkspaceId, currentUserId, currentOrgId, isOperatorSession, DEMO_WORKSPACE, type SessionPayload } from "./session";
+import { isSessionRevoked } from "./session-revocation";
 import { roleCapabilities, type Capability, type MemberRole } from "./roles";
 import { orgAdminCapabilities, orgCapabilityCeiling, workspaceCapabilities, type MembershipGrant } from "./org-authority";
 import { getMembership, capabilitiesForUserInWorkspace, listMembershipsForUser } from "../db/memberships";
@@ -30,12 +31,24 @@ const EMPTY_CAPS: ReadonlySet<Capability> = new Set();
  *  into request rendering the way the old model did — it only streams that subtree
  *  — so the clock read must be marked request-time explicitly, exactly as
  *  docs/01-app/01-getting-started/08-caching.md prescribes. Without it every
- *  server render that authenticates logs the error, '/' included. */
+ *  server render that authenticates logs the error, '/' included.
+ *
+ *  TARGETED REVOCATION is applied here, not inside `verifySession`. That function is
+ *  pure — it answers "was this token signed by us and is it still in date", is unit-
+ *  tested with no database, and is the same predicate the Edge-safe verifier mirrors.
+ *  "Has this session been signed out" is a different question with a different answer
+ *  source, so it is asked at the REQUEST-scope seam every handler and server component
+ *  already goes through: this function feeds `resolveCaller`, and therefore `can`,
+ *  `requireCapability`, `currentUser` and every cross-workspace authority read below.
+ *  `isOperator()` asks it separately for the same reason. */
 export async function currentSession(): Promise<SessionPayload | null> {
   try {
     const jar = await cookies();
     await connection();
-    return verifySession(jar.get(SESSION_COOKIE)?.value);
+    const session = verifySession(jar.get(SESSION_COOKIE)?.value);
+    if (!session) return null;
+    if (isSessionRevoked(session)) return null;
+    return session;
   } catch {
     return null;
   }

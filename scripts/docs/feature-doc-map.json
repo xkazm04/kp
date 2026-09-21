@@ -302,10 +302,12 @@
         "app/_lib/db/memberships.ts",
         "app/_lib/db/invites.ts",
         "app/_lib/auth/session.ts",
+        "app/_lib/auth/session-revocation.ts",
         "app/_lib/auth/roles.ts",
         "app/_lib/auth/org-authority.ts",
         "app/_lib/auth/current-user.ts",
         "app/_lib/auth/current-workspace.ts",
+        "app/api/auth/logout/**",
         "app/_lib/db/workspaces.ts",
         "app/_lib/tenancy.ts",
         "app/_lib/workspace-lock.ts",
@@ -536,6 +538,7 @@
         "app/_lib/python-runner.ts",
         "app/_lib/auth/public-routes.ts",
         "app/_lib/auth/require-operator.ts",
+        "app/_lib/auth/edge-verify.ts",
         "proxy.ts"
       ]
     },

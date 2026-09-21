@@ -8,7 +8,10 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 // Cookie name is single-sourced in the edge-safe module (so middleware can use it
 // without dragging node:crypto into the Edge bundle); re-exported here for handlers.
-export { SESSION_COOKIE } from "./edge-verify.ts";
+// SESSION_TTL_MS lives there too: the revocation store computes a row's prune point
+// from it and is imported by the proxy gate, which must stay free of node:crypto.
+import { SESSION_TTL_MS } from "./edge-verify.ts";
+export { SESSION_COOKIE, SESSION_TTL_MS } from "./edge-verify.ts";
 // Matches billing's single-workspace id (`const WORKSPACE = "workspace"`).
 export const DEFAULT_WORKSPACE = "workspace";
 // The isolated workspace minted by the public guided-demo entry (`/api/demo`). A
@@ -16,7 +19,6 @@ export const DEFAULT_WORKSPACE = "workspace";
 // an operator-gated route (key writes, billing, whole-DB export/import). Single-
 // sourced here so the demo route and the operator gate agree on the id.
 export const DEMO_WORKSPACE = "demo";
-export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
 // Non-httpOnly companion marker set alongside the session on sign-in ("entered
 // the workspace"). Read by the pre-paint theme script (app/layout.tsx, which can't
@@ -60,8 +62,15 @@ function hmac(data: string): string {
  *  is valid only while its epoch >= the current one, so BUMPING the env var revokes
  *  every issued session at once — a kill-switch that does NOT require rotating
  *  KP_SECRET (which also encrypts stored provider keys). The edge gate (proxy.ts /
- *  edge-verify.ts) enforces the same check. Per-session logout-revocation still needs
- *  a server-side store (deferred). */
+ *  edge-verify.ts) enforces the same check.
+ *
+ *  This is the BLUNT instrument and it stayed the only one for a long time: bumping it
+ *  signs out every operator on the deployment, so the answer to "one laptop was stolen"
+ *  was either that or a 7-day wait. TARGETED revocation now exists beside it —
+ *  `session-revocation.ts`, a tiny keyed-by-principal store consulted by the proxy gate
+ *  and by every session read (`currentSession`, `isOperator`). Neither replaces the
+ *  other: the epoch needs no database and survives a corrupt one, which is what you
+ *  want when the secret itself may be compromised. */
 export function sessionEpoch(): number {
   const n = Number.parseInt(process.env.KP_SESSION_EPOCH ?? "", 10);
   return Number.isFinite(n) && n > 0 ? n : 0;

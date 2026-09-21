@@ -29,7 +29,6 @@ const API_DIR = fileURLToPath(new URL(".", import.meta.url));
  * quietly stops being required.
  */
 const EXEMPT: Record<string, string> = {
-  "/api/auth/logout": "reads no body — it clears the session cookie and redirects",
   "/api/data/[token]":
     "reads no body — the erasure token in the path is the whole request (GDPR Art. 17 one-click link)",
   "/api/stop/[token]":

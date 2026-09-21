@@ -445,6 +445,15 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // hired_agents/agent_activity, which ARE workspace-scoped).
   "personas_bridge",
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
+  // Targeted session revocation (auth/session-revocation.ts). The sibling of
+  // login_attempts and exempt for the same reason: it is deployment-global AUTH state,
+  // keyed by the PRINCIPAL a signed session names (`user:<sub>` / `op:<workspace>` /
+  // `ws:<workspace>`), not by tenant. A per-user revocation is deliberately NOT
+  // workspace-scoped — "sign out all devices" must follow the human across every team
+  // they belong to, so scoping it by workspace_id would leave their other teams' cookies
+  // alive, i.e. the invariant here is the OPPOSITE of the one this manifest enforces.
+  // It holds no candidate data: a principal key, an issue time, and a reason string.
+  "session_revocations",
   // Deployment-level LLM metering ledger (sibling of billing_usage; written off-request
   // from Python). ERASURE: exempt there too, and for a different reason than tenancy —
   // the ledger records that a machine call happened (model, tokens, latency, cost), never
@@ -527,6 +536,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "schedule_invites",
   "scheduler",
   "scheduler_runs",
+  "session_revocations",
 ]);
 
 /** RETIRED tables: rows a PREVIOUS version of kp wrote and no current code path

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { connection, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
 import { currentOrgId, currentWorkspaceId, DEMO_WORKSPACE, isOperatorSession, verifySession, type SessionPayload } from "./session";
+import { isSessionRevoked } from "./session-revocation";
 
 // Handler-level operator gate — DEFENSE IN DEPTH for the most sensitive admin
 // routes (provider-key writes, model-routing changes, the token-spending canary).
@@ -33,6 +34,13 @@ export async function isOperator(): Promise<boolean> {
     // would satisfy operator-gated routes — e.g. the whole-DB export/import
     // exfiltration channel. Reject it here so those routes stay operator-only.
     if (currentWorkspaceId(session) === DEMO_WORKSPACE) return false;
+    // Signed out, targeted. A stolen operator cookie is a valid signature for up to
+    // seven days, and this gate is the one the provider-key writes and the whole-DB
+    // export/import sit behind — so the revocation list has to be consulted HERE and
+    // not only at the proxy, which is the same defense-in-depth argument the rest of
+    // this file is written for. Same store, same fail-open-on-unavailable posture
+    // (session-revocation.ts states why); the sibling check lives in currentSession().
+    if (isSessionRevoked(session)) return false;
     return await accountStillLive(session);
   } catch {
     return false;
