@@ -119,10 +119,17 @@ test("/about's share tags keep the site's OpenGraph and a matching Twitter card"
   const site = await tagsOf("/");
   const about = await tagsOf("/about");
 
-  for (const key of ["og:type", "og:site_name", "og:locale", "og:image"] as const) {
+  for (const key of ["og:site_name", "og:locale", "og:image"] as const) {
     expect(site[key], `'/' no longer emits ${key}; this test has nothing to compare against`).toBeTruthy();
     expect(about[key], `/about dropped ${key}`).toBe(site[key]);
   }
+  // og:type is the one tag /about is ENTITLED to override, and it does: the page
+  // declares itself an `article` and carries an ABOUT_PAGE_MODIFIED date, which is
+  // only meaningful on that type (Next's Metadata types enforce the pairing).
+  // Asserted as its own fact rather than dropped, so a shallow-merge regression that
+  // loses og:type entirely still fails here.
+  expect(site["og:type"], "'/' no longer emits og:type").toBeTruthy();
+  expect(about["og:type"], "/about declares itself an article").toBe("article");
   expect(about["og:title"], "/about must carry its own og:title").not.toBe(site["og:title"]);
   expect(about["twitter:title"]).toBe(about["og:title"]);
   expect(about["twitter:description"]).toBe(about["og:description"]);
