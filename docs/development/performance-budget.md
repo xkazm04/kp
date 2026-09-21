@@ -135,7 +135,19 @@ usually fixes it:
 2. **A helper living in a hub module.** Move it to a leaf — that is what
    `plannedInterviewMinutes` → `app/_lib/interview-planned-minutes.ts` was.
 3. **`import type` written as a value import.** Free once it is a type import.
-4. **The route genuinely needs it.** Raise the ceiling with a `why`.
+4. **A heavy subsystem hanging off a hub through `import()`.** A dynamic import
+   is COUNTED — Next pays for the chunk either way — so writing `await
+   import("…")` does not take a module off the graph. What does is a leaf
+   registry the hub reads and `instrumentation-node.ts` fills at boot, which is
+   on no route's path: `app/_lib/task-external-runners.ts` (the job-seeker scan,
+   off `app/_lib/tasks.ts`) and `app/_lib/stage-hook-registry.ts` (the
+   stage-arrival hook and the voice layer behind it, off `app/_lib/db/pipeline.ts`
+   — 23 modules and 295 KB off every route that reaches the store). Both keep the
+   registry map on `globalThis`: Next evaluates the instrumentation chunk and the
+   route chunk separately, so a module-level map is two maps.
+5. **The route genuinely needs it.** Raise the ceiling with a `why`. A single
+   route above the group's p95 takes a named `overrides` entry rather than a
+   group raise, so it is the one route that is visible in the diff.
 
 ```bash
 node scripts/perf/check-budget.mjs --explain app/api/schedule/route.ts
