@@ -11952,7 +11952,7 @@
       "offerReminderSent": "Die Angebotserinnerung wurde gesendet",
       "reinstated": "Der Kandidat wurde wieder aufgenommen",
       "koDeclined": "Der Kandidat wurde am Ausschlusskriterium abgelehnt",
-      "approvalSet": "Die Freigabe wurde auf {kind} gesetzt",
+      "approvalSet": "Die Freigabe wurde auf {gate} gesetzt",
       "analysis": "Der Lebenslauf wurde analysiert und mit {score} bewertet",
       "interviewSession": "Das Sprachinterview fand statt",
       "interviewRound": "Eine Gesprächsrunde fand statt",

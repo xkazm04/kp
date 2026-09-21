@@ -11952,7 +11952,7 @@
       "offerReminderSent": "Le rappel d'offre a été envoyé",
       "reinstated": "Le candidat a été réintégré",
       "koDeclined": "Le candidat a été écarté au filtre éliminatoire",
-      "approvalSet": "L'approbation a été définie sur {kind}",
+      "approvalSet": "L'approbation a été définie sur {gate}",
       "analysis": "Le CV a été analysé et noté {score}",
       "interviewSession": "L'entretien vocal a eu lieu",
       "interviewRound": "Un tour d'entretien a eu lieu",

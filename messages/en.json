@@ -11952,7 +11952,7 @@
       "offerReminderSent": "Offer reminder was sent",
       "reinstated": "Candidate was reinstated",
       "koDeclined": "Candidate was declined at the knockout gate",
-      "approvalSet": "Approval was set to {kind}",
+      "approvalSet": "Approval was set to {gate}",
       "analysis": "CV was analysed and scored {score}",
       "interviewSession": "Voice interview was held",
       "interviewRound": "An interview round took place",

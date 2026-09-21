@@ -102,6 +102,15 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   is consumed, a repeat link still works)
                               # + locale-smoke (a cs cookie really paints Czech —
                               #   the suite is otherwise English-only)
+                              # + journey-board (the Journeys overlay: it opens, it
+                              #   renders the real ledger with NO page error, an
+                              #   absence states its reason without a hover, and Esc
+                              #   returns to the tab behind it. It exists because the
+                              #   board shipped typecheck/lint/unit green and then did
+                              #   not render — a missing ICU argument on every unmapped
+                              #   event kind, and a `fixed inset-0` overlay contained by
+                              #   the tab panel's animation transform instead of the
+                              #   viewport, so it measured 1264x0)
                               #
                               # The managed webServer runs on a THROWAWAY
                               # KP_DB_PATH (data/kp-e2e.sqlite, see

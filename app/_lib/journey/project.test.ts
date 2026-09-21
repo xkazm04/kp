@@ -540,13 +540,18 @@ test("clearing an approval writes NO second row, and a refused CAS write writes 
   );
 });
 
-test("the projector decodes approval_set into facts.kind, which is what the catalog interpolates", () => {
+test("the projector decodes approval_set into facts.gate, which is what the catalog interpolates", () => {
   const entry = addEntry({ jobId: "jrn-approval-3", jobTitle: "Approval Role 3" });
   setApproval(entry.id, "calendar", "Tue 14:00");
   const column = journeyColumn(entry.id, WS);
   const row = column?.events.find((e) => e.kind === "approval_set");
   assert.ok(row, "the raised gate reaches the board");
-  assert.equal(row.facts.kind, "calendar", "`journey.events.approvalSet` interpolates {kind}");
+  // `gate`, NOT `kind`. `kind` is reserved for `journey.events.unknown`, the one
+  // message whose argument is the event's own kind; overloading one placeholder
+  // with two meanings is what let an unmapped kind ship without its argument and
+  // throw FORMATTING_ERROR on the first real board.
+  assert.equal(row.facts.gate, "calendar", "`journey.events.approvalSet` interpolates {gate}");
+  assert.equal(row.facts.kind, undefined, "a mapped kind never carries facts.kind");
   assert.equal(row.facts.detail, undefined, "the raw detail is decoded, not carried twice");
 });
 

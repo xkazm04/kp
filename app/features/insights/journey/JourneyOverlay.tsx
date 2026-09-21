@@ -15,6 +15,7 @@
 // and hands it down as `onClose`, so the reader never lands on an empty frame.
 
 import { useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
@@ -26,7 +27,16 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
   const t = useTranslations("journey");
   useDialogA11y(ref, onClose, { trap: true, lockScroll: true });
 
-  return (
+  // PORTALED TO document.body, and it has to be. The tab panel that renders this
+  // carries `.animate-tab-in`, whose keyframes animate `transform` with fill mode
+  // `both` — so the element keeps a transform forever, and a transformed ancestor
+  // becomes the CONTAINING BLOCK for `position: fixed` descendants. Rendered in
+  // place, `fixed inset-0` resolved against that panel instead of the viewport and
+  // the overlay measured 1264x0: present in the DOM, correct in the a11y tree,
+  // and zero pixels tall. Same portal idiom as app/_components/Modal.tsx.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <>
       <div className="fixed inset-0 z-40 bg-scrim" aria-hidden="true" />
       <div
@@ -54,6 +64,7 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
           <JourneyBoardView />
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

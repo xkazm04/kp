@@ -554,10 +554,15 @@ function projectEvents(entry: EntryRow, sources: ColumnSources, chain: ChainStat
       facts: facts({
         from: r.from_stage ?? undefined,
         to: r.to_stage ?? undefined,
-        // `journey.events.approvalSet` interpolates {kind}; `journey.events.unknown`
-        // interpolates {kind} too, which is how a source kind this module has never
-        // heard of degrades to something honest instead of rendering blank.
-        kind: approvalKind ?? (isKnownJourneyKind(r.kind) ? undefined : r.kind),
+        // WHICH gate was raised. Its own name on purpose: `kind` is RESERVED for
+        // `journey.events.unknown`, the one message whose argument is the event's
+        // own kind. Overloading one placeholder with two meanings is what let an
+        // unmapped kind ship without its argument and throw FORMATTING_ERROR on
+        // the first real board (useJourneySentence.test.ts pins the pairing now).
+        gate: approvalKind,
+        // A source kind this module has never heard of degrades to something
+        // honest instead of rendering blank.
+        kind: isKnownJourneyKind(r.kind) ? undefined : r.kind,
         detail: approvalKind ? undefined : bounded(r.detail, FACT_DETAIL_MAX),
       }),
       // ONE stored timestamp, so both clocks take it. Inventing a second would be

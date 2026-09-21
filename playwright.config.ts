@@ -79,7 +79,14 @@ export const KEYLESS_SPECS = [
   // a spec defect, and enrolling a spec whose only route to green is a holdout
   // entry would convert a real accessibility bug into a permanent exception.
   // It joins this list when the token is darkened.
-  "locale-smoke"
+  "locale-smoke",
+  // The Journeys board. Keyless by construction: /api/journeys reads the SQLite
+  // tables and spawns nothing. It earns its place here because the board shipped
+  // typecheck-, lint- and unit-green and then failed to render at all — a missing
+  // ICU argument on every unmapped event kind, and a `fixed inset-0` overlay whose
+  // containing block was the tab panel's animation transform rather than the
+  // viewport, so it measured 1264x0. Neither is reachable without a browser.
+  "journey-board"
 ] as const;
 
 export default defineConfig({

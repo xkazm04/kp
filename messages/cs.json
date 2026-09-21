@@ -11952,7 +11952,7 @@
       "offerReminderSent": "Byla odeslána připomínka nabídky",
       "reinstated": "Kandidát byl vrácen do procesu",
       "koDeclined": "Kandidát byl odmítnut na vyřazovací bráně",
-      "approvalSet": "Schválení bylo nastaveno na {kind}",
+      "approvalSet": "Schválení bylo nastaveno na {gate}",
       "analysis": "Životopis byl analyzován se skóre {score}",
       "interviewSession": "Proběhl hlasový pohovor",
       "interviewRound": "Proběhlo kolo pohovoru",

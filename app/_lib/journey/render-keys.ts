@@ -103,6 +103,11 @@ export function journeyEventMessageKey(
   return key ? `events.${key}` : "events.unknown";
 }
 
+/** Every kind this module maps, so a test can build one row per message. */
+export function allJourneyKinds(): string[] {
+  return Object.keys(EVENT_KEYS);
+}
+
 /** True when this module can say something specific about the kind. */
 export function isKnownJourneyKind(kind: string): boolean {
   return Object.hasOwn(EVENT_KEYS, kind);
