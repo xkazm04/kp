@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createArchetype, listArchetypes } from "@/app/_lib/archetype-registry";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 
 // Live archetype registry for the Profile management UI (reads the shared JSON
@@ -14,8 +15,7 @@ export async function GET() {
   try {
     return NextResponse.json({ archetypes: await listArchetypes() });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to read archetypes.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:archetypes", "ARCHETYPES_READ_FAILED");
   }
 }
 
@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to create archetype.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:archetypes", "ARCHETYPES_WRITE_FAILED");
   }
 }

@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_211 routes, 281 handlers._
+_230 routes, 306 handlers._
 
 ### `/api/agents`
 
@@ -341,6 +341,7 @@ _211 routes, 281 handlers._
 | `/api/interview/create` | POST | gated |
 | `/api/interview/revoke` | POST | gated |
 | `/api/interview/sessions` | GET | gated |
+| `/api/interview/sessions/[id]` | GET | gated |
 | `/api/interview/simulate` | POST | gated |
 | `/api/interview/simulate/attach` | POST | gated |
 
@@ -362,7 +363,7 @@ _211 routes, 281 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/jds` | GET, POST | gated |
-| `/api/jds/[slug]` | GET, PATCH | gated |
+| `/api/jds/[slug]` | GET, PATCH, DELETE | gated |
 | `/api/jds/[slug]/analyses` | GET | gated |
 | `/api/jds/[slug]/ingest-job` | POST | gated |
 | `/api/jds/[slug]/retry-analysis` | POST | gated |
@@ -389,11 +390,32 @@ _211 routes, 281 handlers._
 | `/api/jobs/[id]/candidates` | GET | gated |
 | `/api/jobs/[id]/candidates/outreach` | POST | gated |
 | `/api/jobs/[id]/close` | POST | gated |
+| `/api/jobs/[id]/priorities` | GET, PUT | gated |
 | `/api/jobs/[id]/publish` | POST | gated |
 | `/api/jobs/[id]/rediscover` | GET | gated |
+| `/api/jobs/[id]/translations` | GET, POST | gated |
 | `/api/jobs/[id]/winnability` | GET | gated |
 | `/api/jobs/ingest` | POST | gated |
 | `/api/jobs/status` | GET | gated |
+
+### `/api/jobseeker`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/jobseeker/cv.md` | GET | gated |
+| `/api/jobseeker/dialogs` | GET, POST | gated |
+| `/api/jobseeker/dialogs/[id]` | GET | gated |
+| `/api/jobseeker/dialogs/[id]/message` | POST | gated |
+| `/api/jobseeker/postings` | GET | gated |
+| `/api/jobseeker/postings/[id]` | PATCH | gated |
+| `/api/jobseeker/postings/[id]/deepdive` | POST | gated |
+| `/api/jobseeker/profile` | GET, PUT | gated |
+| `/api/jobseeker/profile/seen` | POST | gated |
+| `/api/jobseeker/scan` | POST | gated |
+| `/api/jobseeker/sources` | GET, POST | gated |
+| `/api/jobseeker/sources/[id]` | PATCH | gated |
+| `/api/jobseeker/sources/[id]/preview` | POST | gated |
+| `/api/jobseeker/sources/[id]/rules/propose` | POST | gated |
 
 ### `/api/llm`
 
@@ -465,7 +487,9 @@ _211 routes, 281 handlers._
 | `/api/pipeline/batch` | POST | gated |
 | `/api/pipeline/command` | POST | gated |
 | `/api/pipeline/events` | GET | gated |
+| `/api/pipeline/events/recent` | GET | gated |
 | `/api/pipeline/outcomes` | GET, POST | gated |
+| `/api/pipeline/rejected` | GET | gated |
 | `/api/pipeline/stage-impact` | GET | gated |
 | `/api/pipeline/stage-migration` | POST | gated |
 
@@ -487,7 +511,7 @@ _211 routes, 281 handlers._
 
 | Route | Methods | Auth |
 | --- | --- | --- |
-| `/api/repo-scan` | POST | gated |
+| `/api/repo-scan` | GET, POST | gated |
 | `/api/repo-scan/[id]` | GET | gated |
 
 ### `/api/schedule`

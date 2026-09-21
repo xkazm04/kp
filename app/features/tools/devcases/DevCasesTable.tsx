@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { AlarmClock, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusChip, StatusLegend } from "@/app/_components/StatusChip";
 import { DIVIDER, PANEL } from "@/app/_components/ui/recipes";
@@ -8,6 +9,7 @@ import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmpty } from "./DevCasesEmpty";
+import { stallForCase } from "./DevCasesTable.stall";
 import { useStageLabel } from "./DevLabels";
 import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
 
@@ -29,6 +31,7 @@ export function CasesTable({
   state,
   onOpen,
   onDefine,
+  onLoadMore,
 }: {
   cases: DevCaseDetail[];
   /** The server cut the page (GET /api/devcase answers `truncated`). Said out loud
@@ -40,10 +43,16 @@ export function CasesTable({
   state: LoadState;
   onOpen: (id: string) => void;
   onDefine: () => void;
+  /** Raises `?limit=` on the next fetch. Absent when the page is not cut, or when
+   *  the door's max (500) is already in force. */
+  onLoadMore?: () => void;
 }) {
   const rel = useRelativeTime();
   const t = useTranslations("devcase.casesTable");
+  const tLife = useTranslations("devcase.lifecycle");
   const stageLabel = useStageLabel();
+  // Snapshotted once at mount (Date.now() is impure in render) — same contract as LifecycleRow.
+  const [nowMs] = useState(() => Date.now());
   // Tier 2 (docs/design/loading-choreography.md): useLoader's `data` starts as `[]`, so
   // an empty list is ambiguous between "still loading" and "genuinely no cases
   // yet" — `state.lastUpdated` disambiguates. Never loaded + healthy: hold the
@@ -78,6 +87,15 @@ export function CasesTable({
             const casePostings = postings.filter((p) => p.caseId === c.id);
             const submissions = casePostings.reduce((n, p) => n + (p.submissions?.length ?? p.submissionCount ?? 0), 0);
             const stage = lc?.stage ?? (casePostings.length > 0 ? "published" : "approved");
+            const stall = stallForCase(
+              {
+                stage,
+                updatedAt: lc?.updatedAt,
+                createdAt: lc?.createdAt ?? c.createdAt,
+                submissionCount: submissions,
+              },
+              nowMs,
+            );
             return (
               <tr
                 key={c.id}
@@ -102,12 +120,22 @@ export function CasesTable({
                 <td className="hidden max-w-0 truncate px-3 py-2.5 text-sm text-ink md:table-cell">{c.roleTitle ?? "—"}</td>
                 <td className="hidden px-3 py-2.5 text-sm uppercase text-steel sm:table-cell">{c.seniority ?? "—"}</td>
                 <td className="px-3 py-2.5">
-                  <StatusChip
-                    tone={assignmentStageTone(stage)}
-                    label={stageLabel(stage)}
-                    ariaLabel={t("stageAria", { stage: stageLabel(stage) })}
-                    className="uppercase"
-                  />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusChip
+                      tone={assignmentStageTone(stage)}
+                      label={stageLabel(stage)}
+                      ariaLabel={t("stageAria", { stage: stageLabel(stage) })}
+                      className="uppercase"
+                    />
+                    {stall.stalled ? (
+                      <span
+                        title={tLife("stalledTitle", { days: stall.ageDays ?? 0 })}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral"
+                      >
+                        <AlarmClock size={11} aria-hidden /> {tLife("stalledBadge", { days: stall.ageDays ?? 0 })}
+                      </span>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="hidden px-3 py-2.5 text-sm nums text-ink sm:table-cell">{submissions > 0 ? submissions : "—"}</td>
                 <td className="hidden whitespace-nowrap px-3 py-2.5 text-sm text-steel lg:table-cell">{rel(c.createdAt)}</td>
@@ -123,9 +151,20 @@ export function CasesTable({
           the one that is about them. Same component, same five words, on every
           surface that carries a status chip. */}
       {truncated ? (
-        <p role="status" className={`${DIVIDER} bg-paper/40 px-3 py-2 text-micro text-steel`}>
-          {t("truncated", { count: cases.length })}
-        </p>
+        <div className={`${DIVIDER} flex flex-wrap items-center gap-2 bg-paper/40 px-3 py-2`}>
+          <p role="status" className="text-micro text-steel">
+            {t("truncated", { count: cases.length })}
+          </p>
+          {onLoadMore ? (
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="focus-ring inline-flex h-7 items-center rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40"
+            >
+              {t("loadMore")}
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <StatusLegend className={`${DIVIDER} bg-paper/40 px-3 py-2`} />
     </div>

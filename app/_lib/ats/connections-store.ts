@@ -3,7 +3,7 @@ import { openStore } from "../db-path";
 import { assertPublicHttpsEndpoint } from "../safe-url";
 import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret, reencryptAtsSecret } from "../ats-secret";
 import type { RefusalErrorCode } from "../api-response";
-import { parseFieldMap, type AtsFieldMap } from "./field-map";
+import { defaultFieldMap, parseFieldMap, type AtsFieldMap } from "./field-map";
 
 // W1.1 — per-connection ATS credentials + field map.
 //
@@ -290,6 +290,15 @@ export function setAtsConnection(input: {
         // than here, where the operator is editing an unrelated field.
       }
     }
+    let mapJson = fieldMapJson;
+    if (mapJson === undefined) {
+      if (existing) {
+        mapJson = existing.field_map_json;
+      } else {
+        const fallback = defaultFieldMap(provider);
+        mapJson = fallback ? JSON.stringify(fallback) : "{}";
+      }
+    }
     db()
       .prepare(
         `INSERT INTO ats_connections (provider, base_url, api_token, field_map_json, enabled, version, updated_at)
@@ -302,7 +311,7 @@ export function setAtsConnection(input: {
         provider,
         baseUrl === undefined ? (existing?.base_url ?? null) : baseUrl,
         storedToken,
-        fieldMapJson === undefined ? (existing?.field_map_json ?? "{}") : fieldMapJson,
+        mapJson,
         input.enabled === undefined ? (existing?.enabled ?? 1) : input.enabled ? 1 : 0,
         version + 1,
         new Date().toISOString()

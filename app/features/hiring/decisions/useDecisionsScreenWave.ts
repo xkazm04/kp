@@ -11,11 +11,11 @@ import { useEffect, useReducer, useState } from "react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 import { INITIAL_WAVE_STATE, waveReduce } from "./decisionsScreenWaveMachine";
-import type { WaveResult } from "./decisionsScreenWaveTypes";
+import type { WaveCommitSummary, WaveResult } from "./decisionsScreenWaveTypes";
 
 export function useDecisionsScreenWave(
   jobId: string,
-  onCommitted: (summary?: { commsFailures: number; failedLabels: string[] }) => void,
+  onCommitted: (summary?: WaveCommitSummary) => void,
   previewFailedFallback: string,
   setChangedRepreviewFallback: string,
   waveFailedFallback: string
@@ -87,11 +87,12 @@ export function useDecisionsScreenWave(
       if (!r.ok) throw new Error(errMsg(d, waveFailedFallback));
       const result = d as WaveResult;
       dispatch({ type: "commitSucceeded", result });
-      // Live-refresh the queue so rejected rows drop out, AND hand up the comms
-      // failures so the tab can surface them past this modal (Direction 2b).
+      // Live-refresh the queue so rejected rows drop out, AND hand up comms
+      // AND seal failures so the tab can surface them past this modal.
       onCommitted({
         commsFailures: result.commsFailures,
         failedLabels: result.decisions.filter((x) => x.commsFailed).map((x) => x.label),
+        sealFailures: result.sealFailures ?? 0,
       });
     } catch (e) {
       dispatch({ type: "commitFailed", message: e instanceof Error ? e.message : waveFailedFallback });

@@ -26,6 +26,27 @@ section.
 
 ### Added
 
+- **Job seeker module at `/me`** — a first-run choice ("I'm hiring" / "I'm looking
+  for a job") sends a seeker to a thin shell of their own: import your CV, polish it
+  in an AI studio that also extracts your preferences (locations, countries, work
+  modes, salary floor with its currency, target roles), export it as Markdown or
+  print to PDF; acquire postings from owner-confirmed sources (rights-clean feeds
+  toggle on, ToS-exposed boards need an explicit acknowledgement, blocking boards
+  are refused) through a polite fetcher that honours robots.txt and never retries a
+  block; score every posting keyless with the matcher (fit, tier, confidence,
+  eligibility flags — never a fabricated hire probability), deep-dive the shortlist
+  with the LLM, discuss fit per posting before applying, and let a periodic scan
+  ride the shared automation clock. New dependency `linkedom` (ADR 0009). Tables
+  `jobseeker_profiles/sources/postings/dialogs`; LLM use cases `cv_polish`,
+  `fit_dialog`, `extraction_rules`.
+- **Studio kit** (`app/_components/studio`) — the Intake Studio's desk, transcript,
+  composer, choice cards and voice bar are now a shared primitive; the recruiter
+  intake is its first consumer with no visible change.
+- **Scheduler job registry** (`app/_lib/scheduler-jobs.ts`) — the automation clock,
+  `/api/automation/schedule` (backward compatible, plus `jobs[]`) and the scheduler
+  panel iterate one registry instead of naming jobs.
+- **Matcher eligibility flags** — `MatchResult.eligibility` (salary, location,
+  seniority, language, work mode) as flags a reader sees, never a KO or a score input.
 - **A release process.** `scripts/release/prepare.mjs` cuts a version across
   `package.json`, the chart's `appVersion` and this file in one step;
   `--check` runs in CI so the three cannot drift apart.

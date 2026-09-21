@@ -26,7 +26,8 @@
 // Pure display + callbacks, no state of its own.
 
 import type { PipelineTabTranslator } from "./pipelineTranslator";
-import { BookmarkPlus, CheckSquare, Timer, AlertTriangle } from "lucide-react";
+import { useLocale } from "next-intl";
+import { BookmarkPlus, CheckSquare, Timer, AlertTriangle, Maximize2, Minimize2 } from "lucide-react";
 import { TextInput } from "@/app/_components/TextInput";
 import { PipelineFilterMenu, type FilterMenuOption } from "./PipelineFilterMenu";
 import { FadeInline } from "./PipelineMotion";
@@ -68,7 +69,12 @@ export function PipelineFilterBar({
   sort,
   onSortChange,
   onClearFilters,
+  expanded,
+  onToggleExpanded,
 }: {
+  /** The board section is open on the full page (PipelineBoardPanel). */
+  expanded: boolean;
+  onToggleExpanded: () => void;
   t: PipelineTabTranslator;
   enumLabel: (kind: string, value: string) => string;
   query: string;
@@ -115,13 +121,17 @@ export function PipelineFilterBar({
   // can the board say a stage is not one of its columns.
   const stageOffBoard = Boolean(stageFilter) && stageResolved != null && !stageResolved.onBoard;
 
+  // State and Source list by NAME, ascending, in the reader's language — the labels are
+  // translated, so an order fixed in code reads alphabetically in one locale only.
+  const locale = useLocale();
+  const byLabel = (a: FilterMenuOption, b: FilterMenuOption) => a.label.localeCompare(b.label, locale);
   const stateOptions: FilterMenuOption[] = [
     { value: "interview", label: t("filterInterview") },
     { value: "aging", label: t("filterAging") },
     { value: "awaiting", label: t("filterAwaiting") },
     { value: "intake", label: t("filterIntake") },
     ...(stageFilter ? [{ value: STAGE_OPTION, label: t("filterStage", { stage: stageText }) }] : []),
-  ];
+  ].sort(byLabel);
   const stateSelected = [...quicks, ...(stageFilter ? [STAGE_OPTION] : [])];
 
   const scoreOptions: FilterMenuOption[] = scoreBandKeys.map((b) => ({
@@ -145,10 +155,13 @@ export function PipelineFilterBar({
   // view minted while that channel still had candidates. `sourceValues` is derived
   // from the entries, so it cannot offer that value back, and the facet doing the
   // filtering would render as if nothing were selected.
-  const sourceOptions = [...new Set([...sourceValues, ...sources])].sort();
+  const sourceOptions: FilterMenuOption[] = [...new Set([...sourceValues, ...sources])]
+    .map((s) => ({ value: s, label: channelName(s) }))
+    .sort(byLabel);
 
   return (
-    <div className="border-b border-stone-200">
+    // On the full page the header stays in view while the board scrolls under it.
+    <div className={`border-b border-stone-200 ${expanded ? "sticky top-0 z-20 bg-white" : ""}`}>
       {/* ── Row 1: what board this is, who I'm looking for, how it's narrowed ── */}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3">
         <h3 className="text-meta uppercase tracking-wide text-steel">{t("statPositions")}</h3>
@@ -184,7 +197,7 @@ export function PipelineFilterBar({
           {sourceOptions.length > 1 || sources.size > 0 ? (
             <PipelineFilterMenu
               label={t("filterSourceLabel")}
-              options={sourceOptions.map((s) => ({ value: s, label: channelName(s) }))}
+              options={sourceOptions}
               selected={[...sources]}
               multiple
               onSelect={onToggleSource}
@@ -238,6 +251,17 @@ export function PipelineFilterBar({
             className={modeBtn(editingSla)}
           >
             <Timer size={14} aria-hidden /> {t("agingSlas")}
+          </button>
+          {/* Open this whole section — filters, modes and the Subway board — on the
+              full page, to explore a wide board without the rest of the tab. */}
+          <button
+            type="button"
+            onClick={onToggleExpanded}
+            aria-pressed={expanded}
+            className={`${modeBtn(expanded)} cursor-pointer`}
+          >
+            {expanded ? <Minimize2 size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />}
+            {expanded ? t("collapseBoard") : t("expandBoard")}
           </button>
         </div>
       </div>

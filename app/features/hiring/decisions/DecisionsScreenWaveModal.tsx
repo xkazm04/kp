@@ -18,6 +18,7 @@ import { Checkbox } from "@/app/_components/Checkbox";
 import { useDecisionsScreenWave } from "./useDecisionsScreenWave";
 import { DecisionsScreenWaveLists } from "./DecisionsScreenWaveLists";
 import { DecisionsScreenWaveConfirmModal } from "./DecisionsScreenWaveConfirmModal";
+import type { WaveCommitSummary } from "./decisionsScreenWaveTypes";
 
 export function ScreenWaveModal({
   jobId,
@@ -29,10 +30,10 @@ export function ScreenWaveModal({
   roleTitle: string;
   onClose: () => void;
   // Direction 2b — the commit summary rides back so the tab can keep a partial
-  // commit's comms failures discoverable AFTER this modal closes (the per-row
-  // badges here are modal-only). `failedLabels` names WHO from the same committed
-  // result; each is also audited as a `rejection_comms_failed` event.
-  onCommitted: (summary?: { commsFailures: number; failedLabels: string[] }) => void;
+  // commit's comms AND seal failures discoverable AFTER this modal closes (the
+  // per-row badges here are modal-only). `failedLabels` names WHO from the same
+  // committed result; each comms miss is also audited as `rejection_comms_failed`.
+  onCommitted: (summary?: WaveCommitSummary) => void;
 }) {
   const t = useTranslations("decisions.wave");
   const {
@@ -125,6 +126,9 @@ export function ScreenWaveModal({
             })}
             {committed.commsFailures > 0 ? (
               <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
+            ) : null}
+            {committed.sealFailures > 0 ? (
+              <span className="text-coral"> {t("reasons.sealFailed")}</span>
             ) : null}
           </>
         ) : null}

@@ -14,7 +14,8 @@
 // spec no longer parses against `appMasterSpecSchema`. That refusal is about the
 // spec's SHAPE; this is about its VINTAGE, and a spec can be stale in this sense
 // while parsing perfectly. Keeping them separate is deliberate: folding them
-// would make the card claim a refusal the door does not actually make.
+// would make a schema failure look like a moved brief. `vintageDispatch` is the
+// named refusal the door can call without mixing the two.
 
 /** A row stamped within this of `composedAt` is the compose's OWN write, not a
  *  later edit. The compose route stamps `composedAt` and then writes the row
@@ -49,4 +50,20 @@ export function specVintage(input: {
   const updated = ms(input.briefUpdatedAt);
   if (composed === null || updated === null) return "unknown";
   return updated - composed > SPEC_VINTAGE_GRACE_MS ? "stale" : "current";
+}
+
+export const AGENT_DISPATCH_SPEC_VINTAGE = "AGENT_DISPATCH_SPEC_VINTAGE" as const;
+
+/** The dispatch-door shape of {@link specVintage}. `stale` without an explicit
+ *  acknowledgement is the refusal; `unknown` never refuses (same honesty as
+ *  the classifier — an unreadable stamp is not a moved brief). */
+export function vintageDispatch(input: {
+  composedAt: string | null | undefined;
+  briefUpdatedAt: string | null | undefined;
+  acknowledgeStale?: boolean;
+}): { ok: true } | { ok: false; code: typeof AGENT_DISPATCH_SPEC_VINTAGE } {
+  if (specVintage(input) === "stale" && !input.acknowledgeStale) {
+    return { ok: false, code: AGENT_DISPATCH_SPEC_VINTAGE };
+  }
+  return { ok: true };
 }

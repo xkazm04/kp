@@ -212,6 +212,10 @@ export const NO_TABLE_SUMMARY: Record<string, string> = {
   // total, as a sentence with ICU plurals). It stays bespoke in TasksOutcome —
   // a five-row label/value list would be a downgrade of a sentence that reads well.
   batch_screen: "rendered by its own counts sentence in TasksOutcome",
+  // The result is a ScanSummary (per-source outcomes + matched/deepDived counts): a
+  // table the /me/scans page renders from the scheduler_runs row the task also writes,
+  // not a label/value list — and the closed OutcomeFieldKey vocabulary has no key for it.
+  jobseeker_scan: "rendered as the per-source scan table on /me/scans from the scheduler_runs row",
 };
 
 /** The generic fallback: the four shapes EVERY handler envelope shares. Used only

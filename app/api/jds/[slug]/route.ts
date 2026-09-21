@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
+import { deleteJd, getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
 import { promotedBriefForJob } from "@/app/_lib/db/intakes";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
+import { isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
 import { groundedJdBand, withGroundedBand } from "@/app/_lib/salary-band";
-import { safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -27,7 +29,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     const ws = await currentWorkspace();
     const row = loadJd(slug, ws);
     if (!row) {
-      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+      return jsonRefusal("JD_NOT_FOUND", 404);
     }
     // The JD detail is public/shareable, but the stored build intent
     // (build_input_json — the recruiter's raw "describe the need" text) is
@@ -35,7 +37,14 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // returned only when explicitly requested (?intent=1) — the recruiter Ledger's
     // Duplicate flow. Workspace ownership IS the scoped load above: a caller who
     // doesn't own the row never reaches this line.
-    const { build_input_json, ...publicRow } = row;
+    // `created_by` leaves with it: the authoring user id is authorization INPUT for
+    // the delete door, not detail the client has any use for, and an internal id on
+    // the wire is one more thing a shared/duplicated payload can carry off.
+    const { build_input_json, ...rest } = row;
+    // `undefined` rather than a rest-destructure that discards it: JSON.stringify
+    // drops an undefined value, so the key never reaches the wire, and the line
+    // stays readable as the deliberate removal it is.
+    const publicRow = { ...rest, created_by: undefined };
     const params = new URL(request.url).searchParams;
     if (params.has("intent")) {
       return NextResponse.json({ ...publicRow, build_input_json });
@@ -80,7 +89,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
-    if (!existing) return NextResponse.json({ error: "JD not found." }, { status: 404 });
+    if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
 
     const body = (await request.json().catch(() => ({}))) as {
       title?: unknown;
@@ -109,7 +118,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: "JD not found." }, { status: 404 });
+      return jsonRefusal("JD_NOT_FOUND", 404);
     }
 
     // Keep the linked jd-<slug> job in step with the edited wording —
@@ -147,5 +156,58 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     return NextResponse.json({ ok: true, jobResynced });
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_SAVE_FAILED");
+  }
+}
+
+// The Ledger's trash door. The library is the shelf of DESCRIPTIONS regardless of
+// liveness, so a draft that should never have existed needs a way out that isn't
+// archive (which keeps it, deliberately, so old links resolve). Two conditions,
+// both re-checked here rather than trusted from the UI:
+//
+//   1. STATE — the description's linked `jd-<slug>` role must not be live. A live
+//      role has candidates applying against this text; deleting it underneath them
+//      is not a library operation. Close the role on the Roles tab first.
+//   2. AUTHORITY — the caller authored the JD, or holds an owner/admin seat. This
+//      is narrower than the `pipeline:write` the edit door asks for, on purpose:
+//      every recruiter can edit a description, but a recruiter must not be able to
+//      erase a colleague's draft. jds-delete-access.ts owns the rule; the list
+//      route folds the same function into `canDelete` so the icon and the door
+//      cannot disagree.
+export async function DELETE(_request: Request, context: { params: Promise<{ slug: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  // The capability gate stays FIRST and coarse: a viewer has no business at any
+  // write door, and answering them with the per-row refusal below would tell them
+  // who authored the row. The per-row rule is the second, narrower check.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
+  const { slug } = await context.params;
+  const ws = await currentWorkspace();
+  try {
+    const existing = loadJd(slug, ws);
+    if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
+
+    const actor = await jdDeleteActor();
+    if (!canDeleteJd(actor, existing.created_by)) return jsonRefusal("JD_DELETE_FORBIDDEN", 403);
+
+    // Liveness is read from the JOB, not from anything the client sent: a linked
+    // role with no status is a seeded/published opening (isJobOpenForApplications'
+    // rule — NULL or 'published' both mean applications are open), and the ledger's
+    // client-side categorizer reads a status-less row as merely "analysis-only". The
+    // authority on "can a candidate apply to this right now" is one function, and
+    // this door asks it rather than re-deriving the answer.
+    const job = getJob(jdJobId(slug));
+    if (job && isJobOpenForApplications(job.status ?? null)) {
+      return jsonRefusal("JD_LIVE_CANNOT_DELETE", 409);
+    }
+
+    // A draft/closed linked job is deliberately LEFT STANDING. It is a separate
+    // lifecycle object with its own door, it may already carry pipeline entries and
+    // analyses, and cascading a role deletion out of a library action is exactly the
+    // kind of invisible blast radius this codebase refuses elsewhere.
+    if (!deleteJd(slug, ws)) return jsonRefusal("JD_NOT_FOUND", 404);
+    return NextResponse.json({ ok: true, deleted: slug });
+  } catch (error) {
+    return safeJsonError(error, "api:jds/[slug]", "JD_DELETE_FAILED");
   }
 }

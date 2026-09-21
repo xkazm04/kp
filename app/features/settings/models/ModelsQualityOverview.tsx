@@ -5,6 +5,7 @@ import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import {
   BENCH_OPS,
+  UNMEASURED_USE_CASES,
   cellComposite,
   modelRanking,
   type QualityCell,
@@ -50,6 +51,7 @@ function rankOp(scores: QualityScores, op: string): OpRank[] {
 export function QualityOverview() {
   const t = useTranslations("models.quality");
   const tOp = useTranslations("models.benchOps");
+  const tUse = useTranslations("models.useCases");
   // With no baked matrix this used to render NOTHING, which was fine while it was
   // one panel among several. It is a whole switchable section now, so silence
   // would read as a broken tab: say the deployment has no measurements instead.
@@ -177,6 +179,28 @@ export function QualityOverview() {
           })}
         </div>
       </div>
+
+      {UNMEASURED_USE_CASES.length > 0 ? (
+        <div>
+          <h4 className="text-sm font-semibold text-ink">{t("unmeasuredTitle")}</h4>
+          <p className="mt-1 max-w-3xl text-sm text-steel">{t("unmeasuredIntro")}</p>
+          <ul className={`${PANEL} mt-2 divide-y divide-stone-100 p-0`}>
+            {UNMEASURED_USE_CASES.map((row) => {
+              const key = row.id as Parameters<typeof tUse>[0];
+              const label = tUse.has(key) ? tUse(key) : labelize(row.id);
+              return (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="font-medium text-ink">{label}</span>
+                  <span className="text-steel">{t("unmeasured")}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {/* The method footnote sits on the type scale (text-meta), not on a raw
           text-xs that undercuts the 14px floor the design system sets. */}

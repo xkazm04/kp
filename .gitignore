@@ -85,6 +85,7 @@ data/piper/
 /casesim/
 /tiger/
 /.claude/ship-loop/
+/.explorer/
 /docs/product/competitor-talentpilot.md
 /docs/product/coverage-plan.md
 
@@ -124,6 +125,7 @@ scripts/app-master-bench/tenures/*.json
 /.claude/skills/consult
 /.claude/skills/explorer
 /.claude/skills/i18n-translate
+/.claude/skills/native-copy
 /.claude/skills/onboarding
 /.claude/skills/perfect
 /.claude/skills/project-populate

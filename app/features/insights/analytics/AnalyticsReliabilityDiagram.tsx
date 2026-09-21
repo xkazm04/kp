@@ -2,6 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import type { CalibrationResult } from "@/app/_lib/calibration";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { AnalyticsExportButton } from "./AnalyticsExportButton";
+import { reliabilityCsvProvenance, reliabilityCsvRows } from "./reliabilityCsv";
 
 // Calibration Engine (moonshot A/C) — the reliability diagram SVG (predicted
 // probability vs. measured advance rate) against the perfect-calibration
@@ -25,9 +28,15 @@ export function ReliabilityDiagram({
   threshold,
   thresholdEnforced,
   baseRate,
+  source,
+  outcome,
 }: {
   result: CalibrationResult;
   labels: { x: string; y: string; perfect: string };
+  /** Score source and outcome axis, for the CSV provenance. Absent, the
+   *  download still writes the bins; the file just cannot name the curve. */
+  source?: string;
+  outcome?: string;
   /** UAT KAT-ANA-1 — the live auto-reject floor (0..100), drawn as a vertical
    *  marker on the arms that have one. A reliability curve that jumps from
    *  observed 0.00 to 1.00 EXACTLY at the floor is not a well-calibrated score,
@@ -47,6 +56,8 @@ export function ReliabilityDiagram({
   baseRate?: number | null;
 }) {
   const t = useTranslations("analytics.calibration");
+  const tRoot = useTranslations("analytics");
+  const tLog = useTranslations("analytics.log");
   const filled = result.bins.filter((b) => b.count > 0);
   const maxCount = filled.reduce((m, b) => Math.max(m, b.count), 1);
   // The floor as a NUMBER (0..100) — announced either way, because a recorded floor
@@ -56,8 +67,54 @@ export function ReliabilityDiagram({
   const enforced = thresholdEnforced !== false;
   const floorProb = floorValue != null && enforced ? floorValue / 100 : null;
   const base = typeof baseRate === "number" && baseRate >= 0 && baseRate <= 1 ? baseRate : null;
+  const exportBins = () =>
+    downloadFile(
+      "kp-reliability.csv",
+      toCsv(
+        reliabilityCsvRows(
+          result,
+          {
+            bin: t("csvBin"),
+            lo: t("csvLo"),
+            hi: t("csvHi"),
+            n: t("csvN"),
+            predicted: t("csvPredicted"),
+            observed: t("csvObserved"),
+          },
+          {
+            provenance: reliabilityCsvProvenance(
+              "kp-reliability.csv",
+              {
+                source: source ?? "",
+                outcome: outcome ?? "",
+                threshold: floorValue,
+                autoRejectEnabled: thresholdEnforced ?? null,
+              },
+              {
+                export: tLog("provExport"),
+                generated: tLog("provGenerated"),
+                source: t("csvSource"),
+                outcome: t("csvOutcome"),
+                threshold: t("csvThreshold"),
+                enforced: t("csvEnforced"),
+              }
+            ),
+          }
+        )
+      ),
+      "text/csv"
+    );
+
   return (
     <>
+      <div className="mb-2">
+        <AnalyticsExportButton
+          label={tRoot("exportCsv")}
+          artifact="kp-reliability.csv"
+          disabled={filled.length === 0}
+          onClick={exportBins}
+        />
+      </div>
       {/* The SVG is a pure visual encoding (the dots ARE the signal but have no text
           equivalent) — mark it decorative and expose the bins as a visually-hidden list
           so the calibration is actually readable by screen readers (WCAG 1.1.1). */}

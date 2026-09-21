@@ -5,9 +5,18 @@
 // MatrixShared re-exports all three so existing importers are unaffected.
 import { MATRIX_BANDS } from "./matrixStats";
 
-// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
-// present only on blocked cells, localized by key via matrix.ko.* messages.
-export type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
+// Mirrors GET /api/matrix Cell. Honesty fields (fitTier, confidence,
+// unprovenCount, provenanceMix) are optional so a {score, blocked} cell still
+// type-checks; cellClass ignores them.
+export type Cell = {
+  score: number | null;
+  blocked: boolean;
+  koKeys?: string[];
+  fitTier?: "strong" | "promising" | "partial";
+  confidence?: { low: number; high: number; level?: string };
+  unprovenCount?: number;
+  provenanceMix?: string;
+};
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
 // without relying on the grey fill alone (color-independent legibility).
@@ -31,6 +40,18 @@ export const BLOCKED_CELL =
 // diverging score scale: poor -> coral, fair -> amber, good/strong -> moss.
 // Bands single-sourced in MATRIX_BANDS (matrix-stats.ts) — pick the highest band
 // whose inclusive floor the score clears.
+/** The score a cell may ANNOUNCE — `null` when there is none to announce. The same
+ *  predicate `cellClass` paints from, exported so the accessible name cannot disagree
+ *  with the colour. It did: the grid renders nothing in a null-score cell and paints it
+ *  with the unassessed hatch, while `aria-label` said `matchVal { score: c.score ?? 0 }`
+ *  and `title` said a bare `c.score ?? 0` — so a screen-reader user was told "match 0"
+ *  for a cell the grid itself reads as not assessed, which is exactly the poor fit the
+ *  pipeline never computed that the hatch exists to avoid claiming. A GENUINE 0 is a
+ *  real score and still announces as 0; only the absent one is silent. */
+export function announcedCellScore(c: Cell): number | null {
+  return c.blocked || c.score == null ? null : c.score;
+}
+
 export function cellClass(c: Cell): string {
   if (c.blocked || c.score == null) return BLOCKED_CELL;
   const s = c.score;

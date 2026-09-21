@@ -162,7 +162,7 @@ empty `--mode` filter is a failure rather than a vacuous pass.
 ## Where it runs
 
 `ci.yml` → **Python gated suite** → `npm run test:eval:ci`, which is
-`matching_eval` + `automation_eval --no-llm` + `fault_eval`, all `--strict`. A
+`matching_eval` + `automation_eval --no-llm` + `fault_eval` + `intake_eval --no-llm`, all `--strict`. A
 failed expectation exits non-zero and fails the job. The unit pins in
 `test_fault_injection.py` ride the same job through `npm run test:python:gate`.
 

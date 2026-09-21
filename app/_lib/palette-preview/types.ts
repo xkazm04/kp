@@ -72,7 +72,14 @@ export type PalettePreview =
       pendingInvites: number;
       workspaces: number;
     }
-  | { view: "branding"; displayName: string | null; accentColor: string | null; logoUrl: string | null }
+  | {
+      view: "branding";
+      displayName: string | null;
+      accentColor: string | null;
+      /** Derived Spark Dark twin of `accentColor`; null exactly when the accent is. */
+      accentDark: string | null;
+      logoUrl: string | null;
+    }
   | {
       view: "billing";
       plan: string;

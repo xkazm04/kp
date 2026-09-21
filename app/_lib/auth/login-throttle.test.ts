@@ -1,5 +1,8 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 
 // bug-ui-scan-2026-07-09 #4 — the persisted login throttle behind /api/auth/login.
@@ -33,14 +36,14 @@ import Database from "better-sqlite3";
 const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("../testing/unit-db.ts");
 after(cleanupUnitDb);
 
-const { isThrottled, recordFailedAttempt, clearFailures } = await import("./login-throttle.ts");
+const { isThrottled, recordFailedAttempt, clearFailures, throttleRetryAfterMs } = await import("./login-throttle.ts");
 
 const OPTS = { limit: 5, windowMs: 15 * 60_000 };
 const T0 = 1_700_000_000_000; // fixed base "now" so tests are deterministic
 
 // Fresh state per test — the store persists across tests in one process.
 beforeEach(() => {
-  for (const k of ["k:brute", "k:reset", "k:legit", "acct:a", "acct:b", "ip:x"]) clearFailures(k);
+  for (const k of ["k:brute", "k:reset", "k:legit", "acct:a", "acct:b", "ip:x", "k:retry"]) clearFailures(k);
 });
 
 test("under the limit is admitted; the Nth failure inside the window trips the N+1", () => {
@@ -74,6 +77,19 @@ test("keys are independent — one hot account can't throttle another", () => {
   for (let i = 0; i <= OPTS.limit; i++) recordFailedAttempt("acct:a", OPTS, T0 + i);
   assert.equal(isThrottled("acct:a", OPTS, T0 + OPTS.limit), true);
   assert.equal(isThrottled("acct:b", OPTS, T0 + OPTS.limit), false, "a different account is unaffected");
+});
+
+test("throttleRetryAfterMs reports remaining window when tripped, else null", () => {
+  const key = "k:retry";
+  for (let i = 0; i < OPTS.limit; i++) {
+    assert.equal(throttleRetryAfterMs(key, OPTS, T0 + i), null, `under the limit remaining is unknown`);
+    recordFailedAttempt(key, OPTS, T0 + i);
+  }
+  // window_start is T0 (first record); now is T0+limit → remaining is ~window.
+  const remaining = throttleRetryAfterMs(key, OPTS, T0 + OPTS.limit);
+  assert.equal(remaining, OPTS.windowMs - OPTS.limit);
+  assert.equal(throttleRetryAfterMs(key, OPTS, T0 + OPTS.windowMs), null, "after windowMs the key is admitted again");
+  assert.equal(throttleRetryAfterMs("acct:b", OPTS, T0 + OPTS.limit), null, "an independent key stays null");
 });
 
 test("an oversized key is stored as a fixed-size digest, and still behaves as one bucket", () => {
@@ -114,6 +130,19 @@ test("elapsed windows are swept, so a spray of distinct keys cannot grow the tab
   assert.equal(count(1), 1, "only the live bucket survives — dead buckets are not kept forever");
   assert.equal(isThrottled("spray:live", OPTS, T0 + 10 * OPTS.windowMs), false, "the live bucket is intact");
   clearFailures("spray:live");
+});
+
+test("login and invite 429s set Retry-After from throttleRetryAfterMs", () => {
+  const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const login = readFileSync(path.join(appRoot, "api", "auth", "login", "route.ts"), "utf8");
+  const invite = readFileSync(path.join(appRoot, "api", "invite", "[token]", "route.ts"), "utf8");
+  for (const [name, src] of [
+    ["login", login],
+    ["invite", invite],
+  ] as const) {
+    assert.match(src, /throttleRetryAfterMs/, `${name} must read remaining window`);
+    assert.match(src, /["']Retry-After["']/, `${name} must send Retry-After on 429`);
+  }
 });
 
 test("the counter is DURABLE across connections (multi-process safety)", () => {

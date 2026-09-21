@@ -6,7 +6,9 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { deriveAnalyzePipelineAffordance, resolveAnalyzeJobTitle } from "./analyzePipelineRef.ts";
 import type { Analysis } from "@/app/_lib/schemas";
 
 // Minimal Analysis shaped for the fields the helper reads (persistence, score,
@@ -33,7 +35,7 @@ test("a JD-tagged persisted run yields an add ref matching the saved-report fiel
   assert.equal(ref.candidateId, "alice-abc", "candidateId is the saved analysis slug (the board dedup key)");
   assert.equal(ref.candidateLabel, "alice_cv.pdf", "label matches the persisted one the on-board chip matches by");
   assert.equal(ref.jobId, "be-123", "jobId is the JD slug the board keys lanes on");
-  assert.equal(ref.jobTitle, "JD be-123");
+  assert.equal(ref.jobTitle, "JD be-123", "no library → slug fallback, matching a deleted-JD saved report");
   assert.equal(ref.archetype, "Builder", "the detected archetype rides the add, not a hardcoded null");
   assert.equal(ref.roleFamily, "Backend");
   // Reconciled total = component sum (20+25+20+8+7 = 80).
@@ -67,6 +69,37 @@ test("no analysis yields no affordance", () => {
 });
 
 // ── Label falls back to the extracted name, then the slug ─────────────────────
+// ── Library title matches the saved-report page's loadJd().title ────────────
+test("a library hit yields the JD's real title, not the synthetic slug", () => {
+  const a = analysis({
+    persistence: { slug: "alice-abc", createdAt: "2026-07-14T00:00:00Z", candidateLabel: "alice_cv.pdf", jdSlug: "be-123" },
+  });
+  const library = [
+    { slug: "other", title: "Unrelated role" },
+    { slug: "be-123", title: "Senior backend engineer" },
+  ];
+  const affordance = deriveAnalyzePipelineAffordance(a, library);
+  assert.equal(affordance?.kind === "add" && affordance.ref.jobTitle, "Senior backend engineer");
+  assert.equal(resolveAnalyzeJobTitle("be-123", library), "Senior backend engineer");
+});
+
+test("a missing JD keeps the slug fallback (deleted, or outside the picker page)", () => {
+  const a = analysis({
+    persistence: { slug: "alice-abc", createdAt: "2026-07-14T00:00:00Z", candidateLabel: "alice_cv.pdf", jdSlug: "be-123" },
+  });
+  const empty = deriveAnalyzePipelineAffordance(a, []);
+  assert.equal(empty?.kind === "add" && empty.ref.jobTitle, "JD be-123");
+  assert.equal(resolveAnalyzeJobTitle("be-123", [{ slug: "other", title: "Nope" }]), "JD be-123");
+  assert.equal(resolveAnalyzeJobTitle("be-123", [{ slug: "be-123", title: "   " }]), "JD be-123", "whitespace-only title is not a title");
+  assert.equal(resolveAnalyzeJobTitle("be-123", null), "JD be-123");
+});
+
+test("the live tab passes the picker library so both surfaces agree on jobTitle", () => {
+  const tab = readFileSync(fileURLToPath(new URL("./AnalyzeTab.tsx", import.meta.url)), "utf8");
+  assert.match(tab, /deriveAnalyzePipelineAffordance\(result\.analysis, library\.jdLibrary\)/);
+  assert.doesNotMatch(tab, /jobTitle:\s*`JD \$\{/);
+});
+
 test("candidateLabel falls back to the extracted name when the receipt omits a label", () => {
   const a = analysis({
     persistence: { slug: "carol-1", createdAt: "x", jdSlug: "be-9" },

@@ -77,6 +77,62 @@ export const BENCH_OPS: readonly BenchOp[] = [
   { id: "campaign_pack", useCase: "campaign_pack" },
 ] as const;
 
+/** A named `DEFAULT_MODELS` cloud slug the baked scorecard did not measure.
+ *  A registry default bump without a re-bake must land here (date + reason)
+ *  or `llm-capabilities-lockstep.test.ts` fails. Drop the row when the slug
+ *  appears in `QUALITY_SCORES.models`. */
+export interface UnmeasuredDefault {
+  slug: string;
+  since: string;
+  reason: string;
+}
+
+export const UNMEASURED_DEFAULTS: readonly UnmeasuredDefault[] = [
+  {
+    slug: "gemini-3.8-flash",
+    since: "2026-09-02",
+    reason: "Gemini registry default announced after the 2026-08-12 bake; the scorecard still ranks gemini-3.6-flash. Re-measure before pinning routing to 3.8.",
+  },
+  {
+    slug: "claude-haiku-4-5",
+    since: "2026-08-12",
+    reason: "Anthropic default is the cheap tier; the bake measured claude-sonnet-5 and claude-opus-5.",
+  },
+  {
+    slug: "gpt-5.4-mini",
+    since: "2026-08-12",
+    reason: "openai default was not measurable (no OPENAI_API_KEY) in the bake environment.",
+  },
+];
+
+/** A pinnable routing use case with no bench cell. `bestModelForUseCase` returns
+ *  null for these; the Quality UI must list them instead of omitting the row.
+ *  Adding an `LLM_USE_CASES` id without a `BENCH_OPS` mapping or a row here
+ *  fails `llm-capabilities-lockstep.test.ts`. Drop the row when a scenario lands. */
+export interface UnmeasuredUseCase {
+  id: string;
+  reason: string;
+}
+
+export const UNMEASURED_USE_CASES: readonly UnmeasuredUseCase[] = [
+  { id: "profile_draft", reason: "Bench names it as an extension point; no seed builder is registered." },
+  { id: "devcase_reflect", reason: "No bench scenario; later assignment step." },
+  { id: "devcase_evaluate", reason: "No bench scenario; later assignment step." },
+  { id: "devcase_judge", reason: "No bench scenario; later assignment step." },
+  { id: "devcase_seed", reason: "No bench scenario; seed generation is not a judged op." },
+  { id: "agent_fit", reason: "No bench scenario; agent-candidate scoring is not in the matrix." },
+  { id: "repo_scan", reason: "No bench scenario; quality depends on checkout access, not a shared prompt." },
+  { id: "role_intake", reason: "No bench scenario; intake is not in the 2026-08-12 matrix." },
+  { id: "role_intake_voice", reason: "No bench scenario; voice intake is not in the matrix." },
+  { id: "assistant", reason: "No bench scenario; the companion is not a matrix op." },
+  { id: "posting_translate", reason: "No bench scenario; translation is capability-gated, not judged." },
+  { id: "github_analysis", reason: "No bench scenario; GitHub review is a TS-side call." },
+  { id: "cv_analysis", reason: "No bench scenario; flagship CV analysis was not in the 15-op bake." },
+  { id: "cv_polish", reason: "No bench scenario; job-seeker polish is not in the matrix." },
+  { id: "fit_dialog", reason: "No bench scenario; job-seeker fit dialog is not in the matrix." },
+  { id: "extraction_rules", reason: "No bench scenario; extraction-rule authoring is not in the matrix." },
+];
+
 /** Bench ops that feed one routing use case (the "*" catch-all maps to nothing). */
 export function opsForUseCase(useCase: string): string[] {
   return BENCH_OPS.filter((o) => o.useCase === useCase).map((o) => o.id);

@@ -52,6 +52,22 @@ test("varied, ranker-produced weights are a genuine assessment", () => {
   assert.equal(assessRobustness(true, varied), "assessed");
 });
 
+test("a single-candidate field is insufficient_sample, never assessed", () => {
+  const oneRow: Fairness = {
+    labels: ["Ada"],
+    candidateIds: ["c1"],
+    schemes: [{ skills: 0.5, career: 0.3, personal: 0.2 }],
+    matrix: [[70]],
+    own: [70],
+    mean: [70],
+    ranking: ["Ada"],
+    weightNotes: { c1: ["skills weighted up on high-trust evidence"] },
+    weightSource: "deterministic",
+  };
+  assert.equal(assessRobustness(true, oneRow), "insufficient_sample");
+  assert.notEqual(assessRobustness(true, oneRow), "assessed");
+});
+
 // ---- The robust-order vs headline-order claim ------------------------------
 //
 // The panel's closing line is a claim about the ORDER ("Agrees with the headline fit

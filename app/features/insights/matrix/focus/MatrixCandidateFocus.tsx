@@ -51,7 +51,7 @@ export function MatrixCandidateFocus() {
     result, matchRef,
     loading,
     filed, recordFiled,
-    runMatchFor, runMatch,
+    runMatchFor, runMatch, expandRankedField,
     view,
   } = useMatchTabRun(t);
 
@@ -159,6 +159,7 @@ export function MatrixCandidateFocus() {
               // as a non-destructive banner rather than replacing the whole panel.
               error={view.inlineError ? t("rerankFailed", { error: view.inlineError }) : null}
               onReweight={(w) => runMatchFor(matchRef, w)}
+              onShowRemaining={expandRankedField}
               filed={filed}
               onFiled={recordFiled}
             />

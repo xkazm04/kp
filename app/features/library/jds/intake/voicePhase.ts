@@ -44,6 +44,8 @@ export type VoiceUiState = {
   awaitingMic: boolean;
   /** Autoplay was refused: the agent is speaking into a muted element. */
   audioBlocked: boolean;
+  /** A periodic brief-extract sweep is in flight — the desk should say so. */
+  extracting: boolean;
 };
 
 export const initialVoiceUiState: VoiceUiState = {
@@ -51,6 +53,7 @@ export const initialVoiceUiState: VoiceUiState = {
   failure: null,
   awaitingMic: false,
   audioBlocked: false,
+  extracting: false,
 };
 
 export type VoiceEvent =
@@ -65,14 +68,17 @@ export type VoiceEvent =
   | { type: "turnFailed"; failure: VoiceFailure }
   /** Hang-up began — the transcript write-up is in flight. */
   | { type: "finishing" }
-  | { type: "finished"; failure?: VoiceFailure | null };
+  | { type: "finished"; failure?: VoiceFailure | null }
+  /** Periodic /voice-complete sweep started (extract: true from completeTurn). */
+  | { type: "extractStart" }
+  | { type: "extractEnd" };
 
 export function voiceUiReducer(state: VoiceUiState, event: VoiceEvent): VoiceUiState {
   switch (event.type) {
     case "start":
       // A second start while a call is up is a no-op, not a reset.
       if (state.phase !== "idle") return state;
-      return { phase: "connecting", failure: null, awaitingMic: false, audioBlocked: false };
+      return { phase: "connecting", failure: null, awaitingMic: false, audioBlocked: false, extracting: false };
     case "live":
       // ONLY from connecting: the transport marks live after the SDP exchange,
       // which can resolve after a hang-up or an unmount already closed the
@@ -85,19 +91,26 @@ export function voiceUiReducer(state: VoiceUiState, event: VoiceEvent): VoiceUiS
     case "audioBlocked":
       return { ...state, audioBlocked: event.value && state.phase !== "idle" };
     case "connectFailed":
-      return { phase: "idle", failure: event.failure, awaitingMic: false, audioBlocked: false };
+      return { phase: "idle", failure: event.failure, awaitingMic: false, audioBlocked: false, extracting: false };
     case "turnFailed":
       return { ...state, failure: event.failure };
     case "finishing":
       if (state.phase === "idle") return state;
-      return { ...state, phase: "processing", awaitingMic: false, audioBlocked: false };
+      return { ...state, phase: "processing", awaitingMic: false, audioBlocked: false, extracting: false };
     case "finished":
       return {
         phase: "idle",
         failure: event.failure ?? state.failure,
         awaitingMic: false,
         audioBlocked: false,
+        extracting: false,
       };
+    case "extractStart":
+      // Only while live: a sweep owed after hang-up is the processing write-up.
+      if (state.phase !== "live") return state;
+      return { ...state, extracting: true };
+    case "extractEnd":
+      return { ...state, extracting: false };
   }
 }
 

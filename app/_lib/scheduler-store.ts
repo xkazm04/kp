@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { schedulerJob, type SchedulerJobDef } from "./scheduler-jobs";
 
 // Direction #5 — durable scheduler state for the automation clock. Isolated
 // connection (job-ingest.ts / offers-store.ts pattern) so we don't touch the
@@ -29,9 +30,9 @@ export const POLICY_JOB = "policy_pass";
 // most candidate-visible automation is no longer the least observable one.
 export const REMINDERS_JOB = "reminders";
 const DEFAULT_INTERVAL_MIN = 15;
-// Reminders historically ran on every 60s heartbeat unconditionally; a 1-minute
-// cadence under claimDueRun preserves that timing while making it durable.
-const REMINDERS_INTERVAL_MIN = 1;
+// Reminders historically ran on every 60s heartbeat unconditionally; the 1-minute
+// cadence under claimDueRun preserves that timing while making it durable. The
+// number itself lives in the registry (scheduler-jobs.ts) since WP4a.
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
@@ -139,12 +140,35 @@ export function ensureSchedule(
   return rowToSchedule(d.prepare(`SELECT * FROM scheduler WHERE name = ?`).get(name) as Record<string, unknown>);
 }
 
+/** WP4a — create a REGISTERED job's row with the defaults the registry declares
+ *  (scheduler-jobs.ts), so the route, the clock loop and the panel all reach a row
+ *  through one door and a job can never be created with two different postures.
+ *
+ *  `policy_pass` is the one exception, on purpose: its row has always been created by
+ *  the bare `ensureSchedule()` (autostart via AUTOMATION_SCHEDULER_AUTOSTART=1, default
+ *  cadence), and handing it the registry's `defaultEnabled: false` would silently
+ *  retire that env opt-in. The env flag is a policy-pass switch — it must NOT arm a
+ *  crawler that has never been verified — so every other job ignores it. */
+export function ensureRegisteredSchedule(def: SchedulerJobDef): Schedule {
+  if (def.name === POLICY_JOB) return ensureSchedule(POLICY_JOB);
+  return ensureSchedule(def.name, { enabled: def.defaultEnabled, intervalMinutes: def.defaultIntervalMinutes });
+}
+
 /** AUTO6 — the reminders job row, created ON at its historical every-minute
  *  cadence so registering it can't silently stop candidate reminders. ALWAYS
  *  reach the row through this (not getSchedule(REMINDERS_JOB)) so whichever
- *  surface touches it first creates it with the right defaults. */
+ *  surface touches it first creates it with the right defaults. Since WP4a the
+ *  defaults come from the registry (scheduler-jobs.ts), which restates them. */
 export function ensureReminderJob(): Schedule {
-  return ensureSchedule(REMINDERS_JOB, { enabled: true, intervalMinutes: REMINDERS_INTERVAL_MIN });
+  return ensureRegisteredSchedule(schedulerJob(REMINDERS_JOB));
+}
+
+/** WP4a — has this job EVER completed a run the store marked `ok`? The gate behind
+ *  `requiresVerifiedRun` (scheduler-jobs.ts): a job that must be proven by hand before
+ *  its clock is armed is verified by exactly this row, never by a flag someone set. */
+export function hasVerifiedRun(job: string): boolean {
+  const row = db().prepare(`SELECT 1 AS one FROM scheduler_runs WHERE job = ? AND status = 'ok' LIMIT 1`).get(job);
+  return row != null;
 }
 
 export function getSchedule(name = POLICY_JOB): Schedule {
@@ -186,12 +210,35 @@ export function setIntervalMinutes(name: string, minutes: number): Schedule {
     const anchorMs = sched.lastRunAt ? Date.parse(sched.lastRunAt) : Date.now();
     nextDueAt = new Date(Math.max(anchorMs + clamped * 60_000, Date.now())).toISOString();
   }
-  d.prepare(`UPDATE scheduler SET interval_minutes = ?, next_due_at = ?, updated_at = ? WHERE name = ?`).run(
-    clamped,
-    nextDueAt,
-    now,
-    name
+  // COMPENSATING PRECONDITION (a-read-compute-write-either-locks-or-re-checks). The
+  // clock above was computed FROM `sched.enabled`; on `WHERE name = ?` alone a
+  // `setEnabled(name, false)` landing between the read and this write was silently
+  // overwritten, leaving `enabled = 0` beside an armed `next_due_at` — the state the
+  // comment above declares impossible, and the one the ops health surface reads to tell
+  // an operator when the job next runs. This store is explicitly shared with other
+  // connections and processes, so re-asserting the flag in the WHERE (claimDueRun's
+  // shape, ten lines down) is the strategy that holds there; `.immediate()` would only
+  // cover this process. Zero rows changed means the job was toggled under us: skip the
+  // write and answer with the row as it now is, rather than resurrect a stale decision.
+  const write = d.prepare(
+    `UPDATE scheduler SET interval_minutes = ?, next_due_at = ?, updated_at = ? WHERE name = ? AND enabled = ?`
   );
+  const res = write.run(clamped, nextDueAt, now, name, sched.enabled ? 1 : 0);
+  if (res.changes === 0) {
+    // The job was toggled between the read and the write. The CADENCE the operator
+    // asked for is still what they asked for — only the clock derived from the old
+    // flag is stale — so recompute it against the state that actually holds and
+    // re-apply, rather than either overwriting the toggle or dropping the edit. One
+    // retry is enough: a second miss means the row is being toggled continuously, and
+    // the honest answer there is the row as it stands.
+    const fresh = getSchedule(name);
+    const freshNext = fresh.enabled
+      ? new Date(
+          Math.max((fresh.lastRunAt ? Date.parse(fresh.lastRunAt) : Date.now()) + clamped * 60_000, Date.now())
+        ).toISOString()
+      : null;
+    write.run(clamped, freshNext, now, name, fresh.enabled ? 1 : 0);
+  }
   return getSchedule(name);
 }
 
@@ -232,18 +279,26 @@ export function advanceAfterForcedRun(name = POLICY_JOB): void {
   if (!sched.enabled) return;
   const now = new Date().toISOString();
   const next = new Date(Date.now() + sched.intervalMinutes * 60_000).toISOString();
-  d.prepare(`UPDATE scheduler SET last_run_at = ?, next_due_at = ?, updated_at = ? WHERE name = ?`).run(
-    now,
-    next,
-    now,
-    name
-  );
+  // COMPENSATING PRECONDITION, same reason as setIntervalMinutes above and the same
+  // shape claimDueRun uses: the `if (!sched.enabled) return` two lines up is a READ that
+  // this write never re-asserted, so a toggle-off racing a forced tick re-armed the
+  // clock on a job the operator had just switched off. Zero rows changed means exactly
+  // that happened, and the correct action is to leave the disabled job alone — there is
+  // nothing to retry, because the run this was advancing past is no longer wanted.
+  const res = d
+    .prepare(`UPDATE scheduler SET last_run_at = ?, next_due_at = ?, updated_at = ? WHERE name = ? AND enabled = ?`)
+    .run(now, next, now, name, sched.enabled ? 1 : 0);
+  if (res.changes === 0) return; // toggled off under us — "off" stays off
 }
 
 export function recordRun(input: {
   job?: string;
   trigger?: string;
-  status: "ok" | "error";
+  // `skipped` (WP4a): the job was claimed and declined to do its work — a handler not
+  // yet wired, a precondition unmet. It is neither a success (it does not verify a
+  // job, see hasVerifiedRun) nor a failure (nothing broke), and the run log must be
+  // able to say so instead of inventing one of the two.
+  status: "ok" | "error" | "skipped";
   summary?: unknown;
   // AUTO2 — the pass's per-entry decision rows (action + reason), so "why is
   // this candidate held / why was she rejected" survives past the one run.

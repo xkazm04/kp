@@ -41,6 +41,15 @@ test("verify route gates behind the ONE shared per-IP limiter (30/10min)", () =>
   assert.ok(workAt > at, "the limiter must run before verifySkillProfileToken(token)");
 });
 
+test("verify catch answers a STORE code, not jsonError English", () => {
+  assert.doesNotMatch(routeSrc, /\bjsonError\(/, "jsonError forwards err.message onto a public credential URL");
+  assert.match(
+    routeSrc,
+    /safeJsonError\(error, "api:skill-profile:verify", "SKILL_PROFILE_VERIFY_FAILED"\)/,
+    "a thrown store error must answer the code, not the Error message",
+  );
+});
+
 test("verify route keys the throttle by client IP, not by token", () => {
   // Per-TOKEN keying would be useless here: enumeration presents a DIFFERENT token each
   // hit, so every guess would land in its own fresh bucket. It must be per-IP.
@@ -71,4 +80,30 @@ test(`hit ${LIMIT + 1} inside one window is refused → 429`, () => {
     true,
     "a fresh window must admit again — a throttled caller recovers without a restart",
   );
+});
+
+// lens-sweep round 2 (security-auditor, context api-devcase-2): the SAME public,
+// unauthenticated door the throttle above protects answered its 500 with
+// `jsonError(error, …)`, which forwards `err.message` verbatim
+// (app/_lib/api-response.ts:14-17). Everything behind this route is better-sqlite3 +
+// an HMAC verify, so an anonymous caller could be handed a `SQLITE_*` code, a
+// `UNIQUE constraint failed: …` or the absolute db path simply by making the store
+// throw. It was carried as a known debt row in app/api/error-response-contract.test.ts
+// (FORWARD_CEILING, "skill-profile/[token]/verify/route.ts" -> 1); this pins the fix at
+// the site so the row can be burnt down rather than re-grown.
+test("verify route answers a store failure with a CODE, never the thrown message", () => {
+  // Scan CODE only: the comment beside the fix names the retired call shape, and a
+  // matcher that also read comments would be satisfied — or defeated — by prose.
+  const code = routeSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.doesNotMatch(
+    code,
+    /(?<!safe)jsonError\(/,
+    "a public catch must not hand the caught error to jsonError — it forwards .message to an anonymous caller",
+  );
+  assert.match(
+    routeSrc,
+    /safeJsonError\(\s*error,\s*"api:skill-profile:verify",\s*"SKILL_PROFILE_VERIFY_FAILED"\s*\)/,
+    "the catch must answer through safeJsonError with a stable STORE_ERRORS code",
+  );
+  assert.match(routeSrc, /from "@\/app\/_lib\/api-response"/, "the responder must come from the shared envelope module");
 });

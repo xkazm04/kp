@@ -694,9 +694,14 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "CREATE_RATE_LIMIT",
     optsDef: "const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    // The grounding is the LLM-backed half; the limiter must also precede
-    // resolveEntryForSubmission, which PROMOTES a candidate onto the board.
-    expensive: "await buildGroundedInterview(entryId, workspace)",
+    // The mint door (interview-invite.ts) holds the LLM-backed grounding build, the
+    // billing reservation, the session row AND the outbound invite — it is the whole
+    // expensive half in one call, and it is shared verbatim with the stage hook. The
+    // limiter must also precede resolveEntryForSubmission, which PROMOTES a candidate
+    // onto the board. (Was `await buildGroundedInterview(entryId, workspace)` while
+    // that call was still inlined in this handler; the guarded work did not change,
+    // only where it lives.)
+    expensive: "await mintAndInviteVoiceScreen({",
     // The cheap refusals keep serving freely ahead of the budget: the billing 402
     // and the "you named no candidate" 400 spend nothing and must not be masked.
     servedBefore: 'const quota = meterGate("interview_minutes"',
@@ -1041,6 +1046,23 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "canWriteJobLifecycle(id, ws)",
   },
   {
+    // ADDED with the route (the Roles desk's open/close review system): POST here
+    // spawns posting_translate_cli, i.e. ONE whole-document LLM call that re-emits
+    // the entire posting in another language. Same 20/10min budget and shape as
+    // /publish — a deliberate act a recruiter performs a handful of times per role.
+    rel: "./jobs/[id]/translations/route.ts",
+    key: "`jobs-translate:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its arguments: `runPostingTranslation(` also appears in
+    // the import line, which precedes the limiter.
+    expensive: "await runPostingTranslation(id, lang, {",
+    // The visibility 404 AND the "nothing to translate" refusal keep their
+    // semantics ahead of the throttle, so a call that was never going to spend
+    // consumes no budget.
+    servedBefore: "jobVisibleToWorkspace(id, ws)",
+  },
+  {
     rel: "./jobs/[id]/candidates/outreach/route.ts",
     key: "`jobs-outreach:${clientIpFrom(request.headers)}`",
     limit: 60,
@@ -1339,10 +1361,12 @@ const ROUTES: RouteSpec[] = [
     // spends real email on demand, and it carried no throttle at all. Its only guards
     // were an in-process in-flight Set and a dedup that a REFLESS message skipped
     // entirely - so a refless dead letter could be re-dispatched once per click,
-    // without bound. Operator-gated, and open mode (KP_OPERATOR_PASSWORD unset) makes
-    // that gate a documented no-op for the ENTIRE API, so the limiter is the real
-    // bound. 60/10min per IP sits far above a recruiter working a dead-letter list by
-    // hand (one click per message, each read first) and pins a scripted loop at 6/min.
+    // without bound. Operator-gated (`await requireOperator()` before sendComm, plus
+    // pipeline:write) — a demo cookie is refused at identity, a viewer at capability.
+    // Open mode (KP_OPERATOR_PASSWORD unset) makes that identity gate a documented
+    // no-op for the ENTIRE API, so the limiter is the real bound. 60/10min per IP sits
+    // far above a recruiter working a dead-letter list by hand (one click per message,
+    // each read first) and pins a scripted loop at 6/min.
     rel: "./comms/[id]/resend/route.ts",
     key: "`comms-resend:${clientIpFrom(request.headers)}`",
     limit: 60,
@@ -1569,6 +1593,23 @@ const ROUTES: RouteSpec[] = [
     expensive: "listDecisionRecords({ candidateRef: policyRef, workspaceId: ws })",
   },
   // ------------------------------------------------------------------
+  // ADDED /explorer 2026-09-16 (analytics-reporting sweep). The write sibling of
+  // threshold-history above: /apply-threshold runs the SAME full-table calibration
+  // scan plus a holdout read on every accepted POST, and additionally writes the
+  // live auto-reject floor - yet carried no limiter while its read-only sibling did.
+  // Operator + pipeline:write gated, so the limiter sits after those cheap refusals
+  // and after the two 400s, ahead of the first calibration scan.
+  {
+    rel: "./analytics/calibration/apply-threshold/route.ts",
+    key: "`apply-threshold:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "APPLY_THRESHOLD_RATE_LIMIT",
+    optsDef: "const APPLY_THRESHOLD_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getDecisionConfig<ScreeningRule>(\"screening\", ws)",
+    servedBefore: 'jsonRefusal("CALIBRATION_SUGGESTION_REQUIRED", 400)',
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (decisions-ui-1), with the limiter itself.
   {
     // The screening auto-reject WAVE - the one door in the Decisions tab that queues
@@ -1768,6 +1809,140 @@ const ROUTES: RouteSpec[] = [
     // offline branch is the one pinned here: it is a decision the operator must get
     // in their own language, never a throttle and never a blocked-fetch accident.
     servedBefore: 'jsonRefusal("POSTING_OFFLINE", 503)',
+  },
+  // The job-seeker acquisition doors (WP3, ADR 0009). Operator-gated, but open mode
+  // makes that a no-op, and three of the four either write a source row or send a
+  // request to a THIRD-PARTY host under our politeness budget — the limiter is what
+  // keeps one caller from spending that budget (and a board's patience) for everyone.
+  {
+    // Creating a source is a write; 60/10min per IP — the Sources page adds one at a time.
+    rel: "./jobseeker/sources/route.ts",
+    key: "`jobseeker-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createJobseekerSource(",
+  },
+  {
+    // The PATCH shares the write bucket: enabling, acknowledging, pausing and saving
+    // rules are all writes on the same table.
+    rel: "./jobseeker/sources/[id]/route.ts",
+    key: "`jobseeker-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setSourceRules(",
+  },
+  {
+    // Every preview is a request to the board's listing page; 10/10min per IP is a
+    // rule-authoring session. The limiter sits BEFORE the fetch.
+    rel: "./jobseeker/sources/[id]/preview/route.ts",
+    key: "`jobseeker-preview:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "politeFetch(",
+  },
+  {
+    // A fetch AND an LLM call (extraction_rules) per request; the same 10/10min.
+    rel: "./jobseeker/sources/[id]/rules/propose/route.ts",
+    key: "`jobseeker-rules-propose:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "politeFetch(",
+  },
+  // jobseeker — WP2 (docs/features/jobseeker/README.md, "Profile and CV studio").
+  // Every /me door is operator-gated, and in open mode that gate is a no-op, so each
+  // self-limits per IP at a budget a human never meets.
+  {
+    // A store write per CV import; the import flow writes once per file.
+    rel: "./jobseeker/profile/route.ts",
+    key: "`jobseeker-profile:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "PROFILE_RATE_LIMIT",
+    optsDef: "const PROFILE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "upsertJobseekerProfile(",
+  },
+  {
+    // A create spawns one Python child for the deterministic opening. The cheap
+    // refusals (no profile yet) run first so a rejected call never consumes budget.
+    rel: "./jobseeker/dialogs/route.ts",
+    key: "`jobseeker-dialogs-create:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "CREATE_RATE_LIMIT",
+    optsDef: "const CREATE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runJobseekerOpening(",
+    servedBefore: 'jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404)',
+  },
+  {
+    // Every accepted message is a potentially-paid LLM exchange — the intake
+    // message budget, for the same human pace. The 404/409/400 lifecycle refusals
+    // come first (a closed dialog costs nothing), the spawn comes after.
+    rel: "./jobseeker/dialogs/[id]/message/route.ts",
+    key: "`jobseeker-dialog-message:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runJobseekerExchange(",
+    servedBefore: 'dialog.status !== "open"',
+  },
+  {
+    // A read that streams a whole document per hit.
+    rel: "./jobseeker/cv.md/route.ts",
+    key: "`jobseeker-cv-export:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "EXPORT_RATE_LIMIT",
+    optsDef: "const EXPORT_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getJobseekerProfile(",
+  },
+  // jobseeker — WP4c: the scan door, the feed, the seeker's status moves and the
+  // on-demand deep-dive. The scan is minutes of third-party fetching plus Python spawns
+  // and bounded model calls; the deep-dive is two model calls; the two posting doors are
+  // a read and a one-row write — each limited before the work it names.
+  {
+    // 6/10min per IP: a scan is the whole install's politeness budget for minutes, and
+    // the dedupe key already folds a double-click onto the run in flight.
+    rel: "./jobseeker/scan/route.ts",
+    key: "`jobseeker-scan:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // The feed read, paged at 50; 120/10min per IP.
+    rel: "./jobseeker/postings/route.ts",
+    key: "`jobseeker-postings:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "listJobseekerPostings(",
+  },
+  {
+    // One status write per card click; 120/10min per IP.
+    rel: "./jobseeker/postings/[id]/route.ts",
+    key: "`jobseeker-postings-write:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setJobseekerPostingStatus(",
+  },
+  {
+    // jd_ingest + match_reasoning for one posting, synchronously; 20/10min per IP.
+    rel: "./jobseeker/postings/[id]/deepdive/route.ts",
+    key: "`jobseeker-deepdive:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "deepDivePosting(",
+  },
+  // jobseeker — round 26: the feed's last-seen anchor.
+  {
+    // One write per departure (visibilitychange → hidden, pagehide) or explicit
+    // acknowledgement, from a beacon whose answer nobody reads; 120/10 min per IP is a
+    // budget a reader tabbing in and out never meets.
+    rel: "./jobseeker/profile/seen/route.ts",
+    key: "`jobseeker-feed-seen:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "SEEN_RATE_LIMIT",
+    optsDef: "const SEEN_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "advanceFeedAnchor(",
   },
 ];
 
@@ -2144,7 +2319,7 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
   const src = read("./invite/[token]/route.ts");
   assert.match(
     src,
-    /import \{ isThrottled, recordFailedAttempt, type ThrottleOpts \} from "@\/app\/_lib\/auth\/login-throttle";/,
+    /import \{ isThrottled, recordFailedAttempt, throttleRetryAfterMs, type ThrottleOpts \} from "@\/app\/_lib\/auth\/login-throttle";/,
     "the invite door must share the login/register throttle store, not the in-process Map",
   );
   assert.doesNotMatch(src, /rateLimit\(/, "…and must not keep a second, per-process budget beside it");
@@ -2167,9 +2342,14 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
     // store changes WHERE the count lives, never what a throttled caller is told.
     const refusal = src.slice(gateAt, gateAt + 300);
     assert.ok(
-      refusal.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
-      `${verb}: the refusal must go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
+      refusal.includes("throttledRefusal("),
+      `${verb}: the refusal must go through throttledRefusal so 429 carries Retry-After`,
     );
+    assert.ok(
+      src.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
+      `${verb}: the refusal must still go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
+    );
+    assert.ok(src.includes("Retry-After"), `${verb}: a tripped throttle must send Retry-After`);
     // EVERY attempt counts, success included — like register, and unlike login.
     // What is bounded is provisioning and invitee disclosure, not guessing, so a
     // successful redeem must still spend its slot.

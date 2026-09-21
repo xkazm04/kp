@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { MatchRef, MatchResponse } from "@/app/features/shared/matchTypes";
 import { isEarlyCareer } from "@/app/features/shared/matchTypes";
 import { KoReasonsNote, NoMatchesExplainer } from "@/app/features/shared/MatchPresentation";
+import { buildUrl } from "@/app/features/shell/tabs";
 import { MatchCard } from "./MatchCard";
 import { MatchWeightsPanel } from "./MatchWeightsPanel";
 import { MatchResultsHeader } from "./MatchResultsHeader";
@@ -34,6 +35,7 @@ export function MatchResults({
   error = null,
   staleness = null,
   onReweight,
+  onShowRemaining,
   filed,
   onFiled,
 }: {
@@ -50,6 +52,8 @@ export function MatchResults({
   // hand-built profiles (never stale) ⇒ no badge, no chrome.
   staleness?: { newerSlug: string; newerAnalyzedAt: string } | null;
   onReweight?: (weights?: WeightVector) => void;
+  // Fetch the rest of a cap-truncated ranking (same ref, higher limit).
+  onShowRemaining?: (limit: number) => void;
   // shortlist-to-group-eval — the cross-candidate session ledger (owned by
   // MatrixCandidateFocus; this component remounts per candidate) of pipeline entries filed
   // from Match, keyed by jobId. Roles with ≥ 2 entries surface the
@@ -60,6 +64,7 @@ export function MatchResults({
   onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
 }) {
   const t = useTranslations("match.results");
+  const tShared = useTranslations("match.shared");
   const { candidate, meta, matches } = result;
   // The routing value we CARRY (posted to the pipeline, passed to MatchCard, fed to
   // isEarlyCareer): honour the matcher's fail-closed "unknown" sentinel instead of
@@ -114,6 +119,8 @@ export function MatchResults({
         archetype={archetype}
         early={early}
         onExportCsv={exportCsv}
+        onShowRemaining={onShowRemaining}
+        busy={loading}
       />
 
       {onReweight && candidate.weights && candidate.weightBounds ? (
@@ -131,7 +138,15 @@ export function MatchResults({
 
       {matches.length === 0 ? (
         <div className="mt-4">
-          <NoMatchesExplainer meta={meta} archetype={archetype} />
+          <NoMatchesExplainer
+            meta={meta}
+            archetype={archetype}
+            action={
+              (meta.evaluated ?? 0) === 0
+                ? { href: buildUrl({ tab: "library" }, ""), label: tShared("openJdLibrary") }
+                : { href: buildUrl({ tab: "jobs" }, ""), label: tShared("reviewRoles") }
+            }
+          />
         </div>
       ) : (
         <>

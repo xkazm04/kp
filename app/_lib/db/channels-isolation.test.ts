@@ -7,7 +7,9 @@ import {
   createChannelWebhook,
   listChannelWebhooks,
   listChannelSpend,
+  recordPullResult,
   revokeChannelWebhook,
+  setChannelPull,
   setChannelSpend,
 } from "./channels.ts";
 
@@ -64,4 +66,39 @@ test("the receiver list is bounded, clamps a caller's limit, and says when it cu
   // A revoked receiver is still out of the list, bound or no bound.
   revokeChannelWebhook(all.webhooks[0].token, ws);
   assert.equal(listChannelWebhooks(ws).webhooks.length, 4);
+});
+
+test("the receiver list projects recruiter-safe pull health and omits the secret", () => {
+  // GET /api/channels/webhooks JSON.stringifies this record. A pull-configured hook
+  // must carry the URL and hasPullSecret without ever putting the bearer on the wire;
+  // a push-only hook must still carry the four fields, as null/false.
+  process.env.KP_SECRET ??= "channels-isolation-secret";
+  const ws = "ws-pull-health";
+  const push = createChannelWebhook({ channel: "email", jobId: "job-push" }, ws);
+  const pull = createChannelWebhook({ channel: "boards", jobId: "job-pull" }, ws);
+  assert.equal(setChannelPull(pull.token, { url: "https://ats.example.com/feed", secret: "s3cret-token" }, ws), true);
+  recordPullResult(pull.token, { error: "timeout contacting source" });
+
+  const listed = listChannelWebhooks(ws).webhooks;
+  const pushRow = listed.find((w) => w.token === push.token);
+  const pullRow = listed.find((w) => w.token === pull.token);
+  assert.ok(pushRow && pullRow);
+
+  assert.equal(pushRow.pullUrl, null);
+  assert.equal(pushRow.hasPullSecret, false);
+  assert.equal(pushRow.lastPullAt, null);
+  assert.equal(pushRow.lastPullError, null);
+
+  assert.equal(pullRow.pullUrl, "https://ats.example.com/feed");
+  assert.equal(pullRow.hasPullSecret, true);
+  assert.ok(pullRow.lastPullAt, "a failed pull still stamps lastPullAt");
+  assert.equal(pullRow.lastPullError, "timeout contacting source");
+
+  const parsed = JSON.parse(JSON.stringify(pullRow)) as Record<string, unknown>;
+  for (const key of ["secret", "pullSecret", "pull_secret"]) {
+    assert.equal(key in parsed, false, `list JSON must not carry ${key}`);
+  }
+  const json = JSON.stringify(pullRow);
+  assert.equal(json.includes("s3cret-token"), false);
+  assert.equal(json.includes("v1:"), false, "ciphertext must not ride the list");
 });

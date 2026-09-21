@@ -37,6 +37,7 @@ import { SpendInput } from "../AnalyticsChannelSpendInput";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import type { EconomicsProps } from "./economicsTypes";
 import { economicsCsvRows, economicsRows, type EconomicsKind, type EconomicsRow } from "./economicsRows";
+import { variantPauseBoardHref } from "@/app/_lib/source-analytics";
 
 // The row model + the one hire-rate rule live in economicsRows.ts, pure, so the
 // three taxonomies' normalization can be driven by a test — see the note there.
@@ -294,18 +295,32 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
               <PauseCircle size={13} aria-hidden /> {tc("pauseTitle")}
             </p>
             <ul className="mt-1.5 space-y-1">
-              {data.variantRecommendations.map((r) => (
-                <li key={`${r.campaign ?? ""}:${r.variant}`} className="max-w-prose text-sm text-ink">
-                  {tc.rich("pauseLine", {
-                    b: (c) => <b className="font-semibold">{c}</b>,
-                    variant: r.variant,
-                    campaign: r.campaign ?? "",
-                    job: r.jobTitle ?? "",
-                    sharePct: r.leadSharePct,
-                    groupTotal: r.groupTotal,
-                  })}
-                </li>
-              ))}
+              {data.variantRecommendations.map((r) => {
+                const href = variantPauseBoardHref(r);
+                const line = tc.rich("pauseLine", {
+                  b: (c) => <b className="font-semibold">{c}</b>,
+                  variant: r.variant,
+                  campaign: r.campaign ?? "",
+                  job: r.jobTitle ?? "",
+                  sharePct: r.leadSharePct,
+                  groupTotal: r.groupTotal,
+                });
+                return (
+                  <li key={`${r.campaign ?? ""}:${r.variant}`} className="max-w-prose text-sm text-ink">
+                    {href ? (
+                      <Link
+                        href={buildUrl({ ...clearedTabScopedParams(), ...href }, tabScopedSearch)}
+                        className="focus-ring rounded underline-offset-2 hover:text-coral hover:underline"
+                        onClick={() => setKindFilter("variant")}
+                      >
+                        {line}
+                      </Link>
+                    ) : (
+                      line
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             <p className="mt-1.5 max-w-prose text-sm text-steel">{tc("pauseNote")}</p>
           </div>

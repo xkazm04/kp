@@ -71,6 +71,9 @@ export type CompanionActionContext = {
   threadId: string;
   /** The operator's UI locale, for the machinery that generates localized text. */
   locale: string;
+  /** The accepting user, stamped as the author of anything the action creates
+   *  (a drafted JD's `created_by`). Null in open dev mode / a keyless session. */
+  userId?: string | null;
 };
 
 export type CompanionActionSpec = {
@@ -209,6 +212,7 @@ export const COMPANION_ACTIONS: readonly CompanionActionSpec[] = [
         options,
         buildInput,
         workspaceId: ctx.workspaceId,
+        createdBy: ctx.userId ?? null,
         params: { needText, seniority: params.seniority, lang: ctx.locale },
       });
       return { key: "jdDrafting", values: { title: valid.title }, ref: slug };

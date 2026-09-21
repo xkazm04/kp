@@ -17,6 +17,10 @@
 // other score. Re-gearing the rubric is a one-line edit there; this module owns
 // only the shape.
 
+// The scale itself still lives in format.ts (see the header) — this is the VALUE
+// import the seal-side validator below needs to reject a rating off the 1..RATING_MAX
+// ladder, not a second declaration of it.
+import { RATING_MAX } from "@/app/_lib/format";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 // Type-only, and therefore erased at compile — interview-rubric.ts imports
 // ScorecardRating back from here, so a VALUE import either way would be a cycle.
@@ -75,6 +79,59 @@ export const NOT_ASSESSED_RATING = 3;
  *  "Not assessed…" string means absence. */
 export function isNotAssessedRating(rating: number | null | undefined, evidence: string | null | undefined): boolean {
   return rating === NOT_ASSESSED_RATING && !!evidence && isPlaceholderEvidence(evidence);
+}
+
+/** The most rubric axes one sealed `ai_scorecard` record carries. The fixed rubric
+ *  is well under this; the ceiling exists because `ratings` originates in an LLM
+ *  synthesis, and an unbounded list would be an unbounded sealed payload AND an
+ *  unbounded public response once `aiScorecardFacts` reads it back.
+ *
+ *  DELIBERATELY NOT the same constant as the read side's
+ *  MAX_CANDIDATE_RUBRIC_DIMENSIONS (status-decisions.ts): the redaction pipe never
+ *  trusts a payload, including one this function wrote, because records outlive the
+ *  code that sealed them. The two are pinned equal by a test — which is a check,
+ *  not a shared reference. */
+export const MAX_SEALED_RUBRIC_DIMENSIONS = 12;
+
+/** One sealed rubric axis: the canonical competency key and what it scored. */
+export type SealedRubricDimension = { competency: string; rating: number };
+
+/** The rubric axes of a scorecard that may be SEALED as the decision's inputs —
+ *  the "main elements" an `ai_scorecard` verdict was made of (Art. 86), which the
+ *  candidate's status page later reads back through `aiScorecardFacts`.
+ *
+ *  Takes `unknown` on purpose: the caller holds the scorer's raw
+ *  `Record<string, unknown>` result, so validating here is validating at the only
+ *  boundary that exists.
+ *
+ *  A NOT-ASSESSED axis is dropped. That is the load-bearing rule: the synthesis
+ *  rates an untouched competency 3 of 5 with "Not assessed…" evidence
+ *  (NOT_ASSESSED_RATING above), which is indistinguishable from an observed
+ *  middling score to anything reading `rating` alone — so sealing it would tell a
+ *  candidate they scored mid on a competency the interview never once asked about.
+ *  An off-rubric axis is dropped for the mirror reason: it is not a scale the
+ *  candidate was told they would be measured on.
+ *
+ *  Returns `[]` when nothing qualifies — a scorecard that assessed nothing seals an
+ *  empty list, and the read side turns that into "no facts" rather than an empty
+ *  verdict. */
+export function sealableRubricDimensions(ratings: unknown): SealedRubricDimension[] {
+  if (!Array.isArray(ratings)) return [];
+  const out: SealedRubricDimension[] = [];
+  for (const raw of ratings) {
+    if (out.length >= MAX_SEALED_RUBRIC_DIMENSIONS) break;
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    const competency = typeof r.competency === "string" ? r.competency.trim() : "";
+    if (!competency) continue;
+    if (r.offRubric === true) continue;
+    const rating = Number(r.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > RATING_MAX) continue;
+    const evidence = typeof r.evidence === "string" ? r.evidence : undefined;
+    if (isNotAssessedRating(rating, evidence)) continue;
+    out.push({ competency, rating });
+  }
+  return out;
 }
 
 /** The structured outcome of the closing READ-BACK exchange (scorecard-v5): the
@@ -157,7 +214,9 @@ export type Scorecard = {
   // WHAT that rubric actually covered — specifically whether the role-family
   // industry axes were in it, and if not, why (rubricCoverage). `rubricKeys` shows
   // the axes that WERE scored; this states the ones that weren't, which a key list
-  // can never do. Absent on a legacy row and on the AI-synthesized scorecard (the
-  // Python scorer does not stamp it yet), so consumers must treat it as optional.
+  // can never do. The human POST stamps it at write time; `runInterviewScorecard`
+  // stamps the same resolver on the AI result after the Python spawn (and will
+  // not overwrite if Python later starts writing it). Absent on a legacy row, so
+  // consumers must treat it as optional.
   rubricCoverage?: RubricCoverage;
 };

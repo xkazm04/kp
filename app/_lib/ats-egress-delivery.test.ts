@@ -19,11 +19,13 @@ import { setAtsConfig } from "./ats-config-store.ts";
 import { deliver, dispatchAtsEvent, retryDueAtsDeliveries } from "./ats-egress.ts";
 import {
   MAX_ATTEMPTS,
+  countDeadAtsDeliveries,
   finalizeAtsDelivery,
   getAtsDelivery,
   listAtsDeliveries,
   listDueAtsDeliveries,
   recordAtsDeliveryStart,
+  requeueAtsDelivery,
 } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db.ts";
 import { anonymizeEntry } from "./db/pipeline.ts";
@@ -143,6 +145,66 @@ test("delivery ledger: after MAX_ATTEMPTS a failure becomes a terminal dead-lett
   assert.equal(row?.nextAttemptAt, null, "dead-letter: no more auto-retries");
   const far = new Date(base.getTime() + 10 * 24 * 3600_000).toISOString();
   assert.equal(listDueAtsDeliveries(far).some((d) => d.id === id), false, "a dead-letter is not in the due list");
+  assert.ok(countDeadAtsDeliveries() >= 1, "the parked row is in the dead-letter count");
+});
+
+// B2 — force-replay. After MAX_ATTEMPTS the row is operator-visible but not due; the
+// store called that "force-retryable" while no function actually requeued it. requeue
+// puts it back on the due list under the SAME id so the existing claim/finalize ladder
+// (and Idempotency-Key) can take one more shot.
+//
+// NON-VACUITY: pre-change requeueAtsDelivery did not exist, listDue stays empty after
+// six failures, and a delivered row has no refusal path.
+test("a dead-lettered row is absent from the due list until requeued", () => {
+  const id = recordAtsDeliveryStart("candidate.hired", "pe-replay-1");
+  const base = new Date("2026-07-09T00:00:00.000Z");
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    finalizeAtsDelivery(id, { delivered: false, status: 503, reason: "down" }, new Date(base.getTime() + i * 1000));
+  }
+  const now = new Date(base.getTime() + 3600_000);
+  assert.equal(listDueAtsDeliveries(now.toISOString()).some((d) => d.id === id), false);
+  assert.equal(requeueAtsDelivery(id, now), "ok");
+  const row = getAtsDelivery(id);
+  assert.equal(row?.status, "failed");
+  assert.equal(row?.attempts, MAX_ATTEMPTS - 1, "one shot of retry budget is restored");
+  assert.equal(row?.nextAttemptAt, now.toISOString());
+  assert.equal(listDueAtsDeliveries(now.toISOString()).some((d) => d.id === id), true, "requeue puts the row on the due list");
+});
+
+test("requeue of a delivered row is refused; an unknown id is not-found", () => {
+  const id = recordAtsDeliveryStart("candidate.hired", "pe-replay-2");
+  finalizeAtsDelivery(id, { delivered: true, status: 200 });
+  assert.equal(requeueAtsDelivery(id), "not-replayable");
+  assert.equal(getAtsDelivery(id)?.status, "delivered", "a delivered row is never rewritten");
+  assert.equal(requeueAtsDelivery(9_999_999), "not-found");
+});
+
+test("a requeued dead-letter delivers under the same ledger id / Idempotency-Key", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-replay",
+    candidateLabel: "Replay Hire",
+    jobId: "job-replay",
+    jobTitle: "Role",
+  });
+  const id = recordAtsDeliveryStart("candidate.hired", entry.id);
+  const base = new Date(Date.now() - 3600_000);
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    finalizeAtsDelivery(id, { delivered: false, status: 503, reason: "down" }, new Date(base.getTime() + i * 1000));
+  }
+  assert.equal(requeueAtsDelivery(id, new Date()), "ok");
+
+  let key: string | undefined;
+  const summary = await withFetch(
+    (async (_url: unknown, init: { headers: Record<string, string> }) => {
+      key = init.headers[IDEMPOTENCY_HEADER];
+      return { ok: true, status: 200 };
+    }) as unknown as typeof fetch,
+    () => retryDueAtsDeliveries(new Date())
+  );
+  assert.ok(summary.delivered >= 1, "the subsequent sweep delivers");
+  assert.equal(getAtsDelivery(id)?.status, "delivered");
+  assert.equal(key, String(id), "the replay is the SAME request the ladder already identified");
 });
 
 // C — dispatch wiring, hermetic: a `.invalid` host (RFC 6761 — never resolves) makes

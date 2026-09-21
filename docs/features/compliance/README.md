@@ -68,6 +68,13 @@ skill credential) and the calibration row, the retired
 onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
+The same heartbeat also runs `notifyExpiringConsents` (`app/_lib/consent-expiry-reminders.ts`):
+entries whose consent is in the 30-day `CONSENT_EXPIRING_DAYS` window and that have
+no `expiring_notified` event yet get exactly one candidate letter (kind
+`consent_expiry`) carrying the existing `/data/[token]` and `/stop/[token]`
+footers, claimed by `claimConsentExpiryNotice` in an IMMEDIATE transaction so a
+re-tick cannot double-send. Opted-out, anonymized, and already-expired rows are
+skipped — expiry itself stays the anonymize sweep's job.
 
 **Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
 
@@ -123,8 +130,9 @@ legal-claims/compliance basis for retaining the sealed chain post-erasure.
 
 Inside an analysis/profile payload the scrub is `scrubPiiFromPayload`
 (`consent.ts`), which walks the blob generically: keys in `PII_KEYS` are blanked
-(`name`, `rawText`, `email`, `phone`, `explanation`, …), `evidence` arrays are
-emptied, and the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
+(`name`, `rawText`, `email`, `phone`, `explanation`, …), arrays in
+`PII_ARRAY_KEYS` (`evidence`, `parsingNotes` / `parsing_notes`) are emptied, and
+the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
 `extractionComparison`, `interviewKit` — are deep-redacted subtree-wide. The
 last two matter because the pipeline stores the uploaded CV text **three** times:
 `candidate.rawText` plus `extractionComparison.{pypdfText,geminiText}`
@@ -132,8 +140,11 @@ last two matter because the pipeline stores the uploaded CV text **three** times
 `rawText` alone left an identical copy of the CV — name, email, phone — readable
 in History and `/api/analyses/[slug]` after an Art. 17 erasure. `explanation` and
 `interviewKit.summary` are name-bearing for the same reason: the deterministic
-(keyless) builders interpolate `candidate.name` straight into them. Retained, as
-before: scores, skills, seniority, role family, salary band, traits.
+(keyless) builders interpolate `candidate.name` straight into them.
+`metadata.parsingNotes` is the same class of leak one key over: the extractor's
+free-text commentary on the document, recruiter-visible on the saved report, and
+not a retained score. Retained, as before: scores, skills, seniority, role
+family, salary band, traits.
 
 **Erasure survives a restart.** The shipped demo corpus is not inert: `ensureDb()`
 re-runs `seedCandidates` and `seedAnalyses` on **every** boot (no empty-table guard,
@@ -175,8 +186,13 @@ four-fifths rule) — every other regime’s null is the contract, not a gap.
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET
-(projection) and POST (→ `anonymizeEntry`). The token is carried in comms
-email footers.
+(projection) and POST (→ `anonymizeEntry`). GET already projects
+`consentExpiresAt`; the page now formats it through `useDateFormat().date`
+(`data.keptUntil`) so the person the TTL is about can see how long we keep
+them, and a malformed expiry cannot print "Invalid Date". Anonymized entries
+do not show a future expiry. The erase explainer and confirm name the limit
+already stated on `/trust`: in-product erasure cannot reach a hosted voice
+provider's copy of an interview. The token is carried in comms email footers.
 
 The page distinguishes a **dead link** from a **transient fault**, because the
 two need opposite reactions from the candidate: only a `404` renders the
@@ -229,19 +245,26 @@ hand-rolling. What changed on the two doors in this document:
 - **The status page's retry and refresh** are `BTN_PRIMARY_LG` / `BTN_GHOST` at
   44px; the NPS scale's eleven cells were 36px and are now 44px (the scale keeps
   its own selected/unselected tint — no `BTN_*` recipe expresses a scale, and
-  the guard exempts `role="radio"` on that ground alone).
+  the guard exempts `role="radio"` on that ground alone). The five-step
+  timeline marks the current `<li>` with `aria-current="step"` (the WAI-ARIA
+  step-list token; the other four stay unset), same job `ChapterRail` does with
+  `aria-current="location"`. Pinned by `status-decision-kinds.test.ts`.
 - **The NPS failure is a `role="alert"` and the thanks swap a `role="status"`.**
   "That didn't go through" announced nothing: a screen-reader user pressed Send
   and heard silence over an answer that had been DROPPED, and the success case
   replaced the whole question card just as silently.
-- **The two status doors and the erasure door answer refusal CODES**, not bare
-  English. `STATUS_LINK_INVALID` (404 on both `/api/status/[token]` and its
-  `/nps` sibling — one refusal for "no such token" and "no such entry", so the
-  door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
-  feedback on a still-running application) and `DATA_LINK_INVALID` (404 for a
-  never-issued or already-spent erasure token). All three are in `REFUSAL_ERRORS`
+- **The two status doors, the Art. 86 decisions door, and the erasure door answer refusal CODES**, not bare
+  English. `STATUS_LINK_INVALID` (404 on `/api/status/[token]`, its `/nps`
+  sibling, and `GET /api/status/[token]/decisions` — one refusal for "no such token"
+  and "no such entry", so the door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
+  feedback on a still-running application), `NPS_SCORE_REQUIRED` /
+  `NPS_SCORE_INVALID` (`parseNpsSubmission` refuses with a code, never an English
+  `reason`; `POST /api/status/[token]/nps` answers `jsonRefusal(parsed.code, 400)`),
+  and `DATA_LINK_INVALID` (404 for a
+  never-issued or already-spent erasure token). All are in `REFUSAL_ERRORS`
   with four catalogue entries each; the page resolves `errors.<CODE>` in the
-  reader's language (`docs/architecture/api-contracts.md` §1.1).
+  reader's language (`docs/architecture/api-contracts.md` §1.1). Pinned by
+  `app/api/status/status-decisions.test.ts` and `app/_lib/candidate-nps.test.ts`.
 
 `e2e/token-doors-axe.spec.ts` now sweeps `/status/[token]` in two states — the
 loaded timeline and the dead-link alert — beside the offer, erasure and invite
@@ -385,17 +408,110 @@ already carries traceability.
 
 The full dossier (`GET /api/decisions/records`) stays operator-gated
 (`requireOperator()`) because it carries rationale text, chain hashes and
-policy versions. A **separate, redacted candidate-facing view** now exists:
+policy versions. A store fault on that read answers
+`DECISION_RECORDS_READ_FAILED` through `safeJsonError` rather than forwarding
+SQLITE text or the db path. The same operator-session re-verify is pinned for every
+`/api/decisions/*` handler in `app/api/decisions/decisions-auth.test.ts`,
+including `GET /api/decisions/peer-context` (salary expectations) and
+`GET /api/decisions/jd-freshness` (JD-edit times), so dropping
+`requireOperator` on either is a red test rather than a public PII leak.
+A store fault on jd-freshness answers `JD_FRESHNESS_LOOKUP_FAILED` through
+`safeJsonError`; the client already treats a missing `editedAt` as non-stale.
+`GET /api/decisions/reconsider` still pages at 50 auto-rejects, but the envelope
+now carries `truncated` and `total` so an auditor can see when the safety valve's
+window hid the rest of an irreversible wave.
+
+A **separate, redacted candidate-facing view** now exists:
 `app/_lib/status-decisions.ts` derives a `CandidateDecisionView` (kind,
-attribution, reasonCode, and — for `auto_rejected` only — the threshold facts
-that were actually decisive) from the same sealed rows, served on
-`/status/[token]`. Rejection reasons shown to candidates come **from this
-sealed record, never freshly generated** (see the module header comment,
+attribution, reasonCode, and the decisive `facts`) from the same sealed rows,
+served on `/status/[token]`. Rejection reasons shown to candidates come **from
+this sealed record, never freshly generated** (see the module header comment,
 `status-decisions.ts:1-11`).
+
+**`facts` is a closed discriminated union, and its coverage is a counted
+ratio.** Each variant is produced by exactly one extractor, registered in
+`FACT_EXTRACTORS` keyed by sealed kind; a kind with no extractor crosses with
+`facts: null` rather than an improvised shape. Today:
+
+| Variant | Sealed kind | What crosses |
+| --- | --- | --- |
+| `threshold` | `auto_rejected` | the score and the cutoff the screen wave compared (`autoRejectFacts`) |
+| `rubric` | `ai_scorecard` | the assessed competency keys and their 1–5 ratings (`aiScorecardFacts`) |
+
+`factsCoverage()` reports that as **2 of 14 candidate-visible kinds, and 2 of
+the 5 `AI_VERDICT_DECISION_KINDS`** — the subset where a machine judged the
+person, which is the denominator Art. 86 bites hardest on. The ratio is
+asserted in `app/api/status/status-decisions.test.ts`, so raising it is a number
+that moves rather than a claim in a commit message. The still-uncovered AI
+verdicts are `auto_advanced`, `group_eval_lead` and `group_eval_advisory`.
+
+Two rules constrain what an extractor may put on the wire, and both are pinned
+by tests:
+
+- **The seal decides, and the read re-checks.** `ai_scorecard` seals its rubric
+  axes through `sealableRubricDimensions` (`app/_lib/interview-scorecard.ts`),
+  which drops a NOT-ASSESSED axis — the synthesis rates an untouched competency
+  3 of 5 with `"Not assessed…"` evidence, indistinguishable from an observed
+  middling score to anything reading the rating alone. `aiScorecardFacts` then
+  re-validates everything it can from the payload alone, because records outlive
+  the code that sealed them.
+- **Evidence quotes never cross.** The verbatim transcript line behind a rating
+  is never sealed and so never reaches the candidate view: it is a *model's
+  selection* of their words, and a mis-transcribed one would read as something
+  they did not say. The competency key and its rating are the smallest thing
+  that answers "on what was I judged".
+
+Competency keys cross **canonical**, not localized; `/status/[token]` resolves
+them through `rubricLabel` + the `rubric` catalog namespace, so the candidate
+reads their own language and an off-catalog axis degrades to canonical English.
+
+### Reasons coverage — the counter behind "nothing is produced without a reason"
+
+`facts` above answers *can a decision on the wire show its decisive elements*.
+The other half of the same question is whether the verdicts this product
+produces carry a reasons block **at all**, and that is counted by
+`app/_lib/reasons-coverage.ts` with a meter over the demo corpus:
+
+```bash
+npm run kpi:reasons            # human-readable
+npm run kpi:reasons -- --json  # the record a KPI writer stores
+```
+
+Three arms, each with its own denominator, each defined by that kind's own
+producer:
+
+| Arm | A reasons block is | Read from |
+| --- | --- | --- |
+| `ranking` | a non-blank `explanation` or `jobFit.summary` | `data/seed_analyses/`, and the `analyses` table when a DB exists |
+| `scorecard` | at least one rating with REAL evidence (`isPlaceholderEvidence` is honoured, so an all-"Not assessed" scorecard is a MISS) | `interview_sessions.scorecard_json` |
+| `rejection` | text that `waveReasonText` actually resolves from the sealed code | `decision_records` of kind `auto_rejected`/`rejected` |
+
+Two properties are what make the number worth reading, and both are pinned by
+controls in `app/_lib/reasons-coverage.test.ts`:
+
+- **It resolves rather than pattern-matches.** A rejection is scored through
+  `waveReasonText` — the same resolver the reconsider queue and the decision log
+  render through — so deleting the *copy* moves the number, not just deleting the
+  code. A re-implemented resolver would have measured this module's opinion.
+- **An empty denominator is never a pass.** An arm with nothing to count reports
+  `ratio: null, measured: false`, and the result lists `unmeasuredKinds` so a
+  caller cannot report the headline as if it covered the whole goal. This is the
+  ADR-0008 failure mode applied to a metric: a counter that reads 100% because it
+  found nothing to check.
+
+On a clean checkout the seeded corpus holds **66 rankings (100%)** and no
+interviews or screening runs, so the scorecard and rejection arms read *not
+measured* until an install has produced some — which the meter states rather
+than rounds away.
 
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
 (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`).
+Every non-2xx from that door is a coded envelope (`jsonRefusal` /
+`safeJsonError`): missing `jobId`, a malformed override, a 409 approval
+refusal (still carrying `reason` from `SCREEN_WAVE_REFUSAL_REASONS`), and the
+500 catch. The client resolves `errors.<CODE>`; English `error.message` and
+store detail never become the painted string.
 
 **One review authorizes ONE commit.** The token is a pure function of
 `(jobId, policyVersion, reject set, issuedAt)`, so re-POSTing the same commit body
@@ -435,10 +551,19 @@ Advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`).
 `/control` — approving an Art. 22 human gate, reconciling, and applying the
 calibrated promote floor — arm on the first click and only run on a second
 click of the *same* control (`app/control/controlRoomConfirm.ts`
-`armOrExecute`; pause/resume stay one-click, a kill switch must). The room
+`armOrExecute`; pause/resume stay one-click, a kill switch must). Each pending
+gate also carries a **Review** link to `/?tab=assignments&lifecycle=<id>` so
+sign-off can happen on `DevLifecycleReviewPanel` (case edits, probe-gate
+override) rather than a truncated title. An armed Confirm also expires after
+15s (`ARMED_TTL_MS`): a late second click disarms without executing, so a
+parked confirm cannot apply a promote floor or approve a gate after the
+operator has left the page. Escape while armed calls `cancelArmed` (execute
+false, nextArmed null) and announces the cancel on a polite live region. The room
 re-polls every 3s, so a control's identity has to include anything that can
 change under the arm: the promote-floor key carries the VALUE (`floorKey`,
-e.g. `floor:70`). With the earlier constant `"floor"` key a suggestion that
+e.g. `floor:70`), and a pending-gate Approve is keyed as `gateKey(id, detail)`
+so a polled replacement under the same lifecycle id re-arms instead of
+signing off. With the earlier constant `"floor"` key a suggestion that
 moved between the two clicks — one newly-decided outcome is enough to shift
 which band `calibrate()` picks — was applied without its own confirm and
 sealed into `dev_audit` as a human decision for a number nobody confirmed.
@@ -534,7 +659,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 
 | Concern | Files |
 |---|---|
-| Consent core + DB lifecycle | `app/_lib/consent.ts`, `app/_lib/db/pipeline.ts` (`recordEntryConsent`, `anonymizeEntry`, `anonymizeExpiredConsents`, `scrubEntryLinkedPii`) |
+| Consent core + DB lifecycle | `app/_lib/consent.ts`, `app/_lib/db/pipeline.ts` (`recordEntryConsent`, `anonymizeEntry`, `anonymizeExpiredConsents`, `claimConsentExpiryNotice`, `scrubEntryLinkedPii`), `app/_lib/consent-expiry-reminders.ts` (`notifyExpiringConsents`) |
 | Data-held / jurisdiction resolver | `app/_lib/data-held.ts`, `app/_lib/compliance-regimes.ts` |
 | Erasure self-service | `app/data/[token]/page.tsx`, `DataClient.tsx`, `app/api/data/[token]/route.ts` |
 | Candidate status + decision explanation + NPS | `app/status/[token]/StatusClient.tsx`, `app/_lib/status-decisions.ts`, `app/api/status/[token]/nps/route.ts`, `app/_lib/candidate-nps.ts`, `app/_lib/candidate-nps-store.ts` |

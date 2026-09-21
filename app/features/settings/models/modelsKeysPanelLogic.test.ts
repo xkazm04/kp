@@ -6,6 +6,8 @@
 // Runner: node --test with type stripping (no DOM, no JSX). `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { KEYABLE_PROVIDERS } from "@/app/_lib/llm-config.ts";
+import { KEYLESS_PROVIDERS, providerAcceptsBaseUrl } from "@/app/_lib/llm-model-defaults.ts";
 import { buildKeyRequestBody, canSubmitKeyForm, findExistingKey, keyFormMetaFor } from "./modelsKeysPanelLogic.ts";
 
 // A ProviderKeyMeta-shaped fixture (only the fields the helper reads matter here).
@@ -115,25 +117,51 @@ test("#2 Azure with empty endpoint/apiVersion omits them rather than sending bla
 // a base URL alone IS the row) becomes unreachable from the UI with no error to
 // explain why.
 
-const KEYLESS = ["ollama"] as const;
-
 test("no provider selected is never submittable", () => {
-  assert.equal(canSubmitKeyForm({ provider: "", apiKey: "sk-live", keylessProviders: KEYLESS }), false);
+  assert.equal(canSubmitKeyForm({ provider: "", apiKey: "sk-live", keylessProviders: KEYLESS_PROVIDERS }), false);
 });
 
 test("a keyed provider needs a key — a base URL alone does not stand in for one", () => {
-  assert.equal(canSubmitKeyForm({ provider: "openai", apiKey: "sk-live", keylessProviders: KEYLESS }), true);
-  assert.equal(canSubmitKeyForm({ provider: "openai", apiKey: "", keylessProviders: KEYLESS }), false);
+  assert.equal(canSubmitKeyForm({ provider: "openai", apiKey: "sk-live", keylessProviders: KEYLESS_PROVIDERS }), true);
+  assert.equal(canSubmitKeyForm({ provider: "openai", apiKey: "", keylessProviders: KEYLESS_PROVIDERS }), false);
   assert.equal(
-    canSubmitKeyForm({ provider: "openai", apiKey: "   ", baseUrl: "https://gw.corp.example/v1", keylessProviders: KEYLESS }),
+    canSubmitKeyForm({ provider: "openai", apiKey: "   ", baseUrl: "https://gw.corp.example/v1", keylessProviders: KEYLESS_PROVIDERS }),
     false,
     "whitespace is not a key, and openai is not keyless"
   );
 });
 
-test("a KEYLESS provider is satisfied by a base URL alone", () => {
-  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "", baseUrl: "http://localhost:11434/v1", keylessProviders: KEYLESS }), true);
-  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "", keylessProviders: KEYLESS }), false, "neither field = a row that says nothing");
-  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "", baseUrl: "  ", keylessProviders: KEYLESS }), false);
-  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "sk-anything", keylessProviders: KEYLESS }), true, "a key still works");
+test("every KEYLESS_PROVIDERS member is either omitted from the keys form or submittable under the PUT rule", () => {
+  assert.ok(KEYLESS_PROVIDERS.length >= 3, `KEYLESS_PROVIDERS shrank to ${KEYLESS_PROVIDERS.length}`);
+  const offered = KEYABLE_PROVIDERS as readonly string[];
+  for (const provider of KEYLESS_PROVIDERS) {
+    if (!offered.includes(provider)) {
+      // claude_cli has nothing to configure — the GET list excludes it.
+      continue;
+    }
+    if (providerAcceptsBaseUrl(provider)) {
+      assert.equal(
+        canSubmitKeyForm({ provider, apiKey: "", baseUrl: "http://localhost:11434/v1", keylessProviders: KEYLESS_PROVIDERS }),
+        true,
+        `${provider} with a Server URL must be submittable empty-key`
+      );
+      assert.equal(
+        canSubmitKeyForm({ provider, apiKey: "", keylessProviders: KEYLESS_PROVIDERS }),
+        false,
+        `${provider} shows a Server URL, so neither field is a row that says nothing`
+      );
+    } else {
+      // gateway: keyless, no visible baseUrl. Empty-key save matches the PUT.
+      assert.equal(
+        canSubmitKeyForm({ provider, apiKey: "", keylessProviders: KEYLESS_PROVIDERS }),
+        true,
+        `${provider} cannot show a Server URL, so an empty-key save must be submittable`
+      );
+    }
+    assert.equal(
+      canSubmitKeyForm({ provider, apiKey: "sk-anything", keylessProviders: KEYLESS_PROVIDERS }),
+      true,
+      `${provider}: a key still works`
+    );
+  }
 });

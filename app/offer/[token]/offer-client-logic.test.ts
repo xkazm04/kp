@@ -12,6 +12,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyOfferResponse, offerRespondAllowed } from "./offer-response.ts";
 import { formatOfferDeadline, OFFER_DEADLINE_ZONE } from "./offer-deadline.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const clientSrc = readFileSync(fileURLToPath(new URL("./OfferClient.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 
 // ── classifyOfferResponse ────────────────────────────────────────────────────
 
@@ -82,4 +86,14 @@ test("an unparsable or absent deadline renders nothing, never 'Invalid Date'", (
   assert.equal(formatOfferDeadline(null, "en"), "");
   assert.equal(formatOfferDeadline("", "en"), "");
   assert.equal(formatOfferDeadline("not-a-date", "en"), "");
+});
+
+test("notes and startDate render when present and are omitted when empty", () => {
+  assert.match(clientSrc, /t\("notesLabel"\)/);
+  assert.match(clientSrc, /t\("startDate"\)/);
+  assert.match(clientSrc, /whitespace-pre-wrap/);
+  assert.match(clientSrc, /useDateFormat/);
+  assert.match(clientSrc, /offer\.notes\?\.trim\(\) \|\| null/);
+  assert.match(clientSrc, /offer\.startDate\?\.trim\(\) \|\| null/);
+  assert.match(clientSrc, /if \(offer\.salary == null && !notes && !startDateLabel\) return null/);
 });

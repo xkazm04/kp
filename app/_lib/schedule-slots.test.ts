@@ -253,9 +253,41 @@ test("dateSlotToIso refuses past, weekend, off-horizon, and malformed dated pick
   assert.equal(dateSlotToIso("2026-06-13", "10:00", NOW, TZ), null, "Saturday is refused");
   assert.equal(dateSlotToIso("2026-06-14", "10:00", NOW, TZ), null, "Sunday is refused");
   assert.equal(dateSlotToIso("2026-07-14", "10:00", NOW, TZ), null, "beyond the horizon is refused");
+  assert.equal(
+    dateSlotToIso("2026-04-31", "10:00", Date.UTC(2026, 3, 27, 12, 0, 0, 0), TZ),
+    null,
+    "April 31 must not roll over into May 1"
+  );
+  assert.equal(
+    dateSlotToIso("2026-02-30", "10:00", Date.UTC(2026, 1, 23, 12, 0, 0, 0), TZ),
+    null,
+    "February 30 must not roll over into March 2"
+  );
   assert.equal(dateSlotToIso("garbage", "10:00", NOW, TZ), null);
   assert.equal(dateSlotToIso("2026-06-09", "25:00", NOW, TZ), null);
   assert.equal(dateSlotToIso("2026-06-09", "", NOW, TZ), null);
+});
+
+// lens-sweep round 2 (bug-hunter, context lib-scheduling): the dated picker's guard
+// was `mo <= 12 && dd <= 31`, and Date.UTC — which zonedInstant is built on — SILENTLY
+// OVERFLOWS a day that does not exist in that month. `body.dateSlot` is a raw POST
+// field, so "2026-02-30" resolved to 2 March and "2026-04-31" to 1 May: the invite was
+// booked on a different calendar day than the recruiter asked for, and because the
+// label is re-derived server-side from the rolled instant, nothing anywhere said so.
+// A non-existent date must be refused, exactly like a weekend or a past instant.
+test("dateSlotToIso refuses a calendar date that does not exist, instead of rolling it over", () => {
+  // The overflow is only OBSERVABLE when the rolled instant survives the other guards,
+  // so anchor on a Monday in February: 2026 is not a leap year, and "2026-02-30" rolls
+  // forward to Monday 2 March — a future, in-horizon, business-day instant that every
+  // remaining check waves through. NOW is Monday 2026-02-09 12:00 UTC.
+  const FEB = Date.UTC(2026, 1, 9, 12, 0, 0, 0);
+  assert.equal(dateSlotToIso("2026-02-30", "10:00", FEB, TZ), null, "30 February must not silently become 2 March");
+  assert.equal(dateSlotToIso("2026-02-31", "10:00", FEB, TZ), null, "31 February must not silently become 3 March");
+  // The guard must not cost a real date its booking — the last real day of the same
+  // month still resolves, to its own day.
+  const real = dateSlotToIso("2026-02-27", "10:00", FEB, TZ);
+  assert.ok(real, "27 February is a real Friday and stays bookable");
+  assert.match(real!.value, /^2026-02-27T/, "a valid dated pick still resolves to its own calendar day");
 });
 
 test("isoToDateSlot places an instant on the dated grid and round-trips with dateSlotToIso", () => {

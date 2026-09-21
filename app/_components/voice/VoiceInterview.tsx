@@ -12,7 +12,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
 import { BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
 import { canStart, voiceStartGate, type AvailabilityProbe } from "./availability-gate";
-import { createTimerRegistry } from "./timer-registry";
+import { armConnectTimeout, createTimerRegistry } from "./timer-registry";
 // Default + fallback provider order, single-sourced in voice/types (browser-safe
 // pure data) so the picker can't default to a different provider than the server's
 // pickDefaultProvider — they previously kept inverted copies.
@@ -24,7 +24,7 @@ import { interviewFinalStatus, unmountBeaconStatus } from "@/app/_lib/voice/fina
 // Pre-flight capability check (idea-b0fc8018) — same browser-safe pure-helper
 // pattern; fails fast with an actionable message instead of letting
 // getUserMedia throw the generic "Failed to start the call".
-import { collectVoicePreflightEnv, voicePreflightError } from "@/app/_lib/voice/preflight";
+import { collectVoicePreflightEnv, voicePreflightCode } from "@/app/_lib/voice/preflight";
 // The two realtime transports live side by side under transport/: OpenAI Realtime
 // is raw WebRTC (a plain module of ref-driven functions), ElevenLabs is a thin hook
 // around the SDK. Everything provider-specific — protocol buffers, teardown order,
@@ -40,6 +40,7 @@ import { isVoiceTransportError } from "./transport/transport-error";
 import { useMicTest } from "./useMicTest";
 import { useTranscriptPersistence } from "./useTranscriptPersistence";
 import { micErrorText } from "./micErrorText";
+import { connectStartFailureMessage } from "./connect-start-failure";
 import { PROVIDER_LABEL, type LangHint, type Phase } from "./ui-types";
 import { MicTestPanel } from "./MicTestPanel";
 import { StatusPill } from "./VoiceStatusPill";
@@ -57,6 +58,10 @@ export type VoiceInterviewProps = {
   token?: string;
   candidateLabel?: string;
   jobTitle?: string;
+  // Booked run-of-show length in minutes. The portal passes the grounded
+  // duration so the live clock can show remaining vs elapsed; the lab omits it
+  // and stays elapsed-only.
+  durationMin?: number;
   // Candidate-portal mode (idea voice-3): pin the provider to the recruiter's
   // per-session choice and hide the provider/language picker, so a candidate can't
   // override the grounded provider the session was created for. The lab passes
@@ -107,7 +112,7 @@ export function VoiceInterview(props: VoiceInterviewProps) {
   );
 }
 
-function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
+function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
   const t = useTranslations("interview.voice");
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
@@ -231,8 +236,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     providerRef.current = provider;
   }, [provider]);
 
+  // cancelAll, never clearAll: clearAll latches the registry for teardown, and a
+  // latched registry drops every later timer — the connect timeout included.
   const clearConnectTimer = useCallback(() => {
-    timersRef.current.clearAll();
+    timersRef.current.cancelAll();
   }, []);
 
   const pushTurn = useCallback((role: VoiceTurn["role"], text: string) => {
@@ -504,6 +511,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
 
   // Teardown on unmount.
   useEffect(() => {
+    // A remount after a teardown (StrictMode's mount → unmount → mount in dev)
+    // finds the registry latched; every timer it scheduled would be dropped.
+    if (timersRef.current.cleared) timersRef.current = createTimerRegistry();
     // Copied inside the effect: the cleanup must clear THIS call's registry, not
     // whatever the ref points at by the time React runs the teardown.
     const timers = timersRef.current;
@@ -576,9 +586,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     // link, or a WebRTC-less browser is the most common real-world failure of a
     // first-round screen — name the root cause and the fix, and never burn a
     // /connect call (which mints provider credentials) on a doomed environment.
-    const preflight = voicePreflightError(collectVoicePreflightEnv(), provider);
+    const preflight = voicePreflightCode(collectVoicePreflightEnv(), provider);
     if (preflight) {
-      setError(preflight);
+      setError(errMsg({ code: preflight }, t("errStartCall")));
       setPhase("error");
       return;
     }
@@ -606,8 +616,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     sessionTokenRef.current = null;
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
-    clearConnectTimer();
-    timersRef.current.set(() => {
+    armConnectTimeout(timersRef.current, () => {
       finalizedRef.current = true; // don't POST a transcript for a failed connect
       teardownOpenAi();
       try {
@@ -630,11 +639,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         }),
       });
       const data = await res.json();
-      // /api/interview/connect answers with safeJsonError's `{ error, code }`
-      // (INTERVIEW_CONNECT_FAILED) — resolve the code; `error` is English for the
-      // server log (app/_lib/use-error-message.ts). The old fallback was a raw
-      // English `connect failed (status)` string, so every locale saw English twice.
-      if (!res.ok) throw new Error(errMsg(data, t("errStartCall")));
+      // /api/interview/connect answers with `{ error, code }` — resolve the
+      // code; `error` is English for the server log. Do not throw into the
+      // generic catch: that path discarded e.message for t("errStartCall")
+      // and hid INTERVIEW_ALREADY_LIVE / EXPIRED / INACTIVE / ALREADY_COMPLETED.
+      if (!res.ok) {
+        clearConnectTimer();
+        setError(
+          connectStartFailureMessage(data, errMsg, t("errStartCall"), (minutes) =>
+            t("retryAfterMinutes", { minutes }),
+          ),
+        );
+        setPhase("error");
+        teardownOpenAi();
+        return;
+      }
       sessionIdRef.current = data.sessionId;
       sessionTokenRef.current = (typeof data.token === "string" ? data.token : null) ?? token ?? null;
       const c = data.connect;
@@ -885,6 +904,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 audioMuted={audioMuted}
                 onToggleAudioMuted={toggleAudioMuted}
                 elapsed={elapsed}
+                durationMin={durationMin}
                 unstable={unstable}
                 audioBlocked={audioBlocked}
                 onEnableAudio={enableAudio}

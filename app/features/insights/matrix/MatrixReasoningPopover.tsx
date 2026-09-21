@@ -2,6 +2,7 @@
 
 import { ExternalLink, Sparkles, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { matrixReasoningKey } from "./matrixSelection";
 import type { Popover, ReasonState } from "./matrixTabTypes";
 
 // deec915c — the on-demand "why this score" popover. Anchored under the clicked
@@ -33,6 +34,10 @@ export function MatrixReasoningPopover({
   dialogRef: React.RefObject<HTMLDivElement | null>;
   onViewFullMatch: () => void;
 }) {
+  // The reasoning cache is keyed by language as well as by cell, because the narrative
+  // is a different answer per locale (matrixSelection.ts::matrixReasoningKey). This
+  // reader must therefore spell the key the same way the fetch that wrote it did.
+  const locale = useLocale();
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={closePopover} aria-hidden />
@@ -69,7 +74,8 @@ export function MatrixReasoningPopover({
             <p className="text-amber-800">{blockedLabel(popover.cell)}</p>
           ) : (
             (() => {
-              const st = reasoning[`${popover.candId}|${popover.posId}`];
+              // Same key the fetch wrote, language included (matrixSelection.ts).
+              const st = reasoning[matrixReasoningKey(popover.candId, popover.posId, locale)];
               // Tier 2: /api/match/reasoning is an LLM-backed call, so a genuine miss
               // can take a couple of seconds — long enough to earn one quiet line of
               // real copy rather than nothing. reveal-quiet still gates it behind the

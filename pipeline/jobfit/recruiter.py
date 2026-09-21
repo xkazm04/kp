@@ -44,7 +44,8 @@ def fairness_check(
     weighted scalar isn't comparable, so fairness_matrix re-scores the whole pool
     under EVERY candidate's scheme (enforcing the per-archetype bounds) and ranks
     by the mean. Returns the matrix plus the aligned candidateIds, the per-candidate
-    weight rationale, and whether the weights were LLM- or rule-derived. A
+    weight rationale, whether the weights were LLM- or rule-derived, index-aligned
+    ``tracks``, and ``koFailed`` (KO labels are dropped from ``ranking``). A
     best-effort companion to rank_candidates_for_job — never required to decide."""
     proposals, source = weight_proposal.generate(candidates, job, provider=provider)
     pairs = [(cand, proposals[cid]["weights"]) for cid, cand in candidates]
@@ -52,6 +53,19 @@ def fairness_check(
     matrix["candidateIds"] = [cid for cid, _cand in candidates]
     matrix["weightNotes"] = {cid: proposals[cid]["rationale"] for cid, _cand in candidates}
     matrix["weightSource"] = source
+    # Track + KO are structural on this payload so Fair Rank cannot silently
+    # re-merge incomparable cohorts or crown a knockout. Cells stay the full
+    # pool (lockstep with the candidate list the CLI already returns).
+    matrix["tracks"] = [fairness_track(cand.archetype) for _cid, cand in candidates]
+    ko_failed: list[str] = []
+    ko_failed_labels: set[str] = set()
+    for cid, cand in candidates:
+        passed, _reasons = ko_filter(cand, job)
+        if not passed:
+            ko_failed.append(cid)
+            ko_failed_labels.add(cand.label)
+    matrix["koFailed"] = ko_failed
+    matrix["ranking"] = [label for label in matrix["ranking"] if label not in ko_failed_labels]
     return matrix
 
 

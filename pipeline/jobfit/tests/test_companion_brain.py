@@ -85,6 +85,7 @@ class CompanionBrainTestCase(unittest.TestCase):
         self.assertEqual(probe["episodes"], 0)
         self.assertEqual(probe["identitySections"], 0)
         self.assertEqual(probe["constitutionOrigin"], "none")
+        self.assertIs(probe["constitutionMatchesTemplate"], None)
         self.assertFalse(brain.brain_root().exists())
 
     def test_probe_reads_a_born_brain_without_touching_it(self):
@@ -95,9 +96,18 @@ class CompanionBrainTestCase(unittest.TestCase):
         self.assertEqual(probe["present"], True, probe)
         self.assertEqual(probe["episodes"], 1)
         self.assertEqual(probe["constitutionOrigin"], "kp")
+        self.assertIs(probe["constitutionMatchesTemplate"], True)
         # The skeleton ships two `## ` sections and nothing has filled them in.
         self.assertEqual(probe["identitySections"], 2)
         self.assertEqual(sorted(p.name for p in brain.brain_root().iterdir()), before)
+
+    def test_probe_detects_a_one_byte_edit_that_kept_the_kp_marker(self):
+        brain.ensure_brain()
+        path = brain.brain_root() / "constitution.md"
+        path.write_text(path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+        probe = brain.probe_brain()
+        self.assertEqual(probe["constitutionOrigin"], "kp")
+        self.assertIs(probe["constitutionMatchesTemplate"], False)
 
     def test_probe_calls_a_foreign_constitution_personas(self):
         """A constitution without kp's marker was written somewhere else - by
@@ -105,7 +115,9 @@ class CompanionBrainTestCase(unittest.TestCase):
         consent gate needs "made elsewhere", and both answer it the same way."""
         brain.ensure_brain()
         (brain.brain_root() / "constitution.md").write_text("# I am Athena\n", encoding="utf-8")
-        self.assertEqual(brain.probe_brain()["constitutionOrigin"], "personas")
+        probe = brain.probe_brain()
+        self.assertEqual(probe["constitutionOrigin"], "personas")
+        self.assertIs(probe["constitutionMatchesTemplate"], None)
 
     def test_probe_counts_episodes_capped(self):
         day = brain.brain_root() / "episodes" / "2026" / "08" / "24"
@@ -118,6 +130,7 @@ class CompanionBrainTestCase(unittest.TestCase):
         self.assertEqual(probe["present"], True, probe)
         self.assertEqual(probe["episodes"], brain.EPISODE_PROBE_CAP)
         self.assertEqual(probe["constitutionOrigin"], "none")
+        self.assertIs(probe["constitutionMatchesTemplate"], None)
 
     # -- append --------------------------------------------------------------
 

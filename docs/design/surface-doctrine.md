@@ -40,7 +40,9 @@ name is a `title` is a picture to half the audience. `app/_components/Tooltip.ts
 shows on hover *and* focus, dismisses on Escape, and wires `aria-describedby`.
 `app/_components/IconAction.tsx` takes one `label` and spends it three ways — the
 accessible name, the tooltip, and the screen-reader text — so a glyph cannot ship
-without a meaning.
+without a meaning. The same contract covers match-confidence drivers
+(`ConfidenceBandBadge`, `ConfidenceRange`) and the `LoadStatus` pill: the
+sentence that used to live on `title=` is the Tooltip `label`.
 
 ### An empty state is an exemplar, not a skeleton
 
@@ -98,6 +100,10 @@ changes, where motion carries information:
   an arrived answer, give both a shared `layoutId` so one object morphs. A
   component that unmounts and another that mounts in its place throws away scroll
   anchoring, selection and focus at exactly the moment the reader engages.
+  Empty-state `MotionizedGlyph`s default `playOnce` so a tab return does not
+  remount the 1.1s stagger — the drawing stays put. Under
+  `prefers-reduced-motion` the observer is never armed, even for a looping
+  ambient consumer: CSS already stills the paths, so remounting them is churn.
 - **Arrival is staggered and capped.** 40ms between rows, twelve rows maximum,
   the rest instant, so a large update is a wave and not a queue.
 - **Only what changed animates.** Diff the new state against the previous one and

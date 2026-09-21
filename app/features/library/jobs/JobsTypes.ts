@@ -69,6 +69,16 @@ export type Job = {
   // a 'closed' role's apply links serve 410 — the catalog and posting modal badge
   // both, and the modal gates its link buttons on it.
   status?: "draft" | "published" | "closed" | null;
+  // The open/close review system (docs/features/jobs/README.md). `targetHires` is
+  // how many candidates the role has to hire before it is filled — decorated from
+  // the jobs column, where NULL means the default of 1. `postingLangs` is the app
+  // locales the role was opened in; `hired` is the PIPELINE's terminal-stage count
+  // for the role, decorated by GET /api/jobs (not a jobs column). All three are
+  // optional because a payload from an older server carries none of them, and the
+  // desk's rules (jobsRoleStatus.ts) fold an absent value rather than assuming one.
+  targetHires?: number;
+  postingLangs?: string[];
+  hired?: number;
 };
 // A candidate the recruiter ranker (recruiter_cli) couldn't score because its
 // profile failed CandidateProfileV2/MatchCandidate validation. Surfaced — never

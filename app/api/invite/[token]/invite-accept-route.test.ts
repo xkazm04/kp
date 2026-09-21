@@ -143,6 +143,23 @@ test("a signing failure after the invite is consumed still answers ok", async ()
 
 // ---- GET preview --------------------------------------------------------------
 
+test("a tripped invite throttle answers 429 with Retry-After in delta-seconds", async () => {
+  const invite = mint("route.throttle@csas.cz");
+  const headers = { "x-forwarded-for": "10.8.8.8" };
+  const hit = () =>
+    GET(new Request(`http://localhost/api/invite/${invite.token}`, { headers }) as unknown as NextRequest, {
+      params: Promise.resolve({ token: invite.token }),
+    }) as unknown as Promise<Response>;
+  for (let i = 0; i < 10; i++) {
+    assert.notEqual((await hit()).status, 429, `attempt ${i + 1} is inside the budget`);
+  }
+  const res = await hit();
+  assert.equal(res.status, 429);
+  const retryAfter = Number(res.headers.get("Retry-After"));
+  assert.equal(Number.isInteger(retryAfter), true, "Retry-After is delta-seconds");
+  assert.ok(retryAfter >= 1 && retryAfter <= 60, `remaining window is 1..60s, got ${retryAfter}`);
+});
+
 test("GET previews a redeemable invite and 404s an unknown token", async () => {
   const invite = mint("route.preview@csas.cz");
   const get = (token: string) =>

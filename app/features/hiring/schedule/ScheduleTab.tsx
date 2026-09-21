@@ -12,7 +12,6 @@ import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
 import { ScheduleTabInterviewedList } from "./ScheduleTabInterviewedList";
 import type { SchedEntry } from "./ScheduleTypes";
-import type { EvalTarget } from "./ScheduleAiRound";
 
 // The AI round subtab (link-out AI-first interviews as the Docket). Lazy like
 // the calendar: it only loads when the recruiter switches rounds.
@@ -121,12 +120,6 @@ export function ScheduleTab() {
   // The AI ledger reviews HISTORY: a session keeps its entry id after the
   // pipeline entry advances, so the evaluation modals get a minimal entry
   // shape synthesized from the session row (the modals read id + labels only).
-  const openEvaluation = (target: EvalTarget) =>
-    setTranscriptEntry(
-      (entries ?? []).find((e) => e.id === target.id) ??
-        ({ id: target.id, candidateLabel: target.candidateLabel, jobTitle: target.jobTitle } as SchedEntry)
-    );
-
   return (
     // Tier 1 (docs/design/loading-choreography.md): header, and the tab's real sections
     // as direct children of the stagger cascade. aria-busy covers the first
@@ -177,7 +170,7 @@ export function ScheduleTab() {
       ) : null}
 
       {(hasAiRound && !hasHumanRound) || (round === "ai" && hasAiRound) ? (
-        <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} onOpenTranscript={openEvaluation} />
+        <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} />
       ) : (
         <>
       {/* W6-3 — confirmed bookings, stalled invites and confirm/advance drift:

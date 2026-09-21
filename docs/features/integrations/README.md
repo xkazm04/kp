@@ -42,10 +42,11 @@ as a banner, then strips the param from the URL so a reload cannot replay a stal
    pathless delete serializes `Path=/`, which expires nothing and leaves the real state
    replayable for the rest of its TTL (`callback/route.test.ts` guards both halves).
 3. Whatever happens, the operator lands back on this tab with a `calendar=<code>` param.
-4. **Disconnect** issues `DELETE /api/calendar/google`, which **revokes at Google first**
-   and only then drops the row — deleting locally without revoking would leave a live grant
-   nobody can see or withdraw from kp. The response reports `revokedAtGoogle` separately,
-   and the UI says so when the revoke did not confirm.
+4. **Disconnect** is confirm-gated (same posture as ATS removal): the first click opens a
+   strip naming the revoke, and only Confirm issues `DELETE /api/calendar/google`, which
+   **revokes at Google first** and only then drops the row — deleting locally without
+   revoking would leave a live grant nobody can see or withdraw from kp. The response
+   reports `revokedAtGoogle` separately, and the UI says so when the revoke did not confirm.
 
 ### Scopes, and partial grants
 
@@ -222,6 +223,18 @@ ping (`POST /api/ats/test`).
   instrumentation clock. A still-scheduled failure is live work and is never swept, however
   old. The table had no DELETE anywhere in the tree before this, and every row names a
   candidate's pipeline entry.
+- **Due retries run on the process clock.** `retryDueAtsDeliveries` used to run only when
+  someone POSTed `/api/ats/deliveries` — an operator, or an external cron this self-hosted
+  studio does not ship. The same tick that prunes terminal rows now claims and redelivers
+  due ones, under the autonomy pause (this POSTs candidate PII, so a halted clock must not
+  drain the queue). POST remains the on-demand flush.
+- **A dead-letter can be force-replayed.** After `MAX_ATTEMPTS` (6) a failed row parks
+  with `next_attempt_at NULL`. `GET /api/ats/deliveries` reports that parked count as
+  `dead` beside `due`. `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal
+  row (restoring one shot of retry budget when attempts are exhausted) then runs the due
+  sweep under the same ledger id / `Idempotency-Key`. An omitted body still flushes every
+  currently-due retry. An unknown id answers `ATS_DELIVERY_NOT_FOUND`; a delivered,
+  pending, or still-due row answers `ATS_DELIVERY_NOT_REPLAYABLE`.
 - **The secret is write-only**, same contract as the inbound token: `GET` returns
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
@@ -274,11 +287,16 @@ ping (`POST /api/ats/test`).
   method *and* the signed PII body) would put that request into the internal network with no
   re-vetting, and hand `/api/ats/test` a port-scan oracle. A 3xx is reported as a delivery
   failure telling the operator to configure the final https endpoint.
-- **The test ping tests what is *stored*, not what is typed.** `POST /api/ats/test` has no
-  body — it pings the saved endpoint with the saved secret — so the button is disabled
-  until the field matches the URL the server last confirmed, and editing the field retires
-  the previous result. Otherwise a ping against the *previous* endpoint would report
-  "Delivered: endpoint responded 200" under the new address the operator had just typed.
+- **The test ping tests what is *stored*, not what is typed.** `POST /api/ats/test` pings
+  the saved endpoint with the saved secret — so the button is disabled until the field
+  matches the URL the server last confirmed, and editing the field retires the previous
+  result. Otherwise a ping against the *previous* endpoint would report "Delivered:
+  endpoint responded 200" under the new address the operator had just typed. An omitted
+  body still sends `{ ping: true }`. Optional `{ entryId }` delivers that candidate's
+  `kp.ats.v1` record under event `ping` (no ledger row, no `Idempotency-Key`) so a
+  receiver can be wired against the production field set without treating the test as a
+  hire. A missing entry answers `ATS_CANDIDATE_NOT_FOUND`; an anonymized one answers
+  `ATS_CANDIDATE_ERASED`.
 - **A failed config load says so — and disables Save.** The panel reads the HTTP status,
   not just the body: a 401 (expired or non-operator session) carries a parseable JSON body,
   so treating "no `config` in the answer" as a failure is what keeps a blank endpoint field
@@ -408,7 +426,8 @@ The envelope, signing and delivery/retry semantics live in
 The pairing card (`IntegrationsPersonasPanel` + `integrationsPersonasLogic`) is a
 two-phase flow: `POST /api/agents/pair {phase:"start"}` mints a nonce, then a claim poll
 waits for a human to approve in the Personas desktop app (a 300s in-memory TTL on that
-side).
+side). The waiting card shows remaining seconds from that deadline (`remainingMs`);
+it omits the live count while the tab is hidden and resumes when it is visible.
 
 - **The claim poll backs off and stops when nobody is looking.** It was a fixed 2s tick
   for the full five minutes — 150 identical requests to watch a human decide, on a
@@ -479,12 +498,6 @@ side).
 
 ## Known gaps
 
-- **A dead-lettered delivery cannot be replayed.** After `MAX_ATTEMPTS` (6, exponential from
-  one minute — roughly half an hour of receiver downtime) a failed row keeps
-  `next_attempt_at NULL` for good. `POST /api/ats/deliveries` sweeps only rows that are still
-  *due*, so the terminal row is visible in the ledger but has no force-replay path; recovering
-  that hire means editing the row by hand. `ats-delivery-store.ts` calls the dead-letter
-  "force-retryable", which is the intent, not yet the code.
 - **The retry ladder has no jitter, and it is not the comms ladder.** Six attempts,
   exponential from one minute, unjittered — a receiver that comes back after an outage takes
   every queued delivery in one thundering herd. The candidate-comms relay beside it has its
@@ -493,10 +506,13 @@ side).
   the record builder, `ats-candidate-audit.ts`'s `redactAtsRecordForConsent` is belt-and-braces
   for the expired-consent case rather than the enforcement; the anonymized case never
   reaches it (coded 410 above).
-- **The field map has no UI.** A connection saved here uses the stored map (or an empty
-  one), and an empty map has no `externalId` path — so a sync using it fails loudly rather
-  than importing under a bad identity. Editing it still requires a `POST` with a `fieldMap`
-  body.
+- **The field map has no UI.** Editing it still requires a `POST` with a `fieldMap` body.
+  A Recruitee connection created without a map now stores the shipped default (`id`,
+  `candidate.name`, `candidate.emails.0`, `offer.id` / `offer.title`, `stage.name`,
+  `created_at`, stage `1st round` → `Interview`) so a pasted token can actually import.
+  Recruitis and Teamio still store an empty map (no `externalId` path) so a sync using
+  them fails loudly rather than importing under a guessed identity. An explicit empty
+  object still refuses.
 - **`ats_connections` is not workspace-keyed** (unlike `calendar_connections`), so ATS
   credentials are installation-wide. Only the *links* are per-workspace.
 - **Calendar connections are per workspace, not per interviewer.** Free/busy therefore

@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Check, ShieldCheck, Trash2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { renderableHeldCategories } from "@/app/_lib/data-held";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -51,7 +52,7 @@ export function DataClient() {
   const token = params?.token;
   const t = useTranslations("data");
   const tCommon = useTranslations("common");
-  const locale = useLocale();
+  const fmt = useDateFormat();
   const errMsg = useErrorMessage();
   const [view, setView] = useState<DataView | null>(null);
   // #4 — load failure and erase-action failure are DISTINCT states. A load error is
@@ -235,9 +236,12 @@ export function DataClient() {
             ) : null}
             {view.appliedAt ? (
               <p className="mt-3 text-meta text-steel">
-                {t("appliedOn", {
-                  date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(view.appliedAt)),
-                })}
+                {t("appliedOn", { date: fmt.date(view.appliedAt) })}
+              </p>
+            ) : null}
+            {view.consentExpiresAt && Number.isFinite(Date.parse(view.consentExpiresAt)) ? (
+              <p className="mt-1 text-meta text-steel">
+                {t("keptUntil", { date: fmt.date(view.consentExpiresAt) })}
               </p>
             ) : null}
           </div>

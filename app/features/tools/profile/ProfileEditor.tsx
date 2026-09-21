@@ -124,7 +124,12 @@ export function ProfileEditor({
       hasSubstantialExperience,
     });
 
-  const { yearsError, gradError, hasFieldErrors } = validateProfileEditorFields(t, fieldVis, yearsExperience, expectedGraduation);
+  const { yearsError, gradError, hasFieldErrors } = validateProfileEditorFields(
+    t,
+    { years: fieldVis.years, graduation: isStudentish },
+    yearsExperience,
+    expectedGraduation
+  );
 
   const heading = mode === "edit" ? t("headingEdit") : t("headingCreate");
   const saveLabel = mode === "edit" ? t("saveChanges") : t("saveProfile");

@@ -644,14 +644,16 @@ fix: `reliable: True`, no issues, `brief_ours: True`, WER 8.6%, entity recall 1.
 stayed **entirely in English**. The drift that hit 3/3 prior runs is gone. The harness mirrors the fix
 (`el_ws` takes `language=scenario.language`) so it keeps reproducing what the browser actually sends.
 
-**Fix 2 — `asr.keywords` (constraint found; applied at agent level).** Per-session `asr.keywords` is
-**not in the `@elevenlabs/react` SDK override type** — only `agent`, `tts`, and `conversation`. Biasing
-ASR per job from the browser is therefore blocked, and the earlier claim that we could is wrong. What is
-achievable: a **static, agent-level** `asr.keywords` tech-term list in `scripts/setup-eleven-agent.mjs`
-(helps vocabulary and segmentation for `PostgreSQL`/`Kubernetes`, less so for homophones), which also
-carries a refreshed fallback `PROMPT` (P1/P1b lock, one-question, no-praise) to kill the stale
-dashboard-prompt finding. **Not yet run** — it recreates the agent and changes `ELEVENLABS_AGENT_ID`.
-Independently, the V2 **entity-WER gate** catches this whole class deterministically, offline.
+**Fix 2 — `asr.keywords` (applied at session level).** `@elevenlabs/client` 1.21.0 added
+`overrides.asr.keywords`. Production `/api/interview/connect` now returns a per-job list
+(`interviewAsrKeywords`) and `startElevenLabsSession` sends it as `overrides.asr.keywords`
+when non-empty. The headless driver mirrors that frame: `ElVoiceSession` takes
+`asr_keywords` from the connect JSON and puts them on
+`conversation_config_override.asr.keywords`. An empty or missing list sends no `asr`
+branch (the same empty-list rule as the SDK path). Spoken WER/entity gates therefore
+measure the production recogniser, not the dashboard-default one the keywords replaced.
+The account-wide floor list in `scripts/setup-eleven-agent.mjs` still has to have the
+`asr.keywords` override unlocked, or the platform silently ignores the per-session list.
 
 ### The harness bug the sweep found before it spent a minute on it
 

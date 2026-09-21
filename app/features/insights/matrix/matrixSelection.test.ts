@@ -28,10 +28,13 @@ import assert from "node:assert/strict";
 import { orderMatrixRows } from "./matrixRows.ts";
 import {
   matrixCellKey,
+  matrixReasoningKey,
   selectionOutsideVisible,
   visibleMatrixCellKeys,
   visibleMatrixColumns,
 } from "./matrixSelection.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------------------
 // Fixture: 4 candidates × 3 positions across 2 role families.
@@ -184,4 +187,52 @@ test("matrixCellKey round-trips through addSelected's split", () => {
   const [candId, posId] = matrixCellKey("c1", "p2").split("|");
   assert.equal(candId, "c1");
   assert.equal(posId, "p2");
+});
+
+// lens-sweep round 2 (bug-hunter, context matrix-ui-2). The "why this score" popover
+// caches one LLM-backed narrative per cell, in a ref (`requestedReasoning`) and a state
+// map that were BOTH keyed `candidate|position` — while the request itself carries
+// `lang: locale`. The cache key therefore did not name the one request parameter that
+// changes the answer. After the reader switched language, re-opening the same cell hit
+// the de-dupe and returned early, so the popover kept showing the narrative fetched in
+// the OLD language — and `ReasoningProvenance` then compared that stale `narrativeLang`
+// against the NEW locale, so the "shown in {language}" note was wrong too, or absent
+// exactly when it was most needed. `fetchReasoning`'s useCallback depends on `locale`,
+// which makes the callback fresh but does nothing to the ref it closes over.
+test("the reasoning cache key names the language, because the request does", () => {
+  const en = matrixReasoningKey("c1", "p1", "en");
+  const cs = matrixReasoningKey("c1", "p1", "cs");
+  assert.notEqual(en, cs, "the same cell in two languages is two different answers");
+  assert.equal(matrixReasoningKey("c1", "p1", "en"), en, "and the same cell in one language is one");
+  // It must stay distinct from the SELECTION key, which is language-free by design:
+  // a shortlisted cell is shortlisted whatever the reader is reading in.
+  assert.notEqual(en, matrixCellKey("c1", "p1"));
+  // The language segment leads, so it cannot be confused with an id segment by a
+  // reader (or a debugger) scanning the map.
+  assert.ok(matrixReasoningKey("c1", "p1", "cs").startsWith("cs|"));
+  // NOT asserted: separator-collision safety. `${a}|${b}` is ambiguous if an id may
+  // contain "|", and this key inherits that from `matrixCellKey`, which has shipped
+  // with it since the grid was written. Hardening one of the two and not the other
+  // would be worse than leaving both honest about the same assumption: ids here are
+  // DB identifiers, and if that ever stops being true both keys change together.
+});
+
+test("both reasoning cache sites go through that key, not a re-typed literal", () => {
+  // The fetch writes the entry and the popover reads it; a literal in either place
+  // silently re-introduces the defect in one direction only, which is worse than
+  // having it in both. Source-pinned because neither site is drivable without a
+  // React renderer, which this runner does not have.
+  const read = (f: string) => readFileSync(fileURLToPath(new URL(f, import.meta.url)), "utf8");
+  for (const f of ["./useMatrixTab.ts", "./MatrixReasoningPopover.tsx"]) {
+    const src = read(f);
+    assert.match(src, /matrixReasoningKey\(/, `${f} must build the reasoning key through the shared helper`);
+    // A re-typed `${candId}|${posId}` at either site silently re-introduces the defect
+    // in one direction, which is worse than having it in both. The selection key's own
+    // literal lives in matrixSelection.ts and is language-free by design, so it is the
+    // TWO consumer files that must carry no inline cell-key template at all.
+    assert.ok(
+      !src.includes("}|${"),
+      `${f} must not re-type a candidate|position key inline — go through the helper`,
+    );
+  }
 });

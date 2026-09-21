@@ -13,8 +13,10 @@ engine speaks for everyone:
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import registry
-from .matching import MatchCandidate
+from .matching import MatchCandidate, SalaryExpectation
 from .profile import CandidateProfileV2
 from .taxonomy import FAMILY_DEGREE_TERMS, provenance_rank
 from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_transferable
@@ -104,8 +106,68 @@ def _norm(skill: str) -> str:
     return skill.strip().casefold()
 
 
-def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
-    """Normalize a profile into a MatchCandidate (skills + per-skill provenance + potential)."""
+def _str_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(v).strip() for v in value if isinstance(v, str) and v.strip()]
+
+
+def _salary_expectation(raw: Any) -> SalaryExpectation | None:
+    """``salaryFloor`` ({amount, currency, period}) -> SalaryExpectation, or None when
+    the shape is unusable. A floor with no currency is dropped rather than guessed:
+    the matcher compares only within one stated currency."""
+    if not isinstance(raw, dict):
+        return None
+    amount = raw.get("amount")
+    currency = raw.get("currency")
+    if not isinstance(amount, (int, float)) or isinstance(amount, bool) or amount <= 0:
+        return None
+    if not isinstance(currency, str) or not currency.strip():
+        return None
+    period = raw.get("period")
+    return SalaryExpectation(
+        amount=float(amount),
+        currency=currency.strip(),
+        period=period if period in ("month", "year") else "month",
+    )
+
+
+def apply_preferences(candidate: MatchCandidate, preferences: dict[str, Any] | None) -> MatchCandidate:
+    """Overlay the seeker's ``JobseekerPreferences`` (TS shape, camelCase keys) onto a
+    MatchCandidate: ``salaryFloor`` -> salary_expectation, ``locations`` ->
+    preferred_locations, ``countries`` -> preferred_countries, ``workModes`` ->
+    preferred_work_modes (only when non-empty — an empty list must not erase a
+    preference the profile carried), ``seniority`` overrides the profile's when set.
+    ``None``/empty preferences return the candidate unchanged."""
+    if not preferences:
+        return candidate
+    update: dict[str, Any] = {}
+    salary = _salary_expectation(preferences.get("salaryFloor"))
+    if salary is not None:
+        update["salary_expectation"] = salary
+    locations = _str_list(preferences.get("locations"))
+    if locations:
+        update["preferred_locations"] = locations
+    countries = [c.lower() for c in _str_list(preferences.get("countries"))]
+    if countries:
+        update["preferred_countries"] = countries
+    work_modes = _str_list(preferences.get("workModes"))
+    if work_modes:
+        update["preferred_work_modes"] = work_modes
+    seniority = preferences.get("seniority")
+    if isinstance(seniority, str) and seniority.strip():
+        update["seniority"] = seniority.strip()
+    if not update:
+        return candidate
+    return candidate.model_copy(update=update)
+
+
+def build_match_candidate(profile: CandidateProfileV2, preferences: dict[str, Any] | None = None) -> MatchCandidate:
+    """Normalize a profile into a MatchCandidate (skills + per-skill provenance + potential).
+
+    ``preferences`` is the optional seeker-side ``JobseekerPreferences`` overlay
+    (see :func:`apply_preferences`); omitted, the result is exactly the single-arg
+    build every existing caller relies on."""
     prov_by_norm: dict[str, str] = {}
     display_by_norm: dict[str, str] = {}
 
@@ -175,7 +237,7 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
             seen_links.add(link)
             work_links.append(link)
 
-    return MatchCandidate(
+    candidate = MatchCandidate(
         skills=skills,
         skill_provenance=skill_provenance,
         seniority=profile.seniority or ("junior" if is_early else "medior"),
@@ -201,3 +263,4 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
         experience_highlights=highlights,
         work_links=work_links[:6],
     )
+    return apply_preferences(candidate, preferences)
