@@ -102,7 +102,7 @@ test("verify route answers a store failure with a CODE, never the thrown message
   );
   assert.match(
     routeSrc,
-    /safeJsonError\(\s*error,\s*"api:skill-profile-verify",\s*"SKILL_PROFILE_VERIFY_FAILED"\s*\)/,
+    /safeJsonError\(\s*error,\s*"api:skill-profile:verify",\s*"SKILL_PROFILE_VERIFY_FAILED"\s*\)/,
     "the catch must answer through safeJsonError with a stable STORE_ERRORS code",
   );
   assert.match(routeSrc, /from "@\/app\/_lib\/api-response"/, "the responder must come from the shared envelope module");
