@@ -37,3 +37,4 @@ data teaches the panel nothing about the real shape.
   only by hover is a migration defect, not a polish item.
 
 ## Skill improvement log
+- 2026-09-21 journey-analytics: the Codex judge cannot run on this Windows box - `codex exec --sandbox workspace-write` still rejected every shell read of its own JUDGE-*.md and then blocked the verdict write (`rejected: blocked by policy`, `writing is blocked by read-only sandbox`), exiting 0 after 72s with an empty final message. With both seats `claude`, that left one blind judge; the run was reported with that disclosure rather than as a panel. Until it is fixed, plan a kp contest around Grok as the only reliable outside judge, or field one non-Claude participant so a Claude judge becomes admissible.
