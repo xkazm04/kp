@@ -159,8 +159,15 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
   const wizard = page.getByRole("dialog", { name: "Set up your workspace" });
   await expect(wizard).toBeVisible();
 
-  // Welcome → Company.
-  const welcome = wizard.getByRole("heading", { name: "Let's get you hiring" });
+  // Welcome → Company. The step FORKS now (1e68dd5c7, `setup.intent`): it asks
+  // what brings you here before anything else, and "Let's go" stays DISABLED
+  // until one of the two answers is pressed — so the old walk clicked a dead
+  // button and waited 30s for a Company step the wizard was never going to show.
+  // This journey is the HIRING arm; the seeker arm is its own two-step flow.
+  // The heading carries the step counter ("Step 1 of 6: …"), hence the regex.
+  const welcome = wizard.getByRole("heading", { name: /Let's get you started/ });
+  await expect(welcome).toBeVisible();
+  await wizard.getByRole("button", { name: /^I'm hiring/ }).click();
   const company = wizard.getByRole("heading", { name: "Make it your company" });
   await advanceStep(welcome, wizard.getByRole("button", { name: "Let's go" }), company);
 

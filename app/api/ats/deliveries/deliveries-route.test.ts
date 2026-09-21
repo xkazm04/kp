@@ -21,7 +21,7 @@ import {
   getAtsDelivery,
   recordAtsDeliveryStart,
 } from "../../../_lib/ats-delivery-store.ts";
-import { createPipelineEntry } from "../../../_lib/db.ts";
+import { createPipelineEntry } from "../../../_lib/db/pipeline.ts";
 
 after(() => cleanupUnitDb());
 
