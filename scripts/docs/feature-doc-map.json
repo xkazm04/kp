@@ -568,6 +568,15 @@
         "app/_lib/scheduler-jobs.ts",
         "pipeline/jobfit/jobseeker_cli.py"
       ]
+    },
+    {
+      "doc": "docs/features/journey-analytics/README.md",
+      "sourceGlobs": [
+        "app/_lib/journey/**",
+        "app/features/insights/journey/**",
+        "app/api/journeys/**",
+        "app/_lib/db/intake-events.ts"
+      ]
     }
   ]
 }
