@@ -43,7 +43,10 @@ export function LanguageSwitcher() {
             aria-pressed={isActive}
             className={`focus-ring rounded px-2 py-1 text-sm font-medium uppercase tracking-wide transition-colors disabled:opacity-60 ${toggleBtn(isActive)}`}
           >
-            {locale}
+            <span aria-hidden>{locale}</span>
+            {/* The endonym is the accessible name — a screen-reader user hears
+                "Čeština", not the letters C S. Same pattern as SetupLanguageSwitch. */}
+            <span className="sr-only">{t(locale)}</span>
           </button>
         );
       })}

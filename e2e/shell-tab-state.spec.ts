@@ -15,7 +15,12 @@ test.beforeEach(async ({ page }) => {
 /** The URL with no query at all — what the inbox leaves behind. */
 const CLEAN = /^[^?]*\/?$/;
 
-const railButton = (page: Page, name: RegExp) => page.getByRole("button", { name }).first();
+// The section rail is a vertical TABLIST (NavSectionRail.tsx:164/:184 — role="tab",
+// aria-selected, inside role="tablist"), not a row of plain buttons. Queried as
+// `button` this matched nothing and the click below waited out the whole 120s
+// timeout, so the test that pins "the rail writes nothing to the URL" had not been
+// exercising the rail since the tablist landed.
+const railButton = (page: Page, name: RegExp) => page.getByRole("tab", { name }).first();
 
 test.describe("Workspace tab — state, not URL", () => {
   test("a ?tab= deep link lands, then the param is cleared", async ({ page }) => {

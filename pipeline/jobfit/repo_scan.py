@@ -41,8 +41,9 @@ import os
 import re
 import subprocess
 from collections import Counter
-from pathlib import Path
 from collections.abc import Sequence
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .appmaster import (
@@ -68,6 +69,73 @@ REPO_SCAN_PROMPT_VERSION = APP_MASTER_PROMPT_VERSION
 # speaks the devcase vocabulary ("llm" / "deterministic"); the dossier's own literal
 # calls the non-LLM path what it actually is.
 SOURCE_HEURISTIC = "heuristic"
+
+# How old a dossier stamp may be before compose/hire-from-need should treat it
+# as a reading of a different week. Same order as the bench gate's max-age.
+DOSSIER_MAX_AGE_DAYS = 14
+FRESHNESS_CURRENT = "current"
+FRESHNESS_STALE = "stale"
+FRESHNESS_UNKNOWN = "unknown"
+_MS_PER_DAY = 86_400.0
+
+
+def _as_utc(value: str | datetime | None) -> datetime | None:
+    """Parse an ISO-8601 stamp (or pass a datetime) to aware UTC, or None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+            text = f"{text}T00:00:00+00:00"
+        elif text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def dossier_freshness(
+    generated_at: str | datetime | None,
+    now: str | datetime,
+    max_age_days: int = DOSSIER_MAX_AGE_DAYS,
+) -> str:
+    """Classify a dossier stamp: ``current`` | ``stale`` | ``unknown``.
+
+    Pure with respect to time — both instants are parameters, same as
+    ``generated_at`` on the walker. Empty or unparseable → ``unknown``. Older
+    than ``max_age_days`` (default 14) → ``stale``. Otherwise ``current``.
+    """
+    stamp = _as_utc(generated_at)
+    clock = _as_utc(now)
+    if stamp is None or clock is None:
+        return FRESHNESS_UNKNOWN
+    age_days = (clock - stamp).total_seconds() / _MS_PER_DAY
+    if age_days > max_age_days:
+        return FRESHNESS_STALE
+    return FRESHNESS_CURRENT
+
+
+def dossier_payload_with_freshness(
+    payload: dict[str, Any],
+    now: str | datetime,
+    max_age_days: int = DOSSIER_MAX_AGE_DAYS,
+) -> dict[str, Any]:
+    """Stamp ``freshness`` as a sibling field on a dumped dossier (not a schema field).
+
+    Compose and hire-from-need can disclose or refuse a stale reading without
+    spawning a new scan. Kept off ``RepoDossier`` so a re-scan is still
+    byte-identical for an unchanged tree.
+    """
+    generated = payload.get("generatedAt") or payload.get("generated_at") or ""
+    return {**payload, "freshness": dossier_freshness(generated, now, max_age_days)}
 
 # ---- Fallback classification -------------------------------------------------
 #

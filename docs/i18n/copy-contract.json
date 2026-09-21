@@ -1,0 +1,39 @@
+{
+  "_notes": [
+    "Adopted 2026-09-14 (native-copy 1.0.0). Operator decisions, fleet-wide, 2026-09-14: US English; em dash banned in product copy; the pre-push gate blocks only NEW error findings (debt in .ai/copy-baseline.json).",
+    "Coverage at adoption: 8768 strings (6256 fragments) in 5 files from 4 sources; messages/en.json alone 8540.",
+    "Spelling (--init on en.json): US forms 164, UK forms 34 (cancelled x11, labour x4, colour x3, penalised x3, programme x3; also specialisation, centre, honoured, grey, enrolment, levelling). 32 EN-SPELLING findings incl. 1 in trust-posture.ts (categorisation). Migration debt, baselined, not swept.",
+    "Em dashes: 0 in messages/en.json (contract.md section 5, gated by i18n:check since 2026-08-12); 38 in 30 strings outside the catalog: app/_lib/trust-posture.ts 14, app/features/setup-studio/copy.ts 13, app/trust/TrustContent.tsx 3. Debt, baselined. En dashes 35 in en.json, governed by section 5 (between numbers only) and i18n:check, not by this contract.",
+    "Quotes: curly double 76, straight double 34 -> declared curly (EN-QUOTES warns). Apostrophes straight 651, curly 102: not declared, EN-QUOTES reads double quotes only.",
+    "Ellipsis: character 260, three dots 0 -> declared char.",
+    "Case: 11 of 475 judgeable heading-class strings Title Case (2%) -> sentence. No deliberate title-case element class; the report.compare.* titles are undeclared drift (warn).",
+    "Source residue at adoption: Kc currency word in landing.pricing x5, space before % x9 (analytics.*). Error findings, baselined; the CZK rendering is an owner decision.",
+    "Currency ruled 2026-09-14 (operator): the koruna is Kc (Kč) in Czech only, CZK in every other language, ISO code before the amount in English (CZK 240). landing.pricing en/de/fr changed the same day; the 5 Kc residue findings left the baseline. Apostrophes ruled the same day: straight and curly both stand, not declared, not a finding. See style-en.md.",
+    "case.buttonKeys widened to kp key names (save, cancel, retry, continue, create) 2026-09-14; terms.accept seeded from contract.md section 6."
+  ],
+  "variant": "US",
+  "sources": [
+    { "path": "messages/en.json", "kind": "json-catalog" },
+    { "path": "app/trust/*.tsx", "kind": "jsx" },
+    { "path": "app/_lib/trust-posture.ts", "kind": "ts-module" },
+    { "path": "app/features/setup-studio/copy.ts", "kind": "ts-module" }
+  ],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"],
+  "dash": { "emDash": "ban" },
+  "quotes": "curly",
+  "ellipsis": "char",
+  "case": {
+    "style": "sentence",
+    "buttonKeys": "^(cta|button|btn|submit|save|cancel|retry|continue|create)\\d*$|[a-z0-9](Cta|CTA|Button|Btn)\\d*$"
+  },
+  "terms": {
+    "accept": [
+      "kp", "KP", "CandiDate", "KandiDate", "KP studio", "Spark", "Studio Light", "Spark Dark", "Polar",
+      "Google Calendar", "ElevenLabs", "OpenAI", "Azure", "OpenRouter", "Gemini", "Claude", "Claude Code",
+      "Ollama", "GitHub", "Playwright", "Next.js", "Market Pulse"
+    ],
+    "reject": []
+  },
+  "rules": {},
+  "baseline": ".ai/copy-baseline.json"
+}

@@ -1,9 +1,8 @@
 import { memo } from "react";
 import { ChevronRight } from "lucide-react";
-import { formatPercent } from "@/app/_lib/format";
 import { formatBand } from "./JobsTypes";
 import type { Job } from "./JobsTypes";
-import { JobStatusBadge, Td } from "./JobsShared";
+import { RoleStatusCell, Td } from "./JobsShared";
 import type { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 // A clickable corpus row: activating it opens the publish-format posting modal.
@@ -23,7 +22,6 @@ export const JobRow = memo(function JobRow({
   onOpen: (job: Job) => void;
   enumLabel: ReturnType<typeof useEnumLabel>;
 }) {
-  const ep = job.entryProfile;
   return (
     <tr
       tabIndex={0}
@@ -43,8 +41,6 @@ export const JobRow = memo(function JobRow({
       <Td>
         <span className="flex items-center gap-2">
           <span className="font-medium text-ink">{job.title}</span>
-          {/* Lifecycle at a glance: a draft/closed role no longer looks pixel-identical to a live one. */}
-          <JobStatusBadge status={job.status} />
         </span>
         <span className="block text-sm text-steel">{job.company ?? "—"}</span>
       </Td>
@@ -53,19 +49,13 @@ export const JobRow = memo(function JobRow({
       <Td className="capitalize">{job.seniority ? enumLabel("seniority", job.seniority) : "—"}</Td>
       <Td>{job.roleFamily ? enumLabel("family", job.roleFamily) : "—"}</Td>
       <Td>{formatBand(job.salaryBand)}</Td>
-      {/* Entry: tick + share are ONE fact and must read as one line. The badge is
-          the table's narrowest column and its content is two tokens separated by a
-          space, so at a normal window width the percentage wrapped under the tick
-          and the cell grew to two rows — `whitespace-nowrap` keeps the pair
-          together and lets the column take the width it needs instead. */}
+      {/* Status: the chip and its "hired / target" progress are ONE fact and must
+          read as one line, so the cell does not wrap (the same reason the Entry
+          column it replaced did not). The lifecycle badge that used to sit beside
+          the title is gone with it — saying the same thing twice in one row made
+          the title cell noisier without telling the reader anything new. */}
       <Td className="whitespace-nowrap">
-        {ep?.isEntryEligible ? (
-          <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
-            {`✓ ${formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}`}
-          </span>
-        ) : (
-          <span className="text-sm text-steel">—</span>
-        )}
+        <RoleStatusCell job={job} />
       </Td>
     </tr>
   );

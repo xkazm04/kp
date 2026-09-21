@@ -140,7 +140,7 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     // pins, off the SAME `INTERVIEW_PLAN_DEFAULT` both surfaces rest on.
     summary:
       "A rejection is always a person's: no gate can delegate one, unattended automation queues rejections for review rather than executing them, and a bulk rejection needs a signed human approval of that exact cohort — which the server recomputes and refuses if the set drifted, if the review went stale, or if it cannot name the approver. Advancing and extending an offer are human-approved by default: the shipped hiring plan gates every stage on a person. A workspace can delegate either of those two, stage by stage, and every step that then runs unattended is logged with the plan that allowed it. Advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it.",
-    gap: "That pause now halts every discretionary pass the server clock runs — the scheduling policy pass, interview and offer reminders, offer expiry, and the inbound pull/edge drain — as well as the automated case lifecycle. One pass is deliberately exempt: the consent-expiry anonymisation sweep keeps running, because it discharges a statutory retention duty (GDPR Art. 5(1)(e)) rather than making an automated decision, and holding identifiable data past consent expiry is itself the unlawful state — so an operator toggle must not be able to suspend it indefinitely.",
+    gap: "That pause now halts every discretionary pass the server clock runs: the scheduling policy pass, interview and offer reminders, offer expiry, and the inbound pull/edge drain, as well as the automated case lifecycle. One pass is deliberately exempt: the consent-expiry sweep (the pre-expiry reminder and the anonymisation that follows) keeps running, because it discharges a statutory retention duty (GDPR Art. 5(1)(e) and the Art. 13/14 notice before it) rather than making an automated decision, and holding identifiable data past consent expiry is itself the unlawful state, so an operator toggle must not be able to suspend it indefinitely.",
   },
   {
     article: "Art. 15",
@@ -261,6 +261,22 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
     providers: ["claude_cli"],
   },
   {
+    // A loopback hop, not a processor of its own: lt-gateway forwards the prompt to the
+    // Claude Code CLI and to the Codex CLI (a ChatGPT seat), failing over between them on a
+    // usage limit, so this row inherits the consumer-seat posture of the CLI row above.
+    name: "LightTrack gateway (Claude Code CLI + Codex CLI)",
+    purpose: "The same consumer-seat engines reached through a local routing gateway that picks the seat per use case and fails over on a usage limit",
+    optional: true,
+    dataClass: "candidate_pii",
+    trainsOnInputs: "depends_on_tier",
+    retention: "As the seat behind the route: 30 days on a business plan; five years on a personal plan with training left on",
+    euRegion: "not_offered",
+    transferBasis: "unknown",
+    verifiedOn: "2026-09-15",
+    note: "Runs under the operator's own Anthropic and OpenAI accounts. Refused on a production deployment unless KP_ALLOW_CLI_ENGINE=1, and sealed under KP_OFFLINE, exactly like the Claude Code CLI row.",
+    providers: ["gateway"],
+  },
+  {
     name: "OpenAI",
     purpose: "Text model; realtime voice interviews",
     optional: true,
@@ -283,7 +299,7 @@ export const SUBPROCESSORS: readonly Subprocessor[] = [
     euRegion: "not_offered",
     transferBasis: "dpf",
     verifiedOn: "2026-09-08",
-    note: "Read this row before uploading a real CV. On a FREE API key Google may use submitted content — including the CV file — to improve its products, and human reviewers may read it; operators in the EEA, Switzerland and the UK are covered by the paid terms even on a free key, and everyone else is not. KandiDate cannot tell the two kinds of key apart. This is also the one route that carries the whole CV file, and the web-grounded lookups on that path cannot be placed under a zero-retention agreement.",
+    note: "Read this row before uploading a real CV. On a FREE API key Google may use submitted content, including the CV file, to improve its products, and human reviewers may read it; operators in the EEA, Switzerland and the UK are covered by the paid terms even on a free key, and everyone else is not. KandiDate cannot tell the two kinds of key apart. This is also the one route that carries the whole CV file, and the web-grounded lookups on that path cannot be placed under a zero-retention agreement.",
     providers: ["gemini"],
   },
   {

@@ -18,9 +18,13 @@ test("validation door: empty, oversized, bad voice id", () => {
   assert.deepEqual(ok, { text: "hello world", language: "cs-cz", voiceId: null, speed: 2, format: "plain" });
 });
 
-test("preferenceFromEnv drops unknown ids and keeps preferred inside allowed", () => {
-  const p = preferenceFromEnv(host({ A: "Piper", B: "elevenlabs, retired-engine" }), { preferred: "A", allowed: "B" });
+test("preferenceFromEnv refuses unknown ids naming the variable, and keeps preferred inside allowed", () => {
+  const p = preferenceFromEnv(host({ A: "Piper", B: "elevenlabs, " }), { preferred: "A", allowed: "B" });
   assert.deepEqual(p, { preferred: "piper", allowed: ["piper", "elevenlabs"] });
+  // A typo is not an absence: dropping it served a different engine with no fallback event.
+  assert.throws(() => preferenceFromEnv(host({ A: "kokor" }), { preferred: "A", allowed: "B" }), /^Error: A="kokor": unknown provider id "kokor"/);
+  assert.throws(() => preferenceFromEnv(host({ B: "elevenlabs,retired-engine" }), { preferred: "A", allowed: "B" }), /B=.*"retired-engine"/);
+  assert.throws(() => preferenceFromEnv(host({ B: "piper;kokoro" }), { preferred: "A", allowed: "B" }), /B=.*expected a comma list/);
   const none = preferenceFromEnv(host({}), { preferred: "A", allowed: "B" });
   assert.equal(none.preferred, null);
   assert.deepEqual(none.allowed, ["elevenlabs", "piper", "kokoro"]);

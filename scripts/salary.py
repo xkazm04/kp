@@ -36,6 +36,27 @@ from _common import (
     section,
 )
 
+# Salary-read grade in the same words the UI catalogs use (report.confidence.*).
+# "confidence" is a collided stem: salary-read high means strong evidence, the
+# match band's high means tight. Missing or unknown grades omit the line so
+# the CLI never prints 0 or re-teaches Confidence.
+_SALARY_EVIDENCE = {
+    "grounded": "Strong",
+    "high": "Strong",
+    "medium": "Moderate",
+    "moderate": "Moderate",
+    "low": "Weak",
+}
+
+
+def salary_evidence_label(raw: object) -> str | None:
+    if raw is None:
+        return None
+    key = str(raw).strip().lower()
+    if not key:
+        return None
+    return _SALARY_EVIDENCE.get(key)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Print just the salary estimate, anchor band, company multiplier, and grounded market evidence.")
@@ -58,7 +79,9 @@ def main() -> int:
         mid = format_money(salary.get("midpoint"), currency=currency)
         print(f"  {BOLD}{low}  →  {high}{RESET} / {period}")
         print(f"  {DIM}midpoint{RESET}     {mid} / {period}")
-        kv("Confidence", salary.get("confidence"))
+        grade = salary_evidence_label(salary.get("confidence"))
+        if grade:
+            kv("Evidence", grade)
         rationale = salary.get("rationale") or []
         if rationale:
             section("Rationale")

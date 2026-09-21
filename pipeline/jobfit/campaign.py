@@ -208,7 +208,8 @@ def draft_campaign_pack(
 ) -> tuple[dict[str, Any], str]:
     """Draft the campaign pack for one job. Returns (pack, source).
 
-    pack = {variants, warnings: [code...], applyUrl, language, promptVersion}.
+    pack = {variants, warnings: [code...], applyUrl, language, promptVersion,
+    defaultedFields}.
     LLM via `provider` when supplied/available; deterministic otherwise — the
     fallback assembles one honest variant per hook type that has facts to stand
     on (so it may produce fewer than VARIANT_TARGET; `source` says which path ran).
@@ -341,4 +342,8 @@ def draft_campaign_pack(
     result["applyUrl"] = apply_url
     result["language"] = lang
     result["promptVersion"] = CAMPAIGN_PROMPT_VERSION
+    # camelCase to match the TS pack schema. Assumed facts (DEFAULT_POLICY
+    # phantoms) ride beside warnings so a recruiter can tell "we invented
+    # medior / Praha" from "no salary stated".
+    result["defaultedFields"] = list(job.defaulted_fields or [])
     return result, source

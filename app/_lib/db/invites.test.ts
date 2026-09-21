@@ -39,3 +39,23 @@ test("listInvitesForOrg filters by status", () => {
   createInvite({ orgId: DEFAULT_ORG_ID, email: "list@csas.cz", role: "recruiter" });
   assert.equal(listInvitesForOrg(DEFAULT_ORG_ID, "pending").length, pendingBefore + 1);
 });
+
+test("listInvitesForOrg pending omits expired rows; the unfiltered list still has them", () => {
+  const minted = Date.parse("2020-01-01T00:00:00Z");
+  const inv = createInvite({ orgId: DEFAULT_ORG_ID, email: "expired-list@csas.cz", role: "viewer" }, minted);
+  // Still inside the 14-day TTL — listed as pending.
+  assert.ok(
+    listInvitesForOrg(DEFAULT_ORG_ID, "pending", Date.parse("2020-01-10T00:00:00Z")).some((i) => i.token === inv.token),
+    "a not-yet-expired pending row is redeemable and listed",
+  );
+  const afterExpiry = Date.parse("2020-02-01T00:00:00Z");
+  assert.equal(
+    listInvitesForOrg(DEFAULT_ORG_ID, "pending", afterExpiry).some((i) => i.token === inv.token),
+    false,
+    "yesterday's expires_at is not a live Copy-link row",
+  );
+  assert.ok(
+    listInvitesForOrg(DEFAULT_ORG_ID).some((i) => i.token === inv.token),
+    "the unfiltered list keeps the expired pending row for audit",
+  );
+});

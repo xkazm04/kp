@@ -42,6 +42,21 @@ test("a thrown HTTP status is recovered; any other throw carries no code at all"
   assert.equal(foldQueueLoadThrow("boom").code, null, "a thrown string is not a code");
 });
 
+test("a 403 body folds FORBIDDEN_CAPABILITY and the named capability, not a null code", () => {
+  assert.deepEqual(
+    foldQueueLoadThrow({ status: 403, body: { code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write" } }),
+    { code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write", status: 403 },
+  );
+  assert.deepEqual(
+    foldQueueLoadThrow({ status: 403, code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write" }),
+    { code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write", status: 403 },
+  );
+  assert.deepEqual(
+    foldQueueLoadThrow({ status: 500, body: { code: "PIPELINE_LIST_FAILED" } }),
+    { code: "PIPELINE_LIST_FAILED", capability: null, status: 500 },
+  );
+});
+
 // The hook and the tab are .tsx/.ts with no component runner here, so their half
 // of the contract is pinned by reading the source (decisionsRulesLoad.test.ts's
 // technique). CRLF-normalized: this checkout is CRLF, the worktree may be LF.
@@ -54,4 +69,6 @@ test("the queue hook resolves a code and never throws or paints the server strin
   assert.match(hook, /readQueueResponse\(p\)/, "the body is folded");
   assert.match(hook, /capabilityAwareReason\(errMsg, read\.failure, t\("loadFailed"\)\)/, "the code is resolved in the reader's language");
   assert.match(hook, /capabilityAwareReason\(errMsg, foldQueueLoadThrow\(e\), t\("loadFailed"\)\)/, "…on the thrown path too");
+  assert.match(hook, /foldQueueLoadThrow\(\{ status: r\.status, body: p \}\)/, "a non-OK fetch folds the body, not only the HTTP status");
+  assert.match(hook, /fetch\("\/api\/pipeline"\)/, "the loader reads the envelope itself so the code is not discarded");
 });

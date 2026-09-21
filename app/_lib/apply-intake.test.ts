@@ -17,6 +17,7 @@ import {
   failedKoStepIds,
   isRetryableApplyStatus,
   nextVisibleStepIndex,
+  visibleStepProgress,
   stepConditionMet,
   ANONYMOUS_APPLICANT_LABEL,
   coerceGithubHandle,
@@ -298,6 +299,55 @@ test("with the archetype question never offered, the default lane shows", () => 
 
 test("returns -1 past the last visible step (the submit signal)", () => {
   assert.equal(nextVisibleStepIndex(LANED_SCRIPT, 4, { archetype: "student" }), -1);
+});
+
+// ---------------------------------------------------------------------------
+// visibleStepProgress — N of M through the VISIBLE lane, not the raw idx.
+// ConversationalApply binds this to a progressbar; a student walk and a BAU
+// walk must not report the same total.
+// ---------------------------------------------------------------------------
+
+const BRANCHED_SCRIPT = [
+  { id: "name" },
+  { id: "archetype" },
+  { id: "student_a", when: { stepId: "archetype", oneOf: ["student"] } },
+  { id: "student_b", when: { stepId: "archetype", oneOf: ["student"] } },
+  { id: "student_c", when: { stepId: "archetype", oneOf: ["student"] } },
+  { id: "experience", when: { stepId: "archetype", notOneOf: ["student", "career_switcher"] } },
+  { id: "skills" },
+];
+
+test("visibleStepProgress counts the default lane before the branch is answered", () => {
+  // notOneOf experience is visible with no archetype yet; the student lane is not.
+  assert.deepEqual(visibleStepProgress(BRANCHED_SCRIPT, 0, {}), { current: 1, total: 4 });
+  assert.deepEqual(visibleStepProgress(BRANCHED_SCRIPT, 1, {}), { current: 2, total: 4 });
+});
+
+test("a student walk's total is not a BAU walk's total", () => {
+  const student = { archetype: "student" };
+  const bau = { archetype: "bau" };
+  // student: name, archetype, a, b, c, skills (experience skipped) → 6
+  // bau:     name, archetype, experience, skills (student lane skipped) → 4
+  assert.equal(visibleStepProgress(BRANCHED_SCRIPT, 1, student).total, 6);
+  assert.equal(visibleStepProgress(BRANCHED_SCRIPT, 1, bau).total, 4);
+  assert.notEqual(
+    visibleStepProgress(BRANCHED_SCRIPT, 1, student).total,
+    visibleStepProgress(BRANCHED_SCRIPT, 1, bau).total
+  );
+});
+
+test("current is the visible-lane position, not the raw script index", () => {
+  const student = { archetype: "student" };
+  // student_a is array index 2, but the third visible question (name, archetype, a).
+  assert.deepEqual(visibleStepProgress(BRANCHED_SCRIPT, 2, student), { current: 3, total: 6 });
+  // skills is array index 6; the sixth visible question, not "7 of 7".
+  assert.deepEqual(visibleStepProgress(BRANCHED_SCRIPT, 6, student), { current: 6, total: 6 });
+  // BAU experience is array index 5, third visible after name+archetype.
+  assert.deepEqual(visibleStepProgress(BRANCHED_SCRIPT, 5, { archetype: "bau" }), { current: 3, total: 4 });
+});
+
+test("an empty script reports 0 of 0", () => {
+  assert.deepEqual(visibleStepProgress([], 0, {}), { current: 0, total: 0 });
 });
 
 // ---------------------------------------------------------------------------

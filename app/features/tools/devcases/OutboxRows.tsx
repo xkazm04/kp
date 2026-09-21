@@ -14,6 +14,7 @@ import type { CommsVerdict } from "@/app/_lib/comms-view";
 // Center's copy is the one that already exists in four locales (precedent:
 // DevVoiceScreenPanel reaching into features/hiring/pipeline).
 import { commsReceiptLabels, displayRecipient, displaySubject } from "@/app/features/hiring/channels/channelsCommsHelpers";
+import { BouncedResend } from "@/app/features/hiring/channels/ChannelsCommsBouncedResend";
 import { ResendButton } from "./ResendButton";
 import { isDeadLetter, type OutboxFacets, type OutboxFilters, type OutboxRowView } from "./outboxView";
 
@@ -26,6 +27,7 @@ const KIND_STYLE: Record<string, string> = {
   acknowledgement: "bg-moss/15 text-moss",
   schedule_invite: "bg-moss/15 text-moss",
   interview_invite: "bg-moss/15 text-moss",
+  case_invite: "bg-moss/15 text-moss",
   interview_confirmation: "bg-moss/15 text-moss",
   interview_reminder: "bg-moss/15 text-moss",
   offer: "bg-moss/15 text-moss",
@@ -129,6 +131,14 @@ export function OutboxRows({
                 options={facets.statuses}
               />
             </th>
+            <th scope="col" className="hidden px-3 py-2 lg:table-cell">
+              <ColumnFilter
+                title={t("colRef")}
+                value={filters.ref ?? ""}
+                onChange={(ref) => onFilters({ ref })}
+                options={facets.refs}
+              />
+            </th>
             <th scope="col" className={`hidden whitespace-nowrap px-3 py-2 sm:table-cell ${META_LABEL}`}>
               {t("colSent")}
             </th>
@@ -151,8 +161,8 @@ export function OutboxRows({
               </td>
               <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{displayRecipient(m, receiptLabels)}</td>
               <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{displaySubject(m, receiptLabels)}</td>
-              <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${VERDICT_STYLE[m.verdict] ?? "text-steel"}`}>
-                <span className="inline-flex items-center gap-1.5">
+              <td className={`px-3 py-2 text-micro ${VERDICT_STYLE[m.verdict] ?? "text-steel"} ${m.verdict === "bounced" ? "" : "whitespace-nowrap"}`}>
+                <span className="inline-flex items-center gap-1.5 uppercase">
                   {m.verdict === "queued" ? m.channel ?? statusLabel(m.verdict) : statusLabel(m.verdict)}
                   {/* An UNRECOVERED `failed` only. A BOUNCED row is one the relay
                       accepted and then rejected, so re-sending it to the same address
@@ -163,6 +173,19 @@ export function OutboxRows({
                       failure. Both still sort and highlight by their own verdict. */}
                   {m.verdict === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
                 </span>
+                {m.verdict === "bounced" ? (
+                  <div className="mt-1.5 font-normal normal-case">
+                    <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
+                  </div>
+                ) : null}
+                {isDeadLetter(m) && m.failureDetail ? (
+                  <p className="mt-1 max-w-[16rem] truncate font-normal normal-case text-steel" title={m.failureDetail}>
+                    {m.failureDetail}
+                  </p>
+                ) : null}
+              </td>
+              <td className="hidden max-w-[8rem] truncate px-3 py-2 text-micro text-steel lg:table-cell" title={m.ref ?? undefined}>
+                {m.ref ?? "—"}
               </td>
               <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-steel sm:table-cell">{rel(m.createdAt) || "—"}</td>
             </tr>

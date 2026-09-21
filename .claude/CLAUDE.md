@@ -96,8 +96,6 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   incl. the null-request_id degraded case)
                               # + analytics-sections (the ?sec= switcher, its
                               #   fallback, and that it writes nothing to the URL)
-                              # + jds-pipeline-column (the JD ledger's merged
-                              #   pipeline cell, its sort headers and its width)
                               # + quality-tables (the server-paged decision log and
                               #   the client-sorted sealed records)
                               # + shell-tab-state (?tab= is an inbox: it lands, it

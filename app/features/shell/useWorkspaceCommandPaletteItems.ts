@@ -13,6 +13,22 @@ import { hitHref, HIT_TYPE_ORDER, type PaletteItem, type SearchHit } from "./wor
 
 type Translate = ReturnType<typeof useTranslations>;
 
+/** Tasks is a live tab the footer opens but NAV_GROUPS omits, so a NAV_GROUPS
+ *  walk would never list it. Offered at rest and when the query matches the
+ *  localized `tasks.label` or the hunt tokens (tab id + "background"). Catalogs
+ *  were dirty, so those tokens stay here rather than as a palette alias list. */
+export function tasksPaletteItem(q: string, label: string, search: string): PaletteItem | null {
+  const hay = [label.toLowerCase(), "tasks", "background"];
+  if (q && !hay.some((h) => h.includes(q))) return null;
+  return {
+    key: "action-tasks",
+    group: "actions",
+    label,
+    sub: null,
+    href: buildTabSwitchUrl("tasks", search),
+  };
+}
+
 export function useWorkspaceCommandPaletteItems({
   query,
   hits,
@@ -53,6 +69,7 @@ export function useWorkspaceCommandPaletteItems({
   // "New intake" is offered in the intake surface's OWN words — the palette is not
   // a second place to name a feature, and a copy here would be the one that rots.
   const intake = useIntlTranslations("library.tab.intake");
+  const tasks = useIntlTranslations("tasks");
 
   return useMemo<PaletteItem[]>(() => {
     const q = query.trim().toLowerCase();
@@ -134,6 +151,8 @@ export function useWorkspaceCommandPaletteItems({
         href: buildUrl({ ...clearedTabScopedParams(), tab: "intake", [NEW_INTAKE_PARAM]: "new" }, search),
       });
     }
+    const tasksItem = tasksPaletteItem(q, tasks("label"), search);
+    if (tasksItem) navOut.push(tasksItem);
     // "Ask Candi: <query>" — the palette's ONE non-navigation answer to a query
     // that matches nothing. It is appended to the navigator (so entity hits and
     // tab matches always outrank it) and offered from two characters, which is

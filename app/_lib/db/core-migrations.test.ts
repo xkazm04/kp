@@ -90,7 +90,7 @@ test("ALTER-loop migrations landed: pipeline_entries carries every post-launch c
 
 test("ALTER-loop migrations landed: first-run onboarding flags (users + workspaces)", () => {
   const userCols = columnNames("users");
-  for (const col of ["onboarding_completed_at", "onboarding_skipped_at"]) {
+  for (const col of ["onboarding_completed_at", "onboarding_skipped_at", "last_login_at"]) {
     assert.ok(userCols.has(col), `users is missing migrated column "${col}"`);
   }
   const wsCols = columnNames("workspaces");
@@ -111,6 +111,22 @@ test("ALTER-loop migrations landed: jds carries the backgrounded-analysis column
   const cols = columnNames("jds");
   for (const col of ["archived_at", "analysis_status", "analysis_task_id", "analysis_error", "analysis_json"]) {
     assert.ok(cols.has(col), `jds is missing migrated column "${col}"`);
+  }
+});
+
+test("per-tenant scan indexes cover interviews, campaign packs, tasks, and skill profiles", () => {
+  const names = new Set(
+    (ensureDb()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index'`)
+      .all() as { name: string }[]).map((r) => r.name)
+  );
+  for (const index of [
+    "idx_interview_sessions_workspace",
+    "idx_campaign_packs_workspace",
+    "idx_tasks_workspace",
+    "idx_skill_profiles_workspace",
+  ]) {
+    assert.ok(names.has(index), `${index} must exist after migrations`);
   }
 });
 

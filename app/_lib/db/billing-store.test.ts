@@ -21,6 +21,7 @@ import {
   listBillingAlerts,
   pruneBillingEventPayloads,
   recordBillingAlert,
+  resolveBillingAlert,
   upsertBillingState,
 } from "./billing.ts";
 import { ensureDb } from "./core.ts";
@@ -126,6 +127,33 @@ test("listBillingAlerts clamps its limit and never reads the whole table", () =>
   // And the default is itself a bound, not "everything".
   assert.ok(BILLING_ALERT_LIST_DEFAULT_LIMIT > 0 && BILLING_ALERT_LIST_DEFAULT_LIMIT <= BILLING_ALERT_LIST_MAX_LIMIT);
   assert.equal(listBillingAlerts().length, 12);
+});
+
+test("resolveBillingAlert stamps resolved_at and a second call is a no-op", () => {
+  assert.equal(
+    recordBillingAlert({ kind: "unmapped_product", detail: "dark sub resolve", providerRef: "unmapped:sub_resolve" }),
+    true
+  );
+  const open = listBillingAlerts().find((a) => a.providerRef === "unmapped:sub_resolve");
+  assert.ok(open, "insert → list open");
+  assert.equal(open.resolvedAt, null);
+
+  const first = resolveBillingAlert({ id: open.id, orgId: open.orgId, expectedUnresolved: true });
+  assert.equal(first, true);
+  assert.equal(
+    listBillingAlerts().some((a) => a.id === open.id),
+    false,
+    "resolved row leaves the default (unresolved) worklist"
+  );
+  const stamped = listBillingAlerts({ includeResolved: true }).find((a) => a.id === open.id);
+  assert.ok(stamped?.resolvedAt, "resolved_at is an ISO stamp");
+
+  const second = resolveBillingAlert({ id: open.id, orgId: open.orgId, expectedUnresolved: true });
+  assert.equal(second, false, "already resolved is a no-op");
+  const again = listBillingAlerts({ includeResolved: true }).find((a) => a.id === open.id);
+  assert.equal(again?.resolvedAt, stamped.resolvedAt, "the stamp does not move");
+
+  assert.equal(resolveBillingAlert({ id: 9_999_999, orgId: open.orgId, expectedUnresolved: true }), false);
 });
 
 // ---- provider-event payloads have a horizon ---------------------------------------

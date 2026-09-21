@@ -84,7 +84,13 @@ test("skipping is stable — memory off cannot bootstrap itself into a yes", () 
 });
 
 test("the status payload carries the probe plus both workspace facts", () => {
-  const probe = { present: true, episodes: 12, identitySections: 4, constitutionOrigin: "personas" as const };
+  const probe = {
+    present: true,
+    episodes: 12,
+    identitySections: 4,
+    constitutionOrigin: "personas" as const,
+    constitutionMatchesTemplate: null,
+  };
   const ws = createWorkspace("Status").id;
   assert.deepEqual(companionBrainStatus(probe, ws), { ...probe, consent: null, memoryEnabled: false });
 

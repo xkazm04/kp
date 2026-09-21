@@ -10,6 +10,7 @@ import { reconcileScoreTotal } from "@/app/_lib/format";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { parseResultTabHash, resolveActiveTab, resultTabHash, type ResultTab } from "./resultTabs.ts";
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
+import { DispositionEditor } from "./DispositionEditor";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import { QualityStrip } from "./QualityStrip";
 import { VerdictBanner } from "./VerdictBanner";
@@ -56,6 +57,11 @@ type ResultPanelProps = {
   // lineage (staleness detection). Absent on unsaved runs → lineage-less save,
   // exactly the old behavior.
   analysisSlug?: string;
+  // Human decision on a saved analysis (advance/hold/pass). Present once the
+  // run has a slug — live Analyze after persist, and the saved report. Absent
+  // on an unsaved run, so the editor is omitted rather than PATCHing nothing.
+  initialDisposition?: string | null;
+  initialNote?: string | null;
   // The live pipeline entry this candidate is ON (resolved by the report page from
   // the on-board lookup). Present ONLY when the candidate is active on the board —
   // it is the honest handle the Interview tab needs to push its question kit into
@@ -117,7 +123,7 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, prepEntryId, initialTab }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, initialDisposition, initialNote, prepEntryId, initialTab }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -232,17 +238,26 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
           Compare tab) it shows the winner's verdict. Both consumers — live Analyze
           and the saved report — render the same banner. */}
       <VerdictBanner analysis={analysis} />
-      {pipelineRef ? (
-        <div className="flex items-start justify-end">
-          <AddToPipelineButton
-            pipelineRef={pipelineRef}
-            // GH2 — a done deep-dive rides the add as compact evidence.
-            github={github?.status === "done" ? github.analysis : null}
-          />
-        </div>
-      ) : pipelineDisabledReason ? (
-        <div className="flex items-start justify-end">
-          <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
+      {analysisSlug || pipelineRef || pipelineDisabledReason ? (
+        <div className="flex flex-wrap items-start justify-end gap-3">
+          {analysisSlug ? (
+            <div className="min-w-[16rem] flex-1">
+              <DispositionEditor
+                slug={analysisSlug}
+                initialDisposition={initialDisposition ?? null}
+                initialNote={initialNote ?? null}
+              />
+            </div>
+          ) : null}
+          {pipelineRef ? (
+            <AddToPipelineButton
+              pipelineRef={pipelineRef}
+              // GH2 — a done deep-dive rides the add as compact evidence.
+              github={github?.status === "done" ? github.analysis : null}
+            />
+          ) : pipelineDisabledReason ? (
+            <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
+          ) : null}
         </div>
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} sourceAnalysisSlug={analysisSlug} /> : null}

@@ -5,7 +5,7 @@ tree). Three rules apply to `app/features/**`:
 
 1. **No `.tsx` over 200 lines.** Anything larger is split into modules.
 2. **Every module in a feature folder starts with that feature's name** —
-   `PipelineBoard.tsx`, `PipelineCandidateDrawer.tsx`, `pipelineBoardFilters.ts`
+   `PipelineBoard.tsx`, `candidate/CandidateModal.tsx`, `pipelineBoardFilters.ts`
    — so a file's home is readable from its name alone and the folder sorts by
    role. PascalCase for `.tsx` components, camelCase for `.ts` helpers.
 3. **The folder tree mirrors the app's menu** — `hiring/pipeline`,
@@ -25,7 +25,9 @@ app/features/
   library/      jds, jobs
   insights/     about, analytics, matrix (+ matrix/focus — the candidate-focus
                 mode, formerly the standalone Match tab)
-  settings/     billing, branding, integrations, models, organization, workspace
+  settings/     billing, branding, hiring, integrations, models, organization,
+                templates (message templates — the per-pipeline-state messages,
+                over the existing /api/templates routes), workspace
   tools/        analyze, devcases, interview, profile
   shell/        Workspace.tsx + nav/, simulation/, tasks/, setup/ (the frame
                 the menu lives in — sidebar, command palette, keyboard chords,
@@ -225,7 +227,8 @@ was a 403 rendered as a failed load.
   `workspace` → `team:manage` (`POST /api/workspaces`), `hiring` → `pipeline:write`
   (`/api/decisions/config`), and the tour → `pipeline:write`. `branding` is
   deliberately absent: its door is `requireOperator`, not a capability, so no entry
-  would be truthful. Pinned by `navCapabilities.test.ts`.
+  would be truthful. `templates` is absent for the same reason — the write half of
+  `/api/templates` gates on `requireOperator`. Pinned by `navCapabilities.test.ts`.
 - **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
   per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
   so a late mount sees the answer on its first render). A dedicated route rather
@@ -287,6 +290,10 @@ pages; wrapped in `Suspense` because it reads `useSearchParams`, and it uses
 (`Modal placement="top" bare` — the launcher idiom: the eye starts at the input,
 results grow down). The host owns all state (query, debounced `/api/search`,
 keyboard highlight); while typing, entity hits lead and the tab navigator trails.
+`tasks` is a valid tab the footer opens but `NAV_GROUPS` omits, so the navigator
+walk would never list it: `useWorkspaceCommandPaletteItems.ts` appends
+`action-tasks` beside `action-new-intake`, offered at rest and on a match of
+`tasks.label` (or the hunt tokens `tasks` / `background`), href `/?tab=tasks`.
 
 **A failed search clears the rows.** `useWorkspaceCommandPaletteSearch.ts` reduces
 each response through the pure `searchResponseState(ok, body)`
@@ -310,7 +317,10 @@ returns one `PalettePreview` union member (`app/_lib/palette-preview/types.ts`);
 per-destination resolvers (`resolve-hiring.ts`, `resolve-library-tools.ts`,
 `resolve-insights-settings.ts`, `resolve-entities.ts`, dispatched by `index.ts`)
 compute 2–6 facts from the cheap tenant-scoped primitives (counts, small lists —
-never `pipelineAnalytics` or a Python spawn). Operator-only tabs (billing, models,
+never `pipelineAnalytics` or a Python spawn). The branding view includes both
+theme accents (`accentColor` and the derived `accentDark` twin) so highlighting
+Settings → Branding shows whether the stored hex will read after a theme flip.
+Operator-only tabs (billing, models,
 integrations, organization, workspaces) resolve to `{ view: "restricted" }` for a
 demo session (`isOperator()`); the analysis view applies the same PII masking as
 `/api/analyses/[slug]`. Client side, `shell/palette/usePalettePreview.ts`
@@ -682,6 +692,31 @@ One overlay, two modes (`OnboardingExperience.tsx`): **live** on a first run
 **preview** from Settings → Organization, which reads but writes nothing. Four
 steps and a hand-off, crossfaded one at a time inside a centred card whose left
 rail carries the brand, the stepper and the language switch:
+
+**The intent fork (2026-09-16).** Welcome asks one question before the pitch —
+"I'm hiring" / "I'm looking for a job" (`SetupWelcomeStep.tsx`, two `aria-pressed`
+cards writing `state.intent`; Continue stays disabled until one is picked,
+`stepSatisfied("welcome")`). Branching is a **declared predicate on the step**:
+each `SETUP_STEPS` entry may carry `relevant(state)`, and company/team/pipeline/
+companion declare themselves irrelevant for `intent === "seek"`. `relevantSteps(state)`
+(`setupSteps.ts`) is the ONE authority — the rail, the phone counter, the live
+announcement, `canAdvance`, the reachable ceiling and the finish fold all index into
+it (positions are positions in the relevant sequence; identity is the id). A seeker
+walks Welcome → Hand-off (the seek variant of `SetupHandoffSummary.tsx`: "your job
+search starts with your CV", one exit), `finishPartsFor(state)` lets `finish()` write
+only the language (`setupOnboardingFinish.ts`), and after the stamp the host
+`router.push("/me")` instead of refreshing the recruiter workspace. The draft persists
+the intent and restores it FIRST, since the step count a restored position clamps to
+depends on it (`setupDraft.ts`). The hire path is byte-for-byte what it was;
+`setupSteps.test.ts` pins both sequences.
+
+**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route with its own
+rail (`app/features/jobseeker/MeNav.tsx` — brand mark, four links, the shared
+appearance/language preferences, `print:hidden`), gated by `isOperator()` else 404
+exactly like `/control`, `instant = false`, a `TranslatedErrorBoundary` around the
+page and no Companion dock. It reuses the root layout's providers and nothing from
+`Workspace.tsx`. The profile & CV studio it hosts is documented in
+[`docs/features/jobseeker/README.md`](../features/jobseeker/README.md).
 
 | Step | Asks for | Persisted by `finish()` |
 | --- | --- | --- |

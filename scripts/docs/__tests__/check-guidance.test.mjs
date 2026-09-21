@@ -23,14 +23,17 @@ import {
   CI_WORKFLOW,
   GATE_WORKFLOWS,
   MANIFEST_PATH,
+  REFUSAL_SOURCES,
   REPO_ROOT,
   ciCommands,
   commandsIn,
   declaredPaths,
   loadCiCommands,
   loadGuidanceFiles,
+  loadRemedies,
   nodeScriptIndex,
   parseGuidance,
+  remediesIn,
   resolveIncludes,
   runChecks,
 } from '../check-guidance.mjs';
@@ -352,6 +355,66 @@ check('a manifest whose gates match CI and are all named by the gates doc produc
       gateFiles('Gates: `npm run lint`, `npm run typecheck`.'),
     ),
     [],
+  );
+});
+
+// --- the remedy a refusal names ----------------------------------------------
+//
+// `dangling-command` above reads the guidance FILES. Nothing read the refusal
+// messages themselves, and they are the instructions a contributor is most
+// likely to obey: they arrive at the moment the push is blocked. A blocked
+// reader stands at the repository root, so a remedy is reachable only if it
+// resolves from there.
+
+check('a remedy is only read out of a line that instructs', () => {
+  // The narration case is the one that makes this rule precise rather than
+  // noisy: a script logging what it just wrote names paths in its output and is
+  // telling nobody to run anything.
+  assert.deepEqual(remediesIn('echo "run scripts/fix-it.mjs to repair" >&2').map((r) => r.ref), ['scripts/fix-it.mjs']);
+  assert.deepEqual(remediesIn('console.log("write  scan-sweep (+ scripts/coverage.mjs)")'), []);
+});
+
+check('a remedy whose root is computed at emit time is not a literal to verify', () => {
+  // This is the SHAPE THE RULE WANTS. A message that resolves its own path
+  // before printing it cannot be checked statically and must not be reported,
+  // or the fix for the finding becomes the finding.
+  assert.deepEqual(remediesIn('echo "run node $registry/scripts/link-registry.mjs" >&2'), []);
+  assert.deepEqual(remediesIn('console.error(`run node ${root}/scripts/fix.mjs`)'), []);
+});
+
+check('a refusal naming a path that does not resolve from the repository root blocks', () => {
+  const f = runChecks(GATE_BASE, gateFiles(''), SCRIPTS, null, [
+    { file: '.githooks/pre-push', line: 100, ref: 'elsewhere/scripts/install.mjs', exists: false },
+    { file: '.githooks/pre-push', line: 42, ref: 'scripts/docs/check-guidance.mjs', exists: true },
+  ]);
+  const bad = f.filter((x) => x.rule === 'remedy-unreachable');
+  assert.equal(bad.length, 1, 'the reachable remedy must not be reported');
+  assert.match(bad[0].message, /elsewhere\/scripts\/install\.mjs/);
+  assert.match(bad[0].message, /\.githooks\/pre-push:100/);
+});
+
+check('the remedy rule DOES NOT RUN when the caller supplied no remedies', () => {
+  // Same discipline as the gate rules: a check that invents its own evidence is
+  // worse than one that says it did not run.
+  const f = runChecks(GATE_BASE, gateFiles(''), SCRIPTS, CI);
+  assert.equal(f.filter((x) => x.rule === 'remedy-unreachable').length, 0);
+});
+
+check('every refusal source this rule claims to read exists', () => {
+  // Without this the population can go empty by a rename and the rule reports
+  // clean forever — the gate reading zero files, in its cheapest form.
+  const present = REFUSAL_SOURCES.filter((p) => fs.existsSync(path.join(REPO_ROOT, p)));
+  assert.ok(present.length > 0, `none of ${REFUSAL_SOURCES.join(', ')} exists — the rule reads nothing`);
+});
+
+check('THE REAL TREE: every remedy the push gate names resolves from the root it runs in', () => {
+  const unreachable = loadRemedies(REPO_ROOT).filter((r) => !r.exists);
+  assert.deepEqual(
+    unreachable,
+    [],
+    `a blocked contributor is told to run something that is not there:\n${unreachable
+      .map((r) => `  ${r.file}:${r.line}  ${r.ref}`)
+      .join('\n')}`,
   );
 });
 

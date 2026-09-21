@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { PANEL_SUNKEN } from "./ui/recipes";
 import { MotionizedGlyph, type TracedGlyph } from "./glyph/MotionizedGlyph";
+import { glyphForTab } from "./glyph/glyphRegistry";
 import { GLYPH_SIZE } from "./glyph/glyphSizes";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
@@ -18,6 +19,7 @@ import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tab
 export function ChainEmptyState({
   icon: Icon,
   glyph,
+  tab,
   title,
   body,
   links,
@@ -27,8 +29,11 @@ export function ChainEmptyState({
   // A /motionize traced glyph (app/_components/glyph/glyphs/), rendered instead of
   // the lucide `icon`. Reserved for the first-run "nothing here yet" case — a
   // self-drawing illustration on a filtered-to-zero list is noise, so those call
-  // sites keep the flat icon.
+  // sites keep the flat icon. Explicit `glyph` wins over `tab`.
   glyph?: TracedGlyph;
+  // Resolve the traced hero through glyphForTab. Unmapped tabs render no glyph
+  // (and fall through to `icon` if supplied).
+  tab?: WorkspaceTabId;
   title: string;
   body?: string;
   links: { tab: WorkspaceTabId; label: string }[];
@@ -38,14 +43,15 @@ export function ChainEmptyState({
 }) {
   const router = useRouter();
   const search = useSearchParams();
+  const resolved = glyph ?? (tab ? glyphForTab(tab) : undefined);
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-center`}>
-      {glyph ? (
-        <MotionizedGlyph data={glyph.data} viewBox={glyph.viewBox} className={`mx-auto ${GLYPH_SIZE.lg}`} />
+      {resolved ? (
+        <MotionizedGlyph data={resolved.data} viewBox={resolved.viewBox} className={`mx-auto ${GLYPH_SIZE.lg}`} />
       ) : Icon ? (
         <Icon className="mx-auto text-moss" size={28} aria-hidden />
       ) : null}
-      <p className={`text-base font-semibold text-ink ${Icon || glyph ? "mt-2" : ""}`}>{title}</p>
+      <p className={`text-base font-semibold text-ink ${Icon || resolved ? "mt-2" : ""}`}>{title}</p>
       {body ? <p className="mx-auto mt-1 max-w-lg text-sm text-steel">{body}</p> : null}
       {links.length > 0 || extraAction ? (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">

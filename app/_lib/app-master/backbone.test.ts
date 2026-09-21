@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { backboneFromRollup, backboneScore, hasBackboneFields, kpiMoved } from "./backbone.ts";
+import { backboneFreshness, backboneFromRollup, backboneScore, hasBackboneFields, kpiMoved } from "./backbone.ts";
 import type { PerformanceBackbone } from "../schemas.generated.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -166,4 +166,25 @@ test("backboneFromRollup: a pre-v2 rollup is not a perfect $0 window", () => {
     { o: junk.proposalsOpened, m: junk.proposalsMerged, g: junk.gatePassRate, k: junk.kpiDeltas },
     { o: 0, m: 0, g: null, k: [] }
   );
+});
+
+const FRESH_NOW = new Date(Date.UTC(2026, 8, 17, 12, 0, 0)); // 2026-09-17
+
+test("backboneFreshness: the current month is current", () => {
+  assert.equal(backboneFreshness({ period: "2026-09", now: FRESH_NOW, windowDays: 30 }), "current");
+  assert.equal(backboneFreshness({ period: "2026-09-17", now: FRESH_NOW, windowDays: 30 }), "current");
+  assert.equal(backboneFreshness({ period: "2026-09-01", now: FRESH_NOW, windowDays: 30 }), "current");
+});
+
+test("backboneFreshness: a previous month, or a day past the window, is stale", () => {
+  assert.equal(backboneFreshness({ period: "2026-08", now: FRESH_NOW, windowDays: 30 }), "stale");
+  assert.equal(backboneFreshness({ period: "2026-08-01", now: FRESH_NOW, windowDays: 30 }), "stale");
+});
+
+test("backboneFreshness: an unparseable period is unknown, never invented stale", () => {
+  assert.equal(backboneFreshness({ period: "August", now: FRESH_NOW, windowDays: 30 }), "unknown");
+  assert.equal(backboneFreshness({ period: "2026-13", now: FRESH_NOW, windowDays: 30 }), "unknown");
+  assert.equal(backboneFreshness({ period: "2026-02-31", now: FRESH_NOW, windowDays: 30 }), "unknown");
+  assert.equal(backboneFreshness({ period: null, now: FRESH_NOW, windowDays: 30 }), "unknown");
+  assert.equal(backboneFreshness({ period: "", now: FRESH_NOW, windowDays: 30 }), "unknown");
 });

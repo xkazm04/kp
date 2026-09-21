@@ -143,10 +143,10 @@ class AvailabilityReasonTests(unittest.TestCase):
     """Every adapter answers WHY, from the one closed vocabulary."""
 
     def test_every_adapter_reports_missing_key_not_a_bare_false(self) -> None:
-        # ollama is the exception by design: it authenticates nothing, so a missing
-        # key is not a descent for it (its endpoint always resolves).
+        # ollama and gateway are the exceptions by design: they authenticate
+        # nothing, so a missing key is not a descent (their endpoints always resolve).
         for name in sorted(ADAPTERS):
-            if name == "ollama":
+            if name in ("ollama", "gateway"):
                 continue
             with self.subTest(provider=name), env(
                 OPENAI_API_KEY=None, ANTHROPIC_API_KEY=None, GEMINI_API_KEY=None,
@@ -167,7 +167,7 @@ class AvailabilityReasonTests(unittest.TestCase):
         """THE case this exists for: a fully-credentialed cloud adapter under
         KP_OFFLINE must report the policy, not a missing key."""
         for name in sorted(ADAPTERS):
-            if name == "ollama":  # on-box by default — stays usable offline
+            if name in ("ollama", "gateway"):  # on-box by default — stay usable offline
                 continue
             with self.subTest(provider=name):
                 provider = _adapter(name, api_key="k")

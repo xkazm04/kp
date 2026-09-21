@@ -393,8 +393,9 @@ export function dateSlotToIso(
   const mm = +tm[2];
   const ms = zonedInstant(y, mo, dd, hh, mm, tz);
   if (Number.isNaN(ms)) return null;
-  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
   const p = zonedParts(ms, tz);
+  if (p.year !== y || p.month !== mo || p.day !== dd || p.hour !== hh || p.minute !== mm) return null;
+  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
   if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone
   return { value: new Date(ms).toISOString(), label: slotLabel(ms, `${tm[1]}:${tm[2]}`, tz) };
 }

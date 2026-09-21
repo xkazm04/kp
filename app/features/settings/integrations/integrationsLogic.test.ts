@@ -20,6 +20,8 @@ import {
   CLAIM_POLL_MS,
   isSupersededAttempt,
   nextClaimDelayMs,
+  remainingMs,
+  waitingRemainingSeconds,
 } from "./integrationsPersonasLogic.ts";
 import { webhookTestable } from "./integrationsWebhookGate.ts";
 
@@ -72,6 +74,15 @@ test("one claim round: paired ends it, a server error ends it, everything else r
   assert.equal(claimStep({ nowMs: now, deadline, response: { ok: true, paired: false } }), "retry");
   assert.equal(claimStep({ nowMs: now, deadline, response: null }), "retry");
   assert.equal(claimStep({ nowMs: now, deadline }), "retry");
+});
+
+test("remainingMs floors at 0 and waitingRemainingSeconds hides when not visible", () => {
+  assert.equal(remainingMs(0, 1000), 1000);
+  assert.equal(remainingMs(1000, 1000), 0);
+  assert.equal(remainingMs(1001, 1000), 0);
+  assert.equal(waitingRemainingSeconds(0, 5000, true), 5);
+  assert.equal(waitingRemainingSeconds(4500, 5000, true), 1);
+  assert.equal(waitingRemainingSeconds(0, 5000, false), null);
 });
 
 test("a continuation from a superseded attempt is dropped, and only that one", () => {

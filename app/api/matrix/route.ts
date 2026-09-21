@@ -10,9 +10,22 @@ import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
 
 
-// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
-// present only on blocked cells, localized client-side by key.
-type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
+// Wire contract the grid consumes. Extra CLI keys currently survive parsePythonJson
+// at runtime but were untyped (and could be dropped by the next typed mapper) —
+// the same hole koKeys had to be named before the grid could localize blockers.
+// fitTier/confidence/unprovenCount/provenanceMix are additive and optional so a
+// cell of only {score, blocked} still validates. respond() spreads the parsed
+// matrix unchanged; the cache key hashes the CLI JSON, so typing here does not
+// move the key.
+type Cell = {
+  score: number | null;
+  blocked: boolean;
+  koKeys?: string[];
+  fitTier?: "strong" | "promising" | "partial";
+  confidence?: { low: number; high: number; level?: string };
+  unprovenCount?: number;
+  provenanceMix?: string;
+};
 type MatrixOut = {
   candidates: { id: string; label: string; archetype: string | null }[];
   positions: { id: string; title: string; seniority: string; roleFamily: string; salaryBand: number[] }[];
@@ -23,6 +36,10 @@ type MatrixOut = {
   // Profiles dropped because their CandidateProfileV2 failed to validate/transform —
   // surfaced (with the error) so a vanished candidate row is explained, not swallowed.
   missingCandidates: { id: string; label: string; error: string }[];
+  // DB/jobs-json rows that were present but failed Job.model_validate — the
+  // poison-pill channel matrix_cli already emits. Distinct from `missing`
+  // (unresolved ids). Defaulted to [] when an older CLI omitted it.
+  missingJobs: { id: string | null; error: string }[];
 };
 
 // Bounded, content-addressed LRU for the scored grid (idea-4b0dfc70, bounded here).
@@ -52,7 +69,7 @@ export async function GET(request: NextRequest) {
     const poolTotal = countMatrixProfiles(ws);
     const positions = listOpenPositions(ws);
     if (profiles.length === 0 || positions.length === 0) {
-      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
+      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], missingJobs: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
     }
 
     const profilesJson = JSON.stringify(profiles);
@@ -81,6 +98,7 @@ export async function GET(request: NextRequest) {
         // matrix_cli already names the dropped candidates (id/label/error from the
         // profile payload itself) — pass straight through (defaulting for older CLI output).
         missingCandidates: matrix.missingCandidates ?? [],
+        missingJobs: matrix.missingJobs ?? [],
         placements: pipelinePlacements(ws),
         // Pool-size signal (fresh each response, outside the scored-grid cache) so
         // the UI can flag a truncated pool alongside the missing/missingCandidates banners.

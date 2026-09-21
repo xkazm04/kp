@@ -48,8 +48,9 @@ export function defaultOrgName(email: string): string {
 
 /** Provision a brand-new tenant from a public registration. Validation is pure
  *  and runs BEFORE the transaction; the email-uniqueness check runs INSIDE it
- *  (better-sqlite3 is synchronous, so no interleaved insert can slip between
- *  check and create), with the users.email UNIQUE constraint as the backstop. */
+ *  under BEGIN IMMEDIATE (same shape as `acceptInvite`), so two workers cannot
+ *  both pass `getUserByEmail` before either INSERT. The users.email UNIQUE
+ *  constraint stays the backstop. */
 export function registerAccount(input: RegisterInput): RegisterResult {
   const email = normalizeEmail(input.email ?? "");
   if (!SIGNUP_EMAIL_RE.test(email)) return { ok: false, reason: "invalid_email" };
@@ -75,7 +76,7 @@ export function registerAccount(input: RegisterInput): RegisterResult {
       // only role that can administer members/billing (roles.ts).
       upsertMembership(user.id, workspace.id, "owner");
       return { ok: true, user, orgId: org.id, workspaceId: workspace.id, role: "owner" };
-    })();
+    }).immediate();
   } catch (error) {
     // The UNIQUE(users.email) backstop: a concurrent insert between processes
     // (multi-instance deploy) rolls the whole tenant back — report it as taken.
