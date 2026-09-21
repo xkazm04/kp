@@ -20,6 +20,19 @@ import { readFileSync } from "node:fs";
 const { saveInterviewPrep, getInterviewPrep, listPreparedEntries } = await import("../../_lib/interview-prep.ts");
 const { createPipelineEntry } = await import("../../_lib/db/pipeline.ts");
 const { DEFAULT_WORKSPACE_ID } = await import("../../_lib/db/workspaces.ts");
+// HOISTED, and it has to stay here. node:test starts the root suite as soon as the
+// module yields at a top-level await, so a `test(...)` registered BEFORE such an
+// await and an `await import(...)` written further down mean the root can COMPLETE
+// — running the `after()` hook below, which closes and deletes this process's unit
+// database — while the tests after that await are still queued as late subtests.
+// On Windows the delete fails (SQLite keeps the file open) and cleanupUnitDb
+// swallows it, so this file passed; on Linux it succeeds, the stores reopen an EMPTY
+// database, and `saveInterviewPrep` could no longer read the entry's workspace off
+// `pipeline_entries` — it fell back to the default tenant, which is exactly the
+// stamp the scorecard route then accepted (200 where 404 was asserted, CI 2026-09-21).
+// Every dynamic import this file makes is therefore taken BEFORE the first test.
+const { plannedInterviewMinutes } = await import("../../_lib/interview-planned-minutes.ts");
+const { getPipelineEntry } = await import("../../_lib/db/pipeline.ts");
 
 after(() => cleanupUnitDb());
 
@@ -102,8 +115,6 @@ test("all four verbs of /api/interview-prep pass the resolved workspace into get
 // the interviewer's carried-forward notes. Not a leak; a quiet downgrade, which is
 // exactly the failure a default parameter hides.
 
-const { plannedInterviewMinutes } = await import("../../_lib/interview-planned-minutes.ts");
-const { getPipelineEntry } = await import("../../_lib/db/pipeline.ts");
 
 test("the planned-minutes path reads a NON-DEFAULT team's prep, not null", () => {
   const { entry } = createPipelineEntry({
