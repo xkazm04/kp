@@ -45,7 +45,8 @@ import {
 } from "@/app/features/shared/PipelineStepRow";
 import { POLICY_SLOT } from "./PipelineComposerBits";
 import { PipelineStepPolicy } from "./PipelineStepPolicy";
-import { PRESETS, matchesPreset, type PipelinePlan, type PresetId } from "./pipelineComposerModel";
+import { StageActionsPicker } from "./StageActionsPicker";
+import { PRESETS, activePresetId, type PipelinePlan, type PresetAxisLabels, type PresetId } from "./pipelineComposerModel";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import {
   addStage,
@@ -54,12 +55,16 @@ import {
   moveStage,
   removeStage,
   renameStage,
+  setStageActions,
   setStageRole,
   type AxisDraft,
   type AxisProblem,
   type StrandedStage,
 } from "@/app/features/shared/pipelineAxisDraft";
 import { usePipelineAxisProblemText, usePipelineStageRoleLabel } from "@/app/features/shared/usePipelineAxisCopy";
+
+/** The AI-actions column: one picker per step (StageActionsPicker). */
+const ACTIONS_CELL = "w-48 shrink-0";
 
 export function PipelineStepsEditor({
   draft,
@@ -91,8 +96,24 @@ export function PipelineStepsEditor({
   const problemText = usePipelineAxisProblemText();
   // The DRAFT axis, so a preset applied mid-edit keys onto the columns the
   // reader is looking at rather than the ones the server still has.
-  const axis: StageDef[] = draft.stages.map((s) => ({ id: s.id, label: s.label, role: s.role }));
-  const activePreset: PresetId | null = PRESETS.find((p) => matchesPreset(plan, p, axis))?.id ?? null;
+  const axis: StageDef[] = draft.stages.map((s) => ({
+    id: s.id,
+    label: s.label,
+    role: s.role,
+    ...(s.actions ? { actions: s.actions } : {}),
+  }));
+  const activePreset: PresetId | null = activePresetId(plan, axis);
+  // The names a preset gives the columns it mints or re-purposes. Localized here,
+  // never inside the model: a preset must not write English onto a Czech board, and
+  // the model has no translator. The stored IDS are minted from fixed ASCII seeds,
+  // so they are the same in every locale.
+  const presetLabels: PresetAxisLabels = {
+    homework: tp("presetAxis.homework"),
+    aiInterview: tp("presetAxis.aiInterview"),
+    screened: tp("presetAxis.screened"),
+    humanInterview: tp("presetAxis.humanInterview"),
+    offer: tp("presetAxis.offer"),
+  };
   // Rounds are counted in BOARD order, so a column knows whether anything ran
   // before it — which is what decides if a cohort reducer means anything there.
   let seen = 0;
@@ -111,8 +132,9 @@ export function PipelineStepsEditor({
       <p className="mt-1 text-sm text-steel">{t("intro")}</p>
 
       {/* Blueprints, above the table they rewrite. They set the WHOLE plan — every
-          column's mode, approval and cohort at once — so they belong to the table
-          as a header, not to any one row. */}
+          column's mode, approval and cohort at once — and one of them (Enterprise)
+          sets the COLUMNS too, so they belong to the table as a header, not to any
+          one row. */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className={META_LABEL}>{tp("startFrom")}</span>
         {PRESETS.map((p) => (
@@ -120,7 +142,18 @@ export function PipelineStepsEditor({
             key={p.id}
             type="button"
             aria-pressed={activePreset === p.id}
-            onClick={() => onPlan(p.plan(axis))}
+            onClick={() => {
+              // A preset may rewrite the COLUMNS, not just the policy on them
+              // (Enterprise does: the two-interview funnel needs a case step and a
+              // human triage after the AI round, which is a different board). The
+              // plan is then built against the NEW axis, so a round can never be
+              // keyed to a column this click just removed. Nothing is saved here —
+              // the host holds both drafts, and its stranded-mapping refusal is what
+              // stops a dropped column taking its candidates with it.
+              const next = p.axis ? p.axis(draft, presetLabels) : null;
+              if (next) onChange(next);
+              onPlan(p.plan(next ? next.stages : axis));
+            }}
             className={`focus-ring rounded-full border px-2.5 py-0.5 text-sm font-semibold transition-colors ${
               activePreset === p.id
                 ? "border-ink bg-ink text-white"
@@ -149,6 +182,7 @@ export function PipelineStepsEditor({
           <span className={`${META_LABEL} ${POLICY_SLOT.executor} shrink-0`}>{tp("colExecutor")}</span>
           <span className={`${META_LABEL} ${POLICY_SLOT.guard} shrink-0`}>{tp("colGuard")}</span>
         </span>
+        <span className={`${PIPELINE_STEP_CELL} ${META_LABEL} ${ACTIONS_CELL}`}>{t("colActions")}</span>
       </div>
 
       <ol className="mt-1 space-y-2">
@@ -178,6 +212,18 @@ export function PipelineStepsEditor({
                 stageLabel={stage.label || stage.id}
                 roundsBefore={roundsBefore.get(stage.id) ?? 0}
               />
+            }
+            // Which AI actions a recruiter can run on a candidate standing here:
+            // the type's default until someone picks otherwise.
+            meta={
+              <span className={`${PIPELINE_STEP_CELL} ${ACTIONS_CELL}`}>
+                <StageActionsPicker
+                  stageId={stage.id}
+                  stageLabel={stage.label || stage.id}
+                  axis={axis}
+                  onChange={(actions) => onChange(setStageActions(draft, stage.id, actions))}
+                />
+              </span>
             }
             onMove={(delta) => onChange(moveStage(draft, stage.id, delta))}
             canMoveUp={i > 0}

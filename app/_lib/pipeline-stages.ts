@@ -37,9 +37,24 @@ export type FunnelStage = (typeof FUNNEL_STAGES)[number];
 // interview because it is a distinct thing the product DOES (and a distinct thing
 // a human can be asked to ratify), and because a candidate genuinely waits there.
 //
+// `homework` is the work-sample / case step: the product GENERATES an assignment
+// for the candidate standing there, sends it, and evaluates what comes back. It is
+// its own role rather than a `custom` column because real functionality binds to
+// it (the devcase module runs on entry, and the AI interview that follows grounds
+// its questions in the evaluated case), and because a candidate genuinely waits
+// there while the machine works.
+//
+// It sits BEFORE the screening gate — the gate is "did they get a real look",
+// which the first interview column answers, and a case precedes that conversation.
+// But it is NOT a screening column: nothing triages a CV there, so
+// `screeningStageIds` / `isScreeningStage` exclude it and the manual "Screen with
+// AI" action is not offered on it. Those two helpers therefore mean "pre-gate
+// columns that actually screen", which is a narrower set than "pre-gate columns";
+// `hasAdvancedPastScreening` stays purely ordinal and is unaffected.
+//
 // `custom` is the escape hatch for a stage a workspace invents that maps to none
 // of the product's semantics; it participates in ordering and nothing else.
-export type StageRole = "entry" | "screening" | "interview" | "scoring" | "offer" | "terminal" | "custom";
+export type StageRole = "entry" | "screening" | "homework" | "interview" | "scoring" | "offer" | "terminal" | "custom";
 
 /** One column on the board: a stable `id` (what is STORED, never shown), a
  *  freely-editable `label` (what is SHOWN), and the `role` that carries meaning.
@@ -50,7 +65,25 @@ export type StageRole = "entry" | "screening" | "interview" | "scoring" | "offer
  *  `pipeline_entries.stage`, both `pipeline_events` stage columns, the analytics
  *  history and the ATS field map for zero behavioural gain. Ids stay as they are;
  *  labels become editable when the axis becomes per-workspace data. */
-export type StageDef = { id: string; label: string; role: StageRole };
+/** The AI actions a recruiter can run on ONE candidate from the candidate modal — a
+ *  closed vocabulary (literal array + derived union + guard). WHICH of them a column
+ *  offers is resolved in stage-ai-actions.ts: the stage's own `actions` when the
+ *  workspace set them in Settings → Hiring, else the product default by role. */
+export const STAGE_AI_ACTIONS = ["screen", "prep", "scorecard", "offer", "outreach", "rejection", "rematch"] as const;
+export type StageAiAction = (typeof STAGE_AI_ACTIONS)[number];
+
+export function isStageAiAction(value: unknown): value is StageAiAction {
+  return typeof value === "string" && (STAGE_AI_ACTIONS as readonly string[]).includes(value);
+}
+
+export type StageDef = {
+  id: string;
+  label: string;
+  role: StageRole;
+  /** The AI actions this column offers, when the workspace customised them. Absent =
+   *  the product default for the role; an empty list is a real answer (nothing runs). */
+  actions?: readonly StageAiAction[];
+};
 
 /** The role each canonical stage plays. Exhaustive over PipelineStage, so adding a
  *  stage to the axis without deciding what it MEANS is a compile error. */
@@ -168,14 +201,20 @@ export function hasAdvancedPastScreening(stage: string, axis: readonly StageDef[
 export const SCREENING_STAGES = ["Accepted", "Screened"] as const;
 export type ScreeningStage = (typeof SCREENING_STAGES)[number];
 
-/** The screening stages of an axis: everything before the screening gate. */
+/** The screening stages of an axis: everything before the screening gate, MINUS
+ *  the homework columns. A case step is pre-gate but nothing triages a CV there —
+ *  a "Screen with AI" run at a homework column would advance a candidate past the
+ *  assignment the column exists to give them. See the StageRole comment. */
 export function screeningStageIds(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string[] {
-  return axis.slice(0, screeningGateIndex(axis)).map((s) => s.id);
+  return axis
+    .slice(0, screeningGateIndex(axis))
+    .filter((s) => s.role !== "homework")
+    .map((s) => s.id);
 }
 
 export function isScreeningStage(stage: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): stage is ScreeningStage {
   const i = stageIndex(stage, axis);
-  return i >= 0 && i < screeningGateIndex(axis);
+  return i >= 0 && i < screeningGateIndex(axis) && axis[i].role !== "homework";
 }
 
 // The pipeline effect of a manual AI screen run at `stage`, given the screen

@@ -280,8 +280,12 @@ const LEAK_CEILING = new Map<string, number>([
   ["jobs/[id]/candidates/route.ts", 1],
   ["repo-scan/route.ts", 1],
   ["analytics/route.ts", 1],
-  ["archetypes/[id]/route.ts", 2],
-  ["archetypes/route.ts", 2],
+  // archetypes/route.ts (2) and archetypes/[id]/route.ts (2) were FIXED, not
+  // ceilinged (scan-sweep w4-cv-intel): the four 500s answer
+  // safeJsonError(..., "ARCHETYPES_{READ,WRITE}_FAILED") and the input 400s
+  // already ship code/params via errorResponse, so the archetype manager
+  // resolves every fault in the reader's language. The rows are deleted so the
+  // win is locked and a regression reads as `undeclared`.
   // ats/config's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
   // integrations-settings): the 500 answers safeJsonError(..., "ATS_CONFIG_SAVE_FAILED")
   // and the new stale-write 409 is jsonRefusal("ATS_CONFIG_STALE"), so the panel resolves
@@ -310,7 +314,14 @@ const LEAK_CEILING = new Map<string, number>([
   // group-eval-ui): the 500 answers safeJsonError(..., "GROUP_EVAL_READ_FAILED"), so the
   // Decisions modal resolves it in the reader's language. The row is deleted so the win
   // is locked.
-  ["decisions/screen-wave/route.ts", 1],
+  // decisions/records' single forward was FIXED, not ceilinged: the 500 answers
+  // safeJsonError(..., "DECISION_RECORDS_READ_FAILED"), so a store throw cannot
+  // put SQLITE text or the db path on the sealed Art. 22 dossier. The
+  // FORWARD_CEILING row is deleted so the win is locked.
+  // decisions/screen-wave's single leak was FIXED, not ceilinged: the 500 answers
+  // safeJsonError(..., "SCREEN_WAVE_FAILED") and every 400/409 is a jsonRefusal
+  // code, so the Decisions modal never paints English or store detail. The row is
+  // deleted so the win is locked.
   // The ten devcase rows that stood here (thirteen leaks across comms, control,
   // inbound, lifecycle + its [id]/approve, [id]/close, [id]/redesign, outcomes,
   // postings and promote) were FIXED, not ceilinged (/perfect 2026-09-02,
@@ -380,7 +391,13 @@ const LEAK_CEILING = new Map<string, number>([
   // workdir path and PYTHON_CMD as well as SQLITE_* text, on a door any signed-in user
   // reaches. The rows are DELETED so the win is locked and a regression reads as
   // `undeclared` rather than as budget already granted.
-  ["profile/draft/route.ts", 1],
+  // profile/draft/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect,
+  // jobseeker import-provenance): its catch forwarded ProfileDraftError's message —
+  // parseStderrError's text, i.e. profile_draft_cli's traceback, the temp workdir
+  // path and provider stderr — and its catch-all forwarded whatever fs/spawn threw.
+  // It answers jsonRefusal("INTAKE_TEXT_REQUIRED") for the one deliberate 400 and
+  // safeJsonError(..., "PROFILE_DRAFT_FAILED") for the rest, so the row is deleted
+  // and a regression reads as `undeclared` rather than as budget already granted.
   // schedule/invite/bulk/route.ts was here at 1 and is FIXED, not ceilinged — the
   // entry is deleted so the win is locked and a regression reads as `undeclared`.
   // It is worth naming because it is the reason this file is a scan rather than a
@@ -415,11 +432,10 @@ const FORWARD_CEILING = new Map<string, number>([
   ["analytics/calibration/route.ts", 1],
   ["analytics/calibration/threshold-history/route.ts", 1],
   ["auth/switch-workspace/route.ts", 1],
-  ["decisions/records/route.ts", 1],
   // skill-profile/[token]/verify/route.ts stood here at 1 and is FIXED, not ceilinged
-  // (lens-sweep round 2, context api-devcase-2): the PUBLIC token door now answers
-  // safeJsonError(error, "api:skill-profile-verify", "SKILL_PROFILE_VERIFY_FAILED").
-  // Pinned at the site by the colocated route.test.ts so the row cannot re-grow.
+  // (scan-sweep w6-rest): the catch answers safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")
+  // so a store throw cannot print English or err.message on the public credential URL.
+  // The row is deleted so the win is locked and a regression reads as undeclared.
   ["workspaces/[id]/route.ts", 1],
   ["workspaces/route.ts", 2],
 ]);

@@ -32,6 +32,7 @@ import {
   type CaseInterviewScenario,
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
+import { rubricCoverage } from "./interview-rubric";
 import { buildAsrKeywords } from "./voice/asr-keywords.mjs";
 import {
   candidateSafeTopic,
@@ -117,8 +118,11 @@ function composeImportedRunOfShowLine(imported: string[]): string {
 
 // App §2 / P1 root cause: when the candidate EXPLICITLY chose a language at apply (entry.locale is
 // a real locale, not the workspace-default guess), tell the agent to OPEN in it instead of the
-// bilingual greet-then-detect. The follow/lock rules (PERSONA_LANGUAGE_DETECT) still apply, so a
-// candidate who switches is still followed. A null preferred language leaves the bilingual opener.
+// bilingual greet-then-detect. Appending that line AFTER PERSONA_LANGUAGE_DETECT used to lose:
+// the detect paragraph says it "outranks every other instruction", so a German applicant still
+// heard a Czech+English greet. Preferred-locale briefs REPLACE that paragraph with an
+// open-in-preferred + lock/follow rule. A null preferred language leaves the bilingual opener
+// byte-identical (the Python eval port's default student brief stays in lockstep).
 // ONE table, every locale in i18n/locales.ts. The names are English on purpose:
 // they are read by the agent inside an English instruction, not by the candidate.
 // It used to be `preferred === "cs" ? "Czech" : "English"`, which told a German or
@@ -133,10 +137,22 @@ export const OPENING_LANGUAGE_NAMES: Record<Locale, string> = {
   fr: "French",
 };
 
+function preferredLanguageDetect(name: string): string {
+  return (
+    `The candidate chose to apply in ${name}, so open the interview in ${name}. ` +
+    "Then LOCK onto the language the candidate replies in and use ONLY that language for every remaining turn — greetings, acknowledgements, and closing included. " +
+    "Do not mix languages after your opening, and never switch unless the candidate does first (then follow them). " +
+    "Before EVERY turn you produce, check which language the candidate's last message was in and answer in that language."
+  );
+}
+
 function withOpeningLanguage(instructions: string, preferred: Locale | null): string {
   if (!preferred) return instructions;
-  const name = OPENING_LANGUAGE_NAMES[preferred];
-  return `${instructions} The candidate chose to apply in ${name}, so open the interview in ${name} (you may still follow them if they switch language later).`;
+  const replacement = preferredLanguageDetect(OPENING_LANGUAGE_NAMES[preferred]);
+  if (instructions.includes(PERSONA_LANGUAGE_DETECT)) {
+    return instructions.replace(PERSONA_LANGUAGE_DETECT, replacement);
+  }
+  return `${instructions} ${replacement}`;
 }
 
 /** The no-feedback / no-praise closing rule every interviewer brief ends on. It
@@ -585,6 +601,7 @@ export async function runInterviewScorecard(
     );
   }
   const { result } = await runAutomationTask(entryId, "scorecard", notes, undefined, undefined, workspaceId);
+  if (!result) return null;
   // Deterministic call telemetry (hint-uptake, talk ratio, recovery-time proxies)
   // rides the scorecard, so validating potential_score's weights later has DATA
   // per interview instead of anecdotes. The hint to track is the scripted
@@ -593,6 +610,10 @@ export async function runInterviewScorecard(
   // (extractTelemetry documents each one); best-effort, never a gate.
   try {
     const entry = getPipelineEntry(entryId, workspaceId);
+    // Same coverage provenance the human POST stamps. Python already writes
+    // rubricVersion/rubricKeys; this post-pass fills the gap without a Python bump
+    // and will not overwrite if the scorer starts stamping it.
+    stampAiScorecardRubricCoverage(result as Record<string, unknown>, entry?.roleFamily);
     let hintText: string | null = null;
     if (entry && isEarlyCareer(entry.archetype)) {
       const caseId = devCaseIdForEntry(entry);
@@ -630,4 +651,14 @@ export async function runInterviewScorecard(
     /* minting is enrichment — a failure must not lose the scorecard */
   }
   return result;
+}
+
+/** Stamp role-family industry-axis coverage on an AI scorecard after the spawn.
+ *  Does not overwrite a value Python (or a later caller) already set. */
+export function stampAiScorecardRubricCoverage(
+  result: Record<string, unknown>,
+  roleFamily: string | null | undefined,
+): void {
+  if (result.rubricCoverage != null) return;
+  result.rubricCoverage = rubricCoverage(roleFamily);
 }

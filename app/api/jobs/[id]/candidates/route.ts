@@ -27,7 +27,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // stay visible to everyone.
     const job = getJob(id);
     if (!job || !jobVisibleToWorkspace(id, workspaceId)) {
-      return NextResponse.json({ error: "Job not found." }, { status: 404 });
+      return jsonRefusal("JOB_NOT_FOUND", 404);
     }
 
     // Shared pool (v2 profiles + saved CV analyses) — the same population
@@ -36,7 +36,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const { entries, truncated } = buildCandidatePool(workspaceId);
 
     if (entries.length === 0) {
-      return NextResponse.json({ job: null, candidates: [], note: "No saved candidates yet." });
+      // No English `note`: clients key off `candidates: []` (winnability already dropped
+      // the same prose; the ranking empty state is the empty array, not a sentence).
+      return NextResponse.json({ job: null, candidates: [] });
     }
 
     // Per-IP, AFTER the visibility gate and the empty-pool short-circuit (both must keep

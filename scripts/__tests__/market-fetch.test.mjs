@@ -19,7 +19,7 @@
 // timeout in the operator's words rather than as a bare `AbortError`.
 
 import assert from 'node:assert/strict';
-import { FETCH_TIMEOUT_MS, fetchJson, isOffline } from '../lib/market-earnings.mjs';
+import { FETCH_TIMEOUT_MS, STALE_AFTER_DAYS, assertFresh, fetchJson, isOffline, snapshotAgeDays } from '../lib/market-earnings.mjs';
 
 let passed = 0;
 function check(name, fn) {
@@ -105,6 +105,54 @@ await check('a falsey KP_OFFLINE leaves the fetch alone — the failure directio
     const body = await fetchJson('https://example.test/x.json', { env: { KP_OFFLINE: flag }, fetchImpl: async () => ok({ n: 1 }) });
     assert.deepEqual(body, { n: 1 });
   }
+});
+
+const NOW = Date.parse("2026-09-17T12:00:00Z");
+const pulseAt = (generatedAt) => ({ meta: { generated_at: generatedAt } });
+
+await check('snapshotAgeDays uses the same UTC date math as the /market page', () => {
+  assert.equal(snapshotAgeDays("2026-09-17", NOW), 0);
+  assert.equal(snapshotAgeDays("2026-07-18", NOW), 61);
+  assert.equal(snapshotAgeDays("2026-07-19", NOW), 60);
+  assert.equal(snapshotAgeDays(null, NOW), null);
+  assert.equal(snapshotAgeDays("not-a-date", NOW), null);
+});
+
+await check('assertFresh lets a snapshot younger than 60 days through', () => {
+  const fresh = assertFresh(pulseAt("2026-07-20"), NOW, STALE_AFTER_DAYS, false);
+  assert.equal(fresh.ok, true);
+  assert.equal(fresh.forced, false);
+  assert.equal(fresh.age, 59);
+});
+
+await check('assertFresh refuses a 61-day-old generated_at without --force and names the rebuild', () => {
+  const stale = assertFresh(pulseAt("2026-07-18"), NOW, STALE_AFTER_DAYS, false);
+  assert.equal(stale.ok, false, "a 61-day-old snapshot must not re-level salary bands");
+  assert.equal(stale.age, 61);
+  assert.match(stale.message, /npm run market:build && npm run market:earnings/);
+  assert.match(stale.message, /--force/);
+});
+
+await check('assertFresh refuses at the 60-day ceiling, matching the page', () => {
+  const atCeiling = assertFresh(pulseAt("2026-07-19"), NOW, STALE_AFTER_DAYS, false);
+  assert.equal(atCeiling.ok, false);
+  assert.equal(atCeiling.age, 60);
+});
+
+await check('--force writes a stale snapshot and still names the rebuild', () => {
+  const forced = assertFresh(pulseAt("2026-07-18"), NOW, STALE_AFTER_DAYS, true);
+  assert.equal(forced.ok, true);
+  assert.equal(forced.forced, true);
+  assert.match(forced.message, /npm run market:build && npm run market:earnings/);
+});
+
+await check('a pulse with no generated_at is refused unless --force', () => {
+  const missing = assertFresh({ meta: {} }, NOW, STALE_AFTER_DAYS, false);
+  assert.equal(missing.ok, false);
+  assert.match(missing.message, /generated_at/);
+  const forced = assertFresh({ meta: {} }, NOW, STALE_AFTER_DAYS, true);
+  assert.equal(forced.ok, true);
+  assert.equal(forced.forced, true);
 });
 
 console.log(`\nmarket-fetch: ${passed} checks passed.`);

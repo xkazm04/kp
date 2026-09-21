@@ -250,23 +250,53 @@ def _constitution_origin(constitution: Path) -> str:
     return "kp" if CONSTITUTION_MARKER in text[:400] else "personas"
 
 
+def _canonical_constitution_bytes(text: str) -> bytes:
+    """UTF-8 with LF newlines — birth writes ``newline=\"\\n\"``, so this is the on-disk form."""
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
+def _constitution_matches_template(constitution: Path, origin: str) -> bool | None:
+    """Whether a kp-origin constitution still matches the shipped template.
+
+    ``None`` when origin is not ``kp`` (there is no template to match, or no
+    constitution). ``False`` when the kp marker is still there but the bytes
+    have drifted — a silent rewrite that ``constitutionOrigin`` cannot see.
+    """
+    if origin != "kp":
+        return None
+    try:
+        on_disk = constitution.read_text(encoding="utf-8")
+        template = CONSTITUTION_TEMPLATE.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return hashlib.sha256(_canonical_constitution_bytes(on_disk)).digest() == hashlib.sha256(
+        _canonical_constitution_bytes(template)
+    ).digest()
+
+
 def probe_brain() -> dict:
-    """``{root, present, episodes, identitySections, constitutionOrigin}``.
+    """``{root, present, episodes, identitySections, constitutionOrigin,
+    constitutionMatchesTemplate}``.
 
     Creates nothing, opens no index, and never raises on a missing tree: an
-    absent brain is a legitimate answer, not a failure."""
+    absent brain is a legitimate answer, not a failure.
+    ``constitutionMatchesTemplate`` is ``true``/``false`` when origin is ``kp``,
+    else ``null`` — a rewritten constitution that kept the kp marker still
+    reads as origin ``kp``, and this bit is how first-run tells them apart."""
     root = brain_root()
     constitution = root / "constitution.md"
     identity = root / "identity.md"
     present = root.is_dir() and (
         constitution.is_file() or identity.is_file() or (root / "episodes").is_dir()
     )
+    origin = _constitution_origin(constitution)
     return {
         "root": str(root),
         "present": present,
         "episodes": _count_episodes(root),
         "identitySections": _identity_sections(identity),
-        "constitutionOrigin": _constitution_origin(constitution),
+        "constitutionOrigin": origin,
+        "constitutionMatchesTemplate": _constitution_matches_template(constitution, origin),
     }
 
 

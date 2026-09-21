@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { persistCompanionConsent, persistSetupBrand, sendSetupInvites } from "./setupOnboardingFinish";
+import { finishPartsFor, persistCompanionConsent, persistSetupBrand, sendSetupInvites } from "./setupOnboardingFinish";
 import { everyInviteLanded, foldSetupOutcome } from "./setupFinishOutcome";
-import type { SetupInvite, SetupState } from "./setupSteps";
+import { INITIAL_SETUP, type SetupInvite, type SetupState } from "./setupSteps";
 
 // The wizard's closing toast keys off this one boolean, and the trap it guards is
 // that `fetch` RESOLVES on a 400/403/409 — so "the promise settled" is not "the
@@ -246,4 +246,29 @@ test("the choice is posted verbatim to the brain door", async () => {
     () => persistCompanionConsent(CONSENT_STATE)
   );
   assert.deepEqual(seen, [{ url: "/api/companion/brain", body: { action: "birth" } }]);
+});
+
+// ---------------------------------------------------------------------------
+// The intent fork. A seeker walked Welcome → Hand-off: there was no company step,
+// no team, no board, no Candi — so none of those writers may fire, not as "skipped
+// because empty" but as "never asked". `finishPartsFor` is the pure gate
+// persistOnboardingSetup consults before each writer; the language is the one
+// answer every run gives (it lives on the rail).
+
+test("a seeker's finish writes the language and nothing else", () => {
+  assert.deepEqual(finishPartsFor({ ...INITIAL_SETUP, intent: "seek", orgName: "Acme", invites: INVITES }), ["language"]);
+});
+
+test("a hiring finish keeps every writer, in the order the toast names them", () => {
+  assert.deepEqual(finishPartsFor({ ...INITIAL_SETUP, intent: "hire" }), [
+    "language",
+    "orgName",
+    "currency",
+    "brand",
+    "invites",
+    "pipeline",
+    "companion",
+  ]);
+  // An unanswered fork is a hiring run: nothing is hidden before Welcome is answered.
+  assert.deepEqual(finishPartsFor(INITIAL_SETUP), finishPartsFor({ ...INITIAL_SETUP, intent: "hire" }));
 });

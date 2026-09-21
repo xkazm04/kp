@@ -13,7 +13,7 @@ import { ROLE_FAMILY_SLUGS } from "./role-families.ts";
 // pipeline-stages.ts is equally dependency-free (no DB, no alias), so importing
 // the shipped axis here keeps this module loadable by `node --test` and the
 // browser alike — and makes the board the literal source of the axis default.
-import { DEFAULT_STAGE_AXIS, roleOf, stagesWithRole, stageWithRole, type StageDef, type StageRole } from "./pipeline-stages.ts";
+import { DEFAULT_STAGE_AXIS, roleOf, stagesWithRole, stageWithRole, type StageDef, type StageRole, isStageAiAction, STAGE_AI_ACTIONS, type StageAiAction } from "./pipeline-stages.ts";
 
 // Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
 // matched candidates that are ALSO below `maxMatchToReject` match — never
@@ -147,7 +147,10 @@ export type InterviewPlanRule = {
 export const INTERVIEW_PLAN_MAX_ROUNDS = 3;
 /** Columns a plan may govern. Entry and terminal are arrival and outcome, not
  *  decisions, so a step naming one is dropped rather than silently kept. */
-const PLANNABLE_ROLES: readonly StageRole[] = ["screening", "interview", "scoring", "offer", "custom"];
+/** `homework` carries a plan step for one decision: WHO approves sending the case.
+ *  The executor is never in question (the product generates and evaluates it) and
+ *  there are no rounds, so its step is a gate and an empty round list. */
+const PLANNABLE_ROLES: readonly StageRole[] = ["screening", "homework", "interview", "scoring", "offer", "custom"];
 
 /** This column's policy, or null when the plan says nothing about it. Null is a
  *  real answer — a column added after the plan was saved has no gate, and
@@ -229,6 +232,9 @@ export type LegacyInterviewPlanRule = {
  *  - rounds with nowhere to land (a plan with rounds on an axis with no
  *    interview column) are DROPPED, which is what the board already showed —
  *    there is no column to run them at.
+ *  - a `homework` column gets NO step. The legacy vocabulary had no case step, so
+ *    there is nothing to convert; absence stays absence rather than a fabricated
+ *    gate. The presets that WANT one append it after the conversion.
  */
 export function migrateLegacyInterviewPlan(
   legacy: LegacyInterviewPlanRule,
@@ -297,8 +303,14 @@ export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = migrateLegacyInterviewP
 // `pipeline_events` rows and analytics buckets referencing it still resolve to a
 // label instead of rendering a raw id — and so a candidate found sitting on it
 // can be named in the migration prompt. The board renders only `stages`.
-export type PipelineStageRoleWire = "entry" | "screening" | "interview" | "scoring" | "offer" | "terminal" | "custom";
-export type PipelineStageWire = { id: string; label: string; role: PipelineStageRoleWire };
+export type PipelineStageRoleWire = "entry" | "screening" | "homework" | "interview" | "scoring" | "offer" | "terminal" | "custom";
+export type PipelineStageWire = {
+  id: string;
+  label: string;
+  role: PipelineStageRoleWire;
+  /** Stored only when the workspace customised the column's AI actions. */
+  actions?: StageAiAction[];
+};
 export type PipelineStagesRule = {
   stages: PipelineStageWire[];
   retired: PipelineStageWire[];
@@ -316,10 +328,11 @@ export const PIPELINE_STAGES_DEFAULT: PipelineStagesRule = {
   retired: [],
 };
 
-const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "interview", "scoring", "offer", "terminal", "custom"];
+const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "homework", "interview", "scoring", "offer", "terminal", "custom"];
 /** Roles that may appear AT MOST once: they answer "where does the funnel start /
- *  end / close", which cannot have two answers. `screening`, `interview` and
- *  `custom` repeat freely. */
+ *  end / close", which cannot have two answers. `screening`, `homework`,
+ *  `interview` and `custom` repeat freely — a funnel may legitimately set a short
+ *  take-home and a longer one, exactly as it may screen twice. */
 const UNIQUE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "terminal", "offer"];
 /** Roles an axis MUST carry, because product rules resolve through them: a funnel
  *  needs somewhere to enter and somewhere to end. */
@@ -338,7 +351,7 @@ const LEGACY_INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as c
 const INTERVIEW_PLAN_STEP_KEYS = ["stageId", "gate", "rounds"] as const;
 const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
 const PIPELINE_STAGES_KEYS = ["stages", "retired"] as const;
-const STAGE_KEYS = ["id", "label", "role"] as const;
+const STAGE_KEYS = ["id", "label", "role", "actions"] as const;
 
 export type DecisionConfigResult =
   | { ok: true; phase: "screening"; config: ScreeningRule }
@@ -415,7 +428,18 @@ function validateStage(raw: unknown, path: string): { ok: true; stage: PipelineS
     return { ok: false, error: `${path}.label must be 1-60 characters.` };
   }
   if (!isStageRole(rec.role)) return { ok: false, error: `${path}.role must be one of: ${STAGE_ROLES.join(", ")}.` };
-  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role } };
+  // The column's own AI actions (Settings → Hiring). Absent = the role default, so it
+  // is stored only when set; a present list must name distinct known actions and is
+  // normalised to the canonical order, so two equal selections serialise equally.
+  let actions: StageAiAction[] | undefined;
+  if (rec.actions !== undefined) {
+    const list = rec.actions;
+    if (!Array.isArray(list) || !list.every(isStageAiAction) || new Set(list).size !== list.length) {
+      return { ok: false, error: `${path}.actions must be a list of distinct AI actions: ${STAGE_AI_ACTIONS.join(", ")}.` };
+    }
+    actions = STAGE_AI_ACTIONS.filter((id) => list.includes(id));
+  }
+  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role, ...(actions ? { actions } : {}) } };
 }
 
 function validateStageList(

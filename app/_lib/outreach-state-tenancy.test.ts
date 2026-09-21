@@ -17,17 +17,37 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { ensureDb } from "./db/core.ts";
-import { haltOutreach, outreachStateFor, recordOutreachReply, recordOutreachSend } from "./outreach-state-store.ts";
+import {
+  haltOutreach,
+  outreachHaltFor,
+  outreachStateFor,
+  recordCandidateOptOut,
+  recordOutreachReply,
+  recordOutreachSend,
+  resumeOutreach,
+} from "./outreach-state-store.ts";
 
 after(() => cleanupUnitDb());
 
 const OWNER = "ws-outreach-owner";
 const INTRUDER = "ws-outreach-intruder";
 
-function raw(entryId: string): { sends: number; workspace_id: string; manual_halt_at: string | null; replied_at: string | null } {
+function raw(entryId: string): {
+  sends: number;
+  workspace_id: string;
+  manual_halt_at: string | null;
+  replied_at: string | null;
+  candidate_halt_at: string | null;
+} {
   return ensureDb()
-    .prepare(`SELECT sends, workspace_id, manual_halt_at, replied_at FROM outreach_state WHERE entry_id = ?`)
-    .get(entryId) as { sends: number; workspace_id: string; manual_halt_at: string | null; replied_at: string | null };
+    .prepare(`SELECT sends, workspace_id, manual_halt_at, replied_at, candidate_halt_at FROM outreach_state WHERE entry_id = ?`)
+    .get(entryId) as {
+    sends: number;
+    workspace_id: string;
+    manual_halt_at: string | null;
+    replied_at: string | null;
+    candidate_halt_at: string | null;
+  };
 }
 
 test("recordOutreachSend cannot bump another team's send counter", () => {
@@ -56,6 +76,35 @@ test("haltOutreach cannot silence another team's sequence", () => {
   // The owner's own halt still works — the guard bounds the tenant, not the operation.
   haltOutreach(entryId, OWNER);
   assert.ok(raw(entryId).manual_halt_at, "the owning team can still halt");
+});
+
+test("resumeOutreach clears the owner's manual halt and leaves a foreign tenant's row alone", () => {
+  const entryId = "entry-outreach-resume";
+  recordOutreachSend(entryId, OWNER);
+  haltOutreach(entryId, OWNER);
+  assert.equal(outreachHaltFor(entryId, OWNER), "manual");
+
+  resumeOutreach(entryId, INTRUDER);
+  assert.ok(raw(entryId).manual_halt_at, "a foreign workspace cannot clear the owner's halt");
+  assert.equal(outreachHaltFor(entryId, OWNER), "manual");
+
+  resumeOutreach(entryId, OWNER);
+  assert.equal(raw(entryId).manual_halt_at, null);
+  assert.equal(outreachHaltFor(entryId, OWNER), null, "the entry is contactable again");
+  assert.equal(raw(entryId).replied_at, null, "resume does not invent a reply");
+});
+
+test("resumeOutreach cannot lift a candidate opt-out", () => {
+  const entryId = "entry-outreach-resume-optout";
+  recordOutreachSend(entryId, OWNER);
+  haltOutreach(entryId, OWNER);
+  recordCandidateOptOut(entryId, OWNER);
+  assert.equal(outreachHaltFor(entryId, OWNER), "candidate");
+
+  resumeOutreach(entryId, OWNER);
+  assert.equal(raw(entryId).manual_halt_at, null, "the recruiter pause is gone");
+  assert.ok(raw(entryId).candidate_halt_at, "the legal objection stays");
+  assert.equal(outreachHaltFor(entryId, OWNER), "candidate");
 });
 
 test("recordOutreachReply is already tenant-scoped and stays so", () => {

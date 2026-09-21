@@ -27,8 +27,8 @@ inventing a second scoping dimension.
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
   registration that provisions a brand-new org → team → owner in one
-  transaction (`app/_lib/signup-service.ts`) and signs the user in (same
-  session mint as login; lands on `/` where the onboarding wizard fires).
+  `db.transaction(...).immediate()` (`app/_lib/signup-service.ts`) and signs
+  the user in (same session mint as login; lands on `/` where the onboarding wizard fires).
   **Gated dark by default:** both surfaces answer 404 unless
   `KP_SIGNUP_ENABLED` is set (`workspace-lock.signupEnabled`) — flipping it on
   is a tenancy-completion decision, since a stranger's account would read
@@ -40,8 +40,18 @@ inventing a second scoping dimension.
   `signupOpen` prop (SparkHome → SparkLanding → Hero), so on a gated deploy the
   primary CTA's refused keyless login hands off to `/signup` when signup is open
   and `/login` when it is not — `enterWorkspace(plan?, { fallback })` in
-  `app/_lib/auth/session-nav.ts`. The env is never mirrored into a
+  `app/_lib/auth/session-nav.ts`. The same bit is threaded into `/login` as
+  `signupOpen`: when true, LoginClient renders a footer to `/signup` (the
+  inverse of signup's `haveAccount` row); when false, the footer is omitted so
+  the door matches `/signup`'s 404 concealment. The env is never mirrored into a
   `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
+  `/login` itself does not re-prompt an entered session: if
+  `hasEnteredWorkspace()` is already true, the server wrapper redirects to
+  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Anonymous
+  visitors still see the form. The member copy does not advertise the operator
+  password: subtitle is email+password only, and the "leave blank" hint renders
+  only while the email field is empty. Empty email + password remains the API
+  operator path.
 
 ## Identity & auth
 
@@ -100,11 +110,11 @@ inventing a second scoping dimension.
   request instead of at the end of their 7-day session. `users.status` was
   previously consulted only by `verifyCredentials`, i.e. at sign-in, so an
   offboarded member's existing cookie kept full `read`/`pipeline:write` on their
-  team while the console showed them disabled. Still open: the ORG-WIDE
-  administrative path (`orgMembershipGrants` in `current-user.ts`, feeding
-  `callerOrgCapabilities`/`callerDelegationCeiling`) does not consult the status,
-  so a disabled admin's live session can still reach member/team administration —
-  see Known gaps.
+  team while the console showed them disabled. The same predicate now lives in
+  `orgMembershipGrants` (`app/_lib/auth/current-user.ts`), so
+  `callerOrgCapabilities` / `callerDelegationCeiling` / sister-team
+  `members:manage` also resolve empty for a disabled account — offboarding bites
+  on the next request for administration, not only for candidate data.
 - **A login costs the same whether or not the account exists.**
   `verifyCredentials` (`app/_lib/db/users.ts`) verifies against
   `DUMMY_PASSWORD_HASH` (`app/_lib/auth/password.ts` — a real scrypt hash of a
@@ -128,10 +138,14 @@ inventing a second scoping dimension.
   the one moment the plaintext is legitimately in hand; a failed login rewrites
   nothing, and a legacy hash whose password is below today's floor is left alone
   rather than pushed through a write `setUserPassword` would refuse. Legacy values
-  still verify at node's defaults, so the change logs nobody out. Pinned by
+  still verify at node's defaults, so the change logs nobody out. The same hit
+  stamps `users.last_login_at` (NULL until the first success, untouched on a miss)
+  so an org admin can list dormant seats without parsing server logs; `listUsersByOrg`
+  already returns the column. Pinned by
   `app/_lib/auth/password.test.ts` (both formats, both directions of `needsRehash`,
-  malformed values failing closed) and `credentials.test.ts` (the in-place rewrite,
-  the failed-login no-op, the below-floor no-op).
+  malformed values failing closed), `credentials.test.ts` (the in-place rewrite,
+  the failed-login no-op, the below-floor no-op), and `app/_lib/db/users.test.ts`
+  (hit moves the stamp, miss leaves it null).
 - **The password floor is enforced at the store write.** `MIN_PASSWORD_LENGTH`
   lives in `app/_lib/auth/password.ts` (users.ts cannot import `org-service.ts` —
   org-service imports users) and `setUserPassword` throws below it. Signup and
@@ -390,7 +404,7 @@ routes below. The switch route now refuses on the workspace the session came fro
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
-| Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min (both on the in-process limiter, `app/_lib/rate-limit.ts`). `GET`/`POST /api/invite/[token]` — `invite-view:<ip>:<token>` / `invite-redeem:<ip>:<token>`, 10/min each, on the **persisted** store (`app/_lib/auth/login-throttle.ts`) that `/api/auth/login` and `/api/auth/register` use: kp can run as several workers over one `kp.sqlite`, and a per-process Map would hand a flood one full budget per worker on the door that mints a user, a membership and a session. Every attempt counts, success included. All pinned in `app/api/rate-limit-contract.test.ts` |
+| Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min (both on the in-process limiter, `app/_lib/rate-limit.ts`). `GET`/`POST /api/invite/[token]` — `invite-view:<ip>:<token>` / `invite-redeem:<ip>:<token>`, 10/min each, on the **persisted** store (`app/_lib/auth/login-throttle.ts`) that `/api/auth/login` and `/api/auth/register` use: kp can run as several workers over one `kp.sqlite`, and a per-process Map would hand a flood one full budget per worker on the door that mints a user, a membership and a session. Every attempt counts, success included. A tripped login or invite bucket answers `Retry-After` (delta-seconds from `throttleRetryAfterMs`, capped at the window). All pinned in `app/api/rate-limit-contract.test.ts` |
 | Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts` (`addMemberToWorkspace`, `removeMemberFromWorkspace`), `app/_lib/bulk-invite.ts` |
 | Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin` + the pure `workspaceAdminLoad` fold, `workspaceAdminHelpers`) |
 | Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |
@@ -405,7 +419,12 @@ Two lenses over one dataset (`useWorkspaceAdmin` composes `/api/workspaces` +
 - **By workspace** — a rail of the org's teams (name, seat count, which one the
   session is in) beside one team's detail: inline rename, Switch, its roster, and
   two ways to add somebody — seat an existing colleague, or invite an address.
-  Both write against the selected workspace.
+  Both write against the selected workspace. **Copy invite link** builds the
+  URL through `copyInviteUrl` → `publicBaseUrl` (`workspaceAdminHelpers.ts`), so
+  a recruiter on localhost or behind a proxy copies the configured public origin
+  (`NEXT_PUBLIC_APP_BASE_URL` / `APP_BASE_URL`) rather than
+  `window.location.origin` — the invite is a capability link the candidate must
+  open. Pinned by `workspaceAdminHelpers.test.ts`.
 - **By person** — one row per colleague with **every** seat they hold as an
   editable chip, plus a `+` to add another and the account-deletion action.
 
@@ -592,13 +611,17 @@ ask for a replacement that would behave identically. The classifier splits them:
 | `dead` | 404 (no redeemable invite) · 410 (consumed / lapsed on redeem) | The unavailable panel. No retry: a retry over a consumed invite is a loop with no exit. |
 | `rateLimited` | 429 | "Too many attempts", the invitation stated to be still valid, plus a retry. |
 | `retry` | 5xx · network drop · the 15 s abort | "Couldn't load your invitation", plus a retry. |
-| `weakPassword` / `emailTaken` / `alreadyActive` | 400 / 409 with the reason code | The existing inline field messages. |
+| `weakPassword` | 400 with the reason code | The existing inline field message; the invitee can pick a longer password. |
+| `emailTaken` / `alreadyActive` | 409 with the reason code | The failed panel, reusing that copy, plus the existing sign-in link. No retry: those outcomes can never succeed on this form. |
 
 Two consequences worth naming. A redeem that answers **410** now swaps the whole
 surface to the dead ending rather than leaving a generic line under a form that can
-never succeed again. And both fetches run under a 15 s `AbortController` budget
-(`INVITE_TIMEOUT_MS`), mirroring `LOGIN_TIMEOUT_MS`, so a stalled request cannot
-strand the invitee on a spinner or a dead "Setting up…" button.
+never succeed again. The two **409**s (`already_active`, `email_taken`) do the
+same: they used to sit as inline errors under a password form whose submit would
+409 forever; they now swap to the failed panel with `goToSignIn`. And both fetches
+run under a 15 s `AbortController` budget (`INVITE_TIMEOUT_MS`), mirroring
+`LOGIN_TIMEOUT_MS`, so a stalled request cannot strand the invitee on a spinner
+or a dead "Setting up…" button.
 
 **Redeem lands on the dashboard.** A successful `POST` mints the session cookie
 *and* the readable `kp_entered` marker, exactly as `/api/auth/login` and
@@ -630,6 +653,27 @@ where it used to answer the English literal `"your organization"` — a server-s
 string spliced into a four-locale eyebrow by code that has no idea who is reading.
 The fallback is now the catalog's (`invite.orgNameFallback`), resolved in the
 invitee's language.
+
+**A name is required when the preview asked for one.** GET sets `needsName`
+when the user row has none. The form used to POST `name: name.trim() ||
+undefined`, so a brand-new member joined as `name: null` and Art. 22 seals
+fell back to email. Empty name is now a client refusal like a weak password
+(inline `invite.nameRequired`, no fetch), the field is `required`, and submit
+stays disabled until name and password are non-empty. Pinned by
+`canSubmitInvite` / `inviteSubmitBlock` in `invite-result.ts`.
+
+**The password door shows the floor and asks twice.** Redeem is single-use
+(`410` on a second POST), so a typo that met the length floor used to consume
+the invite. The form now shows `invite.passwordHint` with the preview's
+`minPasswordLength`, a confirm field, and `minLength` / `aria-describedby` on
+the password input. Mismatch or too-short is an inline error and does not
+POST. Pinned by `invitePasswordCheck`.
+
+**Privacy and terms are acknowledged before the account exists.** `/privacy`
+and `/terms` are already public; the emailed colleague creating an operator
+account never had to open them. A required checkbox (`invite.legalAck`) with
+links to both pages disables submit until checked and refuses POST if
+unchecked.
 
 ## Copy & localization
 
@@ -675,6 +719,14 @@ It fires `GET /api/workspaces`, `GET /api/org/members` and `GET /api/org/invites
 permission check now decides only what is KEPT: the invites response is discarded
 unless `canManage` is true (a caller without `members:manage` gets a 403 there,
 handled as "no invites"), so nothing gated is ever rendered.
+
+**Pending on that list means redeemable.** `listInvitesForOrg(org, "pending")`
+(`app/_lib/db/invites.ts`) is `status = 'pending'` AND not past `expires_at` —
+the same test `getRedeemableInvite` uses at the accept door. Invites expire after
+14 days; Copy link on a lapsed row 404s at redeem, so the Workspaces console (and
+getting-started's "team invited" tick) must not paint it as live. Listing with no
+status filter still returns the expired row (audit). Pinned in
+`app/_lib/db/invites.test.ts`.
 
 `DEFAULT_WORKSPACE_ID` reaches the console through the `/api/workspaces` payload
 (`defaultWorkspace`), not an import — `db/workspaces.ts` opens better-sqlite3 and
@@ -746,13 +798,15 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
   needed before enterprise SSO / audit tracks can close out. Account-level
-  disable no longer waits on it for team data (see Identity & auth), but the
-  **org-wide administrative capabilities still do**: `orgMembershipGrants`
-  (`app/_lib/auth/current-user.ts`) builds `callerOrgCapabilities` and
-  `callerDelegationCeiling` straight from `listMembershipsForUser` without
-  reading `users.status`, so a disabled admin holding a live cookie can still
-  create a team and administer seats. The fix is the same one-line status read
-  that `capabilitiesForUserInWorkspace` now does, applied in that helper.
+  disable no longer waits on it: team-data caps (`capabilitiesForUserInWorkspace`)
+  and org-wide administrative caps (`orgMembershipGrants`) both resolve empty
+  when `users.status` is `disabled`, so a live cookie cannot keep creating
+  teams or administering seats after offboarding. Killing a specific session
+  before TTL still needs a revocation store.
+- *(closed 2026-09-17)* `orgMembershipGrants` used to skip `users.status`, so a
+  disabled admin's live cookie still held `team:manage` / `members:manage`
+  org-wide. It now returns `[]` for a missing or disabled account — the same
+  predicate as `capabilitiesForUserInWorkspace`.
 - **No workspace deletion.** Rename exists; delete does not, deliberately — a
   team's candidates, decisions and audit chain outlive its label, and there is no
   reassign-or-purge story yet.

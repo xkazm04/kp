@@ -86,12 +86,21 @@ function sweepStale(d: Database.Database, nowMs: number): void {
  *  records nothing, so the login route can fail-closed (429) BEFORE spending the
  *  scrypt/constant-time verify on a tripped bucket. `nowMs` is injectable for tests. */
 export function isThrottled(key: string, opts: ThrottleOpts, nowMs: number = Date.now()): boolean {
+  return throttleRetryAfterMs(key, opts, nowMs) != null;
+}
+
+/** Remaining milliseconds in a tripped window, or null when the key is admitted
+ *  (missing, under the limit, or the window already elapsed). Login and invite
+ *  429s turn this into `Retry-After` delta-seconds, capped at the window. */
+export function throttleRetryAfterMs(key: string, opts: ThrottleOpts, nowMs: number = Date.now()): number | null {
   const row = db()
     .prepare(`SELECT fail_count, window_start_ms FROM login_attempts WHERE bucket_key = ?`)
     .get(bucket(key)) as { fail_count: number; window_start_ms: number } | undefined;
-  if (!row) return false;
-  if (row.window_start_ms + opts.windowMs <= nowMs) return false; // window elapsed — reset
-  return row.fail_count >= opts.limit;
+  if (!row) return null;
+  const remaining = row.window_start_ms + opts.windowMs - nowMs;
+  if (remaining <= 0) return null; // window elapsed — reset
+  if (row.fail_count < opts.limit) return null;
+  return remaining;
 }
 
 /** Record one failed attempt against `key`, atomically starting a FRESH window

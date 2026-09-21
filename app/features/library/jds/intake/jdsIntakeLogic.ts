@@ -8,7 +8,7 @@ import type { RepoDossier } from "@/app/_lib/schemas.generated";
 
 // State + API client for the role-intake dialog surface (Phase 1 of
 // docs/concepts/role-intake-dialog.md). Pure fetch/state — rendering lives in
-// JdsIntakePanel/AtelierTranscript/AtelierBriefPlane (200-line rule).
+// JdsIntakePanel / the Studio kit's StudioTranscript / AtelierBriefPlane (200-line rule).
 
 export type IntakeTurn = {
   role: "interviewer" | "candidate" | "system";

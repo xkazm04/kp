@@ -1,0 +1,187 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { LOCALES } from "../../i18n/locales.ts";
+import { ABOUT_STEP_KEYS, aboutStepId } from "../landing/spark/about-art/shared.ts";
+import {
+  PRODUCT_NAME,
+  aboutPageUrl,
+  buildAboutJsonLd,
+  plainIcu,
+  serializeJsonLd,
+} from "./about-jsonld.ts";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const REPO = path.join(HERE, "..", "..");
+
+const catalog = (locale: string) =>
+  JSON.parse(readFileSync(path.join(REPO, "messages", `${locale}.json`), "utf8")) as {
+    aboutPage: {
+      meta: { title: string; description: string; keywords: string[] };
+      hero: { title: string };
+      nav: { home: string };
+      steps: Record<string, { title: string; body: string }>;
+    };
+  };
+
+const aboutPageSrc = () => readFileSync(path.join(HERE, "page.tsx"), "utf8");
+
+function typesOf(node: Record<string, unknown>): string[] {
+  const t = node["@type"];
+  return Array.isArray(t) ? t.map(String) : [String(t)];
+}
+
+function graphOf(
+  locale: string,
+  extras: { howTo?: boolean; breadcrumb?: boolean; dateModified?: string } = {}
+) {
+  const page = catalog(locale).aboutPage;
+  const origin = "https://kandidate.example";
+  const aboutUrl = aboutPageUrl(origin);
+  return buildAboutJsonLd({
+    name: page.meta.title,
+    description: page.meta.description,
+    inLanguage: locale,
+    siteOrigin: origin,
+    sameAs: "https://github.com/xkazm04/kp",
+    ...(extras.howTo
+      ? {
+          howToName: plainIcu(page.hero.title),
+          howToSteps: ABOUT_STEP_KEYS.map((key, i) => ({
+            name: page.steps[key].title,
+            text: page.steps[key].body,
+            url: `${aboutUrl}#${aboutStepId(i)}`,
+          })),
+        }
+      : {}),
+    ...(extras.breadcrumb ? { breadcrumbHomeName: page.nav.home } : {}),
+    ...(extras.dateModified ? { dateModified: extras.dateModified } : {}),
+  });
+}
+
+test("the graph is an AboutPage plus SoftwareApplication in the request locale", () => {
+  for (const locale of LOCALES) {
+    const meta = catalog(locale).aboutPage.meta;
+    const doc = graphOf(locale);
+    const types = doc["@graph"].flatMap(typesOf);
+    assert.ok(types.includes("AboutPage"), `${locale} missing AboutPage`);
+    assert.ok(types.includes("SoftwareApplication"), `${locale} missing SoftwareApplication`);
+    const page = doc["@graph"].find((n) => typesOf(n).includes("AboutPage"));
+    assert.ok(page, `${locale} AboutPage node`);
+    assert.equal(page.name, meta.title);
+    assert.equal(page.description, meta.description);
+    assert.equal(page.inLanguage, locale);
+    assert.equal(page.url, aboutPageUrl("https://kandidate.example"));
+    const part = page.isPartOf as Record<string, unknown>;
+    assert.equal(part["@type"], "WebSite");
+    assert.equal(part.name, PRODUCT_NAME);
+  }
+});
+
+test("SoftwareApplication names the product, not a rating, and points at the source repo", () => {
+  const doc = graphOf("en");
+  const app = doc["@graph"].find((n) => typesOf(n).includes("SoftwareApplication"));
+  assert.ok(app);
+  assert.equal(app.name, PRODUCT_NAME);
+  assert.equal(app.applicationCategory, "BusinessApplication");
+  assert.equal(app.operatingSystem, "Web");
+  assert.equal(app.sameAs, "https://github.com/xkazm04/kp");
+  assert.equal(app.aggregateRating, undefined);
+  assert.equal(app.review, undefined);
+  const offers = app.offers as Record<string, unknown>;
+  assert.equal(offers["@type"], "Offer");
+  assert.equal(offers.price, "0");
+  assert.equal(offers.priceCurrency, "CZK");
+});
+
+test("the free-tier Offer is claimed only while PricingSection still sells free", () => {
+  const src = readFileSync(path.join(HERE, "..", "landing", "spark", "PricingSection.tsx"), "utf8");
+  assert.match(src, /id:\s*"free"/, "PricingSection dropped the free tier — drop offers.price 0 from the graph");
+});
+
+test("serializeJsonLd cannot close a script element", () => {
+  const raw = serializeJsonLd({ name: "</script><img>" });
+  assert.equal(raw.includes("</script>"), false);
+  assert.match(raw, /\\u003c/);
+});
+
+test("plainIcu strips hero ICU tags to a single sentence", () => {
+  assert.equal(
+    plainIcu("Walk one hire down<br></br>the <emph>whole pipeline</emph>."),
+    "Walk one hire down the whole pipeline."
+  );
+});
+
+test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", () => {
+  for (const locale of LOCALES) {
+    const steps = catalog(locale).aboutPage.steps;
+    const doc = graphOf(locale, { howTo: true });
+    const howTo = doc["@graph"].find((n) => typesOf(n).includes("HowTo"));
+    assert.ok(howTo, `${locale} missing HowTo`);
+    assert.equal(howTo.name, plainIcu(catalog(locale).aboutPage.hero.title));
+    const howToSteps = howTo.step as Record<string, unknown>[];
+    assert.equal(howToSteps.length, ABOUT_STEP_KEYS.length);
+    ABOUT_STEP_KEYS.forEach((key, i) => {
+      assert.equal(howToSteps[i]["@type"], "HowToStep");
+      assert.equal(howToSteps[i].position, i + 1);
+      assert.equal(howToSteps[i].name, steps[key].title, `${locale} ${key} title`);
+      assert.equal(howToSteps[i].text, steps[key].body);
+      assert.equal(howToSteps[i].url, `${aboutPageUrl("https://kandidate.example")}#${aboutStepId(i)}`);
+    });
+  }
+});
+
+test("ABOUT_PAGE_MODIFIED is a YYYY-MM-DD and feeds openGraph.modifiedTime plus JSON-LD dateModified", () => {
+  // Bump ABOUT_PAGE_MODIFIED when ABOUT_STEP_KEYS (app/landing/spark/about-art/shared.ts)
+  // or aboutPage.steps (messages/*.json) change — those two sources are the explainer.
+  const src = aboutPageSrc();
+  const matched = src.match(/const ABOUT_PAGE_MODIFIED = "(\d{4}-\d{2}-\d{2})"/);
+  assert.ok(matched, "ABOUT_PAGE_MODIFIED must be a committed ISO date next to generateMetadata");
+  assert.match(
+    src,
+    /modifiedTime:\s*ABOUT_PAGE_MODIFIED/,
+    "generateMetadata must read ABOUT_PAGE_MODIFIED into openGraph.modifiedTime"
+  );
+  assert.match(src, /dateModified:\s*ABOUT_PAGE_MODIFIED/, "the JSON-LD graph must get the same stamp");
+  const doc = graphOf("en", { dateModified: matched[1] });
+  const page = doc["@graph"].find((n) => typesOf(n).includes("AboutPage"));
+  assert.ok(page);
+  assert.equal(page.dateModified, matched[1]);
+});
+
+test("generateMetadata assigns aboutPage.meta.keywords instead of inheriting the site list", () => {
+  const src = aboutPageSrc();
+  assert.match(
+    src,
+    /keywords:\s*t\.raw\("keywords"\)/,
+    "generateMetadata must assign keywords: from aboutPage.meta so the parent landing list does not win"
+  );
+  for (const locale of LOCALES) {
+    const keywords = catalog(locale).aboutPage.meta.keywords;
+    assert.equal(keywords.length, 7, `${locale} aboutPage.meta.keywords length`);
+    assert.equal(
+      keywords.some((k) => /anti-AI-cheating|Czech market/i.test(k)),
+      false,
+      `${locale} still carries the landing differentiator bag`
+    );
+  }
+});
+
+test("BreadcrumbList is Home then the localized about title, and only those two", () => {
+  for (const locale of LOCALES) {
+    const page = catalog(locale).aboutPage;
+    const doc = graphOf(locale, { breadcrumb: true });
+    const crumbs = doc["@graph"].find((n) => typesOf(n).includes("BreadcrumbList"));
+    assert.ok(crumbs, `${locale} missing BreadcrumbList`);
+    const items = crumbs.itemListElement as Record<string, unknown>[];
+    assert.equal(items.length, 2, "no invented intermediate crumbs");
+    assert.equal(items[0].position, 1);
+    assert.equal(items[0].name, page.nav.home);
+    assert.equal(items[0].item, "https://kandidate.example/");
+    assert.equal(items[1].position, 2);
+    assert.equal(items[1].name, page.meta.title);
+    assert.equal(items[1].item, aboutPageUrl("https://kandidate.example"));
+  }
+});

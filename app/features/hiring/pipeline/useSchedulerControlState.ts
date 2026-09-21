@@ -1,24 +1,40 @@
 "use client";
 
-// SchedulerControl's data + update plumbing: load/poll the schedule + reminders
-// job, run a manual tick, and commit the interval field. Split out of
+// SchedulerControl's data + update plumbing: load/poll the schedule + the registry
+// jobs, run a manual tick, and commit the interval field. Split out of
 // SchedulerControl.tsx so the component file is just wiring + markup.
 
 import type { SchedulerTranslator } from "./pipelineTranslator";
 import { useEffect, useRef, useState } from "react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { SchedulerLiveness } from "@/app/_lib/scheduler-health";
-import { type RunResult, type Schedule, type SchedulerRun, type Tick } from "./SchedulerSummaryBadges";
+import type { SchedulerJobName } from "@/app/_lib/scheduler-jobs";
+import { type RunResult, type Schedule, type SchedulerJobView, type SchedulerRun, type Tick } from "./SchedulerSummaryBadges";
 import { POLL_BASE_MS, clampInterval, describeTick, nextPollDelay } from "./schedulerRunState";
+
+// The POST body /api/automation/schedule accepts. `job` names a registry job (WP4a);
+// without it `enabled`/`intervalMinutes`/`tick` mean the policy pass and
+// `remindersEnabled` means the reminders job — the legacy shape, still honoured.
+type ScheduleWrite = {
+  job?: SchedulerJobName;
+  enabled?: boolean;
+  intervalMinutes?: number;
+  tick?: boolean;
+  remindersEnabled?: boolean;
+};
 
 export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => void) {
   // API failures resolve from the machine `code`, not the server's English
   // `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
   const [sched, setSched] = useState<Schedule | null>(null);
-  // AUTO6 — the reminders job (second scheduler row) + its recent send runs.
+  // AUTO6 — the reminders job (second scheduler row) + its recent send runs. Kept
+  // beside `jobs` because the route still ships them under their legacy names.
   const [reminders, setReminders] = useState<Schedule | null>(null);
   const [reminderRuns, setReminderRuns] = useState<SchedulerRun[]>([]);
+  // WP4a — every registry job as the route lists it (`jobs[]`), in registry order.
+  // The panel renders one generic row per entry other than the policy pass.
+  const [jobs, setJobs] = useState<SchedulerJobView[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +86,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
         if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
         if (p.reminders) setReminders(p.reminders as Schedule);
         if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
+        if (Array.isArray(p.jobs)) setJobs(p.jobs as SchedulerJobView[]);
         if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
         setLiveness((p.liveness as SchedulerLiveness | null) ?? null);
         setLivenessReason(typeof p.livenessReason === "string" ? p.livenessReason : null);
@@ -147,7 +164,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
     return () => clearTimeout(h);
   }, [result]);
 
-  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean }) => {
+  const update = async (body: ScheduleWrite) => {
     if (inFlightRef.current) return; // a concurrent schedule op is already running
     inFlightRef.current = true;
     writeGenRef.current += 1; // any poll already in flight now carries pre-write data
@@ -165,6 +182,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
       if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
       if (p.reminders) setReminders(p.reminders as Schedule);
       if (Array.isArray(p.reminderRuns)) setReminderRuns(p.reminderRuns as SchedulerRun[]);
+      if (Array.isArray(p.jobs)) setJobs(p.jobs as SchedulerJobView[]);
       if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
       setLiveness((p.liveness as SchedulerLiveness | null) ?? null);
       setLivenessReason(typeof p.livenessReason === "string" ? p.livenessReason : null);
@@ -200,10 +218,19 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
     if (clamped !== sched.intervalMinutes) update({ intervalMinutes: clamped });
   };
 
+  // WP4a — the one writer for a REGISTRY job: `{ job, ...patch }` on the new POST
+  // shape. The policy-pass toolbar and the legacy callers below keep their thin
+  // wrappers; a generic row reaches its job through this and nothing else.
+  const setJob = (name: SchedulerJobName, patch: { enabled?: boolean; intervalMinutes?: number }) => update({ job: name, ...patch });
+  const setEnabled = (enabled: boolean) => update({ enabled });
+  const setIntervalMinutes = (intervalMinutes: number) => update({ intervalMinutes });
+  const setRemindersEnabled = (enabled: boolean) => update({ remindersEnabled: enabled });
+  const tick = () => update({ tick: true });
+
   return {
-    sched, reminders, reminderRuns, busy, result, error,
+    sched, reminders, reminderRuns, jobs, busy, result, error,
     runs, historyOpen, setHistoryOpen, scheduleScope, liveness, livenessReason,
     intervalDraft, setIntervalDraft, setIntervalFocused,
-    update, commitInterval,
+    update, commitInterval, setJob, setEnabled, setInterval: setIntervalMinutes, setReminders: setRemindersEnabled, tick,
   };
 }

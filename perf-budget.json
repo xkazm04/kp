@@ -42,15 +42,15 @@
     },
     "app/_lib/job-ingest.ts": {
       "maxModules": 28,
-      "maxKb": 351,
-      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes"
+      "maxKb": 375,
+      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes. Raised 351 -> 375 KB on 2026-09-16: app/_lib/db/core.ts grew by the four job-seeker tables' DDL (+114 lines) and core.ts is on this path; no new module was added"
     }
   },
   "groups": {
     "app/api/**/route.ts": {
       "maxModules": 225,
-      "maxKb": 2700,
-      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly. Raised 2663 -> 2700 on 2026-09-05 when two independently gated trees merged (the /tiger LLM use-case catalog + call provenance, and /perfect round 45 voice metering): 28 routes measured 2665-2690 KB, a 1% overshoot with no single new import to remove; the next --tighten should bring it back down",
+      "maxKb": 2850,
+      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly. Raised 2663 -> 2700 on 2026-09-05 when two independently gated trees merged (the /tiger LLM use-case catalog + call provenance, and /perfect round 45 voice metering): 28 routes measured 2665-2690 KB, a 1% overshoot with no single new import to remove; the next --tighten should bring it back down. Raised 2700 -> 2850 on 2026-09-16 (candidate-jobseeker spark): the baseline commit 83f4979f was already at 2729 KB on the top route (a 1% overshoot nobody had answered), and the branch adds ~2% across every route on the task hub's path through core.ts DDL for four tables, fourteen error codes and the scheduler registry — no new module (the scan itself is late-bound, see task-external-runners.ts); modules stay at 222 against 225. The next --tighten should bring it back down",
       "overrides": {}
     }
   },

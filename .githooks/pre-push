@@ -94,10 +94,24 @@ npm run design:check || { echo "pre-push: design:check failed — push blocked. 
 # only NEW error-level findings; today's debt is in .ai/copy-baseline.json. The checker
 # is the registry's native-copy skill, a gitignored link, so a fresh clone does not have
 # it: skip LOUDLY rather than read the absence as a pass. Not in CI for the same reason.
+#
+# AND THE SKIP'S REMEDY HAS TO EXIST WHERE THE READER IS STANDING. It named
+# `ai-registry/scripts/link-registry.mjs`, which is correct relative to the
+# directory that holds this repository and resolves from nowhere a blocked
+# contributor is: a hook runs at the repository root. The installer is real and
+# its location is already declared — `registry.local` in .ai/manifest.yaml — so
+# resolve it here rather than restating a guess, and when the registry is not
+# there, say that instead of naming a file the reader cannot open.
 if [ -f .claude/skills/native-copy/scripts/copy-check.mjs ]; then
   npm run copy:check -- --errors-only || { echo "pre-push: copy:check found new copy errors — push blocked. See docs/i18n/style-en.md." >&2; exit 1; }
 else
-  echo "pre-push: native-copy checker not installed - copy gate SKIPPED (run ai-registry/scripts/link-registry.mjs)" >&2
+  registry=$(sed -n 's/^[[:space:]]*local:[[:space:]]*//p' .ai/manifest.yaml | head -n 1)
+  [ -n "$registry" ] || registry=../ai-registry
+  if [ -f "$registry/scripts/link-registry.mjs" ]; then
+    echo "pre-push: native-copy checker not installed - copy gate SKIPPED. Install it: node $registry/scripts/link-registry.mjs" >&2
+  else
+    echo "pre-push: native-copy checker not installed - copy gate SKIPPED. Its installer is in the knowledge registry, which is not at $registry — clone it there, or point registry.local in .ai/manifest.yaml at your checkout." >&2
+  fi
 fi
 npm run build     || { echo "pre-push: build failed — push blocked." >&2; exit 1; }
 

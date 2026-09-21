@@ -20,6 +20,14 @@
     "tipKindHuman": "Une personne mène ce tour. Cliquez pour en faire un entretien IA.",
     "tipModeScreening": "La présélection est toujours faite par l’IA. Vous choisissez qui la valide.",
     "tipModeScoring": "La notation est faite par l’IA. Vous choisissez qui valide le score.",
+    "tipModeHomework": "Le cas est rédigé et corrigé par l’IA. Vous choisissez qui autorise son envoi.",
+    "presetAxis": {
+      "homework": "Cas pratique",
+      "aiInterview": "Entretien avec l’IA",
+      "screened": "Présélectionné",
+      "humanInterview": "Entretien humain",
+      "offer": "Offre"
+    },
     "stackedRounds": "{count, plural, one {# tour ici} other {# tours ici}}",
     "tipStackedRounds": "Cette colonne a été enregistrée avec {count, plural, one {# tour} other {# tours}} d’entretien derrière elle. Les plans récents donnent à chaque tour son propre step. Ajoutez un step Entretien et déplacez-en un. Rien ne change tant que vous n’enregistrez pas.",
     "tipModeOffer": "L’offre est rédigée par l’IA. Vous choisissez qui l’envoie.",
@@ -51,6 +59,7 @@
       "decisionsSub": "Les files qu'un humain doit traiter",
       "scheduleSub": "Ce qui arrive dans l'agenda",
       "colsN": "{count, plural, one {# colonne} other {# colonnes}}",
+      "occupancy": "{count, plural, one {# ici} other {# ici}}",
       "noRounds": "rien ne s'exécute ici",
       "unattended": "Sans supervision",
       "touchpointsLabel": "Décisions humaines",
@@ -92,11 +101,20 @@
       "strandedRow": "{stage} · {count, plural, one {# candidat} other {# candidats}}",
       "strandedHint": "Choisissez où va chaque groupe. Le déplacement a lieu à l’enregistrement, et chaque candidat reçoit une entrée d’historique expliquant pourquoi.",
       "mapAria": "Où doivent aller les candidats de l’étape {stage} ?",
-      "mapChoose": "Choisir une étape…"
+      "mapChoose": "Choisir une étape…",
+      "colActions": "Actions IA",
+      "actionsDefault": "Par défaut",
+      "actionsCustom": "Personnalisé",
+      "actionsNone": "Aucune",
+      "actionsCount": "{count, plural, one {# action} other {# actions}}",
+      "actionsAria": "Actions IA à l’étape {stage}",
+      "actionsReset": "Rétablir le défaut",
+      "actionsHint": "Ce qu’on peut lancer sur une candidature à cette étape."
     },
     "roles": {
       "entry": "Point d’entrée",
       "screening": "Présélection",
+      "homework": "Cas pratique",
       "interview": "Entretien",
       "scoring": "Notation",
       "offer": "Offre",
@@ -106,6 +124,7 @@
     "roleMeaning": {
       "entry": "Toute candidature arrive d’abord ici.",
       "screening": "Vous lisez les dossiers et choisissez qui rencontrer.",
+      "homework": "L’IA rédige un cas, l’envoie et corrige ce qui revient.",
       "interview": "Vous parlez à ceux qui méritent votre temps.",
       "scoring": "L’IA transforme ce qu’elle a entendu en un score comparable.",
       "offer": "Vous faites une offre et vous attendez la réponse.",
@@ -133,7 +152,9 @@
     },
     "explorer": {
       "instruction": "Cliquez sur une étape pour voir comment elle est câblée. L’étape ouverte reste encadrée ici à gauche.",
-      "codeHeading": "Code"
+      "codeHeading": "Code",
+      "copy": "Copier le chemin",
+      "copied": "Copié"
     },
     "status": {
       "live": "Automatisé",
@@ -576,6 +597,14 @@
     "offerReminder": {
       "subject": "Rappel : votre offre pour {role} est toujours ouverte",
       "body": "Bonjour {name},\n\nPetit rappel : votre offre pour {role} est toujours ouverte et attend votre décision. Pour la conserver, merci de nous répondre avant le {deadline}.\n\nConsultez les détails et répondez ici :\n{link}\n\nSi vous avez des questions avant de décider, répondez simplement. Nous sommes là pour aider.\n\n{team}"
+    },
+    "consentExpiryReminder": {
+      "subject": "Vos données de candidature pour {role} seront anonymisées le {date}",
+      "body": "Bonjour {name},\n\nNous conservons encore votre candidature pour {role}. Le {date}, nous l'anonymiserons : nom et coordonnées seront retirés, et nous ne garderons qu'un dossier d'évaluation anonymisé.\n\nVous pouvez consulter, effacer, ou laisser la date arriver. Les liens pour ces démarches sont en bas de ce message.\n\n{team}"
+    },
+    "caseInvite": {
+      "subject": "Votre test pratique : {role}",
+      "body": "Bonjour {name},\n\nNous aimerions vous proposer un court test pratique pour {role}. L’énoncé, les matériaux de départ et le lieu de remise se trouvent tous sur votre lien sécurisé :\n{link}\n\nVous pouvez commencer quand vous le souhaitez. L’usage d’outils AI est attendu et ne vous sera jamais reproché. Ce qui compte, c’est le raisonnement derrière vos choix.\n\nBonne chance,\n{team}"
     },
     "interviewInvite": {
       "subject": "Votre présélection AI de premier tour : {role}",
@@ -1299,7 +1328,16 @@
     "meta": {
       "title": "À propos de l’app : KandiDate",
       "description": "Suivez un recrutement sur tout le pipeline : conception du poste, sourcing, réception, présélection, travail pratique, entretien, offre, embauche. L’AI lit à chaque étape. Chaque décision est signée par un humain.",
-      "ogDescription": "Un recrutement sur tout le pipeline. L’AI lit, un humain signe chaque décision."
+      "ogDescription": "Un recrutement sur tout le pipeline. L’AI lit, un humain signe chaque décision.",
+      "keywords": [
+        "pipeline de recrutement",
+        "fiche de poste",
+        "présélection de CV",
+        "travail pratique",
+        "entretien vocal",
+        "offre",
+        "humain dans la boucle"
+      ]
     }
   },
   "theme": {
@@ -1331,7 +1369,11 @@
     "SCHEDULE_INVITE_FAILED": "Impossible de créer le lien de planification. Veuillez réessayer.",
     "JD_LIST_FAILED": "Impossible de charger la bibliothèque d’offres. Veuillez réessayer.",
     "JD_LOAD_FAILED": "Impossible de charger l’offre. Veuillez réessayer.",
+    "JD_NOT_FOUND": "Cette fiche de poste est introuvable.",
     "JD_SAVE_FAILED": "Impossible d’enregistrer l’offre. Veuillez réessayer.",
+    "JD_DELETE_FAILED": "Impossible de supprimer l’offre. Veuillez réessayer.",
+    "JD_LIVE_CANNOT_DELETE": "Cette description appartient à un poste en ligne. Fermez d’abord le poste, puis supprimez-la.",
+    "JD_DELETE_FORBIDDEN": "Seule la personne qui a créé cette description, ou un administrateur, peut la supprimer.",
     "JD_GENERATE_FAILED": "Impossible de lancer la rédaction par l’AI. Veuillez réessayer.",
     "JD_ANALYSES_FAILED": "Impossible de charger les candidats de cette offre. Veuillez réessayer.",
     "TEMPLATE_LIST_FAILED": "Impossible de charger les modèles. Veuillez réessayer.",
@@ -1347,6 +1389,7 @@
     "JOB_CANDIDATES_FAILED": "Impossible de classer les candidats pour ce poste. Veuillez réessayer.",
     "JOB_REDISCOVER_FAILED": "Impossible de parcourir les anciens candidats pour ce poste. Veuillez réessayer.",
     "JOB_WINNABILITY_FAILED": "Impossible d'évaluer ce poste face au vivier de candidats. Veuillez réessayer.",
+    "JOB_PRIORITIES_FAILED": "Impossible d'enregistrer les priorités de motifs pour ce poste. Veuillez réessayer.",
     "JOB_CAMPAIGN_FAILED": "Impossible de générer le pack de campagne. Veuillez réessayer.",
     "JOB_ASSIGNMENTS_FAILED": "Impossible de charger les mises en situation pour ce poste. Veuillez réessayer.",
     "INTERVIEW_CREATE_FAILED": "Impossible de créer l’entretien. Veuillez réessayer.",
@@ -1542,9 +1585,17 @@
     "MEMBER_PERMISSIONS_CHANGED": "Les autorisations de ce membre ont changé pendant votre modification. Rechargez la page, puis réessayez.",
     "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
     "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application.",
+    "ORG_CURRENCY_INVALID": "Cette devise n’est pas proposée par l’application.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Cette mise à jour des règles n'indiquait aucune phase ou ne contenait aucune règle à enregistrer.",
     "DECISION_CONFIG_INVALID": "Ces règles ne sont pas valides pour cette phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
+    "SCREEN_WAVE_FAILED": "Impossible d'exécuter la vague de tri. Veuillez réessayer.",
+    "SCREEN_WAVE_JOB_REQUIRED": "Indiquez le poste sur lequel cette vague de tri doit s'exécuter.",
+    "SCREEN_WAVE_APPROVAL_REQUIRED": "Vérifiez l'aperçu et approuvez cet ensemble avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_EXPIRED": "Cette approbation a expiré. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_MISMATCH": "L'ensemble de candidats a changé depuis l'aperçu. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_SPENT": "Cette revue a déjà été utilisée. Relancez l'aperçu et approuvez l'ensemble actuel avant de lancer la vague.",
+    "SCREEN_WAVE_APPROVAL_UNATTRIBUTED": "Connectez-vous ou définissez le nom de l'opérateur pour que cette revue puisse être attribuée.",
     "MATRIX_BUILD_FAILED": "Impossible de construire la matrice d'adéquation. Veuillez réessayer.",
     "MATCH_REASONING_FAILED": "Impossible d'expliquer cette correspondance. Veuillez réessayer.",
     "MATRIX_INPUT_INVALID": "La matrice d'adéquation n'a pas pu être construite à partir de cette demande.",
@@ -1560,6 +1611,8 @@
     "COMM_SIMULATION_ROW": "Ce message appartient à la simulation guidée et n'est jamais envoyé.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est.",
     "MATCH_RUN_FAILED": "Impossible de classer ce candidat par rapport aux postes. Veuillez réessayer.",
+    "ARCHETYPES_READ_FAILED": "Impossible de charger le registre des archetypes. Veuillez réessayer.",
+    "ARCHETYPES_WRITE_FAILED": "Impossible d'enregistrer cet archetype. Veuillez réessayer.",
     "MATCH_INPUT_INVALID": "Ce candidat est introuvable : le profil ou l'analyse correspondante n'existe plus.",
     "BENCHMARK_ROLE_FAMILY_REQUIRED": "Ce comparatif n'indique aucune famille de postes.",
     "ANALYTICS_SPEND_SAVE_FAILED": "Impossible d'enregistrer ce montant de dépense. Veuillez réessayer.",
@@ -1605,6 +1658,8 @@
     "ATS_CONFIG_SAVE_FAILED": "Impossible d'enregistrer les paramètres du webhook. Veuillez réessayer.",
     "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification.",
     "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer.",
+    "DECISION_RECORDS_READ_FAILED": "Impossible de charger les registres de décision. Veuillez réessayer.",
+    "JD_FRESHNESS_LOOKUP_FAILED": "Impossible de vérifier la date de dernière modification de ces fiches de poste. Veuillez réessayer.",
     "SIM_RESET_FAILED": "Impossible d'effacer les données de la simulation. Veuillez réessayer.",
     "SIM_INBOUND_FAILED": "Impossible de simuler la candidature entrante. Veuillez réessayer.",
     "SIM_SCREEN_DRAFT_FAILED": "Impossible de préparer la recommandation de présélection. Veuillez réessayer.",
@@ -1662,9 +1717,14 @@
     "VOICE_TRANSPORT_AUTH": "Le service d’entretien a refusé cette session. Contactez le recruteur qui vous a envoyé ce lien.",
     "VOICE_TRANSPORT_TIMEOUT": "Le service d’entretien n’a pas répondu à temps. Veuillez réessayer.",
     "VOICE_TRANSPORT_PROVIDER": "Le service d’entretien n’a pas pu démarrer l’appel. Veuillez réessayer dans un instant.",
+    "VOICE_PREFLIGHT_INSECURE": "Cette page ne s’exécute pas dans un contexte sécurisé, donc le navigateur bloque l’accès au microphone. Ouvrez le lien d’entretien en HTTPS (ou sur localhost).",
+    "VOICE_PREFLIGHT_NO_MEDIA": "Ce navigateur ne peut pas capturer le son du microphone. Le lien s’est généralement ouvert dans l’aperçu intégré d’une application (e-mail, LinkedIn, Teams). Ouvrez-le dans un navigateur complet comme Chrome, Edge ou Safari.",
+    "VOICE_PREFLIGHT_NO_WEBRTC": "Ce navigateur ne prend pas en charge la connexion en temps réel (WebRTC) dont cet appel a besoin. Ouvrez le lien dans un navigateur à jour comme Chrome, Edge ou Safari.",
     "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre.",
     "STATUS_LINK_INVALID": "Ce lien de suivi n'est pas valide.",
     "STATUS_NPS_NOT_APPLICABLE": "Cette question s'ouvrira une fois votre candidature terminée.",
+    "NPS_SCORE_REQUIRED": "Une note est requise.",
+    "NPS_SCORE_INVALID": "La note doit être un nombre entier entre 0 et 10.",
     "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Cette action de la salle de contrôle est inconnue de ce déploiement. Rechargez la page.",
     "DEVCASE_FLOOR_INVALID": "Le seuil de promotion doit être un nombre compris entre 0 et 100.",
@@ -1735,6 +1795,10 @@
     "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
     "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
+    "PIPELINE_LANE_REQUIRED": "Indiquez le poste dont vous voulez lister les candidatures refusées.",
+    "PIPELINE_EVENTS_CURSOR_INVALID": "Le curseur d’activité n’est pas valide.",
+    "INTERVIEW_SESSION_NOT_FOUND": "Cet entretien ne figure pas dans les dossiers de cette équipe.",
+    "AUTOMATION_TASK_NOT_OFFERED": "Cette action IA n’est pas disponible à cette étape.",
     "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
     "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
     "FOLLOWUP_LINK_NOT_FOUND": "Ce lien de profil n’est pas valide. Votre candidature est bien conservée. Demandez-en un nouveau au recruteur.",
@@ -1754,11 +1818,13 @@
     "PROFILE_UPDATE_FAILED": "Impossible d’enregistrer vos modifications sur ce profil. Veuillez réessayer.",
     "PROFILE_DELETE_FAILED": "Impossible de supprimer ce profil. Veuillez réessayer.",
     "PROFILE_CANDIDATES_FAILED": "Impossible de charger la matrice des candidats. Veuillez réessayer.",
+    "PROFILE_DRAFT_FAILED": "Impossible de transformer ce texte en profil. Veuillez réessayer.",
     "SCHEDULE_BULK_NO_ENTRIES": "Sélectionnez au moins un candidat avant d’envoyer des liens de planification.",
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Ce candidat ne figure plus sur ce tableau. Rechargez la page et réessayez.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucun lien de planification n’a été envoyé.",
     "SCHEDULE_BULK_MINT_FAILED": "Impossible de créer un lien de planification pour ce candidat. Les autres n’ont pas été affectés.",
     "SCHEDULE_BULK_OVER_CAP": "Trop de candidats pour un seul envoi, celui-ci n’a pas été invité. Envoyez le reste dans un second lot.",
+    "SCHEDULE_BULK_UNADDRESSABLE": "Ce candidat n’a pas d’adresse e-mail, aucun lien de planification n’a été envoyé.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Sélectionnez un candidat avant de créer un lien de planification.",
     "SCHEDULE_INVITE_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucune invitation n’a été envoyée.",
     "ATS_CONNECTION_SAVE_FAILED": "Impossible d'enregistrer la connexion à l'ATS. Veuillez réessayer.",
@@ -1770,6 +1836,8 @@
     "ATS_FIELD_MAP_INVALID": "Ce mappage de champs est inutilisable. Chaque champ mappé a besoin d'un chemin, et le chemin vers l'identifiant externe est obligatoire.",
     "ATS_CONNECTION_NOT_FOUND": "Aucune connexion n'est enregistrée pour cet ATS.",
     "ATS_CONNECTION_STALE": "Quelqu'un a enregistré une version plus récente de cette connexion ATS. Rechargez-la et refaites votre modification.",
+    "ATS_DELIVERY_NOT_FOUND": "Cette livraison n'est pas dans le registre.",
+    "ATS_DELIVERY_NOT_REPLAYABLE": "Cette livraison ne peut pas être renvoyée. Seul un échec classé en lettre morte peut être relancé.",
     "EXTRACT_FILE_REQUIRED": "Joignez un fichier dont le texte doit être extrait.",
     "EXTRACT_TEXT_UNREADABLE": "Ce fichier n'a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD dont le texte est sélectionnable.",
     "EXTRACT_TEXT_TIMEOUT": "La lecture de ce fichier a pris trop de temps et a été interrompue. Essayez un fichier plus petit.",
@@ -1798,7 +1866,30 @@
     "HIRE_INTAKE_LOST": "La prise de besoin a disparu pendant la composition du rôle.",
     "HIRE_SPEC_INVALID": "Le rôle composé ne correspond pas au contrat App master.",
     "HIRE_HUMAN_POPULATION": "Le compositeur a jugé ce rôle réservé aux humains : aucun agent n'a été envoyé.",
-    "HIRE_NO_AGENT_BLOCK": "Le rôle composé ne comporte aucun bloc agent : il n'y a rien à envoyer."
+    "HIRE_NO_AGENT_BLOCK": "Le rôle composé ne comporte aucun bloc agent : il n'y a rien à envoyer.",
+    "JOBSEEKER_STORE_FAILED": "Impossible d'enregistrer ou de charger votre recherche d'emploi pour le moment. Veuillez réessayer.",
+    "JOBSEEKER_PROFILE_MISSING": "Commencez par votre CV : il n'existe pas encore de profil de recherche d'emploi.",
+    "JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED": "Lisez les conditions de cette source et confirmez que vous en acceptez le risque avant de l'activer.",
+    "JOBSEEKER_SOURCE_REFUSED": "Cette source bloque ou interdit l'accès automatisé ; elle ne peut donc pas être activée.",
+    "JOBSEEKER_SOURCE_BLOCKED": "Cette source a refusé nos requêtes et a été mise en pause. Ne la reprenez que si vous comprenez pourquoi.",
+    "JOBSEEKER_SOURCE_COLLAPSED": "La mise en page a changé et rien n'a pu être lu. Vérifiez les règles d'extraction.",
+    "JOBSEEKER_RULES_INVALID": "Ces règles d'extraction ne sont pas valides.",
+    "JOBSEEKER_PREVIEW_FAILED": "Impossible de tester les règles sur la page en ligne.",
+    "JOBSEEKER_SOURCE_NOT_FOUND": "Cette source d'offres n'existe pas.",
+    "JOBSEEKER_DIALOG_NOT_FOUND": "Cette conversation n'existe pas.",
+    "JOBSEEKER_DIALOG_CLOSED": "Cette conversation est terminée.",
+    "JOBSEEKER_DIALOG_MOVED": "La conversation a changé pendant le calcul ; elle a été relue plutôt qu'écrasée.",
+    "JOBSEEKER_TURN_TIMEOUT": "La réponse a pris trop de temps. Votre conversation est enregistrée ; réessayez.",
+    "JOBSEEKER_OFFLINE": "Cette installation est hors ligne ; les sources d'offres ne peuvent pas être récupérées.",
+    "JOBSEEKER_SCAN_UNVERIFIED": "Lancez d'abord une analyse à la main ; le minuteur s'activera dès qu'une analyse aura réussi.",
+    "JOB_TRANSLATIONS_FAILED": "Impossible de charger les versions de cette annonce dans d'autres langues. Veuillez réessayer.",
+    "JOB_TRANSLATE_FAILED": "Impossible de traduire cette annonce. Veuillez réessayer.",
+    "JOB_TARGET_HIRES_INVALID": "Un poste s'ouvre pour 1 à 50 recrutements.",
+    "JOB_TRANSLATION_LANG_INVALID": "Cette annonce ne peut pas être traduite dans cette langue.",
+    "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite.",
+    "JOB_NOT_FOUND": "Ce poste n'est pas dans votre catalogue.",
+    "JOB_AD_TOO_SHORT": "Collez l'annonce complète. Un court extrait ne suffit pas.",
+    "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1810,6 +1901,10 @@
     "errorBody": "Une erreur inattendue a interrompu cette page. Rien n’a été perdu. Vous pouvez réessayer ou revenir à l’accueil.",
     "errorDigest": "Référence de l’erreur : {digest}",
     "retry": "Réessayer",
+    "report": "Signaler cette erreur",
+    "reporting": "Envoi du signalement",
+    "reportSent": "Signalement envoyé",
+    "reportFailed": "Impossible d’envoyer le signalement. Veuillez réessayer.",
     "home": "Retour à l’accueil"
   },
   "offer": {
@@ -1818,6 +1913,8 @@
     "roleGeneric": "Un poste chez nous",
     "preparedFor": "Préparé pour {name}",
     "compensation": "Rémunération proposée",
+    "notesLabel": "Notes",
+    "startDate": "Date de début",
     "prompt": "Nous serions ravis de vous accueillir chez {company}. Merci de nous indiquer votre décision ci-dessous.",
     "promptGeneric": "Nous serions ravis de vous accueillir parmi nous. Merci de nous indiquer votre décision ci-dessous.",
     "accept": "Accepter l’offre",
@@ -1858,6 +1955,7 @@
     "confirmationUnsent": "Nous avons enregistré votre créneau. Nous vous recontacterons sous peu pour confirmer les détails. Vous pouvez fermer cette page.",
     "addToCalendar": "Ajouter au calendrier",
     "differentTime": "Besoin d’un autre horaire ?",
+    "reschedulesRemaining": "{n, plural, one {# modification restante} other {# modifications restantes}}",
     "icsTitle": "Entretien",
     "icsTitleRole": "Entretien : {role}",
     "icsDescription": "Votre entretien avec l’équipe de recrutement.",
@@ -1888,6 +1986,7 @@
     "linkClosedHelp": "Si vous avez encore besoin de planifier un créneau, répondez à votre dernier e-mail de l’équipe de recrutement.",
     "proposeTitle": "Proposez quelques créneaux qui vous conviennent",
     "proposeBody": "Aucun des créneaux proposés ne convient ? Proposez jusqu’à trois créneaux en semaine pendant les heures de bureau et l’équipe de recrutement en confirmera un avec vous.",
+    "proposeTimezoneNote": "Les heures de bureau sont 08:00-18:00 dans le fuseau des entretiens ({zone}).",
     "proposeSubmit": "Envoyer mes créneaux proposés",
     "proposeSlotAria": "Créneau proposé {n}",
     "proposeEmpty": "Veuillez ajouter au moins un créneau.",
@@ -1918,7 +2017,7 @@
     "loadFailed": "Ce lien a expiré ou n’est plus valide.",
     "eraseFailed": "Impossible d’effectuer l’effacement pour le moment. Veuillez réessayer.",
     "confirmTitle": "Effacer définitivement vos données ?",
-    "confirmBody": "Cette action est irréversible. Votre nom, vos coordonnées, votre CV et vos réponses d’entretien sont supprimés immédiatement ; seul l’enregistrement anonymisé de l’évaluation subsiste.",
+    "confirmBody": "Cette action est irréversible. Votre nom, vos coordonnées, votre CV et vos réponses d’entretien sont supprimés immédiatement ; seul l’enregistrement anonymisé de l’évaluation subsiste. Un prestataire de voix hébergée peut conserver son propre enregistrement ; cet effacement ne l’atteint pas, l’opérateur doit le supprimer chez lui ou faire tourner la voix en local.",
     "forRole": "Votre candidature au poste de {role}",
     "forRoleGeneric": "Votre candidature",
     "heldTitle": "Ce que nous détenons à votre sujet",
@@ -1930,8 +2029,9 @@
       "scores": "Nos scores d’évaluation pour ce poste"
     },
     "appliedOn": "Vous avez postulé le {date}.",
+    "keptUntil": "Nous conservons ces données jusqu'au {date}.",
     "eraseTitle": "Effacer mes données personnelles",
-    "eraseExplainer": "Nous supprimerons définitivement les données personnelles que nous détenons à votre sujet : votre nom, vos coordonnées, votre CV, les réponses d’un éventuel entretien et les messages que nous vous avons envoyés. Nous conservons uniquement un enregistrement anonymisé de l’évaluation (score et étape, sans données personnelles) afin de rester justes et cohérents, ainsi qu’un enregistrement scellé de la décision elle-même, que nous conservons uniquement pour la défendre en cas de contestation juridique.",
+    "eraseExplainer": "Nous supprimerons définitivement les données personnelles que nous détenons à votre sujet : votre nom, vos coordonnées, votre CV, les réponses d’un éventuel entretien et les messages que nous vous avons envoyés. Nous conservons uniquement un enregistrement anonymisé de l’évaluation (score et étape, sans données personnelles) afin de rester justes et cohérents, ainsi qu’un enregistrement scellé de la décision elle-même, que nous conservons uniquement pour la défendre en cas de contestation juridique. L’effacement dans le produit n’atteint pas une copie qu’un prestataire de voix hébergée conserve d’un entretien ; l’opérateur doit la supprimer chez lui, ou faire tourner la voix en local.",
     "eraseCta": "Effacer mes données",
     "eraseConfirm": "Oui, effacer",
     "erasing": "Effacement…",
@@ -2018,6 +2118,8 @@
     "eyebrow": "Postuler",
     "roleClosed": "Ce poste a été pourvu et n’accepte plus de candidatures. Merci de votre intérêt !",
     "subtitle": "Une petite conversation, sans formulaire ni connexion. Quelques questions et c’est terminé.",
+    "progress": "Question {current} sur {total}",
+    "progressAria": "Progression de la candidature, question {current} sur {total}",
     "letsBegin": "C’est parti.",
     "youreIn": "C’est validé 🎉",
     "alreadyApplied": "Déjà postulé",
@@ -2146,8 +2248,10 @@
     "completedTitle": "Merci",
     "completedBody": "Cet entretien a déjà été effectué. Un recruteur humain examinera la conversation et reviendra vers vous.",
     "completedStatusCta": "Suivre votre candidature",
-    "inactiveTitle": "Ce lien d’entretien n’est plus actif",
-    "inactiveBody": "Le lien a expiré ou a été retiré par le recruteur. Si un entretien vous attend, demandez-lui un nouveau lien.",
+    "revokedTitle": "Ce lien d’entretien a été retiré",
+    "revokedBody": "Le recruteur a retiré ce lien d’entretien. Ne le réessayez pas. Si un entretien vous attend toujours, demandez-lui s’il enverra un nouveau lien.",
+    "expiredTitle": "Ce lien d’entretien a expiré",
+    "expiredBody": "Ce lien d’entretien a expiré. Si un entretien vous attend toujours, demandez au recruteur un nouveau lien.",
     "eyebrow": "Entretien de premier tour",
     "titleRole": "Présélection : {role}",
     "titleGeneric": "Présélection vocale",
@@ -2196,6 +2300,7 @@
       "unmuteAudio": "Réactiver la voix de l’interlocuteur",
       "enableAudio": "Appuyez pour activer le son",
       "elapsedLabel": "Temps écoulé",
+      "elapsedRemainingLabel": "Temps écoulé et restant",
       "completedNext": "Vous recevrez une réponse par e-mail, généralement sous quelques jours.",
       "micTestBtn": "Tester votre microphone",
       "micTestListening": "À l’écoute. Dites quelque chose à voix haute…",
@@ -2205,6 +2310,7 @@
       "errVoiceSession": "Erreur de session vocale",
       "errConnectTimeout": "Connexion impossible en moins de 30 s. Vérifiez l’autorisation du microphone, la configuration du fournisseur et (ElevenLabs) que l’agent autorise les surcharges.",
       "errStartCall": "Échec du démarrage de l’appel",
+      "retryAfterMinutes": "Vous pouvez réessayer dans environ {minutes, plural, one {# minute} other {# minutes}}.",
       "errElevenConnect": "Échec de la connexion à ElevenLabs",
       "liveTranscript": "Transcription en direct",
       "liveBadge": "En direct",
@@ -2265,7 +2371,10 @@
     "lab": {
       "eyebrow": "Interne · MVP vocal",
       "title": "Laboratoire d'entretien vocal",
-      "disabledBody": "Le laboratoire est désactivé en production : il génère de vrais identifiants de fournisseur sans jeton de session. Définissez <flag>INTERVIEW_LAB_ENABLED=1</flag> pour l'activer, ou utilisez la simulation recruteur, qui passe par une session tokenisée."
+      "disabledBody": "Le laboratoire est désactivé en production : il génère de vrais identifiants de fournisseur sans jeton de session. Définissez <flag>INTERVIEW_LAB_ENABLED=1</flag> pour l'activer, ou utilisez la simulation recruteur, qui passe par une session tokenisée.",
+      "enabledBody": "Comparez en A/B les fournisseurs temps réel sur un premier entretien court. Choisissez un fournisseur et une langue, donnez votre consentement, puis parlez. La transcription en direct est capturée et enregistrée. Définissez <code>OPENAI_API_KEY</code> et <code>ELEVENLABS_API_KEY</code> + <code>ELEVENLABS_AGENT_ID</code> dans <code>.env.local</code> pour activer chacun, puis redémarrez le serveur de développement.",
+      "candidatePortalNote": "La version côté candidat se trouve à <path>/interview/{token}</path>, avec le fournisseur fixé par session.",
+      "diagramsLink": "Voir les diagrammes du pipeline."
     }
   },
   "palette": {
@@ -2534,7 +2643,8 @@
       "workspace": "Espaces de travail",
       "agents": "Agents",
       "activity": "Activité",
-      "intake": "Cadrage du poste"
+      "intake": "Cadrage du poste",
+      "templates": "Modèles"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -2641,7 +2751,9 @@
       "schedule_invite": "Invitation à planifier",
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
-      "offer_reminder": "Rappel d’offre"
+      "case_invite": "Invitation au test pratique",
+      "offer_reminder": "Rappel d’offre",
+      "consent_expiry": "Rappel d’expiration du consentement"
     },
     "provenance": {
       "voiceProvider": {
@@ -2698,7 +2810,26 @@
       "gridAria": "Postes par étape",
       "cellAria": "{position}, {stage}, {count, plural, =0 {aucun candidat} one {# candidat} other {# candidats}}",
       "cellEmpty": "Aucun candidat",
-      "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape."
+      "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape.",
+      "waitingHuman": "{count, plural, one {# candidature attend une personne} other {# candidatures attendent une personne}}",
+      "waitingAi": "{count, plural, one {# candidature attend l’IA} other {# candidatures attendent l’IA}}",
+      "rejectedCount": "{count, plural, one {# candidature refusée} other {# candidatures refusées}} pour {position}",
+      "rejectedShelf": "Refusées",
+      "rejectedAt": "Refusée à l’étape {stage}",
+      "rejectedAtByAi": "Refusée par l’IA à l’étape {stage}",
+      "lineMenu": {
+        "aria": "Actions pour {count, plural, one {# nouvelle candidature} other {# nouvelles candidatures}}",
+        "scope": "{count, plural, =0 {Aucune nouvelle candidature} one {# nouvelle candidature} other {# nouvelles candidatures}}",
+        "acceptAll": "Tout accepter",
+        "rejectAll": "Tout refuser…",
+        "confirmRejectAll": "Refuser {count, plural, one {# candidature} other {# candidatures}} : cliquez à nouveau",
+        "aiEvaluate": "Évaluer par l’IA",
+        "nothingToDo": "Aucune nouvelle candidature pour ce poste.",
+        "evaluating": "Évaluation de {count, plural, one {# candidature} other {# candidatures}} en arrière-plan.",
+        "accepted": "{ok} sur {total} acceptées.",
+        "rejected": "{ok} sur {total} refusées.",
+        "failed": "Impossible d’appliquer l’action à ce poste."
+      }
     },
     "stageHelp": {
       "Accepted": "CV reçu : une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",
@@ -2992,7 +3123,11 @@
       "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut",
       "previewCommitFailed": "Le passage n’a pas pu être appliqué.",
       "bulkTaskIncomplete": "La tâche de rédaction s’est terminée sans résultat. Toujours sélectionnés, réessayez.",
-      "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison."
+      "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison.",
+      "expandBoard": "Pleine page",
+      "collapseBoard": "Quitter la pleine page",
+      "boardFullPageAria": "Tableau des postes, pleine page",
+      "activityWindow": "7 derniers jours"
     },
     "emptyState": {
       "optional": "Facultatif",
@@ -3181,6 +3316,49 @@
       },
       "transfer": "transfert"
     },
+    "candidate": {
+      "back": "Retour",
+      "tabsAria": "Sections de la candidature",
+      "tabs": {
+        "overview": "Aperçu",
+        "activity": "Activité",
+        "record": "Dossier"
+      },
+      "activityEmpty": "Aucun entretien, évaluation ou message pour l’instant.",
+      "scorecard": {
+        "advance": "Passer à l’étape {stage}",
+        "route": "Parcours",
+        "score": "Score",
+        "unscored": "Pas encore évalué",
+        "breakdown": "Détail du score",
+        "weight": "Poids",
+        "points": "Points",
+        "confidence": "Probablement {low}–{high}",
+        "salary": "Salaire attendu",
+        "estimate": "estimation",
+        "salaryFit": {
+          "inside": "dans la fourchette du poste",
+          "below": "sous la fourchette du poste",
+          "above": "au-dessus de la fourchette du poste"
+        },
+        "matched": "Acquis",
+        "unproven": "Déclaré, non prouvé",
+        "missing": "Manquant",
+        "noSkills": "Aucune preuve de compétences au dossier.",
+        "loading": "Chargement du détail du score…",
+        "noAnalysis": "Aucune analyse pour ce poste, seul le score du tableau est disponible.",
+        "matchError": "Le détail du score est indisponible pour le moment."
+      },
+      "footer": {
+        "aria": "Actions sur la candidature",
+        "moveStage": "Déplacer vers l’étape",
+        "voiceLink": "Lien d’entretien vocal",
+        "scheduleLink": "Lien de prise de rendez-vous",
+        "closeTray": "Fermer le panneau",
+        "showResult": "Dernier résultat",
+        "noActions": "Aucune action IA disponible à cette étape"
+      }
+    },
     "actions": {
       "screen": "Présélection AI",
       "prep": "Préparation d’entretien",
@@ -3207,7 +3385,6 @@
       "nothingDue": "rien à faire",
       "fallbackEngine": "Repli déterministe",
       "fallbackEngineTitle": "Le CLI claude n’est pas dans le PATH. Les brouillons d’automatisation sont des replis déterministes, pas des sorties AI.",
-      "remindersJob": "Rappels d’entretien",
       "remindersToggleTitle": "Mettre en pause ou reprendre les rappels d’entretien aux candidats",
       "remindersOn": "Activé",
       "remindersOff": "En pause",
@@ -3251,7 +3428,27 @@
       "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre.",
       "liveHealthy": "en marche",
       "liveStarting": "démarrage…",
-      "liveStalled": "à l'arrêt"
+      "liveStalled": "à l'arrêt",
+      "job": {
+        "policyPass": "Passage des règles",
+        "reminders": "Rappels d’entretien",
+        "jobseekerScan": "Analyse du marché de l’emploi"
+      },
+      "unverified": "Lancez d’abord une analyse à la main. Le minuteur pourra être activé dès qu’une analyse aura réussi.",
+      "jobToggleTitle": "Mettre en pause ou reprendre : {job}",
+      "jobOn": "Activé",
+      "jobOff": "En pause",
+      "jobChecked": "vérifié {time}",
+      "jobNever": "pas encore exécuté",
+      "jobLastOk": "exécuté {time}",
+      "jobLastSkipped": "ignoré {time} (rien à faire pour l’instant)",
+      "jobIntervalAria": "Intervalle de {job} en minutes (1–1440)",
+      "jobHistoryTitle": "Dernières exécutions de {job}",
+      "jobStatus": {
+        "ok": "ok",
+        "error": "échec",
+        "skipped": "ignoré"
+      }
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -3820,6 +4017,23 @@
         "confirm": "Rejeter et consigner le motif",
         "sealedToast": "{name} rejeté(e). Le motif figure au registre d’audit."
       },
+      "acceptConfirm": {
+        "title": "Faire avancer {name} ?",
+        "body": "L’avancement scelle un motif nommé dans le registre d’audit inviolable : pourquoi cette personne a remporté le panel. Sans lui, l’audit indique seulement qu’un recruteur a accepté.",
+        "presetsLabel": "Motifs courants",
+        "presets": {
+          "strongestField": "La plus forte du panel comparé",
+          "mustHaves": "Couvre chaque exigence indispensable du poste",
+          "scorecard": "La grille et les preuves justifient l’avancement"
+        },
+        "reasonLabel": "Motif de l’avancement",
+        "reasonRequired": "· obligatoire, scellé dans le registre d’audit",
+        "placeholder": "Pourquoi cette personne poursuit-elle ? Par ex. les preuves Kubernetes les plus solides du panel, et chaque exigence indispensable est couverte.",
+        "sealNote": "Consigné tel quel. C’est ce que liront la piste d’audit et toute relecture ultérieure.",
+        "cancel": "Annuler",
+        "confirm": "Faire avancer et consigner le motif",
+        "sealedToast": "{name} avancé(e). Le motif figure au registre d’audit."
+      },
       "schemeSkillsShort": "Cp",
       "schemeCareerShort": "Ca",
       "schemePersonalShort": "Pe",
@@ -3849,7 +4063,24 @@
       }
     },
     "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",
-    "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA."
+    "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA.",
+    "ledger": {
+      "colName": "Candidature",
+      "colRole": "Poste",
+      "colScore": "Score",
+      "colRecommended": "L’IA recommande",
+      "colDecide": "Décision",
+      "decide": "Décider",
+      "decideAria": "Décider pour {name}",
+      "groupCount": "{count, plural, one {# en attente} other {# en attente}}",
+      "groupBest": "meilleur",
+      "ladderTitle": "Classement",
+      "decisionTitle": "Votre décision",
+      "colPipeline": "Pipeline",
+      "quickAccept": "Accepter la proposition de l’IA pour {name}",
+      "quickReject": "Refuser {name}",
+      "proposalOffer": "Offre"
+    }
   },
   "scheduleTab": {
     "lifecycle": {
@@ -3967,22 +4198,13 @@
       "live": "en direct",
       "linkOut": "lien envoyé",
       "sent": "envoyé {when}",
-      "doneTitle": "Terminé (à examiner)",
-      "doneEmpty": "Les entretiens terminés arrivent ici avec leur verdict.",
-      "noScorecard": "pas de scorecard",
-      "review": "examiner",
-      "competencies": "{count, plural, one {# compétence} other {# compétences}}",
       "verdictNote": "Les verdicts rejoignent la file Décisions comme revues de scorecard. Ce tableau est la boucle d’entretien, pas la décision.",
-      "fullTranscript": "Transcription complète et scorecard",
-      "noScorecardHelp": "Aucune scorecard n’a été produite pour cet entretien. Ouvrez la vue complète pour lire la transcription brute.",
-      "costUnknown": "coût inconnu",
-      "costFree": "sans coût à la minute",
-      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
-      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
-      "confidence": "confiance : {level}",
-      "attempts": "{count, plural, one {# tentative} other {# tentatives}}",
-      "failedOverFrom": "bascule depuis {provider}",
-      "attemptsTitle": "Déroulé de l'appel : reconnexions et bascule de fournisseur si celui choisi était indisponible"
+      "colCandidate": "Candidature",
+      "colRole": "Poste",
+      "colState": "État",
+      "colSent": "Lien envoyé",
+      "colAction": "Action",
+      "stateAwaiting": "En attente du lien"
     },
     "interviewerTitle": "Intervieweur : {name}",
     "calendar": {
@@ -4151,7 +4373,7 @@
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Bibliothèque de fiches de poste",
-      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste. Elle clarifie le besoin, conçoit le poste et recherche le salaire du marché sur le web. Enregistrez-la comme brouillon, puis <strong>sourcez-la dans votre pipeline</strong> pour attirer les candidats correspondants.",
+      "intro": "Décrivez un besoin de recrutement et laissez l’AI rédiger une fiche de poste. Les postes en ligne restent sous Postes; cette étagère s’ouvre sur <strong>Tout sauf en ligne</strong> pour ne pas les encombrer.",
       "savedJds": "Fiches enregistrées",
       "entryCount": "{count, plural, one {# entrée} other {# entrées}}",
       "loadFailed": "Échec du chargement.",
@@ -4202,6 +4424,7 @@
       "filterBy": "Filtrer par {name}",
       "filterActive": "{name} : {value}",
       "filterAll": "Tous",
+      "filterNotLive": "Tout sauf en ligne",
       "filterNoValues": "Aucune valeur pour l’instant",
       "analyzingLabel": "Analyse en cours",
       "analyzingAria": "Analyse AI en cours",
@@ -4213,7 +4436,16 @@
       "ingestAsJobBrief": "Convertir en poste exploitable pour le matching",
       "ingestRetryBrief": "Échec de la conversion. Réessayer.",
       "ingestRowAria": "Convertir {title} en poste exploitable pour le matching",
+      "deleteJd": "Supprimer la description",
+      "deleteJdAria": "Supprimer {title}",
+      "deleteJdFailed": "Impossible de supprimer cette description.",
+      "deleteConfirmTitle": "Supprimer cette description ?",
+      "deleteConfirmBody": "{title} et son historique de modifications seront supprimés définitivement. Les analyses de candidats sont conservées et le poste brouillon associé reste intact.",
+      "deleteConfirm": "Supprimer",
+      "deleteCancel": "Annuler",
       "detailOpenPublic": "Ouvrir la page publique",
+      "copyPublicLink": "Copier le lien public",
+      "publicLinkCopied": "Copié",
       "detailAnalyzeCv": "Analyser un CV",
       "detailLoadError": "Impossible de charger cette description pour le moment.",
       "noDescriptionYet": "Ce poste n’a pas encore de description.",
@@ -4308,7 +4540,8 @@
         "thinking": "Réflexion…",
         "composer": {
           "send": "Envoyer",
-          "transcriptLabel": "Conversation de cadrage du poste"
+          "transcriptLabel": "Conversation de cadrage du poste",
+          "composerLabel": "Message pour la conversation de cadrage du poste"
         },
         "degradedNote": "L’AI est hors ligne, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
         "sendError": "Le message n’est pas passé. Veuillez réessayer.",
@@ -4368,7 +4601,8 @@
           "failed": "L’appel n’a pas abouti. Continuez par écrit.",
           "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit.",
           "checkFailed": "Impossible de vérifier si la voix est disponible. Réessayez ou continuez par écrit.",
-          "recheck": "Vérifier à nouveau"
+          "recheck": "Vérifier à nouveau",
+          "updatingBrief": "Mise à jour du brief…"
         },
         "voiceIo": {
           "dictate": "Dicter",
@@ -4472,6 +4706,7 @@
           "kindNote": "note",
           "kindJd": "fiche enregistrée",
           "jdPick": "Choisir une fiche enregistrée…",
+          "retry": "Réessayer",
           "error": "Impossible d'enregistrer les documents. Veuillez réessayer.",
           "noteFallbackTitle": "Note sans titre",
           "textCap": "Cette note dépasse les {max, number} caractères qu'un document de référence peut contenir. Raccourcissez-la ou joignez-la en plusieurs parties.",
@@ -4828,7 +5063,9 @@
         "heading_offer": "Ce que nous offrons",
         "heading_apply": "Comment postuler",
         "offer_note": "Travail hybride, de vraies responsabilités et de la place pour progresser.",
-        "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour."
+        "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour.",
+        "fallback_title": "Intitulé du poste",
+        "fallback_company": "Entreprise"
       },
       "loadFailed": "Impossible de charger vos modèles.",
       "retry": "Réessayer",
@@ -4872,12 +5109,12 @@
         "eyebrow": "Premier poste",
         "title": "Votre catalogue attend son coup d’envoi",
         "body": "Chaque recrutement dans Kandi repose sur un poste ouvert. Publiez le premier et le reste de l’espace de travail s’anime.",
-        "route1Title": "Le rédiger à partir d’un modèle de fiche de poste",
-        "route1Body": "Choisissez une fiche de poste dans la bibliothèque, ajustez les exigences et publiez-la comme poste ouvert.",
-        "route1Cta": "Ouvrir les fiches de poste",
+        "route1Title": "Rédiger un poste dans Cadrage du poste",
+        "route1Body": "Ouvrez le dialogue de cadrage ou Générer une fiche, puis publiez-la comme poste ouvert.",
+        "route1Cta": "Ouvrir Cadrage du poste",
         "route2Title": "Importer un poste que vous avez déjà",
         "route2Body": "Collez le texte d’un poste existant et Kandi en fait un poste structuré : exigences, séniorité, mode de travail.",
-        "route2Cta": "Utilisez « Importer un poste » dans l’en-tête",
+        "route2Cta": "Importer un poste",
         "unlocksLabel": "Un poste débloque",
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",
@@ -4895,7 +5132,8 @@
       "colSeniority": "Séniorité",
       "colFamily": "Famille",
       "colSalary": "Salaire (CZK/mois)",
-      "colEntry": "Débutant"
+      "colEntry": "Débutant",
+      "colStatus": "Statut"
     },
     "shared": {
       "skippedSummary": "{count, plural, one {# candidat n’a pas pu être évalué (profil mal formé). Les autres ont été classés normalement.} other {# candidats n’ont pas pu être évalués (profil mal formé). Les autres ont été classés normalement.}}",
@@ -4995,12 +5233,9 @@
       },
       "tabPosting": "Poste",
       "tabCoach": "Coach",
-      "tabCampaign": "Campagne",
       "tabCandidates": "Candidats",
       "tabRediscover": "Redécouvrir",
       "tabCompare": "Comparer",
-      "createCampaignPack": "Créer le pack de campagne",
-      "viewCampaignPack": "Voir le pack de campagne",
       "withdrawFailed": "Poste fermé, mais ses candidats en cours n’ont pas pu être retirés. Vérifiez le pipeline.",
       "tabAgentFit": "Adéquation agent",
       "doc": {
@@ -5020,72 +5255,56 @@
         "earlyWelcome": "Profils débutants bienvenus",
         "earlyDefault": "Ce poste est ouvert aux profils débutants. Les projets pertinents et le potentiel comptent.",
         "trainable": "Peut s’apprendre en poste :"
-      }
+      },
+      "langOpenedIn": "Ce poste est diffusé dans cette langue",
+      "noTranslationTitle": "Pas encore de version en {lang}",
+      "noTranslationBody": "Cette annonce est rédigée en {source}. Une version dans cette langue est rédigée par l'IA ; l'original reste inchangé.",
+      "generateTranslation": "Générer la traduction",
+      "generatingTranslation": "Traduction en cours…",
+      "translateFailed": "Impossible de traduire cette annonce. Réessayez."
     },
     "coach": {
-      "loadFailed": "Impossible d’évaluer ce poste.",
+      "loadFailed": "Impossible d'évaluer ce poste.",
       "retry": "Réessayer",
-      "grading": "Évaluation de ce poste au regard de votre vivier de candidats…",
-      "emptyPoolTitle": "Pas encore de candidats pour la comparaison",
-      "emptyPoolBody": "Ajoutez ou importez des candidats et le coach estimera combien franchiraient les critères éliminatoires de ce poste avant publication.",
-      "verdict": {
-        "unfillable": "<b>Impossible à pourvoir en l’état</b> : {eligible} candidats sur {pool} franchissent les critères, mais aucun n’obtient un score suffisant pour la présélection. Assouplissez les exigences ci-dessous avant de sourcer.",
-        "thin": "<b>Pipeline mince</b> : seuls <b>{qualified}</b> candidats sur {pool} seraient présélectionnés pour {jobTitle}. Il vaut la peine d’assouplir une exigence avant de publier.",
-        "healthy": "<b>{qualified} prêts pour la présélection</b> sur {pool}. {jobTitle} devrait se pourvoir. Publiez en toute confiance."
+      "saveFailed": "Impossible d'enregistrer cette priorité.",
+      "grading": "Évaluation de ce poste face à votre vivier de candidats…",
+      "emptyPoolTitle": "Aucun candidat face auquel évaluer pour l'instant",
+      "emptyPoolBody": "Ajoutez ou importez des candidats et le coach vous montrera les motifs que ce poste rencontre.",
+      "noPatternsTitle": "Rien ne freine ce poste",
+      "noPatternsBody": "Aucune exigence ici ne vous coûte de candidats, et le salaire est aligné sur le marché. Il n'y a rien à pondérer.",
+      "intro": "Ce que votre vivier de candidats révèle sur {jobTitle}. Définissez une priorité pour chaque motif et Kandi la prend comme pondération.",
+      "col": {
+        "pattern": "Motif",
+        "share": "Part du vivier",
+        "priority": "Priorité",
+        "action": "Action"
       },
-      "stat": {
-        "pool": "Dans le vivier",
-        "eligible": "Critères franchis",
-        "qualified": "Présélectionnables"
+      "level": {
+        "critical": "Déterminant",
+        "important": "Important",
+        "minor": "Secondaire"
       },
-      "loosenHeading": "Assouplir pour élargir le pipeline",
-      "gateLanguage": "Exiger <b>{value}</b> écarte <b>{n}</b> {n, plural, one {candidat pourtant éligible} other {candidats pourtant éligibles}}. Passez-le en souhaitable.",
-      "gateEducation": "Le niveau d’études minimum <b>{value}</b> écarte <b>{n}</b> {n, plural, one {candidat} other {candidats}}. Supprimez-le pour élargir le vivier.",
-      "mustHave": "<b>{missing}</b> {missing, plural, one {candidat éligible ne possède pas} other {candidats éligibles ne possèdent pas}} <b>{skill}</b>. Rétrogradez-la en souhaitable.",
-      "salaryBelow": "Le salaire <b>{job}</b> est en dessous de la fourchette du marché <b>{market}</b> pour ce poste. Augmentez-le pour rester compétitif.",
-      "salaryOk": "Le salaire est aligné sur la fourchette du marché <b>{market}</b> pour ce poste.",
+      "setLevelAria": "Définir {pattern} sur {level}",
+      "clearLevelAria": "Retirer la priorité de {pattern}",
+      "pattern": {
+        "language": "{value} exigé",
+        "education": "Niveau d'études minimum {value}",
+        "skill": "{value} manquant",
+        "salary": "Le salaire {job} est sous la fourchette du marché {market}"
+      },
+      "measure": "{affected} candidats sur {denominator}",
+      "pct": "{pct} %",
+      "shareAria": "{pct} % du vivier",
+      "noShare": "Non chiffrable",
       "salaryUnset": "(aucune fourchette définie)",
-      "notAssessed": "{n, plural, one {# candidat n’a pas pu être évalué} other {# candidats n’ont pas pu être évalués}} et {n, plural, one {n’est pas compté} other {ne sont pas comptés}} ci-dessus. Vérifiez leur profil.",
-      "footnote": "Les projections réexécutent le moteur de scoring en direct de Kandi sur vos candidats enregistrés, de sorte qu’elles reflètent ce que la publication ferait ressortir.",
+      "notAssessed": "{n, plural, one {# candidat n'a pas pu être évalué} other {# candidats n'ont pas pu être évalués}} et {n, plural, one {n'est} other {ne sont}} pas compté ci-dessus. Vérifiez leur profil.",
       "stageEdit": "Préparer cette modification",
-      "stageEditAria": "Ouvrir l’éditeur de description avec la modification préparée pour {value}"
-    },
-    "campaign": {
-      "intro": "Des textes publicitaires prêts pour les fils d’actualité et des scripts vidéo de 15 secondes pour ce poste : la formule en 4 temps (accroche · offre · preuve · CTA), fondée uniquement sur les faits déclarés du poste. Chaque CTA renvoie au formulaire de candidature express de 30 secondes.",
-      "language": "Langue du pack",
-      "generate": "Générer le pack",
-      "regenerate": "Régénérer",
-      "generating": "Génération…",
-      "empty": "Aucun pack de campagne pour cette langue pour l’instant. Générez-en un pour obtenir des variantes d’annonce et des scripts vidéo.",
-      "generatedAt": "Généré {when}",
-      "sourceLlm": "Généré par AI",
-      "sourceDeterministic": "Repli basé sur des règles (aucun moteur AI disponible)",
-      "copy": "Copier",
-      "copied": "Copié",
-      "copyAll": "Tout copier (Markdown)",
-      "trackedLink": "Lien de candidature suivi",
-      "copyLink": "Copier le lien",
-      "analyticsCue": "Voyez la performance de chaque variante",
-      "scriptTitle": "Script vidéo 15 s",
-      "beatHook": "Accroche (0–1,5 s)",
-      "beatOffer": "Offre (1,5–6 s)",
-      "beatProof": "Preuve (6–11 s)",
-      "beatCta": "CTA (11–15 s)",
-      "hookNumber": "Chiffre",
-      "hookLocation": "Lieu",
-      "hookProblem": "Problème",
-      "hookSkills": "Stack",
-      "warnTitle": "Des faits manquants ont limité ce pack",
-      "warnNoSalary": "Aucune fourchette salariale déclarée, les accroches sur la rémunération ont donc été ignorées. Un chiffre concret est l’accroche qui convertit le mieux.",
-      "warnNoLocation": "Aucun lieu ni mode de travail déclaré, les accroches sur le lieu ont donc été ignorées.",
-      "warnNoSkills": "Aucune compétence extraite, les accroches sur la stack ont donc été ignorées.",
-      "applyUrlNote": "Le CTA renvoie au formulaire de candidature express :",
-      "loadFailed": "Impossible de charger le pack de campagne.",
-      "generateFailed": "Impossible de générer le pack de campagne.",
-      "warnUnknown": "Une information dont le pack ne disposait pas ({code})."
+      "stageEditAria": "Ouvrir l'éditeur de description avec la modification {value} préparée",
+      "footnote": "L'évaluation relance le moteur de scoring de Kandi sur vos candidats enregistrés. Vos priorités sont enregistrées pour ce poste et votre équipe ; le moteur ne les lit pas encore, elles ne pèsent donc rien tant que ce n'est pas branché."
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
+      "retry": "Réessayer",
       "scanning": "Analyse des anciens candidats à la recherche d’une correspondance…",
       "emptyTitle": "Aucun ancien candidat à ressortir pour l’instant",
       "emptyBody": "À mesure que des personnes sont rejetées ou recrutées ailleurs, les bonnes correspondances inter-postes apparaîtront ici.",
@@ -5106,7 +5325,13 @@
         "elsewhere": "Déjà engagé sur un autre poste, et également {score} % de correspondance pour {jobTitle}. Un redéploiement à envisager.",
         "reached": "Est allé jusqu’à {stage} la dernière fois. Classé avant les parcours antérieurs moins avancés."
       },
-      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}"
+      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}",
+      "filterAria": "Résultat antérieur",
+      "filterRejected": "Rejetés",
+      "filterClosed": "Poste clos",
+      "filterElsewhere": "Ailleurs",
+      "filterEmptyTitle": "Personne ne correspond à ce filtre",
+      "filterEmptyBody": "Réactivez un type de résultat antérieur pour revoir ces candidats."
     },
     "rediscoveryFeed": {
       "title": "Médaillés d’argent",
@@ -5130,6 +5355,7 @@
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
+      "retry": "Réessayer",
       "loading": "Chargement des entretiens…",
       "emptyTitle": "Aucun entretien vocal terminé pour l’instant",
       "emptyBody": "Lancez une présélection vocale depuis le pipeline. Les entretiens terminés s’alignent ici, notés selon une grille adaptée à chaque candidat pour une comparaison côte à côte.",
@@ -5140,6 +5366,10 @@
         "early_career": "Début de carrière : potentiel et modèle mental"
       },
       "competency": "Compétence",
+      "exportCsv": "Exporter CSV",
+      "exportAi": "{name} IA",
+      "exportHuman": "{name} humain",
+      "exportRec": "{name} recommandation",
       "confidence": {
         "tight": "confiance étroite",
         "moderate": "confiance modérée",
@@ -5171,12 +5401,9 @@
       "scoreCandidates": "Noter les candidats enregistrés pour ce poste",
       "title": "Candidats · prisme de comparaison équitable",
       "notEligible": "{count, plural, one {# non éligible} other {# non éligibles}} (filtre KO)",
-      "notEligibleWhy": "{count, plural, one {Non éligible (#) : voir pourquoi} other {Non éligibles (#) : voir pourquoi}}",
       "nearMiss": "de peu",
       "earlyCareerNote": "Les candidats en début de carrière figurent dans un pipeline distinct et sont notés sur le potentiel. Ils ne sont jamais classés sur un chiffre unique face aux candidats expérimentés.",
       "poolTruncatedNote": "Pas tout le vivier : votre corpus de candidats dépasse les plafonds du classement, donc certains candidats enregistrés n'ont jamais été notés pour ce poste. Le classement et les comptes ici ne couvrent que le sous-ensemble noté.",
-      "experienced": "Expérimentés",
-      "earlyCareerPipeline": "Pipeline début de carrière",
       "fairnessShielded": "Protégé pour l’équité : noté sur le potentiel, jamais rejeté automatiquement. Les décisions défavorables restent humaines.",
       "fairRank": "Classement équitable",
       "fairRankTitle": "Classer selon la moyenne robuste toutes pondérations confondues plutôt que selon le score à pondération propre de chaque candidat",
@@ -5193,8 +5420,6 @@
       "auditOwn": "Propre",
       "auditRobust": "Robuste",
       "auditDelta": "Δ",
-      "noCandidatesInGroup": "Aucun candidat dans ce groupe",
-      "potential": "potentiel {score}",
       "reachedOut": "✓ Contacté",
       "reachTitle": "Ajouter au pipeline et envoyer un premier message",
       "reaching": "Contact en cours…",
@@ -5209,11 +5434,59 @@
       "assumptions": "Hypothèses :",
       "auditUnder": "selon la pondération de {label}",
       "auditPoolTruncated": "Échantillon plafonné : le corpus de candidats dépasse les plafonds de classement, cet audit ne couvre donc que le sous-ensemble évalué, pas tout le vivier.",
-      "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rechargez les candidats."
+      "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rechargez les candidats.",
+      "colRank": "#",
+      "colCandidate": "Candidat",
+      "colScore": "Adéquation",
+      "colEvidence": "Atouts et manques",
+      "colStage": "Étape",
+      "notFiled": "Pas sur ce poste",
+      "noneMatch": "Aucun candidat ne correspond.",
+      "gapsInline": "Manque : {gaps}",
+      "noGaps": "Aucun prérequis manquant",
+      "previewSubtitle": "Évalué pour ce poste, pas encore dans son pipeline",
+      "previewNotFiled": "Ce candidat n’a pas d’entrée pour ce poste : il n’y a donc ni étape, ni historique, ni décision à afficher. Ajoutez-le et la vue complète du candidat s’ouvrira ici.",
+      "previewKo": "Écarté par le filtre KO : {reasons}",
+      "strengths": "Atouts",
+      "gaps": "Manques",
+      "noneListed": "Rien d’indiqué",
+      "earlyCareerChip": "Début de carrière"
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
+      "import": "Importer un poste",
       "dismiss": "Fermer"
+    },
+    "roleStatus": {
+      "draft": "Brouillon",
+      "open": "Ouvert",
+      "filled": "Pourvu",
+      "closed": "Clos",
+      "progress": "{hired} / {target}",
+      "aria": "Statut du poste : {status}, {hired} sur {target} recrutés"
+    },
+    "publishDialog": {
+      "title": "Ouvrir ce poste",
+      "titleReopen": "Rouvrir ce poste",
+      "cancel": "Annuler",
+      "confirm": "Ouvrir le poste",
+      "confirmReopen": "Rouvrir le poste",
+      "targetLabel": "Candidats à recruter",
+      "targetHelp": "Le poste se clôt de lui-même dès que ce nombre de candidats est recruté.",
+      "targetInvalid": "Saisissez un nombre entier entre 1 et {max}.",
+      "langsLabel": "Diffuser en",
+      "langsHelp": "Les langues autres que celle de l'annonce sont rédigées par l'IA une fois le poste ouvert. Sans modèle configuré, aucune n'est rédigée, et vous pourrez en générer une plus tard depuis l'onglet Annonce."
+    },
+    "campaign": {
+      "defaulted": {
+        "heading": "Faits supposés",
+        "company": "Employeur supposé",
+        "location": "Lieu supposé",
+        "work_mode": "Mode de travail supposé",
+        "seniority": "Niveau supposé",
+        "salary_band": "Fourchette salariale supposée",
+        "generic": "Supposé : {field}"
+      }
     }
   },
   "scoreProvenance": {
@@ -5304,6 +5577,7 @@
     },
     "shared": {
       "generatingReasoning": "Génération du raisonnement de correspondance…",
+      "retryReasoning": "Réessayer",
       "reasoning": "Raisonnement",
       "sourceLlm": "LLM",
       "sourceRuleBased": "basé sur des règles",
@@ -5312,6 +5586,7 @@
       "strengths": "Points forts",
       "gaps": "Lacunes",
       "interviewProbes": "Points à creuser en entretien",
+      "emptyReasons": "Aucun élément",
       "barAria": "{label}, score {score}",
       "scoreBreakdownAria": "Score {total} sur 100 : {detail}",
       "dimContribution": "{label} contribue pour {contribution} sur {weight} points",
@@ -5330,7 +5605,10 @@
         "work_mode": "Assouplissez la préférence de mode de travail sur le profil pour élargir le champ.",
         "early_career": "Peu de postes de ce corpus sont encore ouverts aux candidats débutants.",
         "other": "Ajustez le profil et relancez pour élargir le champ."
-      }
+      },
+      "openJdLibrary": "Ouvrir la bibliothèque de fiches de poste",
+      "reviewRoles": "Voir les postes",
+      "bandUnit": "k"
     },
     "card": {
       "startFailed": "Impossible de lancer l’analyse de correspondance.",
@@ -5916,6 +6194,9 @@
       "status": "Statut",
       "received": "Reçus",
       "receivedHint": "Requêtes POST authentifiées reçues par ce récepteur, sondes et payloads rejetés compris. Le nombre de candidats figure sous « Leads enregistrés ».",
+      "accepted": "Enregistrés",
+      "acceptedHint": "Candidats réellement déposés par ce récepteur. Reçus mesure la connectivité, sondes et payloads rejetés compris.",
+      "firstLead": "Premier lead",
       "copyEndpoint": "Copier l’adresse",
       "remove": "Supprimer",
       "removeAria": "Supprimer le récepteur du poste {role}",
@@ -6108,6 +6389,8 @@
     "allDispositions": "Toutes les décisions",
     "dispositionUndecided": "Sans décision",
     "showing": "{shown} sur {total} affichés",
+    "showingLoaded": "{shown} sur {loaded} chargées",
+    "truncated": "{count} plus récentes affichées; les plus anciennes restent ouvertes par slug.",
     "clear": "Effacer",
     "noMatch": "Aucune exécution ne correspond à votre recherche ou à votre filtre.",
     "clearFilters": "Effacer les filtres",
@@ -6116,6 +6399,7 @@
     "colFamily": "Famille de postes",
     "colSeniority": "Séniorité",
     "colScore": "Score",
+    "colProducer": "Source",
     "colDecision": "Décision",
     "colJd": "Fiche de poste",
     "colSaved": "Enregistré",
@@ -6123,6 +6407,11 @@
       "advance": "avancer",
       "hold": "en attente",
       "pass": "écarter"
+    },
+    "producer": {
+      "llm": "Modèle",
+      "deterministic": "Règles",
+      "unknown": "Inconnu"
     },
     "reviewFlags": "{count, plural, one {# contrôle qualité à examiner} other {# contrôles qualité à examiner}}",
     "priorRuns": "{count, plural, one {remplace # exécution précédente du même CV} other {remplace # exécutions précédentes du même CV}}"
@@ -6322,6 +6611,8 @@
       "saved": "Enregistré",
       "saveFailed": "Impossible d’enregistrer. Vérifiez la connexion et réessayez.",
       "languageLabel": "Langue de l’application",
+      "currencyLabel": "Devise des salaires",
+      "currencyHint": "Le tableau du pipeline affiche les fourchettes de salaire dans cette devise. Rien n’est converti.",
       "previewOnboarding": "Aperçu du parcours d’intégration",
       "backup": {
         "title": "Sauvegarde et restauration",
@@ -6475,7 +6766,7 @@
   "login": {
     "eyebrow": "Kandi",
     "title": "Connexion",
-    "subtitle": "Connectez-vous avec votre e-mail et votre mot de passe, ou le mot de passe opérateur.",
+    "subtitle": "Connectez-vous avec votre e-mail et votre mot de passe.",
     "emailLabel": "E-mail",
     "emailPlaceholder": "vous@entreprise.com",
     "emailHint": "Laissez vide pour utiliser le mot de passe opérateur.",
@@ -6487,7 +6778,9 @@
     "serverError": "Une erreur s’est produite de notre côté. Veuillez réessayer dans un instant.",
     "timeoutError": "La requête a expiré. Veuillez réessayer.",
     "success": "Connexion réussie.",
-    "error": "Identifiants incorrects. Réessayez."
+    "error": "Identifiants incorrects. Réessayez.",
+    "noAccount": "Pas encore de compte ?",
+    "goToSignUp": "Créer un espace de travail"
   },
   "signup": {
     "eyebrow": "Kandi",
@@ -6535,7 +6828,12 @@
     "title": "Définissez votre mot de passe",
     "subtitle": "Vous avez été invité(e) en tant que {role}. Choisissez un mot de passe pour terminer la configuration de <em>{email}</em>.",
     "nameLabel": "Votre nom",
+    "nameRequired": "Saisissez votre nom.",
     "passwordLabel": "Mot de passe",
+    "passwordHint": "Au moins {minLength} caractères.",
+    "passwordConfirm": "Confirmer le mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "legalAck": "J'ai lu la <privacy>politique de confidentialité</privacy> et les <terms>conditions d'utilisation</terms>.",
     "submitting": "Configuration…",
     "submit": "Accepter l’invitation"
   },
@@ -6597,7 +6895,8 @@
     },
     "eyebrow": "Exercice à domicile",
     "fallbackTitle": "Exercice pour développeur",
-    "subtitle": "Lisez le brief, récupérez les fichiers de départ et soumettez un lien vers le dépôt de votre solution une fois terminé.",
+    "subtitleLive": "Lisez le brief, puis terminez l’exercice dans l’espace de travail ci-dessous. Votre démarche fait partie de ce que nous évaluons.",
+    "subtitleRepo": "Lisez le brief, récupérez les fichiers de départ et soumettez un lien vers le dépôt de votre solution une fois terminé.",
     "closed": "La réception des candidatures pour ce poste est close et nous n’acceptons plus de soumissions. Merci de votre intérêt.",
     "briefUnavailable": "Le brief de l’exercice n’est pas disponible pour le moment. Revenez bientôt ou contactez le recruteur qui a partagé ce lien.",
     "submitHeading": "Soumettez votre solution",
@@ -6607,6 +6906,8 @@
     "fieldContactPlaceholder": "Pour que nous puissions vous recontacter",
     "fieldContactHint": "Obligatoire. C’est le seul moyen de vous inviter à l’étape suivante.",
     "fieldRepo": "URL du dépôt de la solution",
+    "fieldRepoPlaceholder": "https://example.com/votre-solution",
+    "fieldRepoHint": "Une URL http ou https publique. N’importe quel hôte convient.",
     "fieldNotes": "Notes (facultatif)",
     "submit": "Soumettre la solution",
     "sending": "Envoi…",
@@ -6777,6 +7078,8 @@
     "viewInBoard": "Ouvrir ces candidats sur le tableau du pipeline",
     "openPipelineBoard": "Ouvrir le tableau du pipeline",
     "windowLabel": "Période",
+    "exportProvTruncated": "Tronqué",
+    "exportProvExcludedSim": "Lignes de démo guidée exclues",
     "windowAll": "Depuis le début",
     "windowDays": "{days} derniers jours",
     "metricPackDownload": "Télécharger le pack de métriques",
@@ -6827,6 +7130,16 @@
       "uncalibratedTitle": "Pas encore calibré",
       "uncalibratedBody": "Le calibrage demande au moins {min} candidats traités (avancés ou écartés). Pour l’instant : {n}.",
       "axisPredicted": "Prédit",
+      "csvBin": "Tranche",
+      "csvLo": "De",
+      "csvHi": "À",
+      "csvN": "n",
+      "csvPredicted": "Prédit",
+      "csvObserved": "Observé",
+      "csvSource": "Source",
+      "csvOutcome": "Issue",
+      "csvThreshold": "Seuil",
+      "csvEnforced": "Seuil appliqué",
       "axisObserved": "Taux d’avancement observé",
       "perfect": "Calibrage parfait",
       "dotLegend": "Mesuré (par tranche de score)",
@@ -6877,6 +7190,7 @@
       "effectTitle": "Depuis le dernier changement",
       "effectTooFew": "Trop peu de décisions dans la tranche {lo}–{hi} depuis le changement pour mesurer. Au moins {min} sont nécessaires.",
       "effectAfterOnly": "Depuis, {pct} % des candidats de la tranche {lo}–{hi} ont avancé (n={n}). Aucune décision antérieure dans cette tranche pour comparer.",
+      "effectBeforeThin": "Depuis, {pct} % des candidats de la tranche {lo}–{hi} ont avancé (n={n}). {beforeN} décisions antérieures dans cette tranche, sous les {min} nécessaires pour comparer.",
       "effectDelta": "Taux d’avancement de la tranche {lo}–{hi} : {beforePct} % avant → {afterPct} % après le changement (n={n} depuis).",
       "recFamilyScope": "pour {family}",
       "recAppliedFamily": "Seuil pour {family} fixé à {suggested} (précédemment {previous}). Réversible en réappliquant.",
@@ -7030,6 +7344,8 @@
       "minsSaved": "{mins} min",
       "rateLabel": "Taux horaire recruteur",
       "rateSuffix": "CZK/h",
+      "hoursLabel": "Heures par embauche",
+      "hoursSuffix": "h/embauche",
       "export": "Exporter en CSV",
       "csvKind": "Action",
       "csvCount": "Nombre",
@@ -7157,6 +7473,7 @@
       "exportCsv": "Exporter en CSV",
       "csvTime": "Heure",
       "csvAttribution": "Attribution",
+      "csvActor": "Acteur",
       "csvKind": "Événement",
       "csvCandidate": "Candidat",
       "csvRole": "Poste",
@@ -7258,7 +7575,9 @@
       "colDecision": "Décision",
       "colBy": "Par",
       "colDetail": "Détail",
+      "detailToggle": "Afficher le détail complet",
       "boardLevelRow": "Niveau tableau",
+      "actorNotIdentified": "Non identifié",
       "noMatches": "Aucune décision ne correspond aux filtres.",
       "exportPage": "Exporter la page",
       "timeZoneNote": "Heures en {zone}",
@@ -7299,7 +7618,10 @@
       "metricTimeToHire": "Délai de recrutement",
       "metricTimeToHireBody": "Nombre de jours entre l’arrivée d’un candidat et la signature.",
       "metricCostPerHire": "Coût par recrutement",
-      "metricCostPerHireBody": "Les dépenses du canal divisées par les recrutements qu’il a produits."
+      "metricCostPerHireBody": "Les dépenses du canal divisées par les recrutements qu’il a produits.",
+      "metricTrust": "Ce score peut-il décider ?",
+      "metricTrustBody": "Si la calibration dit que le score de correspondance peut décider. Vide tant qu’il n’y a pas d’issues scellées, jamais un Brier inventé.",
+      "metricTrustLink": "Ouvrir Qualité dès qu’un candidat existe"
     },
     "funnelGuide": {
       "title": "Votre entonnoir est prêt",
@@ -7350,6 +7672,7 @@
         "hoursSaved": "Heures de recruteur non dépensées, à partir de {actions, plural, one {# action automatisée} other {# actions automatisées}} aux tarifs à la minute par action définis dans automation-roi.ts.",
         "hoursSavedNone": "Aucune action automatisée enregistrée.",
         "capacity": "{roles, plural, one {# poste ouvert} other {# postes ouverts}} pris en charge par {recruiters, plural, one {# recruteur} other {# recruteurs}}.",
+        "capacityNow": "{roles, plural, one {# poste ouvert actuellement détenu} other {# postes ouverts actuellement détenus}} pris en charge par {recruiters, plural, one {# recruteur} other {# recruteurs}}. Instantané, pas les {days, plural, one {# dernier jour} other {# derniers jours}}.",
         "capacityNone": "Aucun poste ouvert ou aucun effectif de recruteurs.",
         "nps": "Net promoter score sur {responses, plural, one {# réponse de candidat} other {# réponses de candidats}} à une issue finale, sur l’échelle standard de -100 à 100.",
         "costPerHireAsOf": "La dépense a été saisie pour la dernière fois le {date}."
@@ -7638,6 +7961,9 @@
       "disconnect": "Déconnecter",
       "disconnecting": "Déconnexion…",
       "disconnectHint": "Retire l’accès de Kandi chez Google et supprime le jeton stocké.",
+      "disconnectConfirm": "Cela retire l’accès de Kandi chez Google et supprime le jeton stocké. Se reconnecter exige un nouveau consentement.",
+      "disconnectConfirmAction": "Déconnecter l’agenda",
+      "disconnectCancel": "Annuler",
       "disconnected": "Déconnecté. L’accès a été retiré chez Google.",
       "disconnectedNotRevoked": "Déconnecté ici, mais Google n’a pas confirmé le retrait. Par sécurité, retirez Kandi de la liste des accès tiers de votre compte Google.",
       "disconnectFailed": "Impossible de déconnecter l’agenda.",
@@ -7744,6 +8070,7 @@
       "waitingTitle": "Approuvez la demande dans l’application Personas",
       "waitingBody": "Kandi a demandé l’appairage à Personas. Passez dans l’application de bureau Personas et approuvez la demande. Cette carte vérifie en continu et se termine d’elle-même.",
       "waitingCancel": "Annuler",
+      "waitingRemaining": "{count, plural, one {# seconde restante} other {# secondes restantes}}",
       "timeoutTitle": "Appairage expiré",
       "timeoutBody": "La demande expire après 5 minutes (Personas ne la garde qu’en mémoire). Recommencez et approuvez sans tarder.",
       "retryPair": "Réessayer",
@@ -7824,7 +8151,13 @@
       "active": "Actif",
       "trialing": "Essai",
       "past_due": "En retard de paiement",
+      "unpaid": "Impayé",
       "canceled": "Annulé"
+    },
+    "dunning": {
+      "pastDue": "{hasDate, select, yes {Paiement échoué. Mettez à jour votre carte avant le {date} pour que le tarif ne passe pas à Free.} other {Paiement échoué. Mettez à jour votre carte pour que le tarif ne passe pas à Free.}}",
+      "unpaid": "Le délai de grâce est écoulé. Mettez à jour votre carte dans le portail pour rétablir le tarif.",
+      "updatePayment": "Mettre à jour le paiement"
     },
     "meters": {
       "job_posts": "Postes publiés",
@@ -7840,7 +8173,9 @@
       "usedUnlimited": "{used} utilisés",
       "unlimited": "Illimité",
       "depleted": "Quota épuisé",
+      "approaching": "Limite bientôt atteinte",
       "buyMinutesCta": "Acheter des minutes →",
+      "upgradeCta": "Passer au tarif supérieur →",
       "remaining": "{remaining} restants",
       "credits": "{credits, plural, one {+# crédit de pack} other {+# crédits de pack}}",
       "empty": "Aucun compteur d’utilisation pour l’instant."
@@ -7932,7 +8267,10 @@
       "colRunnerUp": "Second",
       "na": "n.d.",
       "method": "Mesuré le {date} · juge {judge} · {n} cas · {limit} exécution(s)/cellule. Composite 0–10 : justesse + respect de la tâche pondérés plus haut, pertinence plus bas. Sortie non valide pénalisée. De faibles nombres d’exécutions sont bruités, à considérer comme indicatifs.",
-      "empty": "Aucune qualité mesurée pour l’instant. Ce déploiement ne contient pas de matrice de référence, il n’y a donc rien à classer."
+      "empty": "Aucune qualité mesurée pour l’instant. Ce déploiement ne contient pas de matrice de référence, il n’y a donc rien à classer.",
+      "unmeasuredTitle": "Non mesuré",
+      "unmeasuredIntro": "Ces cas d'usage de routage n'ont pas encore de cellule de bench, donc le tableau de scores ne recommande pas de modèle pour eux.",
+      "unmeasured": "non mesuré"
     },
     "benchOps": {
       "match_reasoning": "Raisonnement de matching",
@@ -8015,7 +8353,8 @@
         "interviews": "Entretiens",
         "assignments": "Exercices",
         "other": "Autres",
-        "companion": "Compagnon"
+        "companion": "Compagnon",
+        "jobseeker": "Recherche d'emploi"
       }
     },
     "usage": {
@@ -8168,7 +8507,8 @@
       "devcase_judge": "Le second modèle indépendant qui juge les évaluations d'exercices.",
       "devcase_tooling": "Réservé à l’évaluation de l’outillage. Pas encore d’appel actif.",
       "devcase_transfer": "Réservé à l’évaluation du transfert. Pas encore d’appel actif.",
-      "assistant": "Tours de conversation du compagnon de l'opérateur."
+      "assistant": "Tours de conversation du compagnon de l'opérateur.",
+      "posting_translate": "Traduit une annonce de poste publiée dans une autre langue."
     }
   },
   "jdPublic": {
@@ -8231,8 +8571,8 @@
       "welcome": {
         "label": "Bienvenue",
         "eyebrow": "Bienvenue",
-        "title": "Lancez vos recrutements",
-        "blurb": "Quelques étapes rapides : votre entreprise, votre équipe, votre tableau de recrutement. Ensuite, Kandi s’occupe du reste."
+        "title": "Commençons",
+        "blurb": "Dites-nous d'abord ce qui vous amène. Puis quelques étapes rapides, chacune avec un réglage par défaut qui fonctionne."
       },
       "company": {
         "label": "Entreprise",
@@ -8262,7 +8602,10 @@
         "label": "Terminé",
         "eyebrow": "Bienvenue à bord",
         "title": "Tout est prêt",
-        "blurb": "Votre espace de travail est prêt. Voici la suite."
+        "blurb": "Votre espace de travail est prêt. Voici la suite.",
+        "seekEyebrow": "Bienvenue à bord",
+        "seekTitle": "Votre recherche d'emploi commence par votre CV",
+        "seekBlurb": "Tout le reste (lieux, salaire, intitulés) découle d'une seule conversation à son sujet."
       }
     },
     "welcome": {
@@ -8280,7 +8623,8 @@
           "body": "Présélection, entretiens et offres : un seul flux, et c’est vous qui décidez."
         }
       },
-      "minutes": "Six étapes courtes. Chacune a une valeur par défaut qui fonctionne."
+      "minutes": "Six étapes courtes. Chacune a un réglage par défaut qui fonctionne.",
+      "minutesSeek": "Deux étapes courtes. Votre CV fait le reste."
     },
     "company": {
       "nameLabel": "Nom de l’entreprise",
@@ -8298,7 +8642,9 @@
       },
       "logoLabel": "URL du logo",
       "logoInvalid": "Saisissez une URL d’image en https://.",
-      "nameHint": "C'est le nom que les candidats voient sur les offres, les propositions et dans chaque message que vous leur envoyez."
+      "nameHint": "C'est le nom que les candidats voient sur les offres, les propositions et dans chaque message que vous leur envoyez.",
+      "currencyLabel": "Devise des salaires",
+      "currencyHint": "La devise dans laquelle vous saisissez les fourchettes de salaire. Vous pourrez la modifier dans Paramètres → Organisation."
     },
     "team": {
       "emailPlaceholder": "nom@entreprise.fr",
@@ -8378,7 +8724,16 @@
       "pipelineTitle": "Votre tableau : {count, plural, one {# étape} other {# étapes}}",
       "pipelineChangedBody": "Vos modifications s’appliquent à la fin. Ajustez-les à tout moment dans Paramètres → Pipeline de recrutement.",
       "pipelineDefaultBody": "Les colonnes que traversent les candidats. Modifiez-les à tout moment dans Paramètres → Pipeline de recrutement.",
-      "recommended": "Recommandé pour un nouvel espace de travail"
+      "recommended": "Recommandé pour un nouvel espace de travail",
+      "seek": {
+        "readyTitle": "Vous êtes configuré comme chercheur d'emploi",
+        "readyMeta": "Langue : {language}",
+        "cvTitle": "Ensuite : votre CV",
+        "cvBody": "Déposez-le sur l'écran suivant. Nous le lisons pour en faire un profil, puis une courte conversation le retravaille et fixe ce qu'il faut chercher.",
+        "chooseLabel": "Prêt ?",
+        "goTitle": "Aller à ma recherche d'emploi",
+        "goBody": "Votre propre espace : profil et CV, offres correspondantes, et les sources dont elles proviennent."
+      }
     },
     "footer": {
       "back": "Retour",
@@ -8395,6 +8750,7 @@
       "part": {
         "orgName": "Nom de l’entreprise",
         "language": "Langue de l’application",
+        "currency": "Devise des salaires",
         "invites": "Invitations d’équipe",
         "pipeline": "Colonnes du tableau",
         "brand": "Couleur de marque et logo",
@@ -8409,6 +8765,17 @@
       "body": "Rien n'est perdu. Vous pourrez reprendre là où vous en étiez à tout moment depuis votre tableau Pipeline.",
       "confirm": "Quitter la configuration",
       "cancel": "Continuer la configuration"
+    },
+    "intent": {
+      "title": "Qu'est-ce qui vous amène ?",
+      "hire": {
+        "label": "Je recrute",
+        "blurb": "Configurez votre entreprise, votre équipe et votre tableau de recrutement. Quelques étapes rapides."
+      },
+      "seek": {
+        "label": "Je cherche un emploi",
+        "blurb": "Apportez votre CV, précisez ce que vous cherchez et laissez la recherche travailler pour vous."
+      }
     }
   },
   "devcase": {
@@ -8501,7 +8868,8 @@
         "title": "Interne : matériel pour l’entretien et la relecture",
         "noProbes": "Aucune sonde masquée enregistrée sur cet exercice.",
         "roleMustHaves": "Indispensables du poste",
-        "roleResponsibilities": "Responsabilités du poste"
+        "roleResponsibilities": "Responsabilités du poste",
+        "voiceScript": "Script de l’entretien vocal"
       },
       "shortlist": {
         "title": "Présélection, tous canaux"
@@ -8512,12 +8880,26 @@
         "received": "{count} reçus",
         "applyLink": "Lien de candidature"
       },
+      "channel": {
+        "local": "Local",
+        "link": "Lien",
+        "email": "E-mail"
+      },
       "compare": {
         "title": "Comparer sur les axes de la grille",
         "topOf": "{shown} premiers sur {total}",
         "truncated": "Classement par transférabilité. La personne en tête de l’axe ci-dessous est la meilleure de ces {shown}, pas de tout le groupe. {hidden, plural, one {# autre rendu évalué ne figure pas} other {# autres rendus évalués ne figurent pas}} dans cette matrice.",
         "axis": "Axe",
-        "fit": "adéq. {score}"
+        "fit": "adéq. {score}",
+        "showAll": "Afficher les {total}",
+        "showTop": "Afficher le top {shown}",
+        "authenticity": "Authenticité",
+        "band": {
+          "authentic": "authentique",
+          "mixed": "mixte",
+          "suspect": "suspect",
+          "unscored": "non évalué"
+        }
       },
       "action": {
         "runLifecycle": "Le lancement du cycle de vie",
@@ -8639,6 +9021,7 @@
       "colRecipient": "Destinataire",
       "colSubject": "Objet",
       "colStatus": "Statut",
+      "colRef": "Épreuve",
       "colSent": "Envoyé",
       "resendTitle": "Réacheminer ce message par le canal actif (consigné comme une nouvelle ligne de la boîte d’envoi)",
       "retryResend": "Réessayer l’envoi",
@@ -8659,8 +9042,10 @@
       "interview_confirmation": "Confirmation d’entretien",
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
+      "case_invite": "Invitation au test pratique (envoi)",
       "interviewer_brief": "Brief de l’intervieweur",
-      "schedule_invite": "Invitation à planifier"
+      "schedule_invite": "Invitation à planifier",
+      "consent_expiry": "rappel d’expiration du consentement"
     },
     "cohort": {
       "title": "Analyse des sondes sur la cohorte",
@@ -8680,7 +9065,13 @@
       "low": "faible"
     },
     "interviewKit": {
-      "title": "Kit d’entretien : meilleur candidat",
+      "title": "Kit d’entretien",
+      "pickAria": "Candidat de la présélection à exporter",
+      "band": {
+        "authentic": "authentique",
+        "mixed": "mixte",
+        "suspect": "suspect"
+      },
       "fit": "· correspondance {score}",
       "copied": "Copié",
       "copy": "Copier",
@@ -8702,7 +9093,12 @@
       "label": "Audit de la force des sondes",
       "strong": "{loadBearing} sondes sur {total} sont porteuses. Cet exercice discrimine.",
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses. La plupart ne sépareront pas les bons des naïfs.",
-      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf."
+      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf.",
+      "issue": {
+        "no_choice": "Pas de choix forcé : il faut au moins deux options distinctes et défendables.",
+        "no_seam": "Pas de faille concrète : aucun endroit dans la tâche pour planter le piège.",
+        "no_reveals": "Pas de critère bon contre naïf : rien pour évaluer le traitement."
+      }
     },
     "sessionEvidence": {
       "show": "Éléments de la session",
@@ -8821,7 +9217,8 @@
       "open": "Ouvrir",
       "untitledAssignment": "Épreuve",
       "stageAria": "Étape de l’exercice : {stage}",
-      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées."
+      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées.",
+      "loadMore": "Charger les affectations plus anciennes"
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",
@@ -9578,7 +9975,8 @@
       "agentFit": "Adéquation de l’agent · {job}",
       "campaign": "Pack de campagne · {job}",
       "profileDraft": "Brouillon de profil IA",
-      "companionDigest": "Synthèse de l’espace de travail"
+      "companionDigest": "Synthèse de l’espace de travail",
+      "jobseekerScan": "Analyse du marché de l’emploi"
     },
     "filter": {
       "clear": "Effacer"
@@ -9701,6 +10099,7 @@
     "title": "Centre de contrôle de l’autonomie",
     "intro": "Supervision humaine du pipeline de recrutement autonome : un coupe-circuit, les validations humaines qui vous attendent et une piste d’audit inaltérable de chaque décision automatisée (la traçabilité qu’exige un système d’AI de recrutement à haut risque).",
     "backToDevCases": "← Exercices",
+    "disarmed": "Confirmation annulée.",
     "autonomy": {
       "statePaused": "L’automatisation est SUSPENDUE",
       "stateRunning": "L’automatisation est active",
@@ -9715,7 +10114,8 @@
       "heading": "En attente de votre décision · {count}",
       "untitled": "Poste",
       "approve": "Approuver et continuer",
-      "approveConfirm": "Confirmer l’approbation ?"
+      "approveConfirm": "Confirmer l’approbation ?",
+      "review": "Examiner"
     },
     "lifecycles": {
       "heading": "Cycles de vie actifs · {count}",
@@ -9992,11 +10392,15 @@
     "runUnlinked": "Cette action s’est exécutée hors d’un traitement en arrière-plan suivi ; aucun résultat n’a donc été conservé.",
     "runGone": "Le traitement à l’origine de ce résultat est sorti de l’historique des tâches.",
     "runNoOutput": "Ce traitement s’est terminé sans conserver de résultat.",
-    "tzNote": "Les heures s’affichent dans votre propre fuseau horaire. Le journal enregistre en UTC, et le récapitulatif quotidien des coûts de l’onglet Modèles découpe les jours en UTC.",
     "companionTurn": "Un échange avec Candi dans la conversation : {thread}",
     "companionThreadUntitled": "une conversation sans titre",
     "companionOpen": "Ouvrir la conversation",
-    "companionThreadGone": "Cette conversation ne figure plus dans le registre."
+    "companionThreadGone": "Cette conversation ne figure plus dans le registre.",
+    "interviewConversation": "L’entretien vocal avec {name} pour {role}.",
+    "interviewGone": "Cet entretien n’est plus au dossier.",
+    "interviewNoTranscript": "Aucune transcription n’a été conservée pour cet entretien.",
+    "turnCandidate": "Candidat",
+    "turnInterviewer": "Intervieweur"
   },
   "readout": {
     "empty": "Rien d’enregistré",
@@ -10207,6 +10611,7 @@
       "thinking": "Réflexion…",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du espace de travail avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
+      "composerLabel": "Message pour Candi",
       "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez.",
       "reconnect": "Réessayer la connexion"
     },
@@ -10349,5 +10754,694 @@
     "clear": "Effacer la sélection",
     "searchPlaceholder": "Rechercher…",
     "noMatches": "Aucun résultat"
+  },
+  "templates": {
+    "tab": {
+      "eyebrow": "Paramètres",
+      "title": "Modèles de messages",
+      "intro": "Les messages que vous envoyez sans cesse : l'accusé de réception d'un CV, l'invitation à un entretien, la lettre d'accompagnement d'une offre, le refus. Écrivez chacun une fois, rattachez-le à l'étape du pipeline concernée et réutilisez-le."
+    },
+    "variant": {
+      "eyebrow": "Prototype",
+      "label": "Disposition du prototype",
+      "library": "Bibliothèque",
+      "board": "Par étape",
+      "compose": "Rédaction"
+    },
+    "kind": {
+      "received": "CV reçu",
+      "screened": "Présélection",
+      "interview": "Entretien",
+      "offer": "Offre",
+      "rejected": "Refus",
+      "unsorted": "Sans étape"
+    },
+    "scope": {
+      "org": "Entreprise",
+      "team": "Équipe",
+      "default": "Par défaut"
+    },
+    "loadFailed": "La bibliothèque de modèles n'a pas pu être chargée.",
+    "retry": "Réessayer",
+    "truncated": "Cette liste est partielle. La bibliothèque contient plus de modèles qu'une page ne peut en afficher.",
+    "errInvalid": "Un modèle exige un nom et un texte, et aucun des deux ne peut dépasser la longueur autorisée.",
+    "errUnknownTokens": "Le texte utilise un espace réservé qui n'existe pas. Retirez-le ou choisissez-en un dans la liste.",
+    "errNotPermitted": "Vous n'avez pas l'autorisation de modifier les modèles.",
+    "errSaveFailed": "Le modèle n'a pas pu être enregistré.",
+    "errDeleteFailed": "Le modèle n'a pas pu être supprimé.",
+    "library": {
+      "searchPlaceholder": "Rechercher un modèle",
+      "new": "Nouveau modèle",
+      "loading": "Chargement des modèles…",
+      "empty": "Aucun modèle ne correspond.",
+      "pickOne": "Choisissez un modèle à gauche, ou commencez-en un nouveau."
+    },
+    "board": {
+      "emptyColumn": "Rien d'écrit pour cette étape.",
+      "addHere": "Ajouter ici",
+      "editTitle": "Modifier le modèle",
+      "newTitle": "Nouveau modèle"
+    },
+    "compose": {
+      "pick": "Modèle",
+      "pickPlaceholder": "Ouvrir un modèle",
+      "blank": "Vierge",
+      "bodyPlaceholder": "Rédigez le message. Cliquez sur un espace réservé à droite pour l'insérer.",
+      "showPreview": "Aperçu",
+      "hidePreview": "Revenir à la rédaction"
+    },
+    "editor": {
+      "name": "Nom",
+      "namePlaceholder": "À quoi sert ce message",
+      "state": "Étape du pipeline",
+      "scope": "Visible par",
+      "scopeTeam": "Mon équipe",
+      "scopeOrg": "Toute l'entreprise",
+      "scopeTeamHint": "Seule votre équipe voit ce modèle.",
+      "scopeOrgHint": "Toutes les équipes de l'entreprise voient ce modèle.",
+      "body": "Message",
+      "placeholders": "Espaces réservés",
+      "localizedTokens": "Titres traduits",
+      "tokenHint": "Seuls ceux-ci sont remplacés ; tout autre espace réservé est refusé à l'enregistrement. Pris en charge : {supported}",
+      "insertToken": "Insérer {token}",
+      "preview": "Aperçu avec des données d'exemple",
+      "previewEmpty": "Rien à prévisualiser pour l'instant.",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "deleteConfirm": "Supprimer ce modèle ?",
+      "deleteYes": "Supprimer",
+      "deleteNo": "Conserver"
+    },
+    "sample": {
+      "title": "Ingénieur data senior",
+      "company": "Northwind",
+      "seniority": "Senior",
+      "salary": "90–110 k",
+      "about": "Nous construisons la colonne vertébrale du reporting sur laquelle quelques centaines de collègues calent leur semaine.",
+      "resp1": "Porter les pipelines d'ingestion de bout en bout",
+      "resp2": "Travailler avec les analystes sur les modèles qu'ils interrogent chaque jour",
+      "resp3": "Maintenir le chargement nocturne dans sa fenêtre",
+      "must1": "Plusieurs années de Python et de SQL en production",
+      "must2": "Avoir exploité un pipeline dont quelqu'un d'autre dépend",
+      "nice1": "Expérience de dbt ou d'un équivalent",
+      "nice2": "À l'aise pour relire les requêtes des autres"
+    }
+  },
+  "me": {
+    "common": {
+      "retry": "Réessayer",
+      "retrying": "Nouvelle tentative…",
+      "unreachable": "Le serveur est injoignable. Vérifiez que l'application est lancée, puis réessayez.",
+      "explain": "Ce que cela signifie"
+    },
+    "title": "Ma recherche d'emploi",
+    "nav": {
+      "profile": "Profil et CV",
+      "jobs": "Offres",
+      "sources": "Sources",
+      "scans": "Analyses",
+      "jobsNew": "{count, plural, one {# nouvelle offre} other {# nouvelles offres}}"
+    },
+    "studio": {
+      "closeBusy": "Une réponse est encore en route. Fermer maintenant ne l'arrêtera pas.",
+      "closeStay": "Rester",
+      "closeAnyway": "Fermer quand même"
+    },
+    "columns": {
+      "col": {
+        "chat": "Conversation",
+        "sheet": "Votre CV",
+        "fit": "Fiche d'adéquation"
+      },
+      "hide": "Masquer : {column}",
+      "show": "Afficher : {column}",
+      "badge": {
+        "turns": "{count, plural, one {# message} other {# messages}}",
+        "suggestions": "{count, plural, =0 {Aucune suggestion en attente} one {# suggestion en attente} other {# suggestions en attente}}",
+        "gaps": "{count, plural, =0 {Aucun écart} one {# écart} other {# écarts}}"
+      }
+    },
+    "composer": {
+      "transcriptLabel": "Conversation sur le CV"
+    },
+    "roles": {
+      "agent": "Éditeur",
+      "requestor": "Vous",
+      "system": "Système"
+    },
+    "compactedNote": "{count} échanges plus anciens ont quitté cette transcription. Ce qui y a été dit reste dans votre CV et vos préférences.",
+    "thinking": "Réflexion…",
+    "error": "Une erreur s'est produite. Veuillez réessayer.",
+    "choices": {
+      "eyebrowConfirm": "Vérification d'une hypothèse",
+      "eyebrowPropose": "Quelques options (aucune n'est obligatoire)",
+      "confirmSelection": "Utiliser la sélection ({count})",
+      "none": "Aucune de celles-ci. Je le dis avec mes mots"
+    },
+    "glyph": {
+      "compose": "Message",
+      "send": "Envoyer",
+      "dictate": "Dicter",
+      "dictateOff": "Dictée indisponible",
+      "speak": "Lire à voix haute",
+      "speakOff": "Lecture à voix haute indisponible",
+      "autoSpeak": "Lire chaque réponse"
+    },
+    "voiceIo": {
+      "dictating": "À l'écoute… touchez pour arrêter",
+      "speaking": "Arrêter la lecture"
+    },
+    "cv": {
+      "dialogLabel": "Studio CV : {name}",
+      "eyebrow": "Studio CV",
+      "untitled": "Votre CV",
+      "open": "Retravailler mon CV",
+      "resume": "Continuer",
+      "openReadOnly": "Ouvrir (lecture seule)",
+      "status": {
+        "open": "Ouverte",
+        "closed": "Terminée"
+      },
+      "sheetEmpty": "Votre CV retravaillé apparaîtra ici.",
+      "section": {
+        "summary": "Profil",
+        "experience": "Expérience",
+        "skills": "Compétences",
+        "education": "Formation"
+      },
+      "slot": {
+        "summary": "une phrase sur ce que vous faites et pour qui",
+        "experience": "votre poste le plus récent, et ce qui a changé grâce à vous",
+        "skills": "les outils et langages que votre CV peut étayer",
+        "education": "votre plus haut diplôme obtenu"
+      },
+      "unreadableTitle": "Ce que je n'ai pas pu lire",
+      "unreadableBody": "Ces blocs de votre CV n'entraient dans aucune rubrique que je reconnais. Ils restent ici et ne comptent jamais contre vous.",
+      "suggestionsTitle": "Suggestions",
+      "suggestionsNone": "Aucune suggestion en attente. Tout ce que vous changez dans la conversation apparaît dans le CV à gauche.",
+      "suggestionBefore": "Avant :",
+      "suggestionAfter": "Après :",
+      "apply": "Appliquer",
+      "applyMessage": "Appliquer la suggestion : {section}",
+      "degradedNoProvider": "Aucun modèle d'IA n'est configuré sur ce serveur ; l'éditeur suit donc une liste fixe. Votre CV et vos préférences sont tout de même enregistrés.",
+      "degradedProviderFailed": "Le modèle d'IA n'a pas répondu ; l'éditeur a suivi sa liste fixe pour cette réponse. Réessayez dans un instant.",
+      "degradedNote": "Pour cette réponse, l'éditeur s'appuie sur sa liste fixe.",
+      "standInLanguage": "La liste n'existe pas encore dans votre langue ; elle répond en {language}.",
+      "sendError": "Ce message n'a pas pu être envoyé. Veuillez réessayer.",
+      "createError": "Le studio CV n'a pas pu s'ouvrir. Veuillez réessayer.",
+      "past": "Conversations",
+      "download": "Télécharger le CV (.md)",
+      "downloadUnavailable": "Terminez d'abord une conversation sur le CV ; le téléchargement apparaît dès qu'un CV retravaillé existe.",
+      "print": "Imprimer / PDF"
+    },
+    "profile": {
+      "eyebrow": "Recherche d'emploi",
+      "intro": "Ce que votre CV nous a appris, les préférences qui orientent la recherche, et le studio qui affine les deux.",
+      "readTitle": "Ce que j'ai lu dans votre CV",
+      "unknownName": "Votre profil",
+      "updated": "Mis à jour {when}",
+      "reimport": "Importer un autre CV",
+      "field": {
+        "name": "Nom",
+        "roleFamily": "Famille de métiers",
+        "years": "Années d'expérience",
+        "skills": "Compétences trouvées",
+        "location": "Lieu",
+        "languages": "Langues",
+        "education": "Formation"
+      },
+      "couldNotReadTitle": "Ce que je n'ai pas pu lire",
+      "couldNotReadBody": "Ce sont des lacunes dans ce que le CV indique, pas des points en moins. Le studio vous posera la question.",
+      "readWithoutAiTitle": "Lu sans IA - vérifiez les détails",
+      "readWithoutAiBody": "Aucun modèle d'IA n'était configuré ni joignable : votre CV a donc été lu par un analyseur fixe. Les compétences sont enregistrées telles que le CV les énonce, rien n'a été déduit. Ajoutez un modèle dans Paramètres, Modèles, puis réimportez pour qu'un modèle le lise.",
+      "skillsTitle": "Compétences lues dans votre CV",
+      "skillSelfDeclared": "{skill} - déclaré par vous, non vérifié",
+      "skillProvenance": "{skill} - preuve : {provenance}",
+      "couldNotReadNone": "Tous les champs que je recherche étaient présents."
+    },
+    "preferences": {
+      "title": "Préférences de recherche",
+      "empty": "Rien de défini pour l'instant. Le studio CV vous demandera les lieux, le salaire et les intitulés au fil de la conversation.",
+      "workMode": {
+        "remote": "Télétravail",
+        "hybrid": "Hybride",
+        "onsite": "Sur site"
+      },
+      "salaryFloor": "À partir de {amount} {currency} {period}",
+      "period": {
+        "month": "par mois",
+        "year": "par an"
+      },
+      "seniority": {
+        "junior": "Junior",
+        "medior": "Confirmé",
+        "senior": "Senior",
+        "lead": "Lead"
+      },
+      "languages": "Langues : {list}"
+    },
+    "import": {
+      "eyebrow": "Commencez ici",
+      "title": "Importez votre CV",
+      "titleAgain": "Importer un CV plus récent",
+      "blurb": "Votre recherche d'emploi commence par votre CV. Déposez-le et nous le lisons pour en faire un profil que vous pourrez retravailler.",
+      "cta": "Lire mon CV",
+      "cancel": "Garder l'actuel",
+      "privacy": "Reste sur ce serveur. Rien n'est envoyé à un site d'emploi.",
+      "privacyLabel": "Où va votre CV",
+      "stage": {
+        "extracting": "Lecture du fichier",
+        "drafting": "Construction du profil",
+        "saving": "Enregistrement"
+      },
+      "errExtract": "Ce fichier n'a pas pu être lu.",
+      "errDraft": "Votre CV n'a pas pu être transformé en profil. Essayez un fichier avec plus de texte, ou réessayez.",
+      "errNoTextLayer": "Ce PDF n'a pas de couche de texte (un scan ou une image). Exportez-le en texte ou en PDF/A, puis réessayez.",
+      "errSave": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
+    },
+    "print": {
+      "title": "Imprimer votre CV",
+      "eyebrow": "Votre CV",
+      "intro": "Votre CV peaufiné, mis en page pour le format A4. Imprimez-le ou enregistrez-le en PDF.",
+      "back": "Retour à ma recherche d'emploi",
+      "print": "Imprimer / enregistrer en PDF",
+      "none": "Il n'y a pas encore de CV retravaillé. Terminez d'abord une conversation sur le CV."
+    },
+    "jobs": {
+      "eyebrow": "Recherche d'emploi",
+      "title": "Offres",
+      "intro": "Chaque offre trouvée par vos sources, notée selon votre profil. Présélectionnez, postulez ou écartez avec une raison dont le coach apprend.",
+      "filter": {
+        "status": "Statut",
+        "statusOption": {
+          "live": "Actives",
+          "new": "Nouvelles",
+          "shortlisted": "Présélection",
+          "applied": "Candidature envoyée",
+          "dismissed": "Écartées"
+        },
+        "minFit": "Adéquation min.",
+        "minFitAny": "Toutes",
+        "minFitValue": "{n}+",
+        "source": "Source",
+        "allSources": "Toutes les sources"
+      },
+      "sort": {
+        "label": "Trier",
+        "total": "Meilleure adéquation",
+        "posted": "Publiées récemment",
+        "seen": "Vues récemment"
+      },
+      "actionError": "La modification n'a pas pu être enregistrée. Veuillez réessayer.",
+      "loadError": "Le flux n'a pas pu être chargé.",
+      "loading": "Chargement",
+      "loadMore": "Charger la suite",
+      "empty": {
+        "no_profile": {
+          "title": "Commencez par votre CV",
+          "body": "Le flux note les offres selon votre profil, et il n'y en a pas encore. Importez d'abord votre CV.",
+          "cta": "Aller à Profil et CV"
+        },
+        "no_sources": {
+          "title": "Aucune source n'est activée",
+          "body": "Votre profil est prêt, mais rien n'est lu. Activez au moins une source et la prochaine analyse remplira cette page.",
+          "euresCta": "Activer EURES pour {countries}",
+          "euresNote": "EURES est la base d'offres de l'Autorité européenne du travail, libre de droits avec attribution : il n'y a donc rien à accepter. Un clic l'active et lance la première analyse pour {countries}.",
+          "euresDefault": "Aucun pays n'est encore défini dans vos préférences : EURES est activé et la recherche portera sur {countries}.",
+          "euresPrefs": "Changer de pays",
+          "euresError": "EURES n'a pas pu être activé.",
+          "cta": "Choisir des sources"
+        },
+        "no_scan": {
+          "title": "Rien n'a encore été analysé",
+          "body": "Vos sources sont activées. Lancez la première analyse maintenant ; une fois réussie, le minuteur de la page Analyses pourra prendre le relais."
+        },
+        "below_min": {
+          "title": "Rien au-dessus de votre adéquation minimale",
+          "body": "{count, plural, one {# offre se situe} other {# offres se situent}} sous l'adéquation demandée. Abaissez le minimum pour les voir."
+        },
+        "nothing_live": {
+          "title": "Rien d'actif pour le moment",
+          "body": "La dernière analyse n'a rien trouvé de nouveau, ou tout a été écarté. Relancez une analyse, ou consultez le filtre Écartées."
+        }
+      },
+      "card": {
+        "unscored": "Non notée",
+        "deepDived": "Analyse approfondie",
+        "source": "Source : {label}",
+        "seen": "Vue {when}",
+        "confidence": "Confiance {level} ({low} à {high})",
+        "dismissed": "Écartée : {reason}",
+        "applied": "Candidature envoyée {when}"
+      },
+      "confidenceLevel": {
+        "tight": "élevée",
+        "moderate": "moyenne",
+        "wide": "faible"
+      },
+      "workMode": {
+        "remote": "Télétravail",
+        "hybrid": "Hybride",
+        "onsite": "Sur site"
+      },
+      "status": {
+        "new": "Nouvelle",
+        "shortlisted": "Présélection",
+        "applied": "Candidature envoyée",
+        "dismissed": "Écartée",
+        "gone": "Disparue"
+      },
+      "action": {
+        "shortlist": "Présélectionner",
+        "unshortlist": "Retirer de la présélection",
+        "applied": "J'ai postulé",
+        "dismiss": "Écarter",
+        "restore": "Rétablir"
+      },
+      "dismiss": {
+        "title": "Écarter {title}",
+        "reasonLabel": "Pourquoi ? (le coach en tient compte)",
+        "noteLabel": "Note (facultative)",
+        "notePlaceholder": "Une ligne, pour vous",
+        "confirm": "Écarter",
+        "cancel": "Garder",
+        "reason": {
+          "salary": "Salaire",
+          "location": "Lieu",
+          "stack": "Technologies",
+          "seniority": "Séniorité",
+          "company": "Entreprise",
+          "other": "Autre"
+        }
+      },
+      "eligibility": {
+        "title": "Éligibilité",
+        "key": {
+          "salary": "Salaire",
+          "location": "Lieu",
+          "seniority": "Séniorité",
+          "language": "Langue",
+          "work_mode": "Mode de travail"
+        },
+        "state": {
+          "ok": "correspond",
+          "flag": "écart",
+          "unknown": "non précisé"
+        }
+      },
+      "scan": {
+        "cta": "Analyser maintenant",
+        "running": "Analyse en cours",
+        "progress": "{done} sur {total}",
+        "unreachable": "L'analyse tourne encore sur le serveur, mais sa progression n'a pas pu être lue. Rechargez la page dans un instant.",
+        "failed": "L'analyse a échoué.",
+        "failedMsg": "L'analyse a échoué : {msg}",
+        "startError": "L'analyse n'a pas pu démarrer."
+      },
+      "lastScan": "Dernière recherche {when}",
+      "newSince": "{count, plural, one {# nouvelle offre depuis votre dernière visite} other {# nouvelles offres depuis votre dernière visite}}",
+      "markAllSeen": "Tout marquer comme vu",
+      "table": {
+        "fit": "Adéquation",
+        "role": "Poste",
+        "source": "Source",
+        "posted": "Publié",
+        "seen": "Vu pour la dernière fois",
+        "status": "Statut",
+        "actions": "Actions"
+      }
+    },
+    "posting": {
+      "back": "Retour aux offres",
+      "eyebrow": "Offre",
+      "meta": {
+        "source": "Source : {label}",
+        "posted": "publiée {when}",
+        "seen": "vue {when}"
+      },
+      "openSource": "Ouvrir l'offre",
+      "discuss": "Discuter de l'adéquation",
+      "discussError": "La conversation sur l'adéquation n'a pas pu s'ouvrir.",
+      "fit": {
+        "title": "Votre verdict d'adéquation",
+        "settled": "Vous avez tranché dans la conversation sur l'adéquation {when}."
+      },
+      "text": {
+        "title": "L'annonce",
+        "none": "La source n'a publié aucun texte pour cette offre."
+      },
+      "salary": {
+        "title": "Salaire",
+        "unstated": "L'annonce n'indique pas de salaire. C'est inconnu, pas bas.",
+        "noFloor": "Définissez un salaire minimum dans le studio CV pour comparer.",
+        "notComparable": "Non comparable : l'annonce est en {posting}, votre minimum en {floor}. Rien n'est converti.",
+        "below_floor": "Sous votre minimum de {pct} %.",
+        "meets_floor": "Respecte votre minimum sur toute la fourchette.",
+        "spans_floor": "Votre minimum se situe dans la fourchette indiquée."
+      },
+      "match": {
+        "title": "Votre adéquation",
+        "notScored": "Non notée : l'offre n'a pas passé les filtres stricts, ou l'analyse ne l'a pas encore comparée.",
+        "matched": "Compétences correspondantes",
+        "missing": "Compétences manquantes",
+        "unproven": "Déclarées, non prouvées",
+        "none": "Aucune",
+        "jobSource": {
+          "deterministic": "Lue sans IA",
+          "llm": "Lue avec l'IA"
+        }
+      },
+      "reasoning": {
+        "title": "Raisonnement",
+        "none": "Pas encore de justification écrite.",
+        "cta": "Analyse approfondie",
+        "running": "Lecture",
+        "error": "L'analyse approfondie n'a pas pu s'exécuter.",
+        "deterministic": "Aucun modèle d'IA n'est configuré, cette justification est donc un gabarit fixe. Elle est affichée, pas enregistrée.",
+        "templateOnly": "Aucun modèle n'a répondu, cette justification est donc un gabarit fixe. Elle est affichée, pas enregistrée.",
+        "strengths": "Points forts",
+        "gaps": "Écarts",
+        "probes": "Questions à prévoir",
+        "arrived": "L’analyse approfondie est prête."
+      }
+    },
+    "fit": {
+      "dialogLabel": "Vérification d'adéquation : {title}",
+      "eyebrow": "Vérification d'adéquation",
+      "verdict": {
+        "title": "Verdict",
+        "apply": "Postuler",
+        "skip": "Passer",
+        "undecided": "Indécis"
+      },
+      "markApplied": "Marquer comme postulé",
+      "appliedAlready": "Candidature envoyée",
+      "sheetEmpty": "Les écarts et le verdict apparaissent ici au fil de la conversation.",
+      "slot": {
+        "verdict": "postuler, passer, ou encore indécis",
+        "gap": "ce que ce poste demande et que votre CV ne montre pas encore"
+      },
+      "gaps": {
+        "title": "Écarts",
+        "none": "Aucun écart ne ressort. L'annonce et votre profil concordent sur ce qui est demandé."
+      },
+      "severity": {
+        "blocking": "Bloquant",
+        "notable": "Notable",
+        "minor": "Mineur"
+      },
+      "coverNote": {
+        "title": "Note de motivation",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyFailed": "La copie a échoué. Sélectionnez le texte et copiez-le vous-même.",
+        "none": "Aucune note de motivation n'a été rédigée.",
+        "pending": "Demandez une note de motivation quand vous êtes prêt ; elle ne s'appuie que sur les faits de votre CV."
+      },
+      "questions": {
+        "title": "Questions à leur poser",
+        "none": "Aucune pour l'instant."
+      },
+      "degradedNoProvider": "Aucun modèle d'IA n'est configuré sur ce serveur, le coach suit donc une liste fixe sur l'adéquation. Votre verdict est tout de même enregistré."
+    },
+    "sources": {
+      "eyebrow": "Recherche d'emploi",
+      "title": "Sources",
+      "intro": "D'où viennent les offres. Les flux et les portails d'entreprise sont un simple interrupteur ; les sites d'emploi dont les conditions interdisent l'automatisation demandent votre accord ; les sites refusés sont listés pour que vous sachiez pourquoi.",
+      "loadError": "Les sources n'ont pas pu être chargées.",
+      "loading": "Chargement",
+      "available": "Disponibles à l'ajout",
+      "addEntry": "Ajouter {label}",
+      "refused": "Refusé : {reason}",
+      "tier": {
+        "A": {
+          "title": "Niveau A : flux et portails d'entreprise",
+          "body": "Publiés pour réutilisation ou par l'entreprise elle-même. Un simple interrupteur.",
+          "empty": "Rien pour l'instant. Ajoutez un portail d'entreprise ci-dessous."
+        },
+        "B": {
+          "title": "Niveau B : sites avec leurs propres conditions",
+          "body": "robots.txt autorise les pages ; les conditions du site interdisent le traitement automatisé. Vous les activez en tant que propriétaire de cette installation, en connaissance de cause.",
+          "empty": "Aucun site ajouté. Ajoutez-en un par hôte ci-dessous."
+        },
+        "C": {
+          "title": "Niveau C : refusés",
+          "body": "Ces sites bloquent ou interdisent expressément l'exploration. Ils ne sont jamais consultés, et il n'y a pas d'interrupteur."
+        }
+      },
+      "kind": {
+        "feed": "Flux",
+        "ats": "Portail d'entreprise",
+        "board": "Site d'emploi"
+      },
+      "tierChip": "Niveau {tier}",
+      "lastRun": "dernière exécution {when}",
+      "neverRun": "Jamais exécuté",
+      "paused": "En pause ({reason}) depuis {when}",
+      "pausedShort": "en pause : {reason}",
+      "pauseReason": {
+        "blocked": "le site nous a refusés",
+        "collapsed": "la structure de la page a changé",
+        "owner": "par vous",
+        "terms_review": "conditions en révision"
+      },
+      "outcome": {
+        "succeeded": "réussi",
+        "collapsed": "vide",
+        "blocked": "bloqué",
+        "offline": "hors ligne",
+        "failed": "échoué",
+        "skipped": "ignoré"
+      },
+      "toggleLabel": "Activer {label}",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "resume": "Reprendre",
+      "pause": "Mettre en pause",
+      "updateError": "La source n'a pas pu être modifiée.",
+      "robots": "robots.txt",
+      "robotsUnknown": "Non vérifié pour cet hôte.",
+      "terms": "Conditions",
+      "termsUnknown": "Absent du catalogue : lisez vous-même les conditions de ce site avant de l'activer.",
+      "termsLink": "Lire les conditions",
+      "cadence": "Notre cadence",
+      "cadenceDefault": "Au plus deux fois par jour, une requête à la fois, en respectant le délai d'exploration du site.",
+      "ack": {
+        "title": "Votre accord",
+        "body": "Les conditions de ce site interdisent le traitement automatisé. En l'activant, cette installation consulte ses pages en votre nom, avec courtoisie, et l'exposition est la vôtre.",
+        "changed": "Le résumé des conditions a changé depuis votre dernier accord. Relisez-le avant de continuer.",
+        "reason1": "Les requêtes identifient cette installation et respectent robots.txt et le délai d'exploration.",
+        "reason2": "Un refus du site met la source en pause ; vous seul la reprenez.",
+        "reason3": "Les offres sont lues pour votre propre recherche et ne sont jamais republiées.",
+        "checkbox": "Je suis propriétaire de cette installation et j'accepte cette exposition",
+        "cta": "Activer la source",
+        "cancel": "Pas maintenant"
+      },
+      "rules": {
+        "open": "Règles et aperçu",
+        "author": "Rédiger les règles",
+        "proposing": "Rédaction",
+        "save": "Enregistrer les règles",
+        "saving": "Enregistrement",
+        "saved": "Enregistré",
+        "saveHint": "Lancez d'abord un aperçu concluant ; les règles sont enregistrées avec ce qu'il a mesuré.",
+        "source": {
+          "llm": "Proposées par l'IA",
+          "deterministic": "Proposées sans IA"
+        },
+        "invalid": "Les règles proposées ne peuvent pas s'exécuter. Réessayez ou rédigez-les à la main.",
+        "proposedCount": "{count, plural, one {# règle proposée} other {# règles proposées}}",
+        "title": "Règles",
+        "required": "obligatoire"
+      },
+      "preview": {
+        "open": "Aperçu",
+        "cta": "Aperçu",
+        "running": "Récupération",
+        "error": "L'aperçu n'a pas pu s'exécuter.",
+        "outcome": {
+          "ok": "Extrait",
+          "empty": "Rien d'extrait",
+          "collapsed": "La structure de la page ne correspond pas"
+        },
+        "itemCount": "{count, plural, =0 {aucun élément} one {# élément} other {# éléments}}",
+        "field": "Champ",
+        "matched": "Trouvés",
+        "verdict": "Verdict",
+        "samples": "Exemples",
+        "ruleVerdict": {
+          "hit": "trouvé",
+          "miss-required": "manquant, obligatoire",
+          "miss-optional": "manquant, facultatif",
+          "ambiguous": "ambigu"
+        }
+      },
+      "add": {
+        "title": "Ajouter une source",
+        "error": "La source n'a pas pu être ajoutée.",
+        "ats": {
+          "label": "Un portail d'entreprise par éditeur et identifiant",
+          "vendor": "Éditeur",
+          "slug": "Identifiant de l'entreprise",
+          "slugPlaceholder": "identifiant-entreprise",
+          "cta": "Ajouter"
+        },
+        "board": {
+          "label": "Un site d'emploi par hôte",
+          "host": "Hôte",
+          "hostPlaceholder": "emplois.exemple.fr",
+          "cta": "Ajouter",
+          "hint": "Un hôte hors catalogue est de niveau B : vous lisez ses conditions et les acceptez à l'activation."
+        }
+      },
+      "refusedPill": "Refusée",
+      "pausedPill": "En pause"
+    },
+    "scans": {
+      "eyebrow": "Recherche d'emploi",
+      "title": "Analyses",
+      "intro": "Une analyse lit chaque source activée, note ce qu'elle trouve et approfondit la présélection. Lancez-en une à la main ; après le premier succès, le minuteur peut prendre le relais.",
+      "loadError": "La planification n'a pas pu être chargée.",
+      "sourcesError": "La liste des sources n'a pas pu être chargée : les analyses ci-dessous désignent chaque source par son identifiant enregistré.",
+      "loading": "Chargement",
+      "updateError": "La planification n'a pas pu être modifiée.",
+      "clock": {
+        "title": "Minuteur",
+        "toggleTitle": "Lancer l'analyse selon le minuteur",
+        "on": "Activé",
+        "off": "Désactivé",
+        "every": "toutes les",
+        "hours": "{hours} h",
+        "intervalAria": "Intervalle d'analyse",
+        "lastRun": "dernière vérification {when}",
+        "never": "pas encore lancée par le minuteur"
+      },
+      "history": {
+        "title": "Analyses récentes",
+        "none": "Aucune analyse n'a encore eu lieu.",
+        "status": {
+          "ok": "ok",
+          "error": "échouée",
+          "skipped": "ignorée"
+        },
+        "trigger": {
+          "clock": "minuteur",
+          "manual": "à la main"
+        },
+        "matched": "{n} comparées",
+        "deepDived": "{n} approfondies",
+        "deepDiveSkipped": "approfondissement ignoré : aucun modèle d'IA"
+      },
+      "table": {
+        "source": "Source",
+        "outcome": "Résultat",
+        "new": "Nouvelles",
+        "changed": "Modifiées",
+        "absent": "Absentes",
+        "reason": "Raison",
+        "resumeLink": "Reprendre dans Sources"
+      }
+    }
   }
 }

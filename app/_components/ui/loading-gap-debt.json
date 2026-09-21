@@ -1,0 +1,196 @@
+{
+  "$comment": [
+    "The declared per-file ceiling on every silent block-level reveal-quiet + aria-hidden",
+    "gap under app/**/*.tsx (app/landing/** excluded — the fixed art direction).",
+    "Read and enforced by loading-gap-debt.test.ts beside LoadingGap.tsx; runs in the",
+    "ordinary unit gate (`npm run test:unit`). Inline `inline-block` shimmers are the",
+    "documented exception and are not counted.",
+    "",
+    "RATCHET, not aspiration: these are the counts of the tree TODAY (seeded 2026-09-17,",
+    "blockGap=77 across 59 files). A number never goes up. Adopt <LoadingGap>, then:",
+    "",
+    "  node --experimental-transform-types app/_components/ui/loading-gap-debt.test.ts --tighten",
+    "",
+    "A file burnt down to zero loses its entry entirely, which LOCKS the win: the file is",
+    "then undeclared, and the next silent box to arrive there is a red build."
+  ],
+  "ceilings": {
+    "features/agents-workforce/AgentsWorkforceTab.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/channels/ChannelsTabStage.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/channels/ChannelsTabSwitcher.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/decisions/DecisionsTab.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/pipeline/PipelineTab.tsx": {
+      "blockGap": 3
+    },
+    "features/hiring/schedule/ScheduleAiRound.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx": {
+      "blockGap": 1
+    },
+    "features/hiring/schedule/ScheduleTab.tsx": {
+      "blockGap": 4
+    },
+    "features/insights/about/AboutTab.tsx": {
+      "blockGap": 1
+    },
+    "features/insights/activity/ActivityDetailModal.tsx": {
+      "blockGap": 2
+    },
+    "features/insights/activity/ActivityInterviewRun.tsx": {
+      "blockGap": 1
+    },
+    "features/insights/activity/ActivityTab.tsx": {
+      "blockGap": 1
+    },
+    "features/insights/analytics/sections/sectionChunks.tsx": {
+      "blockGap": 1
+    },
+    "features/insights/matrix/MatrixTab.tsx": {
+      "blockGap": 1
+    },
+    "features/insights/matrix/focus/MatchResults.tsx": {
+      "blockGap": 1
+    },
+    "features/insights/matrix/focus/MatrixCandidateFocus.tsx": {
+      "blockGap": 1
+    },
+    "features/library/jds/JdsBuilder.tsx": {
+      "blockGap": 1
+    },
+    "features/library/jds/JdsIntakeTab.tsx": {
+      "blockGap": 1
+    },
+    "features/library/jds/JdsLedgerDetailModal.tsx": {
+      "blockGap": 2
+    },
+    "features/library/jds/intake/JdsIntakePanel.tsx": {
+      "blockGap": 1
+    },
+    "features/library/jobs/JobsAgentFitTab.tsx": {
+      "blockGap": 1
+    },
+    "features/library/jobs/JobsPostingModal.tsx": {
+      "blockGap": 2
+    },
+    "features/library/jobs/JobsPostingTab.tsx": {
+      "blockGap": 1
+    },
+    "features/library/jobs/JobsTabResults.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/billing/BillingStatusBanners.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/billing/BillingTab.tsx": {
+      "blockGap": 4
+    },
+    "features/settings/billing/spend/BillingSpendSection.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/branding/BrandingTab.tsx": {
+      "blockGap": 2
+    },
+    "features/settings/hiring/HiringTab.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/integrations/IntegrationsAtsPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/integrations/IntegrationsPersonasPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/integrations/IntegrationsTab.tsx": {
+      "blockGap": 3
+    },
+    "features/settings/models/ModelsKeysPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/models/ModelsRoutingPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/models/ModelsTab.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/organization/OrganizationTab.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/workspace/WorkspaceMembersTable.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/workspace/WorkspacePeoplePanel.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/workspace/WorkspaceRail.tsx": {
+      "blockGap": 1
+    },
+    "features/settings/workspace/WorkspaceTab.tsx": {
+      "blockGap": 1
+    },
+    "features/shared/MatchReasoningPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/shell/WorkspaceTabChunks.tsx": {
+      "blockGap": 1
+    },
+    "features/shell/tasks/TasksHistory.tsx": {
+      "blockGap": 2
+    },
+    "features/shell/tasks/TasksRunsPanel.tsx": {
+      "blockGap": 1
+    },
+    "features/shell/tasks/TasksTab.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/analyze/AnalyzeTab.tsx": {
+      "blockGap": 2
+    },
+    "features/tools/analyze/AnalyzeWorkspace.tsx": {
+      "blockGap": 2
+    },
+    "features/tools/analyze/history/HistoryTab.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/devcases/DevCasesTable.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/devcases/DevShared.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/devcases/DevTab.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/devcases/DevTabCasesView.tsx": {
+      "blockGap": 2
+    },
+    "features/tools/interview/InterviewAttachToCandidate.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/interview/InterviewSimTab.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/profile/ArchetypeManager.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/profile/CandidateMatrix.tsx": {
+      "blockGap": 1
+    },
+    "features/tools/profile/ProfileTab.tsx": {
+      "blockGap": 1
+    }
+  }
+}

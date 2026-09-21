@@ -128,3 +128,27 @@ test("receiver creation returns the `{ webhook }` envelope and the modal reads i
   assert.match(modalSrc, /onCreated\(p\.webhook(\?\.token \?\? ""|\.token)\)/, "auto-select reads the token off the envelope");
   assert.doesNotMatch(modalSrc, /onCreated\(typeof p\.token/, "the dead top-level `token` read must not come back");
 });
+
+test("the list projection carries recruiter-safe pull health and never the bearer", () => {
+  // GET /api/channels/webhooks is the dashboard: one list, every pane. Without these
+  // four fields a week-old last_pull_error is invisible unless the operator PATCHes.
+  assert.match(channelsDbSrc, /pullUrl: string \| null/, "ChannelWebhookRecord names the pull URL");
+  assert.match(channelsDbSrc, /hasPullSecret: boolean/, "presence bit, never the token");
+  assert.match(channelsDbSrc, /lastPullAt: string \| null/, "when the clock last asked");
+  assert.match(channelsDbSrc, /lastPullError: string \| null/, "the failing source, on the same list as Listening");
+  assert.match(
+    channelsDbSrc,
+    /CASE WHEN w\.pull_secret IS NOT NULL AND w\.pull_secret <> '' THEN 1 ELSE 0 END AS has_pull_secret/,
+    "WEBHOOK_SELECT maps hasPullSecret from column presence, without selecting the ciphertext",
+  );
+  assert.match(channelsDbSrc, /w\.pull_url/, "WEBHOOK_SELECT reads the stored URL");
+  assert.match(channelsDbSrc, /w\.last_pull_at, w\.last_pull_error/, "WEBHOOK_SELECT reads the clock's last outcome");
+  assert.match(channelsDbSrc, /hasPullSecret: Boolean\(r\.has_pull_secret\)/, "rowToWebhook does not decrypt");
+  // GET forwards the store list as-is — no second mapping that could drop the pull half.
+  assert.match(webhooksSrc, /listChannelWebhooks\(await currentWorkspace\(\)\)/);
+  assert.match(webhooksSrc, /return NextResponse.json\(\{ webhooks, truncated \}\)/);
+  // The list record must not grow a key named secret / pullSecret (PATCH `{ pull }` is
+  // the detailed read and already uses hasSecret, not the bearer).
+  const mapped = channelsDbSrc.slice(channelsDbSrc.indexOf("function rowToWebhook"), channelsDbSrc.indexOf("const WEBHOOK_SELECT"));
+  assert.doesNotMatch(mapped, /\bsecret\b/, "rowToWebhook must not copy the pull secret onto the list record");
+});

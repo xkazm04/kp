@@ -21,6 +21,7 @@ export function HistoryFilterBar({
   filtering,
   filteredCount,
   totalCount,
+  truncated,
   onClear,
   dispLabel,
 }: {
@@ -37,6 +38,7 @@ export function HistoryFilterBar({
   filtering: boolean;
   filteredCount: number;
   totalCount: number;
+  truncated?: boolean;
   onClear: () => void;
   dispLabel: (d: string) => string;
 }) {
@@ -91,7 +93,11 @@ export function HistoryFilterBar({
         ]}
       />
       {filtering ? (
-        <span className="text-sm text-steel" aria-live="polite">{t("showing", { shown: filteredCount, total: totalCount })}</span>
+        <span className="text-sm text-steel" aria-live="polite">
+          {truncated
+            ? t("showingLoaded", { shown: filteredCount, loaded: totalCount })
+            : t("showing", { shown: filteredCount, total: totalCount })}
+        </span>
       ) : null}
       {filtering ? (
         <button

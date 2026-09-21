@@ -253,6 +253,16 @@ test("dateSlotToIso refuses past, weekend, off-horizon, and malformed dated pick
   assert.equal(dateSlotToIso("2026-06-13", "10:00", NOW, TZ), null, "Saturday is refused");
   assert.equal(dateSlotToIso("2026-06-14", "10:00", NOW, TZ), null, "Sunday is refused");
   assert.equal(dateSlotToIso("2026-07-14", "10:00", NOW, TZ), null, "beyond the horizon is refused");
+  assert.equal(
+    dateSlotToIso("2026-04-31", "10:00", Date.UTC(2026, 3, 27, 12, 0, 0, 0), TZ),
+    null,
+    "April 31 must not roll over into May 1"
+  );
+  assert.equal(
+    dateSlotToIso("2026-02-30", "10:00", Date.UTC(2026, 1, 23, 12, 0, 0, 0), TZ),
+    null,
+    "February 30 must not roll over into March 2"
+  );
   assert.equal(dateSlotToIso("garbage", "10:00", NOW, TZ), null);
   assert.equal(dateSlotToIso("2026-06-09", "25:00", NOW, TZ), null);
   assert.equal(dateSlotToIso("2026-06-09", "", NOW, TZ), null);

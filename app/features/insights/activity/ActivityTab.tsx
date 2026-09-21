@@ -68,13 +68,6 @@ export function ActivityTab() {
         <p className={EYEBROW}>{t("eyebrow")}</p>
         <SectionTitle className="mt-1">{t("title")}</SectionTitle>
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro", { window: data?.window ?? 500 })}</p>
-        {/* WHICH CLOCK. The times in the table render in the reader's own zone
-            (format.dateTime), while the ledger stores UTC and the Models tab's
-            daily cost rollup cuts its buckets on UTC midnights — so a late-evening
-            call in Prague sits in "today" here and in tomorrow's cost column
-            there. Two true statements that look like a contradiction until the
-            page says which clock each one keeps. */}
-        <p className="mt-1 max-w-2xl text-meta text-steel">{t("tzNote")}</p>
       </header>
 
       {error ? (

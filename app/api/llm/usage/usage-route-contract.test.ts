@@ -38,6 +38,15 @@ test("usage route returns the aggregate rollup plus prompt-cache stats", () => {
   assert.match(src, /days,/, "must echo the effective window so the client can label it");
 });
 
+test("usage route can filter to one use case and 400s an unknown one", () => {
+  const src = read("./route.ts").replace(/\r\n/g, "\n");
+  assert.match(src, /searchParams\.get\("useCase"\)/, "must read the ?useCase= filter");
+  assert.match(src, /isLlmUseCase\(rawUseCase\)/, "unknown useCase is a catalog check, not a silent empty");
+  assert.match(src, /error: "Unknown useCase\.", useCases: LLM_USE_CASES/, "400 body names the catalog");
+  assert.match(src, /useCase,/, "must echo the effective filter beside days");
+  assert.match(src, /rows\.filter\(\(r\) => r\.useCase === useCase\)/, "omit = all; a named pin is that pin's rows");
+});
+
 test("usage route clamps the days window and stays read-only", () => {
   const src = read("./route.ts");
   assert.match(src, /searchParams\.get\("days"\)/, "must read the ?days= window param");

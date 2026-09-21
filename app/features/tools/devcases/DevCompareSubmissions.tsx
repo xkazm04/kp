@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Columns3 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PANEL } from "@/app/_components/ui/recipes";
@@ -19,18 +20,21 @@ export function CompareSubmissions({
   submissions: Submission[];
 }) {
   const t = useTranslations("devcase.studio.compare");
-  const { axes, columns, leaderByAxis } = rubricCompare(rubricDims, submissions);
+  const [showAll, setShowAll] = useState(false);
+  // Same predicate the lib filters on, so the count and the cap cannot disagree.
+  const evaluatedTotal = submissions.filter((s) => s.evaluation?.evaluation).length;
+  const { axes, columns, leaderByAxis } = rubricCompare(
+    rubricDims,
+    submissions,
+    showAll ? 0 : 5
+  );
   // A comparison needs at least two evaluated candidates and an axis to compare on.
   if (columns.length < 2 || axes.length === 0) return null;
 
-  // rubricCompare CAPS the matrix at its top-N by transfer fit and its contract says
-  // "the caller reports the true count" — this one reported `columns.length`, so a
-  // nine-candidate cohort rendered as "· 5" with no tell that four were dropped. Two
-  // things then read wrong: the count looks like the whole evaluated field, and the
-  // moss per-axis leader reads as the cohort's leader when a hidden submission (lower
-  // transfer fit, higher on that one axis) actually leads it. Same predicate the lib
-  // filters on, so the two counts can't disagree.
-  const evaluatedTotal = submissions.filter((s) => s.evaluation?.evaluation).length;
+  // rubricCompare CAPS the matrix at its top-N by transfer fit unless expanded.
+  // When collapsed, the moss per-axis leader is the strongest of the columns
+  // *shown*, not of the whole cohort. Expanding (maxColumns 0) drops the caveat
+  // because hidden becomes 0.
   const hidden = evaluatedTotal - columns.length;
   const truncationNote = hidden > 0 ? t("truncated", { shown: columns.length, hidden }) : null;
 
@@ -45,6 +49,15 @@ export function CompareSubmissions({
         </span>
       </h3>
       {truncationNote ? <p className="mt-1 text-micro text-steel">{truncationNote}</p> : null}
+      {evaluatedTotal > 5 ? (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="focus-ring mt-1 inline-flex h-8 items-center rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40"
+        >
+          {showAll ? t("showTop", { shown: 5 }) : t("showAll", { total: evaluatedTotal })}
+        </button>
+      ) : null}
       <div className={`mt-2 overflow-x-auto ${PANEL}`}>
         <table className="w-full text-micro">
           <thead>
@@ -61,6 +74,26 @@ export function CompareSubmissions({
             </tr>
           </thead>
           <tbody>
+            <tr className="border-b border-stone-100">
+              <td className="px-3 py-1.5 text-steel">{t("authenticity")}</td>
+              {columns.map((col) => {
+                const band = col.authenticityBand;
+                const label = t((band ? `band.${band}` : "band.unscored") as Parameters<typeof t>[0]);
+                const tone =
+                  band === "suspect"
+                    ? "font-semibold text-coral"
+                    : band === "mixed"
+                      ? "font-semibold text-amber-700"
+                      : band === "authentic"
+                        ? "font-semibold text-moss"
+                        : "text-stone-300";
+                return (
+                  <td key={col.id} className={`px-3 py-1.5 text-right ${tone}`}>
+                    {label}
+                  </td>
+                );
+              })}
+            </tr>
             {axes.map((axis) => (
               <tr key={axis.name} className="border-b border-stone-100 last:border-0">
                 <td className="px-3 py-1.5 text-steel">{axis.label}</td>

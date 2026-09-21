@@ -42,6 +42,7 @@ export const STORE_ERRORS = {
   JD_LIST_FAILED: "Could not load the JD library. Please try again.",
   JD_LOAD_FAILED: "Could not load the JD. Please try again.",
   JD_SAVE_FAILED: "Could not save the JD. Please try again.",
+  JD_DELETE_FAILED: "Could not delete the JD. Please try again.",
   JD_GENERATE_FAILED: "Could not start the AI build. Please try again.",
   // Role-intake dialog routes (docs/concepts/role-intake-dialog.md): all sit on
   // better-sqlite3 + the spawned intake engine, whose thrown errors embed
@@ -75,6 +76,12 @@ export const STORE_ERRORS = {
   // plus a JSON.parse of the persisted payload, so the thrown message carries the db path
   // or parser detail. The Decisions modal shows it verbatim, hence the code.
   GROUP_EVAL_READ_FAILED: "Could not load the saved comparison. Please try again.",
+  // GET /api/decisions/records: verify + listPipeline can throw SQLITE text and
+  // the db path onto an operator JSON body. The sealed Art. 22 dossier.
+  DECISION_RECORDS_READ_FAILED: "Could not load decision records. Please try again.",
+  // GET /api/decisions/jd-freshness: jdLastEditedAt opens SQLite; a locked DB
+  // used to become Next's framework 500 with no code, on the staleness-chip door.
+  JD_FRESHNESS_LOOKUP_FAILED: "Could not check when these JDs were last edited. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
   TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",
@@ -91,8 +98,11 @@ export const STORE_ERRORS = {
   JOB_CANDIDATES_FAILED: "Could not rank candidates for this role. Please try again.",
   JOB_REDISCOVER_FAILED: "Could not look through past candidates for this role. Please try again.",
   JOB_WINNABILITY_FAILED: "Could not grade this role against the candidate pool. Please try again.",
+  JOB_PRIORITIES_FAILED: "Could not save the pattern priorities for this role. Please try again.",
   JOB_CAMPAIGN_FAILED: "Could not generate the campaign pack. Please try again.",
   JOB_ASSIGNMENTS_FAILED: "Could not load the work samples for this role. Please try again.",
+  JOB_TRANSLATIONS_FAILED: "Could not load this role's postings in other languages. Please try again.",
+  JOB_TRANSLATE_FAILED: "Could not translate this posting. Please try again.",
   // The automation clock's control surface (/perfect 2026-09-03, pipeline-board-3).
   // POST here writes the schedule row and can force a full policy pass, so its catch
   // can surface better-sqlite3 constraint text, the db path, and the spawned pass's
@@ -181,10 +191,9 @@ export const STORE_ERRORS = {
   /** POST /api/devcase/skill-profile - the credential mint. A store transaction plus an
    *  HMAC sign, both of whose messages `jsonError` used to forward. */
   DEVCASE_SKILL_PROFILE_FAILED: "Could not issue the skill profile. Please try again.",
-  /** GET /api/skill-profile/[token]/verify - the PUBLIC, unauthenticated credential
-   *  lookup. better-sqlite3 + an HMAC verify sit behind it, so the thrown message can
-   *  carry a SQLITE_* code, a constraint text or the absolute db path; an anonymous
-   *  caller gets this sentence and the code instead. */
+  /** GET /api/skill-profile/[token]/verify — public FICO-style lookup. A store throw
+   *  used to answer jsonError English, which forwarded err.message to whoever holds
+   *  the credential URL. */
   SKILL_PROFILE_VERIFY_FAILED: "Could not verify the skill profile. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
@@ -294,6 +303,10 @@ export const STORE_ERRORS = {
   // constraint text and the absolute db path; it was forwarding `error.message`
   // verbatim with no code, so the Hiring composer could only paint English.
   DECISION_CONFIG_SAVE_FAILED: "Could not save these rules. Please try again.",
+  // POST /api/decisions/screen-wave: the only Decisions door that queues rejection
+  // email. Its catch sat over better-sqlite3 + the comms dispatcher, and used to
+  // forward error.message (SQLITE_* / db path) as the client string.
+  SCREEN_WAVE_FAILED: "Could not run the screening wave. Please try again.",
   // The analytics WRITE doors (/perfect 2026-09-03, analytics-writes-check-authority).
   // Both sit directly over better-sqlite3 (setChannelSpend / setAnalyticsTarget) and
   // were forwarding `error.message` verbatim — a UNIQUE/CHECK constraint string or the
@@ -322,6 +335,13 @@ export const STORE_ERRORS = {
   // MATRIX_BUILD_FAILED because the reader is looking at ONE candidate's ranking, not
   // at the grid.
   MATCH_RUN_FAILED: "Could not rank that candidate against the roles. Please try again.",
+  // GET/POST /api/archetypes and PUT/PATCH /api/archetypes/[id] (/perfect wave 4,
+  // cv-intel). All four catches forwarded `error.message` — registry JSON parse
+  // text, the absolute archetypes.json path, and write-rename failures. Distinct
+  // from a validation 400 (`errorResponse` already ships code/params): these are
+  // store faults the archetype manager must resolve via useErrorMessage.
+  ARCHETYPES_READ_FAILED: "Could not load the archetype registry. Please try again.",
+  ARCHETYPES_WRITE_FAILED: "Could not save that archetype. Please try again.",
   // The billing doors (/perfect 2026-09-03, billing-ui). All three answered prose with
   // no code: the overview's catch hand-rolled its own `{ error }`, and checkout/portal
   // forwarded the GATEWAY's thrown message — a merchant-of-record HTTP body, i.e. an
@@ -408,6 +428,12 @@ export const STORE_ERRORS = {
   PROFILE_UPDATE_FAILED: "Could not save your changes to that profile. Please try again.",
   PROFILE_DELETE_FAILED: "Could not delete that profile. Please try again.",
   PROFILE_CANDIDATES_FAILED: "Could not load the candidate matrix. Please try again.",
+  /** POST /api/profile/draft — the drafting door beside them, and the last of the
+   *  family still answering prose with no code at all. It spawns profile_draft_cli,
+   *  so the thrown message carries a Python traceback, the temp workdir path and
+   *  provider stderr; both the recruiter's notes panel and the seeker's CV import
+   *  read it, and neither could localize a sentence. */
+  PROFILE_DRAFT_FAILED: "Could not turn that text into a profile. Please try again.",
   /** The text extractor faulted (500): a non-zero exit with no client-fixable code, a
    *  wedged workdir, an ENOENT on PYTHON_CMD, or non-JSON stdout — whose diagnostic
    *  dump embeds stdout, stderr and the temp workdir path by construction. */
@@ -427,6 +453,11 @@ export const STORE_ERRORS = {
   /** The recruiter read of a work session faulted (500). Operator-facing, but it
    *  sits under the public session prefix and shared the candidate responder. */
   DEVCASE_SESSION_READ_FAILED: "Could not load the work session. Please try again.",
+  /** Job-seeker module: a store-backed read/write on the seeker's own profile, sources,
+   *  postings or dialogs faulted (500). One code for the whole module — the seeker's
+   *  next step (retry) is the same whichever table broke, and which one is operator
+   *  detail for the log. */
+  JOBSEEKER_STORE_FAILED: "Could not save or load your job search right now. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -466,6 +497,15 @@ export const REFUSAL_ERRORS = {
   AUTOMATION_ENTRY_NO_PROFILE: "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
   /** The POST arrived without an entry to act on (400). */
   AUTOMATION_ENTRY_REQUIRED: "Name the candidate this step should run for.",
+  /** GET /api/pipeline/rejected arrived without the board lane to list (400). */
+  PIPELINE_LANE_REQUIRED: "Name the position whose rejected candidates to list.",
+  /** GET /api/pipeline/events/recent?since= carried a cursor that is not an event id (400). */
+  PIPELINE_EVENTS_CURSOR_INVALID: "The activity cursor is not valid.",
+  /** GET /api/interview/sessions/[id]: no such session on this team (404). */
+  INTERVIEW_SESSION_NOT_FOUND: "That interview isn't on this team's record.",
+  /** A recruiter asked for an AI action the candidate's column does not offer (409) —
+   *  the workspace's per-step list in Settings → Hiring, or the product default. */
+  AUTOMATION_TASK_NOT_OFFERED: "That AI action isn't available at this candidate's step.",
   /** A non-numeric automation interval (400). The dock's own field clamps to
    *  [1, 1440], so reaching this means a hand-rolled call or a broken client —
    *  and the operator still deserves the reason in their own language. */
@@ -492,6 +532,14 @@ export const REFUSAL_ERRORS = {
    *  rather than stored: a response captured mid-process would be folded into a
    *  "candidate experience" figure that claims to measure completed journeys. */
   STATUS_NPS_NOT_APPLICABLE: "This question opens once your application has finished.",
+  /** Public NPS POST with no score at all (400). parseNpsSubmission used to put
+   *  the English sentence "score is required" on the wire; the status page
+   *  localizes `errors.NPS_SCORE_REQUIRED` instead. */
+  NPS_SCORE_REQUIRED: "A score is required.",
+  /** Public NPS POST whose score is not an integer in 0..10 (400). One code for
+   *  both "not a whole number" and "out of range" — the candidate's next step is
+   *  the same (pick a 0-10), and the validator must not coerce. */
+  NPS_SCORE_INVALID: "Score must be a whole number from 0 to 10.",
   /** An erasure link that resolves to nothing (404): never issued, or already
    *  spent — anonymizeEntry NULLs the token, so a replay lands here. Both readings
    *  share one refusal because the candidate's next step is the same either way,
@@ -895,6 +943,10 @@ export const REFUSAL_ERRORS = {
    *  dropped so it stays selected and the recruiter can send the next batch; the cap
    *  rides alongside in `max`. */
   SCHEDULE_BULK_OVER_CAP: "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
+  /** A per-entry row whose resolved recipient is a display name, an opaque id, or
+   *  the literal "candidate" — a relay would dead-letter it. Refused before mint so
+   *  the row stays selected and no orphan schedule token is created. */
+  SCHEDULE_BULK_UNADDRESSABLE: "This candidate has no email address, so no scheduling link was sent.",
   // ---- The SINGLE invite door (/perfect wave 40, scheduling-and-interview-prep).
   // Its bulk sibling was migrated one wave earlier; this door still answered three
   // hand-built English sentences, and the third of them reached the recruiter panel
@@ -945,6 +997,10 @@ export const REFUSAL_ERRORS = {
    *  app ships (400). A bad argument, never a permission problem — kept apart from
    *  ORG_SETTINGS_FORBIDDEN so the console cannot blame a recruiter's role for it. */
   ORG_LANGUAGE_INVALID: "That isn't one of the app's languages.",
+  /** The salary currency submitted for the organization is not one the app offers
+   *  (400). A bad argument, kept apart from ORG_SETTINGS_FORBIDDEN for the same
+   *  reason as the language code above. */
+  ORG_CURRENCY_INVALID: "That isn't one of the currencies the app offers.",
   /** The matrix scorer refused the request itself (4xx) — a corpus/profile the grid
    *  asked for that the engine will not score. Not a fault, so it is not withheld: the
    *  recruiter's move is to reload or narrow the scope, not to report a crash. */
@@ -970,6 +1026,18 @@ export const REFUSAL_ERRORS = {
   /** The rules changed since the client read them (409). Nothing was written: the draft
    *  was built on a plan that is gone, so it is dropped rather than merged. */
   DECISION_CONFIG_STALE: "Someone saved a newer version of these rules. Reload and make your change again.",
+  /** POST /api/decisions/screen-wave with no jobId (400). Nothing was ranked. */
+  SCREEN_WAVE_JOB_REQUIRED: "Name the role this screening wave should run on.",
+  /** Commit without a previewed approval token (409). */
+  SCREEN_WAVE_APPROVAL_REQUIRED: "Review the preview and approve this set before committing the wave.",
+  /** The approval token is older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (409). */
+  SCREEN_WAVE_APPROVAL_EXPIRED: "This approval has expired. Re-preview and approve the current set before committing.",
+  /** The live reject set no longer matches the previewed token (409). */
+  SCREEN_WAVE_APPROVAL_MISMATCH: "The candidate set changed since it was previewed. Re-preview and approve the current set before committing.",
+  /** The token was already spent on a commit (409). One review authorizes one wave. */
+  SCREEN_WAVE_APPROVAL_SPENT: "This review was already used. Re-preview and approve the current set before committing.",
+  /** Commit with no named approver (409). Sign in or set KP_OPERATOR_NAME. */
+  SCREEN_WAVE_APPROVAL_UNATTRIBUTED: "Sign in or set the operator name so this review can be attributed.",
   /** The board's column axis changed since the composer read it (409) — refused BEFORE
    *  anybody is moved, since the stage ids the mapping names may no longer exist. */
   PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",
@@ -1408,6 +1476,30 @@ export const REFUSAL_ERRORS = {
    *  the honest answer is “we stopped waiting, try again”, which the coach panel’s
    *  existing retry affordance already offers. */
   JOB_WINNABILITY_TIMEOUT: "Grading this role took too long and was stopped. Try again.",
+  /** The number of hires a role is opened for was outside 1..50 (POST
+   *  /api/jobs/[id]/publish). A DECISION about the caller's own input, not a fault:
+   *  the wizard's own number field already holds the range, so this door is what
+   *  makes the range true for anything that is not the wizard. */
+  JOB_TARGET_HIRES_INVALID: "A role is opened for between 1 and 50 hires.",
+  /** The requested posting language is not one of the app's locales, or it is the
+   *  language the posting is already written in (POST
+   *  /api/jobs/[id]/translations). A DECISION: there is nothing to translate. */
+  JOB_TRANSLATION_LANG_INVALID: "That is not a language this posting can be translated into.",
+  /** No AI model answered, so the posting was NOT translated and nothing was stored
+   *  (pipeline.jobfit.posting_translate_cli refused). A DECISION, and the one place
+   *  in the app where keyless means "no output" rather than "a deterministic
+   *  output": a translation has no deterministic twin, and a stub posting presented
+   *  as a German advertisement would be worse than none — it is the document a
+   *  candidate applies against. The empty state stays and offers the retry. */
+  JOB_TRANSLATION_UNAVAILABLE: "No AI model is configured, so this posting was not translated.",
+  /** GET /api/jobs/[id] and the ingest / candidates / outreach by-id doors: no such
+   *  job, or another team's. 404, never 403, so the id is not an existence oracle. */
+  JOB_NOT_FOUND: "That role isn't in your catalog.",
+  /** POST /api/jobs/ingest with a paste shorter than MIN_AD_CHARS. The panel already
+   *  guards this; the door makes the floor true for anything that is not the panel. */
+  JOB_AD_TOO_SHORT: "Paste the full job ad. A short snippet is not enough.",
+  /** POST /api/jobs/[id]/candidates/outreach with no candidateId (400). */
+  OUTREACH_CANDIDATE_REQUIRED: "Name the candidate to reach out to.",
   /** The comms channel refused a send because the candidate may not be contacted —
    *  they were ANONYMIZED, their processing consent EXPIRED, or (for an outreach
    *  message only) the sequence was stopped. A DECISION, not a fault: `sendComm`
@@ -1471,6 +1563,12 @@ export const REFUSAL_ERRORS = {
    *  Same doctrine as ATS_CONFIG_STALE next door: nothing was written, and the panel's
    *  answer is to reload and re-apply rather than to retry blind. */
   ATS_CONNECTION_STALE: "Someone saved a newer version of this ATS connection. Reload and make your change again.",
+  /** POST /api/ats/deliveries { replayId } named a ledger row that is not there (404). */
+  ATS_DELIVERY_NOT_FOUND: "That delivery is not in the ledger.",
+  /** POST /api/ats/deliveries { replayId } named a row that is not a dead-letter (409).
+   *  Delivered, pending, and still-due failures stay on their own path; only a failed
+   *  row with no next attempt can be force-retried. */
+  ATS_DELIVERY_NOT_REPLAYABLE: "That delivery cannot be replayed. Only a dead-lettered failure can be force-retried.",
   // ---- Interview-prep refusals (/perfect wave 37, lib-voice-interview-11).
   // The five write verbs of /api/interview-prep answered bare English sentences with
   // no code, while their voice twins next door had been coded since 2026-09-02. The
@@ -1599,6 +1697,58 @@ export const REFUSAL_ERRORS = {
   DEVCASE_SESSION_ALREADY_SUBMITTED: "This work session has already been submitted.",
   /** A chat turn arrived empty, or as something that is not text (400). */
   DEVCASE_CHAT_MESSAGE_REQUIRED: "Write a message before sending it.",
+  // --- Job-seeker module (/me) ---------------------------------------------------
+  /** No seeker profile exists yet for this workspace/user (404): upload a CV first. */
+  JOBSEEKER_PROFILE_MISSING: "Start with your CV: there is no job-search profile yet.",
+  /** A tier-B board was enabled without the owner's acknowledgement (409). The card
+   *  states the robots posture and the terms clause; enabling is a decision, not a click. */
+  JOBSEEKER_SOURCE_NOT_ACKNOWLEDGED: "Read this source's terms and confirm you accept the exposure before enabling it.",
+  /** A tier-C source (blocks or forbids automated access) can never be enabled (403). */
+  JOBSEEKER_SOURCE_REFUSED: "This source blocks or forbids automated access, so it cannot be enabled.",
+  /** The source answered a denial (403/429/interstitial) and was paused (423). Only the
+   *  owner resumes it — a block is a relationship signal, never something to retry. */
+  JOBSEEKER_SOURCE_BLOCKED: "This source declined our requests and was paused. Resume it only if you understand why.",
+  /** Every required extraction rule missed on a page that fetched fine: the page shape
+   *  changed (502). Zero rows is not success here. */
+  JOBSEEKER_SOURCE_COLLAPSED: "The page layout changed and nothing could be read. Re-check the extraction rules.",
+  /** The submitted rule set fails the DSL's validation (400). */
+  JOBSEEKER_RULES_INVALID: "These extraction rules are not valid.",
+  /** The dry-run preview could not fetch or run against the live page (502). */
+  JOBSEEKER_PREVIEW_FAILED: "Could not preview the rules against the live page.",
+  /** The source id in the URL (or the catalog id in the body) is not one this
+   *  workspace knows (404). */
+  JOBSEEKER_SOURCE_NOT_FOUND: "That job source does not exist.",
+  /** The dialog in the URL does not exist in this workspace (404). */
+  JOBSEEKER_DIALOG_NOT_FOUND: "That conversation does not exist.",
+  /** The dialog is closed; reopen or start a new one (409). */
+  JOBSEEKER_DIALOG_CLOSED: "This conversation is closed.",
+  /** The dialog changed while the turn was computed; the turn was dropped, not merged (409). */
+  JOBSEEKER_DIALOG_MOVED: "The conversation changed while that was being computed, so it was re-read rather than overwritten.",
+  /** The model turn exceeded its budget (504); the transcript is intact. */
+  JOBSEEKER_TURN_TIMEOUT: "That reply took too long. Your conversation is saved; try again.",
+  /** The deployment is sealed offline (KP_OFFLINE), so no source can be fetched (503). */
+  JOBSEEKER_OFFLINE: "This install is offline, so job sources cannot be fetched.",
+  /** The periodic scan cannot be armed before one manual scan succeeded (409): a new
+   *  schedule is disabled until first verification. */
+  JOBSEEKER_SCAN_UNVERIFIED: "Run one scan by hand first; the timer arms once a scan has succeeded.",
+  /** DELETE /api/jds/[slug] on a description whose role is live (409). The library
+   *  is the shelf of drafts; a live opening is the Roles tab's object and closing
+   *  it there is the move that comes first. Deliberately not a 403: the caller has
+   *  the authority, the ROW is not in a deletable state. */
+  JD_LIVE_CANNOT_DELETE: "This description belongs to a live role. Close the role first, then delete it.",
+  /** DELETE /api/jds/[slug] by someone who neither authored the JD nor holds an
+   *  admin seat (403). See app/_lib/jds-delete-access.ts for the rule. */
+  JD_DELETE_FORBIDDEN: "Only the person who created this description, or an admin, can delete it.",
+  /** A JD slug does not resolve in this workspace (404). Same envelope as
+   *  POSTING_NOT_FOUND so useErrorMessage localizes it instead of falling through
+   *  to English "JD not found." */
+  JD_NOT_FOUND: "That job description could not be found.",
+  /** POST /api/jds and POST /api/jds/save: title or body missing after trim (400). */
+  JD_FIELDS_REQUIRED: "A title and a description are both required.",
+  /** Title over JD_TITLE_MAX_LENGTH (400). */
+  JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
+  /** Body over JD_BODY_MAX_LENGTH (400). */
+  JD_BODY_TOO_LONG: "The description must be 20,000 characters or fewer.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

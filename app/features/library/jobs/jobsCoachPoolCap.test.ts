@@ -26,7 +26,7 @@ test("the winnability route reads the pool's truncated flag and echoes it", () =
 });
 
 test("the coach renders the cap admission from the candidates namespace, not a copy", () => {
-  assert.match(PANEL, /data\.poolTruncated/);
+  assert.match(PANEL, /win\.poolTruncated/);
   assert.match(PANEL, /useTranslations\("jobs\.candidates"\)/);
   assert.match(PANEL, /poolTruncatedNote/);
 });

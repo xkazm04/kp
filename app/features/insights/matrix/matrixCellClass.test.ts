@@ -38,6 +38,18 @@ test("a genuine 0 is the lowest band (never the blocked hatch) and 100 is the to
   assert.equal(cellClass({ score: 100, blocked: false }), MATRIX_BANDS[MATRIX_BANDS.length - 1].cellClass);
 });
 
+test("honesty fields on a cell do not change the band class", () => {
+  const base = { score: 80, blocked: false };
+  const rich = {
+    ...base,
+    fitTier: "strong" as const,
+    confidence: { low: 70, high: 90, level: "tight" },
+    unprovenCount: 1,
+    provenanceMix: "mixed",
+  };
+  assert.equal(cellClass(rich), cellClass(base));
+});
+
 test("the strong threshold the row-star and min-fit floor use is a real band floor", () => {
   // rowStrong (MatrixGrid) and MIN_FIT_FLOORS both count from STRONG_THRESHOLD; if it
   // ever drifted off a band edge the grid would star cells the heatmap paints non-strong.

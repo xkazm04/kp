@@ -393,7 +393,6 @@ export function dateSlotToIso(
   const mm = +tm[2];
   const ms = zonedInstant(y, mo, dd, hh, mm, tz);
   if (Number.isNaN(ms)) return null;
-  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
   const p = zonedParts(ms, tz);
   // The range check above is per-FIELD (mo <= 12, dd <= 31) and cannot see that the day
   // is absent from THAT month — and Date.UTC, which zonedInstant is built on, overflows
@@ -402,7 +401,8 @@ export function dateSlotToIso(
   // day than the one asked for, with a server-derived label that named the rolled day
   // and nothing to flag the shift. Round-tripping the resolved instant back through the
   // interview zone is the whole check, and `p` is already in hand for the weekend test.
-  if (p.year !== y || p.month !== mo || p.day !== dd) return null;
+  if (p.year !== y || p.month !== mo || p.day !== dd || p.hour !== hh || p.minute !== mm) return null;
+  if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
   if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone
   return { value: new Date(ms).toISOString(), label: slotLabel(ms, `${tm[1]}:${tm[2]}`, tz) };
 }

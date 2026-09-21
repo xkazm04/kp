@@ -8,6 +8,7 @@ import { Modal } from "@/app/_components/Modal";
 import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { DEFAULT_LOCALE } from "@/i18n/locales";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { useCopyState } from "./useCopyState";
@@ -65,6 +66,7 @@ export function ReceiverTable({
   onSelect?: (token: string) => void;
 }) {
   const t = useTranslations("channels");
+  const rel = useRelativeTime();
   // Revoking a receiver DELETEs a live, externally-wired intake endpoint (a Gmail
   // forwarding rule / a Zapier→Meta flow now POSTs to a dead URL) and there is no
   // un-revoke. So the trash icon opens a confirm step that names the role and warns
@@ -91,6 +93,10 @@ export function ReceiverTable({
             {/* Raw AUTHENTICATED POSTs — connectivity, not leads (db/channels.ts). */}
             <th scope="col" title={t("receivers.receivedHint")} className={`px-3 py-2 text-right ${META_LABEL}`}>
               {t("receivers.received")}
+            </th>
+            {/* Filed candidates — the lead count. Listening stays receipt-driven. */}
+            <th scope="col" title={t("receivers.acceptedHint")} className={`px-3 py-2 text-right ${META_LABEL}`}>
+              {t("receivers.accepted")}
             </th>
             <th scope="col" className="px-3 py-2" />
           </tr>
@@ -122,6 +128,12 @@ export function ReceiverTable({
                   <Badge tone={live ? "positive" : "neutral"} dot={live} label={live ? t("statusListening") : t("statusWaiting")} />
                 </td>
                 <td className="px-3 py-2 text-right text-steel nums">{h.receivedCount}</td>
+                <td className="px-3 py-2 text-right text-steel nums">
+                  {h.acceptedCount}
+                  <span className="ml-1 text-micro font-normal" title={h.firstAcceptedAt ? t("receivers.firstLead") : undefined}>
+                    {h.firstAcceptedAt ? rel(h.firstAcceptedAt) : "—"}
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-right">
                   <button
                     type="button"

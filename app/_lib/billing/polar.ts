@@ -302,12 +302,22 @@ export class PolarGateway implements BillingGateway {
     return id;
   }
 
-  async createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout> {
+  async createCheckout(
+    req: CheckoutRequest,
+    opts: { successUrl: string; orgId?: string | null; customerId?: string | null }
+  ): Promise<Checkout> {
     // NEVER RETRIED, deliberately: creating a checkout is not idempotent (Polar has
     // no idempotency key on this endpoint), so a second attempt after a timeout or a
     // 5xx can mint a SECOND live session for the same intent — two payable links for
     // one purchase. The buyer clicking "Buy" again is the safe retry, because it is a
     // decision rather than a guess about whether the first one landed.
+    //
+    // `customer_id` is opt-in and omitted when empty so a first-purchase body stays
+    // byte-identical on that key (polar-contract-version inertness). When set, Polar
+    // attaches the session to that customer. A 404/invalid id MUST surface as the
+    // thrown post() error — dropping the id and retrying would silently mint a
+    // second MoR customer, which is the failure this field exists to prevent.
+    const customerId = opts.customerId?.trim() || null;
     const data = await this.post("/v1/checkouts/", {
       products: [this.productFor(req)],
       success_url: opts.successUrl,
@@ -317,6 +327,7 @@ export class PolarGateway implements BillingGateway {
         // the subscription/order, and mapPolarEvent reads it back as event.orgId.
         ...(opts.orgId ? { kpOrgId: opts.orgId } : {}),
       },
+      ...(customerId ? { customer_id: customerId } : {}),
     });
     const url = typeof data.url === "string" ? data.url : null;
     if (!url) throw new Error("Polar checkout response carried no url.");

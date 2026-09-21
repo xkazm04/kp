@@ -26,11 +26,14 @@ const GithubAnalysisPanel = dynamic(
 export function AnalyzeTab() {
   const t = useTranslations("analyze");
   const state = useAnalyzeForm();
-  const { inputs, flags, result, handlers } = state;
+  const { inputs, flags, result, handlers, library } = state;
   // Direction 1 — offer the SAME Add-to-pipeline the saved report does, right on
   // the live result, reusing the shared AddToPipelineButton plumbing. A JD-less
   // (or unsaved) run gets an honest disabled affordance with a one-line reason.
-  const affordance = deriveAnalyzePipelineAffordance(result.analysis);
+  // jobTitle comes from the picker's JdSummary (the library already in hand),
+  // matching the saved-report page's loadJd().title — `JD ${slug}` is only the
+  // fallback when that row is missing.
+  const affordance = deriveAnalyzePipelineAffordance(result.analysis, library.jdLibrary);
   const pipelineRef = affordance?.kind === "add" ? affordance.ref : undefined;
   const pipelineDisabledReason =
     affordance?.kind === "disabled"

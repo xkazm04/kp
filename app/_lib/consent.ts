@@ -48,6 +48,18 @@ export function consentExpiresAt(givenAtMs: number, ttlDays: number = CONSENT_TT
   return new Date(givenAtMs + ttlDays * DAY_MS).toISOString();
 }
 
+/** True only when the grant is in the 30-day pre-expiry window and we have not
+ *  already written the reminder. Expired rows belong to `anonymizeExpiredConsents`,
+ *  not this notice. */
+export function consentNeedsExpiryNotice(
+  snap: ConsentSnapshot,
+  nowMs: number,
+  alreadyNotified: boolean,
+): boolean {
+  if (alreadyNotified) return false;
+  return consentStatus(snap, nowMs) === "expiring";
+}
+
 /** Lifecycle state of an entry's consent, for the sweep + the drawer chip.
  *  anonymized wins over everything (it's terminal); then we read the expiry. */
 export function consentStatus(snap: ConsentSnapshot, nowMs: number): ConsentStatus {
@@ -181,9 +193,12 @@ const PII_KEYS = new Set([
   "avatar",
 ]);
 
-// Free-text evidence arrays quote the CV verbatim, so they can leak the name even
+// Free-text arrays that quote the CV (or name the person in extractor prose) even
 // after the structured fields are blanked — emptied wholesale on anonymization.
-const PII_ARRAY_KEYS = new Set(["evidence"]);
+// `parsingNotes` / `parsing_notes` is the extractor's document-level commentary
+// (`analysis.metadata.parsingNotes`); it is recruiter-visible on the saved report
+// and is not a retained score.
+const PII_ARRAY_KEYS = new Set(["evidence", "parsingnotes", "parsing_notes"]);
 
 // CONTAINERS whose ENTIRE subtree is verbatim free-text quoted from the CV (not a
 // retained recruitment signal), so erasure must deep-redact every string/array under

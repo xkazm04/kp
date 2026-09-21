@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { holdsOwnerSeat, teamFor } from "@/app/features/settings/workspace/workspaceAdminHelpers";
+import { copyInviteUrl, holdsOwnerSeat, teamFor } from "@/app/features/settings/workspace/workspaceAdminHelpers";
 import type { OrgMemberDto } from "@/app/features/settings/workspace/useWorkspaceAdmin";
 
 // The Workspaces console shows the same person through two lenses, and the two
@@ -50,4 +50,30 @@ test("holdsOwnerSeat is false for someone who owns nothing", () => {
 
 test("holdsOwnerSeat is false for a member with no memberships at all", () => {
   assert.equal(holdsOwnerSeat(seatless), false);
+});
+
+// Copy invite link is a candidate-facing capability URL. Concatenating
+// window.location.origin shipped localhost / proxy-internal hosts to the
+// clipboard; copyInviteUrl routes through publicBaseUrl so the configured
+// public origin wins.
+
+const ORIGINAL_APP = process.env.APP_BASE_URL;
+const ORIGINAL_PUBLIC = process.env.NEXT_PUBLIC_APP_BASE_URL;
+const ORIGINAL_SITE = process.env.NEXT_PUBLIC_SITE_URL;
+
+function setEnv(name: string, value: string | undefined) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
+afterEach(() => {
+  setEnv("APP_BASE_URL", ORIGINAL_APP);
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", ORIGINAL_PUBLIC);
+  setEnv("NEXT_PUBLIC_SITE_URL", ORIGINAL_SITE);
+});
+
+test("copyInviteUrl uses NEXT_PUBLIC_APP_BASE_URL instead of the recruiter origin", () => {
+  setEnv("APP_BASE_URL", undefined);
+  setEnv("NEXT_PUBLIC_APP_BASE_URL", "https://hire.example");
+  assert.equal(copyInviteUrl("http://localhost:3000", "tok_abc"), "https://hire.example/invite/tok_abc");
 });

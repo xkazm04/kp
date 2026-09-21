@@ -17,7 +17,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { STEP_DETAILS } from "./pipelineSteps.ts";
+import { citationPath, parseDiagramStep, STEP_DETAILS } from "./pipelineSteps.ts";
 import { parsePuml } from "../_components/puml/parse.ts";
 import { LOCALES } from "../../i18n/locales.ts";
 
@@ -38,7 +38,7 @@ function stepCatalog(locale: string): Record<string, { title?: unknown; summary?
  *  - strip a trailing parenthetical note: "automation.py (evaluate_entry)" -> "automation.py"
  *  - a "dir/*" glob collapses to a directory existence check on "dir". */
 function resolveEntry(entry: string): { rel: string; mustBeDir: boolean } {
-  let rel = entry.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  let rel = citationPath(entry);
   let mustBeDir = false;
   if (rel.endsWith("/*")) {
     rel = rel.slice(0, -2);
@@ -46,6 +46,48 @@ function resolveEntry(entry: string): { rel: string; mustBeDir: boolean } {
   }
   return { rel, mustBeDir };
 }
+
+test("citationPath strips a trailing parenthetical and leaves the rest", () => {
+  assert.equal(citationPath("pipeline/jobfit/automation.py (evaluate_entry)"), "pipeline/jobfit/automation.py");
+  assert.equal(citationPath("app/_lib/db/pipeline.ts (actOnPipelineEntry)"), "app/_lib/db/pipeline.ts");
+  assert.equal(citationPath("app/features/library/jds/*"), "app/features/library/jds/*");
+  assert.equal(citationPath("app/_lib/analyze-run.ts"), "app/_lib/analyze-run.ts");
+});
+
+test("every STEP_DETAILS files[] row copies a resolved repo-relative path", () => {
+  let n = 0;
+  for (const detail of Object.values(STEP_DETAILS)) {
+    for (const entry of detail.files) {
+      const rel = citationPath(entry);
+      assert.ok(rel.length > 0, `empty citationPath for "${entry}"`);
+      assert.equal(/\([^)]*\)\s*$/.test(rel), false, `parenthetical survived in "${rel}"`);
+      n += 1;
+    }
+  }
+  assert.ok(n > 0, "STEP_DETAILS has no files[] rows to copy");
+});
+
+test("STEP_DETAILS never cites the app/_lib/db.ts barrel", () => {
+  const hits: string[] = [];
+  for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
+    for (const entry of detail.files) {
+      const { rel } = resolveEntry(entry);
+      if (rel.replaceAll("\\", "/") === "app/_lib/db.ts") {
+        hits.push(`${stepId}: "${entry}"`);
+      }
+    }
+  }
+  assert.deepEqual(
+    hits,
+    [],
+    `files[] must name the defining slice, not the db.ts barrel:\n  ${hits.join("\n  ")}`
+  );
+  const decide = STEP_DETAILS.decide.files.map((entry) => resolveEntry(entry).rel.replaceAll("\\", "/"));
+  assert.ok(
+    decide.includes("app/_lib/db/pipeline.ts"),
+    `decide.files must cite app/_lib/db/pipeline.ts, got: ${decide.join(", ")}`
+  );
+});
 
 test("every STEP_DETAILS.files[] entry resolves to a real path on disk", () => {
   const missing: string[] = [];
@@ -78,6 +120,22 @@ function funnelStepAliases(): string[] {
     .map((el) => el.id);
 }
 
+test("parseDiagramStep accepts every STEP_DETAILS alias and ignores unknown", () => {
+  const ids = Object.keys(STEP_DETAILS);
+  assert.ok(ids.length >= 14, `expected the live funnel aliases, got ${ids.length}`);
+  for (const id of ids) {
+    assert.equal(parseDiagramStep(id), id);
+    assert.equal(parseDiagramStep(` ${id} `), id);
+  }
+  assert.equal(parseDiagramStep("decide"), "decide");
+  assert.equal(parseDiagramStep(["cron"]), "cron");
+  assert.equal(parseDiagramStep("nope"), null);
+  assert.equal(parseDiagramStep(""), null);
+  assert.equal(parseDiagramStep("   "), null);
+  assert.equal(parseDiagramStep(undefined), null);
+  assert.equal(parseDiagramStep(["nope"]), null);
+});
+
 test("alias contract: every funnel step has a STEP_DETAILS entry and vice versa", () => {
   const aliases = new Set(funnelStepAliases());
   const keys = new Set(Object.keys(STEP_DETAILS));
@@ -90,6 +148,22 @@ test("alias contract: every funnel step has a STEP_DETAILS entry and vice versa"
     { orphanNodes: [], orphanDetails: [] },
     "funnel node aliases and STEP_DETAILS keys must match 1:1"
   );
+});
+
+test("every STEP_DETAILS.puml body parses as PlantUML with at least one node", () => {
+  const empty: string[] = [];
+  const thrown: string[] = [];
+  for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
+    try {
+      const diagram = parsePuml(detail.puml);
+      const nodes = [...diagram.index.values()].filter((el) => el.type === "node");
+      if (nodes.length < 1) empty.push(stepId);
+    } catch (err) {
+      thrown.push(`${stepId}: ${(err as Error).message}`);
+    }
+  }
+  assert.deepEqual(thrown, [], `parsePuml threw on STEP_DETAILS bodies:\n  ${thrown.join("\n  ")}`);
+  assert.deepEqual(empty, [], `STEP_DETAILS bodies with no nodes: ${empty.join(", ")}`);
 });
 
 // /perfect wave 21b (internal-explorers): the drawer's TITLE and SUMMARY are the
@@ -148,13 +222,15 @@ function routeFileFor(route: string): string | null {
 
 test("every /api route drawn in a step body/summary resolves to a real route.ts", () => {
   const missing: string[] = [];
-  // The summary half of the haystack now comes from the EN catalog (the source of
-  // truth for the four locales) rather than the module — the guard is about the
-  // endpoints the prose CLAIMS, and the prose moved.
-  const summaries = stepCatalog("en");
+  // puml once (code identifiers, untranslated) + each locale summary, so a
+  // translated claim cannot name a dead endpoint the EN guard never sees.
+  const catalogs = Object.fromEntries(LOCALES.map((locale) => [locale, stepCatalog(locale)]));
   for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
-    const summary = summaries[stepId]?.summary;
-    const haystack = `${detail.puml}\n${typeof summary === "string" ? summary : ""}`;
+    const summaries = LOCALES.map((locale) => {
+      const s = catalogs[locale]?.[stepId]?.summary;
+      return typeof s === "string" ? s : "";
+    }).join("\n");
+    const haystack = `${detail.puml}\n${summaries}`;
     const seen = new Set<string>();
     for (const match of haystack.matchAll(API_ROUTE)) {
       const route = match[0];

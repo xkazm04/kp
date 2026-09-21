@@ -66,8 +66,15 @@ export interface BillingGateway {
   /** Map of provider product ids → plans/packs (drives the reducer). */
   productMap(): ProductMap;
   /** `orgId` (when given) is stamped into the checkout metadata so the resulting
-   *  subscription/order events attribute to the buying org (org-plan Phase 3). */
-  createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout>;
+   *  subscription/order events attribute to the buying org (org-plan Phase 3).
+   *  `customerId` (when given) attaches the session to an existing MoR customer
+   *  so a pack or win-back checkout does not mint a second one. Omitted on first
+   *  purchase — Polar CheckoutCreate treats a missing `customer_id` as "create
+   *  the customer at payment". An invalid id must THROW, never be dropped. */
+  createCheckout(
+    req: CheckoutRequest,
+    opts: { successUrl: string; orgId?: string | null; customerId?: string | null }
+  ): Promise<Checkout>;
   createPortalSession(customerId: string): Promise<{ url: string }>;
   /** Verify signature + freshness and normalize. MUST throw on a bad signature. */
   verifyWebhook(rawBody: string, headers: Record<string, string | null>): BillingEvent;

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { asRecord, isLoadFailure } from "./load-state";
+import { asRecord } from "./load-state";
+import { useErrorMessage } from "./use-error-message";
+import { jsonFetchFailure, type JsonFetchFailure } from "./useJsonFetch";
 
 export type InfinitePhase = "initial" | "more" | "idle" | "error";
 
@@ -36,8 +38,9 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
   const [total, setTotal] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [phase, setPhase] = useState<InfinitePhase>("initial");
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<JsonFetchFailure | null>(null);
   const [gracePassed, setGracePassed] = useState(false); // initial-skeleton grace elapsed?
+  const resolveMessage = useErrorMessage();
 
   const nextOffsetRef = useRef(0); // offset to request on the next page load
   const loadingRef = useRef(false); // guards against overlapping/duplicate loads
@@ -55,14 +58,18 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
     const isInitial = nextOffsetRef.current === 0;
     if (isInitial) setGracePassed(false); // re-arm the skeleton grace for this (re)load
     setPhase(isInitial ? "initial" : "more");
-    setError(null);
+    setFailure(null);
     try {
       const res = await fetch(buildUrl(nextOffsetRef.current, pageSize));
       const body = asRecord(await res.json().catch(() => null));
-      // The SAME rule useJsonFetch and useLoader read (load-state.ts) — this was
-      // the third hand-rolled copy of it.
-      if (isLoadFailure(res.ok, body)) {
-        throw new Error(typeof body?.error === "string" && body.error ? body.error : `Load failed (${res.status}).`);
+      // Coded envelope, same as useJsonFetch: keep { code, status } and resolve
+      // the catalog through useErrorMessage. Never paint body.error (canonical
+      // English) as the user-facing string.
+      const f = jsonFetchFailure(res.ok, res.status, body);
+      if (f) {
+        setFailure(f);
+        setPhase("error");
+        return;
       }
       const page = selectPage(body);
       setItems((prev) => [...prev, ...page.items]);
@@ -71,13 +78,15 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
       setHasMore(page.hasMore);
       nextOffsetRef.current = page.nextOffset;
       setPhase("idle");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : errorLabel);
+    } catch {
+      // Transport / selectPage throw: no HTTP envelope. errorLabel is the
+      // already-localized fallback once resolveMessage sees a null code.
+      setFailure({ code: null, status: 0 });
       setPhase("error");
     } finally {
       loadingRef.current = false;
     }
-  }, [buildUrl, pageSize, selectPage, errorLabel]);
+  }, [buildUrl, pageSize, selectPage]);
 
   // First page on mount (a failed initial load is retried manually, not here).
   useEffect(() => {
@@ -116,5 +125,16 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
   // loading — the signal callers use to render the initial skeleton.
   const showInitialSkeleton = phase === "initial" && gracePassed;
 
-  return { items, total, hasMore, phase, showInitialSkeleton, error, sentinelRef, loadMore };
+  return {
+    items,
+    total,
+    hasMore,
+    phase,
+    showInitialSkeleton,
+    error: failure ? resolveMessage({ code: failure.code }, errorLabel) : null,
+    code: failure?.code ?? null,
+    status: failure?.status ?? null,
+    sentinelRef,
+    loadMore,
+  };
 }

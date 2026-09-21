@@ -26,6 +26,12 @@ const SKILL_ALIASES: Record<string, string[]> = {
   // ONLY here, so the disjoint-bucket rule still holds (react owns next.js/nextjs).
   javascript: ["javascript", "node", "node.js", "nodejs"],
   react: ["react", "frontend", "ui", "next.js", "nextjs"],
+  // Same silent-false-negative shape as node.js: a JD that names Vue or Svelte
+  // produced neither a match nor a gap, so "Potential Gaps: none" meant "the
+  // taxonomy did not know the skill". Aliases live ONLY here (not also in
+  // javascript), so the disjoint-bucket rule still holds.
+  vue: ["vue", "vue.js", "vuejs", "nuxt", "nuxt.js"],
+  svelte: ["svelte", "sveltekit"],
   go: ["go", "golang"],
   rust: ["rust"],
   java: ["java", "spring", "jvm"],

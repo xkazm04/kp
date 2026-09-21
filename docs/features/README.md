@@ -13,6 +13,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | --- | --- | --- |
 | Jobs & JD lifecycle | [jobs/README.md](jobs/README.md) | `app/_lib/job-ingest.ts`, `app/_lib/jd-lint.ts`, `app/api/jobs`, `app/api/jds`, `app/features/library/jobs`, `pipeline/jobfit/campaign.py` |
 | Candidate intake & CV analysis | [candidates/README.md](candidates/README.md) | `app/_lib/apply*.ts`, `app/_lib/analyze-run.ts`, `app/api/apply`, `app/features/tools/{analyze,profile}`, `pipeline/jobfit/profile.py` |
+| Job seeker (`/me`) | [jobseeker/README.md](jobseeker/README.md) | `app/me`, `app/features/jobseeker`, `app/api/jobseeker`, `app/_lib/jobseeker`, `app/_lib/db/jobseeker-*.ts`, `pipeline/jobfit/jobseeker*.py`, `pipeline/jobfit/posting_structure*.py` |
 | Matching & scoring | [matching/README.md](matching/README.md) | `pipeline/jobfit/{matching,taxonomy,transform,transferable,weight_proposal}.py`, `app/features/insights/matrix` |
 | Pipeline & automation | [pipeline/README.md](pipeline/README.md) | `app/_lib/{pipeline-stages,automation-run,screen-wave,decision-config-store}.ts`, `app/api/automation`, `app/features/hiring/{pipeline,decisions}`, `pipeline/jobfit/automation.py` |
 | Dev cases | [dev-case/README.md](dev-case/README.md) | `app/_lib/devcase-*.ts`, `app/api/devcase`, `app/features/tools/devcases`, `app/devcase/apply`, `pipeline/jobfit/devcase/**` |
@@ -42,7 +43,7 @@ The studio sidebar groups the tabs (tab ids live once in `app/features/shell/tab
 
 | Group | Tab | What it does |
 | --- | --- | --- |
-| Hiring | Overview / Pipeline | Kanban board of candidates across hiring stages, scheduler control, candidate drawer; the overview surfaces what needs a human decision first |
+| Hiring | Overview / Pipeline | Kanban board of candidates across hiring stages, scheduler control, candidate modal; the overview surfaces what needs a human decision first |
 | Hiring | Channels | Sourcing channels feeding the pipeline |
 | Hiring | Decisions | AI screening recommendations, group eval, decision rules — all behind human review |
 | Hiring | Schedule | Interview calendar, transcripts, prep kits |
@@ -109,7 +110,7 @@ editing copy needs the left column, an agent editing code needs the right one.
 | **Job description** — the document that describes it | `jds` table (+ `jd_revisions`), `/api/jds`, `library.*` catalog | Job descriptions tab, JD builder, `/jds/[slug]` |
 | **Role brief** — the structured intake behind a JD | `role_intakes` table, `RoleBrief` type, `/api/intake` | the role-intake dialog, and nowhere else |
 | **Assignment** — the work sample | `dev_cases` / `dev_postings` / `dev_submissions`, `/api/devcase`, `devcase.*` catalog, `?tab=assignments` (legacy `?tab=dev`) | Assignments tab, detail, lifecycle strip, voice panel, Jobs lifecycle strip, Decisions |
-| **Voice screen** — the AI interview | `interview_sessions`, `/api/interview` | Interview sim, board drawer, assignment detail |
+| **Voice screen** — the AI interview | `interview_sessions`, `/api/interview` | Interview sim, candidate modal, assignment detail |
 
 Retired from user-facing copy, with what replaced each:
 

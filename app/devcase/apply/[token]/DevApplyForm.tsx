@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { canSubmitDevApply } from "@/app/_lib/devcase-apply-repo";
 import { BTN_PRIMARY_LG, NOTICE } from "@/app/_components/ui/recipes";
 
 type SubmitState =
@@ -34,10 +35,14 @@ export function DevApplyForm({ token }: { token: string }) {
   // A submitter's ONLY identity is what this form captures — a missing address
   // converts a winning evaluation into an unreachable candidate, so contact is
   // required on the PUBLIC form (the webhook stays lenient for external ATS
-  // callers, which carry their own identity). Light shape check only.
-  const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
-  const canSubmit =
-    name.trim().length > 0 && repoRef.trim().length > 0 && contactValid && state.kind !== "sending" && state.kind !== "done";
+  // callers, which carry their own identity). Light shape check only. Repo must
+  // parse as http(s); any host is fine (the assignment is not GitHub-only).
+  const canSubmit = canSubmitDevApply({
+    name,
+    contact,
+    repoRef,
+    busy: state.kind === "sending" || state.kind === "done",
+  });
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -111,9 +116,10 @@ export function DevApplyForm({ token }: { token: string }) {
           value={repoRef}
           onChange={(e) => setRepoRef(e.target.value)}
           required
-          placeholder="https://github.com/you/solution"
+          placeholder={t("fieldRepoPlaceholder")}
           className="mt-1"
         />
+        <span className="mt-1 block text-micro font-normal text-steel">{t("fieldRepoHint")}</span>
       </label>
       <label className="block text-sm font-medium text-ink">
         {t("fieldNotes")}

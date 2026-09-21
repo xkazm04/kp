@@ -5,7 +5,9 @@ import { EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recip
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
+import { DIAGRAMS } from "./diagramCatalog";
 import { PipelineExplorer } from "./PipelineExplorer";
+import { parseDiagramStep } from "./pipelineSteps";
 import { readDiagramSource } from "./readDiagramSource";
 
 // Renders per-request under the dynamic-locale layout and builds heavy PlantUML
@@ -19,15 +21,6 @@ export const instant = false;
 // The on-disk read + module-scope cache live in ./readDiagramSource; those .puml
 // files reach the standalone production runtime via next.config.ts's
 // `outputFileTracingIncludes` for the /diagrams route.
-
-// bug-ui-scan-2026-07-09 (architecture-diagrams #3): the user-facing label/blurb
-// for each diagram live in messages/*.json (items.<key>.*); only the on-disk file
-// name and layout flags stay here.
-const DIAGRAMS: { file: string; key: "tobe" | "v1" | "v2"; featured?: boolean }[] = [
-  { file: "15-automated-pipeline-tobe.puml", key: "tobe", featured: true },
-  { file: "01-system-architecture-v1.puml", key: "v1" },
-  { file: "02-system-architecture-v2.puml", key: "v2" },
-];
 
 function Legend({ live, gate, gap }: { live: string; gate: string; gap: string }) {
   return (
@@ -57,7 +50,11 @@ function Legend({ live, gate, gap }: { live: string; gate: string; gap: string }
   );
 }
 
-export default async function DiagramsPage() {
+export default async function DiagramsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // INTERNAL SURFACE (/perfect wave 21b). This explorer draws the repository's own
   // module paths, the endpoints behind each step and an explicit off-spec admission
   // ("the runtime extractor still calls Gemini"). That is an engineering artifact for
@@ -70,6 +67,7 @@ export default async function DiagramsPage() {
   // bug-ui-scan-2026-07-09 (architecture-diagrams #3): page chrome / legend /
   // blurbs are localized; the diagram BODIES stay code identifiers (untranslated).
   const t = await getTranslations("diagrams");
+  const initialStep = parseDiagramStep((await searchParams).step);
   const items = DIAGRAMS.map((d) => ({ ...d, source: readDiagramSource(d.file) }));
 
   return (
@@ -99,7 +97,7 @@ export default async function DiagramsPage() {
             ) : null}
             {it.source ? (
               it.featured ? (
-                <PipelineExplorer source={it.source} />
+                <PipelineExplorer source={it.source} initialStep={initialStep} />
               ) : (
                 <PlantUml source={it.source} scale="natural" className="mt-4" expandable />
               )

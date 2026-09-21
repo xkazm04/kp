@@ -6,7 +6,7 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findVaguePhrases, jdLintMessage, lintJd, type JdLintFinding } from "./jd-lint.ts";
+import { findVaguePhrases, jdLintMessage, lintFindingPhrase, lintJd, locateLintPhrase, type JdLintFinding } from "./jd-lint.ts";
 
 // ---------------------------------------------------------------------------
 // findVaguePhrases — English boilerplate
@@ -98,6 +98,18 @@ test("any work-mode signal counts as a place (remote IS a place for tech roles)"
     const findings = lintJd({ body: `Senior developer, ${place}. 65 000 Kč/month.` });
     assert.deepEqual(findings, [], `should accept place signal: ${place}`);
   }
+});
+
+test("locating competitive salary selects that span in a fixture body", () => {
+  const body = "We offer a competitive salary and a dynamic team. Remote from Prague.";
+  const findings = lintJd({ body, salaryAvailable: true });
+  const vague = findings.find((f) => f.kind === "vague" && f.phrase.toLowerCase().includes("competitive salary"));
+  assert.ok(vague, "expected a competitive-salary finding");
+  assert.equal(lintFindingPhrase(vague), vague && "phrase" in vague ? vague.phrase : null);
+  const loc = locateLintPhrase(body, lintFindingPhrase(vague!) ?? "");
+  assert.ok(loc);
+  assert.equal(body.slice(loc.start, loc.end).toLowerCase(), "competitive salary");
+  assert.equal(lintFindingPhrase({ kind: "missing", what: "place" }), null);
 });
 
 test("a boilerplate-laden JD missing both concretes reports everything at once", () => {

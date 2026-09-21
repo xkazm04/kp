@@ -1,14 +1,15 @@
 // State + handlers for JdsBuilder.tsx — extracted verbatim (no behaviour change)
 // so the builder file stays under the 200-line split threshold. Owns: the form
 // fields (title/company/seniority/family/need/repo/output-lang), the template
-// picker, the live advisory lint, the backgrounded Generate flow, and the
-// Save-as-draft flow.
+// picker, the backgrounded Generate flow, and the Save-as-draft flow. The
+// finished-JD lint belongs on post-build editors (ledger / public), not on the
+// need prompt.
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { builderLintFindings, type GeneratePrefill } from "./jdsLibrary";
+import type { GeneratePrefill } from "./jdsLibrary";
 import type { Template } from "@/app/features/shared/renderTemplate";
 import { fetchTemplates } from "@/app/features/shared/templatesClient";
 import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
@@ -17,6 +18,7 @@ import { compareCells } from "@/app/_components/table/useTableSort";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { readClientOrgName } from "@/app/_lib/org-settings";
+import { generateSuccessHref, readGenerateSlug } from "./jdsBuilderGenerate";
 
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // Role-family slugs (canonical; the display label comes from the enums catalog).
@@ -127,20 +129,10 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   // ── Generate: the backgrounded, checklist-driven AI build ──────────────────
   const [options, setOptions] = useState({ description: true, marketResearch: true, caseDesign: false });
 
-  // ── Advisory specificity/inclusivity lint (jd-lint, live on the editor body) ──
-  // Debounced ~400ms so it recomputes off the keystroke path; ADVISORY only —
-  // never gates Generate or Save-as-draft. The panel below hides at zero findings.
-  const [lintFindings, setLintFindings] = useState<ReturnType<typeof builderLintFindings>>([]);
-  const marketResearch = options.marketResearch;
-  useEffect(() => {
-    const id = setTimeout(() => setLintFindings(builderLintFindings(needText, { marketResearch })), 400);
-    return () => clearTimeout(id);
-  }, [needText, marketResearch]);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [queued, setQueued] = useState(false);
-  const queuedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (queuedTimer.current) clearTimeout(queuedTimer.current); }, []);
+  // Durable library-row href after a successful start (replaces the 4s queued chip).
+  const [queuedHref, setQueuedHref] = useState<string | null>(null);
 
   const anyOption = options.description || options.marketResearch || options.caseDesign;
   // A role (for the description and/or the case) needs a real need; market research
@@ -153,6 +145,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     if (!canStart) return;
     setSubmitting(true);
     setError(null);
+    setQueuedHref(null);
     try {
       const r = await fetch("/api/jds/generate", {
         method: "POST",
@@ -177,17 +170,16 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
         throw new Error(errMsg(p, t("generateFailedStatus", { status: r.status })));
       }
       // The JD now lives in the Ledger as "Analyzing" and fills in server-side.
-      // Clear the role-specific inputs so the next role starts fresh (reusable
-      // company/seniority/field/template/language stay), reload the Ledger, and
-      // show a transient confirmation.
+      // Keep the returned slug as a durable link to that row — Generate lives on
+      // Job-intake now, so a 4s chip on this tab is not a path to the object the
+      // paid run is producing.
+      const p = await r.json().catch(() => ({}));
       setChecklistOpen(false);
       setTitle("");
       setNeedText("");
       setRepoUrl("");
       onSaved();
-      setQueued(true);
-      if (queuedTimer.current) clearTimeout(queuedTimer.current);
-      queuedTimer.current = setTimeout(() => setQueued(false), 4000);
+      setQueuedHref(generateSuccessHref(readGenerateSlug(p)));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("genFailed"));
     } finally {
@@ -269,11 +261,10 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     familyOptions,
     options,
     setOptions,
-    lintFindings,
     checklistOpen,
     setChecklistOpen,
     submitting,
-    queued,
+    queuedHref,
     anyOption,
     inputOk,
     canStart,

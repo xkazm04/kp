@@ -1,6 +1,6 @@
 "use client";
 
-// Opening things FROM the board: the AI-actions drawer (in hand or resolved by id),
+// Opening things FROM the board: the candidate modal (in hand or resolved by id),
 // the analyzed profile, the job, the per-position ranking, and Decisions — plus the
 // Recent-group bookkeeping each of those "I'm working on this" moments owes the shell.
 // Split out of usePipelineTabState.
@@ -11,55 +11,58 @@ import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
 import { recordRecent } from "@/app/features/shell/recents";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
+import type { CandidateTab, ShowCandidateOptions } from "./candidate/candidateView";
 
 export function usePipelineNavigation({
   entries,
-  setDrawerEntry,
+  showCandidate,
 }: {
   entries: Entry[] | null;
-  setDrawerEntry: (e: Entry | null) => void;
+  showCandidate: (e: Entry | null, opts?: ShowCandidateOptions) => void;
 }) {
   // Every destination here is another ?tab= on the SAME route, so it is a URL patch,
   // not a server navigation (shell/nav/shallow-nav.ts). The shell still scrolls to
   // the top of the new tab — its focus-the-<main>-landmark effect does that.
   const nav = useShellNavigate();
   const search = useSearchParams();
-  // SHELL3 — opening a candidate/profile/job from the board is the canonical
-  // "I'm working on this" moment; record it so the sidebar Recent group and the
-  // palette's resting state can resume it after the shell wipes the selection.
-  const openActions = (e: Entry) => {
+  // SHELL3 — opening a candidate from the board is the canonical "I'm working on
+  // this" moment; record it so the sidebar Recent group and the palette's resting
+  // state can resume it after the shell wipes the selection. `cohort` is what the
+  // modal's pager walks (a map cell's candidates; null = the board's visible order)
+  // and `tab` is the door's natural section (a ticket's "Actions" → Actions).
+  const openCandidate = (e: Entry, cohort?: readonly Entry[] | null, tab?: CandidateTab) => {
     recordRecent({
       type: "entry",
       id: e.id,
       label: e.candidateLabel,
       href: buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", q: e.candidateLabel }, search.toString()),
     });
-    setDrawerEntry(e);
+    showCandidate(e, { cohort: cohort ?? null, tab: tab ?? "overview" });
   };
-  // rematch-story-navigable / drawer-flow-friction — open a drawer for an entry by id.
-  // Unlike openActions (which has the full Entry in hand), this resolves the entry from
-  // the server, so it reaches a COUNTERPART entry that may be terminal / off the active
-  // board (a rematch link) and also serves the IN-PLACE refresh after a stage move
-  // (same id → the keyed drawer re-renders without remounting). A 404 (deleted /
-  // other-tenant / raced) is a silent no-op — never a broken drawer.
+  // rematch-story-navigable / drawer-flow-friction — open the modal for an entry by id.
+  // Unlike openCandidate (which has the full Entry in hand), this resolves the entry
+  // from the server, so it reaches a COUNTERPART entry that may be terminal / off the
+  // active board (a rematch link) and also serves the IN-PLACE refresh after a stage
+  // move (same id → the view keeps its tab and cohort). A 404 (deleted / other-tenant
+  // / raced) is a silent no-op — never a broken modal.
   const openEntryById = useCallback(
     async (id: string) => {
       try {
         const r = await fetch(`/api/pipeline/${encodeURIComponent(id)}`);
         if (!r.ok) return;
         const d = (await r.json()) as { entry?: Entry };
-        if (d?.entry) setDrawerEntry(d.entry);
+        if (d?.entry) showCandidate(d.entry);
       } catch {
-        /* network blip — leave the drawer as-is */
+        /* network blip — leave the modal as-is */
       }
     },
-    [setDrawerEntry]
+    [showCandidate]
   );
-  // Candidate name → the analyzed profile (Match view); falls back to the
-  // AI-actions drawer when the entry has no linked candidate id.
+  // Candidate name → the analyzed profile (Match view); falls back to the candidate
+  // modal when the entry has no linked candidate id.
   const openProfile = (e: Entry) => {
     if (!e.candidateId) {
-      setDrawerEntry(e);
+      showCandidate(e, { cohort: null, tab: "overview" });
       return;
     }
     const href = buildUrl({ tab: "matrix", profile: e.candidateId }, search.toString());
@@ -77,5 +80,5 @@ export function usePipelineNavigation({
   // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
   const openPositionRanking = (jobId: string) => nav.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
 
-  return { openActions, openEntryById, openProfile, openJob, goToDecisions, openPositionRanking };
+  return { openCandidate, openEntryById, openProfile, openJob, goToDecisions, openPositionRanking };
 }
