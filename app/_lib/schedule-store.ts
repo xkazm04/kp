@@ -411,7 +411,21 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     const current = d.prepare(`SELECT * FROM schedule_invites WHERE token = ?`).get(token) as Record<string, unknown> | undefined;
     if (!current) return { ok: false, reason: "not_found", invite: null };
     const inv = rowTo(current);
-    if (inv.status === "confirmed") return { ok: true, invite: inv }; // idempotent re-confirm of the same invite
+    // Idempotent re-confirm — but only of the SAME booking. This branch used to answer
+    // `ok: true` for any confirm landing on an already-confirmed invite, whatever time it
+    // named. The candidate token route reads `ok` as a fresh booking and then advances the
+    // pipeline entry and composes the confirmation from the REQUESTED slot, not from the
+    // invite it got back, so a double-submit or a retry after a lost response stamped the
+    // board and the letter with an hour nobody ever held — while the row kept the first
+    // one, and every later reader disagreed with the letter already in the candidate's
+    // inbox. Identity is the ISO `slot_at` wherever the caller supplies one (the same
+    // collision domain the clash check below uses), and the display label only for the
+    // legacy label-only callers. A mismatch is `taken`: this link no longer holds that
+    // time, which is exactly the remedy the caller already renders for that reason.
+    if (inv.status === "confirmed") {
+      const sameBooking = slotAt ? inv.slotAt === slotAt : inv.slot === slot;
+      return sameBooking ? { ok: true, invite: inv } : { ok: false, reason: "taken", invite: inv };
+    }
     // Collision domain is per-team (a team's booking can't clash with another team's
     // calendar): scope the check to this invite's workspace.
     const clash = slotAt

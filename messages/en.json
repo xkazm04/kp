@@ -7787,6 +7787,7 @@
     "cellAria": "{cand} to {pos}: {val}{ring}{sel}",
     "blocked": "blocked",
     "matchVal": "match {score}",
+    "cellUnassessed": "not scored",
     "popoverAria": "Why {cand} scores for {pos}",
     "closePopover": "Close",
     "reasoningLoading": "Reading the fit…",

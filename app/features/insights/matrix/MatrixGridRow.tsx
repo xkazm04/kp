@@ -4,7 +4,7 @@ import { memo } from "react";
 import { Check } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
-import { cellClass } from "./matrixCellClass";
+import { announcedCellScore, cellClass } from "./matrixCellClass";
 import type { Cell } from "./matrixCellClass";
 import { STRONG_THRESHOLD } from "./matrixStats";
 import { archStyle, STAGE_INITIAL, type Candidate, type Position } from "./matrixTabTypes";
@@ -108,6 +108,8 @@ function MatrixGridRowInner({
         // that isn't already in the pipeline / just added.
         const selectable = selectMode && !c.blocked && !ringed;
         const isSel = selectedKeys?.has(key) ?? false;
+        // The one predicate the colour, the cell body and the accessible name share.
+        const announced = announcedCellScore(c);
         return (
           <td key={p.id} role="gridcell" aria-colindex={ci + 2} className="border-b border-l border-stone-50 p-0">
             {/* `aria-disabled`, never `disabled`: a disabled cell drops out of
@@ -128,12 +130,14 @@ function MatrixGridRowInner({
                   ? selectable
                     ? t("cellSelectTitle", { action: isSel ? t("deselect") : t("select"), cand: cand.label, pos: p.title })
                     : t("cellBlockedTitle", { cand: cand.label, pos: p.title, reason: c.blocked ? blockedLabel(c) : ringed ? t("alreadyInPipe") : "" })
-                  : t("cellTitle", { cand: cand.label, pos: p.title, val: c.blocked ? blockedLabel(c) : c.score ?? 0, place: place ? t("inPipelineStage", { stage: enumLabel("stage", place.stage) }) : "" })
+                  : t("cellTitle", { cand: cand.label, pos: p.title, val: c.blocked ? blockedLabel(c) : announced ?? t("cellUnassessed"), place: place ? t("inPipelineStage", { stage: enumLabel("stage", place.stage) }) : "" })
               }
               aria-label={t("cellAria", {
                 cand: cand.label,
                 pos: p.title,
-                val: c.blocked ? blockedLabel(c) : t("matchVal", { score: c.score ?? 0 }),
+                // `?? 0` here announced a concrete "match 0" for a cell the grid paints
+                // and renders as NOT ASSESSED. The paint's own predicate decides both now.
+                val: c.blocked ? blockedLabel(c) : announced == null ? t("cellUnassessed") : t("matchVal", { score: announced }),
                 ring: ringed ? t("inPipelineSuffix") : "",
                 sel: selectMode && selectable ? (isSel ? t("selectedSuffix") : t("selectableSuffix")) : "",
               })}

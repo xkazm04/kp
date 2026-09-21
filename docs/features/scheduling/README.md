@@ -234,6 +234,34 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
+**An idempotent re-confirm means the SAME booking.** `confirmScheduleInvite`
+answers `ok` for a confirm that lands on an already-confirmed invite, so a
+double-submit or a retry after a lost response does not error. It used to answer
+`ok` whatever time the retry named — and the token route reads that `ok` as a
+fresh booking, then advances the pipeline entry (`approve_event`) and composes
+the confirmation from the **requested** slot rather than the invite it got back.
+A retry at a different hour therefore stamped the board and the candidate's
+letter with a time nobody ever held, while the stored invite kept the first one.
+The branch now compares identity — the ISO `slot_at` where the caller supplies
+one, the display label only for the legacy label-only callers — and answers
+`taken` on a mismatch, the same refusal (and the same remedy: pick again) a slot
+collision produces. Pinned by `app/_lib/schedule-store.test.ts` ("a re-confirm at
+a DIFFERENT slot is refused").
+
+**A dated pick must name a day that exists.** The recruiter's week-grid cell
+arrives as a raw `dateSlot` POST field and is resolved by `dateSlotToIso`
+(`app/_lib/schedule-slots.ts`). Its range check is per-field — month ≤ 12,
+day ≤ 31 — and cannot see that the day is absent from *that* month, while
+`Date.UTC` underneath overflows silently rather than refusing: `2026-02-30`
+resolved to 2 March, `2026-06-31` to 1 July. The booking then landed on a
+different calendar day than the one asked for, with a server-derived label
+naming the rolled day, so nothing on either side reported the shift. The
+resolved instant is now round-tripped back through `KP_INTERVIEW_TZ` and
+refused unless year/month/day survive — the same `null` a weekend, a past
+instant or an off-horizon pick already returned. Pinned by
+`app/_lib/schedule-slots.test.ts` ("refuses a calendar date that does not
+exist"). DST is untouched: only the calendar date is compared, never the hour.
+
 **All four confirm writers re-check, on the same rule.** `slotStillFree` runs on
 the candidate confirm (`app/api/schedule/[token]/route.ts`) and on every recruiter
 write that would occupy the hour: week-grid `book`, `reschedule`, and

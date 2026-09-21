@@ -7787,6 +7787,7 @@
     "cellAria": "{cand} na {pos}: {val}{ring}{sel}",
     "blocked": "blokováno",
     "matchVal": "shoda {score}",
+    "cellUnassessed": "nehodnoceno",
     "popoverAria": "Proč {cand} skóruje na {pos}",
     "closePopover": "Zavřít",
     "reasoningLoading": "Načítá se hodnocení…",
