@@ -47,12 +47,12 @@ had become. The four outcomes are now distinct codes rather than one prose sente
 "the recommendation changed under you" and "the write fell over" no longer render the
 same red line. Pinned by `app/api/analytics/analytics-writes-authority.test.ts`.
 
-### Three expensive reads carry a per-IP budget
+### Four expensive doors carry a per-IP budget
 
 `metric-pack`, `decisions` and `calibration/threshold-history` spend CPU and the shared
 SQLite connection rather than provider credit, which is why they had no limiter — and the
 metric pack hangs off a **download link**, which a browser or a prefetcher can pull with
-no click. Each now calls `rateLimit()` after its cheap refusals, answering
+no click. Each calls `rateLimit()` after its cheap refusals, answering
 `TOO_MANY_REQUESTS` (429): metric-pack 30/10 min, decisions 120/10 min (the log pages 20
 at a time on scroll), threshold-history 60/10 min. Pinned in
 `app/api/rate-limit-contract.test.ts`.
@@ -60,6 +60,13 @@ at a time on scroll), threshold-history 60/10 min. Pinned in
 `threshold-history` stays ungated by role deliberately — it returns policy-level seals
 (`policy:screening:*`, no candidate PII) and aggregate band rates, the same exposure class
 as the `/calibration` reads beside it. That is precisely why it needed a budget.
+
+**`apply-threshold` runs the same expensive scan and had no budget at all. CLOSED
+2026-09-16.** The write sibling of `threshold-history` — every accepted POST re-derives the
+recommendation from two full-table calibration scans plus a holdout read, the identical work
+its read-only sibling was rate-limited for, and this one additionally writes the live
+auto-reject floor. Operator- and `pipeline:write`-gated already, so `rateLimit()` now runs
+after those checks and the two cheap 400s, ahead of the first scan: 20/10 min per IP.
 
 ## Three sections, not one scroll
 
@@ -69,6 +76,14 @@ as the `/calibration` reads beside it. That is precisely why it needed a budget.
 | `economics` | What does it cost, what earns it back? | the comparison board, automation ROI, compute cost |
 | `quality` | Can I trust the scoring, and prove what we decided? | trust verdict, calibration, sealed records, decision log |
 
+- **Every export on the tab is one button.** `AnalyticsExportButton.tsx` — a download glyph, a
+  label, a disabled state and `print:hidden` (a printed brief cannot be clicked). Five panels
+  across three sections now offer a file (funnel, by-role, acquisition board, decision-log page,
+  decision-log whole trail) and the class string behind them had been typed out four times
+  before this component existed; six copies is how a hover or disabled state drifts between
+  panels meant to read as one page. Each panel still owns its own row builder — a pure module
+  beside it, with a test — because what can lie in an export is the **absent** case, not the
+  markup.
 - The section vocabulary is one literal array with a derived union and a runtime guard
   (`sections/analyticsSections.ts`) — the `app/features/shell/tabs.ts` shape — so an unknown
   `?sec=` resolves to the default instead of rendering nothing
@@ -222,6 +237,25 @@ call a stage weak.
   — has no cohort, and the server's `hireRatePct: 0` for it is an undefined ratio, not a
   measured one), and the `text-moss` "this converts" colour is reserved for `hired > 0`. The
   CSV carries the same dash, so the file cannot disagree with the screen.
+- **The funnel band exports too** (`analyticsFunnelCsv.ts` → `funnelCsvRows()`, pure, executed
+  by `analyticsFunnelCsv.test.ts`). It is the band a hiring manager is asked to defend upward,
+  and it was the only panel on the tab with no way off the screen while the roles table beside
+  it and the decision log under it both exported. `kp-funnel.csv` is stage · reached · here now
+  · conversion · goal, one row per stage in the band's order, with stage labels resolved through
+  the **same** `enumLabel("stage", …)` the rows render — so a renamed board column reads
+  identically on screen and in the deck the file lands in. Both absent cases travel as the em
+  dash the screen prints: a stage with no predecessor cohort has no conversion, and a stage the
+  org set no goal for has no benchmark. Writing `0%` for either would re-introduce, in the
+  artifact that outlives the screen, exactly the fabricated figure the two rules above remove.
+  The button is offered only on the branches that render the per-stage rows (`no-data` and
+  `no-movement` show a guide, not a table), so the file can never carry a table the reader was
+  not looking at. `current` is the one column on the file but not on the band's rows — the same
+  field the dwell panel directly below renders, so the export adds a number the page already
+  states rather than a measurement it does not. Both this file and `kp-roles.csv` now open
+  with the same provenance block the decision-log CSV already used (export name, generated
+  ISO UTC, window, `bucketTz`, locale, and — when they bite — the cohort-cap note and the
+  guided-demo exclusion count), so a deck paste cannot disagree with the header about what
+  was counted.
 
 ## Economics — one comparison board
 
@@ -229,6 +263,18 @@ call a stage weak.
 `byChannel`, per-creative `byVariant`) into one sortable table with the same unit-economics
 columns, **grouped and labelled, never merged**. A dash under Spend means "not measured for
 this kind of surface", not "free", and the rule says so.
+
+- **The board exports as `kp-acquisition-economics.csv`** (`economicsRows.ts` →
+  `economicsCsvRows()`, pure, executed by `economicsRows.test.ts`). Two properties it owes the
+  budget review that opens it. **The taxonomy travels as a column**: the three groups measure
+  different things, which is why the board refuses to merge them on screen, and a file that
+  dropped the group label would be the flat ranking one layer down. **Money stays a raw
+  number** — `money()` renders a grouped, localized "12 000 Kč" that a spreadsheet imports as
+  text and cannot sum, so the currency is named in the header instead (`csvSpendCzk` /
+  `csvPerHireCzk`) and the cell carries the figure. `spendUpdatedAt` rides along as the raw ISO
+  instant, because a per-hire cost is exactly as current as the spend behind it and the screen
+  already says so (`spendAsOf`). The export follows the kind filter and the active sort — the
+  rows on screen, in their order, the same rule the roles table states.
 
 - **The attribution model is FIRST-TOUCH and IMMUTABLE AT INTAKE — and now says so.**
   Every per-source, per-channel and per-creative figure on this board rests on one rule that
@@ -346,6 +392,12 @@ describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/job
 `own`) and a `basis` string that **names the tier** are both still to be made, in
 `app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
 
+**Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
+`EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
+(`?tab=pipeline&q=<jobTitle>`) and selects the variant kind filter; an empty title stays
+text. The "recommendation, not an actuator" note is unchanged. Helper:
+`variantPauseBoardHref` in `source-analytics.ts`.
+
 **The variant pause heuristic judges each creative on its own clock.**
 `variantPauseRecommendations` (`app/_lib/source-analytics.ts`) gates a group on the *group's*
 earliest lead — how long the comparison has run — **and** each variant on **its own**
@@ -372,6 +424,10 @@ fair-share floor that decides who gets flagged.
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
 it: should this score be allowed to decide at all.
 
+- **The reliability diagram exports.** A calibrated arm offers `kp-reliability.csv` (bin, lo,
+  hi, n, predicted, observed; empty bins omitted) with provenance naming source, outcome,
+  floor and whether that floor is enforced. The uncalibrated branch has no curve and no
+  button. Helper: `reliabilityCsv.ts`.
 - **Three producers, not two.** `GET /api/analytics/calibration?source=` serves `pipeline`
   (default) · `analysis` · `holdout` — the clean arm, which the route could already serve and
   no UI could reach. Each arm has its own "what this measures" / "what counts" copy.
@@ -602,7 +658,9 @@ acting when any group-eval record already carries traceability.
 `sections/DecisionLogTable.tsx` gains the same subject search, **server-side** because the trail
 is server-paged, sharing the fold and collator helpers with the records table, plus a
 **whole-trail CSV export** beside "Export page" — a failure downloads **nothing** rather than a
-partial file named "whole trail". The refined read path exists because SQLite's BINARY collation
+partial file named "whole trail". The detail column expands like the records table (row button,
+`aria-expanded`, full text + sealed reason + cohort) so a keyboard or touch auditor can read
+the legal basis without a hover `title`. The refined read path exists because SQLite's BINARY collation
 can do neither job: when `q` is set, or the sort column is `candidateLabel`/`jobTitle`, the
 handler reads the filtered set newest-first, folds and collates in JS, then slices the page and
 enriches only that slice. It is a **scan bound, not a date window** — `SUBJECT_REFINE_MAX = 5000`
@@ -729,6 +787,10 @@ render site, in all four locales:
 | LLM self-report (Decisions AI review card) | the model's own rating of its own verdict | **Self-reported by the model** |
 | Salary-read grade (`report.confidence.*`) | how strong the evidence behind the read is | **Strong / Moderate / Weak evidence** |
 | Archetype vote share (`registry.detect`) | the winner's share of the routing-signal weight | **signals agree** |
+
+The headless salary CLI (`scripts/salary.py`) prints that salary-read grade as
+**Evidence** / Strong|Moderate|Weak, never the `Confidence` stem. A missing grade
+omits the line rather than printing 0.
 
 **The self-report no longer renders with measurement grammar.** The 0–100 scalar used to be a
 tinted meter under the word "Confidence", announced as "AI confidence in this recommendation:
@@ -966,8 +1028,9 @@ reads as if every arrival reached an offer (a measured 60 % accept and 10 leads/
 axis — `validatePipelineStages` requires that much and no more — so such a board falls back to
 the funnel-derived conversion and echoes `offerAcceptRate: null` · an unknown floor in the threshold-history strip renders `—`, never `0` — `0` is a legal floor (accept everything), so the fix is `floorLabel()` in `thresholdHistoryRows.ts`, not a falsy test; the strip's plot already skipped nulls while the sentence and the sr-only list beside it printed a prior floor no seal ever recorded · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
 capped tables say what they dropped and where to reach it · the first-run empty state previews
-the metrics with literal em-dashes and never fabricates sample figures
-(`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.
+four metrics (hire rate, time-to-hire, cost-per-hire, and whether the score may decide) with
+literal em-dashes and never fabricates sample figures (`AnalyticsEmptyPreview.tsx`), plus a
+deep link to `?tab=analytics&sec=quality` · a tamper-evidence claim is conditioned on the key census.
 
 ## Every stage threshold reads the workspace's own board
 
@@ -985,7 +1048,7 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 
 Separate from everything above — that is the operator's own board, computed from the local
 DB. `app/_lib/analytics/` is the third-party half: `plausible.tsx` renders the script tag and
-`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`).
+`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`, `checkout_completed`, and on this tab `analytics_section` `{sec}`, `analytics_export` `{artifact}`, `calibration_apply` `{family: 0|1}`). No PII in those props — section ids, artifact names, booleans only.
 
 Both are env-gated on `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Unset — dev, and every self-hosted
 deploy that does not opt in — renders nothing and ships zero analytics bytes.
@@ -1023,21 +1086,25 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   says *"over 5 hires"*, and `certifiable` is **false**, which is the honest answer: `status:
   measured` means measured. The field is optional and falls back to `hired`, so any other
   caller is unchanged; both halves are pinned in `metric-pack.test.ts`.
-- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.**
-  `?days=90` prints *"Window: last 90 days"* over every row, but capacity's two terms
-  (open roles, membership roster) are current counts with no window applied — the only row in
-  the pack that is not a figure about the stated period, and its `basis` names no period either.
-  (`cost_per_hire` is windowed-aware in the honest direction: spend is lifetime, so the route
-  returns `null` and the pack says `not_measurable` rather than dividing a lifetime numerator by
-  a windowed denominator.)
-- **The metric-pack route's capacity comment argues the wrong way round.**
-  `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would understate
-  capacity, which is the direction that flatters us."* A capacity metric is roles **per**
-  recruiter, so a larger denominator gives a **lower** ratio — the *un*flattering direction —
-  and the narrow `CARRYING_ROLES` set is therefore the flattering choice, not the cautious one
-  the comment claims. The same sentence also mis-names the set: it says *"Owners and admins"*
-  while the code is `new Set(["owner", "recruiter"])`, which excludes `admin` and includes
-  `recruiter` (`MEMBER_ROLES` in `app/_lib/auth/roles.ts`). The numbers are unaffected; the
+- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.
+  CLOSED 2026-09-17.** `?days=90` still prints *"Window: last 90 days"* over the pack, and
+  capacity's two terms (open roles, membership roster) are still current counts with no window
+  applied. The basis now says so: a windowed pack uses `basis.capacityNow` (*"current owned
+  openings … Point-in-time, not last N days"*), so the one row that is not about the stated
+  period no longer pretends it is. If that snapshot is the only measured row, `certifiable` is
+  false. All-time packs keep `basis.capacity`. (`cost_per_hire` is windowed-aware in the honest
+  direction: spend is lifetime, so the route returns `null` and the pack says `not_measurable`
+  rather than dividing a lifetime numerator by a windowed denominator.) The owned-vs-corpus
+  numerator is a separate gap below.
+- **The metric-pack route's capacity comment argued the wrong way round. CLOSED
+  2026-09-16.** `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would
+  understate capacity, which is the direction that flatters us."* A capacity metric is roles
+  **per** recruiter, so a larger denominator gives a **lower** ratio — the *un*flattering
+  direction — and the narrow `CARRYING_ROLES` set was therefore the flattering choice, not
+  the cautious one the comment claimed. The same sentence also mis-named the set: it said
+  *"Owners and admins"* while the code is `new Set(["owner", "recruiter"])`, which excludes
+  `admin` and includes `recruiter` (`MEMBER_ROLES` in `app/_lib/auth/roles.ts`). The comment
+  now names the actual set and states the direction correctly. The numbers are unaffected; the
   stated reasoning is not.
 - **Quality presents the auto-reject floor as *in force* — the payload now says otherwise, the
   panels still do not read it.** `/api/analytics/calibration` ships `currentThreshold =
@@ -1057,31 +1124,29 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
-- **`effectAfterOnly` over-states an empty before side.** With the evidence floor now applied
-  symmetrically (above), a before side of 1–7 in-band decisions falls to
-  `effectAfterOnly` — „…No earlier in-band decisions to compare against." — which asserts
-  *zero* where there were a few too thin to compare. Strictly better than the „100 % before"
-  it replaces, but it needs a fourth string ("too few earlier in-band decisions") in all four
-  catalogs; `thresholdEffectClaim` already returns the branch that would carry it.
-- **`/apply-threshold` is a read-modify-write with no transaction around it — the store-side
-  primitive now exists, the route has not adopted it.** It reads the screening rule, spends two
-  full-table calibration scans re-deriving the recommendation, then writes
-  `{…screening, familyFloors: {…}}` through `setDecisionConfig`. Two applies for two different
-  families that interleave inside that window both merge onto the same stale map, so the first
-  family's freshly-applied floor is silently dropped — a lost update on the live auto-reject
-  gate, sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop does not
+- **`effectAfterOnly` over-states an empty before side. CLOSED 2026-09-17.** With the evidence
+  floor applied symmetrically, a before side of 1–7 in-band decisions still claims `after-only`,
+  but the strip now maps that to `effectBeforeThin` when `effect.before.n` is in `(0, min)` —
+  naming n and the floor — and keeps `effectAfterOnly` for a null or zero before side. No new
+  claim kind; `thresholdEffectCopy` is pinned in `calibrationVerdict.test.ts`.
+- **`/apply-threshold` was a read-modify-write with no transaction around it. CLOSED
+  2026-08-21 (`0e4dc7e2`).** It used to read the screening rule, spend two full-table
+  calibration scans re-deriving the recommendation, then write `{…screening, familyFloors:
+  {…}}` through `setDecisionConfig`. Two applies for two different families that interleaved
+  inside that window both merged onto the same stale map, so the first family's
+  freshly-applied floor was silently dropped — a lost update on the live auto-reject gate,
+  sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop could not
   cover it: that only fires when the written config omits the key, and a family apply always
-  includes it.) **Half closed**: `updateDecisionConfig(phase, mutate, ws, scope)`
+  includes it.) `updateDecisionConfig(phase, mutate, ws, scope)`
   (`app/_lib/decision-config-store.ts`) is the transactional read-modify-write — an IMMEDIATE
   transaction that RE-READS the tier, applies the caller's mutation to that fresh value and
-  writes, the `actOnPipelineEntry` discipline. `decision-config-isolation.test.ts` pins the
-  freshness property (better-sqlite3 is synchronous, so the interleaving itself is not
-  reproducible in-process; what is pinned is that the mutation lands on a re-read, and that the
-  stale-snapshot shape the route still uses loses the other family's floor). **Open**: the route
-  must pass only the mutation —
-  `updateDecisionConfig<ScreeningRule>("screening", (cur) => roleFamily ? { …cur, familyFloors: { …(cur.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } } : { …cur, maxMatchToReject: rec.suggestedThreshold }, ws, "team")`
-  in place of the `const next = …; setDecisionConfig(…)` pair. Re-reading later in the route
-  narrows the window without closing it.
+  writes, the `actOnPipelineEntry` discipline — and the route now passes only the mutation
+  (`updateDecisionConfig<ScreeningRule>("screening", (cur) => roleFamily ? { …cur,
+  familyFloors: { …(cur.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } } : {
+  …cur, maxMatchToReject: rec.suggestedThreshold }, ws, "team")`) rather than writing a
+  snapshot taken before the scans. `decision-config-isolation.test.ts` pins the freshness
+  property (better-sqlite3 is synchronous, so the interleaving itself is not reproducible
+  in-process; what is pinned is that the mutation lands on a re-read).
 - **The metric pack's `recruiter_capacity` counts the shared reference corpus as the team's open
   reqs.** `openRoles` is `listCorpusJobs(ws).length`, whose tenant predicate is `workspace_id IS
   NULL OR workspace_id = ?` — the same dual-tier read every jobs surface uses, so the ~100
@@ -1138,8 +1203,11 @@ either half is dropped. Adding a candidate surface means adding its prefix there
 - **`manual_hours_per_hire` is settable via the API but has no input in the UI**, so the ROI
   percentage is still measured against the shipped 42-hour constant. It belongs beside the
   recruiter-hourly field in `AnalyticsAutomationPanel.tsx`.
-- **The log's *who* column still renders a class, not a person** — it derives `auto`/`human` from
-  `DECISION_META`, and `parseEventActor()` has no UI consumer.
+- **The log's *who* column still renders a class, not a person** — `DecisionLogTable.tsx`
+  derives `auto`/`human` from `DECISION_META` for its Attribution column.
+  `parseEventActor()` now has a UI consumer (`DecisionRecordsTable.tsx`'s Actor column, added
+  since this gap was written), but only for the per-candidate records table, not the
+  workspace-wide log — the log's who column is still the class, not the name.
 - **`byJob` is volume-capped server-side** (`BY_JOB_CAP = 12`); the search filters the 12 rows the
   payload carries, and row 13 is reachable only via the board link. Any design that RANKS roles
   here needs the cap lifted or the ranking done server-side, or it can hide its own leader.
@@ -1147,8 +1215,13 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   `decisions.aiReview.confidenceLabel` / `confidencePct` / `confidenceAria`,
   `analytics.decisionRecords.export`, and `SCREENING_CONFIDENCE_BAND` in
   `app/features/shared/decisionsTypes.ts`. Parity-safe (`i18n:check` gates parity, not usage).
-- **The i18n em-dash gate only inspects scalar leaves.** `flatten()` in `scripts/i18n-check.mjs`
-  stores an array as one value and `dashError()` returns null for non-strings, so array-valued
-  messages escape the rule.
+- **The i18n em-dash gate only inspected scalar leaves. CLOSED 2026-09-14
+  (`8450dbb1`).** `stringUnits()` (`scripts/i18n/catalog-check.mjs`, the module
+  `scripts/i18n-check.mjs` delegates to) used to flatten a nested object to dotted keys but
+  store an array as one leaf value, so `dashError()`'s non-string early-return let 14 lists
+  holding 62 strings per locale skip the em-dash ban, the ICU compile and placeholder parity.
+  It now walks objects, arrays and objects inside arrays, addressing each item
+  (`landing.voice.transcript[0]`) as its own string unit, plus list-length parity across
+  locales and an independent recursive string count the walker is held to.
 - Per-tenant `llm_usage` attribution is not built, so compute cost is account-wide (see
   `docs/architecture/llm-provider-layer.md`).

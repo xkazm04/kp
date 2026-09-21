@@ -63,7 +63,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -71,7 +75,7 @@ from .._cli import configure_stdio
 from ..intake import opening_turn, run_intake_turn
 from ..rolebrief import BRIEF_PROVENANCE, coerce_role_brief
 from ._style import _make_styler, should_color
-from .runner import glyph, verdict_banner
+from .runner import glyph, verdict_banner, write_text_lf
 
 SCENARIOS_PATH = Path(__file__).with_name("intake_scenarios.json")
 END_TOKEN = "<<END>>"
@@ -164,6 +168,7 @@ def check_dialog(
     done: bool,
     *,
     strict_shape: bool = True,
+    sentinel_on_wire: bool = True,
 ) -> dict[str, bool]:
     agent_turns = [t["text"] for t in turns if t["role"] == "interviewer"]
     brief = coerce_role_brief(brief_payload)
@@ -175,8 +180,14 @@ def check_dialog(
     # The opener + every mid-dialog turn asks at most 2 questions (a reflection
     # may end in a rhetorical '?'; three or more is machine-gunning).
     checks["one_question_per_turn"] = all(t.count("?") <= 2 for t in agent_turns)
-    end_turns = [i for i, t in enumerate(agent_turns) if END_TOKEN in t]
-    checks["no_premature_end"] = end_turns == [len(agent_turns) - 1] if done else len(end_turns) == 0
+    # The <<END>> sentinel is an ENGINE wire contract: the message route strips it
+    # before the reply reaches a client (app/api/intake/reply-sentinel.ts), so a
+    # dialog observed over HTTP cannot carry it and the check would report a
+    # defect that is the contract working. Over HTTP the key is not emitted (the
+    # table shows it as not measured) rather than filled with a false red.
+    if sentinel_on_wire:
+        end_turns = [i for i, t in enumerate(agent_turns) if END_TOKEN in t]
+        checks["no_premature_end"] = end_turns == [len(agent_turns) - 1] if done else len(end_turns) == 0
     if done and agent_turns:
         closing = agent_turns[-1].lower()
         # Token-level grounding: a live agent legitimately paraphrases the
@@ -268,6 +279,347 @@ def run_eval(scenarios: list[dict], *, no_llm: bool, cap: int, color: bool) -> t
     return "\n".join(lines) + "\n", ok
 
 
+# --- JD-grounded corpus mode ------------------------------------------------
+#
+# The banks above are WRITTEN scenarios. This mode reads REAL job descriptions
+# (eval/intake_corpus.py), turns each into a requestor persona grounded in that
+# document (eval/intake_jd_persona.py) and runs the same dialog + the same
+# `check_dialog` invariants — either in-process, or against a running kp server
+# (`--http`), where the session is also PROMOTED so the run proves the whole
+# product path and not just the engine.
+
+
+DEFAULT_ROLES = 50
+DUMP_RUN_FILE = "run.json"
+
+
+def _load_previous(dump: str | None) -> dict[str, dict]:
+    """Rows a previous run recorded as complete, keyed by scenario name.
+
+    Read from the SAME file the run rewrites after every role, so a killed sweep
+    resumes from its last completed role rather than from zero.
+    """
+    if not dump:
+        return {}
+    path = Path(dump) / DUMP_RUN_FILE
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return {}
+    return {r["name"]: r for r in data.get("rows", []) if isinstance(r, dict) and r.get("complete") and r.get("name")}
+
+
+def _row_files(dump: str, row: dict) -> None:
+    """This role's transcript + brief, written the moment the role finishes."""
+    root = Path(dump)
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    (root / "briefs").mkdir(parents=True, exist_ok=True)
+    if row.get("turns"):
+        lines = [
+            f"# {row['name']}",
+            "",
+            f"- posting: **{row.get('posting_id') or '—'}** · title: **{row.get('title') or '—'}**",
+            f"- JD family: **{row.get('jd_role_family') or '—'}** · captured family: **{row.get('family') or '—'}**",
+            f"- shape: **{row.get('shape') or '—'}** · agent turns: **{row.get('agent_turns')}** · done: **{row.get('done')}**",
+            "- checks: "
+            + ", ".join(k + "=" + ("PASS" if v else "FAIL") for k, v in (row.get("checks") or {}).items()),
+        ]
+        if row.get("promoted"):
+            lines.append(f"- promoted: **{row['promoted'].get('slug')}** (job {row['promoted'].get('jobId')})")
+        elif row.get("promote_error"):
+            lines.append(f"- promote refused: `{row['promote_error']}`")
+        lines += ["", "## Transcript", ""]
+        for turn in row["turns"]:
+            who = "Interviewer" if turn["role"] == "interviewer" else "Requestor"
+            lines += [f"**{who}:** {turn['text']}", ""]
+        write_text_lf(root / "transcripts" / f"{row['name']}.md", "\n".join(lines))
+    if row.get("brief") is not None:
+        write_text_lf(
+            root / "briefs" / f"{row['name']}.json",
+            json.dumps(row["brief"], indent=2, ensure_ascii=False) + "\n",
+        )
+
+
+def _write_run_json(dump: str, rows: list[dict], meta: dict[str, Any]) -> None:
+    """Rewrite run.json ATOMICALLY (tmp + os.replace).
+
+    Rewritten after EVERY role, not once at the end: a sweep killed at role 34
+    used to leave an empty directory, so `--resume` had nothing to read and hours
+    of live dialog were gone. Atomic because a torn rewrite is worse than no
+    file — `_load_previous` would discard it as unparseable and lose the same
+    hours a different way.
+    """
+    root = Path(dump)
+    root.mkdir(parents=True, exist_ok=True)
+    payload = {
+        **meta,
+        "rows": [{k: v for k, v in row.items() if k not in ("turns", "brief")} for row in rows],
+    }
+    tmp = root / (DUMP_RUN_FILE + ".tmp")
+    write_text_lf(tmp, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    os.replace(tmp, root / DUMP_RUN_FILE)
+
+
+def _mode_label(offline: bool, base_url: str, http: bool) -> str:
+    mode = "offline (deterministic agent + JD-derived answers)" if offline else "live"
+    if http:
+        mode += f" · HTTP {base_url}" if base_url else " · HTTP"
+    return mode
+
+
+def run_corpus_eval(
+    pairs: list[tuple[Any, dict]],
+    *,
+    no_llm: bool,
+    cap: int,
+    color: bool,
+    dump: str | None = None,
+    resume: bool = False,
+    http_base: str | None = None,
+    wall_minutes: float | None = None,
+    workers: int = 1,
+    client_factory: Any | None = None,
+) -> tuple[str, bool, int]:
+    """Run JD-grounded scenarios. Returns (report, ok, rows_reported).
+
+    ``pairs`` is (Posting, scenario). Both transports produce the same row shape
+    and are graded by the SAME ``check_dialog``; only the ``promoted`` column is
+    HTTP-only (there is nothing to promote in-process).
+
+    Concurrency is HTTP-only and opt-in (``workers``). One role is a long chain
+    of provider calls — ~8 minutes live — so 50 serial roles is most of a day,
+    while the server handles sessions independently and the Claude CLI provider
+    is a subprocess per call. In-process mode stays serial by design: there the
+    agent's own engine runs inside this process.
+
+    The report is composed from the ROWS, and the rows include those restored by
+    ``--resume`` — so a resumed run reports every role, not only the ones this
+    process happened to run.
+
+    ``client_factory`` is a test seam: a zero-argument callable producing the
+    per-worker client, in place of :class:`IntakeHttpClient`.
+    """
+    st = _make_styler(color)
+    http = bool(http_base or client_factory)
+    if not http:
+        workers = 1
+    workers = max(1, int(workers or 1))
+
+    local = threading.local()
+
+    def persona_for_worker() -> Any | None:
+        if no_llm:
+            return None
+        provider = getattr(local, "persona", None)
+        if provider is None:
+            from ..llm.registry import resolve_provider
+
+            # One provider per worker rather than one shared instance: the
+            # registry hands back a stateful adapter and nothing declares it
+            # thread-safe. A CLI provider is a subprocess per call, so the only
+            # cost of per-worker instances is the resolve itself.
+            provider = resolve_provider("role_intake", timeout=120)
+            if provider is not None and not provider.available():
+                provider = None
+            local.persona = provider
+        return provider
+
+    def client_for_worker() -> Any | None:
+        if not http:
+            return None
+        client = getattr(local, "client", None)
+        if client is None:
+            if client_factory is not None:
+                client = client_factory()
+            else:
+                from .intake_http_client import IntakeHttpClient
+
+                client = IntakeHttpClient(http_base)
+            local.client = client
+        return client
+
+    # Live-mode preflight in THIS thread: a missing provider belongs in the
+    # banner, not discovered independently by every worker.
+    live = False
+    if not no_llm:
+        live = persona_for_worker() is not None
+
+    previous = _load_previous(dump) if resume else {}
+    order = {scenario["name"]: index for index, (_p, scenario) in enumerate(pairs)}
+    rows_by_index: dict[int, dict] = {}
+    lock = threading.Lock()
+    started = time.monotonic()
+    budget = wall_minutes * 60 if wall_minutes else None
+    stopped_early = False
+    base_url = http_base or ""
+
+    def ordered_rows() -> list[dict]:
+        return [rows_by_index[i] for i in sorted(rows_by_index)]
+
+    def meta_now() -> dict[str, Any]:
+        rows = ordered_rows()
+        return {
+            "mode": _mode_label(no_llm or not live, base_url, http),
+            "cap": cap,
+            "workers": workers,
+            "roles": len(pairs),
+            "ran": sum(1 for r in rows if not r.get("resumed")),
+            "resumed": sum(1 for r in rows if r.get("resumed")),
+            "passed": sum(1 for r in rows if all((r.get("checks") or {}).values())),
+            "no_dealbreaker_ground_truth": sum(
+                1 for r in rows if "requirements_captured" not in (r.get("checks") or {})
+            ),
+            "stopped_early": stopped_early,
+        }
+
+    def record(index: int, row: dict) -> None:
+        """Store one finished role AND persist it before the next one starts."""
+        with lock:
+            rows_by_index[index] = row
+            if dump:
+                _row_files(dump, row)
+                _write_run_json(dump, ordered_rows(), meta_now())
+
+    for name, row in previous.items():
+        if name in order:
+            rows_by_index[order[name]] = {**row, "resumed": True}
+
+    def run_role(index: int, posting: Any, scenario: dict) -> None:
+        nonlocal stopped_early
+        if budget is not None and time.monotonic() - started > budget:
+            # No NEW role starts past the budget; roles already running finish.
+            stopped_early = True
+            return
+        persona_provider = persona_for_worker()
+        client = client_for_worker()
+        if client is not None:
+            from .intake_http_client import simulate_http
+
+            result = simulate_http(client, persona_provider, posting, scenario, cap=cap)
+            turns, brief, shape, done = result["turns"], result["brief"], result["shape"], result["done"]
+            promoted, promote_error = result["promoted"], result["promote_error"]
+        else:
+            turns, brief, shape, done = simulate(persona_provider, persona_provider, scenario, cap=cap)
+            promoted, promote_error = None, None
+        # GROUND TRUTH for role_family differs by mode, on purpose. Offline the
+        # answers ARE the deterministic script, so the truth is what this
+        # pipeline classifies from them (scenario["family"], computed once in
+        # intake_jd_persona). Live, the requestor improvises from the document,
+        # so the only honest comparand is the POSTING's own family — grading a
+        # live dialog against a deterministic replay's classification measures
+        # the replay, not the agent.
+        graded = scenario
+        if persona_provider is not None and scenario.get("jd_role_family"):
+            graded = {**scenario, "family": scenario["jd_role_family"]}
+        checks = check_dialog(
+            graded, turns, brief, shape, done, strict_shape=persona_provider is None, sentinel_on_wire=False
+        )
+        record(
+            index,
+            {
+                "name": scenario["name"],
+                "complete": True,
+                "resumed": False,
+                "posting_id": scenario.get("posting_id"),
+                "title": scenario.get("title"),
+                "company": scenario.get("company"),
+                "jd_role_family": scenario.get("jd_role_family"),
+                # what the dialog actually captured / what role_family was graded against
+                "family": (brief or {}).get("roleFamily") or (brief or {}).get("role_family"),
+                "expected_family": graded.get("family"),
+                "shape": shape,
+                "done": done,
+                "agent_turns": len([t for t in turns if t["role"] == "interviewer"]),
+                "checks": checks,
+                "promoted": promoted,
+                "promote_error": promote_error,
+                "turns": turns,
+                "brief": brief,
+            },
+        )
+
+    todo = [(order[s["name"]], p, s) for p, s in pairs if s["name"] not in previous]
+    if workers > 1 and len(todo) > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(run_role, *item) for item in todo]
+            for future in futures:
+                future.result()  # a real failure propagates; finished roles are already on disk
+    else:
+        for item in todo:
+            run_role(*item)
+
+    rows = ordered_rows()
+    ran = sum(1 for r in rows if not r.get("resumed"))
+    skipped = len(rows) - ran
+    passed = sum(1 for r in rows if all((r.get("checks") or {}).values()))
+    ok = bool(rows) and passed == len(rows) and not stopped_early and len(rows) == len(pairs)
+    mode = _mode_label(no_llm or not live, base_url, http)
+    keys = sorted({k for r in rows for k in (r.get("checks") or {})})
+    lines = ["# JD-grounded role-intake simulation", ""]
+    parts = [f"{passed}/{len(rows)} roles PASS", f"{ran} run", mode]
+    if skipped:
+        parts.append(f"{skipped} resumed")
+    if workers > 1:
+        parts.append(f"{workers} workers")
+    if stopped_early:
+        parts.append(f"STOPPED at the {wall_minutes:g}-minute budget")
+    lines.append(verdict_banner(parts, passed=ok, s=st))
+    header = ["role", "family", "turns"] + keys + (["promoted"] if http else [])
+    lines += ["", "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    for row in rows:
+        checks = row.get("checks") or {}
+        cells = [
+            row["name"],
+            str(row.get("family") or "—"),
+            str(row.get("agent_turns") or "—"),
+            *[glyph(checks.get(k), st) if k in checks else glyph(None) for k in keys],
+        ]
+        if http:
+            promoted = row.get("promoted") or {}
+            cells.append(promoted.get("slug") or (row.get("promote_error") or "—"))
+        lines.append("| " + " | ".join(cells) + " |")
+    # A role whose JD states no screenable condition carries NO ground truth for
+    # requirements_captured, so the check is not emitted (glyph "—"). Say how many
+    # out loud: an invariant silently absent from a quarter of the table would
+    # otherwise read as coverage it does not have.
+    ungrounded = [r for r in rows if "requirements_captured" not in (r.get("checks") or {})]
+    if ungrounded:
+        lines += [
+            "",
+            f"_{len(ungrounded)}/{len(rows)} roles state no screenable hard condition in the JD — "
+            "`requirements_captured` has no ground truth there and is reported as “—”, not as a pass._",
+        ]
+    drifted = [r for r in rows if r.get("jd_role_family") and r.get("family") != r.get("jd_role_family")]
+    if drifted:
+        lines += [
+            "",
+            f"**Family drift** — {len(drifted)}/{len(rows)} dialogs captured a family the posting did not "
+            "declare (a signal about the intake dialog, not a failed check):",
+            "",
+        ]
+        lines += [f"- `{r['name']}`: JD says {r['jd_role_family']} · dialog captured {r['family']}" for r in drifted]
+    report = "\n".join(lines) + "\n"
+
+    if dump:
+        with lock:
+            _write_run_json(dump, rows, meta_now())
+    return report, ok, len(rows)
+
+
+def corpus_pairs(
+    corpus_path: str, roles: int, lang: str, shape: str = "power_unit"
+) -> list[tuple[Any, dict]]:
+    """(Posting, scenario) pairs for ``roles`` distinct titles from ``corpus_path``."""
+    from .intake_corpus import load_jd_corpus, stratified_distinct_roles
+    from .intake_jd_persona import scenario_from_posting
+
+    postings = load_jd_corpus(corpus_path, lang=lang)
+    selection = stratified_distinct_roles(postings, roles)
+    return [(p, scenario_from_posting(p, lang, shape)) for p in selection]
+
+
 def main(argv: list[str] | None = None) -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(description="Quality-gate the role-intake dialog agent (text plane).")
@@ -283,12 +635,94 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--cap", type=int, default=DEFAULT_CAP)
     parser.add_argument(
+        "--jd-corpus",
+        metavar="PATH",
+        help="JD-GROUNDED mode: read real job descriptions from this JSON corpus "
+        "(data/seed_calibration/jobs.json, data/seed_jobs/jobs.json) and simulate one "
+        "requestor per distinct role instead of running the written banks.",
+    )
+    parser.add_argument(
+        "--roles",
+        type=int,
+        default=DEFAULT_ROLES,
+        metavar="N",
+        help=f"how many distinct roles to simulate from --jd-corpus (default {DEFAULT_ROLES})",
+    )
+    parser.add_argument("--lang", default="en", help="dialog language for the simulated sessions (default en)")
+    parser.add_argument(
+        "--shape",
+        choices=("power_unit", "story"),
+        default="power_unit",
+        help="the session shape the JD-grounded persona plays (default power_unit — the short script)",
+    )
+    parser.add_argument(
+        "--dump",
+        metavar="DIR",
+        help="write run.json + transcripts/<role>.md + briefs/<role>.json for the JD-grounded run",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="skip roles already recorded as complete in <DUMP>/run.json (needs --dump)",
+    )
+    parser.add_argument(
+        "--http",
+        metavar="BASE_URL",
+        help="drive the RUNNING kp server's intake API (create → attach JD → messages → promote) "
+        "instead of calling the dialog engine in-process. Loopback/private hosts only.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        metavar="N",
+        help="HTTP mode only: run N roles concurrently (default 1). A live role is ~8 minutes of "
+        "provider calls, so a 50-role sweep is most of a day serially. Each worker gets its own "
+        "client and its own persona provider. In-process mode ignores this and stays serial.",
+    )
+    parser.add_argument(
+        "--wall-minutes",
+        type=float,
+        metavar="M",
+        help="stop cleanly after M minutes and report the partial run (exit 2 if nothing ran)",
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
         help="Exit non-zero if a gate fails. Without it the report still prints FAIL and exits 0 "
              "(the suite-wide contract in eval/__main__.py).",
     )
     args = parser.parse_args(argv)
+
+    if args.jd_corpus:
+        try:
+            pairs = corpus_pairs(args.jd_corpus, args.roles, args.lang, args.shape)
+        except (OSError, ValueError) as exc:
+            print(f"could not read the JD corpus: {exc}", file=sys.stderr)
+            return 2
+        if not pairs:
+            print(f"no usable postings in {args.jd_corpus}", file=sys.stderr)
+            return 2
+        try:
+            report, ok, reported = run_corpus_eval(
+                pairs,
+                no_llm=args.no_llm,
+                cap=args.cap,
+                color=should_color(),
+                dump=args.dump,
+                resume=args.resume,
+                http_base=args.http,
+                wall_minutes=args.wall_minutes,
+                workers=args.workers,
+            )
+        except Exception as exc:  # noqa: BLE001 — a harness that cannot run exits 2, never 1
+            print(f"the JD-grounded run could not start: {exc}", file=sys.stderr)
+            return 2
+        print(report)
+        if not reported:
+            print("no roles were simulated", file=sys.stderr)
+            return 2
+        return 1 if (args.strict and not ok) else 0
 
     if args.generated:
         from .intake_scenarios_gen import fixed_bank

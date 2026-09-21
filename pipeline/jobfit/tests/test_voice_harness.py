@@ -602,6 +602,186 @@ class TestSpokenLanguageRouting(unittest.TestCase):
             session_runner.mint_session("http://unused.invalid", kind="entry")
 
 
+class TestAsrKeywordsInit(unittest.TestCase):
+    """The headless init frame must carry /connect's per-job asr.keywords.
+
+    Production ``startElevenLabsSession`` sends ``overrides.asr.keywords`` when
+    the list is non-empty. The harness used to ship only ``agent.prompt`` and
+    ``agent.language``, so WER/entity numbers described the dashboard-default
+    recogniser the keywords exist to replace.
+    """
+
+    def test_keywords_present_land_on_the_init_payload(self):
+        from pipeline.jobfit.eval.voice.el_ws import conversation_init_payload
+
+        payload = conversation_init_payload(
+            agent_prompt="brief", language="en", asr_keywords=["PostgreSQL"],
+        )
+        override = payload["conversation_config_override"]
+        self.assertEqual(override["asr"]["keywords"], ["PostgreSQL"])
+        self.assertEqual(override["agent"]["language"], "en")
+
+    def test_missing_or_empty_keywords_send_no_asr_branch(self):
+        from pipeline.jobfit.eval.voice.el_ws import conversation_init_payload
+
+        for keywords in (None, []):
+            with self.subTest(keywords=keywords):
+                payload = conversation_init_payload(agent_prompt="brief", asr_keywords=keywords)
+                override = payload.get("conversation_config_override") or {}
+                self.assertNotIn("asr", override)
+
+    def test_connect_json_forwards_a_non_empty_list_and_drops_empty(self):
+        from pipeline.jobfit.eval.voice.el_ws import asr_keywords_from_connect
+
+        self.assertEqual(asr_keywords_from_connect({"asrKeywords": ["PostgreSQL"]}), ["PostgreSQL"])
+        self.assertIsNone(asr_keywords_from_connect({}))
+        self.assertIsNone(asr_keywords_from_connect({"asrKeywords": []}))
+        self.assertIsNone(asr_keywords_from_connect({"asrKeywords": None}))
+        self.assertIsNone(asr_keywords_from_connect({"asrKeywords": ["", "  "]}))
+
+    def test_send_init_emits_the_keywords_on_the_wire(self):
+        import asyncio
+        import json
+
+        from pipeline.jobfit.eval.voice.el_ws import ElVoiceSession
+
+        class FakeWs:
+            def __init__(self):
+                self.frames = []
+
+            async def send(self, payload):
+                self.frames.append(json.loads(payload))
+
+        async def go(keywords):
+            call = ElVoiceSession(
+                "wss://unused", agent_prompt="brief", language="en", asr_keywords=keywords,
+            )
+            call._ws = FakeWs()
+            await call._send_init()
+            return call._ws.frames[0]
+
+        present = asyncio.run(go(["PostgreSQL"]))
+        self.assertEqual(
+            present["conversation_config_override"]["asr"]["keywords"], ["PostgreSQL"],
+        )
+        absent = asyncio.run(go(None))
+        self.assertNotIn("asr", (absent.get("conversation_config_override") or {}))
+
+    def test_run_voice_scenario_forwards_connect_asr_keywords(self):
+        import asyncio
+
+        from pipeline.jobfit.eval.interview_eval import _scenario_from_dict
+        from pipeline.jobfit.eval.voice import session_runner
+
+        class _FakeResult:
+            def __init__(self):
+                self.conversation_id = "c1"
+                self.turns = []
+                self.agent_responses = ["hello"]
+                self.user_transcripts = []
+                self.ground_truth = []
+                self.latencies_s = []
+                self.interruptions = 0
+                self.agent_audio_s = 0.0
+                self.errored = None
+
+        captured: list[dict] = []
+
+        class _FakeCall:
+            def __init__(self, *a, **kw):
+                captured.append(kw)
+                self.result = _FakeResult()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+            async def wait_for_agent_turn(self, timeout=90.0):
+                return True
+
+        orig = (session_runner.app_client.simulate, session_runner.app_client.connect,
+                session_runner.app_client.complete, session_runner.ElVoiceSession)
+        session_runner.app_client.simulate = lambda base_url, **kw: {"token": "tok"}
+        session_runner.app_client.connect = lambda base_url, **kw: {
+            "sessionId": "s1", "token": "tok", "agentPrompt": "brief",
+            "asrKeywords": ["PostgreSQL"],
+            "connect": {"signedUrl": "wss://example.invalid/x"},
+        }
+        session_runner.app_client.complete = lambda base_url, **kw: {"session": {"transcript": []}}
+        session_runner.ElVoiceSession = _FakeCall
+        try:
+            scn = _scenario_from_dict({"name": "s", "candidate_prompt": "p", "first_message": "hi"})
+            with _OfflineEnv(None):
+                asyncio.run(session_runner.run_voice_scenario(
+                    scn, base_url="http://localhost:3000", turns=0, timeout=1.0,
+                ))
+        finally:
+            (session_runner.app_client.simulate, session_runner.app_client.connect,
+             session_runner.app_client.complete, session_runner.ElVoiceSession) = orig
+
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].get("asr_keywords"), ["PostgreSQL"])
+
+    def test_run_voice_scenario_omits_asr_when_connect_sends_none(self):
+        import asyncio
+
+        from pipeline.jobfit.eval.interview_eval import _scenario_from_dict
+        from pipeline.jobfit.eval.voice import session_runner
+
+        class _FakeResult:
+            def __init__(self):
+                self.conversation_id = "c1"
+                self.turns = []
+                self.agent_responses = ["hello"]
+                self.user_transcripts = []
+                self.ground_truth = []
+                self.latencies_s = []
+                self.interruptions = 0
+                self.agent_audio_s = 0.0
+                self.errored = None
+
+        captured: list[dict] = []
+
+        class _FakeCall:
+            def __init__(self, *a, **kw):
+                captured.append(kw)
+                self.result = _FakeResult()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+            async def wait_for_agent_turn(self, timeout=90.0):
+                return True
+
+        orig = (session_runner.app_client.simulate, session_runner.app_client.connect,
+                session_runner.app_client.complete, session_runner.ElVoiceSession)
+        session_runner.app_client.simulate = lambda base_url, **kw: {"token": "tok"}
+        session_runner.app_client.connect = lambda base_url, **kw: {
+            "sessionId": "s1", "token": "tok", "agentPrompt": "brief",
+            "asrKeywords": [],
+            "connect": {"signedUrl": "wss://example.invalid/x"},
+        }
+        session_runner.app_client.complete = lambda base_url, **kw: {"session": {"transcript": []}}
+        session_runner.ElVoiceSession = _FakeCall
+        try:
+            scn = _scenario_from_dict({"name": "s", "candidate_prompt": "p", "first_message": "hi"})
+            with _OfflineEnv(None):
+                asyncio.run(session_runner.run_voice_scenario(
+                    scn, base_url="http://localhost:3000", turns=0, timeout=1.0,
+                ))
+        finally:
+            (session_runner.app_client.simulate, session_runner.app_client.connect,
+             session_runner.app_client.complete, session_runner.ElVoiceSession) = orig
+
+        self.assertEqual(len(captured), 1)
+        self.assertIsNone(captured[0].get("asr_keywords"))
+
+
 class TestSmokePreflight(unittest.TestCase):
     def test_preflight_checks_the_voice_the_scenario_will_speak(self):
         # Checking a fixed "en" let a Czech scenario mint a REAL (paid) session and only then

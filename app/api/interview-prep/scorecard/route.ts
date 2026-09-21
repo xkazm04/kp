@@ -10,6 +10,8 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { stageHasRole } from "@/app/_lib/pipeline-stages";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
 
@@ -150,17 +152,21 @@ export async function POST(request: NextRequest) {
     // queue (the only scorecard_review setters were both AI paths) — the entry
     // stayed parked at the calendar approval and the Interview→Offer gate never
     // opened. When the recruiter recorded an actual recommendation for an active
-    // Interview-stage entry whose gate is open (no approval, or still parked at
+    // interview-role entry whose gate is open (no approval, or still parked at
     // calendar), set the same scorecard_review approval the AI path sets — the
     // human Scorecard (source:"human") already parses as the shape AiReviewCard
-    // renders. An entry already holding an AI scorecard_review (or offer_review)
-    // is left alone: the human verdict shows beside it via getHumanScorecard.
+    // renders. Meaning is the column's ROLE, not its name: a workspace that
+    // renamed Interview to "Loop" (or split it into several interview rounds)
+    // still gates; a column that merely kept the id "Interview" after losing
+    // the interview role does not. An entry already holding an AI
+    // scorecard_review (or offer_review) is left alone: the human verdict shows
+    // beside it via getHumanScorecard.
     let gated = false;
     if (scorecard.recommendation) {
       if (
         pipelineEntry &&
         pipelineEntry.status === "active" &&
-        pipelineEntry.stage === "Interview" &&
+        stageHasRole(pipelineEntry.stage, "interview", getPipelineAxis(ws).stages) &&
         (pipelineEntry.approvalKind === null || pipelineEntry.approvalKind === "calendar")
       ) {
         setApproval(entry, "scorecard_review", JSON.stringify(scorecard), pipelineEntry.workspaceId);

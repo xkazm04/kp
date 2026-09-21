@@ -81,7 +81,13 @@ export function resolveOrganization(ws: string): PalettePreview {
 
 export function resolveBranding(): PalettePreview {
   const b = getBrand();
-  return { view: "branding", displayName: b.displayName, accentColor: b.accentColor, logoUrl: b.logoUrl };
+  return {
+    view: "branding",
+    displayName: b.displayName,
+    accentColor: b.accentColor,
+    accentDark: b.accentDark,
+    logoUrl: b.logoUrl,
+  };
 }
 
 export function resolveBilling(ws: string): PalettePreview {

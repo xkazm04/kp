@@ -1,6 +1,7 @@
 // Pins the /api/decisions/* auth contract (backlog #30 / SD-L1-010): the sealed
-// decision chain, the reconsider queue, the decision rules, the group evals and
-// the screen wave all carry (or act on) real candidate adverse-action data, so
+// decision chain, the reconsider queue, the decision rules, the group evals,
+// the screen wave, peer-context (salary expectations) and jd-freshness
+// (JD-edit times) all carry (or act on) real candidate adverse-action data, so
 // every handler re-verifies the operator session — exactly the
 // /api/automation/[task] convention. requireOperator's semantics match proxy.ts:
 // open mode (no KP_OPERATOR_PASSWORD) stays open for local dev; password set
@@ -25,6 +26,8 @@ import { GET as reconsiderGet } from "./reconsider/route.ts";
 import { GET as configGet, POST as configPost } from "./config/route.ts";
 import { GET as groupEvalGet } from "./group-eval/route.ts";
 import { POST as screenWavePost } from "./screen-wave/route.ts";
+import { GET as peerContextGet } from "./peer-context/route.ts";
+import { GET as jdFreshnessGet } from "./jd-freshness/route.ts";
 
 after(() => cleanupUnitDb());
 afterEach(() => {
@@ -47,6 +50,8 @@ test("gated deploy: every /api/decisions/* handler refuses an unauthenticated ca
     ["POST config", () => configPost(jsonPost("http://localhost/api/decisions/config", { phase: "screening", config: {} }))],
     ["GET group-eval", () => groupEvalGet(new NextRequest("http://localhost/api/decisions/group-eval?role=job-1"))],
     ["POST screen-wave", () => screenWavePost(jsonPost("http://localhost/api/decisions/screen-wave", { jobId: "job-1", dryRun: true }))],
+    ["GET peer-context", () => peerContextGet(new Request("http://localhost/api/decisions/peer-context"))],
+    ["GET jd-freshness", () => jdFreshnessGet(new Request("http://localhost/api/decisions/jd-freshness"))],
   ];
   for (const [name, call] of attempts) {
     const res = await call();
@@ -72,6 +77,14 @@ test("open mode (no operator password): the read routes still serve the local op
 
   const groupEval = await groupEvalGet(new NextRequest("http://localhost/api/decisions/group-eval?role=job-1"));
   assert.equal(groupEval.status, 200);
+
+  const peerContext = await peerContextGet(new Request("http://localhost/api/decisions/peer-context"));
+  assert.equal(peerContext.status, 200);
+  assert.ok((await peerContext.json() as { jobs: unknown }).jobs);
+
+  const jdFreshness = await jdFreshnessGet(new Request("http://localhost/api/decisions/jd-freshness"));
+  assert.equal(jdFreshness.status, 200);
+  assert.ok((await jdFreshness.json() as { editedAt: unknown }).editedAt);
 });
 
 test("proxy allow-list: /api/decisions is NOT public; the candidate token surfaces still are", () => {
@@ -85,6 +98,8 @@ test("proxy allow-list: /api/decisions is NOT public; the candidate token surfac
     "/api/decisions/config",
     "/api/decisions/group-eval",
     "/api/decisions/screen-wave",
+    "/api/decisions/peer-context",
+    "/api/decisions/jd-freshness",
   ]) {
     assert.equal(isPublicPath(p), false, `${p} must never be public`);
   }

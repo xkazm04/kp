@@ -236,6 +236,15 @@
       "owner": "kp"
     },
     {
+      "key": "posting_translate",
+      "name": "Role posting translation",
+      "description": "Renders a published role posting into another app locale as Markdown, preserving structure and never adding, dropping or altering a requirement or figure; 6144-token cap (USE_CASE_MAX_TOKENS) because the answer re-emits the whole ad. No deterministic twin: with no provider the CLI refuses and the posting tab keeps its empty state.",
+      "kind": "generation",
+      "status": "active",
+      "component": "pipeline/jobfit/posting_translate_cli.py",
+      "owner": "kp"
+    },
+    {
       "key": "profile_draft",
       "name": "Candidate profile draft from notes",
       "description": "Re-emits the full DRAFT_SCHEMA (skill claims, experiences) from recruiter notes into a structured candidate draft; 4096-token cap (USE_CASE_MAX_TOKENS) to match the direct-Gemini path's own default rather than silently halving it.",

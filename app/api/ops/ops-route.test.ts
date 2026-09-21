@@ -71,6 +71,7 @@ type OpsBody = {
   code?: string;
   ok?: boolean;
   config?: string;
+  catalog?: string;
   degradedReasons?: string[];
   configIssues?: { phase: string; scope: string; workspaceId: string }[];
 };
@@ -157,4 +158,37 @@ test("a clean ledger reports ok with an empty sample", async () => {
   const body = await bodyOf(await GET());
   assert.equal(body.config, "ok");
   assert.deepEqual(body.configIssues, [], "present and empty — distinguishable from 'this build does not report it'");
+});
+
+// ---- an empty catalog is a STATE, not a fault (cx-billing-spend) --------------------
+//
+// This route used to push "job catalog is empty" into degradedReasons for any jobs
+// table with no rows, so SpendEngineFacts rendered a red dot and the word "Degraded"
+// as the first thing a first-run operator read — because they were new. The seed
+// failure that IS a fault keeps its reason (seed-catalog-verdict.test.ts proves that
+// half against a genuinely unreadable seed); here the seeds load, so an empty catalog
+// must be reported as `catalog: "empty"` and nothing else.
+
+test("an empty catalog with healthy seeds is reported, not blamed", async () => {
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+  const before = await bodyOf(await GET());
+  assert.equal(before.catalog, "ok", "the seeded corpus is the baseline this case moves away from");
+
+  // seed_marks already records the jobs seed as run, so an emptied table stays empty.
+  const raw = new Database(UNIT_DB_PATH);
+  raw.prepare(`DELETE FROM jobs`).run();
+  raw.close();
+
+  const body = await bodyOf(await GET());
+  assert.equal(body.catalog, "empty", "the ordinary opening state, said plainly");
+  assert.equal(
+    body.degradedReasons?.some((r) => r.includes("catalog")),
+    false,
+    `nobody having written a role yet is not a diagnostic — got ${JSON.stringify(body.degradedReasons)}`
+  );
+  // Not `ok === true`: this process has no automation clock, so it carries a
+  // legitimate "scheduler starting" reason of its own. The claim is narrower and
+  // exactly the defect — emptying the catalog moves NO verdict.
+  assert.deepEqual(body.degradedReasons, before.degradedReasons, "emptying the catalog changed no verdict");
+  assert.equal(body.ok, before.ok, "…including the one the red dot renders");
 });

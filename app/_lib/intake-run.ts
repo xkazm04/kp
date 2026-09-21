@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import type { RoleBrief } from "./rolespec";
+import { coerceIntakeChoiceSet, type IntakeChoiceSet } from "./intake-choices";
 import type { IntakeAttachment, PopulationFit } from "./db/intakes";
 import { MAX_STORED_TURNS } from "./intake-transcript";
 import type { RepoDossier } from "./schemas.generated";
@@ -109,6 +110,12 @@ export type IntakeExchange = {
   // instead of silently substituting English. Present = the operator is
   // reading a stand-in language, and a surface may say so.
   fallbackLang?: Locale;
+  /** The turn's DECISION CARDS, when the engine judged one of the two triggers
+   *  met (intake-choices.ts). Absent on most turns by design — an open question
+   *  is the default. Validated HERE rather than trusted: the payload is authored
+   *  by a model, so this boundary is the one that decides what may reach a
+   *  screen and the store. */
+  choices?: IntakeChoiceSet;
 };
 
 // Only a locale the app actually knows may cross the boundary as `fallbackLang`
@@ -116,6 +123,15 @@ export type IntakeExchange = {
 // catalog can resolve.
 function coerceFallbackLang(raw: unknown): { fallbackLang?: Locale } {
   return isLocale(raw) ? { fallbackLang: raw } : {};
+}
+
+// A malformed or over-stuffed card set is DROPPED, never repaired into
+// something the model did not say: the turn keeps its own question, which it
+// always carries anyway (the persona rules require the reply to read as a
+// normal turn on its own).
+function coerceChoices(raw: unknown): { choices?: IntakeChoiceSet } {
+  const set = coerceIntakeChoiceSet(raw);
+  return set ? { choices: set } : {};
 }
 
 function coerceExchange(payload: unknown): IntakeExchange {
@@ -130,6 +146,7 @@ function coerceExchange(payload: unknown): IntakeExchange {
     source: raw.source === "llm" ? "llm" : "deterministic",
     ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
     ...coerceFallbackLang(raw.fallbackLang),
+    ...coerceChoices(raw.choices),
   };
 }
 
@@ -251,10 +268,10 @@ export async function runIntakeVoiceTurn(
       "--voice-turn",
       "--transcript-json",
       transcriptPath,
-      "--message",
-      input.message,
-      "--lang",
-      input.lang || "en",
+      // Use = form so a user message starting with -- is not re-interpreted by
+      // Python argparse as a flag (option injection guard).
+      `--message=${input.message}`,
+      `--lang=${input.lang || "en"}`,
     ];
     if (input.brief) {
       const briefPath = path.join(workdir, "brief.json");
@@ -359,10 +376,10 @@ export async function runIntakeExchange(
       "pipeline.jobfit.intake_cli",
       "--transcript-json",
       transcriptPath,
-      "--message",
-      input.message,
-      "--lang",
-      input.lang || "en",
+      // Use = form so a user message starting with -- is not re-interpreted by
+      // Python argparse as a flag (option injection guard).
+      `--message=${input.message}`,
+      `--lang=${input.lang || "en"}`,
     ];
     if (input.brief) {
       const briefPath = path.join(workdir, "brief.json");

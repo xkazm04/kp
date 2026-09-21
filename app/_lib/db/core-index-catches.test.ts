@@ -4,12 +4,15 @@
 // the benign "already applied" error — but one layer below it two shapes still swallowed
 // everything:
 //
-//   1. ONE bare `catch { /* index already exists */ }` wrapped NINE `CREATE INDEX IF NOT
-//      EXISTS` statements. `IF NOT EXISTS` means "already exists" can never be raised
-//      there, so the comment named an impossible error while the catch quietly absorbed
-//      the possible ones (lock contention, I/O, a name collision with a real table) AND —
-//      because one try wrapped all nine — aborted every remaining index in the block. A
-//      tenant-scoped read then ran a full table scan forever, with nothing logged.
+//   1. ONE bare `catch { /* index already exists */ }` wrapped the original nine
+//      `CREATE INDEX IF NOT EXISTS` statements. `IF NOT EXISTS` means "already exists"
+//      can never be raised there, so the comment named an impossible error while the
+//      catch quietly absorbed the possible ones (lock contention, I/O, a name collision
+//      with a real table) AND — because one try wrapped the whole block — aborted every
+//      remaining index. A tenant-scoped read then ran a full table scan forever, with
+//      nothing logged. Four more tables (interview_sessions, campaign_packs, tasks,
+//      skill_profiles) later gained workspace_id without an idx_*_workspace; they sit
+//      in the same migrateExec loop now.
 //   2. FOUR `catch {}` around unique-index creation, all meaning "a legacy DB may hold
 //      duplicate rows that block this index". That is a real, tolerable case — but the
 //      catch could not tell it from a locked or corrupt database, and said nothing either
@@ -80,7 +83,7 @@ function fresh(name: string): string {
   return path.join(mkdtempSync(path.join(ROOT, `${name}-`)), "kp.sqlite");
 }
 
-// ---- 1. The nine tenancy indexes: an unexpected failure is LOUD ---------------------
+// ---- 1. The per-tenant scan indexes: an unexpected failure is LOUD ------------------
 //
 // Injection shape: a database that already holds a TABLE under one of the index names.
 // SQLite answers `CREATE INDEX IF NOT EXISTS idx_jds_workspace …` with SQLITE_ERROR
@@ -104,9 +107,9 @@ test("an unexpected failure creating a tenancy index refuses the boot instead of
   assert.match(result.stderr, /db:migrate/, "and it is logged with the migrator's tag, not only thrown");
 });
 
-// Non-vacuity: the same boot, without the planted collision, creates all nine indexes.
-// If it did not, "refuses the boot" above could pass against a seam that refuses always,
-// and the abort-the-rest half of the defect would be untestable.
+// Non-vacuity: the same boot, without the planted collision, creates every index in the
+// block. If it did not, "refuses the boot" above could pass against a seam that refuses
+// always, and the abort-the-rest half of the defect would be untestable.
 test("a clean boot creates every tenancy index in the block", () => {
   const dbPath = fresh("clean");
   const result = boot(dbPath);
@@ -127,6 +130,10 @@ test("a clean boot creates every tenancy index in the block", () => {
     "idx_consent_events_workspace",
     "idx_channel_webhooks_workspace",
     "idx_dev_outbox_workspace",
+    "idx_interview_sessions_workspace",
+    "idx_campaign_packs_workspace",
+    "idx_tasks_workspace",
+    "idx_skill_profiles_workspace",
   ]) {
     assert.ok(names.has(index), `${index} must exist after a clean boot`);
   }

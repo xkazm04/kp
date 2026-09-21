@@ -118,9 +118,25 @@ export function useSimulationWalk({
 
   const step = useCallback(
     async (o: StepOpts) => {
-      patch({ phase: o.id, status: o.title, spotlight: { selector: o.target, title: o.title, caption: o.caption } });
+      // The handoff is patched with the phase — BEFORE the nav below — so the tab
+      // this chapter opens already sees it on its first render. That ordering is
+      // load-bearing: JdsIntakeTab picks its half, and the builder its seeds, at
+      // MOUNT only (jdsIntakeTabEntry.ts), so a handoff that arrived one render
+      // late would land on an empty form.
+      patch({
+        phase: o.id,
+        status: o.title,
+        spotlight: { selector: o.target, title: o.title, caption: o.caption },
+        jdHandoff: o.jdHandoff ?? null,
+      });
       log(o.caption);
-      nav({ tab: o.tab, ...(o.navExtra ?? {}) });
+      // Every chapter is a BARE tab switch: the walk carries its own data in state
+      // now, so the address bar stays `/?tab=<chapter>` from the first step to the
+      // last. Clearing the canonical tab-scoped allowlist also drops whatever
+      // selection the operator's URL happened to hold when they pressed Start
+      // (a `?job=`, a `?profile=`, a board filter), which would otherwise ride
+      // along through the tour exactly as it does not through a sidebar click.
+      nav({ tab: o.tab, ...clearedTabScopedParams() });
       await beat(o.readMs ?? 1600);
       if (o.action) await o.action();
       notifyDataChanged(); // reflect this phase's mutations in any open view
@@ -211,12 +227,17 @@ export function useSimulationWalk({
         ...simChapter("design"),
         title: t("step.design.title"),
         caption: t("step.design.caption", { title: SIM_TITLE }),
-        navExtra: {
-          jdTitle: SIM_TITLE,
-          jdCompany: SIM_COMPANY,
-          jdSeniority: SIM_ROLE.seniority,
-          jdFamily: SIM_ROLE.roleFamily,
-          jdNeed: responsibilities.join(". ") + ".",
+        // The simulated role reaches the builder through the provider's own state,
+        // not through five query params (see JdBuilderHandoff). The `?jd*` deep
+        // link still exists for a human linking in from outside — the tour simply
+        // is not that reader, and a 252-character address bar was the price of
+        // pretending it was.
+        jdHandoff: {
+          title: SIM_TITLE,
+          company: SIM_COMPANY,
+          seniority: SIM_ROLE.seniority,
+          roleFamily: SIM_ROLE.roleFamily,
+          need: responsibilities.join(". ") + ".",
         },
       });
 
@@ -224,9 +245,10 @@ export function useSimulationWalk({
         ...simChapter("source"),
         title: t("step.source.title"),
         caption: t("step.source.caption"),
-        // Leaving the JD builder: clear the prefill (and any other tab-scoped
-        // param) from the canonical allowlist rather than re-listing jd* keys.
-        navExtra: clearedTabScopedParams(),
+        // No navExtra here any more: leaving the builder used to mean clearing the
+        // five jd* params this chapter's predecessor had written, and the walk no
+        // longer writes any. step() clears the tab-scoped allowlist on every
+        // chapter, and the handoff itself expires with the chapter that declared it.
         action: async () => {
           // Save as a DRAFT (no sourcing yet).
           // The walk's FIRST WRITE, and the one that decides whether the rest of the

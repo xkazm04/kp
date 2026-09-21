@@ -223,7 +223,7 @@ class LedgerSidecarTest(unittest.TestCase):
                 os.environ.pop("LIGHTTRACK_URL", None)  # observability OFF
                 StubProvider([_result()], use_case="match_reasoning").complete("hi")
             with open(path, encoding="utf-8") as fh:
-                lines = [l for l in fh.read().splitlines() if l.strip()]
+                lines = [line for line in fh.read().splitlines() if line.strip()]
             self.assertEqual(len(lines), 1)
             row = json.loads(lines[0])
             self.assertEqual(row["use_case"], "match_reasoning")
@@ -324,7 +324,7 @@ class LedgerSidecarTest(unittest.TestCase):
                 os.environ.pop("LIGHTTRACK_URL", None)
                 monitor.emit_deterministic("campaign_pack")
             with open(path, encoding="utf-8") as fh:
-                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+                rows = [json.loads(line) for line in fh.read().splitlines() if line.strip()]
         self.assertEqual(len(rows), 1)
         row = rows[0]
         self.assertEqual(row["source"], "deterministic")
@@ -350,7 +350,7 @@ class LedgerSidecarTest(unittest.TestCase):
                 os.environ.pop("LIGHTTRACK_URL", None)
                 monitor.emit_deterministic("repo_scan", reason="offline_policy")
             with open(path, encoding="utf-8") as fh:
-                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+                rows = [json.loads(line) for line in fh.read().splitlines() if line.strip()]
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["source"], "deterministic")
         self.assertEqual(rows[0]["reason"], "offline_policy")
@@ -381,7 +381,7 @@ class LedgerSidecarTest(unittest.TestCase):
                 with mock.patch.object(ClaudeCliProvider, "complete", return_value=cli_result):
                     provider.complete("hi")
             with open(path, encoding="utf-8") as fh:
-                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+                rows = [json.loads(line) for line in fh.read().splitlines() if line.strip()]
             self.assertEqual(len(rows), 1)
             # The ledger records the real engine (claude_cli), keeping subscription
             # vs metered spend distinguishable — unlike LightTrack's anthropic alias.

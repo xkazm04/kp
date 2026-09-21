@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { signSession, verifySession, currentWorkspaceId, isOperatorSession, DEFAULT_WORKSPACE, SESSION_TTL_MS, sessionEpoch } from "./session.ts";
 
 process.env.KP_SECRET = process.env.KP_SECRET || "test-master-secret";
@@ -72,6 +73,26 @@ test("a tampered signature fails verification", () => {
   assert.equal(verifySession(`${body}.deadbeef`), null);
 });
 
+// The test above rejects at the LENGTH guard (`deadbeef` is 8 chars against a 43-char
+// base64url HMAC), so it never reaches timingSafeEqual. This one flips a single
+// character and keeps the length identical, which is the only way into that branch —
+// and it asserts the length equality, so it cannot silently decay back into the cheap
+// guard if the signature encoding ever changes.
+test("a one-character signature flip fails on the timing-safe comparison", () => {
+  const now = 5_000_000;
+  const tok = signSession(undefined, now);
+  const dot = tok.lastIndexOf(".");
+  const body = tok.slice(0, dot);
+  const sig = tok.slice(dot + 1);
+  const flipped = (sig[0] === "A" ? "B" : "A") + sig.slice(1);
+  assert.equal(flipped.length, sig.length, "the flip must not change the length");
+  assert.notEqual(flipped, sig);
+  assert.equal(verifySession(`${body}.${flipped}`, now), null);
+  // The untouched token still verifies at the same instant — so the null above is the
+  // flip, not the clock.
+  assert.ok(verifySession(tok, now));
+});
+
 test("an expired token fails", () => {
   const now = 1_000_000;
   const tok = signSession(undefined, now);
@@ -113,6 +134,33 @@ test("bumping KP_SESSION_EPOCH revokes a session minted at a lower epoch", () =>
     assert.equal(sessionEpoch(), 1);
     assert.equal(verifySession(tok, now), null); // the old session is now dead
     assert.ok(verifySession(signSession(undefined, now), now)); // a fresh one (epoch 1) is fine
+  } finally {
+    if (prev === undefined) delete process.env.KP_SESSION_EPOCH;
+    else process.env.KP_SESSION_EPOCH = prev;
+  }
+});
+
+// signSession() always stamps `epoch`, so the `payload.epoch ?? 0` fallback — the
+// documented backward-compatibility path for cookies minted before the kill-switch
+// existed — is unreachable through the public API. Mint one by hand to pin it: an
+// epoch-less token must verify at epoch 0 AND be revoked by the same bump as any other.
+test("a pre-epoch token (no `epoch` claim) counts as epoch 0 and is revoked by a bump", () => {
+  const now = 6_000_000;
+  const body = Buffer.from(
+    JSON.stringify({ workspace: DEFAULT_WORKSPACE, iat: now, exp: now + SESSION_TTL_MS }),
+    "utf8",
+  ).toString("base64url");
+  const legacy = `${body}.${createHmac("sha256", process.env.KP_SECRET!).update(body).digest("base64url")}`;
+
+  const prev = process.env.KP_SESSION_EPOCH;
+  try {
+    delete process.env.KP_SESSION_EPOCH;
+    const p = verifySession(legacy, now);
+    assert.ok(p, "an epoch-less cookie still verifies while the epoch is 0");
+    assert.equal(p!.epoch, undefined);
+
+    process.env.KP_SESSION_EPOCH = "1";
+    assert.equal(verifySession(legacy, now), null, "the kill-switch reaches pre-epoch cookies too");
   } finally {
     if (prev === undefined) delete process.env.KP_SESSION_EPOCH;
     else process.env.KP_SESSION_EPOCH = prev;

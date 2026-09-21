@@ -4,8 +4,10 @@ import { Markdown } from "@/app/_components/Markdown";
 import { getDevCase, getPostingByToken } from "@/app/_lib/db/devcase";
 import { caseToMarkdown } from "@/app/features/tools/devcases/DevHelpers";
 import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
+import { applySubtitleKey } from "@/app/_lib/devcase-apply-subtitle";
 import type { CaseScenario, RoleSpec, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { DevApplyForm } from "./DevApplyForm";
 import { LiveWorkSurface } from "./LiveWorkSurface";
@@ -30,15 +32,24 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
   if (!posting) notFound();
 
   const t = await getTranslations("devApply");
+  const compliance = disclosureComplianceFor(posting.workspaceId);
 
   // W5-3 — a closed posting renders an honest closure card instead of
-  // collecting applications nobody will process.
+  // collecting applications nobody will process. Closing intake does not
+  // erase that AI evaluates work already submitted, so the same
+  // server-resolved disclosure stays on this public card (without the
+  // data-consent line — there is no new submit).
   if (posting.status === "closed") {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{posting.caseTitle || posting.roleTitle || t("fallbackTitle")}</h1>
         <p className={`mt-4 ${PANEL_SUNKEN} p-4 text-body text-steel`}>{t("closed")}</p>
+        <AiDisclosure
+          className="mt-4"
+          regimeId={compliance.regimeId}
+          retentionMonths={compliance.retentionMonths}
+        />
       </main>
     );
   }
@@ -99,12 +110,20 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
       {posting.roleTitle && posting.caseTitle ? (
         <p className="mt-1 text-body text-steel">{posting.roleTitle}</p>
       ) : null}
-      <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
+      <p className="mt-2 text-body text-steel">{t(applySubtitleKey(seedFiles.length > 0))}</p>
 
       {/* AI-use disclosure (UAT M9): this is the surface where AI evaluates the
           candidate, so it carries the same transparency note as the apply/offer
-          surfaces — with the data-consent line, since submitting here IS consent. */}
-      <AiDisclosure showDataConsent className="mt-4" />
+          surfaces — with the data-consent line, since submitting here IS consent.
+          The regime + retention window come from the POSTING's own workspace,
+          resolved server-side: this page is session-less, so the component's own
+          fetch could only ever have answered for the default tenant. */}
+      <AiDisclosure
+        showDataConsent
+        className="mt-4"
+        regimeId={compliance.regimeId}
+        retentionMonths={compliance.retentionMonths}
+      />
 
       {markdown ? (
         <section className={`mt-6 ${PANEL} p-5`}>

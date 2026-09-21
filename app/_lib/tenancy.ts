@@ -154,6 +154,14 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // self-authorizing the way a candidate capability token is. rediscovery-tenancy.test.ts
   // now carries a literal per-statement exemption allowlist, currently empty.
   "rediscovery_alerts",
+  // role_pattern_priorities — the role coach's three-level pattern weights, one row per
+  // (job, workspace). Scoped rather than job-keyed BECAUSE the jobs corpus is dual-tier:
+  // a seeded corpus role is shared by every tenant, so a job-only key would both leak one
+  // team's private weighting of a role and let the next team overwrite it. Read AND write
+  // bind workspace_id with NO by-id exemption (role-priorities-tenancy.test.ts). A
+  // lazy-store table (own connection in role-priorities-store.ts), so also listed in
+  // TENANCY_LAZY_TABLES.
+  "role_pattern_priorities",
   // Phase 1 — interview_preps: one plan per pipeline entry, all ops keyed by the
   // globally-unique entry_id (can't cross tenants); the write stamps workspace_id
   // derived from the entry (interview-prep-tenancy.test.ts).
@@ -238,6 +246,40 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "companion_turns",
   "companion_proposals",
   "companion_brain_index",
+  // The posting corpus (db/job-postings.ts): imported job advertisements the intake
+  // studio grounds on. Seeded rows carry the IMPORTING workspace's id — NOT the shared
+  // NULL model `jobs` uses — because the corpus is imported on request, per team, and
+  // `distinctRolePostings` is a per-team sample; a shared tier would put one team's
+  // pasted competitor ad into another team's sample. Every query filters or stamps
+  // workspace_id, point reads included (a leaked posting id must not resolve across
+  // tenants), and the dedupe UNIQUE is (content_hash, workspace_id) so one team's
+  // import cannot suppress another's (job-postings-tenancy.test.ts).
+  "job_postings",
+  // The role posting rendered into another language (db/job-translations.ts): the
+  // bodies the open-a-role wizard orders when it names the languages a role is
+  // advertised in. Scoped with NO shared tier and no by-id carve-out even though the
+  // ROLE may be a shared corpus row (jobs.workspace_id NULL) — the translation is
+  // generated on one team's order and against one team's LLM spend, so a leaked job
+  // id must not hand another team the body they paid for. The key is
+  // (workspace_id, job_id, lang), so one team re-rendering a language can never
+  // overwrite another's (job-translations-tenancy.test.ts).
+  "job_translations",
+  // The job-seeker module (db/jobseeker-*.ts): the SEEKER's own record, the flip side of
+  // the recruiter tables. Every read and write binds `workspace_id = ?`, and there is
+  // NO carve-out — by-id reads also bind the workspace, because a leaked id must not
+  // resolve another workspace's seeker, source, posting or dialog.
+  // Profile: one row per (workspace, user) — CV text, preferences, the polished CV
+  // (jobseeker-profiles-tenancy.test.ts).
+  "jobseeker_profiles",
+  // Sources: the owner's confirmed acquisition list, incl. terms acknowledgements
+  // (jobseeker-sources-tenancy.test.ts).
+  "jobseeker_sources",
+  // Postings: the reconciled dataset per source, with match projections; UNIQUE is
+  // (workspace_id, source_id, external_key) so one workspace's scan never touches
+  // another's rows (jobseeker-postings-tenancy.test.ts).
+  "jobseeker_postings",
+  // Dialogs: the seeker's CV-polish / fit conversations (jobseeker-dialogs-tenancy.test.ts).
+  "jobseeker_dialogs",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
@@ -371,6 +413,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "offers",
   "personas_bridge",
   "rediscovery_alerts",
+  "role_pattern_priorities",
   "schedule_invites",
   "scheduler",
   "scheduler_runs",

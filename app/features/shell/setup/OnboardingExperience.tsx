@@ -6,12 +6,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import type { AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
 import {
   INITIAL_SETUP,
-  SETUP_STEPS,
   reachedCeiling as ceilingOf,
+  relevantSteps,
   stepSatisfied,
   type OnboardingCtrl,
   type SetupInvite,
@@ -31,14 +32,23 @@ import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 //               so). Finish PERSISTS everything — org name, language, brand,
 //               invites, and the board's columns when the Pipeline step changed
 //               them (POST /api/pipeline/stage-migration) — and stamps the
-//               principal "completed"; Escape / X / Skip stamp "skipped" — either
-//               way the '/' gate never re-fires (KP_FORCE_ONBOARDING=1 excepted).
+//               principal "completed"; Escape / X ASK FIRST (setup.leave.*) and
+//               stamp "skipped" only on confirm — either way the '/' gate never
+//               re-fires (KP_FORCE_ONBOARDING=1 excepted), so the way back is the
+//               resume affordance the empty Pipeline board offers an operator whose
+//               setup is unfinished (shell/setup/useSetupUnfinished.ts answers
+//               WHETHER to offer it; setup/onboardingReopen.ts reopens this same
+//               host in live mode when it is taken).
 //               Answers are mirrored into a per-user sessionStorage draft, so a
 //               reload mid-setup resumes instead of starting over (setupDraft.ts).
 //   "preview" — the Settings → Organization walkthrough. NOTHING persists — no
 //               org writes, no invites, no axis write, no stamp, no draft (fixes
 //               the ambiguity-ui finding that "Preview" wrote for real). The axis
 //               is still READ, so the walkthrough shows this workspace's real board.
+//
+// THE INTENT FORK. Every index here is a position in `relevantSteps(state)` — the
+// declared sequence for THIS run (setupSteps.ts). A seeker's run is Welcome →
+// Hand-off, and its finish() persists only the language and routes to /me.
 export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "live" | "preview"; onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("setup");
@@ -55,14 +65,21 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const finishing = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // The steps THIS run walks. The intent is answered on step 0, so the sequence can
+  // only shrink while the operator stands on Welcome — but the clamp below holds
+  // regardless, so an index can never point past the sequence it indexes.
+  const steps = useMemo(() => relevantSteps(state), [state]);
+  const lastIndex = steps.length - 1;
+  const safeIndex = Math.min(stepIndex, lastIndex);
+
   // Highest step legitimately reached (Continue / Skip both route through the
   // movers below, so the high-water mark is exactly "reached through the gates").
   const [maxVisited, setMaxVisited] = useState(0);
 
-  const canAdvance = stepSatisfied(SETUP_STEPS[stepIndex].id, state);
+  const canAdvance = stepSatisfied(steps[safeIndex].id, state);
   // …and the ceiling that mark buys, which the current step can REVOKE — see
   // reachedCeiling in setupSteps.ts for why the raw high-water mark is unsafe.
-  const reachedCeiling = ceilingOf(maxVisited, stepIndex, canAdvance);
+  const reachedCeiling = ceilingOf(Math.min(maxVisited, lastIndex), safeIndex, canAdvance);
 
   // Rail navigation is GATED like the Continue button: freely back to anything
   // already reached, forward only one step and only when the current step's
@@ -71,22 +88,21 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // raises the high-water mark legitimately.)
   const goTo = useCallback(
     (i: number) => {
-      const target = Math.max(0, Math.min(SETUP_STEPS.length - 1, i));
+      const target = Math.max(0, Math.min(lastIndex, i));
       const allowed =
-        target <= Math.max(reachedCeiling, stepIndex) ||
-        (target === stepIndex + 1 && stepSatisfied(SETUP_STEPS[stepIndex].id, state));
+        target <= Math.max(reachedCeiling, safeIndex) || (target === safeIndex + 1 && stepSatisfied(steps[safeIndex].id, state));
       if (!allowed) return;
       setStepIndex(target);
       setMaxVisited((m) => Math.max(m, target));
     },
-    [stepIndex, reachedCeiling, state]
+    [safeIndex, lastIndex, reachedCeiling, state, steps]
   );
   const next = useCallback(() => {
-    const target = Math.min(SETUP_STEPS.length - 1, stepIndex + 1);
+    const target = Math.min(lastIndex, safeIndex + 1);
     setStepIndex(target);
     setMaxVisited((m) => Math.max(m, target));
-  }, [stepIndex]);
-  const back = useCallback(() => setStepIndex((s) => Math.max(0, s - 1)), []);
+  }, [safeIndex, lastIndex]);
+  const back = useCallback(() => setStepIndex((s) => Math.max(0, Math.min(s, lastIndex) - 1)), [lastIndex]);
   const update = useCallback((patch: Partial<SetupState>) => setState((s) => ({ ...s, ...patch })), []);
   const addInvite = useCallback((invite: SetupInvite) => setState((s) => ({ ...s, invites: [...s.invites, invite] })), []);
   const removeInvite = useCallback(
@@ -108,14 +124,16 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const restore = useCallback(
     (draft: SetupDraft) => {
       setState((s) => mergeSetupDraft(s, draft, initial));
-      const at = restoredStepIndex(draft, SETUP_STEPS.length);
+      // The restored position is a position in the sequence the restored INTENT
+      // implies — a seeker's draft claiming step 4 clamps to its two-step run.
+      const at = restoredStepIndex(draft, relevantSteps({ ...initial, intent: draft.intent }).length);
       setStepIndex((s) => (s === 0 ? at.stepIndex : s));
       setMaxVisited((m) => Math.max(m, at.maxVisited));
       pendingAxis.current = draft.axisDraft;
     },
     [initial]
   );
-  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex, maxVisited, restore });
+  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex: safeIndex, maxVisited, restore });
   useEffect(() => {
     if (!pendingAxis.current || !state.pipeline) return;
     const draft = pendingAxis.current;
@@ -124,15 +142,19 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   }, [state.pipeline, setPipelineDraft]);
 
   // Stamp the first-run outcome so the '/' gate stops showing the wizard. Fire-
-  // and-forget: a lost stamp only means the wizard offers itself once more.
+  // and-forget: a lost stamp only means the wizard offers itself once more. The
+  // promise is still returned so a caller that has something to do AFTER the stamp
+  // lands (finish, below, tells the open views to re-read) can wait for it.
   const stamp = useCallback(
-    (status: "completed" | "skipped") => {
-      if (mode !== "live") return;
-      void fetch("/api/me/onboarding", {
+    (status: "completed" | "skipped"): Promise<void> => {
+      if (mode !== "live") return Promise.resolve();
+      return fetch("/api/me/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      }).catch(() => {});
+      })
+        .then(() => {})
+        .catch(() => {});
     },
     [mode]
   );
@@ -141,10 +163,33 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // drop the draft. A dismissal is an answer, not an interruption: resuming a
   // setup the operator walked away from would re-open a decision they closed.
   const dismiss = useCallback(() => {
-    stamp("skipped");
+    // No notifyDataChanged here: a skip changes nothing any open view reads — the
+    // board's resume affordance was already showing and stays showing.
+    void stamp("skipped");
     clearDraft();
     onClose();
   }, [stamp, clearDraft, onClose]);
+
+  // …but it is a REVERSIBLE answer now, and the operator is told so before it is
+  // recorded. Escape is the reflex on any modal, and pressing it here used to close
+  // the '/' gate for good: the wizard never re-fired, Settings → "Preview
+  // onboarding" persists nothing, and company name, brand, invites, board columns
+  // and Candi's memory had to be rebuilt one screen at a time. So in live mode the
+  // close control and Escape ask once (`setup.leave.*`), and the empty Pipeline
+  // board's resume affordance is the way back in afterwards either way.
+  //
+  // Preview keeps closing immediately — a walkthrough that writes nothing has
+  // nothing to confirm, and a confirmation there would only teach the operator to
+  // dismiss the one that matters.
+  const [leaving, setLeaving] = useState(false);
+  const requestClose = useCallback(() => {
+    if (mode !== "live") {
+      dismiss();
+      return;
+    }
+    setLeaving(true);
+  }, [mode, dismiss]);
+  const cancelLeave = useCallback(() => setLeaving(false), []);
 
   // The board's real columns, read once on mount (both modes — a walkthrough that
   // showed a made-up board would be teaching the wrong thing).
@@ -164,6 +209,9 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // can 409. Anything that did not land is named — by part and by the server's
   // machine code, resolved in the reader's language — instead of collapsing into a
   // green "Your workspace is set up".
+  //
+  // A SEEKER's finish writes only the parts of the steps they walked (the language)
+  // and lands on /me — their workspace — instead of refreshing the recruiter's.
   const finish = useCallback(async () => {
     if (finishing.current) return;
     finishing.current = true;
@@ -189,8 +237,12 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       toast.error(t("toast.partial"));
     } finally {
       clearDraft();
-      stamp("completed");
-      router.refresh();
+      // Tell the open views once the stamp has actually landed — the board's resume
+      // affordance reads it (`useSetupUnfinished`) through its own fetch, so without
+      // this it would keep offering "pick up where you left off".
+      void stamp("completed").then(notifyDataChanged);
+      if (state.intent === "seek") router.push("/me");
+      else router.refresh();
       onClose();
     }
   }, [state, mode, stamp, clearDraft, onClose, router, t, resolveError]);
@@ -199,11 +251,17 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // page scroll locked — from the shared implementation every other modal uses, so
   // this takeover joins the same stack instead of running its own bare keydown
   // listener beside an `aria-modal` it never actually enforced.
-  useDialogA11y(dialogRef, dismiss);
+  //
+  // The wizard card registers its OWN useDialogA11y on top of this one, so in
+  // practice Escape reaches that one (the hook gates on top-of-stack). This handler
+  // is kept in step with it anyway — Escape must never bypass the confirmation just
+  // because the stack shifted.
+  useDialogA11y(dialogRef, leaving ? cancelLeave : requestClose);
 
   const ctrl: OnboardingCtrl = {
     mode,
-    stepIndex,
+    steps,
+    stepIndex: safeIndex,
     // The REACHABLE ceiling, not the raw high-water mark — see above. The rail
     // draws its disabled state from the same number goTo enforces, so a step the
     // stepper offers is always a step a click can actually open.
@@ -216,10 +274,13 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     addInvite,
     removeInvite,
     setPipelineDraft,
-    onClose: dismiss,
+    onClose: requestClose,
+    leaving,
+    confirmLeave: dismiss,
+    cancelLeave,
     finish,
     canAdvance,
-    isLast: stepIndex === SETUP_STEPS.length - 1,
+    isLast: safeIndex === lastIndex,
   };
 
   return (

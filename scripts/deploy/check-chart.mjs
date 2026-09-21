@@ -239,6 +239,16 @@ const CREDENTIAL_SHAPES = [
 
 const finding = (rule, message, fix) => ({ rule, message, fix });
 
+/** True iff `value` parses as an absolute http:// or https:// URL. */
+function isAbsoluteHttpUrl(value) {
+  try {
+    const u = new URL(String(value ?? ''));
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 // --- the policies -------------------------------------------------------------
 //
 // Each entry is one property of the deployed shape that must not regress, with
@@ -486,6 +496,21 @@ export const POLICIES = [
     check: ({ values }) => {
       const mode = valueOf(blockOf(values, 'persistence'), 'accessMode');
       return mode === 'ReadWriteOnce' ? null : `persistence.accessMode is ${mode ?? 'unset'}, not ReadWriteOnce.`;
+    },
+  },
+  {
+    rule: 'ingress-public-origin',
+    why:
+      'Candidate-facing links (offer, schedule, apply, invite) resolve through NEXT_PUBLIC_APP_BASE_URL. ' +
+      'A public ingress with that var empty ships those links to siteUrl() while the cluster is reached at the ingress host.',
+    check: ({ values }) => {
+      if (valueOf(blockOf(values, 'ingress'), 'enabled') !== 'true') return null;
+      const url = valueOf(blockOf(values, 'env'), 'NEXT_PUBLIC_APP_BASE_URL');
+      if (url && isAbsoluteHttpUrl(url)) return null;
+      return (
+        `ingress.enabled is true but env.NEXT_PUBLIC_APP_BASE_URL is ${url ? JSON.stringify(url) : 'empty'}. ` +
+        'Set it to an absolute http(s) origin so candidate offer/schedule/invite links resolve to the ingress host.'
+      );
     },
   },
 ];

@@ -31,7 +31,7 @@ function sentryEnabled(): boolean {
 // candidate's credential. Without this a 500 on a candidate API shipped a working
 // capability link to a third-party service.
 const TOKEN_PATH =
-  /(\/(?:api\/)?(?:schedule|interview|status|offer|data|invite|skill|skill-profile|agents\/report|channels\/inbound|devcase\/apply|devcase\/session)\/)[^/?#]+/gi;
+  /(\/(?:api\/)?(?:schedule|interview|status|offer|data|invite|skill|skill-profile|stop|agents\/report|channels\/inbound|devcase\/apply|devcase\/session)\/)[^/?#]+/gi;
 
 function redactTokens(value: string): string {
   return value.replace(TOKEN_PATH, "$1[token]").replace(/([?&](?:token|t)=)[^&#]+/gi, "$1[token]");

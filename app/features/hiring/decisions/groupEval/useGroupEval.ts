@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocale } from "next-intl";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { buildSkillRows, ranWhen } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
 import { decideWith, isEnriched, mergeSealed } from "@/app/features/hiring/decisions/groupEval/groupEvalSession";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
@@ -30,9 +30,13 @@ export function useGroupEval({
    *  decisions that really happened. */
   sealed?: Record<string, "accept" | "reject">;
 }) {
-  // The stamp follows the APP locale (the language the rest of this modal is in),
-  // not whatever locale the browser happens to run under.
-  const ranAt = ranWhen(createdAt, useLocale());
+  // The app's one date idiom (useDateFormat), not toLocaleString: same
+  // "3 Sep 2026, 14:30" shape as every other Decisions timestamp, null-safe,
+  // and it follows the reader's chosen locale + time zone through the intl
+  // context. ranWhen only validates the ISO so this hook stays the formatter.
+  const fmt = useDateFormat();
+  const ranAtIso = ranWhen(createdAt);
+  const ranAt = ranAtIso ? fmt.dateTime(ranAtIso) : null;
   // Candidates decided here this session, so their buttons flip to a result pill
   // (the cached `evaluation` snapshot doesn't refetch; the live queue updates
   // underneath via act()).

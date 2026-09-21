@@ -3,6 +3,7 @@ import { Workspace } from "@/app/features/shell/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
 import { needsOnboarding } from "@/app/_lib/auth/onboarding-gate";
+import { signupEnabled } from "@/app/_lib/workspace-lock";
 
 // '/' is gated SERVER-SIDE between two surfaces: the public landing (SparkHome)
 // for anonymous visitors, and the workspace dashboard once signed in. The gate is
@@ -32,7 +33,14 @@ export default async function Home({
   const sp = await searchParams;
   const demoMode = sp?.sim === "auto";
   const entered = demoMode || (await hasEnteredWorkspace());
-  if (!entered) return <SparkHome />;
+  // `signupOpen` is the ONE bit of deployment policy the landing needs: whether
+  // /signup exists on this deploy (KP_SIGNUP_ENABLED — the page 404s when unset,
+  // which the client cannot detect). Resolved here with the same predicate the
+  // page and the register route use, never re-parsed from a NEXT_PUBLIC_ mirror,
+  // so the hero's primary CTA can send a refused (gated-deploy) visitor to a
+  // surface where a stranger can actually finish. Pure env read — the anonymous
+  // landing stays DB-free.
+  if (!entered) return <SparkHome signupOpen={signupEnabled()} />;
   // First-run gate: a principal (user, or workspace in open mode) that has never
   // completed/skipped the setup wizard gets it as an overlay on first entry.
   // `?onboarding=1` is the single-load dev escape hatch (KP_FORCE_ONBOARDING=1

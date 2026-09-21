@@ -5,6 +5,7 @@ import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
 import { recordRediscoveryAlerts, suppressedCandidateIds } from "./rediscovery-alert-store";
+import { optedOutCandidateIds } from "./outreach-state-store";
 import { priorDepthBoost, byPriorAwareRank } from "./rediscovery-rank";
 
 // The pure relevance filter lives in an import-free sibling so it's testable under
@@ -58,6 +59,10 @@ export type RediscoverResult = {
    *  lapsed consent). A COUNT, never a list: naming them in `skipped` would put the
    *  identity back on the wire that the suppression exists to keep off it. */
   suppressed: number;
+  /** True when `buildCandidatePool` hit a cap, so older members were never ranked.
+   *  A boolean, never a list of dropped identities (same rule as `suppressed`).
+   *  The ranked subset is still returned — the flag says it is not the whole corpus. */
+  poolTruncated: boolean;
 };
 
 /** Choose the ONE prior outcome that justifies resurfacing this candidate against
@@ -114,8 +119,8 @@ export async function rediscoverForJob(
   // Workspace-scoped pool: the on-demand route + publish thread their request's
   // currentWorkspace(); the background sweep leaves it at the default tenant
   // (its current behavior — a per-tenant sweep is a separate feature).
-  const { entries: pool } = buildCandidatePool(opts.workspaceId);
-  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0 };
+  const { entries: pool, truncated } = buildCandidatePool(opts.workspaceId);
+  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0, poolTruncated: truncated };
 
   // CONSENT AT RANK TIME, not only at the send door. `candidateOutreachSuppression`
   // lived in this very module and was called from ONE place — /candidates/outreach —
@@ -126,14 +131,27 @@ export async function rediscoverForJob(
   // this purpose at all, and the surfaces should not display a name that erasure was
   // supposed to remove. Filtering here also means one consent read for the whole
   // pool instead of a per-row one, and it shrinks the payload the CLI scores.
+  //
+  // THE OPT-OUT BELONGS AT THE SAME POINT, and rediscovery is the surface that most
+  // needs it: this is the feature that re-contacts people about roles they never applied
+  // to, which is precisely the traffic ePrivacy Art. 13(4) (and, in this product's main
+  // market, § 7(4)(c) of zák. č. 480/2004 Sb.) governs. Filtering at the send door alone
+  // would still rank an opted-out person, persist an alert row carrying their name, and
+  // put a "Reach out" button in front of a recruiter that the channel is guaranteed to
+  // refuse. Resolved at the durable candidate identity, like its consent sibling, so a
+  // freshly minted per-role entry cannot hide the objection.
   const suppression = suppressedCandidateIds(pool.map((p) => p.id));
-  const eligible = suppression.size === 0 ? pool : pool.filter((p) => !suppression.has(p.id));
+  const optedOut = optedOutCandidateIds(pool.map((p) => p.id));
+  const withheld = (id: string) => suppression.has(id) || optedOut.has(id);
+  const eligible = suppression.size === 0 && optedOut.size === 0 ? pool : pool.filter((p) => !withheld(p.id));
   const suppressed = pool.length - eligible.length;
   if (suppressed > 0) {
     // Count only — the ids/labels are exactly what must not travel further.
-    console.log(`[rediscovery] job "${job.id}": ${suppressed} of ${pool.length} pool members withheld by the consent gate.`);
+    console.log(
+      `[rediscovery] job "${job.id}": ${suppressed} of ${pool.length} pool members withheld (consent gate + candidate opt-outs).`
+    );
   }
-  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed };
+  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed, poolTruncated: truncated };
 
   const ranked = await rankPoolForJob<{
     candidates: {
@@ -204,6 +222,7 @@ export async function rediscoverForJob(
     skipped: [...(ranked.skipped ?? []), ...unscored],
     more: Math.max(0, rediscovered.length - shown.length),
     suppressed,
+    poolTruncated: truncated,
   };
 }
 

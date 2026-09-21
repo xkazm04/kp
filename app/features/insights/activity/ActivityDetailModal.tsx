@@ -38,6 +38,7 @@ import { useOptionalCompanionDock } from "@/app/features/shell/companion/Compani
 import type { CompanionThread } from "@/app/_lib/db/companion";
 import type { Task } from "@/app/features/shell/tasks/TasksProvider";
 import type { LlmActivityRow } from "@/app/_lib/db/llm";
+import { ActivityInterviewRun } from "./ActivityInterviewRun";
 
 const TONE_BY_STATUS: Record<string, BadgeTone> = {
   succeeded: "positive",
@@ -210,6 +211,10 @@ export function ActivityDetailModal({
               conversation), a tracked run (the task), or nothing at all. */}
           {companionRef ? (
             <CompanionTurnRun threadId={companionRef.threadId} onClose={onClose} />
+          ) : row.useCase === "interview_realtime" && row.requestId ? (
+            // A voice interview: the request id IS the session id, and the "run" is
+            // the conversation itself (ActivityInterviewRun).
+            <ActivityInterviewRun sessionId={row.requestId} />
           ) : row.requestId ? (
             <LinkedRun requestId={row.requestId} />
           ) : (

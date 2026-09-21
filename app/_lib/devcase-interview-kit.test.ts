@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildInterviewKitStrings, interviewKitMarkdown } from "./devcase-interview-kit.ts";
+import { buildInterviewKitStrings, interviewKitMarkdown, interviewKitMarkdownMany } from "./devcase-interview-kit.ts";
 import { namespaceTranslator } from "./catalog-translator.ts";
 
 // F15 — the kit takes its copy as a parameter, so the tests feed it the REAL
@@ -52,6 +52,33 @@ test("no usable questions yields a guidance line, not an empty kit", () => {
 test("omits the fit suffix when transferScore is null", () => {
   const md = interviewKitMarkdown({ caseTitle: "C", candidateRef: "c", transferScore: null, questions: [{ question: "Q" }] }, EN);
   assert.doesNotMatch(md, /transfer fit/);
+});
+
+test("a two-candidate kit puts the suspect section above the transfer leader", () => {
+  const md = interviewKitMarkdownMany(
+    [
+      {
+        caseTitle: "C",
+        candidateRef: "leader@example.com",
+        transferScore: 90,
+        authenticityBand: "authentic",
+        questions: [{ question: "Why the adapter?" }],
+      },
+      {
+        caseTitle: "C",
+        candidateRef: "suspect@example.com",
+        transferScore: 40,
+        authenticityBand: "suspect",
+        questions: [{ question: "Walk me through the paste?" }],
+      },
+    ],
+    EN
+  );
+  const suspectAt = md.indexOf("suspect@example.com");
+  const leaderAt = md.indexOf("leader@example.com");
+  assert.ok(suspectAt >= 0 && leaderAt >= 0 && suspectAt < leaderAt);
+  assert.match(md, /Walk me through the paste\?/);
+  assert.match(md, /Why the adapter\?/);
 });
 
 test("F15 — the scaffolding localizes but the minted question text stays verbatim", () => {

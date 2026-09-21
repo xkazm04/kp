@@ -37,6 +37,20 @@ rules make that hold, and both were once broken:
   `rescheduleCapReached` on in the same response; refreshing only the first left
   the booked card with neither the "change time" button nor the propose
   escalation the POST's `stuckCapped` branch would have accepted.
+- The first-confirm POST lists `canReschedule` / `rescheduleCapReached` next to
+  `confirmationDelivery`, and `pick()` adopts them from that body (no extra
+  free/busy GET). GET on a *pending* invite correctly answers `canReschedule:
+  false`; without the flags on the POST the booked card hid Change time until
+  reload even though `rescheduleCount` was 0.
+- The propose-times form names the interview zone its working-hours window uses
+  (`schedule.proposeTimezoneNote`, zone from `GET /api/schedule/[token]`
+  `interviewTz`). The slots are `DateTimeInput` (`type="datetime-local"`, the
+  TextInput family — Spark Dark, invalid, sizeVariant); values are the browser
+  wall clock. `PROPOSAL_HOURS` (08:00-18:00) is fenced in `KP_INTERVIEW_TZ`.
+- The booked card states remaining self-reschedules (`reschedulesRemaining` =
+  `max(0, MAX_RESCHEDULES - rescheduleCount)` on GET and the confirm POST).
+  `rescheduleCount` itself stays off the public wire. At 0 the existing
+  capReached propose path stays.
 
 Pinned by `app/schedule/[token]/schedule-picker-recovery.test.ts` (source-level —
 the repo's unit runner has no component renderer; same idiom as
@@ -49,7 +63,11 @@ the repo's unit runner has no component renderer; same idiom as
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
    `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
    comms-failed entry never aborts the batch and the response reports each
-   outcome. Only the first `BULK_INVITE_CAP` = 100 entries are processed; the
+   outcome. `partitionBulkInviteTargets` refuses an unaddressable recipient
+   (`SCHEDULE_BULK_UNADDRESSABLE`) **before** minting, so a sourced name with no
+   `contact` does not get an orphan token plus a failed send. Opt-out is not a
+   reason to skip: schedule mail is transactional. Only the first
+   `BULK_INVITE_CAP` = 100 entries are processed; the
    **overflow is returned as explicit per-entry refusals** (`ok:false`, an
    error naming the cap) plus a `capped` count, so a cohort larger than the cap
    is never silently truncated into a green "N invited". Each processed entry
@@ -216,19 +234,16 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
-**Both writers re-check, on the same rule.** `slotStillFree` runs on the
-candidate confirm (`app/api/schedule/[token]/route.ts`) *and* on the recruiter's
-week-grid book (`POST /api/schedule {action:"book"}`), which refuses a definite
-conflict with `SCHEDULE_CALENDAR_BUSY` (409). Until then a candidate could not
-book an hour the interviewer's calendar shows busy while a recruiter could, from
-the other side of the same app, for the same interviewer. The degradation
-contract is identical on both sides — no calendar connected, or a failed lookup,
-books exactly as it did before the integration — and there is **no override
-affordance**: a recruiter who wants the hour clears it on their own calendar.
-The one exception is an entry's own confirmed instant: kp writes a real event for
-each booking, so re-confirming the same cell would otherwise be refused by kp's
-own event. The recruiter-side *reschedule* and *accept-proposal* writes still do
-not re-check (their offered lists are filtered). Pinned by
+**All four confirm writers re-check, on the same rule.** `slotStillFree` runs on
+the candidate confirm (`app/api/schedule/[token]/route.ts`) and on every recruiter
+write that would occupy the hour: week-grid `book`, `reschedule`, and
+`accept_proposal`. A definite conflict answers `SCHEDULE_CALENDAR_BUSY` (409).
+The degradation contract is identical on every writer — no calendar connected,
+or a failed lookup, books exactly as it did before the integration — and there
+is **no override affordance**: a recruiter who wants the hour clears it on their
+own calendar. The one exception is an invite's own confirmed instant: kp writes
+a real event for each booking, so re-confirming (or rescheduling back to) the
+same cell would otherwise be refused by kp's own event. Pinned by
 `app/api/schedule/schedule-book-refusals.test.ts` against the same Google double
 `calendar-conflict.test.ts` uses.
 
@@ -320,7 +335,7 @@ End-to-end coverage (real routes, stubbed Google edge):
 ## What the week grid says about a time
 
 The recruiter grid (`app/features/hiring/schedule/ScheduleCalendar.tsx`) renders
-wall-clock cells in the interview zone. Three things it now states, and used to
+wall-clock cells in the interview zone. Four things it now states, and used to
 leave to inference:
 
 - **Which zone.** A note under the pager reads "All times in the interview
@@ -330,6 +345,11 @@ leave to inference:
   silently report the `Europe/Prague` default on an install configured otherwise,
   which is worse than saying nothing. The short label (`GMT+2`) is derived from a
   real instant in the visible week, so it is DST-correct.
+- **Which calendar day.** The grid's Confirm posts a dated cell
+  (`YYYY-MM-DD HH:MM`) through `dateSlotToIso`; that resolver only accepts an
+  exact calendar date in the interview zone. Impossible dates such as
+  `2026-04-31` return the same unresolved-slot refusal as malformed picks instead
+  of rolling into the next real day.
 - **Whether the time is agreed.** A cell is seeded from a **confirmed invite**,
   else the legacy free-text `approvalDetail`, else a flat `Tue 14:00` guess — and
   all three used to render identically. The provenance now rides with the pick
@@ -450,7 +470,7 @@ returns a bare English `{ error }` any more:
 | `SCHEDULE_NO_PROPOSALS` | 409 | Decline-all on an invite carrying no proposals |
 | `SCHEDULE_NOTHING_TO_RECONCILE` | 409 | Already resolved |
 | `SCHEDULE_MEETING_URL_INVALID` | 400 | The join link is not http(s) |
-| `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal |
+| `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` · `SCHEDULE_CALENDAR_BUSY` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal. `reschedule` and `accept_proposal` re-check free/busy the same way `book` does |
 | `TOO_MANY_REQUESTS` | 429 | The per-IP limiter on both handlers |
 
 Why it mattered: `useScheduleInviteLifecycle.runAction` resolves failures through
@@ -712,13 +732,20 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   view, and a human-only plan hides the "Start AI interview" launcher on
   pending cards. Best-effort config read — a fetch failure shows both surfaces.
 - **The tab has a Human round / AI round switcher.** Human = the calendar
-  surface described above. AI = the **"Docket"** (winner of the /prototype
-  round): three stations — Awaiting link (Generate interview link mints +
-  emails the tokenized `/interview/<token>` URL and copies it) → Link out /
-  live → Completed, whose cards open the compact `ScheduleAiEvalPreview`
-  (verdict + confidence + rubric dots) with the full transcript & scorecard
-  modal one click deeper. Files: `ScheduleAiRound.tsx` + `ScheduleAiDocket.tsx`
-  + `ScheduleAiEvalPreview.tsx`; fed by `GET /api/interview/sessions`
+  surface described above. AI = a **ledger** (2026-09; it replaced the
+  three-station "Docket"): one row per candidate in the loop, in the two states a
+  recruiter can act on — **Awaiting link** (the row's Generate interview link
+  mints + emails the tokenized `/interview/<token>` URL and copies it) and
+  **Link out / live** (when the link went out; a pulsing "live" chip while the
+  candidate is on the call). Columns: candidate · role · state · link sent ·
+  action — the action is an icon-only link button on awaiting rows (its accessible
+  name carries the words). The table takes the shared kit's grammar
+  (`app/_components/table`): sortable heads, a candidate search and selects on
+  role / state, twenty rows to a page, a live-region status. **Completed interviews are out of this ledger's scope**: the verdict is
+  a scorecard review in Decisions, and the conversation is logged in Insights →
+  Activity as the `interview_realtime` use case, whose row detail opens the
+  transcript and verdict (`GET /api/interview/sessions/[id]`). Files:
+  `ScheduleAiRound.tsx` + `ScheduleAiLedger.tsx`; fed by `GET /api/interview/sessions`
   (`listRecentInterviewSessions` in `db/interviews.ts`); copy in the
   `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
   wider AI/Human/Hybrid mechanism design lives in
@@ -804,23 +831,3 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   by the 8s fetch abort). It sits *after* the booking commit and the confirmation
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
-- The recruiter-side reschedule / accept-proposal **writes** do not re-check
-  free/busy at confirm time the way the candidate confirm and the week-grid book
-  do — the recruiter is assumed to be looking at their own calendar. (Their
-  offered list *is* filtered.)
-- **A first booking hides the "change time" button until the page is reloaded.**
-  The GET on a *pending* invite necessarily answers `canReschedule: false`, and
-  the first-confirm POST response carries no allowance flags, so the booked card
-  that swaps in has no reschedule affordance even though the server would accept
-  one (`rescheduleCount` 0 < `MAX_RESCHEDULES`). Only the reschedule path
-  refreshes. The clean fix is to put `canReschedule` / `rescheduleCapReached` on
-  the POST response next to `confirmationDelivery`; doing it client-side costs an
-  extra free/busy-hitting GET on every booking.
-- **The propose form does not say which zone its working-hours window is in.**
-  The `datetime-local` inputs are the candidate's *browser* wall clock, but
-  `PROPOSAL_HOURS` (08:00–18:00) is fenced in `KP_INTERVIEW_TZ`, so a New York
-  candidate proposing 14:00 is refused with "future weekday times during working
-  hours" for a time that is squarely in their working day. `SlotPicker` names the
-  zone for the offered grid (`schedule.timezoneNote`); the escalation form has no
-  equivalent, and adding one needs a new 4-locale key — plus a product call on
-  whether to fence the window in the interview zone at all.

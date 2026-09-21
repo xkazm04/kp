@@ -93,6 +93,10 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   // One LLM call per ACTIVE ENTRY on the board — the one kind whose cost is set by
   // the board's size rather than by the request.
   batch_screen: "agent",
+  // The seeker's scan: third-party fetches under a politeness budget, several Python
+  // spawns, and up to `deepDive.maxPerScan` pairs of model calls. The route's own
+  // limiter (6/10min) is the first bound; this class is the tenant-hour one.
+  jobseeker_scan: "agent",
 };
 
 /** The class a kind is budgeted under. An unknown kind (one added to HANDLERS and

@@ -20,6 +20,8 @@ export type User = {
    *  Both null = never seen (the / gate shows it on next sign-in). */
   onboardingCompletedAt: string | null;
   onboardingSkippedAt: string | null;
+  /** Last successful password login. NULL until the first verifyCredentials hit. */
+  lastLoginAt: string | null;
 };
 
 function rowToUser(r: Record<string, unknown>): User {
@@ -32,6 +34,7 @@ function rowToUser(r: Record<string, unknown>): User {
     createdAt: r.created_at as string,
     onboardingCompletedAt: (r.onboarding_completed_at as string) ?? null,
     onboardingSkippedAt: (r.onboarding_skipped_at as string) ?? null,
+    lastLoginAt: (r.last_login_at as string) ?? null,
   };
 }
 
@@ -79,7 +82,17 @@ export function createUser(input: CreateUserInput): User {
     createdAt,
   );
   if (input.password) setUserPassword(id, input.password);
-  return { id, orgId: input.orgId, email, name, status, createdAt, onboardingCompletedAt: null, onboardingSkippedAt: null };
+  return {
+    id,
+    orgId: input.orgId,
+    email,
+    name,
+    status,
+    createdAt,
+    onboardingCompletedAt: null,
+    onboardingSkippedAt: null,
+    lastLoginAt: null,
+  };
 }
 
 export function setUserStatus(id: string, status: UserStatus): boolean {
@@ -232,5 +245,14 @@ export function verifyCredentials(email: string, password: string): User | null 
          next one will try again. A store failure here is not the user's problem. */
     }
   }
-  return user;
+  // Dormant-seat hygiene: stamp last_login_at only after a hit. A miss must not
+  // move the column (the test pins a failed password leaving it null). Best-effort
+  // — the caller has already authenticated.
+  const lastLoginAt = new Date().toISOString();
+  try {
+    db.prepare(`UPDATE users SET last_login_at = ? WHERE id = ?`).run(lastLoginAt, user.id);
+    return { ...user, lastLoginAt };
+  } catch {
+    return user;
+  }
 }

@@ -55,11 +55,21 @@ export type Offer = { recommended?: number | null; salaryMin?: number | null; sa
 // surface (the AI review cards + the wave preview rows), byte-identical to the
 // library roster (JdCandidateList) and prep-pack (isPrepStale) derivation: a score
 // computed strictly BEFORE the JD's last content edit reflects the earlier text.
-// String compare is correct for ISO-8601 UTC. A never-edited JD (jdEditedAt null)
-// or an unscored/snapshot entry (scoredAt null) is never stale — informs, never
-// blocks. Pure so the client cards and the server wave path can't drift.
-export function isScoreStale(scoredAt: string | null | undefined, jdEditedAt: string | null | undefined): boolean {
-  return Boolean(jdEditedAt) && Boolean(scoredAt) && (scoredAt as string) < (jdEditedAt as string);
+// An optional third timestamp (`scorecardAt`) applies the same strictly-before
+// rule to later interview evidence: a CV score that predates a scorecard is
+// stale even when the JD has not moved. String compare is correct for ISO-8601
+// UTC. A never-edited JD, a missing scorecard, or an unscored/snapshot entry is
+// never stale on that axis — informs, never fabricates. Pure so the client cards
+// and the server wave path can't drift.
+export function isScoreStale(
+  scoredAt: string | null | undefined,
+  jdEditedAt: string | null | undefined,
+  scorecardAt?: string | null,
+): boolean {
+  if (!scoredAt) return false;
+  if (jdEditedAt && scoredAt < jdEditedAt) return true;
+  if (scorecardAt && scoredAt < scorecardAt) return true;
+  return false;
 }
 
 // Confidence-band cutoffs for the AI's numeric self-confidence (0-100) in its OWN

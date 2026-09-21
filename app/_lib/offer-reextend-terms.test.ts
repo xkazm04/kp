@@ -107,6 +107,38 @@ test("re-extending with corrected compensation makes the accept page match the f
   assert.match(latestTerms!.rationale, /120000|120,000/, "the sealed record names the corrected figure");
 });
 
+function sealedOfferTermsInputs(entryId: string): { salary?: unknown; currency?: unknown; jobTitle?: unknown; notes?: unknown } {
+  const latestTerms = listDecisionRecords({ candidateRef: entryId }).find((r) => r.kind === "offer_terms");
+  assert.ok(latestTerms, "the offer terms were sealed into the decision chain");
+  const payload = JSON.parse(latestTerms!.payloadJson) as { inputs?: Record<string, unknown> };
+  assert.ok(payload.inputs && typeof payload.inputs === "object", "the seal carries inputs");
+  return payload.inputs as { salary?: unknown; currency?: unknown; jobTitle?: unknown; notes?: unknown };
+}
+
+test("a draft with notes seals those notes on the offer_terms record", async () => {
+  const entry = entryAtOffer();
+  setApproval(
+    entry.id,
+    "offer_review",
+    JSON.stringify({ ...draftFor(110_000, "USD"), notes: "  Signing bonus after probation.  " })
+  );
+  const res = await post(entry.id, { action: "accept" });
+  assert.equal(res.status, 200, "approving a drafted offer must extend it (200)");
+  const inputs = sealedOfferTermsInputs(entry.id);
+  assert.equal(inputs.notes, "Signing bonus after probation.", "validated notes ride the seal");
+  assert.equal(inputs.salary, 110_000);
+  assert.equal(inputs.currency, "USD");
+});
+
+test("a null note seals null on the offer_terms record, not omitted", async () => {
+  const entry = entryAtOffer();
+  const token = await extendWithDraft(entry.id, 95_000, "USD");
+  assert.ok(token);
+  const inputs = sealedOfferTermsInputs(entry.id);
+  assert.equal("notes" in inputs, true, "notes is a closed field, present even when empty");
+  assert.equal(inputs.notes, null);
+});
+
 test("a pure idempotent re-extend (unchanged terms) reuses the row verbatim — same token, no update", () => {
   const entry = entryAtOffer();
   const input = {

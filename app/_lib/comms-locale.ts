@@ -46,11 +46,27 @@ export function resolveCommsLocale(locale: string | null | undefined, workspaceI
   }
 }
 
+/** Candidate-declared language name -> app locale, the TS twin of Python's
+ *  `_DECLARED_LANG_TO_LOCALE` (`pipeline/jobfit/automation.py`). Only the four
+ *  app locales are resolvable; any other declared language is ignored. ASCII-
+ *  folded stems ("cesky", "francais", "nemcina") sit beside the diacritic forms
+ *  so a folded CV still resolves. Order is the Python tuple order: a de+fr list
+ *  with neither Czech nor English lands on `de` (first declared app locale). */
+const DECLARED_LANG_TO_LOCALE: readonly { locale: Locale; aliases: readonly string[] }[] = [
+  { locale: "cs", aliases: ["czech", "česk", "češ", "cesk", "ceš", "cest"] },
+  { locale: "de", aliases: ["german", "deutsch", "němč", "nemc"] },
+  { locale: "fr", aliases: ["french", "français", "francais"] },
+  { locale: "en", aliases: ["english", "anglič", "anglic"] },
+];
+
 /** Infer a comms locale from a CV's detected/self-reported languages (the
  *  analysis already captures these on the profile payload). Mirrors Python's
- *  `_candidate_lang`: any Czech mention ⇒ "cs"; a non-empty list without Czech
- *  ⇒ "en"; an empty/absent list ⇒ null (no signal — let the workspace default
- *  decide at dispatch). */
+ *  `_candidate_lang` over the four app locales:
+ *    Czech (home-lang tiebreak) wins with English;
+ *    English wins over a third language (lingua-franca tiebreak);
+ *    a de/fr-only list returns `de` / `fr`;
+ *    empty/absent/unmapped ⇒ null (no signal — let the workspace default decide
+ *    at dispatch; Python falls back to English here, TS does not, on purpose). */
 export function inferLocaleFromLanguages(languages: readonly unknown[] | null | undefined): Locale | null {
   if (!Array.isArray(languages) || languages.length === 0) return null;
   const blob = languages
@@ -58,7 +74,13 @@ export function inferLocaleFromLanguages(languages: readonly unknown[] | null | 
     .join(" ")
     .toLowerCase();
   if (!blob.trim()) return null;
-  return blob.includes("czech") || blob.includes("česk") || blob.includes("cesk") || blob.includes("češt") ? "cs" : "en";
+  const declared = DECLARED_LANG_TO_LOCALE.filter(({ aliases }) => aliases.some((a) => blob.includes(a))).map(
+    ({ locale }) => locale
+  );
+  if (declared.length === 0) return null;
+  if (declared.includes("cs")) return "cs";
+  if (declared.includes("en")) return "en";
+  return declared[0] ?? null;
 }
 
 /** Convenience for the write paths that file a candidate FROM a saved profile

@@ -12,6 +12,7 @@ import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/deci
 import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
 import {
   addStage,
+  ASSIGNABLE_ROLES,
   axisEqualsStored,
   axisProblems,
   AXIS_MAX_STAGES,
@@ -163,6 +164,32 @@ test("duplicate LABELS are refused by the client, deliberately stricter than the
   // Legal on the wire (ids are what must be unique) — the client refuses it
   // because two columns reading "Interview" cannot be told apart on the board.
   assert.equal(serverAccepts(dup), true);
+});
+
+test("a homework column is a first-class role on both sides, and it may repeat", () => {
+  // The case step is offered in the editor, so it must be a role the WIRE knows —
+  // a draft the recruiter can build and the server then refuses is the exact
+  // failure this mirrored validator exists to prevent.
+  assert.ok(ASSIGNABLE_ROLES.includes("homework"), "the editor offers it");
+  const one = addStage(start(), "Take-home", "homework");
+  assert.deepEqual(axisProblems(one), []);
+  assert.equal(serverAccepts(one), true);
+
+  // ALLOWED TO REPEAT, like screening and interview and unlike entry/terminal/offer.
+  // A funnel may legitimately set a short warm-up case and a longer build; only the
+  // roles that answer "where does the funnel start / end / close" can have exactly
+  // one answer, and "where is work assigned" is not one of those questions.
+  const two = addStage(one, "Build task", "homework");
+  assert.equal(two.stages.filter((s) => s.role === "homework").length, 2);
+  assert.deepEqual(axisProblems(two), []);
+  assert.equal(serverAccepts(two), true);
+
+  // And the role survives the round trip rather than being flattened to `custom`.
+  const stored = draftToStored(two, savedStages());
+  assert.deepEqual(
+    stored.stages.filter((s) => s.role === "homework").map((s) => s.id),
+    ["Take-home", "Build task"]
+  );
 });
 
 test("a many-column axis stays valid, which is the point of the whole phase", () => {

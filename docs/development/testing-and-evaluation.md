@@ -11,7 +11,8 @@ npm run test:eval         # golden-set eval (markdown report)
 npm run test:eval:strict  # eval + non-zero exit when thresholds fail
 npm run test:eval:match   # matching-quality eval (strict) — KEYLESS
 npm run test:eval:automation  # automation reliability, deterministic path — KEYLESS
-npm run test:eval:ci      # both of the above; this is the CI gate
+npm run test:eval:intake  # intake golden bank, deterministic path — KEYLESS
+npm run test:eval:ci      # match + automation + fault + intake; this is the CI gate
 npm run bench:gate        # App-master sweep verdict vs the committed baseline
 npm run review:constitution   # deterministic gate-integrity pass over the diff
 npm run docs:check        # decision-record integrity
@@ -30,6 +31,7 @@ suites are split by whether a red result is **always** a real regression.
 | --- | --- |
 | `test:eval:match` | needs no API key by construction; also carries the fairness probes (pedigree exclusion, socioeconomic inclusion, language neutrality, potential monotonicity) |
 | `test:eval:automation` | `--no-llm`: the deterministic fallback path plus the hard reliability invariants. Also certifies [ADR 0004](../architecture/decisions/0004-keyless-degradation-is-a-product-property.md) — keyless degradation as a product property |
+| `test:eval:intake` | `--no-llm --strict`: the golden requestor bank through the deterministic agent (completed, one_question_per_turn, brief_core, role_family, requirements_captured). Distinct from `test:eval:intake-sim`, which stays a live/JD-corpus probe |
 | `test:bench-driver` | the App-master driver's own node:test fixtures, including the bench baseline↔scenario pinning |
 | `test:docs`, `test:review`, `docs:check` | the fixtures behind the doc-sync, ADR and change-review tooling |
 
@@ -43,6 +45,7 @@ or a live server was not running:
 | `automation_eval --judge` | a live Claude CLI judge, and a judge model that is **not** the engine's (below) |
 | `bench:app-master` | a running kp **and** Personas (or `--stub-personas`) |
 | `test:e2e` (full) | provider keys for the Analyze suite |
+| `test:eval:intake-sim` | the JD-grounded intake simulation. LIVE by default (both sides are LLMs — keyless that is the subscription-billed Claude CLI); add `--no-llm` for the deterministic pass, `--http` for a running kp server. A **probe**, never a gate: it is not in `test:eval:ci` ([below](#jd-grounded-intake-simulation)) |
 
 The bench is the interesting case: it cannot run in CI, but its verdict is still
 machine-readable rather than prose. `npm run bench:gate` compares the sweep
@@ -396,8 +399,149 @@ breakdown print as a markdown table; `--json` swaps in machine-readable output f
 CI; `--strict` exits non-zero when any threshold is missed. Use it after every prompt
 or taxonomy change to catch drift.
 
+## JD-grounded intake simulation
+
+`pipeline/jobfit/eval/intake_eval.py --jd-corpus` runs the role-intake dialog
+against roles taken from OUTSIDE the repository: a corpus of real job
+descriptions (`data/seed_calibration/jobs.json`, 100 EN postings;
+`data/seed_jobs/jobs.json`, 120 Czech-market postings), one simulated hiring
+requestor per posting. Three moving parts:
+
+| Module | Does |
+| --- | --- |
+| `eval/intake_corpus.py` | reads a JSON corpus into `Posting` records (title/company/family/seniority/lang/body; `requirements[]` appended as bullets, a missing family filled by `classify_role_family`) and picks N **distinct** titles round-robin across families, deterministically |
+| `eval/intake_jd_persona.py` | that posting → a requestor persona (live system prompt) + the deterministic answers the keyless script asks for (`--no-llm`) — see the persona's rules in [role-intake-research.md §4.1](role-intake-research.md#41-the-jd-grounded-requestor-breadth-not-behavior) |
+| `eval/intake_http_client.py` | the same dialog against a RUNNING kp server: create → attach the JD as a note → message per turn → **promote** |
+
+Every mode is graded by the same `check_dialog` invariants as the written banks
+(completed, one_question_per_turn, no_premature_end, grounded_readback,
+brief_core, shape, role_family, requirements_captured).
+
+```bash
+# offline / deterministic — 50 roles, no provider, ~15s
+python -m pipeline.jobfit.eval.intake_eval --no-llm \
+  --jd-corpus data/seed_calibration/jobs.json --roles 50 --strict
+
+# live, in-process (both sides LLM; keyless = the subscription-billed Claude CLI)
+npm run test:eval:intake-sim -- --roles 5 --dump bench/intake-sim/live
+
+# against the real API, promoting every session into a JD + Job
+KP_BENCH_MODE=1 KP_DB_PATH=data/kp-sim.sqlite npm run dev      # terminal 1
+python -m pipeline.jobfit.eval.intake_eval --jd-corpus data/seed_calibration/jobs.json \
+  --roles 50 --http http://localhost:3000 --dump bench/intake-sim/http \
+  --wall-minutes 90 --resume                                    # terminal 2
+```
+
+Notes that bite:
+
+- **Use a throwaway DB.** The HTTP mode WRITES — 50 sessions and 50 promoted
+  jobs land in whatever `KP_DB_PATH` the server opened, which is the operator's
+  own demo corpus by default. `KP_BENCH_MODE=1` (server env) raises the
+  message/promote rate limits to 600/10min for the sweep; `POST /api/intake`
+  (session create) is **not** raised — it stays 30/10min, so a 50-role run meets
+  a 429 there and the client waits out its `Retry-After` rather than failing.
+- **One role is ~8 minutes of provider calls**, so 50 serial roles is most of a
+  day. `--workers N` (HTTP mode only) runs N roles concurrently — each worker
+  gets its own client and its own persona provider, and the report is still
+  ordered by the deterministic role order, not by completion time. In-process
+  mode ignores the flag and stays serial: there the agent's own engine runs
+  inside this process. `--wall-minutes` is honoured per worker — no NEW role
+  starts past the budget, running ones finish.
+- **The dump is written as the run goes**, not at the end: after every role its
+  transcript and brief are written and `run.json` is rewritten atomically (tmp +
+  `os.replace`). A sweep killed at role 34 leaves a readable 33-role `run.json`
+  that `--resume` picks up, and the resumed run's report covers ALL roles —
+  before this, a kill lost every finished dialog.
+- **Dumps are run artifacts**, not results: `<DIR>/run.json` (per-role checks,
+  turn count, captured vs JD family, promoted slug), `<DIR>/transcripts/<role>.md`
+  and `<DIR>/briefs/<role>.json`. `/bench/` is gitignored; `--resume` re-reads
+  `run.json` and skips roles already recorded as complete, which is what makes a
+  long live sweep restartable.
+- **`--wall-minutes M`** stops cleanly at the budget and reports the partial run.
+- **A dealbreaker is a short noun phrase or it is nothing.** `requirements_captured`
+  matches the conditions the requestor STATED against the brief's `requirements[]`
+  rows by substring, so its ground truth has to be matchable: 2–5 lowercase words
+  pulled from a credential (`bachelors degree`, `valid drivers license`) or a
+  requirement cue (`experience with …`, `knowledge of …`, `degree in …`), never a
+  heading and never a sentence fragment. A JD that states nothing that clean
+  yields an EMPTY list, `check_dialog` then emits no `requirements_captured` key
+  at all, and the table prints `—` for that role (the same way `role_family` is
+  skipped for a scenario with no declared family). The report and `run.json`
+  (`no_dealbreaker_ground_truth`) say how many roles that was — on the committed
+  50-role selection, **16 of 50**. Never "fix" a red here by widening the
+  matching; widen the extraction or accept the honest `—`.
+- **Exit codes** follow the suite contract above: 0 ran (and passed under
+  `--strict`), 1 a gate failed under `--strict`, 2 the run could not be performed
+  (unreadable corpus, no usable postings, a server that could not be driven,
+  nothing simulated).
+- **Family drift is a finding, not a failure.** The `role_family` invariant's
+  ground truth differs by mode on purpose: offline the answers ARE the
+  deterministic script, so the truth is what this pipeline classifies from them;
+  live the requestor improvises from the document, so the comparand is the
+  POSTING's own family (grading a live dialog against a deterministic replay
+  measures the replay). Either way the report lists every role where the
+  captured family and the posting's disagree. On the committed 50-role
+  selection (seed_calibration, `--no-llm`, 2026-09-08) that is **24 of 50**, and
+  the dialogs land in 13 families where the postings declared 11 — the honest
+  measurement of how much of a JD's family survives being re-elicited through a
+  six-question conversation.
+
+**What the live probes found (2026-09-08, Claude CLI, in-process).** Two rounds,
+and the second is the one that matters — between them a sibling change landed on
+the brief coercer and this harness's dealbreaker ground truth was rebuilt.
+
+*Round 1 (2 roles)* — every dialog-reliability invariant held (9–11 agent turns,
+grounded read-backs) while `brief_core`, `requirements_captured` and
+`role_family` failed on both: the extracted brief came back with
+`requirements: []` (the L2-NEW-2 shape, live, on real JDs) and
+`spineProvenance.role_family` was never stamped, so a family that was actually
+right was indistinguishable from the schema default.
+
+*Round 2 (3 roles, `bench/intake-sim/smoke3`)* — **1/3 PASS**, and the table is
+now readable rather than uniformly red:
+
+| role | brief_core | req_captured | role_family | turns |
+| --- | --- | --- | --- | --- |
+| remote-website-designer | ✓ | – | ✓ | 9 |
+| patient-advocate | ✓ | – | ✗ | 8 |
+| career-coach-waitlist | ✓ | ✓ | ✗ | 15 |
+
+`requirements[]` now fills (10, 4 and 22 rows) and `spineProvenance.role_family`
+is stamped `inferred` on all three. The two `–` are roles whose JD states no
+screenable condition. The two `role_family` failures are genuine divergence from
+the CORPUS LABEL, and reading them is instructive: the patient advocate routed
+`healthcare_clinical` where the corpus says `customer_support`, and the career
+coach routed `education_academic` where the corpus says `data_ai`. At least the
+second is the corpus being wrong, not the dialog — which is what the drift list
+is for, and a reason to read a live `role_family` red before believing it.
+
 Beyond the golden set: `eval/matching_eval.py` scores the matching engine,
 `eval/automation_eval.py` scores the automation tasks
 ([automation-eval.md](automation-eval.md)), and `devcase/lifecycle_eval.py` hardens
 the dev-case design loop (scenario generation, reliability/integrity health checks,
 optional LLM design audits — [case-calibration.md](case-calibration.md)).
+
+### Latest run — 2026-09-08, 50 roles over HTTP
+
+`--jd-corpus data/seed_calibration/jobs.json --roles 50 --http … --cap 24
+--workers 5` against a production build on a throwaway `KP_DB_PATH` with
+`KP_BENCH_MODE=1`, engine and persona both on the Claude CLI. About 100 minutes
+with five workers (a serial run had measured ~8 minutes per role).
+
+| measure | value |
+| --- | --- |
+| dialogs completed | 50 / 50 |
+| promoted to a saved JD | 49 / 50 (one `INTAKE_BRIEF_NOT_READY`, a posting titled by location) |
+| agent turns per dialog | 5–10, median 6 |
+| requirement rows per brief | 0–17, median 8 (zero on every live brief before `f5c7dec0`) |
+| `completed` · `one_question_per_turn` · `grounded_readback` | 50 / 50 each |
+| `brief_core` | 49 / 50 |
+| `requirements_captured` | 19 / 34 measured (16 roles had no clean ground truth) |
+| `role_family` | 29 / 50 — graded against the corpus label, which is often wrong (career coach → data_ai) |
+
+`no_premature_end` is not measured over HTTP: the route strips the `<<END>>`
+sentinel by contract, which this run recorded as a false red before `58aa0ccc`.
+The two red rows are read for what they measure: a paraphrase-blind phrase
+matcher (next step: token overlap, with 19/34 as its baseline) and an
+unreviewed label set. The full per-role table lives in the gitignored
+`docs/harness/intake-sim-2026-09-08/` on the machine that ran it.

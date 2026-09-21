@@ -1,0 +1,21 @@
+# lt-gateway routes for kp — one route per onboarded use case (docs/LLM_ROUTES.md carries the
+# scorecard each block rests on). Committable: models and routes only, never keys.
+#
+# Run beside the app, from this directory:
+#   LIGHTTRACK_URL=... LIGHTTRACK_KEY=<kp project key> LIGHTTRACK_GATEWAY_BIND=127.0.0.1:8792 lt-gateway
+# and route the use case with KP_LLM_CONFIG {"useCases": {"match_reasoning": {"provider": "gateway"}}}
+# (or provider "gateway" in the Models panel). The adapter sends the use-case key as `model`.
+
+# Seconds a seat is skipped after it reports a usage limit and names no retry-after.
+cooldown_secs = 300
+
+[defaults]
+# Behind a literal `provider/model` request — minus anything on the same seat as the literal.
+fallback = ["codex/gpt-5.5@low"]
+
+# match_reasoning — benchmark 8ad8c5f8-d505-4d9b-80ad-9f8f505b340a, 24 cases (8 easy/8 medium/8 hard),
+# judge google/gemini-2.5-flash (cross-family, self_preference=false), 2026-09-15.
+[routes.match_reasoning]
+primary  = "codex/gpt-5.5@low"        # hard 1.00 / medium 1.00 / easy 1.00, p50 12.7s, 0 errors (run c2404b86); seat-metered, unpriced
+fallback = ["anthropic/sonnet@low"]   # hard 0.83 / medium 1.00 / easy 0.74, p50 11.9s, 0 errors (run 6119acc8) — clears the 0.8 hard bar;
+                                      # its misses are ```json fences the schema-less bench path can't parse (the gateway enforces the schema)

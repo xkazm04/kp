@@ -22,6 +22,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DECISION_META, RETIRED_EVENT_KINDS } from "@/app/_lib/decision-attribution";
 import {
+  actorDisplayName,
   compareDecisions,
   compareNames,
   foldForSearch,
@@ -30,6 +31,7 @@ import {
   matchesSubject,
   RECORD_ONLY_KINDS,
   shortHash,
+  toggleExpandedId,
   withExportProvenance,
 } from "./analyticsDecisionLogTypes.ts";
 
@@ -284,6 +286,16 @@ test("the records row carries the policy version and the content-hash fingerprin
   assert.equal(src.includes('title={r.contentHash}'), true, "the full hash must stay reachable from the row");
 });
 
+test("a log row with a long detail can be expanded from the keyboard", () => {
+  assert.equal(toggleExpandedId(null, 12), 12);
+  assert.equal(toggleExpandedId(12, 12), null, "the same row closes");
+  assert.equal(toggleExpandedId(12, 7), 7);
+  const log = source(LOG_TABLE);
+  assert.equal(log.includes("aria-expanded={isOpen}"), true, "the detail does not expand");
+  assert.equal(log.includes("toggleExpandedId"), true);
+  assert.equal(/title=\{detail\}/.test(log), false, "hover title must not be the sole access path");
+});
+
 test("the rationale is expandable and the expansion reaches the ?candidate= dossier", () => {
   const table = source(RECORDS_TABLE);
   assert.equal(table.includes("aria-expanded={isOpen}"), true, "the rationale does not expand");
@@ -302,6 +314,32 @@ test("every export names its own scope and carries provenance", () => {
   // unambiguous machine value. Dropping either is what made the two disagree.
   assert.equal(log.includes('t("csvTimeLocal"') && log.includes('t("csvTimeIso"'), true);
   assert.equal(source(RECORDS_PANEL).includes("provenance:"), true, "the JSON dossier carries no provenance block");
+});
+
+test("a log row with actor human:Petra Nováková prints that name", () => {
+  assert.equal(actorDisplayName("human:Petra Nováková", "Not identified"), "Petra Nováková");
+});
+
+test("human:recruiter is an unidentified human, not a person named Recruiter", () => {
+  assert.equal(actorDisplayName("human:recruiter", "Not identified"), "Not identified");
+  assert.equal(actorDisplayName("HUMAN:Recruiter", "Not identified"), "Not identified");
+});
+
+test("a legacy null actor is not identified, never guessed", () => {
+  assert.equal(actorDisplayName(null, "Not identified"), "Not identified");
+  assert.equal(actorDisplayName(undefined, "Not identified"), "Not identified");
+  assert.equal(actorDisplayName("", "Not identified"), "Not identified");
+});
+
+test("the log's By column and both CSV exporters name the person, not only the class", () => {
+  const types = source("./analyticsDecisionLogTypes.ts");
+  assert.match(types, /actor\?:\s*string\s*\|\s*null/, "Decision must carry the actor the route already returns");
+  const log = source(LOG_TABLE);
+  assert.equal(log.includes("actorDisplayName("), true, "the By column must parse the actor, not print the class alone");
+  assert.equal(log.includes('t("csvActor"'), true, "both exporters share csvFor — the Actor column must be in that header");
+  assert.equal(log.includes("actorDisplayName(d.actor"), true, "the CSV cell must be the parsed name");
+  // The auto/human filter stays the class from DECISION_META, not parseEventActor.
+  assert.equal(log.includes("onFilterAttribution"), true);
 });
 
 test("G5 — the CSV still goes through the central neutralizer, never a hand-rolled join", () => {

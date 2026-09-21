@@ -10,7 +10,14 @@ import { sealDecisionSafe, heldOutEntryIds } from "@/app/_lib/decision-record-st
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
+// THROTTLE. Every accepted apply spends two full-table calibration scans plus a
+// holdout read — the SAME expensive work threshold-history's read carries a budget
+// for — but this door writes the live auto-reject floor too, and had no limiter at
+// all. 20/10min per IP: a human reviewing and applying a floor per role family in
+// one sitting stays far under it; a retry storm or a buggy client does not.
+const APPLY_THRESHOLD_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 // Direction 3 — "calibration that recommends, not just reports". Apply the
 // display-only threshold suggestion with ONE explicit human click. It does NOT
@@ -62,6 +69,10 @@ export async function POST(request: Request) {
     // is the cheapest refusal on the route and it must cost no calibration scan.
     if (typeof body.suggestedThreshold !== "number" || !Number.isFinite(body.suggestedThreshold)) {
       return jsonRefusal("CALIBRATION_SUGGESTION_REQUIRED", 400);
+    }
+
+    if (!rateLimit(`apply-threshold:${clientIpFrom(request.headers)}`, APPLY_THRESHOLD_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const screening = getDecisionConfig<ScreeningRule>("screening", ws);

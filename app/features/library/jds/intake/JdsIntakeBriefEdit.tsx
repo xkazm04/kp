@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { withEditProvenance } from "@/app/_lib/brief-edit";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { clearBriefDraft, draftStorage, loadBriefDraft, saveBriefDraft } from "./intakeBriefDraft";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
@@ -13,7 +14,7 @@ import type { RoleBrief } from "@/app/_lib/rolespec";
 // edit pass can't launder untouched inferred values into "stated".
 //
 // The form is the ONLY copy of what was typed — which is why a refused save
-// keeps it mounted (JdsIntakeBriefPanel) and why a reload no longer empties it:
+// keeps it mounted (AtelierBriefPlane) and why a reload no longer empties it:
 // every keystroke lands in a per-intake sessionStorage draft (intakeBriefDraft.ts)
 // that is restored on mount and discarded once the edit is saved, cancelled, or
 // the row moves under it.
@@ -43,6 +44,7 @@ export function JdsIntakeBriefEdit({
 }) {
   const t = useTranslations("library.tab.intake.edit");
   const tBrief = useTranslations("library.tab.intake.brief");
+  const enumLabel = useEnumLabel();
   const [title, setTitle] = useState(brief.title ?? "");
   const [seniority, setSeniority] = useState(brief.seniority ?? "medior");
   const [requirements, setRequirements] = useState<Req[]>(brief.requirements ?? []);
@@ -116,7 +118,7 @@ export function JdsIntakeBriefEdit({
           <select className={`${FIELD} h-9`} value={seniority} onChange={(e) => setSeniority(e.target.value)}>
             {SENIORITIES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {enumLabel("seniority", s)}
               </option>
             ))}
           </select>

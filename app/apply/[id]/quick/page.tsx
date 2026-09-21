@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
@@ -46,6 +47,9 @@ export default async function QuickApplyPage({
     if (status === "draft") notFound();
     return (
       <main className="mx-auto max-w-md px-4 py-12">
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
         <p className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">{t("roleClosed")}</p>
@@ -67,7 +71,16 @@ export default async function QuickApplyPage({
       {job.company ? <p className="mt-1 text-body text-steel">{job.company}</p> : null}
       <p className="mt-2 text-body text-steel">{t("quick.subtitle")}</p>
       <div className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
-        <QuickApplyForm jobId={job.id} koSteps={koSteps} campaign={campaign} variant={variant} relayConfigured={isRelayConfigured()} />
+        <QuickApplyForm
+          jobId={job.id}
+          koSteps={koSteps}
+          campaign={campaign}
+          variant={variant}
+          relayConfigured={isRelayConfigured()}
+          // Same tenant the POST files this lead into, so the disclosed law matches
+          // the one their record is actually held under (see ConversationalApply).
+          compliance={disclosureComplianceFor(getJobWorkspace(job.id))}
+        />
       </div>
     </main>
   );

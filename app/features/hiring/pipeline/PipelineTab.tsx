@@ -1,12 +1,16 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
-import { Play, X } from "lucide-react";
+import { PipelineBoardPanel } from "./PipelineBoardPanel";
+import { AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { PipelineEmptyFirstCandidate } from "./PipelineEmptyFirstCandidate";
-import { GettingStartedCard } from "@/app/features/shell/setup/GettingStartedCard";
+import { PipelineEmptyState } from "./empty/PipelineEmptyState";
+import { useSetupUnfinished } from "@/app/features/shell/setup/useSetupUnfinished";
+import { requestOnboardingReopen } from "@/app/features/shell/setup/onboardingReopen";
 import { Defer } from "@/app/_components/ui/Defer";
-import { PANEL, SECTION } from "@/app/_components/ui/recipes";
+import { SECTION } from "@/app/_components/ui/recipes";
 import { useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./PipelineTodayRail";
 import { usePipelineTabState } from "./usePipelineTabState";
@@ -18,21 +22,16 @@ import { PipelinePopulatedBoard } from "./PipelinePopulatedBoard";
 import { Fade } from "./PipelineMotion";
 import { resolveStageFilter } from "./usePipelineFilters";
 
-// Tier 3 (docs/design/loading-choreography.md): the candidate drawer is a 1300+ line
-// subtree (scorecards, interview transcript, consent panel, GitHub evidence,
+// Tier 3 (docs/design/loading-choreography.md): the candidate modal is a large
+// subtree (scorecard, interview transcript, consent panel, GitHub evidence,
 // token-link management…) that most board views never open — it's reachable
-// only by clicking a card. Code-split it out of the tab's entry chunk so a
-// bare pipeline visit never pays for it; the loading gap mirrors the drawer's
-// own shape (a right-side panel) so a slow chunk load doesn't flash a
-// mismatched placeholder. It already mounts conditionally on drawerEntry, so
-// no <Defer> is needed on top — that primitive is for tab-load ordering, not
-// a click-triggered open.
-const CandidateDrawer = dynamic(() => import("./PipelineCandidateDrawer").then((m) => ({ default: m.CandidateDrawer })), {
-  loading: () => (
-    <div className="fixed inset-0 z-50 flex justify-end" aria-hidden>
-      <div className="reveal-quiet h-full w-full max-w-md border-l border-stone-200 bg-paper shadow-overlay" />
-    </div>
-  ),
+// only by clicking a candidate. Code-split it out of the tab's entry chunk so a
+// bare pipeline visit never pays for it; the loading gap is the modal's own scrim,
+// so a slow chunk load doesn't flash a mismatched placeholder. It mounts
+// conditionally on `candidate`, so no <Defer> is needed on top — that primitive is
+// for tab-load ordering, not a click-triggered open.
+const CandidateModal = dynamic(() => import("./candidate/CandidateModal").then((m) => ({ default: m.CandidateModal })), {
+  loading: () => <div className="reveal-quiet fixed inset-0 z-50 bg-scrim" aria-hidden />,
 });
 
 export function PipelineTab() {
@@ -40,6 +39,12 @@ export function PipelineTab() {
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
+  // The setup wizard has no other door since the Getting-started checklist was
+  // deleted: the empty board offers it as step zero when setup is unfinished.
+  const setupUnfinished = useSetupUnfinished();
+  // The board section on the full page (the filter bar's second-row toggle).
+  const [boardExpanded, setBoardExpanded] = useState(false);
+  const collapseBoard = useCallback(() => setBoardExpanded(false), []);
 
   return (
     <div className={`stagger-children ${SECTION}`} aria-busy={s.entries == null}>
@@ -63,9 +68,8 @@ export function PipelineTab() {
           board and the day's work, not the machinery. */}
 
       {/* The two queues that outrank everything below them, consolidated into one
-          ranked strip and hoisted ABOVE the setup checklist: a stalled application
-          or a decision waiting on you is today's work, the checklist is onboarding.
-          Self-hiding when both are empty. */}
+          ranked strip: a stalled application or a decision waiting on you is
+          today's work. Self-hiding when both are empty. */}
       <PipelineAttentionStrip
         t={s.t}
         degradedCount={s.degradedCount}
@@ -73,11 +77,6 @@ export function PipelineTab() {
         onReviewDegraded={s.focusDegradedCohort}
         onOpenDecisions={s.goToDecisions}
       />
-
-      {/* First-run hand-off: the wizard's Getting-started checklist lives on the
-          default tab. Data-derived + self-hiding (dismiss / all steps done), so
-          established workspaces see it once at most. */}
-      <GettingStartedCard />
 
       {/* 8f8f578d — candidate-driven work narrated with names + destinations,
           on the landing surface (badges only carry counts). The rail's inbound /
@@ -105,36 +104,23 @@ export function PipelineTab() {
       {s.error ? (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{s.error}</p>
       ) : s.entries != null && s.entries.length === 0 ? (
-        /* The empty board rehearses the real stage lanes with a slot waiting in
-           Accepted, so a first-run recruiter sees the funnel's shape, not a hole.
-           It owns the whole surface — no filter header above a board that has
-           nothing to filter. */
-        <PipelineEmptyFirstCandidate
-          title={s.t("emptyTitle")}
-          body={s.t("emptyBody")}
-          links={[
-            { tab: "channels", label: s.t("emptyCtaChannels") },
-            { tab: "archetypes", label: s.t("emptyCtaProfile") },
-          ]}
-          // 5d2e0998 — the empty board is the first-run moment: offer the
-          // guided tour (the simulation walks the whole hiring story live).
-          extraAction={
-            !s.sim.running ? (
-              <button
-                type="button"
-                onClick={s.sim.start}
-                className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
-              >
-                <Play size={13} aria-hidden /> {s.t("emptyCtaTour")}
-              </button>
-            ) : undefined
-          }
+        /* The empty board is the first-run moment, so it carries the three
+           moves in the order the product actually enforces - a role first,
+           candidates onto it, channels as the next choice - and, when the
+           operator left the setup wizard early, the door back to it. The board's
+           own lanes are the illustration and each move is one action card
+           (empty/PipelineEmptyState.tsx). */
+        <PipelineEmptyState
+          axis={s.axis}
+          setupUnfinished={setupUnfinished}
+          onResumeSetup={requestOnboardingReopen}
+          onStartTour={s.sim.running ? undefined : s.sim.start}
         />
       ) : (
         /* ONE panel: the filter header and the lanes it filters are the same
            object. The header used to float several blocks above the board with
            the banners, bulk bar and saved views wedged between them. */
-        <section className={`${PANEL} overflow-hidden`}>
+        <PipelineBoardPanel expanded={boardExpanded} onCollapse={collapseBoard} label={s.t("boardFullPageAria")}>
           {/* Tier 1 chrome: the search box, quick-filter chips, score/source facets
               and sort control depend on nothing but client state — they render on
               the first frame like any other filter bar, not behind the board fetch. */}
@@ -176,6 +162,8 @@ export function PipelineTab() {
             sort={s.sort}
             onSortChange={s.setSortAndSync}
             onClearFilters={s.clearFilters}
+            expanded={boardExpanded}
+            onToggleExpanded={() => setBoardExpanded((v) => !v)}
           />
           {s.entries == null ? (
             /* Tier 2: the board fetch is in flight and there is nothing to show yet.
@@ -186,7 +174,7 @@ export function PipelineTab() {
           ) : (
             <PipelinePopulatedBoard s={s} enumLabel={enumLabel} />
           )}
-        </section>
+        </PipelineBoardPanel>
       )}
 
       {/* Tier 3 — the activity feed is history, not the day's work: it reads only
@@ -205,24 +193,25 @@ export function PipelineTab() {
         </Defer>
       )}
 
-      {s.drawerEntry ? (
-        // key on the entry id so switching candidates remounts the drawer, resetting
-        // its per-entry result/notes/busy/token-link state instead of briefly showing
-        // the previous candidate's.
-        <CandidateDrawer
-          key={s.drawerEntry.id}
-          entry={s.drawerEntry}
-          onClose={() => s.setDrawerEntry(null)}
-          onChanged={s.load}
-          onOpenEntry={s.openEntryById}
-          cohort={s.cohortOrder}
-          onNavigate={s.setDrawerEntry}
-          // UAT KAT-L1-002 — the resolved axis the board is already holding, so the
-          // drawer reads "is this candidate hired?" as a stage ROLE and not as the
-          // literal name "Hired".
-          axis={s.axis}
-        />
-      ) : null}
+      <AnimatePresence>
+        {s.candidate ? (
+          // The modal keys its BODY by entry id (per-entry result/notes/busy/token-link
+          // state resets on a step) and keeps its frame, so a step does not re-animate.
+          <CandidateModal
+            key="candidate-modal"
+            view={s.candidate}
+            boardCohort={s.cohortOrder}
+            // UAT KAT-L1-002 — the resolved axis, so "is this candidate hired?" is a
+            // stage ROLE and never the literal name "Hired".
+            axis={s.axis}
+            onClose={s.closeCandidate}
+            onChanged={s.load}
+            onOpenEntry={s.openEntryById}
+            onNavigate={s.showCandidate}
+            onTab={s.setCandidateTab}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

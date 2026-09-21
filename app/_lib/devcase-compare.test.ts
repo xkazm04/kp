@@ -64,7 +64,47 @@ test("caps the matrix width to the top-N by transfer score", () => {
   assert.deepEqual(cmp.columns.map((c) => c.id), ["b", "c"]); // top 2 by transfer
 });
 
+test("maxColumns 0 (no cap) expands a truncated 9-column fixture to the full evaluated set", () => {
+  const subs = Array.from({ length: 9 }, (_, i) => sub(String(i), 90 - i, { framing: 1 }));
+  assert.equal(rubricCompare(rubric, subs, 5).columns.length, 5);
+  assert.equal(rubricCompare(rubric, subs, 0).columns.length, 9);
+});
+
 test("unevaluated submissions are excluded", () => {
   const cmp = rubricCompare(rubric, [sub("a", 50, { framing: 70 }), { id: "b", candidateRef: "cand-b", transferScore: null, evaluation: null }]);
   assert.deepEqual(cmp.columns.map((c) => c.id), ["a"]);
+});
+
+test("a suspect bundle exposes authenticityBand even when it leads an axis", () => {
+  const cmp = rubricCompare(rubric, [
+    {
+      id: "gamer",
+      candidateRef: "gamer",
+      transferScore: 90,
+      evaluation: {
+        evaluation: { dimensionScores: { framing: 99, judgment: 40 } },
+        authenticity: { band: "suspect", score: 12 },
+      },
+    },
+    {
+      id: "honest",
+      candidateRef: "honest",
+      transferScore: 70,
+      evaluation: {
+        evaluation: { dimensionScores: { framing: 60, judgment: 80 } },
+        authenticity: { band: "authentic", score: 88 },
+      },
+    },
+  ]);
+  assert.equal(cmp.columns[0].id, "gamer");
+  assert.equal(cmp.columns[0].authenticityBand, "suspect");
+  assert.equal(cmp.columns[0].authenticityScore, 12);
+  assert.equal(cmp.leaderByAxis.framing, "gamer");
+  assert.equal(cmp.columns[1].authenticityBand, "authentic");
+});
+
+test("missing authenticity is null, never authentic", () => {
+  const cmp = rubricCompare(rubric, [sub("a", 50, { framing: 70 })]);
+  assert.equal(cmp.columns[0].authenticityBand, null);
+  assert.equal(cmp.columns[0].authenticityScore, null);
 });

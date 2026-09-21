@@ -12,8 +12,13 @@
 //     had already recovered stayed in the "needs attention" chip forever.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { isDeadLetter, outboxRows, outboxVerdicts } from "./outboxView.ts";
 import type { OutboxItem } from "./DevTypes.ts";
+
+const rowsSrc = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "OutboxRows.tsx"), "utf8");
 
 const M = (
   id: string,
@@ -106,6 +111,17 @@ test("the dead-letter chip narrows to exactly the rows needing a human", () => {
   assert.deepEqual(ids, ["old-offer", "old-failed"]);
 });
 
+test("filtering ref keeps only that assignment's rows", () => {
+  const mixed: OutboxItem[] = [
+    M("a", "failed", "2026-01-01T00:00:00Z", "rejection", "zoe@x.io", "Yours", "entry-1"),
+    M("b", "failed", "2026-01-02T00:00:00Z", "rejection", "ada@x.io", "Theirs", "entry-2"),
+  ];
+  const ids = outboxRows(mixed, { ...opts, filters: { ...opts.filters, ref: "entry-1" } }).rows.map((m) => m.id);
+  assert.deepEqual(ids, ["a"], "the other assignment's bounce is hidden");
+  const { facets } = outboxRows(mixed, opts);
+  assert.deepEqual(facets.refs.map((o) => o.value).sort(), ["entry-1", "entry-2"]);
+});
+
 test("search covers recipient AND subject, and the column filters compose", () => {
   const ids = (f: Partial<typeof opts.filters>) =>
     view({ filters: { ...opts.filters, ...f } }).rows.map((m) => m.id);
@@ -131,4 +147,18 @@ test("outboxRows never mutates the input array", () => {
   const order = OUTBOX.map((m) => m.id);
   view();
   assert.deepEqual(OUTBOX.map((m) => m.id), order);
+});
+
+test("a dead-letter row with failureDetail renders that detail under the verdict", () => {
+  assert.match(rowsSrc, /isDeadLetter\(m\) && m\.failureDetail/);
+  assert.match(rowsSrc, /title=\{m\.failureDetail\}/);
+  assert.match(rowsSrc, /\{m\.failureDetail\}/);
+});
+
+test("failed rows expose one-click resend; bounced rows expose the corrected-address form", () => {
+  assert.match(rowsSrc, /from "@\/app\/features\/hiring\/channels\/ChannelsCommsBouncedResend"/);
+  assert.match(rowsSrc, /\{m\.verdict === "failed" \? <ResendButton id=\{m\.id\} onResent=\{onResent\} compact \/> : null\}/);
+  assert.match(rowsSrc, /\{m\.verdict === "bounced" \? \(/);
+  assert.match(rowsSrc, /<BouncedResend id=\{m\.id\} defaultRecipient=\{m\.recipient\}/);
+  assert.doesNotMatch(rowsSrc, /verdict === "bounced"[\s\S]{0,120}<ResendButton/);
 });

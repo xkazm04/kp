@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Nordic Widgets – Jobs</title>
+    <link>https://nordicwidgets.teamtailor.example/jobs</link>
+    <description>Open positions at Nordic Widgets</description>
+    <atom:link href="https://nordicwidgets.teamtailor.example/jobs.rss" rel="self" type="application/rss+xml"/>
+    <item>
+      <title><![CDATA[Fullstack Developer (TypeScript)]]></title>
+      <link>https://nordicwidgets.teamtailor.example/jobs/5501-fullstack-developer-typescript</link>
+      <guid isPermaLink="false">teamtailor-job-5501</guid>
+      <pubDate>Thu, 11 Sep 2026 07:30:00 +0000</pubDate>
+      <description><![CDATA[<p>Join our product team in Stockholm or remote within the EU.</p><h2>What you bring</h2><ul><li>TypeScript, React, Node.js</li><li>2+ years of experience</li></ul>]]></description>
+      <category>Engineering</category>
+      <category>Stockholm</category>
+    </item>
+    <item>
+      <title><![CDATA[Site Reliability Engineer]]></title>
+      <link>https://nordicwidgets.teamtailor.example/jobs/5502-site-reliability-engineer</link>
+      <guid isPermaLink="false">teamtailor-job-5502</guid>
+      <pubDate>Wed, 10 Sep 2026 12:00:00 +0000</pubDate>
+      <description><![CDATA[<p>Keep the widgets up. Kubernetes, Terraform, Go. On-site in Prague.</p>]]></description>
+      <category>Infrastructure</category>
+      <category>Prague</category>
+    </item>
+  </channel>
+</rss>

@@ -3,7 +3,7 @@ import { getAgentAggregates, getLatestAgentRollupRaw, listHiredAgents } from "@/
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { backboneFromRollup, backboneScore, hasBackboneFields } from "@/app/_lib/app-master/backbone";
+import { backboneFreshness, backboneFromRollup, backboneScore, hasBackboneFields } from "@/app/_lib/app-master/backbone";
 import { AUTOPILOT_MODES, type AutopilotMode } from "@/app/_lib/agent-hire/report-payload";
 
 // Agent-candidate bridge — GET the roster: every hired agent in the caller's
@@ -21,6 +21,9 @@ import { AUTOPILOT_MODES, type AutopilotMode } from "@/app/_lib/agent-hire/repor
 //                 when nothing has reported a backbone yet, which is honest: a
 //                 just-dispatched App master has no record, and rendering one
 //                 out of six absent counters would be six fabricated zeroes.
+//   `backbonePeriod` / `backboneFreshness` — which month that verdict belongs
+//                 to, and whether that month is still the review window. Null
+//                 together with `backbone` when nothing has reported.
 
 /** Memory tier counts the rollup last reported (M3) — pass-through of the
  *  trust-boundary-validated shape; null when never reported. */
@@ -54,16 +57,28 @@ export async function GET() {
         | {
             role?: { population?: unknown };
             mandate?: { scopeRung?: unknown };
-            tenure?: { probationDays?: unknown };
+            tenure?: { probationDays?: unknown; reviewCadenceDays?: unknown };
           }
         | null;
       if (!spec || typeof spec !== "object") {
-        return { ...safe, aggregates: getAgentAggregates(agent.id, ws), appMaster: null, backbone: null, kpiDeltas: null };
+        return {
+          ...safe,
+          aggregates: getAgentAggregates(agent.id, ws),
+          appMaster: null,
+          backbone: null,
+          kpiDeltas: null,
+          backbonePeriod: null,
+          backboneFreshness: null,
+        };
       }
 
       const latest = getLatestAgentRollupRaw(agent.id, ws);
       const backbone = latest && hasBackboneFields(latest.raw) ? backboneScore(backboneFromRollup(latest.raw)) : null;
       const population = spec.role?.population;
+      const windowDays =
+        typeof spec.tenure?.reviewCadenceDays === "number" && spec.tenure.reviewCadenceDays > 0
+          ? spec.tenure.reviewCadenceDays
+          : 30;
       return {
         ...safe,
         aggregates: getAgentAggregates(agent.id, ws),
@@ -85,6 +100,10 @@ export async function GET() {
         // column answers "did the value ledger move" for an App master instead
         // of the run/spend proxies it uses for a task agent.
         kpiDeltas: backbone ? backboneFromRollup(latest?.raw).kpiDeltas : null,
+        backbonePeriod: latest?.period ?? null,
+        backboneFreshness: latest
+          ? backboneFreshness({ period: latest.period, now: new Date(), windowDays })
+          : null,
       };
     });
     return NextResponse.json({ agents });

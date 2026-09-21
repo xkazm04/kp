@@ -27,8 +27,13 @@ import Footer from "./sections/Footer";
  * live under ./previews/. What stays here is the one piece of state two of
  * those bands share: which spotlight is open, because the modal renders at the
  * page root while the cards that drive it sit inside FeatureGrid.
+ *
+ * `signupOpen` is not state — it is deployment policy resolved server-side
+ * (KP_SIGNUP_ENABLED, see app/page.tsx) and passed through untouched to the two
+ * bands that act on it: the hero's primary CTA and the closing one, which are
+ * the page's only two "start here" buttons.
  */
-export default function SparkLanding() {
+export default function SparkLanding({ signupOpen = false }: { signupOpen?: boolean }) {
   const [preview, setPreview] = useState<PreviewKey | null>(null);
   const [pinned, setPinned] = useState(false);
   // Closing the spotlight while the cursor sits on a card makes the browser
@@ -69,7 +74,7 @@ export default function SparkLanding() {
   return (
     <main className="min-h-screen overflow-x-clip bg-[#fdf8ee] text-[#17202a] font-[family-name:var(--font-spark-body)]">
       <Topbar />
-      <Hero />
+      <Hero signupOpen={signupOpen} />
       <Marquee />
       {/* The wedge band leads; the nine-card FeatureGrid is demoted below it —
           the verified-work story is the headline, the grid is the inventory.
@@ -82,7 +87,7 @@ export default function SparkLanding() {
       <VoiceTeaser />
       <TrustPillars />
       <PricingSection />
-      <Cta />
+      <Cta signupOpen={signupOpen} />
       <Footer />
 
       <SectionRail />

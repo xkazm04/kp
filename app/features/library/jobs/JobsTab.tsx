@@ -23,9 +23,13 @@ export function JobsTab() {
   const td = useTranslations("jobs.deeplink");
   const enumLabel = useEnumLabel();
   const list = useJobsList();
-  const { jobs, stats, error, openOnly, setOpenOnly, reload, patchJobStatus } = list;
+  const { jobs, allJobs, stats, error, openOnly, setOpenOnly, reload, patchJobStatus } = list;
 
-  const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(jobs);
+  // The deep link resolves against the UNFILTERED answer (`allJobs`), not the rows
+  // the table is showing: the Status column's filter is client-side, so a ?job=
+  // link to a role the reader has filtered out of view would otherwise report "that
+  // role no longer exists" about a role that plainly does.
+  const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(allJobs);
 
   // Import lives in the header (the action) and under it (the form it opens), so
   // its state is held HERE and handed to both — see JobsIngestAdPanel.
@@ -78,11 +82,20 @@ export function JobsTab() {
       {lookupMissed ? (
         // Deep link to a role that no longer resolves (deleted, or another team's).
         // Says so instead of opening nothing — amber, the app's "partial/attention" tone.
+        // The recovery for "I have the ad, not the id" is the same ingest door as the
+        // empty launchpad.
         <div
           role="status"
           className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-base text-amber-800"
         >
           <span className="flex-1">{td("notFound")}</span>
+          <button
+            type="button"
+            onClick={() => ingest.setOpen(true)}
+            className="focus-ring shrink-0 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-sm font-semibold text-amber-800 hover:text-ink"
+          >
+            {td("import")}
+          </button>
           <button
             type="button"
             onClick={dismissLookupMissed}
@@ -132,7 +145,7 @@ export function JobsTab() {
         <RediscoveryFeed />
       </Defer>
 
-      <JobsTabResults list={list} onOpen={setOpenJob} />
+      <JobsTabResults list={list} onOpen={setOpenJob} onImport={() => ingest.setOpen(true)} />
 
       {openJob ? (
         <JobPostingModal

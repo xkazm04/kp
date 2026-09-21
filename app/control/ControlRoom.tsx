@@ -9,7 +9,7 @@ import { useLoader } from "@/app/_lib/useLoader";
 import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import { pollDelayMs } from "@/app/_lib/task-poll-state";
 import { aggregateLoadState } from "@/app/_lib/load-state";
-import { armOrExecute } from "./controlRoomConfirm";
+import { armOrExecute, cancelArmed } from "./controlRoomConfirm";
 import { AutonomyBar } from "./AutonomyBar";
 import { GatesPanel } from "./GatesPanel";
 import { AuditPanel } from "./AuditPanel";
@@ -35,6 +35,8 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
   // deliberate two-step so a misclick on this oversight surface can't fire an
   // irreversible action. null = nothing armed. Pause/resume bypass this (kill switch).
   const [armed, setArmed] = useState<string | null>(null);
+  const [armedAt, setArmedAt] = useState<number | null>(null);
+  const [disarmedNotice, setDisarmedNotice] = useState(false);
 
   // The 3s poll keeps the last good status/outcomes visible when the API drops
   // and tracks per-loader failure + freshness, so a stale view is flagged rather
@@ -163,10 +165,26 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
   // control through the two-step gate. First click arms (button flips to "Confirm…");
   // a second click on the SAME control runs it. Any other control re-arms instead.
   const guard = (key: string, run: () => void | Promise<void>) => {
-    const { execute, nextArmed } = armOrExecute(armed, key);
+    const { execute, nextArmed } = armOrExecute(armed, key, Date.now(), armedAt);
     setArmed(nextArmed);
+    setArmedAt(nextArmed ? Date.now() : null);
+    if (nextArmed) setDisarmedNotice(false);
     if (execute) void run();
   };
+
+  useEffect(() => {
+    if (armed === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      const { nextArmed } = cancelArmed();
+      setArmed(nextArmed);
+      setArmedAt(null);
+      setDisarmedNotice(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [armed]);
 
   const active = (s?.lifecycles ?? []).filter((l) => !["promoted", "closed"].includes(l.stage));
 
@@ -190,6 +208,9 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
             component takes a catalog. */}
         <LoadStatus state={roomState} label="the control room" className="mt-4" />
 
+        <p role="status" aria-live="polite" className="sr-only">
+          {disarmedNotice ? t("disarmed") : ""}
+        </p>
         {actErr ? (
           <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-micro font-semibold text-coral">
             {actErr}

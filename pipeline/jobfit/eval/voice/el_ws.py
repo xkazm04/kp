@@ -56,13 +56,58 @@ class VoiceSessionResult:
     errored: str | None = None
 
 
+def conversation_init_payload(
+    *,
+    agent_prompt: str | None = None,
+    language: str | None = None,
+    asr_keywords: list[str] | None = None,
+) -> dict:
+    """The ``conversation_initiation_client_data`` frame the browser SDK sends.
+
+    ``asr.keywords`` is omitted when the list is missing or empty — an empty
+    override reads as "bias toward nothing", which is not what a missing list
+    means. Same empty-list rule as ``startElevenLabsSession``.
+    """
+    init: dict = {"type": "conversation_initiation_client_data"}
+    override: dict = {}
+    agent: dict = {}
+    if agent_prompt:
+        # Exactly what VoiceInterview.tsx sends: the candidate-safe prompt as an override.
+        agent["prompt"] = {"prompt": agent_prompt}
+    if language:
+        agent["language"] = language
+    if agent:
+        override["agent"] = agent
+    if asr_keywords:
+        override["asr"] = {"keywords": list(asr_keywords)}
+    if override:
+        init["conversation_config_override"] = override
+    return init
+
+
+def asr_keywords_from_connect(payload: dict) -> list[str] | None:
+    """Pull ``asrKeywords`` off a /connect JSON body. Missing, non-list, or empty → None."""
+    raw = payload.get("asrKeywords")
+    if not isinstance(raw, list):
+        return None
+    terms = [k.strip() for k in raw if isinstance(k, str) and k.strip()]
+    return terms or None
+
+
 class ElVoiceSession:
     """One headless spoken interview over the ElevenLabs realtime WebSocket."""
 
-    def __init__(self, signed_url: str, agent_prompt: str | None = None, language: str | None = None):
+    def __init__(
+        self,
+        signed_url: str,
+        agent_prompt: str | None = None,
+        language: str | None = None,
+        asr_keywords: list[str] | None = None,
+    ):
         self.signed_url = signed_url
         self.agent_prompt = agent_prompt
         self.language = language
+        self.asr_keywords = asr_keywords
         self.result = VoiceSessionResult()
 
         self._ws = None
@@ -109,16 +154,11 @@ class ElVoiceSession:
         return False
 
     async def _send_init(self) -> None:
-        init: dict = {"type": "conversation_initiation_client_data"}
-        agent: dict = {}
-        if self.agent_prompt:
-            # Exactly what VoiceInterview.tsx sends: the candidate-safe prompt as an override.
-            agent["prompt"] = {"prompt": self.agent_prompt}
-        if self.language:
-            agent["language"] = self.language
-        if agent:
-            init["conversation_config_override"] = {"agent": agent}
-        await self._ws.send(json.dumps(init))
+        await self._ws.send(json.dumps(conversation_init_payload(
+            agent_prompt=self.agent_prompt,
+            language=self.language,
+            asr_keywords=self.asr_keywords,
+        )))
 
     # -- the mic: 100 ms of audio every 100 ms, forever ---------------------
 

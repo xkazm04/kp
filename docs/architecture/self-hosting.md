@@ -42,6 +42,182 @@ The image is a **slim standalone build** (~465 MB): Next `output:"standalone"` t
 only the server files + the minimal `node_modules` it actually needs, rather than
 shipping the whole source tree and full dependency set.
 
+## 1a. Roles and responsibilities under the EU AI Act
+
+**Read this before §2 if you will run KP on real candidates in the EU.** KP is a
+**high-risk AI system** under Annex III point 4 (employment — recruitment and
+selection): it analyses, filters, scores and ranks job applicants. That
+classification is not a posture KP adopts to be cautious; it is the one the Act
+assigns, and the article-by-article map is
+[`docs/features/compliance/ai-act-conformity.md`](../features/compliance/ai-act-conformity.md).
+The rest of this page tells you how to run KP. This section tells you **which
+duties land on you when you do**, because until 2026-09-08 this guide answered
+that question nowhere.
+
+*This is an engineering artifact, not legal advice. Where a point below is KP's
+own judgement rather than the Act's text, it says so.*
+
+**Timing.** The Annex III obligations apply from **2 December 2027** — Reg. (EU)
+2026/1744 (the AI Omnibus, in force 27 July 2026) moved them from 2 August 2026.
+Three things were **not** deferred and bind you today: the **Art. 5**
+prohibitions, **Art. 50** transparency (candidates must be told they are
+interacting with AI), and **Art. 4** AI literacy. All of GDPR is untouched by any
+of these dates.
+
+### Being open source and free does not change any of this
+
+Art. 2(12) exempts free and open-source AI systems from the Regulation — **but
+that exemption expressly does not reach high-risk systems, Art. 5, or Art. 50**,
+which is all of KP's exposure. And Art. 3(3) defines placing on the market as
+supplying for distribution or use *"whether for payment or free of charge"*, so
+AGPL distribution is placing on the market. The KP vendor is therefore the
+**provider** in every configuration — SaaS, your Docker Compose, your air-gapped
+cluster. Being AGPL and free buys nothing here, and you should not accept a
+claim from any vendor that it does.
+
+### Which role you hold
+
+| You are | When | What binds you |
+|---|---|---|
+| **Deployer** | You run an **unmodified** KP build, under KP's name, for its intended purpose | **Art. 26 only** — see the checklist below |
+| **Provider** | Any one of the three Art. 25(1) triggers below fires | **The whole Art. 16 chain**: Art. 9 risk management, Art. 10 data governance, Art. 11 + Annex IV technical documentation, Art. 12 logging, Art. 13 instructions for use, Art. 14 human oversight, Art. 15 accuracy/robustness/security, Art. 17 QMS, Art. 43 conformity assessment, Art. 47 declaration of conformity, CE marking, Art. 49 registration, Art. 72/73 post-market monitoring |
+
+**Art. 25(1) turns a deployer into a provider on three triggers:**
+
+1. **You put your own name or trademark on it.** Note that **§8b of this very
+   guide** — custom domain and white-label branding — is a documented path to
+   doing exactly that. Setting a display name and logo in Settings → Branding so
+   your recruiters and candidates see *your* product, on *your* domain, is the
+   textbook Art. 25(1)(a) case. That does not make white-labelling wrong; it
+   makes it a decision with a consequence, and this guide previously described
+   the feature without naming the consequence.
+2. **You make a substantial modification.** Art. 3(23) defines this as a change
+   *not foreseen or planned in the provider's initial conformity assessment*.
+3. **You change the intended purpose** — using KP to score existing employees for
+   promotion or termination, for example, rather than candidates for selection.
+
+### KP's foreseen-configuration envelope
+
+Art. 3(23)'s test is drafted so that **the provider's own conformity assessment
+sets the boundary**, and the Commission's Art. 25 value-chain guidelines are
+announced but not published. So KP has to say where the line is, and this is KP's
+statement of it. **It is a judgement call, not a citation** — and KP is bound by
+whatever it declares here, so it is written to be honoured rather than to be
+convenient.
+
+**Foreseen — ordinary configuration. Use these freely; you remain a deployer:**
+
+- **Per-stage automation gates** (`app/_lib/decision-config-schema.ts`) —
+  including setting a stage to `auto`. The shipped default is `human` on every
+  stage, and every unattended step is logged with the plan that allowed it. The
+  behaviour of a delegated gate is designed-in and assessed. *(One caveat that
+  is a truthfulness problem rather than a conformity one: with an `auto` gate,
+  the candidate-facing AI disclosure's claim that a human makes every advance
+  and offer decision becomes false. That is KP's bug — tracked as G16 in the
+  conformity pack — not yours, but you should know it while it is open.)*
+- **Screening thresholds and per-family floors**
+  (`app/_lib/screen-wave.ts` — `rejectBottomPercent`, `maxMatchToReject`,
+  `familyFloors`, the calibration holdout rate). These are parameters the system
+  was built and calibrated to carry; they ride the sealed `policyVersion` on
+  every record, so a changed threshold is evidenced rather than hidden.
+- **Choosing among the shipped model adapters** (`app/_lib/llm-config.ts`:
+  `anthropic`, `openai`, `azure_openai`, `gemini`, `openrouter`, `qwen`,
+  `ollama`, `claude_cli`) — including Azure OpenAI in your own tenant. Each is an
+  integration KP wrote, tested and disclosed.
+- **Locale and JD/comms template choices**, branding colours, retention window
+  (`KP_CONSENT_TTL_DAYS`), `KP_OFFLINE`, and the deployment shape (Compose, Helm,
+  air-gapped).
+
+**Arguably NOT foreseen — KP's judgement is that these can cross into Art. 3(23),
+and you should assume they do:**
+
+- **Editing the scoring or evaluation prompts.** The prompts are the assessed
+  artifact. A rewritten scoring prompt is a different scorer with a different
+  accuracy profile, and KP's calibration, name-neutrality and bilingual-parity
+  evidence no longer describes what you are running.
+- **Pointing the scorer at an arbitrary self-hosted model.** §5 documents
+  `OPENAI_BASE_URL` against vLLM / Ollama / LiteLLM, and that path is genuinely
+  supported for privacy — but a model KP never benchmarked, reached through the
+  `*` wildcard so that *everything* including scoring runs on it, is not a
+  configuration KP assessed. Using a private endpoint for JD drafting or summary
+  text is a much weaker case than using it for the score that rejects people. KP
+  does not claim to have drawn this sub-line precisely; it claims the score is
+  where it matters.
+- **Anything that changes what the score means** — replacing the taxonomy,
+  post-processing scores before they reach the wave, or scripting around the
+  approval token.
+
+If you are inside the first list, you are a deployer. If you are in the second,
+plan on the Art. 16 chain, and note that you cannot inherit KP's conformity
+assessment for a system it does not describe.
+
+### Your duties as a deployer (Art. 26), briefly
+
+Enough to act on. The full quick-sheet is §5 of the conformity pack.
+
+- **Art. 26(2) — assign human oversight to competent people with authority.**
+  Named natural persons, with the standing to actually stop or override a
+  decision. In KP that means giving every reviewer a signed-in account carrying
+  a name, or setting `KP_OPERATOR_NAME` (§3). KP enforces the sharp end of this:
+  a bulk rejection whose approver cannot be named is **refused**, not sealed.
+- **Art. 26(6) — keep the automatically generated logs for at least 6 months.**
+  KP never prunes the decision chain, so the practical duty is on your backups
+  and your SQLite file (§10): do not restore a truncated database over a live
+  one, and keep at least 6 months of decision history.
+- **Art. 26(7) — inform workers' representatives before putting the system into
+  use.** Before, not after, and it applies to workplace deployment generally.
+  In Germany this is much sharper than the Act: BetrVG § 95(2a) makes
+  AI-generated selection criteria **co-determined**, so your works council has a
+  statutory role and will ask you to enumerate the thresholds and family floors
+  above.
+- **Art. 4 — AI literacy for the recruiters who use it.** Softened by the
+  Omnibus to an effort obligation, but enforceable since 2 August 2026. Your
+  recruiters need to understand what the score is and is not.
+- **Art. 50 — candidates must be told.** KP renders this for you on every public
+  candidate surface (`AiDisclosure`); the duty on you is **not to fork it out**.
+
+**Art. 27 (fundamental-rights impact assessment) most likely does not apply to
+you.** It binds deployers that are **public bodies**, or private entities
+**providing public services** — plus a narrow set of creditworthiness and
+insurance-pricing cases. An ordinary private employer hiring for itself is not
+in scope, and this guide will not pretend otherwise to be safe. A **DPIA** under
+GDPR Art. 35, by contrast, **is** required for AI-assisted CV screening, and
+France, Germany and Czechia each name this processing on their Art. 35(4) lists.
+That one you owe regardless of any AI Act date.
+
+## 1b. If NIS2 binds you, KP is one of your suppliers
+
+Skip this if you are not an essential or important entity. If you are — hospital,
+bank, energy or water utility, digital infrastructure, public administration, or
+whatever your member state's transposition caught (in Czechia, the Cybersecurity
+Act in force since 1 November 2025) — two things follow from running KP. Neither
+of them is a claim that KP makes you compliant.
+
+**Your Art. 21(2) measures have to reach your suppliers, and this is one you can
+evidence.** NIS2 (Directive (EU) 2022/2555) Art. 21(2)(d) requires supply-chain
+security covering the relationship with each direct supplier, and Art. 21(2)(e)
+requires *"vulnerability handling and disclosure"* as part of acquisition,
+development and maintenance. When an auditor asks what happens if your recruiting
+system turns out to have a vulnerability, the artifact to hand them is
+[`SECURITY.md`](../../SECURITY.md): a private reporting channel with a stated
+acknowledgement target, and — the half that matters on your side — a **published
+outbound channel** (a GitHub Security Advisory per fixed vulnerability) with a
+stated publication latency. Read that latency and decide whether you can live
+with it: it is a target set by a small team, not a contractual SLA, and pretending
+otherwise here would be the kind of claim this guide refuses to make.
+
+**Your Art. 23 clock starts when *you* become aware — not when KP publishes.**
+Early warning within 24 hours, incident notification within 72, final report
+within one month. A KP advisory is a *notification source* feeding that clock, not
+a substitute for it, and it only feeds anything if somebody on your side is
+actually subscribed. So assign that to a person. The mechanics are in
+`SECURITY.md`; the short version is Watch → Custom → **Releases** on the
+repository, or its `releases.atom` feed. Note also that **nothing in KP pushes a
+security notice into the product UI** today — there is no in-app banner to wait
+for, which is exactly why the subscription is the control.
+
+*Same caveat as §1a: engineering artifact, not legal advice.*
+
 ## 2. Quick start (Docker Compose)
 
 ```bash
@@ -198,7 +374,7 @@ off). This is the list to hand your security team.
 | GitHub | `api.github.com` | GitHub repo-analysis feature | anon | Candidate repo signal. `GITHUB_TOKEN` only raises rate limits; skip the feature to avoid entirely. |
 | Polar | `api.polar.sh`, `sandbox-api.polar.sh` | `POLAR_ACCESS_TOKEN` | off | Billing (Merchant of Record). Unset ⇒ billing routes 503; self-host typically leaves this off. See `docs/features/billing/README.md`. |
 | LightTrack | your `LIGHTTRACK_URL` | `LIGHTTRACK_URL` | off | LLM observability (self-hosted sibling). Unset ⇒ off. |
-| Sentry | your DSN's ingest host (`*.sentry.io`, or self-hosted) | `SENTRY_DSN` (server) / `NEXT_PUBLIC_SENTRY_DSN` (browser, baked at build) | off | Error reporting (`instrumentation.ts`, error boundaries). Unset ⇒ no init, no SDK load. `KP_OFFLINE=1` skips it even with a DSN set. **Candidate capability tokens are redacted before egress**: both roots install a `beforeSend`/`beforeBreadcrumb` pair that rewrites the segment after a token-bearing prefix (`/schedule/`, `/interview/`, `/status/`, `/offer/`, `/data/`, `/invite/`, `/skill(-profile)/`, `/devcase/apply|session/`, `/agents/report/`, `/channels/inbound/`, and their `/api/` twins) to `[token]`, plus any `?token=`/`?t=` value. Without it a single error on a candidate page shipped a WORKING capability link to a third party — the `/data/<erasureToken>` page most of all. Route shape and non-token query context (`?tab=hiring`, `/jds/<slug>`) are deliberately preserved so traces stay debuggable. Keep the two lists in `instrumentation.ts` and `instrumentation-client.ts` in sync when adding a token surface. |
+| Sentry | your DSN's ingest host (`*.sentry.io`, or self-hosted) | `SENTRY_DSN` (server) / `NEXT_PUBLIC_SENTRY_DSN` (browser, baked at build) | off | Error reporting (`instrumentation.ts`, error boundaries). Unset ⇒ no init, no SDK load. `KP_OFFLINE=1` skips it even with a DSN set. **Candidate capability tokens are redacted before egress**: both roots install a `beforeSend`/`beforeBreadcrumb` pair that rewrites the segment after a token-bearing prefix (`/schedule/`, `/interview/`, `/status/`, `/offer/`, `/data/`, `/invite/`, `/skill(-profile)/`, `/stop/`, `/devcase/apply|session/`, `/agents/report/`, `/channels/inbound/`, and their `/api/` twins) to `[token]`, plus any `?token=`/`?t=` value. Without it a single error on a candidate page shipped a WORKING capability link to a third party — the `/data/<erasureToken>` page most of all. Route shape and non-token query context (`?tab=hiring`, `/jds/<slug>`) are deliberately preserved so traces stay debuggable. Keep the two lists in `instrumentation.ts` and `instrumentation-client.ts` in sync when adding a token surface. |
 | Next.js telemetry | `telemetry.nextjs.org` | — | **off** | Disabled by `NEXT_TELEMETRY_DISABLED=1` (set in the image). |
 | Your pull sources | whatever `pullUrl` you configured on a receiver | a receiver's `pullUrl` (`PATCH /api/channels/webhooks`) | off | The clock GETs each source per tick to collect leads that arrived while KP was down (§7b). `https` + public host enforced. Clear `pullUrl` ⇒ off. |
 | Your edge | your `KP_EDGE_URL` (a Worker in **your** Cloudflare account) | `KP_EDGE_URL` + `KP_EDGE_SECRET` | off | Draining held inbound events + the presence heartbeat (§7b). Unset ⇒ off. |
@@ -234,7 +410,11 @@ explicitly configured. Concretely:
 - **Pipeline (Python):** cloud LLM engines (Gemini, Anthropic, the Claude CLI, and
   OpenAI **without** a `base_url`) report unavailable → the call falls back to
   deterministic output (`pipeline/jobfit/llm/offline.py`). A self-hosted OpenAI
-  endpoint (`OPENAI_BASE_URL`) and Azure (its configured `endpoint`) keep working.
+  endpoint (`OPENAI_BASE_URL`) keeps working **if it names a private host**; so does
+  an Azure endpoint, on the same condition, which means a *hosted*
+  `*.openai.azure.com` deployment is sealed off and only a loopback / in-VPC one
+  stays usable. This line used to say Azure keeps working unconditionally, which is
+  not what `adapters/azure_openai.py` does.
   This covers the two Gemini call sites that bypass the `llm/base` adapters as well:
   `gemini.get_client()` (the flagship multimodal CV analysis + profile extractor —
   the one call that ships the candidate's whole file) and
@@ -244,10 +424,27 @@ explicitly configured. Concretely:
   variable in the service unit does not clear the key.
 - **Billing:** Polar is disabled (billing routes report unconfigured).
 
-The **allowlist** = loopback + the hosts of `OPENAI_BASE_URL`, `AZURE_OPENAI_ENDPOINT`,
-`LIGHTTRACK_URL`, `NEXT_PUBLIC_APP_BASE_URL`/`APP_BASE_URL`, `COMMS_WEBHOOK_URL`,
-plus any extra hosts in **`KP_OFFLINE_ALLOW_HOSTS`** (comma-separated) for a
-same-network gateway.
+The **allowlist** = loopback + your own app origin (`NEXT_PUBLIC_APP_BASE_URL` /
+`APP_BASE_URL`, always, since reaching yourself is not egress) + the hosts of
+`OPENAI_BASE_URL`, `AZURE_OPENAI_ENDPOINT`, `LIGHTTRACK_URL` and
+`COMMS_WEBHOOK_URL` **when those name a private host** — loopback, an RFC1918
+address, a bare container/service name, or a `.local` / `.internal` / `.lan` /
+`.home.arpa` name — plus any extra hosts in **`KP_OFFLINE_ALLOW_HOSTS`**
+(comma-separated) for a same-network gateway.
+
+> **Changed 2026-09-08.** Those four outbound endpoints used to be allow-listed
+> unconditionally, so configuring one admitted its host whatever it was, and a
+> public endpoint therefore stayed reachable under `KP_OFFLINE`. That contradicted
+> the Python half, which has always sealed off a configured `base_url` resolving to
+> a public host on the stated reasoning that an endpoint is not trusted merely
+> because it was configured. The two halves now agree. **This is a behaviour change
+> for one configuration**: a *hosted* Azure OpenAI endpoint (`*.openai.azure.com`)
+> is public, so under `KP_OFFLINE` it is now sealed off rather than silently
+> allowed. If your private service genuinely answers to a public-looking name, list
+> it in `KP_OFFLINE_ALLOW_HOSTS` — a deliberate act, rather than a side effect of
+> naming an inference endpoint. The observability collector is the case that
+> prompted this: pointed at a hosted endpoint it would have kept telemetry leaving
+> a deployment whose whole premise is that nothing does.
 
 > This is an **application-level** backstop. For a hard guarantee, still enforce a
 > **network egress policy** at the deployment layer (Kubernetes NetworkPolicy /
@@ -342,6 +539,12 @@ your host remain wherever `KP_DB_PATH` lives (§4).
 KP is white-label. Two layers make it *your* product to your recruiters and their
 candidates:
 
+> **Before you brand it, read §1a.** Putting your own name or trademark on a
+> high-risk AI system is an **Art. 25(1)(a)** trigger: it makes you the
+> **provider**, with the full Art. 16 chain, instead of a deployer with Art. 26.
+> That is a real trade, not a formality — and it is the one consequence this
+> section described for months without naming.
+
 1. **Brand identity (in-app).** Settings → **Branding** sets the display name, a
    primary accent color, and a logo. The accent re-skins the whole workspace **and
    the candidate-facing offer/apply/scheduling pages** (they share the app layout);
@@ -355,10 +558,14 @@ candidates:
      else would be CSS injection), and it must clear **3:1 WCAG contrast** against
      both white button labels and the paper canvas. An illegible accent is refused,
      with the reason shown in the editor, rather than shipped app-wide.
-   - *Logo* — an `https://` URL of at most 500 characters, **rejected** (not
-     truncated) when longer, so a signed CDN URL can't be stored as a half-signature
-     that renders as a broken image. It is browser-loaded from that host with
-     `referrerPolicy="no-referrer"`; air-gapped installs should self-host the file.
+   - *Logo* — at most 500 characters, **rejected** (not truncated) when longer, so
+     a signed CDN URL can't be stored as a half-signature that renders as a broken
+     image. Storable shapes: an `https://` URL, a path-absolute `/brand/logo.png`
+     (the browser resolves it against the install origin), or `http://` only when
+     the host is loopback (`127.0.0.1`, `localhost`, `::1`). `javascript:` /
+     `data:` / `ftp:` / remote `http://` are refused. It is browser-loaded with
+     `referrerPolicy="no-referrer"`; air-gapped installs self-host the file and
+     store the path, not a public CDN.
    - *Display name* — whitespace-collapsed and clamped to 60 characters.
 2. **Custom domain.** Point your domain at the reverse proxy in front of KP
    (§8: Caddy / nginx / Traefik terminates TLS and proxies to `:3000`):
@@ -434,6 +641,9 @@ the test.
 | `env-contract-dropped` | an env key in `ENV_CONTRACT_REQUIRED` the chart **stopped** setting |
 | `secret-renders-empty-instead-of-failing` | a `required` removed from `KP_OPERATOR_PASSWORD` / `KP_SECRET` in the Secret template |
 | `open-mode-shipped-on` | a chart that sets `KP_ALLOW_OPEN` truthy, or an `.env.example` that never documents it |
+| `ingress-public-origin` | `ingress.enabled` with `env.NEXT_PUBLIC_APP_BASE_URL` empty or not an absolute http(s) origin — candidate links would resolve to `siteUrl()` while the cluster is reached at the ingress host |
+
+`ingress-public-origin` is the same shape as `secret-renders-empty-instead-of-failing`: `NOTES.txt` already warned when the origin was empty, and an operator who ignored it got a green `deploy:check` and a cluster whose offer/schedule emails used `siteUrl()`. The policy fails that install; ingress off with an empty URL stays clean.
 
 The gate reads **every file in `deploy/helm/kp/templates/`**, not a list of five.
 The five named in `CHART_FILES` stay required — a policy that must read the
@@ -536,7 +746,8 @@ docker run -d --name kp -p 3000:3000 \
 Pin an exact Python minor by overriding the base image:
 `docker build --build-arg NODE_IMAGE=node:24-bookworm-slim -t kp:local .`
 (The image uses Debian's `python3`, 3.11; CI validates 3.12 — the pipeline
-supports 3.11+.)
+supports 3.11+. `schemas:gen` refuses any interpreter older than 3.11 and
+prints the same install hint as a missing interpreter.)
 
 > **Prefer a published image to a local build.** Tagged releases publish
 > `ghcr.io/xkazm04/kp:<version>` (plus an immutable `sha-<commit>` tag) with a
@@ -569,3 +780,10 @@ your license terms before deploying in production.
 - `docs/architecture/llm-provider-layer.md` — the BYOM model-routing layer.
 - `docs/features/billing/README.md` — Polar billing (leave off for a self-host without billing).
 - `.env.example` — every configuration variable, annotated.
+- `docs/features/compliance/ai-act-conformity.md` — the article-by-article AI Act
+  conformity map and gap register behind §1a, including what KP has **not** built.
+- `docs/features/compliance/README.md` — what the compliance surface actually is
+  (consent, erasure, the sealed decision chain, human-oversight gates) and where.
+- `docs/features/compliance/regulatory-backlog.md` — the wider regulatory work
+  list: Art. 5/50 exposure, GDPR gaps, LLM-provider data terms, and the German /
+  French / Czech employment layer that binds regardless of any AI Act date.
