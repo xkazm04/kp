@@ -14,8 +14,12 @@ function newId(): string {
   try {
     return crypto.randomUUID();
   } catch {
-    // Older/locked-down browsers: any bounded url-safe token satisfies the route.
-    return `s-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    // Older/locked-down browsers without randomUUID: getRandomValues has been
+    // available since long before it, so this fallback still draws from the
+    // platform CSPRNG rather than Math.random() (js/insecure-randomness).
+    const bytes = crypto.getRandomValues(new Uint8Array(10));
+    const token = Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
+    return `s-${token}${Date.now().toString(36)}`;
   }
 }
 

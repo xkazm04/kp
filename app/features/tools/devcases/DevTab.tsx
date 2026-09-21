@@ -37,6 +37,7 @@ export function DevTab() {
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesTruncated, casesState, loadCases,
+    raiseCaseLimit, canLoadMoreCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox,
@@ -128,6 +129,7 @@ export function DevTab() {
         <DevTabCasesView
           cases={cases}
           casesTruncated={casesTruncated}
+          onLoadMoreCases={canLoadMoreCases ? raiseCaseLimit : undefined}
           casesState={casesState}
           lifecycles={lifecycles}
           lifecyclesState={lifecyclesState}

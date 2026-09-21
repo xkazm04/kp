@@ -16,7 +16,7 @@ CAP_GROUNDING = "grounding"
 # NOTE: CAP_FILE_INPUT is intentionally NOT advertised by the anthropic/openai/
 # azure_openai rows even though those vendors support multimodal input. Their
 # adapters implement only text `_call(prompt: str, ...)` — advertising the cap
-# green-lit routing `cv_analysis`/`profile_extract` to a provider whose adapter
+# green-lit routing `cv_analysis` to a provider whose adapter
 # silently drops the attachment and analyzes an empty prompt — the exact
 # misconfiguration this matrix exists to prevent. Re-add CAP_FILE_INPUT to a row
 # ONLY when that provider's adapter actually attaches files (the gemini row earned
@@ -37,6 +37,10 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     # Qwen Cloud (DashScope-intl compatible mode) — Qwen family + hosted
     # third-party models by slug, one key. Text/JSON only here.
     "qwen": frozenset({CAP_JSON}),
+    # LightTrack's lt-gateway on localhost: a route per use case in front of the
+    # seat-metered CLIs, with seat failover. Text/JSON only. Contract:
+    # https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md
+    "gateway": frozenset({CAP_JSON}),
 }
 
 # The use-case catalog (docs/architecture/llm-provider-layer.md). Unknown use cases default
@@ -53,9 +57,7 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "devcase_role_design": frozenset({CAP_JSON}),
     "devcase_case_design": frozenset({CAP_JSON}),
     "devcase_reflect": frozenset({CAP_JSON}),
-    "devcase_tooling": frozenset({CAP_JSON}),
     "devcase_evaluate": frozenset({CAP_JSON}),
-    "devcase_transfer": frozenset({CAP_JSON}),
     "devcase_judge": frozenset({CAP_JSON}),
     "devcase_interview_scenario": frozenset({CAP_JSON}),
     "devcase_seed": frozenset({CAP_JSON}),
@@ -81,9 +83,19 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # role_intake_voice: one plain-text reply per turn, no JSON contract, so it
     # requires no capability at all and every provider can serve it.
     "assistant": frozenset(),
+    # Rendering a published role posting into another language
+    # (posting_translate_cli.py). PROSE in, prose out — a Markdown document, not a
+    # JSON contract — so like role_intake_voice and assistant it requires no
+    # capability and every provider can serve it. There is deliberately NO
+    # deterministic twin: a machine that cannot translate refuses instead.
+    "posting_translate": frozenset(),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
-    "profile_extract": frozenset({CAP_FILE_INPUT}),
+    # Job-seeker module (/me): the CV polish and fit dialogs, and the one-off
+    # extraction-rule authoring for a board without JSON-LD. All plain JSON turns.
+    "cv_polish": frozenset({CAP_JSON}),
+    "fit_dialog": frozenset({CAP_JSON}),
+    "extraction_rules": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -101,6 +113,10 @@ DEFAULT_MODELS: dict[str, str | None] = {
     "ollama": None,
     # Qwen Cloud models are addressed by slug — always explicit, like OpenRouter.
     "qwen": None,
+    # The gateway's model is a ROUTE named after the use case — default_model()
+    # answers with the use-case key, so None here means "derived", not "required"
+    # (the same reading claude_cli's None gets; llm-model-required.test.ts excludes both).
+    "gateway": None,
 }
 
 # Heavy-output use cases: the payload is structurally LARGE (a proposal per
@@ -140,6 +156,14 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # 6 objectives in one object — past the base 2048 cap, at which point the JSON
     # truncates and the identical heuristic dossier ships instead.
     "repo_scan": 6144,
+    # A CV polish turn re-emits the whole polished CV as Markdown plus per-section
+    # suggestions; a two-page CV alone is ~1500 tokens, so the base cap truncates
+    # the JSON and the deterministic script ships instead.
+    "cv_polish": 6144,
+    "fit_dialog": 4096,
+    # A rule set is ~7 rules x locator + samples; the authoring prompt also asks for
+    # the reasoning per rule, which is what the reviewer reads before saving.
+    "extraction_rules": 4096,
     # agent_fit re-emits the WHOLE judgement in one object: up to
     # _MAX_COVERAGE_ITEMS=12 {item, coverage, rationale} rows, then a spec whose
     # `systemPromptDraft` is asked for at <=1200 chars and ACCEPTED by the coercer
@@ -170,6 +194,14 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # in ONE shot from a finished voice call. Same "re-emit the whole structured
     # artifact each call" shape as `jd_ingest`, and sized with it.
     "role_intake": 6144,
+    # A translation re-emits the WHOLE posting: the source document is already a
+    # full career-page ad (description, two requirement lists, a details table),
+    # and the answer is that document again in another language. Sized with
+    # jd_ingest, which carries the same "re-emit the whole ad" shape — the base
+    # 2048 truncates a long posting mid-requirement, and a posting that stops in
+    # the middle of a requirement list is exactly the artifact this use case must
+    # never produce.
+    "posting_translate": 6144,
 }
 
 # Use cases DELIBERATELY left on the base cap. A row here is a decision with a
@@ -277,6 +309,10 @@ USE_CASE_MODEL_OVERRIDES: dict[tuple[str, str], str] = {
 
 
 def default_model(use_case: str, provider: str) -> str | None:
+    if provider == "gateway":
+        # The route is the use case (gateway.toml `[routes.<use_case>]`); an override
+        # can still pin a literal `provider/model@effort` the gateway also accepts.
+        return USE_CASE_MODEL_OVERRIDES.get((use_case, provider)) or use_case
     return USE_CASE_MODEL_OVERRIDES.get((use_case, provider)) or DEFAULT_MODELS.get(provider)
 
 

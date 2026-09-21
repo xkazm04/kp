@@ -154,7 +154,7 @@ export function MatchCard({
               workMode: m.workMode ? enumLabel("workMode", m.workMode) : "—",
               family: m.roleFamily ? enumLabel("family", m.roleFamily) : "—",
               seniority: m.seniority ?? "—",
-              salary: formatBandCompact(m.salaryBand, locale),
+              salary: formatBandCompact(m.salaryBand, locale, t("shared.bandUnit")),
               b: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
             })}
           </p>
@@ -197,7 +197,7 @@ export function MatchCard({
             </p>
           ) : null}
 
-          {reasoning ? <ReasoningPanel state={reasoning} /> : null}
+          {reasoning ? <ReasoningPanel state={reasoning} onRetry={canExplain ? explain : undefined} /> : null}
         </div>
       </div>
     </li>

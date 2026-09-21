@@ -126,14 +126,14 @@ test("the ✓ on a token-link copy waits for the clipboard write to actually suc
 // --- the GDPR panel must never imply "still working" after giving up ---------------
 
 test("a failed bundle load puts the consent panel into its real failed state", () => {
-  const hook = readFileSync("app/features/hiring/pipeline/usePipelineCandidateDrawerState.ts", "utf8");
+  const hook = readFileSync("app/features/hiring/pipeline/candidate/state/useCandidateBundle.ts", "utf8");
   const panel = readFileSync("app/features/hiring/pipeline/PipelineConsentPanel.tsx", "utf8");
-  const drawer = readFileSync("app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "utf8");
+  const record = readFileSync("app/features/hiring/pipeline/candidate/CandidateRecordTab.tsx", "utf8");
   // The catch that used to reset ONLY history now also records the give-up.
   assert.match(hook, /setBundleFailed\(true\)/);
   assert.match(hook, /bundleFailed/);
-  // …the drawer hands it to the panel…
-  assert.match(drawer, /loadFailed=\{bundleFailed\}/);
+  // …the candidate modal's Record tab hands it to the panel…
+  assert.match(record, /loadFailed=\{bundleFailed\}/);
   // …and the panel's failed branch honours it, ahead of the loading branch.
   assert.match(panel, /failed \|\| loadFailed \?/);
   // And the one-call bundle stays one call: the panel must not gain a second fetch.

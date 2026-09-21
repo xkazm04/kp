@@ -15,7 +15,8 @@ export type BrandConfig = {
   displayName: string | null;
   /** Primary accent as hex — overrides the --color-coral token in both themes. */
   accentColor: string | null;
-  /** https:// URL to the customer's logo. null = product default. */
+  /** Logo URL: `https://`, a path-absolute `/…` (same origin), or loopback
+   *  `http://`. null = product default. */
   logoUrl: string | null;
   /** The Spark Dark twin of `accentColor`, DERIVED (never operator-supplied) by
    *  `deriveDarkAccent`. null exactly when `accentColor` is null. The app ships two
@@ -297,9 +298,26 @@ export function sanitizeBrandName(value: unknown): string | null {
  *  REJECT threshold — never a truncation point (see below). */
 export const MAX_LOGO_URL = 500;
 
-/** An `https://` URL, else null — blocks `javascript:` / `data:` / other
- *  schemes from reaching an <img src>. The logo is browser-loaded, so self-host /
- *  air-gapped installs should host it on their own origin.
+/** Whether a hostname is loopback — the only `http:` host a logo may name.
+ *  Remote `http://` stays refused (mixed-content and an open redirect onto an
+ *  <img src>); path-absolute `/…` covers same-origin air-gapped files. */
+function isLoopbackHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === "localhost" || h === "[::1]" || h === "::1" || /^127(?:\.\d{1,3}){3}$/.test(h);
+}
+
+/** Path-absolute `/brand/logo.png` — no scheme, so `javascript:` / `data:` cannot
+ *  hide here. Protocol-relative `//host/…` is not this shape. */
+function isPathAbsoluteLogo(v: string): boolean {
+  return v.startsWith("/") && !v.startsWith("//") && !v.includes("\\") && !/\s/.test(v);
+}
+
+/** A URL an <img src> may load without opening an injection scheme.
+ *
+ *  Accepts (1) `https:` as before, (2) path-absolute `/…` resolved by the browser
+ *  against the install origin — the air-gapped shape the self-hosting doc already
+ *  describes — and (3) `http:` only when the host is loopback. `javascript:` /
+ *  `data:` / `ftp:` / remote `http:` are refused.
  *
  *  Over-length is REJECTED, not clamped. This used to `slice(0, 500)`, which turns a
  *  600-char signed CDN URL (`…?X-Amz-Signature=…`) into a 500-char PREFIX: still a
@@ -311,9 +329,13 @@ export function sanitizeLogoUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const v = value.trim();
   if (!v) return null;
+  if (isPathAbsoluteLogo(v)) {
+    return v.length > MAX_LOGO_URL ? null : v;
+  }
   try {
     const u = new URL(v);
-    if (u.protocol !== "https:") return null;
+    const httpLoopback = u.protocol === "http:" && isLoopbackHostname(u.hostname);
+    if (u.protocol !== "https:" && !httpLoopback) return null;
     return u.href.length > MAX_LOGO_URL ? null : u.href;
   } catch {
     return null;

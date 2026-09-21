@@ -172,3 +172,35 @@ test("an absent timeToHireSamples falls back to `hired` (existing callers unchan
   assert.deepEqual(without, withField);
   assert.equal(without.status, "measured", `9 still clears MIN_SAMPLE ${MIN_SAMPLE}`);
 });
+
+test("a windowed pack's capacity basis is point-in-time and does not claim the window", () => {
+  const pack = buildMetricPack(input({ windowDays: 90 }), AT, EN);
+  const basis = byKey(pack, "recruiter_capacity").basis;
+  assert.match(basis, /now|point-in-time|current/i);
+  assert.doesNotMatch(basis, /over the last 90 days/i);
+  assert.match(basis, /not last 90 days/i);
+});
+
+test("an all-time pack's capacity basis does not pretend to be windowed", () => {
+  const pack = buildMetricPack(input({ windowDays: null }), AT, EN);
+  const basis = byKey(pack, "recruiter_capacity").basis;
+  assert.doesNotMatch(basis, /last \d+ days/i);
+  assert.match(basis, /open roles/i);
+});
+
+test("a windowed pack whose only measured row is the capacity snapshot is not certifiable", () => {
+  const pack = buildMetricPack(
+    input({
+      hired: 0,
+      medianTimeToHireDays: null,
+      avgTimeToHireDays: null,
+      costPerHireCzk: null,
+      automationRoi: null,
+      windowDays: 90,
+    }),
+    AT,
+    EN
+  );
+  assert.equal(byKey(pack, "recruiter_capacity").status, "measured");
+  assert.equal(pack.certifiable, false);
+});

@@ -1,0 +1,50 @@
+[
+  {
+    "field": "externalKey",
+    "locator": { "kind": "css", "expr": "article.SearchResultCard a.SearchResultCard__titleLink", "attr": "data-jobad-id" },
+    "cardinality": "many",
+    "pick": "first",
+    "post": ["trim"],
+    "required": true
+  },
+  {
+    "field": "url",
+    "locator": { "kind": "css", "expr": "article.SearchResultCard a.SearchResultCard__titleLink", "attr": "href" },
+    "cardinality": "many",
+    "pick": "first",
+    "post": ["trim", "absUrl"],
+    "required": true
+  },
+  {
+    "field": "title",
+    "locator": { "kind": "css", "expr": "article.SearchResultCard a.SearchResultCard__titleLink" },
+    "cardinality": "many",
+    "pick": "first",
+    "post": ["text", "trim"],
+    "required": true
+  },
+  {
+    "field": "company",
+    "locator": { "kind": "css", "expr": "article.SearchResultCard li.SearchResultCard__footerItem:first-child span" },
+    "cardinality": "many",
+    "pick": "first",
+    "post": ["text", "trim"],
+    "required": false
+  },
+  {
+    "field": "location",
+    "locator": { "kind": "css", "expr": "article.SearchResultCard li[data-test=\"serp-locality\"]" },
+    "cardinality": "many",
+    "pick": "first",
+    "post": ["text", "trim"],
+    "required": false
+  },
+  {
+    "field": "salaryText",
+    "locator": { "kind": "regex", "expr": "SearchResultCard__footerItem--salary\">([^<]+)<" },
+    "cardinality": "many",
+    "pick": "first",
+    "post": ["text", "trim"],
+    "required": false
+  }
+]

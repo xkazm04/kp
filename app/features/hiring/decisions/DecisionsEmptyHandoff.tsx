@@ -19,7 +19,7 @@ import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { DECISIONS_GLYPH } from "@/app/_components/glyph/glyphs/decisionsGlyph";
-import { CARD_PAD, EYEBROW, ICON_STICKER, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { CARD_PAD, EYEBROW, ICON_STICKER, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { DESTINATION_ICON, hintFor, useChainNav, type ChainLink } from "./DecisionsEmptyShared";
 import type { DecisionsEmptyProps } from "./DecisionsEmptyShared";
 
@@ -51,7 +51,13 @@ function DestinationCard({ link, onOpen }: { link: ChainLink; onOpen: () => void
   );
 }
 
-export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: DecisionsEmptyProps) {
+export function DecisionsEmptyHandoff({
+  title,
+  body,
+  links,
+  reconsiderCount,
+  onRevealReconsider,
+}: DecisionsEmptyProps & { onRevealReconsider: () => void }) {
   const t = useTranslations("decisions.empty");
   const go = useChainNav();
   return (
@@ -76,10 +82,14 @@ export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: D
 
       {/* The one branch that runs backwards: rejects a recruiter can still pull back. */}
       {reconsiderCount > 0 ? (
-        <p className="mx-auto mt-5 inline-flex items-center gap-1.5 text-sm text-steel">
-          <RotateCcw size={13} aria-hidden className="text-coral" />
+        <button
+          type="button"
+          onClick={onRevealReconsider}
+          className={`${NOTICE("amber")} focus-ring mx-auto mt-5 inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-semibold hover:bg-amber-100`}
+        >
+          <RotateCcw size={13} aria-hidden />
           {t("reconsiderLine", { count: reconsiderCount })}
-        </p>
+        </button>
       ) : null}
     </div>
   );

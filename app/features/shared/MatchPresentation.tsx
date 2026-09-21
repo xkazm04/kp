@@ -3,7 +3,7 @@
 import { SearchX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
-import { CHIP, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, CHIP, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import type { KoReason, MatchResponse, ScoreDimension } from "@/app/features/shared/matchTypes";
 import { isEarlyCareer } from "@/app/features/shared/matchTypes";
@@ -105,7 +105,9 @@ function KoReasonList({ reasons }: { reasons: KoReason[] }) {
 // Empty state for a 0-match run. Everything filtered means survivors === 0, so the
 // aggregated blockers ARE the explanation — surface them plus a keyed next action
 // instead of a blank list. (An empty corpus is a distinct, simpler story.)
-export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["meta"]; archetype: string }) {
+export type NoMatchesAction = { href?: string; onClick?: () => void; label: string };
+
+export function NoMatchesExplainer({ meta, archetype, action }: { meta: MatchResponse["meta"]; archetype: string; action?: NoMatchesAction }) {
   const t = useTranslations("match.shared");
   const evaluated = meta.evaluated ?? 0;
   const reasons = meta.koReasons ?? [];
@@ -113,7 +115,7 @@ export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["m
 
   if (evaluated === 0) {
     return (
-      <Card>
+      <Card action={action}>
         <p className="text-base font-semibold text-ink">{t("noJobsTitle")}</p>
         <p className="mt-1 text-base text-steel">{t("noJobsBody")}</p>
       </Card>
@@ -125,7 +127,7 @@ export function NoMatchesExplainer({ meta, archetype }: { meta: MatchResponse["m
   const hintPath = `koHint.${hintKey}` as Parameters<typeof t>[0];
   const hint = t.has(hintPath) ? t(hintPath) : t("koHint.other");
   return (
-    <Card>
+    <Card action={action}>
       <p className="text-base font-semibold text-ink">
         {early ? t("noEntryRoles") : t("noRoles")}
       </p>
@@ -159,11 +161,13 @@ export function KoReasonsNote({ koFiltered, reasons }: { koFiltered: number; rea
 // border. It used to re-type the whole string, which is how it kept the Studio
 // Light-only `bg-paper/50` and missed the sunken panel's `dark:rounded-2xl`
 // sticker radius: on Spark Dark this was the one square card on the page.
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, action }: { children: React.ReactNode; action?: NoMatchesAction }) {
+  const cls = `${BTN_GHOST} px-3 py-1.5`;
   return (
     <div className={`${PANEL_SUNKEN} flex flex-col items-center gap-3 border-dashed px-6 py-10 text-center`}>
       <SearchX className="h-8 w-8 text-steel" aria-hidden />
       <div>{children}</div>
+      {action?.href ? <a href={action.href} className={cls}>{action.label}</a> : action ? <button type="button" onClick={action.onClick} className={cls}>{action.label}</button> : null}
     </div>
   );
 }

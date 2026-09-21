@@ -56,12 +56,16 @@ export function AiReviewCardLadder({
   isScorecard,
   peers,
   peerFacts,
+  unbounded = false,
 }: {
   entry: Entry;
   parsed: ParsedApproval;
   isScorecard: boolean;
   peers: PeerScore[];
   peerFacts: JobPeerContext | null;
+  /** Inside the candidate modal's side panel the list takes the panel's whole
+   *  height and only the PANEL scrolls, when it must; the card-height cap is off. */
+  unbounded?: boolean;
 }) {
   const t = useTranslations("decisions.summary");
   const own = peerFacts?.byEntry[entry.id] ?? null;
@@ -77,7 +81,7 @@ export function AiReviewCardLadder({
   // ranking and scrolls, opening centred on the reviewed candidate (below).
   const listRef = useRef<HTMLUListElement>(null);
   const selfRef = useRef<HTMLLIElement>(null);
-  const scrolls = scored.length > LADDER_VISIBLE;
+  const scrolls = !unbounded && scored.length > LADDER_VISIBLE;
   useEffect(() => {
     const list = listRef.current;
     const self = selfRef.current;

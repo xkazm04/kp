@@ -34,8 +34,13 @@ process.env.GOOGLE_OAUTH_CLIENT_SECRET = "test-client-secret";
 
 const { POST } = await import("./route.ts");
 const { createPipelineEntry, actOnPipelineEntry } = await import("../../_lib/db/pipeline.ts");
-const { createScheduleInvite, confirmScheduleInvite, getScheduleInviteByToken, listScheduleInvitesForEntry } =
-  await import("../../_lib/schedule-store.ts");
+const {
+  createScheduleInvite,
+  confirmScheduleInvite,
+  getScheduleInviteByToken,
+  listScheduleInvitesForEntry,
+  setScheduleInviteProposals,
+} = await import("../../_lib/schedule-store.ts");
 const { proposeSlots, isoToDateSlot } = await import("../../_lib/schedule-slots.ts");
 const { REFUSAL_ERRORS } = await import("../../_lib/api-response.ts");
 const { saveCalendarConnection, deleteCalendarConnection } = await import("../../_lib/calendar/token-store.ts");
@@ -97,7 +102,7 @@ function stubGoogle(busy: "outage" | "all" | { start: string; end: string }[]): 
 
 // A fixed pool of offerable instants, taken once: each test books a different one so
 // the kp-side collision check never fires where the CALENDAR is the thing under test.
-const SLOTS = proposeSlots([], 12);
+const SLOTS = proposeSlots([], 20);
 
 let seq = 0;
 function entryFixture(): { id: string; candidateLabel: string } {
@@ -251,5 +256,98 @@ test("a CLEAR connected calendar books, and re-confirming the same cell is not r
   stubGoogle("all");
   const again = await book({ action: "book", entryId: entry.id, dateSlot: isoToDateSlot(slot.value) });
   assert.equal(again.status, 200, "re-confirming the same slot is idempotent, not a conflict");
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+});
+
+// ---- The other two confirm writers re-check too (accept_proposal, reschedule) --
+//
+// Candidate confirm and week-grid book already call slotStillFree; a proposed
+// 17:30 that is busy on the connected calendar still booked through accept_proposal
+// (the stuck-candidate path, often because the calendar emptied the grid) and
+// through recruiter reschedule.
+
+function pendingInviteAt(slot: { label: string; value: string }): { token: string; entryId: string } {
+  const entry = entryFixture();
+  const invite = createScheduleInvite({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobTitle: "Booking Test Role",
+    durationMin: 45,
+  });
+  const stored = setScheduleInviteProposals(invite.token, [{ label: slot.label, value: slot.value }]);
+  assert.ok(stored, "the store must accept the fixture proposal");
+  return { token: invite.token, entryId: entry.id };
+}
+
+test("accept_proposal of an hour the connected calendar shows BUSY is refused", async () => {
+  const slot = SLOTS[8];
+  const { token, entryId } = pendingInviteAt(slot);
+  connectCalendar();
+  stubGoogle("all");
+  const r = await refusal({ action: "accept_proposal", token, slotAt: slot.value });
+  assert.ok(freeBusyCalls > 0, "accept_proposal actually consulted free/busy");
+  assert.equal(r.status, 409);
+  assert.equal(r.code, "SCHEDULE_CALENDAR_BUSY");
+  assert.equal(
+    listScheduleInvitesForEntry(entryId).some((i) => i.status === "confirmed"),
+    false,
+    "nothing was booked"
+  );
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+});
+
+test("an UNKNOWN calendar never blocks accept_proposal — the degradation contract", async () => {
+  const slot = SLOTS[9];
+  const { token, entryId } = pendingInviteAt(slot);
+  connectCalendar();
+  stubGoogle("outage");
+  const res = await book({ action: "accept_proposal", token, slotAt: slot.value });
+  assert.equal(res.status, 200, "a failed lookup is UNKNOWN, not busy — the booking proceeds");
+  assert.ok(freeBusyCalls > 0, "the outage path was genuinely exercised");
+  assert.equal(
+    listScheduleInvitesForEntry(entryId).some((i) => i.status === "confirmed"),
+    true
+  );
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+});
+
+test("reschedule of an hour the connected calendar shows BUSY is refused", async () => {
+  const held = SLOTS[10];
+  const target = SLOTS[11];
+  const entry = entryFixture();
+  const invite = createScheduleInvite({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobTitle: "Booking Test Role",
+    durationMin: 45,
+  });
+  const confirmed = confirmScheduleInvite(invite.token, held.label, held.value);
+  assert.equal(confirmed.ok, true, "the fixture booking itself must land");
+  connectCalendar();
+  stubGoogle("all");
+  const r = await refusal({ action: "reschedule", token: invite.token, slotAt: target.value });
+  assert.ok(freeBusyCalls > 0, "reschedule actually consulted free/busy");
+  assert.equal(r.status, 409);
+  assert.equal(r.code, "SCHEDULE_CALENDAR_BUSY");
+  assert.equal(getScheduleInviteByToken(invite.token)!.slotAt, held.value, "the held booking is untouched");
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+});
+
+test("reschedule to the invite's own slot is not refused by kp's own event", async () => {
+  const slot = SLOTS[12];
+  const entry = entryFixture();
+  const invite = createScheduleInvite({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobTitle: "Booking Test Role",
+    durationMin: 45,
+  });
+  const confirmed = confirmScheduleInvite(invite.token, slot.label, slot.value);
+  assert.equal(confirmed.ok, true, "the fixture booking itself must land");
+  connectCalendar();
+  stubGoogle("all");
+  const res = await book({ action: "reschedule", token: invite.token, slotAt: slot.value });
+  assert.equal(res.status, 200, "own-slot skip still moves — kp's event must not refuse its own instant");
+  assert.equal(getScheduleInviteByToken(invite.token)!.slotAt, slot.value);
   deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
 });

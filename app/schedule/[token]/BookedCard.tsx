@@ -20,6 +20,7 @@ export function BookedCard({
   confirmed,
   confirmationDelivery,
   canReschedule,
+  reschedulesRemaining,
   capReached,
   rsvpPending,
   onReschedule,
@@ -32,6 +33,7 @@ export function BookedCard({
   confirmed: string;
   confirmationDelivery: "sent" | "queued" | "failed" | null;
   canReschedule: boolean;
+  reschedulesRemaining: number;
   capReached: boolean;
   rsvpPending: "confirm" | "cancel" | null;
   onReschedule: () => void;
@@ -126,6 +128,9 @@ export function BookedCard({
             <CalendarClock size={15} className="text-coral" /> {t("differentTime")}
           </button>
         ) : null}
+        <span className="self-center text-meta text-steel">
+          {t("reschedulesRemaining", { n: reschedulesRemaining })}
+        </span>
       </div>
       {/* RSVP (idea-87af39c5): turn the one-way booking into a two-way confirm so
           the recruiter gets an early no-show signal and a freed slot. */}

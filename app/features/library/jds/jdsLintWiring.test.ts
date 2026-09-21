@@ -1,15 +1,35 @@
-// Direction 1 — proves the JD builder's authoring surface actually SURFACES the
-// finished jd-lint engine (which shipped with zero importers). The builder derives
-// its advisory findings through builderLintFindings; JdBuilder renders JdLintPanel
-// whenever that returns any. This pins the wiring at the pure seam the harness can
-// run (no DOM/RTL): the debounce + <JdLintPanel/> render are thin over this.
+// Direction 1 — proves post-build JD editors surface the finished jd-lint engine.
+// The Generate form's editor is the hiring NEED, not a posting, so the builder
+// must not run this engine on needText (a 40+ character prompt with no city is
+// not a missing-place JD). Ledger / public editors still lint the body.
 //
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { builderLintFindings, jdMarketResearchAvailable, jdMustHaveCount, LINT_MIN_BODY_CHARS } from "./jdsLibrary.ts";
 
-test("a planted vague phrase surfaces as a lint finding in the builder", () => {
+const builderLogic = readFileSync(fileURLToPath(new URL("./jdsBuilderLogic.ts", import.meta.url)), "utf8");
+const builderUi = readFileSync(fileURLToPath(new URL("./JdsBuilder.tsx", import.meta.url)), "utf8");
+
+test("the Generate form does not lint the need prompt", () => {
+  assert.doesNotMatch(builderLogic, /builderLintFindings/, "useJdBuilderLogic must not run finished-JD lint on needText");
+  assert.doesNotMatch(builderUi, /JdLintPanel/, "JdBuilder must not mount the lint panel on the need editor");
+});
+
+test("a 40+ character need without a city is still a missing-place finding on a body", () => {
+  const need =
+    "We need someone to lead the redesign of our onboarding funnel and mentor two juniors over the year.";
+  assert.ok(need.trim().length >= LINT_MIN_BODY_CHARS);
+  const findings = builderLintFindings(need, { marketResearch: true });
+  assert.ok(
+    findings.some((f) => f.kind === "missing" && f.what === "place"),
+    "post-build editors still flag a body that lacks place",
+  );
+});
+
+test("a planted vague phrase surfaces as a lint finding on a finished JD body", () => {
   const body =
     "We offer a competitive salary and a dynamic team. Remote from Prague. You will ship features and own outcomes.";
   const findings = builderLintFindings(body, { marketResearch: false });

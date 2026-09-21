@@ -289,7 +289,7 @@ def evaluate_gate(sig: dict, role_fit_rate: float | None, qual: dict | None, jud
 def _report_md(rows: list[Row], sig: dict, role_fit: dict, qual: dict | None, passed: bool, reasons: list[str]) -> str:
     banner = "✓ PASS" if passed else "✗ FAIL"
     L = [
-        f"# Case-generation calibration — real-JD corpus\n",
+        "# Case-generation calibration — real-JD corpus\n",
         f"## {banner}\n",
     ]
     if reasons:

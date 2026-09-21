@@ -95,8 +95,8 @@ test("the self-report is clamped and rounded, and absent where no scalar exists"
 // 2. The render grammar at the two sites the findings name (source-level).
 // ---------------------------------------------------------------------------
 
-test("the AI review card does not render the model's self-report at all", () => {
-  const src = readFileSync(path.join(repo, "app", "features", "hiring", "decisions", "DecisionsAiReviewCard.tsx"), "utf8");
+test("the decision bar (the AI review card's successor) does not render the model's self-report at all", () => {
+  const src = readFileSync(path.join(repo, "app", "features", "hiring", "pipeline", "candidate", "decision", "CandidateDecisionBar.tsx"), "utf8");
   // 2026-09 (operator call): the number came off the card entirely. Nothing had
   // measured the model's 0-100 rating of its own verdict against an outcome, so it
   // gave a reviewer a figure to weigh and no way to check it; the MEASURED

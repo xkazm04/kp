@@ -19,7 +19,7 @@ import {
   isTerminalScheduleInviteStatus,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
-import { offeredSlotFor, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
+import { INTERVIEW_TZ, offeredSlotFor, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { isValidTimeZone } from "@/app/_lib/timezone";
@@ -40,6 +40,11 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // reconcileReason (raw internal error text persisted by the reconcile flag).
 // SchedulePicker only consumes these five fields; nothing else belongs on the
 // public wire.
+function remainingReschedules(invite: ScheduleInvite): number {
+  if (invite.status !== "confirmed") return 0;
+  return Math.max(0, MAX_RESCHEDULES - invite.rescheduleCount);
+}
+
 function publicInviteView(invite: ScheduleInvite) {
   return {
     candidateLabel: invite.candidateLabel,
@@ -164,7 +169,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     noSlots,
     canReschedule,
     rescheduleCapReached,
+    reschedulesRemaining: remainingReschedules(invite),
     calendarChecked: proposed.calendarChecked,
+    interviewTz: INTERVIEW_TZ,
   });
 }
 
@@ -506,6 +513,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         confirmationSent: confirmationDelivery !== "failed",
         confirmationDelivery,
         rescheduled: true,
+        canReschedule: moved.invite.status === "confirmed" && moved.invite.rescheduleCount < MAX_RESCHEDULES,
+        rescheduleCapReached: moved.invite.status === "confirmed" && moved.invite.rescheduleCount >= MAX_RESCHEDULES,
+        reschedulesRemaining: remainingReschedules(moved.invite),
       });
     }
 
@@ -525,6 +535,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       invite: publicInviteView(result.invite),
       confirmationSent: confirmationDelivery !== "failed",
       confirmationDelivery,
+      // The booked card hid Change time until reload: GET on a pending invite
+      // answers canReschedule:false, and this envelope omitted the flags, so
+      // pick() had nothing to adopt. After first confirm, rescheduleCount is 0.
+      canReschedule: result.invite.status === "confirmed" && result.invite.rescheduleCount < MAX_RESCHEDULES,
+      rescheduleCapReached: result.invite.status === "confirmed" && result.invite.rescheduleCount >= MAX_RESCHEDULES,
+      reschedulesRemaining: remainingReschedules(result.invite),
     });
   } catch (error) {
     // Raw err.message would surface SQLite/dispatch internals on a public

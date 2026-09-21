@@ -124,8 +124,31 @@ test("need_analysis / design_artifacts require a present need object", () => {
   assert.equal(buildDedupeKey("design_artifacts", { analysis: { x: 1 } }), null, "need is the required identity");
 });
 
-test("batch_screen is an intentional singleton constant", () => {
-  assert.equal(buildDedupeKey("batch_screen", {}), "batch_screen");
+test("batch_screen keys by the sorted cohort, not a process-wide constant", () => {
+  // Order-independent: the same set of ids in any order produces one key, so a
+  // double-click on the same role's entry column dedupes onto the in-flight run.
+  assert.equal(
+    buildDedupeKey("batch_screen", { entryIds: ["b", "a", "c"] }),
+    buildDedupeKey("batch_screen", { entryIds: ["a", "b", "c"] })
+  );
+  assert.equal(buildDedupeKey("batch_screen", { entryIds: ["a", "b"] }), "batch_screen:a,b");
+  // Two different cohorts are two runs — Role A's evaluate must not inherit Role B's.
+  assert.notEqual(
+    buildDedupeKey("batch_screen", { entryIds: ["a", "b"] }),
+    buildDedupeKey("batch_screen", { entryIds: ["a", "c"] })
+  );
+  // Missing/empty ids do NOT collapse to the old process-wide constant.
+  assert.notEqual(buildDedupeKey("batch_screen", {}), "batch_screen");
+  assert.notEqual(buildDedupeKey("batch_screen", { entryIds: [] }), "batch_screen");
+  assert.equal(buildDedupeKey("batch_screen", {}), null);
+  assert.equal(buildDedupeKey("batch_screen", { entryIds: [] }), null);
+  // Legacy full-board sweep (no entryIds) is a workspace-level singleton.
+  assert.equal(buildDedupeKey("batch_screen", { workspaceId: "ws1" }), "batch_screen:ws1");
+  assert.equal(buildDedupeKey("batch_screen", { entryIds: [], workspaceId: "ws1" }), "batch_screen:ws1");
+  assert.notEqual(
+    buildDedupeKey("batch_screen", { workspaceId: "ws1" }),
+    buildDedupeKey("batch_screen", { workspaceId: "ws2" })
+  );
 });
 
 test("batch_outreach keys by the sorted cohort, deduping a re-fire of the same selection", () => {

@@ -90,3 +90,14 @@ export function useReceivers({
 export function isReceiverLive(h: ChannelWebhookRecord): boolean {
   return h.receivedCount > 0 || Boolean(h.firstReceivedAt);
 }
+
+/** Milliseconds from receiver mint to first accepted lead. Null when no lead has
+ *  been filed, or either stamp is unparseable. This is the E5 time-to-first-lead
+ *  figure (`firstAcceptedAt - createdAt`); liveness stays {@link isReceiverLive}. */
+export function firstLeadDeltaMs(createdAt: string, firstAcceptedAt: string | null | undefined): number | null {
+  if (!firstAcceptedAt) return null;
+  const start = Date.parse(createdAt);
+  const first = Date.parse(firstAcceptedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(first) || first < start) return null;
+  return first - start;
+}

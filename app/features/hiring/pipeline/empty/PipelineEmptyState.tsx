@@ -7,7 +7,7 @@
  *
  * METAPHOR: a set built for a play nobody has walked onto yet. The board is the
  * teaching object, so the surface IS the board: the real lanes, in the real
- * order, wearing the real column-header type (`text-meta uppercase text-steel`,
+ * order, wearing the real column-header type (the META_LABEL recipe,
  * hairline dividers) the live PipelineBoard uses. Each lane holds a bracketed
  * exemplar of what lands in it, so reading the empty surface is reading what the
  * work will produce (docs/design/surface-doctrine.md §1: "an empty state is an
@@ -40,10 +40,10 @@
 
 import { useTranslations } from "next-intl";
 import { ArrowRight, CornerLeftUp, UserPlus } from "lucide-react";
-import { PANEL, EYEBROW, TITLE_DISPLAY, META_LABEL, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { PANEL, EYEBROW, TITLE_DISPLAY, META_LABEL, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { useEnumLabel, labelOr } from "@/app/_lib/use-enum-label";
-import { STAGES } from "@/app/features/shared/pipelineTypes";
-import { EMPTY_MOVES } from "./pipelineEmptyMoves";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { EMPTY_MOVES, emptyBoardLanes, isEmptyBoardEntryLane } from "./pipelineEmptyMoves";
 import { useEmptyMoveNav } from "./useEmptyMoveNav";
 import { PipelineEmptyMoveCard } from "./PipelineEmptyMoveCard";
 
@@ -53,6 +53,8 @@ export type PipelineEmptyStateProps = {
   onResumeSetup: () => void;
   /** Absent when the guided tour is already running. */
   onStartTour?: () => void;
+  /** The live board axis from GET /api/pipeline — the set teaches these columns. */
+  axis: readonly StageDef[];
 };
 
 /**
@@ -78,21 +80,26 @@ export function PipelineEmptyState({
   setupUnfinished,
   onResumeSetup,
   onStartTour,
+  axis,
 }: PipelineEmptyStateProps): React.JSX.Element {
   const t = useTranslations("pipeline.emptyState");
   const enumLabel = useEnumLabel();
   const go = useEmptyMoveNav();
+  const lanes = emptyBoardLanes(axis);
   // The slot copy is OPTIONAL per stage: a workspace that renames or invents a
-  // column (Settings -> Hiring composes the axis) simply gets no exemplar rather
+  // column (Settings -> Hiring composes the axis) simply gets the fallback rather
   // than an English one baked in.
   const slotFor = (stage: string): string => labelOr(t, `stageSlot.${stage}`, t("stageSlotFallback"));
+  const stageLabel = (stage: StageDef): string =>
+    stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
 
   return (
     <section className={`${PANEL} overflow-hidden`} aria-label={t("stageSet.title")}>
-      {/* Step zero, when the wizard was left early: one full-width band, so the
-          surface below is unchanged whether it is here or not. */}
+      {/* Step zero, when the wizard was left early: one full-width band composed
+          from the amber NOTICE recipe (its box shape squared off so the band spans
+          the panel), so the surface below is unchanged whether it is here or not. */}
       {setupUnfinished ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-50 px-5 py-3">
+        <div className={`${NOTICE("amber")} flex flex-wrap items-center gap-x-4 gap-y-2 rounded-none border-x-0 border-t-0 px-5 py-3 dark:rounded-none`}>
           <div className="min-w-0 flex-1">
             <p className="text-base font-semibold text-amber-900">{t("setupTitle")}</p>
             <p className="mt-0.5 text-sm text-amber-900">{t("setupBody")}</p>
@@ -110,8 +117,13 @@ export function PipelineEmptyState({
 
       {/* The set itself: the live board's column header row, unfilled. */}
       <ol aria-label={t("stageSet.laneStrip")} className="mt-4 flex border-y border-stone-200 bg-stone-50">
-        {STAGES.map((stage, i) => (
-          <SetLane key={stage} label={enumLabel("stage", stage)} slot={slotFor(stage)} entry={i === 0} />
+        {lanes.map((stage) => (
+          <SetLane
+            key={stage.id}
+            label={stageLabel(stage)}
+            slot={slotFor(stage.id)}
+            entry={isEmptyBoardEntryLane(stage)}
+          />
         ))}
       </ol>
 

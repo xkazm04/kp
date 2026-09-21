@@ -200,10 +200,10 @@ export function recordOutreachReply(entryId: string, workspaceId: string = DEFAU
  *  foreign workspace must not be able to silence another team's sequence by entry id.
  *
  *  NOT YET REACHABLE FROM THE UI — there is no "stop contacting this person" control on
- *  the candidate drawer yet, so today the only halt in production is a reply. Kept
- *  because the column and the "manual outranks replied" precedence are part of one
- *  coherent state model, and adding them later would mean a migration plus a re-read of
- *  the policy; called out here so nobody reads it as a live path. */
+ *  the candidate drawer yet, so today the only halt in production is a reply. The
+ *  reverse is `resumeOutreach`: a manual halt is a workflow pause, not a legal fact.
+ *  Kept because the column and the "manual outranks replied" precedence are part of one
+ *  coherent state model; called out here so nobody reads it as a live path. */
 export function haltOutreach(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
   ensureDb()
     .prepare(
@@ -213,6 +213,16 @@ export function haltOutreach(entryId: string, workspaceId: string = DEFAULT_WORK
         WHERE outreach_state.workspace_id = excluded.workspace_id`
     )
     .run(entryId, new Date().toISOString(), workspaceId);
+}
+
+/** Recruiter-initiated resume of a manual halt. Clears ONLY `manual_halt_at`, and
+ *  only when `workspace_id` matches — a foreign tenant is a no-op. Never writes
+ *  `candidate_halt_at` (the legal objection) or `replied_at`. A missing row is a
+ *  no-op: there is nothing to resume. */
+export function resumeOutreach(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+  ensureDb()
+    .prepare(`UPDATE outreach_state SET manual_halt_at = NULL WHERE entry_id = ? AND workspace_id = ?`)
+    .run(entryId, workspaceId);
 }
 
 /** THE CANDIDATE'S OWN STOP — recorded from the public /stop/[token] door.

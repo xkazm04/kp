@@ -6,11 +6,11 @@
 //
 // WHY THIS EXISTS: the surface already flushes to the server every FLUSH_MS and
 // re-buffers a batch in memory (pendingRef) when a flush fails — but that buffer,
-// and the `files` React state itself, live ONLY in memory. A reload, a crashed
-// tab, or a laptop that sleeps through a flaky-wifi gap loses everything back to
-// the frozen seed, even though most of the work was never actually gone — it just
-// never survived a page life-cycle event. This module is the client-side durable
-// copy: written on every meaningful change, read once on mount to resume.
+// the `files` React state, the captured chat, and the identity the finalize door
+// requires used to live ONLY in memory. A reload lost the dialogue the engine
+// grades and forced the candidate to retype name/contact. This module is the
+// client-side durable copy: written on every meaningful change, read once on
+// mount to resume.
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 
 // Mirror the server's own bounds (app/api/devcase/session/[id]/route.ts) so a
@@ -20,12 +20,26 @@ import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTy
 const MAX_FILES = 50;
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_PENDING_EVENTS = 2000;
+const MAX_CHAT_MESSAGES = MAX_PENDING_EVENTS;
+const MAX_IDENTITY_CHARS = 512;
 const KINDS = new Set<ProcessEvent["kind"]>(["open", "edit", "decision_log", "submit", "paste"]);
+const CHAT_CHANNELS = new Set(["assistant", "stakeholder"]);
+const CHAT_ROLES = new Set(["user", "model"]);
+
+export type LiveWorkChatMessage = {
+  channel: "assistant" | "stakeholder";
+  role: "user" | "model";
+  text: string;
+  deterministic?: boolean;
+};
 
 export type LiveWorkDraft = {
   sessionId: string | null;
   files: SeedFile[];
   pending: ProcessEvent[];
+  chat: LiveWorkChatMessage[];
+  name: string;
+  contact: string;
   savedAt: number;
 };
 
@@ -78,6 +92,25 @@ export function decodeDraft(raw: string | null | undefined): LiveWorkDraft | nul
 
   const savedAt = Number.isFinite(Number(p.savedAt)) ? Number(p.savedAt) : 0;
 
-  if (files.length === 0 && pending.length === 0 && !sessionId) return null;
-  return { sessionId, files, pending, savedAt };
+  const chat: LiveWorkChatMessage[] = Array.isArray(p.chat)
+    ? p.chat
+        .filter((m): m is Record<string, unknown> => !!m && typeof m === "object")
+        .filter((m) => CHAT_CHANNELS.has(String(m.channel)) && CHAT_ROLES.has(String(m.role)) && typeof m.text === "string")
+        .slice(0, MAX_CHAT_MESSAGES)
+        .map((m) => {
+          const msg: LiveWorkChatMessage = {
+            channel: m.channel as LiveWorkChatMessage["channel"],
+            role: m.role as LiveWorkChatMessage["role"],
+            text: String(m.text).slice(0, MAX_FILE_BYTES),
+          };
+          if (m.deterministic === true) msg.deterministic = true;
+          return msg;
+        })
+    : [];
+
+  const name = typeof p.name === "string" ? p.name.slice(0, MAX_IDENTITY_CHARS) : "";
+  const contact = typeof p.contact === "string" ? p.contact.slice(0, MAX_IDENTITY_CHARS) : "";
+
+  if (files.length === 0 && pending.length === 0 && !sessionId && chat.length === 0 && !name && !contact) return null;
+  return { sessionId, files, pending, chat, name, contact, savedAt };
 }

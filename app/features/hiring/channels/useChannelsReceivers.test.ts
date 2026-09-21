@@ -10,7 +10,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
-import { isReceiverLive } from "./useChannelsReceivers";
+import { firstLeadDeltaMs, isReceiverLive } from "./useChannelsReceivers";
 
 const hook = (over: Partial<ChannelWebhookRecord>): ChannelWebhookRecord =>
   ({ token: "t1", channel: "email", receivedCount: 0, acceptedCount: 0, firstReceivedAt: null, ...over }) as ChannelWebhookRecord;
@@ -32,4 +32,15 @@ test("liveness is connectivity, not leads — a live-but-broken receiver stays l
   assert.equal(isReceiverLive(hook({ receivedCount: 12, acceptedCount: 0 })), true);
   // …and leads without a receipt cannot manufacture liveness in the other direction.
   assert.equal(isReceiverLive(hook({ receivedCount: 0, acceptedCount: 3 })), false);
+});
+
+test("firstLeadDeltaMs is mint-to-first-lead, or null when none filed", () => {
+  const minted = "2026-01-01T00:00:00.000Z";
+  assert.equal(firstLeadDeltaMs(minted, null), null);
+  assert.equal(firstLeadDeltaMs(minted, undefined), null);
+  assert.equal(firstLeadDeltaMs(minted, "2026-01-01T00:00:10.000Z"), 10_000);
+  assert.equal(firstLeadDeltaMs(minted, "not-a-date"), null);
+  assert.equal(firstLeadDeltaMs("not-a-date", "2026-01-01T00:00:10.000Z"), null);
+  // A stamp that precedes mint is not a lead interval we would defend.
+  assert.equal(firstLeadDeltaMs(minted, "2025-12-31T00:00:00.000Z"), null);
 });

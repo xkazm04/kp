@@ -13,6 +13,7 @@ import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { boardSignature, eventsSignature } from "./pipelineRenderDiet";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 import { DEFAULT_BOARD_AXIS, type Entry, type PipelineEvent, type StageDef } from "@/app/features/shared/pipelineTypes";
+import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import { pipelineActionReason } from "./pipelineTabHelpers";
 import { mergeMovedRow, moveOutcome, restageEntries, shouldCommitBoard } from "./pipelineBoardMove";
 import { POLL_BASE_MS, nextPollDelay } from "./schedulerRunState";
@@ -35,6 +36,10 @@ export function usePipelineBoardData({
   // columns instead of flashing an empty grid; the payload replaces it.
   const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_BOARD_AXIS);
   const [retiredStages, setRetiredStages] = useState<readonly StageDef[]>([]);
+  // The hiring plan the board reads step executors from; null until the first load.
+  const [plan, setPlan] = useState<InterviewPlanRule | null>(null);
+  // Rejected candidates per lane (the rows stay off the board payload).
+  const [rejectedByLane, setRejectedByLane] = useState<Record<string, number>>({});
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Activity-feed health is tracked separately from the board: a failed events
@@ -104,7 +109,7 @@ export function usePipelineBoardData({
     // `?since=` request — so that half always runs.
     const boardDone: Promise<boolean> = opts?.eventsOnly
       ? Promise.resolve(true)
-      : sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; error?: string }>("/api/pipeline", {
+      : sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; plan?: InterviewPlanRule; rejectedByLane?: Record<string, number>; error?: string }>("/api/pipeline", {
         refresh: !opts?.shared,
       })
         .then((p) => {
@@ -117,6 +122,12 @@ export function usePipelineBoardData({
           if (Array.isArray(p.stages) && p.stages.length > 0) {
             setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(p.stages) ? cur : p.stages!));
           }
+          if (p.plan) {
+            const incomingPlan = p.plan;
+            setPlan((cur) => (JSON.stringify(cur) === JSON.stringify(incomingPlan) ? cur : incomingPlan));
+          }
+          const incomingRejected = p.rejectedByLane ?? {};
+          setRejectedByLane((cur) => (JSON.stringify(cur) === JSON.stringify(incomingRejected) ? cur : incomingRejected));
           setRetiredStages((cur) => {
             const incoming = p.retiredStages ?? [];
             return JSON.stringify(cur) === JSON.stringify(incoming) ? cur : incoming;
@@ -138,7 +149,9 @@ export function usePipelineBoardData({
           return false;
         });
     const since = eventsCursorRef.current;
-    const eventsDone: Promise<boolean> = fetch(since == null ? "/api/pipeline/events" : `/api/pipeline/events?since=${since}`, { signal })
+    const eventsDone: Promise<boolean> = // The operator-gated feed (full names, the last 7 days) — never the public
+    // /api/pipeline/events, whose payload is the initials projection.
+    fetch(since == null ? "/api/pipeline/events/recent" : `/api/pipeline/events/recent?since=${since}`, { signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -159,9 +172,10 @@ export function usePipelineBoardData({
           }
         } else if (incoming.length > 0) {
           // Delta mode returns oldest-first — newest belongs on top. Keep a
-          // bounded in-memory tail; the list renders the top 12 anyway.
+          // bounded in-memory tail (the feed pages over it and drops what has
+          // aged past its week).
           const newestFirst = [...incoming].reverse();
-          setEvents((prev) => [...newestFirst, ...prev].slice(0, 100));
+          setEvents((prev) => [...newestFirst, ...prev].slice(0, 500));
         }
         if (typeof p.cursor === "number") eventsCursorRef.current = p.cursor;
         setEventsError(null);
@@ -314,6 +328,8 @@ export function usePipelineBoardData({
     entries,
     axis,
     retiredStages,
+    plan,
+    rejectedByLane,
     events,
     error,
     eventsError,

@@ -14,15 +14,19 @@
  * show as two chips in one column instead of an invented extra column.
  */
 import { useTranslations } from "next-intl";
-import type { PlanImpact } from "../pipelineComposerModel";
+import { occupancyMark, type PlanImpact } from "../pipelineComposerModel";
 import { ImpactCard, RoundChip, TONE } from "./impactShared";
 
 export function ImpactOverviewCard({
   stations,
   stationLabel,
+  counts,
+  countsLoaded = false,
 }: {
   stations: PlanImpact["overview"];
   stationLabel: (id: string) => string;
+  counts?: Record<string, number>;
+  countsLoaded?: boolean;
 }) {
   const t = useTranslations("hiringPlan.impact");
   return (
@@ -38,7 +42,9 @@ export function ImpactOverviewCard({
     >
       <div className="-mx-1 overflow-x-auto">
         <div className="grid min-w-max" style={{ gridTemplateColumns: `repeat(${stations.length}, minmax(5.5rem, 1fr))` }}>
-          {stations.map((station) => (
+          {stations.map((station) => {
+            const mark = occupancyMark(countsLoaded, counts?.[station.stageId]);
+            return (
             <div key={station.stageId} className="border-r border-stone-200 px-1.5 last:border-r-0">
               <p
                 className={`truncate text-meta uppercase ${
@@ -56,9 +62,17 @@ export function ImpactOverviewCard({
                     ·
                   </span>
                 )}
+                {mark === "omit" ? null : mark === "empty" ? (
+                  <span className="mt-1 text-meta leading-none text-stone-300" aria-label={t("occupancy", { count: 0 })}>
+                    ·
+                  </span>
+                ) : (
+                  <span className="mt-1 nums text-meta text-steel">{t("occupancy", { count: mark })}</span>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </ImpactCard>

@@ -12,6 +12,7 @@ the existing JD build. Conversation design is normed by
 - `?tab=intake` — **Job intake**, the authoring tab (sidebar: Library → Job
   intake). Two modes behind one switcher: the **intake dialog** (default) and
   **Generate**, the manual JD builder for a recruiter who already has the text.
+  The empty Jobs catalog's "draft a role" card lands here (not on the JD shelf).
   Both panels stay mounted, so switching can never discard a half-typed draft or
   an in-flight dialog (`jdsLedgerNav.ts` pins that; only a Duplicate advances
   `builderKey` and remounts the builder).
@@ -157,7 +158,7 @@ JD has ever had.
   running scan and no amount of "not sure, we've never had this role" can flip
   the session back to `story` (`detect_shape(turns, app_master=True)`).
 - **While the scan runs** the chat shows the shape's own deterministic opener
-  plus a scan-progress line (`AtelierTranscript`'s `statusNote`). The clock is the
+  plus a scan-progress line (`StudioTranscript`'s `statusNote`). The clock is the
   **shared TasksProvider poll** — no second poller: its `tasks` array is
   referentially stable across no-op polls, so `useAppMasterLogic`'s effect fires
   exactly when a task's state moves.
@@ -313,7 +314,10 @@ JD has ever had.
   every label through next-intl in the four catalogs, and an **absent value
   renders nothing**: no zero, no dash, no invented default. The field mapping is
   pure and pinned — `mandateSections` in `app/_lib/app-master/mandate-view.ts`
-  (`mandate-view.test.ts`) — so the JSX stays typography. Capped lists (the fit's
+  (`mandate-view.test.ts`) — so the JSX stays typography. That mapping also
+  carries `mandate.scopeRung` (0..2, read-only included) and
+  `mandate.forbiddenClasses`, the two bounds that actually constrain the holder.
+  Capped lists (the fit's
   per-objective rows, the dossier's stack/gates/hot-spots/risks/objectives) carry
   a **"+N more"** that expands in place, the affordance
   `MatchCardSkillChips` already uses: a silent truncation is a claim about how
@@ -397,7 +401,7 @@ writes `transcriptWindow(...)`, the same bound. Equal windows are what keeps
 `sourceTurn` citations numbered identically on both sides of the boundary.
 
 Compaction is DISCLOSED, never silent: one leading `system` turn carries the
-machine token `kp:transcript-compacted:<n>`, which `AtelierTranscript` resolves into
+machine token `kp:transcript-compacted:<n>`, which the kit's `StudioTranscript` resolves into
 the reader's language. A second compaction absorbs the count instead of stacking
 markers. Pinned by `app/_lib/intake-transcript.test.ts`.
 
@@ -436,10 +440,11 @@ anonymous 500 the runner had to guess a code out of.
 | Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`); `intake-create:<ip>` 30/10min (the opener spawns Python) and `intake-promote:<ip>` 20/10min (the paid `jd_build`) — both limiters shipped, contract pins still to add; `intake-dossier:<ip>` 20/10min and `intake-compose:<ip>` 30/10min (both spawn Python and can spend on `agent_fit`), pinned in `app/api/intake/app-master-routes.test.ts` |
 | Decision cards: wire contract + clamps (pure) | `app/_lib/intake-choices.ts` (`coerceIntakeChoiceSet`, `choiceMessage`, `toggleChoice`; `intake-choices.test.ts`) |
 | Decision cards: when they are earned | `pipeline/jobfit/intake.py` (`_PERSONA_CHOICES`, `_choices_payload`, `_SCRIPTED_CHOICE_OPTIONS`, `_scripted_choices`) |
-| Decision cards: UI | `app/features/library/jds/intake/JdsIntakeChoiceCards.tsx`, mounted through `ChatTranscript`'s `renderTurnExtras` |
+| Decision cards: UI | `app/_components/studio/StudioChoiceCards.tsx` (the Studio kit), mounted by `StudioTranscript` under the turn that offered them |
 | UI — ledger | `app/features/library/jds/intake/JdsIntakePanel.tsx` (the tab: session table + summary rail), `JdsIntakeSessionsTable.tsx` |
-| UI — studio | `IntakeStudioOverlay.tsx` (the dialog frame + disclosure + close contract), `IntakeStudioActions.tsx` (export · re-open · promote), `IntakeStudioDesk.tsx` (the desk, at full size) |
-| UI — zones | `coats/atelier/AtelierTranscript`, `AtelierComposer`, `AtelierBriefPlane`, `AtelierDraftSheet`, `JdsIntakeAttachmentsPane`, `jdsIntakeLogic` |
+| UI — studio | `IntakeStudioOverlay.tsx` (header strip + disclosure band over the kit's `StudioOverlay`, which owns the frame and the close contract), `IntakeStudioActions.tsx` (export · re-open · promote), `IntakeStudioDesk.tsx` (the desk, at full size) |
+| UI — zones | `coats/atelier/IntakeAtelierDesk` (composition over the kit's `StudioDesk` / `StudioTranscript` / `StudioComposer` / `StudioVoiceBar`), `AtelierBriefPlane`, `AtelierDraftSheet`, `JdsIntakeAttachmentsPane`, `jdsIntakeLogic` |
+| Studio kit (shared with the job-seeker dialogs) | `app/_components/studio/**` — see §*Studio kit* |
 | Per-turn arrival (pure + motion) | `intakeDelta.ts` (`diffBrief`, `diffDraft`; `intakeDelta.test.ts`), `IntakeArrivalMotion.tsx` (`useArrivalDelta`, `ArrivalList`) |
 | Tab entry predicates (pure) | `app/features/library/jds/jdsIntakeTabEntry.ts` (`opensOnGenerate`, `opensNewIntake`; `jdsIntakeTabEntry.test.ts`) |
 
@@ -691,17 +696,19 @@ extraction sweeps 20/10min per IP.
 
 ## Voice in and out (dictation + read-aloud)
 
-The intake composer carries a voice bar (`app/features/library/jds/intake/IntakeVoiceBar.tsx`,
-mounted in the chat's `composerSlot`). It is **two independent pipelines that share a row and
-nothing else** — the shape the registry's voice-io subject insists on: capture → transcript and
+The intake composer carries a voice pair — the Studio kit's `StudioVoiceBar`, mounted in
+`StudioComposer`'s `voiceSlot` by `IntakeDictationSlot` (`coats/atelier/IntakeAtelierDesk.tsx`),
+which appends dictation through `useStudioComposerDraft()`. It is **two independent pipelines
+that share a row and nothing else** — the shape the registry's voice-io subject insists on: capture → transcript and
 text → synthesis have different latency, privacy and failure physics.
 
 | Half | Hook | Route | Package |
 | --- | --- | --- | --- |
-| Dictation (in) | `useIntakeDictation.ts` | `POST /api/stt` | `packages/voice-stt` (`useStt`) |
-| Read-aloud (out) | `useIntakeSpeech.ts` | `POST /api/tts` | `packages/voice-tts` (`useTts`) |
+| Dictation (in) | `app/_components/studio/useStudioDictation.ts` (intake re-exports it as `useIntakeDictation`) | `POST /api/stt` | `packages/voice-stt` (`useStt`) |
+| Read-aloud (out) | `app/_components/studio/useStudioSpeech.ts` (`useIntakeSpeech` binds intake's auto-speak key) | `POST /api/tts` | `packages/voice-tts` (`useTts`) |
 
 The rules that are the surface's own (rather than the packages') are pure and tested in
+`app/_components/studio/studioVoiceIo.ts`, pinned through intake's re-exporting
 `intakeVoiceIo.ts` / `intakeVoiceIo.test.ts` — the unavailability latch, the auto-speak
 decision, and where a transcript lands in a half-typed sentence.
 
@@ -934,7 +941,7 @@ affordance, not a new kind of transcript turn.
 not on a session column: a reload re-offers exactly the set that was on the
 table, attached to the question it answers. Older sets stay visible as the
 record of what was offered but go quiet — only the newest turn is interactive
-(`AtelierTranscript` gates on `index !== lastIndex`).
+(`StudioTranscript` gates on `index !== latestIndex`).
 
 **Trust boundary.** The payload is authored by a model, so `coerceIntakeChoiceSet`
 (`app/_lib/intake-choices.ts`, called in `intake-run.ts`) is the one place that
@@ -1108,11 +1115,68 @@ never went anywhere.
   was captured without a new session, §*Editable brief*); only a `promoted`
   session is frozen, because there the JD exists.
 
+## Studio kit — the desk is a primitive, intake is its first consumer
+
+Since WP1 of the job-seeker spark the studio's working surface is not intake's:
+it is **`app/_components/studio/`**, a domain-agnostic three-zone dialog desk
+(transcript · composer · plane) that the recruiter Intake Studio and the
+job-seeker CV / fit dialogs share. Intake was extracted INTO it with zero
+behaviour change — `studioContract.test.ts`, `intakeVoiceIo.test.ts` and the
+rest of the intake suite run unmodified against the re-exports. The doc-map
+entry for this feature lists `app/_components/studio/**`, so a kit change names
+this document.
+
+**What moved, and what it is called now**
+
+| Was (intake) | Is (kit) | Notes |
+| --- | --- | --- |
+| `IntakeStudioOverlay`'s `Modal size="full" bare` frame, the Escape gate while `sending`, the *a reply is still arriving* confirm | `StudioOverlay` (+ `useStudioOverlayClose()`) | Intake keeps the header strip and the disclosure band; the header's close glyph calls the kit's GATED close through the hook |
+| `coats/atelier/AtelierZone`, `ATELIER_EASE`, `ATELIER_SPRING` | `StudioZone`, `STUDIO_EASE`, `STUDIO_SPRING` | The zone walk, fold state and guards now live in `StudioDesk` |
+| `IntakeAtelierDesk`'s zone loop | `StudioDesk<K>` | Generic over the consumer's zone vocabulary `K`; `plane`, `transcript`, `composer` and `extra` are ReactNode slots; `meta` carries each zone's numeral and hint; `open`/`onOpenChange` run it controlled |
+| `coats/atelier/AtelierTranscript` | `StudioTranscript` | Same turn blocks, morphing wait mark, non-yanking autoscroll, 1.6 s citation flash |
+| `coats/atelier/AtelierComposer` | `StudioComposer` (+ `useStudioComposerDraft()`) | Bare field, Enter sends, refused send hands the draft back; the unsent draft now also lives in `sessionStorage` under the consumer's `draftKey` |
+| The composer's dictation + read-aloud glyph cluster | `StudioVoiceBar` | Two independent pipelines, struck glyphs for an absent engine, refusal lines portal onto the composer's footer line |
+| `JdsIntakeChoiceCards` | `StudioChoiceCards` | A pick still sends an ORDINARY message; `choiceMessage` / `toggleChoice` delegate to `app/_lib/intake-choices.ts`, the engine's wire contract |
+| `useIntakeDictation`, `useIntakeSpeech`, `useUnavailableLatch`, the pure `intakeVoiceIo.ts` | `useStudioDictation`, `useStudioSpeech`, `useUnavailableLatch`, `studioVoiceIo.ts` | The intake paths re-export; `useIntakeSpeech` binds intake's auto-speak key |
+| `studioContract.ts`'s `readStoredColumns` / `storeColumns` / `toggleColumn` | `studioZones.ts`: `readStoredZones<K>` / `storeZones` / `toggleZone<K>` / `zoneKeyGuard` | Generic over `K`, `storageKey` is a parameter; intake's wrappers keep the old names and `IntakeColumnKey`. `toggleZone` adds a `pinned` guard (`studioZones.test.ts`) |
+| The **NO SENTENCE OCCUPIES LAYOUT** doctrine comment | `studioZones.ts` | Stated once, beside the toggle rule it constrains |
+
+**The rule: variants are PROPS.** A consumer never writes a coat and the kit
+never carries a `variant` switch. Everything that differs between the intake
+studio and a seeker dialog arrives as a prop:
+
+- `plane` — a ReactNode (intake passes `AtelierBriefPlane` with the App-master
+  card in its `appMasterSlot`; a seeker dialog passes a CV or posting sheet).
+- `ns` — the next-intl namespace the kit reads its chrome from (`<ns>.studio.*`,
+  `<ns>.columns.*`, `<ns>.roles.*`, `<ns>.glyph.*`, `<ns>.choices.*`, …; the full
+  list is `STUDIO_KEYS` in `useStudioTranslations.ts`). Intake passes
+  `library.tab.intake`; the kit never names a consumer's branch, so
+  `grep library.tab.intake app/_components/studio` is empty by construction.
+  The price: a kit key missing from a consumer's branch is a runtime miss, not a
+  `tsc` error, because the namespace is a runtime value.
+- `storageKey` (zone preference), `autoSpeakStorageKey` (read-aloud opt-in),
+  `draftKey` (unsent draft) — three keys, because two studios on one browser
+  must not share a preference. Intake passes `kp-intake-atelier-cols`,
+  `kp-intake-auto-speak` and `kp-intake-draft:<id>`; none of those literals
+  appears under `app/_components/studio/`.
+- `zones.pinned` — zones that never fold. Intake passes `[]`: its conversation
+  has always folded like any other zone, and zero behaviour change was the
+  brief.
+
+**Layering.** The kit imports `app/_components/**`, `app/_lib/**` and
+`packages/**` and nothing from `app/features/**` — it is a primitive, and an
+import the other way would make the seeker dialogs depend on the recruiter tab.
+`IntakeAtelierDesk.tsx` is now composition + intake-specific wiring: which zones
+in what order, what the plane is, what the draft zone holds, what each numeral
+means, and the `IntakeLogic` → kit prop mapping. `IntakeDictationSlot` in that
+file is the pattern for wiring a voice pair into the composer: a component
+rendered in `voiceSlot` reaches the draft through `useStudioComposerDraft()`.
+
 ## Session layout — chat · brief · JD draft · materials
 
-The desk is the **Atelier plane** (`coats/atelier/IntakeAtelierDesk.tsx` over
-`AtelierZone` in `atelierPlane.tsx`, with the zone vocabulary and its stored
-preference in `coats/studioContract.ts`): three foldable zones on ONE continuous
+The desk is the **Atelier plane** (`coats/atelier/IntakeAtelierDesk.tsx` composing the
+Studio kit's `StudioDesk` over `StudioZone`, with intake's zone vocabulary and its
+storage key in `coats/studioContract.ts` — see §*Studio kit*): three foldable zones on ONE continuous
 surface — JD draft · conversation · live brief — separated by a hairline rather
 than nested as cards, each folding to a spine that still carries the one numeral
 that zone owes the reader; materials live in a disclosure at the foot of the
@@ -1137,7 +1201,7 @@ body, so content that overruns scrolls inside its own zone instead of pushing th
 desk taller and stranding its neighbours. Two consequences worth knowing before
 touching it:
 
-- The conversation is the exception to "the zone body scrolls": `AtelierTranscript`
+- The conversation is the exception to "the zone body scrolls": `StudioTranscript`
   already scrolls its turn list above a composer that must stay pinned, so the zone
   passes `scroll={false}` and adds no scroller of its own.
 - Folding is a WIDTH tween, not a swap: the section stays mounted, framer's
@@ -1223,7 +1287,7 @@ and neither animates the other's business.
   non-first ones, restoring the `first:mt-0` margin each block loses by becoming
   the first child of its own root.
 - **The leaf headers say where the work is landing.** While a turn is in flight
-  the brief and draft zone labels pulse (`busy` on `AtelierZone`,
+  the brief and draft zone labels pulse (`busy` on `StudioZone`,
   `animate-pulse` — the one Tailwind animation `globals.css` already stops under
   reduced motion). The conversation is not in the list: it has its own thinking
   bubble.
@@ -1252,7 +1316,7 @@ sample is drawn from.
 
 | Surface | What it does |
 | --- | --- |
-| `GET /api/job-postings?q=&roleFamily=&limit=` | This workspace's posting ledger → `{ postings: JobPostingSummary[] }` (no bodies — `bodyChars` instead). `q` matches title or company, case-insensitively. Default limit 200, ceiling 500. |
+| `GET /api/job-postings?q=&roleFamily=&limit=` | This workspace's posting ledger → `{ postings: JobPostingSummary[] }` (no bodies — `bodyChars` instead). `q` matches title or company, case-insensitively. Default limit 200, ceiling 500. The store's `listJobPostingsPage` reads one row past the page and returns `{ postings, truncated, limit }` so a cut slice can say so; `listJobPostings` is the bare-array wrapper (same shape as `listJobs` / `listJobsPage`). |
 | `POST /api/job-postings` `{source:"seed"}` | Imports the two bundled corpora into this workspace, **once** → `{ inserted, skipped, postings: [] }`. |
 | `POST /api/job-postings` `{source:"paste", title, text, company?, lang?, roleFamily?, seniority?}` | Stores a pasted advertisement → `{ inserted, skipped, postings: [summary] }`. |
 | `POST /api/job-postings` `{source:"url", url}` | Fetches the page, extracts its text, stores it. Same response shape. |
@@ -1265,7 +1329,7 @@ allow-list (`app/_lib/auth/public-routes.ts`).
 
 | Module | Holds |
 | --- | --- |
-| `app/_lib/db/job-postings.ts` | The store: `listJobPostings`, `getJobPosting`, `insertJobPosting`, `distinctRolePostings`, `seedJobPostingsCorpus`, plus `postingContentHash` / `normalizeBody`. |
+| `app/_lib/db/job-postings.ts` | The store: `listJobPostingsPage` (`{ postings, truncated, limit }`), `listJobPostings` (bare array), `getJobPosting`, `insertJobPosting`, `distinctRolePostings`, `seedJobPostingsCorpus`, plus `postingContentHash` / `normalizeBody`. |
 | `app/_lib/job-posting-fetch.ts` | `htmlToText`, `htmlTitle`, `decodeEntities`, `fetchPostingText` — dependency-free extraction, no DOM library. |
 | `app/api/job-postings/posting-import-limits.ts` | `POSTING_MIN_CHARS` (200) and `POSTING_MAX_CHARS` (60 000). A sibling module because a non-handler `export const` in a route file aborts `next build`. |
 

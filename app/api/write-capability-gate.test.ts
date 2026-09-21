@@ -92,6 +92,7 @@ const { POST: agentsPair } = await import("./agents/pair/route.ts");
 const { DELETE: agentsBridgeDisconnect } = await import("./agents/bridge/route.ts");
 const { POST: agentsDispatch } = await import("./agents/dispatch/route.ts");
 const { POST: agentsRefresh } = await import("./agents/[id]/refresh/route.ts");
+const { POST: commsResend } = await import("./comms/[id]/resend/route.ts");
 
 const { createWorkspace } = await import("../_lib/db/workspaces.ts");
 const { createUser } = await import("../_lib/db/users.ts");
@@ -186,6 +187,10 @@ const DOORS: Door[] = [
   { name: "DELETE /api/agents/bridge", capability: "org:manage", call: () => agentsBridgeDisconnect() },
   { name: "POST /api/agents/dispatch", capability: "pipeline:write", call: () => agentsDispatch(req({ jobId: "job-1" })) },
   { name: "POST /api/agents/[id]/refresh", capability: "pipeline:write", call: () => agentsRefresh(req(), params({ id: "agent-1" })) },
+  // Resend is the one outbox door that spends the live relay on demand. Identity
+  // (requireOperator) is not authority: a viewer still passed it, and comms_relay_config
+  // is a single global row, so a viewer click dispatched a real candidate envelope.
+  { name: "POST /api/comms/[id]/resend", capability: "pipeline:write", call: () => commsResend(req(), params({ id: "x" })) },
 ];
 
 // ---- a viewer is refused, with a CODE that names the capability ----------------

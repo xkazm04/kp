@@ -12,13 +12,12 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // spent a round trip and came back as one generic red line.
 import { ATTACHMENT_LIMIT, ATTACHMENT_TEXT_MAX } from "@/app/api/intake/[id]/attachments/attachment-limits";
 import type { IntakeAttachment } from "./jdsIntakeLogic";
+import { intakeJdPickerFromResponse, type IntakeJdOption } from "./jdsIntakeJdPicker";
 
 // Reference material ("podklady"): a colleague's note pasted as text, or a
 // saved JD picked from the library. The agent mines these as third-party
 // context — values proposed from them wear the `inferred` chip until the
 // requestor confirms them, which is why this pane sits beside the brief.
-
-type JdOption = { slug: string; title: string };
 
 export function JdsIntakeAttachmentsPane({
   attachments,
@@ -47,7 +46,8 @@ export function JdsIntakeAttachmentsPane({
   const [mode, setMode] = useState<"none" | "note" | "jd">("none");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
-  const [jds, setJds] = useState<JdOption[] | null>(null);
+  const [jds, setJds] = useState<IntakeJdOption[] | null>(null);
+  const [jdsFailed, setJdsFailed] = useState(false);
   const [jdSlug, setJdSlug] = useState("");
 
   // Clear the form only once the server has CONFIRMED the attachment.
@@ -64,19 +64,23 @@ export function JdsIntakeAttachmentsPane({
   };
 
   useEffect(() => {
-    if (mode !== "jd" || jds !== null) return;
+    if (mode !== "jd" || jds !== null || jdsFailed) return;
     // Deferred a tick (the jdsHooks.ts pattern) — no synchronous setState in an effect.
     const timer = window.setTimeout(async () => {
       try {
         const res = await fetch("/api/jds");
-        const data = (await res.json()) as { jds?: { slug: string; title: string }[] };
-        setJds((data.jds ?? []).map((j) => ({ slug: j.slug, title: j.title })));
+        const data = await res.json().catch(() => null);
+        const next = intakeJdPickerFromResponse(res.ok, data);
+        setJds(next.jds);
+        setJdsFailed(next.failed !== null);
       } catch {
-        setJds([]);
+        const next = intakeJdPickerFromResponse(false, null);
+        setJds(next.jds);
+        setJdsFailed(true);
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [mode, jds]);
+  }, [mode, jds, jdsFailed]);
 
   const tooLong = text.trim().length > ATTACHMENT_TEXT_MAX;
   const atLimit = attachments.length >= ATTACHMENT_LIMIT;
@@ -212,27 +216,52 @@ export function JdsIntakeAttachmentsPane({
             </motion.div>
           ) : (
             <motion.div key="jd" {...fade} className="space-y-2">
-              <select className={`${FIELD} w-full`} aria-label={t("jdPick")} value={jdSlug} onChange={(e) => setJdSlug(e.target.value)}>
-                <option value="">{t("jdPick")}</option>
-                {(jds ?? []).map((j) => (
-                  <option key={j.slug} value={j.slug}>
-                    {j.title}
-                  </option>
-                ))}
-              </select>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
-                  disabled={saving || !jdSlug}
-                  onClick={() => void commit({ kind: "jd", jdSlug })}
-                >
-                  {t("add")}
-                </button>
-                <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={() => setMode("none")}>
-                  {t("cancel")}
-                </button>
-              </div>
+              {jdsFailed ? (
+                <>
+                  <p role="alert" className="text-meta text-red-700">
+                    {resolveError({ code: "JD_LIST_FAILED" }, t("error"))}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
+                      onClick={() => {
+                        setJdsFailed(false);
+                        setJds(null);
+                      }}
+                    >
+                      {t("retry")}
+                    </button>
+                    <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={() => setMode("none")}>
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <select className={`${FIELD} w-full`} aria-label={t("jdPick")} value={jdSlug} onChange={(e) => setJdSlug(e.target.value)}>
+                    <option value="">{t("jdPick")}</option>
+                    {(jds ?? []).map((j) => (
+                      <option key={j.slug} value={j.slug}>
+                        {j.title}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
+                      disabled={saving || !jdSlug}
+                      onClick={() => void commit({ kind: "jd", jdSlug })}
+                    >
+                      {t("add")}
+                    </button>
+                    <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={() => setMode("none")}>
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

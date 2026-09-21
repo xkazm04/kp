@@ -28,7 +28,7 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
   const tc = useTranslations("channels.comms");
   const tk = useTranslations("devcase.outboxKind");
   const locale = useLocale();
-  const [filters, setFilters] = useState<OutboxFilters>({ q: "", kind: "", status: "" });
+  const [filters, setFilters] = useState<OutboxFilters>({ q: "", kind: "", status: "", ref: "" });
   const [failedOnly, setFailedOnly] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -138,7 +138,7 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
         shown={shown}
         emptyFiltered={view.rows.length === 0}
         onClearFilters={() => {
-          patchFilters({ q: "", kind: "", status: "" });
+          patchFilters({ q: "", kind: "", status: "", ref: "" });
           setFailedOnly(false);
         }}
         filters={filters}

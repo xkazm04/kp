@@ -43,13 +43,25 @@ export function pythonCandidates(env = process.env, platform = process.platform)
   return platform === "win32" ? ["python", "python3", "py"] : ["python3", "python"];
 }
 
-/** First candidate that answers `--version`. `null` when none is installed. */
+/** Parse `Python x.y` from `--version` stdout. `null` when the banner is missing. */
+export function pythonMinor(stdout) {
+  const m = /Python\s+(\d+)\.(\d+)/.exec(String(stdout ?? ""));
+  return m ? Number(m[1]) * 100 + Number(m[2]) : null;
+}
+
+/** First candidate that answers `--version` at Python 3.11+. `null` when none is. */
 export function findInterpreter(candidates, run = spawnSync) {
   for (const candidate of candidates) {
     const probe = run(candidate, ["--version"], { encoding: "utf8" });
     // ENOENT surfaces as probe.error; a shim that exists but refuses (the Windows
     // Store `python` stub answers non-zero) is treated as not installed too.
-    if (!probe.error && probe.status === 0) return candidate;
+    if (probe.error || probe.status !== 0) continue;
+    const minor = pythonMinor(probe.stdout);
+    // The wrapper hint, CI's floor, and the Debian image all say 3.11+. A leftover
+    // 3.10 answers `--version` and then dies inside pydantic with a traceback the
+    // missing-package branch cannot usefully special-case.
+    if (minor == null || minor < 311) continue;
+    return candidate;
   }
   return null;
 }
@@ -61,7 +73,7 @@ const MISSING_PYTHON_HINT = [
   "  the Pydantic models in pipeline/jobfit — `npm run typecheck` and `npm run build`",
   "  both run it first, so neither can work without Python.",
   "",
-  "  Install Python 3.11+ and its dependencies:",
+  "  Install Python 3.11+ and its dependencies (see AGENTS.md):",
   "    pip install -r requirements.txt",
   "  Or point the build at an interpreter you already have:",
   "    KP_PYTHON=/path/to/python npm run schemas:gen   (PYTHON_CMD also works)",
@@ -71,7 +83,7 @@ const missingPackageHint = (interpreter) =>
   [
     `schemas:gen ran ${interpreter} but the pipeline package is not importable.`,
     "",
-    "  Install the pipeline dependencies from the repo root:",
+    "  Install the pipeline dependencies from the repo root (see AGENTS.md):",
     "    pip install -r requirements.txt",
   ].join("\n");
 

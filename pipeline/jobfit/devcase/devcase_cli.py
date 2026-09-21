@@ -1,7 +1,7 @@
 """CLI for Dev-extension tasks (Phase D2+). Mirrors automation_cli / reasoning_cli.
 
     python -m pipeline.jobfit.devcase.devcase_cli analyze-need      --need-json N [--snapshot-json S | --snapshots-json SS] [--no-llm]
-    python -m pipeline.jobfit.devcase.devcase_cli design-artifacts  --need-json N --analysis-json A [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli design-artifacts  --need-json N --analysis-json A [--focus-probes-json P] [--feedback F] [--role-only] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--lang L] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli interview-scenario  --case-json K --role-json R [--no-llm]
@@ -241,6 +241,9 @@ def main(argv: list[str] | None = None) -> int:
     # design-artifacts so a flawed design can be regenerated WITH the feedback
     # instead of re-running the whole lifecycle from intake.
     parser.add_argument("--feedback", type=str, default=None)
+    # Rec B — CV-hypothesis covert-probe briefs ({kind, focus, rationale}) from
+    # soft_signals.panel_to_probe_briefs. design-artifacts only; omitted = none.
+    parser.add_argument("--focus-probes-json", type=Path)
     # DEVP5 — candidate-facing artifact language (en|cs). Threaded to the case
     # design, seed materialization and interview scenario so the brief/tasks,
     # seed README/DECISIONS and spoken narration render in the candidate's
@@ -562,7 +565,17 @@ def main(argv: list[str] | None = None) -> int:
                     descent_reason=descent,
                 )
                 return 0
-            case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback, lang=lang)
+            focus_probes = (
+                _require_list_of_dicts(
+                    json.loads(args.focus_probes_json.read_text(encoding="utf-8")),
+                    "--focus-probes-json",
+                )
+                if args.focus_probes_json
+                else None
+            )
+            case, case_src = _design.design_case(
+                need, analysis, role, provider=provider, focus_probes=focus_probes, feedback=args.feedback, lang=lang
+            )
             _emit(
                 {"role": role, "case": case},
                 {"role": role_src, "case": case_src},

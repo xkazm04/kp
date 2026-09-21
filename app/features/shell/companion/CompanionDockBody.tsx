@@ -191,6 +191,7 @@ export function CompanionBody({
       placeholder: t("chat.placeholder"),
       send: t("chat.send"),
       transcriptLabel: t("chat.transcriptLabel"),
+      composerLabel: t("chat.composerLabel"),
     }),
     [t]
   );

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ThresholdEffect } from "@/app/_lib/calibration";
-import { thresholdEffectClaim } from "./calibrationVerdict";
+import { thresholdEffectClaim, thresholdEffectCopy } from "./calibrationVerdict";
 import {
   chronological,
   historyRowValues,
@@ -80,6 +80,7 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
   // Which of the three effect sentences this data can defend — resolved by the pure
   // module (calibrationVerdict.thresholdEffectClaim), pinned by calibrationVerdict.test.ts.
   const claim = thresholdEffectClaim(effect);
+  const copy = effect && claim ? thresholdEffectCopy(effect, claim) : null;
 
   return (
     <div className="mt-5 border-t border-stone-200 pt-4">
@@ -165,15 +166,26 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
       {effect && claim ? (
         <div className="mt-3 rounded-md border border-stone-200 bg-paper/60 p-3">
           <p className="text-meta uppercase tracking-wide text-steel">{t("effectTitle")}</p>
-          {claim.kind === "too-few" ? (
+          {copy === "too-few" ? (
             <p className="mt-1 text-sm text-steel">
               {t("effectTooFew", { lo: effect.band.lo, hi: effect.band.hi, min: effect.minOutcomes })}
             </p>
-          ) : claim.kind === "after-only" ? (
+          ) : copy === "before-thin" && effect.before && claim.kind === "after-only" ? (
+            <p className="mt-1 text-sm text-ink">
+              {t("effectBeforeThin", {
+                lo: effect.band.lo,
+                hi: effect.band.hi,
+                pct: claim.after.advanceRatePct,
+                n: claim.after.n,
+                beforeN: effect.before.n,
+                min: effect.minOutcomes,
+              })}
+            </p>
+          ) : copy === "after-only" && claim.kind === "after-only" ? (
             <p className="mt-1 text-sm text-ink">
               {t("effectAfterOnly", { lo: effect.band.lo, hi: effect.band.hi, pct: claim.after.advanceRatePct, n: claim.after.n })}
             </p>
-          ) : (
+          ) : claim.kind === "delta" ? (
             <p className="mt-1 text-sm text-ink">
               {t("effectDelta", {
                 lo: effect.band.lo,
@@ -183,7 +195,7 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
                 n: claim.after.n,
               })}
             </p>
-          )}
+          ) : null}
         </div>
       ) : null}
     </div>

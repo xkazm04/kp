@@ -19,7 +19,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { register } from "node:module";
 
-import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALES, resolveAcceptLanguage } from "./locales.ts";
+import { coerceLocale, DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALES, resolveAcceptLanguage } from "./locales.ts";
 import { localeCookieOptions, LOCALE_COOKIE_MAX_AGE } from "./cookie.ts";
 
 // --- the closed vocabulary ---------------------------------------------------
@@ -36,6 +36,29 @@ test("isLocale accepts every declared locale and nothing else", () => {
   for (const bad of [null, undefined, 0, 1, true, {}, [], ["en"], { toString: () => "en" }]) {
     assert.equal(isLocale(bad), false, String(bad));
   }
+});
+
+test("coerceLocale folds a regional tag onto a shipped catalog and rejects the rest", () => {
+  // Candidate links and browser pickers emit cs-CZ / en-US; the cookie and
+  // `?lang=` writers fold those onto a catalog so the page is Czech, not English.
+  assert.equal(coerceLocale("cs-CZ"), "cs");
+  assert.equal(coerceLocale("de-AT"), "de");
+  assert.equal(coerceLocale("fr-CA"), "fr");
+  assert.equal(coerceLocale("DE-de"), "de");
+  assert.equal(coerceLocale("en-US"), "en");
+  for (const locale of LOCALES) assert.equal(coerceLocale(locale), locale, locale);
+
+  // Unsupported families and path-like junk must not become a catalog name.
+  assert.equal(coerceLocale("es-ES"), null);
+  assert.equal(coerceLocale("../en"), null);
+  assert.equal(coerceLocale("es"), null);
+  assert.equal(coerceLocale(""), null);
+  for (const bad of [null, undefined, 0, true, {}, [], ["en"]]) {
+    assert.equal(coerceLocale(bad), null, String(bad));
+  }
+
+  // isLocale stays strict: a regional tag is not a catalog import key.
+  assert.equal(isLocale("cs-CZ"), false);
 });
 
 test("the default locale is one of the declared locales", () => {
@@ -74,6 +97,20 @@ test("resolveAcceptLanguage honours the header's own order, skipping unsupported
 test("resolveAcceptLanguage ignores a q-suffix and empty list entries", () => {
   assert.equal(resolveAcceptLanguage("fr;q=0.5"), "fr");
   assert.equal(resolveAcceptLanguage(",,cs,"), "cs");
+});
+
+test("resolveAcceptLanguage skips q=0 tags and never reorders by q", () => {
+  // RFC 9110: q=0 means not acceptable. A privacy-minded client forbids English.
+  assert.equal(resolveAcceptLanguage("en;q=0,cs"), "cs");
+  assert.equal(resolveAcceptLanguage("en;q=0.0,cs"), "cs");
+  // The header is already sorted; a lower-q first tag still wins.
+  assert.equal(resolveAcceptLanguage("de;q=0.2,fr;q=0.9"), "de");
+  assert.equal(resolveAcceptLanguage("fr;q=0.5"), "fr");
+  // Malformed q is "present", not a skip.
+  assert.equal(resolveAcceptLanguage("en;q=nope,cs"), "en");
+  assert.equal(resolveAcceptLanguage("en;q=,cs"), "en");
+  // Nothing acceptable falls through.
+  assert.equal(resolveAcceptLanguage("en;q=0"), null);
 });
 
 // --- the cookie policy -------------------------------------------------------
@@ -146,4 +183,37 @@ test("getServerLocale: an UNSUPPORTED cookie does not win — it falls through",
 test("getServerLocale: nothing usable anywhere resolves to the default", async () => {
   assert.equal(await serverLocaleWith(undefined, null), DEFAULT_LOCALE);
   assert.equal(await serverLocaleWith("es", "pt-BR,it"), DEFAULT_LOCALE);
+});
+
+type ActionsModule = { setLocale: (locale: string | null) => Promise<void> };
+let actionsModule: ActionsModule | null = null;
+
+async function localeAction(): Promise<ActionsModule> {
+  actionsModule ??= (await import("./actions.ts")) as ActionsModule;
+  return actionsModule;
+}
+
+test("setLocale(auto) clears the cookie so getServerLocale follows Accept-Language", async () => {
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.__KP_TEST_COOKIES__ = { [LOCALE_COOKIE]: "en" };
+  g.__KP_TEST_HEADERS__ = { "accept-language": "cs-CZ" };
+  const { setLocale } = await localeAction();
+  await setLocale("auto");
+  const jar = g.__KP_TEST_COOKIES__ as Record<string, string>;
+  assert.equal(jar[LOCALE_COOKIE], undefined);
+  serverModule ??= (await import("./server.ts")) as ServerModule;
+  assert.equal(await serverModule.getServerLocale(), "cs");
+});
+
+test("setLocale(null) also deletes; invalid values are no-ops", async () => {
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.__KP_TEST_COOKIES__ = { [LOCALE_COOKIE]: "de" };
+  g.__KP_TEST_HEADERS__ = { "accept-language": "fr" };
+  const { setLocale } = await localeAction();
+  await setLocale("es");
+  assert.equal((g.__KP_TEST_COOKIES__ as Record<string, string>)[LOCALE_COOKIE], "de");
+  await setLocale(null);
+  assert.equal((g.__KP_TEST_COOKIES__ as Record<string, string>)[LOCALE_COOKIE], undefined);
+  serverModule ??= (await import("./server.ts")) as ServerModule;
+  assert.equal(await serverModule.getServerLocale(), "fr");
 });

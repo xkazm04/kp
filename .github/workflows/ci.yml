@@ -449,8 +449,8 @@ jobs:
 
       # AI-BEHAVIOUR EVALS AS A GATE, not as something someone remembers to run.
       #
-      # Only the two suites that are DETERMINISTIC AND KEYLESS are gated here —
-      # a red result from either is always a real regression, never a provider
+      # Only the suites that are DETERMINISTIC AND KEYLESS are gated here —
+      # a red result from any of them is always a real regression, never a provider
       # having a bad day:
       #
       #   matching_eval --strict     needs no API key by construction (its
@@ -476,6 +476,12 @@ jobs:
       #     deterministic by construction: the faults are in-process, so a red
       #     run is a regression in the code, never a provider having a bad day.
       #
+      #   intake_eval --no-llm --strict   the golden requestor bank through the
+      #     deterministic agent (completed, one question per turn, brief_core,
+      #     role_family, requirements_captured). Distinct from test:eval:intake-sim
+      #     (the JD-corpus probe, still on-demand). ADR 0004 already names this
+      #     as a CI-safe mode.
+      #
       # Deliberately NOT gated: `test:eval:strict` (the Gemini golden set) and
       # `bench:app-master` (needs a live server + Personas). Those stay
       # on-demand.
@@ -489,7 +495,7 @@ jobs:
       # scenarios AND ratchets it — a required expectation deleted or a number
       # loosened is red here, even though the sweep itself never runs.
       #
-      # Cost: both are pure-Python over committed fixtures, in the job that has
+      # Cost: all four are pure-Python over committed fixtures, in the job that has
       # already paid for the dependency install.
       - name: Deterministic AI-behaviour evals (keyless, strict)
         run: npm run test:eval:ci
@@ -601,7 +607,6 @@ jobs:
           journey-one-thread
           activity-detail
           analytics-sections
-          jds-pipeline-column
           quality-tables
           shell-tab-state
           locale-smoke

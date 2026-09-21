@@ -18,10 +18,11 @@
 // Appends one JSON line per night to bench/app-master/soak/log.jsonl.
 //
 // TESTABILITY: the reasoning this file does — the miss taxonomy, the one-record-
-// one-verdict rule, the calendar-gap backfill, reading the log — is pure and now
-// lives in exported functions above `main()`. Everything below `main()` touches
-// Personas, kp, the driver and the disk. Importing this module runs NOTHING;
-// `night.test.mjs` drives the pure half. It is the most-revised file in the area
+// one-verdict rule, the calendar-gap backfill, reading the log, the pass-rate
+// matrix — is pure and now lives in exported functions above `main()`. Everything
+// below `main()` touches Personas, kp, the driver and the disk. Importing this
+// module runs NOTHING; `night.test.mjs` drives the pure half. `--matrix` prints
+// the table and does not run a night. It is the most-revised file in the area
 // (twenty-odd review rounds live in its comments) and it had no test at all.
 
 import { spawn, spawnSync } from "node:child_process";
@@ -124,6 +125,74 @@ export function readLogLines(text) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+/** The soak's only subject. A log line may name `scenario`; otherwise this. */
+export const SOAK_SCENARIO = "kp-c1-night";
+
+/**
+ * Reduce soak JSONL to a scenario × window pass-rate matrix.
+ *
+ * `passed` is `ran: true` (the soak gate's observation quota). A miss is not a
+ * pass; its class is counted in `missedByClass`. Pure: takes already-split
+ * lines, no filesystem.
+ *
+ * @param {string[] | object[]} lines
+ * @param {{ from?: string | null, to?: string | null }} [window] inclusive YYYY-MM-DD
+ * @returns {{ scenario: string, nights: number, passed: number, missedByClass: Record<string, number> }[]}
+ */
+export function passRateMatrix(lines, { from = null, to = null } = {}) {
+  const rows = new Map();
+  for (const line of lines ?? []) {
+    let rec = line;
+    if (typeof line === "string") {
+      try {
+        rec = JSON.parse(line);
+      } catch {
+        continue;
+      }
+    }
+    if (!rec || typeof rec !== "object") continue;
+    const date = rec.date ?? (rec.at ? localDate(new Date(rec.at)) : null);
+    if (!date) continue;
+    if (from && date < from) continue;
+    if (to && date > to) continue;
+    const scenario = typeof rec.scenario === "string" && rec.scenario ? rec.scenario : SOAK_SCENARIO;
+    let row = rows.get(scenario);
+    if (!row) {
+      row = { scenario, nights: 0, passed: 0, missedByClass: {} };
+      rows.set(scenario, row);
+    }
+    row.nights += 1;
+    if (rec.ran === true) {
+      row.passed += 1;
+    } else {
+      const cls = isMissClass(rec.miss) ? rec.miss : "unclassified";
+      row.missedByClass[cls] = (row.missedByClass[cls] ?? 0) + 1;
+    }
+  }
+  return [...rows.values()].sort((a, b) => a.scenario.localeCompare(b.scenario));
+}
+
+/** Markdown table a weekly pass can paste. */
+export function renderPassRateMatrix(rows) {
+  const lines = [
+    "| scenario | nights | passed | rate | misses |",
+    "| --- | --- | --- | --- | --- |",
+  ];
+  if (!rows.length) {
+    lines.push("| (empty) | 0 | 0 | - | (empty log) |");
+    return lines.join("\n");
+  }
+  for (const row of rows) {
+    const rate = row.nights ? `${Math.round((row.passed / row.nights) * 100)}%` : "-";
+    const misses = Object.entries(row.missedByClass)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cls, n]) => `${cls}: ${n}`)
+      .join(", ");
+    lines.push(`| ${row.scenario} | ${row.nights} | ${row.passed} | ${rate} | ${misses || "-"} |`);
+  }
+  return lines.join("\n");
 }
 
 /**
@@ -452,4 +521,25 @@ export async function main() {
   finish();
 }
 
-if (process.argv[1]?.endsWith("night.mjs")) await main();
+function flagValue(argv, name) {
+  const prefix = `--${name}=`;
+  const eq = argv.find((a) => a.startsWith(prefix));
+  if (eq) return eq.slice(prefix.length);
+  const i = argv.indexOf(`--${name}`);
+  if (i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--")) return argv[i + 1];
+  return null;
+}
+
+/** `--matrix` reads the soak log and prints the pass-rate table. Does not run a night. */
+function printMatrix(argv) {
+  const from = flagValue(argv, "from");
+  const to = flagValue(argv, "to");
+  const text = existsSync(LOG) ? readFileSync(LOG, "utf-8") : "";
+  process.stdout.write(`${renderPassRateMatrix(passRateMatrix(readLogLines(text), { from, to }))}\n`);
+  return 0;
+}
+
+if (process.argv[1]?.endsWith("night.mjs")) {
+  if (process.argv.slice(2).includes("--matrix")) process.exit(printMatrix(process.argv.slice(2)));
+  else await main();
+}

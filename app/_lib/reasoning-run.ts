@@ -55,6 +55,21 @@ export class ReasoningError extends Error {
 // and validated upstream. Defaults to "en".
 export type ReasoningInput = MatchInputBody & { jobId?: string; lang?: string };
 
+/**
+ * The reasoning CLI's argv, as a pure function so the engine-locale decision is
+ * REACHABLE by a test. Every unit test of runReasoning is served from the prompt
+ * cache with a bogus PYTHON_CMD (the spawn must not run), so nothing downstream of
+ * the cache check is executed — and an argv built inline there is pinned by
+ * nothing: passing "en" here, or dropping --lang entirely, kept the whole suite
+ * green while every de/fr rationale went back to being generated in English.
+ * The sibling `agent-hire/transform-run.ts` extracted `agentFitArgs` for the same
+ * reason. The caller-side pin (that this builder is handed `engineLang`, not a
+ * literal) is in reasoning-cache-first.test.ts.
+ */
+export function reasoningCliArgs(inputArgs: string[], jobId: string, engineLang: string): string[] {
+  return ["-m", "pipeline.jobfit.reasoning_cli", ...inputArgs, "--job-id", jobId, "--lang", engineLang];
+}
+
 // Shared core for /api/match/reasoning AND the background-task runner.
 //
 // Tenancy: `workspaceId` scopes BOTH the candidate/analysis resolution (writeMatchInput)
@@ -134,15 +149,7 @@ export async function runReasoning(
   try {
     workdir = await createWorkdir();
     const inputArgs = await materializeMatchInput(input, workdir);
-    const args = [
-      "-m",
-      "pipeline.jobfit.reasoning_cli",
-      ...inputArgs,
-      "--job-id",
-      String(body.jobId),
-      "--lang",
-      engineLang,
-    ];
+    const args = reasoningCliArgs(inputArgs, String(body.jobId), engineLang);
     // The CLI augments the seed with these records (DB wins on id collision).
     if (corpusJobs.length > 0) {
       const jobsPath = path.join(workdir, "jobs.json");

@@ -166,8 +166,8 @@ test("a fresh workspace is on the free plan with free limits", () => {
   assert.equal(overview.plan.id, "free");
   const candidates = overview.meters.find((m) => m.meter === "ai_candidates");
   assert.deepEqual(
-    { limit: candidates?.limit, used: candidates?.used, remaining: candidates?.remaining },
-    { limit: FREE_AI, used: 0, remaining: FREE_AI }
+    { limit: candidates?.limit, used: candidates?.used, remaining: candidates?.remaining, overage: candidates?.overage },
+    { limit: FREE_AI, used: 0, remaining: FREE_AI, overage: 0 }
   );
   assert.equal(meterAllowance("interview_minutes").allowed, false); // free includes 0 minutes
 });
@@ -332,6 +332,10 @@ test("hires debit past the included allowance rather than refusing", () => {
   recordMeterUsage("hires", 1); // free includes 1 — the second is overage
   assert.equal(billingUsageFor("hires", period), before + 2, "both hires are recorded, neither is refused");
   assert.equal(meterAllowance("hires", new Date()).allowed, false, "…and Billing can see the org is over");
+  const hires = billingOverview().meters.find((m) => m.meter === "hires");
+  assert.equal(before, 0, "this file does not debit hires before this test");
+  assert.equal(hires?.remaining, 0, "included remainder clamps at 0 once used >= limit");
+  assert.equal(hires?.overage, 1, "the extra hire is a named overage, not only a depleted remaining");
 });
 
 // ---- finding #2: failed-payment statuses are bounded, not entitled forever -----

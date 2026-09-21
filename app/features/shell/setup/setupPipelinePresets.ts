@@ -64,7 +64,12 @@ export function applyPipelinePreset(key: SetupPipelinePresetKey, base: AxisDraft
   // a storage key (pipeline_entries.stage, the ATS field map), it must not differ
   // per locale, and `activePipelinePreset` below has to be able to re-derive it
   // after the operator switches the app language mid-wizard.
-  const step: DraftStage = { id: mintStageId(WORK_SAMPLE_ID_SEED, taken), label: workSampleLabel, role: "custom", saved: false };
+  // `homework`, not `custom`: this column IS the product's case step now — the
+  // devcase module generates and marks the assignment for whoever stands on it, and
+  // the interview that follows grounds its questions in the result. It was `custom`
+  // only because the role did not exist; leaving it there would give the wizard's
+  // one-click dev funnel a column the product has no semantics for.
+  const step: DraftStage = { id: mintStageId(WORK_SAMPLE_ID_SEED, taken), label: workSampleLabel, role: "homework", saved: false };
   const offerIdx = base.stages.findIndex((s) => s.role === "offer");
   const terminalIdx = base.stages.findIndex((s) => s.role === "terminal");
   const at = offerIdx >= 0 ? offerIdx : terminalIdx >= 0 ? terminalIdx : base.stages.length;

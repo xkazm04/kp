@@ -4,13 +4,13 @@
 // The invariants that matter:
 //   - a selection below the comparable pair never arms anything (no dead affordance),
 //   - the cap is enforced at build, parse, AND seed time (the server re-enforces),
-//   - ids that left the cohort are silently dropped, and junk never round-trips.
+//   - ids that left the cohort are named in dropped, and junk never round-trips.
 //
 // Runner: Node's built-in test runner with type stripping. npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GROUP_EVAL_CAP } from "@/app/_lib/group-eval-cohort";
-import { buildArmParam, parseArmParam, seedArmSelection } from "@/app/features/shared/groupEvalArm";
+import { buildArmParam, parseArmParam, seedArmSelection, seedArmSelectionReport } from "@/app/features/shared/groupEvalArm";
 
 test("build → parse round-trips a valid selection", () => {
   const ids = ["m-cand-a-job1", "m-cand-b-job1", "m-cand-c-job1"];
@@ -42,7 +42,7 @@ test("parseArmParam rejects absence, malformed values, and sub-pair selections",
 
 test("seedArmSelection keeps only ids in the live cohort and drops sub-pair leftovers", () => {
   const cohort = ["e1", "e2", "e3"];
-  // Ids that left the cohort (decided elsewhere) are silently dropped.
+  // Ids that left the cohort (decided elsewhere) leave picked.
   assert.deepEqual(seedArmSelection(["e1", "gone", "e3"], cohort), ["e1", "e3"]);
   // Fewer than a comparable pair survive → no arm at all (never a 1-pick mode).
   assert.deepEqual(seedArmSelection(["e1", "gone"], cohort), []);
@@ -51,4 +51,22 @@ test("seedArmSelection keeps only ids in the live cohort and drops sub-pair left
   // Cap holds even when the whole request is valid.
   const bigCohort = Array.from({ length: GROUP_EVAL_CAP + 4 }, (_, i) => `e${i}`);
   assert.equal(seedArmSelection(bigCohort, bigCohort).length, GROUP_EVAL_CAP);
+});
+
+test("seedArmSelectionReport names the gone ids, including when picked collapses", () => {
+  const cohort = ["e1", "e2", "e3"];
+  assert.deepEqual(seedArmSelectionReport(["e1", "gone", "e3"], cohort), {
+    picked: ["e1", "e3"],
+    dropped: ["gone"],
+  });
+  // Sub-pair leftover: nothing to arm, but the dropped id is still enumerable.
+  assert.deepEqual(seedArmSelectionReport(["e1", "gone"], cohort), {
+    picked: [],
+    dropped: ["gone"],
+  });
+  assert.deepEqual(seedArmSelectionReport(null, cohort), { picked: [], dropped: [] });
+  assert.deepEqual(seedArmSelectionReport(["gone", "also-gone", "gone"], cohort), {
+    picked: [],
+    dropped: ["gone", "also-gone"],
+  });
 });

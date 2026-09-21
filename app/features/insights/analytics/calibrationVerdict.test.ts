@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import {
   calibrationSkill,
   thresholdEffectClaim,
+  thresholdEffectCopy,
   verdictFor,
   GOOD_SKILL,
   type CalibrationVerdictInput,
@@ -186,6 +187,19 @@ test("an unmeasurable or absent effect claims nothing at all", () => {
   assert.equal(thresholdEffectClaim(effect({ after: null, measurable: true }))?.kind, "too-few");
   // No earlier in-band decision at all is the after-only case it always was.
   assert.equal(thresholdEffectClaim(effect({ before: null }))?.kind, "after-only");
+});
+
+test("a thin-but-real before side does not use the zero-history sentence", () => {
+  const thin = effect({ before: { n: 7, advanced: 4, advanceRatePct: 57 }, minOutcomes: 20 });
+  const claim = thresholdEffectClaim(thin);
+  assert.equal(claim?.kind, "after-only");
+  assert.equal(thresholdEffectCopy(thin, claim!), "before-thin");
+
+  const absent = effect({ before: null, minOutcomes: 20 });
+  assert.equal(thresholdEffectCopy(absent, thresholdEffectClaim(absent)!), "after-only");
+
+  const zero = effect({ before: { n: 0, advanced: 0, advanceRatePct: 0 }, minOutcomes: 20 });
+  assert.equal(thresholdEffectCopy(zero, thresholdEffectClaim(zero)!), "after-only");
 });
 
 test("an unjudgeable arm says so instead of guessing", () => {

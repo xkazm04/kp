@@ -56,6 +56,11 @@ const STAGE_TO_STATUS: Record<string, CandidateStatus> = {
 const STAGE_ROLE_TO_STATUS: Record<string, CandidateStatus> = {
   entry: "received",
   screening: "under_review",
+  // A case step: the candidate is mid-process and has work of their own to do. The
+  // public page deliberately does not announce the assignment (the invite is its
+  // own comm, on its own token), so "under review" is the honest read — "interview"
+  // would overstate a case that precedes any conversation.
+  homework: "under_review",
   interview: "interview",
   scoring: "under_review",
   offer: "offer",

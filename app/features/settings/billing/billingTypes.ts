@@ -31,6 +31,22 @@ export const STATUS_TONE: Record<string, BadgeTone> = {
   none: "neutral",
 };
 
+/** Which dunning recovery banner the current-plan card must paint, if any.
+ *
+ *  `past_due` / `unpaid` are the two statuses where Polar is still retrying (or
+ *  has given up retrying) a failed invoice, and the only place to update the
+ *  card is the customer portal. Everything else — a healthy sub, a trial, a
+ *  cancel, no subscription — is not a recovery moment, so the helper is silent.
+ *  Named and tested so the banner copy and the STATUS_TONE chip cannot drift
+ *  onto different status sets. */
+export type DunningBanner = "pastDue" | "unpaid";
+
+export function dunningBanner(status: string): DunningBanner | null {
+  if (status === "past_due") return "pastDue";
+  if (status === "unpaid") return "unpaid";
+  return null;
+}
+
 /** Does this install have a metered plan at all?
  *
  *  `metered` is the DEPLOYMENT's answer, computed once on the server by

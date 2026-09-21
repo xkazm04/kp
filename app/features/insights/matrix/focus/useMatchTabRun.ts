@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "@/app/features/shared/matchTypes";
-import { candidateOptionsPlaceholder, selectMatchView } from "./matchView";
+import { candidateOptionsPlaceholder, MATCH_FOCUS_LIMIT, matchPostPayload, selectMatchView } from "./matchView";
 import { createRunSequence } from "./matchRunSequence";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -113,9 +113,17 @@ export function useMatchTabRun(t: Translator) {
     };
   }, []);
 
+  // Last posted weights/limit so a re-weight after "show remaining" keeps the expanded
+  // field, and an expand after a re-weight keeps the override. A fresh Run matching
+  // (runMatch) resets both. Refs, not state: neither is rendered.
+  const lastWeightsRef = useRef<WeightVector | undefined>(undefined);
+  const lastLimitRef = useRef(MATCH_FOCUS_LIMIT);
+
   // `weights` (MAT1) is the recruiter's optional override for a re-rank; omitted on
   // a fresh run (server uses the archetype baseline) and on a reset.
-  const runMatchFor = async (ref: MatchRef, weights?: WeightVector) => {
+  // `limit` omitted → reuse the last posted page size (so re-weight of an expanded
+  // field does not snap back to MATCH_FOCUS_LIMIT).
+  const runMatchFor = async (ref: MatchRef, weights?: WeightVector, limit?: number) => {
     if (!ref.profileId && !ref.analysisSlug) return;
     // grid-narrative-says-what-it-is: last-write-wins. /api/match spawns Python, so a run
     // over a big role set can outlast the next candidate's run — and the SLOWER, EARLIER
@@ -124,6 +132,9 @@ export function useMatchTabRun(t: Translator) {
     // guarded too: a superseded run must not clear the newer one's spinner.
     const ticket = runSeq.current.start();
     const current = () => runSeq.current.isCurrent(ticket);
+    const resolvedLimit = limit ?? lastLimitRef.current;
+    lastLimitRef.current = resolvedLimit;
+    lastWeightsRef.current = weights;
     setLoading(true);
     setError(null);
     // Don't clear the prior result on a re-rank/re-weight: clearing unmounts <MatchResults>
@@ -134,7 +145,7 @@ export function useMatchTabRun(t: Translator) {
       const r = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ref, limit: 25, ...(weights ? { weights } : {}) }),
+        body: JSON.stringify(matchPostPayload(ref, { weights, limit: resolvedLimit })),
       });
       const payload = await r.json();
       // An unknown deep-linked id resolves to 404 (Profile/Analysis not found) —
@@ -156,8 +167,15 @@ export function useMatchTabRun(t: Translator) {
     }
   };
 
-  const runMatch = () =>
-    runMatchFor(source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis });
+  const runMatch = () => {
+    lastLimitRef.current = MATCH_FOCUS_LIMIT;
+    lastWeightsRef.current = undefined;
+    return runMatchFor(source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis });
+  };
+
+  // Same ref, last weights, higher limit — keeps the last ranking on screen
+  // (selectMatchView) while the missing roles fill in.
+  const expandRankedField = (limit: number) => runMatchFor(matchRef, lastWeightsRef.current, limit);
 
   // Deep link into candidate focus: ?tab=matrix&profile=<id> OR ?tab=matrix&analysis=<slug>
   // (legacy ?tab=match resolves here via LEGACY_TAB_ALIASES) — preselect the matching
@@ -220,7 +238,7 @@ export function useMatchTabRun(t: Translator) {
     result, matchRef,
     loading,
     filed, recordFiled,
-    runMatchFor, runMatch,
+    runMatchFor, runMatch, expandRankedField,
     view,
   };
 }

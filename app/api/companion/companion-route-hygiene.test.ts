@@ -16,10 +16,16 @@
 //      write by a whole model call.
 //
 // Runner: node:test with type stripping — `npm run test:unit`.
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { NextRequest } from "next/server";
+import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
+import { appendTurn, createThread } from "../../_lib/db/companion.ts";
+import { GET as threadsGet } from "./threads/route.ts";
+
+after(() => cleanupUnitDb());
 
 function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
@@ -148,6 +154,31 @@ test("the prompt transcript carries each turn's source, and every reply stores o
     /meta: \{\n\s*source: turn\.source,/,
     "the assistant turn's meta must record which side answered",
   );
+});
+
+test("GET /api/companion/threads hydrates the newest thread, or a named workspace id", async () => {
+  const older = createThread("");
+  assert.ok(appendTurn({ threadId: older.id, role: "user", content: "older-turn" }));
+  await new Promise((r) => setTimeout(r, 5));
+  const newer = createThread("");
+  assert.ok(appendTurn({ threadId: newer.id, role: "user", content: "newer-turn" }));
+
+  const defaultRes = await threadsGet(new NextRequest("http://localhost/api/companion/threads"));
+  assert.equal(defaultRes.status, 200);
+  const defaultBody = (await defaultRes.json()) as { threads: { id: string }[]; turns: { content: string }[] };
+  assert.equal(defaultBody.threads[0].id, newer.id, "list is newest-first");
+  assert.ok(defaultBody.turns.some((t) => t.content === "newer-turn"));
+  assert.equal(defaultBody.turns.some((t) => t.content === "older-turn"), false);
+
+  const named = await threadsGet(new NextRequest(`http://localhost/api/companion/threads?thread=${older.id}`));
+  const namedBody = (await named.json()) as { turns: { content: string }[] };
+  assert.ok(namedBody.turns.some((t) => t.content === "older-turn"));
+  assert.equal(namedBody.turns.some((t) => t.content === "newer-turn"), false);
+
+  const unknown = await threadsGet(new NextRequest("http://localhost/api/companion/threads?thread=cthread-not-here"));
+  assert.equal(unknown.status, 200);
+  const unknownBody = (await unknown.json()) as { turns: { content: string }[] };
+  assert.ok(unknownBody.turns.some((t) => t.content === "newer-turn"), "unknown id keeps the newest transcript");
 });
 
 test("a 409 from the resolve route carries the proposal row the client must repaint", () => {

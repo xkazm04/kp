@@ -82,3 +82,18 @@ test("packageManager pins an exact npm build", () => {
       `repo's .npmrc legacy-peer-deps behaviour is npm-version sensitive.`,
   );
 });
+
+test("npm run dev arms the storm breaker at 150", () => {
+  // The breaker is opt-in inside scripts/dev-guard.mjs (unset = off) so other
+  // wrappers are unchanged. The everyday `dev` script must still set the same
+  // 150 that `dev:inspect` / `dev:empty` already do — Turbopack still spawns
+  // loader workers on a normal next dev, and Windows still does not cascade kill.
+  const dev = pkg.scripts?.dev;
+  assert.ok(dev, "package.json must declare a dev script");
+  assert.match(
+    dev,
+    /DEV_GUARD_MAX_NODE=150/,
+    `npm run dev must set DEV_GUARD_MAX_NODE=150 so a worker storm is reaped on the everyday server, not only on inspect (got ${dev}).`,
+  );
+  assert.match(dev, /dev-guard\.mjs/, "the everyday dev script must still go through the process-tree reaper");
+});

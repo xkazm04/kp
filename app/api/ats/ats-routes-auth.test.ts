@@ -47,7 +47,7 @@ test("gated: every ATS handler refuses a non-operator (password set, no operator
     ["POST test", () => testPost(jsonPost("http://localhost/api/ats/test", {}))],
     ["GET candidate", () => candidateReq("pe-any")],
     ["GET deliveries", () => deliveriesGet()],
-    ["POST deliveries", () => deliveriesPost()],
+    ["POST deliveries", () => deliveriesPost(jsonPost("http://localhost/api/ats/deliveries", {}))],
     // The INBOUND connections door holds a credential that reads every candidate in the
     // customer's ATS account — the most dangerous secret on this surface, and the one
     // handler this list never covered.
@@ -87,7 +87,7 @@ test("open mode (no operator password): the ATS handlers serve the local operato
   const deliveriesList = await deliveriesGet();
   assert.equal(deliveriesList.status, 200);
 
-  const retry = await deliveriesPost();
+  const retry = await deliveriesPost(jsonPost("http://localhost/api/ats/deliveries", {}));
   assert.equal(retry.status, 200);
 
   const save = await configPost(

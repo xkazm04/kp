@@ -52,6 +52,7 @@ const OrganizationTab = dynamic(() => TAB_CHUNKS.organization().then((m) => ({ d
 const IntegrationsTab = dynamic(() => TAB_CHUNKS.integrations().then((m) => ({ default: m.IntegrationsTab })), { loading });
 const BrandingTab = dynamic(() => TAB_CHUNKS.branding().then((m) => ({ default: m.BrandingTab })), { loading });
 const HiringTab = dynamic(() => TAB_CHUNKS.hiring().then((m) => ({ default: m.HiringTab })), { loading });
+const TemplatesTab = dynamic(() => TAB_CHUNKS.templates().then((m) => ({ default: m.TemplatesTab })), { loading });
 
 // The tab-switch tree + its error boundary, extracted verbatim from Workspace's
 // <main> body. `active`/`navActive` keep their Workspace meanings (navActive is the
@@ -87,6 +88,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "branding" ? <BrandingTab /> : null}
         {navActive === "integrations" ? <IntegrationsTab /> : null}
         {navActive === "hiring" ? <HiringTab /> : null}
+        {navActive === "templates" ? <TemplatesTab /> : null}
       </div>
     </TranslatedErrorBoundary>
   );
