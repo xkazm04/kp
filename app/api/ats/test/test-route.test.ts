@@ -15,7 +15,7 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
 import { setAtsConfig } from "../../../_lib/ats-config-store.ts";
-import { createPipelineEntry } from "../../../_lib/db.ts";
+import { createPipelineEntry } from "../../../_lib/db/pipeline.ts";
 import { anonymizeEntry } from "../../../_lib/db/pipeline.ts";
 import { EVENT_HEADER, IDEMPOTENCY_HEADER } from "../../../_lib/ats-webhook.ts";
 
