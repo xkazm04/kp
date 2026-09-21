@@ -7,6 +7,7 @@ import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
 import { isSelfHostedProvider } from "@/app/_lib/voice";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
+import { sealableRubricDimensions } from "@/app/_lib/interview-scorecard";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
@@ -381,6 +382,17 @@ export async function POST(request: NextRequest) {
         // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
         // its model/prompt version as the actor. Best-effort — never blocks complete.
         const rec = typeof scorecard.recommendation === "string" ? scorecard.recommendation : "(none)";
+        // …and seal WHAT THE VERDICT WAS MADE OF, not only its conclusion. Art. 86
+        // owes the candidate the "main elements of the decision", and an
+        // `ai_scorecard` whose whole sealed input is `recommendation: "hold"` has
+        // none to give: `aiScorecardFacts` has nothing to read, so the decision
+        // crossed onto the candidate's own status page as a bare label. The rubric
+        // axes and their ratings ARE those elements, and they are also what the
+        // chain needs to be re-checkable at all — a sealed conclusion with no
+        // sealed inputs cannot be audited against the transcript it came from.
+        // Nothing else from the scorecard is sealed here: the evidence quotes and
+        // the summary stay on the interview row (see aiScorecardFacts for why they
+        // are the wrong thing to put on a public wire).
         sealDecisionSafe({
           kind: "ai_scorecard",
           actor: `auto:${AUTOMATION_VERSION.scorecard}`,
@@ -388,7 +400,7 @@ export async function POST(request: NextRequest) {
           candidateRef: session.entryId,
           rationale: `AI interview scorecard — recommendation: ${rec}.`,
           reasonCode: "scorecard",
-          inputs: { recommendation: rec },
+          inputs: { recommendation: rec, dimensions: sealableRubricDimensions(scorecard.ratings) },
         });
       }
     }

@@ -423,11 +423,86 @@ window hid the rest of an irreversible wave.
 
 A **separate, redacted candidate-facing view** now exists:
 `app/_lib/status-decisions.ts` derives a `CandidateDecisionView` (kind,
-attribution, reasonCode, and — for `auto_rejected` only — the threshold facts
-that were actually decisive) from the same sealed rows, served on
-`/status/[token]`. Rejection reasons shown to candidates come **from this
-sealed record, never freshly generated** (see the module header comment,
+attribution, reasonCode, and the decisive `facts`) from the same sealed rows,
+served on `/status/[token]`. Rejection reasons shown to candidates come **from
+this sealed record, never freshly generated** (see the module header comment,
 `status-decisions.ts:1-11`).
+
+**`facts` is a closed discriminated union, and its coverage is a counted
+ratio.** Each variant is produced by exactly one extractor, registered in
+`FACT_EXTRACTORS` keyed by sealed kind; a kind with no extractor crosses with
+`facts: null` rather than an improvised shape. Today:
+
+| Variant | Sealed kind | What crosses |
+| --- | --- | --- |
+| `threshold` | `auto_rejected` | the score and the cutoff the screen wave compared (`autoRejectFacts`) |
+| `rubric` | `ai_scorecard` | the assessed competency keys and their 1–5 ratings (`aiScorecardFacts`) |
+
+`factsCoverage()` reports that as **2 of 14 candidate-visible kinds, and 2 of
+the 5 `AI_VERDICT_DECISION_KINDS`** — the subset where a machine judged the
+person, which is the denominator Art. 86 bites hardest on. The ratio is
+asserted in `app/api/status/status-decisions.test.ts`, so raising it is a number
+that moves rather than a claim in a commit message. The still-uncovered AI
+verdicts are `auto_advanced`, `group_eval_lead` and `group_eval_advisory`.
+
+Two rules constrain what an extractor may put on the wire, and both are pinned
+by tests:
+
+- **The seal decides, and the read re-checks.** `ai_scorecard` seals its rubric
+  axes through `sealableRubricDimensions` (`app/_lib/interview-scorecard.ts`),
+  which drops a NOT-ASSESSED axis — the synthesis rates an untouched competency
+  3 of 5 with `"Not assessed…"` evidence, indistinguishable from an observed
+  middling score to anything reading the rating alone. `aiScorecardFacts` then
+  re-validates everything it can from the payload alone, because records outlive
+  the code that sealed them.
+- **Evidence quotes never cross.** The verbatim transcript line behind a rating
+  is never sealed and so never reaches the candidate view: it is a *model's
+  selection* of their words, and a mis-transcribed one would read as something
+  they did not say. The competency key and its rating are the smallest thing
+  that answers "on what was I judged".
+
+Competency keys cross **canonical**, not localized; `/status/[token]` resolves
+them through `rubricLabel` + the `rubric` catalog namespace, so the candidate
+reads their own language and an off-catalog axis degrades to canonical English.
+
+### Reasons coverage — the counter behind "nothing is produced without a reason"
+
+`facts` above answers *can a decision on the wire show its decisive elements*.
+The other half of the same question is whether the verdicts this product
+produces carry a reasons block **at all**, and that is counted by
+`app/_lib/reasons-coverage.ts` with a meter over the demo corpus:
+
+```bash
+npm run kpi:reasons            # human-readable
+npm run kpi:reasons -- --json  # the record a KPI writer stores
+```
+
+Three arms, each with its own denominator, each defined by that kind's own
+producer:
+
+| Arm | A reasons block is | Read from |
+| --- | --- | --- |
+| `ranking` | a non-blank `explanation` or `jobFit.summary` | `data/seed_analyses/`, and the `analyses` table when a DB exists |
+| `scorecard` | at least one rating with REAL evidence (`isPlaceholderEvidence` is honoured, so an all-"Not assessed" scorecard is a MISS) | `interview_sessions.scorecard_json` |
+| `rejection` | text that `waveReasonText` actually resolves from the sealed code | `decision_records` of kind `auto_rejected`/`rejected` |
+
+Two properties are what make the number worth reading, and both are pinned by
+controls in `app/_lib/reasons-coverage.test.ts`:
+
+- **It resolves rather than pattern-matches.** A rejection is scored through
+  `waveReasonText` — the same resolver the reconsider queue and the decision log
+  render through — so deleting the *copy* moves the number, not just deleting the
+  code. A re-implemented resolver would have measured this module's opinion.
+- **An empty denominator is never a pass.** An arm with nothing to count reports
+  `ratio: null, measured: false`, and the result lists `unmeasuredKinds` so a
+  caller cannot report the headline as if it covered the whole goal. This is the
+  ADR-0008 failure mode applied to a metric: a counter that reads 100% because it
+  found nothing to check.
+
+On a clean checkout the seeded corpus holds **66 rankings (100%)** and no
+interviews or screening runs, so the scorecard and rejection arms read *not
+measured* until an install has produced some — which the meter states rather
+than rounds away.
 
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift

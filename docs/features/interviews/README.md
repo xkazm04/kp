@@ -111,7 +111,18 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
      argument so `micErrorText.ts` can match the real `DOMException.name` and
      show the same localized recovery copy the OpenAI path already showed —
      previously an EL mic denial surfaced the SDK's untranslated
-     `"Permission denied"`.
+     `"Permission denied"`. That same forwarding means the classifier is reached
+     with **provider** text, not only with `getUserMedia` text — so its nameless
+     message fallback must not match a bare "denied". It used to
+     (`/permission|denied|dismiss/`), and an auth or agent-access failure reading
+     `"Agent access denied"` therefore told the candidate to click the microphone
+     icon in their address bar for a failure they cannot fix that way, instead of
+     falling through to the honest session error. The fallback now matches only
+     the phrases `getUserMedia` itself emits (`permission denied` /
+     `permission dismissed`); a real browser denial is classified by
+     `DOMException.name` and is unaffected, on both transports and on the JD
+     intake voice surface that shares the classifier. Pinned by
+     `app/_components/voice/micErrorText.test.ts`.
    - `useTranscriptPersistence.ts` stashes each transcript POST body in
      `sessionStorage` under `kp.iv.<sessionId>` *before* sending it, and
      **replays any stash left over on mount**. A 2xx or a terminal 4xx (already
@@ -449,7 +460,7 @@ predicate, source-level for the route contract).
 | `app/_components/voice/transport/openai.ts` | OpenAI Realtime over raw WebRTC: connection setup, the H3 speaking meter, the H4 drop debounce, teardown, and the transcript-buffer half of the wire protocol |
 | `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language + `asr.keywords` overrides |
 | `app/_components/voice/availability-gate.ts` | The portal's start gate. The `/api/interview/connect` probe has THREE outcomes — `loading` / `ok` / `failed` — and `voiceStartGate` maps them to `checking` / `available` / `unavailable` / `unknown`. A **failed** probe used to be stored as `null`, the same value as "not asked yet", and the render read that as available: a keyless or unreachable server therefore rendered a normal Start that died at connect, while the `unavailableCandidate` copy written for that moment was unreachable. `unknown` now renders "we could not check" plus a **Check again** control and never a plain Start |
-| `app/_components/voice/timer-registry.ts` | Every delayed callback one call schedules — the 30 s connect timeout, the ElevenLabs disconnect-grace fallback, the finalize poll — in one registry the unmount effect empties. Two of the three were untracked `setTimeout`s that survived unmount and were harmless only because `finalizedRef` latches first. `sleep()` resolves on `clearAll()`, so a tab closed mid-hang-up unwinds the finalize path instead of leaking it |
+| `app/_components/voice/timer-registry.ts` | Every delayed callback one call schedules — the 30 s connect timeout, the ElevenLabs disconnect-grace fallback, the finalize poll — in one registry the unmount effect empties. Two of the three were untracked `setTimeout`s that survived unmount and were harmless only because `finalizedRef` latches first. `sleep()` resolves on `clearAll()`, so a tab closed mid-hang-up unwinds the finalize path instead of leaking it. `clearAll()` LATCHES and is teardown-only; between attempts the call uses `cancelAll()` via `armConnectTimeout` — the connect path once cleared with `clearAll()` and armed straight after, so the 30 s timeout never fired and a hung connect sat on "Connecting…" forever |
 | `app/features/tools/interview/simBilling.ts` | What a simulation costs: `simBillableCeilingMin(mode)`, quoted by `InterviewStartPanel` before the recruiter starts. Mirrors `maxBillableInterviewMin` (the client cannot import `billing/enforce.ts` — it reaches better-sqlite3), and `simBilling.test.ts` imports both and asserts the same number mode by mode |
 | `app/_components/voice/useTranscriptPersistence.ts` | POST-with-retries to `/api/interview/complete`, the sessionStorage stash, and the online/visibility re-drive |
 | `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict). `micTestFailure` routes every `getUserMedia` rejection through `micErrorText`, so **not-found** and **busy** are no longer both reported as "denied"; `MIC_TEST_DURATION_MS` / `MIC_HEARD_RMS` name what were inline literals |
@@ -591,6 +602,37 @@ spawn (`runInterviewScorecard` → `stampAiScorecardRubricCoverage`), so a recru
 comparing two AI screens can see when one was scored without industry axes. Python
 still does not write the field; the post-pass will not overwrite it if that
 changes. The field stays optional for legacy rows.
+
+## The sealed `ai_scorecard` carries what the verdict was made of
+
+`/api/interview/complete` seals an `ai_scorecard` decision on the entry when a
+candidate-mode call completes. Its sealed `inputs` used to be the conclusion
+alone — `{ recommendation }` — which had two consequences: the chain recorded a
+verdict with nothing to re-check it against, and the candidate's own Art. 86
+surface (`/status/[token]`) could show the decision only as a bare label,
+because `app/_lib/status-decisions.ts` had nothing to read.
+
+The seal now also carries the **rubric axes the verdict was made of**, built by
+`sealableRubricDimensions` (`app/_lib/interview-scorecard.ts`) as
+`{ competency, rating }` pairs and nothing else. What it drops, and why:
+
+- **A not-assessed axis.** The synthesis rates an untouched competency
+  `NOT_ASSESSED_RATING` (3 of 5) with `"Not assessed…"` evidence, which reads
+  identically to an observed middling score to anything looking at the rating
+  alone — so sealing it would tell a candidate they scored mid on a competency
+  the interview never raised. `isNotAssessedRating` is the filter.
+- **An off-rubric axis**, for the mirror reason: it is not a scale the candidate
+  was told they would be measured on.
+- **The evidence quote and the summary.** Never sealed, so they can never reach
+  the candidate view. The quote is a *model's selection* of the candidate's
+  words, and a mis-transcribed one (see `ScorecardEntities` for how often voice
+  ASR needs correcting) would read as something they did not say.
+
+`MAX_SEALED_RUBRIC_DIMENSIONS` bounds the list, because `ratings` originates in
+an LLM synthesis. The read side (`aiScorecardFacts`) re-validates every one of
+these constraints independently rather than trusting the payload — records
+outlive the code that sealed them — and the two ceilings are pinned equal by
+`app/api/status/status-decisions.test.ts` rather than shared by reference.
 
 ## The scorecard fences the transcript and cites only what was said (scorecard-v7)
 
