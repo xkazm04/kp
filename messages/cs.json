@@ -2744,7 +2744,8 @@
       "agents": "Agenti",
       "activity": "Aktivita",
       "intake": "Vstup pozice",
-      "templates": "Šablony"
+      "templates": "Šablony",
+      "journeys": "Cesty"
     },
     "groups": {
       "hiring": "Nábor",
@@ -3049,7 +3050,8 @@
       "agent_activated": "byl/a spuštěn/a jako persona v Personas",
       "onboarding_started": "zahájil/a onboarding (zrušený modul)",
       "onboarding_intake_submitted": "odeslal/a onboardingový dotazník (zrušený modul)",
-      "screen_wave_holdout_unsealed": "byl/a vlnou screeningu ušetřen/a, ale záznam kalibračního vzorku se nepodařilo zapečetit"
+      "screen_wave_holdout_unsealed": "byl/a vlnou screeningu ušetřen/a, ale záznam kalibračního vzorku se nepodařilo zapečetit",
+      "approval_set": "U tohoto kandidáta bylo nastaveno schválení"
     },
     "relTime": {
       "today": "dnes",
@@ -7958,7 +7960,8 @@
         "agent_activated": "Persona spuštěna",
         "onboarding_started": "Onboarding zahájen (zrušený modul)",
         "onboarding_intake_submitted": "Onboardingový dotazník odeslán (zrušený modul)",
-        "screen_wave_holdout_unsealed": "Ušetřeno vlnou, záznam vzorku nezapečetěn"
+        "screen_wave_holdout_unsealed": "Ušetřeno vlnou, záznam vzorku nezapečetěn",
+        "approval_set": "Nastaveno schválení"
       },
       "kindsQueued": {
         "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",
@@ -11863,6 +11866,138 @@
         "reason": "Důvod",
         "resumeLink": "Obnovit ve Zdrojích"
       }
+    }
+  },
+  "journey": {
+    "title": "Cesty",
+    "lede": "Cesta každého kandidáta touto rolí, vedle sebe.",
+    "openBoard": "Otevřít přehled cest",
+    "closeBoard": "Zavřít přehled cest",
+    "empty": "V tomto pracovním prostoru zatím nejsou žádné cesty.",
+    "loadError": "Přehled cest se nepodařilo načíst.",
+    "filters": {
+      "role": "Role",
+      "allRoles": "Všechny role",
+      "activeOnly": "Jen aktivní kandidáti",
+      "observedOnly": "Jen zaznamenané řádky",
+      "find": "Najít kandidáta",
+      "testRuns": "Včetně testovacích běhů"
+    },
+    "phases": {
+      "job-definition": "Definice role",
+      "case": "Práce na zadání",
+      "screening": "Screening kandidáta"
+    },
+    "shared": {
+      "headline": "Tuto roli definoval jeden rozhovor. Proběhl jednou, nad všemi {count} sloupci.",
+      "unlinked": "V záznamu není propojeno s touto rolí"
+    },
+    "rail": {
+      "title": "Kroky v této roli",
+      "note": "Odvozeno z toho, co se v této roli skutečně stalo, nikoli z pravidla. Kroky se mezi rolemi liší.",
+      "reached": "{reached} z {cohort}",
+      "byMachine": "{count} udělal stroj",
+      "skipped": "Přeskočeno, cesta pokračovala",
+      "neverReached": "Nikdy nedosaženo. Cesta zde končí"
+    },
+    "absence": {
+      "caseNotRun": "Tato role nepoužívá praktické zadání.",
+      "caseNotAssigned": "Tomuto kandidátovi nebylo přiřazeno žádné zadání.",
+      "caseNotLinked": "Zadání existuje, ale záznam ho s tímto kandidátem zatím nespojuje.",
+      "screeningNotRecorded": "Screening nebyl nikdy zaznamenán.",
+      "intakeMissing": "Nebyl zaznamenán žádný rozhovor o definici role.",
+      "nothingHappened": "Nic se zde nestalo",
+      "neverRecorded": "Nikdy nezaznamenáno, důvod není uveden"
+    },
+    "mark": {
+      "observed": "Skutečný řádek z produktu",
+      "human": "Udělal to člověk",
+      "machine": "Udělal to stroj",
+      "unidentified": "Aktér nebyl identifikován",
+      "labelOnly": "Spárováno jen podle jména, může jít o jinou osobu",
+      "testRun": "Z testovacího běhu"
+    },
+    "silence": "{days} dní, nic zaznamenáno",
+    "detail": {
+      "actor": "Aktér",
+      "occurredAt": "Stalo se",
+      "recordedAt": "Zaznamenáno",
+      "phase": "Fáze",
+      "topic": "Téma",
+      "openSource": "Otevřít zdroj",
+      "sourceTranscript": "Úryvek přepisu",
+      "sourceDecision": "Zapečetěný záznam rozhodnutí",
+      "sourceAnalysis": "Záznam analýzy",
+      "noSource": "K tomuto řádku nebylo uloženo nic dalšího."
+    },
+    "events": {
+      "added": "Kandidát byl přidán na nástěnku",
+      "applied": "Kandidát se přihlásil",
+      "matched": "Kandidát byl spárován s touto rolí",
+      "advanced": "Kandidát postoupil do fáze {to}",
+      "autoAdvanced": "Automatizace posunula kandidáta do fáze {to}",
+      "moved": "Kandidát se přesunul z {from} do {to}",
+      "screeningHold": "Screening byl pozastaven k posouzení",
+      "scheduleInviteSent": "Byla odeslána pozvánka k naplánování",
+      "scheduled": "Termín pohovoru byl potvrzen",
+      "interviewScheduled": "Pohovor byl naplánován",
+      "interviewReminderSent": "Byla odeslána připomínka pohovoru",
+      "interviewPrepGenerated": "Byla vygenerována příprava na pohovor",
+      "rejectionSent": "Byl odeslán zamítavý dopis",
+      "rejected": "Kandidát byl odmítnut",
+      "autoRejected": "Automatizace kandidáta odmítla",
+      "acknowledgementSent": "Přihláška byla potvrzena",
+      "offerDrafted": "Byla připravena nabídka",
+      "offerSent": "Nabídka byla odeslána",
+      "offerReminderSent": "Byla odeslána připomínka nabídky",
+      "reinstated": "Kandidát byl vrácen do procesu",
+      "koDeclined": "Kandidát byl odmítnut na vyřazovací bráně",
+      "approvalSet": "Schválení bylo nastaveno na {kind}",
+      "analysis": "Životopis byl analyzován se skóre {score}",
+      "interviewSession": "Proběhl hlasový pohovor",
+      "interviewRound": "Proběhlo kolo pohovoru",
+      "topicBegun": "Tazatel otevřel nové téma",
+      "topicCovered": "Téma bylo probráno",
+      "candidateQuestion": "Kandidát položil otázku",
+      "guardrail": "Tazatel vrátil rozhovor k tématu",
+      "focusLost": "Rozhovor se odchýlil od tématu",
+      "decisionSealed": "Bylo zapečetěno rozhodnutí o náboru",
+      "consentRecorded": "Byl zaznamenán souhlas",
+      "caseDesigned": "Bylo navrženo praktické zadání",
+      "caseApproved": "Recruiter zadání schválil",
+      "casePublished": "Zadání bylo zveřejněno kandidátovi",
+      "caseOpened": "Kandidát otevřel zadání",
+      "caseSubmitted": "Kandidát odevzdal zadání",
+      "caseEvaluated": "Odevzdání bylo vyhodnoceno",
+      "intakeRound": "Proběhlo kolo rozhovoru o roli",
+      "intakeBriefChanged": "Zadání role se změnilo",
+      "intakePromoted": "Z rozhovoru vznikla pozice",
+      "unknown": "Byla zaznamenána událost typu {kind}",
+      "analysisUnscored": "Životopis byl analyzován, ale nebylo zaznamenáno žádné skóre"
+    },
+    "topics": {
+      "role-shape": "Zadavatel popsal podobu role",
+      "backfill-reason": "Zadavatel vysvětlil, proč je místo volné",
+      "role-title": "Zadavatel pojmenoval roli vlastními slovy",
+      "first-90-days": "Tazatel se zeptal, co musí přinést prvních 90 dní",
+      "must-have-skills": "Zadavatel uvedl nezbytné dovednosti",
+      "seniority": "Zadavatel určil úroveň seniority",
+      "team-context": "Zadavatel popsal tým, do kterého nástup směřuje",
+      "salary-band": "Zadavatel uvedl mzdové rozpětí",
+      "work-mode": "Zadavatel určil režim práce",
+      "timeline": "Zadavatel určil časový plán náboru",
+      "role-scope": "Tazatel vysvětlil náplň role",
+      "tech-stack": "Kandidát popsal zkušenost s technologiemi",
+      "team-fit": "Tazatel se ptal na styl práce",
+      "availability": "Kandidát uvedl výpovědní lhůtu",
+      "remote-policy": "Kandidát se ptal na práci na dálku",
+      "growth": "Kandidát se ptal na kariérní postup",
+      "guardrail": "Tazatel vrátil rozhovor k tématu",
+      "salary": "Kandidát se ptal na mzdu"
+    },
+    "noMatches": "Žádná cesta neodpovídá těmto filtrům.",
+    "minimap": {
+      "label": "Přehled všech sloupců"
     }
   }
 }

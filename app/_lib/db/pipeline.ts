@@ -2170,6 +2170,7 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
+  ["intake_events", "The append-only history of that same role-definition dialogue (db/intake-events.ts): one row per round, holding the requestor's words about a ROLE. Same class as `role_intakes` above and inherits its basis — it is written before any candidate exists and is keyed to an intake, never to a pipeline entry, so this entry-keyed scrub has no path to it and a candidate's Art. 17 request has nothing in it to reach. The requestor is an operator-side employee, not a candidate: their own erasure runs through `eraseIntakeEvents(intakeId, workspaceId)`, the table's only DELETE."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
   ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
@@ -2805,7 +2806,25 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
  *  `null` is a real expectation ("no pending approval when I decided").
  *
  *  Returns whether the write applied — false means the precondition failed and
- *  the caller must answer the conflict rather than claim success. */
+ *  the caller must answer the conflict rather than claim success.
+ *
+ *  SILENT MUTATION, CLOSED. Raising an approval parks a candidate behind a human
+ *  click on the path to a hire, and until now it wrote NOTHING to `pipeline_events`
+ *  — so the one state change that says "this person is waiting on a person" was
+ *  invisible to the activity feed, to the decision log and to any audit of how long
+ *  anybody waited. It now records an `approval_set` row in the SAME transaction as
+ *  the UPDATE, so the entry and its event can never disagree about whether the gate
+ *  was raised.
+ *
+ *  CLEARING writes no row, deliberately: every path that clears an approval is a
+ *  decision that already logs its own event (`actOnPipelineEntry`'s accept/reject,
+ *  `setPipelineEntryStage`'s `moved`, the offer dispatch's own marker), so a second
+ *  row would double-count one moment in the audit trail.
+ *
+ *  The event carries NO actor: this store has no request identity and inventing one
+ *  — defaulting to the operator, to "human" — would manufacture exactly the
+ *  accountability the actor column exists to make real (guardrail G3, core.ts:601).
+ *  A caller that knows who clicked records that through its own marker. */
 export function setApproval(
   entryId: string,
   approvalKind: ApprovalKind | null,
@@ -2817,26 +2836,75 @@ export function setApproval(
   // `IS` rather than `=`: the expectation is legitimately NULL ("no approval was
   // pending"), and `approval_kind = NULL` is never true in SQL.
   const guarded = opts?.expectedApprovalKind !== undefined;
-  const res = db
-    .prepare(
-      `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
-        guarded ? ` AND approval_kind IS ?` : ``
-      }`
-    )
-    .run(
-      approvalKind,
-      approvalDetail,
-      new Date().toISOString(),
-      entryId,
-      workspaceId,
-      ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
-    );
-  if (res.changes === 0 && guarded) {
-    console.warn(
-      `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
-    );
-  }
-  return res.changes > 0;
+  // read → write in ONE transaction, taken with `.immediate()` (the write lock at
+  // BEGIN) exactly as setPipelineEntryStage does: the SELECT below feeds the event
+  // row, and a deferred tx would let another connection move the entry between the
+  // two statements. Synchronous throughout — an await here would silently destroy
+  // the atomicity (eslint `no-restricted-syntax` bans one).
+  const tx = db.transaction((): boolean => {
+    const row = db
+      .prepare(`SELECT candidate_label, job_title, archetype, stage FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+      .get(entryId, workspaceId) as
+      | { candidate_label: string; job_title: string | null; archetype: string | null; stage: string }
+      | undefined;
+    const res = db
+      .prepare(
+        `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
+          guarded ? ` AND approval_kind IS ?` : ``
+        }`
+      )
+      .run(
+        approvalKind,
+        approvalDetail,
+        new Date().toISOString(),
+        entryId,
+        workspaceId,
+        ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
+      );
+    if (res.changes === 0) {
+      if (guarded) {
+        console.warn(
+          `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
+        );
+      }
+      return false;
+    }
+    if (approvalKind !== null) {
+      // ⚠ A NEW EVENT KIND OWES THREE REGISTRATIONS, and they are NOT in this file's
+      // change scope — they are listed here so the next reader does not have to
+      // rediscover them from a red build:
+      //   1. `DECISION_META.approval_set` in app/_lib/decision-attribution.ts —
+      //      derived-from-source guard: decision-attribution.test.ts scans every
+      //      `recordEvent(db, { … kind: "…" })` literal and fails on an unmapped one
+      //      (an unmapped kind badges UNKNOWN, is in neither log filter, and counts in
+      //      no rollup). It is a HUMAN decision: a person raising a gate.
+      //   2. `EVENT_KINDS` + its `EVENT_CATALOG` glyph in
+      //      app/features/hiring/pipeline/pipelineEventCatalog.ts — the same test pins
+      //      the two maps set-equal in both directions.
+      //   3. `pipeline.events.approval_set` in ALL FOUR messages/*.json — the catalog
+      //      test asserts set-equality PER LOCALE, so a verb in three of them is red.
+      // `journey.events.approvalSet` already exists, so the journey board renders this
+      // row today; it is the activity feed and the decision log that still owe a verb.
+      recordEvent(db, {
+        entryId,
+        candidateLabel: row?.candidate_label ?? null,
+        jobTitle: row?.job_title ?? null,
+        archetype: row?.archetype ?? null,
+        kind: "approval_set",
+        toStage: row?.stage ?? null,
+        // WHICH gate was raised. `pipeline_events` has no structured payload column,
+        // so the kind is encoded in `detail` behind a stable prefix and decoded by
+        // app/_lib/journey/project.ts (APPROVAL_SET_DETAIL_PREFIX), whose test reads
+        // THIS file's source so the two literals cannot drift. The approval's own
+        // payload (`approvalDetail`) stays on the entry row — it can be a whole
+        // recommendation blob and the event log is not where it belongs.
+        detail: `approval:${approvalKind}`,
+        workspaceId,
+      });
+    }
+    return true;
+  });
+  return tx.immediate();
 }
 
 export function recordAutomationEvent(

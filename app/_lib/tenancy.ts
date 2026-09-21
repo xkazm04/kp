@@ -234,6 +234,15 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // filters/stamps workspace_id; a leaked intake id never resolves across
   // tenants (intakes-tenancy.test.ts).
   "role_intakes",
+  // The role-intake conversation's append-only HISTORY (db/intake-events.ts, Journey
+  // Analytics) — one row per round, derived from the same dialog `role_intakes` holds,
+  // so it inherits that table's strict posture: NO by-id exemption. Every statement in
+  // the store, and the boot backfill's INSERT in db/core.ts, binds workspace_id, and
+  // intake-events-tenancy.test.ts scans BOTH files so the backfill copy cannot drift out
+  // of scope. There is no public token and no candidate-facing read; the `id` is an
+  // AUTOINCREMENT integer, which is precisely the kind of guessable key a by-id carve-out
+  // must never be granted to.
+  "intake_events",
   // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
   // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
   // reads) + team-private drafts (workspace_id = team). Every read/write filters on

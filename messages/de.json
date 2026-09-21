@@ -2744,7 +2744,8 @@
       "agents": "Agenten",
       "activity": "Aktivität",
       "intake": "Stellen-Intake",
-      "templates": "Vorlagen"
+      "templates": "Vorlagen",
+      "journeys": "Verläufe"
     },
     "groups": {
       "hiring": "Recruiting",
@@ -3049,7 +3050,8 @@
       "agent_activated": "ging als Personas-Persona live",
       "onboarding_started": "startete das Onboarding (eingestelltes Modul)",
       "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)",
-      "screen_wave_holdout_unsealed": "wurde von der Screening-Welle verschont, aber der Kalibrierungs-Kontrollgruppen-Eintrag konnte nicht versiegelt werden"
+      "screen_wave_holdout_unsealed": "wurde von der Screening-Welle verschont, aber der Kalibrierungs-Kontrollgruppen-Eintrag konnte nicht versiegelt werden",
+      "approval_set": "Für diesen Kandidaten wurde eine Freigabe gesetzt"
     },
     "relTime": {
       "today": "heute",
@@ -7958,7 +7960,8 @@
         "agent_activated": "Persona live geschaltet",
         "onboarding_started": "Onboarding gestartet (eingestelltes Modul)",
         "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)",
-        "screen_wave_holdout_unsealed": "Von der Welle verschont, Kontrollgruppen-Eintrag unversiegelt"
+        "screen_wave_holdout_unsealed": "Von der Welle verschont, Kontrollgruppen-Eintrag unversiegelt",
+        "approval_set": "Freigabe gesetzt"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",
@@ -11863,6 +11866,138 @@
         "reason": "Grund",
         "resumeLink": "Unter Quellen fortsetzen"
       }
+    }
+  },
+  "journey": {
+    "title": "Verläufe",
+    "lede": "Der Weg jeder Kandidatin und jedes Kandidaten durch diese Rolle, nebeneinander.",
+    "openBoard": "Verlaufsübersicht öffnen",
+    "closeBoard": "Verlaufsübersicht schließen",
+    "empty": "Für diesen Arbeitsbereich gibt es noch keine Verläufe.",
+    "loadError": "Die Verlaufsübersicht konnte nicht geladen werden.",
+    "filters": {
+      "role": "Rolle",
+      "allRoles": "Alle Rollen",
+      "activeOnly": "Nur aktive Kandidaten",
+      "observedOnly": "Nur beobachtete Zeilen",
+      "find": "Kandidat suchen",
+      "testRuns": "Testläufe einbeziehen"
+    },
+    "phases": {
+      "job-definition": "Rollendefinition",
+      "case": "Fallbearbeitung",
+      "screening": "Kandidatenprüfung"
+    },
+    "shared": {
+      "headline": "Ein Gespräch hat diese Rolle definiert. Es fand einmal statt, über allen {count} Spalten.",
+      "unlinked": "Im Datensatz nicht mit dieser Rolle verknüpft"
+    },
+    "rail": {
+      "title": "Schritte in dieser Rolle",
+      "note": "Abgeleitet aus dem, was in dieser Rolle tatsächlich geschah, nicht aus einer Vorgabe. Die Schritte unterscheiden sich je Rolle.",
+      "reached": "{reached} von {cohort}",
+      "byMachine": "{count} von der Maschine",
+      "skipped": "Übersprungen, der Verlauf ging weiter",
+      "neverReached": "Nie erreicht. Der Verlauf endet hier"
+    },
+    "absence": {
+      "caseNotRun": "Für diese Rolle gibt es keine Arbeitsprobe.",
+      "caseNotAssigned": "Diesem Kandidaten wurde kein Fall zugewiesen.",
+      "caseNotLinked": "Ein Fall existiert, ist im Datensatz aber noch nicht mit diesem Kandidaten verknüpft.",
+      "screeningNotRecorded": "Die Prüfung wurde nie erfasst.",
+      "intakeMissing": "Es wurde kein Gespräch zur Rollendefinition erfasst.",
+      "nothingHappened": "Hier ist nichts geschehen",
+      "neverRecorded": "Nie erfasst, kein Grund hinterlegt"
+    },
+    "mark": {
+      "observed": "Eine echte Produktzeile",
+      "human": "Ein Mensch hat das getan",
+      "machine": "Die Maschine hat das getan",
+      "unidentified": "Akteur nicht identifiziert",
+      "labelOnly": "Nur über den Namen zugeordnet, es kann eine andere Person sein",
+      "testRun": "Aus einem Testlauf"
+    },
+    "silence": "{days} Tage, nichts erfasst",
+    "detail": {
+      "actor": "Akteur",
+      "occurredAt": "Geschehen",
+      "recordedAt": "Erfasst",
+      "phase": "Phase",
+      "topic": "Thema",
+      "openSource": "Quelle öffnen",
+      "sourceTranscript": "Auszug aus dem Transkript",
+      "sourceDecision": "Versiegelter Entscheidungssatz",
+      "sourceAnalysis": "Analysedatensatz",
+      "noSource": "Zu dieser Zeile wurde nichts weiter gespeichert."
+    },
+    "events": {
+      "added": "Kandidat wurde zum Board hinzugefügt",
+      "applied": "Kandidat hat sich beworben",
+      "matched": "Kandidat wurde dieser Rolle zugeordnet",
+      "advanced": "Kandidat ist zu {to} vorgerückt",
+      "autoAdvanced": "Die Automatisierung hat den Kandidaten zu {to} vorgerückt",
+      "moved": "Kandidat wechselte von {from} zu {to}",
+      "screeningHold": "Die Prüfung wurde zur Durchsicht angehalten",
+      "scheduleInviteSent": "Die Terminanfrage wurde gesendet",
+      "scheduled": "Der Gesprächstermin wurde bestätigt",
+      "interviewScheduled": "Das Gespräch wurde geplant",
+      "interviewReminderSent": "Die Gesprächserinnerung wurde gesendet",
+      "interviewPrepGenerated": "Die Gesprächsvorbereitung wurde erstellt",
+      "rejectionSent": "Die Absage wurde gesendet",
+      "rejected": "Der Kandidat wurde abgelehnt",
+      "autoRejected": "Die Automatisierung hat den Kandidaten abgelehnt",
+      "acknowledgementSent": "Der Eingang der Bewerbung wurde bestätigt",
+      "offerDrafted": "Das Angebot wurde entworfen",
+      "offerSent": "Das Angebot wurde gesendet",
+      "offerReminderSent": "Die Angebotserinnerung wurde gesendet",
+      "reinstated": "Der Kandidat wurde wieder aufgenommen",
+      "koDeclined": "Der Kandidat wurde am Ausschlusskriterium abgelehnt",
+      "approvalSet": "Die Freigabe wurde auf {kind} gesetzt",
+      "analysis": "Der Lebenslauf wurde analysiert und mit {score} bewertet",
+      "interviewSession": "Das Sprachinterview fand statt",
+      "interviewRound": "Eine Gesprächsrunde fand statt",
+      "topicBegun": "Der Interviewer eröffnete ein neues Thema",
+      "topicCovered": "Ein Thema wurde behandelt",
+      "candidateQuestion": "Der Kandidat stellte eine Frage",
+      "guardrail": "Der Interviewer lenkte zur Agenda zurück",
+      "focusLost": "Das Gespräch kam vom Thema ab",
+      "decisionSealed": "Eine Einstellungsentscheidung wurde versiegelt",
+      "consentRecorded": "Die Einwilligung wurde erfasst",
+      "caseDesigned": "Eine Arbeitsprobe wurde entworfen",
+      "caseApproved": "Der Recruiter hat den Fall freigegeben",
+      "casePublished": "Der Fall wurde dem Kandidaten veröffentlicht",
+      "caseOpened": "Der Kandidat öffnete die Aufgabenstellung",
+      "caseSubmitted": "Der Kandidat reichte den Fall ein",
+      "caseEvaluated": "Die Einreichung wurde bewertet",
+      "intakeRound": "Eine Runde des Rollengesprächs fand statt",
+      "intakeBriefChanged": "Das Rollenprofil hat sich geändert",
+      "intakePromoted": "Aus dem Gespräch wurde eine Stelle",
+      "unknown": "Ein Ereignis der Art {kind} wurde erfasst",
+      "analysisUnscored": "Der Lebenslauf wurde analysiert, aber es wurde keine Bewertung erfasst"
+    },
+    "topics": {
+      "role-shape": "Der Anfordernde beschrieb den Zuschnitt der Rolle",
+      "backfill-reason": "Der Anfordernde erklärte, warum die Stelle frei ist",
+      "role-title": "Der Anfordernde benannte die Rolle in eigenen Worten",
+      "first-90-days": "Der Interviewer fragte, was die ersten 90 Tage leisten müssen",
+      "must-have-skills": "Der Anfordernde nannte die unverzichtbaren Fähigkeiten",
+      "seniority": "Der Anfordernde legte die Senioritätsstufe fest",
+      "team-context": "Der Anfordernde beschrieb das Team, zu dem die Einstellung kommt",
+      "salary-band": "Der Anfordernde nannte die Gehaltsspanne",
+      "work-mode": "Der Anfordernde legte das Arbeitsmodell fest",
+      "timeline": "Der Anfordernde legte den Zeitplan fest",
+      "role-scope": "Der Interviewer erklärte die Rolle",
+      "tech-stack": "Der Kandidat beschrieb seine Technologieerfahrung",
+      "team-fit": "Der Interviewer fragte nach der Arbeitsweise",
+      "availability": "Der Kandidat nannte seine Kündigungsfrist",
+      "remote-policy": "Der Kandidat fragte nach Remote-Arbeit",
+      "growth": "Der Kandidat fragte nach Entwicklungsmöglichkeiten",
+      "guardrail": "Der Interviewer lenkte zur Agenda zurück",
+      "salary": "Der Kandidat fragte nach dem Gehalt"
+    },
+    "noMatches": "Kein Verlauf entspricht diesen Filtern.",
+    "minimap": {
+      "label": "Übersicht aller Spalten"
     }
   }
 }

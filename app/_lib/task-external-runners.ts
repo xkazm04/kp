@@ -19,10 +19,21 @@
 // one list instrumentation-node.ts calls at boot and the unit-test DB bootstrap calls
 // too, so a test exercises the same wiring the server runs.
 //
+// Since 2026-09-21 a fourth kind, `intake_round`, rides this registry with NO spec in
+// tasks.ts: the role-intake round's classifier + history write, called directly by
+// POST /api/intake/[id]/message. That is deliberate rather than an omission — a caller
+// that has no durable row to poll, no progress to report and no cancel to honour needs
+// the LOOKUP this module provides (keep a heavy implementation off an importer's graph)
+// without needing the task queue at all. A route reaches it by importing this module,
+// which is a leaf, instead of the hub.
+//
 // Contract: a spec in tasks.ts that delegates to `externalRunner(kind)` still declares
-// its own `tenancy` and still passes `ctx` (the pump test reads the spec text). An
-// unregistered kind is a boot-order bug, answered with a thrown error the task
-// runner records as a failed task — never a silent no-op.
+// its own `tenancy` and still passes `ctx` (the pump test reads the spec text). A caller
+// that is NOT a task spec carries the same obligation by hand: pass the ENQUEUING
+// tenant in `ctx.workspaceId` and let the runner scope its writes to it. An
+// unregistered kind is a boot-order bug, answered with a thrown error — the task runner
+// records it as a failed task, and a direct caller answers for it itself (the intake
+// route records the round unclassified rather than losing it) — never a silent no-op.
 
 export type ExternalTaskCtx = {
   workspaceId: string;

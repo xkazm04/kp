@@ -1109,6 +1109,37 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_role_intakes_ws ON role_intakes (workspace_id, created_at);
 
+    -- The role-intake conversation's HISTORY (db/intake-events.ts, Journey Analytics).
+    -- role_intakes.transcript_json is rewritten WHOLE on every exchange, so the row can
+    -- only say when it was last touched; this is the append-only ledger of the rounds
+    -- themselves. APPEND-ONLY is structural, not a convention: the store has no UPDATE
+    -- statement and its only DELETE is the erasure door (eraseIntakeEvents).
+    --
+    -- seq is monotonic per intake_id, derived as MAX(seq)+1 inside the INSERT so the
+    -- read and the write are one operation under one write lock.
+    -- topic_code is NULLABLE on purpose: a round the classifier could not place is a
+    -- legitimate row rendered through its KIND (journey/render-keys.ts), and "we could
+    -- not tell" must never look like "it was about the salary band".
+    -- Two clocks, never collapsed: occurred_at is the turn's own 'at' field, recorded_at
+    -- is
+    -- when kp wrote the row. A backfilled round is weeks apart; a live one is
+    -- milliseconds. actor NULL = kp genuinely does not know who did this.
+    CREATE TABLE IF NOT EXISTS intake_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      intake_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      topic_code TEXT,
+      facts_json TEXT,
+      occurred_at TEXT NOT NULL,
+      recorded_at TEXT NOT NULL,
+      actor TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_intake_events_intake ON intake_events (intake_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_intake_events_ws ON intake_events (workspace_id, occurred_at);
+
     -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
     -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
     -- the source of truth the poller reads, so a scan survives the operator
@@ -2332,6 +2363,7 @@ export function ensureDb(): Database.Database {
   }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
+  backfillIntakeEvents(db); // recover the role-intake history that predates intake_events
 
   // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so
@@ -3137,6 +3169,127 @@ function backfillDeclinedStatus(db: Database.Database): void {
         AND id IN (SELECT entry_id FROM pipeline_events WHERE kind = 'offer_declined' AND entry_id IS NOT NULL)
         AND id NOT IN (SELECT entry_id FROM pipeline_events WHERE kind = 'rejected' AND entry_id IS NOT NULL)`
   ).run(new Date().toISOString());
+}
+
+/** The seed mark this backfill records itself under (db/seed-marks.ts). */
+export const INTAKE_EVENTS_BACKFILL_MARK = "intake-events-backfill";
+
+/**
+ * Recover the role-intake history that existed before `intake_events` did.
+ *
+ * WHY THERE IS ANYTHING TO RECOVER. `role_intakes.transcript_json` is rewritten whole on
+ * every exchange, so the ROW carries only one timestamp — but its array ELEMENTS each
+ * carry their own `at` (VoiceTurn.at, voice/types.ts). Verified against the operator's
+ * own database on 2026-09-21: 36 rows, 143 turns, every one of them stamped. So the
+ * rounds are genuinely recoverable, and `occurred_at` for a recovered round is a FACT
+ * read off the turn rather than a guess — which is precisely why `occurred_at` and
+ * `recorded_at` are two columns. One run stamps ONE `recordedAt` across every row it
+ * writes, so "what kp knew, and when it learned it" stays answerable.
+ *
+ * RECORDED IN seed_marks, never `COUNT(*) > 0`. A row count cannot tell "never
+ * backfilled" from "backfilled, then legitimately emptied" — the difference between an
+ * operator's cleared table staying cleared and demo-shaped rows reappearing on the next
+ * boot. Same rule, and the same reasoning, as every seeder above.
+ *
+ * WRITES DIRECTLY ON THE PASSED HANDLE rather than through `recordIntakeEvent`, which is
+ * otherwise the table's only writer. Same exception, for the same reason, as
+ * `seedBenchmarkTeam`: this runs INSIDE ensureDb's initializer, before `__kpDb` is
+ * memoized, so any call that reaches `ensureDb()` would re-enter the whole initializer.
+ * The statement below is the same INSERT db/intake-events.ts issues, including the
+ * MAX(seq)+1 derivation and the workspace binding, and intake-events-tenancy.test.ts
+ * scans THIS file as well as that one so the copy cannot drift out of scope.
+ *
+ * TOPIC CLASSIFICATION IS DELIBERATELY NOT RUN HERE. Placing a round in the topic
+ * vocabulary needs `app/_lib/journey/intake-topics.ts`, and core.ts is on the static
+ * import graph of every route in the app — measured 2026-09-21, importing it would add
+ * two modules to ~207 routes against a ceiling `perf-budget.json` already reports as
+ * exceeded. A recovered round therefore lands with `topic_code` NULL, which is a
+ * first-class state: render-keys.ts renders it through its KIND. Live rounds ARE
+ * classified, off the request path, by the late-bound runner. If historic topics are
+ * later judged worth the graph, the honest move is to erase this run's rows
+ * (eraseIntakeEvents) and re-run WITH the classifier from a path no route imports —
+ * never a second write, because this table has no UPDATE path.
+ *
+ * Returns the number of rows written, so a caller (or a test) can distinguish "nothing
+ * to recover" from "already recovered".
+ */
+export function backfillIntakeEvents(db: Database.Database): number {
+  if (seedAlreadyRan(db, INTAKE_EVENTS_BACKFILL_MARK)) return 0;
+  const recordedAt = new Date().toISOString();
+  let written = 0;
+  // `-- tenancy:global` for a ONE-SHOT boot migration, which legitimately walks every
+  // tenant — like the stage remap and the declined-status split above it. Each row is
+  // then written back under the workspace_id it CAME FROM (bound in the INSERT below),
+  // so no round ever crosses a tenant; this is a sweep, not a read on anyone's behalf.
+  // Only intakes that have NO history yet. This is what makes the sweep idempotent BY
+  // CONSTRUCTION rather than only by its seed mark, and the distinction matters: an
+  // install whose role_intakes table is empty at first boot (a blank tenant) must not
+  // stamp a mark it did not earn, or `seed_marks` stops meaning "a seeder ran here" —
+  // core-empty-boot.test.ts pins exactly that. Without this predicate, skipping the
+  // mark on an empty table would let a LATER boot sweep intakes whose rounds were
+  // already recorded live through recordIntakeEvent, writing every one of them twice.
+  const rows = db.prepare(`SELECT id, workspace_id, transcript_json FROM role_intakes ri
+      WHERE NOT EXISTS (SELECT 1 FROM intake_events ie WHERE ie.intake_id = ri.id) -- tenancy:global`).all() as {
+    id: string;
+    workspace_id: string;
+    transcript_json: string | null;
+  }[];
+  const insert = db.prepare(
+    `INSERT INTO intake_events (intake_id, workspace_id, seq, kind, topic_code, facts_json, occurred_at, recorded_at, actor)
+     SELECT ?, ?, COALESCE((SELECT MAX(e.seq) FROM intake_events e WHERE e.intake_id = ? AND e.workspace_id = ?), 0) + 1,
+            'intake_round', NULL, ?, ?, ?, NULL`
+  );
+  // ALL OF IT, OR NONE OF IT — rows and mark together, in one IMMEDIATE transaction.
+  // Without it a run that failed on row 90 of 143 would leave 89 rows behind with the
+  // mark unset, and the next boot would write those 89 again: the ledger would say a
+  // hiring manager asked the same question twice. Synchronous throughout (no await
+  // anywhere inside), which is what keeps the atomicity real.
+  const run = db.transaction((): number => {
+    for (const row of rows) {
+      // A transcript this cannot read costs that ONE intake its history, never the boot:
+      // safeRowParse already files the unreadable column in the row-health ledger.
+      const transcript = safeRowParse<{ role?: unknown; text?: unknown; at?: unknown }[]>(
+        row.transcript_json,
+        "intakeEvent.backfillTranscript",
+        row.id
+      );
+      if (!Array.isArray(transcript)) continue;
+      // A ROUND is the requestor's turn plus the agent question immediately before it —
+      // `role: "interviewer"` is the intake agent, `role: "candidate"` is the REQUESTOR
+      // (the name is candidate-side legacy; see db/intakes.ts). A trailing question with
+      // no answer is not a round: nothing happened in it.
+      let question = "";
+      for (const turn of transcript) {
+        const text = typeof turn?.text === "string" ? turn.text : "";
+        if (turn?.role === "interviewer") {
+          question = text;
+          continue;
+        }
+        if (turn?.role !== "candidate") continue;
+        const at = typeof turn?.at === "string" && turn.at.trim() ? turn.at : "";
+        // No `at` ⇒ no row. Stamping `recordedAt` into `occurred_at` would manufacture a
+        // fact, and an absent history is the honest reading of a turn that never recorded
+        // when it happened.
+        if (at) {
+          // FACTS, not prose (journey/types.ts): the round's two halves are carried as
+          // named values and the sentence is rendered per locale. The 600 is
+          // INTAKE_ROUND_FACT_CHARS (db/intake-events.ts) restated: that module imports
+          // core.ts, so importing it back would close a cycle the boot path must not
+          // have. Keep the two in step — a transcript turn has no length limit and this
+          // ledger is not the transcript.
+          const facts = JSON.stringify({ question: question.slice(0, 600), answer: text.slice(0, 600) });
+          insert.run(row.id, row.workspace_id, row.id, row.workspace_id, facts, at, recordedAt);
+          written += 1;
+        }
+        question = "";
+      }
+    }
+    // Nothing to recover is not a run: a blank tenant leaves seed_marks untouched.
+    // The NOT EXISTS predicate above, not this mark, is what stops a double write.
+    if (rows.length > 0) markSeedRan(db, INTAKE_EVENTS_BACKFILL_MARK);
+    return written;
+  });
+  return run.immediate();
 }
 
 function seedPipeline(db: Database.Database): void {

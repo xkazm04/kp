@@ -2744,7 +2744,8 @@
       "agents": "Agents",
       "activity": "Activity",
       "intake": "Job intake",
-      "templates": "Templates"
+      "templates": "Templates",
+      "journeys": "Journeys"
     },
     "groups": {
       "hiring": "Hiring",
@@ -3049,7 +3050,8 @@
       "agent_activated": "went live as a Personas persona",
       "onboarding_started": "started onboarding (retired module)",
       "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)",
-      "screen_wave_holdout_unsealed": "was spared by the screening wave, but its calibration holdout record could not be sealed"
+      "screen_wave_holdout_unsealed": "was spared by the screening wave, but its calibration holdout record could not be sealed",
+      "approval_set": "Approval was set on this candidate"
     },
     "relTime": {
       "today": "today",
@@ -7958,7 +7960,8 @@
         "agent_activated": "Persona went live",
         "onboarding_started": "Onboarding started (retired module)",
         "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)",
-        "screen_wave_holdout_unsealed": "Spared by the wave, holdout record unsealed"
+        "screen_wave_holdout_unsealed": "Spared by the wave, holdout record unsealed",
+        "approval_set": "Approval gate set"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",
@@ -11863,6 +11866,138 @@
         "reason": "Reason",
         "resumeLink": "Resume on Sources"
       }
+    }
+  },
+  "journey": {
+    "title": "Journeys",
+    "lede": "Every candidate's journey through this role, side by side.",
+    "openBoard": "Open the journey board",
+    "closeBoard": "Close the journey board",
+    "empty": "No journeys yet for this workspace.",
+    "loadError": "The journey board could not be loaded.",
+    "filters": {
+      "role": "Role",
+      "allRoles": "All roles",
+      "activeOnly": "Active candidates only",
+      "observedOnly": "Observed rows only",
+      "find": "Find a candidate",
+      "testRuns": "Include test runs"
+    },
+    "phases": {
+      "job-definition": "Job definition",
+      "case": "Case activity",
+      "screening": "Candidate screening"
+    },
+    "shared": {
+      "headline": "One conversation defined this role. It happened once, above all {count} columns.",
+      "unlinked": "Not linked to this role in the record"
+    },
+    "rail": {
+      "title": "Steps in this role",
+      "note": "Derived from what actually happened in this role, not from a policy. Steps differ between roles.",
+      "reached": "{reached} of {cohort}",
+      "byMachine": "{count} by the machine",
+      "skipped": "Skipped, and the journey went on",
+      "neverReached": "Never reached. The journey ends here"
+    },
+    "absence": {
+      "caseNotRun": "This role runs no work-sample case.",
+      "caseNotAssigned": "No case was assigned to this candidate.",
+      "caseNotLinked": "A case exists but the record does not link it to this candidate yet.",
+      "screeningNotRecorded": "Screening was never recorded.",
+      "intakeMissing": "No role-definition conversation was recorded.",
+      "nothingHappened": "Nothing happened here",
+      "neverRecorded": "Never recorded, no reason on file"
+    },
+    "mark": {
+      "observed": "A real product row",
+      "human": "A human did this",
+      "machine": "The machine did this",
+      "unidentified": "Actor not identified",
+      "labelOnly": "Matched by name alone, so it may be a different person",
+      "testRun": "From a test run"
+    },
+    "silence": "{days} days, nothing recorded",
+    "detail": {
+      "actor": "Actor",
+      "occurredAt": "Happened",
+      "recordedAt": "Recorded",
+      "phase": "Phase",
+      "topic": "Topic",
+      "openSource": "Open the source",
+      "sourceTranscript": "Transcript excerpt",
+      "sourceDecision": "Sealed decision record",
+      "sourceAnalysis": "Analysis record",
+      "noSource": "Nothing further was stored for this row."
+    },
+    "events": {
+      "added": "Candidate was added to the board",
+      "applied": "Candidate applied",
+      "matched": "Candidate was matched to this role",
+      "advanced": "Candidate advanced to {to}",
+      "autoAdvanced": "Automation advanced the candidate to {to}",
+      "moved": "Candidate moved from {from} to {to}",
+      "screeningHold": "Screening was held for review",
+      "scheduleInviteSent": "Scheduling invite was sent",
+      "scheduled": "Interview slot was confirmed",
+      "interviewScheduled": "Interview was scheduled",
+      "interviewReminderSent": "Interview reminder was sent",
+      "interviewPrepGenerated": "Interview prep was generated",
+      "rejectionSent": "Rejection letter was sent",
+      "rejected": "Candidate was rejected",
+      "autoRejected": "Automation rejected the candidate",
+      "acknowledgementSent": "Application was acknowledged",
+      "offerDrafted": "Offer was drafted",
+      "offerSent": "Offer was sent",
+      "offerReminderSent": "Offer reminder was sent",
+      "reinstated": "Candidate was reinstated",
+      "koDeclined": "Candidate was declined at the knockout gate",
+      "approvalSet": "Approval was set to {kind}",
+      "analysis": "CV was analysed and scored {score}",
+      "interviewSession": "Voice interview was held",
+      "interviewRound": "An interview round took place",
+      "topicBegun": "Interviewer opened a new topic",
+      "topicCovered": "A topic was covered",
+      "candidateQuestion": "Candidate asked a question",
+      "guardrail": "Interviewer steered back to the agenda",
+      "focusLost": "The conversation drifted off topic",
+      "decisionSealed": "A hiring decision was sealed",
+      "consentRecorded": "Consent was recorded",
+      "caseDesigned": "A work-sample case was designed",
+      "caseApproved": "Recruiter approved the case",
+      "casePublished": "Case was published to the candidate",
+      "caseOpened": "Candidate opened the case brief",
+      "caseSubmitted": "Candidate submitted the case",
+      "caseEvaluated": "Submission was evaluated",
+      "intakeRound": "A round of the role conversation took place",
+      "intakeBriefChanged": "The role brief changed",
+      "intakePromoted": "The conversation became a job",
+      "unknown": "An event of kind {kind} was recorded",
+      "analysisUnscored": "CV was analysed, but no score was recorded"
+    },
+    "topics": {
+      "role-shape": "Requestor described the shape of the role",
+      "backfill-reason": "Requestor explained why the seat is open",
+      "role-title": "Requestor named the role in their own words",
+      "first-90-days": "Interviewer asked what the first 90 days must deliver",
+      "must-have-skills": "Requestor named the must-have skills",
+      "seniority": "Requestor settled the seniority band",
+      "team-context": "Requestor described the team the hire joins",
+      "salary-band": "Requestor gave the salary band",
+      "work-mode": "Requestor set the work mode",
+      "timeline": "Requestor set the hiring timeline",
+      "role-scope": "Interviewer explained the job role",
+      "tech-stack": "Candidate described their stack experience",
+      "team-fit": "Interviewer asked about working style",
+      "availability": "Candidate gave their notice period",
+      "remote-policy": "Candidate asked about remote work",
+      "growth": "Candidate asked about progression",
+      "guardrail": "Interviewer steered back to the agenda",
+      "salary": "Candidate asked about salary"
+    },
+    "noMatches": "No journey matches these filters.",
+    "minimap": {
+      "label": "Overview of every column"
     }
   }
 }

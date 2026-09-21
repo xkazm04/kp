@@ -88,6 +88,8 @@ export const EVENT_KINDS = [
   // d95fed6d — a recruiter's analysis disposition (advance/hold/pass on the
   // saved report) echoed onto the candidate's pipeline record.
   "disposition_set",
+  // The approval gate on an entry was raised or changed by an operator.
+  "approval_set",
   // d95fed6d — a practice (simulator) interview noted on the record.
   "sim_attached",
   // rematch-story-navigable — the two sides of a re-engagement link (silver-medalist
@@ -217,6 +219,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   intake_resolved: { Icon: Wrench, tone: "text-moss" },
   stage_migrated: { Icon: Shuffle, tone: "text-amber-600" },
   disposition_set: { Icon: CheckSquare, tone: "text-steel" },
+  approval_set: { Icon: Lock, tone: "text-ink" },
   sim_attached: { Icon: Phone, tone: "text-steel" },
   rematched: { Icon: Shuffle, tone: "text-steel" },
   rematched_from: { Icon: Repeat, tone: "text-steel" },

@@ -2744,7 +2744,8 @@
       "agents": "Agents",
       "activity": "Activité",
       "intake": "Cadrage du poste",
-      "templates": "Modèles"
+      "templates": "Modèles",
+      "journeys": "Parcours"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -3049,7 +3050,8 @@
       "agent_activated": "est entré en service comme persona Personas",
       "onboarding_started": "a démarré l’intégration (module retiré)",
       "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)",
-      "screen_wave_holdout_unsealed": "a été épargné par la vague de présélection, mais son enregistrement de témoin de calibrage n'a pas pu être scellé"
+      "screen_wave_holdout_unsealed": "a été épargné par la vague de présélection, mais son enregistrement de témoin de calibrage n'a pas pu être scellé",
+      "approval_set": "Une approbation a été définie pour ce candidat"
     },
     "relTime": {
       "today": "aujourd’hui",
@@ -7958,7 +7960,8 @@
         "agent_activated": "Persona mise en service",
         "onboarding_started": "Intégration démarrée (module retiré)",
         "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)",
-        "screen_wave_holdout_unsealed": "Épargné par la vague, enregistrement témoin non scellé"
+        "screen_wave_holdout_unsealed": "Épargné par la vague, enregistrement témoin non scellé",
+        "approval_set": "Approbation définie"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d’attente dans la boîte d’envoi (non remise)",
@@ -11863,6 +11866,138 @@
         "reason": "Raison",
         "resumeLink": "Reprendre dans Sources"
       }
+    }
+  },
+  "journey": {
+    "title": "Parcours",
+    "lede": "Le parcours de chaque candidat pour ce poste, côte à côte.",
+    "openBoard": "Ouvrir le tableau des parcours",
+    "closeBoard": "Fermer le tableau des parcours",
+    "empty": "Aucun parcours pour cet espace de travail pour l'instant.",
+    "loadError": "Le tableau des parcours n'a pas pu être chargé.",
+    "filters": {
+      "role": "Poste",
+      "allRoles": "Tous les postes",
+      "activeOnly": "Candidats actifs uniquement",
+      "observedOnly": "Lignes observées uniquement",
+      "find": "Rechercher un candidat",
+      "testRuns": "Inclure les exécutions de test"
+    },
+    "phases": {
+      "job-definition": "Définition du poste",
+      "case": "Activité sur le cas",
+      "screening": "Évaluation du candidat"
+    },
+    "shared": {
+      "headline": "Une conversation a défini ce poste. Elle a eu lieu une fois, au-dessus des {count} colonnes.",
+      "unlinked": "Non rattaché à ce poste dans l'enregistrement"
+    },
+    "rail": {
+      "title": "Étapes de ce poste",
+      "note": "Déduit de ce qui s'est réellement passé pour ce poste, et non d'une règle. Les étapes diffèrent selon le poste.",
+      "reached": "{reached} sur {cohort}",
+      "byMachine": "{count} par la machine",
+      "skipped": "Ignorée, le parcours a continué",
+      "neverReached": "Jamais atteinte. Le parcours s'arrête ici"
+    },
+    "absence": {
+      "caseNotRun": "Ce poste n'utilise pas de cas pratique.",
+      "caseNotAssigned": "Aucun cas n'a été attribué à ce candidat.",
+      "caseNotLinked": "Un cas existe mais l'enregistrement ne le relie pas encore à ce candidat.",
+      "screeningNotRecorded": "L'évaluation n'a jamais été enregistrée.",
+      "intakeMissing": "Aucune conversation de définition du poste n'a été enregistrée.",
+      "nothingHappened": "Rien ne s'est passé ici",
+      "neverRecorded": "Jamais enregistré, aucune raison au dossier"
+    },
+    "mark": {
+      "observed": "Une ligne réelle du produit",
+      "human": "Un humain l'a fait",
+      "machine": "La machine l'a fait",
+      "unidentified": "Acteur non identifié",
+      "labelOnly": "Rapproché par le nom seul, il peut s'agir d'une autre personne",
+      "testRun": "Issu d'une exécution de test"
+    },
+    "silence": "{days} jours, rien d'enregistré",
+    "detail": {
+      "actor": "Acteur",
+      "occurredAt": "Survenu",
+      "recordedAt": "Enregistré",
+      "phase": "Phase",
+      "topic": "Sujet",
+      "openSource": "Ouvrir la source",
+      "sourceTranscript": "Extrait de la transcription",
+      "sourceDecision": "Enregistrement de décision scellé",
+      "sourceAnalysis": "Enregistrement d'analyse",
+      "noSource": "Rien de plus n'a été enregistré pour cette ligne."
+    },
+    "events": {
+      "added": "Le candidat a été ajouté au tableau",
+      "applied": "Le candidat a postulé",
+      "matched": "Le candidat a été rapproché de ce poste",
+      "advanced": "Le candidat est passé à {to}",
+      "autoAdvanced": "L'automatisation a fait passer le candidat à {to}",
+      "moved": "Le candidat est passé de {from} à {to}",
+      "screeningHold": "L'évaluation a été mise en attente de revue",
+      "scheduleInviteSent": "L'invitation de planification a été envoyée",
+      "scheduled": "Le créneau d'entretien a été confirmé",
+      "interviewScheduled": "L'entretien a été planifié",
+      "interviewReminderSent": "Le rappel d'entretien a été envoyé",
+      "interviewPrepGenerated": "La préparation d'entretien a été générée",
+      "rejectionSent": "La lettre de refus a été envoyée",
+      "rejected": "Le candidat a été refusé",
+      "autoRejected": "L'automatisation a refusé le candidat",
+      "acknowledgementSent": "La candidature a été accusée de réception",
+      "offerDrafted": "L'offre a été rédigée",
+      "offerSent": "L'offre a été envoyée",
+      "offerReminderSent": "Le rappel d'offre a été envoyé",
+      "reinstated": "Le candidat a été réintégré",
+      "koDeclined": "Le candidat a été écarté au filtre éliminatoire",
+      "approvalSet": "L'approbation a été définie sur {kind}",
+      "analysis": "Le CV a été analysé et noté {score}",
+      "interviewSession": "L'entretien vocal a eu lieu",
+      "interviewRound": "Un tour d'entretien a eu lieu",
+      "topicBegun": "L'intervieweur a ouvert un nouveau sujet",
+      "topicCovered": "Un sujet a été couvert",
+      "candidateQuestion": "Le candidat a posé une question",
+      "guardrail": "L'intervieweur est revenu à l'ordre du jour",
+      "focusLost": "La conversation s'est écartée du sujet",
+      "decisionSealed": "Une décision d'embauche a été scellée",
+      "consentRecorded": "Le consentement a été enregistré",
+      "caseDesigned": "Un cas pratique a été conçu",
+      "caseApproved": "Le recruteur a approuvé le cas",
+      "casePublished": "Le cas a été publié au candidat",
+      "caseOpened": "Le candidat a ouvert l'énoncé du cas",
+      "caseSubmitted": "Le candidat a rendu le cas",
+      "caseEvaluated": "La soumission a été évaluée",
+      "intakeRound": "Un tour de la conversation sur le poste a eu lieu",
+      "intakeBriefChanged": "Le brief du poste a changé",
+      "intakePromoted": "La conversation est devenue un poste",
+      "unknown": "Un événement de type {kind} a été enregistré",
+      "analysisUnscored": "Le CV a été analysé, mais aucune note n'a été enregistrée"
+    },
+    "topics": {
+      "role-shape": "Le demandeur a décrit les contours du poste",
+      "backfill-reason": "Le demandeur a expliqué pourquoi le poste est vacant",
+      "role-title": "Le demandeur a nommé le poste avec ses propres mots",
+      "first-90-days": "L'intervieweur a demandé ce que les 90 premiers jours doivent produire",
+      "must-have-skills": "Le demandeur a nommé les compétences indispensables",
+      "seniority": "Le demandeur a fixé le niveau de séniorité",
+      "team-context": "Le demandeur a décrit l'équipe que rejoindra la recrue",
+      "salary-band": "Le demandeur a indiqué la fourchette salariale",
+      "work-mode": "Le demandeur a fixé le mode de travail",
+      "timeline": "Le demandeur a fixé le calendrier de recrutement",
+      "role-scope": "L'intervieweur a expliqué le poste",
+      "tech-stack": "Le candidat a décrit son expérience technique",
+      "team-fit": "L'intervieweur a interrogé sur la méthode de travail",
+      "availability": "Le candidat a indiqué son préavis",
+      "remote-policy": "Le candidat a posé une question sur le télétravail",
+      "growth": "Le candidat a posé une question sur l'évolution",
+      "guardrail": "L'intervieweur est revenu à l'ordre du jour",
+      "salary": "Le candidat a posé une question sur le salaire"
+    },
+    "noMatches": "Aucun parcours ne correspond à ces filtres.",
+    "minimap": {
+      "label": "Vue d'ensemble de toutes les colonnes"
     }
   }
 }
