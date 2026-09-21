@@ -1,5 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { registerAccount, defaultOrgName } from "./signup-service.ts";
 import { ensureDb } from "./db/core.ts";
@@ -77,4 +79,20 @@ test("blank org name falls back to the email domain, never the Untitled placehol
   assert.ok(r.ok);
   if (!r.ok) return;
   assert.equal(getOrganization(r.orgId)?.name, "acme.io");
+});
+
+test("registerAccount takes the IMMEDIATE write lock at BEGIN", () => {
+  const src = readFileSync(fileURLToPath(new URL("./signup-service.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  const start = src.indexOf("export function registerAccount(");
+  assert.notEqual(start, -1, "registerAccount not found — did it get renamed?");
+  const rest = src.slice(start + 1);
+  const end = rest.indexOf("\nexport ");
+  const body = end === -1 ? rest : rest.slice(0, end);
+  assert.match(
+    body,
+    /\.transaction\([\s\S]*?\.immediate\(\)/,
+    "registerAccount must take the write lock at BEGIN (.immediate()), not deferred transaction()()",
+  );
+  assert.match(body, /getUserByEmail\(email\)/, "the uniqueness read stays inside the lock");
+  assert.match(body, /isUniqueViolation\(error\)/, "the UNIQUE catch stays as the cross-process backstop");
 });

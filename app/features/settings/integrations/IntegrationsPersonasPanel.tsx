@@ -7,7 +7,7 @@ import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL
 import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { BridgeConfigPublic } from "@/app/_lib/agent-hire/bridge-store";
-import { usePersonasPairing } from "./integrationsPersonasLogic";
+import { usePersonasPairing, useWaitingRemainingSeconds } from "./integrationsPersonasLogic";
 
 // Agent-candidate bridge — connect kp to the Personas desktop app (the door for
 // hiring AI agents). Pairing is human-approved: kp registers a request, the
@@ -23,6 +23,7 @@ export function IntegrationsPersonasPanel() {
   const { data, error, reload } = useJsonFetch<{ bridge: BridgeConfigPublic }>("/api/agents/bridge", t("loadFailed"));
   const pairing = usePersonasPairing(reload);
   const [baseUrl, setBaseUrl] = useState("");
+  const remainingS = useWaitingRemainingSeconds(pairing.state.phase === "waiting" ? pairing.state.deadline : null);
 
   const bridge = data?.bridge ?? null;
   const connected = bridge?.paired === true;
@@ -70,6 +71,7 @@ export function IntegrationsPersonasPanel() {
             {t("waitingTitle")}
           </p>
           <p className="mt-1 text-sm text-steel">{t("waitingBody")}</p>
+          {remainingS != null ? <p className="mt-1 nums text-sm text-steel">{t("waitingRemaining", { count: remainingS })}</p> : null}
           <button type="button" onClick={pairing.cancel} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm`}>
             {t("waitingCancel")}
           </button>

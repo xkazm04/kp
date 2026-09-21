@@ -4,13 +4,17 @@
 //   1. no key present in the default (en) catalog is MISSING,
 //   2. no key exists that the default does NOT have (an orphan / typo),
 //   3. every message has balanced ICU `{ }` braces and matching placeholder
-//      names against the default (so `{count}` in en isn't `{pocet}` in cs).
+//      names against the default (so `{count}` in en isn't `{pocet}` in cs),
+//   4. every translated list has as many items as the default's.
+// All four, and the §5 dash rule, run over every string at ANY depth, list items
+// included, and the output counts the strings checked (scripts/i18n/catalog-check.mjs).
 // Exits non-zero (failing CI / the i18n:check script) on any problem. The
 // compile-time half of gap prevention is the next-intl Messages augmentation in
 // global.d.ts (unknown keys are TS errors); this is the cross-locale half.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkCatalogs } from "./i18n/catalog-check.mjs";
 import { copyDefaults } from "./i18n/primitive-copy-defaults.mjs";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -65,6 +69,10 @@ const ENGLISH_ERROR_LEAK = /\.error\s*(?:\|\||\?\?)|typeof\s+\w+\??\.error\s*===
 // Verified non-UI uses of the same syntax: a change-detection cache key, a DB
 // column write, and a server-side log field. Re-verify before adding to this list —
 // it exists for values that never reach a user, not for exceptions.
+// Ceiling, not a suggestion: appending a path is a silent policy change.
+// Raise ERROR_LEAK_ALLOW_MAX in the same commit that adds a member, with a
+// reason. The gate fails if the set grows past this or names a missing file.
+const ERROR_LEAK_ALLOW_MAX = 8;
 const ERROR_LEAK_ALLOW = new Set([
   "app/_lib/task-view.ts",
   "app/_lib/scheduler-store.ts",
@@ -83,60 +91,18 @@ const ERROR_LEAK_ALLOW = new Set([
   // honest state is "documented English", not a silent generic.
   "app/features/hiring/channels/useChannelsData.ts",
   "app/features/hiring/pipeline/pipelineTabHelpers.ts",
-  // Dev-facing studio, deliberately outside the strict i18n lint (eslint.config.mjs).
+  // The onboarding wizard's session hook talks to a SEPARATE local installer
+  // process directly over fetch/EventSource (not one of our own route
+  // handlers), so its JSON never carries our `{ error, code }` envelope —
+  // there is no code to resolve. Its `error` text is the installer's own
+  // diagnostic (port down, bad token, install step failed) and IS the
+  // information the operator needs to act on; a generic fallback would
+  // discard it for no gain.
+  "app/features/setup-studio/useWizardSession.ts",
 ]);
 const HARDCODED_ATTR = /(?:^|\s)(aria-label|title|placeholder|alt)="[^"{]/;
 const LINE_BREAK = /\r?\n/;
 const DEFAULT_LOCALE = "en";
-
-// Full ICU compile is the authoritative syntax check (the brace-balance check
-// below is the dependency-free fast-fail). next-intl ships intl-messageformat,
-// so we reuse the SAME parser next-intl uses at runtime — a message that fails
-// here (e.g. a malformed `{n, plural, …}` with bad Czech categories) is one that
-// would throw on render. Optional: if the dep can't be loaded, we degrade to the
-// brace check rather than failing the gate spuriously.
-let IntlMessageFormat = null;
-try {
-  const mod = await import("intl-messageformat");
-  IntlMessageFormat = mod.IntlMessageFormat ?? mod.default;
-} catch {
-  /* parser unavailable — brace-balance check still runs */
-}
-
-// The ICU AST parser (same family next-intl uses) lets us extract the REAL
-// argument names — not the plural/select BRANCH literals a naive `{…}` regex
-// mistakes for placeholders (e.g. `{n, plural, one {is} other {are}}` would
-// otherwise read "is"/"are" as variables and flag every translated branch).
-let icuParse = null;
-let ICU_TYPE = null;
-try {
-  const mod = await import("@formatjs/icu-messageformat-parser");
-  icuParse = mod.parse;
-  ICU_TYPE = mod.TYPE;
-} catch {
-  /* parser unavailable — argNames falls back to the regex below */
-}
-
-function icuError(value, locale) {
-  if (typeof value !== "string" || !IntlMessageFormat) return null;
-  try {
-    new IntlMessageFormat(value, locale);
-    return null;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message.split("\n")[0] : String(err);
-    return `invalid ICU message — ${msg}`;
-  }
-}
-
-/** Flatten nested catalog objects to dotted keys: { a: { b: "x" } } -> { "a.b": "x" }. */
-function flatten(obj, prefix = "", out = {}) {
-  for (const [key, value] of Object.entries(obj)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (value && typeof value === "object" && !Array.isArray(value)) flatten(value, path, out);
-    else out[path] = value;
-  }
-  return out;
-}
 
 /** JSON.parse keeps the LAST of two identical keys and says nothing - so a key pasted
  *  twice by two sessions splicing the same object (wave 7, 2026-09-02: five keys in all
@@ -176,59 +142,7 @@ function duplicateKeys(text) {
 function loadCatalog(file) {
   const text = readFileSync(join(MESSAGES_DIR, file), "utf-8");
   for (const key of duplicateKeys(text)) problems.push(`${file}: duplicate key ${key} (JSON.parse keeps the last silently)`);
-  return flatten(JSON.parse(text));
-}
-
-/** The argument + rich-tag names a message references — used to assert en and a
- *  translation share the same variables/tags. AST-based when the parser is
- *  available (so plural/select branch LITERALS like `one {is}` are correctly NOT
- *  treated as placeholders, and rich tags `<b>` are compared); otherwise falls
- *  back to a `{name}` regex. */
-function argNames(value) {
-  if (typeof value !== "string") return new Set();
-  if (icuParse && ICU_TYPE) {
-    const names = new Set();
-    let ast;
-    try {
-      ast = icuParse(value);
-    } catch {
-      return names; // a genuine parse error is reported separately by icuError
-    }
-    const walk = (nodes) => {
-      for (const n of nodes) {
-        if (n.type === ICU_TYPE.argument || n.type === ICU_TYPE.number || n.type === ICU_TYPE.date || n.type === ICU_TYPE.time) {
-          names.add(n.value);
-        } else if (n.type === ICU_TYPE.select || n.type === ICU_TYPE.plural) {
-          names.add(n.value);
-          for (const opt of Object.values(n.options)) walk(opt.value);
-        } else if (n.type === ICU_TYPE.tag) {
-          names.add(`<${n.value}>`);
-          walk(n.children);
-        }
-      }
-    };
-    walk(ast);
-    return names;
-  }
-  const names = new Set();
-  const re = /\{\s*([a-zA-Z0-9_]+)/g;
-  let m;
-  while ((m = re.exec(value))) names.add(m[1]);
-  return names;
-}
-
-/** Returns a brace-balance error string for an ICU message, or null if balanced. */
-function braceError(value) {
-  if (typeof value !== "string") return null;
-  let depth = 0;
-  for (const ch of value) {
-    if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth < 0) return "a `}` appears before its `{`";
-    }
-  }
-  return depth !== 0 ? "unbalanced `{` / `}` braces" : null;
+  return JSON.parse(text);
 }
 
 const files = readdirSync(MESSAGES_DIR).filter((f) => f.endsWith(".json"));
@@ -239,73 +153,19 @@ if (!files.includes(defaultFile)) {
 }
 
 const problems = [];
-const base = loadCatalog(defaultFile);
-const baseKeys = Object.keys(base);
-
-// ---- The no-dash house rule (docs/i18n/contract.md §5) -----------------------
-// `—` (U+2014) is banned in catalog copy outright; `–` (U+2013) survives only
-// between numbers. This is gated rather than merely documented because a rule
-// with no gate decays: within hours of the 2026-08-12 sweep clearing all four
-// catalogs, a parallel session added four new keys carrying em dashes, entirely
-// reasonably — it had no way to know. Prose is a shared surface, so the check
-// belongs where the other catalog invariants already live.
-//
-// "Numeric" includes a placeholder that renders a number (`{min}–{max}`,
-// `{lo, number}–{hi, number}`) and an abbreviated magnitude (`120k–165k`), not
-// just a bare digit — otherwise every legitimate salary band fails.
-const RANGE_LEFT = /(?:\d[kKmM%]?|\})\s*$/;
-const RANGE_RIGHT = /^\s*(?:\d|\{)/;
-function dashError(value) {
-  if (typeof value !== "string") return null;
-  if (value.includes("—")) {
-    return "em dash (U+2014) in catalog copy — recast into sentence syntax (a full stop, a colon before a list, a comma pair, or parentheses in a tight label). See docs/i18n/contract.md §5";
-  }
-  let i = -1;
-  while ((i = value.indexOf("–", i + 1)) !== -1) {
-    if (!(RANGE_LEFT.test(value.slice(0, i)) && RANGE_RIGHT.test(value.slice(i + 1)))) {
-      const ctx = value.slice(Math.max(0, i - 20), i + 21);
-      return `en dash (U+2013) used as prose punctuation in "…${ctx}…" — it is only allowed between numbers. See docs/i18n/contract.md §5`;
-    }
-  }
-  return null;
-}
-
-// Default catalog must itself be ICU-valid (brace balance + full compile).
-for (const key of baseKeys) {
-  const err = braceError(base[key]) || icuError(base[key], DEFAULT_LOCALE);
-  if (err) problems.push(`${DEFAULT_LOCALE}: "${key}" — ${err}`);
-  const dash = dashError(base[key]);
-  if (dash) problems.push(`${DEFAULT_LOCALE}: "${key}" — ${dash}`);
-}
-
-for (const file of files) {
-  if (file === defaultFile) continue;
-  const locale = file.replace(/\.json$/, "");
-  const catalog = loadCatalog(file);
-  const keys = new Set(Object.keys(catalog));
-
-  for (const key of baseKeys) {
-    if (!keys.has(key)) {
-      problems.push(`${locale}: missing key "${key}" (present in ${DEFAULT_LOCALE})`);
-      continue;
-    }
-    const err = braceError(catalog[key]) || icuError(catalog[key], locale);
-    if (err) problems.push(`${locale}: "${key}" — ${err}`);
-    const dash = dashError(catalog[key]);
-    if (dash) problems.push(`${locale}: "${key}" — ${dash}`);
-    const baseVars = argNames(base[key]);
-    const localeVars = argNames(catalog[key]);
-    for (const v of baseVars) {
-      if (!localeVars.has(v)) problems.push(`${locale}: "${key}" — missing placeholder {${v}}`);
-    }
-    for (const v of localeVars) {
-      if (!baseVars.has(v)) problems.push(`${locale}: "${key}" — unexpected placeholder {${v}} (not in ${DEFAULT_LOCALE})`);
-    }
-  }
-  for (const key of keys) {
-    if (!(key in base)) problems.push(`${locale}: orphan key "${key}" (not in ${DEFAULT_LOCALE})`);
-  }
-}
+// Default catalog first: every other locale is held to it.
+const catalogs = [defaultFile, ...files.filter((f) => f !== defaultFile)].map((file) => ({
+  locale: file.replace(/\.json$/, ""),
+  data: loadCatalog(file)
+}));
+// Key parity, list parity, ICU syntax, placeholder parity and the §5 dash rule, over
+// every string at any depth. See scripts/i18n/catalog-check.mjs for why "any depth"
+// had to be said out loud.
+const catalogResult = checkCatalogs(catalogs, DEFAULT_LOCALE);
+problems.push(...catalogResult.problems);
+// The default catalog's string addresses. The error-code and archetype lookups below
+// resolve plain object paths, so a list-item address (`a.b[0]`) never matches one.
+const baseKeys = catalogResult.baseKeys;
 
 // ---- Shared primitives may not hardcode an accessible name --------------------
 function tsxFiles(dir) {
@@ -470,6 +330,16 @@ const SATELLITE_ERROR_SOURCES = [
     }
   },
   {
+    // Client-origin: the browser classifies its OWN environment before /connect,
+    // so these can never appear in the server's store/refusal vocabulary.
+    file: "app/_lib/voice/preflight.ts",
+    declaration: "VOICE_PREFLIGHT_ERRORS",
+    codes: (src) => {
+      const block = src.match(/export const VOICE_PREFLIGHT_ERRORS = \{([\s\S]*?)\n\} as const;/);
+      return block ? [...block[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]) : null;
+    }
+  },
+  {
     // `export type JdFieldsErrorCode = "JD_FIELDS_REQUIRED" | …;` — a union, not an
     // object: validateJdFields returns the code beside its canonical-English `error`.
     file: "app/_lib/jd-limits.ts",
@@ -603,6 +473,18 @@ if (!existsSync(archetypeRegistryPath)) {
   }
 }
 
+if (ERROR_LEAK_ALLOW.size > ERROR_LEAK_ALLOW_MAX) {
+  problems.push(
+    `ERROR_LEAK_ALLOW has ${ERROR_LEAK_ALLOW.size} entries; ceiling is ${ERROR_LEAK_ALLOW_MAX}. ` +
+      `Remove a path or raise the ceiling in the same change with a reason.`,
+  );
+}
+for (const rel of ERROR_LEAK_ALLOW) {
+  if (!existsSync(join(REPO_ROOT, rel))) {
+    problems.push(`ERROR_LEAK_ALLOW names ${rel}, which is not on disk`);
+  }
+}
+
 let uiFileCount = 0;
 for (const dir of UI_DIRS) {
   const abs = join(REPO_ROOT, ...dir.split("/"));
@@ -630,14 +512,24 @@ for (const dir of UI_DIRS) {
   }
 }
 
+// Coverage is counted, not claimed: the line states how many STRINGS the catalog
+// checks read, beside the independent count they are held to (a difference is
+// already a problem above). It used to print a key count, which counted a list as
+// one key and so could not reveal that the list's items were never checked.
+const { coverage } = catalogResult;
+const coverageLine =
+  `${coverage.defaultStrings} strings per locale checked (${coverage.listStrings} of them inside ${coverage.lists} list(s)); ` +
+  `${coverage.totalUnits} across ${coverage.locales} locale(s), independent string count ${coverage.totalCounted}`;
+
 if (problems.length) {
   console.error(`[i18n-check] ${problems.length} problem(s):`);
   for (const p of problems) console.error(`  - ${p}`);
+  console.error(`[i18n-check] catalog coverage: ${coverageLine}`);
   process.exit(1);
 }
 
 console.log(
-  `[i18n-check] OK — ${baseKeys.length} keys, ${files.length} locale(s) in parity; ` +
+  `[i18n-check] OK — ${coverageLine}; ${files.length} locale(s) in parity; ` +
     `${primitiveFileCount} shared primitive(s) + ${sealedFileCount} marketing file(s) free of hardcoded attributes; ` +
     `${uiFileCount} UI file(s) free of English API-error leaks; ` +
     `${satelliteCodeCount} satellite + ${seenInlineCodes.size} inline error code(s) localized (${inlineCodeCount} emit site(s)).`

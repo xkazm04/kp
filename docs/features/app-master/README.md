@@ -44,6 +44,7 @@ fork.
 | `appMasterSpecSchema` / `repoDossierSchema` / `performanceBackboneSchema` (Zod) | **shipped (P1)** | `app/_lib/schemas.generated.ts` (generated; do not edit) |
 | `codebase_dossier` facet key on a RoleBrief | **shipped (P1)** — suggested vocabulary only, never a validator | `pipeline/jobfit/rolebrief.py` |
 | `POST /api/repo-scan` → `{ scanId, taskId }` | **shipped (P2)** | `app/api/repo-scan/route.ts` |
+| `GET /api/repo-scan` → `{ scans }` (this workspace, allow-list) | **shipped (P2)** | `app/api/repo-scan/route.ts` |
 | `GET /api/repo-scan/[id]` → the scan row | **shipped (P2)** | `app/api/repo-scan/[id]/route.ts` |
 | `repo_scan` background task → `RepoDossier` | **shipped (P2)** | `app/_lib/repo-scan.ts`, `app/_lib/repo-scan-run.ts`, `pipeline/jobfit/repo_scan.py` |
 | Intake shape `app_master` — the pipeline is shipped, but its START DOOR was withdrawn from the intake page on 2026-09-09 and not replaced, so no new app-master session can be opened from the UI | **shipped (P3), unreachable** | `app/features/library/jds/intake/jdsIntakeLogic.ts` (`startAppMaster`), `pipeline/jobfit/intake.py` |
@@ -458,6 +459,15 @@ ladder is bounded at five attempts, after which the state stays on screen and th
 client stops asking. Pure, so `dossier-retry.test.ts` pins the ladder and
 `jdsIntakeLogic.test.ts` pins the wiring.
 
+**The mandate projection names the bounds.** `mandateSections`
+([`app/_lib/app-master/mandate-view.ts`](../../../app/_lib/app-master/mandate-view.ts))
+projects `scopeRung` (0..2, where 0 is read-only and still a bound) and
+`forbiddenClasses` beside the gates, objectives, cadence, retire criteria and
+reservation policy. A spec that only has a rung still counts as non-empty;
+an out-of-range rung or a whitespace class is absent, never clamped or
+invented. The projection used to omit both, so a requestor-facing section
+could look complete without the rung cap or the forbidden-change list.
+
 **The spec's vintage.** `AppMasterCompose.composedAt` has been stored since P3
 and was read by no surface, so a spec composed against three facets looked
 identical to one composed a second ago — under a button that hands a mandate to
@@ -466,9 +476,13 @@ an accountable owner. `specVintage`
 compares it against the intake row's `updatedAt` (a 2-second grace window, because
 the compose route stamps `composedAt` and THEN writes the row) and the card shows
 an amber *Older brief* chip plus the remedy when the brief moved afterwards. It is
-a DISCLOSURE, not a gate: Dispatch stays enabled, and the requestor decides. It is
-also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`, which is a schema check
-on the stored spec's shape; a spec can be stale in vintage while parsing perfectly.
+a DISCLOSURE on the card, not a schema check: Dispatch stays enabled until the
+door calls `vintageDispatch`, which returns `AGENT_DISPATCH_SPEC_VINTAGE` when
+the vintage is `stale` and the caller did not pass `acknowledgeStale`. `unknown`
+never refuses. It is also NOT the dispatch route's `AGENT_DISPATCH_SPEC_STALE`,
+which is a schema check on the stored spec's shape; a spec can be stale in
+vintage while parsing perfectly. The helper is the contract; wiring the door is
+a separate change.
 
 ### The reference reading
 
@@ -893,6 +907,7 @@ spec was composed, and it travels with the spec.
 | Symbol | Kind | What it is |
 | --- | --- | --- |
 | `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` + optional `fresh: true` → `{ scanId, taskId, reused }` (`taskId` is `null` for a reused COMPLETE scan; `fresh` refuses a finished reading, never an in-flight one). `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `GET /api/repo-scan` | route | → `{ scans }` — this workspace's 25 most recent rows, same allow-list as the detail read (no spend, so no extra limiter). A refresh with no in-memory `scanId` can recover an in-flight row from here. `requireOperator` |
 | `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
@@ -1015,8 +1030,10 @@ probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
 `scripts/app-master-bench/soak/night.mjs` runs ONE unattended C1 ideation night
 against the standing tenure and appends an honest per-night record — misses
 included — to `bench/app-master/soak/log.jsonl`. Scheduled by Windows Task
-Scheduler (`kp-app-master-soak`, 02:47 nightly), NOT by any session-bound
-mechanism — registered per machine by the committed `soak/install.cmd`
+Scheduler (`kp-app-master-soak`, 02:47 nightly) via `soak/soak-night.cmd`, or on
+a POSIX host by cron/systemd via `soak/soak-night.sh` (same `SOAK_*` defaults,
+exits 0 unless the runner itself is missing) — NOT by any session-bound
+mechanism. Windows registration is the committed `soak/install.cmd`
 (idempotent; the teardown command is in its header). The installer patches the
 task to **run late rather than not at all** (`StartWhenAvailable`, battery
 guards off), because the host measurably sleeps through 02:47; it deliberately
@@ -1027,9 +1044,12 @@ miss, which is a measurement. Protocol, per-night record shape, the failure
 taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
 
 The runner's *reasoning* — the miss taxonomy (`MISS_CLASSES`, a literal array
-plus a runtime guard, so a typo'd class stops being indistinguishable from a real
-one), the one-record-one-verdict rule, the calendar-gap backfill and reading the
-log — is exported above `main()` and pinned by `soak/night.test.mjs`. Importing
+plus a runtime guard, lockstepped against the taxonomy table in
+`docs/development/app-master-soak.md` so a one-sided add is red), the
+one-record-one-verdict rule, the calendar-gap backfill, reading the
+log, and `passRateMatrix` (`node soak/night.mjs --matrix` prints the weekly
+pass-rate table without running a night) — is exported above `main()` and pinned
+by `soak/night.test.mjs`. Importing
 the module runs nothing; only being the process entry point starts a night. That
 half was the most-revised code in this area, twenty-odd review rounds defended
 entirely by comments, and it had no test. `npm run test:bench-driver` globs
@@ -1597,7 +1617,11 @@ because the instruction each carries is different.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
-printed loudly so nobody reads silence as coverage.
+printed loudly so nobody reads silence as coverage. `kp-c1-night` is **not** in
+that bucket: it is a gate subject (`mustPass`, its four C1 `expect` keys,
+`metrics: null` until a live night is committed), so a night that stops ranking
+the backlog or starts dispatching under `suggest` fails `bench:gate` instead of
+landing as an unbaselined extra.
 
 #### The baseline carries numbers (schemaVersion 2)
 
@@ -1618,14 +1642,20 @@ merged, gate pass rate 0.944, 0 violations, backbone score 0.9056, coverage 1).
 That run used `--stub-personas`, so those figures are **canned by construction**
 and the gate refuses a stub run outright: treat them as the SHAPE a real sweep
 must clear, and re-record them from the first live sweep with `metricsFrom`
-naming its run. The other five scenarios stay honestly at `metrics: null` and are
+naming its run. The other six scenarios stay honestly at `metrics: null` and are
 reported as **`unmetered`** — nobody has measured them, which is a gap to fill
 rather than a failure to invent, and the gate says so in its own line.
 
 `baseline.json` is pinned to the committed scenarios by `gate.test.mjs` (in
 `npm run test:bench-driver`, a CI step) in both directions: every baselined
-scenario must have a scenario file, and every `requiredExpectations` name must
-actually be declared in that scenario's `expect` block. It is also a **ratchet**:
+scenario must have a scenario file, every `scenarios/*.json` name must be either
+in the baseline or on an explicit `UNBASELINED_ALLOW` list (empty: a new file
+without a row is a red unit test the same day, not a silent unbaselined extra at
+sweep time), and every `requiredExpectations` name must actually be declared in
+that scenario's `expect` block — and the inverse: every `expect` key of a
+baselined scenario is required, or named on `UNGATED_EXPECTATIONS` (empty).
+Dropping a check from a scenario file without updating the baseline is a
+unit-test failure, not a sweep-time unmeasured. It is also a **ratchet**:
 `FLOOR` in `gate.test.mjs` freezes what the baseline has already promised, so
 deleting a scenario, dropping a required expectation, lowering a bar or widening
 a tolerance is red — and the numbers are checked back against the fixture they
@@ -1800,9 +1830,12 @@ The schemas travel three ways once the later phases land:
   (`python app/_lib/app-master/__fixtures__/generate.py`) — but forgetting is now
   a red gate rather than a silent drift.
 - **Only the latest period is scored.** Rollups are absolutes per period, so the
-  latest one is treated as the review window. An agent that reported August and
-  went quiet keeps showing August's verdict; there is no trend across windows and
-  no staleness marker beyond the period name.
+  latest one is treated as the review window. There is no trend across windows.
+  `backboneFreshness` (`app/_lib/app-master/backbone.ts`) classifies that period
+  as `current | stale | unknown` (`YYYY-MM` older than the current month, or
+  `YYYY-MM-DD` older than the review window, is stale; unparseable is unknown,
+  never invented stale) so a roster can label a quiet hire instead of implying
+  August's verdict is still the review window.
 - **The mandate is data kp dispatches, not a bound kp enforces.** `scopeRung` and
   `forbiddenClasses` ride the wire and the roster shows them; blocking a proposal
   that touches a forbidden class happens in Personas' `autonomy.rs`, which is not
@@ -1835,9 +1868,13 @@ The schemas travel three ways once the later phases land:
   ("dossier field accuracy vs ground truth") is the missing harness. Treat the
   reference reading in `examples/kp-dossier.json` as one sample, not a baseline.
 - **The scan is one-shot and never re-run.** A dossier is a reading of a repo at
-  a moment; nothing expires it, re-scans on a schedule, or tells the operator the
-  dossier a spec was composed from is now months old. `generatedAt` is on the
-  record, and reading it is currently the operator's job.
+  a moment; nothing expires it or re-scans on a schedule. `generatedAt` is on the
+  record, and `dossier_freshness(generated_at, now)` classifies it as
+  `current` / `stale` / `unknown` against a 14-day window (the same order as the
+  bench gate) so compose and hire-from-need can disclose or refuse a stale
+  reading without spawning a new scan. The walker itself stays pure: freshness is
+  a sibling field, not a schema stamp, so two walks of an unchanged tree are
+  still byte-identical.
 - **Churn uses `--name-only`, not the concept's `--oneline`.**
   `docs/concepts/app-master.md` §3 names `git log --oneline -200` for hot spots,
   but that format prints no paths, so it cannot answer "what changes most". The

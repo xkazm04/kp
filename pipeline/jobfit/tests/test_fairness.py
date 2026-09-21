@@ -17,7 +17,15 @@ from pipeline.jobfit.eval.matching_eval import (
     _student_frontend,
     run,
 )
-from pipeline.jobfit.matching import fairness_matrix, load_corpus, match, propose_weights
+from pipeline.jobfit.matching import (
+    MatchCandidate,
+    fairness_matrix,
+    load_corpus,
+    match,
+    propose_weights,
+    score_motivation,
+)
+from pipeline.jobfit.tests._helpers import mkjob
 from pipeline.jobfit.profile import Evidence
 from pipeline.jobfit.transform import build_match_candidate
 
@@ -203,6 +211,47 @@ class GenderNeutralityTest(unittest.TestCase):
         res_f = fairness_matrix(pairs_f, job)
         self.assertEqual(res_m["matrix"], res_f["matrix"], "the group-compare matrix is gender-sensitive")
         self.assertEqual(res_m["own"], res_f["own"])
+
+
+class MotivationAspirationTermTest(unittest.TestCase):
+    """score_motivation used to drop aspiration tokens of length <= 3.
+
+    A student targeting "UX" scored as having no aspiration hit on a UX Designer
+    role. Whole-token matching plus a stopword set is the documented fix: short
+    role names (UX, HR, QA, AI) score, glue (`in`, `v`, `na`) does not. The glue
+    title carries those tokens as whole words so deleting the stopword set fails
+    too — a length-only revert is not the only mutation this pins.
+    """
+
+    def _score(self, aspirations: list[str], title: str) -> float:
+        cand = MatchCandidate(
+            archetype="student",
+            role_family="software_engineering",
+            languages=[],
+            aspirations=aspirations,
+        )
+        job = mkjob(title=title, languages=[], role_family="software_engineering")
+        return score_motivation(cand, job)
+
+    def test_two_letter_aspiration_hits_a_title_token(self) -> None:
+        ux = self._score(["UX"], "UX Designer")
+        none = self._score([], "UX Designer")
+        self.assertGreater(
+            ux,
+            none,
+            "aspiration ['UX'] vs title 'UX Designer' must score the aspiration term > 0",
+        )
+
+    def test_glue_tokens_do_not_hit(self) -> None:
+        title = "UX Designer in Prague v tymu na webu"
+        none = self._score([], title)
+        for glue in ("in", "v", "na"):
+            with self.subTest(glue=glue):
+                self.assertEqual(
+                    self._score([glue], title),
+                    none,
+                    f"glue token {glue!r} must not score an aspiration hit",
+                )
 
 
 if __name__ == "__main__":

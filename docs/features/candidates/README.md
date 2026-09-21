@@ -45,15 +45,30 @@ career-switcher) that other features key off. Downstream ranking is
 - **Saved analysis report** — `app/history/[slug]/page.tsx`. Its "Add to pipeline"
   files the candidate under the JD's REAL title (`loadJd(jd_slug, ws).title`,
   workspace-scoped, best-effort); the synthetic `JD <slug>` remains only as the
-  fallback for a JD deleted out from under the analysis. History list —
+  fallback for a JD deleted out from under the analysis. The live Analyze result
+  uses the same filing identity: `deriveAnalyzePipelineAffordance` resolves
+  `jobTitle` from the picker's `JdSummary` for the run's `jdSlug` (the library
+  the form already holds) and falls back to `JD <slug>` only when that row is
+  missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
   seniority/decision filters run CLIENT-side over the rows `/api/analyses`
-  returned (a hard `LIMIT 200`, no truncation flag — see Known gaps). The
+  returned (a hard cap, default 200). Name search folds diacritics and case
+  (`foldForSearch` / `historyRowMatchesQuery` in `HistoryTypes.ts`, the same
+  fold as the profile roster), so `capek` finds `Čapek`. The route answers `{ truncated, limit }`
+  beside the rows; when the page was cut, History names it as a page
+  ("Showing {n} newest; older runs still open by slug") and the Showing-of
+  line uses the loaded-slice copy instead of `rows.length` as a total. The
   family/seniority dropdowns are ordered by their **localized** label through
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
-  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader.
+  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader. Saved-at dates go through
+  `useDateFormat` (the list) and `dateFormatter` with the server `getLocale()`
+  (the report header), never the runtime default locale.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
+  mounts `DispositionEditor` in the header row next to Add-to-pipeline once
+  `analysisSlug` is set (live Analyze after persist, and the saved report), so
+  advance/hold/pass is recorded on the same surface as the verdict; an unsaved
+  run omits it. The panel also
   keeps its active tab in the URL fragment: selecting a tab rewrites
   `#report-<tab>` with `history.replaceState`, and the panel reads that fragment on
   mount and on `hashchange`. So a recruiter can send a colleague the salary read of
@@ -147,7 +162,10 @@ can hold anything another tab or an older build left behind, so a non-string
 field is dropped rather than pushed into a controlled `<textarea>` (a corrupted
 `github` never costs the recruiter their JD), an all-empty draft removes the key
 instead of writing a hollow one, and a restore only fills a field still empty so
-a saved-JD pick always beats a stale draft.
+a saved-JD pick always beats a stale draft. `blind` and `reportLang` ride the
+same codec (`reportLang` validated with `isLocale`); they restore only when
+still at the mount default, so a configured run survives the workspace tab
+unmount the draft was built for.
 
 **The drop highlight is counted, and the zones announce themselves.** A zone is a
 `<label>` wrapping an icon, a title and a hint, and `dragenter`/`dragleave` fire
@@ -352,8 +370,18 @@ students get project/thesis + education + aspirations questions, switchers get
 prior-field + direction questions, experienced candidates get the original
 flow. This branching is implemented as conditional steps in `apply.ts` /
 `apply-intake.ts` (`stepConditionMet` / `nextVisibleStepIndex`), not a
-per-archetype form. Quick apply (`QuickApplyForm.tsx`) is the short-form
-alternative behind `app/api/apply/[id]/quick/route.ts`.
+per-archetype form. The chat names remaining work as a visible-lane
+progress ("Question 3 of 8"): `visibleStepProgress` counts only the steps
+the current answers will actually show (a student's total is not a BAU
+total), and `ConversationalApply` binds that to a `role="progressbar"`
+above the transcript, hidden on the done card. Text only — no meter
+animation — so a reduced-motion reader gets the same signal. Pinned by
+`apply-intake.test.ts` and `apply-door-a11y.test.ts`. Quick apply
+(`QuickApplyForm.tsx`) is the short-form alternative behind
+`app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
+`company_url` honeypot (not `type="hidden"`) and POST it on submit so a
+form-filling bot is dropped the same way on the chat as on the lead form.
+Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
 email as *editable* defaults. It is deliberately conservative — a wrong guess costs
@@ -397,8 +425,10 @@ validation message is `aria-describedby`-linked to the control it is about
 (`aria-invalid` rides on the input via `TextInput`'s `invalid`). The buttons
 compose `BTN_PRIMARY` / `BTN_SECONDARY` / `BTN_GHOST` from
 `app/_components/ui/recipes.ts` rather than hand-rolled class strings, so the
-public door keeps the app's dual-theme treatment. `apply-door-a11y.test.ts` and
-`apply-submit-outcome.test.ts` pin all of it.
+public door keeps the app's dual-theme treatment — including `ApplyFollowup`'s
+Save (`BTN_PRIMARY`) and Skip (`BTN_GHOST`). `apply-door-a11y.test.ts`,
+`candidate-door-conversion.test.ts` and `apply-submit-outcome.test.ts` pin all
+of it.
 
 An abandoned chat resumes from a localStorage draft (`use-apply-draft.ts`) keyed by
 job (+ lead token) and fingerprinted against the script that recorded it. Two rules
@@ -480,7 +510,12 @@ token, token for another job, entry with no profile row — deliberately
 indistinguishable) with its 500 going through `safeJsonError(..., "FOLLOWUP_FAILED")`
 so profile_cli's reason reaches the log and never the candidate. The *page*-level
 closed-role gate still renders `t("roleClosed")`; that is a different surface.
-Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
+Both apply pages mount `LanguageSwitcher` on every HTML `<main>` return,
+including that closed-role card, so a forwarded filled/retired link in the
+wrong language still has an escape (the open-path APP4 switcher used to drop
+on the early return). Drafts keep `notFound()` and stay switcher-less. Pinned
+by `app/api/apply/apply-error-hygiene.test.ts` and
+`app/apply/[id]/candidate-door-conversion.test.ts`.
 
 **Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
 `app/_lib/apply-session-store.ts`) is written from a public door on every form
@@ -522,6 +557,10 @@ fails on any unmapped role.
 required fields (education detail + aspirations for early-career; years/seniority
 for experienced) and a provenance dropdown per skill claim
 (`ProfileEditorFields.tsx`, `profileCompletenessFields.ts`).
+`validateProfileEditorFields` gates both `yearsError` and `gradError` on field
+visibility (`graduation: isStudentish`), so a leftover `20266` typed under Student
+does not disable Save after a switch to Experienced — pinned by
+`profileEditorHelpers.test.ts`.
 
 The editor deliberately STAYS OPEN after a save, so the result panel's clickable
 completeness gaps can be worked through in place ("save → click a gap → fill the
@@ -606,6 +645,13 @@ roster only ever renders inside the tab that owns the deep-link effect, and that
 effect is mount-only, so pushing those params navigated the tab to itself and the
 button did nothing.
 
+The matrix's "build from analysis" action is the same shape: `CandidateMatrix`
+takes `onBuildFromAnalysis` and `ProfileTab` feeds it `openFromAnalysis(slug, null)`.
+A same-tab `?tab=archetypes&fromAnalysis=` push left both the chip action and the
+detail-modal footer inert; the equivalent push from `MatchResultsHeader` is fine
+because it crosses tabs and remounts the panel. `candidateMatrixContracts.test.ts`
+pins that the matrix no longer writes `fromAnalysis` onto the current tab.
+
 ### 4. Archetype detection
 Single-sourced in `pipeline/jobfit/archetypes.json`, read by both Python
 (`pipeline/jobfit/registry.py`) and TS (`app/_lib/archetype-registry.ts`,
@@ -625,7 +671,9 @@ Rules (`pipeline/jobfit/registry.py`): a self-declared archetype (from the apply
 form) wins outright at confidence 0.9; CVs are read heuristically; contradictions
 lower confidence (e.g. "student" signal alongside 3+ years experience → 0.65);
 no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
-manual review**. The conservative default (unclassifiable → experienced, not
+manual review**. The analyze dump stamps that as `archetypeNeedsReview` (plus
+`archetypeNeedsReviewCode` `low_confidence` / `contradiction`) beside the float,
+so the report does not re-implement the cutoff. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
@@ -654,7 +702,9 @@ never a guessed zero) and states that retiring only hides it from the pickers.
 **Registry edits (the write boundary).** The Archetype admin UI writes
 `archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
 `app/_lib/archetype-registry.ts` does an atomic temp-file + `rename`, serialized
-so two saves cannot clobber each other). `validateArchetype` is deliberately at
+so two saves cannot clobber each other). A registry read/write 500 answers
+`ARCHETYPES_READ_FAILED` / `ARCHETYPES_WRITE_FAILED` (never `error.message`);
+input errors already return `code`/`params` via `errorResponse`. `validateArchetype` is deliberately at
 least as strict as the file's *readers*, because Python re-reads and re-validates
 it on **every** pipeline spawn (`registry._validate_archetype_weights` raises at
 import, which would fail every analyze / match / intake / profile build on the
@@ -822,7 +872,7 @@ Three consequences worth knowing:
   failing to parse.
 - **Only an `ok` review's prose is ever frozen onto a person's record.** Every other
   status fills `codeReview.summary` with machine copy ("Set `GEMINI_API_KEY`…",
-  "Couldn't gather public repo signals…"), and the pipeline drawer renders the frozen
+  "Couldn't gather public repo signals…"), and the pipeline candidate modal renders the frozen
   summary verbatim — so `buildGithubEvidenceSummary` takes the review's line only on
   `ok` and otherwise falls back to the run's own metrics sentence
   (`app/_lib/github-summary.ts`; pinned by `github-summary.test.ts`).
@@ -913,8 +963,11 @@ data inside the fence and does not change the schema-validated output shape.
     the committed JSON is refreshed on its own schedule, so deriving would leave a stale
     corpus unmarked. The saved report renders `EngineNote variant="deterministic"` above
     the engine panel when no model ran; an LLM row says nothing extra, because that is
-    the assumed case and a marker on every report is chrome nobody reads. Pinned by
-    `analyze-run.test.ts`.
+    the assumed case and a marker on every report is chrome nobody reads. History
+    rows show a localized producer chip (`analysisProducer` in `HistoryTypes.ts`:
+    llm / deterministic / unknown) so a mixed workspace is not uniform; a null
+    engine paints unknown, never "llm". Pinned by
+    `analyze-run.test.ts` and `HistoryTypes.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
 - `pipeline_entries` — the per-job application record; carries the *snapshot*
@@ -1028,14 +1081,12 @@ absence has to survive the CV.
   and returns no `truncated` flag, so past 200 saved analyses the board's lane
   counts, distribution bars and "N candidates" label describe the newest 200 —
   presented as the whole population.
-- **The History table claims a total it only loaded a slice of.** Same cap, same
-  missing flag on `GET /api/analyses` (`listAnalyses(200, ws)`), and `HistoryTab`
-  filters CLIENT-side over that slice: searching a candidate analysed 250 runs ago
-  returns "No runs match your search or filter", and `Showing {shown} of {total}`
-  passes `rows.length` as the total, so a 900-run workspace reads "Showing 0 of
-  200". The row is still reachable at `/history/[slug]`, so this is discoverability
-  loss rather than data loss. The honest fix needs a server `truncated`/`total`
-  (or a query param + pager) plus new `history` keys in all four catalogs.
+- **History still cannot page past the cap.** `GET /api/analyses` now answers
+  `{ truncated, limit }` and History names a cut page as a page (it no longer
+  reads a 900-run workspace as "200"), but the tab still filters CLIENT-side
+  over that newest slice: searching a candidate analysed 250 runs ago returns
+  "No runs match your search or filter". The row is still reachable at
+  `/history/[slug]`. A server pager (or a query param) is the remaining half.
 - **The saved-profile roster claims a silently capped population.**
   `GET /api/profile` serves `cachedProfileRecords` = `listProfileRecords(200, ws)`
   with no total and no `truncated` flag, and `ProfileRoster` renders
@@ -1044,21 +1095,6 @@ absence has to survive the CV.
   honestly (`MATRIX_POOL_CAP` + `countMatrixProfiles`); the fix is the same shape —
   a server total plus a catalog key — and needs both, so it is not a client-only
   change.
-- **The matrix's own "build from analysis" action is inert.**
-  `CandidateMatrix.tsx` pushes `?tab=archetypes&fromAnalysis=<slug>`, but the matrix
-  renders INSIDE the archetypes tab: `navActive` doesn't change, `WorkspaceTabPanel`'s
-  `key` is stable, `ProfileTab` is not remounted, and the mount-only deep-link effect
-  never reads the params. Same defect the roster's Rebuild had; same fix (a callback
-  prop fed from `ProfileTab`'s `openFromAnalysis`). The equivalent push from
-  `MatchResultsHeader` is fine — it crosses tabs, so the panel does remount.
-- **A hidden graduation-year typo disables Save with nothing on screen.**
-  `validateProfileEditorFields` gates `yearsError` on field visibility ("a stale,
-  hidden value won't be submitted, so it must not block Save either") but validates
-  `expectedGraduation` unconditionally. Type `20266` under Student/Auto, switch the
-  archetype to Experienced, and the field disappears while `hasFieldErrors` stays
-  true: Save is disabled, no error is rendered anywhere, and the offending input is
-  not on the page. The visibility flag (`isStudentish`) is computed in
-  `ProfileEditor.tsx`, not in the helper, so the fix has to thread it through.
 - **A failed archetype-registry load is swallowed.** `reloadArchetypes`
   (`useProfileTabDeepLinks.ts`) ends in `.catch(() => undefined)`, so a failing
   `GET /api/archetypes` leaves `archetypes: []` with no message; the editor then

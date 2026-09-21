@@ -19,6 +19,7 @@ import {
 } from "./offers-store.ts";
 import { offerView, respondToOffer } from "./offer-finalize.ts";
 import { sendDueOfferReminders } from "./offer-reminders.ts";
+import { INTERVIEW_TZ } from "./schedule-slots.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { billingOverview } from "./billing/entitlements.ts";
 
@@ -164,6 +165,38 @@ test("sendDueOfferReminders dispatches each due offer once across sweeps", async
   assert.equal(await sendDueOfferReminders(), 0, "the claim persists — no duplicate nudge on the next tick");
 });
 
+test("offerView projects notes and startDate from the payload and never the rest of the draft", () => {
+  const entry = entryAtOffer();
+  const offer = createOffer({
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId,
+    jobTitle: entry.jobTitle,
+    currency: "CZK",
+    salary: 90_000,
+    payload: {
+      subject: "Your offer",
+      body: "Confidential letter body",
+      notes: "  Signing bonus after probation.  ",
+      startDate: "2026-10-01",
+    },
+  });
+  const view = offerView(offer.token)!;
+  assert.equal(view.notes, "Signing bonus after probation.");
+  assert.equal(view.startDate, "2026-10-01");
+  assert.equal("payload" in view, false);
+  assert.equal("subject" in view, false);
+  assert.equal("body" in view, false);
+});
+
+test("offerView omits empty notes and startDate", () => {
+  const entry = entryAtOffer();
+  const offer = mintOffer(entry.id);
+  const view = offerView(offer.token)!;
+  assert.equal(view.notes, null);
+  assert.equal(view.startDate, null);
+});
+
 test("offerView ships a SERVER-computed hoursRemaining so the countdown can't drift on a skewed client clock", () => {
   // bug-ui-scan-2026-07-09 (offers-onboarding #5): the candidate page must render the
   // hours-left from the server's clock, not Date.now() on an untrusted device.
@@ -172,6 +205,8 @@ test("offerView ships a SERVER-computed hoursRemaining so the countdown can't dr
   const view = offerView(offer.token)!;
   assert.equal(typeof view.hoursRemaining, "number", "the view must carry a server-side hours-left figure");
   assert.ok(view.hoursRemaining! >= 23 && view.hoursRemaining! <= 24, `expected ~24h, got ${view.hoursRemaining}`);
+  assert.equal(view.timeZone, INTERVIEW_TZ, "the public view stamps the company's interview zone, not UTC-by-omission");
+  new Intl.DateTimeFormat("en-US", { timeZone: view.timeZone });
 });
 
 test("getOrCreateOpenOffer reuses the one open offer per entry instead of minting a second live link", () => {

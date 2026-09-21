@@ -233,6 +233,8 @@ export function useHiringComposer() {
     stranded: state.stranded,
     mapping,
     setMapping,
+    counts,
+    countsLoaded,
     /** The occupancy read failed; a removal cannot be judged until it succeeds. */
     countsFailed,
     retryCounts: loadCounts,

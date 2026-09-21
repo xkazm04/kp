@@ -14,8 +14,9 @@ type PlausibleFn = (event: string, options?: { props?: TrackProps }) => void;
  *  (no session is ever involved on these surfaces). Plausible attaches
  *  `u: location.href` to every event it sends, pageviews included, so leaving the
  *  script live here would ship a working credential to a third party on first paint
- *  and park it in that dashboard's page list — and `/apply/<jobId>` additionally
- *  carries `?lead=<token>` in the query string.
+ *  and park it in that dashboard's page list — `/stop/<token>` (ePrivacy opt-out)
+ *  and `/devcase/apply/<token>` (take-home) included — and `/apply/<jobId>`
+ *  additionally carries `?lead=<token>` in the query string.
  *
  *  ONE list feeds both halves of the module: plausible.tsx ships it as the script
  *  tag's `data-exclude` so no pageview is sent at all, and track() below refuses to
@@ -30,6 +31,8 @@ export const TOKENIZED_PATH_PREFIXES = [
   "/offer/",
   "/invite/",
   "/skill/",
+  "/stop/",
+  "/devcase/apply/",
   "/apply/",
 ] as const;
 

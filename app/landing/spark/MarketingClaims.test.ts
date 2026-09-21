@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { LOCALES } from "../../../i18n/locales.ts";
 import { ABOUT_STEP_KEYS, aboutStepId, aboutStepRailLabel } from "./about-art/shared.ts";
 import { INTERVIEW_PLAN_DEFAULT } from "../../_lib/decision-config-schema.ts";
+import { aboutPageUrl, buildAboutJsonLd, plainIcu } from "../../about/about-jsonld.ts";
 
 /*
  * The landing page's CLAIMS, pinned to the code that has to make them true.
@@ -41,7 +42,7 @@ type Catalog = {
     pricing: { enterprise: { blurb: string; capabilities: string[] } };
   };
   aboutPage: {
-    hero: { subtitle: string };
+    hero: { title: string; subtitle: string };
     steps: Record<string, { eyebrow: string; title: string; body: string }>;
     art: Record<string, unknown>;
   };
@@ -353,5 +354,48 @@ test("the assignment phase the landing leads with is on the /about curve", () =>
     source("app", "landing", "spark", "AboutCurve.tsx"),
     /ABOUT_STEP_KEYS/,
     "AboutCurve must derive its rows and its spine from the phase list, not from a parallel literal"
+  );
+});
+
+test("the /about HowTo graph is locked to ABOUT_STEP_KEYS and the catalog titles", () => {
+  // The visible eight-step timeline is the procedure a crawler can retrieve.
+  // The builder lives next to the route shell; this pin is the SAME order
+  // lock as the copy test above, so a phase added to ABOUT_STEP_KEYS without
+  // a HowToStep (or with a drifted title) fails here rather than in search.
+  for (const locale of LOCALES) {
+    const { hero, steps } = CATALOGS[locale].aboutPage;
+    const origin = "https://kandidate.example";
+    const aboutUrl = aboutPageUrl(origin);
+    const doc = buildAboutJsonLd({
+      name: "About",
+      description: "x",
+      inLanguage: locale,
+      siteOrigin: origin,
+      sameAs: "https://github.com/xkazm04/kp",
+      howToName: plainIcu(hero.title),
+      howToSteps: ABOUT_STEP_KEYS.map((key, i) => ({
+        name: steps[key].title,
+        text: steps[key].body,
+        url: `${aboutUrl}#${aboutStepId(i)}`,
+      })),
+    });
+    const howTo = doc["@graph"].find((n) => n["@type"] === "HowTo");
+    assert.ok(howTo, `${locale} graph has no HowTo`);
+    const howToSteps = howTo.step as { name: string; position: number }[];
+    assert.equal(howToSteps.length, ABOUT_STEP_KEYS.length);
+    ABOUT_STEP_KEYS.forEach((key, i) => {
+      assert.equal(howToSteps[i].position, i + 1);
+      assert.equal(howToSteps[i].name, steps[key].title, `${locale} HowToStep ${key}`);
+    });
+  }
+  assert.match(
+    source("app", "about", "page.tsx"),
+    /ABOUT_STEP_KEYS/,
+    "the route shell must derive HowTo steps from ABOUT_STEP_KEYS, not a parallel list"
+  );
+  assert.doesNotMatch(
+    source("app", "about", "about-jsonld.ts"),
+    /FAQPage/,
+    "do not emit a hidden FAQPage — there is no FAQ UI on /about"
   );
 });

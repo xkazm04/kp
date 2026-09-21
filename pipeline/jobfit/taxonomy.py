@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .market_config import ACTIVE_MARKET, MarketConfig
 
 _LOG = logging.getLogger(__name__)
 
@@ -40,8 +41,6 @@ def _load_json(path: Path) -> dict[str, Any]:
         )
     return data
 
-
-from .market_config import ACTIVE_MARKET, MarketConfig
 
 _ALL_BENCHMARKS: dict[str, Any] = _load_json(_BENCHMARKS_PATH)
 _TAXONOMY: dict[str, Any] = _load_json(_TAXONOMY_PATH)

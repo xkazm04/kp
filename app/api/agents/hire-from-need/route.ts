@@ -1,6 +1,6 @@
 // POST /api/agents/hire-from-need
 //   { need, project:{name,rootPath,mainBranch?}, workspace?, population:"agent",
-//     budgetUsd?, personasBaseUrl?, dryRun?, simulation?, originPersonaId? }
+//     lang?, budgetUsd?, personasBaseUrl?, dryRun?, simulation?, originPersonaId? }
 //   -> { intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun }
 //
 // ONE call from a need to a persona. The door Personas asks through: an App
@@ -46,6 +46,8 @@ import { getRepoScan, RepoScanRequestError, startRepoScan } from "@/app/_lib/rep
 import { allowedRoots, resolveRootPath } from "@/app/_lib/repo-scan-target";
 import { runIntakeAppMasterSync, runIntakeExchange, runIntakeOpening } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
+import { getWorkspaceDefaultLocale } from "@/app/_lib/db/workspaces";
+import { isLocale, type Locale } from "@/i18n/locales";
 import { stripEndSentinel } from "../../intake/reply-sentinel";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
 import { briefToAppMasterSpec } from "@/app/_lib/intake-brief";
@@ -80,12 +82,24 @@ type HireBody = {
   project?: { name?: unknown; rootPath?: unknown; mainBranch?: unknown } | null;
   workspace?: unknown;
   population?: unknown;
+  lang?: unknown;
   budgetUsd?: unknown;
   personasBaseUrl?: unknown;
   dryRun?: unknown;
   simulation?: unknown;
   originPersonaId?: unknown;
 };
+
+/** Body `lang` wins when it is a shipped locale; otherwise the workspace default.
+ *  Passing a missing body field through intakeLang is always English, which is
+ *  how this door used to compose every unattended hire. */
+export function hireIntakeLang(bodyLang: unknown, workspaceId: string): Locale {
+  if (typeof bodyLang === "string") {
+    const primary = bodyLang.trim().toLowerCase().split("-")[0];
+    if (isLocale(primary)) return intakeLang(bodyLang);
+  }
+  return getWorkspaceDefaultLocale(workspaceId);
+}
 
 function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -240,7 +254,7 @@ export async function POST(request: NextRequest) {
     // /api/intake/[id]/message does. Building it here rather than reading a
     // field off the exchange is what keeps the two turns below in the order
     // they happened.
-    const lang = intakeLang(null);
+    const lang = hireIntakeLang(body?.lang, ws);
     const intake = createIntake({ title: projectName, lang, scanId: scan.scanId }, ws);
     const opening = await runIntakeOpening(lang, "app_master");
     const openedAt = new Date().toISOString();

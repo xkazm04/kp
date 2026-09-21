@@ -46,12 +46,16 @@ test("a blank job id is not a link — whitespace never passes for an opening", 
   const id = caseJobIdentity({ caseId: "dc_9", jobId: "   ", jobTitle: null, roleTitle: null });
   assert.equal(id.linked, false);
   assert.equal(id.jobId, syntheticCaseJobId("dc_9"));
-  assert.equal(id.jobTitle, "Dev case", "and there is always a label");
+  assert.equal(id.jobTitle, "Assignment", "and there is always a label");
+  assert.equal(/\bcase\b/i.test(id.jobTitle), false, "the persisted board title never names the entity a case");
 });
 
 test("a case with no id at all still produces a usable job id", () => {
   assert.equal(syntheticCaseJobId(null), "dc-case");
-  assert.equal(caseJobIdentity({ caseId: null, jobId: null, jobTitle: null, roleTitle: null }).jobId, "dc-case");
+  const id = caseJobIdentity({ caseId: null, jobId: null, jobTitle: null, roleTitle: null });
+  assert.equal(id.jobId, "dc-case");
+  assert.equal(id.jobTitle, "Assignment");
+  assert.equal(/\bcase\b/i.test(id.jobTitle), false);
 });
 
 test("role family is STATED by the opening, then by the need, then the last-resort literal", () => {

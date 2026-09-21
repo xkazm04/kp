@@ -1,0 +1,30 @@
+{
+  "numberOfResults": 2,
+  "totalPages": 1,
+  "jvs": [
+    {
+      "id": "CZ-MPSV-20260912-000123",
+      "title": "Java developer",
+      "description": "Vývoj bankovních aplikací v Javě (Spring Boot). Požadujeme: Java 17, Spring, SQL; angličtina B2. Nabízíme: 80 000 – 100 000 Kč měsíčně, hybridní režim.",
+      "employer": { "name": "Banka Alfa, a.s." },
+      "locationMap": { "cz": ["Praha"] },
+      "locations": [{ "countryCode": "cz", "region": "Hlavní město Praha", "cityName": "Praha" }],
+      "creationDate": 1789171200000,
+      "lastModificationDate": 1789171200000,
+      "positionScheduleCodes": ["fulltime"],
+      "euresFlag": true
+    },
+    {
+      "id": "DE-BA-20260911-777",
+      "title": "Softwareentwickler (m/w/d) Python",
+      "description": "Wir suchen einen Softwareentwickler für unser Team in Dresden. Anforderungen: Python, Django, PostgreSQL; 3+ Jahre Erfahrung. Homeoffice möglich.",
+      "employer": { "name": "Elbe Software GmbH" },
+      "locationMap": { "de": ["Dresden"] },
+      "locations": [{ "countryCode": "de", "region": "Sachsen", "cityName": "Dresden" }],
+      "creationDate": 1789084800000,
+      "lastModificationDate": 1789084800000,
+      "positionScheduleCodes": ["fulltime"],
+      "euresFlag": true
+    }
+  ]
+}

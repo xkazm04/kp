@@ -1,7 +1,7 @@
 // Types + pure attribution helpers for the analytics decision log. Split out of
 // DecisionLog.tsx (now AnalyticsDecisionLog.tsx) so the log's row/type plumbing
 // has its own module — no JSX here, so it's a plain .ts file.
-import { DECISION_META, type CohortProvenance, type SealedReason } from "@/app/_lib/decision-attribution";
+import { DECISION_META, parseEventActor, type CohortProvenance, type SealedReason } from "@/app/_lib/decision-attribution";
 
 export type Decision = {
   id: number;
@@ -16,12 +16,23 @@ export type Decision = {
   toStage: string | null;
   detail: string | null;
   createdAt: string;
+  // WHO took the action (`pipeline_events.actor`). Already on the wire from
+  // enrichPage; optional so an older cached page still type-checks. Parse with
+  // actorDisplayName — never print the raw token, and never guess a person.
+  actor?: string | null;
   // log-tells-the-whole-story — the three sealed-record joins the route attaches per
   // page (each present only when a reliable match exists, never guessed):
   cohort?: CohortProvenance | null; // group-eval cohort provenance (advance rows)
   reason?: SealedReason | null; // sealed structured auto-reject reason (auto_rejected rows)
   counterpart?: { label: string } | null; // rematch counterpart, resolved to a live board label
 };
+
+/** Person / engine shown in the log's By column. A named human is the name; a
+ *  role token (`human:recruiter`) and a legacy null are `notIdentified`, never
+ *  guessed; an `auto:<engine>` row shows the engine id. */
+export function actorDisplayName(actor: string | null | undefined, notIdentified: string): string {
+  return parseEventActor(actor).name ?? notIdentified;
+}
 
 export type DecisionPage = {
   decisions: Decision[];
@@ -246,4 +257,9 @@ export function isRecordOnlyKind(kind: string): kind is RecordOnlyKind {
  *  (AnalyticsThresholdHistoryStrip.tsx) — same length, same ellipsis. */
 export function shortHash(hash: string): string {
   return `${hash.slice(0, 8)}…`;
+}
+
+/** Toggle the expanded log/records row. Same id closes; a different id replaces. */
+export function toggleExpandedId(current: number | null, id: number): number | null {
+  return current === id ? null : id;
 }

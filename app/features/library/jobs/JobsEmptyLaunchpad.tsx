@@ -21,8 +21,8 @@ import { GLYPH_SIZE, GLYPH_SIZE_SM } from "@/app/_components/glyph/glyphSizes";
 import { JOBS_GLYPH } from "@/app/_components/glyph/glyphs/jobsGlyph";
 import { BTN_PRIMARY, CHIP, EYEBROW, PANEL, PANEL_SUNKEN, TITLE_DISPLAY, META_LABEL } from "@/app/_components/ui/recipes";
 
-// One route to a first role. Either a real navigation (`tab`) or an in-page
-// pointer (no `tab`) — a card that cannot navigate never renders as a button.
+// One route to a first role. A real navigation (`tab`) renders a link; an
+// in-page action (`onClick`) renders a button; a card with neither stays inert.
 function RouteCard({
   step,
   icon: Icon,
@@ -30,6 +30,7 @@ function RouteCard({
   body,
   cta,
   tab,
+  onClick,
   search,
 }: {
   step: number;
@@ -38,6 +39,7 @@ function RouteCard({
   body: string;
   cta: string;
   tab?: WorkspaceTabId;
+  onClick?: () => void;
   search: string;
 }) {
   const t = useTranslations("jobs.tab.launchpad");
@@ -53,6 +55,10 @@ function RouteCard({
         <Link href={buildTabSwitchUrl(tab, search)} className={`${BTN_PRIMARY} mt-1 h-9 self-start px-3 text-sm`}>
           {cta} <ArrowRight size={13} aria-hidden />
         </Link>
+      ) : onClick ? (
+        <button type="button" onClick={onClick} className={`${BTN_PRIMARY} mt-1 h-9 self-start px-3 text-sm`}>
+          {cta} <ArrowRight size={13} aria-hidden />
+        </button>
       ) : (
         <p className="mt-1 text-sm font-semibold text-coral">{cta}</p>
       )}
@@ -68,7 +74,7 @@ const UNLOCKS: { tab: WorkspaceTabId; labelKey: "unlockChannels" | "unlockPipeli
   { tab: "decisions", labelKey: "unlockDecisions" },
 ];
 
-export function JobsEmptyLaunchpad() {
+export function JobsEmptyLaunchpad({ onImport }: { onImport?: () => void } = {}) {
   const t = useTranslations("jobs.tab.launchpad");
   const search = useSearchParams();
   const searchStr = search.toString();
@@ -94,7 +100,7 @@ export function JobsEmptyLaunchpad() {
           title={t("route1Title")}
           body={t("route1Body")}
           cta={t("route1Cta")}
-          tab="library"
+          tab="intake"
           search={searchStr}
         />
         <RouteCard
@@ -103,6 +109,7 @@ export function JobsEmptyLaunchpad() {
           title={t("route2Title")}
           body={t("route2Body")}
           cta={t("route2Cta")}
+          onClick={onImport}
           search={searchStr}
         />
       </div>

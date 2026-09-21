@@ -41,6 +41,10 @@ const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 export async function GET() {
   // Bounded (db/channels) — the panes filter this list BY CHANNEL, so a silent cut
   // would empty one pane and read as "nothing is wired". `truncated` says otherwise.
+  // Each `ChannelWebhookRecord` already carries the recruiter-safe pull half
+  // (pullUrl / hasPullSecret / lastPullAt / lastPullError) so the Channels tab can
+  // show a week-old lastPullError without a per-row extra GET. PATCH `{ pull }` is
+  // still the detailed read (cursor included). The bearer is never on this list.
   const { webhooks, truncated } = listChannelWebhooks(await currentWorkspace());
   return NextResponse.json({ webhooks, truncated });
 }

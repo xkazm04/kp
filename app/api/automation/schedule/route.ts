@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   POLICY_JOB,
   REMINDERS_JOB,
+  ensureRegisteredSchedule,
   ensureReminderJob,
   getSchedule,
+  hasVerifiedRun,
   listRuns,
   setEnabled,
   setIntervalMinutes,
 } from "@/app/_lib/scheduler-store";
+import { SCHEDULER_JOBS, isSchedulerJobName, schedulerJob, type SchedulerJobName } from "@/app/_lib/scheduler-jobs";
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -26,8 +29,17 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // deliberately NOT throttled — they spawn nothing.
 const SCHEDULE_TICK_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
-// AUTO6 — both registered jobs ride one payload: the policy pass (schedule/runs,
-// the historical shape) plus the reminders job and its recent send/failure runs.
+// How many recent runs each job's history carries. The policy pass has always
+// shipped ten (each row holds the per-candidate decision list the history panel
+// unrolls); every other job is a one-line sweep and five is plenty to read a trend.
+const POLICY_RUNS = 10;
+const JOB_RUNS = 5;
+
+// WP4a — every REGISTERED job (scheduler-jobs.ts) rides one payload as `jobs[]`, and
+// the two historical jobs ALSO keep their legacy fields (`schedule`/`runs` for the
+// policy pass, `reminders`/`reminderRuns`) with their old names and meanings, so
+// the sim dock, older panels and the tenancy source guards keep reading what they
+// always read. A third job is a registry entry, not a fourth payload field.
 //
 // TENANCY (phase 1): the CLOCK is global on purpose (one sweep, one schedule row —
 // see the header of scheduler-store.ts), and the operator gate above is what makes
@@ -38,11 +50,22 @@ const SCHEDULE_TICK_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 // which tenant the rows were narrowed to, next to a summary that stays global.
 async function schedulePayload() {
   const workspace = await currentWorkspace();
+  const jobs = SCHEDULER_JOBS.map((job) => ({
+    name: job.name,
+    labelKey: job.labelKey,
+    schedule: ensureRegisteredSchedule(job),
+    runs: listRuns(job.name === POLICY_JOB ? POLICY_RUNS : JOB_RUNS, job.name, { workspace }),
+    requiresVerifiedRun: job.requiresVerifiedRun,
+    // "At least one run the store marked ok" — the only thing that arms a
+    // requiresVerifiedRun job (hasVerifiedRun); the panel disables the toggle on false.
+    verified: hasVerifiedRun(job.name),
+  }));
   return {
     schedule: getSchedule(),
     runs: listRuns(10, POLICY_JOB, { workspace }),
     reminders: ensureReminderJob(),
     reminderRuns: listRuns(5, REMINDERS_JOB, { workspace }),
+    jobs,
     scheduleScope: "global" as const,
     decisionsWorkspace: workspace,
     ...clockLiveness(),
@@ -95,7 +118,13 @@ export async function POST(request: NextRequest) {
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
+    // WP4a — two body shapes, one writer. The NEW shape names the job:
+    //   { job, enabled?, intervalMinutes?, tick? }
+    // The LEGACY shape (every existing caller) names none, and keeps meaning what it
+    // always meant: `enabled`/`intervalMinutes`/`tick` are the policy pass,
+    // `remindersEnabled` is `{ job: "reminders", enabled }`. Both may ride one body.
     const body = (await request.json()) as {
+      job?: unknown;
       enabled?: boolean;
       intervalMinutes?: number;
       tick?: boolean;
@@ -107,13 +136,34 @@ export async function POST(request: NextRequest) {
     if (body.intervalMinutes !== undefined && !Number.isFinite(body.intervalMinutes)) {
       return jsonRefusal("SCHEDULE_INTERVAL_INVALID", 400);
     }
-    // After the cheap refusal and before ANY write, so a malformed body neither
+    // A job the registry does not carry. The closest existing code, not a new one:
+    // AUTOMATION_TASK_UNKNOWN ("that automation step does not exist") is the
+    // vocabulary the [task] door already uses for an unregistered automation name.
+    if (body.job !== undefined && !isSchedulerJobName(body.job)) {
+      return jsonRefusal("AUTOMATION_TASK_UNKNOWN", 400);
+    }
+    const job: SchedulerJobName = body.job === undefined ? POLICY_JOB : body.job;
+    // "Run now" is a POLICY-PASS door (tickScheduler owns that job's forced run, its
+    // off-means-off refusal and its single-flight). No other job offers a manual
+    // tick here — refused with the existing AUTOMATION_TASK_NOT_OFFERED rather than
+    // a new code the catalogs would have to learn.
+    if (body.tick && job !== POLICY_JOB) {
+      return jsonRefusal("AUTOMATION_TASK_NOT_OFFERED", 400);
+    }
+    // After the cheap refusals and before ANY write, so a malformed body neither
     // consumes budget nor is masked by the throttle.
     if (body.tick && !rateLimit(`schedule-tick:${clientIpFrom(request.headers)}`, SCHEDULE_TICK_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    if (typeof body.intervalMinutes === "number") setIntervalMinutes(POLICY_JOB, body.intervalMinutes);
-    if (typeof body.enabled === "boolean") setEnabled(POLICY_JOB, body.enabled);
+    // A job that must be proven by hand first (requiresVerifiedRun) cannot be armed
+    // before one run the store marked ok exists. 409: the request is well-formed, the
+    // resource's state is what refuses it, and a successful manual scan clears it.
+    if (body.enabled === true && schedulerJob(job).requiresVerifiedRun && !hasVerifiedRun(job)) {
+      return jsonRefusal("JOBSEEKER_SCAN_UNVERIFIED", 409);
+    }
+    ensureRegisteredSchedule(schedulerJob(job)); // the row exists with the right defaults before any write
+    if (typeof body.intervalMinutes === "number") setIntervalMinutes(job, body.intervalMinutes);
+    if (typeof body.enabled === "boolean") setEnabled(job, body.enabled);
     if (typeof body.remindersEnabled === "boolean") {
       ensureReminderJob(); // row exists with the right defaults before toggling
       setEnabled(REMINDERS_JOB, body.remindersEnabled);

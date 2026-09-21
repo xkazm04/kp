@@ -77,11 +77,28 @@ export function getInvite(token: string): Invite | null {
   return r ? rowToInvite(r) : null;
 }
 
-export function listInvitesForOrg(orgId: string, status?: InviteStatus): Invite[] {
+/** Org invites, newest first. `status: "pending"` is the redeemable set —
+ *  `status = 'pending'` AND not past `expires_at` — so Copy link / getting-started
+ *  never treat a 14-day-lapsed row as live. The unfiltered list still returns
+ *  expired pending rows (audit). `now` is injectable so a test can freeze expiry. */
+export function listInvitesForOrg(orgId: string, status?: InviteStatus, now: number = Date.now()): Invite[] {
   const db = ensureDb();
-  const rows = status
-    ? db.prepare(`SELECT * FROM invites WHERE org_id = ? AND status = ? ORDER BY created_at DESC`).all(orgId, status)
-    : db.prepare(`SELECT * FROM invites WHERE org_id = ? ORDER BY created_at DESC`).all(orgId);
+  if (!status) {
+    const rows = db.prepare(`SELECT * FROM invites WHERE org_id = ? ORDER BY created_at DESC`).all(orgId);
+    return (rows as Record<string, unknown>[]).map(rowToInvite);
+  }
+  if (status === "pending") {
+    // Same instant getRedeemableInvite uses (`Date.parse(expiresAt) < now` is not
+    // redeemable). ISO-8601 strings from `toISOString()` compare lexicographically
+    // as instants, so the SQL bound is `new Date(now).toISOString()`.
+    const rows = db
+      .prepare(
+        `SELECT * FROM invites WHERE org_id = ? AND status = ? AND (expires_at IS NULL OR expires_at >= ?) ORDER BY created_at DESC`,
+      )
+      .all(orgId, status, new Date(now).toISOString());
+    return (rows as Record<string, unknown>[]).map(rowToInvite);
+  }
+  const rows = db.prepare(`SELECT * FROM invites WHERE org_id = ? AND status = ? ORDER BY created_at DESC`).all(orgId, status);
   return (rows as Record<string, unknown>[]).map(rowToInvite);
 }
 

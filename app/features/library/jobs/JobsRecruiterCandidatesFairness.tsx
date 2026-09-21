@@ -3,50 +3,15 @@
 import { memo, useMemo } from "react";
 import { Scale } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { archetypeDisplayKey } from "./JobsTypes";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import type { CandRow, FairnessMatrix } from "./JobsTypes";
+import { NOTICE } from "@/app/_components/ui/recipes";
+import type { FairnessMatrix } from "./JobsTypes";
 
-// JOB4 — the ranker has always shipped per-candidate KO reasons for the
-// not-eligible cohort; this UI reduced them to a bare count, so "12 not
-// eligible" couldn't tell a recruiter whether the pool lacks German or is one
-// year short. Collapsed disclosure, near-misses (a single KO reason) first —
-// they're the candidates a relaxed must-have on the JD might rescue. Reason
-// strings are the engine's candidate-facing detail clauses, shown verbatim.
-// MEMO BOUNDARY. A sort over the entire KO cohort, run in the render body of a
-// component whose parent re-renders on every add/reach/toggle — for a <details>
-// that is collapsed most of the time.
-export const NotEligibleSection = memo(function NotEligibleSection({ rows }: { rows: CandRow[] }) {
-  const t = useTranslations("jobs.candidates");
-  const enumLabel = useEnumLabel();
-  // Near-misses (a single KO reason) first — they're the candidates a relaxed
-  // must-have might rescue. Hooks run before the early return, per the rules of hooks.
-  const sorted = useMemo(() => [...rows].sort((a, b) => a.koReasons.length - b.koReasons.length), [rows]);
-  if (rows.length === 0) return null;
-  return (
-    <details className="mt-3 rounded-md border border-stone-200 bg-paper/50 px-3 py-2">
-      <summary className="focus-ring cursor-pointer text-sm font-semibold text-steel hover:text-ink">
-        {t("notEligibleWhy", { count: rows.length })}
-      </summary>
-      <ul className="mt-2 space-y-1.5">
-        {sorted.map((c) => (
-          <li key={c.candidateId} className="flex flex-wrap items-baseline gap-1.5 text-sm">
-            <span className="font-medium text-ink">{c.label}</span>
-            <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-meta text-white">
-              {enumLabel("archetype", archetypeDisplayKey(c.archetype))}
-            </span>
-            {c.koReasons.length === 1 ? (
-              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-meta text-amber-800">
-                {t("nearMiss")}
-              </span>
-            ) : null}
-            <span className="text-steel">{c.koReasons.join("; ")}</span>
-          </li>
-        ))}
-      </ul>
-    </details>
-  );
-});
+// The KO-filtered cohort no longer has a section of its own here. Each of the
+// three Candidates layouts carries it in the shape that layout can be honest in
+// (rows in the Ladder's table, a collapsed band in Rungs, a collapsed list under
+// the Grid), with the per-candidate KO reasons and the near-miss flag that made
+// the old shared <details> worth having. What remains in this file is the one
+// piece no layout owns: the cross-scheme audit.
 
 // e1e4e0ea — the auditable cross-scheme view: every candidate's own vs robust
 // (mean-across-all-schemes) score + delta, sorted by robustness, with a CSV export
@@ -89,9 +54,7 @@ export const FairnessAuditPanel = memo(function FairnessAuditPanel({
       </summary>
       <p className="mt-2 text-sm text-steel">{t("fairnessAuditHelp")}</p>
       {poolTruncated ? (
-        <p role="note" className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
-          {t("auditPoolTruncated")}
-        </p>
+        <p role="note" className={`${NOTICE("amber")} mt-2 px-2.5 py-1.5 text-sm`}>{t("auditPoolTruncated")}</p>
       ) : null}
       <div className="mt-2 overflow-x-auto">
         <table className="w-full text-sm">

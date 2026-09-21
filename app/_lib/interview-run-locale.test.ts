@@ -120,11 +120,22 @@ test("a German applicant's interviewer is told to open in German, not English", 
   const grounded = await buildGroundedInterview(debriefEntry("de"));
   assert.match(grounded.instructions, /open the interview in German/);
   assert.doesNotMatch(grounded.instructions, /open the interview in English/);
+  assert.doesNotMatch(grounded.instructions, /Czech and English/);
+  assert.doesNotMatch(grounded.instructions, /outranks every other instruction/);
 });
 
 test("a French applicant's interviewer is told to open in French", async () => {
   const grounded = await buildGroundedInterview(debriefEntry("fr"));
   assert.match(grounded.instructions, /open the interview in French/);
+  assert.doesNotMatch(grounded.instructions, /Czech and English/);
+  assert.doesNotMatch(grounded.instructions, /outranks every other instruction/);
+});
+
+test("a null-locale brief keeps the bilingual Czech and English greet-then-detect", async () => {
+  const grounded = await buildGroundedInterview(debriefEntry(null));
+  assert.match(grounded.instructions, /Czech and English/);
+  assert.match(grounded.instructions, /outranks every other instruction/);
+  assert.doesNotMatch(grounded.instructions, /open the interview in /);
 });
 
 // --- the catalog itself -----------------------------------------------------

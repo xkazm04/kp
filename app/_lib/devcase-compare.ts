@@ -8,11 +8,13 @@
 type RubricDimLike = { name?: string; label?: string };
 type DimScoreLike = { name?: string; score?: number };
 type EvalInner = { dimensions?: DimScoreLike[]; dimensionScores?: Record<string, number> };
+export type CompareAuthenticityBand = "authentic" | "mixed" | "suspect";
+type AuthLike = { band?: unknown; score?: unknown };
 type SubmissionLike = {
   id: string;
   candidateRef?: string | null;
   transferScore?: number | null;
-  evaluation?: { evaluation?: EvalInner | null } | null;
+  evaluation?: { evaluation?: EvalInner | null; authenticity?: AuthLike | null } | null;
 };
 
 export type CompareAxis = { name: string; label: string };
@@ -22,6 +24,9 @@ export type CompareColumn = {
   transferScore: number | null;
   // axis name -> score (0..100), or null when this submission has no score on it.
   scores: Record<string, number | null>;
+  // Honest darkness: null when the bundle has no authenticity, never "authentic".
+  authenticityBand: CompareAuthenticityBand | null;
+  authenticityScore: number | null;
 };
 export type RubricComparison = {
   axes: CompareAxis[];
@@ -39,11 +44,25 @@ function scoreFor(inner: EvalInner, name: string): number | null {
   return typeof s === "number" ? s : null;
 }
 
+const AUTH_BANDS = new Set<CompareAuthenticityBand>(["authentic", "mixed", "suspect"]);
+
+function authenticityOf(auth: AuthLike | null | undefined): {
+  authenticityBand: CompareAuthenticityBand | null;
+  authenticityScore: number | null;
+} {
+  const band = typeof auth?.band === "string" && AUTH_BANDS.has(auth.band as CompareAuthenticityBand)
+    ? (auth.band as CompareAuthenticityBand)
+    : null;
+  const score = typeof auth?.score === "number" ? auth.score : null;
+  return { authenticityBand: band, authenticityScore: score };
+}
+
 /** Build the axis × candidate score matrix for a case's evaluated submissions.
  *  Axes come from the case's rubric (canonical order + labels); when the case
  *  carries none, they're derived from the union of the submissions' own scored
  *  dimensions so older bundles still compare. `maxColumns` caps the matrix width
- *  (highest transferScore first) — the caller reports the true count. */
+ *  (highest transferScore first; `< 1` means no cap) — the caller reports the
+ *  true count. */
 export function rubricCompare(
   rubricDims: RubricDimLike[],
   submissions: SubmissionLike[],
@@ -51,8 +70,9 @@ export function rubricCompare(
 ): RubricComparison {
   const evaluated = submissions
     .filter((s) => s.evaluation?.evaluation)
-    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1))
-    .slice(0, maxColumns);
+    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1));
+  // maxColumns < 1 means no cap (the truncated-matrix "show all" toggle).
+  const capped = maxColumns < 1 ? evaluated : evaluated.slice(0, maxColumns);
 
   // Axes: the case's rubric when present, else the union of scored dimension
   // names across the evaluated submissions (first-seen order).
@@ -61,7 +81,7 @@ export function rubricCompare(
     .map((d) => ({ name: d.name, label: d.label ?? d.name }));
   if (axes.length === 0) {
     const seen = new Map<string, string>();
-    for (const s of evaluated) {
+    for (const s of capped) {
       const inner = s.evaluation!.evaluation!;
       for (const d of inner.dimensions ?? []) if (d.name && !seen.has(d.name)) seen.set(d.name, d.name);
       for (const name of Object.keys(inner.dimensionScores ?? {})) if (!seen.has(name)) seen.set(name, name);
@@ -69,11 +89,17 @@ export function rubricCompare(
     axes = [...seen.keys()].map((name) => ({ name, label: name }));
   }
 
-  const columns: CompareColumn[] = evaluated.map((s) => {
+  const columns: CompareColumn[] = capped.map((s) => {
     const inner = s.evaluation!.evaluation!;
     const scores: Record<string, number | null> = {};
     for (const axis of axes) scores[axis.name] = scoreFor(inner, axis.name);
-    return { id: s.id, candidateRef: s.candidateRef ?? null, transferScore: s.transferScore ?? null, scores };
+    return {
+      id: s.id,
+      candidateRef: s.candidateRef ?? null,
+      transferScore: s.transferScore ?? null,
+      scores,
+      ...authenticityOf(s.evaluation?.authenticity),
+    };
   });
 
   const leaderByAxis: Record<string, string | null> = {};

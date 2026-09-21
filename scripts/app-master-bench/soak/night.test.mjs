@@ -15,27 +15,65 @@
 // the process entry point.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   MISS_CLASSES,
+  SOAK_SCENARIO,
   backfillRows,
   isMissClass,
   localDate,
   newRecord,
+  passRateMatrix,
   readLogLines,
+  renderPassRateMatrix,
   resolveVerdict,
 } from "./night.mjs";
 
 const record = (over = {}) => ({ ...newRecord(new Date("2026-09-01T22:00:00.000Z")), ...over });
 
 // --- the taxonomy is closed --------------------------------------------------
+const SOAK_DOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../docs/development/app-master-soak.md");
+
+function taxonomyClassesFromDoc(text) {
+  const section = text.split("## The taxonomy")[1]?.split("\n## ")[0] ?? "";
+  return [...section.matchAll(/^\| `([a-z0-9-]+)` /gm)].map((m) => m[1]);
+}
+
+// Weekly-pass classes recorded as anomalies on a RAN night, never as rec.miss.
+// A new doc row that is neither a runner miss nor named here fails the lockstep.
+const TAXONOMY_ANOMALY_CLASSES = [
+  "ideation-blocked",
+  "authored-zero",
+  "dispatch-on-ideation",
+  "memory-unreported",
+  "memory-nonmonotonic",
+  "recall-wrong",
+];
+
 test("the miss taxonomy is a closed set, and the doc's classes are all in it", () => {
-  // The classes the runner itself writes, plus the two only a human writes.
-  for (const cls of ["bridge-down", "kp-boot-failed", "driver-timeout", "driver-crashed", "tick-died", "record-unreadable", "no-record", "unclassified", "machine"]) {
-    assert.ok(isMissClass(cls), `"${cls}" is documented but not declared in MISS_CLASSES`);
-  }
   assert.equal(isMissClass("timeout"), false, "a near-miss spelling must not pass — that is the whole point of the guard");
   assert.equal(isMissClass(null), false);
   assert.equal(new Set(MISS_CLASSES).size, MISS_CLASSES.length, "a class is listed twice");
+});
+
+test("MISS_CLASSES locksteps with the soak doc taxonomy table", () => {
+  const fromDoc = taxonomyClassesFromDoc(readFileSync(SOAK_DOC, "utf8"));
+  assert.ok(fromDoc.length >= MISS_CLASSES.length, "the soak doc taxonomy table was not found");
+  for (const cls of MISS_CLASSES) {
+    assert.ok(fromDoc.includes(cls), `"${cls}" is a runner miss class with no soak-doc taxonomy row`);
+  }
+  const leftover = fromDoc.filter((c) => !MISS_CLASSES.includes(c) && !TAXONOMY_ANOMALY_CLASSES.includes(c));
+  assert.deepEqual(
+    leftover,
+    [],
+    `soak-doc taxonomy has classes neither in MISS_CLASSES nor TAXONOMY_ANOMALY_CLASSES: ${leftover.join(", ")}`,
+  );
+  for (const cls of TAXONOMY_ANOMALY_CLASSES) {
+    assert.ok(fromDoc.includes(cls), `"${cls}" is listed as a weekly-pass anomaly but has no soak-doc row`);
+    assert.equal(isMissClass(cls), false, `"${cls}" is an anomaly class, not a runner miss`);
+  }
 });
 
 // --- one record, one verdict -------------------------------------------------
@@ -173,4 +211,51 @@ test("a fresh record starts with no verdict and an empty anomaly list", () => {
   assert.equal(rec.night, null);
   assert.deepEqual(rec.anomalies, []);
   assert.equal(rec.date, localDate(new Date("2026-09-04T10:00:00.000Z")));
+});
+
+// --- pass-rate matrix --------------------------------------------------------
+test("three nights (one miss, two ran) reduce to passed=2/3 and the miss class counted", () => {
+  const lines = [
+    JSON.stringify({ date: "2026-09-01", ran: true, miss: null }),
+    JSON.stringify({ date: "2026-09-02", ran: false, miss: "bridge-down" }),
+    JSON.stringify({ date: "2026-09-03", ran: true, miss: null }),
+  ];
+  const rows = passRateMatrix(lines);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].scenario, SOAK_SCENARIO);
+  assert.equal(rows[0].nights, 3);
+  assert.equal(rows[0].passed, 2);
+  assert.deepEqual(rows[0].missedByClass, { "bridge-down": 1 });
+  const md = renderPassRateMatrix(rows);
+  assert.match(md, /kp-c1-night/);
+  assert.match(md, /2/);
+  assert.match(md, /bridge-down: 1/);
+});
+
+test("the matrix window is inclusive and a nameless miss is unclassified", () => {
+  const lines = [
+    { date: "2026-09-01", ran: true },
+    { date: "2026-09-02", ran: false, miss: "not-a-class" },
+    { date: "2026-09-08", ran: false, miss: "tick-died" },
+  ];
+  const rows = passRateMatrix(lines, { from: "2026-09-02", to: "2026-09-07" });
+  assert.equal(rows[0].nights, 1);
+  assert.equal(rows[0].passed, 0);
+  assert.deepEqual(rows[0].missedByClass, { unclassified: 1 });
+});
+
+test("an empty log is an empty matrix, not a fabricated zero-pass night", () => {
+  assert.deepEqual(passRateMatrix([]), []);
+  assert.match(renderPassRateMatrix([]), /empty log/);
+});
+
+test("both soak wrappers invoke night.mjs with the same runner-missing contract", () => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const cmd = readFileSync(path.join(here, "soak-night.cmd"), "utf8");
+  const sh = readFileSync(path.join(here, "soak-night.sh"), "utf8");
+  assert.match(cmd, /night\.mjs/);
+  assert.match(sh, /night\.mjs/);
+  assert.match(sh, /set -eu/);
+  assert.match(sh, /SOAK_KP_URL/);
+  assert.match(sh, /SOAK_TENURE/);
 });

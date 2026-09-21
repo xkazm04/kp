@@ -279,6 +279,7 @@ _ADAPTER_DEFAULT_IS_ON_BOX: dict[str, bool] = {
     "openrouter": False,  # openrouter.ai
     "qwen": False,  # dashscope-intl.aliyuncs.com
     "ollama": True,  # http://localhost:11434/v1 — the on-box exception
+    "gateway": False,  # loopback hop, but it forwards to Claude/ChatGPT seats in the cloud
 }
 
 

@@ -1,6 +1,8 @@
-import type { Entry as PipelineEntry, StageDef } from "@/app/features/shared/pipelineTypes";
+import type { StageAiAction } from "@/app/_lib/pipeline-stages";
+import type { Entry as PipelineEntry } from "@/app/features/shared/pipelineTypes";
 
-// The drawer needs only a subset of the board's record. Pick it from the canonical
+// The candidate modal's per-entry state (candidate/state/) needs only a subset of
+// the board's record — the narrow Pick the drawer used, kept under its old name. Pick it from the canonical
 // PipelineTypes.Entry instead of re-declaring the fields, so a rename or retype on
 // the board surfaces here as a compile error rather than a silently stale copy.
 export type Entry = Pick<
@@ -28,7 +30,7 @@ export type Entry = Pick<
   | "sourceVariant"
 >;
 
-export type TaskId = "screen" | "outreach" | "rejection" | "prep" | "scorecard" | "rematch" | "offer";
+export type TaskId = StageAiAction;
 
 // note-truth-unification — the notes payload the automation task carries. ONE source
 // of truth: only the "Synthesize scorecard" task consumes the recruiter's persistent
@@ -57,21 +59,4 @@ export const APPLIED_LABEL: Record<string, string> = {
   no_alternative: "No alternative role above the match floor.",
   advisory: "Advisory only — candidate is past the screening gate.",
   drafted: "Draft ready to copy.",
-};
-
-// Props of the drawer itself — kept beside the drawer's narrow Entry so the
-// component file stays at its render, not its signature.
-export type PipelineCandidateDrawerProps = {
-  entry: Entry;
-  onClose: () => void;
-  onChanged: () => void;
-  onOpenEntry?: (entryId: string) => void;
-  cohort?: PipelineEntry[];
-  onNavigate?: (entry: PipelineEntry) => void;
-  // UAT KAT-L1-002 — the board's RESOLVED axis, so the drawer can ask whether this
-  // candidate is standing on the terminal (hired) stage by ROLE rather than by the
-  // name "Hired": the axis is workspace-editable, and a renamed last column must not
-  // silently hide the on-the-job capture card. Optional so a caller without the axis
-  // (any standalone render) falls back to the shipped board in stageHasRole.
-  axis?: readonly StageDef[];
 };

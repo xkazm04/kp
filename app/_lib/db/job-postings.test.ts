@@ -12,6 +12,7 @@ import {
   getJobPosting,
   insertJobPosting,
   listJobPostings,
+  listJobPostingsPage,
   postingContentHash,
   seedJobBody,
   seedJobPostingsCorpus,
@@ -107,6 +108,21 @@ test("a stored posting round-trips whole, body included", () => {
   assert.equal(posting?.company, "Example");
   assert.equal(posting?.fetchedAt, "2026-09-08T00:00:00.000Z");
   assert.equal(posting?.bodyText, "A body long enough to matter.");
+});
+
+test("listJobPostingsPage reports truncated when more than the cap exist", () => {
+  const ws = "ws-truncated-postings";
+  for (let i = 0; i < 3; i += 1) {
+    insertJobPosting({ source: "paste", title: `Truncated role ${i}`, bodyText: `Body for truncated role ${i}.` }, ws);
+  }
+  const page = listJobPostingsPage(ws, { limit: 2 });
+  assert.equal(page.postings.length, 2);
+  assert.equal(page.truncated, true);
+  assert.equal(page.limit, 2);
+  const all = listJobPostingsPage(ws, { limit: 10 });
+  assert.equal(all.postings.length, 3);
+  assert.equal(all.truncated, false);
+  assert.equal(listJobPostings(ws, { limit: 2 }).length, 2, "the array wrapper still returns the slice");
 });
 
 test("a seed_jobs body is the advertisement a candidate reads: description then the bullets", () => {

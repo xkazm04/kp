@@ -3,17 +3,20 @@
 import { useTranslations } from "next-intl";
 import { Clock, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
+import { formatLiveClock } from "./live-clock";
 
 /** The live-call-only half of the controls row: M4 mic mute, the AI-output mute,
- *  the M3 elapsed timer and the autoplay-blocked recovery. Rendered as a fragment
- *  inside the caller's `aria-busy` controls block, in the same order as before, so
- *  the blocked-audio button stays announced with the rest of the controls. */
+ *  the M3 elapsed timer (plus remaining vs booked duration when durationMin is
+ *  known) and the autoplay-blocked recovery. Rendered as a fragment inside the
+ *  caller's `aria-busy` controls block, in the same order as before, so the
+ *  blocked-audio button stays announced with the rest of the controls. */
 export function VoiceLiveControls({
   muted,
   onToggleMute,
   audioMuted,
   onToggleAudioMuted,
   elapsed,
+  durationMin,
   unstable,
   audioBlocked,
   onEnableAudio,
@@ -23,11 +26,13 @@ export function VoiceLiveControls({
   audioMuted: boolean;
   onToggleAudioMuted: () => void;
   elapsed: number;
+  durationMin?: number;
   unstable: boolean;
   audioBlocked: boolean;
   onEnableAudio: () => void;
 }) {
   const t = useTranslations("interview.voice");
+  const clock = formatLiveClock(elapsed, durationMin);
   return (
     <>
       <button
@@ -55,11 +60,11 @@ export function VoiceLiveControls({
         // bug-ui-scan-2026-07-09 (voice-interview #3): annotate the timer while
         // the connection is degraded, so it doesn't read as normal progress.
         className={`inline-flex items-center gap-1.5 text-meta tabular-nums ${unstable ? "text-dial-amber" : "text-steel"}`}
-        aria-label={t("elapsedLabel")}
+        aria-label={clock.remaining ? t("elapsedRemainingLabel") : t("elapsedLabel")}
         title={unstable ? t("status.unstable") : undefined}
       >
         <Clock size={14} aria-hidden />
-        {`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`}
+        {clock.remaining ? `${clock.elapsed} · ${clock.remaining}` : clock.elapsed}
       </span>
       {/* bug-ui-scan-2026-07-09 (voice-interview #4): autoplay-blocked recovery —
           inside the aria-busy controls block so it's announced. */}

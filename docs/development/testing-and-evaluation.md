@@ -11,7 +11,8 @@ npm run test:eval         # golden-set eval (markdown report)
 npm run test:eval:strict  # eval + non-zero exit when thresholds fail
 npm run test:eval:match   # matching-quality eval (strict) — KEYLESS
 npm run test:eval:automation  # automation reliability, deterministic path — KEYLESS
-npm run test:eval:ci      # both of the above; this is the CI gate
+npm run test:eval:intake  # intake golden bank, deterministic path — KEYLESS
+npm run test:eval:ci      # match + automation + fault + intake; this is the CI gate
 npm run bench:gate        # App-master sweep verdict vs the committed baseline
 npm run review:constitution   # deterministic gate-integrity pass over the diff
 npm run docs:check        # decision-record integrity
@@ -30,6 +31,7 @@ suites are split by whether a red result is **always** a real regression.
 | --- | --- |
 | `test:eval:match` | needs no API key by construction; also carries the fairness probes (pedigree exclusion, socioeconomic inclusion, language neutrality, potential monotonicity) |
 | `test:eval:automation` | `--no-llm`: the deterministic fallback path plus the hard reliability invariants. Also certifies [ADR 0004](../architecture/decisions/0004-keyless-degradation-is-a-product-property.md) — keyless degradation as a product property |
+| `test:eval:intake` | `--no-llm --strict`: the golden requestor bank through the deterministic agent (completed, one_question_per_turn, brief_core, role_family, requirements_captured). Distinct from `test:eval:intake-sim`, which stays a live/JD-corpus probe |
 | `test:bench-driver` | the App-master driver's own node:test fixtures, including the bench baseline↔scenario pinning |
 | `test:docs`, `test:review`, `docs:check` | the fixtures behind the doc-sync, ADR and change-review tooling |
 

@@ -13,7 +13,7 @@ import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
+import { BULK_INVITE_CAP, coerceBulkEntryIds, partitionBulkInviteTargets } from "@/app/_lib/bulk-invite";
 
 
 // P2-2 — mint + deliver self-scheduling links to a COHORT in one recruiter action
@@ -99,6 +99,14 @@ export async function POST(request: NextRequest) {
     // One chunked IN-query for the whole batch (getPipelineEntriesByIds) instead of a
     // point SELECT per id — the cap is 100, exactly the shape N+1 turns pathological.
     const entriesById = getPipelineEntriesByIds(ids, ws);
+    // Addressability BEFORE mint: a sourced cohort with no `contact` used to get a
+    // token each and then 40 `delivery: failed` rows. The planner is pure; opt-out
+    // is not a reason to skip — schedule mail is transactional and still owed.
+    const unaddressableIds = new Set(
+      partitionBulkInviteTargets(
+        ids.map((id) => entriesById.get(id)).filter((e): e is NonNullable<typeof e> => !!e && e.status === "active")
+      ).unaddressable.map((e) => e.id)
+    );
     for (const entryId of ids) {
       const entry = entriesById.get(entryId);
       if (!entry) {
@@ -109,6 +117,10 @@ export async function POST(request: NextRequest) {
       // stale-token doctrine the single flows enforce.
       if (entry.status !== "active") {
         results.push({ entryId, ok: false, code: "SCHEDULE_BULK_ENTRY_INACTIVE" });
+        continue;
+      }
+      if (unaddressableIds.has(entryId)) {
+        results.push({ entryId, ok: false, code: "SCHEDULE_BULK_UNADDRESSABLE" });
         continue;
       }
       try {

@@ -364,6 +364,16 @@ export async function POST(request: Request) {
           // the identical structural gate on body.slotAt.
           return jsonRefusal("SCHEDULE_SLOT_NOT_OFFERED", 400);
         }
+        // Same booking-time re-check as the week-grid book: the offered list was
+        // filtered when the picker loaded; the interviewer's calendar can fill in
+        // the gap. Three-valued: only a definite false refuses; null proceeds.
+        // Skip the invite's own confirmed instant — kp already wrote that event.
+        if (!(invite.status === "confirmed" && invite.slotAt === offered.value)) {
+          const calendarFree = await slotStillFree(offered.value, ws, invite.durationMin ?? undefined);
+          if (calendarFree === false) {
+            return jsonRefusal("SCHEDULE_CALENDAR_BUSY", 409);
+          }
+        }
         const moved = rescheduleScheduleInvite(body.token, offered.label, offered.value, null, { recruiter: true });
         if (!moved.ok) {
           if (moved.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
@@ -399,6 +409,15 @@ export async function POST(request: Request) {
         const offered = proposedSlotFor(chosen.value);
         if (!offered) {
           return jsonRefusal("SCHEDULE_PROPOSAL_EXPIRED", 409);
+        }
+        // Same three-valued re-check as book / reschedule. accept_proposal is the
+        // path a stuck candidate uses when the grid was empty — often because the
+        // calendar emptied it — so it is the writer most in need of a re-check.
+        if (!(invite.status === "confirmed" && invite.slotAt === offered.value)) {
+          const calendarFree = await slotStillFree(offered.value, ws, invite.durationMin ?? undefined);
+          if (calendarFree === false) {
+            return jsonRefusal("SCHEDULE_CALENDAR_BUSY", 409);
+          }
         }
         const result =
           invite.status === "confirmed"

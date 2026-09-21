@@ -36,7 +36,6 @@ from .match_reasoning import (
     COMPARE_VERDICT_MAX_CHARS,
     cap_block,
     fact_numbers,
-    narrative_lang_for,
 )
 
 GROUP_COMPARE_PROMPT_VERSION = "group-compare-v4"

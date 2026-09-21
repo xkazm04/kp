@@ -131,7 +131,7 @@ export function PlanCatalog({
 
   return (
     <div>
-      <h3 className="font-serif text-h3 text-ink">{t("plans.title")}</h3>
+      <h3 id="billing-plans" className="font-serif text-h3 text-ink">{t("plans.title")}</h3>
       <p className="mt-1 max-w-2xl text-sm text-steel">{t("plans.intro")}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Object.values(data.catalog.plans)

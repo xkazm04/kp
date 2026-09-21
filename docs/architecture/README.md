@@ -84,6 +84,14 @@ line; `app/_lib/tasks-pump.test.ts` fails on a kind that declares neither, and o
 queueing remains out of scope — the `tasks` row is the source of truth, and a run
 orphaned mid-flight is marked `interrupted` rather than resumed.
 
+**Task identity.** `app/_lib/task-dedupe.ts` keys each in-flight run so a retry
+coalesces and a different request does not. `batch_screen` used to be a process-wide
+singleton (`"batch_screen"`); it is now the sorted `entryIds` cohort (the board
+row's AI-evaluate), or `batch_screen:<workspaceId>` for the legacy full-board sweep
+with no ids. Two roles can be evaluated at once without swapping verdicts. Lookup
+is already per-workspace (`getActiveTaskByDedupe`), so the cohort fingerprint is
+what stops same-tenant cross-role contamination.
+
 ```text
 app/
   page.tsx                          Workspace shell (tab-based studio UI); '/' is gated

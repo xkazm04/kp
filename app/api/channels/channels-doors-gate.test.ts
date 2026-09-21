@@ -72,10 +72,11 @@ const { POST: createReceiver, PATCH: configurePull } = await import("./webhooks/
 const { DELETE: revokeReceiver } = await import("./webhooks/[token]/route.ts");
 const { GET: capabilityRoute } = await import("../comms/capability/route.ts");
 const { POST: relayProbe } = await import("../comms/relay/test/route.ts");
+const { POST: commsResend } = await import("../comms/[id]/resend/route.ts");
 const { createChannelWebhook, getActiveChannelWebhook } = await import("../../_lib/db/channels.ts");
 const { createUser } = await import("../../_lib/db/users.ts");
 const { upsertMembership } = await import("../../_lib/db/memberships.ts");
-const { signSession, DEFAULT_WORKSPACE } = await import("../../_lib/auth/session.ts");
+const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
 
 after(() => cleanupUnitDb());
 
@@ -85,8 +86,10 @@ const ORG = "org-default"; // the seeded org the default workspace belongs to
 // difference between them is authority — never tenancy.
 const owner = createUser({ orgId: ORG, email: "ch.owner@csas.cz", name: "Ch Owner", status: "active", password: "owner-pw-1234" });
 const recruiter = createUser({ orgId: ORG, email: "ch.rec@csas.cz", name: "Ch Rec", status: "active", password: "rec-pw-12345" });
+const viewer = createUser({ orgId: ORG, email: "ch.view@csas.cz", name: "Ch View", status: "active", password: "view-pw-12345" });
 upsertMembership(owner.id, DEFAULT_WORKSPACE, "owner");
 upsertMembership(recruiter.id, DEFAULT_WORKSPACE, "recruiter");
+upsertMembership(viewer.id, DEFAULT_WORKSPACE, "viewer");
 
 function signedInAs(user: { id: string; orgId: string } | null): void {
   cookieValue = user === null ? null : signSession(DEFAULT_WORKSPACE, Date.now(), { sub: user.id, org: user.orgId });
@@ -182,4 +185,19 @@ test("the capability read answers a real session, and ONLY the two bits the UI n
   assert.equal(body.emailInboundDomain, "inbound.kp.test");
   // unit-db.ts clears COMMS_WEBHOOK_URL, and nothing stored a relay config here.
   assert.equal(body.relayConfigured, false);
+});
+
+// ---- the dead-letter resend (live relay) --------------------------------------
+
+test("resend refuses a demo cookie — the install's relay is not a sandbox", async () => {
+  cookieValue = signSession(DEMO_WORKSPACE, Date.now());
+  const r = await commsResend(req(), params({ id: "x" }));
+  assert.equal(r.status, 401);
+});
+
+test("resend refuses a viewer with FORBIDDEN_CAPABILITY", async () => {
+  signedInAs(viewer);
+  const r = await commsResend(req(), params({ id: "x" }));
+  assert.equal(r.status, 403);
+  assert.equal(await codeOf(r), "FORBIDDEN_CAPABILITY");
 });

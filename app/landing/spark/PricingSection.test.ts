@@ -140,7 +140,10 @@ test("the displayed price is the catalogued price", () => {
   for (const tier of HOSTED_TIERS) {
     const { price, usd } = en.landing.pricing.tiers[tier];
     assert.deepEqual(numbersIn(price), [PLANS[tier].priceCzk], `${tier} shows its catalogued CZK price`);
-    assert.ok(price.includes("Kč"), `${tier} prices in CZK, the primary display currency`);
+    // Operator ruling 2026-09-14: Kč is Czech-only; English names the ISO code, before
+    // the amount (registry english subject, EN-CURRENCY).
+    assert.match(price, /^CZK[\s ]\d/, `${tier} prices in CZK, code before the amount: "${price}"`);
+    assert.doesNotMatch(price, /Kč/, `${tier}: English never renders Kč`);
     if (PLANS[tier].priceUsdApprox > 0) {
       assert.ok(
         numbersIn(usd).includes(PLANS[tier].priceUsdApprox),
@@ -157,7 +160,26 @@ test("the top-up footnote sells the pack the billing catalog actually stocks", (
   const pack = PACKS.minutes_100;
   const stated = numbersIn(en.landing.pricing.footnote2);
   assert.ok(stated.includes(pack.qty), `the footnote states the pack size (${pack.qty} minutes)`);
-  assert.ok(stated.includes(pack.priceCzk), `the footnote states the pack price (${pack.priceCzk} Kč)`);
+  assert.ok(stated.includes(pack.priceCzk), `the footnote states the pack price (CZK ${pack.priceCzk})`);
+});
+
+test("the koruna reads Kč in Czech only and CZK in every other language", () => {
+  // Operator ruling 2026-09-14. A German or French reader shown "Kč" sees a Czech
+  // abbreviation, not a currency they can name; a Czech reader shown "CZK" sees a
+  // foreign-facing form on a page in their own language.
+  for (const locale of LOCALES) {
+    const { tiers, footnote2 } = catalog(locale).landing.pricing;
+    const shown = [tiers.selfhost.price, ...HOSTED_TIERS.map((tier) => tiers[tier].price), footnote2];
+    for (const s of shown) {
+      if (locale === "cs") {
+        assert.match(s, /\d[\s ]Kč/, `cs renders the koruna as Kč: "${s}"`);
+        assert.doesNotMatch(s, /\bCZK\b/, `cs never renders CZK: "${s}"`);
+      } else {
+        assert.match(s, /\bCZK\b/, `${locale} renders the koruna as CZK: "${s}"`);
+        assert.doesNotMatch(s, /Kč/, `${locale} never renders Kč: "${s}"`);
+      }
+    }
+  }
 });
 
 test("every locale offers the same tiers, the same bullets and the same figures", () => {

@@ -47,6 +47,9 @@ export default async function QuickApplyPage({
     if (status === "draft") notFound();
     return (
       <main className="mx-auto max-w-md px-4 py-12">
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
         <p className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">{t("roleClosed")}</p>

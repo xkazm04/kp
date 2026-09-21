@@ -6,10 +6,13 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   medianHours,
   VARIANT_RULE,
   variantGroupKey,
+  variantPauseBoardHref,
   variantPauseRecommendations,
   variantRowKey,
   type VariantStat,
@@ -151,6 +154,15 @@ test("a starving variant that DID land leads is never reported as a flat 0%", ()
   );
   assert.deepEqual(many.map((r) => r.variant), ["v3", "v2", "v4"]);
   assert.deepEqual(many.map((r) => r.leadSharePct), [0.1, 0.2, 0.4]);
+});
+
+test("a pause recommendation with a jobTitle deep-links to the pipeline board", () => {
+  assert.deepEqual(variantPauseBoardHref({ jobTitle: "Backend engineer" }), { tab: "pipeline", q: "Backend engineer" });
+  assert.equal(variantPauseBoardHref({ jobTitle: null }), null);
+  assert.equal(variantPauseBoardHref({ jobTitle: "  " }), null);
+  const board = readFileSync(fileURLToPath(new URL("../features/insights/analytics/sections/EconomicsBoard.tsx", import.meta.url)), "utf8");
+  assert.match(board, /variantPauseBoardHref/);
+  assert.match(board, /setKindFilter\("variant"\)/);
 });
 
 test("an unobservable group (no parseable first lead) flags nothing", () => {

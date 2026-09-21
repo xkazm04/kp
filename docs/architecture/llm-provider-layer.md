@@ -42,14 +42,9 @@ Backend shipped and in production use:
   produced each field. See `docs/features/app-master/README.md`.
 - LightTrack observability (below) and the benchmark suite (below).
 
-**Outstanding:** `profile_extract` fold-in (`cv_analysis` folded in 2026-08-30 —
-`docs/specs/2026-08-30-cv-analysis-fold-in.md`: `pipeline.py` resolves
-`cv_analysis` through the registry and the Gemini adapter's `complete_document`
-attaches the file, so the gemini row now declares `file_input`; Gemini remains
-the only capable provider, and `extract_profile_text_with_gemini` still calls
-`gemini.py` directly), a
-deliberate bench run to pick metered default models, org-level (per-tenant)
-`llm_usage` attribution (tracked in `docs/features/organization/README.md` /
+**Outstanding:** a deliberate bench run to pick metered default models, and
+org-level (per-tenant) `llm_usage` attribution (tracked in
+`docs/features/organization/README.md` /
 `docs/product/enterprise-readiness.md` §8).
 
 ## Adapters (`pipeline/jobfit/llm/adapters/`)
@@ -63,6 +58,7 @@ deliberate bench run to pick metered default models, org-level (per-tenant)
 | Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only — and now enforced, not asserted**: it refuses to serve a production deployment unless `KP_ALLOW_CLI_ENGINE=1`. See "The CLI engine is refused in production" below. |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
 | Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. **Keyless but configurable from Settings → Models** (see "Local model servers" below); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
+| LightTrack gateway | `gateway.py` | `lt-gateway` on loopback (`http://127.0.0.1:8792/v1`, `LIGHTTRACK_GATEWAY_URL`): one route per use case in front of the **seat-metered CLIs** (`claude -p`, `codex exec`) with usage-limit failover between them, chosen per use case by a difficulty-graded benchmark (`docs/LLM_ROUTES.md`). Keyless; Settings saves a gateway row with no key and no Server URL (the field is hidden because gateway is not a `BASE_URL_PROVIDERS` member). The `model` is the use-case key; `response_format: json_schema` from `USE_CASE_SCHEMAS`. Does **not** emit its own LightTrack event (the gateway records every attempt) and writes the ledger **unpriced** with `model` = the seat that answered. The hop is local, the seats are not: sealed under `KP_OFFLINE`, and refused in production like `claude_cli` unless `KP_ALLOW_CLI_ENGINE=1`. Contract: <https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md>. |
 | Qwen Cloud | `qwen.py` | qwencloud.com / DashScope-intl **compatible mode** (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, override `QWEN_BASE_URL`). One key (`QWEN_API_KEY`/`DASHSCOPE_API_KEY`) serves the Qwen family plus hosted third-party models (`deepseek-v4-flash-0731`) by explicit slug — an OpenRouter-style gateway that IS a production routing target. |
 
 Every call site already has a deterministic fallback and an envelope
@@ -82,7 +78,10 @@ equality in both directions, the way `llm-model-required.test.ts` already did fo
 provider Python gained and TS did not answers `"Unknown provider."` for a
 provider that works; a use case TS gained and Python did not is a routing pin the
 resolver never reads; and a bench op rolling up to a use case that does not exist
-makes the Models tab silently show no recommendation for it. The test carries a
+makes the Models tab silently show no recommendation for it. Every pinnable
+`LLM_USE_CASES` id except `*` must appear in `BENCH_OPS.useCase` or
+`UNMEASURED_USE_CASES` (id + reason); the Quality section lists the unmeasured
+ids instead of omitting the row. The test carries a
 shape guard so a re-shaped Python declaration fails loudly instead of parsing to
 an empty list and passing vacuously.
 
@@ -153,8 +152,14 @@ replay is COUNTED and logged (`[llm-usage] N of M …`), because a non-zero skip
 means a cleanup failed. The key is deliberately **not** `request_id`: that
 identifies the *spawn* and is stamped on every line the spawn wrote, so a unique
 index on it would drop the second and later metered calls of every multi-call
-run. Rows written directly by `insertLlmUsage` (the voice-interview per-minute
-estimate) and every row predating the column carry `ingest_key` NULL, and SQLite
+run. Rows written directly by `insertLlmUsage` now take the same door: an optional
+`ingestKey`, otherwise a hash of `(requestId, useCase, source, billed unit)` when
+`requestId` is present (TTS cache key, interview session id, GitHub request id).
+`ON CONFLICT(ingest_key) DO NOTHING` refuses a retried write and the skip is
+counted, so a client retry or a complete-route double-POST cannot double-bill.
+A TTS cache *hit* still lands beside the miss that filled it — different `source`
+and billed unit, different key. Unkeyed writers (STT today, which does not pass a
+request id) and every row predating the column carry `ingest_key` NULL, and SQLite
 treats NULLs as distinct — so the index can never be blocked by existing data.
 
 **Resolution happens on the TS side** (it owns the DB), then flows to Python via
@@ -181,6 +186,10 @@ ran every heavy-output use case at the 2048 cost cap and shipped the
 deterministic fallback after two truncated, paid calls.
 
 ### The CLI engine is refused in production
+
+The `gateway` adapter is a second route to the same consumer seats (plus a ChatGPT
+seat behind `codex exec`) and meets the same veto with the same reason
+(`consumer_terms_policy`) and the same unlock — see the adapter table.
 
 "Local/dev only" was a sentence in this document with **nothing behind it**: the
 line above describes a keyless self-hosted `next start` resolving to the Claude
@@ -299,8 +308,9 @@ themselves.
 
 ### The direct `gemini.py` seam has its own typed vocabulary
 
-`cv_analysis` and `profile_extract` reach Gemini through `pipeline/jobfit/gemini.py`
-rather than a `TextProvider` adapter (it needs multimodal file bytes + grounding).
+`cv_analysis` reaches Gemini through the registry adapter (`complete_document`).
+The leftover direct `gemini.py` door is tests-only
+(`extract_profile_text_with_gemini`); it still needs multimodal file bytes.
 Its refusals used to be bare `RuntimeError`s carrying English prose only, so a
 caller could not tell an operator-config problem from a model-side failure, and
 `_cli.emit_error` classified every one of them as an anonymous `engine_error`/500.
@@ -578,8 +588,9 @@ stays in the Models tab's daily rollup).
 the row that opened it). The daily rollup does NOT follow the reader: `substr(ts,
 1, 10)` cuts `aggregateLlmUsage`'s buckets on UTC midnights, so a late-evening call
 in Prague sits in "today" on Activity and in tomorrow's cost column on Models.
-Every rollup bucket now carries `tz: "UTC"` (`LLM_USAGE_DAY_TZ`) and the Activity
-header says which clock it keeps (`activity.tzNote`, 4 locales). Re-cutting the
+Every rollup bucket now carries `tz: "UTC"` (`LLM_USAGE_DAY_TZ`). The Activity
+header no longer prints a which-clock sentence (removed 2026-09, with its four
+catalog entries); the UTC bucketing stands and is stated here. Re-cutting the
 buckets in an operator's zone is a separate decision — it needs an operator zone to
 exist first.
 
@@ -592,6 +603,16 @@ actions **this workspace** ran" — a claim, not an omission, and a wrong one on
 install with more than one team.
 
 #### Row detail: from "what it cost" to "what it produced"
+
+**The voice interview is a use case with its own detail (2026-09).** An
+`interview_realtime` row's `request_id` is the interview SESSION id (the completion
+route writes it so), not a background run — so the task lookup used to answer "run
+gone" for a transcript sitting in `interview_sessions`. The detail now resolves it
+through `GET /api/interview/sessions/[id]` (operator-gated, workspace-scoped,
+consent-redacted, never carrying the bearer token) and renders the conversation
+turn by turn with the verdict on top (`ActivityInterviewRun.tsx`). With the Schedule
+tab's AI ledger no longer listing completed calls, this is where a finished interview
+is read.
 
 `llm_usage` stores meters, never content — so a row cannot carry the model's
 answer. It can carry the *run* that produced it. `request_id` had been in the
@@ -676,7 +697,7 @@ Models. One section there answers it, from three sources at once:
 | Source | What it contributes |
 | --- | --- |
 | `GET /api/billing` (prop from the tab) | This period's plan meters: included allowance, remaining, pack credits |
-| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`) |
+| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over `?days=` (default 30, max 365). `?useCase=` restricts to one catalog id (400 + the catalog on unknown; omit = all) |
 | `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
 
 `useSpendData.ts` owns both fetches for the whole section — one loading state,
@@ -880,8 +901,15 @@ locales.
   The spawn now carries the env and `llm-spawn-contract.test.ts` pins it. Gemini
   stays the only
   `file_input`-capable adapter (openai/anthropic/azure rows are still honestly
-  text-only). `profile_extract` still calls the dedicated `gemini.py` path; a
-  config row for it has no effect today.
+  text-only). `extract_profile_text_with_gemini` remains a tests-only `gemini.py`
+  helper and is not in the use-case catalog — a Models-tab pin could not change
+  its traffic, so the row was dropped rather than sold. `devcase_tooling` and
+  `devcase_transfer` were the same class of inert pin (evaluate-submission
+  produces those artifacts under `devcase_evaluate`) and left the catalog with
+  it. `test_byom_coverage.py` now fails when a catalog id is neither a scanned
+  `resolve_provider` site nor a named exemption (`github_analysis` is TS-direct
+  in `app/_lib/github/code-review.ts`; `devcase_role_design` is collapsed into
+  `devcase_case_design` by `design-artifacts`).
 - `grounded_salary` (market salary via `market_salary_cli.py`) also calls
   `gemini.py` directly and is not in the use-case catalog — un-routable.
 - Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider

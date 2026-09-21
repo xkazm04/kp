@@ -9,6 +9,7 @@ import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl } fro
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import { DEFAULT_ORG_NAME, readClientOrgName } from "@/app/_lib/org-settings";
 import { SETUP_PROSE } from "./setupProse";
+import { SetupCurrencyField } from "./SetupCurrencyField";
 import type { OnboardingCtrl } from "./setupSteps";
 
 // Company step — org name (required) and an OPTIONAL first brand touch (accent +
@@ -110,6 +111,8 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
           {t("nameHint")}
         </p>
       </div>
+
+      <SetupCurrencyField ctrl={ctrl} />
 
       <fieldset>
         <legend className={`${META_LABEL} block`}>{t("brandLabel")}</legend>

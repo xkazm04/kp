@@ -14,6 +14,7 @@ const CFG = {
   accessToken: "unit-token",
   server: "sandbox" as const,
   webhookSecret: null,
+  apiVersion: null,
   products: { starter: "prod_starter", growth: null, byom: null, minutePack: "prod_pack" },
 };
 
@@ -141,6 +142,54 @@ test("a checkout 503 is NOT retried — a second session would be a second payab
         () => gateway().createCheckout({ kind: "pack", pack: "minutes_100" }, { successUrl: "https://kp.test/" }),
         (err: unknown) => err instanceof Error && !(err instanceof BillingProviderTimeoutError)
       );
+      assert.equal(calls, 1);
+    }
+  );
+});
+
+test("createCheckout posts customer_id only when the caller supplies a non-empty one", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  await withFetch(
+    async (_input, init) => {
+      bodies.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
+      return new Response(JSON.stringify({ id: "chk_1", url: "https://polar.test/c" }), { status: 200 });
+    },
+    async () => {
+      await gateway().createCheckout(
+        { kind: "plan", plan: "starter" },
+        { successUrl: "https://kp.test/?tab=billing", customerId: "cus_1" }
+      );
+      await gateway().createCheckout(
+        { kind: "plan", plan: "starter" },
+        { successUrl: "https://kp.test/?tab=billing" }
+      );
+      await gateway().createCheckout(
+        { kind: "pack", pack: "minutes_100" },
+        { successUrl: "https://kp.test/", customerId: "  " }
+      );
+    }
+  );
+  assert.equal(bodies[0]?.customer_id, "cus_1");
+  assert.ok(!("customer_id" in (bodies[1] ?? {})), "omit path must not send the key");
+  assert.deepEqual(Object.keys(bodies[1] ?? {}).sort(), ["metadata", "products", "success_url"]);
+  assert.ok(!("customer_id" in (bodies[2] ?? {})), "blank customerId is treated as absent");
+});
+
+test("an invalid Polar customer is a thrown error, never a silent second customer", async () => {
+  let calls = 0;
+  await withFetch(
+    async () => {
+      calls += 1;
+      return new Response("unknown customer", { status: 404 });
+    },
+    async () => {
+      await assert.rejects(() =>
+        gateway().createCheckout(
+          { kind: "pack", pack: "minutes_100" },
+          { successUrl: "https://kp.test/", customerId: "cus_gone" }
+        )
+      );
+      // Not retried without the id: that would mint a second MoR customer.
       assert.equal(calls, 1);
     }
   );

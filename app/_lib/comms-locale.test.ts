@@ -51,6 +51,16 @@ test("inferLocaleFromLanguages mirrors Python's _candidate_lang: Czech ⇒ cs, n
   assert.equal(inferLocaleFromLanguages([42 as unknown as string]), null);
 });
 
+test("inferLocaleFromLanguages detects de/fr-only CVs the way CandidateLangTest does", () => {
+  // pipeline/jobfit/tests/test_automation.py CandidateLangTest.test_de_and_fr_only_speakers_are_newly_detected
+  assert.equal(inferLocaleFromLanguages(["German"]), "de");
+  assert.equal(inferLocaleFromLanguages(["Deutsch"]), "de");
+  assert.equal(inferLocaleFromLanguages(["Français"]), "fr");
+  assert.equal(inferLocaleFromLanguages(["Francais"]), "fr");
+  // Lingua-franca tiebreak must not flip: a German+English speaker still hears English.
+  assert.equal(inferLocaleFromLanguages(["English", "German"]), "en");
+});
+
 test("inferProfileLocale reads the saved profile's CV languages; unknown/missing profiles carry no signal", () => {
   const czech = saveProfile({
     label: "Jana Novák",

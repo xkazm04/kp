@@ -24,6 +24,7 @@ const toStageDef = (wire: PipelineStageWire): StageDef => ({
   id: wire.id,
   label: wire.label,
   role: wire.role as StageRole,
+  ...(wire.actions ? { actions: wire.actions } : {}),
 });
 
 /** The out-of-the-box axis as a ResolvedAxis — what a workspace with no override

@@ -1,9 +1,11 @@
 import type { AppMasterSpec } from "../schemas.generated";
+import { MAX_AGENT_SCOPE_RUNG } from "./backbone";
 
 // The MANDATE, as the card has to show it.
 //
-// An App master is dispatched under a contract: approval gates Personas will
-// actually execute, per-objective targets with a unit, a direction and a
+// An App master is dispatched under a contract: the mandate rung and forbidden-
+// change classes that actually constrain the holder, approval gates Personas
+// will execute, per-objective targets with a unit, a direction and a
 // measurement window, a review cadence, retire criteria, and how the budget is
 // reserved. The card used to render one number from all of that — the objective
 // COUNT — so the requestor pressed a control that hires an accountable owner
@@ -39,6 +41,10 @@ export type MandateView = {
   reviewCadenceDays: number | null;
   retireCriteria: string[];
   reservationPolicy: "estimate" | "fixed" | null;
+  /** Grantable rung 0..2, or null. Rung 0 (read-only) is a real bound — unlike
+   *  day counts, zero is not "unset". Out of range is absent, never clamped. */
+  scopeRung: number | null;
+  forbiddenClasses: string[];
   /** True when there is nothing at all to show — the card renders no section,
    *  rather than an empty heading implying the mandate is blank. */
   isEmpty: boolean;
@@ -50,6 +56,8 @@ const EMPTY: MandateView = {
   reviewCadenceDays: null,
   retireCriteria: [],
   reservationPolicy: null,
+  scopeRung: null,
+  forbiddenClasses: [],
   isEmpty: true,
 };
 
@@ -62,6 +70,13 @@ function textList(values: readonly string[] | undefined): string[] {
  *  and a NaN arriving from a hand-edited row. */
 function days(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** A grantable mandate rung, or null. 0 is read-only and still a bound. */
+function rung(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_AGENT_SCOPE_RUNG
+    ? value
+    : null;
 }
 
 export function mandateSections(spec: AppMasterSpec | null | undefined): MandateView {
@@ -84,6 +99,8 @@ export function mandateSections(spec: AppMasterSpec | null | undefined): Mandate
     spec.budget?.reservationPolicy === "fixed" || spec.budget?.reservationPolicy === "estimate"
       ? spec.budget.reservationPolicy
       : null;
+  const scopeRung = rung(spec.mandate?.scopeRung);
+  const forbiddenClasses = textList(spec.mandate?.forbiddenClasses);
 
   return {
     approvalGates,
@@ -91,11 +108,15 @@ export function mandateSections(spec: AppMasterSpec | null | undefined): Mandate
     reviewCadenceDays,
     retireCriteria,
     reservationPolicy,
+    scopeRung,
+    forbiddenClasses,
     isEmpty:
       approvalGates.length === 0 &&
       objectives.length === 0 &&
       reviewCadenceDays === null &&
       retireCriteria.length === 0 &&
-      reservationPolicy === null,
+      reservationPolicy === null &&
+      scopeRung === null &&
+      forbiddenClasses.length === 0,
   };
 }
