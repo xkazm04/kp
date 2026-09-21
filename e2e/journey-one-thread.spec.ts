@@ -45,7 +45,7 @@
 // KP_OFFLINE is what makes a keyed developer box behave like keyless CI: it turns
 // every cloud provider's available() to false (pipeline/jobfit/llm/offline.py),
 // including the Claude CLI, which is a subprocess the TS egress guard cannot see.
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { E2E_BASE_URL, seedDevAuth } from "./dev-auth";
 
 // The steps share minted state (slug, case id, token, submission id, entry id),
@@ -70,6 +70,19 @@ let caseId = "";
 let applyToken = "";
 let submissionId = "";
 let entryId = "";
+
+/** Scroll until a `<Defer strategy="visible">` subtree commits and `target` appears.
+ *
+ *  Scrolling ONCE is not enough: each panel that mounts lengthens the page, so the
+ *  next sentinel is below the new bottom. Re-scroll on every attempt until the
+ *  target is there, which is also what a reader does. Fails with the normal
+ *  toBeVisible message when the content genuinely is not coming. */
+async function revealBelowTheFold(page: Page, target: Locator): Promise<void> {
+  await expect(async () => {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(target).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+}
 
 /** Poll a JSON endpoint until `done` accepts its body, or fail with the last body
  *  in the message. Every wait in this file goes through here so a timeout says
@@ -329,16 +342,22 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   expect(entryId, "promote must land the candidate on the board").toBeTruthy();
   expect(["advance", "hold"], "promote issues a recommendation, never nothing").toContain(promotion.recommendation);
 
-  // SEAM 2 + SEAM 3 — the whole point of the milestone, in one read of the board.
-  const board = await page.request.get("/api/pipeline");
-  expect(board.ok()).toBe(true);
-  const entries = ((await board.json()) as { entries: BoardEntry[] }).entries;
-  const fromSubmission = entries.filter((e) => e.devSubmissionId === submissionId);
-  // ONE candidate. The defect this replaces minted a second identity per promote,
-  // so the person who applied and the person on the board were different rows.
-  expect(fromSubmission, "one submission promotes to exactly one board entry").toHaveLength(1);
-  const mine = fromSubmission[0];
+  // SEAM 2 + SEAM 3 — read from the TWO surfaces that each carry half of it.
+  //
+  // The devcase ids are no longer on the board payload: GET /api/pipeline projects
+  // every row through BOARD_ENTRY_FIELDS (pipeline.ts:72) and
+  // `board-poll-carries-only-what-it-draws` deliberately dropped `devCaseId` /
+  // `devSubmissionId` from the 30s poll because nothing on the board draws them.
+  // Filtering the list on `devSubmissionId` therefore matched nothing at all —
+  // `undefined === submissionId` is false for every row — and the assertion below
+  // reported "0 board entries" for a promote that had in fact landed one.
+  // The linkage is read where it still lives: GET /api/pipeline/[id], the
+  // unprojected single-entry surface the drawer opens.
+  const detail = await page.request.get(`/api/pipeline/${entryId}`);
+  expect(detail.ok(), `GET /api/pipeline/[id] responded ${detail.status()}`).toBe(true);
+  const mine = ((await detail.json()) as { entry: BoardEntry }).entry;
   expect(mine.id).toBe(entryId);
+  expect(mine.devSubmissionId, "the promoted entry points back at the submission").toBe(submissionId);
 
   // The REAL job, not a synthetic dc-<caseId>.
   expect(mine.jobId, "the promoted entry belongs to the JD's own job").toBe(jobId);
@@ -347,13 +366,24 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   // could never rank.
   expect(mine.candidateId).toBeTruthy();
   expect(mine.candidateId.startsWith("ds-"), "the candidate id must be a profile, not a minted submission id").toBe(false);
-  expect(entries.filter((e) => e.candidateId === mine.candidateId), "one person, one row on this role").toHaveLength(1);
+
+  // ONE candidate, on the board. The defect this replaces minted a second identity
+  // per promote, so the person who applied and the person on the board were
+  // different rows — which shows up here as two rows for one person on one role.
+  const board = await page.request.get("/api/pipeline");
+  expect(board.ok()).toBe(true);
+  const entries = ((await board.json()) as { entries: BoardEntry[] }).entries;
+  const onBoard = entries.filter((e) => e.candidateId === mine.candidateId && e.jobId === jobId);
+  expect(onBoard, "one submission promotes to exactly one board entry, for one person on this role").toHaveLength(1);
+  expect(onBoard[0].id).toBe(entryId);
 
   // SEAM 3 — a transfer score is not a match score. It stays off match_score
   // entirely (devcase-run.ts's createPipelineEntry passes matchScore: null) and
-  // arrives as its own field.
-  expect(mine.matchScore, "a work sample must not be written into the match score").toBeNull();
-  expect(typeof mine.transferScore, "the transfer score reaches the board as itself").toBe("number");
+  // arrives as its own field. Asserted on the BOARD row: `transferScore` is
+  // stamped by GET /api/pipeline (withTransferScores), not by the single-entry
+  // read above, which stamps the canonical match score only.
+  expect(onBoard[0].matchScore, "a work sample must not be written into the match score").toBeNull();
+  expect(typeof onBoard[0].transferScore, "the transfer score reaches the board as itself").toBe("number");
 
   // …and the board SAYS so. The bead's title carries the kind sentence only on a
   // non-match score (beadTitle, map/PipelineBoardSubway.tsx): it tells a recruiter
@@ -419,10 +449,18 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
   // in the candidate modal the row's Decide opens.
   const row = page.getByRole("row").filter({ hasText: CANDIDATE });
   await expect(row).toHaveCount(1);
-  await expect(row.getByText("AI screening")).toBeVisible();
   await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).click();
   const modal = page.getByRole("dialog", { name: CANDIDATE, exact: true });
-  await expect(modal.getByRole("button", { name: "Reject" })).toBeVisible();
+  // The KIND of recommendation is named on the modal's decision strip
+  // (CandidateDecisionBar's tag), not on the ledger row — the row carries
+  // candidate, role, stage, score, the proposal and the Decide control, and has
+  // done since the queue became a table. The tag was asserted on the row, so this
+  // line could only ever have passed against the card the table replaced; it never
+  // ran, because the journey died two tests earlier.
+  await expect(modal.getByText("AI screening")).toBeVisible();
+  // EXACT: the strip carries "Reject" AND "Draft rejection", so a substring match is
+  // a strict-mode violation rather than a missing button.
+  await expect(modal.getByRole("button", { name: "Reject", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modal).toBeHidden();
 
@@ -458,8 +496,15 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
 
   // And the recruiter can SEE the seal: the sealed-record ledger lives in
   // Analytics → Quality & audit, not in the Decisions tab.
+  //
+  // It is BELOW THE FOLD and deliberately unmounted until it gets there:
+  // QualityInstrument.tsx:257 wraps the panel in <Defer strategy="visible">, an
+  // IntersectionObserver that commits the subtree the first time its sentinel
+  // enters the viewport. Landing on the section is not enough — a reader scrolls,
+  // and so must this. Without the scroll the locator waited out its full timeout
+  // on an element that was never going to be built.
   await page.goto("/?tab=analytics&sec=quality");
-  await expect(page.getByText("Decision records (sealed)")).toBeVisible({ timeout: 30_000 });
+  await revealBelowTheFold(page, page.getByText("Decision records (sealed)"));
   await expect(page.getByText(/sealed records, chain verified/)).toBeVisible({ timeout: 30_000 });
 
   // Finally, the queue reflects the decision — the card that was waiting is gone.
@@ -468,6 +513,12 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
   await expect(page.getByText(CANDIDATE)).toHaveCount(0);
 });
 
+/** The union of what the two pipeline reads carry, since this journey uses both:
+ *  GET /api/pipeline projects through BOARD_ENTRY_FIELDS (no devcase ids) and
+ *  stamps `transferScore`; GET /api/pipeline/[id] returns the unprojected row
+ *  (devcase ids present) with the canonical match score only. Fields absent from
+ *  whichever read produced a given value are read as undefined — which is why the
+ *  assertions above name the surface each fact comes from. */
 type BoardEntry = {
   id: string;
   candidateId: string;
