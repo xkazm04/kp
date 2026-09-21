@@ -449,10 +449,18 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
   // in the candidate modal the row's Decide opens.
   const row = page.getByRole("row").filter({ hasText: CANDIDATE });
   await expect(row).toHaveCount(1);
-  await expect(row.getByText("AI screening")).toBeVisible();
   await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).click();
   const modal = page.getByRole("dialog", { name: CANDIDATE, exact: true });
-  await expect(modal.getByRole("button", { name: "Reject" })).toBeVisible();
+  // The KIND of recommendation is named on the modal's decision strip
+  // (CandidateDecisionBar's tag), not on the ledger row — the row carries
+  // candidate, role, stage, score, the proposal and the Decide control, and has
+  // done since the queue became a table. The tag was asserted on the row, so this
+  // line could only ever have passed against the card the table replaced; it never
+  // ran, because the journey died two tests earlier.
+  await expect(modal.getByText("AI screening")).toBeVisible();
+  // EXACT: the strip carries "Reject" AND "Draft rejection", so a substring match is
+  // a strict-mode violation rather than a missing button.
+  await expect(modal.getByRole("button", { name: "Reject", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modal).toBeHidden();
 
