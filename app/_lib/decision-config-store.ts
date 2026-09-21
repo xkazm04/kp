@@ -424,8 +424,24 @@ export function getAllDecisionConfigs(workspaceId: string = DEFAULT_WORKSPACE_ID
 }
 
 /** P1-1 — the workspace's active compliance jurisdiction, normalized (a stale or
- *  hand-edited config can never surface an unknown regime). Server-only; the
- *  candidate disclosure reads it through the public GET /api/compliance. */
+ *  hand-edited config can never surface an unknown regime). Server-only.
+ *
+ *  PASS THE WORKSPACE. The default is `DEFAULT_WORKSPACE_ID`, and a bare call is
+ *  how this function once told every tenant's candidates they were assessed under
+ *  EU law: the value it returns is rendered as the law a person is judged by, so
+ *  answering for the wrong team is a disclosure defect, not a stale read. The
+ *  default exists for single-tenant call paths only.
+ *
+ *  WHO CALLS IT, and with what:
+ *    - `app/_lib/compliance-disclosure.ts` (`disclosureComplianceFor`) — the
+ *      CANDIDATE path. Each public surface resolves the workspace server-side from
+ *      the token or job it has already established and passes the result to
+ *      `AiDisclosure` as props. A client fetch cannot prove which tenant's job a
+ *      candidate is looking at, so this is the only path that can be right.
+ *    - `GET /api/compliance` — the SESSION-BEARING path (the recruiter Decisions
+ *      compliance card, the interview simulator tab), with `currentWorkspace()`.
+ *      That route is GATED, deliberately absent from
+ *      `app/_lib/auth/public-routes.ts`, and is NOT how candidates read this. */
 export function getActiveRegimeId(workspaceId: string = DEFAULT_WORKSPACE_ID): RegimeId {
   return normalizeRegimeId(getDecisionConfig<ComplianceRule>("compliance", workspaceId).jurisdiction);
 }
