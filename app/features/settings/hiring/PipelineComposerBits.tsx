@@ -17,7 +17,7 @@
 import { Bot, Check, UserRound, Zap, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
-import type { GateMode, RoundKind } from "./pipelineComposerModel";
+import { cohortSelectNs, type GateMode, type RoundKind } from "./pipelineComposerModel";
 
 export { PlanImpactStrip } from "./impact/PlanImpactStrip";
 
@@ -131,7 +131,7 @@ export function CohortSelect({
       className="w-full"
       options={[
         { value: "all", label: t("cohortEveryone") },
-        ...[2, 3, 5, 8].map((n) => ({ value: String(n), label: t("cohortTopN", { n }) })),
+        ...cohortSelectNs().map((n) => ({ value: String(n), label: t("cohortTopN", { n }) })),
       ]}
     />
   );

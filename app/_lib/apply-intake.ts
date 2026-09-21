@@ -197,6 +197,36 @@ export function nextVisibleStepIndex(
   return -1;
 }
 
+/**
+ * 1-based progress through the steps the candidate will actually see, given
+ * answers so far. Raw `idx` is the script array position and is the wrong
+ * number: a student lane skips the BAU experience question and walks three
+ * extra ones, so "question 3 of 8" must count visible steps, not array slots.
+ * Until the branching answer lands, `notOneOf` default lanes stay visible
+ * (same rule as {@link nextVisibleStepIndex}), so the total updates when the
+ * archetype is declared — student total ≠ bau total.
+ *
+ * `current` is the position of `idx` among currently-visible steps. A hidden
+ * or out-of-range `idx` (should not happen in the client) counts visible
+ * steps at or before it rather than flashing 0.
+ */
+export function visibleStepProgress(
+  steps: readonly { when?: StepCondition }[],
+  idx: number,
+  answers: Record<string, unknown>
+): { current: number; total: number } {
+  const visible: number[] = [];
+  for (let i = 0; i < steps.length; i += 1) {
+    if (stepConditionMet(steps[i].when, answers)) visible.push(i);
+  }
+  const total = visible.length;
+  if (total === 0) return { current: 0, total: 0 };
+  const pos = visible.indexOf(idx);
+  if (pos !== -1) return { current: pos + 1, total };
+  const before = visible.filter((i) => i <= idx).length;
+  return { current: before === 0 ? 1 : Math.min(before, total), total };
+}
+
 /** The display label a contact-less / nameless lead files under. Single-sourced
  *  here so the prefill seeding below can recognize the sentinel and never greet
  *  a candidate as "Applicant" (see seedLeadPrefillAnswers / lead-intake.ts). */

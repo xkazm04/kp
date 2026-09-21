@@ -116,6 +116,20 @@ export function findExclusionaryPhrases(text: string): string[] {
   return collectPhrases(text, EXCLUSIONARY_PATTERNS);
 }
 
+/** The substring a finding can jump to in the body, or null for missing-pay/place. */
+export function lintFindingPhrase(f: JdLintFinding): string | null {
+  return f.kind === "vague" || f.kind === "exclusionary" ? f.phrase : null;
+}
+
+/** First occurrence of `phrase` in `body` (case-insensitive), for setSelectionRange. */
+export function locateLintPhrase(body: string, phrase: string): { start: number; end: number } | null {
+  const needle = phrase.trim();
+  if (!needle) return null;
+  const start = body.toLowerCase().indexOf(needle.toLowerCase());
+  if (start < 0) return null;
+  return { start, end: start + needle.length };
+}
+
 /**
  * Lint a JD body for the two specificity classes that decide conversion:
  * boilerplate phrases to replace, and missing concretes (pay, place).

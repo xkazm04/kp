@@ -2,7 +2,7 @@
 // same fact.
 //
 // Keyed by role and not by stage id on purpose: ids are per-workspace data (a
-// renamed or hand-added column has an id nothing else knows), while the seven roles
+// renamed or hand-added column has an id nothing else knows), while the roles
 // are the closed vocabulary the product reasons about (decision-config-schema.ts).
 // A column the operator invents therefore still gets a truthful glyph — `custom`,
 // the puzzle piece — instead of falling through to a blank.
@@ -10,11 +10,13 @@
 // Hoisted the moment the second read-only view wanted it (the /prototype rule):
 // the journey and the board preview must not drift into two icon sets for one
 // vocabulary.
-import { BadgeCheck, Gauge, Handshake, Inbox, MessagesSquare, Puzzle, ScanSearch, type LucideIcon } from "lucide-react";
+import { BadgeCheck, ClipboardPen, Gauge, Handshake, Inbox, MessagesSquare, Puzzle, ScanSearch, type LucideIcon } from "lucide-react";
 
 const ROLE_ICONS: Record<string, LucideIcon> = {
   entry: Inbox,
   screening: ScanSearch,
+  // The case step: something is written FOR the candidate to do, not read about them.
+  homework: ClipboardPen,
   interview: MessagesSquare,
   scoring: Gauge,
   offer: Handshake,

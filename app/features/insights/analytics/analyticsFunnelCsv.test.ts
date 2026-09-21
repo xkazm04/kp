@@ -14,7 +14,7 @@
 // Runner: npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { funnelCsvRows } from "./analyticsFunnelCsv.ts";
+import { analyticsCsvProvenance, funnelCsvRows, rolesCsvRows } from "./analyticsFunnelCsv.ts";
 import { toCsv } from "@/app/_lib/export-utils";
 import type { FunnelRow } from "./analyticsFunnelEmptyState.ts";
 
@@ -67,4 +67,71 @@ test("serializes through toCsv with the formula guard intact", () => {
   const [header, first] = csv.split("\r\n");
   assert.equal(header, "Stage,Reached,Here now,Conversion,Goal");
   assert.match(first, /^'=cmd\|calc,3,1,25%,40%$/, "the leading = is neutralized once, in export-utils");
+});
+
+const PROV_LABELS = {
+  export: "Export",
+  generated: "Generated",
+  window: "Window",
+  tz: "Time zone",
+  locale: "Language",
+  truncated: "Truncated",
+  excludedSim: "Excluded sim",
+};
+
+test("funnel CSV provenance names window, UTC, and truncated", () => {
+  const provenance = analyticsCsvProvenance(
+    "kp-funnel.csv",
+    {
+      window: "Last 90 days",
+      bucketTz: "UTC",
+      locale: "en",
+      truncated: true,
+      excludedSim: 0,
+      truncatedNote: "Counted the newest 500 entries, not the whole window.",
+      generatedAt: "2026-09-17T12:00:00.000Z",
+    },
+    PROV_LABELS
+  );
+  const rows = funnelCsvRows([row("applied", 40, 12, null)], {}, LABELS, upper, { provenance });
+  const blob = rows.map((r) => r.join(",")).join("\n");
+  assert.match(blob, /Last 90 days/);
+  assert.match(blob, /UTC/);
+  assert.match(blob, /Counted the newest 500 entries/);
+  assert.equal(rows[0][0], "Export");
+  assert.equal(rows[rows.length - 2][0], "Stage", "the table header still follows the blank separator");
+});
+
+test("roles CSV provenance matches the funnel's scope block", () => {
+  const provenance = analyticsCsvProvenance(
+    "kp-roles.csv",
+    {
+      window: "All time",
+      bucketTz: "UTC",
+      locale: "cs",
+      truncated: false,
+      excludedSim: 3,
+      excludedNote: "3 guided-demo rows left out",
+      generatedAt: "2026-09-17T12:00:00.000Z",
+    },
+    PROV_LABELS
+  );
+  const rows = rolesCsvRows(
+    [{ jobTitle: "Backend", koDeclined: 1, total: 4, reachedInterview: 2, hired: 1, hireRatePct: 25 }],
+    {
+      job: "Role",
+      koDeclined: "KO",
+      inPipeline: "Pipeline",
+      reachedInterview: "Interview",
+      hired: "Hired",
+      hireRate: "Hire rate",
+    },
+    { provenance }
+  );
+  const blob = rows.map((r) => r.join(",")).join("\n");
+  assert.match(blob, /UTC/);
+  assert.match(blob, /All time/);
+  assert.match(blob, /3 guided-demo rows left out/);
+  assert.doesNotMatch(blob, /Truncated/);
+  assert.equal(rows[rows.length - 1][5], "25%", "the body still carries the screen's hire-rate unit");
 });

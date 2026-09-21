@@ -1,6 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
+import { track } from "@/app/_lib/analytics/track";
 
 // The Analytics tab's ONE export affordance.
 //
@@ -17,6 +18,7 @@ export function AnalyticsExportButton({
   onClick,
   disabled,
   title,
+  artifact,
 }: {
   label: string;
   onClick: () => void;
@@ -25,11 +27,17 @@ export function AnalyticsExportButton({
    *  nothing" rather than "there was nothing to measure". */
   disabled?: boolean;
   title?: string;
+  /** Stable filename/id for the cookieless `analytics_export` event. Falls back
+   *  to `"file"` so a caller that has not named the artifact still fires. */
+  artifact?: string;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        track("analytics_export", { artifact: artifact ?? "file" });
+        onClick();
+      }}
       disabled={disabled}
       title={title}
       className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"

@@ -14,6 +14,7 @@ import { BTN_AFFIRM, BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import { classifyOfferResponse, offerRespondAllowed } from "./offer-response";
 import { formatOfferDeadline } from "./offer-deadline";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 
 type OfferView = {
   token: string;
@@ -28,6 +29,8 @@ type OfferView = {
   // SERVER at GET time so the countdown can't disagree with server-enforced expiry on a
   // skewed/back-dated client clock. Null when the offer carries no valid deadline.
   hoursRemaining: number | null;
+  notes: string | null;
+  startDate: string | null;
 };
 
 // Public, token-gated offer page. The candidate accepts or declines here; accept
@@ -45,6 +48,7 @@ export function OfferClient({
   const t = useTranslations("offer");
   const tCommon = useTranslations("common");
   const locale = useLocale();
+  const dates = useDateFormat();
   const errMsg = useErrorMessage();
   const [offer, setOffer] = useState<OfferView | null>(null);
   // Two distinct failure modes, deliberately separated: a GET load failure has nothing to show,
@@ -285,18 +289,40 @@ export function OfferClient({
               <p className="mt-1 text-sm text-steel">{t("preparedFor", { name: offer.candidateLabel })}</p>
             ) : null}
 
-            {offer.salary != null ? (
-              <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
-                <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
-                <p className="mt-0.5 font-serif text-3xl text-ink">
-                  {/* P2-1 — show the offer's OWN stored currency; never fabricate CZK
-                      for a non-Czech offer. When the currency is genuinely unknown,
-                      omit the unit rather than asserting a wrong one. */}
-                  {offer.salary.toLocaleString(locale)}
-                  {offer.currency ? <span className="text-lg text-steel"> {offer.currency}</span> : null}
-                </p>
-              </div>
-            ) : null}
+            {(() => {
+              const notes = offer.notes?.trim() || null;
+              const rawStart = offer.startDate?.trim() || null;
+              const startDateLabel = rawStart ? dates.date(rawStart, { fallback: "" }) || rawStart : null;
+              if (offer.salary == null && !notes && !startDateLabel) return null;
+              return (
+                <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
+                  {offer.salary != null ? (
+                    <>
+                      <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
+                      <p className="mt-0.5 font-serif text-3xl text-ink">
+                        {/* P2-1 — show the offer's OWN stored currency; never fabricate CZK
+                            for a non-Czech offer. When the currency is genuinely unknown,
+                            omit the unit rather than asserting a wrong one. */}
+                        {offer.salary.toLocaleString(locale)}
+                        {offer.currency ? <span className="text-lg text-steel"> {offer.currency}</span> : null}
+                      </p>
+                    </>
+                  ) : null}
+                  {notes ? (
+                    <p className={`${offer.salary != null ? "mt-3" : ""} whitespace-pre-wrap text-sm text-ink`}>
+                      <span className="block text-meta uppercase tracking-wide text-steel">{t("notesLabel")}</span>
+                      {notes}
+                    </p>
+                  ) : null}
+                  {startDateLabel ? (
+                    <p className={`${offer.salary != null || notes ? "mt-3" : ""} text-sm text-ink`}>
+                      <span className="block text-meta uppercase tracking-wide text-steel">{t("startDate")}</span>
+                      {startDateLabel}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })()}
 
             {result === "accepted" ? (
               // bug-ui-scan-2026-07-09 (offers-onboarding #4): announce the terminal

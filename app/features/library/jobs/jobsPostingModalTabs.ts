@@ -13,7 +13,6 @@
 export const POSTING_TAB_IDS = [
   "posting",
   "coach",
-  "campaign",
   "candidates",
   "rediscover",
   "compare",

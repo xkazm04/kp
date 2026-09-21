@@ -153,8 +153,11 @@ def connect(
     token: str | None = None,
     language: str | None = None,
 ) -> dict[str, Any]:
-    """Mint provider credentials + flip the session live. Returns
-    ``{sessionId, token, provider, agentPrompt, connect: {signedUrl}}``.
+    """Mint provider credentials + flip the session live. Returns the whole JSON
+    (``sessionId``, ``token``, ``provider``, ``agentPrompt``, ``asrKeywords``,
+    ``connect.signedUrl``). Callers must forward ``asrKeywords`` into the
+    headless init frame — this helper does not drop them, but it also does not
+    send the override itself.
 
     Omit ``token`` for a throwaway lab session (dev only); pass a candidate link's token to drive a
     real entry-backed session (that's the path that produces a scorecard)."""

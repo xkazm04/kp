@@ -8,18 +8,23 @@ import { useTranslations } from "next-intl";
 import { ProbeStrengthBanner } from "./DevProbeStrengthBanner";
 import { CohortProbePanel } from "./DevCohortProbePanel";
 import { MiniList, ProbeRow, RubricChip } from "./DevShared";
+import { voiceScriptPreview, type ScenarioPreviewInput } from "./DevCaseDetail.script";
 import type { CaseScenario, RoleSpec, Submission } from "./DevTypes";
 
 export function DevCaseDetailInternal({
   c,
   role,
   caseSubmissions,
+  scenario,
 }: {
   c: CaseScenario;
   role: RoleSpec | null;
   caseSubmissions: Submission[];
+  scenario?: ScenarioPreviewInput;
 }) {
   const t = useTranslations("devcase.studio.internal");
+  const tDegraded = useTranslations("devcase.studio.degradedReason");
+  const script = voiceScriptPreview(scenario);
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-4">
       <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-amber-700">
@@ -53,6 +58,22 @@ export function DevCaseDetailInternal({
         <div className="mt-3 grid gap-3 border-t border-amber-200/60 pt-3 sm:grid-cols-2">
           <MiniList title={t("roleMustHaves")} items={role.mustHaves ?? []} />
           <MiniList title={t("roleResponsibilities")} items={role.responsibilities ?? []} />
+        </div>
+      ) : null}
+
+      {script ? (
+        <div className="mt-3 border-t border-amber-200/60 pt-3">
+          <h4 className="text-meta font-semibold uppercase tracking-wide text-amber-700">{t("voiceScript")}</h4>
+          {script.degraded ? <p className="mt-1.5 text-micro text-amber-700">{tDegraded("scenario")}</p> : null}
+          {script.intro ? <p className="mt-1.5 text-sm text-ink">{script.intro}</p> : null}
+          <ol className="mt-2 space-y-2">
+            {script.phases.map((phase, i) => (
+              <li key={`${phase.title}-${i}`} className="rounded-md border border-amber-200/70 bg-white/70 p-2.5">
+                <p className="text-micro font-semibold text-ink">{phase.title}</p>
+                {phase.probe ? <p className="mt-1 text-sm text-steel">{phase.probe}</p> : null}
+              </li>
+            ))}
+          </ol>
         </div>
       ) : null}
 

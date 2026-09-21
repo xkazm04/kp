@@ -124,3 +124,47 @@ test("fresh does not widen the allow-list", async () => {
   const res = await post({ rootPath: "/etc", fresh: true });
   assert.equal(res.status, 400, "the target gate speaks before `fresh` means anything");
 });
+
+async function listGet() {
+  const { GET } = await handlers();
+  return GET();
+}
+
+const WIRE_KEYS = ["createdAt", "dossier", "errorCode", "fallbackClass", "id", "isLocal", "repoUrl", "source", "status", "updatedAt"];
+
+test("GET lists this workspace's recent scans and withholds another tenant's", async () => {
+  const { createRepoScan, failRepoScan, markRepoScanRunning } = await import("../../_lib/db/repo-scans.ts");
+  const { DEFAULT_WORKSPACE } = await import("../../_lib/auth/session.ts");
+  const mine = createRepoScan({ repoUrl: "https://github.com/acme/listed" }, DEFAULT_WORKSPACE);
+  markRepoScanRunning(mine.id, DEFAULT_WORKSPACE);
+  failRepoScan(
+    mine.id,
+    "Could not clone the repository (git exited 128). fatal: could not read Username for 'https://git.internal.acme.example': terminal prompts disabled",
+    "clone_failed",
+    DEFAULT_WORKSPACE,
+  );
+  const theirs = createRepoScan({ repoUrl: "https://github.com/other/secret" }, "ws-someone-else");
+
+  const res = await listGet();
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { scans: Record<string, unknown>[] };
+  assert.ok(Array.isArray(body.scans));
+  const listed = body.scans.find((s) => s.id === mine.id);
+  assert.ok(listed, "this workspace's row is on the list so a refresh can recover the scan id");
+  assert.deepEqual(Object.keys(listed).sort(), WIRE_KEYS, "the collection uses the detail allow-list");
+  assert.equal(listed.errorCode, "clone_failed");
+  assert.ok(!("error" in listed), "git's stderr is a server-log fact, never a wire fact");
+  assert.ok(!("workspaceId" in listed));
+  assert.ok(!("rootPath" in listed));
+  assert.ok(!("fallbackReason" in listed));
+  assert.equal(
+    JSON.stringify(body).includes("git.internal.acme.example"),
+    false,
+    "no part of the response may quote the remote's stderr",
+  );
+  assert.equal(
+    body.scans.some((s) => s.id === theirs.id),
+    false,
+    "a foreign workspace id is absent, not a 403",
+  );
+});

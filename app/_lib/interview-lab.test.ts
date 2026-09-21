@@ -100,6 +100,27 @@ test("the module is the GATE and nothing else — no English refusal copy rides 
   assert.deepEqual(Object.keys(lab).sort(), ["isInterviewLabEnabled"]);
 });
 
+test("the enabled lab body is catalogued — no English sentence literals", () => {
+  const src = readFileSync(
+    fileURLToPath(new URL("../interview-lab/page.tsx", import.meta.url)),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  assert.match(src, /t\.rich\("enabledBody"/);
+  assert.match(src, /t\.rich\("candidatePortalNote"/);
+  assert.match(src, /t\("diagramsLink"\)/);
+  assert.doesNotMatch(src, /A\/B the realtime providers/);
+  assert.doesNotMatch(src, /The candidate-facing version lives at/);
+  assert.doesNotMatch(src, /See the pipeline diagrams/);
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const cat = JSON.parse(
+      readFileSync(fileURLToPath(new URL(`../../messages/${locale}.json`, import.meta.url)), "utf8"),
+    ) as { interview: { lab: Record<string, string> } };
+    for (const key of ["enabledBody", "candidatePortalNote", "diagramsLink", "disabledBody"]) {
+      assert.equal(typeof cat.interview.lab[key], "string", `${locale}.json must define interview.lab.${key}`);
+    }
+  }
+});
+
 test("/api/interview/connect actually consults the gate before minting", () => {
   // The gate is worthless if the one caller that mints credentials stops asking.
   const src = readFileSync(

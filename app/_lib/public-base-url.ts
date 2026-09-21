@@ -67,6 +67,42 @@ function isLocalDevHost(host: string): boolean {
 
 const stripTrailingSlash = (base: string): string => base.replace(/\/+$/, "");
 
+/** The two public-origin overrides, when both are set to absolute http(s) URLs
+ *  whose origins (scheme + host + port; trailing slash ignored) disagree.
+ *
+ *  On the server `publicBaseUrl` honors APP_BASE_URL; the browser bundle only
+ *  sees NEXT_PUBLIC_APP_BASE_URL. When both are set and they name different
+ *  hosts, candidate emails and copied invite links silently point at two
+ *  places — the original proxy/localhost footgun, restored whenever a Helm
+ *  values file sets one and a leftover .env sets the other. This reports the
+ *  pair so a boot can warn (and a health/ops consumer can fail closed later)
+ *  without changing the documented single-var precedence. */
+export function publicOriginConflict(): { server: string; client: string } | null {
+  const server = typeof process !== "undefined" ? process.env.APP_BASE_URL?.trim() : undefined;
+  const client = process.env.NEXT_PUBLIC_APP_BASE_URL?.trim();
+  if (!server || !client) return null;
+  if (!isAbsoluteHttpUrl(server) || !isAbsoluteHttpUrl(client)) return null;
+  if (new URL(server).origin === new URL(client).origin) return null;
+  return { server: stripTrailingSlash(server), client: stripTrailingSlash(client) };
+}
+
+let originConflictWarned = false;
+
+/** Test seam: the once-per-process origin-conflict warning latch. */
+export function resetPublicOriginConflictWarnForTests(): void {
+  originConflictWarned = false;
+}
+
+function warnPublicOriginConflictOnce(): void {
+  if (originConflictWarned) return;
+  const conflict = publicOriginConflict();
+  if (!conflict) return;
+  originConflictWarned = true;
+  console.warn(
+    `[public-base-url] APP_BASE_URL (${conflict.server}) and NEXT_PUBLIC_APP_BASE_URL (${conflict.client}) disagree; candidate emails and copied invite links will silently point at two hosts`,
+  );
+}
+
 /** True when `publicBaseUrl(origin)` had to fall back to the canonical site default
  *  because nothing deployment-specific was configured AND no trusted runtime origin was
  *  supplied (a detached sweep, or a dropped untrusted Host). The link is still absolute
@@ -86,6 +122,7 @@ export function publicOriginIsFallback(runtimeOrigin?: string | null): boolean {
 }
 
 export function publicBaseUrl(runtimeOrigin?: string | null): string {
+  warnPublicOriginConflictOnce();
   // Server-only override. `typeof process` guards the read so this module is safe
   // to import from client components, where `process` may be absent and a
   // non-public var would never be exposed anyway.

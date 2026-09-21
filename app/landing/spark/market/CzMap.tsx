@@ -15,7 +15,7 @@
  */
 import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { geo, heatColor, salaryColor, regionScale, type MapMetric, type Region } from "./data";
 import { regionAriaLabel } from "./regionLabel";
 import { INK, CORAL } from "../tokens";
@@ -35,6 +35,7 @@ const ENTRIES = Object.entries(geo.regions).sort((a, b) => b[1].d.length - a[1].
 export default function CzMap({ regions, metric, activeCode, onActivate, className }: CzMapProps) {
   const reduce = useReducedMotion();
   const t = useTranslations("jobMarket");
+  const locale = useLocale();
   const byCode = useMemo(() => new Map(regions.map((r) => [r.code, r])), [regions]);
   const scale = useMemo(() => regionScale(regions, metric), [regions, metric]);
   const activeGeo = activeCode ? geo.regions[activeCode] : null;
@@ -60,7 +61,7 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
         const fill = !region ? "#e8e2d4" : metric === "volume" ? heatColor(norm) : salaryColor(norm);
         // Fold the region's figures into its accessible name (falls back to the
         // bare geo name only for regions absent from the data snapshot).
-        const label = region ? regionAriaLabel(region, labelText) : g.name;
+        const label = region ? regionAriaLabel(region, labelText, locale) : g.name;
         return (
           <motion.path
             key={code}

@@ -365,12 +365,20 @@ export async function dispatchApplicationReceived(
   recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
 }
 
-/** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
- *  (so the caller/UI shows "cannot contact" rather than a false "reached out"). */
-// `replied`/`manual` join the consent reasons (W2.3): every way a send can be refused
-// is one union, so a caller cannot handle the compliance refusals and silently miss the
-// sequence-stopped ones.
-export type OutreachResult = { sent: true } | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason };
+/** Outcome of an outreach dispatch: delivered (or honestly queued with no relay),
+ *  SUPPRESSED for a consent/halt reason, or a dead-lettered relay handoff.
+ *
+ *  REC-10: `{ sent: true }` is keyed on the outbox row, never on "the call resolved".
+ *  Terminal `queued` (no relay — the local outbox IS the destination) and `sent`
+ *  (relay 2xx) are both `{ sent: true }`. A dead-letter (`failed`) is not — that
+ *  must not write `outreach_sent`, or automation will treat the person as reached
+ *  and refuse the retry. */
+// `replied`/`manual`/`candidate` join the consent reasons (W2.3); `delivery_failed`
+// is the relay dead-letter, so a caller cannot handle the compliance refusals and
+// silently miss a drop that should be retried.
+export type OutreachResult =
+  | { sent: true; status: "queued" | "sent" }
+  | { sent: false; reason: "anonymized" | "consent_expired" | HaltReason | "delivery_failed"; status?: "failed" };
 
 /** Dispatch an outreach message — the LLM/deterministic draft just generated.
  *  The body is the model's; only the fallback subject (used when the draft has
@@ -417,13 +425,20 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
-  // Recorded only after the send actually happened — counting an attempt would make a
-  // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
-  // from a fresh application.
+  const status = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
+  // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
+  // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
+  // — and that must not consume the one-shot `outreach_sent` marker automation-run
+  // uses for `already_sent`. Terminal `queued` (no relay) is honest keyless success.
+  if (status === "failed") {
+    return { sent: false, reason: "delivery_failed", status: "failed" };
+  }
+  // Recorded only after a non-failed handoff — counting an attempt would make a
+  // dead-letter look like a contact, and `sends > 0` is what later distinguishes a
+  // reply from a fresh application.
   recordOutreachSend(entry.id, entry.workspaceId);
   recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId);
-  return { sent: true };
+  return { sent: true, status: status === "sent" ? "sent" : "queued" };
 }
 
 /**
@@ -773,6 +788,55 @@ export async function dispatchInterviewInvite(
   return status;
 }
 
+/** Deliver a work-sample ASSIGNMENT to one named candidate on the board.
+ *
+ *  THE GAP THIS CLOSES. A dev case was published as a POSTING — a shareable apply
+ *  token candidates had to find — and sourced candidates were seeded straight onto the
+ *  board at Accepted. Nothing ever put the two together: no code path sent the case to
+ *  a specific person, so a candidate standing in a homework column was waiting for a
+ *  letter the product could not write. `dispatchCaseInvite` is that letter, and the
+ *  homework arrival hook (stage-hooks-homework.ts) is its caller.
+ *
+ *  It is modelled on `dispatchInterviewInvite` line for line — same recipient contract,
+ *  same consent/suppression path through `sendCandidateComm`, same GDPR footer, same
+ *  locale resolution against the candidate's OWN team, and the same truthful delivery
+ *  claim handed straight back to the caller (`queued` with no relay configured,
+ *  `failed` when the relay threw; never a blanket "sent").
+ *
+ *  ONE DIFFERENCE, deliberate: it records NO pipeline event. The event vocabulary is
+ *  pinned by set equality across `decision-attribution.ts`, the feed's
+ *  `pipelineEventCatalog.ts` and a localized label per kind in all four catalogs, and
+ *  the arrival hooks introduce no kind of their own (stage-hooks.ts states the same
+ *  rule for the interview invite). The durable record is the OUTBOX row this writes —
+ *  which the Comms Center and the candidate drawer's Messages section already read by
+ *  `ref` — and that row, not an event, is also the hook's idempotence key.
+ *
+ *  `link` must be ABSOLUTE: the candidate opens the apply surface outside the app, so
+ *  the caller resolves it through publicBaseUrl. */
+export async function dispatchCaseInvite(
+  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
+  link: string,
+  // Same structural-subtype reasoning as the interview invite: the caller supplies the
+  // tenant, because an entry-shaped argument is not guaranteed to carry one.
+  opts?: { workspaceId?: string | null }
+): Promise<OutboxStatus> {
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const subject = t("caseInvite.subject", { role });
+  // The apply surface is a public page rendered in the reader's language, so the link
+  // is pinned to the letter's locale exactly as the offer/nudge links are.
+  const body = t("caseInvite.body", { name, role, link: pinLinkLocale(link, locale), team: t("team") });
+  return sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "case_invite",
+    ref: entry.id ?? link,
+    workspaceId: opts?.workspaceId,
+  }, locale);
+}
+
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
  *  (offers in the reminder window always carry one; the guard keeps the body clean). */
 /** The slot line a LETTER states, formatted from the absolute `slot_at` in the
@@ -876,4 +940,28 @@ export async function dispatchOfferReminder(entry: PipelineEntry, link: string, 
   } catch (e) {
     console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
+}
+
+function formatConsentExpiryDate(iso: string, locale: string | null | undefined, workspaceId?: string | null): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const loc = candidateLocale(locale, workspaceId);
+  return dateFormatter(loc, { dateStyle: "medium" }).format(new Date(ms));
+}
+
+/** Pre-expiry consent notice: one letter in the 30-day window before the anonymize
+ *  sweep, so the candidate can renew or erase before storage limitation fires.
+ *  `sendCandidateComm` already appends the `/data/[token]` and `/stop/[token]`
+ *  footers. A throw means the message did NOT go out; the sweep claims the
+ *  `expiring_notified` event before calling, so a throw is logged, not retried. */
+export async function dispatchConsentExpiryReminder(entry: PipelineEntry): Promise<void> {
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const date = formatConsentExpiryDate(entry.consentExpiresAt ?? "", entry.locale, entry.workspaceId)
+    || (entry.consentExpiresAt ?? "").slice(0, 10);
+  const subject = t("consentExpiryReminder.subject", { role, date });
+  const body = t("consentExpiryReminder.body", { name, role, date, team: t("team") });
+  await sendCandidateComm(entry, t, { subject, body, kind: "consent_expiry" }, locale);
 }

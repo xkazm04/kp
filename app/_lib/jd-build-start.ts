@@ -31,13 +31,22 @@ export type StartJdBuildInput = {
   buildInput: JdBuildIntent;
   params: Record<string, unknown>;
   workspaceId?: string;
+  /** The authoring user id, stamped on the placeholder row (`jds.created_by`) so
+   *  the Ledger's delete door can tell the creator from a colleague. Resolve it in
+   *  the DOOR — `(await currentUser()).userId` — because this seam is synchronous
+   *  and cannot read the session itself. Omitted/null means "no creator claim": the
+   *  JD is then deletable only by an owner/admin, which is the fail-closed
+   *  direction, and the correct value in open dev and for an operator-password
+   *  session (both of which resolve as admin anyway). */
+  createdBy?: string | null;
 };
 
 /** Create the placeholder JD and start its build. Returns the minted slug + task id. */
 export function startJdBuild(input: StartJdBuildInput): { slug: string; taskId: string } {
   const { slug } = insertAnalyzingJd(
     { title: input.title, options: input.options, buildInput: input.buildInput },
-    input.workspaceId
+    input.workspaceId,
+    input.createdBy ?? null
   );
   const task = startTask(
     "jd_build",

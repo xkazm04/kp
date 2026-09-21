@@ -6,7 +6,7 @@ import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-stat
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { randomToken } from "../random-id";
-import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
+import { CONSENT_EXPIRING_DAYS, CONSENT_TTL_DAYS, consentExpiresAt, consentNeedsExpiryNotice, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
 // Type-only: match-score.ts is pure, and the import is erased, so no cycle and no
@@ -25,6 +25,46 @@ import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, sta
 import { knownStageIds } from "../pipeline-axis";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
+import { notifyStageEnteredHook } from "../stage-hook-registry";
+
+/** POST-COMMIT seam: "this entry now STANDS on stage X".
+ *
+ *  The two writers below (`actOnPipelineEntry` and `setPipelineEntryStage`) are the
+ *  only places in the app where a pipeline entry's stage changes — the per-entry
+ *  route, the batch route, the drag move, the automation pass, the scheduler and
+ *  the offer finalizer all go through one of them — so this is where an arrival
+ *  hook belongs, and the smallest set that no move can dodge.
+ *
+ *  Called AFTER `tx.immediate()` has returned, never inside it: the hooks do LLM
+ *  and comms work, and an `await` between BEGIN and COMMIT would silently destroy
+ *  the transaction's atomicity. The scheduling itself (`afterResponse`, which keeps
+ *  the work off the request's critical path and alive on serverless) lives in
+ *  stage-hooks.ts, and the whole module is reached through a LATE BINDING for three
+ *  reasons: it imports back into this store — and into the billing, comms and
+ *  interview layers — so a static edge would make a cycle out of what is really a
+ *  one-way notification; it pulls in `next/server`, which this store must stay
+ *  free of so the node:test suite can load it outside a Next runtime; and it drags
+ *  the whole voice layer (23 modules, ~295 KB) onto the graph of every route that
+ *  reaches this store, which is nearly all of them.
+ *
+ *  The binding used to be a dynamic `import()`, which answers the first two reasons
+ *  but not the third — the perf budget counts a dynamic import, because Next pays
+ *  for the chunk either way. So the edge is a leaf registry instead
+ *  (stage-hook-registry.ts) that instrumentation-node.ts fills at boot, the same
+ *  seam and the same globalThis caveat as task-external-runners.ts.
+ *
+ *  Fire-and-forget by construction: `scheduleStageEnteredHook` never throws and
+ *  `afterResponse` logs a throwing task rather than letting it become an unhandled
+ *  rejection, so a failing hook can never fail a move that already committed.
+ *
+ *  A no-op when the stage did not actually change — an approval-clearing accept at
+ *  the terminal column, or a `set_stage` to where the entry already stands, is not
+ *  an arrival. */
+function notifyStageEntered(entry: PipelineEntry | null, fromStage: string | null, actorRef?: string | null): void {
+  if (!entry || fromStage === null || entry.stage === fromStage) return;
+  const { id, stage, workspaceId } = entry;
+  notifyStageEnteredHook({ entryId: id, stage, workspaceId, actorRef: actorRef ?? null });
+}
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------
 
@@ -282,6 +322,44 @@ export function listPipelineEventsForEntry(entryId: string, limit = 50, workspac
  *  the OLDEST pending events and advances its cursor to the last id returned,
  *  catching up across polls — a newest-first LIMIT would silently drop the
  *  middle of the burst, which is exactly the bug this replaces. */
+/** The board's activity feed: every event since `fromIso` (a time bound, so the
+ *  feed is "this week" rather than "the newest N"), newest first, capped. Full
+ *  labels — the caller is the operator-gated feed route, never the public one. */
+export function listRecentPipelineEvents(fromIso: string, limit = 500, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor
+       FROM pipeline_events WHERE workspace_id = ? AND created_at >= ? ORDER BY id DESC LIMIT ?`
+    )
+    .all(workspaceId, fromIso, limit) as Array<{
+    id: number;
+    entry_id: string | null;
+    candidate_label: string | null;
+    job_title: string | null;
+    archetype: string | null;
+    kind: string;
+    from_stage: string | null;
+    to_stage: string | null;
+    detail: string | null;
+    created_at: string;
+    actor: string | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    entryId: r.entry_id,
+    candidateLabel: r.candidate_label,
+    jobTitle: r.job_title,
+    archetype: r.archetype,
+    kind: r.kind,
+    fromStage: r.from_stage,
+    toStage: r.to_stage,
+    detail: r.detail,
+    createdAt: r.created_at,
+    actor: r.actor,
+  }));
+}
+
 export function listPipelineEventsSince(sinceId: number, limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
   const db = ensureDb();
   const rows = db
@@ -643,8 +721,30 @@ export function pipelineCalibrationBandCandidates(
   return out;
 }
 
-export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
+/** How many active board rows `listPipeline` will hydrate.
+ *
+ *  Insights already caps its cohort at 20_000 with `truncated`; the automation
+ *  pass caps at {@link AUTOMATION_PASS_ENTRY_CAP}. The board SELECT had no LIMIT
+ *  and ran `rowToEntry` (github JSON, notes, source attribution) for every
+ *  active row on every tab focus. 2000 matches the documented per-tick render
+ *  budget and the automation ceiling. `rowCap` on {@link listPipelinePage} is
+ *  tests only — a caller cannot raise this. */
+export const PIPELINE_BOARD_CAP = 2000;
+
+export type PipelineBoardPage = { entries: PipelineEntry[]; truncated: boolean };
+
+function boardCap(override?: number): number {
+  return Number.isInteger(override) && (override as number) > 0
+    ? Math.min(override as number, PIPELINE_BOARD_CAP)
+    : PIPELINE_BOARD_CAP;
+}
+
+export function listPipelinePage(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: { rowCap?: number }
+): PipelineBoardPage {
   const db = ensureDb();
+  const cap = boardCap(opts?.rowCap);
   const rows = db
     .prepare(
       // Exclude BOTH terminal states (recruiter `rejected` and candidate
@@ -662,15 +762,26 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
       // dev_case_id / dev_submission_id ride it for the same reason: the case-grounded
       // interview brief and the eval kit are resolved FROM the board-opened entry
       // (devcase-identity.ts), and an omitted column reads as "not from an assignment".
+      // LIMIT cap+1 is the listJobsPage / analytics cohort shape: the extra row is
+      // how `truncated` is known without a COUNT round-trip.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
               source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
-       ORDER BY job_title, match_score DESC`
+       ORDER BY job_title, match_score DESC
+       LIMIT ?`
     )
-    .all(workspaceId) as PipelineRow[];
-  return rows.map(rowToEntry);
+    .all(workspaceId, cap + 1) as PipelineRow[];
+  const truncated = rows.length > cap;
+  const kept = truncated ? rows.slice(0, cap) : rows;
+  return { entries: kept.map(rowToEntry), truncated };
+}
+
+/** Active board rows for this workspace, capped at {@link PIPELINE_BOARD_CAP}.
+ *  Callers that need the honesty flag use {@link listPipelinePage}. */
+export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry[] {
+  return listPipelinePage(workspaceId).entries;
 }
 
 /** The active placements of ONE candidate, newest-scoring first, CAPPED.
@@ -900,6 +1011,29 @@ export function listEntriesForJob(jobId: string, workspaceId: string = DEFAULT_W
   return rows.map(rowToEntry);
 }
 
+/** How many ACTIVE candidates a single role currently holds, in this workspace.
+ *
+ *  The AI screener's strictness scales with this number (automation.py's
+ *  `screening_volume_tier`): a near-miss in a 4-candidate pipeline is held for a
+ *  human, while a role with hundreds of applicants may be screened strictly. A
+ *  single COUNT — the screen task runs per entry, so it must not pull rows.
+ *
+ *  ACTIVE, off the status taxonomy (TERMINAL_STATUS_SQL_LIST), for the same reason
+ *  `countPipelineByStage` uses it: a role that rejected 300 people last quarter and
+ *  holds 3 today is a SPARSE pipeline, and counting the closed-out rows would make
+ *  the screener strict on a role nobody is standing in. */
+export function countActiveEntriesForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n
+         FROM pipeline_entries
+        WHERE job_id = ? AND workspace_id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
+    )
+    .get(jobId, workspaceId) as { n: number } | undefined;
+  return row?.n ?? 0;
+}
+
 /** Per-job pipeline rollup: how many candidates a role holds, how many cleared
  *  screening, and how many were hired. One GROUP BY for every job, so the JD
  *  library can show each role's pipeline state without N queries or pulling the
@@ -1065,14 +1199,91 @@ export function migratePipelineStages(
 // comms failure, a stale skip) needs a safety valve to put them back. These two
 // functions back the "Reconsider" queue + one-click reinstate.
 
+/** How many candidates each board LANE has rejected (recruiter or auto), keyed by
+ *  the lane key the board uses (`entryLaneKey`: job id, else job title). The board
+ *  payload excludes rejected rows, so the Subway's first column asks this instead. */
+export function countRejectedByLane(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, number> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT COALESCE(job_id, job_title, '?') AS lane, COUNT(*) AS n
+         FROM pipeline_entries
+        WHERE status = 'rejected' AND workspace_id = ?
+        GROUP BY lane`
+    )
+    .all(workspaceId) as { lane: string; n: number }[];
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.lane] = r.n;
+  return out;
+}
+
+export type RejectedItem = {
+  entry: PipelineEntry;
+  /** The column the candidate stood on when rejected (the rejection event's `to_stage`). */
+  rejectedStage: string | null;
+  rejectedAt: string | null;
+  /** True when the AI screener rejected them, false for a recruiter's decision. */
+  auto: boolean;
+};
+
+/** Every rejected candidate on one board lane, newest rejection first, with the
+ *  column they were rejected at. Both event kinds count — a recruiter's `rejected`
+ *  and the screener's `auto_rejected` — because the board's rejected shelf is the
+ *  lane's whole history, not the reconsider queue. Latest event per entry wins. */
+export function listRejectedForLane(lane: string, workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 200): RejectedItem[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
+              e.stage, e.match_score, e.status, e.approval_kind, e.approval_detail, e.created_at, e.stage_changed_at,
+              e.intake_degraded, e.intake_degraded_reason, e.workspace_id,
+              ev.to_stage AS rejected_stage, ev.created_at AS rejected_at, ev.kind AS rejected_kind
+         FROM pipeline_entries e
+         LEFT JOIN pipeline_events ev
+           ON ev.id = (SELECT id FROM pipeline_events
+                        WHERE entry_id = e.id AND kind IN ('rejected', 'auto_rejected')
+                        ORDER BY created_at DESC, id DESC LIMIT 1)
+        WHERE e.status = 'rejected' AND e.workspace_id = ? AND COALESCE(e.job_id, e.job_title, '?') = ?
+        ORDER BY ev.created_at DESC, e.updated_at DESC
+        LIMIT ?`
+    )
+    .all(workspaceId, lane, Math.min(Math.max(limit, 1), 500)) as (PipelineRow & {
+    rejected_stage: string | null;
+    rejected_at: string | null;
+    rejected_kind: string | null;
+  })[];
+  return rows.map((r) => ({
+    entry: rowToEntry(r),
+    rejectedStage: r.rejected_stage ?? r.stage ?? null,
+    rejectedAt: r.rejected_at ?? null,
+    auto: r.rejected_kind === "auto_rejected",
+  }));
+}
+
 export type ReconsiderItem = { entry: PipelineEntry; rejectedAt: string | null };
 
 /** The auto-rejected cohort still in a rejected state, newest rejection first.
  *  Only entries carrying an `auto_rejected` event surface here — a manual human
  *  reject is a deliberate decision, not a queue item. GROUP BY e.id dedups an
  *  entry that was auto-rejected more than once; MAX(created_at) is its latest. */
-export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): ReconsiderItem[] {
+export function listReconsiderQueue(
+  limit = 50,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { items: ReconsiderItem[]; total: number } {
   const db = ensureDb();
+  const cap = Math.min(Math.max(limit, 1), 200);
+  // COUNT of the same grouped set the page is cut from — LIMIT 50 must not
+  // pretend the auto-reject wave ended there.
+  const total = (
+    db
+      .prepare(
+        `SELECT COUNT(DISTINCT e.id) AS n
+           FROM pipeline_entries e
+           JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
+          WHERE e.status = 'rejected' AND e.workspace_id = ?`
+      )
+      .get(workspaceId) as { n: number }
+  ).n;
   const rows = db
     .prepare(
       `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
@@ -1086,8 +1297,8 @@ export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WO
         ORDER BY rejected_at DESC
         LIMIT ?`
     )
-    .all(workspaceId, Math.min(Math.max(limit, 1), 200)) as (PipelineRow & { rejected_at: string | null })[];
-  return rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null }));
+    .all(workspaceId, cap) as (PipelineRow & { rejected_at: string | null })[];
+  return { items: rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null })), total };
 }
 
 /** Reverse an auto-rejection: put the entry back to active at the board's
@@ -1942,9 +2153,20 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobs", "The openings corpus (seeded reference rows + a team's own openings), no candidate data."],
   ["job_postings", "Imported job ADVERTISEMENTS — the two bundled corpora, an ad pasted by the operator, or a fetched careers page. Company-authored role copy about an opening, the same class as `jobs` and `campaign_packs`: it is written before any candidate exists and is not keyed to an entry, so a candidate's Art. 17 request has nothing in it to reach. Deleting it on a per-candidate scrub would destroy the whole workspace's corpus for a request that names one person."],
   ["job_ingests", "Content-hash dedup keys for job ingest — hashes of JD text, no candidate data."],
+  ["job_translations", "A role's advertisement rendered into another language — company-authored role copy, the same class as `jobs` / `job_postings`; written for an opening, never keyed to a candidate."],
+  ["role_pattern_priorities", "A team's weighting of a ROLE's requirement patterns (critical / important / minor) — operator judgement about the opening, no candidate data."],
   ["dev_cases", "The work-sample assignment itself (scenario, seed tree), authored before any candidate exists."],
   ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
   ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],
+  // Job-seeker module (/me): the SEEKER's own record, held for the seeker as the person
+  // running the install - a different controller relationship from a recruiter-side
+  // candidate, so a candidate's Art. 17 request routed through pipeline_entries has
+  // nothing in these tables to reach. Seeker erasure is its own door (delete the
+  // profile and cascade to dialogs) - a follow-up in docs/features/jobseeker/README.md.
+  ["jobseeker_profiles", "The seeker's OWN profile, CV text and preferences - the operator's data about themselves, reached by the seeker's own delete, never by a candidate scrub."],
+  ["jobseeker_dialogs", "The seeker's own CV-polish and fit conversations; same controller relationship as jobseeker_profiles."],
+  ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
+  ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
@@ -2270,6 +2492,58 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
     }
   }
   return count;
+}
+
+/** Entries whose consent is in the 30-day pre-expiry window and that have not
+ *  yet been written an `expiring_notified` event. GLOBAL like the anonymize sweep:
+ *  process every tenant, thread each row's workspace_id to the scoped claim. */
+export function listConsentExpiryNoticeDue(nowIso: string = new Date().toISOString()): { id: string; workspace_id: string }[] {
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return [];
+  const windowEnd = new Date(nowMs + CONSENT_EXPIRING_DAYS * 86_400_000).toISOString();
+  return ensureDb()
+    .prepare(
+      `SELECT pe.id, pe.workspace_id FROM pipeline_entries pe
+        WHERE pe.consent_expires_at IS NOT NULL
+          AND pe.consent_expires_at > ?
+          AND pe.consent_expires_at <= ?
+          AND pe.anonymized_at IS NULL
+          AND pe.consent_given_at IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM consent_events ce
+             WHERE ce.entry_id = pe.id AND ce.kind = 'expiring_notified'
+          ) -- tenancy:global`
+    )
+    .all(nowIso, windowEnd) as { id: string; workspace_id: string }[];
+}
+
+/** CAS-claim the pre-expiry notice: insert `expiring_notified` iff the row is still
+ *  in the expiring window and has no such event. IMMEDIATE so two clock ticks cannot
+ *  both pass the read. Returns the entry on a won claim, null otherwise. */
+export function claimConsentExpiryNotice(
+  entryId: string,
+  nowIso: string = new Date().toISOString(),
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+): PipelineEntry | null {
+  const db = ensureDb();
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return null;
+  const tx = db.transaction((): PipelineEntry | null => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
+    if (!row) return null;
+    const already = db
+      .prepare(`SELECT 1 AS ok FROM consent_events WHERE entry_id = ? AND kind = 'expiring_notified' AND workspace_id = ? LIMIT 1`)
+      .get(entryId, workspaceId) as { ok: number } | undefined;
+    const snap = {
+      givenAt: row.consent_given_at ?? null,
+      expiresAt: row.consent_expires_at ?? null,
+      anonymizedAt: row.anonymized_at ?? null,
+    };
+    if (!consentNeedsExpiryNotice(snap, nowMs, Boolean(already))) return null;
+    logConsentEvent(db, entryId, "expiring_notified", "pre-expiry reminder", workspaceId);
+    return rowToEntry(row);
+  });
+  return tx.immediate();
 }
 
 // ---- Automation helpers (Phase 15) ----------------------------------------
@@ -2678,6 +2952,10 @@ export function actOnPipelineEntry(
   // decision-config store is a separate connection — rematchSourceEntry does the
   // same). Every stage move below walks it instead of the compile-time list.
   const axis = getPipelineAxis(workspaceId).stages;
+  // The stage this entry stood on when the transaction opened, captured from
+  // INSIDE the tx (the only place that read is authoritative) and consumed by
+  // notifyStageEntered after the commit. Stays null when nothing was written.
+  let fromStage: string | null = null;
   const tx = db.transaction((): PipelineEntry | null => {
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (!row) return null;
@@ -2714,6 +2992,7 @@ export function actOnPipelineEntry(
     return null;
   }
   const now = new Date().toISOString();
+  fromStage = row.stage;
   const meta = {
     entryId: id,
     candidateLabel: row.candidate_label,
@@ -2821,6 +3100,10 @@ export function actOnPipelineEntry(
       console.error("[pipeline:act] interview-link revoke failed", error);
     }
   }
+  // POST-COMMIT arrival hook (see notifyStageEntered). A reject never "arrives"
+  // anywhere — it closes the candidate out at the stage they were already on — and
+  // the helper's own from/to comparison covers the approval-clearing no-ops.
+  if (action !== "reject") notifyStageEntered(result, fromStage, opts?.actorRef ?? null);
   return result;
 }
 
@@ -2851,6 +3134,8 @@ export function setPipelineEntryStage(
   // migration can still move somebody OFF one.
   if (!knownStageIds(getPipelineAxis(workspaceId)).has(toStage)) return null;
   const db = ensureDb();
+  // See actOnPipelineEntry: captured inside the tx, consumed after the commit.
+  let fromStage: string | null = null;
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row) return null;
@@ -2865,6 +3150,7 @@ export function setPipelineEntryStage(
     // candidate). The board only lists active entries, so this is belt-and-braces.
     if (isTerminalEntryStatus(row.status)) return null;
     if (row.stage === toStage) return rowToEntry(row); // no-op: already there
+    fromStage = row.stage;
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
@@ -2883,7 +3169,10 @@ export function setPipelineEntryStage(
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
     return rowToEntry(updated);
   });
-  return tx.immediate();
+  const result = tx.immediate();
+  // POST-COMMIT arrival hook — the manual/drag half of the choke point.
+  notifyStageEntered(result, fromStage, opts?.actorRef ?? null);
+  return result;
 }
 
 // What `rematchSourceEntry` did to the source entry, so the caller can label the

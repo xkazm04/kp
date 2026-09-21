@@ -39,7 +39,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LLM_PROVIDERS, LLM_USE_CASES } from "./llm-config.ts";
-import { BENCH_OPS } from "./llm-quality.ts";
+import { BENCH_OPS, UNMEASURED_DEFAULTS, UNMEASURED_USE_CASES } from "./llm-quality.ts";
+import { QUALITY_SCORES } from "./llm-quality-scores.ts";
 import { TRANSIENT_HTTP_CODES, TRANSIENT_MARKERS } from "./gemini-retry.ts";
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -131,6 +132,20 @@ test("BENCH_OPS matches REGISTRY_USE_CASE — both the op ids and what each roll
   assert.deepEqual(BENCH_OPS.map((o) => `${o.id}=${o.useCase}`).sort(), pythonPairs.sort());
 });
 
+test("every LLM_USE_CASES id except '*' is measured or named as unmeasured", () => {
+  const measured = new Set(BENCH_OPS.map((o) => o.useCase));
+  const unmeasured = new Set(UNMEASURED_USE_CASES.map((row) => row.id));
+  for (const row of UNMEASURED_USE_CASES) {
+    assert.ok(row.reason.trim(), `${row.id} needs a one-line reason`);
+    assert.ok(!measured.has(row.id), `${row.id} is already in BENCH_OPS.useCase; drop UNMEASURED_USE_CASES`);
+  }
+  const members = LLM_USE_CASES.filter((id) => id !== "*");
+  const missing = members.filter((id) => !measured.has(id) && !unmeasured.has(id));
+  assert.deepEqual(missing, [], "add a BENCH_OPS mapping or an UNMEASURED_USE_CASES row");
+  const extra = [...unmeasured].filter((id) => !(members as readonly string[]).includes(id));
+  assert.deepEqual(extra, [], "UNMEASURED_USE_CASES names a use case LLM_USE_CASES does not");
+});
+
 test("every bench op rolls up to a use case that actually exists", () => {
   // BenchOp.useCase is typed `string` (llm-quality.ts is client-safe and does not
   // import the union), so only this assertion stops a typo from becoming an empty
@@ -201,6 +216,27 @@ test("the LightTrack alias table folds every provider monitor.py folds, the same
       `alias row "${provider}" is neither a declared provider nor a known SDK spelling`
     );
   }
+});
+
+test("every named DEFAULT_MODELS cloud slug is in the bake or UNMEASURED_DEFAULTS", () => {
+  // The Quality panel is the operator's evidence for pinning routing. A registry
+  // default bump (gemini-3.6-flash -> gemini-3.8-flash) that does not re-bake
+  // used to leave the scorecard recommending a retired slug with nothing red.
+  const defaults = stringMap(CAPABILITIES, "DEFAULT_MODELS: dict");
+  assert.ok(Object.keys(defaults).length >= 3, `parsed only ${Object.keys(defaults).length} named DEFAULT_MODELS slugs`);
+  const baked = new Set(QUALITY_SCORES.models);
+  const exempt = new Map(UNMEASURED_DEFAULTS.map((row) => [row.slug, row]));
+  for (const row of UNMEASURED_DEFAULTS) {
+    assert.ok(row.since.trim(), `${row.slug} exemption needs a date`);
+    assert.ok(row.reason.trim(), `${row.slug} exemption needs a reason`);
+    assert.ok(!baked.has(row.slug), `${row.slug} is in QUALITY_SCORES.models; drop the UNMEASURED_DEFAULTS row`);
+  }
+  const missing = Object.values(defaults).filter((slug) => !baked.has(slug) && !exempt.has(slug));
+  assert.deepEqual(
+    missing,
+    [],
+    "a priced DEFAULT_MODELS cloud slug is absent from the bake and not listed in UNMEASURED_DEFAULTS"
+  );
 });
 
 test("the matrix prefix table covers every direct-vendor default and agrees with the alias table", () => {

@@ -94,6 +94,84 @@ test("/about has phone navigation, keyboard-dismissible like the landing's", asy
   await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
 });
 
+// A shared /about link unfurls from these tags. Next merges metadata SHALLOWLY, so a
+// page that sets its own `openGraph` replaces the root layout's whole object: /about
+// once shipped og:title and og:description and nothing else, losing og:type,
+// og:site_name, og:locale and the opengraph-image, while twitter:* kept the SITE's
+// title under the page's own og:title. The site-wide values are read off '/', not
+// typed here, so the assertion follows the layout rather than a copy of it. No `head`
+// in the selector, like shell.spec's hreflang check: metadata may stream into <body>.
+test("/about's share tags keep the site's OpenGraph and a matching Twitter card", async ({ page }) => {
+  const KEYS = [
+    "og:type", "og:site_name", "og:locale", "og:image", "og:title", "og:description",
+    "twitter:title", "twitter:description", "twitter:image"
+  ] as const;
+  const tagsOf = async (path: string) => {
+    await page.goto(path);
+    const out: Record<string, string | null> = {};
+    for (const key of KEYS) {
+      const attr = key.startsWith("og:") ? "property" : "name";
+      const tag = page.locator(`meta[${attr}="${key}"]`).first();
+      out[key] = (await tag.count()) ? await tag.getAttribute("content") : null;
+    }
+    return out;
+  };
+  const site = await tagsOf("/");
+  const about = await tagsOf("/about");
+
+  for (const key of ["og:site_name", "og:locale", "og:image"] as const) {
+    expect(site[key], `'/' no longer emits ${key}; this test has nothing to compare against`).toBeTruthy();
+    expect(about[key], `/about dropped ${key}`).toBe(site[key]);
+  }
+  // og:type is the one tag /about is ENTITLED to override, and it does: the page
+  // declares itself an `article` and carries an ABOUT_PAGE_MODIFIED date, which is
+  // only meaningful on that type (Next's Metadata types enforce the pairing).
+  // Asserted as its own fact rather than dropped, so a shallow-merge regression that
+  // loses og:type entirely still fails here.
+  expect(site["og:type"], "'/' no longer emits og:type").toBeTruthy();
+  expect(about["og:type"], "/about declares itself an article").toBe("article");
+  expect(about["og:title"], "/about must carry its own og:title").not.toBe(site["og:title"]);
+  expect(about["twitter:title"]).toBe(about["og:title"]);
+  expect(about["twitter:description"]).toBe(about["og:description"]);
+  expect(about["twitter:image"], "/about's summary_large_image card has no image").toBeTruthy();
+});
+
+test("/about emits AboutPage + SoftwareApplication JSON-LD matching the document title", async ({ page }) => {
+  await page.goto("/about");
+  const scripts = page.locator('script[type="application/ld+json"]');
+  await expect(scripts).toHaveCount(1);
+  const json = JSON.parse((await scripts.first().textContent()) ?? "null") as {
+    "@graph"?: Record<string, unknown>[];
+  };
+  const nodes = json["@graph"] ?? [];
+  const typeOf = (n: Record<string, unknown>) =>
+    ([] as unknown[]).concat(n["@type"] ?? []).map(String);
+  const types = nodes.flatMap(typeOf);
+  expect(types, "/about JSON-LD @graph types").toEqual(
+    expect.arrayContaining(["AboutPage", "SoftwareApplication"])
+  );
+  const aboutPage = nodes.find((n) => typeOf(n).includes("AboutPage"));
+  expect(aboutPage, "AboutPage node").toBeTruthy();
+  expect(aboutPage!.name).toBe(await page.title());
+});
+
+test("/about JSON-LD advertises a two-item Home to About breadcrumb", async ({ page }) => {
+  await page.goto("/about");
+  const json = JSON.parse(
+    (await page.locator('script[type="application/ld+json"]').first().textContent()) ?? "null"
+  ) as { "@graph"?: Record<string, unknown>[] };
+  const nodes = json["@graph"] ?? [];
+  const typeOf = (n: Record<string, unknown>) =>
+    ([] as unknown[]).concat(n["@type"] ?? []).map(String);
+  const crumbs = nodes.find((n) => typeOf(n).includes("BreadcrumbList"));
+  expect(crumbs, "BreadcrumbList node").toBeTruthy();
+  const items = (crumbs!.itemListElement as { position: number; name: string; item: string }[]) ?? [];
+  expect(items).toHaveLength(2);
+  expect(items[1].position).toBe(2);
+  expect(items[1].item.replace(/\/$/, "")).toMatch(/\/about$/);
+  expect(items[1].name).toBe(await page.title());
+});
+
 for (const path of PAGES) {
   test(`${path} passes axe beyond its recorded holdouts`, async ({ page }) => {
     await page.goto(path);

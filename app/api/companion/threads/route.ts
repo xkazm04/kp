@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createThread, listProposalsForThread, listThreads, listTurns } from "@/app/_lib/db/companion";
 import { companionMemoryEnabled } from "@/app/_lib/companion-brain";
 import { COMPANION_THREAD_TURNS } from "@/app/_lib/companion-turn";
@@ -8,9 +8,10 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // The operator companion's conversations (docs/features/companion/README.md).
-// GET  — the ledger, plus the newest thread's turns so the dock hydrates in ONE
-//        round trip (it always opens on the most recent conversation, and a
-//        second request for the thing we just listed is a wasted hop).
+// GET  — the ledger, plus one thread's turns so the dock hydrates in ONE
+//        round trip. Default is the newest conversation; `?thread=` of a
+//        workspace-owned id hydrates that transcript instead. Unknown ids are
+//        ignored (keep newest) rather than 404ing the whole boot.
 // POST — start a fresh conversation. No opener and no LLM call: unlike the JD
 //        intake, the companion does not speak first — the dock renders a static
 //        greeting from the catalog and the first spend happens when the operator
@@ -19,20 +20,25 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // Operator-gated like /api/intake. Both handlers are workspace-scoped; the store
 // has no by-id exemptions (companion-tenancy.test.ts).
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const ws = await currentWorkspace();
     const threads = listThreads(ws);
+    const requested = request.nextUrl.searchParams.get("thread");
+    // Must belong to this workspace's list; ignore unknown rather than 404 the
+    // boot payload. Default remains the newest (threads[0]).
+    const hydrateId =
+      requested && threads.some((t) => t.id === requested) ? requested : (threads[0]?.id ?? null);
     // The bound is STATED, never inherited: `listTurns` reads the newest N, and
     // the dock's N is the one the transcript renders. Taking the default is how
     // this payload used to hand back the oldest 200 turns of a longer thread.
-    const turns = threads.length > 0 ? listTurns(threads[0].id, ws, COMPANION_THREAD_TURNS) : [];
-    // The newest thread's PROPOSALS ride along for the same reason its turns do:
+    const turns = hydrateId ? listTurns(hydrateId, ws, COMPANION_THREAD_TURNS) : [];
+    // That thread's PROPOSALS ride along for the same reason its turns do:
     // the dock opens on that conversation and would otherwise paint an Accept
     // button for something the operator already answered, one round trip ago.
-    const proposals = threads.length > 0 ? listProposalsForThread(threads[0].id, ws) : [];
+    const proposals = hydrateId ? listProposalsForThread(hydrateId, ws) : [];
     // Memory consent (WP4) rides along on the dock's ONE boot request, for the
     // same reason the turns do: the state line has to say "memory off" before a
     // single message is sent, and a second round trip for one boolean the DB

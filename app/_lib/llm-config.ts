@@ -23,7 +23,7 @@ import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
 // only gate what the admin API will accept.
-export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "qwen", "ollama", "claude_cli"] as const;
+export const LLM_PROVIDERS = ["anthropic", "openai", "azure_openai", "gemini", "openrouter", "qwen", "ollama", "gateway", "claude_cli"] as const;
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
 export const LLM_USE_CASES = [
@@ -38,9 +38,7 @@ export const LLM_USE_CASES = [
   "devcase_role_design",
   "devcase_case_design",
   "devcase_reflect",
-  "devcase_tooling",
   "devcase_evaluate",
-  "devcase_transfer",
   "devcase_judge",
   "devcase_interview_scenario",
   "devcase_seed",
@@ -51,9 +49,12 @@ export const LLM_USE_CASES = [
   "role_intake",
   "role_intake_voice",
   "assistant",
+  "posting_translate",
   "github_analysis",
   "cv_analysis",
-  "profile_extract",
+  "cv_polish",
+  "fit_dialog",
+  "extraction_rules",
 ] as const;
 export type LlmUseCase = (typeof LLM_USE_CASES)[number];
 

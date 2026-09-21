@@ -72,6 +72,46 @@ export function isOffline(env = process.env) {
   return TRUTHY.has(String(env.KP_OFFLINE ?? "").trim().toLowerCase());
 }
 
+/** Same ceiling the /market page uses (`STALE_AFTER_DAYS` in
+ *  app/landing/spark/market/data.ts). Past this, the hero prints the snapshot's
+ *  age instead of presenting it as current, and `npm run market:apply` must
+ *  refuse to re-level salary bands from it unless the operator passes `--force`. */
+export const STALE_AFTER_DAYS = 60;
+
+/** Days between the snapshot's data date and `now` — UTC date math, identical
+ *  to `snapshotAgeDays` on the /market page. `asOf` is `meta.generated_at`. */
+export function snapshotAgeDays(asOf, now = Date.now()) {
+  if (!asOf || typeof asOf !== "string") return null;
+  const at = Date.parse(`${asOf.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(at)) return null;
+  return Math.max(0, Math.floor((now - at) / 86_400_000));
+}
+
+/**
+ * Whether a market_pulse snapshot is fresh enough to re-level shipped salary
+ * bands. Pure: no I/O, injected `now` so a fixture can pin a 61-day-old stamp.
+ *
+ * `ok` is false when `meta.generated_at` is missing, unparseable, or at least
+ * `days` old, unless `force` is set (the `--force` the builder already uses).
+ * On `--force` the same sentence is returned so the script can print it as a
+ * warning and still write.
+ */
+export function assertFresh(pulse, now = Date.now(), days = STALE_AFTER_DAYS, force = false) {
+  const generatedAt = pulse && pulse.meta ? pulse.meta.generated_at : null;
+  const age = snapshotAgeDays(typeof generatedAt === "string" ? generatedAt : null, now);
+  const stale = age == null || age >= days;
+  if (!stale) return { ok: true, age, forced: false, message: null };
+  const ageBit =
+    age == null
+      ? "has no usable meta.generated_at"
+      : `is ${age} days old (stale at ${days} days)`;
+  const message =
+    `data/market_pulse.json ${ageBit}. Rebuild with \`npm run market:build && npm run market:earnings\`` +
+    (force ? "." : ", or pass --force to apply anyway.");
+  if (force) return { ok: true, age, forced: true, message };
+  return { ok: false, age, forced: false, message };
+}
+
 /**
  * The one GET every market script makes. Pure apart from the injected fetch, so
  * the fixtures can drive every branch without a network.

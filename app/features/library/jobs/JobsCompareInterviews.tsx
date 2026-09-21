@@ -3,15 +3,16 @@
 import { Scale } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { EmptyState } from "./JobsShared";
-import { buildCohorts, type RubricComp } from "./jobsCompareCohorts";
+import { buildCohorts, compareCsvRows, type RubricComp } from "./jobsCompareCohorts";
 import type { Candidate } from "./jobsCompareInterviewsTypes";
 import { CohortTable } from "./JobsCompareInterviewsCohortTable";
 import { JobsCompareInterviewsEvidenceCard } from "./JobsCompareInterviewsEvidenceCard";
 
 export function CompareInterviews({ jobId }: { jobId: string }) {
   const t = useTranslations("jobs.compare");
-  const { data, error } = useJsonFetch<{ rubrics: Record<string, RubricComp[]>; candidates: Candidate[] }>(
+  const { data, error, reload } = useJsonFetch<{ rubrics: Record<string, RubricComp[]>; candidates: Candidate[] }>(
     `/api/interview/compare?job=${encodeURIComponent(jobId)}`,
     t("loadFailed")
   );
@@ -20,7 +21,16 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
     return t.has(key) ? t(key) : model;
   };
 
-  if (error) return <p className="text-base text-coral">{error}</p>;
+  if (error) {
+    return (
+      <div className="text-base text-coral">
+        {error}{" "}
+        <button type="button" onClick={reload} className="focus-ring cursor-pointer underline hover:text-ink">
+          {t("retry")}
+        </button>
+      </div>
+    );
+  }
   if (!data) return <p className="text-base text-steel">{t("loading")}</p>;
   if (data.candidates.length === 0) {
     return (
@@ -42,6 +52,27 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
       <p className="text-base text-steel">
         {cohorts.length > 1 ? t("multiCohortNote") : t("singleCohortNote")}
       </p>
+      <button
+        type="button"
+        onClick={() => {
+          const blocks: (string | number)[][] = [];
+          for (const g of cohorts) {
+            if (cohorts.length > 1) blocks.push([cohortLabel(g.model)]);
+            const header = [
+              t("competency"),
+              ...g.candidates.flatMap((c) => {
+                const name = c.candidateLabel || "";
+                return [t("exportAi", { name }), t("exportHuman", { name }), t("exportRec", { name })];
+              }),
+            ];
+            blocks.push(header, ...compareCsvRows(g.rubric, g.candidates));
+          }
+          downloadFile(`compare-interviews-${jobId}.csv`, toCsv(blocks), "text/csv");
+        }}
+        className="focus-ring mt-2 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/50"
+      >
+        {t("exportCsv")}
+      </button>
 
       {cohorts.map((g) => (
         <div key={g.model} className="mt-4">

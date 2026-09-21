@@ -9,7 +9,9 @@ npm run dev:inspect   # dev server with source-location stamping on
 npm run dev:empty     # the empty-tenant server — inspector on by default
 ```
 
-In the app, press **`;`** (enters keyboard mode) then **`i`** (Inspect) to arm it.
+In the app, click the corner **Inspect** button (shown only when source mapping
+is on — `[data-loc]` is present) or press **`;`** (keyboard mode) then **`i`**
+to arm it. **Esc** still exits.
 Hover highlights the element under the cursor and pins a `File.tsx:line` chip;
 **right-click** copies the call-site path, **Alt+right-click** copies the innermost
 element, click a HUD row to copy any enclosing file, and **Esc** exits. A plain
@@ -27,4 +29,5 @@ keeps it off `node_modules` and Next internals, which was the cause.
 misbehaves — same stamps, slower compile. See the comment in `next.config.ts`, and
 `scripts/dev-guard.mjs` for the process-tree reaper that makes a repeat of that
 incident impossible regardless of bundler (Next allows one dev server per checkout;
-the lock is `.next/dev/lock`).
+the lock is `.next/dev/lock`). `npm run dev` now also sets `DEV_GUARD_MAX_NODE=150`
+so the storm circuit breaker is armed on the everyday server, not only on inspect.

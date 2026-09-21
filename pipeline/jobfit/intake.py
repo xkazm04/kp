@@ -955,7 +955,7 @@ def _apply_answer(
                 )
             )
     elif slot == "languages":
-        brief.languages.extend([l[:40] for l in _split_items(text)][:5])
+        brief.languages.extend([item[:40] for item in _split_items(text)][:5])
     elif slot == "team":
         brief.facets.append(_stated_facet("team_context", _label("team_context", lang), text, source_turn=source_turn))
     elif slot == "urgency":

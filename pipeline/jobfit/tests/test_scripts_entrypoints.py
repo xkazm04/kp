@@ -88,5 +88,30 @@ class ScriptEntrypointTests(unittest.TestCase):
                 )
 
 
+class SalaryCliVocabularyTests(unittest.TestCase):
+    def test_salary_cli_prints_evidence_not_confidence_for_the_grade(self) -> None:
+        src = (SCRIPTS / "salary.py").read_text(encoding="utf-8")
+        self.assertNotIn(
+            'kv("Confidence", salary.get("confidence"))',
+            src,
+            "salary-read grade must not reprint the collided Confidence stem",
+        )
+        self.assertIn('kv("Evidence"', src)
+
+    def test_salary_evidence_label_maps_ui_grades_and_omits_missing(self) -> None:
+        from scripts.salary import salary_evidence_label
+
+        self.assertEqual(salary_evidence_label("high"), "Strong")
+        self.assertEqual(salary_evidence_label("grounded"), "Strong")
+        self.assertEqual(salary_evidence_label("medium"), "Moderate")
+        self.assertEqual(salary_evidence_label("moderate"), "Moderate")
+        self.assertEqual(salary_evidence_label("low"), "Weak")
+        self.assertEqual(salary_evidence_label(" HIGH "), "Strong")
+        self.assertIsNone(salary_evidence_label(None))
+        self.assertIsNone(salary_evidence_label(""))
+        self.assertIsNone(salary_evidence_label(0), "missing grade omits the line, never prints 0")
+        self.assertIsNone(salary_evidence_label("unknown"))
+
+
 if __name__ == "__main__":
     unittest.main()

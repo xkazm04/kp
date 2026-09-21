@@ -37,6 +37,14 @@ export type ChannelWebhookRecord = {
   firstAcceptedAt: string | null;
   // The team that minted the webhook — leads it accepts are filed into this workspace.
   workspaceId: string;
+  // Recruiter-safe pull half (L0). Presence of a URL is what makes the clock poll;
+  // hasPullSecret is column presence, never the bearer (same doctrine as relay/edge).
+  // lastPullError is the clock's last failure, or null after a clean pull / a write.
+  // PATCH `{ pull }` remains the detailed read (cursor included); the list is the dashboard.
+  pullUrl: string | null;
+  hasPullSecret: boolean;
+  lastPullAt: string | null;
+  lastPullError: string | null;
 };
 
 type ChannelWebhookRow = {
@@ -52,6 +60,10 @@ type ChannelWebhookRow = {
   accepted_count: number;
   first_accepted_at: string | null;
   workspace_id: string;
+  pull_url: string | null;
+  has_pull_secret: number | boolean;
+  last_pull_at: string | null;
+  last_pull_error: string | null;
 };
 
 function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
@@ -68,13 +80,20 @@ function rowToWebhook(r: ChannelWebhookRow): ChannelWebhookRecord {
     acceptedCount: r.accepted_count ?? 0,
     firstAcceptedAt: r.first_accepted_at,
     workspaceId: r.workspace_id,
+    pullUrl: r.pull_url,
+    hasPullSecret: Boolean(r.has_pull_secret),
+    lastPullAt: r.last_pull_at,
+    lastPullError: r.last_pull_error,
   };
 }
 
 const WEBHOOK_SELECT = `
   SELECT w.token, w.channel, w.job_id, j.title AS job_title, w.lang,
          w.created_at, w.received_count, w.last_received_at, w.first_received_at,
-         w.accepted_count, w.first_accepted_at, w.workspace_id
+         w.accepted_count, w.first_accepted_at, w.workspace_id,
+         w.pull_url,
+         CASE WHEN w.pull_secret IS NOT NULL AND w.pull_secret <> '' THEN 1 ELSE 0 END AS has_pull_secret,
+         w.last_pull_at, w.last_pull_error
   FROM channel_webhooks w LEFT JOIN jobs j ON j.id = w.job_id`;
 
 /** Mint a webhook binding. The token is the ONLY gate on this public,

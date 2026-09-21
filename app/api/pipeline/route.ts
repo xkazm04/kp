@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { boardEntryView, createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { boardEntryView, countRejectedByLane, createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { knownStageIds } from "@/app/_lib/pipeline-axis";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
@@ -36,7 +37,17 @@ export async function GET() {
     // through, plus the retired columns so a stranded candidate's stage still has
     // a name.
     const axis = getPipelineAxis(ws);
-    return NextResponse.json({ entries, stages: axis.stages, retiredStages: axis.retired });
+    // The hiring plan in force (Settings → Hiring), pruned to this axis: the board's
+    // line indicators read each step's executor from it (who a candidate waits on).
+    // `rejectedByLane`: how many each lane has rejected — the rows themselves stay off
+    // this payload (GET /api/pipeline/rejected serves them on demand).
+    return NextResponse.json({
+      entries,
+      stages: axis.stages,
+      retiredStages: axis.retired,
+      plan: getInterviewPlan(ws),
+      rejectedByLane: countRejectedByLane(ws),
+    });
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }

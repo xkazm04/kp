@@ -28,14 +28,18 @@ const bar = readFileSync(new URL("./PipelineFilterBar.tsx", import.meta.url), "u
 test("the source menu's options are the board's channels UNION the active selection", () => {
   assert.match(
     bar,
-    /const sourceOptions = \[\.\.\.new Set\(\[\.\.\.sourceValues, \.\.\.sources\]\)\]/,
+    /const sourceOptions(?:: FilterMenuOption\[\])? = \[\.\.\.new Set\(\[\.\.\.sourceValues, \.\.\.sources\]\)\]/,
     "sourceOptions must union the entries-derived values with the current selection"
   );
   assert.match(
     bar,
-    /options=\{sourceOptions\.map\(/,
+    /options=\{sourceOptions\}/,
     "the Source <PipelineFilterMenu> must render sourceOptions, not the raw sourceValues"
   );
+  // …labelled by channel name and listed by that NAME, ascending, in the reader's
+  // locale — the id order ("boards", "linkedin", "referral") is not what anyone reads.
+  assert.match(bar, /\.map\(\(s\) => \(\{ value: s, label: channelName\(s\) \}\)\)\s*\.sort\(byLabel\)/);
+  assert.match(bar, /a\.label\.localeCompare\(b\.label, locale\)/);
   assert.ok(
     !/options=\{sourceValues\.map\(/.test(bar),
     "an off-board selected source must still be an offered (and uncheckable) row"

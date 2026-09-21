@@ -16,6 +16,7 @@ import { useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "@/app/f
 
 export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; onClose: () => void }) {
   const t = useTranslations("match.jobCompare");
+  const tShared = useTranslations("match.shared");
   // Compact band digits group in the READER's locale (format.ts number-locale contract).
   const locale = useLocale();
   const enumLabel = useEnumLabel();
@@ -142,7 +143,7 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
             <tr className="border-t border-stone-100">
               <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("salaryBand")}</th>
               {matches.map((m) => (
-                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand, locale)}</td>
+                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand, locale, tShared("bandUnit"))}</td>
               ))}
             </tr>
           </tbody>

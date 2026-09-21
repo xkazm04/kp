@@ -95,3 +95,9 @@ export function withReply(state: OutreachState, at: string): OutreachState {
 export function withSend(state: OutreachState, at: string): OutreachState {
   return { ...state, sends: state.sends + 1, lastSentAt: at };
 }
+
+/** Clear a recruiter halt. Does not touch `candidateHaltAt` (legal objection) or
+ *  `repliedAt` (the sequence still answered). The store twin is `resumeOutreach`. */
+export function withoutManualHalt(state: OutreachState): OutreachState {
+  return { ...state, manualHaltAt: null };
+}

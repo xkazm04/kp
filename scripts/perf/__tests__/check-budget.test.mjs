@@ -148,6 +148,17 @@ check('--tighten lowers a ceiling to the measurement plus slack, and never raise
 // since grown past it fails here, on every push, in under a second — which is
 // the whole difference between this file and the state it was found in.
 
+check('the budget is recorded and the holder docs no longer claim it is missing', () => {
+  assert.ok(fs.existsSync(path.join(REPO_ROOT, BUDGET_FILE)), `${BUDGET_FILE} must exist at the repo root`);
+  const header = fs.readFileSync(path.join(REPO_ROOT, 'scripts/perf/check-budget.mjs'), 'utf8');
+  const doc = fs.readFileSync(path.join(REPO_ROOT, 'docs/development/performance-budget.md'), 'utf8');
+  assert.doesNotMatch(header, /no recorded .{0,2}perf-budget/);
+  assert.doesNotMatch(doc, /no recorded .{0,2}perf-budget/);
+  assert.doesNotMatch(header, /UNCALIBRATED|UNGATED/);
+  assert.match(header, /test:perf/);
+  assert.match(doc, /test:perf/);
+});
+
 check(`the committed ${BUDGET_FILE} parses and every target it names still exists`, () => {
   const budget = loadBudget();
   for (const rel of Object.keys(budget.entries)) {

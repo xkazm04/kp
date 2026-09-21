@@ -5,6 +5,7 @@ import { ColumnFilter, type Option } from "@/app/_components/table/ColumnFilter"
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { FAMILIES, MODES, SENIORITIES } from "./JobsTypes";
+import { ROLE_STATUS_FILTER_ORDER } from "./jobsRoleStatus";
 import type { JobSortCol } from "./jobsTableView";
 import type { SortState } from "@/app/_components/table/useTableSort";
 import type { useJobsList } from "./useJobsList";
@@ -37,7 +38,10 @@ export function JobsTableFrame({
   onSort: (col: JobSortCol) => void;
 }) {
   const t = useTranslations("jobs.table");
-  const tTab = useTranslations("jobs.tab");
+  // The four derived role statuses share ONE label set with the badge in the row
+  // (JobsShared.RoleStatusCell) — a menu entry that read differently from the chip
+  // it filters for would be two vocabularies for one fact.
+  const tStatus = useTranslations("jobs.roleStatus");
   const enumLabel = useEnumLabel();
   const opts = (group: string, values: readonly string[]): Option[] =>
     values.map((v) => ({ value: v, label: enumLabel(group, v) }));
@@ -78,16 +82,23 @@ export function JobsTableFrame({
               />
             </ColumnHead>
             <ColumnHead title={t("colSalary")} sortCol="salary" sort={sort} onSort={onSort} className="px-4 py-2" />
-            {/* Entry-eligibility is a yes/no fact, so its filter is a one-option
-                menu ("eligible only") rather than a checkbox stranded in a
-                toolbar — same control shape as every other column. */}
-            <ColumnHead title={t("colEntry")} sortCol="entry" sort={sort} onSort={onSort} className="px-4 py-2">
+            {/* THE ROLE'S OWN LIFECYCLE, which is what this desk is now for: the
+                register of open and historical roles. It replaced the Entry column
+                — entry-eligibility is a fairness fact about the requirements, still
+                carried by the stat chip above the table and by the posting modal,
+                but it is not what a recruiter opens this desk to read.
+
+                The filter is client-side (see useJobsList.roleStatus): "filled"
+                compares the role's target against the pipeline's hired count, which
+                the jobs query cannot express. The menu's order is the desk's reading
+                order, not the alphabet. */}
+            <ColumnHead title={t("colStatus")} sortCol="status" sort={sort} onSort={onSort} className="px-4 py-2">
               <ColumnFilter
-                title={t("colEntry")}
+                title={t("colStatus")}
                 trigger="icon"
-                value={list.entryOnly ? "yes" : ""}
-                onChange={(v) => list.setEntryOnly(v === "yes")}
-                options={[{ value: "yes", label: tTab("entryOnly") }]}
+                value={list.roleStatus}
+                onChange={list.setRoleStatus}
+                options={ROLE_STATUS_FILTER_ORDER.map((value) => ({ value, label: tStatus(value) }))}
               />
             </ColumnHead>
           </tr>

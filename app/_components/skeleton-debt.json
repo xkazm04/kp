@@ -1,0 +1,57 @@
+{
+  "$comment": [
+    "The declared per-file ceiling on every <Skeleton call site under app/**/*.tsx",
+    "(app/landing/** excluded — the fixed art direction). Read and enforced by",
+    "skeleton-debt.test.ts beside Skeleton.tsx; runs in the ordinary unit gate",
+    "(`npm run test:unit`).",
+    "",
+    "RATCHET, not aspiration: these are the counts of the tree TODAY (seeded 2026-09-17,",
+    "skeleton=56 across 13 files). A number never goes up. Adopt <LoadingGap>, then:",
+    "",
+    "  node --experimental-transform-types app/_components/skeleton-debt.test.ts --tighten",
+    "",
+    "A file burnt down to zero loses its entry entirely, which LOCKS the win: the file is",
+    "then undeclared, and the next <Skeleton to arrive there is a red build."
+  ],
+  "ceilings": {
+    "_components/FactorChart.tsx": {
+      "skeleton": 1
+    },
+    "_components/RouteLoading.tsx": {
+      "skeleton": 19
+    },
+    "data/[token]/DataClient.tsx": {
+      "skeleton": 8
+    },
+    "features/hiring/pipeline/PipelineStatHeader.tsx": {
+      "skeleton": 1
+    },
+    "features/hiring/pipeline/candidate/scorecard/DetailScoreParts.tsx": {
+      "skeleton": 1
+    },
+    "features/hiring/pipeline/map/orchard/TicketEvidence.tsx": {
+      "skeleton": 2
+    },
+    "features/jobseeker/ProfileImport.tsx": {
+      "skeleton": 1
+    },
+    "features/setup-studio/VoicePanel.tsx": {
+      "skeleton": 2
+    },
+    "features/shell/setup/SetupCompanionStep.tsx": {
+      "skeleton": 3
+    },
+    "features/shell/setup/SetupPipelineStep.tsx": {
+      "skeleton": 1
+    },
+    "features/tools/devcases/DevSessionEvidencePanel.tsx": {
+      "skeleton": 3
+    },
+    "offer/[token]/OfferClient.tsx": {
+      "skeleton": 9
+    },
+    "stop/[token]/StopClient.tsx": {
+      "skeleton": 5
+    }
+  }
+}

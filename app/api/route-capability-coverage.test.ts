@@ -98,7 +98,6 @@ const ALLOWED = new Map<string, string>([
   ["brand/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["calendar/google/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["channels/inbound/[token]/route.ts", "webhook — inbound ad/email intake, authed by the channel token in the URL"],
-  ["comms/[id]/resend/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["comms/callback/route.ts", "webhook — the relay's delivery receipt, authed by COMMS_CALLBACK_SECRET + timestamp + nonce"],
   ["companion/[id]/message/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["companion/brain/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

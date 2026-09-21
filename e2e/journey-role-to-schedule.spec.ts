@@ -110,33 +110,30 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   }).toPass({ timeout: 30_000 });
 }
 
-// Open ONE candidate's drawer on the board, by name. `?q=` pre-filters the board
-// to that candidate, so the card is never hidden behind a "+N more" cell
-// overflow. The card's per-row actions live in its context menu (the inline
-// controls were costing ~134px of a 280px stage column, truncating the candidate
-// name); the trigger is the row's keyboard/touch door into the same menu
-// right-click opens, opacity-0 until hover, which Playwright still counts as
-// visible. Same dev-hydration retry as the sibling specs: click until the drawer
-// opens. Shared by the mint step and the confirmed-booking step, which read the
-// same drawer for different halves of the same invite.
+// Open ONE candidate in the candidate modal, by name. `?q=` pre-filters the board to
+// that candidate, so the bead is never hidden behind a "+N" overflow. Same
+// dev-hydration retry as the sibling specs: click until the modal opens. The modal is
+// named by its heading (the candidate's label). Shared by the mint step (the footer's
+// scheduling link) and the confirmed-booking step (the Activity tab), which read the
+// same candidate for different halves of the same invite.
 //
 // A CANDIDATE LABEL IS NOT AN ENTRY ID, and this helper can only address the board
 // by label. One person can hold two pipeline entries (two jobs), and both rows
 // render the SAME accessible name — `Actions for {name}` is built from
-// `entry.candidateLabel` alone (PipelineCandidateRow.tsx:265) and the row carries
-// no id anchor in the DOM. So `.first()` opens whichever row the board's column
+// `entry.candidateLabel` alone (the bead's label, map/PipelineBoardSubway.tsx) and
+// the bead carries no id anchor in the DOM. So `.first()` opens whichever row the board's column
 // ordering happens to put first, which need not be the entry the caller chose from
-// /api/pipeline. If that row's entry fails the drawer's own gate
-// (`showLinks` = active + Screened|Interview, usePipelineCandidateDrawerState.ts:395)
-// the drawer opens under the RIGHT NAME with the self-scheduling panel absent — a
+// /api/pipeline. If that row's entry fails the modal's own gate
+// (`showLinks` = active + a screening/interview stage, the candidate state hook)
+// the modal opens under the RIGHT NAME with the self-scheduling panel absent — a
 // failure that reads as "the button never rendered" and sends you into product code.
 // Measured 2026-08-29 on the operator's dev DB: 3 labels carried two entries each,
 // and for one of them the ineligible twin sorted first. Callers therefore pass a
 // label that is unique on the board (see the mint step), and this asserts it —
 // loudly, naming the ambiguity — rather than silently driving the wrong row.
-async function openCandidateDrawer(page: Page, label: string): Promise<Locator> {
+async function openCandidateModal(page: Page, label: string): Promise<Locator> {
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(label)}`);
-  const drawer = page.getByRole("dialog");
+  const modal = page.getByRole("dialog", { name: label, exact: true });
   const rowMenus = page.getByRole("button", { name: `Actions for ${label}` });
   const rowMenu = rowMenus.first();
   await expect(rowMenu).toBeVisible({ timeout: 30_000 });
@@ -146,17 +143,10 @@ async function openCandidateDrawer(page: Page, label: string): Promise<Locator> 
       "so .first() would open an arbitrary one of this person's entries. Pick a label unique on the board."
   ).toHaveCount(1);
   await expect(async () => {
-    if (!(await drawer.isVisible())) {
-      await rowMenu.click().catch(() => undefined);
-      await page
-        .getByRole("menuitem", { name: "AI actions" })
-        .first()
-        .click({ timeout: 2000 })
-        .catch(() => undefined);
-    }
-    await expect(drawer).toBeVisible({ timeout: 1500 });
+    if (!(await modal.isVisible())) await rowMenu.click().catch(() => undefined);
+    await expect(modal).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });
-  return drawer;
+  return modal;
 }
 
 test("first-run wizard walks to the hand-off and its Pipeline step saves the board", async ({ page }) => {
@@ -169,8 +159,15 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
   const wizard = page.getByRole("dialog", { name: "Set up your workspace" });
   await expect(wizard).toBeVisible();
 
-  // Welcome → Company.
-  const welcome = wizard.getByRole("heading", { name: "Let's get you hiring" });
+  // Welcome → Company. The step FORKS now (1e68dd5c7, `setup.intent`): it asks
+  // what brings you here before anything else, and "Let's go" stays DISABLED
+  // until one of the two answers is pressed — so the old walk clicked a dead
+  // button and waited 30s for a Company step the wizard was never going to show.
+  // This journey is the HIRING arm; the seeker arm is its own two-step flow.
+  // The heading carries the step counter ("Step 1 of 6: …"), hence the regex.
+  const welcome = wizard.getByRole("heading", { name: /Let's get you started/ });
+  await expect(welcome).toBeVisible();
+  await wizard.getByRole("button", { name: /^I'm hiring/ }).click();
   const company = wizard.getByRole("heading", { name: "Make it your company" });
   await advanceStep(welcome, wizard.getByRole("button", { name: "Let's go" }), company);
 
@@ -353,9 +350,10 @@ test("recruiter mints a self-scheduling invite from the candidate drawer", async
   candidateLabel = target!.candidateLabel;
   entryId = target!.id;
 
-  const drawer = await openCandidateDrawer(page, candidateLabel);
+  const drawer = await openCandidateModal(page, candidateLabel);
 
-  // Mint the link through the drawer's real Self-scheduling panel.
+  // Mint the link through the modal footer's real Self-scheduling panel (its tray).
+  await drawer.getByRole("button", { name: "Scheduling link" }).click();
   const inviteResponse = page.waitForResponse(
     (r) => new URL(r.url()).pathname === "/api/schedule/invite" && r.request().method() === "POST"
   );
@@ -430,9 +428,11 @@ test("recruiter side reflects the confirmed booking", async ({ page }) => {
   // only an `ai` round (GET /api/decisions/config → interviewPlan: one round,
   // kind "ai"), so `hasHumanRound` is false and the tab draws the AI docket
   // instead. The assertion could therefore never pass on a fresh CI database —
-  // it was written against a plan nobody ships. The candidate drawer's history
-  // is the plan-independent recruiter surface for the same fact.
-  const drawer = await openCandidateDrawer(page, candidateLabel);
+  // it was written against a plan nobody ships. The candidate modal's history
+  // (Activity tab) is the plan-independent recruiter surface for the same fact.
+  const modal = await openCandidateModal(page, candidateLabel);
+  await modal.getByRole("tab", { name: "Activity" }).click();
+  const drawer = modal.getByRole("tabpanel", { name: "Activity" });
   await expect(drawer.getByText(/interview scheduled/i).first()).toBeVisible({ timeout: 30_000 });
 });
 

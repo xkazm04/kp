@@ -18,6 +18,11 @@ directly gets only the Python half. So they are stated separately:
       never auto-advanced and never auto-rejected: ``evaluate_entry`` holds them
       at Screened, and `screen_candidate` rewrites a "reject" verdict to "hold"
       AFTER the model, so the model cannot override the gate.
+    * the VOLUME gate (``volume_allows_reject``): a candidate from a RELATED area
+      (``related_area``) is never recommended for reject while the role's pipeline
+      is sparse or moderate — a handful of applicants is too few to screen a
+      near-miss out without a human. Re-applied after the model exactly like the
+      early-career gate, and the deterministic fallback runs the same predicate.
     * ``evaluate_entry`` emits ``action:"reject"`` on exactly ONE path — stage
       "Screened", a non-early archetype, no pending approval, no recent
       screening decision, and a GENUINE match score (absent/0 is an unscored
@@ -68,6 +73,7 @@ from .match_reasoning import (
     narrative_lang_for,
     reasoning_context,
 )
+from .transferable import DISTANCE_ADJACENT
 from .devcase.provenance import fenced_untrusted
 
 # screening-v2: no prompt-content change — the version marks the CACHE-AXIS
@@ -75,7 +81,12 @@ from .devcase.provenance import fenced_untrusted
 # TS cache key ignored the locale, so a locale switch served the previous language's
 # rationale for the full 168h TTL. Bumped in lockstep with AUTOMATION_VERSION.screen
 # (app/_lib/automation-run.ts) so the wrongly-shared v1 entries self-invalidate.
-SCREENING_PROMPT_VERSION = "screening-v3"
+# screening-v4: the prompt now states the role's PIPELINE VOLUME and the strictness
+# rule that rides on it (see screening_volume_tier / volume_allows_reject) — prompt
+# bytes change, and every cached v3 verdict was formed without knowing whether it was
+# judging 1 of 3 candidates or 1 of 300. Bumped in lockstep with
+# AUTOMATION_VERSION.screen.
+SCREENING_PROMPT_VERSION = "screening-v4"
 # Letter tasks v2 (backlog #34/#37): explicit --lang (the entry's resolved comms
 # locale) overrides the CV-language guess, and the prompts carry the
 # gender-neutral style directive; the offer prompt additionally forbids inventing
@@ -128,7 +139,139 @@ POLICY: dict[str, int] = {
     "rematch_floor": 55,
     "rematch_max": 2,
     "screen_advance_conf": 80,
+    # --- AI-screening strictness by pipeline VOLUME (the one place the thresholds
+    # live). "Volume" is the number of ACTIVE entries on the SAME job in the SAME
+    # workspace, handed in by the caller (`--pipeline-size`).
+    #
+    # The product rule: with a handful of candidates for a role, a person from a
+    # RELATED area (same role family, or an adjacent prior domain) who scores below
+    # the bar is worth a human look — `hold`, never a hard reject. With dozens to
+    # hundreds of applicants, the screener may be strict and recommend `reject` for
+    # a clear area mismatch. Nothing here loosens or tightens the EARLY-CAREER
+    # fairness gate, which is absolute and applies at every volume.
+    #
+    #   n <= screen_volume_sparse_max        -> "sparse"
+    #   n <= screen_volume_moderate_max      -> "moderate"
+    #   otherwise                            -> "dense"
+    #
+    # Hand-mirrored into app/_lib/automation-cache-key.ts (the cache BUCKET must be
+    # the same bucket the prompt was written under); the drift guard is
+    # tests/test_automation_constant_sync.py.
+    "screen_volume_sparse_max": 5,
+    "screen_volume_moderate_max": 30,
 }
+
+# The strictness tiers, ordered least → most strict. The verdict payload carries the
+# resolved tier as `screeningVolume`, so the decision audit can explain WHY a
+# below-threshold candidate was held rather than rejected.
+SCREENING_VOLUME_TIERS: tuple[str, ...] = ("sparse", "moderate", "dense")
+# Fail-SAFE default: a caller that cannot count (legacy CLI use, an entry with no
+# job) gets the most lenient tier, so an unknown volume can never produce a reject
+# the volume rule would have forbidden.
+SCREENING_VOLUME_FALLBACK = "sparse"
+
+
+def normalize_pipeline_size(pipeline_size: Any) -> int | None:
+    """The reported active-candidate count, or None when it is genuinely unknown.
+
+    Unparseable input reads as unknown rather than as 0: "we could not count" and
+    "nobody is in this pipeline" are different facts, and only the latter is a number
+    the audit should show."""
+    if pipeline_size is None:
+        return None
+    try:
+        n = int(pipeline_size)
+    except (TypeError, ValueError):
+        return None
+    return max(0, n)
+
+
+def screening_volume_tier(pipeline_size: Any = None) -> str:
+    """The strictness tier for a role holding ``pipeline_size`` active candidates.
+
+    ONE function, used by BOTH the LLM path (it writes the tier into the prompt) and
+    the deterministic keyless fallback (it gates the fallback's own verdict), so the
+    two can never disagree about how strict this screening run is allowed to be.
+
+    Unknown / unparseable / negative sizes collapse to ``SCREENING_VOLUME_FALLBACK``
+    ("sparse") — see the constant."""
+    n = normalize_pipeline_size(pipeline_size)
+    if n is None:
+        return SCREENING_VOLUME_FALLBACK
+    if n <= POLICY["screen_volume_sparse_max"]:
+        return "sparse"
+    if n <= POLICY["screen_volume_moderate_max"]:
+        return "moderate"
+    return "dense"
+
+
+def volume_allows_reject(tier: str, related_area: bool) -> bool:
+    """May a screening run at ``tier`` recommend a hard reject for this candidate?
+
+    Yes for a CLEAR area mismatch at any volume (that is unchanged behaviour), and
+    yes for a related-area candidate only once the role is DENSE. A related-area
+    candidate in a sparse or moderate pipeline is held for a human instead — the
+    product rule POLICY documents above.
+
+    This is deliberately a pure two-argument predicate: `screen_candidate` applies it
+    to the deterministic fallback's verdict AND re-applies it to the model's verdict
+    after the call, exactly like the early-career gate, so the model cannot talk its
+    way past it."""
+    if not related_area:
+        return True
+    return tier == "dense"
+
+
+def related_area(candidate: Any, job: Any) -> bool:
+    """Is this candidate from the same high-level AREA as the role?
+
+    Read off the signals the matcher already produces — no new classifier:
+
+      * ``role_family`` — the taxonomy's own area vocabulary, and the same field
+        ``matching.score_job`` weighs for career fit. Equal families = same area,
+        a different role inside it.
+      * ``domain_distance`` — the career-switcher bridge grade
+        (``transferable.domain_distance``): "adjacent" means a NEIGHBOURING field,
+        which is what "related area" means for someone crossing in.
+
+    Anything else (a different family with a moderate/far/absent bridge) is the
+    "clear area mismatch" the dense-pipeline rule is allowed to be strict about."""
+    cand_family = str(getattr(candidate, "role_family", "") or "")
+    job_family = str(getattr(job, "role_family", "") or "")
+    if cand_family and job_family and cand_family == job_family:
+        return True
+    return str(getattr(candidate, "domain_distance", "") or "") == DISTANCE_ADJACENT
+
+
+def screening_volume_directive(tier: str, pipeline_size: int | None, area_related: bool) -> str:
+    """The screening prompt's volume paragraph — the SAME rule ``volume_allows_reject``
+    enforces afterwards, stated in plain words so the model's rationale and the
+    verdict it is allowed to return cannot contradict each other.
+
+    ``pipeline_size`` is the NORMALIZED count (``normalize_pipeline_size``): an int,
+    or None when the caller could not count."""
+    count = (
+        "The number of candidates in this role's pipeline is not known"
+        if pipeline_size is None
+        else f"There are {pipeline_size} active candidate(s) in this role's pipeline"
+    )
+    area = (
+        "This candidate comes from a RELATED area (same role family, or a neighbouring prior domain)."
+        if area_related
+        else "This candidate comes from a clearly DIFFERENT area than the role."
+    )
+    if tier == "dense":
+        rule = (
+            "The pipeline is DENSE, so you may be strict: a clear area mismatch or a weak profile "
+            "may be recommended for 'reject'."
+        )
+    else:
+        rule = (
+            f"The pipeline is {tier.upper()} (few candidates), so be generous with a human's time: a "
+            "candidate from a related area who falls short is worth a human look — recommend 'hold', "
+            "not 'reject'. Reserve 'reject' for a clear area mismatch."
+        )
+    return f"Pipeline volume: {count}. {area} {rule}\n"
 
 # Single-sourced from the shared registry (archetypes.json) so the in-code fairness
 # levers (never auto-advance/reject early-career) can't drift from the scorer's set.
@@ -271,6 +414,24 @@ def _call_failure_reason(exc: BaseException) -> str:
     if subtype == "deadline_exceeded":
         return "provider_timeout"
     if subtype == "unparseable_json":
+        return "unparseable_output"
+    return "provider_error"
+
+
+# The message-text mirror of `_call_failure_reason`, for the one caller
+# (rematch_candidate) that only ever sees `describe_fallback`'s formatted
+# "<Type>: <message>" line, never the exception `.subtype` is read off. The
+# phrases matched are base.py's own, not a test's: "exhausted its …s deadline"
+# is raised in exactly the one place subtype="deadline_exceeded" is (llm/base.py
+# retry loop), and "parseable JSON" only appears on the two subtype=
+# "unparseable_json" raises (truncated finish_reason has its own subtype and its
+# own wording, "is incomplete", so it correctly falls through to provider_error
+# here exactly as _call_failure_reason falls through for any subtype it does not
+# name). Re-derive both if base.py's wording changes.
+def _classify_fallback_text(text: str) -> str:
+    if "deadline" in text and "exhausted" in text:
+        return "provider_timeout"
+    if "parseable JSON" in text:
         return "unparseable_output"
     return "provider_error"
 
@@ -840,7 +1001,16 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 # ============================================================================
 
 
-def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", provider: Any | None = None, github: Any | None = None) -> tuple[dict, str]:
+def screen_candidate(
+    candidate: MatchCandidate,
+    job: Job,
+    m,
+    *,
+    lang: str = "en",
+    provider: Any | None = None,
+    github: Any | None = None,
+    pipeline_size: int | None = None,
+) -> tuple[dict, str]:
     from .i18n import language_directive
 
     ctx = reasoning_context(candidate, job, m)
@@ -853,6 +1023,12 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en"
     early = candidate.archetype in _EARLY_CAREER
     # PRE-LLM FAIRNESS GATE: a learnable-gap early-career candidate is never auto-rejected.
     forced_hold = early and (candidate.potential_score or 0) > 0.5 and m.total < 55
+    # VOLUME GATE — how strict this run is allowed to be, resolved ONCE and used by
+    # the prompt, by the deterministic fallback, and by the post-model re-check.
+    volume_tier = screening_volume_tier(pipeline_size)
+    volume_count = normalize_pipeline_size(pipeline_size)
+    area_related = related_area(candidate, job)
+    may_reject = volume_allows_reject(volume_tier, area_related)
 
     prompt = (
         "Screen this candidate for this role. Use ONLY these facts:\n"
@@ -863,6 +1039,10 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en"
         # T3 — what `match.unprovenSkills` means and what it must do to confidence;
         # "" when the scorer found none, keeping that prompt byte-identical.
         + unproven_directive(unproven)
+        # VOLUME — always rendered (never conditionally omitted): the post-model
+        # gate below enforces this rule whatever the model says, and a model held to
+        # an unstated rule writes a rationale that contradicts the verdict it gets.
+        + screening_volume_directive(volume_tier, volume_count, area_related)
         + (
             "This is an EARLY-CAREER candidate — judge on potential, frame gaps as learnable, and never "
             "recommend a hard reject; prefer 'hold' for a human.\n"
@@ -888,7 +1068,18 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en"
         elif m.total >= 55:
             rec, conf = "hold", 60
         else:
-            rec, conf = ("hold" if early else "reject"), 65
+            # Below the bar. Two gates can turn this into a hold rather than a
+            # reject, and they are independent: the early-career fairness gate
+            # (unchanged, absolute), and the VOLUME gate — a related-area candidate
+            # in a sparse/moderate pipeline goes to a human instead of being screened
+            # out. The confidence drops with it: a hold forced by volume is a
+            # deferral, not a strong read of the profile.
+            if early:
+                rec, conf = "hold", 65
+            elif not may_reject:
+                rec, conf = "hold", 55
+            else:
+                rec, conf = "reject", 65
         return {
             "recommendation": rec,
             "confidence": conf,
@@ -942,8 +1133,20 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en"
         result["recommendation"] = "hold"
     if early and result["recommendation"] == "reject":
         result["recommendation"] = "hold"
+    # VOLUME GATE, re-applied after the model for the same reason the fairness gate
+    # is: the prompt STATES the rule, this ENFORCES it. A related-area candidate in a
+    # sparse/moderate pipeline is never screened out by the AI, whichever engine
+    # answered.
+    if result["recommendation"] == "reject" and not may_reject:
+        result["recommendation"] = "hold"
     advance = result["recommendation"] == "advance" and result["confidence"] >= POLICY["screen_advance_conf"] and not early
     result["route"] = "advance" if advance else "hold"
+    # Carried onto the verdict so the decision audit can explain a hold the volume
+    # rule produced ("held because this role has 4 candidates"), rather than leaving a
+    # recruiter to wonder why an identical profile rejects on a busier role.
+    result["screeningVolume"] = volume_tier
+    result["pipelineSize"] = volume_count
+    result["relatedArea"] = area_related
     result["promptVersion"] = SCREENING_PROMPT_VERSION
     return result, source
 
@@ -1733,12 +1936,19 @@ def rematch_candidate(
     # `_generate`, which is where that reset normally happens — without it a reason
     # left by an earlier call on this thread would be attributed to this one, which
     # is precisely the lie take_degradation_reason's consume-once rule exists to
-    # prevent. The WORDS differ from DEGRADATION_REASONS: `match_reasoning.generate`
-    # hands its `on_fallback` a `describe_fallback` "<Type>: <message>" line, the
-    # same text reasoning_cli already writes to the ledger for this same callee.
+    # prevent. `match_reasoning.generate` hands its `on_fallback` a `describe_fallback`
+    # "<Type>: <message>" line (the same text reasoning_cli writes to the ledger for
+    # this same callee) rather than one of DEGRADATION_REASONS — every other task's
+    # reason is classified from the exception's own `.subtype` inside `_generate`
+    # (`_call_failure_reason`), which this task bypasses by calling
+    # `match_reasoning.generate` directly, so `_classify_fallback_text` recovers the
+    # same classification from the message text `_call_failure_reason` would have read
+    # off the subtype (fault_eval, idea-9ad8a777's own gate: a rematch descent must
+    # be nameable exactly like every other task's).
     _note_degradation(None)
     reasoning, source = generate_reasoning(
-        candidate, job, result, lang=lang, provider=provider, on_fallback=_note_degradation
+        candidate, job, result, lang=lang, provider=provider,
+        on_fallback=lambda text: _note_degradation(_classify_fallback_text(text)),
     )
     return {
         "found": True,

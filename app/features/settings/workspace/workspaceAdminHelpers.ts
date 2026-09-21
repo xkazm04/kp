@@ -2,7 +2,18 @@
 // and its panels. Moved here from settings/organization (was
 // organizationMemberHelpers) when member management became workspace-scoped.
 import { roleCapabilities } from "@/app/_lib/auth/roles";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { MemberTeam, OrgMemberDto } from "./useWorkspaceAdmin";
+
+/** Candidate-facing invite URL for the clipboard.
+ *
+ *  `origin` is the recruiter's runtime origin (`window.location.origin`). The
+ *  invite is a capability link a candidate must open, so `publicBaseUrl` lets
+ *  APP_BASE_URL / NEXT_PUBLIC_APP_BASE_URL win — a copy taken on localhost or
+ *  behind a proxy still redeems on the public host. */
+export function copyInviteUrl(origin: string, token: string): string {
+  return `${publicBaseUrl(origin)}/invite/${token}`;
+}
 
 /** The member's membership on ONE team, or null if they don't belong to it.
  *

@@ -17,7 +17,7 @@ export const metadata = { title: "Voice interview lab" };
 // force-dynamic) with no useful static shell to prerender.
 export const instant = false;
 
-// The inline code chip, written once: five of them render env-var names in this page.
+// Shared chip class for env-var names rendered through t.rich.
 const CODE = "rounded bg-stone-100 px-1 py-0.5 text-[0.9em]";
 
 export default async function InterviewLabPage() {
@@ -45,12 +45,7 @@ export default async function InterviewLabPage() {
       <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 max-w-2xl text-body text-steel">
-        A/B the realtime providers on a short first-round screen. Pick a provider and language, consent, then talk —
-        the live transcript is captured and stored. Set <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">OPENAI_API_KEY</code>{" "}
-        and <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">ELEVENLABS_API_KEY</code> +{" "}
-        <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">ELEVENLABS_AGENT_ID</code> in{" "}
-        <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">.env.local</code> to enable each, then restart the
-        dev server.
+        {t.rich("enabledBody", { code: (chunks) => <code className={CODE}>{chunks}</code> })}
       </p>
 
       <div className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -62,15 +57,16 @@ export default async function InterviewLabPage() {
       </div>
 
       <p className="mt-4 text-meta text-steel">
-        The candidate-facing version lives at <code className="rounded bg-stone-100 px-1 py-0.5">/interview/&lt;token&gt;</code>{" "}
-        with the provider fixed per session.
+        {t.rich("candidatePortalNote", {
+          path: (chunks) => <code className={CODE}>{chunks}</code>,
+          token: "<token>",
+        })}
         {showDiagrams ? (
           <>
             {" "}
             <Link href="/diagrams" className="text-coral hover:underline">
-              See the pipeline diagrams
+              {t("diagramsLink")}
             </Link>
-            .
           </>
         ) : null}
       </p>

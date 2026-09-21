@@ -58,6 +58,12 @@ export type PolarConfig = {
   accessToken: string;
   server: keyof typeof SERVERS;
   webhookSecret: string | null;
+  /** The dated API contract to pin (`Polar-Version`), or null to inherit Polar's
+   *  Current — which ROTATES at each quarterly release, so an unset value is the
+   *  absence of a choice rather than a stable one. Null keeps the wire bytes
+   *  byte-identical to the unpinned client, so setting this env is the only thing
+   *  that changes a live deployment's contract. */
+  apiVersion: string | null;
   products: {
     starter: string | null;
     growth: string | null;
@@ -73,6 +79,7 @@ export function polarConfigFromEnv(env: NodeJS.ProcessEnv = process.env): PolarC
     accessToken,
     server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
     webhookSecret: env.POLAR_WEBHOOK_SECRET?.trim() || null,
+    apiVersion: env.POLAR_API_VERSION?.trim() || null,
     products: {
       starter: env.POLAR_PRODUCT_STARTER?.trim() || null,
       growth: env.POLAR_PRODUCT_GROWTH?.trim() || null,
@@ -82,8 +89,20 @@ export function polarConfigFromEnv(env: NodeJS.ProcessEnv = process.env): PolarC
   };
 }
 
-/** Normalize one Polar webhook payload (exported pure for tests). */
-export function mapPolarEvent(eventId: string, payload: unknown): BillingEvent {
+/** Normalize one Polar webhook payload (exported pure for tests).
+ *
+ *  `declaredVersion` is the contract the DELIVERY names (the `webhook-api-version`
+ *  header); the body's own `api_version` is the fallback. It matters because a
+ *  webhook endpoint's version is chosen when the endpoint is REGISTERED and an
+ *  event keeps the version it was created under — so after a rotation this
+ *  normalizer receives new events on the new contract and redeliveries of old ones
+ *  on the old, concurrently, for the same event type. Recording it is what makes
+ *  that decidable instead of a silent misparse. */
+export function mapPolarEvent(
+  eventId: string,
+  payload: unknown,
+  declaredVersion?: string | null
+): BillingEvent {
   const body = (payload ?? {}) as Record<string, unknown>;
   const type = typeof body.type === "string" ? body.type : "unknown";
   const data = (body.data ?? {}) as Record<string, unknown>;
@@ -118,8 +137,38 @@ export function mapPolarEvent(eventId: string, payload: unknown): BillingEvent {
     periodStart: str(data.current_period_start),
     periodEnd: str(data.current_period_end),
     orgId: str(metadata.kpOrgId),
+    // Contract provenance: the header the delivery carried, else the version the
+    // raw payload names itself. Null on a hand-built event and on a provider that
+    // publishes no versions — absence is recorded as absence, never as "current".
+    apiVersion: str(declaredVersion) ?? str(body.api_version),
     raw: payload,
   };
+}
+
+/** The contract version the provider says it actually used, last seen on a response
+ *  or a delivery. A deployment that has never pinned one is running on whatever
+ *  Current is today; this is how it finds out WHICH, which is the prerequisite for
+ *  pinning at all. Read by the billing doctor / reconcile logging — never by a
+ *  decision, because a value we merely observed must not steer behaviour. */
+let lastObservedApiVersion: string | null = null;
+
+export function observedPolarApiVersion(): string | null {
+  return lastObservedApiVersion;
+}
+
+/** Record and log a contract version the provider declared. Logs only on CHANGE, so
+ *  a steady deployment is silent and a rotation is one line in the log on the day it
+ *  happens — which is the event an unpinned integration currently has no signal for. */
+export function noteObservedApiVersion(version: string | null | undefined): void {
+  const v = typeof version === "string" && version.trim() ? version.trim() : null;
+  if (!v || v === lastObservedApiVersion) return;
+  const previous = lastObservedApiVersion;
+  lastObservedApiVersion = v;
+  console.warn(
+    previous
+      ? `[billing:polar] provider API contract version changed ${previous} -> ${v}`
+      : `[billing:polar] provider API contract version observed: ${v}`
+  );
 }
 
 export class PolarGateway implements BillingGateway {
@@ -130,6 +179,18 @@ export class PolarGateway implements BillingGateway {
 
   constructor(cfg: PolarConfig) {
     this.cfg = cfg;
+  }
+
+  /** Every outbound header in one place. `Polar-Version` is present ONLY when the
+   *  deployment pinned one: omitting it reproduces the previous wire bytes exactly,
+   *  so adopting this file cannot move a running integration's contract by itself.
+   *  Pinning is a deliberate env change, made once the observed version is known. */
+  private headers(extra: Record<string, string> = {}): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.cfg.accessToken}`,
+      ...(this.cfg.apiVersion ? { "Polar-Version": this.cfg.apiVersion } : {}),
+      ...extra,
+    };
   }
 
   productMap(): ProductMap {
@@ -156,15 +217,15 @@ export class PolarGateway implements BillingGateway {
     try {
       const res = await fetch(`${SERVERS[this.cfg.server]}${path}`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.cfg.accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: this.headers({ "Content-Type": "application/json" }),
         body: JSON.stringify(body),
         // The signal covers `res.text()` as well as the round trip, so a provider
         // that answers headers and then stalls the body is bounded too.
         signal: AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS),
       });
+      // The contract the provider says it USED, not the one we asked for. On an
+      // unpinned deployment these are the only bytes that name the live contract.
+      noteObservedApiVersion(res.headers.get("polar-version"));
       const text = await res.text();
       if (!res.ok) return { ok: false, status: res.status, text };
       return { ok: true, data: JSON.parse(text) as Record<string, unknown> };
@@ -205,9 +266,10 @@ export class PolarGateway implements BillingGateway {
   async fetchProduct(productId: string): Promise<unknown | null> {
     try {
       const res = await fetch(`${SERVERS[this.cfg.server]}/v1/products/${encodeURIComponent(productId)}`, {
-        headers: { Authorization: `Bearer ${this.cfg.accessToken}` },
+        headers: this.headers(),
         signal: AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS),
       });
+      noteObservedApiVersion(res.headers.get("polar-version"));
       if (!res.ok) return null;
       return JSON.parse(await res.text()) as unknown;
     } catch (error) {
@@ -240,12 +302,22 @@ export class PolarGateway implements BillingGateway {
     return id;
   }
 
-  async createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout> {
+  async createCheckout(
+    req: CheckoutRequest,
+    opts: { successUrl: string; orgId?: string | null; customerId?: string | null }
+  ): Promise<Checkout> {
     // NEVER RETRIED, deliberately: creating a checkout is not idempotent (Polar has
     // no idempotency key on this endpoint), so a second attempt after a timeout or a
     // 5xx can mint a SECOND live session for the same intent — two payable links for
     // one purchase. The buyer clicking "Buy" again is the safe retry, because it is a
     // decision rather than a guess about whether the first one landed.
+    //
+    // `customer_id` is opt-in and omitted when empty so a first-purchase body stays
+    // byte-identical on that key (polar-contract-version inertness). When set, Polar
+    // attaches the session to that customer. A 404/invalid id MUST surface as the
+    // thrown post() error — dropping the id and retrying would silently mint a
+    // second MoR customer, which is the failure this field exists to prevent.
+    const customerId = opts.customerId?.trim() || null;
     const data = await this.post("/v1/checkouts/", {
       products: [this.productFor(req)],
       success_url: opts.successUrl,
@@ -255,6 +327,7 @@ export class PolarGateway implements BillingGateway {
         // the subscription/order, and mapPolarEvent reads it back as event.orgId.
         ...(opts.orgId ? { kpOrgId: opts.orgId } : {}),
       },
+      ...(customerId ? { customer_id: customerId } : {}),
     });
     const url = typeof data.url === "string" ? data.url : null;
     if (!url) throw new Error("Polar checkout response carried no url.");
@@ -287,7 +360,9 @@ export class PolarGateway implements BillingGateway {
       { id, timestamp: headers["webhook-timestamp"], signature: headers["webhook-signature"] },
       this.cfg.webhookSecret
     );
-    return mapPolarEvent(id as string, JSON.parse(rawBody));
+    const declaredVersion = headers["webhook-api-version"];
+    noteObservedApiVersion(declaredVersion);
+    return mapPolarEvent(id as string, JSON.parse(rawBody), declaredVersion);
   }
 }
 

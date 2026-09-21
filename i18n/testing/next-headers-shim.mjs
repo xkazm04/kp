@@ -13,10 +13,19 @@
 
 /** Cookie jar for the next `cookies()` call: `{ NEXT_LOCALE: "cs" }`. */
 export async function cookies() {
-  const jar = globalThis.__KP_TEST_COOKIES__ ?? {};
+  const g = globalThis;
+  if (!g.__KP_TEST_COOKIES__) g.__KP_TEST_COOKIES__ = {};
+  const jar = g.__KP_TEST_COOKIES__;
   return {
     get(name) {
-      return name in jar ? { name, value: jar[name] } : undefined;
+      return Object.prototype.hasOwnProperty.call(jar, name) ? { name, value: jar[name] } : undefined;
+    },
+    set(name, value) {
+      jar[name] = value;
+    },
+    delete(nameOrOpts) {
+      const name = typeof nameOrOpts === "string" ? nameOrOpts : nameOrOpts?.name;
+      if (typeof name === "string") delete jar[name];
     },
   };
 }

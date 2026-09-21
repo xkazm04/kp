@@ -9,6 +9,7 @@ import { FALLBACK_ARCHETYPE } from "./apply";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
+import { invitedCandidateIdForSubmission } from "./devcase-invite-binding";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import type { JudgeIndependence } from "./devcase-judge-independence";
@@ -905,7 +906,7 @@ type PromotedCandidate = {
   candidateId: string;
   /** The person's own archetype. NEVER guessed — see the mint branch. */
   archetype: string | null;
-  origin: "profile-id" | "contact" | "label" | "minted";
+  origin: "invited" | "profile-id" | "contact" | "label" | "minted";
 };
 
 /** Resolve `dev_submissions.candidate_ref` (free text, by schema) to a real candidate,
@@ -938,6 +939,23 @@ type PromotedCandidate = {
  *  is false), which is exactly what the old hardcoded promote did to every dev-case
  *  candidate it ever created. */
 function resolvePromotedCandidate(sub: DevSubmission, roleFamily: string): PromotedCandidate {
+  // 0. WE INVITED THEM. A candidate mailed the assignment from a homework column already
+  //    has an entry on this board, and the invite's outbox row records which one
+  //    (devcase-invite-binding.ts). Without this layer the submission came back as a
+  //    stranger — free-text name, no profile — and minted a SECOND entry for a person
+  //    the board was already tracking, splitting their work sample away from their
+  //    hiring record and leaving the AI interview that follows ungrounded. It is layer 0
+  //    rather than a later fallback because it is the only layer backed by something the
+  //    product itself did, instead of by a string the candidate typed. It still resolves
+  //    to a REAL profile id (the entry's own), so everything downstream is unchanged:
+  //    `createPipelineEntry` dedups on (candidate, job) and backfills `dev_submission_id`
+  //    onto the existing row rather than creating one.
+  const invited = invitedCandidateIdForSubmission(sub);
+  if (invited) {
+    const rec = getProfileRecord(invited, sub.workspaceId);
+    return { candidateId: invited, archetype: rec?.row.archetype ?? null, origin: "invited" };
+  }
+
   const ref = (sub.candidateRef ?? "").trim();
   if (ref) {
     const byId = getProfileRecord(ref, sub.workspaceId);
