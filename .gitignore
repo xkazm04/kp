@@ -88,6 +88,9 @@ data/piper/
 /docs/harness/
 /casesim/
 /tiger/
+
+# /contest arena - blind design-contest entries; large, per-machine, belong to no commit
+/.contest/
 /.claude/ship-loop/
 /.explorer/
 /docs/product/competitor-talentpilot.md
@@ -124,6 +127,7 @@ scripts/app-master-bench/tenures/*.json
 # BEGIN ai-registry linked skills (managed by ai-registry/scripts/link-registry.mjs)
 # Links are machine state; the declarations live in .ai/manifest.yaml (`skills:` and `knowledge.domains`).
 /.claude/skills/architect
+/.claude/skills/contest
 /.claude/skills/conform
 /.claude/skills/cx
 /.claude/skills/consult
