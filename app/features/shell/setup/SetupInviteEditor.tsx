@@ -53,6 +53,24 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
     setRole("recruiter");
   }
 
+  function pasteAddresses(raw: string): boolean {
+    const addresses = raw.split(/[\s,;]+/).filter(Boolean);
+    if (addresses.length < 2) return false;
+    const seen = new Set(ctrl.state.invites.map((invite) => invite.email.toLowerCase()));
+    const invalid: string[] = [];
+    for (const address of addresses) {
+      if (!INVITE_EMAIL_RE.test(address)) {
+        invalid.push(address);
+      } else if (!seen.has(address.toLowerCase())) {
+        ctrl.addInvite({ email: address, role });
+        seen.add(address.toLowerCase());
+      }
+    }
+    setEmail(invalid.join(", "));
+    setBlurred(invalid.length > 0);
+    return true;
+  }
+
   return (
     <div className={dense ? "flex flex-col gap-2" : "space-y-3"}>
       {/* The FORM keeps a reading-comfortable width even though the pane is wide
@@ -67,6 +85,9 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
             setBlurred(false);
           }}
           onBlur={() => setBlurred(true)}
+          onPaste={(event) => {
+            if (pasteAddresses(event.clipboardData.getData("text"))) event.preventDefault();
+          }}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder={t("emailPlaceholder")}
           // A placeholder is not a name (WCAG 1.3.1 / 3.3.2) — it is gone the

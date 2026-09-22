@@ -761,6 +761,9 @@ page and no Companion dock. It reuses the root layout's providers and nothing fr
 
 The Company step previews a valid logo URL beside its field before finish;
 failed image loads hide the preview, and editing the URL retries it.
+The Team invite field accepts pasted email lists separated by whitespace,
+commas or semicolons, adds unique valid addresses, and leaves invalid entries
+in the field for correction.
 **The Company step's one required field says where the name is read, and opens
 prefilled only when that is honest** (`SetupCompanyStep.tsx`). The hint
 (`setup.company.nameHint`) is wired as the input's `aria-describedby`
