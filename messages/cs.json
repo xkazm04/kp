@@ -1329,6 +1329,8 @@
       },
       "hired": {
         "seal": "Přijat/a",
+        "replaySeal": "Přehrát razítko",
+        "replayed": "Razítko znovu zobrazeno",
         "tasks": {
           "record": "Záznam o rozhodnutí uzavřen",
           "ats": "ATS informován",

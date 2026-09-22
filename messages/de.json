@@ -1329,6 +1329,8 @@
       },
       "hired": {
         "seal": "Eingestellt",
+        "replaySeal": "Stempel erneut abspielen",
+        "replayed": "Stempel erneut angezeigt",
         "tasks": {
           "record": "Entscheidungsprotokoll versiegelt",
           "ats": "ATS benachrichtigt",

@@ -1329,6 +1329,8 @@
       },
       "hired": {
         "seal": "Recruté",
+        "replaySeal": "Rejouer le tampon",
+        "replayed": "Tampon affiché à nouveau",
         "tasks": {
           "record": "Dossier de décision scellé",
           "ats": "ATS notifié",

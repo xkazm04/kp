@@ -1329,6 +1329,8 @@
       },
       "hired": {
         "seal": "Hired",
+        "replaySeal": "Replay the stamp",
+        "replayed": "Stamped again",
         "tasks": {
           "record": "Decision record sealed",
           "ats": "ATS notified",

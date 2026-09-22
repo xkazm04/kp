@@ -150,6 +150,9 @@ Conventions worth keeping:
   never the `initial` prop and never the markup, so a still reader lands on the
   end state with no hydration hazard. A third `AboutCurve.test.ts` check pins
   it, with an (empty) `KNOWN_UNGATED_ENTRANCES` holdout list.
+  The Hired illustration also lets a visitor replay its seal. Its stamp,
+  confetti, and handoff rows use `useStillMotion`: a reduced-motion visitor sees
+  their final state immediately, and the replay button gives a text confirmation.
 
 ## Navigation conventions
 
