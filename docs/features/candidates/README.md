@@ -88,6 +88,8 @@ career-switcher) that other features key off. Downstream ranking is
 - **Interview kit copy** — the report's Interview tab copies its summary,
   questions, evidence gaps, and nonempty STAR prompts to the clipboard. It
   confirms a successful copy and reports a blocked clipboard write in place.
+  When adding the kit to a candidate's interview prep pack, the same action
+  includes soft-signal probes that still need confirmation.
 - **Engine notes in the quality strip** — `QualityStrip.tsx` mixes localized chrome
   with the engine's own deterministic English check sentences, shown verbatim so a
   degraded run is not paraphrased. Each list is now headed by a localized

@@ -95,6 +95,11 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
   }
 
   const { summary, questions } = analysis.interviewKit;
+  const signalProbes = analysis.softSignals
+    ? [...analysis.softSignals.antipatterns, ...analysis.softSignals.strengths]
+        .filter((signal) => signal.needsConfirmation && signal.suggestedProbe)
+        .map((signal) => signal.suggestedProbe)
+    : [];
   const copyKit = async () => {
     const lines = [t("panel.mockInterview"), summary, "", ...questions.flatMap((question, index) => [
       `${index + 1}. ${question.question}`,
@@ -148,7 +153,7 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
             questions into their real interview-prep pack instead of leaving the
             recruiter to re-type them. Absent off-pipeline (no entry handle). */}
         {prepEntryId ? (
-          <ImportToPrepButton entryId={prepEntryId} questions={questions.map((q) => q.question)} />
+          <ImportToPrepButton entryId={prepEntryId} questions={[...questions.map((q) => q.question), ...signalProbes]} />
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button type="button" onClick={copyKit} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:bg-paper hover:text-ink">
