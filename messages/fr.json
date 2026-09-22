@@ -181,6 +181,7 @@
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
       "actualSize": "Taille réelle (1:1)",
+      "loading": "Chargement du diagramme…",
       "fit": "Ajuster",
       "modalTitleFallback": "Diagramme",
       "modalSubtitle": "Défilement pour déplacer · zoom pour ajuster",

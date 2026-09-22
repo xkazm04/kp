@@ -513,10 +513,14 @@ export function PlantUml({
   if (!layout) {
     return (
       <div
-        aria-hidden
-        className={`animate-pulse rounded-lg border border-stone-200 bg-paper ${className}`}
+        role="status"
+        aria-live="polite"
+        className={`rounded-lg border border-stone-200 bg-paper ${className}`}
         style={{ minHeight: 180 }}
-      />
+      >
+        <span className="sr-only">{tDiagram("loading")}</span>
+        <div aria-hidden className="h-full min-h-[180px] animate-pulse" />
+      </div>
     );
   }
 
