@@ -37,6 +37,10 @@ export function useWorkspaceCommandPaletteItems({
   recentTabs,
   simRunning,
   simStart,
+  simPaused,
+  simPause,
+  simResume,
+  simStop,
   askCandi,
   capabilities,
   nav,
@@ -49,6 +53,10 @@ export function useWorkspaceCommandPaletteItems({
   recentTabs: WorkspaceTabId[];
   simRunning: boolean;
   simStart: () => void;
+  simPaused: boolean;
+  simPause: (() => void) | null;
+  simResume: (() => void) | null;
+  simStop: (() => void) | null;
   /** Opens the companion dock seeded with the query. Null on the deep-link pages,
    *  which render the palette without the workspace shell (and so without a dock). */
   askCandi: ((query: string) => void) | null;
@@ -135,8 +143,8 @@ export function useWorkspaceCommandPaletteItems({
         });
       }
     }
-    // The tour command: offered at rest and under "tour"/"demo"-flavored
-    // queries; hidden while a run is live (SimBar owns pause/stop then).
+    // Keep the live run's controls available from the same keyboard door that
+    // starts it. A focused palette may be the quickest way to pause or stop.
     const tourLabel = t("tourAction");
     if (!simRunning && tourAllowed && (!q || tourLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q))) {
       navOut.push({
@@ -146,6 +154,17 @@ export function useWorkspaceCommandPaletteItems({
         sub: t("tourSub"),
         action: simStart,
       });
+    }
+    if (simRunning && simStop && tourAllowed) {
+      const controlLabel = simPaused ? t("resumeTourAction") : t("pauseTourAction");
+      const controlAction = simPaused ? simResume : simPause;
+      if (controlAction && (!q || controlLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q))) {
+        navOut.push({ key: simPaused ? "action-tour-resume" : "action-tour-pause", group: "actions", label: controlLabel, sub: null, action: controlAction });
+      }
+      const stopLabel = t("stopTourAction");
+      if (!q || stopLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q)) {
+        navOut.push({ key: "action-tour-stop", group: "actions", label: stopLabel, sub: null, action: simStop });
+      }
     }
     // "New intake" — the one command here that CREATES something, so it is a door
     // and not a jump: the plain "Go to → Job intake" row above lands on the ledger,
@@ -197,5 +216,5 @@ export function useWorkspaceCommandPaletteItems({
     }
     return q ? out.concat(navOut) : out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents, recentTabs, simRunning, simStart, askCandi, locale, capabilities]);
+  }, [query, hits, search, recents, recentTabs, simRunning, simStart, simPaused, simPause, simResume, simStop, askCandi, locale, capabilities]);
 }

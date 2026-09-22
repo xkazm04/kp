@@ -306,6 +306,8 @@ keyboard highlight); while typing, entity hits lead and the tab navigator trails
 walk would never list it: `useWorkspaceCommandPaletteItems.ts` appends
 `action-tasks` beside `action-new-intake`, offered at rest and on a match of
 `tasks.label` (or the hunt tokens `tasks` / `background`), href `/?tab=tasks`.
+The tour command becomes Pause or Resume and Stop while a run is live, so the
+palette remains a run-control door after starting the walk.
 
 **A failed search clears the rows.** `useWorkspaceCommandPaletteSearch.ts` reduces
 each response through the pure `searchResponseState(ok, body)`
