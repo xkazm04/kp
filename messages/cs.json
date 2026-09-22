@@ -2346,6 +2346,8 @@
     "chipAiLed": "Konverzace vedená AI",
     "chipHuman": "Přezkoumáno člověkem",
     "rehearsalTitle": "Zkouška sady otázek: nejde o skutečný pohovor",
+    "resumeReadyTitle": "V pohovoru můžete pokračovat",
+    "resumeReadyBody": "Předchozí pokus skončil před dokončením. Spusťte pohovor znovu; uložené odpovědi se vrátí do přepisu.",
     "rehearsalBody": "Zkoušíte sadu otázek k pohovoru pro tuto pozici. Nic z toho, co řeknete, se nehodnotí, nikdo to neposuzuje jako pohovor kandidáta a údaje žádného kandidáta se nezmění. Hovor přesto čerpá minuty pohovorů.",
     "sidebar": {
       "agendaTitle": "Dnešní program",

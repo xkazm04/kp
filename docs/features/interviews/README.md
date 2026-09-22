@@ -13,7 +13,8 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
   `loading.tsx`) — the real, token-bound candidate flow. Revoked and expired
   links paint distinct closed cards (`interview.revokedTitle` /
   `revokedBody` vs `expiredTitle` / `expiredBody`) so the candidate's next
-  mail names the actual reason.
+  mail names the actual reason. A failed prior attempt shows a resume notice
+  before Start, explaining that saved answers return when the call reconnects.
 - Recruiter dev/demo harness: `app/interview-lab/page.tsx` — a keyless lab for
   trying the agent as a recruiter would; gated by `INTERVIEW_LAB_ENABLED=1`
   outside production. Its language picker offers auto-detect and all four

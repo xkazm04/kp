@@ -2346,6 +2346,8 @@
     "chipAiLed": "AI-geführtes Gespräch",
     "chipHuman": "Von einem Menschen geprüft",
     "rehearsalTitle": "Probelauf des Leitfadens: kein echtes Interview",
+    "resumeReadyTitle": "Sie können das Interview fortsetzen",
+    "resumeReadyBody": "Der vorige Versuch endete vorzeitig. Starten Sie erneut; gespeicherte Antworten erscheinen wieder im Transkript.",
     "rehearsalBody": "Sie testen den Interviewleitfaden dieser Stelle. Nichts, was Sie sagen, wird bewertet, niemand prüft es als Interview einer Kandidatin oder eines Kandidaten, und keine Kandidatendaten werden verändert. Das Gespräch verbraucht trotzdem Interview-Minuten.",
     "sidebar": {
       "agendaTitle": "Heutige Agenda",

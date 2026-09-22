@@ -2346,6 +2346,8 @@
     "chipAiLed": "Conversation menée par AI",
     "chipHuman": "Examiné par un humain",
     "rehearsalTitle": "Essai du guide : pas un vrai entretien",
+    "resumeReadyTitle": "Vous pouvez reprendre l’entretien",
+    "resumeReadyBody": "La tentative précédente s’est arrêtée avant la fin. Relancez l’entretien ; les réponses enregistrées réapparaîtront dans la transcription.",
     "rehearsalBody": "Vous faites un essai du guide d’entretien de ce poste. Rien de ce que vous dites n’est noté, personne ne l’examine comme l’entretien d’un candidat, et aucun dossier de candidat n’est modifié. L’appel consomme tout de même des minutes d’entretien.",
     "sidebar": {
       "agendaTitle": "Au programme aujourd’hui",

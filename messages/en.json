@@ -2346,6 +2346,8 @@
     "chipAiLed": "AI-led conversation",
     "chipHuman": "Reviewed by a human",
     "rehearsalTitle": "Kit rehearsal: not a real interview",
+    "resumeReadyTitle": "Your interview can continue",
+    "resumeReadyBody": "The previous attempt ended before completion. Start again to resume; saved answers will return to the transcript.",
     "rehearsalBody": "You are rehearsing this role’s interview kit. Nothing you say is scored, no one reviews it as a candidate’s interview, and no candidate record is touched. The call still uses interview minutes.",
     "sidebar": {
       "agendaTitle": "Today's agenda",

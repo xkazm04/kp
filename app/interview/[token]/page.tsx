@@ -110,6 +110,12 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
           <p className="mt-1 text-sm">{t("rehearsalBody")}</p>
         </div>
       ) : null}
+      {session.status === "failed" ? (
+        <div role="status" className={`${NOTICE("info")} mb-6 max-w-3xl px-4 py-3`}>
+          <p className="text-base font-semibold">{t("resumeReadyTitle")}</p>
+          <p className="mt-1 text-sm">{t("resumeReadyBody")}</p>
+        </div>
+      ) : null}
       <header className="max-w-3xl">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">
