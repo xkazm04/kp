@@ -98,6 +98,38 @@ corpus job with a `NULL` status is treated as already live. `Closed` was
 added after the original two-state (draft/published) model to stop a filled
 role from staying open forever — see `app/api/jobs/[id]/close/route.ts`.
 
+### A shared corpus role's lifecycle is per team
+
+A seeded corpus role (`jobs.workspace_id` NULL) is one row that every team sees.
+Whether a team has closed it, how many hires it is open for and which languages it
+is posted in are that team's facts, so they live in the `job_workspace_state`
+overlay, keyed `(workspace_id, job_id)`. They are no longer kept on the shared row.
+`setJobStatus`, `closeRoleIfOpen` and `setRoleOpenConfig` route a corpus row's writes
+to the caller's overlay. Every read folds `COALESCE(overlay, jobs)`: the browse page
+and its count, `countOpenRoles`, the rematch corpus (`listCorpusJobs`), `getJob`,
+`getJobStatus`, `getRoleOpenConfig` and `classifyPublish`. The shared row's own
+values are the base a team reads until it writes its own. A corpus role that was
+closed before the overlay existed therefore still reads closed for every team.
+Authored roles keep writing their own columns and never get an overlay row. The rule
+is `jobLifecycleInOverlay` in `app/_lib/db/core.ts`.
+
+- **One team's hire does not close the role for everyone.** The role-fill hook counts
+  the team's hires against the team's target, then runs its compare-and-swap in the
+  team's overlay. Each team's withdrawal sweep still runs at most once.
+- **The public apply door follows the default team.** `getJobWorkspace` files a
+  corpus role's public applicants into the default workspace. The apply routes call
+  `getJobStatus(id)`, which defaults to that team, so the door closes only when the
+  default team closes the role.
+- **Billing is unchanged.** `published_at` stays on the shared row and `billable`
+  still reads it. A second team adopting a corpus role that another team already took
+  live classifies as `{ already: false, billable: false }`: it sources into its own
+  pipeline and is not debited. One routing exception keeps this exact. A legacy corpus
+  row stored as `published` with no `published_at` stays on the shared path until
+  it is closed, because moving that close into one team's overlay would change who
+  pays for the next go-live. `app/_lib/db/job-workspace-state.test.ts` drives random
+  three-team interleavings against the pre-overlay rule and asserts that every step
+  charges what it charged before.
+
 ## The salary band is AI-fixed, not editable
 
 When a JD is **Generated**, the market-salary analysis produces a band with
