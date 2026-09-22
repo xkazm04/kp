@@ -276,6 +276,11 @@ one. Both are commented at the source and in the message keys.
 `/market` reads one committed snapshot, `data/market_pulse.json`, through the
 single seam `app/landing/spark/market/data.ts`. Nothing is fetched at request
 time.
+The map accepts `?region=CZ010&metric=salary` links. The route validates both
+values against the committed snapshot before rendering, and map exploration
+replaces those parameters in the current URL while preserving unrelated query
+parameters and the fragment. Browser history navigation restores the selected
+region and metric.
 
 ### The rule: counts and salaries come from different sources
 

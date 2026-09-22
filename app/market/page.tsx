@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import MarketPulse from "@/app/landing/spark/MarketPulse";
+import { marketMapSelection } from "@/app/landing/spark/market/map-url";
 
 /*
  * /market — "Market Pulse": a public, indexable marketing surface that
@@ -29,6 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
 // like /about rather than prerender a skeleton flash.
 export const instant = false;
 
-export default function MarketPage() {
-  return <MarketPulse />;
+export default async function MarketPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = await searchParams;
+  return <MarketPulse initialSelection={marketMapSelection(query.region, query.metric)} />;
 }

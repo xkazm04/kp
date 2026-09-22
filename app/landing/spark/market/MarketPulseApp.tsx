@@ -19,8 +19,9 @@ import { DISPLAY, HAND } from "../tokens";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { snapshot, fmtDate, snapshotAgeDays, STALE_AFTER_DAYS } from "./data";
 import MarketPulseAtlas from "./MarketPulseAtlas";
+import type { MarketMapSelection } from "./map-url";
 
-export default function MarketPulseApp() {
+export default function MarketPulseApp({ initialSelection }: { initialSelection: MarketMapSelection }) {
   const t = useTranslations("jobMarket");
   const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,7 +131,7 @@ export default function MarketPulseApp() {
       </section>
 
       {/* ── Body (Atlas) ───────────────────────────────────────── */}
-      <MarketPulseAtlas />
+      <MarketPulseAtlas initialSelection={initialSelection} />
 
       {/* ── Attribution footer ─────────────────────────────────── */}
       <footer className="mx-auto mt-24 max-w-5xl px-6">
