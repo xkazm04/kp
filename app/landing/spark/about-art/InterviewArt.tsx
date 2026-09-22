@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
 import { Check, Mic } from "lucide-react";
 import { ENTER } from "./shared";
 
 /* 05 · Interview — a voice screen card: live equalizer + transcript bubbles. */
 export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) {
+  const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   const bubbles = [
     { ai: true, text: t("art.interview.askAi") },
@@ -47,8 +49,9 @@ export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) 
             key={i}
             initial={{ opacity: 0, x: b.ai ? -18 : 18, scale: 0.9 }}
             whileInView={{ opacity: 1, x: 0, scale: 1 }}
+            animate={reduceMotion ? { opacity: 1, x: 0, scale: 1 } : undefined}
             viewport={ENTER}
-            transition={{ delay: 0.25 + i * 0.3, type: "spring", bounce: 0.35 }}
+            transition={reduceMotion ? { duration: 0 } : { delay: 0.25 + i * 0.3, type: "spring", bounce: 0.35 }}
             className={`max-w-[85%] rounded-2xl border-[3px] border-[#17202a] px-3.5 py-2 text-sm leading-snug ${
               b.ai ? "bg-[#fdf8ee]" : "ml-auto"
             }`}
@@ -60,8 +63,9 @@ export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) 
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           whileInView={{ opacity: 1, y: 0 }}
+          animate={reduceMotion ? { opacity: 1, y: 0 } : undefined}
           viewport={ENTER}
-          transition={{ delay: 1, type: "spring", bounce: 0.4 }}
+          transition={reduceMotion ? { duration: 0 } : { delay: 1, type: "spring", bounce: 0.4 }}
           className="mt-1 flex items-center gap-2 rounded-xl border-[3px] border-[#17202a] px-3.5 py-2 text-sm font-bold text-white shadow-[3px_3px_0_#17202a]"
           style={{ background: "#526b4f" }}
         >

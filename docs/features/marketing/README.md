@@ -153,6 +153,9 @@ Conventions worth keeping:
   The Hired illustration also lets a visitor replay its seal. Its stamp,
   confetti, and handoff rows use `useStillMotion`: a reduced-motion visitor sees
   their final state immediately, and the replay button gives a text confirmation.
+  All eight `about-art/` illustrations now drive their in-view targets to the
+  final state with zero-duration transitions when reduced motion is requested,
+  including a mid-session preference change.
 
 ## Navigation conventions
 
@@ -523,10 +526,9 @@ one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
   `trust.audit.body` was softened off. It is demonstration copy inside a
   stylised chart rather than a claim in a paragraph, so it was left; if the
   panel is next revised, soften it to match the body.
-- Four landing components still read reduced motion through framer's hook
-  against the rule above: `spark/SectionRail.tsx`, `spark/FeatureSpotlight.tsx`,
-  `spark/market/parts.tsx` and `spark/market/CzMap.tsx`. The first three branch
-  only `initial`/`layoutId` inside a client-only subtree; `CzMap` branches
+- Two landing components still read reduced motion through framer's hook
+  against the rule above: `spark/market/parts.tsx` and `spark/market/CzMap.tsx`.
+  `parts.tsx` branches only `layoutId` inside a client-only subtree; `CzMap` branches
   `initial={reduce ? false : { opacity: 0 }}` on a server-rendered node, which is
   the inline-style hydration mismatch the rule exists to prevent.
 - `data/market_pulse.json` region vacancy counts sum to ~35 200 against a
