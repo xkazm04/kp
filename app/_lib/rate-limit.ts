@@ -10,11 +10,34 @@
 // shared cache; a Map with lazy sweeping is the proportionate tool. If kp ever
 // scales horizontally, swap the store behind the same function shape.
 
-type Window = { count: number; resetAt: number };
+/** `limit` rides on the window so a READ can tell a spent window (a real wait) from
+ *  one that still admits (no wait to report). */
+type Window = { count: number; resetAt: number; limit: number };
 
 const windows = new Map<string, Window>();
 let lastSweepAt = 0;
 const SWEEP_EVERY_MS = 60_000;
+
+/** Refusals per key FAMILY — the prefix before the first ':' (`inbound`,
+ *  `billing-webhook`, …) — for the operator read on /api/ops. Never the whole key: a
+ *  key carries a token or a client address, and neither belongs on a dashboard. The
+ *  families are the key templates written in code, so the map is bounded by the tree;
+ *  MAX_FAMILIES is the backstop if a template ever leaks request data into its prefix. */
+const refusalsByFamily = new Map<string, number>();
+const MAX_FAMILIES = 256;
+const UNPREFIXED = "(unprefixed)";
+const OVERFLOW = "(other)";
+
+function familyOf(key: string): string {
+  const at = key.indexOf(":");
+  return at > 0 ? key.slice(0, at) : UNPREFIXED;
+}
+
+function countRefusal(key: string): void {
+  let family = familyOf(key);
+  if (!refusalsByFamily.has(family) && refusalsByFamily.size >= MAX_FAMILIES) family = OVERFLOW;
+  refusalsByFamily.set(family, (refusalsByFamily.get(family) ?? 0) + 1);
+}
 
 /** Count one hit against `key`. True = allowed; false = over the limit for the
  *  current fixed window. `nowMs` is injectable for tests. */
@@ -26,12 +49,40 @@ export function rateLimit(key: string, opts: { limit: number; windowMs: number }
   }
   const w = windows.get(key);
   if (!w || w.resetAt <= nowMs) {
-    windows.set(key, { count: 1, resetAt: nowMs + opts.windowMs });
+    windows.set(key, { count: 1, resetAt: nowMs + opts.windowMs, limit: opts.limit });
     return true;
   }
-  if (w.count >= opts.limit) return false;
+  w.limit = opts.limit;
+  if (w.count >= opts.limit) {
+    countRefusal(key);
+    return false;
+  }
   w.count += 1;
   return true;
+}
+
+/**
+ * How long until `key`'s window would admit again, in ms — read off the SAME window
+ * whose arithmetic refused the caller, so a 429 can say when (Retry-After) instead of
+ * leaving a machine caller to probe blind.
+ *
+ * `null` whenever there is no honest figure: an unknown key, a window that has already
+ * reset, or a window that still has room (that caller is not being throttled here). A
+ * fabricated wait is worse than none.
+ *
+ * READS WITHOUT DISTURBING: it never creates a window, never counts a hit and never
+ * sweeps, so calling it after a refusal cannot change the next `rateLimit` outcome.
+ */
+export function rateLimitRetryAfterMs(key: string, nowMs: number = Date.now()): number | null {
+  const w = windows.get(key);
+  if (!w || w.resetAt <= nowMs || w.count < w.limit) return null;
+  return w.resetAt - nowMs;
+}
+
+/** Refusals since process start, per key family (see {@link familyOf}). A snapshot —
+ *  mutating it does not touch the live counters. Admissions are not counted. */
+export function rateLimitRefusalStats(): Record<string, number> {
+  return Object.fromEntries(refusalsByFamily);
 }
 
 /**
