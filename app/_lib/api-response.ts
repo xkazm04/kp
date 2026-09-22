@@ -906,6 +906,12 @@ export const REFUSAL_ERRORS = {
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */
   PIPELINE_GITHUB_EVIDENCE_INVALID: "That GitHub evidence is not in the expected shape.",
+  /** A board add cannot identify both its candidate and role (400). */
+  PIPELINE_ADD_IDS_REQUIRED: "Choose a candidate and role before adding to the board.",
+  /** The requested destination is not on this workspace's pipeline axis (400). */
+  PIPELINE_ADD_STAGE_UNKNOWN: "That pipeline stage is not available in this workspace.",
+  /** Only the decision gate may be requested when adding a candidate (400). */
+  PIPELINE_ADD_APPROVAL_KIND_UNKNOWN: "That approval kind cannot be requested when adding a candidate.",
   /** `notes` arrived as something other than text (400). */
   PIPELINE_NOTES_INVALID: "A candidate note must be text.",
   /** …or past the column's ceiling (400). The cap rides alongside in `max`. */
