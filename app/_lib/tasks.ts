@@ -34,6 +34,7 @@ import { SCAN_JOB_NAME } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
+import { TASK_KINDS, isTaskKind, type TaskKind } from "./task-kinds";
 import { encodeTaskLabel } from "./task-label";
 import { nextTaskToRun, type PumpEntry } from "./task-pump";
 
@@ -70,7 +71,7 @@ export type TaskCtx = {
 };
 
 // The dedupe key is built by ./task-dedupe (buildDedupeKey), keyed by the same
-// kind string as HANDLERS — kept out of the Spec so the identity logic stays
+// TaskKind vocabulary (./task-kinds) as HANDLERS — kept out of the Spec so the identity logic stays
 // pure and unit-testable and can return null ("no stable identity") for
 // incomplete params.
 //
@@ -198,7 +199,9 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
   return { ok, total: results.length, results };
 }
 
-const HANDLERS: Record<string, Spec> = {
+// Keyed by the TaskKind vocabulary (./task-kinds): a kind added there without a spec
+// here is a compile error, and so is a spec for a kind that is not in the vocabulary.
+const HANDLERS: Record<TaskKind, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId, { manual: true }),
     tenancy: "scoped",
@@ -487,17 +490,25 @@ export function ensureRecovered(): void {
   }
 }
 
-export function isKnownKind(kind: string): boolean {
-  return kind in HANDLERS;
+/** The runtime door for a kind the compiler cannot see (a request body, a row an
+ *  older build wrote). A type predicate, so a caller that checked can hand the value
+ *  straight to `startTask` without a cast. */
+export function isKnownKind(kind: unknown): kind is TaskKind {
+  return isTaskKind(kind);
+}
+
+/** The spec for a stored kind, or undefined for one this build no longer knows. */
+function specFor(kind: string): Spec | undefined {
+  return isTaskKind(kind) ? HANDLERS[kind] : undefined;
 }
 
 /** The filter vocabulary comes from the same registry that accepts starts. */
 export function knownTaskKinds(): string[] {
-  return Object.keys(HANDLERS).sort();
+  return [...TASK_KINDS].sort();
 }
 
 export function startTask(
-  kind: string,
+  kind: TaskKind,
   params: Record<string, unknown>,
   // Tenant (P2): the workspace this run belongs to. Stamped on the task row so
   // per-tenant reads (the reservation gate that counts in-flight runs, the /api/tasks
@@ -507,7 +518,9 @@ export function startTask(
 ): TaskRecord {
   ensureRecovered();
   runMaintenance(); // throttled reap + retention prune, piggy-backed on submissions
-  const spec = HANDLERS[kind];
+  // Typed callers cannot get here with a stranger, but a JS caller or a cast can;
+  // the guard stays so the failure is a named throw, not a TypeError on `spec.label`.
+  const spec = specFor(kind);
   if (!spec) throw new Error(`unknown task kind: ${kind}`);
   // A stable key may reuse an in-flight run; a null key means the identifying
   // params were missing/empty, so we must NOT dedupe — merging on a collapsed
@@ -565,7 +578,7 @@ export function cancelTask(id: string): boolean {
     // cancel is the one path where `run` never executes, so a handler's own
     // catch/finally cannot speak for it.
     const task = getTask(id);
-    const spec = task ? HANDLERS[task.kind] : undefined;
+    const spec = task ? specFor(task.kind) : undefined;
     if (task && spec?.onCancelQueued) {
       try {
         spec.onCancelQueued((task.params ?? {}) as Record<string, unknown>, task.workspaceId);
@@ -598,7 +611,7 @@ function pump(): void {
 async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
   const task = getTask(id);
   if (!task) return;
-  const spec = HANDLERS[task.kind];
+  const spec = specFor(task.kind);
   if (!spec) {
     finishTask(id, "failed", { error: `unknown kind ${task.kind}` });
     return;

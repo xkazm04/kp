@@ -1,8 +1,8 @@
 // The outcome table's exhaustiveness + the mappers + the deep link.
 //
-// The first test is the one that matters over time: it reads the HANDLERS table
-// out of tasks.ts (the single registry of task kinds) and fails when a kind is
-// neither mapped in TABLE nor listed in NO_TABLE_SUMMARY with a reason. Before
+// The first test is the one that matters over time: it walks TASK_KINDS (the one
+// vocabulary of task kinds, task-kinds.ts) and fails when a kind is neither mapped
+// in TABLE nor listed in NO_TABLE_SUMMARY with a reason. Before
 // this file, sixteen of the seventeen kinds fell through a generic
 // `Object.entries(result)` dump — raw handler keys in mono, values stringified —
 // and nothing said so. A new kind must now decide what its drawer says.
@@ -20,25 +20,20 @@ import {
   taskOutcomeLink,
   taskOutcomeSummary,
 } from "./task-outcome-summary.ts";
-
-/** The kind ids as tasks.ts declares them — parsed rather than imported because
- *  tasks.ts pulls in better-sqlite3 and the whole handler graph. */
-function handlerKinds(): string[] {
-  const src = readFileSync(fileURLToPath(new URL("./tasks.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
-  const at = src.indexOf("const HANDLERS: Record<string, Spec> = {");
-  assert.ok(at > 0, "expected the HANDLERS registry in tasks.ts");
-  const body = src.slice(at, src.indexOf("\n};", at));
-  // Top-level keys only: a registry entry is indented exactly two spaces.
-  return [...body.matchAll(/^ {2}([a-z_]+): \{$/gm)].map((m) => m[1]);
-}
+import { TASK_KINDS } from "./task-kinds.ts";
 
 test("every task kind either has an outcome mapper or a stated reason not to", () => {
-  const kinds = handlerKinds();
-  assert.ok(kinds.length >= 15, `expected the full HANDLERS registry, parsed ${kinds.length}`);
-  const missing = kinds.filter((k) => !SUMMARIZED_KINDS.includes(k) && !(k in NO_TABLE_SUMMARY));
-  assert.deepEqual(missing, [], "these kinds would fall through to the generic allowlist with nothing said about it");
+  // A partition of TASK_KINDS: each kind in exactly one of the two lists, and
+  // neither list naming anything outside the vocabulary. Read from the leaf
+  // vocabulary module — no longer by parsing the text of tasks.ts.
+  const known: readonly string[] = TASK_KINDS;
+  const excused = Object.keys(NO_TABLE_SUMMARY);
+  for (const k of TASK_KINDS) {
+    const hits = Number(SUMMARIZED_KINDS.includes(k)) + Number(excused.includes(k));
+    assert.equal(hits, 1, `${k} must be mapped OR excused, exactly once (found ${hits})`);
+  }
+  for (const k of [...SUMMARIZED_KINDS, ...excused]) assert.ok(known.includes(k), `${k} is not a task kind any more`);
   for (const [kind, reason] of Object.entries(NO_TABLE_SUMMARY)) {
-    assert.ok(kinds.includes(kind), `${kind} is excused but is not a task kind any more`);
     assert.ok(reason.length > 10, `${kind}'s exemption must state a reason`);
   }
 });

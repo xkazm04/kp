@@ -77,7 +77,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const startTask = useCallback(
-    async (kind: string, params: Record<string, unknown> = {}) => {
+    async (kind: Parameters<TasksCtx["startTask"]>[0], params: Record<string, unknown> = {}) => {
       try {
         const r = await fetch("/api/tasks", {
           method: "POST",

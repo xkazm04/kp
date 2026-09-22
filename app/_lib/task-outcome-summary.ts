@@ -19,9 +19,11 @@
 //     every handler shares (source / applied / ok+total / cached). A raw key or a
 //     blob can no longer reach the drawer by default.
 //
-// `task-outcome-summary.test.ts` reads the HANDLERS table out of tasks.ts and fails
-// when a kind is neither mapped here nor listed in NO_TABLE_SUMMARY with a reason —
-// so a new task kind cannot ship with a nameless outcome.
+// TABLE and NO_TABLE_SUMMARY are typed as a partition of TaskKind (task-kinds.ts):
+// a kind neither mapped here nor listed in NO_TABLE_SUMMARY with a reason is a
+// compile error — so a new task kind cannot ship with a nameless outcome.
+
+import type { TaskKind } from "./task-kinds";
 
 /** The label vocabulary. A closed union, not a string: next-intl keys are TYPED,
  *  so `t(`outcome.field.${labelKey}`)` only compiles while every member has a
@@ -155,7 +157,12 @@ function caseLine(v: unknown): OutcomeLine[] {
   return kase ? choice("caseIncluded", Object.keys(kase).length > 0 ? "yes" : "no") : [];
 }
 
-const TABLE: Record<string, Mapper> = {
+/** The kinds that get a table mapper: the whole vocabulary minus the excused ones.
+ *  Together the two tables are a type-checked PARTITION of TaskKind — a kind missing
+ *  from both, or present in both, is a compile error at the edit. */
+type MappedKind = Exclude<TaskKind, keyof typeof NO_TABLE_SUMMARY>;
+
+const TABLE: Record<MappedKind, Mapper> = {
   // { result, source, applied } — the drawer's one useful fact is WHAT the run did.
   automation: (r) => [...appliedLine(r.applied), ...sourceLine(r.source)],
   // The reasoning payload plus { cached, narrativeLang }. `narrativeLang` is the
@@ -211,10 +218,10 @@ const TABLE: Record<string, Mapper> = {
   companion_digest: (r) => [...fact("proposals", num(r.proposals)), ...sourceLine(r.source)],
 };
 
-/** Kinds deliberately WITHOUT a table mapper, each with the reason. The test reads
- *  this beside TABLE, so "nobody got round to it" is not a state this file can be
- *  in — a kind is either mapped or explained. */
-export const NO_TABLE_SUMMARY: Record<string, string> = {
+/** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed
+ *  by what this leaves out, so "nobody got round to it" is not a state this file can
+ *  be in — a kind is either mapped or explained. */
+export const NO_TABLE_SUMMARY = {
   // The one kind that already had a real renderer (advanced / held / advisory / of
   // total, as a sentence with ICU plurals). It stays bespoke in TasksOutcome —
   // a five-row label/value list would be a downgrade of a sentence that reads well.
@@ -223,7 +230,7 @@ export const NO_TABLE_SUMMARY: Record<string, string> = {
   // table the /me/scans page renders from the scheduler_runs row the task also writes,
   // not a label/value list — and the closed OutcomeFieldKey vocabulary has no key for it.
   jobseeker_scan: "rendered as the per-source scan table on /me/scans from the scheduler_runs row",
-};
+} as const satisfies Partial<Record<TaskKind, string>>;
 
 /** The generic fallback: the four shapes EVERY handler envelope shares. Used only
  *  for a kind with no mapper (an older row whose kind this build has dropped), and
@@ -245,7 +252,9 @@ export function genericOutcomeLines(result: unknown): OutcomeLine[] {
 export function taskOutcomeSummary(kind: string, result: unknown): OutcomeLine[] {
   const r = obj(result);
   if (!r) return [];
-  const mapper = TABLE[kind];
+  // Own-property lookup: a stored kind is any string, and `TABLE["constructor"]` is
+  // Object's constructor, not a mapper.
+  const mapper = Object.hasOwn(TABLE, kind) ? TABLE[kind as MappedKind] : undefined;
   return mapper ? mapper(r) : genericOutcomeLines(r);
 }
 

@@ -26,10 +26,12 @@
 // rotation, and it is the tenant whose LLM allowance is being drawn down.
 //
 // Dependency-light (no better-sqlite3, no handler graph) so the routes, the contract
-// test and the exhaustiveness test can all read the same table; the one import is the
-// in-process limiter, because the CLASS and the BUCKET it opens are the same decision.
+// test and the exhaustiveness test can all read the same table; the imports are the
+// in-process limiter, because the CLASS and the BUCKET it opens are the same decision,
+// and the import-free kind vocabulary the table is keyed by.
 
 import { rateLimit } from "./rate-limit";
+import { isTaskKind, type TaskKind } from "./task-kinds";
 
 export const TASK_BUDGET_CLASSES = ["cheap", "metered", "agent"] as const;
 export type TaskBudgetClass = (typeof TASK_BUDGET_CLASSES)[number];
@@ -53,10 +55,10 @@ export const TASK_BUDGETS: Record<TaskBudgetClass, TaskBudget> = {
   agent: { ip: { limit: 6, windowMs: TEN_MIN }, workspace: { limit: 15, windowMs: HOUR } },
 };
 
-/** Every kind in `HANDLERS` (app/_lib/tasks.ts), classified. `task-budget.test.ts`
- *  parses that registry and fails on a kind missing from here, so a new task kind
- *  cannot inherit a budget by accident. */
-export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
+/** Every kind in TASK_KINDS (app/_lib/task-kinds.ts), classified. Keyed by TaskKind,
+ *  so a new task kind without a class here is a compile error — it cannot inherit a
+ *  budget by accident. */
+export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // ── cheap ──
   // One entry, one automation call — and the Decisions bulk-accept burst path.
   automation: "cheap",
@@ -106,11 +108,11 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   jobseeker_scan: "agent",
 };
 
-/** The class a kind is budgeted under. An unknown kind (one added to HANDLERS and
- *  not classified here, which the test forbids) falls to the TIGHTEST class, never
- *  the loosest: a budget omission must cost throughput, not money. */
+/** The class a kind is budgeted under. A string outside the vocabulary (a row an
+ *  older build wrote; the type forbids an unclassified KIND) falls to the TIGHTEST
+ *  class, never the loosest: a budget omission must cost throughput, not money. */
 export function taskBudgetClass(kind: string): TaskBudgetClass {
-  return TASK_BUDGET_CLASS[kind] ?? "agent";
+  return isTaskKind(kind) ? TASK_BUDGET_CLASS[kind] : "agent";
 }
 
 /** The budget for a kind — `TASK_BUDGETS[taskBudgetClass(kind)]`. */

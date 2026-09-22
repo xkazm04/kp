@@ -1,5 +1,7 @@
 // Shared types + the ACTIVE predicate for TasksProvider.tsx, split out so the
 // provider stays under the 200-line file cap. Verbatim — same shapes.
+import type { TaskKind } from "@/app/_lib/task-kinds";
+
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
 
 /** Why a startTask() call never produced a task (bad kind, server error, dropped network). */
@@ -34,8 +36,10 @@ export type TasksCtx = {
   /** Every registered kind, including ones absent from the recent window. */
   knownKinds: string[];
   running: Task[];
-  /** Resolves to the started Task, or null if it never started (see `startError`). */
-  startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;
+  /** Resolves to the started Task, or null if it never started (see `startError`).
+   *  `kind` is the closed TaskKind vocabulary, so a misspelled literal at a call site
+   *  is a compile error rather than a runtime 400. */
+  startTask: (kind: TaskKind, params?: Record<string, unknown>) => Promise<Task | null>;
   /**
    * DATA1 — replay a failed/interrupted/canceled task from its persisted params
    * (server-side via POST /api/tasks/[id]/retry, so the blobs never round-trip).

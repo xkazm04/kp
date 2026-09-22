@@ -22,6 +22,10 @@
 // logic is unit-testable in isolation (bug-ui-scan-2026-07-09 #3).
 import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
+import { isTaskKind, type TaskKind } from "./task-kinds.ts";
+
+/** A kind's identity: a stable key, or null when its identifying params are absent. */
+export type DedupeBuilder = (p: Record<string, unknown>) => string | null;
 
 /**
  * Join a dedupe key from a prefix and its REQUIRED identifying parts. Returns
@@ -71,13 +75,14 @@ function localePart(value: unknown): string {
 // identifying params are missing/empty. A key's shape only has to survive the
 // tasks that are IN FLIGHT when it changes (it is compared against active rows
 // only), and the worst case of a shape change is one un-merged duplicate run —
-// never a wrong merge. Keys MUST stay in sync with the HANDLERS kinds in tasks.ts;
-// an unlisted kind falls back to a unique key (safe: it just won't dedupe).
+// never a wrong merge. The table is keyed by TaskKind (./task-kinds), so every kind
+// must DECLARE its identity — a builder, or an explicit `null` for "no stable
+// identity, never merge" — and a kind with neither is a compile error.
 //
 // The rule for what belongs in a key: EVERY param the handler reads that changes
 // the RESULT. A localized artifact therefore folds the requesting locale
 // (localePart) — see `reasoning`, `interview_prep`, `campaign`.
-export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => string | null> = {
+export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
   automation: (p) => {
     const k = stableKey("automation", p.entryId, p.task);
     return k && `${k}:${p.notes ? "n" : ""}`;
@@ -165,8 +170,9 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   // One pack per (job, language): a double-click on Generate reuses the in-flight
   // run, while switching the language toggle starts its own.
   campaign: (p) => stableKey("campaign", p.jobId, p.lang),
-  // profile_draft has NO builder on purpose: each draft is a fresh creative pass
-  // over free-text notes — no stable identity, so every run gets a unique key.
+  // profile_draft has NO identity on purpose: each draft is a fresh creative pass
+  // over free-text notes, so every run gets a unique key. Declared, not omitted.
+  profile_draft: null,
   //
   // ONE digest per tenant per DAY. The day is the identity: accepting the same
   // "write today's digest" proposal twice, or two operators on one team accepting
@@ -189,6 +195,6 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
  * unrelated in-flight task.
  */
 export function buildDedupeKey(kind: string, params: Record<string, unknown>): string | null {
-  const builder = DEDUPE_BUILDERS[kind];
+  const builder = isTaskKind(kind) ? DEDUPE_BUILDERS[kind] : null;
   return builder ? builder(params) : null;
 }

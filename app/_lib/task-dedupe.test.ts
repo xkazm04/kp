@@ -7,8 +7,27 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDedupeKey, stableKey } from "./task-dedupe.ts";
+import { DEDUPE_BUILDERS, buildDedupeKey, stableKey } from "./task-dedupe.ts";
 import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
+import { TASK_KINDS } from "./task-kinds.ts";
+
+test("every task kind declares its dedupe identity — a builder or an explicit null", () => {
+  // Before the table was keyed by TaskKind, a kind with no entry silently never
+  // deduped and nothing said whether that was a decision. Now "no identity" is a
+  // declared null, and a kind with neither is a compile error (and red here).
+  for (const k of TASK_KINDS) {
+    assert.ok(Object.hasOwn(DEDUPE_BUILDERS, k), `${k} has no dedupe decision`);
+    const b = DEDUPE_BUILDERS[k];
+    assert.ok(b === null || typeof b === "function", `${k}: a builder or null`);
+  }
+  const known: readonly string[] = TASK_KINDS;
+  for (const k of Object.keys(DEDUPE_BUILDERS)) assert.ok(known.includes(k), `${k} is not a task kind any more`);
+  // profile_draft is the declared opt-out: every draft is a fresh creative pass.
+  assert.equal(DEDUPE_BUILDERS.profile_draft, null);
+  assert.equal(buildDedupeKey("profile_draft", { notes: "x" }), null);
+  // An unknown kind (a legacy row) still yields null → a unique key, never a merge.
+  assert.equal(buildDedupeKey("a_kind_nobody_declared", { id: "x" }), null);
+});
 
 test("stableKey joins present, non-empty parts with the prefix", () => {
   assert.equal(stableKey("analyze", "abc"), "analyze:abc");
