@@ -8807,6 +8807,7 @@
       "colActions": "Akce",
       "defaultRow": "Výchozí pro všechno",
       "defaultRowHint": "Každá úloha bez vlastního připnutí dědí tento řádek.",
+      "inertRow": "Řádek jen pro benchmark: návrh rolí v provozu používá směrování návrhu případu, takže toto připnutí nemění živý provoz.",
       "providerDefault": "Vestavěné výchozí",
       "providerAria": "Poskytovatel pro úlohu {useCase}",
       "modelPlaceholder": "výchozí model poskytovatele",

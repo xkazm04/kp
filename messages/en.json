@@ -8807,6 +8807,7 @@
       "colActions": "Actions",
       "defaultRow": "Default for everything",
       "defaultRowHint": "Every use case without its own pin inherits this row.",
+      "inertRow": "Bench-only row: production role design uses the Case design route, so this pin does not change live traffic.",
       "providerDefault": "Built-in default",
       "providerAria": "Provider for {useCase}",
       "modelPlaceholder": "provider default",

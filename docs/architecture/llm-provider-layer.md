@@ -919,6 +919,8 @@ locales.
   `resolve_provider` site nor a named exemption (`github_analysis` is TS-direct
   in `app/_lib/github/code-review.ts`; `devcase_role_design` is collapsed into
   `devcase_case_design` by `design-artifacts`).
+  The Models routing table marks `devcase_role_design` as a bench-only row so a
+  saved pin there is not mistaken for a production routing change.
 - `grounded_salary` (market salary via `market_salary_cli.py`) also calls
   `gemini.py` directly and is not in the use-case catalog — un-routable.
 - Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider

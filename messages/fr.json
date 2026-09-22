@@ -8807,6 +8807,7 @@
       "colActions": "Actions",
       "defaultRow": "Par défaut pour tout",
       "defaultRowHint": "Chaque cas d’usage sans épingle propre hérite de cette ligne.",
+      "inertRow": "Ligne réservée au benchmark : en production, la conception des rôles utilise la route de conception de cas. Cet épinglage ne change pas le trafic réel.",
       "providerDefault": "Par défaut intégré",
       "providerAria": "Fournisseur pour {useCase}",
       "modelPlaceholder": "par défaut du fournisseur",

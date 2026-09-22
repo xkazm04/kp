@@ -8807,6 +8807,7 @@
       "colActions": "Aktionen",
       "defaultRow": "Standard für alles",
       "defaultRowHint": "Jeder Anwendungsfall ohne eigene Anheftung erbt diese Zeile.",
+      "inertRow": "Nur Benchmark: Die Rollengestaltung nutzt im Betrieb die Case-Design-Route. Diese Anheftung ändert keinen Live-Verkehr.",
       "providerDefault": "Integrierter Standard",
       "providerAria": "Anbieter für {useCase}",
       "modelPlaceholder": "Anbieterstandard",
