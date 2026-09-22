@@ -176,7 +176,14 @@ test("webhook: a spent bucket is refused 429 with a code — and the bucket is P
     assert.equal(refused.status, 429);
     // A code, not English prose — a throttled Polar retry is machine-read, and the
     // client resolves `errors.TOO_MANY_REQUESTS` in the reader's language.
-    assert.equal(((await refused.json()) as { code: string }).code, "TOO_MANY_REQUESTS");
+    // …and it says WHEN (challenge 2026-09-22 shared-api-utilities/B): Polar re-delivers
+    // a non-2xx, and a Retry-After read off the refusing window lets it wait once
+    // instead of probing a full bucket blind. Never past the 10-minute window.
+    const retryAfter = Number(refused.headers.get("Retry-After"));
+    assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 600, `Retry-After within the window, got ${refused.headers.get("Retry-After")}`);
+    const refusedBody = (await refused.json()) as { code: string; retryAfterSeconds?: number };
+    assert.equal(refusedBody.code, "TOO_MANY_REQUESTS");
+    assert.equal(refusedBody.retryAfterSeconds, retryAfter, "the body carries the same figure as the header");
 
     // A DIFFERENT client is untouched: one caller filling their bucket must not lock
     // every other customer's money events out of the door.

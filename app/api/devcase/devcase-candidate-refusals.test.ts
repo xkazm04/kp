@@ -115,8 +115,14 @@ test("the session mint and the webhook name their remaining refusals", () => {
   assert.match(read("inbound/route.ts"), /jsonRefusal\("DEVCASE_APPLY_TOKEN_REQUIRED", 401\)/);
   assert.match(read("inbound/route.ts"), /jsonRefusal\("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400\)/);
   // The throttle too: a hand-rolled { error: RATE_LIMITED_ERROR } carries no code, so a
-  // throttled applicant read the server's English.
-  assert.match(read("inbound/route.ts"), /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/);
+  // throttled applicant read the server's English. Now coded AND saying when (challenge
+  // 2026-09-22 shared-api-utilities/B): jsonThrottled is jsonRefusal("TOO_MANY_REQUESTS")
+  // plus a Retry-After read off the bucket that refused, and the silent 429 is gone.
+  const inbound = read("inbound/route.ts");
+  assert.match(inbound, /jsonThrottled\(rateLimitRetryAfterMs\(burstKey\), 10 \* 60_000\)/);
+  assert.match(inbound, /jsonThrottled\(rateLimitRetryAfterMs\(dayKey\), 24 \* 60 \* 60_000\)/);
+  assert.doesNotMatch(inbound, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/);
+  assert.doesNotMatch(inbound, /\{ error: RATE_LIMITED_ERROR/);
 });
 
 test("the finalize door goes through the SHARED intake, like its two siblings", () => {

@@ -12,6 +12,7 @@ import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler
 import { publicOriginHealth } from "@/app/_lib/public-base-url";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
+import { rateLimitRefusalStats } from "@/app/_lib/rate-limit";
 
 
 // DATA2 — the operator's read of everything the app records and nothing read:
@@ -124,6 +125,9 @@ export async function GET() {
         noSlotStalls: getScheduleNoSlotsCount(),
       },
       afterResponseFailures: getAfterResponseFailureCount(),
+      // Which door is refusing: the in-process limiter's refusals per key FAMILY (the
+      // prefix before the first ':'), never a token or client address.
+      rateLimitRefusals: rateLimitRefusalStats(),
     });
   } catch (error) {
     // The thrown message here is the WORST kind to forward: this payload is built

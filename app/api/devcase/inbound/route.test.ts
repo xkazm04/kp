@@ -97,7 +97,12 @@ test("the per-token BURST window refuses the over-quota application — no row, 
   // The shared 429 envelope, now produced by the refusal CHOKEPOINT: the same message
   // (REFUSAL_ERRORS.TOO_MANY_REQUESTS *is* RATE_LIMITED_ERROR) plus the machine code the
   // public apply form needs to say "throttled" in the reader's language.
-  assert.deepEqual(await res.json(), { error: RATE_LIMITED_ERROR, code: "TOO_MANY_REQUESTS" });
+  // …and it says WHEN (challenge 2026-09-22 shared-api-utilities/B): the channel relay
+  // behind this webhook is a machine, and a Retry-After read off the refusing window
+  // lets it back off once instead of probing blind. The body carries the same figure.
+  const retryAfter = Number(res.headers.get("Retry-After"));
+  assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= BURST_WINDOW_MS / 1000, `Retry-After within the burst window, got ${res.headers.get("Retry-After")}`);
+  assert.deepEqual(await res.json(), { error: RATE_LIMITED_ERROR, code: "TOO_MANY_REQUESTS", retryAfterSeconds: retryAfter });
   assert.equal(listSubmissions(postingId, DEFAULT_WORKSPACE_ID).length, 0, "a refused call writes nothing");
 });
 
@@ -109,6 +114,10 @@ test("the per-token DAILY aggregate refuses too, so a slow drip can't spend all 
 
   const res = await POST(inboundReq(token, "linus"));
   assert.equal(res.status, 429, "the token's daily budget is exhausted");
+  // The DAILY bucket refused, so the wait is the daily window's: longer than any burst
+  // window could say, never past a day.
+  const retryAfter = Number(res.headers.get("Retry-After"));
+  assert.ok(Number.isInteger(retryAfter) && retryAfter > BURST_WINDOW_MS / 1000 && retryAfter <= DAILY_WINDOW_MS / 1000, `Retry-After within the daily window, got ${res.headers.get("Retry-After")}`);
   assert.equal(listSubmissions(postingId, DEFAULT_WORKSPACE_ID).length, 0, "a refused call writes nothing");
 });
 

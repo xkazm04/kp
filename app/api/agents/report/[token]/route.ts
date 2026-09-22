@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, recordAgentReportReceipt, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
 import { createPipelineEntry, recordAutomationEvent, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
-import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { parseAgentReport, type AgentReport, type LifecycleReport } from "@/app/_lib/agent-hire/report-payload";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
 import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
@@ -165,8 +166,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   let claimedIdemKey: string | null = null;
   try {
     const { token } = await context.params;
-    if (!rateLimit(`agent-report:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    // The reporter is a machine: the 429 says when the window reopens (Retry-After).
+    const limitKey = `agent-report:${token}:${clientIpFrom(request.headers)}`;
+    if (!rateLimit(limitKey, RATE_LIMIT)) {
+      return jsonThrottled(rateLimitRetryAfterMs(limitKey), RATE_LIMIT.windowMs);
     }
 
     // Unknown and retired tokens are deliberately indistinguishable (both 404).

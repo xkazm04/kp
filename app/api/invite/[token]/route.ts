@@ -6,6 +6,7 @@ import { getUserByEmail } from "@/app/_lib/db/users";
 import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
+import { withRetryAfter } from "@/app/_lib/throttle-response";
 import { isThrottled, recordFailedAttempt, throttleRetryAfterMs, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
@@ -34,14 +35,11 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // the token, so one leaked link cannot spend another invitee's budget.
 const INVITE_THROTTLE: ThrottleOpts = { limit: 10, windowMs: 60_000 };
 
+/** 429 + Retry-After from the persisted window, capped at the invite window, through
+ *  the shared clamp in throttle-response.ts (login's twin used to copy it verbatim). */
 function throttledRefusal(key: string): NextResponse {
   const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
-  const remainingMs = throttleRetryAfterMs(key, INVITE_THROTTLE);
-  if (remainingMs != null) {
-    const seconds = Math.min(Math.max(1, Math.ceil(remainingMs / 1000)), Math.ceil(INVITE_THROTTLE.windowMs / 1000));
-    res.headers.set("Retry-After", String(seconds));
-  }
-  return res;
+  return withRetryAfter(res, throttleRetryAfterMs(key, INVITE_THROTTLE), INVITE_THROTTLE.windowMs);
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {

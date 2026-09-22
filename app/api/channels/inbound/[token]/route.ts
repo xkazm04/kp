@@ -7,8 +7,9 @@ import {
   MAX_LEAD_NAME_LENGTH,
 } from "@/app/_lib/inbound-lead";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
@@ -63,8 +64,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   let claimedIdemKey: string | null = null;
   try {
     const { token } = await context.params;
-    if (!rateLimit(`inbound:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    // A board or relay posts here: the 429 says when the window reopens (Retry-After).
+    const limitKey = `inbound:${token}:${clientIpFrom(request.headers)}`;
+    if (!rateLimit(limitKey, RATE_LIMIT)) {
+      return jsonThrottled(rateLimitRetryAfterMs(limitKey), RATE_LIMIT.windowMs);
     }
 
     // Unknown and revoked tokens are deliberately indistinguishable (both 404).

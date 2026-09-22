@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db/devcase";
 import { intakeSubmission } from "@/app/_lib/distribution";
 import { answerFailure, jsonRefusal } from "@/app/_lib/api-response";
-import { rateLimit } from "@/app/_lib/rate-limit";
+import { rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 import { submissionReference } from "@/app/_lib/devcase-reference";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -88,11 +89,15 @@ export async function POST(request: NextRequest) {
     // Through the refusal CHOKEPOINT, not a hand-rolled envelope: the shared message
     // still reaches the client (REFUSAL_ERRORS.TOO_MANY_REQUESTS *is* RATE_LIMITED_ERROR)
     // and the code rides beside it, so a throttled apply form says so in Czech.
-    if (!rateLimit(`devcase-inbound:${token}`, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    // Each refusal says WHEN, read off the bucket that refused (the burst window or the
+    // daily one), so a channel relay backs off once instead of probing blind.
+    const burstKey = `devcase-inbound:${token}`;
+    if (!rateLimit(burstKey, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
+      return jsonThrottled(rateLimitRetryAfterMs(burstKey), 10 * 60_000);
     }
-    if (!rateLimit(`devcase-inbound-day:${token}`, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
-      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    const dayKey = `devcase-inbound-day:${token}`;
+    if (!rateLimit(dayKey, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
+      return jsonThrottled(rateLimitRetryAfterMs(dayKey), 24 * 60 * 60_000);
     }
 
     const { submission, isNew } = await intakeSubmission({

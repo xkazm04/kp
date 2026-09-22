@@ -3,7 +3,8 @@ import { BillingConfigError, ingestBillingWebhook, polarGatewayFromEnv } from "@
 import { WebhookVerificationError } from "@/app/_lib/billing/webhook-verify";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
 
 
 // Provider → us. The ONLY write path for money state (billing_state /
@@ -40,8 +41,11 @@ export async function POST(request: NextRequest) {
   // ALLOCATE is the point — the 256 KB cap below bounds ONE request, this bounds the
   // RATE of them. The unconfigured 503 above keeps serving freely: it costs an env
   // read and tells an operator their setup is incomplete.
-  if (!rateLimit(`billing-webhook:${clientIpFrom(request.headers)}`, WEBHOOK_RATE_LIMIT)) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  // The refusal says WHEN (Retry-After from the window that refused): Polar honours it,
+  // so a full bucket costs one wait instead of a redelivery probe per second.
+  const limitKey = `billing-webhook:${clientIpFrom(request.headers)}`;
+  if (!rateLimit(limitKey, WEBHOOK_RATE_LIMIT)) {
+    return jsonThrottled(rateLimitRetryAfterMs(limitKey), WEBHOOK_RATE_LIMIT.windowMs);
   }
   // Raw body required: any re-serialization changes the bytes and breaks the MAC.
   //

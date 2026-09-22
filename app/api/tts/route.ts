@@ -12,6 +12,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { withRetryAfter } from "@/app/_lib/throttle-response";
 import { getTts, TtsError } from "@/app/_lib/tts";
 import { TTS_MAX_CHARS } from "@/packages/voice-tts/src/validate";
 import { speakCached, ttsCacheLookup } from "@/app/_lib/tts-cache";
@@ -48,11 +49,9 @@ const TTS_ERROR_STATUS: Record<string, number> = {
  *  either hammers a service that wanted longer or sleeps through a window that
  *  was already open. */
 function engineThrottled(retryAfterMs?: number) {
-  const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
-  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
-    res.headers.set("retry-after", String(Math.ceil(retryAfterMs / 1000)));
-  }
-  return res;
+  // No window of ours bounds an engine's wait, so none is passed: the shared clamp
+  // rounds it up and sets nothing when the engine said nothing.
+  return withRetryAfter(jsonRefusal("TOO_MANY_REQUESTS", 429), retryAfterMs);
 }
 
 export async function GET() {

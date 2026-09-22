@@ -4,7 +4,8 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
+import { jsonThrottled } from "@/app/_lib/throttle-response";
 
 
 // E3 — revoke an inbound webhook. The row (and its receipt history) is kept for
@@ -23,8 +24,9 @@ export async function DELETE(request: Request, context: { params: Promise<{ toke
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
   if (under) return under;
-  if (!rateLimit(`channel-receiver:${clientIpFrom(request.headers)}`, RECEIVER_WRITE_RATE_LIMIT)) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  const limitKey = `channel-receiver:${clientIpFrom(request.headers)}`;
+  if (!rateLimit(limitKey, RECEIVER_WRITE_RATE_LIMIT)) {
+    return jsonThrottled(rateLimitRetryAfterMs(limitKey), RECEIVER_WRITE_RATE_LIMIT.windowMs);
   }
   const { token } = await context.params;
   const revoked = revokeChannelWebhook(token, await currentWorkspace());

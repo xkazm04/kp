@@ -392,6 +392,35 @@ the reconcile sweep budgets *each* lifecycle it resumes (one POST could otherwis
 enqueue 50 runs on a single slot), reporting `budgetExhausted` when it stops early.
 A new line on that ratchet is a hole waiting to be closed, never an exemption.
 
+**A refusal says when, if it honestly can.** The window that refused a caller knows
+the instant it would admit them again, and `rateLimitRetryAfterMs(key)` reads it
+without disturbing anything (no hit counted, no window created). It answers `null`
+for an unknown key, a reset window, or one that still has room. The one clamp is
+[`app/_lib/throttle-response.ts`](../../app/_lib/throttle-response.ts):
+`withRetryAfter(res, remainingMs, windowMs?)` sets `Retry-After` in delta-seconds,
+rounded up, never 0, capped at the window when one is given. It sets **no** header
+when the figure is null, zero, negative or not finite, because a client that trusts a
+made-up wait either hammers the door or sleeps through an open window.
+`jsonThrottled(retryAfterMs, windowMs)` is `jsonRefusal("TOO_MANY_REQUESTS", 429)`
+plus that header and `retryAfterSeconds` in the body. The code and message are
+unchanged, so a client that ignores the field sees the old answer.
+
+The doors whose callers are machines that act on the header answer through it:
+`/api/billing/webhook` (Polar re-delivers), `/api/channels/inbound/[token]` (boards and
+relays), `/api/agents/report/[token]`, `/api/devcase/inbound` (burst and daily buckets,
+each naming its own window) and the receiver revoke. Their contract rows carry
+`retryAfter: true` with a hoisted `keyConst`, so the retry read uses the same key the
+limiter counted, and the silent `jsonRefusal` is forbidden at that call. Any other
+door can adopt it one row at a time. The persisted login/invite throttle
+(`throttleRetryAfterMs`) and the voice engines' own waits (`/api/tts`, `/api/stt`)
+go through `withRetryAfter` as well. The contract test fails on any route under
+`app/api` that sets `Retry-After` by hand or re-types the clamp.
+
+The operator can see which door is refusing. `/api/ops` carries `rateLimitRefusals`,
+the in-process refusal count since start per key *family* (the prefix before the
+first `:`, e.g. `inbound`, `billing-webhook`). It never includes the whole key,
+because a key holds a token or a client address.
+
 ### 1.5 Uploads, timeouts and tenancy
 
 - **Upload size** is a route-boundary contract in
@@ -648,12 +677,9 @@ needs a key" is never an acceptable reason for a 500.
   follows; finding *which* routes exist is still a walk of `app/api/**`.
 - Request **body** schemas are validated per handler rather than declared, so
   the accepted fields of a given endpoint still come from reading it.
-- The in-process `rateLimit()` still returns a boolean and keeps its window's
-  `resetAt` private, so those ~90 call sites send no `Retry-After`; the client
-  reads a `Retry-After` when a fronting proxy sends one
-  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it. The
-  persisted login-throttle store is the exception: `throttleRetryAfterMs` reports
-  remaining window, and `/api/auth/login` plus `/api/invite/[token]` 429s set
-  `Retry-After` (delta-seconds, capped at the window) from it. Surfacing reset
-  from `rateLimit()` itself would still change that limiter's return shape at
-  every in-process call site.
+- Most in-process throttled doors (about 140) still answer the plain
+  `jsonRefusal("TOO_MANY_REQUESTS", 429)` with no `Retry-After`. Only the
+  machine-called doors listed in §1.4 use `jsonThrottled`. The rest can adopt it one
+  contract row at a time (`retryAfter: true`), since `rateLimit()` keeps its boolean
+  shape. The client reads a `Retry-After` when there is one
+  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it.

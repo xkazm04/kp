@@ -31,7 +31,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { rateLimit } from "../_lib/rate-limit.ts";
+import { rateLimit, rateLimitRetryAfterMs } from "../_lib/rate-limit.ts";
 
 const apiDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -105,6 +105,18 @@ type RouteSpec = {
   /** Window in ms, and the source text it is written as. Defaults to the 10-minute window. */
   windowMs?: number;
   windowSrc?: string;
+  /** The name of the const the key template is hoisted into, so the SAME key feeds the
+   *  limiter and the retry read (challenge 2026-09-22 shared-api-utilities/B). The route
+   *  must define `const <keyConst> = <key>;` before the call, and the pinned call becomes
+   *  `rateLimit(<keyConst>, <opts>)`. */
+  keyConst?: string;
+  /** The refusal SAYS WHEN: `jsonThrottled(rateLimitRetryAfterMs(<keyConst>), <window>)`
+   *  — a Retry-After read off the window that refused, never a constant, and no header
+   *  when there is no honest figure (app/_lib/throttle-response.ts). The bare
+   *  `jsonRefusal("TOO_MANY_REQUESTS", 429)` is then FORBIDDEN at this call: a door that
+   *  learned to say when must not quietly forget. Requires `keyConst`. Set on the
+   *  machine-called public doors first; any other door may adopt it one row at a time. */
+  retryAfter?: true;
 };
 
 const ROUTES: RouteSpec[] = [
@@ -1595,6 +1607,8 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "RECEIVER_WRITE_RATE_LIMIT",
     optsDef: "const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
+    keyConst: "limitKey",
+    retryAfter: true,
     expensive: "revokeChannelWebhook(token",
     servedBefore: "await requireOperator()",
   },
@@ -1812,6 +1826,9 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "WEBHOOK_RATE_LIMIT",
     optsDef: "const WEBHOOK_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
+    // Polar re-delivers a non-2xx and honours Retry-After: the refusal says when.
+    keyConst: "limitKey",
+    retryAfter: true,
     // The limiter precedes the BODY READ, not just the ingest: what an anonymous
     // caller can make us allocate is the whole point of throttling this door.
     expensive: "await readTextWithLimit(request, MAX_WEBHOOK_BODY_BYTES)",
@@ -2103,6 +2120,70 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "advanceFeedAnchor(",
   },
+  // ── machine-called public doors (challenge 2026-09-22 shared-api-utilities/B) ──
+  // Each is knocked on by a MACHINE that acts on Retry-After — a third-party board or a
+  // Zapier relay, a Personas agent, the public apply form's channel relay. None was on
+  // this table, so nothing pinned their budgets here; they join it WITH the refusal
+  // that says when, so a relay backs off once instead of probing a full bucket blind.
+  {
+    // 60/min per token+IP, FIRST in the handler: ahead of the token lookup, so a flood
+    // never reaches the store and an unknown token cannot be probed at any rate.
+    rel: "./channels/inbound/[token]/route.ts",
+    key: "`inbound:${token}:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RATE_LIMIT",
+    optsDef: "const RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getActiveChannelWebhook(token)",
+    keyConst: "limitKey",
+    retryAfter: true,
+  },
+  {
+    // Same shape for the agent report receiver (report-throttle.test.ts drives it).
+    rel: "./agents/report/[token]/route.ts",
+    key: "`agent-report:${token}:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RATE_LIMIT",
+    optsDef: "const RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getHiredAgentByReportToken(token)",
+    keyConst: "limitKey",
+    retryAfter: true,
+  },
+  {
+    // The public apply webhook's BURST bucket: per apply TOKEN, never per IP (applicants
+    // share NATs, an abuser rotates IPs). After the credential, lifecycle and field
+    // refusals, which keep answering without spending an applicant's slot.
+    rel: "./devcase/inbound/route.ts",
+    key: "`devcase-inbound:${token}`",
+    limit: 30,
+    limitSrc: "BURST_LIMIT",
+    limitDef: "const BURST_LIMIT = 30;",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await intakeSubmission(",
+    servedBefore: 'jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400)',
+    keyConst: "burstKey",
+    retryAfter: true,
+  },
+  {
+    // …and its DAILY aggregate, whose refusal names the daily window's own wait.
+    rel: "./devcase/inbound/route.ts",
+    key: "`devcase-inbound-day:${token}`",
+    limit: 300,
+    limitSrc: "DAILY_LIMIT",
+    limitDef: "const DAILY_LIMIT = 300;",
+    windowMs: 24 * 60 * 60_000,
+    windowSrc: "24 * 60 * 60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await intakeSubmission(",
+    servedBefore: 'jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400)',
+    keyConst: "dayKey",
+    retryAfter: true,
+  },
 ];
 
 for (const spec of ROUTES) {
@@ -2113,9 +2194,17 @@ for (const spec of ROUTES) {
     assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
 
     const opts = spec.optsSrc ?? `{ limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc} }`;
-    const call = `rateLimit(${spec.key}, ${opts})`;
+    const call = `rateLimit(${spec.keyConst ?? spec.key}, ${opts})`;
     const at = src.indexOf(call);
     assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
+
+    // A hoisted key is still the PINNED key: the const is defined with exactly the
+    // template this row claims, before the call, so re-keying stays a red test.
+    if (spec.keyConst) {
+      const keyDef = `const ${spec.keyConst} = ${spec.key};`;
+      const keyAt = src.lastIndexOf(keyDef, at);
+      assert.ok(keyAt >= 0, `expected the pinned key definition before the call:\n  ${keyDef}`);
+    }
 
     // When the limit is a named constant, its defining line (with the pinned
     // VALUES) must exist and precede the call — the budget stays contract-locked.
@@ -2152,6 +2241,20 @@ for (const spec of ROUTES) {
           `{ error: REFUSAL_ERRORS.${spec.refusalCode}, code: "${spec.surfaceCode}" }`,
       );
       assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
+    } else if (spec.retryAfter) {
+      // The refusal SAYS WHEN, from the window that refused (the same key, the same
+      // window this row pins) — and the silent shape is forbidden at this call.
+      assert.ok(spec.keyConst, "a retryAfter row must hoist its key (keyConst) so the read uses the SAME key");
+      const windowExpr = spec.optsSrc ? `${spec.optsSrc}.windowMs` : windowSrc;
+      const throttled = `jsonThrottled(rateLimitRetryAfterMs(${spec.keyConst}), ${windowExpr})`;
+      assert.ok(refusal.includes(throttled), `the refusal must say when:\n  ${throttled}`);
+      const next = refusal.indexOf("rateLimit(", 1);
+      const own = next > 0 ? refusal.slice(0, next) : refusal;
+      assert.ok(
+        !own.includes(`jsonRefusal("${spec.refusalCode}", 429)`),
+        "a door that says when must not fall back to the silent 429 at this call",
+      );
+      assert.match(src, /from "@\/app\/_lib\/throttle-response"/, "…through the ONE shared clamp");
     } else {
       assert.ok(
         refusal.includes(`jsonRefusal("${spec.refusalCode}", 429)`),
@@ -2174,7 +2277,7 @@ for (const spec of ROUTES) {
     }
   });
 
-  test(`${spec.rel} (${spec.key}): hit ${spec.limit + 1} inside one window is refused → 429`, () => {
+  test(`${spec.rel} (${spec.key}): hit ${spec.limit + 1} inside one window is refused → 429`, async () => {
     // Drive the real in-process limiter with the route's pinned config. `nowMs`
     // is injectable, so the window arithmetic is deterministic; the key is
     // test-unique so specs can't starve each other (keys are independent).
@@ -2192,12 +2295,28 @@ for (const spec of ROUTES) {
       false,
       "the next hit inside the window must be refused — the route returns 429",
     );
+    if (spec.retryAfter) {
+      // The refused caller is told WHEN, from this row's own window: the wait is
+      // positive, never past the window, and the header the shared clamp builds from
+      // it is delta-seconds inside the same bound.
+      const wait = rateLimitRetryAfterMs(key, t0 + spec.limit);
+      assert.ok(wait != null && wait > 0 && wait <= windowMs, `the refusal's wait lies inside the window, got ${wait}`);
+      const { jsonThrottled } = await import("../_lib/throttle-response.ts");
+      const header = Number(jsonThrottled(wait, windowMs).headers.get("Retry-After"));
+      assert.ok(
+        Number.isInteger(header) && header >= 1 && header <= Math.ceil(windowMs / 1000),
+        `Retry-After is delta-seconds within the bucket's window, got ${header}`,
+      );
+    }
     // A fresh window admits again: a throttled caller recovers without a restart.
     assert.equal(
       rateLimit(key, { limit: spec.limit, windowMs }, t0 + windowMs + 1),
       true,
       "a fresh window must admit again",
     );
+    if (spec.retryAfter) {
+      assert.equal(rateLimitRetryAfterMs(key, t0 + windowMs + 1), null, "an admitting window claims no wait");
+    }
   });
 }
 
@@ -2515,7 +2634,10 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
       src.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
       `${verb}: the refusal must still go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
     );
-    assert.ok(src.includes("Retry-After"), `${verb}: a tripped throttle must send Retry-After`);
+    // Retry-After through the ONE shared clamp (challenge 2026-09-22 shared-api-utilities/B),
+    // never a hand-set header: the copied clamp login and invite each carried is gone.
+    assert.ok(src.includes("withRetryAfter("), `${verb}: a tripped throttle must send Retry-After via withRetryAfter`);
+    assert.doesNotMatch(src, /headers\.set\(\s*["'`]retry-after["'`]/i, `${verb}: no hand-set Retry-After`);
     // EVERY attempt counts, success included — like register, and unlike login.
     // What is bounded is provisioning and invitee disclosure, not guessing, so a
     // successful redeem must still spend its slot.
@@ -2669,4 +2791,41 @@ test("RATE_LIMITED_ERROR is internal to the refusal registry — nothing else im
     ["_lib/api-response.ts"],
     "only the refusal registry may import the raw 429 message; every route answers the CODE",
   );
+});
+
+// ── Retry-After has ONE author (challenge 2026-09-22 shared-api-utilities/B) ──────────
+// Four routes used to hand-roll the header, and two of them carried the same clamp
+// verbatim. The clamp — delta-seconds rounded up, never 0, capped at the window, and NO
+// header when there is no honest figure — now lives once in app/_lib/throttle-response.ts.
+test("no route sets Retry-After by hand — login, invite, tts and stt delegate to withRetryAfter", () => {
+  const handSet: string[] = [];
+  const copiedClamp: string[] = [];
+  for (const file of walk(apiDir)) {
+    const src = readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+    const rel = path.relative(apiDir, file).split(path.sep).join("/");
+    if (/headers\.set\(\s*["'`]retry-after["'`]/i.test(src)) handSet.push(rel);
+    if (/Math\.max\(1, Math\.ceil\(\w+ \/ 1000\)\)/.test(src)) copiedClamp.push(rel);
+  }
+  assert.deepEqual(handSet, [], "these routes set Retry-After by hand — use withRetryAfter / jsonThrottled");
+  assert.deepEqual(copiedClamp, [], "these routes re-type the Retry-After clamp — it lives in throttle-response.ts");
+
+  for (const rel of ["./auth/login/route.ts", "./invite/[token]/route.ts", "./tts/route.ts", "./stt/route.ts"]) {
+    const src = read(rel);
+    assert.match(src, /import \{[^}]*\bwithRetryAfter\b[^}]*\} from "@\/app\/_lib\/throttle-response";/, `${rel} imports the shared clamp`);
+    assert.ok(src.includes("withRetryAfter("), `${rel} delegates its Retry-After to withRetryAfter`);
+  }
+  // Their semantics hold. login: the LONGER of the two tripped windows, capped at the
+  // caller's own window. tts/stt: the header only when the ENGINE gave a wait, with no
+  // window of ours to cap it (the per-IP refusal still claims no wait at all).
+  const login = read("./auth/login/route.ts");
+  assert.ok(login.includes("Math.max(\n    throttleRetryAfterMs(key, opts) ?? 0,"), "login still takes the longer tripped window");
+  assert.ok(login.includes("withRetryAfter(res, remainingMs, opts.windowMs)"), "login caps at the caller's window");
+  const invite = read("./invite/[token]/route.ts");
+  assert.ok(invite.includes("withRetryAfter(res, throttleRetryAfterMs(key, INVITE_THROTTLE), INVITE_THROTTLE.windowMs)"), "invite caps at its own window");
+  for (const rel of ["./tts/route.ts", "./stt/route.ts"]) {
+    assert.ok(
+      read(rel).includes('return withRetryAfter(jsonRefusal("TOO_MANY_REQUESTS", 429), retryAfterMs);'),
+      `${rel}: the engine's own wait, uncapped, and nothing when the engine said nothing`,
+    );
+  }
 });

@@ -249,3 +249,21 @@ test("an empty catalog with healthy seeds is reported, not blamed", async () => 
   assert.deepEqual(body.degradedReasons, before.degradedReasons, "emptying the catalog changed no verdict");
   assert.equal(body.ok, before.ok, "…including the one the red dot renders");
 });
+
+// Challenge 2026-09-22 shared-api-utilities/B: the in-process limiter had no readout,
+// so an operator could not tell WHICH door was refusing. /api/ops now carries the
+// refusal count per key FAMILY (the prefix before the first ':'), never a token or IP.
+test("the limiter's refusals reach the operator per door family, with no key material", async () => {
+  const { rateLimit } = await import("../../_lib/rate-limit.ts");
+  const opts = { limit: 1, windowMs: 60_000 };
+  const secret = "opsdoor-token-5e1f";
+  rateLimit(`ops-probe-door:${secret}:203.0.113.9`, opts);
+  rateLimit(`ops-probe-door:${secret}:203.0.113.9`, opts);
+  rateLimit(`ops-probe-door:${secret}:203.0.113.9`, opts);
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+  const r = await GET();
+  const body = (await r.json()) as { rateLimitRefusals?: Record<string, number> };
+  assert.equal(body.rateLimitRefusals?.["ops-probe-door"], 2, "two refusals, the one admission not counted");
+  const wire = JSON.stringify(body.rateLimitRefusals);
+  assert.ok(!wire.includes(secret) && !wire.includes("203.0.113.9"), "no token or client address on the operator read");
+});

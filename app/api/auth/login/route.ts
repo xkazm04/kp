@@ -6,6 +6,7 @@ import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { clientIpFrom, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
+import { withRetryAfter } from "@/app/_lib/throttle-response";
 import { isThrottled, recordFailedAttempt, clearFailures, throttleRetryAfterMs, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
@@ -43,18 +44,15 @@ const COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
 
 /** 429 + Retry-After delta-seconds from the persisted window. `otherKey` is the
  *  IP bucket on the per-user path: remaining is the longer of the tripped
- *  windows, capped at this caller's window. */
+ *  windows, capped at this caller's window. The clamp itself (round up, never 0,
+ *  no header without a figure) is the shared one in throttle-response.ts. */
 function throttledRefusal(key: string, opts: ThrottleOpts, otherKey?: string | null, otherOpts?: ThrottleOpts): NextResponse {
   const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
   const remainingMs = Math.max(
     throttleRetryAfterMs(key, opts) ?? 0,
     otherKey && otherOpts ? (throttleRetryAfterMs(otherKey, otherOpts) ?? 0) : 0,
   );
-  if (remainingMs > 0) {
-    const seconds = Math.min(Math.max(1, Math.ceil(remainingMs / 1000)), Math.ceil(opts.windowMs / 1000));
-    res.headers.set("Retry-After", String(seconds));
-  }
-  return res;
+  return withRetryAfter(res, remainingMs, opts.windowMs);
 }
 
 // The readable "entered the workspace" marker (see session.ts) — set on every
