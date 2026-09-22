@@ -1,5 +1,5 @@
 /** Download the expanded diagram as a standalone SVG in the reader's current theme. */
-export function downloadDiagramSvg(svg: SVGSVGElement, title: string | null, background: string) {
+export function downloadDiagramSvg(svg: SVGSVGElement, title: string | null | undefined, background: string) {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   const sourceNodes = [svg, ...svg.querySelectorAll("*")];
   const exportedNodes = [clone, ...clone.querySelectorAll("*")];
