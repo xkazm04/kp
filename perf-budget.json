@@ -32,8 +32,8 @@
   "entries": {
     "app/page.tsx": {
       "maxModules": 1371,
-      "maxKb": 8720,
-      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on. Raised 1307/8082 to 1370/8700 on 2026-09-22 after the journeys, interview director and feedback-letter streams merged: the combined tree measures 1364 modules / 8649 KB against the previous green main's 1287 / 7846. The homepage already imports the shared workspace shell, so replacing its direct session import did not reduce this graph; this ceiling records the actual merged cost with little headroom. Raised 8700 -> 8710 KB on 2026-09-22 (scan-sweep challenge waves 1-2): 1368 modules / 8702 KB measured after the receiver-health, relay-capability, task-kind, grant-health and matrix-tier modules joined the shell graph; the module ceiling is unchanged. Raised 1370/8710 -> 1371/8720 on 2026-09-22 (challenge wave 3): committed main measured 1369 modules / 8713 KB after task-fanout, throttle-response and apply-link recovery joined the shell graph, then the matrix slate allocator + panel (matrixSlate.ts, MatrixSlatePanel.tsx, ~7.6 KB, trimmed to that) took it to 1371 / 8720"
+      "maxKb": 8730,
+      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on. Raised 1307/8082 to 1370/8700 on 2026-09-22 after the journeys, interview director and feedback-letter streams merged: the combined tree measures 1364 modules / 8649 KB against the previous green main's 1287 / 7846. The homepage already imports the shared workspace shell, so replacing its direct session import did not reduce this graph; this ceiling records the actual merged cost with little headroom. Raised 8700 -> 8710 KB on 2026-09-22 (scan-sweep challenge waves 1-2): 1368 modules / 8702 KB measured after the receiver-health, relay-capability, task-kind, grant-health and matrix-tier modules joined the shell graph; the module ceiling is unchanged. Raised 1370/8710 -> 1371/8720 on 2026-09-22 (challenge wave 3): committed main measured 1369 modules / 8713 KB after task-fanout, throttle-response and apply-link recovery joined the shell graph, then the matrix slate allocator + panel (matrixSlate.ts, MatrixSlatePanel.tsx, ~7.6 KB, trimmed to that) took it to 1371 / 8720. Raised 8720 -> 8730 KB on 2026-09-22 at challenge wave-3 integration: 1371 modules / 8724 KB with the fan-out ledger UI (TasksOutcome, task-outcome-summary); module ceiling unchanged"
     },
     "app/_lib/llm-config.ts": {
       "maxModules": 19,
@@ -74,8 +74,8 @@
         },
         "app/api/jobs/[id]/interview-kit/route.ts": {
           "maxModules": 227,
-          "maxKb": 3000,
-          "why": "The route sat exactly at the 225 group ceiling through the task hub; the 2026-09-22 challenge card task-automation-engine/A added app/_lib/task-kinds.ts, an import-free ~2 KB leaf that every per-kind table is now keyed by, and the route measures 226. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends"
+          "maxKb": 3010,
+          "why": "The route sat exactly at the 225 group ceiling through the task hub; the 2026-09-22 challenge card task-automation-engine/A added app/_lib/task-kinds.ts, an import-free ~2 KB leaf that every per-kind table is now keyed by, and the route measures 226. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends. KB 3000 -> 3010 on 2026-09-22 at challenge wave-3 integration: 3005 KB measured; the growth is spread over schedule-store/schedule-slots (real-duration collision), comms-dispatch (apply-link recovery), tasks.ts (fan-out ledger) and api-response.ts (answerFailure) - no module added, no barrel"
         },
         "app/api/analyze/route.ts": {
           "maxModules": 226,
