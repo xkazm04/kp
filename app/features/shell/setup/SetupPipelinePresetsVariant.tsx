@@ -29,7 +29,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, EYEBROW, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, EYEBROW, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useStageDisplayLabel } from "@/app/features/shared/usePipelineAxisCopy";
 import { draftFromStored } from "@/app/features/shared/pipelineAxisDraft";
@@ -108,7 +108,7 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
           })}
         </div>
         {pendingShape && removed.length > 0 ? (
-          <div role="group" aria-label={t("presetRemoveTitle")} className="mt-2.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-ink">
+          <div role="group" aria-label={t("presetRemoveTitle")} className={`${NOTICE("amber")} mt-2.5 px-3 py-2 text-sm`}>
             <p className="font-semibold">{t("presetRemoveTitle")}</p>
             <ul className="mt-1 list-inside list-disc">
               {removed.map((stage) => (
