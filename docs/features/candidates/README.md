@@ -707,6 +707,8 @@ the same routed `v2Profile` also carries the deterministic
 `potentialScore` and `learningSignals` used by matching. The Extraction tab
 shows a `PotentialBadge` beside the overall score dial when that measured
 potential is present; its explanation includes the recorded learning signals.
+The Archetype banner also shows the same potential badge alongside the routing
+result, so the measured potential is visible before opening Extraction.
 The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
