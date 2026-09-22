@@ -2523,6 +2523,8 @@
       "analysis": "Analyses de CV"
     },
     "tourAction": "Voir l’histoire d’un recrutement (visite guidée)",
+    "tourAliases": "visite histoire démo parcours",
+    "newIntakeAliases": "recrutement poste nouvelle conversation besoin",
     "tourSub": "Lance la démo en direct : fiche de poste → sourcing → présélection → entretien → offre → recruté",
     "hintNavigate": "naviguer",
     "hintOpen": "ouvrir",

@@ -2523,6 +2523,8 @@
       "analysis": "Analýzy CV"
     },
     "tourAction": "Přehrát příběh náboru (prohlídka)",
+    "tourAliases": "prohlídka příběh demo ukázka",
+    "newIntakeAliases": "nábor role nová konverzace potřeba",
     "tourSub": "Spustí živou ukázku: JD → sourcing → screening → pohovor → nabídka → přijetí",
     "hintNavigate": "pohyb",
     "hintOpen": "otevřít",

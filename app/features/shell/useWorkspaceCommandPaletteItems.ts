@@ -125,7 +125,7 @@ export function useWorkspaceCommandPaletteItems({
     // The tour command: offered at rest and under "tour"/"demo"-flavored
     // queries; hidden while a run is live (SimBar owns pause/stop then).
     const tourLabel = t("tourAction");
-    if (!simRunning && tourAllowed && (!q || tourLabel.toLowerCase().includes(q) || "tour story demo prohlídka příběh".includes(q))) {
+    if (!simRunning && tourAllowed && (!q || tourLabel.toLowerCase().includes(q) || t("tourAliases").toLowerCase().includes(q))) {
       navOut.push({
         key: "action-tour",
         group: "actions",
@@ -142,7 +142,7 @@ export function useWorkspaceCommandPaletteItems({
     // re-run it. Hidden when the tab is locked — the palette does not offer doors
     // it knows are shut.
     const newIntakeLabel = intake("new");
-    if (!locked.has("intake") && (!q || newIntakeLabel.toLowerCase().includes(q) || "intake role new conversation nábor role".includes(q))) {
+    if (!locked.has("intake") && (!q || newIntakeLabel.toLowerCase().includes(q) || t("newIntakeAliases").toLowerCase().includes(q))) {
       navOut.push({
         key: "action-new-intake",
         group: "actions",

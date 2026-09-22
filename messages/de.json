@@ -2523,6 +2523,8 @@
       "analysis": "CV-Analysen"
     },
     "tourAction": "Die Recruiting-Story ansehen (geführte Tour)",
+    "tourAliases": "tour geschichte demo rundgang",
+    "newIntakeAliases": "aufnahme rolle neues gespräch personalbedarf",
     "tourSub": "Startet die Live-Demo: JD → Sourcing → Screening → Interview → Angebot → eingestellt",
     "hintNavigate": "navigieren",
     "hintOpen": "öffnen",

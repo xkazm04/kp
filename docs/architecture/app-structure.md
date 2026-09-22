@@ -312,6 +312,7 @@ row 0, and Enter opened a candidate the recruiter had not typed. A malformed but
 successful body is the opposite case and stays a genuine zero-hit result, so the
 palette may still say "no matches" for it.
 
+Tour and new-intake palette search aliases come from the four locale catalogs.
 The About tab's preview lists its six localized chapter claims with direct hash
 links to each chapter. The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
 master–detail): a dense grouped index on the left (`WorkspacePaletteRow.tsx`:

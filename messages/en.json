@@ -2523,6 +2523,8 @@
       "analysis": "CV analyses"
     },
     "tourAction": "Watch the hiring story (guided tour)",
+    "tourAliases": "tour story demo walkthrough",
+    "newIntakeAliases": "intake role new conversation hiring need",
     "tourSub": "Runs the live demo: JD → sourcing → screening → interview → offer → hired",
     "hintNavigate": "navigate",
     "hintOpen": "open",
