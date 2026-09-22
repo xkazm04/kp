@@ -1170,6 +1170,8 @@ leaving a submitted command with no outcome. Its `p.error` branch resolves throu
 `GET /api/pipeline/events?since=<id>` rejects a malformed cursor with the
 `PIPELINE_EVENTS_CURSOR_INVALID` code, so the board can show the refusal in the
 reader's language.
+The candidate drawer's consent and timeline reads use `PIPELINE_ENTRY_NOT_FOUND`
+for a missing entry, matching the main entry route's localized 404 contract.
 
 The board's activity feed (`PipelineActivityFeed`) renders **every** `pipeline_events`
 row, so its vocabulary is the *whole* writer vocabulary — not the board-lifecycle subset.

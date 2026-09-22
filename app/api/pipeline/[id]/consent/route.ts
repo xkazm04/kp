@@ -3,7 +3,7 @@ import { getPipelineEntry, listConsentEvents } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { consentStatus } from "@/app/_lib/consent";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
 // Recruiter-facing GDPR consent snapshot + audit trail for one entry — backs the
@@ -37,7 +37,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     const workspaceId = await currentWorkspace();
     const entry = getPipelineEntry(id, workspaceId);
-    if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+    if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     return NextResponse.json({
       consent: {
         givenAt: entry.consentGivenAt,
