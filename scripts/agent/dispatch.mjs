@@ -163,6 +163,7 @@ export const PROTECTED_PREFIXES = [
   { prefix: '.git/', why: 'the repository database itself' },
   { prefix: '.github/workflows/', why: 'the machinery that judges this change' },
   { prefix: '.github/rulesets/', why: 'the machinery that judges this change' },
+  { prefix: '.github/actions-pin-allowlist.json', why: 'the mutable-action exceptions the security gate trusts' },
   { prefix: '.githooks/', why: 'the machinery that judges this change' },
   { prefix: '.claude/', why: 'the constitution the reviewer is judged against' },
   { prefix: 'data/', why: 'operator SQLite and seed data' },

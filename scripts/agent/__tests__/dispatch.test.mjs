@@ -132,6 +132,10 @@ check('a dispatched agent cannot write the operator database', () => {
   assert.match(String(pathProblem('data/seed_jobs/jobs.json')), /operator SQLite and seed data/);
 });
 
+check('a dispatched agent cannot add its own mutable-action exception', () => {
+  assert.match(String(pathProblem('.github/actions-pin-allowlist.json')), /mutable-action exceptions/);
+});
+
 check('path traversal, absolute paths and windows separators are all refused', () => {
   assert.match(String(pathProblem('../outside.ts')), /escapes the repository/);
   assert.match(String(pathProblem('app/../../etc/passwd')), /escapes the repository/);
