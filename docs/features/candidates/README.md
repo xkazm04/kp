@@ -689,7 +689,10 @@ manual review**. The analyze dump stamps that as `archetypeNeedsReview` (plus
 `archetypeNeedsReviewCode` `low_confidence` / `contradiction`) beside the float,
 so the report does not re-implement the cutoff. For student and career-switcher
 profiles, the same routed `v2Profile` also carries the deterministic
-`potentialScore` and `learningSignals` used by matching. The conservative default (unclassifiable → experienced, not
+`potentialScore` and `learningSignals` used by matching. The Extraction tab
+shows a `PotentialBadge` beside the overall score dial when that measured
+potential is present; its explanation includes the recorded learning signals.
+The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
