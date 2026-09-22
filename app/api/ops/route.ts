@@ -5,7 +5,7 @@ import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
-import { analyzeTelemetry, commsTelemetry, engineTelemetry } from "@/app/_lib/ops-telemetry";
+import { analyzeTelemetry, commsTelemetry, engineTelemetry, tailJsonl } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
@@ -111,6 +111,9 @@ export async function GET() {
       analyze: analyzeTelemetry(),
       engine: engineTelemetry(),
       comms: commsTelemetry(),
+      // Structured warnings were written but had no read surface. The bounded
+      // tail uses the same log directory as opsLog and stays operator-only here.
+      opsWarnings: tailJsonl("ops-warn.log"),
       schedule: {
         reconcileFailures: getScheduleReconcileCount(),
         noSlotStalls: getScheduleNoSlotsCount(),

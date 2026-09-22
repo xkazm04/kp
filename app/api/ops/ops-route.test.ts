@@ -18,7 +18,9 @@
 //   node scripts/run-unit-tests.mjs "app/api/ops/*.test.ts"
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { register, registerHooks } from "node:module";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
@@ -74,6 +76,7 @@ type OpsBody = {
   catalog?: string;
   degradedReasons?: string[];
   configIssues?: { phase: string; scope: string; workspaceId: string }[];
+  opsWarnings?: { event?: string; level?: string }[];
 };
 const bodyOf = async (r: Response): Promise<OpsBody> => (await r.json()) as OpsBody;
 
@@ -99,6 +102,24 @@ test("an operator gets the telemetry payload", async () => {
   assert.ok(body.tables, "the gate is a gate, not a deletion");
   assert.ok(body.queue);
   assert.ok(body.engines);
+});
+
+test("operator telemetry includes a bounded tail of structured warnings", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "kp-ops-warnings-"));
+  const previous = process.env.KP_LOG_DIR;
+  process.env.KP_LOG_DIR = directory;
+  try {
+    const { opsLog } = await import("../../_lib/ops-telemetry.ts");
+    opsLog("warn", "test-warning", { count: 1 });
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.opsWarnings?.at(-1)?.event, "test-warning");
+    assert.equal(body.opsWarnings?.at(-1)?.level, "warn");
+  } finally {
+    if (previous === undefined) delete process.env.KP_LOG_DIR;
+    else process.env.KP_LOG_DIR = previous;
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("the catch answers a CODE, never the thrown message", () => {
