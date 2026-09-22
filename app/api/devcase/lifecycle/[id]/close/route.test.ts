@@ -75,3 +75,20 @@ test("two overlapping closes send exactly ONE rejection batch (no doubled advers
   assert.equal(closedAudits.length, 1, "exactly one 'closed' audit row");
   assert.equal(getLifecycle(id)!.stage, "closed");
 });
+
+test("close skips opaque candidate handles but uses an email ref when contact is absent", async () => {
+  const lc = createLifecycle({ title: "Backend role" }, false);
+  const dc = saveDevCase({ need: {}, analysis: {}, role: { title: "Backend Engineer" }, case: { title: "API case" } });
+  updateLifecycle(lc.id, { caseId: dc.id, stage: "promoted" });
+  const posting = createPosting({ caseId: dc.id, channel: "link", token: `tok-${dc.id}`, roleTitle: "Backend Engineer", caseTitle: "API case" });
+  createSubmission({ postingId: posting.id, candidateRef: "opaque-123", repoRef: "repo-opaque" });
+  createSubmission({ postingId: posting.id, candidateRef: "ref@example.test", repoRef: "repo-email" });
+
+  const before = new Set(listOutboxFiltered({ kind: "rejection" }).map((row) => row.id));
+  const res = await POST(req(lc.id), ctx(lc.id));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json() as { notified: number }).notified, 1);
+  const sent = listOutboxFiltered({ kind: "rejection" }).filter((row) => !before.has(row.id));
+  assert.deepEqual(sent.map((row) => row.recipient), ["ref@example.test"]);
+  assert.equal(getLifecycle(lc.id)?.stage, "closed");
+});

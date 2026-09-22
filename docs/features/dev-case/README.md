@@ -1199,6 +1199,10 @@ same 404 a nonexistent id gets. Pinned behaviorally, per door, in
 proving the guard is not over-broad. The control-room global kill switch is deliberately
 unchanged; it is an operator-wide switch, not a by-id door.
 
+Close-out sends a wrap-up only to a valid contact email, or to an email-shaped
+`candidateRef` when contact is absent. Opaque candidate handles remain on the
+closed submission record but are not passed to the comms outbox as recipients.
+
 One consequence for tests: a handler driven directly has no cookie jar, so
 `currentWorkspace()` falls back to the default workspace. `close-tenancy.test.ts`
 therefore proves the close *behaviour* in the default workspace and pins the
