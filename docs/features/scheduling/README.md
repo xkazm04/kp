@@ -273,6 +273,9 @@ lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
 `schedule.calendarCheckedNote` / `calendarUncheckedNote` (candidate), in all
 four locales. `app/_lib/calendar/calendar-status-i18n.test.ts` set-equality
 guards the recruiter catalog against `CALENDAR_STATUSES`.
+When the verdict is `not_connected`, the status also links to the Integrations
+tab's Connect Google Calendar action; `unavailable` does not suggest connecting
+an account that is already present.
 
 ## Write-back — the interview on the real calendar
 
