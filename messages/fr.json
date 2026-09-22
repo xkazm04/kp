@@ -11131,6 +11131,7 @@
       "speak": "Lire à voix haute",
       "stop": "Arrêter la lecture",
       "resume": "Lire",
+      "blockedHint": "Votre navigateur a bloqué la lecture automatique. Appuyez sur Lire pour écouter cette réponse.",
       "failed": "Impossible de lire ce texte à voix haute.",
       "waiting": "En attente de la lecture…",
       "wrongLanguage": "Aucune voix installée ne parle cette langue, le texte a donc été lu avec un autre accent."

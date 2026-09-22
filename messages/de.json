@@ -11131,6 +11131,7 @@
       "speak": "Vorlesen lassen",
       "stop": "Vorlesen stoppen",
       "resume": "Abspielen",
+      "blockedHint": "Der Browser hat die automatische Wiedergabe blockiert. Mit Abspielen hören Sie diese Antwort.",
       "failed": "Das konnte nicht vorgelesen werden.",
       "waiting": "Warten auf die Sprachausgabe…",
       "wrongLanguage": "Keine installierte Stimme spricht diese Sprache, der Text wurde daher mit einem anderen Akzent vorgelesen."

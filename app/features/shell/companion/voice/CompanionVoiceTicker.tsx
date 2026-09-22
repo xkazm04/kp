@@ -118,6 +118,7 @@ export function CompanionVoiceTicker({
   const entry = history.entry;
   const open = entry !== null && openId === entry.id;
   const hasDetails = entry !== null && hasMoreToShow(entry.content, (entry.meta?.blocks ?? []).length);
+  const playbackBlocked = entry !== null && speech.speakingId === entry.id && speech.playback === "blocked";
 
   return (
     <div className={`${PANEL} px-3 py-2`}>
@@ -164,6 +165,7 @@ export function CompanionVoiceTicker({
         <VoiceNav history={history} className="shrink-0" />
         {chrome}
       </div>
+      {playbackBlocked ? <p role="status" className="mt-1.5 text-sm text-coral">{t("voice.blockedHint")}</p> : null}
 
       {/* An ALERT, not a paragraph. The strip sits at the top of a page the
           operator is deliberately working instead of watching, so a failure that

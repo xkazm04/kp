@@ -11131,6 +11131,7 @@
       "speak": "Přečíst nahlas",
       "stop": "Zastavit čtení",
       "resume": "Přehrát",
+      "blockedHint": "Prohlížeč zablokoval automatické přehrávání. Odpověď si poslechnete tlačítkem Přehrát.",
       "failed": "Tohle se nepodařilo přečíst nahlas.",
       "waiting": "Čeká se na přehrání…",
       "wrongLanguage": "Tento jazyk neumí žádný nainstalovaný hlas, text byl proto přečten s jiným přízvukem."

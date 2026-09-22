@@ -11131,6 +11131,7 @@
       "speak": "Read this aloud",
       "stop": "Stop reading",
       "resume": "Play",
+      "blockedHint": "Your browser blocked automatic playback. Press Play to hear this reply.",
       "failed": "That could not be spoken.",
       "waiting": "Waiting to speak…",
       "wrongLanguage": "No installed voice speaks this language, so it was read in another accent."

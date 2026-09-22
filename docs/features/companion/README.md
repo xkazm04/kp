@@ -1079,6 +1079,8 @@ scrollable answer timeline; each dot jumps through `history.goTo` and marks the
 current answer. The old `VoiceDots`, `VoicePlaybackRow` and `VoicePromptEcho`
 served only the deleted directions and went with them, along with their message
 keys.
+When a browser blocks automatic speech, the ticker shows a status beside the
+answer that tells the operator to press Play.
 
 Two rules the strip keeps:
 
