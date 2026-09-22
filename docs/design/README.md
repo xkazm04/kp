@@ -257,7 +257,9 @@ element:
   cannot accidentally import the Studio Light constant onto `#141b24`. Any new
   chart follows that pattern; both mirrors are pinned to `globals.css` by
   `design:check`, and `app/_lib/brand.test.ts` asserts key parity, so neither
-  half can drift the way the light half had.
+  half can drift the way the light half had. `FactorChart` also carries a
+  visually hidden data table with each localized factor and its raw points,
+  so the bars have an accessible numeric equivalent.
 - **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
   attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
   resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`
