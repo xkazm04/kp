@@ -146,7 +146,7 @@ export function WorkspaceNavDrawer({
                   via Ctrl/Cmd+K). */}
               <CommandPalette />
               {/* The recruiter feedback door — in-product, lands on /control. */}
-              <NavFeedbackButton />
+              <NavFeedbackButton active={navActive} />
               <RailPreferences />
               {/* Drop the dev session and return to the landing. */}
               <SignOutButton />

@@ -116,7 +116,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
                 <Suspense fallback={null}>
                   <CommandPalette />
                 </Suspense>
-                <NavFeedbackButton />
+                <NavFeedbackButton active={active} />
               </>
             ) : null}
             <RailPreferences />
