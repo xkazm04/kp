@@ -14,6 +14,8 @@ import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "
 import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
+import { externalRunner } from "@/app/_lib/task-external-runners";
+import type { GithubStageInput, GithubStageResult } from "@/app/_lib/analyze-github-stage";
 import type { Locale } from "@/i18n/locales";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
@@ -45,7 +47,15 @@ export type AnalyzeParams = {
   // (the task runs outside request scope, so it can't read the cookie) and stamped
   // on the saved analysis. Absent ⇒ saveAnalysis defaults to the single workspace.
   workspace?: string;
+  // The GitHub deep-dive rides this task as a stage (analyze-github-stage.ts). Set by
+  // /api/analyze only for a non-blind run whose caller holds pipeline:write and whose
+  // github-analysis budget admitted it; otherwise `githubDropped` names why it did not.
+  githubProfile?: string | null;
+  githubDropped?: string | null;
 };
+
+/** The registry key /api/analyze registers the GitHub stage under. */
+export const ANALYZE_GITHUB_RUNNER = "analyze_github";
 
 export class AnalyzeError extends Error {
   status: number;
@@ -224,8 +234,8 @@ function resolveJobStructure(jdSlug: string | null | undefined): string | null {
 // identical across the failure, single-analysis, and comparison branches. Each
 // call site spreads this and adds only its status-specific keys (status, error,
 // candidate_label, variant_count, cache_hit, saved_slug) so the common fields
-// can never drift between success and failure runs.
-function baseAnalyzeLog(
+// can never drift between success and failure runs. Exported for its unit test.
+export function baseAnalyzeLog(
   p: AnalyzeParams,
   startedAt: number
 ): Pick<
@@ -238,13 +248,63 @@ function baseAnalyzeLog(
     jd_present: Boolean(p.jobDescriptionPath || p.jobDescriptionText?.trim()),
     jd_slug: p.jdSlug ?? null,
     company_present: Boolean(p.companyPath || p.companyText?.trim()),
-    github_present: false,
+    github_present: Boolean(p.githubProfile?.trim()),
     duration_ms: Date.now() - startedAt,
   };
 }
 
+// Start the GitHub stage beside the variants (null = no handle rode along). LOOKED UP in
+// the late-bound registry, not imported: this module is on tasks.ts's graph and the GitHub
+// harvest must stay off it (perf-budget.json). Never rejects — a missing registration
+// (a replay after a restart) is ANALYSIS_FAILED, a coded outcome, never a failed run.
+function startGithubStage(
+  p: AnalyzeParams,
+  savedSlug: Promise<string | null>,
+  signal?: AbortSignal
+): Promise<GithubStageResult> | null {
+  if (p.githubDropped) return Promise.resolve({ status: "error", code: p.githubDropped });
+  const profile = p.githubProfile?.trim();
+  if (!profile) return null;
+  // Blind is refused here too: params that carry a handle anyway must not reach GitHub.
+  if (p.blind) return Promise.resolve({ status: "skipped", reason: "blind" });
+  const input: GithubStageInput = {
+    profile,
+    blind: false,
+    jdText: p.jobDescriptionText ?? null,
+    jdPath: p.jobDescriptionPath ?? null,
+    requestId: p.requestId,
+    savedSlug,
+  };
+  const failed = (error: unknown): GithubStageResult => {
+    console.error("[analyze-run] the GitHub deep-dive stage did not run", error);
+    return { status: "error", code: "ANALYSIS_FAILED" };
+  };
+  try {
+    return externalRunner(ANALYZE_GITHUB_RUNNER)({
+      workspaceId: p.workspace ?? "",
+      signal: signal ?? new AbortController().signal,
+      progress: () => {},
+      params: input as unknown as Record<string, unknown>,
+    }).then((r) => r as GithubStageResult, failed);
+  } catch (error) {
+    return Promise.resolve(failed(error));
+  }
+}
+
 export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, signal?: AbortSignal): Promise<unknown> {
   const startedAt = Date.now();
+  // The saved slug reaches the GitHub stage as a PROMISE (it attaches itself once the CV
+  // half has a row); settled null in the finally on every path that saves none.
+  let settleSlug: (slug: string | null) => void = () => {};
+  const savedSlug = new Promise<string | null>((resolve) => {
+    settleSlug = resolve;
+  });
+  const githubStage = startGithubStage(p, savedSlug, signal);
+  // Awaited only AFTER the CV half persisted and debited, so it changes neither.
+  const githubDeepDive = async (slug: string | null): Promise<{ githubDeepDive?: GithubStageResult }> => {
+    settleSlug(slug);
+    return githubStage ? { githubDeepDive: await githubStage } : {};
+  };
   try {
     const jdFileBytes = p.jobDescriptionPath ? await readFile(p.jobDescriptionPath) : null;
     const coFileBytes = p.companyPath ? await readFile(p.companyPath) : null;
@@ -426,6 +486,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         cvHashForLabel(p.variants, single.label)
       );
       debitDeliveredAnalysis(persisted, allCached, p.workspace);
+      const github = await githubDeepDive(persisted?.slug ?? null);
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
@@ -441,6 +502,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         // live result surfaces a "served from cache, no new cost" note from it.
         servedFromCache: allCached,
         ...(partialFailures.length ? { partialFailures } : {}),
+        ...github,
       };
     }
 
@@ -453,6 +515,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const winnerHash = cvHashForLabel(p.variants, winner.label);
     const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace, winnerHash);
     debitDeliveredAnalysis(persisted, allCached, p.workspace);
+    const github = await githubDeepDive(persisted?.slug ?? null);
     void logAnalyze({
       ...baseAnalyzeLog(p, startedAt),
       candidate_label: `${winner.label} (best of ${analyses.length})`,
@@ -466,8 +529,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       persistence: persisted,
       servedFromCache: allCached,
       ...(partialFailures.length ? { partialFailures } : {}),
+      ...github,
     };
   } finally {
+    settleSlug(null);
     await cleanupWorkdir(p.baseDir);
   }
 }

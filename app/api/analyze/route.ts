@@ -3,7 +3,10 @@ import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
-import type { AnalyzeParams } from "@/app/_lib/analyze-run";
+import { ANALYZE_GITHUB_RUNNER, type AnalyzeParams } from "@/app/_lib/analyze-run";
+import { runGithubStageTask } from "@/app/_lib/analyze-github-stage";
+import { registerTaskRunner } from "@/app/_lib/task-external-runners";
+import { can } from "@/app/_lib/auth/current-user";
 import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
@@ -18,6 +21,14 @@ import {
 } from "@/app/_lib/upload-constraints";
 
 export const maxDuration = 60;
+
+// The GitHub deep-dive runs as a STAGE of the analyze task (challenge-r02
+// analyze-engine/A). analyze-run.ts looks the stage up in the late-bound registry rather
+// than importing it — analyze-run is on tasks.ts's graph, and the GitHub harvest must not
+// ride onto the ~60 routes that import that hub. This route is the one that puts a handle
+// on the params, so it is the one that loads the stage: registered at module load, in the
+// process the task runs in. Idempotent (re-registering replaces), so a dev reload is safe.
+registerTaskRunner(ANALYZE_GITHUB_RUNNER, runGithubStageTask);
 
 // Persists the upload to a stable dir and starts a background `analyze` task,
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
@@ -138,6 +149,25 @@ export async function POST(request: Request) {
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   const blind = form.get("blind") === "true";
 
+  // The GitHub deep-dive rides THIS task now (analyze-github-stage.ts), so this door owes
+  // the two guards /api/github-analysis applies. Neither refuses the CV run — the handle
+  // is an optional extra on a request that is otherwise valid, so a guard that fails
+  // DROPS it with a code the panel renders, and the analysis the recruiter asked for
+  // still starts:
+  //   - AUTHORIZATION: the deep-dive spends the deployment's GitHub + Gemini budget and
+  //     produces a hiring judgement about a named person, which the door reserves for
+  //     `pipeline:write`. A boolean read here, not a gate: a viewer seat may still run
+  //     the CV analysis this route has always allowed it.
+  //   - the shared `github-analysis:<ip>` budget, charged below.
+  // BLIND: a blind run never forwards the handle at all — blind screening redacts
+  // identity, and the deep-dive renders it. The handle is not even written onto the
+  // task row. (The stage refuses blind on its own too, for any params that carry one.)
+  // Read BEFORE the reservation count below: `can` awaits, and nothing may await
+  // between that count and startTask.
+  const rawGithub = form.get("githubProfile");
+  const githubHandle = !blind && typeof rawGithub === "string" && rawGithub.trim() ? rawGithub.trim() : null;
+  const githubAllowed = githubHandle ? await can("pipeline:write") : false;
+
   // `workspace` was resolved at the top of the handler (all gate reads share it) and
   // rides on the params so the background task stamps the saved analysis with it —
   // the detached task can't read the cookie itself.
@@ -173,6 +203,19 @@ export async function POST(request: Request) {
   ).length;
   const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze, workspace });
   if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: reserve.meter, plan: reserve.plan });
+
+  // The deep-dive's share of the GitHub budget: the SAME bucket /api/github-analysis
+  // charges, so a handle cannot buy a second 10/10min allowance by riding a CV run.
+  // Charged only once the run is certain to start (after the reservation gate), so a
+  // refused run spends none of it; a cached deep-dive shares the budget here — the stage
+  // cannot know its JD (it may be a file still to extract) until it runs. A throttle is
+  // not a 429: the handle is dropped with REQUEST_THROTTLED and the CV run proceeds.
+  if (githubHandle) {
+    if (!githubAllowed) params.githubDropped = "FORBIDDEN_CAPABILITY";
+    else if (!rateLimit(`github-analysis:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
+      params.githubDropped = "REQUEST_THROTTLED";
+    } else params.githubProfile = githubHandle;
+  }
 
   // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
   const task = startTask("analyze", params as unknown as Record<string, unknown>, workspace);

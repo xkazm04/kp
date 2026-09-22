@@ -8,7 +8,7 @@ import {
   initialStageState,
   type StageState,
 } from "@/app/_components/AnalysisProgress";
-import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
+import { type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
@@ -19,7 +19,7 @@ import {
 import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
 import { useAnalyzeCvFiles } from "./useAnalyzeCvFiles";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./analyzeRunAnalysis";
-import { resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
+import { githubViewFromDeepDive, resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
 import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
 import {
   ANALYZE_DRAFT_KEY,
@@ -89,6 +89,9 @@ export function useAnalyzeForm() {
   // run's late callbacks are ignored, so a zombie poll that resolves after a
   // Reset/Cancel can't write the stale result back over the cleared form.
   const analysisRunIdRef = useRef(0);
+  // The saved-row slug whose deep-dive is already attached (by the analyze task, or by
+  // the PATCH effect below for a panel Retry) — so it is never written twice.
+  const githubPersistedRef = useRef<string | null>(null);
 
   const { cvFiles, addCvFile, replaceCvFile, removeCvFile, clearCvFiles, syncCvFilesRef } = useAnalyzeCvFiles();
   const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
@@ -256,6 +259,26 @@ export function useAnalyzeForm() {
       generic: t("errFailed"),
     });
 
+  // The GitHub deep-dive of a CV run is a STAGE of the analyze task (challenge-r02
+  // analyze-engine/A): its outcome arrives on the task result, and the server has already
+  // attached a delivered one to the saved row. This includes a refresh-resumed run —
+  // the stored result carries the deep-dive, so there is nothing to fetch back.
+  const applyGithubDeepDive = (parsed: Analysis) => {
+    if (!parsed.githubDeepDive) {
+      // No stage rode this run; only unstick a panel still marked loading.
+      setGithubStatus(githubStatusAfterCancel);
+      return;
+    }
+    const view = githubViewFromDeepDive(parsed.githubDeepDive);
+    const slug = parsed.persistence?.slug;
+    // Already on the row — the PATCH effect below must not write it a second time.
+    if (view.status === "done" && slug) githubPersistedRef.current = slug;
+    setGithubAnalysis(view.analysis);
+    setGithubError(view.error ? resolveAnalyzeMessage(view.error) : null);
+    setGithubWarning(view.warning ? resolveAnalyzeMessage(view.warning) : null);
+    setGithubStatus(view.status);
+  };
+
   const buildCallbacks = (runId: number) => {
     const current = () => runId === analysisRunIdRef.current;
     return {
@@ -276,12 +299,16 @@ export function useAnalyzeForm() {
       onResult: (parsed: Analysis) => {
         if (!current()) return;
         setAnalysis(parsed);
+        applyGithubDeepDive(parsed);
         setIsLoading(false);
         setIsCompleting(false);
         clearStoredTask();
       },
       onError: (error: AnalyzeErrorInfo) => {
         if (!current()) return;
+        // The deep-dive rode the task that just failed, so no outcome is coming for it:
+        // release a "loading" panel (which also keeps the Analyze button disabled).
+        setGithubStatus(githubStatusAfterCancel);
         setError(resolveAnalyzeMessage(error));
         setIsLoading(false);
         setIsCompleting(false);
@@ -354,10 +381,6 @@ export function useAnalyzeForm() {
     return () => clearTimeout(id);
   }, [jobDescriptionText, companyText, githubProfile, reportLang, blind]);
 
-  // True once this mount re-attached to a server task after a refresh — gates
-  // the GitHub-restore effect below (a fresh submit never needs the restore).
-  const resumedRef = useRef(false);
-
   // Re-attach to an analyze task that was still running when the page reloaded.
   // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
   // setState in the effect body would cascade a render before the first commit
@@ -377,7 +400,6 @@ export function useAnalyzeForm() {
       abortRef.current = controller;
       taskIdRef.current = resumeStored;
       const runId = ++analysisRunIdRef.current;
-      resumedRef.current = true;
       setIsLoading(true);
       setIsCompleting(false);
       void resumeAnalysis(resumeStored, buildCallbacks(runId), controller.signal);
@@ -386,13 +408,11 @@ export function useAnalyzeForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // GH1 — persist the GitHub deep-dive onto the saved analysis row once BOTH
-  // the save receipt (analysis.persistence.slug) and a done GitHub result
-  // exist. Completion order varies (the deep-dive can outlive the main run and
-  // vice versa), so this watches both. Per-slug guard so re-renders can't
-  // re-PATCH; cleared on failure so a later pass may retry. Best-effort: the
-  // live view already shows the result — only the saved report misses it.
-  const githubPersistedRef = useRef<string | null>(null);
+  // GH1 — attach a deep-dive the PANEL produced (its Retry, which still runs through
+  // /api/github-analysis) onto the saved row. A CV run's own deep-dive no longer needs
+  // this: it is a stage of the analyze task, attached server-side, and
+  // applyGithubDeepDive marks its slug here so it is never written twice. Per-slug
+  // guard so re-renders can't re-PATCH; cleared on failure so a later pass may retry.
   useEffect(() => {
     const slug = analysis?.persistence?.slug;
     if (!slug || githubStatus !== "done" || !githubAnalysis) return;
@@ -407,41 +427,12 @@ export function useAnalyzeForm() {
     });
   }, [analysis, githubAnalysis, githubStatus]);
 
-  // GH1 — the deep-dive runs client-side, so a page refresh loses it even
-  // though the resumed server task restores the main analysis. Once the
-  // resumed analysis lands with its save receipt, restore the persisted
-  // deep-dive from the saved row (written by the pre-refresh session's PATCH).
-  useEffect(() => {
-    if (!resumedRef.current) return;
-    const slug = analysis?.persistence?.slug;
-    if (!slug || githubStatus !== "idle" || githubAnalysis) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const r = await fetch(`/api/analyses/${encodeURIComponent(slug)}`);
-        if (!r.ok || cancelled) return;
-        const payload = (await r.json()) as { githubAnalysis?: unknown };
-        if (cancelled || !payload.githubAnalysis) return;
-        const parsed = githubAnalysisSchema.safeParse(payload.githubAnalysis);
-        if (parsed.success && !cancelled) {
-          githubPersistedRef.current = slug; // already persisted — don't re-PATCH
-          setGithubAnalysis(parsed.data);
-          setGithubStatus("done");
-        }
-      } catch {
-        /* best-effort restore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [analysis, githubAnalysis, githubStatus]);
-
-  // Abort an in-flight analyze run when the tab unmounts (e.g. switching the
-  // workspace segmented control), so the poll loop + stage interval don't leak.
-  // The GitHub deep-dive is aborted here too: it outlives the main run by design,
-  // so an unmount mid-deep-dive used to leave a request (and its extract-text
-  // subprocess hop) running against a surface that no longer exists. Aborting also
+  // Abort an in-flight analyze POLL when the tab unmounts (e.g. switching the
+  // workspace segmented control), so the poll loop + stage interval don't leak. The
+  // server task itself runs on — and a CV run's GitHub deep-dive with it, since it is a
+  // stage of that task. Only a panel-owned deep-dive (a GitHub-only run or a Retry, both
+  // through /api/github-analysis) is a browser request, and that one is aborted here so
+  // it does not keep running against a surface that no longer exists. Aborting also
   // clears the 320 ms result-delivery timer on the main run (scheduleResultDelivery).
   useEffect(
     () => () => {
@@ -451,9 +442,11 @@ export function useAnalyzeForm() {
     []
   );
 
-  // One GitHub deep-dive launch — used by submit AND by the panel's "Retry
-  // GitHub analysis" (GH5), so a transient rate-limit failure can be retried
-  // alone without re-running the whole CV pipeline. Mints a fresh run id
+  // One browser-owned GitHub deep-dive launch through /api/github-analysis — used by a
+  // GitHub-only submit (no CV, so no task to ride) AND by the panel's "Retry GitHub
+  // analysis" (GH5), so a transient rate-limit failure can be retried alone without
+  // re-running the whole CV pipeline. A CV run's deep-dive is NOT launched here: it
+  // rides the analyze task (submitAnalysis sends the handle). Mints a fresh run id
   // (superseding any in-flight deep-dive) and clears the result state; the
   // guarded callbacks ignore anything a superseded run still emits.
   function launchGithubRun() {
@@ -535,11 +528,17 @@ export function useAnalyzeForm() {
     setGithubWarning(null);
     setGithubStatus("idle");
 
-    if (hasGithub) launchGithubRun();
-
-    // GitHub-only run: the deep-dive above is the whole job — no server task,
+    // GitHub-only run: the browser-owned deep-dive is the whole job — no server task,
     // no main-analysis loading flags or stage strip.
-    if (githubOnly) return;
+    if (githubOnly) {
+      launchGithubRun();
+      return;
+    }
+
+    // A CV run: the deep-dive (when there is a handle and the run is not blind) is a
+    // stage of the analyze task, so the panel shows it loading until the result lands.
+    const githubRides = shouldRunGithubDeepDive({ hasGithub, blind });
+    if (githubRides) setGithubStatus("loading");
 
     setIsLoading(true);
     setIsCompleting(false);
@@ -560,6 +559,7 @@ export function useAnalyzeForm() {
         selectedJdSlug,
         reportLang,
         blind,
+        githubProfile: githubRides ? githubProfile : undefined,
       },
       buildCallbacks(analysisRunId),
       controller.signal

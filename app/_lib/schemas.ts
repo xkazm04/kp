@@ -176,7 +176,20 @@ export const analysisSchema = analysisResultSchema.extend({
   // True when the delivered run did NO new engine work — every surviving variant
   // was served from the analyze cache (a re-run / duplicate). The live Analyze
   // result reads this to show a "served from cache, no new cost" note.
-  servedFromCache: z.boolean().nullish()
+  servedFromCache: z.boolean().nullish(),
+  // The GitHub deep-dive stage's outcome (analyze-github-stage.ts), on the task result:
+  // `done` + payload, `error` + code, or `skipped` (blind). Nullish for older rows; lazy
+  // because githubAnalysisSchema is declared below.
+  githubDeepDive: z
+    .object({
+      status: z.enum(["done", "error", "skipped"]),
+      analysis: z.lazy(() => githubAnalysisSchema).nullish(),
+      code: z.string().nullish(),
+      retryAfterSec: z.number().nullish(),
+      warning: z.string().nullish(),
+      reason: z.string().nullish(),
+    })
+    .nullish()
 });
 
 export type Analysis = z.infer<typeof analysisSchema>;
