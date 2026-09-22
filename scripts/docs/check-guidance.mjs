@@ -318,6 +318,7 @@ const REMEDY_PATH = /(?<![\w./@-])((?:\.{1,2}\/)?[\w.-]+(?:\/[\w.-]+)+\.(?:mjs|c
 export function remediesIn(source) {
   const out = [];
   source.split(/\r?\n/).forEach((line, i) => {
+    if (line.trimStart().startsWith('#')) return; // shell comments describe the hook; they never reach a contributor
     if (!INSTRUCTS.test(line)) return;
     REMEDY_PATH.lastIndex = 0;
     let m;
