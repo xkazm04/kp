@@ -2731,6 +2731,8 @@
     "title": "Tastenkürzel",
     "intro": "Drücken Sie g und dann eine Taste, um zu einem Tab zu springen.",
     "palette": "Suche / Befehlspalette",
+    "dockMove": "Fokus in der Steuerleiste bewegen",
+    "dockActivate": "Schaltfläche der Steuerleiste aktivieren",
     "thisOverlay": "Diese Übersicht anzeigen"
   },
   "nav": {

@@ -603,6 +603,10 @@ they are not interchangeable:
 single letter and both two-key chords, so either mistake fails loudly instead of
 silently moving someone's muscle memory.
 
+The `?` overlay also names the always-mounted control dock's toolbar keys:
+Left/Right and Home/End move focus among controls; Enter/Space activates the
+focused control. Arrow navigation never triggers a control's action.
+
 ## `shell/tasks/` — the AI-tasks surface
 
 `?tab=tasks` (labelled **AI tasks**; the id, the chunk and the catalog namespace

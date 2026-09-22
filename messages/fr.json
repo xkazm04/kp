@@ -2731,6 +2731,8 @@
     "title": "Raccourcis clavier",
     "intro": "Appuyez sur g puis une touche pour accéder à un onglet.",
     "palette": "Recherche / palette de commandes",
+    "dockMove": "Déplacer le focus dans la barre de contrôle",
+    "dockActivate": "Activer un bouton de la barre de contrôle",
     "thisOverlay": "Afficher cette aide"
   },
   "nav": {

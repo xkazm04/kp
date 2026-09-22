@@ -127,6 +127,22 @@ export function KeyboardShortcuts({ onSelectTab }: { onSelectTab: (id: Workspace
           </li>
         ))}
         <li className="flex items-center justify-between gap-3 border-t border-stone-100 pt-2 text-base">
+          <span className="text-ink">{t("dockMove")}</span>
+          <span className="flex items-center gap-1">
+            <kbd className={`${KBD} text-sm`}>←</kbd>
+            <kbd className={`${KBD} text-sm`}>→</kbd>
+            <kbd className={`${KBD} text-sm`}>Home</kbd>
+            <kbd className={`${KBD} text-sm`}>End</kbd>
+          </span>
+        </li>
+        <li className="flex items-center justify-between gap-3 text-base">
+          <span className="text-ink">{t("dockActivate")}</span>
+          <span className="flex items-center gap-1">
+            <kbd className={`${KBD} text-sm`}>Enter</kbd>
+            <kbd className={`${KBD} text-sm`}>Space</kbd>
+          </span>
+        </li>
+        <li className="flex items-center justify-between gap-3 border-t border-stone-100 pt-2 text-base">
           <span className="text-ink">{t("thisOverlay")}</span>
           <kbd className={`${KBD} text-sm`}>?</kbd>
         </li>

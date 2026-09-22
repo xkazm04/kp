@@ -2731,6 +2731,8 @@
     "title": "Klávesové zkratky",
     "intro": "Stiskněte g a potom klávesu pro přechod na záložku.",
     "palette": "Hledání / paleta příkazů",
+    "dockMove": "Přesunout fokus v ovládacím panelu",
+    "dockActivate": "Aktivovat tlačítko ovládacího panelu",
     "thisOverlay": "Zobrazit tento přehled"
   },
   "nav": {
