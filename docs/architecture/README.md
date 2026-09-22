@@ -103,6 +103,22 @@ with no ids. Two roles can be evaluated at once without swapping verdicts. Looku
 is already per-workspace (`getActiveTaskByDedupe`), so the cohort fingerprint is
 what stops same-tenant cross-role contamination.
 
+**One kind vocabulary.** The task kinds are a closed list, `TASK_KINDS` in
+`app/_lib/task-kinds.ts`, with the derived `TaskKind` union and an `isTaskKind` guard.
+The module has no imports, so both the client and the unit runner can read it. Every
+per-kind table is keyed `Record<TaskKind, …>`: the handler registry (`HANDLERS` in
+`tasks.ts`), the budget class (`TASK_BUDGET_CLASS` in `task-budget.ts`), the dedupe
+identity (`DEDUPE_BUILDERS` in `task-dedupe.ts`, where `null` means "no stable
+identity, never merge", as for `profile_draft`), and the outcome decision (`TABLE`
+and `NO_TABLE_SUMMARY` in `task-outcome-summary.ts`, typed as a partition). To add a
+kind, add one entry to `TASK_KINDS`; `tsc` then lists every table that still has to
+decide what the new kind does. The client's `startTask` accepts only a `TaskKind`, so
+a misspelled kind at a call site fails to compile instead of returning a 400 at
+runtime. The runtime guard is still there for request bodies and for rows written by
+an older build: POST `/api/tasks` refuses an unknown kind with `TASK_KIND_UNKNOWN`.
+Runners registered only on the late-bound seam, such as `intake_round`, are not
+kinds.
+
 ```text
 app/
   page.tsx                          Workspace shell (tab-based studio UI); '/' is gated
