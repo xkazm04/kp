@@ -166,6 +166,10 @@ chart beneath is the evidence. Which claim the funnel band may make is one pure 
 | `no-goal` | real conversion, no goal anywhere | "set a conversion goal and this brief will name your weakest stage" |
 | `healthy` | every goal-bearing stage clears its goal | the healthy claim |
 
+The bottleneck stage is selected by median wait among stages with at least three
+active entries, so one exceptionally old case does not redirect the claim. The
+displayed days remain that selected stage's rounded average.
+
 Precedence is the argument: movement licenses a conversion number at all, so it is checked
 first; dwell keeps precedence over conversion; a goal is the last gate before the band may
 call a stage weak.
