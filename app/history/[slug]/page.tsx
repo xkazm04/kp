@@ -94,6 +94,11 @@ export default async function HistoryDetailPage({
     const key = `stage.${stage}` as Parameters<typeof tEnums>[0];
     return tEnums.has(key) ? tEnums(key) : stage;
   };
+  const candidateLabel = (kind: "family" | "seniority", value: string | null) => {
+    if (!value) return "—";
+    const key = `${kind}.${value}` as Parameters<typeof tEnums>[0];
+    return tEnums.has(key) ? tEnums(key) : value;
+  };
 
   // Content-addressed identity (cv_hash) surfaces two things, both best-effort so a
   // store fault never breaks the report:
@@ -181,7 +186,7 @@ export default async function HistoryDetailPage({
         </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
-          {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: savedDateTime })}
+          {candidateLabel("family", found.row.role_family)} · {candidateLabel("seniority", found.row.seniority)} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: savedDateTime })}
           {found.row.jd_slug ? (
             <>
               {" · "}
