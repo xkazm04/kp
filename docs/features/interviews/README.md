@@ -16,7 +16,8 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
   mail names the actual reason.
 - Recruiter dev/demo harness: `app/interview-lab/page.tsx` — a keyless lab for
   trying the agent as a recruiter would; gated by `INTERVIEW_LAB_ENABLED=1`
-  outside production.
+  outside production. Its language picker offers auto-detect and all four
+  shipped locales (Czech, English, German, French) for provider comparisons.
 - Recruiter-triggered simulation: `app/features/tools/interview/InterviewSimTab.tsx`,
   `InterviewStartPanel.tsx`, `InterviewModeCards.tsx`,
   `InterviewAttachToCandidate.tsx` → `app/api/interview/simulate/route.ts`.
