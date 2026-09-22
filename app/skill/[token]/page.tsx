@@ -115,6 +115,9 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         <badge.Icon className="h-4 w-4" aria-hidden />
         {badge.label}
       </div>
+      {state === "revoked" || state === "tampered" || state === "unverifiable" ? (
+        <p className="mt-2 max-w-xl text-sm text-steel">{t(`${state}Body`)}</p>
+      ) : null}
 
       {/* A stale credential stays genuine — say so plainly and name why (old / superseded
           methodology) so an employer reads "still real, just not current", not "fake". */}
@@ -200,8 +203,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         // about what kp issued is worse than no statement, and the badge above already
         // names each of those three states in full ("This credential has been revoked",
         // "Signature invalid, do not trust", "Verification temporarily unavailable"), so
-        // they now render the badge alone. Per-state body copy is a follow-up: it needs
-        // new keys in all four locale catalogs.
+        // they now render their own per-state body copy under the badge.
         <section className="mt-6 rounded-lg border border-stone-200 bg-paper p-6 text-sm text-steel">
           {t("summaryUnavailable")}
         </section>

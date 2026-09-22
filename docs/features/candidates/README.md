@@ -97,9 +97,8 @@ career-switcher) that other features key off. Downstream ranking is
   releases the numbers only for `verified`/`stale`. The muted body block under the
   badge belongs to `incomplete` alone (it states the credential was issued without a
   scored summary, which is true only there); `revoked`/`tampered`/`unverifiable`
-  render the badge with no body, because that sentence would be a false claim about
-  what kp issued. Per-state body copy is a follow-up — it needs new keys in all four
-  locale catalogs.
+  render distinct explanatory body copy, because the incomplete sentence would be
+  a false claim about what kp issued.
   The issued date, including the date in stale-state explanations, uses the
   reader's locale instead of a raw ISO day.
   The public card offers a print/PDF action; its controls disappear from print.
