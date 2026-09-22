@@ -1039,6 +1039,8 @@ Arrow keys are bound to the header REGION (`tabIndex=0`, labelled), never the
 document — a global arrow handler would steal the keys from the page this mode
 exists to leave usable — and the handler ignores events from inside an input,
 select or radiogroup, because the direction switcher owns those keys itself.
+Space plays or stops the shown answer when the voice window itself has focus;
+focused controls keep their own Space behavior.
 
 ### The presentation, and what the prototype round settled
 

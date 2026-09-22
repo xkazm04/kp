@@ -47,6 +47,16 @@ type PlaybackState = {
   press: () => void;
 };
 
+/** One transport decision for the button and the focused window's Space key. */
+export function pressVoicePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): boolean {
+  if (!entry || voiceTextForTurn(entry).length === 0) return false;
+  const active = speech.speakingId === entry.id;
+  if (active && speech.playback === "blocked") speech.resume();
+  else if (active && speech.playback !== "error") speech.stop();
+  else speech.speak(entry);
+  return true;
+}
+
 function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): PlaybackState | null {
   const t = useTranslations("companion");
   const resolveError = useErrorMessage();
@@ -73,11 +83,7 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
     note: waiting ? t("voice.waiting") : wrongLanguage ? t("voice.wrongLanguage") : null,
     reason: failed ? resolveError({ code: speech.errorCode }, t("voice.failed")) : null,
     label: blocked ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
-    press: () => {
-      if (blocked) speech.resume();
-      else if (active && !failed) speech.stop();
-      else speech.speak(speakable);
-    },
+    press: () => { pressVoicePlayback(entry, speech); },
   };
 }
 
