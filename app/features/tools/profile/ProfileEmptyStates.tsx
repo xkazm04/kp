@@ -105,7 +105,7 @@ function SpecimenCard() {
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <Meter value={0} tone="null" className="h-1.5 w-32" />
+        <Meter value={0} tone="null" className="h-1.5 w-32" aria-hidden />
         <span className="text-sm text-steel">{t("roster.completenessPct", { pct: 0 })}</span>
       </div>
     </div>

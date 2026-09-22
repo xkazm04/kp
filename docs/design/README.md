@@ -260,6 +260,9 @@ element:
   half can drift the way the light half had. `FactorChart` also carries a
   visually hidden data table with each localized factor and its raw points,
   so the bars have an accessible numeric equivalent.
+- **Meter labels are part of its type contract.** Each `Meter` progress bar takes
+  a localized `aria-label`; decorative specimen bars instead declare
+  `aria-hidden`. An unnamed progress bar cannot be added silently.
 - **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
   attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
   resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`
