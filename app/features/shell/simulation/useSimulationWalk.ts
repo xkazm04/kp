@@ -446,7 +446,9 @@ export function useSimulationWalk({
           let scheduled = false;
           try {
             // AUTOMATE: mint a self-scheduling link; the candidate picks a slot.
-            const inv = await fetch("/api/schedule/invite", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }).then((r) => r.json());
+            const inv = await okJson<{ token?: string }>(
+              await fetch("/api/schedule/invite", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) })
+            );
             if (inv?.token) {
               patch({ frame: { url: `/schedule/${inv.token}`, title: t("step.interview.frameTitle") } });
               await beat(2400); // let the viewer watch the candidate's slot picker

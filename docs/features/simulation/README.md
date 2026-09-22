@@ -238,6 +238,9 @@ an explicit guard rather than a special-case fake:
   still written: the Outbox entry is part of what the tour shows, and `queued` is the
   outbox's honest "recorded locally, nothing will deliver it" state. Pinned by
   `app/_lib/comms-dispatch-sim.test.ts`.
+- **It checks the invite write.** The interview beat reads the schedule-invite
+  response through `okJson`, so a refused write takes the stated manual-confirm
+  fallback and records why self-scheduling was unavailable.
 - **It never lies about cleanup.** `reset()` awaits the purge and reports `reset`
   only on a 2xx; a failed purge renders the localized "cleanup failed" status in red
   (`simulation.status.resetFailed`, four locales) so the presenter retries instead of
