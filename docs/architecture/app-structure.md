@@ -162,6 +162,9 @@ Settings → Branding still paid for the chunk at click time. The rail button no
 warms every chunk in its group on hover, focus and click (`prefetchSection`), so
 opening a section starts all of its tabs' downloads at once — 2–7 small chunks
 per group, deduped per document by `prefetchTabChunk`.
+The visible rail section is remembered in session storage across reloads. A tab
+switch makes its own section the new stored default; unavailable storage only
+loses that preference.
 
 ### A nav group may own a DOOR as well as its destinations
 
