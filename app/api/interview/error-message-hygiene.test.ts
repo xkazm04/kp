@@ -44,6 +44,8 @@ const ROUTES = [
   "./revoke/route.ts",
   "./simulate/route.ts",
   "./simulate/attach/route.ts",
+  "./sessions/route.ts",
+  "./sessions/[id]/route.ts",
   "../interview-prep/route.ts",
 ] as const;
 
