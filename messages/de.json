@@ -2911,6 +2911,11 @@
   "pipeline": {
     "board": {
       "position": "Position",
+      "scoreRingKey": "Bewertungsring",
+      "scoreRing": { "strong": "Stark", "mid": "Mittel", "weak": "Schwach", "null": "Ohne Bewertung" },
+      "waitingDotKey": "Wartepunkte",
+      "waitingHumanKey": "Person",
+      "waitingAiKey": "KI",
       "active": "{count, plural, one {# aktiv} other {# aktiv}}",
       "rankCandidates": "Kandidat/innen ranken →",
       "openJd": "Stellenbeschreibung öffnen",

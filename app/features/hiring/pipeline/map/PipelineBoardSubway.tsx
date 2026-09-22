@@ -26,7 +26,7 @@ import { DEFAULT_BOARD_AXIS, STAGE_HELP, type Entry } from "@/app/features/share
 import { PipelineBoardOffAxisStrip } from "../PipelineBoardOffAxisStrip";
 import type { MapBoardProps } from "./mapTypes";
 import { LineRow } from "./subway/SubwayLineRow";
-import { StationHeader } from "./subway/SubwayMarks";
+import { StationHeader, SubwayKey } from "./subway/SubwayMarks";
 import { useSubwayModel } from "./subway/useSubwayModel";
 
 type PipelineT = ReturnType<typeof useTranslations<"pipeline">>;
@@ -140,6 +140,7 @@ export function PipelineBoardSubway({
           })}
         </div>
       </div>
+      <SubwayKey />
 
       {/* Candidates standing on a column this board does not draw — loud by
           design, exactly as on the baseline board. */}

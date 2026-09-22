@@ -1424,8 +1424,9 @@ match-only, and the board's sort and score bands (`pipelineBoardFilters.ts`), th
 decisions peer rank (`decisionsPeerCompare.ts`) and screen-wave all read through them.
 Consequence worth knowing: a freshly promoted assignment candidate shows a transfer
 number and still sits in the **unscored** score band, which is true — until the
-automation sweep computes their real match score. The legend lives in
-`PipelineShared.tsx` under the board, beside the archetype/status legend.
+automation sweep computes their real match score. The Subway key names ring
+strength and waiting dots below the map; detailed score-kind copy remains in
+`PipelineShared.tsx` for the earlier board view.
 
 ## Decisions peer context (comparison data for the review queue)
 
@@ -1617,8 +1618,10 @@ the same server-side instant.
   waiting indicators, `board.waitingHuman` / `board.waitingAi`) and the candidate
   modal — Scorecard included — are fully localized. Minting keys for the Orchard is
   a catalog change in all four locales.
-- **No on-board key explains the bead fill or the waiting dots.** The legend footer
-  was removed; the dots carry their meaning in their hover text and accessible name.
+- **The Subway names its score rings and waiting dots in a visible key.** The
+  score ring shows strong, medium, weak or no score; coral and steel dots show
+  candidates waiting on a person and AI respectively. Each line still carries
+  the exact counts in its hover text and accessible name.
 - **Avatar fill = gender is a HINT, not data.** Nothing on the wire says gender
   (the pipeline redacts gender-coded signals before scoring — `redact.py`); the
   fill comes from Czech surname morphology (`genderHintOf`, `-ová`/`-á` feminine)

@@ -2911,6 +2911,11 @@
   "pipeline": {
     "board": {
       "position": "Poste",
+      "scoreRingKey": "Anneau du score",
+      "scoreRing": { "strong": "Fort", "mid": "Moyen", "weak": "Faible", "null": "Sans score" },
+      "waitingDotKey": "Points d’attente",
+      "waitingHumanKey": "Personne",
+      "waitingAiKey": "IA",
       "active": "{count, plural, one {# actif} other {# actifs}}",
       "rankCandidates": "Classer les candidats →",
       "openJd": "Ouvrir la fiche de poste",

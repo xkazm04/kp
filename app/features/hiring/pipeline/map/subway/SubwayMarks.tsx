@@ -4,8 +4,33 @@
 // before a role title, and the header row of station names.
 
 import { META_LABEL } from "@/app/_components/ui/recipes";
+import { useTranslations } from "next-intl";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { AVATAR_RING } from "../mapAvatar";
 import type { LineAttention as LineCounts } from "./lineAttention";
+
+/** The map's visible key for the two signals carried by every line. */
+export function SubwayKey() {
+  const t = useTranslations("pipeline.board");
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-stone-200 px-4 py-2 text-sm text-steel">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-medium text-ink">{t("scoreRingKey")}</span>
+        {(["strong", "mid", "weak", "null"] as const).map((tone) => (
+          <span key={tone} className="inline-flex items-center gap-1.5">
+            <span aria-hidden className={`h-3 w-3 rounded-full bg-white ${AVATAR_RING[tone]}`} />
+            {t(`scoreRing.${tone}`)}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-medium text-ink">{t("waitingDotKey")}</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-coral" />{t("waitingHumanKey")}</span>
+        <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-steel" />{t("waitingAiKey")}</span>
+      </div>
+    </div>
+  );
+}
 
 /** Filled coral when people stand here, a hollow stone ring when the platform is
  *  empty. Grows slightly on cell hover (CSS only, off under reduced motion). */

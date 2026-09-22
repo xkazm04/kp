@@ -2911,6 +2911,11 @@
   "pipeline": {
     "board": {
       "position": "Pozice",
+      "scoreRingKey": "Kroužek skóre",
+      "scoreRing": { "strong": "Silná shoda", "mid": "Střední shoda", "weak": "Slabá shoda", "null": "Bez skóre" },
+      "waitingDotKey": "Tečky čekání",
+      "waitingHumanKey": "Člověk",
+      "waitingAiKey": "AI",
       "active": "{count, plural, one {# aktivní} few {# aktivní} many {# aktivních} other {# aktivních}}",
       "rankCandidates": "Seřadit kandidáty →",
       "openJd": "Otevřít popis pozice",
