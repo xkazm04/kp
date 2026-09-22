@@ -41,7 +41,9 @@ role that was never created.
 
 `DemoUnavailableNotice.tsx` resolves the `code` through `errors.<CODE>` in the
 reader's language — the same vocabulary every coded API refusal uses — and falls back
-to the generic body for an older link with no code. The banner stays dismissible
+to the generic body for an older link with no code. Dismissing the banner removes
+the `demo` and `code` query parameters from the current history entry, so a reload
+does not show the notice again. The banner stays dismissible
 and does not auto-redirect; it also links to `/about` (the public pipeline story,
 labelled with the existing `landing.nav.about`) so a gated deploy is not a dead
 end. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the

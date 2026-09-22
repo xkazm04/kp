@@ -53,7 +53,13 @@ export function DemoUnavailableNotice() {
         </div>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            const url = new URL(document.URL);
+            url.searchParams.delete("demo");
+            url.searchParams.delete("code");
+            window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+            setDismissed(true);
+          }}
           aria-label={t("demoNotice.dismiss")}
           title={t("demoNotice.dismiss")}
           className="shrink-0 rounded-md p-1 text-[#141414] transition-colors hover:bg-[#141414]/10"
