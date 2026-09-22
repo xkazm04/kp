@@ -778,6 +778,10 @@ attribute holding an arrow function does not end the tag early.
 
 ### Mutation feedback
 
+`ConfirmDialog` composes the shared `Modal` stack with one cancel and one confirm
+action. Workspace member removals use it, so Escape, focus trapping, and the
+theme's button recipes stay consistent across confirmation surfaces.
+
 The shared toast store offers `toast.promise(task, {loading, success, error})`
 for mutations. Its pending notice stays visible until settlement, then changes
 in place to a timed success or error; concurrent mutations keep separate notices.

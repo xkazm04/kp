@@ -2,13 +2,12 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Modal } from "@/app/_components/Modal";
-import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { ConfirmDialog } from "@/app/_components/ConfirmDialog";
 import { memberName } from "./workspaceAdminHelpers";
 import type { OrgMemberDto } from "./useWorkspaceAdmin";
 
 // The Workspaces console's destructive-action confirms. Uses the shared themed
-// Modal, not window.confirm (the one dialog the theme system can't style; see
+// ConfirmDialog, not window.confirm (the one dialog the theme system can't style; see
 // JobPostingModal).
 //
 // THREE confirms, and the wording between the first two is the point: taking
@@ -49,49 +48,6 @@ function useRemovalImpact(userId: string | null): { impact: RemovalImpact | null
   return { impact: state.impact, error: state.error };
 }
 
-/** The shared shell — one Modal, one destructive footer, so the three confirms
- *  can't drift apart visually. */
-function ConfirmModal({
-  title,
-  confirmLabel,
-  cancelLabel,
-  onCancel,
-  onConfirm,
-  confirmDisabled = false,
-  children,
-}: {
-  title: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-  confirmDisabled?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Modal
-      title={title}
-      onClose={onCancel}
-      size="md"
-      footer={
-        <>
-          {/* The shared button recipes, not two hand-typed near-copies of them:
-              these had drifted off BTN_SECONDARY/BTN_PRIMARY and so missed the
-              Spark Dark sticker press every other dialog in the app has. */}
-          <button type="button" onClick={onCancel} className={`${BTN_SECONDARY} h-9 bg-white px-3 text-sm font-semibold text-steel hover:text-ink`}>
-            {cancelLabel}
-          </button>
-          <button type="button" onClick={onConfirm} disabled={confirmDisabled} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
-            {confirmLabel}
-          </button>
-        </>
-      }
-    >
-      <p className="text-base text-steel">{children}</p>
-    </Modal>
-  );
-}
-
 export function MemberConfirmModals({
   confirmingRemoveFromWorkspace,
   onCancelRemoveFromWorkspace,
@@ -120,7 +76,7 @@ export function MemberConfirmModals({
   return (
     <>
       {confirmingRemoveFromWorkspace ? (
-        <ConfirmModal
+        <ConfirmDialog
           title={t("confirmRemoveFromWorkspace.title")}
           cancelLabel={t("confirmRemoveFromWorkspace.cancel")}
           confirmLabel={t("confirmRemoveFromWorkspace.confirm")}
@@ -136,11 +92,11 @@ export function MemberConfirmModals({
             workspace: confirmingRemoveFromWorkspace.workspaceName,
             em,
           })}
-        </ConfirmModal>
+        </ConfirmDialog>
       ) : null}
 
       {confirmingRemove ? (
-        <ConfirmModal
+        <ConfirmDialog
           title={t("confirmRemove.title")}
           cancelLabel={t("confirmRemove.cancel")}
           confirmLabel={t("confirmRemove.confirm")}
@@ -166,11 +122,11 @@ export function MemberConfirmModals({
           ) : (
             <span className="mt-2 block text-sm text-steel/70">{t("confirmRemove.impactLoading")}</span>
           )}
-        </ConfirmModal>
+        </ConfirmDialog>
       ) : null}
 
       {confirmingRevoke ? (
-        <ConfirmModal
+        <ConfirmDialog
           title={t("confirmRevoke.title")}
           cancelLabel={t("confirmRevoke.cancel")}
           confirmLabel={t("confirmRevoke.confirm")}
@@ -182,7 +138,7 @@ export function MemberConfirmModals({
           }}
         >
           {t.rich("confirmRevoke.body", { email: confirmingRevoke.email, em })}
-        </ConfirmModal>
+        </ConfirmDialog>
       ) : null}
     </>
   );
