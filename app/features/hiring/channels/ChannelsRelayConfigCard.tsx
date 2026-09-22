@@ -7,6 +7,8 @@ import { Badge } from "@/app/_components/Badge";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { notifyDataChanged } from "@/app/features/shell/live-refresh";
+import { invalidateCommsCapability } from "@/app/features/shell/useDeliveryCapability";
 
 // Outbound delivery relay — the missing UI for what used to be env-only
 // COMMS_WEBHOOK_URL (the IntegrationsCard/ATS pattern applied to comms):
@@ -114,6 +116,12 @@ export function RelayConfigCard() {
         // over a relay the operator had *just* configured.
         const next = await readConfig();
         if (next) setState(next);
+        // The relay IS the outbound-delivery capability: tell every "sent"/"queued"
+        // surface (all windows) and the live-refresh bus — the Comms ledger beside
+        // this card re-reads its "relay not configured" alert instead of
+        // contradicting the On badge above it.
+        invalidateCommsCapability();
+        notifyDataChanged();
       } else {
         // Includes the 409: someone else saved a newer config, so nothing was written.
         // errMsg resolves COMMS_RELAY_STALE (and COMMS_RELAY_INVALID) in the reader's
@@ -126,6 +134,9 @@ export function RelayConfigCard() {
             setState(next);
             setUrl(next.url);
           }
+          // A newer config was stored elsewhere — this window's capability may be stale too.
+          invalidateCommsCapability();
+          notifyDataChanged();
         }
       }
     } catch {
