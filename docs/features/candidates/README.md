@@ -260,6 +260,11 @@ and a DOCX body is declared UTF-8). Known limit: a Czech document with none of
 visible mis-mapping instead of silent deletion. Pinned by
 `pipeline/jobfit/tests/test_extractors.py::PlainTextDecodingTest`.
 
+The deterministic authenticity screen also recognizes common Czech CV padding
+phrases (for example, “týmový hráč” and “orientovaný na výsledky”). Its existing
+density threshold still requires several hits; a concrete Czech career summary
+remains clean. `test_authenticity.py` pins both cases.
+
 **Blind screening reads a real CV header, not just "Firstname Lastname".**
 `pipeline/jobfit/redact.py::_guess_name_line` scans the first 8 lines for a 2-4
 title-cased-token fragment; three shapes used to defeat it, each with a different
