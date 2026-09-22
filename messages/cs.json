@@ -9655,6 +9655,10 @@
       "transfer": "Přenositelnost"
     },
     "casesTable": {
+      "filterTitle": "Hledat zadání nebo pozici",
+      "allStages": "Všechny fáze",
+      "allSeniorities": "Všechny úrovně seniority",
+      "noMatches": "Žádné načtené zadání těmto filtrům neodpovídá.",
       "colAssignment": "Zadání",
       "colRole": "Pozice",
       "colSeniority": "Seniorita",

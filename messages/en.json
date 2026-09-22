@@ -9655,6 +9655,10 @@
       "transfer": "Transfer"
     },
     "casesTable": {
+      "filterTitle": "Search assignment or role",
+      "allStages": "All stages",
+      "allSeniorities": "All seniority levels",
+      "noMatches": "No loaded assignments match these filters.",
       "colAssignment": "Assignment",
       "colRole": "Role",
       "colSeniority": "Seniority",

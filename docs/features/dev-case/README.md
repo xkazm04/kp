@@ -1329,6 +1329,10 @@ looks different from a studio that has exactly that many cases. When the page is
 and the door can still raise `?limit=` (50 → 150 → 500), a **Load older assignments**
 control refetches through `useDevTabData` with the next step so assignments past the
 first fifty are reachable.
+The Cases table filters its loaded rows by assignment or role title, effective
+stage (including the published/approved fallback), and seniority. Filtering keeps
+the truncation notice and Load older control visible, so a match outside the
+loaded window is not silently represented as absent from the studio.
 
 ### The control room asks authority, and reports its writes
 

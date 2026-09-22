@@ -9655,6 +9655,10 @@
       "transfer": "Transférabilité"
     },
     "casesTable": {
+      "filterTitle": "Rechercher une mission ou un poste",
+      "allStages": "Toutes les étapes",
+      "allSeniorities": "Tous les niveaux d’expérience",
+      "noMatches": "Aucune mission chargée ne correspond à ces filtres.",
       "colAssignment": "Épreuve",
       "colRole": "Poste",
       "colSeniority": "Séniorité",

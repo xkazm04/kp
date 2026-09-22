@@ -9655,6 +9655,10 @@
       "transfer": "Übertragbarkeit"
     },
     "casesTable": {
+      "filterTitle": "Aufgabe oder Stelle suchen",
+      "allStages": "Alle Phasen",
+      "allSeniorities": "Alle Erfahrungsstufen",
+      "noMatches": "Keine geladenen Aufgaben entsprechen diesen Filtern.",
       "colAssignment": "Aufgabe",
       "colRole": "Position",
       "colSeniority": "Seniorität",
