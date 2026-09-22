@@ -66,6 +66,26 @@
         { "role": "candidate", "text": "Yes, thank you, I can walk you through my experience." },
         { "role": "interviewer", "text": "How was your work on that project?" }
       ]
+    },
+    {
+      "name": "tech_loanwords_do_not_establish_english",
+      "expect": "indeterminate",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Hello, this call is transcribed." },
+        { "role": "candidate", "text": "Project, role, experience." },
+        { "role": "interviewer", "text": "Dobře, můžeme pokračovat." }
+      ]
+    },
+    {
+      "name": "tech_loanwords_do_not_flag_czech_drift",
+      "expect": "locked",
+      "driftTurnIndex": null,
+      "turns": [
+        { "role": "interviewer", "text": "Dobrý den, hello." },
+        { "role": "candidate", "text": "Děkuji, můžeme začít." },
+        { "role": "interviewer", "text": "Project, role, experience." }
+      ]
     }
   ]
 }

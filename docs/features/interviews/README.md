@@ -137,6 +137,9 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    (`app/_lib/voice/minute-prices.ts` → `voiceUsageRow`), and — for
    entry-backed sessions — runs `interview_scorecard()`
    (`pipeline/jobfit/automation.py` via `app/_lib/interview-run.ts`).
+   The transcript language-lock verdict uses clear grammatical markers; isolated
+   tech loanwords such as “role”, “project”, and “experience” leave the language
+   indeterminate so a Czech answer is not misreported as an English switch.
 5. **Brief composition.** `app/_lib/student-interview.ts` holds the shared
    persona constants (`PERSONA_LANGUAGE_DETECT`, `PERSONA_CRAFT_RULES`,
    `PERSONA_ONE_QUESTION`, `PERSONA_GENDER_GRAMMAR`) and brief builders
