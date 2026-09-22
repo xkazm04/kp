@@ -4,8 +4,10 @@
 // normalization, with a "mark captured" action that clears the flag once the
 // profile is captured manually. Split out of PipelineCandidateDrawer.tsx.
 
-import { AlertTriangle, ExternalLink, Wrench } from "lucide-react";
+import { AlertTriangle, ExternalLink, Pencil, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRouter, useSearchParams } from "next/navigation";
+import { buildUrl } from "@/app/features/shell/tabs";
 import { useIntakeReasonText } from "./pipelineEventCatalog";
 
 export function PipelineDegradedIntakeBanner({
@@ -14,15 +16,19 @@ export function PipelineDegradedIntakeBanner({
   intakeErr,
   onResolve,
   onOpenProfile,
+  candidateId,
 }: {
   reason: string | null | undefined;
   resolving: boolean;
   intakeErr: string | null;
   onResolve: () => void;
   onOpenProfile?: () => void;
+  candidateId?: string | null;
 }) {
   const t = useTranslations("pipeline.drawer");
   const tAction = useTranslations("pipeline.candidateRow");
+  const router = useRouter();
+  const search = useSearchParams();
   // The stored reason is a CODE for anything the lead intake filed; legacy rows (and
   // the CV pipeline's normalization messages) come back verbatim. See useIntakeReasonText.
   const reasonText = useIntakeReasonText()(reason);
@@ -49,6 +55,11 @@ export function PipelineDegradedIntakeBanner({
         {onOpenProfile ? (
           <button type="button" onClick={onOpenProfile} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100">
             <ExternalLink size={13} aria-hidden /> {tAction("openProfile")}
+          </button>
+        ) : null}
+        {candidateId ? (
+          <button type="button" onClick={() => router.push(buildUrl({ tab: "archetypes", edit: candidateId }, search.toString()))} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100">
+            <Pencil size={13} aria-hidden /> {t("editProfile")}
           </button>
         ) : null}
       </div>

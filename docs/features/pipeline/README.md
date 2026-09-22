@@ -1249,9 +1249,10 @@ Two surfaces read the format now:
   (`PipelineCandidateRow`), and both went through the same hook so they cannot disagree.
   The CV pipeline still writes real prose there and it still renders verbatim.
 
-On the pipeline board, the degraded-intake banner offers Open profile beside
-Mark captured when the entry has a linked profile, using the board's existing
-profile navigation so the recruiter can inspect the record before clearing the flag.
+On the pipeline board, the degraded-intake banner offers Open profile and Edit
+profile beside Mark captured when the entry has a linked profile. Edit profile
+uses the existing `?tab=archetypes&edit=<candidateId>` deep link, so the recruiter
+can correct the record before clearing the flag.
 
 ## The candidate modal and the Comms Center tell one delivery truth
 

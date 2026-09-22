@@ -65,6 +65,7 @@ export function CandidateOverviewTab({
               intakeErr={st.intakeErr}
               onResolve={st.resolveIntake}
               onOpenProfile={onOpenProfile}
+              candidateId={entry.candidateId}
             />
           ) : null}
           {hired ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
