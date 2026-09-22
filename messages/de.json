@@ -1565,6 +1565,7 @@
     "COMPANION_THREAD_NOT_FOUND": "Diese Unterhaltung gibt es nicht mehr.",
     "DEVCASE_CHAT_CEILING": "Diese Arbeitssitzung hat alle Nachrichten aufgebraucht. Ihre Arbeit ist gespeichert. Dieses Kontingent wird nicht zurückgesetzt.",
     "TOO_MANY_REQUESTS": "Zu viele Anfragen. Bitte versuchen Sie es gleich noch einmal.",
+    "LOGIN_CREDENTIALS_INVALID": "Falsche Anmeldedaten. Versuchen Sie es erneut.",
     "UPLOAD_UNSUPPORTED_TYPE": "Verwenden Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
     "UPLOAD_TOO_LARGE": "Diese Datei überschreitet das Upload-Limit von 8 MB.",
     "ANALYZE_CV_REQUIRED": "Hängen Sie einen Lebenslauf oder ein Profil zur Analyse an.",

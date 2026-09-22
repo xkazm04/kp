@@ -1565,6 +1565,7 @@
     "COMPANION_THREAD_NOT_FOUND": "Tato konverzace už neexistuje.",
     "DEVCASE_CHAT_CEILING": "Tato pracovní relace vyčerpala všechny zprávy. Vaše práce je uložená a tento limit se neobnovuje.",
     "TOO_MANY_REQUESTS": "Příliš mnoho požadavků. Zkuste to prosím za chvilku znovu.",
+    "LOGIN_CREDENTIALS_INVALID": "Nesprávné přihlašovací údaje. Zkuste to znovu.",
     "UPLOAD_UNSUPPORTED_TYPE": "Použijte soubor PDF, DOCX, TXT nebo MD.",
     "UPLOAD_TOO_LARGE": "Tento soubor překračuje limit 8 MB pro nahrání.",
     "ANALYZE_CV_REQUIRED": "Přiložte životopis nebo profil, který se má analyzovat.",

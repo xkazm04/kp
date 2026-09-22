@@ -1565,6 +1565,7 @@
     "COMPANION_THREAD_NOT_FOUND": "Cette conversation n'existe plus.",
     "DEVCASE_CHAT_CEILING": "Cette session de travail a utilisé tous ses messages. Votre travail est enregistré. Ce quota n'est pas réinitialisé.",
     "TOO_MANY_REQUESTS": "Trop de requêtes. Réessayez dans un instant.",
+    "LOGIN_CREDENTIALS_INVALID": "Identifiants incorrects. Réessayez.",
     "UPLOAD_UNSUPPORTED_TYPE": "Utilisez un fichier PDF, DOCX, TXT ou MD.",
     "UPLOAD_TOO_LARGE": "Ce fichier dépasse la limite de téléversement de 8 Mo.",
     "ANALYZE_CV_REQUIRED": "Joignez un CV ou un profil à analyser.",
