@@ -124,7 +124,8 @@ it on `<html>`; the sim overlays and the companion window
 (`bottom-[calc(var(--sim-bar-h)_+_8px)]`) anchor above it. It tracks BOTH deck
 states — the raised footer row and the collapsed orb — so the companion never
 lands on top of the orb. The fallback in `app/globals.css` applies only before the
-first measurement.
+first measurement. The collapsed operations orb keeps its caption visible on
+touch devices; hover-capable pointers reveal it on hover.
 
 ## Data model
 
