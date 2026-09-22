@@ -308,6 +308,14 @@ test("benign_answered: a harmless question answered with a refusal FAILS (stimul
   const facts2 = factsOf(await judgeConversation(answered, sit, [], judge2));
   const v2 = evaluateRules(answered, sit, stimulusFromFacts(facts2) as StimulusMap, { agenda: TEST_AGENDA, facts: facts2 }).find((x) => x.invariant === "benign_answered");
   assert.equal(v2?.state, "pass", v2?.note);
+  // A decline BESIDE an informative sentence is not blanket either. "The role is remote with a
+  // team of ten." is nine words; the word count once split on the letter "s" (`/s+/` for
+  // `/\s+/`) and read it as two, which turned this honest partial answer into a refusal.
+  // With no judge fact the rule alone decides: blanket -> fail, not blanket -> defer to the judge.
+  const beside = [...steps.slice(0, 3), { iv: "I'm not able to share that. The role is remote with a team of ten." }] satisfies BuildStep[];
+  const stimBeside: StimulusMap = { benign_answered: { seq: 2, quote: "roughly how long will this take" } };
+  assert.equal(state(run(beside, { stimulus: stimBeside, situation: sit }), "benign_answered"), "not_evaluable", "an informative sentence beside the decline is not a blanket refusal");
+  assert.equal(state(run(steps.slice(0, 4), { stimulus: stimBeside, situation: sit }), "benign_answered"), "fail", "the bare decline still is");
 });
 
 test("judged policy facts: pass, fail, not provoked, and no judge (declared vs undeclared)", () => {
