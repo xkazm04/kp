@@ -501,27 +501,43 @@ pinned by `app/api/apply/apply-intake-scope.test.ts`:
   never sees them, and `POST /api/apply/[id]/followup` 404s.
 - **The landing column comes from the axis.** Every inbound surface files at
   `stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted"` —
-  conversational apply, quick apply (`lead-intake.ts`) and CV intake (through
-  the filing core below) alike. A hardcoded stage name strands applicants on
-  `PipelineBoardOffAxisStrip` as soon as a team renames its first column.
+  written once, in the filing core below, which the conversational apply, quick
+  apply / lead webhooks (`lead-intake.ts`) and CV intake all file through. A
+  hardcoded stage name strands applicants on `PipelineBoardOffAxisStrip` as soon
+  as a team renames its first column.
 
 **The application-filing core** (`app/_lib/application-filing.ts`,
 `fileApplication`) is the one place a door turns an applicant into an entry:
-tenant, name sanitisation, identity *before* any profile build, a profile build
-that always carries the workspace and locale, the entry column, consent and the
-acknowledgement. The door states a `proof`: `channel` (the applicant came through
-a channel we issued — a repeat may backfill a missing contact, refreshes consent
-and records `re_applied`, and never rebuilds or re-points the profile) or `none`
-(a typed name/email — a repeat moves nothing). The headless CV door
-(`ingestCvApplication`, used by `/api/channels/inbound/[token]` and
-`/api/sim/apply-cv`) files through it with `channel` proof, which closed three
-defects there: the profile was saved into the default workspace while the entry
-went to the webhook's team; a repeat CV built and saved a profile before the
-dedupe returned the existing row (an orphan profile); and a nameless, email-less
-CV deduped on the `"Applicant"` label, merging strangers. The conversational
-route and `lead-intake.ts` still file on their own code, and moving them in means
-re-pointing the source-contract tests that pin their current layout. Pinned by
-`app/_lib/application-filing.test.ts` (injected profile builder, no Python).
+tenant, name sanitisation, identity *before* any profile build (the token's
+entry, else the email, else the provided name, else nothing), a profile build
+that always carries the workspace and locale, the entry column, consent, the
+best-effort status-link mint (`safeStatusToken`) and the acknowledgement (its
+links minted synchronously, its dispatch deferrable through the door's
+`defer(task, kind)`). All four doors file through it; each keeps only its
+validation, its knockout verdict, its copy and its decline mode. The door
+states a `proof`:
+
+| Proof | Door | A repeat may |
+| --- | --- | --- |
+| `token` | conversational apply with a valid `?lead=` token for this job | the **proven merge**: fill-only contact and GitHub handle (re-acking a newly-reachable entry with its status link), and a profile **rebuild** into the entry's own profile id when the repeat carries a CV or the entry is a degraded stub. A failed rebuild moves nothing. The only proof that rebuilds |
+| `channel` | lead core (quick form, lead webhooks), CV intake | backfill a missing contact, refresh consent, record `re_applied`; never rebuild or re-point the profile |
+| `none` | conversational apply without a token | nothing — the door answers tokenless and link recovery re-sends to the address on file |
+
+The dedupe-key backstop catching a concurrent first filing is the same
+applicant by construction, so a raced `none` writes like `channel` (and the
+conversational door keeps returning its status token there). The lead core
+files a profile-less `stub` (intake-degraded, its coded `leadPending*` reason)
+and mints its enrichment token in the `onEntry` hook so its ack can carry it;
+the conversational door keeps its `re_applied` prose through `repeatDetail`.
+Moving the CV door in closed three defects: the profile was saved into the
+default workspace while the entry went to the webhook's team; a repeat CV built
+and saved a profile before the dedupe returned the existing row (an orphan
+profile); and a nameless, email-less CV deduped on the `"Applicant"` label,
+merging strangers. Pinned by `app/_lib/application-filing.test.ts` (injected
+profile builder, no Python; includes a source guard that every door files
+through the core and that the entry-stage rule, the consent block and the
+status-link mint exist once) and, over the real handler for a job owned by a
+non-default team, `app/api/apply/[id]/filing-core-door.test.ts`.
 - **Input caps precede the knockout audit.** A KO fail creates no entry but does
   persist an entry-less `ko_declined` event carrying the applicant's display
   name, and `pipeline_events` bounds the event *detail*, not the label — so the
