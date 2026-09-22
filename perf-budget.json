@@ -71,6 +71,11 @@
           "maxModules": 227,
           "maxKb": 3010,
           "why": "The candidate letter route joins status and feedback-letter graphs; the merged tree measures 226 modules / 2990 KB. Named instead of lifting the group module ceiling"
+        },
+        "app/api/jobs/[id]/interview-kit/route.ts": {
+          "maxModules": 226,
+          "maxKb": 3000,
+          "why": "The route sat exactly at the 225 group ceiling through the task hub; the 2026-09-22 challenge card task-automation-engine/A added app/_lib/task-kinds.ts, an import-free ~2 KB leaf that every per-kind table is now keyed by, and the route measures 226. Named instead of lifting the group module ceiling"
         }
       }
     }
