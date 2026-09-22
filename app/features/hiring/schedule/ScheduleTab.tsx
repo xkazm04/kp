@@ -11,7 +11,7 @@ import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
 import { ScheduleTabInterviewedList } from "./ScheduleTabInterviewedList";
-import type { SchedEntry } from "./ScheduleTypes";
+import { ScheduleCalendarStatus } from "./ScheduleCalendarStatus";
 
 // The AI round subtab (link-out AI-first interviews as the Docket). Lazy like
 // the calendar: it only loads when the recruiter switches rounds.
@@ -130,6 +130,8 @@ export function ScheduleTab() {
         <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
         <p className={`mt-1 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
+
+      {hasHumanRound ? <ScheduleCalendarStatus /> : null}
 
       {/* The live-status poll knows it has stopped working; say so rather than keep
           rendering an old snapshot as if it were live. Raised from the second

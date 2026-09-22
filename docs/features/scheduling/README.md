@@ -267,7 +267,9 @@ we'll confirm by email". `calendarStatus` and `droppedForConflict` are
 statements about the *interviewer's* calendar and stay off the public token
 wire, alongside `entryId` and `reconcileReason`.
 
-Copy lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
+The Schedule tab shows that three-state verdict near its header, along with the
+number of offered times omitted for a calendar conflict when positive. Copy
+lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
 `schedule.calendarCheckedNote` / `calendarUncheckedNote` (candidate), in all
 four locales. `app/_lib/calendar/calendar-status-i18n.test.ts` set-equality
 guards the recruiter catalog against `CALENDAR_STATUSES`.
