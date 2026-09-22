@@ -4349,7 +4349,8 @@
       "calendarStatus": {
         "checked": "Mit Ihrem verbundenen Kalender abgeglichen",
         "not_connected": "Nicht abgeglichen (kein Kalender verbunden)",
-        "unavailable": "Nicht abgeglichen (die Kalenderabfrage ist fehlgeschlagen)"
+        "unavailable": "Nicht abgeglichen (die Kalenderabfrage ist fehlgeschlagen)",
+        "needs_reconnect": "Nicht abgeglichen (die Kalenderverbindung muss erneuert werden)"
       },
       "calendarDropped": "{count, plural, one {# Termin als belegt ausgeblendet} other {# Termine als belegt ausgeblendet}}",
       "calendarEvent": {
@@ -8532,6 +8533,14 @@
           "title": "Unbekanntes Verbindungsergebnis",
           "body": "Die Verbindung lieferte ein Ergebnis, das diese Version nicht kennt: {code}."
         }
+      },
+      "grant": {
+        "revokedTitle": "Google akzeptiert den Zugriff von Kandi nicht mehr",
+        "revokedBody": "Seit {date} verweigert Google Kandi den Zugriff auf diesen Kalender. Termine werden daher ohne Abgleich angeboten, und neue Interviews werden nicht eingetragen. Verbinden Sie den Kalender erneut, um beides wiederherzustellen.",
+        "undecryptableTitle": "Das gespeicherte Kalender-Token ist nicht mehr lesbar",
+        "undecryptableBody": "Seit {date} kann Kandi das gespeicherte Kalender-Token nicht mehr lesen, meist weil sich der Verschlüsselungsschlüssel des Servers geändert hat. Verbinden Sie den Kalender erneut, um ein neues zu speichern.",
+        "unsynced": "{count, plural, one {# anstehendes Interview fehlt in Ihrem Kalender.} other {# anstehende Interviews fehlen in Ihrem Kalender.}}",
+        "reconnectAction": "Jetzt erneut verbinden"
       }
     },
     "ats": {

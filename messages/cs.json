@@ -4349,7 +4349,8 @@
       "calendarStatus": {
         "checked": "Porovnáno s připojeným kalendářem",
         "not_connected": "Neověřeno (není připojen žádný kalendář)",
-        "unavailable": "Neověřeno (dotaz do kalendáře selhal)"
+        "unavailable": "Neověřeno (dotaz do kalendáře selhal)",
+        "needs_reconnect": "Neověřeno (připojení kalendáře je potřeba obnovit)"
       },
       "calendarDropped": "{count, plural, one {# termín skryt jako obsazený} few {# termíny skryty jako obsazené} many {# termínu skryto jako obsazených} other {# termínů skryto jako obsazených}}",
       "calendarEvent": {
@@ -8532,6 +8533,14 @@
           "title": "Neznámý výsledek připojení",
           "body": "Připojení vrátilo výsledek, který tato verze nezná: {code}."
         }
+      },
+      "grant": {
+        "revokedTitle": "Google přestal přijímat přístup Kandi",
+        "revokedBody": "Od {date} Google odmítá přístup Kandi k tomuto kalendáři, takže se termíny nabízejí bez kontroly obsazenosti a nové pohovory se do něj nezapisují. Obojí obnovíte opětovným připojením.",
+        "undecryptableTitle": "Uložený token kalendáře nelze přečíst",
+        "undecryptableBody": "Od {date} Kandi nedokáže přečíst uložený token kalendáře, obvykle proto, že se změnil šifrovací klíč serveru. Opětovným připojením uložíte nový.",
+        "unsynced": "{count, plural, one {# nadcházející pohovor není ve vašem kalendáři.} few {# nadcházející pohovory nejsou ve vašem kalendáři.} many {# nadcházejícího pohovoru není ve vašem kalendáři.} other {# nadcházejících pohovorů není ve vašem kalendáři.}}",
+        "reconnectAction": "Připojit znovu"
       }
     },
     "ats": {

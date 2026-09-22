@@ -4349,7 +4349,8 @@
       "calendarStatus": {
         "checked": "Checked against your connected calendar",
         "not_connected": "Not checked (no calendar connected)",
-        "unavailable": "Not checked (the calendar lookup failed)"
+        "unavailable": "Not checked (the calendar lookup failed)",
+        "needs_reconnect": "Not checked (the calendar connection needs to be reconnected)"
       },
       "calendarDropped": "{count, plural, one {# time hidden as busy} other {# times hidden as busy}}",
       "calendarEvent": {
@@ -8532,6 +8533,14 @@
           "title": "Unrecognized connection result",
           "body": "The connection returned a result this version doesn't know: {code}."
         }
+      },
+      "grant": {
+        "revokedTitle": "Google stopped accepting Kandi's access",
+        "revokedBody": "Since {date}, Google has refused Kandi's access to this calendar, so slots are offered without checking it and new interviews are not written to it. Reconnect to restore both.",
+        "undecryptableTitle": "The stored calendar token can't be read",
+        "undecryptableBody": "Since {date}, Kandi can't read the stored calendar token, usually because the server's encryption key changed. Reconnect to store a fresh one.",
+        "unsynced": "{count, plural, one {# upcoming interview is not on your calendar.} other {# upcoming interviews are not on your calendar.}}",
+        "reconnectAction": "Reconnect now"
       }
     },
     "ats": {

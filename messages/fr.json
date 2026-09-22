@@ -4349,7 +4349,8 @@
       "calendarStatus": {
         "checked": "Vérifié dans votre agenda connecté",
         "not_connected": "Non vérifié (aucun agenda connecté)",
-        "unavailable": "Non vérifié (la consultation de l’agenda a échoué)"
+        "unavailable": "Non vérifié (la consultation de l’agenda a échoué)",
+        "needs_reconnect": "Non vérifié (la connexion à l’agenda doit être rétablie)"
       },
       "calendarDropped": "{count, plural, one {# créneau masqué (occupé)} other {# créneaux masqués (occupés)}}",
       "calendarEvent": {
@@ -8532,6 +8533,14 @@
           "title": "Résultat de connexion inconnu",
           "body": "La connexion a renvoyé un résultat que cette version ne connaît pas : {code}."
         }
+      },
+      "grant": {
+        "revokedTitle": "Google n’accepte plus l’accès de Kandi",
+        "revokedBody": "Depuis le {date}, Google refuse à Kandi l’accès à cet agenda : les créneaux sont donc proposés sans vérification et les nouveaux entretiens n’y sont pas inscrits. Reconnectez l’agenda pour rétablir les deux.",
+        "undecryptableTitle": "Le jeton d’agenda enregistré est illisible",
+        "undecryptableBody": "Depuis le {date}, Kandi ne peut plus lire le jeton d’agenda enregistré, généralement parce que la clé de chiffrement du serveur a changé. Reconnectez l’agenda pour en enregistrer un nouveau.",
+        "unsynced": "{count, plural, one {# entretien à venir ne figure pas dans votre agenda.} other {# entretiens à venir ne figurent pas dans votre agenda.}}",
+        "reconnectAction": "Reconnecter maintenant"
       }
     },
     "ats": {
