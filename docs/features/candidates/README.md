@@ -381,6 +381,8 @@ animation — so a reduced-motion reader gets the same signal. Pinned by
 `app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
 `company_url` honeypot (not `type="hidden"`) and POST it on submit so a
 form-filling bot is dropped the same way on the chat as on the lead form.
+After a quick-apply decline, the done card lets the candidate return to their
+preserved answers and submit a corrected response.
 Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and

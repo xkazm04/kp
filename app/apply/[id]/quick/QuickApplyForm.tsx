@@ -196,6 +196,18 @@ export function QuickApplyForm({
             {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
           </p>
           <p className="mt-1 text-base text-steel">{done.message}</p>
+          {done.result === "declined" ? (
+            <button
+              type="button"
+              onClick={() => {
+                ensureApplySession(jobId, "quick", { campaign, variant });
+                setDone(null);
+              }}
+              className={`${BTN_SECONDARY} mt-3 px-3 py-1.5 text-base font-semibold`}
+            >
+              {tCommon("retry")}
+            </button>
+          ) : null}
           {fresh ? (
             // The enrichment hand-off: same loop the acknowledgement email
             // offers, available right here while the candidate is still present.
