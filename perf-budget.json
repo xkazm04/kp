@@ -64,8 +64,8 @@
         },
         "app/api/devcase/lifecycle/[id]/approve/route.ts": {
           "maxModules": 229,
-          "maxKb": 3000,
-          "why": "The lifecycle approval route reaches both devcase and task hubs; the merged tree measures 227 modules / 2974 KB. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends"
+          "maxKb": 3002,
+          "why": "The lifecycle approval route reaches both devcase and task hubs; the merged tree measures 227 modules / 2974 KB. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends. Plus ~1 KB on 2026-09-22 (challenge task-automation-engine/B): tasks.ts records the per-candidate fan-out ledger; task-fanout.ts itself is a type-only import there, so no module is added"
         },
         "app/api/status/[token]/letter/route.ts": {
           "maxModules": 228,
