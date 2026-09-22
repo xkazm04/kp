@@ -467,6 +467,8 @@ export const TAB_SCOPED_PARAM_KEYS = [
   "score",
   "source",
   "sort",
+  // Analytics calibration's one-shot family deep link from the screening rules.
+  "calFamily",
   // shortlist-to-group-eval — the Decisions pre-armed group-eval selection
   // (?arm=<entryId,entryId,…>, grammar in sub_decisions/group-eval-arm.ts).
   // One-shot by design: DecisionsTab consumes it at mount then strips it via

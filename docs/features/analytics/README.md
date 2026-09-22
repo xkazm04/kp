@@ -588,6 +588,10 @@ it: should this score be allowed to decide at all.
   other way out and it renders only when `families.length > 1`, so a one-family workspace that
   also carries an override could otherwise drill in and never get out
   (`analyticsCalibrationFamilyApplyGate.test.ts`).
+- The screening rules modal's family-floor chips open Analytics → Quality with
+  `?calFamily=<slug>` so the calibration panel starts on that family's curve,
+  recommendation and sealed history. The parameter is a one-shot inbox and is
+  cleared on tab switches; unknown family slugs are ignored.
 - `AnalyticsReliabilityDiagram.tsx` can draw the live auto-reject `threshold` and the
   `baseRate` as reference lines, with screen-reader equivalents — so a curve stepping from
   0.00 to 1.00 exactly at the floor reads as the score-caused signature it is.
