@@ -1465,6 +1465,8 @@ export const REFUSAL_ERRORS = {
    *  draft (404). Deliberately lumped: distinguishing them would confirm which
    *  template ids exist on other tenants. */
   TEMPLATE_NOT_FOUND: "That template no longer exists.",
+  /** An unsupported {{token}} in a template body (400); `tokens` lists the rejected names. */
+  TEMPLATE_UNKNOWN_PLACEHOLDERS: "This template contains unsupported placeholders.",
   /** The only template this team can still see (400). Deleting it would leave the
    *  JD builder's picker empty, and the org seed only re-runs on an empty tier. */
   TEMPLATE_LAST_ONE: "This is the last template your team can see. Keep at least one.",

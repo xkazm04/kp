@@ -1732,6 +1732,7 @@
     "FORBIDDEN_CAPABILITY": "Vaše role tuto akci neumožňuje.",
     "forbiddenCapabilityNeeds": "Vaše role tuto akci neumožňuje. Vyžaduje oprávnění „{capability}“.",
     "TEMPLATE_NOT_FOUND": "Tato šablona už neexistuje.",
+    "TEMPLATE_UNKNOWN_PLACEHOLDERS": "Tato šablona obsahuje nepodporované zástupné symboly.",
     "TEMPLATE_LAST_ONE": "Tohle je poslední šablona, kterou váš tým vidí. Aspoň jedna musí zůstat.",
     "TEMPLATE_IS_DEFAULT": "Tohle je výchozí šablona. Než ji smažete, nastavte jako výchozí jinou.",
     "TEMPLATE_STALE": "Šablonu mezitím uložil někdo jiný. Načtěte ji znovu a proveďte své úpravy znovu.",
