@@ -1272,9 +1272,10 @@ guard over exactly these decisions — the behaviour itself needs a browser.
 - Not verified in a running app. The dock, the proposal card and the resolve
   route have been type-checked, linted and unit-tested, but no browser has painted
   a proposal card and no accept has dispatched a real task.
-- The kp thread id does not reach the brain. Episodes carry the workspace
-  session tag (`kp-<workspace>`) only, matching the shared format; linking a
-  turn back to its episode is done through `episodePaths` on the CLI's output.
+- Episodes carry `kp-<workspace>:<thread>` in their shared `session` field, so
+  turns in one kp conversation can be grouped without losing workspace scope.
+  Older `kp-<workspace>` episodes remain readable; `episodePaths` still links
+  each turn to the exact files the CLI wrote.
 - No reindex command. If `companion_brain_index` is truncated, nothing rebuilds
   it from the tree yet. **This now has a second consequence**: the implicit
   consent arm reads that table, so a truncated mirror on a workspace that never

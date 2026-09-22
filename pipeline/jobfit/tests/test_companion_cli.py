@@ -86,6 +86,7 @@ class CompanionCliTestCase(unittest.TestCase):
         self.assertTrue(payload["episodePaths"][1].endswith("_assistant.md"))
         for rel in payload["episodePaths"]:
             self.assertTrue((brain.brain_root() / rel).is_file())
+            self.assertIn('session: "kp-workspace:cthread-1"', (brain.brain_root() / rel).read_text(encoding="utf-8"))
         # Constitution and identity ARE the system prompt; the grounding rides in
         # the user prompt, never the other way around.
         self.assertIn("kp-constitution v1", provider.system or "")
@@ -353,6 +354,7 @@ class CompanionCliTestCase(unittest.TestCase):
             payload = companion_cli.run_digest(dict(TURN))
         self.assertEqual(payload["voiceReply"], {"text": "Two roles need you today.", "source": "model"})
         self.assertEqual(payload["reply"], "Two roles need you today.")
+        self.assertIn('session: "kp-workspace:cthread-1"', (brain.brain_root() / payload["episodePaths"][0]).read_text(encoding="utf-8"))
 
     def test_the_digest_derives_a_spoken_line_when_the_model_omits_one(self):
         provider = _Provider("Two roles need you today. The platform role has been open for 31 days.")
