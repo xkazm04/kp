@@ -57,6 +57,7 @@ function ConfirmModal({
   cancelLabel,
   onCancel,
   onConfirm,
+  confirmDisabled = false,
   children,
 }: {
   title: string;
@@ -64,6 +65,7 @@ function ConfirmModal({
   cancelLabel: string;
   onCancel: () => void;
   onConfirm: () => void;
+  confirmDisabled?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -79,7 +81,7 @@ function ConfirmModal({
           <button type="button" onClick={onCancel} className={`${BTN_SECONDARY} h-9 bg-white px-3 text-sm font-semibold text-steel hover:text-ink`}>
             {cancelLabel}
           </button>
-          <button type="button" onClick={onConfirm} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
+          <button type="button" onClick={onConfirm} disabled={confirmDisabled} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
             {confirmLabel}
           </button>
         </>
@@ -142,8 +144,10 @@ export function MemberConfirmModals({
           title={t("confirmRemove.title")}
           cancelLabel={t("confirmRemove.cancel")}
           confirmLabel={t("confirmRemove.confirm")}
+          confirmDisabled={!removal.impact || removal.error}
           onCancel={onCancelRemove}
           onConfirm={() => {
+            if (!removal.impact || removal.error) return;
             const m = confirmingRemove;
             onCancelRemove();
             onConfirmRemove(m);

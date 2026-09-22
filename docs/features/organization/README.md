@@ -449,7 +449,9 @@ way to put them on a second team.
 
 Removing somebody **from a workspace** and removing them **from the organization**
 are now distinct actions with distinct confirms: the first is reversible in two
-clicks, the second deletes the account. They used to be the same red X.
+clicks, the second deletes the account. The account-deletion confirm stays disabled
+until its blast-radius preview loads; a failed preview cannot authorize deletion.
+They used to be the same red X.
 
 **Every member write leaves a receipt, and locks the row it is writing.** A role
 change and a status toggle used to do neither: the PATCH went out, the reload came
