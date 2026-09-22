@@ -716,6 +716,9 @@ guided-tour link (`sim.start`) sits in a footer row and hides while the tour run
 | 1 — narrowing | board title · search · the **State / Score / Source / Sort** dropdowns |
 | 2 — the result | `Showing n of m` · *Clear* · *Save view* · *Select* · *Aging SLAs* · *Full page* |
 
+Pressing `/` focuses the board search when focus is outside an editable field and
+no dialog is open.
+
 The **State** and **Source** menus list their options by displayed name, ascending,
 in the reader's locale (`localeCompare`) — the labels are translated, so a fixed code
 order only reads alphabetically in one language. Score keeps its band order and Sort

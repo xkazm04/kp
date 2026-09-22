@@ -25,6 +25,7 @@
 //
 // Pure display + callbacks, no state of its own.
 
+import { useEffect, useRef } from "react";
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import { useLocale } from "next-intl";
 import { BookmarkPlus, CheckSquare, Timer, AlertTriangle, Maximize2, Minimize2 } from "lucide-react";
@@ -108,6 +109,20 @@ export function PipelineFilterBar({
   onSortChange: (s: SortKey) => void;
   onClearFilters: () => void;
 }) {
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+      if (!searchRef.current) return;
+      event.preventDefault();
+      searchRef.current.focus();
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
   const modeBtn = (active: boolean): string =>
     `focus-ring inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-base font-semibold transition-colors ${
       active ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
@@ -167,6 +182,7 @@ export function PipelineFilterBar({
         <h3 className="text-meta uppercase tracking-wide text-steel">{t("statPositions")}</h3>
         <label htmlFor="pipeline-search" className="sr-only">{t("searchLabel")}</label>
         <TextInput
+          ref={searchRef}
           id="pipeline-search"
           type="search"
           value={query}
