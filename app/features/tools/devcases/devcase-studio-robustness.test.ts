@@ -121,13 +121,15 @@ test("the submission form distinguishes an absorbed duplicate from a new row", (
 });
 
 test("the dev-case submit and source doors answer with a code, not the thrown message", () => {
-  for (const [file, code] of [
-    ["../../../api/devcase/submit/route.ts", "DEVCASE_SUBMIT_FAILED"],
-    ["../../../api/devcase/source/route.ts", "DEVCASE_SOURCE_FAILED"],
+  // submit answers through answerFailure (a thrown Refusal keeps its own code, anything
+  // else falls to safeJsonError with the store code); source still calls safeJsonError.
+  for (const [file, code, responder] of [
+    ["../../../api/devcase/submit/route.ts", "DEVCASE_SUBMIT_FAILED", "answerFailure(error,"],
+    ["../../../api/devcase/source/route.ts", "DEVCASE_SOURCE_FAILED", "safeJsonError(error,"],
   ]) {
     const src = read(file);
-    assert.ok(src.includes(`, "${code}");`), `${file} must answer with ${code} through safeJsonError`);
-    assert.ok(src.includes("safeJsonError(error,"), `${file} must use safeJsonError`);
+    assert.ok(src.includes(`, "${code}");`), `${file} must answer with ${code} through ${responder}`);
+    assert.ok(src.includes(responder), `${file} must use ${responder}`);
     assert.ok(
       !src.includes("error instanceof Error ? error.message"),
       `${file} still forwards a thrown message — SQLITE_* detail, the db path or a spawn's stderr`
