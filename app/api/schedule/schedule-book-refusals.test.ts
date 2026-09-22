@@ -351,3 +351,52 @@ test("reschedule to the invite's own slot is not refused by kp's own event", asy
   assert.equal(getScheduleInviteByToken(invite.token)!.slotAt, slot.value);
   deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
 });
+
+// ---- The store's transaction is the ONE collision authority (challenge 2026-09-22) --
+//
+// The hour-bucket refusal used to live only in the grid `book` branch, as a read of
+// bookedSlots() OUTSIDE the store transaction, so accept_proposal booked a 14:30 beside
+// a 14:00. The overlap check now runs inside confirm/reschedule's `.immediate()`.
+
+/** The two latest 14:00 (interview-zone) offers in the fixed pool — far from the slots
+ *  the cases above book, so the kp-side overlap is the only thing under test. */
+const FOURTEENS = SLOTS.filter((s) => isoToDateSlot(s.value)?.endsWith(" 14:00"));
+
+test("accept_proposal of a 14:30 beside a confirmed 14:00 refuses with SCHEDULE_SLOT_TAKEN", async () => {
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+  const fourteen = FOURTEENS[FOURTEENS.length - 1];
+  assert.ok(fourteen, "the pool holds a 14:00");
+  const holder = entryFixture();
+  const held = createScheduleInvite({ entryId: holder.id, candidateLabel: holder.candidateLabel, jobTitle: "Booking Test Role", durationMin: 45 });
+  assert.equal(confirmScheduleInvite(held.token, fourteen.label, fourteen.value).ok, true, "the fixture booking itself must land");
+
+  const halfPast = new Date(Date.parse(fourteen.value) + 30 * 60_000).toISOString();
+  const { token, entryId } = pendingInviteAt({ label: "proposed", value: halfPast });
+  const r = await refusal({ action: "accept_proposal", token, slotAt: halfPast });
+  assert.equal(r.status, 409);
+  assert.equal(r.code, "SCHEDULE_SLOT_TAKEN", "two interviews in one hour is a clash, not a booking");
+  assert.equal(
+    listScheduleInvitesForEntry(entryId).some((i) => i.status === "confirmed"),
+    false,
+    "nothing was booked"
+  );
+});
+
+test("the grid book refusal comes from the store transaction, not a route-level pre-read", async () => {
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+  const fourteen = FOURTEENS[FOURTEENS.length - 2];
+  assert.ok(fourteen, "the pool holds a second 14:00");
+  const holder = entryFixture();
+  const held = createScheduleInvite({ entryId: holder.id, candidateLabel: holder.candidateLabel, jobTitle: "Booking Test Role", durationMin: 45 });
+  assert.equal(confirmScheduleInvite(held.token, fourteen.label, fourteen.value).ok, true, "the fixture booking itself must land");
+
+  const other = entryFixture();
+  const dateSlot = isoToDateSlot(fourteen.value)!.replace(/ 14:00$/, " 14:30");
+  const r = await refusal({ action: "book", entryId: other.id, dateSlot });
+  assert.equal(r.status, 409);
+  assert.equal(r.code, "SCHEDULE_SLOT_TAKEN", "the response code is unchanged");
+
+  const route = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  assert.equal(/hourBucketKey/.test(route), false, "no hour-bucket pre-read survives in the route");
+  assert.equal(/\bbookedSlots\(/.test(route), false, "the route reads the booked pool only through bookedIntervals");
+});
