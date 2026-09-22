@@ -26,19 +26,23 @@ export const DEFAULT_SLOT_MINUTES = DEFAULT_INTERVIEW_MINUTES;
  *
  * `fetchBusy` already distinguishes null ("unknown") from [] ("checked, nothing in the
  * way"). Collapsing that to a bare boolean at the UI boundary made a Google outage, a
- * revoked grant and a genuinely clear calendar indistinguishable. These are the three
- * states anyone reading a slot list needs:
+ * revoked grant and a genuinely clear calendar indistinguishable. These are the states
+ * anyone reading a slot list needs (three kinds of "not checked", each with its own repair):
  *   checked        — a connected calendar answered; the offered times are conflict-free.
  *   not_connected  — no calendar integration for this workspace (nothing to check against).
  *   unavailable    — a calendar IS connected but the lookup produced no answer (outage,
- *                    revoked grant, a per-calendar error). NEVER rendered as "free".
+ *                    throttling, a per-calendar error). NEVER rendered as "free". A wait.
+ *   needs_reconnect — a calendar IS connected but its grant is dead: Google revoked it
+ *                    (`invalid_grant`) or the stored token no longer decrypts (token-store
+ *                    CALENDAR_GRANT_HEALTH). Waiting never fixes it; a reconnect does.
+ *                    RECRUITER-ONLY: the candidate wire still carries one bit.
  *
  * CANONICAL LIST. The recruiter-facing catalog (`scheduleTab.lifecycle.calendarStatus.*`)
  * is set-equality guarded against it in all four locales by calendar-status-i18n.test.ts —
  * adding a state here without translating it fails that test rather than rendering English
  * into a German UI.
  */
-export const CALENDAR_STATUSES = ["checked", "not_connected", "unavailable"] as const;
+export const CALENDAR_STATUSES = ["checked", "not_connected", "unavailable", "needs_reconnect"] as const;
 export type CalendarStatus = (typeof CALENDAR_STATUSES)[number];
 
 /**

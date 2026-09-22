@@ -777,6 +777,21 @@ export function countFutureConfirmedInvites(workspaceId: string = DEFAULT_WORKSP
   return row.n;
 }
 
+/** Upcoming confirmed interviews in this workspace whose calendar event did NOT land
+ *  (`calendar_event_state` 'failed') — the count the Integrations panel puts beside a dead
+ *  grant ("N upcoming interviews are not on your calendar"), so the failed chips have a
+ *  named cause and a size. Past interviews are not counted: nothing is left to fix. */
+export function countUnsyncedUpcomingInvites(workspaceId: string = DEFAULT_WORKSPACE_ID, now: number = Date.now()): number {
+  const row = db()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM schedule_invites
+        WHERE status = 'confirmed' AND slot_at IS NOT NULL AND slot_at > ?
+          AND calendar_event_state = 'failed' AND workspace_id = ?`
+    )
+    .get(new Date(now).toISOString(), workspaceId) as { n: number };
+  return row.n;
+}
+
 /** The workspace's confirmed bookings WITH their length — what the slot proposer needs to
  *  hide a time an off-grid or long booking runs into (proposeSlots / bookingCollides). A
  *  legacy row with no duration reads as DEFAULT_INTERVIEW_MINUTES, never zero. */

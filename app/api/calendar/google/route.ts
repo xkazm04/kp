@@ -4,6 +4,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { googleOAuthConfig, revokeToken } from "@/app/_lib/calendar/google-oauth";
 import { deleteCalendarConnection, getCalendarConnection, getRefreshToken } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { countUnsyncedUpcomingInvites } from "@/app/_lib/schedule-store";
 
 // W1.4 — connection status and disconnect. The token never crosses this boundary; the
 // status payload carries only whether a connection exists, which calendar, and whether
@@ -14,9 +15,15 @@ export async function GET() {
   if (denied) return denied;
   const base = publicBaseUrl(null);
   const configured = googleOAuthConfig(base) !== null;
+  const workspaceId = await currentWorkspace();
+  const connection = getCalendarConnection(workspaceId);
   return NextResponse.json({
     configured,
-    connection: getCalendarConnection(await currentWorkspace()),
+    connection,
+    // How many upcoming interviews never reached the calendar (event write 'failed'),
+    // shown beside a dead grant so "reconnect" arrives with its cost. Zero without a
+    // connection: the link-only product records 'not_connected', never 'failed'.
+    unsyncedUpcoming: connection ? countUnsyncedUpcomingInvites(workspaceId) : 0,
     // Surfaced so the operator can copy it straight into the Google Cloud console instead
     // of guessing the exact string Google will demand an exact match on.
     redirectUriToRegister: `${base.replace(/\/+$/, "")}/api/calendar/google/callback`,

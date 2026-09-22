@@ -31,7 +31,32 @@ export type CalendarConnection = {
   connectedAt: string | null;
   /** Present so the UI can warn about a partial grant rather than failing silently later. */
   missingScopes: string[];
+  /** Whether the grant still WORKS, as last observed — see CALENDAR_GRANT_HEALTH. */
+  health: CalendarGrantHealth;
+  /** When the grant was last seen to stop working; null while it is healthy. */
+  healthAt: string | null;
 };
+
+/**
+ * Whether the stored grant still works, as the calendar edge last OBSERVED it.
+ *
+ * `connected` (a refresh token is stored) cannot say this: Google revokes a grant on its
+ * side (the user withdrew access, changed their password, an admin policy, a testing-mode
+ * client's 7-day expiry) and our row does not change. Without a recorded health a dead
+ * grant read as connected forever and every failure surfaced as the transient
+ * "the lookup failed", which asks the recruiter to wait for a problem only a reconnect fixes.
+ *   ok             — nothing has told us otherwise.
+ *   revoked        — Google answered a refresh with `invalid_grant`. Permanent: only a
+ *                    fresh consent recovers, so the edge stops calling Google at all.
+ *   undecryptable  — the stored token no longer decrypts (the at-rest key changed). Local
+ *                    and cheap to re-check, so it heals by itself if the key comes back.
+ * Timeouts, 5xx and throttling NEVER set this — they are the transient kind.
+ */
+export const CALENDAR_GRANT_HEALTH = ["ok", "revoked", "undecryptable"] as const;
+export type CalendarGrantHealth = (typeof CALENDAR_GRANT_HEALTH)[number];
+
+const asHealth = (v: string | null): CalendarGrantHealth =>
+  (CALENDAR_GRANT_HEALTH as readonly string[]).includes(v ?? "") ? (v as CalendarGrantHealth) : "ok";
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
@@ -52,6 +77,16 @@ function db(): Database.Database {
       PRIMARY KEY (workspace_id, provider)
     );
   `);
+  // Grant health (see CALENDAR_GRANT_HEALTH), added to a table that predates it. Isolated
+  // store, so no core.ts migrator: add each column here, tolerating "duplicate column" on
+  // every boot after the first. NULL health on a legacy row reads as 'ok' — today's meaning.
+  for (const col of ["health TEXT", "health_at TEXT"]) {
+    try {
+      d.exec(`ALTER TABLE calendar_connections ADD COLUMN ${col}`);
+    } catch {
+      /* column already exists — idempotent */
+    }
+  }
   _db = d;
   return d;
 }
@@ -67,6 +102,8 @@ type Row = {
   scopes_json: string;
   missing_scopes_json: string;
   connected_at: string | null;
+  health: string | null;
+  health_at: string | null;
 };
 
 const parseList = (json: string): string[] => {
@@ -99,6 +136,8 @@ export function getCalendarConnection(workspaceId: string = DEFAULT_WORKSPACE_ID
     connected: !!row.refresh_token,
     connectedAt: row.connected_at,
     missingScopes: parseList(row.missing_scopes_json),
+    health: asHealth(row.health),
+    healthAt: row.health_at,
   };
 }
 
@@ -125,6 +164,9 @@ export function getCachedAccessToken(workspaceId: string = DEFAULT_WORKSPACE_ID)
  *
  * A refresh-token-less response does NOT clear the stored one: Google omits it on a
  * re-grant, and wiping ours on a re-auth would break the connection that just succeeded.
+ *
+ * A completed authorization is the ONE thing that proves a grant works again, so it
+ * resets health to 'ok' — this is the Reconnect button's whole effect on a revoked grant.
  */
 export function saveCalendarConnection(
   input: { tokens: GoogleTokens; accountEmail?: string | null; calendarId?: string; missingScopes?: string[] },
@@ -135,13 +177,14 @@ export function saveCalendarConnection(
   db()
     .prepare(
       `INSERT INTO calendar_connections
-         (workspace_id, provider, account_email, calendar_id, refresh_token, access_token, access_expires_at, scopes_json, missing_scopes_json, connected_at)
-       VALUES (?, 'google', ?, ?, ?, ?, ?, ?, ?, ?)
+         (workspace_id, provider, account_email, calendar_id, refresh_token, access_token, access_expires_at, scopes_json, missing_scopes_json, connected_at, health, health_at)
+       VALUES (?, 'google', ?, ?, ?, ?, ?, ?, ?, ?, 'ok', NULL)
        ON CONFLICT(workspace_id, provider) DO UPDATE SET
          account_email = excluded.account_email, calendar_id = excluded.calendar_id,
          refresh_token = excluded.refresh_token, access_token = excluded.access_token,
          access_expires_at = excluded.access_expires_at, scopes_json = excluded.scopes_json,
-         missing_scopes_json = excluded.missing_scopes_json, connected_at = excluded.connected_at`
+         missing_scopes_json = excluded.missing_scopes_json, connected_at = excluded.connected_at,
+         health = 'ok', health_at = NULL`
     )
     .run(
       workspaceId,
@@ -165,6 +208,19 @@ export function updateAccessToken(tokens: GoogleTokens, workspaceId: string = DE
        WHERE workspace_id = ? AND provider = 'google'`
     )
     .run(encryptAtsSecret(tokens.accessToken), tokens.expiresAt, workspaceId);
+}
+
+/** Record what the calendar edge observed about the grant. Only a CHANGE is written, and
+ *  health_at keeps the moment it first went bad (a revoked grant stays revoked "since
+ *  Tuesday", not "since the last page load"); 'ok' clears it. No-op without a row. */
+export function markCalendarHealth(health: CalendarGrantHealth, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+  db()
+    .prepare(
+      `UPDATE calendar_connections
+          SET health = ?, health_at = ?
+        WHERE workspace_id = ? AND provider = 'google' AND COALESCE(health, 'ok') != ?`
+    )
+    .run(health, health === "ok" ? null : new Date().toISOString(), workspaceId, health);
 }
 
 /** Forget the connection entirely. The caller revokes at Google FIRST — deleting our row

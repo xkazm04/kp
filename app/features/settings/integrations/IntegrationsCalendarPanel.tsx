@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CalendarCheck, ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { calendarScopeSlug } from "@/app/_lib/calendar/callback-status";
 import type { CalendarConnection } from "@/app/_lib/calendar/token-store";
@@ -16,7 +16,13 @@ import { IntegrationsCallbackBanner } from "./IntegrationsCallbackBanner";
 // confirm-gated: the DELETE revokes at Google first, then drops the row, and
 // `revokedAtGoogle: false` is surfaced so the operator can withdraw the grant.
 
-type Payload = { configured: boolean; connection: CalendarConnection | null; redirectUriToRegister: string };
+type Payload = {
+  configured: boolean;
+  connection: CalendarConnection | null;
+  redirectUriToRegister: string;
+  /** Upcoming confirmed interviews whose calendar write failed — the cost of a dead grant. */
+  unsyncedUpcoming?: number;
+};
 
 const START_URL = "/api/calendar/google/start";
 
@@ -132,6 +138,31 @@ export function IntegrationsCalendarPanel() {
               </dd>
             </div>
           </dl>
+
+          {/* A DEAD grant (revoked at Google, or a stored token that no longer decrypts)
+              still reads as connected, so it is named here, with its cost and the one
+              action that fixes it. Before this the card looked healthy while every
+              lookup failed and every new interview missed the calendar. */}
+          {connection.health !== "ok" ? (
+            <div role="alert" className={`${NOTICE("critical")} mt-4 p-3`}>
+              <p className="text-base font-semibold">
+                {connection.health === "revoked" ? t("grant.revokedTitle") : t("grant.undecryptableTitle")}
+              </p>
+              <p className="mt-0.5 text-sm">
+                {t(connection.health === "revoked" ? "grant.revokedBody" : "grant.undecryptableBody", {
+                  date: connection.healthAt
+                    ? format.dateTime(new Date(connection.healthAt), { dateStyle: "medium", timeStyle: "short" })
+                    : "—",
+                })}
+              </p>
+              {(data.unsyncedUpcoming ?? 0) > 0 ? (
+                <p className="mt-1 text-sm font-semibold">{t("grant.unsynced", { count: data.unsyncedUpcoming ?? 0 })}</p>
+              ) : null}
+              <a href={START_URL} className={`${BTN_PRIMARY} mt-3 h-8 px-3 text-sm`}>
+                <ExternalLink size={14} aria-hidden /> {t("grant.reconnectAction")}
+              </a>
+            </div>
+          ) : null}
 
           {missing.length > 0 ? (
             <div role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900">

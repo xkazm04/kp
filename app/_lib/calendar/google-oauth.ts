@@ -32,9 +32,15 @@ const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 export const GOOGLE_OAUTH_CALLBACK_PATH = "/api/calendar/google/callback";
 
 export class GoogleOAuthError extends Error {
-  constructor(message: string) {
+  /** Google's own `error` code when Google answered with one (`invalid_grant`,
+   *  `invalid_client`, …); undefined for a transport failure, a timeout or a malformed
+   *  response. The caller branches on THIS, never on the message: `invalid_grant` means the
+   *  grant is dead and only a reconnect helps, while a timeout means try again later. */
+  readonly code?: string;
+  constructor(message: string, code?: string) {
     super(message);
     this.name = "GoogleOAuthError";
+    this.code = code;
   }
 }
 
@@ -139,7 +145,10 @@ export function parseTokenResponse(payload: unknown, nowMs: number = Date.now())
   if (!payload || typeof payload !== "object") throw new GoogleOAuthError("token response was not an object.");
   const o = payload as Record<string, unknown>;
   if (typeof o.error === "string") {
-    throw new GoogleOAuthError(`Google refused the token exchange: ${o.error}${o.error_description ? ` (${String(o.error_description)})` : ""}`);
+    throw new GoogleOAuthError(
+      `Google refused the token exchange: ${o.error}${o.error_description ? ` (${String(o.error_description)})` : ""}`,
+      o.error
+    );
   }
   const accessToken = typeof o.access_token === "string" ? o.access_token.trim() : "";
   if (!accessToken) throw new GoogleOAuthError("token response carried no access_token.");

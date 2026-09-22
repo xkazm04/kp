@@ -7,7 +7,7 @@ import {
   DEFAULT_SLOT_MINUTES,
   type CalendarStatus,
 } from "./free-busy";
-import { fetchBusy, isCalendarConnected } from "./google-calendar";
+import { calendarNeedsReconnect, fetchBusy, isCalendarConnected } from "./google-calendar";
 
 export { CALENDAR_STATUSES, type CalendarStatus } from "./free-busy";
 
@@ -59,13 +59,18 @@ export async function proposeFreeSlots(
   count = 6,
   minutes = DEFAULT_SLOT_MINUTES
 ): Promise<ProposedSlots> {
-  // The unchecked outcome, with the reason a human can act on: "connect a calendar" is a
-  // fix, "the lookup failed" is a wait. Never "checked" — that word is reserved for a
-  // provider answer we actually hold.
+  // The unchecked outcome, with the reason a human can act on: "connect a calendar" and
+  // "reconnect it" are fixes, "the lookup failed" is a wait. Never "checked" — that word is
+  // reserved for a provider answer we actually hold. Evaluated AFTER fetchBusy, so a grant
+  // fetchBusy just found revoked or undecryptable already reports needs_reconnect.
   const unchecked = (slots: ProposedSlots["slots"]): ProposedSlots => ({
     slots,
     calendarChecked: false,
-    calendarStatus: isCalendarConnected(workspaceId) ? "unavailable" : "not_connected",
+    calendarStatus: !isCalendarConnected(workspaceId)
+      ? "not_connected"
+      : calendarNeedsReconnect(workspaceId)
+        ? "needs_reconnect"
+        : "unavailable",
     droppedForConflict: 0,
   });
 

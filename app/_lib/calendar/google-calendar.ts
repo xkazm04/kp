@@ -3,10 +3,11 @@ import type { BusyInterval } from "./free-busy";
 import {
   accessTokenExpired,
   googleOAuthConfig,
+  GoogleOAuthError,
   refreshAccessToken,
   type GoogleOAuthConfig,
 } from "./google-oauth";
-import { getCachedAccessToken, getCalendarConnection, getRefreshToken, updateAccessToken } from "./token-store";
+import { getCachedAccessToken, getCalendarConnection, getRefreshToken, markCalendarHealth, updateAccessToken } from "./token-store";
 import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
 
 // W1.4 — the Google Calendar calls themselves. Everything that decides anything lives in
@@ -35,13 +36,17 @@ const EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
  * the PUBLIC candidate route, which has no catch around the slot proposal — so an
  * operator's env change turned the candidate's booking page into a 500, from the one
  * module whose whole contract is "degrade, never block". A credential we cannot read is a
- * grant we cannot use, which is precisely what `null` already means here (and surfaces as
- * "unavailable", not "not connected" — kp does still hold a grant).
+ * grant we cannot use, which is precisely what `null` already means here — and it is
+ * RECORDED as health 'undecryptable', so the recruiter sees "reconnect", not "the lookup
+ * failed" (kp does still hold a grant, it just cannot use it; waiting will not help).
+ * Decrypting is local and cheap, so it is re-tried on every call: restoring the old key
+ * heals the grant without a reconnect.
  */
 function readStoredToken<T>(workspaceId: string, read: (id: string) => T | null): T | null {
   try {
     return read(workspaceId);
   } catch (err) {
+    markCalendarHealth("undecryptable", workspaceId);
     console.error(
       `[calendar] the stored Google tokens for workspace "${workspaceId}" could not be decrypted — has the at-rest key (KP_ATS_SECRET_KEY / KP_SECRET) changed since the calendar was connected?`,
       err
@@ -58,22 +63,41 @@ async function accessTokenFor(workspaceId: string): Promise<{ token: string; con
   if (!config) return null;
   const connection = getCalendarConnection(workspaceId);
   if (!connection?.connected) return null;
+  // A grant Google already REVOKED never comes back on its own, so it is not asked again:
+  // every candidate page load and every booking used to spend a token round trip (up to
+  // CALENDAR_TIMEOUT_MS) on it. Only a fresh consent (saveCalendarConnection) clears it.
+  if (connection.health === "revoked") return null;
 
   const cached = readStoredToken(workspaceId, getCachedAccessToken);
-  if (cached && !accessTokenExpired(cached.expiresAt)) return { token: cached.token, config };
+  if (cached && !accessTokenExpired(cached.expiresAt)) {
+    return healed(workspaceId, connection.health, { token: cached.token, config });
+  }
 
   const refresh = readStoredToken(workspaceId, getRefreshToken);
   if (!refresh) return null;
   try {
     const tokens = await refreshAccessToken(config, refresh);
     updateAccessToken(tokens, workspaceId);
-    return { token: tokens.accessToken, config };
+    return healed(workspaceId, connection.health, { token: tokens.accessToken, config });
   } catch (err) {
-    // A revoked grant lands here (invalid_grant). Logged, not thrown: the operator sees a
-    // disconnected integration in the UI, and scheduling carries on unaided.
+    // A revoked grant lands here as Google's `invalid_grant`, and is now RECORDED. It used
+    // to be only logged, under a comment claiming the operator would "see a disconnected
+    // integration in the UI" — they did not: the row still holds a refresh token, so it
+    // read as connected forever and every failure rendered as the transient "the lookup
+    // failed". Health 'revoked' turns the recruiter status into needs_reconnect and stops
+    // the calls above. Anything else (timeout, 5xx, KP_OFFLINE, a malformed answer) is the
+    // transient kind and records nothing. Logged, not thrown, either way.
+    if (err instanceof GoogleOAuthError && err.code === "invalid_grant") markCalendarHealth("revoked", workspaceId);
     console.error(`[calendar] could not refresh the Google access token for workspace "${workspaceId}"`, err);
     return null;
   }
+}
+
+/** A token that decrypts again after an 'undecryptable' mark (the key came back) proves
+ *  the grant usable, so say so. Only that state heals here; 'revoked' never reaches it. */
+function healed<T>(workspaceId: string, was: string, auth: T): T {
+  if (was === "undecryptable") markCalendarHealth("ok", workspaceId);
+  return auth;
 }
 
 /**
@@ -84,12 +108,23 @@ async function accessTokenFor(workspaceId: string): Promise<{ token: string; con
  * a caller can tell "we did not check because there is nothing to check" from "we tried
  * and got no answer": `fetchBusy` returns null for both, and a recruiter can act on the
  * first (connect a calendar) but not on the second (wait it out). A revoked grant still
- * reads as connected here and its failed refresh surfaces as "unavailable", which is the
- * honest report — kp holds a grant it can no longer use.
+ * reads as connected here (kp holds a grant it can no longer use); `calendarNeedsReconnect`
+ * below is what tells it apart from an outage.
  */
 export function isCalendarConnected(workspaceId: string): boolean {
   if (!googleOAuthConfig(publicBaseUrl(null))) return false;
   return !!getCalendarConnection(workspaceId)?.connected;
+}
+
+/**
+ * Is the connected grant one only a RECONNECT can fix: revoked at Google, or a stored token
+ * that no longer decrypts? The third unchecked case: not "nothing to check" (not_connected),
+ * not "no answer this time" (unavailable), but "this keeps failing until a human
+ * re-consents". No network: it reads the health the edge recorded.
+ */
+export function calendarNeedsReconnect(workspaceId: string): boolean {
+  if (!isCalendarConnected(workspaceId)) return false;
+  return getCalendarConnection(workspaceId)?.health !== "ok";
 }
 
 /** An offline install is not a failure: it answers the same "no information" value with
