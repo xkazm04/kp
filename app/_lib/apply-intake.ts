@@ -1,5 +1,6 @@
 import type { JobRecord } from "./db/core";
 import { parseGithubUsername } from "./github-handle.ts";
+import type { Locale } from "@/i18n/locales";
 
 // Pure, registry-free intake heuristics for the conversational apply flow. Kept
 // in their own module (no `@/`-aliased imports) so the locale default and the
@@ -17,6 +18,14 @@ import { parseGithubUsername } from "./github-handle.ts";
  * the product expands to other markets.
  */
 export const DEFAULT_APPLY_LANGUAGES = ["Czech", "English"] as const;
+
+const LOCALE_APPLY_LANGUAGES: Record<Locale, readonly string[]> = {
+  cs: ["Czech"], en: ["English"], de: ["German"], fr: ["French"],
+};
+
+export function applyLanguagesForLocale(locale: Locale): string[] {
+  return [...LOCALE_APPLY_LANGUAGES[locale]];
+}
 
 /**
  * Anti-bot honeypot. `company_url` is a hidden form field a real applicant never sees
@@ -404,7 +413,7 @@ export type ApplyAnswers = {
  *    claimed skills ride a `kind: "other"` item instead.
  *  - experienced/default: unchanged — one project-kind item with the skills.
  */
-export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers): Record<string, unknown> {
+export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers, locale?: Locale): Record<string, unknown> {
   const skillList = answers.skills
     .split(/[,;]/)
     .map((s) => s.trim())
@@ -461,7 +470,7 @@ export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers): Recor
     displayName: answers.name,
     roleFamily: job.roleFamily ?? "software_engineering",
     languages:
-      job.languages && job.languages.length ? job.languages : [...DEFAULT_APPLY_LANGUAGES],
+      job.languages && job.languages.length ? job.languages : locale ? applyLanguagesForLocale(locale) : [...DEFAULT_APPLY_LANGUAGES],
     evidence,
   };
 

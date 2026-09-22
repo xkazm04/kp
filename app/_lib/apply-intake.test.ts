@@ -154,6 +154,14 @@ test("falls back to DEFAULT_APPLY_LANGUAGES when the job declares none", () => {
   assert.deepEqual(profile.languages, [...DEFAULT_APPLY_LANGUAGES]);
 });
 
+test("a conversational applicant without job languages gets the request locale", () => {
+  for (const [locale, language] of [["cs", "Czech"], ["en", "English"], ["de", "German"], ["fr", "French"]] as const) {
+    const profile = buildIntakeProfile(baseJob, baseAnswers, locale);
+    assert.deepEqual(profile.languages, [language], locale);
+  }
+  assert.deepEqual(buildIntakeProfile({ ...baseJob, languages: ["Spanish"] }, baseAnswers, "de").languages, ["Spanish"]);
+});
+
 test("prefers the job's declared languages over the default", () => {
   const job: JobRecord = { ...baseJob, languages: ["German"] };
   const profile = buildIntakeProfile(job, baseAnswers);

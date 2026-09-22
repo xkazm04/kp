@@ -439,7 +439,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         if (cvText || existing.intakeDegraded) {
           // Same tenant the entry itself is filed into (see the first-apply build
           // below): the rebuilt profile must land in the team that owns the opening.
-          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId, workspaceId);
+          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId, workspaceId, applicantLocale);
           if (rebuilt.ok) {
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
@@ -517,7 +517,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // a non-default team the recruiter opened their new applicant and found no
     // profile behind them, the Match pool never saw the candidate, and the follow-up
     // POST below 404'd (it reads getProfileRecord(profileId, getJobWorkspace(job.id))).
-    const built = await buildApplicantProfile(job, intakeAnswers, null, workspaceId);
+    const built = await buildApplicantProfile(job, intakeAnswers, null, workspaceId, applicantLocale);
     const candidateId = built.ok ? built.id : randomId("apply");
 
     const { entry, created } = createPipelineEntry({
