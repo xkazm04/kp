@@ -1873,6 +1873,8 @@ export const REFUSAL_ERRORS = {
   JD_NOT_FOUND: "That job description could not be found.",
   /** POST /api/jds and POST /api/jds/save: title or body missing after trim (400). */
   JD_FIELDS_REQUIRED: "A title and a description are both required.",
+  JD_BUILD_TITLE_TOO_SHORT: "Role title must be at least 2 characters.",
+  JD_BUILD_NEED_TOO_SHORT: "Describe the need in at least 11 characters so the AI has something to design from.",
   /** Title over JD_TITLE_MAX_LENGTH (400). */
   JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
   /** Body over JD_BODY_MAX_LENGTH (400). */

@@ -78,6 +78,7 @@ ledger:
 - `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract. The sitemap lists only non-archived JDs with a linked open opening; saved drafts and closed roles stay out of the public index.
 - Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
 - `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
+- `POST /api/jds/generate` returns `JD_BUILD_TITLE_TOO_SHORT` or `JD_BUILD_NEED_TOO_SHORT` for its minimum-input refusals, so the client can explain the 2-character title and 11-character need thresholds in the reader's language.
 
 
 ## Lifecycle stages

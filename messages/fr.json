@@ -1618,6 +1618,8 @@
     "AUDIO_TOO_LARGE": "Cet enregistrement dépasse la limite de téléversement de 25 Mo.",
     "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez.",
     "JD_FIELDS_REQUIRED": "Le titre et la description sont tous deux obligatoires.",
+    "JD_BUILD_TITLE_TOO_SHORT": "Le titre du poste doit comporter au moins 2 caractères.",
+    "JD_BUILD_NEED_TOO_SHORT": "Décrivez le besoin en au moins 11 caractères pour permettre à l’IA de préparer un projet.",
     "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
     "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères.",
     "DEVCASE_SUBMIT_FAILED": "Ce rendu n'a pas pu être enregistré. Veuillez réessayer.",
