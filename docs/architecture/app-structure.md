@@ -615,6 +615,11 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 | `taskSearch.ts` (+ `.test.ts`) | The free-text predicate — `taskSearchNeedle` folds what was typed, `taskMatchesSearch` tests it against the RENDERED label and the raw kind |
 
+`GET /api/tasks` includes the task kinds accepted by the server handler registry.
+The Kind filter combines that list with any legacy kind in the recent window,
+so an operator can query history for a registered kind even when its latest run
+has aged out of the live table.
+
 Eleven decisions are load-bearing:
 
 - **The search box is one predicate, and it speaks the reader's language.** The live

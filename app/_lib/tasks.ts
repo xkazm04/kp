@@ -491,6 +491,11 @@ export function isKnownKind(kind: string): boolean {
   return kind in HANDLERS;
 }
 
+/** The filter vocabulary comes from the same registry that accepts starts. */
+export function knownTaskKinds(): string[] {
+  return Object.keys(HANDLERS).sort();
+}
+
 export function startTask(
   kind: string,
   params: Record<string, unknown>,
