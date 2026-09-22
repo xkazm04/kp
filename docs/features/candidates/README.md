@@ -378,17 +378,56 @@ items (`metric`), the bullets section pick and the merged-bullet ordering all re
 the same cohort axis, so every figure the compare report quotes is one the ranking
 actually used. Pinned by `comparison.test.ts`.
 
-**Cancelling the CV scan does not discard a GitHub deep-dive that already
-landed.** The deep-dive (`executeGithubAnalysis`) is a parallel client-side run
-that routinely finishes well before the CV pipeline, and `AnalyzeTab.tsx` renders
-its panel only while `githubStatus !== "idle"`. `cancel()`
-(`useAnalyzeForm.ts`) supersedes the in-flight deep-dive by bumping
-`githubRunIdRef` — a superseded run's callbacks never fire, so a status left on
-`"loading"` would stick and keep the Analyze button disabled — but it clears the
-status through `githubStatusAfterCancel` (`analyzeGithubRunPolicy.ts`), which
-maps `"loading" → "idle"` and leaves a landed `"done"`/`"error"` untouched.
-Cancel halts the CV scan; `reset()` is the action that clears everything
-(including `githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
+**A CV run's GitHub deep-dive is a stage of the analyze task, not a browser
+request beside it.** When the form carries a handle, `submitAnalysis` sends it as a
+`githubProfile` field and `runAnalyze` (`app/_lib/analyze-run.ts`) starts the
+deep-dive beside the CV variants through `runGithubStage`
+(`app/_lib/analyze-github-stage.ts`). The stage attaches a delivered deep-dive to
+the saved row itself (`setAnalysisGithub`, once the CV half has persisted) and
+returns its outcome on the task result as `githubDeepDive`
+(`{ status: "done" | "error" | "skipped", analysis?, code?, retryAfterSec?, warning? }`,
+nullish in `analysisSchema`). So switching tab, closing it or refreshing mid-run no
+longer loses a deep-dive that was already paid for: the Tasks indicator covers the
+whole run, the History row always carries it, and a resumed run reads it off the
+stored result. The stage follows the rules of `/api/github-analysis`: the same
+handle grammar, the 20 000-character JD budget (`JD_TOO_LONG`), the TTL cache (a
+transiently-degraded read is never cached), and the same coded failures. A
+file-only JD is read through `pipeline.jobfit.extract_cli` on the persisted path,
+and an unreadable one is reported as `githubJdDropped`. The stage never throws, and
+it is awaited only after the CV half has persisted and debited, so a deep-dive
+failure can neither fail nor re-bill the CV run.
+
+- **Blind mode is enforced on the server.** A blind run never forwards the handle
+  (not even onto the task row), and both `runAnalyze` and `runGithubStage` answer
+  `skipped` for any params that carry one anyway. The client predicate
+  (`shouldRunGithubDeepDive`) now only decides what the form shows.
+- **The door's guards come along.** `/api/analyze` reads `can("pipeline:write")` and
+  charges the same `github-analysis:<ip>` bucket (10 per 10 minutes) as the door.
+  Neither guard refuses the CV run. The handle is dropped with
+  `FORBIDDEN_CAPABILITY` or `REQUEST_THROTTLED`, and the panel shows that code.
+  Pinned by `app/api/rate-limit-contract.test.ts`.
+- **Wiring.** `analyze-run.ts` is on the task hub's import graph, so it looks the
+  stage up in the late-bound runner registry (`task-external-runners.ts`) rather
+  than importing it. `/api/analyze` registers it when the module loads. A run that
+  is replayed after a restart, before that route has been hit, finds no runner and
+  reports `ANALYSIS_FAILED`, which the panel offers to retry.
+- **What still uses the door.** A GitHub-only run (no CV, so no task) and the
+  panel's Retry run through `executeGithubAnalysis` and `/api/github-analysis`. A
+  Retry's result is attached to the saved row by the form's PATCH effect, which
+  skips a slug the task already wrote.
+
+Pinned by `app/_lib/analyze-github-stage.test.ts`, the deep-dive cases in
+`app/_lib/analyze-run.test.ts` and `app/features/tools/analyze/AnalyzeApi.test.ts`.
+
+**Cancelling the CV scan does not discard a deep-dive the panel already shows.**
+A CV run's deep-dive ends with the task, so cancelling the scan cancels it too, and
+its `"loading"` panel returns to `"idle"`. A failed run does the same. A deep-dive
+from the panel's Retry is still a browser run: `cancel()` (`useAnalyzeForm.ts`)
+supersedes it by bumping `githubRunIdRef` and clears the status through
+`githubStatusAfterCancel` (`analyzeGithubRunPolicy.ts`), which maps
+`"loading" → "idle"` and leaves a landed `"done"`/`"error"` untouched. Cancel halts
+the CV scan; `reset()` is the action that clears everything (including
+`githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
 
 ### 2. Conversational / quick apply
 The public conversational apply page shows a short excerpt of the opening's
@@ -1011,6 +1050,10 @@ judgement about a named person, so a `viewer` seat that may read the board must 
 able to commission one. Open dev and an operator session both fold to owner, so local
 use is unchanged; the refusal is `FORBIDDEN_CAPABILITY` (403) or a 401 with no session.
 The route is no longer on `route-capability-coverage.test.ts`'s unjudged list.
+The in-task deep-dive a CV run carries asks the same question from `/api/analyze`, as
+a boolean read. Without `pipeline:write` the handle is dropped
+(`FORBIDDEN_CAPABILITY`) and the CV analysis still runs, because that route
+has always allowed it.
 
 ### Run bounds: cache, throttle, timeout, offline
 
