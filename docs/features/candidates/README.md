@@ -44,7 +44,9 @@ career-switcher) that other features key off. Downstream ranking is
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
 - **Saved analysis report** — `app/history/[slug]/page.tsx`. Its subtitle resolves
   role family and seniority through the shared enum catalog in the reader's
-  language, falling back to a stored value it does not recognize. "Add to pipeline"
+  language, falling back to a stored value it does not recognize. The cross-job
+  footprint names each JD and its saved score, with the slug as a title fallback.
+  "Add to pipeline"
   files the candidate under the JD's REAL title (`loadJd(jd_slug, ws).title`,
   workspace-scoped, best-effort); the synthetic `JD <slug>` remains only as the
   fallback for a JD deleted out from under the analysis. The live Analyze result

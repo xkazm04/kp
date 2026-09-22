@@ -107,14 +107,20 @@ export default async function HistoryDetailPage({
   //     newest first (the store returns newest-first), workspace-scoped.
   //  2. Label collision — another saved analysis shares this filename-derived label
   //     but a DIFFERENT CV, i.e. two different people under one "CV.pdf"-style name.
-  const alsoAnalyzed: { jdSlug: string; slug: string }[] = [];
+  const alsoAnalyzed: { jdSlug: string; slug: string; jdTitle: string | null; score: number | null }[] = [];
   let labelCollision = false;
   try {
     const seenJds = new Set<string>();
     for (const other of listAnalysesByCvHash(found.row.cv_hash, ws, slug)) {
       if (!other.jd_slug || other.jd_slug === found.row.jd_slug || seenJds.has(other.jd_slug)) continue;
       seenJds.add(other.jd_slug);
-      alsoAnalyzed.push({ jdSlug: other.jd_slug, slug: other.slug });
+      let title: string | null = null;
+      try {
+        title = loadJd(other.jd_slug, ws)?.title.trim() || null;
+      } catch (error) {
+        console.error(`[history] cross-job title lookup failed for "${other.jd_slug}"`, error);
+      }
+      alsoAnalyzed.push({ jdSlug: other.jd_slug, slug: other.slug, jdTitle: title, score: other.score });
     }
     labelCollision = hasLabelCollision(found.row.candidate_label, found.row.cv_hash, ws);
   } catch (error) {
@@ -213,9 +219,10 @@ export default async function HistoryDetailPage({
             {alsoAnalyzed.map((entry, i) => (
               <span key={entry.slug}>
                 {i > 0 ? ", " : ""}
-                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="font-mono text-coral hover:underline">
-                  JD {entry.jdSlug}
+                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="text-coral hover:underline">
+                  {entry.jdTitle ?? `JD ${entry.jdSlug}`}
                 </Link>
+                {` · ${t("histScore", { score: entry.score ?? "—" })}`}
               </span>
             ))}
           </p>
