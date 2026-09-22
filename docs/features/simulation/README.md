@@ -46,7 +46,8 @@ the `demo` and `code` query parameters from the current history entry, so a relo
 does not show the notice again. The banner stays dismissible
 and does not auto-redirect; it also links to `/about` (the public pipeline story,
 labelled with the existing `landing.nav.about`) so a gated deploy is not a dead
-end. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
+end. When self-serve sign-up is open, it also links to `/signup` using the same
+landing CTA label. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
 per-IP limit) and `app/landing/spark/DemoUnavailableNotice.test.ts` (the fallback
 href).
 

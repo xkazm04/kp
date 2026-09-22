@@ -45,7 +45,7 @@ export default function SparkHome({ signupOpen = false }: { signupOpen?: boolean
           reload. Suspense: useSearchParams in a client child of this
           server-rendered page. */}
       <Suspense fallback={null}>
-        <DemoUnavailableNotice />
+        <DemoUnavailableNotice signupOpen={signupOpen} />
       </Suspense>
       <SparkLanding signupOpen={signupOpen} />
     </div>
