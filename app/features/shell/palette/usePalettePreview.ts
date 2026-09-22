@@ -35,7 +35,7 @@ export function previewQuery(item: PaletteItem | null): string | null {
   return null;
 }
 
-export function usePalettePreview(item: PaletteItem | null): PreviewState {
+export function usePalettePreview(item: PaletteItem | null): PreviewState & { retry: () => void } {
   const key = previewQuery(item);
   // Resolved results mirrored into state so a completed fetch re-renders; the
   // module cache is the source of truth across mounts.
@@ -91,5 +91,16 @@ export function usePalettePreview(item: PaletteItem | null): PreviewState {
     };
   }, [key, revision]);
 
-  return previewStateFor(key, results);
+  const retry = () => {
+    if (!key) return;
+    clearPreviewCache();
+    setResults((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setRevision((value) => value + 1);
+  };
+
+  return { ...previewStateFor(key, results), retry };
 }

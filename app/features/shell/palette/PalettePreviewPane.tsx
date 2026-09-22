@@ -34,7 +34,14 @@ export function PalettePreviewPane({ item }: { item: PaletteItem }) {
   // staggered cascade instead (`.stagger-children` — house loading tier, reduced-
   // motion aware); the key re-arms it per destination.
   if (state.status === "loading") return <div aria-busy aria-label={t("loading")} />;
-  if (state.status === "error") return <p className="animate-arrive-in text-sm text-steel">{t("unavailable")}</p>;
+  if (state.status === "error") return (
+    <div className="animate-arrive-in space-y-2 text-sm text-steel">
+      <p>{t("unavailable")}</p>
+      <button type="button" onClick={state.retry} className="focus-ring rounded-sm font-semibold text-coral underline underline-offset-2">
+        {t("retry")}
+      </button>
+    </div>
+  );
   return (
     <div key={previewQuery(item) ?? undefined} className="stagger-children space-y-3">
       {renderPreview(state.preview, t)}

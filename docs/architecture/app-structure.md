@@ -370,6 +370,8 @@ document, and changing it empties the cache. `previewCache.test.ts` pins the
 scoping, the TTL boundary and the three response shapes that mean "error".
 The live-refresh bus also clears the memo and re-fetches the highlighted item
 after a mutation, so its count does not remain stale until the TTL expires.
+An unavailable preview keeps the palette open with a Retry action that clears
+the cached result and fetches the highlighted item again.
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group
