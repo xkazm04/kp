@@ -144,13 +144,16 @@ const roleMap = JSON.parse(readFileSync(path.join(DATA, "czisco-role-map.json"),
 function codeDigits(cz) {
   return String(cz || "").split("/").pop().replace(/\D/g, "");
 }
-function familyOf(cz) {
+export function mappedFamilyOf(cz) {
   const n = codeDigits(cz);
   for (let len = n.length; len >= 1; len--) {
     const hit = roleMap.byPrefix[n.slice(0, len)];
     if (hit) return hit;
   }
-  return roleMap.default;
+  return null;
+}
+function familyOf(cz) {
+  return mappedFamilyOf(cz) ?? roleMap.default;
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -288,7 +291,13 @@ async function main() {
   const natCells = agg.filter((x) => x.krajId === "ALL");
   const famCount = {};
   const occ = {}; // czIsco → {count, salWeighted, salW}
+  const unmappedCodes = new Set();
+  let unmappedVacancies = 0;
   for (const c of natCells) {
+    if (!mappedFamilyOf(c.czIsco)) {
+      unmappedCodes.add(c.czIsco);
+      unmappedVacancies += c.count;
+    }
     const fam = familyOf(c.czIsco);
     famCount[fam] = (famCount[fam] || 0) + c.count;
     const o = (occ[c.czIsco] ||= { count: 0, salW: 0, salWSum: 0 });
@@ -372,6 +381,8 @@ async function main() {
       salary_basis: "monthly gross",
       total_vacancies: nationalTotal,
       occupations_tracked: new Set(agg.map((x) => x.czIsco)).size,
+      unmapped_occupations: unmappedCodes.size,
+      unmapped_vacancies: unmappedVacancies,
       regions: regions.length,
       national_median: nation.median,
       national_p25: nation.p25,

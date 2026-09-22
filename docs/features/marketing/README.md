@@ -369,6 +369,12 @@ and, on any problem, refuses to overwrite `data/market_pulse.json` and exits 1 â
 so the documented `market:build && market:apply` chain cannot re-level every
 shipped salary band from a broken feed. `--force` writes anyway, deliberately.
 
+A full rebuild now records `meta.unmapped_occupations` and
+`meta.unmapped_vacancies`: CZ-ISCO codes and vacancy counts for which no explicit
+prefix matched `data/czisco-role-map.json`. The display still uses the map's
+default family, while these counts reveal how much of that family came from a
+fallback.
+
 #### Rebuild cadence â€” sixty days, by hand
 
 Nothing rebuilds the snapshot automatically; there is no cron, no CI job, no
