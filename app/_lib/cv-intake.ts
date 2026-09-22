@@ -1,13 +1,6 @@
-import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
-import { getPipelineAxis } from "./pipeline-axis-server";
-import { stageWithRole } from "./pipeline-stages";
-import { applyDedupeKey, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import type { ApplyAnswers } from "@/app/_lib/apply-intake";
-import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
-import { createPipelineEntry, recordEntryConsent } from "@/app/_lib/db/pipeline";
+import { fileApplication, type ProfileBuilder } from "@/app/_lib/application-filing";
+import type { getJob } from "@/app/_lib/db/jobs";
 import { markSimTitle } from "@/app/features/shell/simulation/constants";
-import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
-import { randomId } from "@/app/_lib/random-id";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -83,8 +76,8 @@ export type CvIntakeResult = {
 // candidate that arrives as a forwarded email / ad-form attachment becomes a real,
 // MATCHABLE V2 profile bound to the role — not the analysis-less lead stub the
 // scalar-only inbound path produces. On a build failure it still files a label-only
-// Accepted stub flagged intake-degraded, so an inbound never hard-errors. Best-effort
-// GDPR consent + acknowledgement mirror the apply path.
+// stub flagged intake-degraded, so an inbound never hard-errors. The filing itself
+// (tenant, identity, entry column, consent, ack) is application-filing.ts's.
 //
 // Keyless by design: the deterministic normalizer needs no LLM key. A configured
 // Gemini key is the documented enrichment seam (a fuller multimodal analysis over
@@ -108,66 +101,52 @@ export async function ingestCvApplication(input: {
    *  a demo CV is purgeable + analytics-excluded; the match is still built against the
    *  real job. */
   jobTitle?: string;
+  /** The profile builder — buildApplicantProfile unless a test injects one. */
+  buildProfile?: ProfileBuilder;
 }): Promise<CvIntakeResult> {
-  const name = input.name.trim() || "Applicant";
-  // Tenant (P1): file into the opening's owning team (public applicant, no session).
-  const workspaceId = input.workspaceId ?? getJobWorkspace(input.job.id);
-  // A CV-only application: the extracted text is the high-weight `kind: "cv"`
-  // evidence buildIntakeProfile folds in; skills stay empty (the résumé carries them).
-  const answers: ApplyAnswers = { name, skills: "", cvText: input.cvText };
-  const built = await buildApplicantProfile(input.job, answers);
-  const candidateId = built.ok ? built.id : randomId("inbound");
-
-  const { entry, created } = createPipelineEntry({
-    candidateId,
-    candidateLabel: name,
-    // A degraded intake (or a build with no archetype) is stamped UNCLASSIFIED —
-    // never a guessed archetype, and never a concrete class that would strip the
-    // fail-closed fairness shield. See FALLBACK_ARCHETYPE.
-    archetype: (built.ok ? built.archetype : null) ?? FALLBACK_ARCHETYPE,
-    roleFamily: input.job.roleFamily ?? null,
-    jobId: input.job.id,
-    jobTitle: input.jobTitle ?? input.job.title,
-    // A fresh application arrives at the board's ENTRY column, whatever this
-    // workspace calls it — not at a stage that happens to be named "Accepted".
-    stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
-    // Stable per-applicant key so re-sends of the same person collapse onto one
-    // entry even though candidateId is a fresh profile id each build.
-    dedupeKey: applyDedupeKey(name, input.email ?? ""),
-    intakeDegraded: !built.ok,
-    intakeDegradedReason: built.ok ? null : built.reason,
-    contact: input.email || null,
+  // Everything that makes this a FILING — tenant, name hygiene, identity before the
+  // build, the tenant-carrying profile build, the entry column, consent, the ack —
+  // is the shared core's. This door supplies only its answers and its proof: the CV
+  // arrived through a channel we issued (a tokened webhook, or the operator's own
+  // sim), so a repeat may backfill a missing contact but never rebuild the profile.
+  const outcome = await fileApplication({
+    job: input.job,
+    workspaceId: input.workspaceId,
+    name: input.name,
+    email: input.email,
     locale: input.locale,
     sourceChannel: input.sourceChannel,
-    workspaceId,
+    channelLabel: "inbound CV",
+    jobTitle: input.jobTitle,
+    // A CV-only application: the extracted text is the high-weight `kind: "cv"`
+    // evidence buildIntakeProfile folds in; skills stay empty (the résumé carries them).
+    answers: { skills: "", cvText: input.cvText },
+    proof: "channel",
+    buildProfile: input.buildProfile,
+    sendAck: input.sendAck,
   });
 
-  // GDPR: stamp data-processing consent + retention on the inbound entry (best-effort
-  // — a consent-record failure must never block a successful intake).
-  try {
-    recordEntryConsent(entry.id, input.sourceChannel, undefined, workspaceId);
-  } catch (err) {
-    console.error(`[cv-intake] consent record failed for entry ${entry.id}:`, err instanceof Error ? err.message : err);
+  if (outcome.kind === "duplicate") {
+    const { entry } = outcome;
+    return {
+      entryId: entry.id,
+      created: false,
+      candidateId: entry.candidateId ?? "",
+      degraded: entry.intakeDegraded,
+      degradedReason: entry.intakeDegradedReason ?? null,
+      archetype: entry.archetype ?? null,
+      candidateLabel: entry.candidateLabel,
+    };
   }
-
-  // Acknowledge a genuinely NEW candidate (best-effort). Skipped for a duplicate
-  // re-send (created=false) so a provider retry doesn't re-email the candidate.
-  if (input.sendAck !== false && created) {
-    try {
-      await dispatchApplicationReceived(entry);
-    } catch (err) {
-      console.error(`[cv-intake] acknowledgement failed for entry ${entry.id}:`, err instanceof Error ? err.message : err);
-    }
-  }
-
+  const { entry, built } = outcome;
   return {
     entryId: entry.id,
-    created,
-    candidateId,
+    created: true,
+    candidateId: entry.candidateId ?? "",
     degraded: !built.ok,
     degradedReason: built.ok ? null : built.reason,
     archetype: built.ok ? built.archetype : null,
-    candidateLabel: name,
+    candidateLabel: outcome.label,
   };
 }
 

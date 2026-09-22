@@ -74,8 +74,9 @@ test("a fresh application lands on the workspace axis's ENTRY column, not a hard
   );
   assert.ok(!/stage: "Accepted",/.test(route), "the hardcoded landing stage strands applicants off-axis");
   // Non-vacuity: this is the shared intake idiom, not a shape invented here — the
-  // other two inbound surfaces already use it.
-  for (const rel of ["../../_lib/lead-intake.ts", "../../_lib/cv-intake.ts"]) {
+  // other inbound surfaces already use it (the CV door files through the shared core,
+  // application-filing.ts, which owns the rule for every door it serves).
+  for (const rel of ["../../_lib/lead-intake.ts", "../../_lib/application-filing.ts"]) {
     assert.match(read(rel), /stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/, rel);
   }
 });
