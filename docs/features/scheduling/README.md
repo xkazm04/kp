@@ -206,17 +206,45 @@ before this integration existed. Scheduling worked without Google and must keep
 working when Google is down, the grant is revoked, or nobody ever connected an
 account.
 
-`proposeFreeSlots` reports that honestly, as three states
+`proposeFreeSlots` reports that honestly, as four states
 (`CALENDAR_STATUSES` in `free-busy.ts`):
 
 | Status | Meaning | Where it comes from |
 | --- | --- | --- |
 | `checked` | A connected calendar answered; the offered times are conflict-free | `fetchBusy` returned an array |
-| `not_connected` | No calendar integration for this workspace — the recruiter can fix this | `isCalendarConnected` false (no OAuth client configured, or no connection row) |
-| `unavailable` | A calendar **is** connected but the lookup produced no answer (outage, revoked grant, per-calendar error, a stored token that no longer decrypts) | `fetchBusy` returned `null` while connected |
+| `not_connected` | No calendar integration for this workspace — the recruiter can fix this (Connect) | `isCalendarConnected` false (no OAuth client configured, or no connection row) |
+| `unavailable` | A calendar **is** connected but the lookup produced no answer (outage, throttling, per-calendar error) — a wait | `fetchBusy` returned `null` while connected and the grant is healthy |
+| `needs_reconnect` | A calendar **is** connected but its grant is dead: Google revoked it, or the stored token no longer decrypts — the recruiter can fix this (Reconnect) | `calendarNeedsReconnect` (`google-calendar.ts`): the connection's recorded `health` is not `ok` |
 
 Only `checked` ever claims a calendar was consulted. `calendarChecked` (the
-boolean) is exactly `status === "checked"`.
+boolean) is exactly `status === "checked"`. `needs_reconnect` is
+**recruiter-only**: the public token route still carries one bit.
+
+### Grant health — a dead grant is not an outage
+
+`connected` means only that a refresh token is stored, and Google revokes a grant
+on its side (access withdrawn, password change, admin policy) without our row
+changing. So the connection records what the calendar edge last **observed**
+(`health` + `health_at` on `calendar_connections`, `CALENDAR_GRANT_HEALTH` in
+`token-store.ts`, added by an idempotent `ALTER` in that store's `db()`):
+
+- `revoked` — a refresh answered with Google's `invalid_grant` (read from
+  `GoogleOAuthError.code`, never from the message). Permanent, so
+  `accessTokenFor` **stops calling Google** for this workspace: no token round
+  trip per candidate page load or booking. Writes record `failed` as before.
+- `undecryptable` — the stored token no longer decrypts (the at-rest key
+  changed). Decrypting is local, so it is re-tried each call and heals itself if
+  the key comes back.
+- Timeouts, `5xx`, throttling and `KP_OFFLINE` **never** set it.
+
+A completed authorization (`saveCalendarConnection`, i.e. the Reconnect round
+trip) resets health to `ok`. `GET /api/calendar/google` returns the health and
+`unsyncedUpcoming` — this workspace's future confirmed interviews whose event
+write is `failed` (`countUnsyncedUpcomingInvites`, `schedule-store.ts`). The
+Integrations panel (`IntegrationsCalendarPanel.tsx`) turns a non-`ok` health
+into a notice with the date, that count and a **Reconnect now** button; the
+Schedule tab status (`ScheduleCalendarStatus.tsx`) links Reconnect for
+`needs_reconnect`. Pinned by `app/_lib/calendar/grant-health.test.ts`.
 
 ### Duration, and re-checking at booking
 
