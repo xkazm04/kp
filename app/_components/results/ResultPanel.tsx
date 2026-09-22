@@ -132,7 +132,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
   const [addedEntry, setAddedEntry] = useState<{ candidateId: string; jobId: string; id: string } | null>(null);
-  const addedEntryId = addedEntry?.candidateId === pipelineRef?.candidateId && addedEntry.jobId === pipelineRef.jobId
+  const addedEntryId = addedEntry && pipelineRef && addedEntry.candidateId === pipelineRef.candidateId && addedEntry.jobId === pipelineRef.jobId
     ? addedEntry.id
     : null;
   // A comparison only counts — for showing the Compare tab AND for defaulting
