@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { findApplicationByApplicant } from "@/app/_lib/db/pipeline";
+import { recoverApplicationLinks, recoveryMessageKey } from "@/app/_lib/apply-link-recovery";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
@@ -133,6 +135,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const base = publicBaseUrl(new URL(request.url).origin);
     const enrichLink = `${base}/apply/${job.id}?lang=${applicantLocale}`;
 
+    // Link recovery needs to know whether this address was ALREADY on file before
+    // the lead core runs: a contactless entry matched by name is backfilled by
+    // intakeLead, which then sends its own newly-reachable acknowledgement (links
+    // included), and a second "your links" mail beside it would be noise. An
+    // email-only lookup (empty name) matches exactly the rows holding this address.
+    const addressOnFile = findApplicationByApplicant(job.id, "", email, getJobWorkspace(job.id));
+
     const expectedKoIds = applyKoSteps(job, t).map((s) => s.id);
     const outcome = await intakeLead({
       job,
@@ -186,16 +195,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // is that its token is the only public handle, "so a candidate can check their
     // own status without anyone being able to enumerate others'".
     //
-    // The real returning candidate loses nothing they own: their first submission's
-    // done screen carried both links and the acknowledgement email carries them
-    // durably, delivered to the address we can actually authenticate. `leadToken`
-    // in particular was already dead on this branch — QuickApplyForm renders the
-    // enrichment CTA only when `fresh` (accepted AND not duplicate).
+    // The real returning candidate loses nothing they own: their links are re-sent
+    // to the address ON FILE (apply-link-recovery.ts — once per entry per 24h, no
+    // event, no entry write), the one channel we can authenticate, and the copy is
+    // chosen from the relay state alone so it reveals nothing about what is on
+    // file. `leadToken` in particular was already dead on this branch —
+    // QuickApplyForm renders the enrichment CTA only when `fresh` (accepted AND not
+    // duplicate).
     if (outcome.duplicate) {
+      const relayConfigured = isRelayConfigured();
+      if (addressOnFile?.id === outcome.entryId) {
+        recoverApplicationLinks(addressOnFile, {
+          base,
+          relayConfigured,
+          defer: (task) => afterResponse("quick-apply-link-recovery", task),
+        });
+      }
       return NextResponse.json({
         result: "accepted",
         duplicate: true,
-        message: t("alreadyMessage"),
+        message: t(recoveryMessageKey(relayConfigured)),
       });
     }
     // `leadToken` lets the success screen's "complete your profile" CTA carry

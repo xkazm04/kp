@@ -11,6 +11,8 @@ import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
+import { isRelayConfigured } from "@/app/_lib/comms-relay";
+import { recoverApplicationLinks, recoveryMessageKey } from "@/app/_lib/apply-link-recovery";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
@@ -418,7 +420,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           // attempt genuinely did reach a filed application — which is the only
           // thing the apply-to-pipeline rate measures.
           linkApplySession(applySessionId, existing.id);
-          return acknowledgeReapply(existing.id, t("alreadyMessage"), [], false, workspaceId, {}, false);
+          // …and the promise above is kept: the entry's OWN status + enrichment
+          // links go to the address ON FILE (never the one this request typed), at
+          // most once per entry per 24h, with no event and no consent write. The
+          // copy is picked from the relay state alone, so the answer is the same
+          // whether or not an address is on file (apply-link-recovery.ts).
+          const relayConfigured = isRelayConfigured();
+          recoverApplicationLinks(existing, {
+            base: publicBaseUrl(new URL(request.url).origin),
+            relayConfigured,
+            defer: (task) => afterResponse("apply-link-recovery", task),
+          });
+          return acknowledgeReapply(existing.id, t(recoveryMessageKey(relayConfigured)), [], false, workspaceId, {}, false);
         }
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};

@@ -365,6 +365,37 @@ export async function dispatchApplicationReceived(
   recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
 }
 
+/** Re-send a returning applicant's OWN links to the address on file (link recovery,
+ *  app/_lib/apply-link-recovery.ts). Sent when someone re-applies WITHOUT proving they
+ *  own the matched entry: the caller gets no tokens, the inbox on record gets them.
+ *
+ *  Kind `acknowledgement` — it acknowledges a repeat application, and the kind
+ *  vocabulary (comms-envelope.ts KNOWN_COMM_KINDS) is a published relay contract;
+ *  the subject tells the two apart in the Outbox.
+ *
+ *  Deliberately records NO pipeline event: the request that caused it is unproven,
+ *  and an unproven caller must not be able to write onto the candidate's timeline
+ *  (reapply-capability-gate.test.ts). The Outbox row is the audit. Returns the row's
+ *  REAL delivery status (queued / sent / failed), never "the call resolved". The
+ *  caller has already checked that an address is on file, so the refusal branch of
+ *  sendCandidateComm is not reached. */
+export async function dispatchApplicationLinks(
+  entry: PipelineEntry,
+  links: { statusLink?: string; enrichLink?: string }
+): Promise<OutboxStatus> {
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
+  const ta = await namespaceTranslator(locale, "apply");
+  const role = (entry.jobTitle ?? "").trim();
+  const name = greetName(entry, t);
+  const subject = role ? t("linkRecovery.subjectRole", { role }) : t("linkRecovery.subject");
+  const lines = [t("ack.greeting", { name }), "", role ? t("linkRecovery.bodyRole", { role }) : t("linkRecovery.body")];
+  if (links.statusLink) lines.push("", `${ta("trackStatus")}:`, links.statusLink);
+  if (links.enrichLink) lines.push("", `${t("linkRecovery.updateCta")}:`, links.enrichLink);
+  lines.push("", t("linkRecovery.notYou"), "", t("ack.signoff"));
+  return sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "acknowledgement" }, locale);
+}
+
 /** Outcome of an outreach dispatch: delivered (or honestly queued with no relay),
  *  SUPPRESSED for a consent/halt reason, or a dead-lettered relay handoff.
  *

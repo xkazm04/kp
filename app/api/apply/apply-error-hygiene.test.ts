@@ -90,11 +90,16 @@ test("the conversational re-apply response gates its tokens on proven ownership"
   // The unproven duplicate now RETURNS before the merge (the write gate,
   // behaviourally pinned by [id]/reapply-capability-gate.test.ts), so the only
   // acknowledgeReapply call left in that branch is the tokenless early exit.
-  assert.match(
-    conversational,
-    /if \(!leadEntry\) \{[\s\S]{0,600}?acknowledgeReapply\(existing\.id, t\("alreadyMessage"\), \[\], false, workspaceId, \{\}, false\);/,
-    "a duplicate without the lead token must return the tokenless acknowledgement BEFORE any merge"
+  // Since link recovery (challenge 2026-09-22 candidate-apply-api/B) the branch also
+  // re-sends the entry's links to the address ON FILE, and its copy is keyed on the
+  // relay state alone (recoveryMessageKey) — never on "alreadyMessage", whose "we've
+  // noted your renewed interest" is true only on the proven path that records it.
+  const unproven = /if \(!leadEntry\) \{([\s\S]{0,1600}?)acknowledgeReapply\(existing\.id, t\(recoveryMessageKey\(relayConfigured\)\), \[\], false, workspaceId, \{\}, false\);/.exec(
+    conversational
   );
+  assert.ok(unproven, "a duplicate without the lead token must return the tokenless acknowledgement BEFORE any merge");
+  assert.doesNotMatch(unproven[1], /mergeReapplication\(|recordEntryConsent\(|recordAutomationEvent\(/, "the unproven branch writes nothing onto the entry");
+  assert.doesNotMatch(unproven[0], /t\("alreadyMessage"\)/, "the unproven branch must not claim the renewed interest was noted");
   // The event is a write too, so it rides the same proof.
   assert.match(
     fn[0],
