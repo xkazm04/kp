@@ -982,7 +982,9 @@ data inside the fence and does not change the schema-validated output shape.
     the assumed case and a marker on every report is chrome nobody reads. History
     rows show a localized producer chip (`analysisProducer` in `HistoryTypes.ts`:
     llm / deterministic / unknown) so a mixed workspace is not uniform; a null
-    engine paints unknown, never "llm". Pinned by
+    engine paints unknown, never "llm". The History score cell labels each measured
+    number as coming from its saved CV analysis, with the analysis date; an absent
+    score remains an unlabeled dash. Pinned by
     `analyze-run.test.ts` and `HistoryTypes.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
