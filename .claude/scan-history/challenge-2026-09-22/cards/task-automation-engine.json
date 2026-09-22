@@ -1,0 +1,121 @@
+[
+  {
+    "context": "task-automation-engine",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Derive every task-kind table from one typed TASK_KINDS vocabulary",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/tasks.ts",
+      "app/_lib/task-budget.ts",
+      "app/_lib/task-budget.test.ts",
+      "app/_lib/task-dedupe.ts",
+      "app/_lib/task-dedupe.test.ts",
+      "app/_lib/task-outcome-summary.ts",
+      "app/_lib/task-outcome-summary.test.ts",
+      "app/_lib/tasks-pump.test.ts",
+      "app/features/shell/tasks/tasksProviderTypes.ts",
+      "app/features/shell/tasks/TasksProvider.tsx",
+      "app/api/tasks/route.ts",
+      "app/api/tasks/[id]/retry/route.ts",
+      "docs/architecture/README.md"
+    ],
+    "new_files": [
+      "app/_lib/task-kinds.ts",
+      "app/_lib/task-kinds.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "pure: isTaskKind('batch_screen') -> true; isTaskKind('batch_sceen') -> false; isTaskKind(undefined) -> false; isTaskKind('intake_round') -> false (a late-bound runner that is NOT a queue kind stays outside the vocabulary)",
+      "pure: sorted Object.keys(TASK_BUDGET_CLASS) deep-equals sorted TASK_KINDS, and every value is in TASK_BUDGET_CLASSES - asserted WITHOUT reading tasks.ts from disk (task-budget.test.ts no longer calls readFileSync)",
+      "pure: for every k in TASK_KINDS, Object.hasOwn(DEDUPE_BUILDERS, k) is true (a builder or an explicit null); DEDUPE_BUILDERS.profile_draft === null and buildDedupeKey('profile_draft', { notes: 'x' }) === null (today profile_draft's no-dedupe is only a comment and a missing key)",
+      "pure: every k in TASK_KINDS is in exactly one of SUMMARIZED_KINDS / Object.keys(NO_TABLE_SUMMARY), and neither list names a string outside TASK_KINDS - asserted WITHOUT reading tasks.ts (task-outcome-summary.test.ts no longer calls readFileSync on tasks.ts)",
+      "typecheck: task-kinds.test.ts carries `// @ts-expect-error` over `const bad: TaskKind = 'batch_sceen'` and over `startTask('batch_sceen', {})` typed through the provider's `startTask` signature - npm run typecheck is green only while both are compile errors",
+      "tasks-pump.test.ts: the tenancy checks iterate TASK_KINDS and locate each kind's spec block by name; the existing failure modes still fire (a `scoped` kind whose block never reaches ctx.workspaceId fails), and its count assertion reads TASK_KINDS.length instead of a regex match count",
+      "route: POST /api/tasks with { kind: 'batch_sceen' } -> 400 TASK_KIND_UNKNOWN (unchanged runtime refusal; isKnownKind is now a type predicate `kind is TaskKind`, so the retry route's startTask(task.kind, ...) compiles without a cast)"
+    ],
+    "premise": [
+      "app/_lib/tasks.ts:201 - the handler registry is `const HANDLERS: Record<string, Spec> = {` - string-keyed, so nothing at compile time ties a kind to its budget, dedupe builder, outcome mapper or catalog label",
+      "app/_lib/task-budget.test.ts:25-27 - exhaustiveness of the budget table is proven by readFileSync-ing tasks.ts, finding that exact literal and matching `/^ {2}([a-z_]+): \\{$/gm` - a reformatted spec line or a renamed type silently changes what the test sees",
+      "app/_lib/task-outcome-summary.test.ts:28-32 - the same text parse, duplicated, for the outcome table",
+      "app/_lib/tasks-pump.test.ts:77 and :108 - a third copy: blocks located by the same literal, tenancy found by `/^ {4}tenancy: \"(scoped|tenant-free)\",/m` (indentation-dependent)",
+      "app/_lib/task-dedupe.ts:74-75 - 'Keys MUST stay in sync with the HANDLERS kinds in tasks.ts; an unlisted kind falls back to a unique key' - and task-dedupe.test.ts never reads tasks.ts, so dedupe has NO exhaustiveness check at all; :80 is Record<string, ...>; :168 profile_draft's opt-out is a comment",
+      "app/_lib/task-budget.ts:59 `TASK_BUDGET_CLASS: Record<string, TaskBudgetClass>` and :113 `?? \"agent\"` - the runtime fallback is the only thing between an omission and a budget",
+      "app/_lib/task-outcome-summary.ts:158 `const TABLE: Record<string, Mapper>` and :217 `NO_TABLE_SUMMARY: Record<string, string>`",
+      "app/features/shell/tasks/tasksProviderTypes.ts:38 - `startTask: (kind: string, ...)`; 25 call sites pass a bare string literal (e.g. app/features/hiring/pipeline/useLineActions.ts:40 `startTask(\"batch_screen\"`, app/features/hiring/pipeline/usePipelineBulk.ts:422), so a typo is a runtime 400, not a compile error",
+      "app/api/tasks/route.ts:57 - `isKnownKind(body.kind)` is the only kind check, at runtime",
+      "house pattern exists: .claude/CLAUDE.md names 'literal-array + derived-union + runtime guard for closed vocabularies (tabs.ts, i18n/locales.ts)' - task kinds are the one registry of that shape still held together by source-text regexes"
+    ],
+    "rollback": "Additive leaf module plus type narrowing: reverting the commit series restores the Record<string, ...> tables and the three readFileSync parses; no schema, no persisted shape, no wire shape changes (task rows keep storing kind as TEXT and legacy kinds still read through the runtime guard).",
+    "gate": "contract",
+    "runner_up": "Split executeAutomationPass into a pure planPass(decisions, snapshot) and one executor, so the dry-run and commit loops (automation-pass.ts:374-404 vs :416-501) cannot diverge by construction instead of by two shared helpers.",
+    "technique": "placement-precedes-gate",
+    "body": "## Summary\nTask kinds are a closed vocabulary living in five string-keyed tables (HANDLERS, TASK_BUDGET_CLASS, DEDUPE_BUILDERS, the outcome TABLE/NO_TABLE_SUMMARY, the tasks.kind catalog) held together by three tests that regex-parse tasks.ts source. Move the vocabulary into one import-free `task-kinds.ts` (TASK_KINDS literal array, TaskKind union, isTaskKind guard) and key every table `Record<TaskKind, ...>`, so tsc - not formatting-sensitive text parsing - enforces that a kind has a handler, a budget, a dedupe decision and an outcome decision, and so the 25 `startTask(\"...\")` call sites are type-checked.\n\n## Description\nAdding a task kind today means touching HANDLERS (tasks.ts:201), TASK_BUDGET_CLASS (task-budget.ts:59), optionally DEDUPE_BUILDERS (task-dedupe.ts:80 - no check at all), TABLE or NO_TABLE_SUMMARY (task-outcome-summary.ts:158/217), plus four catalogs. Two of those are guarded by tests that find `const HANDLERS: Record<string, Spec> = {` in the file text and match `^ {2}kind: {$` lines (task-budget.test.ts:25-27, task-outcome-summary.test.ts:28-32); the pump test does the same with an indentation-dependent tenancy regex (tasks-pump.test.ts:77,108). Retyping HANDLERS would break all three. The dedupe table has no guard: a new kind silently never dedupes. Clients call `startTask(kind: string)` (tasksProviderTypes.ts:38) with literals, so a misspelled kind only fails as a 400 at runtime (api/tasks/route.ts:57).\n\nThe move follows the repo's own closed-vocabulary pattern (tabs.ts, i18n/locales.ts): a leaf module with no imports (safe for client bundles and for node:test, which cannot import tasks.ts because it pulls better-sqlite3), consumed by tasks.ts, task-budget.ts, task-dedupe.ts, task-outcome-summary.ts and the provider types. DEDUPE_BUILDERS becomes `Record<TaskKind, Builder | null>` so 'no identity' is a declared null, not an absence. NO_TABLE_SUMMARY and TABLE combine to a type-checked partition. The runtime guard stays for rows and request bodies (legacy kinds, client JSON), and isKnownKind becomes a type predicate. `intake_round`, which rides the external-runner registry with no queue spec (task-external-runners.ts:22-28), deliberately stays outside TaskKind.\n\n## Flow\n1. Write task-kinds.test.ts first (acceptance 1-5) - red.\n2. Add task-kinds.ts: `export const TASK_KINDS = [...] as const; export type TaskKind = ...; export function isTaskKind(v: unknown): v is TaskKind`.\n3. Retype HANDLERS `Record<TaskKind, Spec>`, startTask(kind: TaskKind), isKnownKind as predicate; fix the retry route and POST /api/tasks narrowing.\n4. Retype TASK_BUDGET_CLASS, DEDUPE_BUILDERS (explicit profile_draft: null), TABLE/NO_TABLE_SUMMARY.\n5. Replace the readFileSync exhaustiveness halves in task-budget.test.ts and task-outcome-summary.test.ts with TASK_KINDS iteration; pump test iterates TASK_KINDS and finds blocks by kind name.\n6. Retype the provider's startTask; any mistyped literal in the 25 call sites surfaces in tsc.\n7. Update the task-runner section of docs/architecture/README.md (feature-doc-map couples tasks.ts to it): 'adding a kind' is now one array entry and tsc lists the rest.\n\n## Expected impact\nA whole class closes: a kind added without a budget class, a dedupe decision or an outcome decision becomes a compile error at the edit, and a misspelled kind at any of 25 call sites becomes a compile error instead of a runtime 400 / silent no-dedupe. Three regex source parsers shrink to one (the tenancy delegate check, which genuinely needs source). Future kinds (the queue has grown to 20) cost one line plus the tables tsc names.\n\n## Evaluation\nClaim: every per-kind table is exhaustive over one typed vocabulary, checked by tsc and by tests that do not parse source text.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: contract - npm run test:unit (task-kinds, task-budget, task-dedupe, task-outcome-summary, tasks-pump tests) + npm run typecheck (the @ts-expect-error fixtures) + npm run lint\nResult: pending build\nGate: contract",
+    "evidence": "grep readFileSync+HANDLERS literal in tests:\n  app/_lib/task-budget.test.ts:25:  const at = src.indexOf(\"const HANDLERS: Record<string, Spec> = {\");\n  app/_lib/task-budget.test.ts:27:  return [...src.slice(at, src.indexOf(\"\\n};\", at)).matchAll(/^ {2}([a-z_]+): \\{$/gm)].map((m) => m[1]);\n  app/_lib/task-outcome-summary.test.ts:28:  const at = src.indexOf(\"const HANDLERS: Record<string, Spec> = {\");\n  app/_lib/task-outcome-summary.test.ts:32:  return [...body.matchAll(/^ {2}([a-z_]+): \\{$/gm)].map((m) => m[1]);\n  app/_lib/tasks-pump.test.ts:77:  const start = tasksSrc.indexOf(\"const HANDLERS: Record<string, Spec> = {\");\n  app/_lib/tasks-pump.test.ts:108:    const declared = block.match(/^ {4}tenancy: \"(scoped|tenant-free)\",/m);\ntask-dedupe.test.ts: no readFileSync / HANDLERS reference (grep empty).\ngrep -rnoE 'startTask\\(\\s*\"[a-z_]+\"' app (non-test) -> 25 sites, incl. useLineActions.ts:40, usePipelineBulk.ts:422, SimControlDockOpsFace.tsx:40, useDecisionsQueue.ts:482/628/736, api/analyze/route.ts:178, jd-build-start.ts:70, companion-actions.ts:238.\ntasksProviderTypes.ts:38:  startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;\nmessages/en.json tasks.kind: 22 keys (20 kinds + 2 Untitled variants)."
+  },
+  {
+    "context": "task-automation-engine",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Fan-out tasks report per-candidate outcomes and retry only the failed",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/tasks.ts",
+      "app/_lib/task-outcome-summary.ts",
+      "app/_lib/task-outcome-summary.test.ts",
+      "app/api/tasks/[id]/retry/route.ts",
+      "app/features/shell/tasks/TasksOutcome.tsx",
+      "app/features/shell/tasks/TasksProvider.tsx",
+      "app/features/shell/tasks/tasksProviderTypes.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/README.md"
+    ],
+    "new_files": [
+      "app/_lib/task-fanout.ts",
+      "app/_lib/task-fanout.test.ts",
+      "app/api/tasks/[id]/retry/route.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "pure: fanoutOutcome('batch_outreach', { entryIds: ['a','b','c','d'] }, { results: [{id:'a',ok:true,applied:'sent'}, {id:'b',ok:false,code:'entry_has_no_profile'}, {id:'c',ok:true,applied:'suppressed_consent_expired'}] }, 'canceled') -> { deliveredIds:['a'], suppressedIds:['c'], failedIds:['b'], unreachedIds:['d'], byCode:{ entry_has_no_profile:1 } }",
+      "pure: legacy row { results:[{ id:'x', ok:false, reason:'Traceback ... /tmp/kp-123' }] } -> failedIds ['x'], byCode { engine_failed:1 }, and JSON.stringify(outcome) contains neither 'Traceback' nor '/tmp' (a raw reason never reaches the drawer)",
+      "pure: legacy batch_screen result { advanced:1, held:0, advisory:0, errors:2, total:3 } with no `results` -> failedIds [] and retryScopes(...) === [] (counts alone cannot name who to retry, so no subset retry is offered)",
+      "pure: fanoutItemCode({ refusal:'entry_not_found' }) -> 'entry_not_found'; fanoutItemCode(new Error('spawn ENOENT')) -> 'engine_failed'; the per-item record batchOutreach/batchScreen store is { id, ok, applied? , code? } - ids and codes only, never a candidate label (the tasks table is erasure-exempt and not entry-keyed)",
+      "pure: retryParamsFor('batch_outreach', { entryIds:['a','b','c','d'] }, ['b']) -> { entryIds:['b'] }, and buildDedupeKey of it differs from the original run's key (a subset forks a new run, never merges onto the old identity); retryParamsFor('analyze', {...}, ['x']) -> null; retryParamsFor(kind, p, []) -> null",
+      "route: POST /api/tasks/[id]/retry { scope:'failed' } on a SUCCEEDED batch_outreach with one failed item -> 200 and the new task's params.entryIds === ['b']; same call on a succeeded run with zero failures -> 409 TASK_NOT_RETRYABLE; no body on a succeeded task -> 409 (existing full-replay contract unchanged)",
+      "route: POST /api/tasks/[id]/retry { scope:'unreached' } on a CANCELED batch_screen whose partial result covers 2 of 5 cohort ids -> 200 with entryIds = the 3 unreached ids",
+      "route: { scope:'failed' } on another workspace's task -> 404 TASK_NOT_FOUND before any rate-limit bucket is touched (tenancy + no-budget-on-refusal preserved)"
+    ],
+    "premise": [
+      "app/_lib/tasks.ts:190-191 - batchOutreach records `{ id, ok: true }` whenever runAutomationTask returns, but app/_lib/automation-run.ts:721 and :729-733 return normally with applied `already_sent` / `suppressed_anonymized` / `suppressed_consent_expired` - so a consent-suppressed letter that was never sent is counted as drafted",
+      "app/_lib/tasks.ts:193 - the per-item failure stores `reason: e.message` - raw thrown text (Python stderr/workdir paths can reach it via automation-run.ts:501-503), against the house CODE rule; AutomationError already carries a machine `refusal` (automation-run.ts:169-183) that is dropped",
+      "app/_lib/tasks.ts:145-147 - batchScreen's catch only does `summary.errors += 1`: which candidates failed is not recorded anywhere",
+      "app/_lib/task-outcome-summary.ts:166-172 - the dock renders batch_outreach as `drafted ok / total` plus a failures count; app/features/shell/tasks/TasksOutcome.tsx:47-49 renders batch_screen errors as a count only - no names, no reasons, no action",
+      "app/features/shell/tasks/TasksRowActions.tsx:66 and app/api/tasks/[id]/retry/route.ts:23 - retry exists only for failed/interrupted/canceled; a SUCCEEDED batch with 5 of 8 failures offers nothing, and route.ts:100 always replays the FULL params (every candidate again, LLM spend included)",
+      "app/_lib/tasks.ts:666 - a canceled run still stores its partial result (`finishTask(id, aborted ? 'canceled' : 'succeeded', { result })`), so the unreached remainder of a cohort is derivable from params.entryIds minus the recorded ids",
+      "app/features/hiring/pipeline/usePipelineBulk.ts:458-463 - the only 'keep the failures' path is the board hook re-selecting failed ids while it is mounted and watching that one task; from the Background-tasks dock (or after navigating away) there is no way to act on the failures",
+      "app/_lib/db/pipeline.ts:2198 - `tasks` is erasure-exempt and not entry-keyed, so the per-item ledger must carry ids and codes, never labels",
+      "app/_lib/task-dedupe.ts:107-111 - batch_outreach keys on the SORTED cohort, so a subset retry naturally forks its own run rather than merging"
+    ],
+    "rollback": "The result shape change is additive (items gain `applied`/`code`; the legacy `reason` is simply no longer written and old rows still decode via the legacy branch), the retry route only gains an optional body field, and the catalog keys are new. Reverting the commit series restores full-replay-only retry; rows written in between still render through genericOutcomeLines.",
+    "gate": "contract",
+    "runner_up": "Commit exactly the previewed policy pass: PassPreviewModal applies the rows it showed (per-row untick, scoped to the caller's team, CAS on each snapshot stage) instead of re-running an installation-wide pass that can differ from the preview (automation/run/route.ts:51, PassPreviewModal.tsx:86-88).",
+    "technique": "job-progress-and-cancellation",
+    "body": "## Summary\nThe two fan-out kinds (batch_screen, batch_outreach) end as a single number in the Background-tasks drawer - 'Drafted 8 / 8', '2 errors' - even when three letters were consent-suppressed and never sent, and a run with failures offers no action unless it failed wholesale. Record a per-candidate ledger (id + applied outcome or failure CODE), render it as outcome groups in the reader's language, and add 'Retry the N failed' / 'Retry the N not reached' that re-enqueue only that subset through the existing retry door and budget.\n\n## Description\nThe status is not actionable today. batchOutreach marks every non-throwing run `ok: true` (tasks.ts:190-191) although runAutomationTask returns `suppressed_*` and `already_sent` without throwing (automation-run.ts:721,729-733), so the drawer's 'drafted' count over-claims delivery - the opposite of the product's truthful sent/queued/failed rule. Failures carry a raw `e.message` (tasks.ts:193) instead of the AutomationError refusal code that already exists (automation-run.ts:169-183). batchScreen records only an error count (tasks.ts:145-147). Retry is whole-run and only for failed/interrupted/canceled (TasksRowActions.tsx:66, retry/route.ts:23,100): a succeeded run with 5 failures cannot be retried, and a canceled 40-candidate screen replays all 40 LLM calls.\n\nThe leap: the drawer becomes a decision surface. A pure `task-fanout.ts` reads params + result + status into delivered / suppressed / failed(by code) / unreached id sets and the retry scopes they allow; the handlers write `{ id, ok, applied?, code? }` items (ids and codes only - the table is erasure-exempt, db/pipeline.ts:2198); the retry route accepts `{ scope: 'failed' | 'unreached' }`, derives the subset server-side from the stored row (params never round-trip), and spends the same per-class budget. batch_outreach's dedupe key is the sorted cohort (task-dedupe.ts:107-111), so a subset forks a fresh run. The drawer shows e.g. 'Sent 3 - Not contacted, consent expired 2 - Failed: no profile 1, engine error 2' with a 'Retry 3 failed' button.\n\n## Flow\n1. Write task-fanout.test.ts (acceptance 1-5) and retry route.test.ts (6-8) - red.\n2. task-fanout.ts: fanoutItemCode, fanoutOutcome, retryScopes, retryParamsFor (pure, no DB).\n3. tasks.ts: batchOutreach pushes { id, ok, applied } / { id, ok:false, code }; batchScreen collects the same items beside its counts.\n4. task-outcome-summary.ts: batch_outreach mapper reads delivered vs suppressed from items (legacy rows keep the ok/total line).\n5. retry route: optional scope body; succeeded fan-out rows retryable only with a non-empty subset; refusals before any bucket.\n6. TasksProvider/tasksProviderTypes: retryTask(id, scope?); TasksOutcome renders the groups and the scoped retry buttons.\n7. Four catalogs in one commit (outcome group labels, code labels, retry-scope buttons); docs/architecture/README.md task-runner section documents the ledger and the scoped retry.\n\n## Expected impact\nA recruiter who bulk-drafts outreach to 8 candidates learns which 2 were never contacted and why, and fixes the 3 engine failures with one click that spends 3 LLM calls instead of 8. A canceled or partially failed board screen resumes over the remainder instead of re-screening everyone. The dock stops over-claiming delivery, and raw engine text stops being persisted as a candidate-facing reason.\n\n## Evaluation\nClaim: fan-out task outcomes are per-candidate, coded, truthful about delivery, and retryable by subset through the existing budgeted door.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract - npm run test:unit (task-fanout.test.ts, task-outcome-summary.test.ts, api/tasks/[id]/retry/route.test.ts) + npm run i18n:check + npm run typecheck + npm run lint\nResult: pending build\nGate: contract",
+    "evidence": "app/_lib/tasks.ts:\n  145    } catch {\n  146      summary.errors += 1;\n  190      await runAutomationTask(id, \"outreach\", \"\", ctx.signal, undefined, ctx.workspaceId);\n  191      results.push({ id, ok: true });\n  193      results.push({ id, ok: false, reason: e instanceof Error ? e.message : \"Unexpected error.\" });\n  666      finishTask(id, controller.signal.aborted ? \"canceled\" : \"succeeded\", { result: outcome });\napp/_lib/automation-run.ts:\n  721      applied = \"already_sent\";\n  729        applied = outcome.sent\n  731            ? \"suppressed_anonymized\"\n  733            : \"suppressed_consent_expired\";\napp/features/shell/tasks/TasksRowActions.tsx:66:  const retryable = task.status === \"failed\" || task.status === \"interrupted\" || task.status === \"canceled\";\napp/api/tasks/[id]/retry/route.ts:23:const RETRYABLE = new Set([\"failed\", \"interrupted\", \"canceled\"]);\napp/api/tasks/[id]/retry/route.ts:100:    const started = startTask(task.kind, params, ws);\napp/_lib/task-outcome-summary.ts:171:    return [...fact(\"drafted\", `${ok} / ${total}`), ...(failed > 0 ? fact(\"failures\", failed) : [])];\napp/features/hiring/pipeline/usePipelineBulk.ts:461-463: const failed = new Set(items.filter((r) => !r.ok)...); setSelectedIds(... failed.has(id) || !attempted.has(id))\napp/_lib/db/pipeline.ts:2198: [\"tasks\", \"The background-job queue. ... NOT keyed to an entry, so a per-candidate scrub cannot address them ...\"]\nNo existing test file for app/api/tasks/[id]/retry (ls shows route.ts only)."
+  }
+]

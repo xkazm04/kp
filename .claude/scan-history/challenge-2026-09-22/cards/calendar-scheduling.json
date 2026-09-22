@@ -1,0 +1,116 @@
+[
+  {
+    "context": "calendar-scheduling",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Make the store's booking collision a real-duration overlap inside the tx",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/schedule-slots.ts",
+      "app/_lib/schedule-store.ts",
+      "app/_lib/calendar/available-slots.ts",
+      "app/api/schedule/route.ts",
+      "app/api/schedule/[token]/route.ts",
+      "app/_lib/schedule-slots.test.ts",
+      "app/_lib/schedule-store.test.ts",
+      "docs/features/scheduling/README.md"
+    ],
+    "new_files": [
+      "app/_lib/schedule-collision.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "store: confirmed invite A at 14:00Z-equivalent interview-zone 14:00 with durationMin 90; confirmScheduleInvite(B, slotAt = same day 15:00) -> { ok:false, reason:'taken' } (real intervals overlap: 14:00-15:30 vs 15:00)",
+      "store: confirmed invite A at 14:00 (45 min); confirmScheduleInvite(B, slotAt = 14:30 same day) -> { ok:false, reason:'taken' } (same interview-zone hour bucket), where today it returns ok:true",
+      "store: confirmed invite A at 10:00 (45 min); confirmScheduleInvite(B, 14:00 same day) -> ok:true (no overlap, different bucket) - no false collisions",
+      "store: rescheduleScheduleInvite(A, new slot overlapping ONLY A's own current booking) -> ok:true (own row excluded from the overlap set)",
+      "pure: proposeSlots(takenIntervals=[{slotAt: D 13:30, durationMin: 60}]) does NOT offer D 14:00 (13:30-14:30 overlaps 14:00), while proposeSlots(['D 13:30 iso']) legacy string input keeps working",
+      "store: a legacy confirmed row with duration_min NULL is treated as DEFAULT_INTERVIEW_MINUTES (45) for overlap, not zero",
+      "route: POST /api/schedule action accept_proposal for a 14:30 proposal while another invite is confirmed at 14:00 -> 409 SCHEDULE_SLOT_TAKEN (today: 200 and two interviews in one hour)",
+      "route: POST /api/schedule action book no longer needs its own bookedSlots()+hourBucketKey pre-read; the refusal comes from the store tx and the response code is unchanged (409 SCHEDULE_SLOT_TAKEN)"
+    ],
+    "premise": [
+      "app/_lib/schedule-store.ts:432 - confirmScheduleInvite's clash check is exact-instant equality: `status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ?`",
+      "app/_lib/schedule-store.ts:557 - rescheduleScheduleInvite uses the same `slot_at = ?` equality",
+      "app/_lib/schedule-store.ts:56-59 - every invite carries its own duration_min (e.g. a 22-min student screen), so bookings are intervals of differing length",
+      "app/_lib/schedule-store.ts:752-758 - bookedSlots() returns bare slot_at strings, dropping duration",
+      "app/_lib/schedule-slots.ts:179,194 - proposeSlots skips a candidate time only when takenSet.has(value) - equality again",
+      "app/_lib/schedule-slots.ts:386 - dateSlotToIso (recruiter grid) accepts ANY HH:MM, and :268 proposedSlotFor accepts any working-hour minute, so off-grid instants (14:30) enter the same pool the equality check guards",
+      "app/_lib/schedule-slots.ts:333-340 - hourBucketKey's own doc admits 'the store's collision authority is the exact INSTANT, which wouldn't catch this'",
+      "app/api/schedule/route.ts:228-233 - the hour-bucket refusal exists ONLY in the grid `book` action, as a read of bookedSlots() OUTSIDE the store transaction; grep shows hourBucketKey has no other production caller, so accept_proposal (route.ts:387-460), recruiter reschedule (:357-386) and the candidate confirm/reschedule (app/api/schedule/[token]/route.ts:496,523) book 14:30 beside 14:00 unchecked",
+      "app/_lib/calendar/available-slots.ts:69 - proposeFreeSlots feeds proposeSlots the equality-only taken list; only a CONNECTED Google calendar (kp's own written event showing as busy) masks the overlap, so every not_connected deployment - the documented default - double-books"
+    ],
+    "rollback": "Three commits (pure predicate + tests, store tx adoption, route/proposer callers + doc) revert cleanly: no schema change, no new column, bookedSlots keeps a string-returning overload, so reverting restores exact-instant equality with no data migration.",
+    "gate": "contract",
+    "runner_up": "Extract the five duplicated booking-commit paths (offered -> calendar re-check -> confirm|reschedule -> advance+reconcile -> seal -> event sync) from both schedule routes into one app/_lib/schedule-booking.ts transition module.",
+    "technique": "real-duration-conflict-window",
+    "body": "## Summary\nkp's collision authority for its own interviews is exact-instant equality, but the pool it guards now holds off-grid minutes (grid picks, accepted proposals) and per-invite durations. Move ONE overlap predicate - real-duration interval OR same interview-zone hour - into the store's `.immediate()` transactions and the slot proposer, and delete the single route-level hour-bucket pre-read.\n\n## Description\n`confirmScheduleInvite` and `rescheduleScheduleInvite` refuse a booking only when another confirmed invite has the *identical* `slot_at` (schedule-store.ts:432, :557), and `proposeSlots` hides a time only on the same equality (schedule-slots.ts:179/194). That was sound when every booking sat on the fixed `KP_INTERVIEW_TIMES` grid at 45 minutes. It is not any more: `dateSlotToIso` books any minute from the week grid, `proposedSlotFor` accepts any working minute, and `duration_min` varies per invite (22-min student screen, 90-min spans pinned in calendar-conflict.test.ts). The code already knows: `hourBucketKey`'s doc says the store 'wouldn't catch this', and a patch lives in exactly one handler (route.ts:228-233, the grid `book`), as a non-transactional read. `accept_proposal`, recruiter reschedule, and the candidate token confirm/reschedule all book a 14:30 beside a 14:00, and a 90-minute 14:00 beside a 15:00. Only a connected Google calendar masks it (kp's own event shows as busy to `slotStillFree`); the keyless/not-connected default has no guard at all.\n\nThe move: a pure `bookingCollides(candidate, existing[], tz)` in schedule-slots.ts (half-open real interval using each row's `duration_min ?? DEFAULT_INTERVIEW_MINUTES`, OR same `hourBucketKey`), called inside both store transactions against the workspace's confirmed rows in a +/- 1 day window, and by `proposeSlots` via a `bookedIntervals()` read. The route's bucket pre-read is deleted; the store's `taken` becomes the one refusal.\n\n## Flow\n1. Write schedule-collision.test.ts cases 1-6 against the pure predicate and the store (isolated KP_DB_PATH, as schedule-store.test.ts does) - all fail today.\n2. Add `bookingCollides` + `bookedIntervals()`; keep `bookedSlots()` string output for existing callers.\n3. Replace the equality SELECT in both transactions with SELECT slot_at, duration_min ... then `bookingCollides` - still synchronous, still inside `.immediate()`, compensating WHERE preconditions untouched.\n4. `proposeSlots` accepts intervals (strings still accepted); `proposeFreeSlots` and the two token-route callers pass `bookedIntervals(ws)`.\n5. Delete route.ts:228-233; add the accept_proposal route case (7) to the existing refusals test.\n6. Update docs/features/scheduling/README.md (collision authority section + Known gaps).\n\n## Expected impact\nCloses a silent double-booking class on every path except the one that happened to be patched, for every deployment without Google connected; turns a documented admission ('wouldn't catch this') into an enforced invariant held in one place and inside the lock rather than in a TOCTOU pre-read. Makes a future per-interviewer pool (the open L backlog item) an extra key on one predicate instead of five handler edits.\n\n## Evaluation\nClaim: every booking path refuses an overlapping own-booking, and the proposer never offers one.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract (node:test - new schedule-collision.test.ts + the existing schedule refusals tests, run by npm run test:unit)\nResult: pending build\nGate: contract",
+    "evidence": "schedule-store.ts:432  ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)\nschedule-store.ts:557  .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)\nschedule-slots.ts:179  const takenSet = new Set(taken);   :194  if (takenSet.has(value)) continue;\nschedule-slots.ts:338  *  — the store's collision authority is the exact INSTANT, which wouldn't catch this.\nschedule-slots.ts:386  const tm = /^([01]\\d|2[0-3]):([0-5]\\d)$/  (any minute accepted on the recruiter grid)\ngrep -rn hourBucketKey app (non-test): only app/api/schedule/route.ts:228 and :231 (+ its definition) - i.e. one handler of five booking writers.\nroute.ts:228-233 runs bookedSlots(ws).some(...hourBucketKey...) BEFORE confirmScheduleInvite/rescheduleScheduleInvite at :257/:264, outside their transaction.\ndocs/features/scheduling/README.md Known gaps states the pool is host-blind but does not list the equality-vs-overlap gap."
+  },
+  {
+    "context": "calendar-scheduling",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Turn a revoked Google grant from a silent 'unavailable' into Reconnect now",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/calendar/token-store.ts",
+      "app/_lib/calendar/google-oauth.ts",
+      "app/_lib/calendar/google-calendar.ts",
+      "app/_lib/calendar/free-busy.ts",
+      "app/_lib/calendar/available-slots.ts",
+      "app/_lib/schedule-store.ts",
+      "app/api/calendar/google/route.ts",
+      "app/features/settings/integrations/IntegrationsCalendarPanel.tsx",
+      "app/features/hiring/schedule/ScheduleCalendarStatus.tsx",
+      "app/_lib/calendar/google-calendar.test.ts",
+      "docs/features/scheduling/README.md",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "new_files": [
+      "app/_lib/calendar/grant-health.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "refreshAccessToken rejects with Google error 'invalid_grant' during fetchBusy -> getCalendarConnection(ws).health === 'revoked' and healthAt is set",
+      "health 'revoked': fetchBusy / createInterviewEvent make ZERO fetch calls (mocked fetch counter stays 0) and return their 'no information' values - no 8s token round trip per candidate page load",
+      "proposeFreeSlots on a revoked grant -> calendarStatus 'needs_reconnect'; on a healthy grant whose free/busy call answers 503 twice -> still 'unavailable' (a transient outage never marks the grant revoked)",
+      "a stored token that no longer decrypts (at-rest key rotated) -> health 'undecryptable' -> calendarStatus 'needs_reconnect'",
+      "saveCalendarConnection after a successful re-consent -> health back to 'ok', healthAt cleared",
+      "GET /api/calendar/google on a revoked grant -> connection.health 'revoked' plus unsyncedUpcoming = count of the workspace's future confirmed invites whose calendar_event_state is 'failed' (another workspace's rows not counted)",
+      "calendar-status-i18n.test.ts: CALENDAR_STATUSES now includes 'needs_reconnect' and all four catalogs carry it (set-equality stays green)"
+    ],
+    "premise": [
+      "app/_lib/calendar/google-calendar.ts:67-76 - a failed refresh (a revoked grant, `invalid_grant`) is only console.error'd and returns null; nothing is persisted",
+      "app/_lib/calendar/google-calendar.ts:72-74 - the comment claims 'the operator sees a disconnected integration in the UI' - false, because:",
+      "app/_lib/calendar/token-store.ts:99 - `connected: !!row.refresh_token`, so a revoked grant stays connected forever",
+      "app/_lib/calendar/google-calendar.ts:86-88 - documents that a revoked grant 'still reads as connected' and surfaces as 'unavailable'",
+      "app/_lib/calendar/available-slots.ts:65 - unchecked status is `isCalendarConnected(ws) ? 'unavailable' : 'not_connected'`, so a dead grant and a Google blip render identically - 'wait it out' for a problem only a reconnect fixes",
+      "app/_lib/calendar/google-calendar.ts:56-77 - accessTokenFor re-attempts the refresh on every call, so each candidate /schedule/<token> load and each booking spends a Google token round trip (bounded 8s, constants.ts:32) against a grant that will never work again",
+      "app/_lib/calendar/google-oauth.ts:141-142 - parseTokenResponse folds Google's `error` code into a message string; no structured code exists to tell invalid_grant from a timeout",
+      "app/features/settings/integrations/IntegrationsCalendarPanel.tsx:117-134 - a connected connection renders account/calendar/connectedAt only; the Reconnect button (:149) appears solely for missing scopes",
+      "app/features/hiring/schedule/ScheduleCalendarStatus.tsx:26 - the only actionable affordance is Connect, offered for not_connected; 'unavailable' offers nothing",
+      "Registry golden path interview-calendar-integrity (Three statuses): 'Collapsing them into a single couldn't-check is the small compromise that later makes a chronic token expiry invisible for a quarter.'"
+    ],
+    "rollback": "Additive: two nullable columns on calendar_connections (added via ALTER in token-store's db()), one CalendarStatus member, one optional GoogleOAuthError.code, catalog keys appended. Reverting the commit series leaves harmless unused columns; a 'revoked' row simply reads as connected again, i.e. today's behaviour.",
+    "gate": "none",
+    "runner_up": "Tell the candidate when a recruiter cancels or accepts their proposed time - POST /api/schedule cancel/accept_proposal dispatch no candidate mail and eventBody deliberately omits sendUpdates, so the candidate learns only from the reminder.",
+    "technique": "three-valued-free-busy-unknown-is-not-free",
+    "body": "## Summary\nWhen Google revokes kp's grant, kp keeps saying 'Connected', keeps calling Google on every candidate page load, and tells the recruiter 'could not check your calendar' as if it were a blip. Persist the grant's health, stop calling a dead grant, and turn the status into the one action that fixes it: Reconnect, with how many upcoming interviews never reached the calendar.\n\n## Description\nA revoked or undecryptable grant is the chronic failure the governing subject names, and kp renders it as the transient one. `accessTokenFor` logs `invalid_grant` and returns null (google-calendar.ts:67-76); `connected` is just `!!refresh_token` (token-store.ts:99); `proposeFreeSlots` maps every connected-but-silent case to `unavailable` (available-slots.ts:65). The Integrations panel shows a healthy connection card with no Reconnect (IntegrationsCalendarPanel.tsx:117-134), the Schedule tab's status offers no action for `unavailable` (ScheduleCalendarStatus.tsx:26), and every booking quietly records `calendar_event_state = 'failed'`. Meanwhile each public page load spends a token round trip on a grant that cannot recover.\n\nThe leap: `GoogleOAuthError` carries Google's `error` code; `accessTokenFor` records `health = 'revoked'` on `invalid_grant` and `'undecryptable'` on a decrypt throw (never on timeouts/5xx), and short-circuits while unhealthy; `saveCalendarConnection` resets to `ok`. `CALENDAR_STATUSES` gains `needs_reconnect` (recruiter-only - the candidate wire stays one bit). The panel shows 'Google stopped accepting kp's access on <date>' with a Reconnect button and 'N upcoming interviews are not on your calendar'; the Schedule tab status links Reconnect for `needs_reconnect`.\n\n## Flow\n1. Write grant-health.test.ts cases 1-6 (mock fetch, isolated KP_DB_PATH) - all fail today.\n2. token-store: ALTER-add `health`, `health_at`; expose `health` on CalendarConnection; `markCalendarHealth(ws, state)`; reset in saveCalendarConnection.\n3. google-oauth: `GoogleOAuthError.code` from `o.error`. google-calendar: record + short-circuit in accessTokenFor; readStoredToken marks 'undecryptable'.\n4. free-busy: add `needs_reconnect` to CALENDAR_STATUSES; available-slots: unchecked status reads health.\n5. schedule-store: `countUnsyncedUpcomingInvites(ws)` (workspace-scoped, future confirmed, state 'failed'); route GET returns it.\n6. Panel + ScheduleCalendarStatus render the actionable state; catalog keys appended to all four locales (no em dashes); doc updated.\n\n## Expected impact\nA recruiter learns about a dead calendar the day it dies instead of after the first double-booking; the fix is one click where the problem is shown. Removes a per-request Google round trip from the public booking page for every workspace with a revoked grant, and makes the 'failed' event chips explicable (they have a named cause and a count).\n\n## Evaluation\nClaim: a revoked/undecryptable grant is persisted, stops network calls, and surfaces as an actionable needs_reconnect with the affected-interview count.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: contract (node:test - grant-health.test.ts, google-calendar.test.ts, calendar-status-i18n.test.ts via npm run test:unit; i18n:check for catalog parity)\nResult: pending build\nGate: none",
+    "evidence": "google-calendar.ts:72  // A revoked grant lands here (invalid_grant). Logged, not thrown: the operator sees a\ngoogle-calendar.ts:73  // disconnected integration in the UI, and scheduling carries on unaided.   <- no write follows; the claim is false\ntoken-store.ts:99      connected: !!row.refresh_token,\navailable-slots.ts:65  calendarStatus: isCalendarConnected(workspaceId) ? \"unavailable\" : \"not_connected\",\ngoogle-calendar.ts:86-88 'A revoked grant still reads as connected here and its failed refresh surfaces as \"unavailable\"'\ngoogle-oauth.ts:142    throw new GoogleOAuthError(`Google refused the token exchange: ${o.error}...`)  (code only inside the message)\nIntegrationsCalendarPanel.tsx:136-153 - the only Reconnect link is inside `missing.length > 0`\nScheduleCalendarStatus.tsx:26 - `data.calendarStatus === \"not_connected\" ? <Connect button> : null`\nNot on the books: leftover-develop-2026-09-17 calendar-scheduling titles are Meet link / retryCalendarEvent / holidays / per-interviewer pool / Microsoft 365; drain results built 'Render calendarStatus on the Schedule tab' and 'Connect calendar CTA when disconnected' (not_connected only); backlog-digest has no grant-health title."
+  }
+]

@@ -1,0 +1,107 @@
+[
+  {
+    "context": "matrix-grid",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Put the fit grid on the shared tier scale and carry the scorer's band per cell",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/features/insights/matrix/matrixStats.ts",
+      "app/features/insights/matrix/matrixStats.test.ts",
+      "app/features/insights/matrix/matrixCellClass.ts",
+      "app/features/insights/matrix/matrixCellClass.test.ts",
+      "app/features/insights/matrix/useMatrixTab.ts",
+      "app/features/insights/matrix/MatrixShared.tsx",
+      "pipeline/jobfit/matrix_cli.py",
+      "pipeline/jobfit/tests/test_matrix_cli.py",
+      "app/api/matrix/route.ts",
+      "app/api/matrix/matrix-cell.test.ts",
+      "docs/features/matching/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [],
+    "acceptance": [
+      "matrixStats: STRONG_THRESHOLD === FIT_STRONG_FLOOR (70, app/_lib/fit-thresholds.ts) and MIN_FIT_FLOORS deepEquals [0, FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR] = [0, 55, 70] (today 72 and [0, 45, 72])",
+      "matrixStats: every tier boundary (FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR) is the `min` of some MATRIX_BANDS entry, so no band straddles a tier edge; matrixStats.ts contains no numeric literal equal to 70/72/55 (derived, not re-typed)",
+      "columnStats([69, 70, 71]).strong === 2 (today 0: 70 and 71 fall below the private 72 line)",
+      "a new pure uncoveredRoles(cols, colScores) in matrixStats.ts: a role whose best non-blocked score is 71 is NOT reported uncovered; a role whose best is 69 IS (today the 71 role is reported as having 'no strong fit')",
+      "cellClass({score: 70, blocked: false}) paints the same (strong) band as cellClass({score: 84, blocked: false}); cellClass({score: 69}) does not",
+      "matrix_cli (Python test): a scored cell carries fitTier == fit_tier_for(score), confidence {low, high, level} with low <= score <= high, and an integer unprovenCount; a blocked cell carries only {score: null, blocked: true, koKeys}",
+      "matrix-cell.test.ts: every optional field the route's Cell type declares appears as an emitted key in pipeline/jobfit/matrix_cli.py (reads both sources) - provenanceMix, declared but emitted by nothing, is gone from the type",
+      "a cell whose server fitTier is present renders the same tier FitTierBadge would give it in focus mode (cellTier(c) === (c.fitTier ?? scoreToFitTier(c.score)))"
+    ],
+    "premise": [
+      "app/_lib/fit-thresholds.ts:23 `FIT_STRONG_FLOOR = 70` is the single TS source for 'strong', bound to pipeline/jobfit/matching.py:80 `FIT_STRONG_THRESHOLD = 70` by pipeline/jobfit/tests/test_fit_threshold_sync.py",
+      "app/features/insights/matrix/matrixStats.ts:24 `STRONG_THRESHOLD = MATRIX_BANDS[3].min; // 72` and :19 `{ min: 72, label: \"72–84\" ...}` - the grid keeps a private strong line two points above everyone else's",
+      "app/features/insights/matrix/matrixStats.ts:31 `MIN_FIT_FLOORS = [0, MATRIX_BANDS[1].min, STRONG_THRESHOLD] // [0, 45, 72]` - neither 55 nor 70 is offered",
+      "app/features/insights/matrix/useMatrixTab.ts:353-354 the coverage banner counts `s >= STRONG_THRESHOLD` and lists a role as uncovered when that count is 0; :308 the row ★ uses the same 72",
+      "app/features/insights/matrix/focus/MatchCard.tsx:100 focus mode (the SAME tab, other segment) renders `<FitTierBadge tier={m.fitTier} score={m.total}>`, and app/_components/Badge.tsx:263 bands a bare score with `score >= FIT_STRONG_FLOOR` (70)",
+      "pipeline/jobfit/matrix_cli.py:113 `row.append({\"score\": score_job(cand, job).total, \"blocked\": False})` - score_job returns a MatchResult whose fit_tier, confidence (matching.py:276) and unproven_skills (matching.py:291) are computed and discarded",
+      "app/api/matrix/route.ts:20-28 declares fitTier?/confidence?/unprovenCount?/provenanceMix? on Cell, and app/api/matrix/matrix-cell.test.ts:4 admits matrix_cli emits '{score, blocked, koKeys?} only' - the wire type describes fields nothing sends"
+    ],
+    "rollback": "The series is additive-then-rebase: (1) matrix_cli emits three extra per-cell keys the client treats as optional, (2) matrixStats derives its edges from fit-thresholds.ts. Reverting (2) restores the 45/60/72/85 scale byte-for-byte; reverting (1) returns the old payload and the client falls back to scoreToFitTier. The scored-grid cache is in-process and content-keyed on the INPUT JSON (route.ts:113), so a restart clears any mixed-shape entries; no persisted state changes.",
+    "gate": "contract",
+    "runner_up": "Make the grid a live view: subscribe useLiveRefresh (a placements-only change is a cache hit, route.ts:90-115, so no Python spawn) and notifyDataChanged after bulk add, retiring the local `added` fork (useMatrixTab.ts:97, :512) that never reconciles with server placements.",
+    "technique": "confidence-band-lead-separation",
+    "body": "## Summary\nThe Fit Matrix is the one match surface that keeps its own fit scale. Everywhere else, including focus mode on the same tab, 'strong' starts at 70 (`app/_lib/fit-thresholds.ts`, drift-tested against `matching.py`). The grid starts it at 72. The Python CLI behind the grid also throws away the tier, confidence band and unproven count that `score_job` already computes. The fix: derive the grid's bands from the shared floors and put the scorer's per-cell tier and band on the wire, so the grid and focus mode read one scale from one source.\n\n## Description\nToday a candidate scoring 70 or 71 for a role shows as a strong-fit badge in focus mode. Flip the segmented control to grid and the same pair has no ★, is not counted in the column's strong tally, and is dropped by the '≥72' floor. The coverage banner then tells the recruiter that the role has 'no strong fit - source for these', which is the most consequential line on the tab, and it is wrong exactly at the tier edge. The min-fit floors (0/45/72) also match nothing the Candidates 'Pool fit' filter or the rediscovery admission gate use (55/70).\n\nThe second half is the wire. `matrix_cli.py:113` keeps only `.total` of a MatchResult that already carries `fit_tier`, `confidence` and `unproven_skills`. The route and client types declare optional honesty fields nobody emits, so every downstream idea that wants the band per cell (e.g. the open leftover 'Paint cell confidence and unproven on the fit grid') rests on a field that never arrives. This card is that leftover's enabler. It does not restate it: nothing new is painted here beyond the rebased bands.\n\nChanges: `MATRIX_BANDS` edges are derived from `FIT_PROMISING_FLOOR`/`FIT_STRONG_FLOOR`, with a tier-edge invariant. `STRONG_THRESHOLD` and `MIN_FIT_FLOORS` re-export the shared floors. Coverage moves into a pure `uncoveredRoles`. `matrix_cli` emits `fitTier`, `confidence{low,high,level}` and `unprovenCount` per scored cell. The route type drops the never-emitted `provenanceMix` and gains a source-reading test that every declared optional key is actually emitted.\n\n## Flow\n1. Python: the scored-cell branch keeps the MatchResult and emits `score`, `fitTier`, `confidence{low,high,level}` and `unprovenCount`. The blocked branch is unchanged. Pin it in test_matrix_cli.py.\n2. Route: the Cell type matches what the CLI emits. matrix-cell.test.ts reads both files and fails on a declared-but-unemitted key.\n3. matrixStats.ts: bands `[0, 40, FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR, 85]`. The tier edges are bands by construction. STRONG_THRESHOLD and MIN_FIT_FLOORS are derived, and `uncoveredRoles` is extracted from useMatrixTab.\n4. matrixCellClass.ts: `cellTier(c)` prefers the server tier and falls back to `scoreToFitTier`. cellClass is unchanged in shape.\n5. MatrixShared legend and colStatsTitle pick up the new edges automatically (the `threshold` ICU arg is already a parameter), so no catalog change is needed.\n6. docs/features/matching/README.md: the grid section states one scale and the per-cell band on the wire.\n\n## Expected impact\n- One strong line across the tab and the app: the coverage banner, the ★ counts and the floor stop contradicting focus mode's badge at 70-71.\n- The grid's floors line up with the rediscovery gate and the Pool-fit filter (55/70).\n- The per-cell band reaches the client, which unblocks lead-separation and confidence painting without another Python change.\n- Payload cost, stated: about 90 bytes more per scored cell uncompressed. At the pool cap of 200 (profiles.ts:333) × 20 roles that is about 360 KB raw, much less gzipped, and only on a cache miss path's response size. It is not measured yet. The builder records the before/after byte count on the seeded corpus in the commit body.\n- Risk: every recruiter's learned heatmap recolours at the 70-72 and 45-55 edges. This is a deliberate, visible change and belongs in the doc and commit body.\n\n## Evaluation\nClaim: The grid and focus mode band the same (candidate, role) score identically, and every Cell field the wire type declares is actually emitted.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test (matrixStats, matrixCellClass, matrix-cell) + python unittest (test_matrix_cli, test_fit_threshold_sync) under npm run test:unit and test:python:gate\nResult: pending build\nGate: contract",
+    "evidence": "matrixStats.ts:19 `{ min: 72, label: \"72–84\", cellClass: \"bg-moss/40 text-ink\", fill: \"bg-moss/60\" }`\nmatrixStats.ts:24 `export const STRONG_THRESHOLD = MATRIX_BANDS[3].min; // 72`\nmatrixStats.ts:31 `export const MIN_FIT_FLOORS = [0, MATRIX_BANDS[1].min, STRONG_THRESHOLD] as const; // [0, 45, 72]`\napp/_lib/fit-thresholds.ts:13 `export const FIT_PROMISING_FLOOR = 55;`  :23 `export const FIT_STRONG_FLOOR = 70;`\npipeline/jobfit/matching.py:80 `FIT_STRONG_THRESHOLD = 70` (comment: 'the SINGLE SOURCE OF TRUTH for the strong/promising/partial banding every match surface renders')\napp/_components/Badge.tsx:263 `if (score >= FIT_STRONG_FLOOR) return \"strong\";`\napp/features/insights/matrix/focus/MatchCard.tsx:100 `<FitTierBadge tier={m.fitTier} score={m.total} labels={fitLabels} />`\nuseMatrixTab.ts:353-354 `const strong = (colScores[i] ?? []).filter((s) => s >= STRONG_THRESHOLD).length; if (strong === 0) uncovered.push(p.title);`\nmatrix_cli.py:113 `row.append({\"score\": score_job(cand, job).total, \"blocked\": False})` - grep for confidence|fitTier|unproven in matrix_cli.py: 0 hits\nroute.ts:27 `provenanceMix?: string;` - emitted by no producer; matrix-cell.test.ts:4 'the payload matrix_cli emits today ({score, blocked, koKeys?} only)'\nOpen leftover (leftover-develop-2026-09-17.jsonl:173) 'Paint cell confidence and unproven on the fit grid' is not in either low-risk-drain results file, so it is still open, and its premise needs this wire."
+  },
+  {
+    "context": "matrix-grid",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Propose a per-role slate that resolves who goes where across the grid",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/insights/matrix/useMatrixTab.ts",
+      "app/features/insights/matrix/MatrixTab.tsx",
+      "app/features/insights/matrix/MatrixToolbar.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/matching/README.md"
+    ],
+    "new_files": [
+      "app/features/insights/matrix/matrixSlate.ts",
+      "app/features/insights/matrix/matrixSlate.test.ts",
+      "app/features/insights/matrix/MatrixSlatePanel.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "proposeSlate: roles R1, R2; candidate A scores 90 on R1 and 88 on R2, B scores 80 on R2 -> R1 picks A, R2 picks B, and R2 is marked `contested` naming A (the stronger-but-allocated candidate) with A's 88",
+      "proposeSlate never picks a blocked cell, nor a pair whose placement is non-terminal (isTerminalEntryStatus false); a pair whose placement is `rejected`/`declined` IS eligible",
+      "a role whose best eligible score is below FIT_PROMISING_FLOOR (55) gets pick = null and state `uncovered`; never a sub-floor 'best available'",
+      "a role with exactly one assessed (non-blocked, scored) candidate gets its pick with state `thin`, never `clear` (head-to-head floor of two - minimum-cohort-before-a-comparative-claim)",
+      "only visible rows x visible columns participate: every proposed key is a member of visibleMatrixCellKeys(rows, cols) for the family filter / min-fit floor / ?job= scope in force",
+      "deterministic: equal scores tie-break by candidate label under the reader's locale, then id - the same input yields the same slate on every call",
+      "applySlateToSelection(prevSelected, slate) returns a NEW Set containing exactly the picks' matrixCellKey(candId, posId), leaving prevSelected unmutated; dropping one role from the slate removes only that key"
+    ],
+    "premise": [
+      "app/features/insights/matrix/MatrixGridRow.tsx:87 each row shows a ★ count of roles the candidate is strong for - a versatility hint that tells the recruiter a person is contested and leaves the allocation to them",
+      "app/features/insights/matrix/useMatrixTab.ts:484-509 `addSelected` files every ticked (candidate, role) pair in sequence; nothing notices the same candidate ticked for three roles, or a role left with nobody",
+      "app/features/insights/matrix/useMatrixTab.ts:350-357 `coverage` already computes which visible roles have no strong candidate but proposes no one for any role",
+      "app/features/insights/matrix/MatrixGridRow.tsx:103 `inPipe = place && !isTerminalEntryStatus(place.status)` - the eligibility rule the slate must reuse already exists per cell",
+      "app/features/insights/matrix/matrixSelection.ts:58-67 `visibleMatrixCellKeys` is the tested definition of 'what the recruiter can see', which the slate confines itself to",
+      "app/features/insights/matrix/MatrixSelectBar.tsx:41-45 the select bar already discloses selected-but-hidden cells and the add path reports partial failure (MatrixTab.tsx:182-220), so a slate loaded INTO the selection inherits every existing honesty guarantee",
+      "app/_lib/fit-thresholds.ts:13 `FIT_PROMISING_FLOOR = 55` - the shared floor the rediscovery gate uses, available to a client module without the db barrel"
+    ],
+    "rollback": "Purely additive client code: a new pure module, a new panel and a toolbar toggle. The slate never writes. Filing goes through the existing select-mode selection and `addSelected`, so reverting the commit removes the panel and leaves the grid, selection and add path exactly as they were. The i18n keys are an appended `matrix.slate.*` block, removed in the same revert across the 4 catalogs.",
+    "gate": "none",
+    "runner_up": "URL-back the grid's view state (family, minFit, sortCol) beside ?job= so a reload or shared link restores the ranking the recruiter was reading (today useMatrixTab.ts:85-91 holds all three in useState).",
+    "technique": "minimum-cohort-before-a-comparative-claim",
+    "body": "## Summary\nThe grid shows every candidate against every open role but leaves the real decision, who goes forward for which role, to the recruiter's head. Add a slate proposal. For the visible roles it picks the best eligible candidate per role, one role per candidate. It flags roles where a stronger candidate was allocated elsewhere (`contested`), roles with only one assessed candidate (`thin`), and roles with nobody above the promising floor (`uncovered`). One click loads the slate into the existing shortlist selection for review and filing.\n\n## Description\nToday the recruiter reads ★ counts (MatrixGridRow.tsx:87) to spot candidates who fit several roles, then works out the assignment across up to 200 × N cells in their head. They tick cells in select mode and press Add. Nothing notices that they ticked the same person for three roles, or that one role got nobody. The coverage banner (useMatrixTab.ts:350-357) names uncovered roles but proposes no one for the covered ones. That decision is made blind, and the app already has everything it needs: scores, blocked gates, and live placements.\n\n`matrixSlate.ts` is a pure, DB-free and React-free allocator over the VISIBLE rectangle. Eligible means scored, not blocked, and not already in flight for that pair (the same `isTerminalEntryStatus` rule the cell ring uses). It runs greedy by descending score with a deterministic locale-collated tie-break, one role per candidate. Each role gets a state: `clear` (at least two assessed, pick found), `contested` (the top scorer for this role was allocated to another role; name them and their score), `thin` (one assessed candidate, so no comparative claim), or `uncovered` (nobody at or above FIT_PROMISING_FLOOR). A slate is a proposal, never a write. 'Review in grid' replaces the selection with the slate's keys and enters select mode. The recruiter sees the picks ringed on the heatmap and can untick or swap, then files with the Add button that already exists. So the outside-view disclosure, partial-failure band and coded refusals all apply unchanged.\n\n## Flow\n1. Toolbar: a 'Propose slate' toggle, shown when data has at least one candidate and one role, beside Shortlist.\n2. MatrixSlatePanel: one line per visible role showing the proposed candidate, score and state chip (clear/contested/thin/uncovered). A contested line reads 'A (88) is placed on R1'. The header count reads 'N of M roles filled'.\n3. 'Review in grid' calls applySlateToSelection, enters select mode, and closes the panel. The grid rings the picks.\n4. The recruiter adjusts ticks, then presses 'Add N', the existing path.\n5. The slate recomputes from memo whenever the family filter, floor, ?job= scope or data change. It is derived, never stored.\n\n## Expected impact\n- Five steps (read ★, resolve contention mentally, enter select mode, tick N cells, add) become two (propose, review and add), and double-allocation gets caught before filing, not after.\n- Makes the grid's reason to exist, 'compare many candidates across many roles', produce an answer rather than a picture.\n- Keeps comparative honesty: no 'best' claim over a single assessed candidate, and no sub-floor pick passed off as a fit.\n- About 13 new keys under `matrix.slate.*` in 4 locales. No server, route or schema change.\n\n## Evaluation\nClaim: The grid proposes a one-role-per-candidate slate over the visible rectangle that never picks an ineligible pair, never makes a comparative claim over one candidate, and loads into the existing selection without mutating it.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate - node:test over matrixSlate.test.ts (npm run test:unit), plus i18n:check for the 4-catalog key set\nResult: pending build\nGate: none",
+    "evidence": "MatrixGridRow.tsx:87 `{strong > 0 ? (` ... `{`${strong}★`}` - the only allocation signal on the grid\nMatrixGridRow.tsx:103 `const inPipe = place && !isTerminalEntryStatus(place.status);`\nuseMatrixTab.ts:484 `for (const key of selected) {` ... :502 `const res = await postPipelineAdd(pos.id, pos.title, {` - no per-candidate or per-role grouping anywhere in the loop\nuseMatrixTab.ts:350-357 coverage = titles of roles with 0 strong; no proposal\nmatrixSelection.ts:58 `export function visibleMatrixCellKeys(`\nMatrixSelectBar.tsx:41 `{selectedOutsideCount > 0 ? (` - the disclosure a slate-loaded selection inherits\ngrep -ri 'slate|contested|allocat' app/features/insights/matrix -> 0 hits; the matrix-grid leftover titles (leftover-develop-2026-09-17.jsonl:173-177: confidence paint, coverage deep-link, silver-medalist overlay, KO-reason filter, CSV) and backlog-digest slate titles (agent-hire slate producers) do not cover per-role allocation on the grid."
+  }
+]

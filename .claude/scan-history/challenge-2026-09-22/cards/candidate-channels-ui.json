@@ -1,0 +1,113 @@
+[
+  {
+    "context": "candidate-channels-ui",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Make relay capability a live fact the relay editor invalidates, not a boot cache",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/shell/useDeliveryCapability.ts",
+      "app/features/hiring/channels/ChannelsRelayConfigCard.tsx",
+      "app/features/hiring/channels/ChannelsCommsTable.tsx",
+      "docs/features/comms/README.md"
+    ],
+    "new_files": [
+      "app/features/shell/deliveryCapabilityCache.ts",
+      "app/features/shell/deliveryCapabilityCache.test.ts",
+      "app/features/hiring/channels/channelsRelayInvalidation.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "deliveryCapabilityCache: two concurrent get() calls before the first settles -> the injected fetcher runs exactly once and both resolve to the same record (in-flight dedupe kept)",
+      "deliveryCapabilityCache: after a get() that resolved {relayConfigured:false, emailInboundDomain:null}, a second get() -> returns the cached record and the fetcher call count stays 1 (still one read per page when nothing changes)",
+      "deliveryCapabilityCache: get() resolves {relayConfigured:false}; invalidate(); get() with the fetcher now answering {relayConfigured:true} -> fetcher called twice and the second get() resolves relayConfigured === true",
+      "deliveryCapabilityCache: subscribe(listener); invalidate() followed by the refetch settling on {relayConfigured:true} -> listener called once with relayConfigured === true; after unsubscribe a further invalidate() does not call it",
+      "deliveryCapabilityCache: a read resolving the UNKNOWN record (both fields null) -> is NOT cached, the next get() calls the fetcher again (the existing retry rule at useDeliveryCapability.ts:63-65 survives the extraction)",
+      "deliveryCapabilityCache: invalidate() called while a read is in flight, the stale read then settles {relayConfigured:false} and the post-invalidate read settles {relayConfigured:true} -> the cached value and the last value delivered to subscribers is true (generation guard: a pre-invalidation answer never lands as final)",
+      "deliveryCapabilityCache: a message arriving on the injected cross-window channel stub with type 'capability-changed' -> triggers the same invalidate+refetch as a local invalidate(), and does NOT fire on the general 'changed' data-changed message (no refetch storm on every pipeline mutation)",
+      "channelsRelayInvalidation (source contract): ChannelsRelayConfigCard.tsx calls invalidateCommsCapability() and notifyDataChanged() inside the r.ok save branch and inside the 409 re-read branch -> both call sites present"
+    ],
+    "premise": [
+      "app/features/shell/useDeliveryCapability.ts:5-7 — the capability bits are 'fetched ONCE per page load ... cached module-wide ... they only change with a server restart'",
+      "app/features/shell/useDeliveryCapability.ts:33-34,60 — `let cached` / `let inflight` module state and `if (cached !== null) return;` — the hook never refetches once a value is cached",
+      "app/features/shell/useDeliveryCapability.ts:57,80 — the module exports only useCommsCapability and useDeliveryCapability; there is no invalidation entry point",
+      "app/_lib/comms-relay.ts:3-5 — the relay is 'UI-configurable (RelayConfigCard on the Channels tab)' and resolve() at comms-relay.ts:53-65 reads the stored config per call, so the server-side fact changes at runtime without a restart",
+      "app/api/comms/relay/route.ts:40-59 — POST stores a new relay config at runtime (setRelayConfig)",
+      "app/features/hiring/channels/ChannelsRelayConfigCard.tsx:94-136 — save() re-reads its own config on success (line 109 'saved') and on 409 (line 123) but neither invalidates the capability cache nor calls notifyDataChanged; within app/features/hiring/channels only ChannelsCvSimCard.tsx:80 calls notifyDataChanged",
+      "app/features/hiring/channels/ChannelsCommsTable.tsx:48,83,104,189 — the ledger derives relayConfigured from its own /api/comms read and only re-reads on useLiveRefresh, so its red 'relay not configured' alert stays up under the relay card's green On badge after a save",
+      "11 client modules read the cached bit (grep useDeliveryCapability()/useCommsCapability()): ChannelsEmailIntakeWizard, DecisionsFeedbackLetterEditor, useDecisionsQueue, PipelineCommsList, PipelineConsentPanel, PipelineTimelineItemRow, SchedulerControl, usePipelineTabState, useScheduleInviteLifecycle, AnalyticsAutomationPanel, DecisionLogTable — the shell is one ?tab= page, so the stale module cache survives every tab switch",
+      "app/features/shell/live-refresh.ts:14-15,27-35 — the only cross-window bus is one untyped 'changed' message; there is no topic, so riding it would refetch capability on every pipeline mutation"
+    ],
+    "rollback": "Three commits (cache module + tests, hook rewire, relay-card call sites + doc) revert cleanly in reverse order: the hook's public signature (useCommsCapability/useDeliveryCapability return shape) is unchanged, so none of the 11 consumers is edited and reverting restores the boot-time cache byte-for-byte.",
+    "gate": "contract",
+    "runner_up": "Extract one useWriteOnlyEndpointConfig hook + pure endpointConfigState.ts from the twin RelayConfigCard/EdgeConfigCard (url + write-only secret + env-wins + touched-ref + blankSaveOnUnknownConfig duplicated verbatim) before a third copy lands for pull sources.",
+    "technique": "swr-design",
+    "body": "## Summary\nThe outbound-relay capability bit is cached module-wide for the life of the page on the stated premise that it 'only changes with a server restart' — but the relay has been UI-configurable from this very context for a while. Saving a relay in Channels leaves every one of 11 consumers (pipeline drawer, decisions, scheduler, analytics) saying 'queued, nothing will deliver' until a hard reload. Move the cache into a pure, invalidatable store and let the relay editor push the invalidation.\n\n## Description\n`useDeliveryCapability.ts` owns `cached`/`inflight` as module state with no way to clear them. The relay editor (`ChannelsRelayConfigCard.tsx`) is the only place in the product where that fact changes, and it tells nobody: not the capability cache, not the live-refresh bus. The Comms ledger beside it derives the same fact a third way (from `/api/comms`) and only re-reads on live-refresh, so right after a successful save the pane shows a green On badge above a red 'relay not configured' alert. The structural move is to make the capability a live read with a pushed invalidation, per swr-design ('a pushed invalidation event overrides any TTL ... the timer is the fallback'): a DOM-free `deliveryCapabilityCache.ts` (get / invalidate / subscribe, in-flight dedupe, a generation guard so a pre-invalidation answer never lands as final, a DEDICATED cross-window message type rather than the untyped data-changed bus) under an unchanged hook signature. The relay card calls `invalidateCommsCapability()` + `notifyDataChanged()` on save and on the 409 adopt.\n\n## Flow\n1. Extract the fetch/cache/in-flight logic from `useDeliveryCapability.ts` into `deliveryCapabilityCache.ts` with an injectable fetcher and channel, keeping the UNKNOWN-is-not-cached rule.\n2. Add `invalidate()` with a generation counter and a subscriber set; broadcast a `capability-changed` message on its own BroadcastChannel name so other windows invalidate too, without listening to the general `changed` message.\n3. Rewire the hook to subscribe to the store (same return shape; no consumer edits).\n4. In `ChannelsRelayConfigCard.tsx` save(): on the ok branch and the 409 branch call `invalidateCommsCapability()` and `notifyDataChanged()` so the ledger alert and all capability consumers re-read.\n5. Fix the 'only change with a server restart' comment and update the capability row in `docs/features/comms/README.md`.\n\n## Expected impact\nThe delivery-honesty vocabulary ('sent' vs 'queued') becomes true across every tab within one round-trip of an operator saving or clearing a relay, instead of lying until a reload — in both directions (clearing a relay currently keeps claiming delivery). Closes a whole class: any future runtime-configurable capability bit gets an invalidation door instead of a restart assumption. One read per page still holds when nothing changes.\n\n## Evaluation\nClaim: the relay capability seen by client surfaces follows a relay save without a page reload, with no extra reads when nothing changes.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract\nResult: pending\nGate: contract",
+    "evidence": "useDeliveryCapability.ts:5-7 \"REC-10 — client read of the comms capability bits, fetched ONCE per page load / from /api/comms/capability and cached module-wide: many surfaces key their / vocabulary off the same facts, and they only change with a server restart.\"\nuseDeliveryCapability.ts:33-34 \"let cached: Capability | null = null; let inflight: Promise<Capability> | null = null;\"\nuseDeliveryCapability.ts:60 \"if (cached !== null) return;\"\ncomms-relay.ts:3-5 \"THE capability bit for outbound comms delivery — resolved env → stored config → nothing. Replaces the env-only comms-truth.isRelayConfigured now that the relay is UI-configurable (RelayConfigCard on the Channels tab)\"\ngrep -n notifyDataChanged app/features/hiring/channels/*.tsx -> only ChannelsCvSimCard.tsx:13,80\ngrep -n 'invalidate' ChannelsRelayConfigCard.tsx -> no match\nChannelsCommsTable.tsx:48 \"const [relayConfigured, setRelayConfigured] = useState(true);\" :83 \"setRelayConfigured(p.relayConfigured !== false);\" :104 \"useLiveRefresh(load);\"\nconsumers (grep -rln 'useDeliveryCapability()|useCommsCapability()' app, excl. the hook): 11 files across hiring/channels, hiring/decisions (2), hiring/pipeline (5), hiring/schedule, insights/analytics (2)\nlive-refresh.ts: 88 lines, one EVENT 'kp:data-changed' and one BroadcastChannel posting the literal 'changed' — no topics"
+  },
+  {
+    "context": "candidate-channels-ui",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Receiver health verdict plus an in-place pull-source editor on every receiver",
+    "size": "M",
+    "effort": 7,
+    "impact": 9,
+    "risk": 5,
+    "write_set": [
+      "app/features/hiring/channels/ChannelsReceiverTable.tsx",
+      "app/features/hiring/channels/ChannelsEmailIntakeWizard.tsx",
+      "app/features/hiring/channels/ChannelsAdFormsPane.tsx",
+      "app/features/hiring/channels/ChannelsTab.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/comms/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/channels/receiverHealth.ts",
+      "app/features/hiring/channels/receiverHealth.test.ts",
+      "app/features/hiring/channels/receiverPullForm.ts",
+      "app/features/hiring/channels/receiverPullForm.test.ts",
+      "app/features/hiring/channels/ChannelsReceiverPullCard.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "receiverHealth: {receivedCount:0, acceptedCount:0, pullUrl:null} -> verdict 'waiting' (neutral), live=false",
+      "receiverHealth: {receivedCount:7, acceptedCount:0, pullUrl:null} -> verdict 'reachedNoLeads' (caution) — live stays true per isReceiverLive, but the row no longer reads as a plain healthy Listening",
+      "receiverHealth: {receivedCount:7, acceptedCount:3} -> verdict 'delivering' (positive)",
+      "receiverHealth: {pullUrl:'https://ats.example.com/feed', lastPullError:'HTTP 502', acceptedCount:3} -> verdict 'pullFailing' (critical) overriding 'delivering', with detail 'HTTP 502' exposed as DATA for a code-styled render, never as the headline sentence",
+      "receiverHealth section roll-up: email receivers [delivering, pullFailing] -> section status {tone:'caution', key:'statusNeedsAttention'}; [delivering, waiting] -> existing Listening; [] -> existing Off (the ChannelsTab statusFor vocabulary is extended, not replaced)",
+      "receiverPullForm: stored {pullUrl:'https://a.example/feed', hasPullSecret:true}, form url unchanged, secret field '' -> PATCH body {token, pullUrl:'https://a.example/feed'} with NO pullSecret key (keep semantics); secret 'abc' -> pullSecret:'abc' (replace); explicit clear toggle -> pullSecret:'' (clear)",
+      "receiverPullForm: receivers list not yet read (record null) and url field '' -> canSave === false (a blank save on an unknown row would disable a working pull and CLEAR its cursor, db/channels.ts setChannelPull)",
+      "receiverPullForm: PATCH answered 400 {code:'CHANNEL_PULL_URL_INVALID'} / 403 {code:'FORBIDDEN_CAPABILITY'} / 429 {code:'TOO_MANY_REQUESTS'} -> outcome {ok:false, code} resolved through useErrorMessage, never the body's error prose; 200 {pull:{...}} -> ok:true and the caller reloads the tab lists"
+    ],
+    "premise": [
+      "app/_lib/db/channels.ts:40-47 — every ChannelWebhookRecord already carries pullUrl / hasPullSecret / lastPullAt / lastPullError, and :32 lastReceivedAt",
+      "app/api/channels/webhooks/route.ts:45-48 — GET projects the pull half 'so the Channels tab can show a week-old lastPullError without a per-row extra GET'; :119-151 PATCH is the pull write (org:manage + limiter, keep/clear/replace secret)",
+      "grep pullUrl|lastPullError|lastPullAt over app/**/*.ts(x) outside db/ -> only app/api/channels/** and its tests: no UI binds any of the four fields",
+      "docs/features/comms/README.md:1014-1018 — Known gap 'Pull sources have no editor UI ... the receiver table does not yet bind those fields. The Edge card (§11) is the model for the editor.'",
+      "app/features/hiring/channels/useChannelsReceivers.ts:85-91 — isReceiverLive = receivedCount > 0 || firstReceivedAt; its own doc says 'a source that reaches the endpoint and then fails field mapping is live-but-broken, which is exactly the state the recruiter needs to be able to see'",
+      "app/features/hiring/channels/ChannelsReceiverTable.tsx:106,128 — the status badge is binary Listening/Waiting from isReceiverLive; received vs accepted are two bare numbers in adjacent columns with no verdict",
+      "app/features/hiring/channels/ChannelsTab.tsx:83-85 — the section badge is Listening whenever any receiver was reached, so a channel whose pull has failed for a week reads green",
+      "app/_lib/pull-pass.ts:117,140,159 — lastPullError is stored as e.message / 'HTTP <status>' / intake error prose: English machine text, so the UI must headline a localized class and show the raw string only as data",
+      "app/_lib/db/channels.ts setChannelPull (lines ~281-329) — url null/'' disables pulling AND clears pull_cursor, so a blank save on an unread row is destructive",
+      "Adopts the open leftover item 'Add a pull-source editor on each receiver row' (.claude/scan-history/leftover-develop-2026-09-17.jsonl, context candidate-channels-ui, M, impact 9, not in either low-risk-drain results file) and raises it from risk 3 to 5 by pairing it with the health verdict and the section roll-up"
+    ],
+    "rollback": "Four commits (pure modules + tests; pull card + pane mounts; table/tab verdict; catalogs + doc) revert cleanly: the PATCH route, the store and the list payload are untouched, so reverting removes only UI and catalog keys, and the i18n parity gate holds at every commit because each key set lands in all four catalogs together.",
+    "gate": "none",
+    "runner_up": "Bulk-chase dead letters: turn the Comms ledger's 'N dead letters' filter chip into a select-and-resend mode (per-row outcome via comms-resend-outcome.ts, bounced rows routed to the corrected-address form) instead of one modal per message.",
+    "technique": "capability-honesty-never-promise-a-channel",
+    "body": "## Summary\nA receiver today is either Waiting or Listening. Listening means one authenticated POST ever arrived — including a Zapier test ping followed by a week of 422s — and the pull half the server already projects on every row (pull URL, last pull, last pull error) is shown nowhere and cannot be edited. Give every receiver a health verdict the recruiter can act on, and put the pull-source editor on the selected receiver, in the pane where the problem is seen.\n\n## Description\nThe candidate-communication-integrity standard models a channel as not configured / configured-but-unverified / verified, and only verified may be trusted. The Channels tab collapses the middle two: `isReceiverLive` is connectivity, not delivery, and its own comment names 'live-but-broken' as the state the recruiter must see — yet the row badge and the section badge both paint it green. Meanwhile the L0 pull mechanism (the answer to 'my studio was closed at 22:00') is fully built server-side and fully invisible: the doc lists it as a known gap. This card adds `receiverHealth.ts` (waiting / reachedNoLeads / delivering / pullFailing, plus a section roll-up that extends `statusFor` with a caution 'Needs attention') and `receiverPullForm.ts` (the PATCH body under the repo's keep/clear/replace secret contract, the blank-save-on-unknown guard the relay and edge cards already carry, coded refusals). `ChannelsReceiverPullCard.tsx` renders under the selected row in both the Email and Ad-forms panes, modelled on the Edge card: URL, write-only bearer, last pull time, and a failing pull headlined as a localized sentence with the raw error shown as code-styled data.\n\n## Flow\n1. Recruiter opens Channels; the Email section badge reads 'Needs attention' instead of green Listening because one receiver's pull has failed since Tuesday.\n2. The receiver table's status column shows that row as 'Pull failing' (critical) and another as 'Reached — no candidate filed' (caution); healthy rows read Delivering.\n3. Clicking the failing row selects it; below the setup guide the pull card shows the URL, 'secret set', last pull 3 days ago, and the error class with 'HTTP 502' as data.\n4. The recruiter corrects the URL or rotates the bearer and saves; the PATCH answers `{ pull }`, the tab lists reload, and the verdict clears on the next clean pull (lastPullError nulls on write per setChannelPull).\n5. For a 'reached, no leads' row the card points to the CV-sim action already in the pane to reproduce a real application.\n\n## Expected impact\nThe most expensive silent failure on this surface — an integration that connects but files nobody, or a pull source that stopped days ago — becomes visible at the section tab and fixable in place, without a curl against an undocumented PATCH. Closes a documented known gap (comms README) and the open leftover item, and makes the 'Listening' claim stop outrunning the record.\n\n## Evaluation\nClaim: a receiver's health is stated as an actionable verdict and its pull half is editable from the receiver pane, with no destructive blank save and no server prose rendered as a sentence.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate\nResult: pending\nGate: none",
+    "evidence": "db/channels.ts:40-47 \"// Recruiter-safe pull half (L0). ... pullUrl: string | null; hasPullSecret: boolean; lastPullAt: string | null; lastPullError: string | null;\"\napi/channels/webhooks/route.ts:45-48 \"Each `ChannelWebhookRecord` already carries the recruiter-safe pull half (pullUrl / hasPullSecret / lastPullAt / lastPullError) so the Channels tab can show a week-old lastPullError without a per-row extra GET.\"\ngrep -rln 'pullUrl|lastPullError|lastPullAt' app --include=*.ts --include=*.tsx | grep -v _lib/db -> app/api/channels/channels-doors-gate.test.ts, app/api/channels/channels-receiver-contract.test.ts, app/api/channels/webhooks/route.ts (zero UI files)\ndocs/features/comms/README.md:1014 \"- **Pull sources have no editor UI.** ... the receiver table does not yet bind those fields. The Edge card (§11) is the model for the editor.\"\nuseChannelsReceivers.ts:85-91 \"a source that reaches the endpoint and then fails field mapping is live-but-broken, which is exactly the state the recruiter needs to be able to see ... return h.receivedCount > 0 || Boolean(h.firstReceivedAt);\"\nChannelsReceiverTable.tsx:128 \"<Badge tone={live ? \\\"positive\\\" : \\\"neutral\\\"} dot={live} label={live ? t(\\\"statusListening\\\") : t(\\\"statusWaiting\\\")} />\"\nChannelsTab.tsx:83-85 \"return hooks.some(isReceiverLive) ? { tone: \\\"positive\\\", label: t(\\\"statusListening\\\") } : { tone: \\\"info\\\", label: t(\\\"statusConfigured\\\") };\"\npull-pass.ts:117 \"outcome.error = e instanceof Error ? e.message : \\\"Invalid pull URL.\\\";\" :140 same pattern, :131 'throw new Error(`HTTP ${res.status}`)', :159 \"String(result.body.error ?? \\\"Lead intake failed.\\\")\"\nleftover-develop-2026-09-17.jsonl: {\"title\":\"Add a pull-source editor on each receiver row\",\"context\":\"candidate-channels-ui\",\"size\":\"M\",\"risk\":3,\"impact\":9} — absent from low-risk-drain-2026-09-22-results.jsonl and -wave2-results.jsonl\nbacklog-digest overlap check: 'Channels \\\"listening\\\" state needs time expectation and auto-progress signal' is a different idea (elapsed-time expectation), not restated here"
+  }
+]
