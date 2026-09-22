@@ -1361,7 +1361,9 @@
   "theme": {
     "select": "Theme auswählen",
     "light": "Helles Theme",
-    "dark": "Dunkles Theme"
+    "dark": "Dunkles Theme",
+    "studioLight": "Studio Hell",
+    "sparkDark": "Spark Dunkel"
   },
   "common": {
     "loading": "Wird geladen…",

@@ -1361,7 +1361,9 @@
   "theme": {
     "select": "Vyberte vzhled",
     "light": "Světlý vzhled",
-    "dark": "Tmavý vzhled"
+    "dark": "Tmavý vzhled",
+    "studioLight": "Světlé studio",
+    "sparkDark": "Tmavý Spark"
   },
   "common": {
     "loading": "Načítání…",
