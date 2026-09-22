@@ -4,7 +4,8 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
-import { isScheduleInviteExpired } from "./schedule-slots";
+import { BOOKING_COLLISION_REACH_MS, bookingCollides, isScheduleInviteExpired, type BookedInterval } from "./schedule-slots";
+import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
 
 // Self-scheduling: a candidate picks an interview slot from proposed times
 // (replacing the hardcoded "Tue 14:00"). Isolated-connection store (same
@@ -393,6 +394,30 @@ export function listScheduleInvitesForEntry(entryId: string, workspaceId: string
   return rows.map(rowTo);
 }
 
+/** The workspace's OTHER confirmed bookings that could clash with `slotAt` — every row
+ *  whose start sits within BOOKING_COLLISION_REACH_MS either side (the longest interval
+ *  bookingCollides allows), with its real length. Called INSIDE confirm/reschedule's
+ *  `.immediate()` transaction, so the overlap decision and the write hold one lock: this is
+ *  the collision authority, not a pre-read. slot_at is always a canonical toISOString()
+ *  instant, so the window compares lexically. */
+function otherBookingsNear(d: Database.Database, slotAt: string, token: string, workspaceId: string): BookedInterval[] {
+  const ms = Date.parse(slotAt);
+  if (Number.isNaN(ms)) return [];
+  const rows = d
+    .prepare(
+      `SELECT slot_at, duration_min FROM schedule_invites
+        WHERE status = 'confirmed' AND slot_at IS NOT NULL AND token != ? AND workspace_id = ?
+          AND slot_at >= ? AND slot_at <= ?`
+    )
+    .all(
+      token,
+      workspaceId,
+      new Date(ms - BOOKING_COLLISION_REACH_MS).toISOString(),
+      new Date(ms + BOOKING_COLLISION_REACH_MS).toISOString()
+    ) as { slot_at: string; duration_min: number | null }[];
+  return rows.map((r) => ({ slotAt: r.slot_at, durationMin: r.duration_min == null ? null : Number(r.duration_min) }));
+}
+
 export type ConfirmResult =
   | { ok: true; invite: ScheduleInvite }
   | { ok: false; reason: "not_found" | "taken"; invite: ScheduleInvite | null };
@@ -400,8 +425,9 @@ export type ConfirmResult =
 /** Confirm a slot, atomically rejecting a time another candidate already took.
  *  better-sqlite3 runs synchronously, so the read-then-write below executes as a
  *  single uninterrupted transaction — two concurrent confirms can't both claim
- *  the same slot_at, which is what `bookedSlots()`/`proposeSlots()` only guard at
- *  read time. Collision identity is the ISO `slot_at`, not the display label.
+ *  an overlapping time, which is what `bookedIntervals()`/`proposeSlots()` only guard at
+ *  read time. A clash is a real-duration overlap or the same interview-zone hour
+ *  (bookingCollides), measured on the ISO `slot_at`, not the display label.
  *  IMMEDIATE (write lock at BEGIN) plus a compensating precondition on the UPDATE:
  *  see the note beside it — a DEFERRED read→write upgrade across connections is the
  *  one busy state SQLite's busy_timeout will not wait out. */
@@ -427,10 +453,15 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
       return sameBooking ? { ok: true, invite: inv } : { ok: false, reason: "taken", invite: inv };
     }
     // Collision domain is per-team (a team's booking can't clash with another team's
-    // calendar): scope the check to this invite's workspace.
+    // calendar): scope the check to this invite's workspace. With an instant, the clash is
+    // a REAL-DURATION overlap or the same interview-zone hour (bookingCollides) against
+    // the other confirmed rows — synchronous, inside this `.immediate()` transaction, so
+    // no concurrent confirm can slip between the decision and the write. It used to be
+    // `slot_at = ?` equality, which let a 14:30 book beside a 14:00. The legacy label-only
+    // caller keeps label equality (it has no instant to measure).
     const clash = slotAt
-      ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slotAt, token, inv.workspaceId)
-      : d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slot, token, inv.workspaceId);
+      ? bookingCollides({ slotAt, durationMin: inv.durationMin }, otherBookingsNear(d, slotAt, token, inv.workspaceId))
+      : !!d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slot, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // RETURNING * gives the just-updated row back in the same statement (inside the
     // transaction), replacing the previous UPDATE-then-re-SELECT pair.
@@ -521,8 +552,8 @@ export type RescheduleResult =
 
 /** Move a CONFIRMED booking to a new slot. Same synchronous-transaction collision
  *  authority as confirmScheduleInvite (two concurrent reschedules — or a reschedule
- *  racing another candidate's first confirm — can't both claim the same slot_at;
- *  identity is the ISO slot_at, not the label). The old slot is freed implicitly by
+ *  racing another candidate's first confirm — can't both claim overlapping time;
+ *  bookingCollides on the ISO slot_at, not the label). The old slot is freed implicitly by
  *  overwriting slot_at (it drops out of bookedSlots()). Re-anchors confirmed_at to
  *  now and RESETS the reminder cycle (reminder_sent_at / attempts cleared) so the
  *  reminder fires for the NEW time, not the abandoned one. Bounded by MAX_RESCHEDULES.
@@ -551,11 +582,10 @@ export function rescheduleScheduleInvite(
     // Re-picking the same time is a no-op (the reschedule count is precious) —
     // don't burn a reschedule or churn the reminder cycle for an unchanged slot.
     if (inv.slotAt === slotAt) return { ok: true, invite: inv };
-    // Collision identity is slot_at; exclude this invite's own row so freeing the
-    // old slot here can't be seen as a clash against itself.
-    const clash = d
-      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)
-      .get(slotAt, token, inv.workspaceId);
+    // Same overlap authority as confirm (bookingCollides, inside this transaction); the
+    // invite's own row is excluded so moving within — or out of — its own current booking
+    // can't be seen as a clash against itself.
+    const clash = bookingCollides({ slotAt, durationMin: inv.durationMin }, otherBookingsNear(d, slotAt, token, inv.workspaceId));
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // A recruiter move doesn't spend the candidate's reschedule budget.
     const countClause = recruiter ? "" : "reschedule_count = reschedule_count + 1,";
@@ -733,8 +763,6 @@ export function declineScheduleInviteProposals(token: string): ScheduleInvite | 
   return updated ? rowTo(updated) : null;
 }
 
-/** ISO datetimes already taken by confirmed invites — so two candidates don't
- *  double-book. Returns slot_at (the real identity), not the display label. */
 /** How many confirmed interviews lie in the FUTURE (slot_at strictly after `now`)
  *  for a workspace — the Schedule nav badge's count: "N upcoming events on the
  *  calendar", not the reminder queue. Cheap COUNT over the same partial-indexed
@@ -749,6 +777,22 @@ export function countFutureConfirmedInvites(workspaceId: string = DEFAULT_WORKSP
   return row.n;
 }
 
+/** The workspace's confirmed bookings WITH their length — what the slot proposer needs to
+ *  hide a time an off-grid or long booking runs into (proposeSlots / bookingCollides). A
+ *  legacy row with no duration reads as DEFAULT_INTERVIEW_MINUTES, never zero. */
+export function bookedIntervals(workspaceId: string = DEFAULT_WORKSPACE_ID): BookedInterval[] {
+  const rows = db()
+    .prepare(`SELECT slot_at, duration_min FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)
+    .all(workspaceId) as { slot_at: string; duration_min: number | null }[];
+  return rows.map((r) => ({
+    slotAt: r.slot_at,
+    durationMin: r.duration_min == null ? DEFAULT_INTERVIEW_MINUTES : Number(r.duration_min),
+  }));
+}
+
+/** ISO datetimes already taken by confirmed invites (bare instants, no length). Kept for
+ *  callers that only need the instants; anything deciding availability wants
+ *  bookedIntervals(). */
 export function bookedSlots(workspaceId: string = DEFAULT_WORKSPACE_ID): string[] {
   const rows = db()
     .prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)
@@ -860,4 +904,5 @@ export function markReminderSent(id: string): void {
 // Slot proposal + structural validation live in schedule-slots.ts (pure, no
 // DB, unit-testable) so the confirm-side validation (idea-e05aedfb) and the
 // proposal can never drift apart. This store keeps only the persistence side
-// (bookedSlots/confirmScheduleInvite are the collision authority).
+// (confirmScheduleInvite/rescheduleScheduleInvite, via schedule-slots' bookingCollides,
+// are the collision authority).

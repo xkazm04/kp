@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  bookedSlots,
+  bookedIntervals,
   cancelAttendance,
   confirmScheduleInvite,
   createScheduleInvite,
@@ -17,7 +17,7 @@ import {
 // Slice, not the `./db` barrel — see the note in app/_lib/llm-config.ts.
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
-import { dateSlotToIso, gridSlotToIso, hourBucketKey, INTERVIEW_TZ, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
+import { dateSlotToIso, gridSlotToIso, INTERVIEW_TZ, offeredSlotFor, proposedSlotFor, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
       // W1.4 — also skips times the connected calendar is busy for. Degrades to the
       // pre-integration list when no calendar is connected or the lookup fails, so the
       // reschedule control never goes dark because Google did.
-      const proposed = await proposeFreeSlots(bookedSlots(ws), ws, undefined, minutes);
+      const proposed = await proposeFreeSlots(bookedIntervals(ws), ws, undefined, minutes);
       return NextResponse.json({
         slots: proposed.slots,
         calendarChecked: proposed.calendarChecked,
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
       // was rejected in another tab" — /api/schedule/invite), but the week grid did not,
       // and the grid's entry list is a CLIENT-side snapshot taken on mount. So a stale tab
       // confirmed a slot for a rejected candidate: the invite went 'confirmed', the slot
-      // was consumed in the shared pool (bookedSlots, so a live candidate could no longer
+      // was consumed in the shared pool (bookedIntervals, so a live candidate could no longer
       // take that hour) and a calendar event was written naming them as an attendee —
       // while approve_event no-op'd on the terminal entry, which returns null rather than
       // throwing, so nothing raised needs_reconcile and the board showed no failure at all.
@@ -218,20 +218,11 @@ export async function POST(request: Request) {
         jobTitle: entry.jobTitle,
         durationMin: plannedInterviewMinutes(entry),
       });
-      // Hour-level occupancy (Direction 2): the store's collision authority is the exact
-      // INSTANT, so a grid pick at 14:00 wouldn't clash with an accepted 14:30 proposal
-      // sitting in the same hour — yet the week grid speaks in whole hours and shows that
-      // hour as taken. Refuse the hour so the recruiter can't SILENTLY double-book it
-      // (the off-hour booking keeps the hour). Same 409 + copy as an exact clash, since
-      // from the grid's point of view the hour is spoken for. The entry's own current
-      // booking is excluded so re-picking within its hour still moves it.
-      const targetBucket = hourBucketKey(resolved.value);
-      if (
-        targetBucket &&
-        bookedSlots(ws).some((iso) => iso !== invite.slotAt && hourBucketKey(iso) === targetBucket)
-      ) {
-        return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
-      }
+      // Hour-level occupancy and real-duration overlap are refused by the STORE, inside
+      // confirm/reschedule's `.immediate()` transaction (schedule-slots' bookingCollides):
+      // a 14:30 beside a 14:00, or a 15:00 inside a 90-minute 14:00, answers `taken` →
+      // the same 409 SCHEDULE_SLOT_TAKEN below. This branch used to pre-read the pool
+      // here, outside the lock, and was the ONLY booking path that checked the hour at all.
       // W1.4 PARITY (Direction 2): the CANDIDATE confirm re-asks the interviewer's
       // connected calendar at the moment of booking (slotStillFree in the token
       // route); the recruiter's grid never did. So the very hour a candidate was

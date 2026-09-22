@@ -5,7 +5,7 @@ import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { getInterviewPrep } from "@/app/_lib/interview-prep";
 import {
-  bookedSlots,
+  bookedIntervals,
   cancelAttendance,
   confirmAttendance,
   confirmScheduleInvite,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       // had its second half compared against nothing and could be offered over a meeting.
       // A legacy invite with a null durationMin still gets the documented default.
       ? await proposeFreeSlots(
-          bookedSlots(invite.workspaceId),
+          bookedIntervals(invite.workspaceId),
           invite.workspaceId,
           undefined,
           invite.durationMin ?? undefined
@@ -264,7 +264,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         invite.status === "pending" &&
         (
           await proposeFreeSlots(
-            bookedSlots(invite.workspaceId),
+            bookedIntervals(invite.workspaceId),
             invite.workspaceId,
             undefined,
             invite.durationMin ?? undefined

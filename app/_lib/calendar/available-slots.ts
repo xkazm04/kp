@@ -1,4 +1,4 @@
-import { proposeSlots } from "../schedule-slots";
+import { proposeSlots, type BookedInterval } from "../schedule-slots";
 import {
   busyQueryWindow,
   droppedFromOffer,
@@ -51,7 +51,10 @@ export type ProposedSlots = {
  * treating an outage as an empty calendar would confidently offer busy times.
  */
 export async function proposeFreeSlots(
-  taken: string[],
+  // The team's confirmed bookings WITH their length (bookedIntervals), so a slot an
+  // off-grid or long kp booking runs into is never offered, calendar connected or not.
+  // Bare instants still work (exact-instant equality) for legacy callers.
+  taken: readonly (string | BookedInterval)[],
   workspaceId: string,
   count = 6,
   minutes = DEFAULT_SLOT_MINUTES
@@ -66,7 +69,7 @@ export async function proposeFreeSlots(
     droppedForConflict: 0,
   });
 
-  const candidates = proposeSlots(taken, count * OVERFETCH);
+  const candidates = proposeSlots(taken, count * OVERFETCH, undefined, minutes);
   const window = busyQueryWindow(candidates, minutes);
   // Nothing to ask about (the kp horizon is already full). Reported as unchecked, because
   // it is — the caller renders its "all taken" card here and shows no calendar claim.
