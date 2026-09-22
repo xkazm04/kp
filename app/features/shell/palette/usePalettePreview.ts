@@ -9,8 +9,10 @@
 import { useEffect, useState } from "react";
 import type { PalettePreview } from "@/app/_lib/palette-preview/types";
 import type { PaletteItem } from "../workspaceCommandPaletteTypes";
+import { useLiveRefresh } from "../live-refresh";
 import {
   currentPreviewScope,
+  clearPreviewCache,
   previewFromResponse,
   previewStateFor,
   readPreview,
@@ -38,6 +40,16 @@ export function usePalettePreview(item: PaletteItem | null): PreviewState {
   // Resolved results mirrored into state so a completed fetch re-renders; the
   // module cache is the source of truth across mounts.
   const [results, setResults] = useState<Record<string, PalettePreview | "error">>({});
+  const [revision, setRevision] = useState(0);
+
+  // A mutation can change the count behind the highlighted result before the
+  // 30-second TTL expires. Drop both the module memo and this mount's state;
+  // revision re-runs the fetch effect for the still-highlighted item.
+  useLiveRefresh(() => {
+    clearPreviewCache();
+    setResults({});
+    setRevision((value) => value + 1);
+  });
 
   useEffect(() => {
     if (!key) return;
@@ -77,7 +89,7 @@ export function usePalettePreview(item: PaletteItem | null): PreviewState {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [key]);
+  }, [key, revision]);
 
   return previewStateFor(key, results);
 }
