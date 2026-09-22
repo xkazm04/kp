@@ -82,6 +82,14 @@ export function registerLateBoundImplementations(): void {
     });
     return { topicCode };
   });
+  // The analyze task's GitHub deep-dive stage (analyze-run.ts `ANALYZE_GITHUB_RUNNER`).
+  // analyze-run is on tasks.ts's graph and reaches the stage by name, so the harvest stays
+  // off the ~60 routes that import that hub. Registered here, not by /api/analyze, so a
+  // task replayed after a restart finds it before any route has loaded.
+  registerTaskRunner("analyze_github", async (ctx) => {
+    const { runGithubStageTask } = await import("./analyze-github-stage");
+    return runGithubStageTask(ctx);
+  });
   // The stage hook's AI-interview mint (stage-hooks.ts): the same door
   // POST /api/interview/create calls, unchanged.
   registerStageHookInvite(async (input) => {

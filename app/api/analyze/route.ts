@@ -3,9 +3,7 @@ import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
-import { ANALYZE_GITHUB_RUNNER, type AnalyzeParams } from "@/app/_lib/analyze-run";
-import { runGithubStageTask } from "@/app/_lib/analyze-github-stage";
-import { registerTaskRunner } from "@/app/_lib/task-external-runners";
+import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { can } from "@/app/_lib/auth/current-user";
 import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
@@ -23,12 +21,8 @@ import {
 export const maxDuration = 60;
 
 // The GitHub deep-dive runs as a STAGE of the analyze task (challenge-r02
-// analyze-engine/A). analyze-run.ts looks the stage up in the late-bound registry rather
-// than importing it — analyze-run is on tasks.ts's graph, and the GitHub harvest must not
-// ride onto the ~60 routes that import that hub. This route is the one that puts a handle
-// on the params, so it is the one that loads the stage: registered at module load, in the
-// process the task runs in. Idempotent (re-registering replaces), so a dev reload is safe.
-registerTaskRunner(ANALYZE_GITHUB_RUNNER, runGithubStageTask);
+// analyze-engine/A); analyze-run.ts reaches it by name through the late-bound registry,
+// and late-bound-boot.ts registers it at server boot.
 
 // Persists the upload to a stable dir and starts a background `analyze` task,
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks

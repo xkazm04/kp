@@ -43,6 +43,20 @@ test("every kind tasks.ts delegates to externalRunner is registered by the boot 
   for (const kind of kinds) assert.equal(typeof externalRunner(kind), "function", `${kind} is registered at boot`);
 });
 
+test("the analyze task's GitHub stage is registered at BOOT, not by the route that first uses it", () => {
+  // analyze-run.ts reaches the deep-dive by name through this registry. Registered only
+  // from /api/analyze, a task replayed after a restart failed the stage (ANALYSIS_FAILED)
+  // until someone happened to call that route; boot is where every other runner lives.
+  const analyzeRun = readFileSync(fileURLToPath(new URL("./analyze-run.ts", import.meta.url)), "utf8");
+  assert.match(analyzeRun, /export const ANALYZE_GITHUB_RUNNER = "analyze_github";/, "the literal below must track the constant");
+  _resetTaskRunnersForTests();
+  assert.throws(() => externalRunner("analyze_github"), /not registered/);
+  registerLateBoundImplementations();
+  assert.equal(typeof externalRunner("analyze_github"), "function", "analyze_github is registered at boot");
+  const route = readFileSync(fileURLToPath(new URL("../api/analyze/route.ts", import.meta.url)), "utf8");
+  assert.doesNotMatch(route, /registerTaskRunner\(/, "the route no longer registers (and so no longer imports the stage)");
+});
+
 test("the stage hook's interview-invite door is registered by the boot list", () => {
   _resetStageHookInviteForTests();
   assert.throws(() => stageHookInvite(), /not registered.*instrumentation-node\.ts/);
