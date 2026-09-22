@@ -859,12 +859,18 @@ Two things on `/status/[token]` that only a test can hold:
 
 ## Surface
 
+The public offer card formats its deadline in the company's named time zone
+projected by the offer API, so candidates in other zones see the same deadline
+as the hiring team. The server still calculates the remaining hours from the
+absolute expiry instant.
+
 | Concern | Files |
 |---|---|
 | CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
 | Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
 | Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
 | Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
+| Offer response | `app/offer/[token]/OfferClient.tsx`, `offer-deadline.ts`, `app/_lib/offer-finalize.ts` |
 | Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
 | Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |

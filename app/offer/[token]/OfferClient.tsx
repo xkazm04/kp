@@ -25,6 +25,7 @@ type OfferView = {
   salary: number | null;
   company: string | null;
   expiresAt: string | null;
+  timeZone: string;
   // bug-ui-scan-2026-07-09 (offers-onboarding #5): whole-hours-left computed on the
   // SERVER at GET time so the countdown can't disagree with server-enforced expiry on a
   // skewed/back-dated client clock. Null when the offer carries no valid deadline.
@@ -367,11 +368,9 @@ export function OfferClient({
                 {(() => {
                   const hrs = offer.hoursRemaining;
                   if (hrs === null || !offer.expiresAt) return null;
-                  // Rendered in ONE explicit, NAMED zone — not the viewer's — so a
-                  // candidate abroad cannot read a different calendar day than the
-                  // letter states (offer-deadline.ts carries the reasoning and the
-                  // stated gap: the offer row has no zone of its own yet).
-                  const date = formatOfferDeadline(offer.expiresAt, locale);
+                  // Use the company's zone projected by the server, never the
+                  // candidate's browser zone. The formatter names that clock.
+                  const date = formatOfferDeadline(offer.expiresAt, locale, offer.timeZone);
                   if (!date) return null;
                   return (
                     <p className={`mt-2 text-sm font-medium ${hrs <= 48 ? "text-coral" : "text-steel"}`}>
