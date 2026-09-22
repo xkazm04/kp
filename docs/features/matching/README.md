@@ -19,6 +19,8 @@ archetype detection are `docs/features/candidates/README.md`.
   - **Candidate focus** (candidate-first: one candidate ranked against every role) —
     `focus/MatrixCandidateFocus.tsx`, results in `focus/MatchResults.tsx` /
     `focus/MatchCard.tsx`, per-skill provenance chips in `focus/MatchCardSkillChips.tsx`.
+    When a newer CV analysis makes the profile stale, the rebuild banner formats
+    that analysis date in the reader's locale (`useFormatter`).
     This was the standalone **Match tab** until it was folded in; `?tab=match`
     still resolves (`LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) and the
     `?profile=<id>` / `?analysis=<slug>` params it always carried are what tell
