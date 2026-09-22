@@ -320,6 +320,14 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "jobseeker_postings",
   // Dialogs: the seeker's CV-polish / fit conversations (jobseeker-dialogs-tenancy.test.ts).
   "jobseeker_dialogs",
+  // The per-team lifecycle of a SHARED corpus role (job_workspace_state, core.ts):
+  // status, target hires and posting languages, keyed (workspace_id, job_id). Scoped
+  // with NO by-id carve-out for the reason role_pattern_priorities and job_translations
+  // give: the role is shared by every tenant, so a job-only read would show one team
+  // another's close and a job-only write would let the next team overwrite it. Every
+  // statement in db/jobs.ts and job-ingest.ts that touches it binds workspace_id,
+  // point reads included (job-workspace-state-tenancy.test.ts, exemption list empty).
+  "job_workspace_state",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
