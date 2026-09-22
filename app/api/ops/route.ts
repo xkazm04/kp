@@ -8,6 +8,7 @@ import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { analyzeTelemetry, commsTelemetry, engineTelemetry, tailJsonl } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { publicOriginHealth } from "@/app/_lib/public-base-url";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 
 
@@ -40,6 +41,8 @@ export async function GET() {
   if (denied) return denied;
   try {
     const degradedReasons: string[] = [];
+    const originHealth = publicOriginHealth();
+    if (originHealth.reason) degradedReasons.push(originHealth.reason);
     const seed = getSeedHealth();
     for (const issue of seed.issues) {
       if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);

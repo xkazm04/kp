@@ -580,6 +580,10 @@ candidates:
    - Set **`NEXT_PUBLIC_APP_BASE_URL`** and **`NEXT_PUBLIC_SITE_URL`** to
      `https://hiring.yourcompany.com` so candidate links (offer / apply / schedule)
      and OG metadata resolve to your domain, not localhost.
+   - The operator's `/api/ops` status reports a named degraded reason when neither
+     `APP_BASE_URL` nor `NEXT_PUBLIC_APP_BASE_URL` supplies a usable public origin,
+     or when the two configured origins disagree. This includes candidate links
+     sent by background work without a request origin.
 
 > Per-tenant subdomains (`acme.kp.example.com` resolving to a specific team's brand)
 > are a **multi-tenant** feature that depends on the tenancy foundation (shipped —

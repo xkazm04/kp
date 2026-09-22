@@ -104,6 +104,24 @@ test("an operator gets the telemetry payload", async () => {
   assert.ok(body.engines);
 });
 
+test("missing public origin reaches the operator as a named degraded reason", async () => {
+  const app = process.env.APP_BASE_URL;
+  const mirror = process.env.NEXT_PUBLIC_APP_BASE_URL;
+  delete process.env.APP_BASE_URL;
+  delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+  try {
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.ok, false);
+    assert.ok(body.degradedReasons?.some((reason) => reason.includes("no usable APP_BASE_URL")));
+  } finally {
+    if (app === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = app;
+    if (mirror === undefined) delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+    else process.env.NEXT_PUBLIC_APP_BASE_URL = mirror;
+  }
+});
+
 test("operator telemetry includes a bounded tail of structured warnings", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "kp-ops-warnings-"));
   const previous = process.env.KP_LOG_DIR;
