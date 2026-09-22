@@ -1,5 +1,9 @@
 # Hiring Pipeline & Automation
 
+The subway board's stage help uses localized `pipeline.stageHelp` text for
+standard stages. A workspace-defined stage falls back to its own label instead
+of an English description from a shared type table.
+
 The candidate funnel from a sourced/applied CV to a hire, plus the automation
 layer that assists recruiters at every stage without ever silently rejecting
 or advancing a candidate on its own. Local-first: the only runtime LLM is the

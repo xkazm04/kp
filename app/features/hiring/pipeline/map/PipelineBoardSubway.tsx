@@ -22,7 +22,7 @@ import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { displayScoreOf } from "@/app/_lib/match-score";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
-import { DEFAULT_BOARD_AXIS, STAGE_HELP, type Entry } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS, type Entry } from "@/app/features/shared/pipelineTypes";
 import { PipelineBoardOffAxisStrip } from "../PipelineBoardOffAxisStrip";
 import type { MapBoardProps } from "./mapTypes";
 import { LineRow } from "./subway/SubwayLineRow";
@@ -75,7 +75,7 @@ export function PipelineBoardSubway({
   // label wins, a shipped stage resolves through the four-locale enum catalog.
   const stageHelp = (s: string): string => {
     const k = `stageHelp.${s}` as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : (STAGE_HELP[s] ?? s);
+    return t.has(k) ? t(k) : (axis.find((stage) => stage.id === s)?.label ?? s);
   };
   const stageLabel = (stage: StageDef): string =>
     stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;

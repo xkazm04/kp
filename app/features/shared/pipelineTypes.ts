@@ -103,16 +103,6 @@ export const STAGES: readonly string[] = PIPELINE_STAGES;
  *  exactly what it always did rather than an empty board. */
 export const DEFAULT_BOARD_AXIS: readonly StageDef[] = DEFAULT_STAGE_AXIS;
 
-// One-line, new-user-friendly explanation of what each board stage represents,
-// surfaced as the column-header tooltip so the funnel is self-explaining.
-export const STAGE_HELP: Record<string, string> = {
-  Accepted: "CV received — an inbound application or a proactively-sourced candidate, waiting to be screened.",
-  Screened: "Run through the first wave of evaluation — matched and AI-screened; strong matches advance, the rest wait on a human decision.",
-  Interview: "Interviewing — slot scheduling, AI voice screen, and scorecard.",
-  Offer: "An offer is being drafted, reviewed, or sent.",
-  Hired: "Offer accepted — candidate hired; the role closes here.",
-};
-
 export const STALE_DAYS = 10; // legacy flat default — fallback for unknown stages
 
 // Per-ROLE aging SLAs in days (PIPE4). A candidate sitting 10 days at an offer is
