@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import { DB_PATH, openStore } from "./db-path";
 import { ORG_CONFIG_NOT_PORTABLE, orgExportClass } from "./tenancy";
+import { Refusal } from "./refusal";
 
 // DATA3 — the dump/load cores from scripts/db-dump.mjs + db-load.mjs, extracted
 // so the workspace export/import API can call them in-process. The .mjs scripts
@@ -22,14 +23,11 @@ import { ORG_CONFIG_NOT_PORTABLE, orgExportClass } from "./tenancy";
  *  lets the client render `errors.<CODE>` in the reader's language. Everything else this
  *  module throws is an accident (better-sqlite3, fs) and stays a 500 behind
  *  safeJsonError. */
-export class PortabilityError extends Error {
-  readonly code: PortabilityErrorCode;
-  readonly status: number;
+export class PortabilityError extends Refusal {
+  declare readonly code: PortabilityErrorCode;
   constructor(code: PortabilityErrorCode, status: number, message: string) {
-    super(message);
+    super(code, status, { detail: message });
     this.name = "PortabilityError";
-    this.code = code;
-    this.status = status;
   }
 }
 

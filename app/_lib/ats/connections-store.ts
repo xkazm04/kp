@@ -4,6 +4,7 @@ import { assertPublicHttpsEndpoint } from "../safe-url";
 import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret, reencryptAtsSecret } from "../ats-secret";
 import type { RefusalErrorCode } from "../api-response";
 import { defaultFieldMap, parseFieldMap, type AtsFieldMap } from "./field-map";
+import { Refusal } from "../refusal";
 
 // W1.1 — per-connection ATS credentials + field map.
 //
@@ -43,15 +44,13 @@ export type AtsConnectionPublic = {
   updatedAt: string | null;
 };
 
-export class AtsConnectionError extends Error {
-  /** The refusal the route answers with. The English `.message` stays operator detail
-   *  for the server log; the panel renders `errors.<code>` in the reader's language
-   *  (.claude/CLAUDE.md, "a failure is answered with a CODE"). */
-  readonly code: RefusalErrorCode;
-  constructor(message: string, code: RefusalErrorCode) {
-    super(message);
+/** A Refusal (400 unless a subclass says otherwise). The English `.message` stays
+ *  operator detail for the server log; the panel renders `errors.<code>` in the reader's
+ *  language (.claude/CLAUDE.md, "a failure is answered with a CODE"). */
+export class AtsConnectionError extends Refusal {
+  constructor(message: string, code: RefusalErrorCode, status = 400) {
+    super(code, status, { detail: message });
     this.name = "AtsConnectionError";
-    this.code = code;
   }
 }
 
@@ -60,7 +59,7 @@ export class AtsConnectionError extends Error {
  *  it before the 400 branch, exactly as its egress sibling does with AtsConfigStaleError. */
 export class AtsConnectionStaleError extends AtsConnectionError {
   constructor(message: string) {
-    super(message, "ATS_CONNECTION_STALE");
+    super(message, "ATS_CONNECTION_STALE", 409);
     this.name = "AtsConnectionStaleError";
   }
 }

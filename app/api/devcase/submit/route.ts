@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPosting, getPostingByToken } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { intakeSubmission } from "@/app/_lib/distribution";
+import { answerFailure, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
@@ -72,11 +72,10 @@ export async function POST(request: NextRequest) {
     // and the form used to claim a fresh record either way.
     return NextResponse.json({ ok: true, isNew, submission });
   } catch (error) {
-    if (error instanceof PostingClosedError) {
-      return jsonRefusal("POSTING_CLOSED", 410);
-    }
-    // better-sqlite3 SQLITE_* codes, the absolute db path and the distribution
-    // adapter's upstream body all used to ride this message to the client.
-    return safeJsonError(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
+    // A closed posting throws PostingClosedError, a Refusal: answered as
+    // POSTING_CLOSED/410. Anything else is an accident — better-sqlite3 SQLITE_* codes,
+    // the absolute db path and the distribution adapter's upstream body all used to
+    // ride this message to the client.
+    return answerFailure(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
   }
 }

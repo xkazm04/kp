@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { createPosting, createSubmission, getPosting, listOutboxFiltered, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db/devcase";
 import { sendComm } from "./comms";
 import { commsTranslator } from "./comms-translator";
+import { Refusal } from "./refusal";
 
 // Phase D4 — the distribution seam. Approved artifacts (role + case) leave the app
 // through a channel (OUT) and candidates + submissions come back (IN). The interface
@@ -92,11 +93,12 @@ export function getAdapter(channel = "local"): DistributionAdapter {
 // and auto-acknowledges the candidate over the active comms channel (non-adverse, safe to
 // automate). Returns the submission + whether it was newly created (so the caller can decide
 // to fire the lifecycle only for genuinely new arrivals).
-// Thrown when a submission targets a closed posting. Routes map it to 410 so a
-// candidate learns the intake closed instead of getting a false acknowledgement.
-export class PostingClosedError extends Error {
+// Thrown when a submission targets a closed posting: a Refusal (POSTING_CLOSED, 410),
+// so every route's answerFailure answers it and a candidate learns the intake closed
+// instead of getting a false acknowledgement.
+export class PostingClosedError extends Refusal {
   constructor() {
-    super("This role's intake has closed and is no longer accepting submissions.");
+    super("POSTING_CLOSED", 410);
     this.name = "PostingClosedError";
   }
 }

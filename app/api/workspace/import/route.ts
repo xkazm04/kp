@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { coerceOrgDumpPayload, planOrgRestore, PortabilityError, restoreOrg } from "@/app/_lib/db-portability";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { coerceOrgDumpPayload, planOrgRestore, restoreOrg } from "@/app/_lib/db-portability";
+import { answerFailure, jsonRefusal } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireOrgCapability } from "@/app/_lib/auth/current-user";
@@ -91,11 +91,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ restored: summary });
   } catch (error) {
     // A DECISION the engine made (a foreign file, a scope another org now owns, an
-    // unsafe identifier) carries its own code and status — answer it as the refusal it
-    // is, in the reader's language. Anything else is an accident (better-sqlite3, fs)
-    // whose message names tables and the absolute db path, and goes behind the generic
-    // 500 with its raw text in the server log only.
-    if (error instanceof PortabilityError) return jsonRefusal(error.code, error.status);
-    return safeJsonError(error, "api:workspace/import", "WORKSPACE_RESTORE_FAILED");
+    // unsafe identifier) is a PortabilityError — a Refusal carrying its own code and
+    // status, answered as the refusal it is, in the reader's language. Anything else is
+    // an accident (better-sqlite3, fs) whose message names tables and the absolute db
+    // path, and goes behind the generic 500 with its raw text in the server log only.
+    return answerFailure(error, "api:workspace/import", "WORKSPACE_RESTORE_FAILED");
   }
 }

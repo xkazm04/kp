@@ -65,11 +65,12 @@ test("both handlers answer codes, and neither forwards a thrown message", () => 
       /error instanceof Error \? error\.message/,
       `${name}: a store fault's own message carries SQLITE_* codes and the db path`,
     );
-    assert.match(src, /if \(error instanceof PortabilityError\) return jsonRefusal\(error\.code, error\.status\)/,
-      `${name}: an engine DECISION is answered as the refusal it is`);
+    // PortabilityError is a Refusal (app/_lib/refusal.ts): the one answerFailure below
+    // answers an engine DECISION as the refusal it is and an accident behind the store code.
+    assert.doesNotMatch(src, /instanceof PortabilityError/, `${name}: no bespoke refusal branch`);
   }
-  assert.match(importSrc, /safeJsonError\(error, "api:workspace\/import", "WORKSPACE_RESTORE_FAILED"\)/);
-  assert.match(exportSrc, /safeJsonError\(error, "api:workspace\/export", "WORKSPACE_EXPORT_FAILED"\)/);
+  assert.match(importSrc, /answerFailure\(error, "api:workspace\/import", "WORKSPACE_RESTORE_FAILED"\)/);
+  assert.match(exportSrc, /answerFailure\(error, "api:workspace\/export", "WORKSPACE_EXPORT_FAILED"\)/);
 });
 
 test("the request-shape refusals are coded, not prose", () => {

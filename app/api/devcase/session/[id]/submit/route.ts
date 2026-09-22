@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDevCase, getDevSession, getPostingByToken, submitDevSession } from "@/app/_lib/db/devcase";
-import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { intakeSubmission } from "@/app/_lib/distribution";
+import { answerFailure, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
@@ -153,11 +153,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ reference: submissionReference(submission.id) });
   } catch (error) {
     // Defensive: the pre-check above already 410s a closed posting, but the shared
-    // core also guards (e.g. if the posting closes mid-request) — map it to 410 too,
-    // the same way the inbound webhook does.
-    if (error instanceof PostingClosedError) return jsonRefusal("POSTING_CLOSED", 410);
-    // A PUBLIC candidate door: the thrown message is a store/relay detail (SQLITE_*
-    // codes, the absolute db path, relay stderr) and must never reach an applicant.
-    return safeJsonError(error, "api:devcase/session/submit", "DEVCASE_SUBMIT_FAILED");
+    // core also guards (e.g. if the posting closes mid-request) — it throws
+    // PostingClosedError, a Refusal, answered as POSTING_CLOSED/410 the same way the
+    // inbound webhook does. Anything else on this PUBLIC candidate door is a store/relay
+    // detail (SQLITE_* codes, the absolute db path, relay stderr) and must never reach
+    // an applicant.
+    return answerFailure(error, "api:devcase/session/submit", "DEVCASE_SUBMIT_FAILED");
   }
 }

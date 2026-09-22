@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { RATE_LIMITED_ERROR } from "./rate-limit";
 import type { Capability } from "./auth/roles";
+import type { Refusal } from "./refusal";
 
 // Shared JSON envelopes for route handlers. The error-shaping ternary
 // `error instanceof Error ? error.message : "…"` was hand-rolled in dozens of
@@ -1923,4 +1924,16 @@ export async function requireCapabilityCoded(
 export function safeJsonError(err: unknown, route: string, code: StoreErrorCode, status = 500): NextResponse {
   console.error(`[${route}] ${code}`, err);
   return NextResponse.json({ error: STORE_ERRORS[code], code }, { status });
+}
+
+/** A thrown Refusal (app/_lib/refusal.ts) answers as jsonRefusal, its detail logged at
+ *  info and kept off the wire; anything else as safeJsonError. Refusals are recognised by
+ *  their registry-symbol brand: importing refusal.ts here would put it on every route. */
+export function answerFailure(err: unknown, route: string, storeCode: StoreErrorCode, status = 500): NextResponse {
+  if (err instanceof Error && (err as unknown as Record<symbol, unknown>)[Symbol.for("kp.refusal")] === true) {
+    const r = err as Refusal;
+    if (r.detail) console.info(`[${route}] refused (${r.code}): ${r.detail}`);
+    return jsonRefusal(r.code, r.status, r.extra);
+  }
+  return safeJsonError(err, route, storeCode, status);
 }

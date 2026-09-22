@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   ATS_PROVIDERS,
-  AtsConnectionError,
   AtsConnectionStaleError,
   deleteAtsConnection,
   getAtsConnection,
   listAtsConnections,
   setAtsConnection,
 } from "@/app/_lib/ats/connections-store";
-import { AtsFieldMapError } from "@/app/_lib/ats/field-map";
 import { deleteAtsLinksForProviderEverywhere } from "@/app/_lib/ats/links-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { answerFailure, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // A connection body is a provider name, two short strings and a field map. The map is the
@@ -73,14 +71,11 @@ export async function POST(request: NextRequest) {
     // The validation refusals (a bad provider, an unsafe base URL, an unstorable token, a
     // field map with no identity path) are 400s the operator can fix in the form — but
     // this used to forward the thrown MESSAGE, canonical English into a four-locale panel.
-    // The store and the field-map parser carry the code now; the message stays in the log.
-    if (error instanceof AtsConnectionError || error instanceof AtsFieldMapError) {
-      console.info(`[api/ats/connections] refused (${error.code}): ${error.message}`);
-      return jsonRefusal(error.code, 400);
-    }
-    // A thrown better-sqlite3 / crypto error carries the db path and internal detail: it
-    // goes to the server log, and the client gets the code it renders in its own language.
-    return safeJsonError(error, "api:ats/connections", "ATS_CONNECTION_SAVE_FAILED");
+    // AtsConnectionError and AtsFieldMapError are Refusals now: answerFailure answers
+    // their code and logs the English at info level. A thrown better-sqlite3 / crypto
+    // error carries the db path and internal detail: it goes to the server log, and the
+    // client gets the code it renders in its own language.
+    return answerFailure(error, "api:ats/connections", "ATS_CONNECTION_SAVE_FAILED");
   }
 }
 

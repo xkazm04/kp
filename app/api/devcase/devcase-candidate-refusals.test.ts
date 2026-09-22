@@ -103,7 +103,9 @@ test("the finalize door refuses with codes and hides the store's message", () =>
   assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
   assert.match(src, /jsonRefusal\("DEVCASE_SESSION_UNAVAILABLE", 404\)/, "a link that resolves to no posting reuses the mint's code");
   assert.match(src, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, "the new per-token budget refuses through the chokepoint");
-  assert.match(src, /safeJsonError\(error, "api:devcase\/session\/submit", "DEVCASE_SUBMIT_FAILED"\)/, "the catch logs and codes");
+  // answerFailure: a PostingClosedError (a Refusal) answers POSTING_CLOSED/410, anything
+  // else goes through safeJsonError — logged, and coded.
+  assert.match(src, /answerFailure\(error, "api:devcase\/session\/submit", "DEVCASE_SUBMIT_FAILED"\)/, "the catch logs and codes");
   assert.doesNotMatch(src, /jsonError\(/, "jsonError forwards .message — never on a public candidate door");
 });
 
