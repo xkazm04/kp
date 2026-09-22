@@ -75,7 +75,7 @@ export async function executeAnalysis(
   const { cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind } = inputs;
   let taskId: string;
   try {
-    taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind);
+    taskId = await submitAnalysis(cvFiles, jobDescriptionFile, jobDescriptionText, companyFile, companyText, selectedJdSlug, reportLang, blind, signal);
     callbacks.onTaskStarted?.(taskId);
   } catch (caught) {
     if (isAbort(signal, caught)) return;
@@ -96,4 +96,3 @@ export function finalizeStages(prev: StageState): StageState {
   for (const id of STAGE_ORDER) finalized[id] = "done";
   return finalized;
 }
-

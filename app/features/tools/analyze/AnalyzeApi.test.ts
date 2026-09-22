@@ -20,9 +20,30 @@ import {
   AnalyzeClientError,
   nextPollDelay,
   resolveAnalyzeErrorText,
+  submitAnalysis,
   watchAnalysis,
   type AnalyzeMessageResolvers,
 } from "./AnalyzeApi.ts";
+
+test("cancel aborts the initial analysis upload", async () => {
+  const originalFetch = globalThis.fetch;
+  const controller = new AbortController();
+  let submittedSignal: AbortSignal | undefined;
+  globalThis.fetch = async (_input, init) => {
+    submittedSignal = init?.signal ?? undefined;
+    return new Promise<Response>((_resolve, reject) => {
+      submittedSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    });
+  };
+  try {
+    const pending = submitAnalysis([], null, "", null, "", null, undefined, false, controller.signal);
+    assert.equal(submittedSignal, controller.signal);
+    controller.abort();
+    await assert.rejects(pending, { name: "AbortError" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 // A resolver set whose every channel is distinguishable in the assertion, so a
 // wrong precedence shows up as the WRONG CHANNEL rather than as a wrong string.
