@@ -43,7 +43,9 @@ to `localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
 inline pre-hydration script in `app/layout.tsx` applies the stored theme
 before first paint, so there is no flash. `subscribeTheme` also listens for
 `storage` events on that key, so a flip in one workspace tab updates this
-document's attribute (and `useTheme()`) without a reload.
+document's attribute (and `useTheme()`) without a reload. With no explicit
+choice stored, the same subscription follows live OS color-scheme changes;
+choosing a theme stops that automatic switch.
 
 **`/landing` is exempt — and enforced.** The Spark landing page is a fixed art
 direction with literal hexes on purpose (`app/landing/spark/tokens.ts`) — it

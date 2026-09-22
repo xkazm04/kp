@@ -12,6 +12,16 @@ export const THEME_STORAGE_KEY = "kp-theme";
 const listeners = new Set<() => void>();
 
 let storageBound = false;
+let systemTheme: MediaQueryList | null = null;
+
+function explicitTheme(): Theme | null {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "dark" || stored === "light" ? stored : null;
+  } catch {
+    return null;
+  }
+}
 
 function applyThemeAttr(next: Theme): void {
   if (next === "dark") document.documentElement.dataset.theme = "dark";
@@ -22,19 +32,29 @@ function onThemeStorage(ev: StorageEvent): void {
   if (ev.key !== THEME_STORAGE_KEY) return;
   // Foreign-tab write: apply the attribute the same way setTheme does, but do
   // not re-write localStorage (this tab did not choose; the other tab already stored).
-  applyThemeAttr(ev.newValue === "dark" ? "dark" : "light");
+  applyThemeAttr(ev.newValue === "dark" || (ev.newValue !== "light" && systemTheme?.matches) ? "dark" : "light");
+  listeners.forEach((listener) => listener());
+}
+
+function onSystemThemeChange(ev: MediaQueryListEvent): void {
+  if (explicitTheme()) return;
+  applyThemeAttr(ev.matches ? "dark" : "light");
   listeners.forEach((listener) => listener());
 }
 
 function bindThemeStorage(): void {
   if (storageBound || typeof window === "undefined") return;
   window.addEventListener("storage", onThemeStorage);
+  systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)") ?? null;
+  systemTheme?.addEventListener("change", onSystemThemeChange);
   storageBound = true;
 }
 
 function unbindThemeStorage(): void {
   if (!storageBound || typeof window === "undefined") return;
   window.removeEventListener("storage", onThemeStorage);
+  systemTheme?.removeEventListener("change", onSystemThemeChange);
+  systemTheme = null;
   storageBound = false;
 }
 
