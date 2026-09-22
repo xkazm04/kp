@@ -416,6 +416,8 @@ pipeline writes and returns the ordinary decline shape for a filled field.
 For ad links, the conversational door reads `c`/`v` (or the UTM aliases),
 records them on its funnel session, and stores capped campaign/variant labels on
 the accepted pipeline entry, matching the quick-apply door.
+The experience answer extracts a whole-year count from English, Czech, German,
+and French unit words; sub-year amounts and bare dates stay unparsed.
 After a quick-apply decline, the done card lets the candidate return to their
 preserved answers and submit a corrected response.
 An accepted lead can copy the status link from the same card; the copied URL

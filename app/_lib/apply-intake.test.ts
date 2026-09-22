@@ -77,6 +77,16 @@ test("captures Czech `rok` (singular)", () => {
   assert.equal(parseYearsExperience("1 rok jako junior"), 1);
 });
 
+test("captures German and French whole-year units", () => {
+  assert.equal(parseYearsExperience("4 Jahre Erfahrung"), 4);
+  assert.equal(parseYearsExperience("seit 7 Jahren"), 7);
+  assert.equal(parseYearsExperience("1 Jahr Berufserfahrung"), 1);
+  assert.equal(parseYearsExperience("3 ans d'expérience"), 3);
+  assert.equal(parseYearsExperience("1 an d'expérience"), 1);
+  assert.equal(parseYearsExperience("5 années d'expérience"), 5);
+  assert.equal(parseYearsExperience("2 annees d'experience"), 2);
+});
+
 test("captures inflected Czech forms via prefix match (`lety`)", () => {
   // The Czech tokens match as a prefix, so "lety" is caught through "let".
   assert.equal(parseYearsExperience("před 5 lety jsem začal"), 5);

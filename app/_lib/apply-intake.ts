@@ -54,7 +54,9 @@ export function isHoneypotFilled(body: unknown): boolean {
  *   - A bare number with no adjacent unit: "joined in 2019" → undefined.
  */
 export function parseYearsExperience(experience: string): number | undefined {
-  const match = /\b(\d{1,2})\s*\+?\s*(?:years|yrs|let|roky|rok)/i.exec(experience);
+  // German Jahr forms and French an/année forms join the original EN/CS units;
+  // explicit inflections preserve the whole-unit boundary after each match.
+  const match = /\b(\d{1,2})\s*\+?\s*(?:years|yrs|let(?:y|ech)?|rok(?:y|u|em)?|jahr(?:e|en)?|ann(?:ée|ées|ee|ees)|ans?)(?![\p{L}])/iu.exec(experience);
   return match ? Number(match[1]) : undefined;
 }
 
