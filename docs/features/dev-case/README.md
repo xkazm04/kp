@@ -604,6 +604,23 @@ the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins
 source: no route may re-type the closed-intake sentence, and the work surface may never
 use the inverted `body.error ?? t(...)` chain.
 
+**The session protocol is a tested client, and a refused mint stops re-minting.** The
+lazy mint, the 8s flush, the re-buffer, the dirty-tree rule and the submit that seals
+only after a landed flush used to live in `LiveWorkSurface` closures over eight refs,
+and the only tests read the component as text. They now live in
+`app/devcase/apply/[token]/liveWorkSync.ts`, a framework-free client with injected
+`fetch`, clock and draft writer; the component holds one and renders its snapshot
+(`useSyncExternalStore`), keeping only the page: localStorage, chat, identity and the
+timers. `liveWorkSync.test.ts` drives it against a fake fetch with exact request counts.
+The extraction closed a live defect: a coded mint refusal was remembered only for
+display, so every debounced edit and every 8s tick POSTed `/api/devcase/session` again
+for as long as a candidate on a closed link or a spent quota kept the tab open. A coded
+4xx refusal now backs off (60s, doubling per repeat, capped at 15 min) and only an
+explicit click (submit, a chat message) crosses the window early; a thrown fetch is a
+suspension, not a refusal, and still retries next tick. A session the flush door refused
+with **403** likewise stops flushing - the `syncBlocked` banner already tells the
+candidate a reload reconnects - instead of answering the same 403 every 8 seconds.
+
 **…and so do the last two doors.** The pass above left the chat channel and the 8s flush
 answering bare English, with catches on `jsonError` — which forwards the thrown
 `.message`, so `SQLITE_*` codes, the absolute db path and the provider stderr
