@@ -558,8 +558,35 @@ capability token resolving to this entry. Without it the response is the same
 tokenless "you already applied" acknowledgement and **no column of the original
 entry moves**; the funnel back-link (`linkApplySession`) still runs because it
 writes to `apply_sessions` under the caller's own attempt id, never to the entry.
-A returning applicant who lost their link is not stranded — the enrichment link
-is re-sent to the address on file, the one channel that can be authenticated.
+
+**A returning applicant who lost their link is not stranded: link recovery**
+(`app/_lib/apply-link-recovery.ts`, driven by the same
+`reapply-capability-gate.test.ts`). On both doors an unproven duplicate
+re-sends the matched entry's **own** status link and `?lead=` update link to the
+contact **already on the entry**, never to the address the request typed. The
+send goes through `dispatchApplicationLinks` (`comms-dispatch.ts`) after the
+response. Its guarantees:
+
+- **Nothing on the wire.** The response carries no token, and its copy
+  (`apply.alreadyMessageRecover`, or `apply.alreadyMessageNoRelay` when no relay
+  is configured) is chosen by `recoveryMessageKey(relayConfigured)`, which never
+  reads whether an address is on file. So the answer cannot be used to probe for
+  one. The old `alreadyMessage` ("we've noted your renewed interest") is now used
+  only on the proven paths that record a `re_applied` event.
+- **One per entry per 24h.** The cooldown is the persisted `login-throttle` table,
+  keyed `apply-links:<entryId>` and claimed with its atomic UPSERT, so racing
+  workers cannot double-send. The per-IP `rateLimit()` on each door still runs
+  first. A griefer can cause at most one email a day, sent to the real candidate
+  and carrying only that candidate's links.
+- **No entry write beyond the token mint.** No pipeline event, no consent refresh.
+  The Outbox row is the audit. `ensureLeadEnrichToken` mints a lead token if the
+  entry had none (fill-only, the same capability the emailed walk uses).
+- **Skipped, with no row at all,** for a contactless entry (no refused `failed`
+  row is minted) or an anonymized entry.
+- **Quick door:** recovery runs only when the address was on file *before*
+  `intakeLead`. A contactless lead matched by name is backfilled by the lead core,
+  which sends its own newly-reachable acknowledgement (links included), so the
+  candidate gets one email, not two.
 
 **Every refusal on all four apply doors carries a code.** The two submissions were
 moved onto `REFUSAL_ERRORS` earlier; the last bodied message on them was the

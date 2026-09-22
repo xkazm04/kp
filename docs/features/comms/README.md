@@ -540,6 +540,21 @@ dispatcher and reads the envelope the relay is POSTed — the earlier assertion 
 the envelope a URL the producer never produced, which is exactly how the two halves
 diverged unnoticed.
 
+**Link recovery (`dispatchApplicationLinks`).** When someone re-applies without
+proving they own the matched entry, the apply doors re-send that entry's own
+status link and `?lead=` update link to the address on file
+(`app/_lib/apply-link-recovery.ts`; the policy is in
+`docs/features/candidates/README.md`). The message uses kind `acknowledgement`,
+because `KNOWN_COMM_KINDS` is a published relay contract, and its subject
+(`comms.linkRecovery.subject*`) tells it apart in the Outbox. It is composed from
+`comms.linkRecovery.*` plus the shared `ack.greeting` / `ack.signoff`, and its
+status line reuses `apply.trackStatus`. Unlike `dispatchApplicationReceived`, it
+records **no** pipeline event: the request that caused it is unproven and must not
+write onto the candidate's timeline. It returns the Outbox row's real status
+(`queued` with no relay, `sent`, or `failed`). The caller has already required
+`entry.contact`, so the label fallback in `candidateRecipient` is never what it is
+sent to. The links are `?lang=`-pinned to the entry's own resolved locale.
+
 ## 11. Inbound when the studio is off: pull sources and the always-on edge
 
 _Design and the full ladder: `docs/concepts/local-first-edge.md`. What follows is
