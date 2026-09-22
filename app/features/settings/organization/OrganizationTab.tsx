@@ -56,6 +56,7 @@ export function OrganizationTab() {
   // the console render a Saving…/Saved/error ticker beside the field. The ref
   // skips the mount run (the initial value is already persisted).
   const [nameSave, setNameSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const pendingName = useRef<string | null>(null);
   // Every keystroke retires the previous verdict (editName below). The ticker used
   // to keep reading "Saved" for the whole 500ms debounce window — over text that was
   // NOT saved — so appending to an already-saved name and leaving the tab inside
@@ -64,6 +65,7 @@ export function OrganizationTab() {
   const editName = (v: string) => {
     setName(v);
     setNameSave("idle");
+    pendingName.current = v;
   };
   const nameHydrated = useRef(false);
   useEffect(() => {
@@ -72,6 +74,7 @@ export function OrganizationTab() {
       return;
     }
     const id = setTimeout(async () => {
+      pendingName.current = null;
       setNameSave("saving");
       try {
         // The action now ANSWERS: a caller without org:manage is refused, and a
@@ -85,6 +88,19 @@ export function OrganizationTab() {
     }, 500);
     return () => clearTimeout(id);
   }, [name]);
+
+  // A tab switch unmounts this panel. Flush the last edit when its debounce has
+  // not fired yet, so leaving within 500 ms does not silently discard the name.
+  useEffect(() => () => {
+    if (pendingName.current == null) return;
+    void setOrgName(pendingName.current)
+      .then((result) => {
+        if (!result.ok) console.warn("org name flush refused on unmount", result.code);
+      })
+      .catch((error: unknown) => {
+        console.error("org name flush failed on unmount", error);
+      });
+  }, []);
 
   // App language is the org's language authority: persist to BOTH the locale cookie
   // and the workspace default, then re-render the app under it — so recruiter UI,

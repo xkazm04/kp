@@ -14,6 +14,10 @@ inventing a second scoping dimension.
 
 ## Entry points
 
+The Organization name field saves after a short pause. If the operator leaves
+the tab before that pause ends, the pending name is sent on unmount so the last
+edit is not discarded.
+
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
