@@ -102,6 +102,12 @@ test("DELETE proves ownership before aborting, not after", () => {
   assert.ok(guard < cancel, "the ownership check must precede cancelTask");
 });
 
+test("missing task reads and cancels use the localized refusal code", () => {
+  const src = read("[id]", "route.ts");
+  assert.equal((src.match(/jsonRefusal\("TASK_NOT_FOUND", 404\)/g) ?? []).length, 2);
+  assert.doesNotMatch(src, /error: "task not found"/);
+});
+
 test("boot recovery re-enqueues each orphan under its OWN team", () => {
   // The runner's pump schedules round-robin across workspaces (task-pump.ts). Recovery
   // rebuilt the queue from ids alone, so every task recovered after a restart looked
