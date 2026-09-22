@@ -101,6 +101,8 @@ export function CompanionRest({
   busy,
   unread,
   label,
+  proposalCount,
+  proposalLabel,
   focusOnMount = false,
 }: {
   onOpen: () => void;
@@ -109,6 +111,9 @@ export function CompanionRest({
   /** A reply landed while the dock was closed. */
   unread: boolean;
   label: string;
+  /** Open proposals remain visible when the conversation is collapsed. */
+  proposalCount: number;
+  proposalLabel: string;
   /** The operator just CLOSED the window, so keyboard focus was inside it and is
    *  about to be nowhere. Take it here — the pill is where the window went. Only
    *  on that transition: a page that loads with the dock closed must not steal
@@ -127,7 +132,7 @@ export function CompanionRest({
       ref={ref}
       type="button"
       onClick={onOpen}
-      aria-label={label}
+      aria-label={proposalCount > 0 ? `${label}, ${proposalLabel}` : label}
       className="focus-ring fixed bottom-[calc(var(--sim-bar-h)_+_8px)] left-3 z-[var(--z-sim-drawer)] inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white py-2 pl-2 pr-4 shadow-pop transition-colors hover:border-coral/40 md:left-[5.25rem] dark:-rotate-1 dark:hover:rotate-0"
     >
       <span className="relative grid h-8 w-8 place-items-center">
@@ -137,6 +142,11 @@ export function CompanionRest({
         ) : null}
       </span>
       <span className="text-sm font-semibold text-ink">{label}</span>
+      {proposalCount > 0 ? (
+        <span className="nums rounded-full bg-coral px-2 py-0.5 text-xs font-semibold text-white" aria-hidden="true">
+          {proposalCount}
+        </span>
+      ) : null}
     </button>
   );
 }

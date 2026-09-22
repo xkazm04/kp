@@ -1254,9 +1254,10 @@ guard over exactly these decisions — the behaviour itself needs a browser.
   its own status lifecycle and its own resolution route, so adding the kind would
   have created a gate with no branch that can clear it — exactly what the registry
   in `app/_lib/approval-kinds.ts` warns against.
-- **The companion attention count reaches no badge.** `attentionCounts().companion`
+- **The companion attention count reaches the collapsed dock pill.** `attentionCounts().companion`
   is the sixth key and the only one no tab declares, because Candi lives in a dock.
-  It is read by the dock's own state line. It is deliberately kept out of
+  The rest pill shows an open-proposal count and the dock's state line names it.
+  It is deliberately kept out of
   `decisions`, whose count beacons the ControlDock orb and whose one click routes
   to the Decisions tab — a tab with no affordance that can resolve a proposal.
 - No thread switcher. The toolbar can START a conversation, and the dock still
