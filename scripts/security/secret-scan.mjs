@@ -53,13 +53,8 @@ import { REPO_ROOT, git } from '../review/diff.mjs';
  * human reads. Order matters only in that the first match on a line wins — a
  * line is reported once, not once per overlapping rule.
  *
- * KNOWN GAP, stated rather than silently absent: Polar's `polar_whs_…` webhook
- * secret has exactly the right shape for this table, and this repository takes
- * Polar webhooks. It is not here because `app/_lib/billing/webhook-verify.test.ts`
- * commits a literal of that shape as a fixture, and a rule whose first act is to
- * fail the build on an existing test is a rule that gets deleted rather than
- * obeyed. Replace that fixture with an obviously-inert string and this row can
- * be added in the same change.
+ * Polar webhook secrets are included; the verifier test assembles a deterministic
+ * fixture at runtime so a committed value cannot be mistaken for a live key.
  */
 export const SECRET_PATTERNS = [
   { id: 'anthropic', re: /sk-ant-api\d{2}-[A-Za-z0-9_-]{20,}/, what: 'an Anthropic API key' },
@@ -77,6 +72,7 @@ export const SECRET_PATTERNS = [
   { id: 'github-fine-grained', re: /github_pat_[A-Za-z0-9_]{60,}/, what: 'a fine-grained GitHub PAT' },
   { id: 'npm', re: /\bnpm_[A-Za-z0-9]{36}\b/, what: 'an npm publish token' },
   { id: 'slack', re: /xox[baprs]-[A-Za-z0-9-]{10,}/, what: 'a Slack token' },
+  { id: 'polar-webhook', re: /polar_whs_[A-Za-z0-9]{24,}/, what: 'a Polar webhook signing secret' },
   // Not a vendor shape — the envelope. A pasted deploy key, a JWT signing key or
   // a TLS private key all arrive inside this line.
   {

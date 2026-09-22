@@ -12,9 +12,8 @@
 //
 // AND THE REAL TREE IS CLEAN. The last case runs the scanner over what git
 // actually tracks. It is what makes the gate a measurement rather than a claim —
-// and it is what would catch a new pattern that is right in principle and wrong
-// against this repository (the reason Polar's `polar_whs_…` shape is documented
-// as a gap in secret-scan.mjs rather than added to the table).
+// and it is what catches a new pattern that is right in principle but matches a
+// committed fixture. The Polar key rule is exercised here without a real key.
 import assert from 'node:assert/strict';
 import {
   BINARY_RE,
@@ -50,6 +49,7 @@ const SAMPLES = {
   'github-fine-grained': `token: github_pat_${'A'.repeat(70)}`,
   npm: '//registry.npmjs.org/:_authToken=npm_0123456789abcdefghij0123456789abcdef',
   slack: 'SLACK_BOT_TOKEN=xoxb-123456789012-abcdefghijkl',
+  'polar-webhook': `POLAR_WEBHOOK_SECRET=polar_whs_${'A'.repeat(32)}`,
   'private-key': '-----BEGIN RSA PRIVATE KEY-----',
 };
 
@@ -84,6 +84,7 @@ check('near-misses do not fire', () => {
     'const c = "AKIA" + suffix;',
     '-----BEGIN PUBLIC KEY-----',
     'npm_config_cache=/tmp/npm',
+    'POLAR_WEBHOOK_SECRET=polar_whs_short',
   ]) {
     assert.equal(firstSecretIn(line), null, `false positive on: ${line}`);
   }
