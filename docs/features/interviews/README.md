@@ -2911,6 +2911,8 @@ to an **IPv4 literal**. Read off a name they also matched anything whose first
 label happened to be one of those numbers (`https://10.voice-vendor.example.com`),
 and a public per-minute host would then have been declared free — the one
 direction the conservative contract says must never happen.
+IPv6 literals in `fc00::/7` also count as private; adjacent public IPv6 ranges
+and hostnames remain metered.
 
 ## Keyless / degraded behavior
 
