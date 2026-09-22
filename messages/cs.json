@@ -3431,6 +3431,7 @@
         "advance": "Přesunout do fáze {stage}",
         "route": "Průběh",
         "score": "Skóre",
+        "scoreAria": "Skóre: {score}",
         "unscored": "Zatím bez skóre",
         "breakdown": "Rozpad skóre",
         "weight": "Váha",

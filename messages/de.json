@@ -3431,6 +3431,7 @@
         "advance": "Nach {stage} verschieben",
         "route": "Verlauf",
         "score": "Score",
+        "scoreAria": "Score: {score}",
         "unscored": "Noch ohne Score",
         "breakdown": "Score-Aufschlüsselung",
         "weight": "Gewichtung",

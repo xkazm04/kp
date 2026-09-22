@@ -3431,6 +3431,7 @@
         "advance": "Passer à l’étape {stage}",
         "route": "Parcours",
         "score": "Score",
+        "scoreAria": "Score : {score}",
         "unscored": "Pas encore évalué",
         "breakdown": "Détail du score",
         "weight": "Poids",

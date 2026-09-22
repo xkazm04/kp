@@ -236,7 +236,8 @@ element:
   tone-bordered seal with a hard shadow and the display face (null scores stay
   flat — an absent score is not a verdict). `ScoreDial`'s big readout speaks
   Bricolage (`dark:font-serif`); MatchCard's score already rides the
-  `font-serif` flip.
+  `font-serif` flip. `ScoreBadge` names the numeric score for assistive tech;
+  its em dash is announced as unscored.
 - **Sticker cells.** Browsing the candidate×position matrix in dark "peels"
   the hovered cell — tilt, scale, hard shadow above its neighbors — instead
   of the light register's flat zoom. Schedule chips do the same: the selected

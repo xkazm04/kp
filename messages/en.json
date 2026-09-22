@@ -3431,6 +3431,7 @@
         "advance": "Move to {stage}",
         "route": "Route",
         "score": "Score",
+        "scoreAria": "Score: {score}",
         "unscored": "Not scored yet",
         "breakdown": "Score breakdown",
         "weight": "Weight",
