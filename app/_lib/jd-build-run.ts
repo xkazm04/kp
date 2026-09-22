@@ -458,7 +458,9 @@ export async function runJdBuild(
     // records failed (its status is independent of the JD row).
     if (jdSlug) {
       try {
-        failJdAnalysis(jdSlug, err instanceof Error ? err.message : String(err));
+        // The task retains the original failure for operator diagnosis. The JD
+        // row reaches the browser, so persist only a stable localization code.
+        failJdAnalysis(jdSlug, "JD_GENERATE_FAILED");
       } catch {
         /* don't mask the original error if the fail-write itself throws */
       }

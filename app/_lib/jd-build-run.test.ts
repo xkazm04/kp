@@ -193,7 +193,7 @@ test("a build that refuses its own input marks the placeholder failed and rethro
   );
   const row = loadJd(slug);
   assert.equal(row?.analysis_status, "failed", "the Ledger must show a failed chip + retry, not Analyzing forever");
-  assert.ok(row?.analysis_error, "the reason must be on the row");
+  assert.equal(row?.analysis_error, "JD_GENERATE_FAILED", "the browser-facing row carries a code, never the thrown detail");
   assert.equal(row?.body, "", "a failed build leaves the body untouched");
 });
 
