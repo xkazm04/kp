@@ -180,6 +180,7 @@
       "expand": "Zvětšit",
       "zoomIn": "Přiblížit",
       "zoomOut": "Oddálit",
+      "actualSize": "Skutečná velikost (1:1)",
       "fit": "Přizpůsobit",
       "modalTitleFallback": "Diagram",
       "modalSubtitle": "Posouvání kolečkem · přiblížení pro detail",

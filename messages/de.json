@@ -180,6 +180,7 @@
       "expand": "Vollbild",
       "zoomIn": "Vergrößern",
       "zoomOut": "Verkleinern",
+      "actualSize": "Originalgröße (1:1)",
       "fit": "Anpassen",
       "modalTitleFallback": "Diagramm",
       "modalSubtitle": "Scrollen zum Verschieben · Zoomen zum Anpassen",

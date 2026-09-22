@@ -598,7 +598,7 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
       </button>
       <span className="mx-1 h-5 w-px bg-stone-200" />
       <button type="button" onClick={() => setZoom(1)} className={textBtn}>
-        1:1
+        {t("actualSize")}
       </button>
       <button type="button" onClick={fit} className={textBtn}>
         {t("fit")}

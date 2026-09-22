@@ -28,7 +28,8 @@ for the narrative; read these for the data flow.
 
 In the app's expanded diagram viewer, focus the diagram viewport and press `+` or
 `=` to zoom in, `-` to zoom out, `0` for actual size, or `F` to fit the viewport.
-The zoom buttons remain available from the keyboard.
+The localized Actual size (1:1) control and the other zoom buttons remain
+available from the keyboard.
 
 These are plain PlantUML text files. Any of:
 

@@ -180,6 +180,7 @@
       "expand": "Expand",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
+      "actualSize": "Actual size (1:1)",
       "fit": "Fit",
       "modalTitleFallback": "Diagram",
       "modalSubtitle": "Scroll to pan · zoom to adjust",
