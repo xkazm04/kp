@@ -2213,7 +2213,10 @@
       "enrichCta": "Doplnit profil",
       "enrichNote": "Asi dvě minuty. Pomůže nám to posoudit vás spravedlivě a rychle.",
       "honeypotLabel": "Web společnosti (toto pole nechte prázdné)",
-      "incompleteHint": "Ještě kousek. Vyplňte prosím vše výše. Přesunuli jsme vás na první chybějící položku."
+      "incompleteHint": "Ještě kousek. Vyplňte prosím vše výše. Přesunuli jsme vás na první chybějící položku.",
+      "copyStatusLink": "Kopírovat odkaz na stav",
+      "statusLinkCopied": "Odkaz zkopírován",
+      "statusLinkCopyFailed": "Odkaz se nepodařilo zkopírovat. Otevřete ho a zkopírujte z prohlížeče."
     },
     "archetypeBau": "Zkušený/á profesionál/ka",
     "archetypeStudent": "Student/ka nebo na začátku kariéry",

@@ -2213,7 +2213,10 @@
       "enrichCta": "Compléter votre profil",
       "enrichNote": "Environ deux minutes. Cela nous aide à vous évaluer de façon juste et rapide.",
       "honeypotLabel": "URL de l’entreprise (laissez ce champ vide)",
-      "incompleteHint": "Vous y êtes presque. Merci de compléter tout ce qui précède. Nous vous avons amené au premier élément manquant."
+      "incompleteHint": "Vous y êtes presque. Merci de compléter tout ce qui précède. Nous vous avons amené au premier élément manquant.",
+      "copyStatusLink": "Copier le lien de suivi",
+      "statusLinkCopied": "Lien copié",
+      "statusLinkCopyFailed": "Impossible de copier le lien. Ouvrez-le et copiez-le depuis votre navigateur."
     },
     "archetypeBau": "Un(e) professionnel(le) expérimenté(e)",
     "archetypeStudent": "Étudiant(e) ou en début de carrière",

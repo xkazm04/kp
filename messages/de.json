@@ -2213,7 +2213,10 @@
       "enrichCta": "Profil vervollständigen",
       "enrichNote": "Etwa zwei Minuten. So können wir Sie fair und schnell einschätzen.",
       "honeypotLabel": "Firmen-URL (dieses Feld leer lassen)",
-      "incompleteHint": "Fast geschafft. Bitte beantworten Sie alles oben. Wir haben Sie zur ersten noch fehlenden Angabe gebracht."
+      "incompleteHint": "Fast geschafft. Bitte beantworten Sie alles oben. Wir haben Sie zur ersten noch fehlenden Angabe gebracht.",
+      "copyStatusLink": "Statuslink kopieren",
+      "statusLinkCopied": "Link kopiert",
+      "statusLinkCopyFailed": "Der Link konnte nicht kopiert werden. Öffnen Sie ihn und kopieren Sie ihn im Browser."
     },
     "archetypeBau": "Eine erfahrene Fachkraft",
     "archetypeStudent": "Studium oder Berufseinstieg",

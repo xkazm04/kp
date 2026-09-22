@@ -2213,7 +2213,10 @@
       "enrichCta": "Complete your profile",
       "enrichNote": "About two minutes. It helps us assess you fairly and fast.",
       "honeypotLabel": "Company URL (leave this field empty)",
-      "incompleteHint": "Almost there. Please answer everything above. We've taken you to the first item that's still missing."
+      "incompleteHint": "Almost there. Please answer everything above. We've taken you to the first item that's still missing.",
+      "copyStatusLink": "Copy status link",
+      "statusLinkCopied": "Link copied",
+      "statusLinkCopyFailed": "Couldn't copy the link. Open it and copy it from your browser."
     },
     "archetypeBau": "An experienced professional",
     "archetypeStudent": "A student or early in my career",

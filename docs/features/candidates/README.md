@@ -390,6 +390,8 @@ animation — so a reduced-motion reader gets the same signal. Pinned by
 form-filling bot is dropped the same way on the chat as on the lead form.
 After a quick-apply decline, the done card lets the candidate return to their
 preserved answers and submit a corrected response.
+An accepted lead can copy the status link from the same card; the copied URL
+includes `?lang=` so it opens in the language they used to apply.
 Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and

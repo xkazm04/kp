@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
@@ -51,6 +51,7 @@ export function QuickApplyForm({
   relayConfigured?: boolean;
 }) {
   const t = useTranslations("apply");
+  const locale = useLocale();
   const tCommon = useTranslations("common");
   // Same rule as the conversational door: a refusal is rendered from its machine
   // CODE in the candidate's language, with the cap the route sent as data. The
@@ -96,6 +97,7 @@ export function QuickApplyForm({
     // email carries, so the lead can check where they stand after the tab closes.
     statusToken?: string;
   } | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
   // tabIndex -1 + autocomplete off), but a form-filling bot populates. When it comes
@@ -189,6 +191,7 @@ export function QuickApplyForm({
 
   if (done) {
     const fresh = done.result === "accepted" && !done.duplicate;
+    const statusPath = done.statusToken ? `/status/${encodeURIComponent(done.statusToken)}` : null;
     return (
       <div aria-live="polite">
         <div className={`rounded-lg border p-4 ${fresh ? "border-moss/40 bg-moss/5" : "border-stone-200 bg-paper"}`}>
@@ -226,13 +229,35 @@ export function QuickApplyForm({
           {/* capst-l1-002 — the durable status link, mirroring the conversational
               done screen: the lead's one way to see where they stand once this
               tab is gone (and, with no relay, their ONLY touchpoint at all). */}
-          {done.result === "accepted" && done.statusToken ? (
-            <a
-              href={`/status/${done.statusToken}`}
-              className={`${BTN_SECONDARY} mt-3 gap-1.5 bg-white px-3 py-1.5 text-base font-semibold`}
-            >
-              {t("trackStatus")}
-            </a>
+          {done.result === "accepted" && statusPath ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <a
+                href={statusPath}
+                className={`${BTN_SECONDARY} gap-1.5 bg-white px-3 py-1.5 text-base font-semibold`}
+              >
+                {t("trackStatus")}
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  const url = new URL(`${statusPath}?lang=${locale}`, window.location.origin).href;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setCopyState("copied");
+                  } catch {
+                    setCopyState("failed");
+                  }
+                }}
+                className={`${BTN_SECONDARY} bg-white px-3 py-1.5 text-base font-semibold`}
+              >
+                {t("quick.copyStatusLink")}
+              </button>
+              {copyState !== "idle" ? (
+                <span role={copyState === "failed" ? "alert" : "status"} className="text-sm text-steel">
+                  {t(copyState === "copied" ? "quick.statusLinkCopied" : "quick.statusLinkCopyFailed")}
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <AiDisclosure
