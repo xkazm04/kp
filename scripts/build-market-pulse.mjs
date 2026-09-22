@@ -137,6 +137,10 @@ export function validateSnapshot(snapshot) {
     problems.push(`national median ${meta.national_median} looks like advertised pay, not earnings`);
   if (regions.some((r) => r.medianSalary == null)) problems.push("some regions have no ISPV earnings median");
   if (top_occupations.length < 10) problems.push("few top occupations");
+  if (!Number.isFinite(meta.default_family_share) || meta.default_family_share < 0 || meta.default_family_share > 1)
+    problems.push("missing or invalid default-family share");
+  else if (meta.default_family_share > 0.1)
+    problems.push(`default-family fallback covers ${(meta.default_family_share * 100).toFixed(1)}% of vacancies`);
   return problems;
 }
 
@@ -383,6 +387,7 @@ async function main() {
       occupations_tracked: new Set(agg.map((x) => x.czIsco)).size,
       unmapped_occupations: unmappedCodes.size,
       unmapped_vacancies: unmappedVacancies,
+      default_family_share: nationalTotal > 0 ? +(unmappedVacancies / nationalTotal).toFixed(4) : 0,
       regions: regions.length,
       national_median: nation.median,
       national_p25: nation.p25,

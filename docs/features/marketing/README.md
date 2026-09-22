@@ -375,6 +375,11 @@ prefix matched `data/czisco-role-map.json`. The display still uses the map's
 default family, while these counts reveal how much of that family came from a
 fallback.
 
+`validateSnapshot()` refuses a rebuild when the default-family fallback covers
+more than 10% of national vacancies, or when the share is absent. The mapping
+needs review before publishing a snapshot that would misclassify that much
+demand; `--force` remains the explicit override.
+
 #### Rebuild cadence — sixty days, by hand
 
 Nothing rebuilds the snapshot automatically; there is no cron, no CI job, no
