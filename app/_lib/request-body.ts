@@ -11,21 +11,43 @@
  *  reader with one set of tests beats two that drift (see `agent-hire/bridge-client`). */
 export type BoundedBodySource = { body: Request["body"] };
 
+export const BODY_READ_TIMEOUT_MS = 15_000;
+
+export class BodyReadTimeoutError extends Error {
+  constructor() {
+    super("Body read timed out");
+    this.name = "BodyReadTimeoutError";
+  }
+}
+
 /** The same hard byte budget, but for a body that is NOT text: an uploaded audio chunk
  *  (POST /api/interview/recording) is binary, and decoding it as UTF-8 to measure it
  *  would both corrupt the bytes and lose the cap's meaning. Identical contract to
  *  `readTextWithLimit` — `null` when the budget is exceeded, an empty array for an
  *  absent body — because the rule ("count what was READ, never what was DECLARED") is
  *  the one thing both readers must state the same way. */
-export async function readBytesWithLimit(source: BoundedBodySource, maxBytes: number): Promise<Uint8Array | null> {
+export async function readBytesWithLimit(
+  source: BoundedBodySource,
+  maxBytes: number,
+  timeoutMs = BODY_READ_TIMEOUT_MS
+): Promise<Uint8Array | null> {
   const body = source.body;
   if (!body) return new Uint8Array(0);
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  // One deadline for the ENTIRE body. Resetting it after every chunk would let
+  // a slowloris send one byte at a time forever while staying below maxBytes.
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new BodyReadTimeoutError());
+      void reader.cancel().catch(() => {});
+    }, timeoutMs);
+  });
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), deadline]);
       if (done) break;
       if (!value) continue;
       total += value.byteLength;
@@ -36,6 +58,7 @@ export async function readBytesWithLimit(source: BoundedBodySource, maxBytes: nu
       chunks.push(value);
     }
   } finally {
+    clearTimeout(timer!);
     reader.releaseLock();
   }
   const merged = new Uint8Array(total);
@@ -47,8 +70,12 @@ export async function readBytesWithLimit(source: BoundedBodySource, maxBytes: nu
   return merged;
 }
 
-export async function readTextWithLimit(source: BoundedBodySource, maxBytes: number): Promise<string | null> {
-  const merged = await readBytesWithLimit(source, maxBytes);
+export async function readTextWithLimit(
+  source: BoundedBodySource,
+  maxBytes: number,
+  timeoutMs = BODY_READ_TIMEOUT_MS
+): Promise<string | null> {
+  const merged = await readBytesWithLimit(source, maxBytes, timeoutMs);
   if (merged === null) return null;
   return new TextDecoder().decode(merged);
 }

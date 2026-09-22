@@ -416,6 +416,11 @@ limiter, token check or tenancy gate can run. The helper keeps the header as a
 cheap early-out and enforces the real limit on bytes taken off the wire, aborting
 the stream the moment it is exceeded.
 
+The reader also has one 15-second deadline for the entire body. A stalled
+connection or a sender trickling bytes forever is cancelled and raises
+`BodyReadTimeoutError`; each route's existing error boundary handles that
+failure without holding its worker indefinitely.
+
 **The refusal is coded.** Over-budget answers `413` with
 `jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes })` — the cap rides as data so
 the reader's own language can name it. Surfaces with a more specific sentence
