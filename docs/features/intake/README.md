@@ -644,6 +644,9 @@ transport (`app/_components/voice/transport/openai.ts` — `speakText` /
 `cancelSpeech` are the relay additions). On connect the agent SPEAKS the
 pending question from the text thread (`spokenOpener`) — voice continues the
 same conversation.
+The `/voice-connect` credential request has a 15-second abort deadline, so a
+stalled mint returns to the idle state with a transport failure rather than
+leaving the composer in Connecting indefinitely.
 
 Three rules the client half enforces, all unit-pinned:
 

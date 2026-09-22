@@ -57,6 +57,8 @@ const domTimers = {
   clear: (handle: unknown) => window.clearTimeout(handle as number),
 };
 
+const VOICE_CONNECT_REQUEST_TIMEOUT_MS = 15_000;
+
 export function JdsIntakeVoice({
   intakeId,
   disabled,
@@ -113,6 +115,7 @@ export function JdsIntakeVoice({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
   const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectAbortRef = useRef<AbortController | null>(null);
   const asstBufRef = useRef("");
   const candBufRef = useRef("");
   const pendingCandidateRef = useRef(false);
@@ -258,8 +261,12 @@ export function JdsIntakeVoice({
     reachedLiveRef.current = false;
     orchestratorRef.current = initialOrchestratorState;
     let connect: { model: string; clientSecret: string; callsUrl: string };
+    const requestAbort = new AbortController();
+    connectAbortRef.current = requestAbort;
+    const requestTimer = window.setTimeout(() => requestAbort.abort(), VOICE_CONNECT_REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-connect`, { method: "POST" });
+      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-connect`, { method: "POST", signal: requestAbort.signal });
+      if (finalizedRef.current) return;
       if (!res.ok) {
         // The mint refused with a code — keyless install, closed session, rate
         // limit. Each of those already has its own sentence in the catalogs.
@@ -267,9 +274,13 @@ export function JdsIntakeVoice({
         return;
       }
       connect = ((await res.json()) as { connect: { model: string; clientSecret: string; callsUrl: string } }).connect;
+      if (finalizedRef.current) return;
     } catch {
-      dispatchUi({ type: "connectFailed", failure: { kind: "transport" } });
+      if (!finalizedRef.current) dispatchUi({ type: "connectFailed", failure: { kind: "transport" } });
       return;
+    } finally {
+      window.clearTimeout(requestTimer);
+      if (connectAbortRef.current === requestAbort) connectAbortRef.current = null;
     }
     try {
       await startOpenAiCall(connect, {
@@ -310,6 +321,7 @@ export function JdsIntakeVoice({
   useEffect(() => {
     return () => {
       finalizedRef.current = true;
+      connectAbortRef.current?.abort();
       hangUpRef.current?.();
       hangUpRef.current = null;
       teardownOpenAi(refs(), { setSpeaking: () => {}, setUnstable: () => {}, setAudioBlocked: () => {} });
