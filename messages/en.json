@@ -182,6 +182,7 @@
       "zoomOut": "Zoom out",
       "actualSize": "Actual size (1:1)",
       "loading": "Loading diagram…",
+      "exportSvg": "Download SVG",
       "fit": "Fit",
       "modalTitleFallback": "Diagram",
       "modalSubtitle": "Scroll to pan · zoom to adjust",

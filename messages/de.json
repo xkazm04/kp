@@ -182,6 +182,7 @@
       "zoomOut": "Verkleinern",
       "actualSize": "Originalgröße (1:1)",
       "loading": "Diagramm wird geladen…",
+      "exportSvg": "SVG herunterladen",
       "fit": "Anpassen",
       "modalTitleFallback": "Diagramm",
       "modalSubtitle": "Scrollen zum Verschieben · Zoomen zum Anpassen",

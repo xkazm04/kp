@@ -182,6 +182,7 @@
       "zoomOut": "Zoom arrière",
       "actualSize": "Taille réelle (1:1)",
       "loading": "Chargement du diagramme…",
+      "exportSvg": "Télécharger le SVG",
       "fit": "Ajuster",
       "modalTitleFallback": "Diagramme",
       "modalSubtitle": "Défilement pour déplacer · zoom pour ajuster",

@@ -182,6 +182,7 @@
       "zoomOut": "Oddálit",
       "actualSize": "Skutečná velikost (1:1)",
       "loading": "Načítání diagramu…",
+      "exportSvg": "Stáhnout SVG",
       "fit": "Přizpůsobit",
       "modalTitleFallback": "Diagram",
       "modalSubtitle": "Posouvání kolečkem · přiblížení pro detail",

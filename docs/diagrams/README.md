@@ -31,6 +31,8 @@ In the app's expanded diagram viewer, focus the diagram viewport and press `+` o
 The localized Actual size (1:1) control and the other zoom buttons remain
 available from the keyboard.
 While a diagram lays out, its loading status is announced to assistive technology.
+The expanded viewer can download a standalone SVG with the current theme colors
+resolved into the file.
 
 These are plain PlantUML text files. Any of:
 
