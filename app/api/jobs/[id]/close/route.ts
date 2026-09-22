@@ -19,15 +19,18 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   // chasing a retired role.
   const ws = await currentWorkspace();
   try {
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-    // Ownership gate: the entry withdrawal below is workspace-scoped, but the STATUS
-    // WRITE (setJobStatus) is a bare by-id UPDATE — without this, workspace B could
-    // dark workspace A's live role. Seeded corpus rows (workspace_id NULL) stay
+    // Ownership gate: the entry withdrawal below is workspace-scoped, and on an
+    // AUTHORED role the status write (setJobStatus) is a by-id UPDATE of the row itself
+    // — without this, workspace B could dark workspace A's live role. Seeded corpus rows (workspace_id NULL) stay
     // closable by every tenant; see canWriteJobLifecycle for the reasoning. 404
     // (not 403) so the endpoint doesn't confirm that another tenant's id exists.
     if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-    const already = getJobStatus(id) === "closed";
+    // Read and written as THIS team sees the role: on a shared corpus row the status is
+    // the team's own (the lifecycle overlay), so this close retires the role for the
+    // caller's team only, the same team the withdrawal below is scoped to.
+    const already = getJobStatus(id, ws) === "closed";
     let withdrawn = 0;
     // Set when the withdrawal step ITSELF threw: the close committed but the pipeline
     // was NOT reconciled. Without it, "nobody was in flight" and "withdrawing them
@@ -35,7 +38,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // mirrors publish's sourcingWarning. false = the step ran (even if it found nobody).
     let withdrawalFailed = false;
     if (!already) {
-      setJobStatus(id, "closed");
+      setJobStatus(id, "closed", ws);
       // JOB2 — withdraw the role's still-in-flight candidates (mark them role_closed) so
       // a filled role isn't chased and doesn't inflate the active funnel. The Hired
       // candidate is left active. Best-effort: the close already committed, so a

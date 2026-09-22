@@ -2,7 +2,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import { ensureDb, type JobRecord } from "./db/core";
+import { ensureDb, jobLifecycleInOverlay, type JobRecord } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { deleteJobTranslations } from "./db/job-translations";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
@@ -163,8 +163,36 @@ export function insertJob(
 /** Flip a job's lifecycle status. W8-1 (JOB1) adds the terminal state the
  *  one-way draft → published ratchet lacked: `closed` retires a filled or
  *  abandoned role — the apply surface stops accepting, the catalog badges it.
- *  NULL status (seeded corpus job) remains "live". */
-export function setJobStatus(jobId: string, status: "draft" | "published" | "closed"): void {
+ *  NULL status (seeded corpus job) remains "live".
+ *
+ *  `workspaceId` is the team making the change. It matters only for a SHARED corpus
+ *  row (see jobLifecycleInOverlay): that row's status is one team's fact, so it goes
+ *  to the team's job_workspace_state overlay and the shared jobs.status is left alone.
+ *  published_at is still stamped on the shared row, because it is the billing record
+ *  classifyPublish reads. An authored row is written exactly as before. Defaults to
+ *  the team a public applicant is filed into (getJobWorkspace's fold). */
+export function setJobStatus(
+  jobId: string,
+  status: "draft" | "published" | "closed",
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): void {
+  const d = db();
+  const row = d.prepare(`SELECT workspace_id, status, published_at FROM jobs WHERE id = ?`).get(jobId) as
+    | { workspace_id: string | null; status: string | null; published_at: string | null }
+    | undefined;
+  if (row && jobLifecycleInOverlay(row)) {
+    const now = new Date().toISOString();
+    d.transaction(() => {
+      if (status === "published") {
+        d.prepare(`UPDATE jobs SET published_at = COALESCE(published_at, ?) WHERE id = ?`).run(now, jobId);
+      }
+      d.prepare(
+        `INSERT INTO job_workspace_state (workspace_id, job_id, status, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(workspace_id, job_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`
+      ).run(workspaceId, jobId, status, now);
+    })();
+    return;
+  }
   // published_at is the cycle start for publish-anchored metrics, so it records
   // when the role FIRST went live: COALESCE keeps the original stamp when a closed
   // role is republished, and the write is a no-op for draft/closed. Without this,
@@ -192,11 +220,25 @@ export function setJobStatus(jobId: string, status: "draft" | "published" | "clo
  *
  *  Read-only and synchronous, so it is safe to call inside the publish transaction —
  *  which is the point: the route reads the row it is about to flip under the same
- *  write lock. Pinned by app/api/jobs/jobs-publish-billing.test.ts. */
-export function classifyPublish(jobId: string): { already: boolean; wasClosed: boolean; billable: boolean } {
+ *  write lock. Pinned by app/api/jobs/jobs-publish-billing.test.ts.
+ *
+ *  Per team, but billing is NOT: `already`/`wasClosed` read the calling team's status
+ *  (its overlay on a shared corpus row, else the row's own), while `billable` reads the
+ *  SHARED published_at. So a second team adopting a corpus role another team already
+ *  took live gets {already: false, billable: false}: it adopts the role (and sources
+ *  into its own pipeline) without a new debit, which is what it paid before the
+ *  overlay existed (job-workspace-state.test.ts drives the parity). */
+export function classifyPublish(
+  jobId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { already: boolean; wasClosed: boolean; billable: boolean } {
   const r = db()
-    .prepare(`SELECT status, published_at FROM jobs WHERE id = ?`)
-    .get(jobId) as { status: string | null; published_at: string | null } | undefined;
+    .prepare(
+      `SELECT COALESCE(s.status, jobs.status) AS status, jobs.published_at AS published_at FROM jobs
+       LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
+       WHERE jobs.id = ?`
+    )
+    .get(workspaceId, jobId) as { status: string | null; published_at: string | null } | undefined;
   const status = r?.status ?? null;
   return { already: status === "published", wasClosed: status === "closed", billable: !r?.published_at };
 }
@@ -210,8 +252,18 @@ export function isJobOpenForApplications(status: string | null): boolean {
   return status === null || status === "published";
 }
 
-export function getJobStatus(jobId: string): string | null {
-  const r = db().prepare(`SELECT status FROM jobs WHERE id = ?`).get(jobId) as { status: string | null } | undefined;
+/** The role's lifecycle status as `workspaceId` sees it: the team's overlay on a shared
+ *  corpus row, else the row's own column. The public apply doors call this with no
+ *  team, and the default is the team getJobWorkspace files their applicants into, so
+ *  a corpus role's door follows THAT team's close and no other. */
+export function getJobStatus(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const r = db()
+    .prepare(
+      `SELECT COALESCE(s.status, jobs.status) AS status FROM jobs
+       LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
+       WHERE jobs.id = ?`
+    )
+    .get(workspaceId, jobId) as { status: string | null } | undefined;
   return r?.status ?? null;
 }
 

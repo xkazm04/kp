@@ -29,7 +29,8 @@
 // `closeRoleIfOpen` re-asserts in its WHERE the "still open" predicate this
 // function read — and only the call whose UPDATE changed a row goes on to withdraw
 // the stragglers. The loser stops, silently and correctly. Without that, one filled
-// role would run two withdrawal sweeps.
+// role would run two withdrawal sweeps. The swap is per team: a seeded corpus role is
+// shared, and one team filling its seats must not retire it for the others.
 
 import { afterResponse } from "./after-response";
 import { closeRoleIfOpen, getRoleOpenConfig, roleTargetHires } from "./db/jobs";
@@ -101,11 +102,14 @@ export async function runRoleFillHook(input: RoleFillInput): Promise<RoleFillOut
     // decision is taken on is the number on screen. A second, private counter here
     // is exactly how a "2 / 3" role ends up closed.
     const hired = listJobPipelineStats(workspaceId)[jobId]?.hired ?? 0;
-    const target = roleTargetHires(getRoleOpenConfig(jobId).targetHires);
+    // The target and the close are THIS team's: on a shared corpus role both live in
+    // the team's lifecycle overlay (jobLifecycleInOverlay, core.ts), so one team's
+    // hire retires the role for that team and leaves every other team's role open.
+    const target = roleTargetHires(getRoleOpenConfig(jobId, workspaceId).targetHires);
     if (hired < target) return { outcome: "open", hired, target };
 
     // THE COMPARE-AND-SWAP. Everything below runs at most once per role.
-    if (!closeRoleIfOpen(jobId)) return { outcome: "already_closed", hired, target };
+    if (!closeRoleIfOpen(jobId, workspaceId)) return { outcome: "already_closed", hired, target };
 
     try {
       // The same reconciliation a manual close performs, through the same store

@@ -79,7 +79,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const parsed = parsePublishBody(await request.json().catch(() => null));
     if (!parsed.ok) return jsonRefusal("JOB_TARGET_HIRES_INVALID", 400);
 
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     // Ownership gate (mirrors /close): setJobStatus is a bare by-id UPDATE, so without
     // this workspace B could force workspace A's draft live — on B's quota — and the
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof jobPostGate> } => {
       // ONE read of the row's lifecycle: is it already live, was it closed (a
       // reopen), and has it EVER been to market (`published_at`)?
-      const transition = classifyPublish(id);
+      const transition = classifyPublish(id, ws);
       if (transition.already) return { already: true, wasClosed: false, quota: null };
       // Taking a role to market is one of the two things the customer actually pays
       // for, so the gate and the debit are the same transaction as the status flip:
@@ -135,14 +135,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // record of "this role has been live before", so it is what the once-per-job
       // rule reads (`classifyPublish().billable`). A never-stamped row — a draft, a
       // seeded corpus role — is a first go-live and still bills.
+      //
+      // On a shared corpus role `already` is THIS team's (its lifecycle overlay) while
+      // `billable` reads the SHARED stamp: a second team adopting a role another team
+      // already took live flips its own status and sources into its own pipeline, and
+      // is not debited, exactly as before the overlay existed.
       const quota = transition.billable ? jobPostGate(new Date(), ws) : null;
       if (!quota) {
-        setJobStatus(id, "published");
+        setJobStatus(id, "published", ws);
         // The role's review terms are part of the SAME atomic act as the flip: a
         // role can never be live under a target the auto-close hook has not seen
         // yet, which is the window in which a filled role would keep chasing
         // candidates. Synchronous and by-id, so it adds no await to the block.
-        setRoleOpenConfig(id, { targetHires: parsed.targetHires, postingLangs: parsed.langs });
+        setRoleOpenConfig(id, { targetHires: parsed.targetHires, postingLangs: parsed.langs }, ws);
         if (transition.billable) recordMeterUsage("job_posts", 1, new Date(), ws);
       }
       // A reopen is a closed→published transition; remember it so the entries this
@@ -253,7 +258,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // posting tab's empty state says so and offers the retry.
     //
     // Deliberately NOT threaded with `request.signal`: the request is already over.
-    const langsToRender = parsed.langs ?? getRoleOpenConfig(id).postingLangs;
+    const langsToRender = parsed.langs ?? getRoleOpenConfig(id, ws).postingLangs;
     if (!already && langsToRender.length > 1) {
       afterResponse("role-translations", () => runPostingTranslations(id, langsToRender, { workspaceId: ws }));
     }
