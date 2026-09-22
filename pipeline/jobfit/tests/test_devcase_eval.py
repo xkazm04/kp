@@ -92,6 +92,20 @@ class TestSubmissionEval(unittest.TestCase):
         self.assertGreaterEqual(d["gamer_margin"], MIN_DISCRIMINATION_MARGIN)
         self.assertTrue(d["gamer_below_strong"])
 
+    def test_discrimination_cannot_pass_without_verifier_and_delegator_personas(self):
+        # Aggregate strong/weak/gamer margins can look healthy even when the
+        # specific careful-verifier control was never run.
+        strong = [_row(f"s{i}", verifies=True, expected="strong", behavior="tdd", judgment=95)
+                  for i in range(MIN_GROUP_N)]
+        weak = [_row(f"w{i}", verifies=False, expected="weak", behavior="big_bang_no_verify", judgment=10)
+                for i in range(MIN_GROUP_N)]
+        delegators = [_row(f"g{i}", verifies=False, usesAI=True, expected="weak",
+                           behavior="ai_no_verify", judgment=10) for i in range(MIN_GROUP_N)]
+        d = discrimination(strong + weak + delegators)
+        self.assertTrue(d["strong_beats_weak"])
+        self.assertTrue(d["gamer_below_strong"])
+        self.assertNotEqual(d["status"], "pass")
+
     def test_small_sample_is_inconclusive_not_pass(self):
         # at --count 12 the ai-verifier and gamer groups fall below MIN_GROUP_N but are
         # still PRESENT (2 rows each), so the margin-based gates are 'inconclusive' — a
