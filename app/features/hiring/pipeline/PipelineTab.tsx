@@ -208,6 +208,7 @@ export function PipelineTab() {
             onClose={s.closeCandidate}
             onChanged={s.load}
             onOpenEntry={s.openEntryById}
+            onOpenProfile={s.openProfile}
             onNavigate={s.showCandidate}
             onTab={s.setCandidateTab}
           />

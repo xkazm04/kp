@@ -30,6 +30,7 @@ export function CandidateOverviewTab({
   matchLoading,
   matchError,
   st,
+  onOpenProfile,
 }: {
   entry: Entry;
   axis: readonly StageDef[];
@@ -38,6 +39,7 @@ export function CandidateOverviewTab({
   matchLoading: boolean;
   matchError: string | null;
   st: CandidateState;
+  onOpenProfile?: () => void;
 }) {
   const tDrawer = useTranslations("pipeline.drawer");
   const t = useTranslations("pipeline.candidate.scorecard");
@@ -62,6 +64,7 @@ export function CandidateOverviewTab({
               resolving={st.resolvingIntake}
               intakeErr={st.intakeErr}
               onResolve={st.resolveIntake}
+              onOpenProfile={onOpenProfile}
             />
           ) : null}
           {hired ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
