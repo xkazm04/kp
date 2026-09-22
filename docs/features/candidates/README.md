@@ -85,6 +85,9 @@ career-switcher) that other features key off. Downstream ranking is
   single-CV analysis) falls through to the default rather than painting a blank
   panel. `initialTab` is the server-side half for a caller that already knows the
   tab; a fragment in the URL wins over it.
+- **Interview kit copy** — the report's Interview tab copies its summary,
+  questions, evidence gaps, and nonempty STAR prompts to the clipboard. It
+  confirms a successful copy and reports a blocked clipboard write in place.
 - **Engine notes in the quality strip** — `QualityStrip.tsx` mixes localized chrome
   with the engine's own deterministic English check sentences, shown verbatim so a
   degraded run is not paraphrased. Each list is now headed by a localized
