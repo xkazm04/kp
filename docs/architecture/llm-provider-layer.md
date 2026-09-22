@@ -718,6 +718,10 @@ question; the section is flat now, with ruled bands rather than nested cards.
 `ModelsTab.tsx` is a `SegmentedControl` over three mutually exclusive sections,
 each its own chunk with its own fetch:
 
+The selected section is reflected in `?tab=models&modelSec=...` so a direct link
+opens the same panel. Invalid values fall back to Routing, and bare tab switches
+clear `modelSec` with the other tab-scoped view parameters.
+
 - **Routing** (`ModelsRoutingPanel.tsx`) — the per-use-case pin table.
 - **Quality** (`ModelsQualityOverview.tsx`) — the baked bench matrix: per-model
   ranking + best model per case. With no baked matrix it says so (it used to

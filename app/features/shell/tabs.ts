@@ -469,6 +469,9 @@ export const TAB_SCOPED_PARAM_KEYS = [
   "sort",
   // Analytics calibration's one-shot family deep link from the screening rules.
   "calFamily",
+  // Models section is a shareable view choice, but a bare tab switch starts
+  // the next section from its default instead of carrying stale tab state.
+  "modelSec",
   // shortlist-to-group-eval — the Decisions pre-armed group-eval selection
   // (?arm=<entryId,entryId,…>, grammar in sub_decisions/group-eval-arm.ts).
   // One-shot by design: DecisionsTab consumes it at mount then strips it via
