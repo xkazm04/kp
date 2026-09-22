@@ -14,7 +14,7 @@ import { MemberConfirmModals } from "./MemberConfirmModals";
 import { WorkspaceDetailPanel } from "./WorkspaceDetailPanel";
 import { WorkspacePeoplePanel } from "./WorkspacePeoplePanel";
 import { WorkspaceRail } from "./WorkspaceRail";
-import { copyInviteUrl, memberCounts, memberName, readError } from "./workspaceAdminHelpers";
+import { copyInviteUrl, memberCounts, memberName, memberStatusCounts, readError } from "./workspaceAdminHelpers";
 import { useWorkspaceAdmin, type MemberTeam, type OrgMemberDto } from "./useWorkspaceAdmin";
 
 // Settings -> Workspaces. The single console for teams AND the people on them.
@@ -82,6 +82,7 @@ export function WorkspaceTab() {
   const [confirmingRevoke, setConfirmingRevoke] = useState<{ token: string; email: string } | null>(null);
 
   const counts = useMemo(() => memberCounts(members), [members]);
+  const statusCounts = useMemo(() => memberStatusCounts(members), [members]);
   // Selection follows the session's workspace until the user picks another, and
   // survives a reload that reorders or drops rows.
   const selected = workspaces.find((w) => w.id === selectedId) ?? workspaces.find((w) => w.id === current) ?? workspaces[0] ?? null;
@@ -321,6 +322,7 @@ export function WorkspaceTab() {
             current={current}
             selectedId={selected?.id ?? null}
             counts={counts}
+            statusCounts={statusCounts}
             loading={loading}
             canCreate={canManageTeams && multiWorkspace}
             busy={busy}

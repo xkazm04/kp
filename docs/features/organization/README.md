@@ -685,6 +685,8 @@ The console is fully localized in all four locales from the **`workspaceAdmin`**
 namespace, split three ways: `org` (header, General panel, the onboarding-preview
 button), `members` (roster, invite row, pending invites, both destructive
 confirms, and every toast) and `permissions` (the per-user capability editor).
+Each workspace in the left rail shows its total seats and a breakdown of active,
+invited and disabled members; an unrecognized status is shown separately.
 `app/features/settings/organization/**/*.tsx` is held at eslint **`error`** for
 `i18next/no-literal-string`.
 
