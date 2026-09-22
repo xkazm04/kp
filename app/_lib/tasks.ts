@@ -34,7 +34,7 @@ import { SCAN_JOB_NAME } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
-import { fanoutItemCode, type FanoutCode, type FanoutItem } from "./task-fanout";
+import type { FanoutCode, FanoutItem } from "./task-fanout";
 import { TASK_KINDS, isTaskKind, type TaskKind } from "./task-kinds";
 import { encodeTaskLabel } from "./task-label";
 import { nextTaskToRun, type PumpEntry } from "./task-pump";
@@ -135,9 +135,7 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
     (e) => e.workspaceId === ctx.workspaceId && (wanted ? wanted.has(e.id) : preGate.has(e.stage))
   );
   const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
-  // The per-candidate ledger beside the counts (app/_lib/task-fanout.ts): WHICH
-  // entries failed, and with which code, so the drawer can retry exactly those — and
-  // a canceled run's remainder is the cohort minus these ids. Ids and codes only.
+  // Per-candidate ledger (task-fanout.ts): ids and codes only.
   const results: FanoutItem[] = [];
   ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
   let done = 0;
@@ -158,15 +156,14 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
   return { ...summary, results };
 }
 
-// A caught per-item failure as a CODE, never its message (which can carry a Python
-// traceback or the workdir path). Assigning `e.refusal` to FanoutCode is the
-// compile-time check that every AutomationRefusal has a label in the drawer.
+// A per-item failure as a CODE, never its message (task-fanout.ts). The assignment is
+// the compile-time check that every AutomationRefusal has a drawer label.
 function itemCode(err: unknown): FanoutCode {
   if (err instanceof AutomationError && err.refusal) {
     const code: FanoutCode = err.refusal;
     return code;
   }
-  return fanoutItemCode(err);
+  return "engine_failed";
 }
 
 // Draft tailored OUTREACH for a board-selected cohort — one background job that
@@ -206,8 +203,7 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
       // lang is undefined by design: outreach is a LETTER task, so runAutomationTask
       // resolves the CANDIDATE'S comms locale itself — the caller's UI locale must not
       // override it. Mirrors the single-entry `automation` handler above.
-      // `applied` is kept per item: `suppressed_*` and `already_sent` return normally
-      // but contacted nobody now, and the drawer must not count them as sent.
+      // `applied` per item: a `suppressed_*` return is not a sent letter.
       const out = await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
       results.push({ id, ok: true, applied: out.applied });
     } catch (e) {
