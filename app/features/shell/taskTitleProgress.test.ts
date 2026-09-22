@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runningTitleProgress } from "@/app/features/shell/workspaceDocumentTitle";
+import { runningTitleProgress } from "@/app/features/shell/taskTitleProgress";
 
 test("browser title uses a running task's bounded progress", () => {
   assert.equal(runningTitleProgress([
