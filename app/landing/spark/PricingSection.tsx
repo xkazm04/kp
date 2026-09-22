@@ -8,6 +8,7 @@ import { sourceRepoHref } from "@/app/_lib/source-repo";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { track } from "@/app/_lib/analytics/plausible";
 import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
+import { useStillMotion } from "./useStillMotion";
 
 /*
  * Spark pricing — four sticker tiers on one loud amber band. Same vocabulary
@@ -34,6 +35,7 @@ const TIER_STYLES = [
 
 export default function PricingSection() {
   const t = useTranslations("landing");
+  const reduceMotion = useStillMotion();
   // Shared with the Billing tab's Enterprise card — see app/_lib/sales-contact.ts.
   const tCommon = useTranslations("common");
   return (
@@ -43,6 +45,7 @@ export default function PricingSection() {
           <motion.h2
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
+            transition={reduceMotion ? { duration: 0 } : undefined}
             viewport={{ once: true, margin: "-80px" }}
             className={`${DISPLAY} text-4xl font-extrabold sm:text-5xl`}
           >
@@ -66,7 +69,7 @@ export default function PricingSection() {
                 initial={{ opacity: 0, y: 28 }}
                 whileInView={{ opacity: 1, y: 0, rotate: tier.rotate }}
                 viewport={{ once: true, margin: "-40px" }}
-                transition={{ delay: (i % 4) * 0.1, type: "spring", bounce: 0.3 }}
+                transition={reduceMotion ? { duration: 0 } : { delay: (i % 4) * 0.1, type: "spring", bounce: 0.3 }}
                 whileHover={{ rotate: 0, y: -6 }}
                 className={`${STICKER} relative flex flex-col p-6`}
               >
