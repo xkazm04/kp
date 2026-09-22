@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft, type LiveWorkChatMessage } from "./liveWorkDraft";
-import { foldMintRefusal } from "./liveWorkMint";
+import { createLiveWorkSync, DECISIONS_FILE, type LiveWorkSyncState } from "./liveWorkSync";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTICE, PANEL, PANEL_SUNKEN, toggleBtn } from "@/app/_components/ui/recipes";
 import { useTablist } from "@/app/_components/ui/useTablist";
 
@@ -19,8 +19,12 @@ type ChatChannel = (typeof CHAT_CHANNELS)[number];
 // open, edit, and decision-log entries) and flushes them + the file tree to the
 // session. The engine then grades the judgment we WATCHED, not a reconstructed git
 // log. We observe process artifacts only — never keystrokes or the screen.
+//
+// The session protocol itself (lazy mint, flush, re-buffer, refusal backoff, the
+// seal-only-after-a-landed-flush submit) lives in liveWorkSync.ts, a framework-free
+// client this component holds one of and renders from. What stays here is the page:
+// the local draft (localStorage), the chat channel, the identity fields and the timers.
 
-const DECISIONS_FILE = "DECISIONS.md";
 const FLUSH_MS = 8000;
 const EDIT_DEBOUNCE_MS = 600;
 
@@ -33,6 +37,33 @@ function useDurationLabel() {
     const h = Math.floor(m / 60);
     return h > 0 ? t("clockHm", { h, m: m % 60 }) : t("clockM", { m });
   };
+}
+
+/** The durable local copy (verifier pass 2026-07-17): the server flush is the system of
+ *  record, but it lands every FLUSH_MS and can fail for minutes, so the tree, the pending
+ *  events, the captured chat and the identity are mirrored to localStorage, scoped per
+ *  apply-token so a shared device never bleeds one candidate's draft into another's. */
+function writeDraft(
+  token: string,
+  sync: Pick<LiveWorkSyncState, "sessionId" | "files" | "pending">,
+  extra: { chat: LiveWorkChatMessage[]; name: string; contact: string }
+) {
+  if (typeof window === "undefined") return;
+  try {
+    const draft: LiveWorkDraft = {
+      sessionId: sync.sessionId,
+      files: sync.files,
+      pending: sync.pending,
+      chat: extra.chat,
+      name: extra.name,
+      contact: extra.contact,
+      savedAt: Date.now(),
+    };
+    window.localStorage.setItem(draftStorageKey(token), encodeDraft(draft));
+  } catch {
+    // localStorage can throw (quota, private-browsing lockout) — best-effort
+    // backstop, not the only copy; the in-memory buffer + server flush remain.
+  }
 }
 
 export function LiveWorkSurface({
@@ -49,16 +80,7 @@ export function LiveWorkSurface({
   timeboxHours: number;
 }) {
   const t = useTranslations("devApply.workSurface");
-  const [files, setFiles] = useState<SeedFile[]>(() => seedFiles.map((f) => ({ ...f })));
   const [activePath, setActivePath] = useState<string>(seedFiles[0]?.path ?? "");
-  const [status, setStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
-  // Why the submit failed: a 410 (intake closed) is TERMINAL — telling the
-  // candidate to "try again" against it is a retry loop into a wall. Anything
-  // else stays retryable. The reference is the OPAQUE handle the server derives
-  // from the submission id (devcase-reference.ts) — the candidate leaves with a
-  // durable, quotable handle on their work, and the internal id stays off the page.
-  const [errorKind, setErrorKind] = useState<"closed" | "generic">("generic");
-  const [submissionRef, setSubmissionRef] = useState<string | null>(null);
 
   // Identity (UAT M9): the live-work surface is the SOLE submit path for workspace
   // cases now, so it collects who to reach — a winning evaluation with no address
@@ -71,80 +93,57 @@ export function LiveWorkSurface({
   const [contact, setContact] = useState("");
   const nameRef = useRef("");
   const contactRef = useRef("");
-  const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
-  const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
   // Captured chat (LLM-era control #2): persisted in the local draft so a reload
   // does not wipe the prompt-channel evidence the candidate can see. Channel/input
   // chrome stays in-memory; only the transcript is durable here.
   const [chatMessages, setChatMessages] = useState<LiveWorkChatMessage[]>([]);
   const chatMessagesRef = useRef<LiveWorkChatMessage[]>([]);
 
-  const sessionIdRef = useRef<string | null>(null);
-  // The IN-FLIGHT mint, not a boolean. A bare "already starting" flag made
-  // ensureSession answer `null` to everyone who asked while the first POST was
-  // still on the wire — and `null` is indistinguishable from "minting failed",
-  // so a submit (or a chat) issued in that ~200ms window failed with a generic
-  // error even though the session was about to exist. Sharing the promise keeps
-  // the one-mint-per-session guarantee (the per-token/day quota is untouched)
-  // while letting concurrent callers await the same result.
-  const startingRef = useRef<Promise<string | null> | null>(null);
-  const submittingRef = useRef(false);
-  const pendingRef = useRef<ProcessEvent[]>([]);
-  const filesRef = useRef(files);
-  // Dirty flag (case-sim round 3 — every persona converged on this): the 8s tick
-  // used to resend the ENTIRE file tree on every flush, edits or not — linear
-  // waste in idle sessions, real money at scale. Files ride a flush only when
-  // something actually changed since the last successful send.
-  const filesDirtyRef = useRef(false);
-  // Mid-flight update (LLM-era controls #5): revealed by the SERVER via the flush
-  // response once the session crosses the case's afterMinutes; rendered as a
-  // stakeholder banner. The reveal moment is server-recorded in the process log.
-  const [perturbation, setPerturbation] = useState<string | null>(null);
-  // The clock. SERVER truth, refreshed by every 8s flush from the session's own
-  // createdAt, then ticked locally between flushes so the number moves. Null until the
-  // session exists: a visitor who is only reading the brief has not started anything,
-  // and inventing a start time for them would be the dishonest half.
-  const [elapsedMinutes, setElapsedMinutes] = useState<number | null>(null);
+  // One sync client per mount. Its draft writer is bound after mount (below), so the
+  // client never closes over a ref during render.
+  const [sync] = useState(() =>
+    createLiveWorkSync({
+      token,
+      seedFiles,
+      fetch: (url, init) => window.fetch(url, init),
+      now: () => Date.now(),
+      persist: () => {
+        /* bound in the effect below, before any interaction can record */
+      },
+      clearDraft: () => {
+        try {
+          window.localStorage.removeItem(draftStorageKey(token));
+        } catch {
+          // best-effort cleanup only
+        }
+      },
+    })
+  );
+  const snap = useSyncExternalStore(sync.subscribe, sync.getSnapshot, sync.getSnapshot);
+  // `refusal` is WHY the server refused (mint or submit), in the candidate's language via
+  // useErrorMessage; `syncBlocked` is a 403 on this session id (never silent: the
+  // candidate is told their work is held on this device and how to reconnect); a 410 on
+  // submit is TERMINAL (`errorKind: "closed"`); `submissionRef` is the OPAQUE handle the
+  // server derives from the submission id, so the internal id stays off the page.
+  const { files, status, errorKind, perturbation, elapsedMinutes, syncBlocked } = snap;
+  const refusal: ApiErrorPayload | null = snap.refusal;
+  const submissionRef = snap.reference;
+
+  const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
+  const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
   const timeboxMinutes = Math.round(timeboxHours * 60);
   const duration = useDurationLabel();
 
-  // Local draft persistence (harvested from case-sim round 1's winning submission,
-  // 2026-07-17). The server flush is the system of record, but it only lands every
-  // FLUSH_MS and can fail for minutes on a flaky connection — while the `files`
-  // state and pending event buffer live ONLY in memory. localStorage is the durable
-  // copy that survives a reload, a crashed tab, or an offline gap: read once on
-  // mount, written on every change, scoped per apply-token so a shared device never
-  // bleeds one candidate's draft into another's case.
   const [restored, setRestored] = useState(false);
-  // Server-side refusal of this session id for this apply link (403). Never silent:
-  // the candidate is told their work is held on this device and how to reconnect.
-  const [syncBlocked, setSyncBlocked] = useState(false);
-  // Why the SERVER refused, in the candidate's language. The mint used to fail
-  // silently — `ensureSession` answered null and nothing reached the screen — so a
-  // candidate whose apply link had closed, or whose link had spent its day of
-  // sessions, kept typing into a surface that was recording nothing and learnt about
-  // it only when Submit failed with the generic line. The refusals now carry codes
-  // (REFUSAL_ERRORS), and this is where they are read.
-  const [refusal, setRefusal] = useState<ApiErrorPayload | null>(null);
   const errMsg = useErrorMessage();
   const persistDraft = useCallback(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const draft: LiveWorkDraft = {
-        sessionId: sessionIdRef.current,
-        files: filesRef.current,
-        pending: pendingRef.current,
-        chat: chatMessagesRef.current,
-        name: nameRef.current,
-        contact: contactRef.current,
-        savedAt: Date.now(),
-      };
-      window.localStorage.setItem(draftStorageKey(token), encodeDraft(draft));
-    } catch {
-      // localStorage can throw (quota, private-browsing lockout) — best-effort
-      // backstop, not the only copy; the in-memory buffer + server flush remain.
-    }
-  }, [token]);
+    writeDraft(token, sync.getSnapshot(), {
+      chat: chatMessagesRef.current,
+      name: nameRef.current,
+      contact: contactRef.current,
+    });
+  }, [sync, token]);
+  useEffect(() => sync.setPersist(persistDraft), [sync, persistDraft]);
 
   // Resume-on-mount: runs once, client-only (no localStorage during SSR; reading it
   // during render would desync markup). A brief seed -> restored flash is accepted —
@@ -153,14 +152,8 @@ export function LiveWorkSurface({
     if (typeof window === "undefined") return;
     const draft = decodeDraft(window.localStorage.getItem(draftStorageKey(token)));
     if (!draft) return;
+    sync.hydrate({ sessionId: draft.sessionId, files: draft.files, pending: draft.pending });
     /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe), the kp ConversationalApply convention */
-    if (draft.files.length > 0) {
-      filesDirtyRef.current = true; // restored tree may be newer than the server's copy
-      filesRef.current = draft.files;
-      setFiles(draft.files);
-    }
-    if (draft.sessionId) sessionIdRef.current = draft.sessionId;
-    pendingRef.current = draft.pending;
     if (draft.chat.length > 0) {
       chatMessagesRef.current = draft.chat;
       setChatMessages(draft.chat);
@@ -181,12 +174,8 @@ export function LiveWorkSurface({
   }, []);
 
   useEffect(() => {
-    // Keep the ref current for the flush callback without re-creating the interval
-    // on every keystroke. Synced in an effect (not during render) per react-hooks/refs.
-    filesRef.current = files;
-    persistDraft();
-  }, [files, persistDraft]);
-  useEffect(() => {
+    // Keep the refs current for the sync client's persist hook. Synced in an effect
+    // (not during render) per react-hooks/refs.
     nameRef.current = name;
     contactRef.current = contact;
     persistDraft();
@@ -197,166 +186,26 @@ export function LiveWorkSurface({
   }, [chatMessages, persistDraft]);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Lazily mint the session on first interaction — never orphan a session for a
-  // visitor who only reads the brief.
-  const ensureSession = useCallback(async (): Promise<string | null> => {
-    if (sessionIdRef.current) return sessionIdRef.current;
-    // A mint is already on the wire — join it instead of reporting failure.
-    if (startingRef.current) return startingRef.current;
-    const minting = (async (): Promise<string | null> => {
-      try {
-        const r = await fetch("/api/devcase/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        if (!r.ok) {
-          // A refusal, not a fault: 404 (this link is not taking work) and 429 (this
-          // link has spent its day of sessions) are both terminal-ish and both have a
-          // code. Show it; retrying into a wall silently is the failure being fixed.
-          const payload = (await r.json().catch(() => null)) as ApiErrorPayload | null;
-          setRefusal(foldMintRefusal({ ok: false, payload }));
-          return null;
-        }
-        setRefusal(null);
-        const data = (await r.json()) as { sessionId?: string; watermark?: string };
-        sessionIdRef.current = data.sessionId ?? null;
-        // Session watermark (LLM-era controls #4): stamp the session reference into
-        // the DECISIONS log. Innocuous per-session marker — evaluation scans
-        // submissions for FOREIGN marks (a shared/relayed solution). REPLACE any
-        // prior mark rather than appending: a restored draft that self-healed onto a
-        // fresh session would otherwise carry the dead session's mark and read as
-        // circulated work.
-        if (data.watermark) {
-          filesDirtyRef.current = true; // the stamped tree must reach the server
-          setFiles((prev) =>
-            prev.map((f) => {
-              if (!f.path.endsWith(DECISIONS_FILE) || f.contents.includes(data.watermark!)) return f;
-              const stripped = f.contents.replace(/\n?Session ref: wm-[0-9a-f]{10}\n?/g, "\n");
-              return { ...f, contents: `${stripped.trimEnd()}\n\nSession ref: ${data.watermark}\n` };
-            })
-          );
-        }
-        return sessionIdRef.current;
-      } catch {
-        // Offline / DNS / CORS: the coded 404/429 path above never runs. Paint the
-        // generic workSurface.error line (null code) so the candidate is not typing
-        // into an unrecorded session; startingRef is still cleared in `finally`.
-        setRefusal(foldMintRefusal({ networkError: true }));
-        return null;
-      }
-    })();
-    startingRef.current = minting;
-    try {
-      return await minting;
-    } finally {
-      // Cleared for the first awaiter only; anyone who already grabbed the promise
-      // still resolves off it. A failed mint therefore stays retryable next tick.
-      startingRef.current = null;
-    }
-  }, [token]);
-
   const record = useCallback(
-    (kind: ProcessEvent["kind"], path?: string, size?: number) => {
-      pendingRef.current.push({ t: Date.now(), kind, path, size });
-      persistDraft();
-      void ensureSession();
-    },
-    [ensureSession, persistDraft]
-  );
-
-  // Returns whether this flush actually LANDED (the server acknowledged the batch,
-  // and the file tree with it when one rode along). The periodic tick ignores the
-  // answer — it just retries in 8s — but `submit()` must not seal a session whose
-  // final tree never arrived, so the outcome can no longer be swallowed here.
-  const flush = useCallback(
-    async (opts?: { submit?: boolean }): Promise<boolean> => {
-      // Idle-visitor guard (case-sim round 3, verifier's find): the interval used
-      // to call ensureSession unconditionally, silently minting a session every
-      // 8s for someone who only READ the brief — contradicting the lazy-mint
-      // contract above. No session and nothing to send ⇒ nothing to do.
-      if (!sessionIdRef.current && pendingRef.current.length === 0) return false;
-      const sid = await ensureSession();
-      if (!sid) return false;
-      const batch = pendingRef.current;
-      pendingRef.current = [];
-      // Files ride only when dirty (or on submit, which must capture the final
-      // tree unconditionally); an idle tick still POSTs the empty batch so the
-      // server can deliver the mid-flight update reveal.
-      const sendFiles = filesDirtyRef.current || opts?.submit;
-      try {
-        const r = await fetch(`/api/devcase/session/${sid}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // The apply token rides every mutating call: a session id alone is not
-          // authority to append events or overwrite the tree (the server re-checks it
-          // against the session's owning token and answers 403 otherwise).
-          body: JSON.stringify({ token, events: batch, ...(sendFiles ? { files: filesRef.current } : {}) }),
-          // NO `keepalive` — the same rule useTranscriptPersistence.ts already
-          // documents: keepalive caps the request body at 64KB, and THIS is the
-          // one request that must carry the complete final file tree (the server
-          // accepts 50 files x 256KB). The submit flush is an ordinary in-page
-          // request — `submit()` awaits it and then POSTs again from the same live
-          // page — so it never needed to survive an unload, while the cap silently
-          // network-errored the submissions of exactly the candidates who wrote the
-          // most.
-        });
-        if (r.status === 403) {
-          // The server refused this session id for this link. Say so instead of
-          // silently retrying forever: the draft is safe on this device, and a reload
-          // reconnects (a fresh session is minted from the token in the URL).
-          pendingRef.current = batch.concat(pendingRef.current);
-          persistDraft();
-          setSyncBlocked(true);
-          return false;
-        }
-        if (r.status === 404 || r.status === 409) {
-          // This session id is dead — the row is gone or already submitted
-          // (another tab/device won a race). Retrying the SAME id forever would
-          // spin without landing; drop it so the next ensureSession() mints a
-          // fresh one (which also re-stamps the watermark). The batch + files
-          // are still good — they just need a new session to flush into.
-          sessionIdRef.current = null;
-          pendingRef.current = batch.concat(pendingRef.current);
-          persistDraft();
-          return false;
-        }
-        if (!r.ok) throw new Error("flush failed");
-        if (sendFiles) filesDirtyRef.current = false; // the tree the server holds is current again
-        persistDraft();
-        // The server decides when the mid-flight update fires; the flush response
-        // carries it (and keeps carrying it so a reload re-renders the banner).
-        const data = (await r.json().catch(() => null)) as { perturbation?: string | null; elapsedMinutes?: number | null } | null;
-        if (data?.perturbation) setPerturbation(data.perturbation);
-        if (typeof data?.elapsedMinutes === "number") setElapsedMinutes(data.elapsedMinutes);
-        return true;
-      } catch {
-        // Network failure (offline, flaky wifi) — re-buffer so an unsent batch
-        // isn't lost, and persist locally: the next tick retries once the
-        // connection returns; if the tab dies first the draft survives anyway.
-        pendingRef.current = batch.concat(pendingRef.current);
-        persistDraft();
-        return false;
-      }
-    },
-    [ensureSession, persistDraft, token]
+    (kind: ProcessEvent["kind"], path?: string, size?: number) => sync.record(kind, path, size),
+    [sync]
   );
 
   // Tick the clock between flushes so it reads as a clock, not a value that jumps
   // every eight seconds. The server's number overwrites it on the next flush, so drift
   // never accumulates and a paused tab re-syncs rather than under-counting.
   useEffect(() => {
-    const iv = setInterval(() => setElapsedMinutes((m) => (m == null ? m : m + 1)), 60_000);
+    const iv = setInterval(() => sync.tickClock(), 60_000);
     return () => clearInterval(iv);
-  }, []);
+  }, [sync]);
 
   useEffect(() => {
-    const iv = setInterval(() => void flush(), FLUSH_MS);
+    const iv = setInterval(() => void sync.flush(), FLUSH_MS);
     return () => {
       clearInterval(iv);
       if (editTimer.current) clearTimeout(editTimer.current);
     };
-  }, [flush]);
+  }, [sync]);
 
   function selectFile(path: string) {
     if (path === activePath) return;
@@ -365,68 +214,18 @@ export function LiveWorkSurface({
   }
 
   function onEdit(path: string, contents: string) {
-    filesDirtyRef.current = true;
-    setFiles((prev) => prev.map((f) => (f.path === path ? { ...f, contents } : f)));
+    sync.edit(path, contents);
     if (editTimer.current) clearTimeout(editTimer.current);
     editTimer.current = setTimeout(() => {
       record(path.endsWith(DECISIONS_FILE) ? "decision_log" : "edit", path);
     }, EDIT_DEBOUNCE_MS);
   }
 
-  async function submit() {
-    // Synchronous in-flight guard: setStatus is async, so a fast double Enter/click
-    // could dispatch two POSTs before the button visibly disables. The ref flips
-    // immediately, so a second call is a no-op until this one settles; reset in the
-    // finally so an error is retryable (on success the submit button is gone anyway).
-    if (submittingRef.current || !canSubmit) return;
-    submittingRef.current = true;
-    setStatus("submitting");
-    record("submit", activePath);
-    try {
-      // The final flush is the ONLY thing that puts the candidate's last edits and
-      // process events on the server — `saveDevSessionFiles` is a no-op once a
-      // session is submitted, so sealing after a failed flush grades them on a
-      // stale tree AND deletes their local draft on the way out. Its outcome is
-      // now load-bearing: an unlanded flush is a retryable error that leaves the
-      // session active, the tree dirty and the draft on disk, so a second click
-      // re-sends everything.
-      const landed = await flush({ submit: true });
-      const sid = sessionIdRef.current;
-      if (!landed || !sid) {
-        setErrorKind("generic");
-        setStatus("error");
-        return;
-      }
-      const r = await fetch(`/api/devcase/session/${sid}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, candidate: name.trim(), contact: contact.trim(), locale }),
-      }).catch(() => null);
-      const ok = !!(r && r.ok);
-      if (r && r.ok) {
-        const payload = (await r.json().catch(() => null)) as { reference?: string } | null;
-        setSubmissionRef(typeof payload?.reference === "string" ? payload.reference : null);
-      } else {
-        // The 410 is still what makes this terminal, but the reason now rides a code
-        // the catalog can render — the response body used to carry an English sentence
-        // hand-copied from REFUSAL_ERRORS.POSTING_CLOSED and no code at all.
-        const payload = (await r?.json().catch(() => null)) as ApiErrorPayload | null;
-        setRefusal(payload?.code ? payload : null);
-        setErrorKind(r?.status === 410 ? "closed" : "generic");
-      }
-      setStatus(ok ? "submitted" : "error");
-      if (ok && typeof window !== "undefined") {
-        // A submitted draft is done — clear it so a later visit to this link on
-        // this device never resurrects an already-submitted attempt.
-        try {
-          window.localStorage.removeItem(draftStorageKey(token));
-        } catch {
-          // best-effort cleanup only
-        }
-      }
-    } finally {
-      submittingRef.current = false;
-    }
+  function submit() {
+    // The client carries the synchronous in-flight guard (a fast double click is a
+    // no-op until the first settles) and refuses to seal after an unlanded flush.
+    if (!canSubmit) return;
+    void sync.submit({ candidate: name.trim(), contact: contact.trim(), locale, activePath });
   }
 
   const active = files.find((f) => f.path === activePath) ?? files[0];
@@ -455,7 +254,8 @@ export function LiveWorkSurface({
     setChatMessages((prev) => [...prev, { channel: chatChannel, role: "user", text: message }]);
     setChatInput("");
     try {
-      const sid = await ensureSession();
+      // A chat message is the candidate's own click: it may cross a mint-refusal backoff once.
+      const sid = await sync.ensureSession({ explicit: true });
       if (!sid) throw new Error("no session");
       const r = await fetch(`/api/devcase/session/${sid}/chat`, {
         method: "POST",
