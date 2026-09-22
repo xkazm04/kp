@@ -73,11 +73,12 @@ export function entryLaneKey(e: Pick<Entry, "jobId" | "jobTitle">): string {
   return e.jobId ?? e.jobTitle ?? "?";
 }
 
-// Mirrors the PUBLIC event projection served by /api/pipeline/events
-// (pipeline-events-public.ts): candidateLabel is initials only, and the
-// internal entryId/archetype never reach the client (idea-4c41d103).
+// The public /api/pipeline/events projection sends initials and omits entryId;
+// the operator-only /events/recent feed adds entryId so its rows can open a
+// candidate. Archetype remains off both event payloads.
 export type PipelineEvent = {
   id: number;
+  entryId?: string | null;
   candidateLabel: string | null;
   jobTitle: string | null;
   kind: string;

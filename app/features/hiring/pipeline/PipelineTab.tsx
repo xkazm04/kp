@@ -189,6 +189,7 @@ export function PipelineTab() {
             events={s.events}
             eventVerb={eventVerb}
             relativeTime={relativeTime}
+            onOpenEntry={s.openEntryById}
           />
         </Defer>
       )}

@@ -23,12 +23,14 @@ export function PipelineActivityFeed({
   events,
   eventVerb,
   relativeTime,
+  onOpenEntry,
 }: {
   t: PipelineTabTranslator;
   eventsError: string | null;
   events: PipelineEvent[];
   eventVerb: (ev: PipelineEvent) => string;
   relativeTime: (at: string) => string;
+  onOpenEntry: (id: string) => void | Promise<void>;
 }) {
   const [page, setPage] = useState(0);
   // The window's floor, fixed at mount (a lazy initializer is the one place the
@@ -59,8 +61,9 @@ export function PipelineActivityFeed({
       ) : null}
       {shown.length > 0 ? (
         <ol className="divide-y divide-stone-200">
-          {shown.map((ev) => (
-            <li key={ev.id} className="flex items-center gap-3 px-4 py-2.5 text-base">
+          {shown.map((ev) => {
+            const entryId = ev.entryId;
+            const content = <>
               <EventDot kind={ev.kind} />
               <span className="min-w-0 flex-1 truncate text-ink">
                 <span className="font-medium">{ev.candidateLabel ?? t("candidateFallback")}</span>{" "}
@@ -68,8 +71,19 @@ export function PipelineActivityFeed({
                 {ev.jobTitle ? <span className="text-steel">· {ev.jobTitle}</span> : null}
               </span>
               <span className="shrink-0 text-sm text-steel nums">{relativeTime(ev.createdAt)}</span>
-            </li>
-          ))}
+            </>;
+            return (
+              <li key={ev.id}>
+                {entryId ? (
+                  <button type="button" onClick={() => void onOpenEntry(entryId)} className="focus-ring flex w-full items-center gap-3 px-4 py-2.5 text-left text-base hover:bg-paper">
+                    {content}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-2.5 text-base">{content}</div>
+                )}
+              </li>
+            );
+          })}
         </ol>
       ) : null}
       {recent.length > 0 ? (

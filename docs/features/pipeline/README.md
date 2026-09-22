@@ -1180,6 +1180,10 @@ reader's language.
 The candidate drawer's consent and timeline reads use `PIPELINE_ENTRY_NOT_FOUND`
 for a missing entry, matching the main entry route's localized 404 contract.
 
+Operator-only activity feed rows with an entry ID open that candidate's drawer.
+Rows without an entry ID stay readable. The public events endpoint still removes
+entry IDs and full candidate names.
+
 The board's activity feed (`PipelineActivityFeed`) renders **every** `pipeline_events`
 row, so its vocabulary is the *whole* writer vocabulary — not the board-lifecycle subset.
 `EVENT_KINDS` (`pipelineEventCatalog.ts`) is that full list (55 kinds); `EVENT_CATALOG` is
