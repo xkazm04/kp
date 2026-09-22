@@ -145,6 +145,20 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["comms.failureDetailUnknown", {}],
   ["comms.resendRejected", { reason: "No deliverable address." }],
   ["comms.resendDeadLettered", {}],
+  // Receiver health verdict + the pull-source editor (receiverHealth.ts,
+  // ChannelsReceiverPullCard.tsx).
+  ["statusNeedsAttention", {}],
+  ["receivers.healthDelivering", {}],
+  ["receivers.healthReachedNoLeads", {}],
+  ["receivers.healthPullFailing", {}],
+  ...(
+    [
+      "title", "intro", "statusOn", "statusOff", "statusFailing", "secretSet", "failingTitle", "failingHint",
+      "reachedNoLeadsHint", "urlLabel", "secretLabel", "secretPlaceholder", "secretKeepPlaceholder",
+      "clearSecret", "save", "saved", "saveFailed", "neverPulled", "pushOnly", "disableWarning",
+    ] as const
+  ).map((k): [string, Record<string, unknown>] => [`pull.${k}`, {}]),
+  ["pull.lastPull", { time: "3 days ago" }],
 ];
 
 const RICH: [string, Record<string, unknown>][] = [

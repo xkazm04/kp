@@ -13,6 +13,7 @@ import { ReceiverTable } from "@/app/features/hiring/channels/ChannelsReceiverTa
 import { AddReceiverModal } from "@/app/features/hiring/channels/ChannelsAddReceiverModal";
 import { SetupGuide, CopyChip } from "@/app/features/hiring/channels/ChannelsSetupGuide";
 import { CvSimCard } from "@/app/features/hiring/channels/ChannelsCvSimCard";
+import { ReceiverPullCard } from "@/app/features/hiring/channels/ChannelsReceiverPullCard";
 
 // Guided-forwarding Email intake (Direction ①). Receivers are a compact table (one
 // role inbox per row); "Add inbox" is a modal, so the pane is view-first. The
@@ -155,6 +156,16 @@ export function EmailIntakeWizard({
             <ForwardingNotWired receiverUrl={receiverUrl(selected.token)} role={selected.jobTitle ?? selected.jobId} />
           )}
           <CvSimCard jobId={selected.jobId} jobTitle={selected.jobTitle ?? selected.jobId} channel="email" onDone={onChanged} />
+          {/* The pull half of the selected receiver: keyed by token so switching rows
+              never carries a half-typed URL onto another receiver. */}
+          <ReceiverPullCard
+            key={selected.token}
+            receiver={selected}
+            onSaved={() => {
+              load();
+              onChanged?.();
+            }}
+          />
         </>
       ) : null}
 

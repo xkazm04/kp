@@ -5,6 +5,9 @@
 // and edge cards already carry, and coded refusals resolved by useErrorMessage.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { canSavePull, interpretPullResponse, pullPatchBody } from "./receiverPullForm";
 
 const stored = { pullUrl: "https://a.example/feed", hasPullSecret: true };
@@ -48,4 +51,11 @@ test("refusals come back as a CODE, never the body's English prose; 200 {pull} i
   const pull = { url: "https://a.example/feed", hasSecret: true, cursor: null };
   assert.deepEqual(interpretPullResponse(200, { pull }), { ok: true, pull });
   assert.deepEqual(interpretPullResponse(200, {}), { ok: false, code: null }, "a 200 without the envelope is not a save");
+
+  // The card resolves that code through useErrorMessage and never renders `.error`.
+  const card = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "ChannelsReceiverPullCard.tsx"), "utf8");
+  assert.match(card, /useErrorMessage\(\)/);
+  assert.match(card, /interpretPullResponse\(/);
+  assert.match(card, /errMsg\(outcome,/, "the refusal is localized from its code");
+  assert.doesNotMatch(card, /\.error\b/, "the server's error string is never read");
 });

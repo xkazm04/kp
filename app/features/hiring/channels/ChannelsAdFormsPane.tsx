@@ -12,6 +12,7 @@ import { ReceiverTable } from "@/app/features/hiring/channels/ChannelsReceiverTa
 import { AddReceiverModal } from "@/app/features/hiring/channels/ChannelsAddReceiverModal";
 import { SetupGuide } from "@/app/features/hiring/channels/ChannelsSetupGuide";
 import { CvSimCard } from "@/app/features/hiring/channels/ChannelsCvSimCard";
+import { ReceiverPullCard } from "@/app/features/hiring/channels/ChannelsReceiverPullCard";
 
 // Ad forms — lead-gen ad forms (LinkedIn / Meta) POST their leads at a role's
 // receiver URL. Same view-first shape as Email intake: a compact table of receivers,
@@ -96,6 +97,16 @@ export function AdFormsPane({
             })}
           />
           <CvSimCard jobId={selected.jobId} jobTitle={selected.jobTitle ?? selected.jobId} channel="boards" onDone={onChanged} />
+          {/* The pull half of the selected receiver: keyed by token so switching rows
+              never carries a half-typed URL onto another receiver. */}
+          <ReceiverPullCard
+            key={selected.token}
+            receiver={selected}
+            onSaved={() => {
+              load();
+              onChanged?.();
+            }}
+          />
         </>
       ) : null}
 

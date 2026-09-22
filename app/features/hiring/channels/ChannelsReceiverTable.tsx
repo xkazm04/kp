@@ -10,6 +10,7 @@ import { DEFAULT_LOCALE } from "@/i18n/locales";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
+import { receiverHealth } from "@/app/features/hiring/channels/receiverHealth";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { useCopyState } from "./useCopyState";
 
@@ -104,6 +105,10 @@ export function ReceiverTable({
         <tbody>
           {shown.map((h) => {
             const live = isReceiverLive(h);
+            // The verdict, not bare connectivity (receiverHealth.ts): a reached-but-empty
+            // row and a failing pull no longer read as a green Listening. The dot stays
+            // receipt-driven — it is the liveness signal, the label is the health.
+            const health = receiverHealth(h);
             const selected = selectedToken === h.token;
             const endpoint = endpointFor(h.token);
             return (
@@ -125,7 +130,7 @@ export function ReceiverTable({
                   <span className="rounded-full border border-stone-200 px-1.5 text-micro font-semibold uppercase text-steel">{h.lang ?? DEFAULT_LOCALE}</span>
                 </td>
                 <td className="px-3 py-2">
-                  <Badge tone={live ? "positive" : "neutral"} dot={live} label={live ? t("statusListening") : t("statusWaiting")} />
+                  <Badge tone={health.tone} dot={live} label={t(health.key)} />
                 </td>
                 <td className="px-3 py-2 text-right text-steel nums">{h.receivedCount}</td>
                 <td className="px-3 py-2 text-right text-steel nums">

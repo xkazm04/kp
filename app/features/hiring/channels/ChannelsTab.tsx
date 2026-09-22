@@ -13,7 +13,7 @@ import { type BadgeTone } from "@/app/_components/Badge";
 import { BTN_SECONDARY, EYEBROW, NOTICE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CHANNEL_SECTIONS, isChannelSectionId, resolveChannelSection, type ChannelSectionId } from "./channelsSections";
 import { useChannelData, simulateInbound } from "./useChannelsData";
-import { isReceiverLive } from "./useChannelsReceivers";
+import { sectionReceiverStatus } from "./receiverHealth";
 import { ChannelsTabSwitcher } from "./ChannelsTabSwitcher";
 import { ChannelsTabStage } from "./ChannelsTabStage";
 import { CHANNEL_ACCENT } from "./channelsAccent";
@@ -78,11 +78,11 @@ export function ChannelsTab() {
         : { tone: "neutral", label: t("statusNothingPublished") };
     }
     if (webhooks === null) return "pending";
-    const hooks = hooksFor(channel);
-    if (hooks.length === 0) return { tone: "neutral", label: t("statusOff") };
-    return hooks.some(isReceiverLive)
-      ? { tone: "positive", label: t("statusListening") }
-      : { tone: "info", label: t("statusConfigured") };
+    // Extended by one caution state (receiverHealth.ts): Listening is withheld while any
+    // receiver in the section is reached-but-empty or failing its pull, so a channel
+    // whose pull stopped a week ago no longer reads green at the tab.
+    const status = sectionReceiverStatus(hooksFor(channel));
+    return { tone: status.tone, label: t(status.key) };
   };
 
   const simulate = async () => {
