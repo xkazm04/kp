@@ -126,6 +126,8 @@ states — the raised footer row and the collapsed orb — so the companion neve
 lands on top of the orb. The fallback in `app/globals.css` applies only before the
 first measurement. The collapsed operations orb keeps its caption visible on
 touch devices; hover-capable pointers reveal it on hover.
+The guided demo panel can copy its run log as a plain-text transcript. If the
+browser blocks clipboard access, it exposes selectable text instead.
 
 ## Data model
 

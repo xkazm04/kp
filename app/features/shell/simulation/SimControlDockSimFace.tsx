@@ -10,7 +10,7 @@
 // action, which used to be built in SimControlDock.tsx and now lives beside the
 // only face that renders it.
 import { useState } from "react";
-import { BookOpen, Check, ChevronRight, Footprints, Pause, Play, RotateCcw, Sparkles, Square } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Copy, Footprints, Pause, Play, RotateCcw, Sparkles, Square } from "lucide-react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -92,6 +92,8 @@ export function SimControlDockSimFace({
   const t = useTranslations("pipeline.controlCenter");
   const tSim = useTranslations("simulation");
   const [resetting, setResetting] = useState(false);
+  const [copyState, setCopyState] = useState<"copied" | "failed" | null>(null);
+  const transcript = sim.log.map((line) => line.text).join("\n");
   return (
     <div className="space-y-2.5">
       {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #4): name the list
@@ -180,8 +182,26 @@ export function SimControlDockSimFace({
           >
             <BookOpen size={13} /> {t("explain")}
           </button>
+          {transcript ? (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(transcript);
+                  setCopyState("copied");
+                } catch {
+                  setCopyState("failed");
+                }
+              }}
+              className={ctrlToggle(false)}
+            >
+              <Copy size={13} aria-hidden /> {t("copyRunLog")}
+            </button>
+          ) : null}
         </div>
       </div>
+      {copyState ? <p role="status" className="text-sm text-steel">{t(copyState === "copied" ? "runLogCopied" : "runLogCopyFailed")}</p> : null}
+      {copyState === "failed" ? <textarea readOnly value={transcript} aria-label={t("runLogTranscript")} onFocus={(event) => event.currentTarget.select()} className="w-full rounded-md border border-stone-300 bg-paper p-2 text-sm text-ink" rows={5} /> : null}
     </div>
   );
 }
