@@ -1892,11 +1892,9 @@ export function jsonRefusal(code: RefusalErrorCode, status: number, extra?: Reco
 
 /** Capability gate for a write door, with a CODED refusal.
  *
- *  The three gates in app/_lib/auth/current-user.ts (`requireCapability`,
- *  `requireWorkspaceCapability`, `requireOrgCapability`) answer the authority
- *  question correctly but shape their denial as a bare `{ error: "Forbidden" }` —
- *  the one thing the client is never allowed to render (see the header of
- *  STORE_ERRORS). This wraps one of them and re-shapes ONLY the 403 into
+ *  The base `requireCapability` gate in app/_lib/auth/current-user.ts answers
+ *  a bare 403. The org and workspace gates now code their own 403s. This
+ *  wrapper re-shapes a bare 403 into
  *  FORBIDDEN_CAPABILITY plus the capability as data; 401 (no session) and 404 (a
  *  cross-org probe, from the workspace gate) pass through untouched, because
  *  neither is a capability answer.
