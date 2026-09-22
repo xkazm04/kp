@@ -163,6 +163,8 @@ The three pages share one rule set, so a visitor learns the chrome once.
   (`REVEAL_AT`), then tracks the section under the viewport's middle band via an
   `IntersectionObserver`. Sections: `#proof`, `#features`, `#voice`, `#trust`,
   `#pricing`, plus a back-to-top control. Shown from `lg` up.
+  Each About step also has a copy-link control that shares its numbered anchor in
+  the reader's language.
   - **Every label is legible at rest** — inactive entries at 55% opacity, the
     active one at full. The rail used to collapse to bare dots with only the
     active label pinned, which made it a scroll-position *readout* rather than a

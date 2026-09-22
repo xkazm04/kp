@@ -1204,6 +1204,9 @@
     }
   },
   "aboutPage": {
+    "copyStepLink": "Link zu {step} kopieren",
+    "stepLinkCopied": "Link zum Schritt kopiert",
+    "stepLinkCopyFailed": "Der Link konnte nicht kopiert werden. Verwenden Sie die Adresszeile Ihres Browsers.",
     "nav": {
       "home": "Startseite",
       "signIn": "Anmelden",

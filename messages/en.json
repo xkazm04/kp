@@ -1204,6 +1204,9 @@
     }
   },
   "aboutPage": {
+    "copyStepLink": "Copy link to {step}",
+    "stepLinkCopied": "Step link copied",
+    "stepLinkCopyFailed": "Couldn't copy the link. Use your browser's address bar instead.",
     "nav": {
       "home": "Home",
       "signIn": "Sign in",

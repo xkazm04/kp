@@ -1204,6 +1204,9 @@
     }
   },
   "aboutPage": {
+    "copyStepLink": "Kopírovat odkaz na krok {step}",
+    "stepLinkCopied": "Odkaz na krok zkopírován",
+    "stepLinkCopyFailed": "Odkaz se nepodařilo zkopírovat. Použijte adresní řádek prohlížeče.",
     "nav": {
       "home": "Domů",
       "signIn": "Přihlásit se",
