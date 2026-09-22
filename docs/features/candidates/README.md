@@ -102,6 +102,7 @@ career-switcher) that other features key off. Downstream ranking is
   locale catalogs.
   The issued date, including the date in stale-state explanations, uses the
   reader's locale instead of a raw ISO day.
+  The public card offers a print/PDF action; its controls disappear from print.
   Since /perfect wave 20 the card matches its sibling doors in three further ways:
   it carries a **`LanguageSwitcher`** (it is shared with employers and reached from
   a link, so the reader's language is whatever the link carried, and this was the

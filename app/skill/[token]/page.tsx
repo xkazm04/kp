@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { PrintCredentialButton } from "./PrintCredentialButton";
 
 // The credential PAGE was the only public token door with no throttle at all: its
 // sibling /api/skill-profile/[token]/verify has had 30/10min per client since the
@@ -30,6 +31,7 @@ export const instant = false;
 export default async function SkillProfilePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslations("skillProfile");
+  const tReport = await getTranslations("report");
   const format = await getFormatter();
   // An RSC page has no NextRequest, so the client address comes off the request
   // headers the same way a route handler resolves it (clientIpFrom -> the trusted-
@@ -40,7 +42,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   if (!rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)) {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end print:hidden">
           <LanguageSwitcher />
         </div>
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
@@ -101,7 +103,8 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           reached from a link in a letter, so the reader's language is whatever the
           link carried — and until now this was the one door with no way out of a
           language they do not read. */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2 print:hidden">
+        <PrintCredentialButton label={tReport("print")} />
         <LanguageSwitcher />
       </div>
       <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
