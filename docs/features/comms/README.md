@@ -444,6 +444,8 @@ was recorded (silence beats an invented rationale; the plain template ships inst
   their age) and `filtered` is raised so a recruiter can see the filter fired. A fully
   filtered gap list does **not** fall through to the derived unmet-requirement list —
   that would route around the filter.
+- German and French protected-attribute stems follow the same whole-line drop
+  rule, including inflected age, pregnancy, nationality, and disability terms.
 - **The Czech patterns are stems with an open suffix under `/u`, not `\b…\b`.** JS's
   `\b` is ASCII-only, so a diacritic is not a word character: `\bpohlaví\b` could never
   match the word at all, and `\bvěk\b` matched only the bare nominative while "věku" /

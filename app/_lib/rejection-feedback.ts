@@ -49,6 +49,10 @@ const PROTECTED_PATTERNS: readonly RegExp[] = [
   // Unicode-aware non-letter (or the start of the line) and the tail is left open, so
   // every Czech inflection of the stem is caught.
   /(?:^|[^\p{L}\p{N}_])(?:věk|pohlav|těhoten|mateřsk|rodinn|národnost|občanstv|nábožen|zdravotn|invalid)/iu,
+  // German and French free-text reasons use the same whole-line fail-closed rule.
+  // Match stems after a Unicode-aware word start so inflected forms are covered.
+  /(?:^|[^\p{L}\p{N}_])(?:alt(?:e|er|es|en)?(?![\p{L}])|alter|geburt|geschlecht|schwanger|mutterschaft|familienstand|verheirat|kinderbetreu|staatsangehör|nationalität|herkunft|ethni|religion|gesundheit|behinder|krankheit|gewerkschaft|sexuell)/iu,
+  /(?:^|[^\p{L}\p{N}_])(?:âge|âg|age|naissance|sexe|genre|femme|homme|enceinte|grossess|maternit|maternité|marié|marie|enfant|nationalit|nationalité|citoyennet|citoyenneté|origine|ethni|religion|religieu|santé|sante|handicap|maladie|syndicat|orientation sexuelle)/iu,
 ];
 
 export type FeedbackSource = "recorded_gaps" | "unmet_requirements" | "none";
