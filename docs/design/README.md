@@ -771,8 +771,10 @@ attribute holding an arrow function does not end the tag early.
 
 ### One size vocabulary across the field primitives (2026-09-04)
 
-`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`
-also accepted `size` as a back-compat alias, and all 34 of its call sites that set
+`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `TextArea`
+also offers opt-in `autoGrow` for notes that expand with their content and scroll
+after 320px, while fields with fixed rows keep their chosen height. `Select` also
+accepted `size` as a back-compat alias, and all 34 of its call sites that set
 a size had taken *that* spelling — zero used `sizeVariant` — so the primitive that
 owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
