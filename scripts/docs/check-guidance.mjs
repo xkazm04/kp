@@ -305,8 +305,10 @@ const REMEDY_PATH = /(?<![\w./@-])((?:\.{1,2}\/)?[\w.-]+(?:\/[\w.-]+)+\.(?:mjs|c
 /**
  * Pure. `[{line, ref}]` for every runnable path an instructing line names.
  *
- * Two exclusions, and both are the rule rather than leniency:
+ * Three exclusions, all part of the rule rather than leniency:
  *
+ * - **Shell comments are not emitted.** A hook's managed-block marker may name
+ *   an installer, but it is not part of the refusal shown to a contributor.
  * - **Narration is not instruction.** A script logging `write … scripts/x.mjs`
  *   is reporting, and reporting it as an unreachable remedy is the
  *   false-positive class that gets a rule suppressed.

@@ -17,7 +17,8 @@ const read = (rel: string) => readFileSync(path.join(HERE, rel), "utf8");
 test("quick-apply done screen renders the status link", () => {
   const src = read("QuickApplyForm.tsx");
   assert.match(src, /statusToken/, "the done state carries the statusToken from the POST response");
-  assert.match(src, /\/status\/\$\{done\.statusToken\}/, "the done screen links to /status/<token>");
+  assert.match(src, /const statusPath = done\.statusToken \? `\/status\/\$\{encodeURIComponent\(done\.statusToken\)\}` : null/, "the done screen builds a safe /status/<token> path");
+  assert.match(src, /href=\{statusPath\}/, "the done screen links to the status path");
   assert.match(src, /t\("trackStatus"\)/, "the link uses the shared apply.trackStatus label");
 });
 

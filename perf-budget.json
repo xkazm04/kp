@@ -31,31 +31,46 @@
   "slackPercent": 15,
   "entries": {
     "app/page.tsx": {
-      "maxModules": 1307,
-      "maxKb": 8082,
-      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on"
+      "maxModules": 1370,
+      "maxKb": 8700,
+      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on. Raised 1307/8082 to 1370/8700 on 2026-09-22 after the journeys, interview director and feedback-letter streams merged: the combined tree measures 1364 modules / 8649 KB against the previous green main's 1287 / 7846. The homepage already imports the shared workspace shell, so replacing its direct session import did not reduce this graph; this ceiling records the actual merged cost with little headroom"
     },
     "app/_lib/llm-config.ts": {
       "maxModules": 19,
-      "maxKb": 297,
-      "why": "a hub module: its graph is multiplied across every importer, which is how a barrel import in ONE file inflated a hundred routes (57 modules -> 13 after the sweep). Raised 294 -> 297 KB on 2026-09-21: the module SET on this path is byte-for-byte the one that was recorded (16 modules against a ceiling of 19, no module added or removed since 51d1fc479) — the 10 KB is db/core.ts's DDL growing by six tables' worth of columns, db/llm.ts by two, tenancy.ts by one. There is no import to remove, and a ceiling that fires on a 3% text edit to a file already on the path is measuring the wrong thing. The module ceiling is what guards this hub and it is untouched"
+      "maxKb": 320,
+      "why": "a hub module: its graph is multiplied across every importer, which is how a barrel import in ONE file inflated a hundred routes (57 modules -> 13 after the sweep). Raised 294 -> 297 KB on 2026-09-21: the module SET on this path is byte-for-byte the one that was recorded (16 modules against a ceiling of 19, no module added or removed since 51d1fc479) — the 10 KB is db/core.ts's DDL growing by six tables' worth of columns, db/llm.ts by two, tenancy.ts by one. Raised 297 -> 320 KB on 2026-09-22 for the merged interview and journey tables in db/core.ts: 318 KB measured, still under the unchanged 19-module ceiling"
     },
     "app/_lib/job-ingest.ts": {
       "maxModules": 28,
-      "maxKb": 377,
-      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes. Raised 351 -> 375 KB on 2026-09-16: app/_lib/db/core.ts grew by the four job-seeker tables' DDL (+114 lines) and core.ts is on this path; no new module was added. Raised 375 -> 377 KB on 2026-09-21: one 6 KB store module joined the path (db/job-translations.ts, the per-locale job copy the ingest writes) and core.ts grew another 6 KB of DDL; 27 modules against a ceiling of 28, so the module ceiling still holds it"
+      "maxKb": 400,
+      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes. Raised 351 -> 375 KB on 2026-09-16: app/_lib/db/core.ts grew by the four job-seeker tables' DDL (+114 lines) and core.ts is on this path; no new module was added. Raised 375 -> 377 KB on 2026-09-21: one 6 KB store module joined the path (db/job-translations.ts, the per-locale job copy the ingest writes) and core.ts grew another 6 KB of DDL. Raised 377 -> 400 KB on 2026-09-22 for the combined interview and journey schema; 399 KB measured and the 28-module ceiling remains"
     }
   },
   "groups": {
     "app/api/**/route.ts": {
       "maxModules": 225,
-      "maxKb": 2850,
-      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly. Raised 2663 -> 2700 on 2026-09-05 when two independently gated trees merged (the /tiger LLM use-case catalog + call provenance, and /perfect round 45 voice metering): 28 routes measured 2665-2690 KB, a 1% overshoot with no single new import to remove; the next --tighten should bring it back down. Raised 2700 -> 2850 on 2026-09-16 (candidate-jobseeker spark): the baseline commit 83f4979f was already at 2729 KB on the top route (a 1% overshoot nobody had answered), and the branch adds ~2% across every route on the task hub's path through core.ts DDL for four tables, fourteen error codes and the scheduler registry — no new module (the scan itself is late-bound, see task-external-runners.ts); modules stay at 222 against 225. The next --tighten should bring it back down",
+      "maxKb": 3000,
+      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly. Raised 2663 -> 2700 on 2026-09-05 when two independently gated trees merged (the /tiger LLM use-case catalog + call provenance, and /perfect round 45 voice metering): 28 routes measured 2665-2690 KB, a 1% overshoot with no single new import to remove. Raised 2700 -> 2850 on 2026-09-16 (candidate-jobseeker spark): the baseline commit 83f4979f was already at 2729 KB on the top route and the branch adds core.ts DDL and scheduler code. Raised 2850 -> 3000 KB on 2026-09-22 after merging interview director and journey analytics: the common db/core.ts and task graph grew, with ordinary affected routes measuring 2943-2990 KB; module ceiling remains 225 and larger routes have named overrides",
       "overrides": {
         "app/api/agents/hire-from-need/route.ts": {
-          "maxModules": 225,
-          "maxKb": 2900,
-          "why": "the one route above the group's p95 after the stage-hook cut of 2026-09-21 (224 modules / 2873 KB against 225 / 2850, every other route 219 or below). Named here rather than bought with a group raise, which is what this file says an outlier gets: it reaches the task hub through repo-scan.ts, so it pays for the devcase, group-eval and companion runners on top of the hiring graph. THE REAL CUT is moving those runners behind app/_lib/task-external-runners.ts the way jobseeker_scan already is (~220 KB off EVERY route, not just this one); until somebody does that, this number says which route is waiting on it. The module ceiling is unchanged"
+          "maxModules": 230,
+          "maxKb": 3050,
+          "why": "This route reaches the task hub through repo-scan.ts and pays for devcase, group-eval and companion runners on top of hiring. Raised 225/2900 to 230/3050 on 2026-09-22 after the merged tree measured 229 modules / 3008 KB. Moving those runners behind task-external-runners.ts remains the structural cut"
+        },
+        "app/api/decisions/feedback-letters/[id]/redraft/route.ts": {
+          "maxModules": 227,
+          "maxKb": 3000,
+          "why": "The new feedback-letter redraft route joins the task and decision graphs; the merged tree measures 226 modules / 2979 KB. Named instead of lifting the group module ceiling"
+        },
+        "app/api/devcase/lifecycle/[id]/approve/route.ts": {
+          "maxModules": 228,
+          "maxKb": 3000,
+          "why": "The lifecycle approval route reaches both devcase and task hubs; the merged tree measures 227 modules / 2974 KB. Named instead of lifting the group module ceiling"
+        },
+        "app/api/status/[token]/letter/route.ts": {
+          "maxModules": 227,
+          "maxKb": 3010,
+          "why": "The candidate letter route joins status and feedback-letter graphs; the merged tree measures 226 modules / 2990 KB. Named instead of lifting the group module ceiling"
         }
       }
     }

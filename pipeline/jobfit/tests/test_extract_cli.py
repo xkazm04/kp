@@ -50,7 +50,7 @@ class ExtractCliErrorBranchesTest(unittest.TestCase):
         self.assertEqual(out.strip(), "", "a failure prints nothing on stdout")
 
     def test_an_extractor_fault_is_an_engine_error(self) -> None:
-        with mock.patch.object(extract_cli, "extract_text", side_effect=RuntimeError("pypdf exploded")):
+        with mock.patch.object(extract_cli, "extract_text_with_stats", side_effect=RuntimeError("pypdf exploded")):
             rc, _out, err = _run(["cv.pdf"])
         env = _last_json(err)
         self.assertEqual((env["status"], env["code"]), (500, "engine_error"))
@@ -61,14 +61,14 @@ class ExtractCliErrorBranchesTest(unittest.TestCase):
         # Non-vacuity: a word outside _cli.ERROR_CODES resolves to no errors.<CODE>
         # catalog key and would be rendered as raw English in every locale.
         for exc in (ValueError("Unsupported file type: .rtf"), OSError("disk gone")):
-            with mock.patch.object(extract_cli, "extract_text", side_effect=exc):
+            with mock.patch.object(extract_cli, "extract_text_with_stats", side_effect=exc):
                 _rc, _out, err = _run(["cv.pdf"])
             self.assertIn(_last_json(err)["code"], _cli.ERROR_CODES)
 
     def test_the_envelope_is_one_line_of_unescaped_utf8(self) -> None:
         # parseStderrError reads the LAST line of stderr, and a \\uXXXX-escaped Czech
         # message would reach the reader mangled.
-        with mock.patch.object(extract_cli, "extract_text", side_effect=ValueError("nečitelný dokument")):
+        with mock.patch.object(extract_cli, "extract_text_with_stats", side_effect=ValueError("nečitelný dokument")):
             _rc, _out, err = _run(["cv.pdf"])
         self.assertEqual(len([ln for ln in err.splitlines() if ln.strip()]), 1)
         self.assertIn("nečitelný", err)

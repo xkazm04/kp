@@ -1817,7 +1817,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "await readTextWithLimit(request, MAX_WEBHOOK_BODY_BYTES)",
     // "Billing is not configured" costs an env read and tells an operator their
     // setup is incomplete — it must keep answering while the window is spent.
-    servedBefore: '{ error: "Billing is not configured." }',
+    servedBefore: 'jsonRefusal("BILLING_NOT_CONFIGURED", 503)',
   },
   {
     rel: "./billing/checkout/route.ts",

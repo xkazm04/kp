@@ -191,7 +191,7 @@ test("OfferClient: the decline confirm is a real MODAL alertdialog on the shared
 
 test("OfferClient: the deadline is formatted in ONE named zone, never the viewer's", () => {
   const src = read(OFFER_CLIENT);
-  assert.match(src, /formatOfferDeadline\(offer\.expiresAt, locale\)/, "the label must go through the shared formatter");
+  assert.match(src, /formatOfferDeadline\(offer\.expiresAt, locale, offer\.timeZone\)/, "the label must go through the shared formatter with the offer's zone");
   assert.ok(
     !/dateStyle: "medium", timeStyle: "short"/.test(src),
     "the viewer-zone Intl call is the bug — one instant read as three calendar days"

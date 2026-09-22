@@ -39,6 +39,12 @@ this page in `scripts/docs/feature-doc-map.json`: `check-doc-sync.mjs`,
 `evaluate()` change has to reach this file (or carry a `Doc-sync:` trailer).
 Fixtures under `__tests__/` stay unmapped on purpose.
 
+`guidance:check` also reads the hook messages that tell a blocked contributor
+how to repair a failure. A literal script path in an emitted instruction must
+resolve from the repository root, where the hook runs. Shell comment lines,
+including managed-block markers, are not emitted instructions; paths assembled
+from a configured registry location are checked when the hook prints them.
+
 ## Lens 1 — the constitution check (deterministic)
 
 ```bash
