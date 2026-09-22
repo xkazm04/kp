@@ -115,6 +115,7 @@ from .companion_brain import (
     recall,
     session_tag,
     surface_recall,
+    workspace_of,
 )
 from .i18n import language_directive, normalize_lang
 from .llm.registry import resolve_provider
@@ -506,7 +507,7 @@ def run_turn(turn: dict) -> dict:
         # very query, so raw recall would hand the message straight back.
         # surface_recall drops that echo and the operator's same-day commands
         # before either the prompt or the dock ever sees them.
-        hits = surface_recall(message, recall(message, RECALL_LIMIT))
+        hits = surface_recall(message, recall(message, RECALL_LIMIT, workspace_id=workspace_of(session)))
     raw, source, fallbackReason = _complete(
         _build_prompt(message, hits, turn.get("grounding"), turns), locale, catalog, memory=memory
     )
@@ -555,7 +556,7 @@ def run_digest(turn: dict) -> dict:
     if memory:
         ensure_brain()
         query = _digest_query(grounding)
-        hits = surface_recall(query, recall(query, RECALL_LIMIT))
+        hits = surface_recall(query, recall(query, RECALL_LIMIT, workspace_id=workspace_of(session)))
     prompt = (
         "WHAT THE STUDIO LOOKS LIKE RIGHT NOW (the only facts you may state as facts):\n"
         f"{json.dumps(grounding, ensure_ascii=False, indent=1) if grounding else '(no grounding was provided)'}\n\n"

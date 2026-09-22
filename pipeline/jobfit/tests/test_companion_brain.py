@@ -237,15 +237,32 @@ class CompanionBrainTestCase(unittest.TestCase):
     def test_recall_finds_an_appended_episode(self):
         brain.append_episode("user", "The devcase for the platform role needs a rubric.", "kp-workspace")
         brain.append_episode("assistant", "Unrelated chatter about the weather.", "kp-workspace")
-        hits = brain.recall("rubric devcase", limit=6)
+        hits = brain.recall("rubric devcase", limit=6, workspace_id="workspace")
         self.assertNotEqual(hits, [], "recall returned nothing for a query that matches an appended episode")
         self.assertIn("rubric", hits[0]["excerpt"])
         self.assertEqual(brain.read_episode(hits[0]["path"]).splitlines()[-1], "The devcase for the platform role needs a rubric.")
 
     def test_recall_is_empty_rather_than_raising_on_a_useless_query(self):
         brain.append_episode("user", "anything", "kp-workspace")
-        self.assertEqual(brain.recall("   ", limit=6), [])
-        self.assertEqual(brain.recall("zzzznotpresent", limit=6), [])
+        self.assertEqual(brain.recall("   ", limit=6, workspace_id="workspace"), [])
+        self.assertEqual(brain.recall("zzzznotpresent", limit=6, workspace_id="workspace"), [])
+
+    def test_recall_never_crosses_a_workspace(self):
+        # Every episode is indexed with the workspace its session belongs to
+        # (kp-<ws>[:<thread>]); recall must only ever return the caller's own.
+        # Before this, one team's companion could surface another team's turns.
+        brain.append_episode("user", "Offer for Jana Novakova is 95k.", "kp-team-a:t1")
+        brain.append_episode("user", "Offer for the platform lead is pending.", "kp-team-b")
+        a = brain.recall("offer", limit=6, workspace_id="team-a")
+        b = brain.recall("offer", limit=6, workspace_id="team-b")
+        self.assertEqual([h["excerpt"] for h in a], ["Offer for Jana Novakova is 95k."])
+        self.assertEqual([h["excerpt"] for h in b], ["Offer for the platform lead is pending."])
+        self.assertEqual(brain.recall("offer", limit=6, workspace_id="team-c"), [])
+
+    def test_recall_requires_the_workspace(self):
+        # Fail closed: an unscoped recall is not a default, it is a TypeError.
+        with self.assertRaises(TypeError):
+            brain.recall("offer", limit=6)  # type: ignore[call-arg]
 
     # -- surfacing -----------------------------------------------------------
     #

@@ -342,9 +342,14 @@ def _fts_quote(term: str) -> str:
     return '"' + term.replace('"', '""') + '"'
 
 
-def recall(query: str, limit: int = 6) -> list[dict]:
-    """BM25 over the brain-local index. Returns excerpts + relative paths; the
-    caller reads full bodies with ``read_episode`` when it wants them.
+def recall(query: str, limit: int = 6, *, workspace_id: str) -> list[dict]:
+    """BM25 over the brain-local index, scoped to ONE workspace. Returns excerpts
+    + relative paths; the caller reads full bodies with ``read_episode`` when it
+    wants them.
+
+    ``workspace_id`` is required and keyword-only: every episode is indexed with
+    the workspace its session belongs to (``workspace_of``), and an unscoped
+    recall would hand one team's conversations to another team's companion.
 
     An empty or unmatchable query returns [] rather than raising — a companion
     turn must never fail because recall found nothing."""
@@ -359,9 +364,10 @@ def recall(query: str, limit: int = 6) -> list[dict]:
                  FROM companion_brain_fts f
                  JOIN companion_brain_index i ON i.node_id = f.node_id
                 WHERE companion_brain_fts MATCH ?
+                  AND i.workspace_id = ?
              ORDER BY bm25(companion_brain_fts) ASC
                 LIMIT ?""",
-            (match, max(1, int(limit))),
+            (match, (workspace_id or DEFAULT_WORKSPACE_ID).strip() or DEFAULT_WORKSPACE_ID, max(1, int(limit))),
         ).fetchall()
     except sqlite3.OperationalError:
         # A malformed MATCH expression (an operator character survived quoting)

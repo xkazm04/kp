@@ -175,6 +175,12 @@ consent is only ever recorded over a brain that exists.
 | kp mirror | `kp.sqlite` `companion_brain_index` | best effort |
 | Personas | `personas_data.db` `companion_node` + `companion_fts` | best effort |
 
+`recall(query, limit, *, workspace_id)` is scoped to ONE workspace and the
+argument is required: every episode row carries the workspace its session
+belongs to (`kp-<ws>[:<thread>]`, see `workspace_of`), and both companion legs
+pass `workspace_of(session)`. Before 2026-09-23 recall ignored that column, so on
+a multi-team install one team's companion could surface another team's turns.
+
 An index that cannot be written is named in the return value's `skipped` list
 and never fails the append. Deleting a database loses an index; only deleting
 the tree loses a memory.
