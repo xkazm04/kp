@@ -4933,6 +4933,7 @@
           "startHint": "Startet einen Sprachanruf. Das Gespräch wird transkribiert und das Briefing füllt sich danach von selbst.",
           "stop": "Anruf beenden",
           "connecting": "Verbindung wird hergestellt…",
+          "cancelConnect": "Verbindung abbrechen",
           "processing": "Anruf wird ausgewertet…",
           "unavailable": "Sprache ist auf diesem Server nicht eingerichtet. Bitte im Text fortfahren.",
           "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",

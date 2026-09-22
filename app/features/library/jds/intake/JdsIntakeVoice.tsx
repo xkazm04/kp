@@ -116,6 +116,7 @@ export function JdsIntakeVoice({
   const rafRef = useRef<number | null>(null);
   const dropTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectAbortRef = useRef<AbortController | null>(null);
+  const connectAttemptRef = useRef(0);
   const asstBufRef = useRef("");
   const candBufRef = useRef("");
   const pendingCandidateRef = useRef(false);
@@ -256,6 +257,7 @@ export function JdsIntakeVoice({
 
   const start = async () => {
     if (phase !== "idle" || disabled) return;
+    const attempt = ++connectAttemptRef.current;
     dispatchUi({ type: "start" });
     finalizedRef.current = false;
     reachedLiveRef.current = false;
@@ -266,17 +268,18 @@ export function JdsIntakeVoice({
     const requestTimer = window.setTimeout(() => requestAbort.abort(), VOICE_CONNECT_REQUEST_TIMEOUT_MS);
     try {
       const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-connect`, { method: "POST", signal: requestAbort.signal });
-      if (finalizedRef.current) return;
+      if (finalizedRef.current || attempt !== connectAttemptRef.current) return;
       if (!res.ok) {
         // The mint refused with a code — keyless install, closed session, rate
         // limit. Each of those already has its own sentence in the catalogs.
-        dispatchUi({ type: "connectFailed", failure: await failureOf(res) });
+        const failure = await failureOf(res);
+        if (!finalizedRef.current && attempt === connectAttemptRef.current) dispatchUi({ type: "connectFailed", failure });
         return;
       }
       connect = ((await res.json()) as { connect: { model: string; clientSecret: string; callsUrl: string } }).connect;
-      if (finalizedRef.current) return;
+      if (finalizedRef.current || attempt !== connectAttemptRef.current) return;
     } catch {
-      if (!finalizedRef.current) dispatchUi({ type: "connectFailed", failure: { kind: "transport" } });
+      if (!finalizedRef.current && attempt === connectAttemptRef.current) dispatchUi({ type: "connectFailed", failure: { kind: "transport" } });
       return;
     } finally {
       window.clearTimeout(requestTimer);
@@ -295,9 +298,10 @@ export function JdsIntakeVoice({
         },
         setSpeaking: markSpeaking,
         setUnstable: () => {},
-        setAudioBlocked: (value) => dispatchUi({ type: "audioBlocked", value }),
-        setAwaitingMic: (value) => dispatchUi({ type: "awaitingMic", value }),
+        setAudioBlocked: (value) => { if (attempt === connectAttemptRef.current) dispatchUi({ type: "audioBlocked", value }); },
+        setAwaitingMic: (value) => { if (attempt === connectAttemptRef.current) dispatchUi({ type: "awaitingMic", value }); },
         setLive: () => {
+          if (attempt !== connectAttemptRef.current) return;
           dispatchUi({ type: "live" });
           // Continue the SAME conversation: speak the pending question from
           // the text thread instead of restarting.
@@ -307,15 +311,24 @@ export function JdsIntakeVoice({
         clearConnectTimer: () => {},
         // A terminal drop keeps everything already persisted; recovery posts
         // whatever was still in flight.
-        onDrop: () => void finish(),
+        onDrop: () => { if (attempt === connectAttemptRef.current) void finish(); },
       });
     } catch (error) {
+      if (attempt !== connectAttemptRef.current) return;
       teardownOpenAi(refs(), { setSpeaking: markSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
       // A blocked microphone is the most common failure here AND the only one
       // the requestor can fix themselves — it gets the browser-permission line,
       // not the generic "the call didn't go through".
       dispatchUi({ type: "connectFailed", failure: micFailure(error) });
     }
+  };
+
+  const cancelConnect = () => {
+    connectAttemptRef.current += 1;
+    finalizedRef.current = true;
+    connectAbortRef.current?.abort();
+    teardownOpenAi(refs(), { setSpeaking: markSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
+    dispatchUi({ type: "cancelConnect" });
   };
 
   useEffect(() => {
@@ -379,7 +392,10 @@ export function JdsIntakeVoice({
           {t("start")}
         </button>
       ) : phase === "connecting" ? (
-        <span className="self-center text-meta text-steel">{ui.awaitingMic ? tMic("awaitingMic") : t("connecting")}</span>
+        <span className="flex flex-wrap items-center gap-2 self-center">
+          <span className="text-meta text-steel">{ui.awaitingMic ? tMic("awaitingMic") : t("connecting")}</span>
+          <button type="button" onClick={cancelConnect} className={`${BTN_GHOST} h-8 px-2 text-sm`}>{t("cancelConnect")}</button>
+        </span>
       ) : phase === "processing" ? (
         <span className="self-center text-meta text-steel">{t("processing")}</span>
       ) : (

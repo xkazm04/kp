@@ -4933,6 +4933,7 @@
           "startHint": "Zahájí hlasový hovor. Konverzace se přepisuje a zadání se potom doplní samo.",
           "stop": "Ukončit hovor",
           "connecting": "Připojování…",
+          "cancelConnect": "Zrušit připojování",
           "processing": "Zapisuje se hovor…",
           "unavailable": "Hlas není na tomto serveru nastavený. Pokračujte textem.",
           "failed": "Hovor se nepodařilo spustit. Pokračujte textem.",

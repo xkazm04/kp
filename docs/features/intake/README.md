@@ -647,6 +647,9 @@ same conversation.
 The `/voice-connect` credential request has a 15-second abort deadline, so a
 stalled mint returns to the idle state with a transport failure rather than
 leaving the composer in Connecting indefinitely.
+While Connecting, Cancel aborts the credential request or tears down the pending
+microphone/WebRTC connection. A canceled attempt returns to idle without an error,
+and late callbacks from it cannot repaint a later attempt.
 
 Three rules the client half enforces, all unit-pinned:
 

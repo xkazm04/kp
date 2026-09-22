@@ -4933,6 +4933,7 @@
           "startHint": "Démarre un appel vocal. La conversation est transcrite et le brief se remplit ensuite tout seul.",
           "stop": "Terminer l’appel",
           "connecting": "Connexion…",
+          "cancelConnect": "Annuler la connexion",
           "processing": "Rédaction de l’appel…",
           "unavailable": "La voix n’est pas configurée sur ce serveur. Continuez par écrit.",
           "failed": "L’appel n’a pas abouti. Continuez par écrit.",

@@ -4933,6 +4933,7 @@
           "startHint": "Start a voice call. The conversation is transcribed and the brief fills itself afterwards.",
           "stop": "End call",
           "connecting": "Connecting…",
+          "cancelConnect": "Cancel connection",
           "processing": "Writing up the call…",
           "unavailable": "Voice isn't configured on this server. Continue in text.",
           "failed": "The call didn't go through. Continue in text.",
