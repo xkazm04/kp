@@ -146,10 +146,10 @@ pickers carry `multiple` and its empty drop zone reads the whole
 `dataTransfer.files` list — `AnalyzeProfileInput.addFiles` is the one cap/gate
 choke point they all pass through (`useAnalyzeFileAccept`), it stops at the first
 rejection so the gate's inline message survives, and a batch past the cap ends on
-the same `variantLimitReject` row a single over-cap drop shows. Still single-file:
-the window-level "drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`, which
-routes `dataTransfer.files[0]`) and the JD/company zones, which hold one file by
-design. The saved-JD picker distinguishes an empty library from a failed load —
+the same `variantLimitReject` row a single over-cap drop shows. The window-level
+"drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`) now routes the full
+`dataTransfer.files` batch through that same choke point. JD/company zones hold
+one file by design. The saved-JD picker distinguishes an empty library from a failed load —
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 

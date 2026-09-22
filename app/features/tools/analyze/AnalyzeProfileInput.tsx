@@ -70,7 +70,7 @@ export function AnalyzeProfileInput({
   // the single-file fallback the hook's signature still expects.
   const { isOver: isOverDropzone, dragProps } = useDropZoneHighlight(addFile);
 
-  const isWindowDragging = useGlobalFileDrag(addFile);
+  const isWindowDragging = useGlobalFileDrag(addFiles);
 
   // Drop-anywhere affordance: a full-window overlay while a file is dragged over
   // the page (pointer-events-none so the underlying drop targets still receive it).
@@ -212,4 +212,3 @@ export function AnalyzeProfileInput({
     />
   );
 }
-
