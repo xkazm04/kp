@@ -12,6 +12,7 @@ import { TextArea } from "@/app/_components/TextArea";
 import { formatOptionalFraction } from "./archetypeBannerView";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
+import { PANEL_ACCENT } from "@/app/_components/ui/recipes";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -124,7 +125,7 @@ export function ArchetypeBanner({
   };
 
   return (
-    <div className="rounded-lg border border-coral/30 bg-coral/5 p-4 shadow-panel">
+    <div className={`${PANEL_ACCENT} p-4`}>
       <div className="flex flex-wrap items-center gap-2">
         <Sparkles size={16} className="text-coral" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>

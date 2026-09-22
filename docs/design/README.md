@@ -570,6 +570,10 @@ A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.
 
+`PANEL_ACCENT` is the coral-tinted raised panel for high-signal summaries such
+as the report's Archetype banner. It uses the shared `shadow-pop` token, so its
+depth follows both themes.
+
 ## Type & motion (shared by both themes)
 
 - Type scale: `display 36 / h2 22 / h3 16 / body 16 / meta+micro 14` — nothing
