@@ -597,9 +597,8 @@ function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; 
     params.entry = filter.entryEligible ? 1 : 0;
   }
   if (filter.openOnly) {
-    // Mirrors isJobOpenForApplications (job-ingest.ts): NULL = seeded/live. Read
-    // through the team's lifecycle overlay (`s`, joined by both callers), so a corpus
-    // role this team closed is not open for it and still is for every other team.
+    // Mirrors isJobOpenForApplications (job-ingest.ts): NULL = seeded/live. `s` is
+    // the team's lifecycle overlay, joined by both callers.
     where.push("(COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')");
   }
   if (filter.q) {
@@ -637,11 +636,13 @@ export function parsePostingLangs(stored: string | null | undefined): string[] {
  *  what a previous publish set) and the auto-close hook (to know the target). */
 export type RoleOpenConfig = { targetHires: number; postingLangs: string[] };
 
-/** Read as `workspaceId` sees the role: on a shared corpus row the team's overlay
- *  wins column by column, and the shared row's own values are the base (see
- *  jobLifecycleInOverlay in core.ts). Defaults to the team a public applicant is filed
- *  into, like getJobStatus. */
-export function getRoleOpenConfig(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): RoleOpenConfig {
+/** No team named = the corpus role's FILING team (getJobWorkspace's fold). */
+function lifecycleTeam(workspaceId: string | undefined): string {
+  return workspaceId ?? DEFAULT_WORKSPACE_ID;
+}
+
+/** As the team sees the role: overlay over the shared row (jobLifecycleInOverlay). */
+export function getRoleOpenConfig(id: string, workspaceId?: string): RoleOpenConfig {
   const row = ensureDb()
     .prepare(
       `SELECT COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
@@ -649,13 +650,11 @@ export function getRoleOpenConfig(id: string, workspaceId: string = DEFAULT_WORK
        FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
        WHERE jobs.id = ?`
     )
-    .get(workspaceId, id) as { target_hires: number | null; posting_langs: string | null } | undefined;
+    .get(lifecycleTeam(workspaceId), id) as { target_hires: number | null; posting_langs: string | null } | undefined;
   return { targetHires: roleTargetHires(row?.target_hires), postingLangs: parsePostingLangs(row?.posting_langs) };
 }
 
-/** The one routing read for the three lifecycle writers here: does this role's
- *  lifecycle live in the team's overlay? An unknown id is false (the by-id UPDATE on
- *  the jobs row then matches nothing, as it always did). */
+/** Routing read for the lifecycle writers; an unknown id is false. */
 function lifecycleInOverlay(id: string): boolean {
   const row = ensureDb().prepare(`SELECT workspace_id, status, published_at FROM jobs WHERE id = ?`).get(id) as
     | { workspace_id: string | null; status: string | null; published_at: string | null }
@@ -671,14 +670,12 @@ function lifecycleInOverlay(id: string): boolean {
  *
  *  `COALESCE` on both columns is the re-publish rule: reopening a closed role without
  *  restating a target keeps the target it was opened with, rather than silently
- *  resetting a 3-hire req to 1. Pass a value to change it.
- *
- *  On a shared corpus row the terms are the TEAM's: they go to its overlay, so team A
- *  opening a corpus role for 3 hires no longer sets team B's target. */
+ *  resetting a 3-hire req to 1. Pass a value to change it. A corpus row's terms go
+ *  to the team's overlay. */
 export function setRoleOpenConfig(
   id: string,
   config: { targetHires?: number | null; postingLangs?: string[] | null },
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId?: string
 ): void {
   const langs = config.postingLangs && config.postingLangs.length > 0 ? JSON.stringify(config.postingLangs) : null;
   const target =
@@ -691,7 +688,7 @@ export function setRoleOpenConfig(
          target_hires = COALESCE(excluded.target_hires, job_workspace_state.target_hires),
          posting_langs = COALESCE(excluded.posting_langs, job_workspace_state.posting_langs),
          updated_at = excluded.updated_at`
-    ).run(workspaceId, id, target, langs, new Date().toISOString());
+    ).run(lifecycleTeam(workspaceId), id, target, langs, new Date().toISOString());
     return;
   }
   db.prepare(`UPDATE jobs SET target_hires = COALESCE(?, target_hires), posting_langs = COALESCE(?, posting_langs) WHERE id = ?`).run(
@@ -722,14 +719,10 @@ export function setRoleOpenConfig(
  *  and it is what makes a manual close racing the hook safe in the other direction:
  *  whichever lands first, the second is a no-op. `published_at` is deliberately
  *  left alone; it records when the role FIRST went live and a reopen must keep it.
- *
- *  PER TEAM on a shared corpus row: the swap happens in `workspaceId`'s overlay, and
- *  the "still open" predicate is re-asserted against the FOLDED status in the same
- *  statement. One team's auto-close therefore retires the role for that team only,
- *  and each team's withdrawal sweep still runs at most once. The routing read and the
- *  swap share one IMMEDIATE transaction, so the row cannot change tier between them. */
-export function closeRoleIfOpen(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+ *  On a corpus row the swap runs in the team's overlay against the folded status. */
+export function closeRoleIfOpen(id: string, workspaceId?: string): boolean {
   const db = ensureDb();
+  const team = lifecycleTeam(workspaceId);
   return db
     .transaction((): boolean => {
       if (lifecycleInOverlay(id)) {
@@ -741,7 +734,7 @@ export function closeRoleIfOpen(id: string, workspaceId: string = DEFAULT_WORKSP
               WHERE jobs.id = @id AND (COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')
              ON CONFLICT(workspace_id, job_id) DO UPDATE SET status = 'closed', updated_at = excluded.updated_at`
           )
-          .run({ workspaceId, id, now: new Date().toISOString() });
+          .run({ workspaceId: team, id, now: new Date().toISOString() });
         return res.changes > 0;
       }
       const res = db.prepare(`UPDATE jobs SET status = 'closed' WHERE id = ? AND (status IS NULL OR status = 'published')`).run(id);
@@ -873,10 +866,7 @@ export function countOpenRoles(workspaceId: string = DEFAULT_WORKSPACE_ID): Open
   return { own: row.own, corpus: row.corpus, visible: row.own + row.corpus };
 }
 
-/** By-id point read, decorated with the lifecycle as `workspaceId` sees it (the team's
- *  overlay on a shared corpus row). Defaults to the team a public applicant is filed
- *  into, the same default as getJobStatus. */
-export function getJob(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord | null {
+export function getJob(id: string, workspaceId?: string): JobRecord | null {
   const db = ensureDb();
   const row = db
     .prepare(
@@ -886,7 +876,7 @@ export function getJob(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): 
        FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
        WHERE jobs.id = ?`
     )
-    .get(workspaceId, id) as
+    .get(lifecycleTeam(workspaceId), id) as
     | { payload_json: string; status: JobRecord["status"]; target_hires: number | null; posting_langs: string | null }
     | undefined;
   if (!row) return null;
@@ -928,10 +918,7 @@ export function getJobOwnerWorkspace(id: string): string | null {
  *  is how a tenant adopts a corpus role into its own pipeline (publish sources candidates
  *  into `ws`); closing one is reachable from the same modal today. Gating them off would
  *  be a functional regression, so only an OTHER tenant's AUTHORED job is rejected.
- *  Letting every tenant write a seeded row's lifecycle is safe because that lifecycle
- *  is per tenant: setJobStatus, closeRoleIfOpen and setRoleOpenConfig route a corpus
- *  row's writes to the caller's job_workspace_state overlay (jobLifecycleInOverlay in
- *  core.ts), so one tenant closing a corpus role closes it for that tenant only. */
+ *  That lifecycle is per tenant (job_workspace_state), so a close is the caller's. */
 export function canWriteJobLifecycle(id: string, workspaceId: string): boolean {
   // Same predicate as visibility: a team may retire/adopt exactly the roles it can see.
   return jobVisibleToWorkspace(id, workspaceId);
@@ -997,8 +984,7 @@ export function listCorpusJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): JobR
   const db = ensureDb();
   // Tenant scope (P1): the shared reference corpus (workspace_id NULL) + this team's
   // published openings — so a team's matching scores against reference + its own
-  // live roles, never another team's openings. "Live" for a corpus role is read
-  // through THIS team's lifecycle overlay: a role another team closed stays in.
+  // live roles, never another team's openings.
   const rows = db
     .prepare(
       `SELECT payload_json FROM jobs

@@ -1310,18 +1310,8 @@ export function ensureDb(): Database.Database {
       UNIQUE (workspace_id, job_id, lang)
     );
 
-    -- The per-team LIFECYCLE of a shared corpus role (db/jobs.ts, ../job-ingest.ts,
-    -- docs/features/jobs/README.md). A seeded role (jobs.workspace_id NULL) is one row
-    -- every team sees, but "we closed it", "we are hiring 3 for it" and "we post it in
-    -- Czech" are facts about ONE team. Stored on the shared row they leaked: one team's
-    -- first hire auto-closed the role for every team. So they live here, keyed
-    -- (workspace_id, job_id) like job_translations and interview_kits, and every read
-    -- folds COALESCE(overlay, jobs) - the shared row's own values stay the base a team
-    -- reads until it writes its own. Authored rows never get an overlay row.
-    --
-    -- published_at is deliberately NOT here: it is the once-per-job-EVER billing stamp
-    -- classifyPublish reads, and it stays on the shared row so a second team adopting
-    -- a corpus role is charged exactly what it was before (job-workspace-state.test.ts).
+    -- One team's lifecycle of a SHARED corpus role (docs/features/jobs/README.md):
+    -- reads fold COALESCE(overlay, jobs). No published_at: billing stays on jobs.
     CREATE TABLE IF NOT EXISTS job_workspace_state (
       workspace_id TEXT NOT NULL,
       job_id TEXT NOT NULL,
@@ -2824,19 +2814,9 @@ export type JobRecord = {
   hired?: number;
 };
 
-/** Does this job's lifecycle (status, target hires, posting languages) live in the
- *  calling team's job_workspace_state overlay, or on the jobs row itself?
- *
- *  ONE rule, shared by the two stores that write it (db/jobs.ts, ../job-ingest.ts):
- *  a shared corpus row (workspace_id NULL) routes to the overlay, and an authored row
- *  keeps its own columns. The one exception is a LEGACY corpus row stored as
- *  'published' with no published_at, which is a row taken live before the stamp
- *  column existed. classifyPublish reads the missing stamp as "never been to market",
- *  so today a close by one team makes the NEXT team's go-live billable. Moving that
- *  close into one team's overlay would change who pays, so the row stays on the shared
- *  path until a close sets its base to 'closed'. From then on it routes like any
- *  other corpus row, and every team reads that 'closed' as its base. Pure: the caller
- *  reads the row. */
+/** Does a job's lifecycle live in the team's job_workspace_state overlay? Corpus rows
+ *  yes, authored rows no. Exception: a LEGACY corpus row 'published' with no stamp
+ *  stays shared until closed, or one team's close would change who pays next. */
 export function jobLifecycleInOverlay(row: {
   workspace_id: string | null;
   status: string | null;
