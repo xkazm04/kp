@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { DEFAULT_SCREEN_WAVE_REFUSAL, type ScreenWaveRefusalReason } from "./screen-wave-contract";
 
 // Human-approval gate for the screening auto-reject wave (EU AI Act / GDPR Art. 22:
 // no SOLELY-automated significant decision). The token is a stable signature of the
@@ -10,7 +11,7 @@ import { createHash } from "node:crypto";
 // stale, now-different set — and a review made weeks ago can no longer stand in for
 // a review made now.
 //
-// Pure + dependency-free (node:crypto only) so it unit-tests without dragging in the
+// Pure + dependency-free (node:crypto, plus the import-free wire contract) so it unit-tests without dragging in the
 // DB that screen-wave.ts imports, and so the client never needs it — the modal reads
 // the token from the dry-run response, it never recomputes it.
 
@@ -133,25 +134,21 @@ export function verifyScreenWaveApprovalToken(
   return { ok: true };
 }
 
-/** WHY a commit was refused at the approval gate. The message is the human sentence;
- *  this is the machine-readable half, so the 409 body says which of the five very
- *  different refusals happened (a spent token is not a changed cohort, and a client
- *  that cannot tell them apart tells the recruiter to re-review a set that did not
- *  move). Closed vocabulary — literal array + derived union + runtime guard. */
-export const SCREEN_WAVE_REFUSAL_REASONS = ["required", "expired", "mismatch", "spent", "unattributed"] as const;
-export type ScreenWaveRefusalReason = (typeof SCREEN_WAVE_REFUSAL_REASONS)[number];
-export function isScreenWaveRefusalReason(value: unknown): value is ScreenWaveRefusalReason {
-  return typeof value === "string" && (SCREEN_WAVE_REFUSAL_REASONS as readonly string[]).includes(value);
-}
+/** WHY a commit was refused at the approval gate. The vocabulary lives in the
+ *  import-free wire contract (screen-wave-contract.ts) so the client can branch on
+ *  the 409's `reason` with the same guard; re-exported here under its old names. */
+export { SCREEN_WAVE_REFUSAL_REASONS, isScreenWaveRefusalReason } from "./screen-wave-contract";
+export type { ScreenWaveRefusalReason } from "./screen-wave-contract";
 
 /** Thrown when a commit lacks human approval, its token no longer matches the live
  *  set, the approval has gone stale, it was already spent, or its approver cannot be
- *  named. The route maps it to 409 so the client re-previews and re-approves. */
+ *  named. The route maps it to 409 with `reason`, and the client acts on that reason
+ *  (readWaveRefusal in screen-wave-contract.ts). */
 export class ScreenWaveApprovalError extends Error {
   /** Which refusal this is (see SCREEN_WAVE_REFUSAL_REASONS). Defaults to "mismatch",
    *  the historical catch-all, so an older thrower keeps the pre-existing meaning. */
   readonly reason: ScreenWaveRefusalReason;
-  constructor(message: string, reason: ScreenWaveRefusalReason = "mismatch") {
+  constructor(message: string, reason: ScreenWaveRefusalReason = DEFAULT_SCREEN_WAVE_REFUSAL) {
     super(message);
     this.name = "ScreenWaveApprovalError";
     this.reason = reason;

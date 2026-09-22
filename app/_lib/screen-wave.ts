@@ -13,6 +13,7 @@ import { withCanonicalScores } from "./match-score-resolve";
 import { jdSlugOfJobId } from "./jd-limits";
 import { jdLastEditedAt } from "./db/jobs";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
+import type { ScreenDecision, ScreenReasonCode, ScreenWaveResult } from "./screen-wave-contract";
 
 export { ScreenWaveApprovalError, SCREEN_WAVE_REFUSAL_REASONS, isScreenWaveRefusalReason } from "./screen-wave-approval";
 export type { ScreenWaveRefusalReason } from "./screen-wave-approval";
@@ -28,62 +29,11 @@ export type { ScreenWaveRefusalReason } from "./screen-wave-approval";
 // sealed record would assert as a measurement. Every auto-decision is audited
 // with a rationale and the candidate gets a queued rejection comm.
 
-export type ScreenDecision = {
-  entryId: string;
-  label: string;
-  archetype: string | null;
-  // null = the candidate has no match score (never measured). Such candidates are
-  // always `action: "keep"` with reasonCode "unscored" — a fabricated 0 must never
-  // reach a threshold, a preview row, or a sealed record.
-  matchScore: number | null;
-  action: "reject" | "keep";
-  // The audit-trail rationale — byte-identical English, persisted on a committed
-  // run (the recorded audit event) and pinned by the unit tests. UNCHANGED.
-  rationale: string;
-  // DEC4 — a structured, locale-renderable mirror of `rationale`: the modal
-  // renders `decisions.wave.reasons.<reasonCode>` interpolated with
-  // `reasonParams`, so a Czech recruiter reads a Czech rationale in the preview
-  // and the committed view while the persisted audit string stays English (zero
-  // audit risk). Falls back to `rationale` when a code is unmapped.
-  reasonCode: ScreenReasonCode;
-  reasonParams: Record<string, string | number>;
-  /** Set on a committed reject whose rejection email failed to queue — the
-   *  candidate is out of the funnel and needs a manual nudge (mirrors the
-   *  rejection_comms_failed audit event, but addressable per row in the UI). */
-  commsFailed?: boolean;
-  /** Direction 2 (queue-staleness) — set when this candidate's match score was
-   *  computed BEFORE the JD's last content edit, so the row is ranking on a score
-   *  against stale text. Server-derived (same isScoreStale rule as the library /
-   *  prep chips); informs, never blocks. `staleSince` is the JD's last-edit date.
-   *  Absent (fresh score / never-edited JD / unscored) → no stale chrome. */
-  stale?: boolean;
-  staleSince?: string;
-};
-
-// The closed set of rationale shapes. Each maps to a `decisions.wave.reasons.*`
-// catalog key; params carry the interpolated numbers.
-export type ScreenReasonCode =
-  | "autoRejectOff"
-  | "earlyCareer"
-  | "unknownArchetype"
-  | "tieAtCutoff"
-  | "aboveCutoff"
-  | "atThreshold"
-  | "reject"
-  | "staleSkipped"
-  | "unscored"
-  // A recruiter reversed an earlier auto-rejection on this entry, which returned it
-  // to active/Screened — the wave's own cohort predicate. Spared so the machine
-  // can't immediately re-reject (and re-email) someone a human deliberately rescued.
-  | "reinstated"
-  // The tamper-evident Art. 22 record could not be written, so the rejection was
-  // NOT applied. See the seal-first ordering on the adverse path below.
-  | "sealFailed"
-  // Spared from a would-be auto-reject to form the calibration clean arm.
-  | "holdout"
-  // Spared from the auto-reject like a holdout, but the clean-arm SEAL failed, so the
-  // candidate is NOT in the calibration arm and the row must not claim to be.
-  | "holdoutSealFailed";
+// The decision / result / reason-code shapes are the route's WIRE contract, so they
+// live in the import-free screen-wave-contract.ts that the client reads through
+// too; re-exported here under their old names so every server caller is unchanged.
+export type { ScreenDecision, ScreenReasonCode, ScreenWaveResult } from "./screen-wave-contract";
+export { SCREEN_REASON_CODES, isScreenReasonCode } from "./screen-wave-contract";
 
 // The keep rationale for a candidate with NO match score (audit-string register,
 // mirrored by `decisions.wave.reasons.unscored` for localized rendering). Exported
@@ -177,33 +127,12 @@ export async function runScreenWave(
   // cohort regardless of who called it. Defaults to the single default workspace so
   // scripts/tests keep today's behavior.
   workspaceId: string = DEFAULT_WORKSPACE_ID
-): Promise<{
-  decisions: ScreenDecision[];
-  rejected: number;
-  kept: number;
-  cohort: number;
-  config: ScreeningRule;
-  /** Signature of the EXACT set this run would reject under the active policy.
-   *  Returned on a dry run so the recruiter's commit can echo it; the commit is
-   *  refused unless it still matches the live set (the human-approval gate). */
-  approvalToken: string;
-  /** Rejections that applied but whose candidate notification failed to queue
-   *  (idea-961de357) — the wave completed; these candidates need a manual nudge.
-   *  Always 0 on a dry run (nothing is dispatched). */
-  commsFailures: number;
-  /** Candidates the wave would have rejected but did NOT, because their Art. 22
-   *  decision record could not be sealed (see the seal-first ordering below). They
-   *  are reported as keeps with reasonCode "sealFailed"; a non-zero count means the
-   *  chain is unwritable (missing signing key, locked DB) and the wave under-rejected
-   *  on purpose. Counted so the gap is visible instead of living in a console.warn.
-   *  Always 0 on a dry run (nothing is sealed). */
-  sealFailures: number;
-  /** True when this was a PREVIEW (DEC2): the full ranking / fairness / tie-break
-   *  math ran and `decisions` is populated with rationales, but NO status was
-   *  flipped, NO rejection email queued, and NO audit event written. The recruiter
-   *  reviews this, then re-runs with dryRun:false to commit. */
-  dryRun: boolean;
-}> {
+): Promise<
+  // The wire half (decisions, counts, approvalToken, dryRun) is ScreenWaveResult in
+  // screen-wave-contract.ts, documented field by field there; `config` is the
+  // resolved rule the run used, sent along but read by no client.
+  ScreenWaveResult & { config: ScreeningRule }
+> {
   const dryRun = opts?.dryRun ?? false;
   // Backstop: never merge an unvalidated override into the live config that
   // drives irreversible auto-rejections. The route validates first (→ 400), but
