@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { journeyEntryView } from "@/app/_lib/journey/project";
 
@@ -20,14 +21,16 @@ import { journeyEntryView } from "@/app/_lib/journey/project";
 // and an entry whose consent has lapsed or been anonymized gets no excerpt at all
 // (the same read-time control candidate-timeline.ts applies to the drawer).
 //
-// AUTH / TENANCY: `currentWorkspace()`, matching the board route beside it. An entry
-// from another team answers exactly as an unknown id does, so a cross-tenant probe
-// learns nothing from the difference.
+// AUTH / TENANCY: Re-verify the operator before reading transcript excerpts, then
+// use `currentWorkspace()` to scope the entry. Another team's id answers exactly
+// like an unknown id, so a cross-tenant probe learns nothing from the difference.
 /** An event id is `<table>:<pk>` (project.ts). Bounded like every other query param
  *  that reaches a comparison. */
 const MAX_EVENT_PARAM = 200;
 
 export async function GET(request: NextRequest, context: { params: Promise<{ entryId: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const { entryId } = await context.params;
     const eventId = (new URL(request.url).searchParams.get("event") ?? "").trim().slice(0, MAX_EVENT_PARAM);
