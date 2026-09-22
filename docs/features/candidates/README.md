@@ -687,7 +687,9 @@ lower confidence (e.g. "student" signal alongside 3+ years experience → 0.65);
 no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
 manual review**. The analyze dump stamps that as `archetypeNeedsReview` (plus
 `archetypeNeedsReviewCode` `low_confidence` / `contradiction`) beside the float,
-so the report does not re-implement the cutoff. The conservative default (unclassifiable → experienced, not
+so the report does not re-implement the cutoff. For student and career-switcher
+profiles, the same routed `v2Profile` also carries the deterministic
+`potentialScore` and `learningSignals` used by matching. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
