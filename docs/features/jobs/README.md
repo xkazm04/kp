@@ -524,7 +524,7 @@ orphaning the children.
 ## JD specificity lint (Erika gap E7)
 
 `app/_lib/jd-lint.ts` is a pure, LLM-free rules module that runs live on every
-edit in the builder: EN+CS boilerplate phrases ("competitive salary", "dynamic
+edit in the builder: EN+CS+DE+FR boilerplate phrases ("competitive salary", "dynamic
 environment", with inflection-tolerant Czech stems), missing concretes (no pay
 figure, no place of work — a work-mode keyword counts as place; a structured
 market band suppresses the salary finding), exclusionary/gendered-coded
