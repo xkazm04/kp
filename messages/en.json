@@ -1463,6 +1463,7 @@
     "AGENT_REFRESH_FAILED": "Could not refresh the agent status. Please try again.",
     "AGENT_REPORT_FAILED": "Could not record the agent report. Please try again.",
     "LLM_ACTIVITY_FAILED": "Could not load the LLM activity ledger. Please try again.",
+    "LLM_ACTIVITY_QUERY_INVALID": "That activity filter or cursor is not valid.",
     "AGENT_DISPATCH_NOT_COMPOSED": "Compose the App master spec before dispatching it.",
     "AGENT_DISPATCH_SPEC_STALE": "The stored App master spec no longer matches the contract. Re-compose it, then dispatch.",
     "AGENT_DISPATCH_HUMAN_POPULATION": "This role is composed for a human holder, so no agent can be dispatched for it.",

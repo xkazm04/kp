@@ -402,16 +402,38 @@ export const LLM_ACTIVITY_WINDOW = 500;
  * aggregateLlmUsage, instead). Bounded by `limit`; org-level like the rest of
  * the ledger (llm_usage is tenancy-exempt config/metering).
  */
-export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
+export type LlmActivityFilters = {
+  useCase?: string;
+  outcome?: "ok" | "failed";
+  cursor?: { ts: string; id: number };
+};
+
+export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW, filters: LlmActivityFilters = {}): LlmActivityRow[] {
   const db = ensureDb();
+  const predicates: string[] = [];
+  const values: Array<string | number> = [];
+  if (filters.useCase) {
+    predicates.push("use_case = ?");
+    values.push(filters.useCase);
+  }
+  if (filters.outcome) {
+    predicates.push("outcome = ?");
+    values.push(filters.outcome);
+  }
+  if (filters.cursor) {
+    predicates.push("(ts < ? OR (ts = ? AND id < ?))");
+    values.push(filters.cursor.ts, filters.cursor.ts, filters.cursor.id);
+  }
+  const where = predicates.length ? `WHERE ${predicates.join(" AND ")}` : "";
   const rows = db
     .prepare(
       `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id
          FROM llm_usage
+        ${where}
         ORDER BY ts DESC, id DESC
         LIMIT ?`
     )
-    .all(limit) as Array<Record<string, unknown>>;
+    .all(...values, limit) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: Number(r.id),
     ts: r.ts as string,
@@ -515,4 +537,3 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     costUsd: Number(r.cost_usd ?? 0),
   }));
 }
-

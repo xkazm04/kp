@@ -1463,6 +1463,7 @@
     "AGENT_REFRESH_FAILED": "Impossible d’actualiser l’état de l’agent. Veuillez réessayer.",
     "AGENT_REPORT_FAILED": "Impossible d’enregistrer le rapport de l’agent. Veuillez réessayer.",
     "LLM_ACTIVITY_FAILED": "Impossible de charger le journal d'activité LLM. Veuillez réessayer.",
+    "LLM_ACTIVITY_QUERY_INVALID": "Ce filtre ou curseur d’activité n’est pas valide.",
     "AGENT_DISPATCH_NOT_COMPOSED": "Composez la spécification App master avant de l’envoyer.",
     "AGENT_DISPATCH_SPEC_STALE": "La spécification App master enregistrée ne correspond plus au contrat. Recomposez-la, puis envoyez-la.",
     "AGENT_DISPATCH_HUMAN_POPULATION": "Ce rôle est composé pour un titulaire humain ; aucun agent ne peut donc être envoyé.",

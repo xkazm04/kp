@@ -516,6 +516,8 @@ export type StoreErrorCode = keyof typeof STORE_ERRORS;
 // The English here stays canonical for the server log and for API consumers;
 // the client renders the localized message from the code.
 export const REFUSAL_ERRORS = {
+  /** Unsupported activity filter or malformed keyset cursor (400). */
+  LLM_ACTIVITY_QUERY_INVALID: "That activity filter or cursor is not valid.",
   /** Uniform for an unknown email, wrong user password, and wrong operator password (401). */
   LOGIN_CREDENTIALS_INVALID: "Incorrect credentials. Try again.",
   /** The automation task in the URL is not one the engine knows (404). The board only
