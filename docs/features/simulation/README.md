@@ -31,6 +31,10 @@ of minting a session the walk cannot use:
 | **Gated**, `KP_DEMO_ENABLED` on | `302 → /?demo=unavailable&code=DEMO_NOT_PROVISIONED` |
 | **Gated**, demo off | `302 → /?demo=unavailable&code=DEMO_DISABLED` |
 
+After a public walk finishes, the dock's Get Started control calls
+`enterWorkspace()`: open deployments enter the workspace, while gated ones reach
+the login page.
+
 Both gated answers are refusals because a `demo`-workspace session is
 `{ authed: false, caps: EMPTY_CAPS }` in `app/_lib/auth/current-user.ts`: the walk's
 first write (`POST /api/jds/save`, `jd:write`) answers 401, and so do

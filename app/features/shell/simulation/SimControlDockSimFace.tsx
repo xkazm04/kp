@@ -15,6 +15,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { SIM_PHASES } from "./constants";
 import { phaseStepState, type PhaseStepState } from "./simPhaseStep";
 import { PHASE_ICON } from "./simControlCenterKit";
@@ -64,9 +65,9 @@ function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimula
     );
   }
   return isPublicDemo ? (
-    <a href="/login" className={`${ctrlBase} bg-coral text-white shadow-sticker-xs hover:bg-coral/90`}>
+    <button type="button" onClick={() => void enterWorkspace()} className={`${ctrlBase} bg-coral text-white shadow-sticker-xs hover:bg-coral/90`}>
       <Sparkles size={14} /> {t("getStarted")}
-    </a>
+    </button>
   ) : (
     <button type="button" onClick={sim.start} className={`${ctrlBase} bg-ink text-white hover:opacity-90`}>
       <Play size={14} /> {t("runAgain")}
