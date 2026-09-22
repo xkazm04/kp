@@ -33,3 +33,14 @@ Execution plan:
 
 The sorted file is a **priority index**, not a promise that every earlier row
 is still actionable. The execution count advances only for verified changes.
+
+## Drain result
+
+The companion [`results.jsonl`](./low-risk-drain-2026-09-22-results.jsonl)
+records each disposition by original source line. This drain built 103 distinct
+risk-1 findings: 100 with `gate: none` and three with contract or policy gates.
+It descoped 30 findings already implemented before the drain and one duplicate.
+One salary-hint
+finding remains open because the board-entry projection lacks job seniority;
+adding it depends on a risk-2 contract change. The backlog register now reads
+348 built, 31 descoped, and 576 open out of 955 total.
