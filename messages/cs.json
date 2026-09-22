@@ -10625,7 +10625,9 @@
         "caseIncluded": "Praktické zadání",
         "followups": "Doplňující otázky",
         "proposals": "Návrhy",
-        "failures": "Chyby"
+        "failures": "Chyby",
+        "sent": "Odesláno",
+        "notContacted": "Nekontaktováno"
       },
       "value": {
         "llm": "AI",
@@ -10653,6 +10655,21 @@
         "no_alternative": "Žádná jiná role se nenašla",
         "skipped_hired": "Přeskočeno: již přijat",
         "skipped_stage_changed": "Přeskočeno: kandidát změnil fázi"
+      },
+      "fanout": {
+        "failedBy": "Selhalo:",
+        "codeCount": "{label} ({count})",
+        "unreached": "{count, plural, one {# kandidát nebyl zpracován, než se běh zastavil} few {# kandidáti nebyli zpracováni, než se běh zastavil} other {# kandidátů nebylo zpracováno, než se běh zastavil}}",
+        "retryFailed": "{count, plural, one {Zopakovat neúspěšného kandidáta} few {Zopakovat # neúspěšné} other {Zopakovat # neúspěšných}}",
+        "retryUnreached": "{count, plural, one {Pokračovat s nezpracovaným kandidátem} few {Pokračovat s # nezpracovanými} other {Pokračovat s # nezpracovanými}}",
+        "retryTitle": "Spustí nový běh pouze pro tyto kandidáty. Ostatní se znovu nezpracují.",
+        "code": {
+          "unknown_task": "neznámá akce",
+          "entry_not_found": "již není na nástěnce",
+          "entry_has_no_profile": "chybí profil kandidáta",
+          "task_not_offered": "akce není v této fázi k dispozici",
+          "engine_failed": "chyba zpracování"
+        }
       }
     },
     "results": {

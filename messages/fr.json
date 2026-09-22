@@ -10625,7 +10625,9 @@
         "caseIncluded": "Cas pratique",
         "followups": "Questions de suivi",
         "proposals": "Propositions",
-        "failures": "Échecs"
+        "failures": "Échecs",
+        "sent": "Envoyés",
+        "notContacted": "Non contactés"
       },
       "value": {
         "llm": "IA",
@@ -10653,6 +10655,21 @@
         "no_alternative": "Aucun autre poste trouvé",
         "skipped_hired": "Ignoré : déjà recruté",
         "skipped_stage_changed": "Ignoré : le candidat a changé d'étape"
+      },
+      "fanout": {
+        "failedBy": "Échecs :",
+        "codeCount": "{label} ({count})",
+        "unreached": "{count, plural, one {# candidat n’a pas été traité avant l’arrêt de l’exécution} other {# candidats n’ont pas été traités avant l’arrêt de l’exécution}}",
+        "retryFailed": "{count, plural, one {Relancer le candidat en échec} other {Relancer les # en échec}}",
+        "retryUnreached": "{count, plural, one {Reprendre avec le candidat non traité} other {Reprendre avec les # non traités}}",
+        "retryTitle": "Lance une nouvelle exécution pour ces seuls candidats. Les autres ne sont pas traités à nouveau.",
+        "code": {
+          "unknown_task": "action inconnue",
+          "entry_not_found": "n’est plus sur le tableau",
+          "entry_has_no_profile": "aucun profil candidat",
+          "task_not_offered": "action indisponible à cette étape",
+          "engine_failed": "erreur de traitement"
+        }
       }
     },
     "results": {

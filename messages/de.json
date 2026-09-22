@@ -10625,7 +10625,9 @@
         "caseIncluded": "Arbeitsprobe",
         "followups": "Rückfragen",
         "proposals": "Vorschläge",
-        "failures": "Fehler"
+        "failures": "Fehler",
+        "sent": "Gesendet",
+        "notContacted": "Nicht kontaktiert"
       },
       "value": {
         "llm": "KI",
@@ -10653,6 +10655,21 @@
         "no_alternative": "Keine passende andere Rolle gefunden",
         "skipped_hired": "Übersprungen: bereits eingestellt",
         "skipped_stage_changed": "Übersprungen: Phase hat sich geändert"
+      },
+      "fanout": {
+        "failedBy": "Fehlgeschlagen:",
+        "codeCount": "{label} ({count})",
+        "unreached": "{count, plural, one {# Kandidat wurde nicht erreicht, bevor der Lauf endete} other {# Kandidaten wurden nicht erreicht, bevor der Lauf endete}}",
+        "retryFailed": "{count, plural, one {Fehlgeschlagenen Kandidaten erneut ausführen} other {Die # fehlgeschlagenen erneut ausführen}}",
+        "retryUnreached": "{count, plural, one {Mit dem nicht erreichten Kandidaten fortfahren} other {Mit den # nicht erreichten fortfahren}}",
+        "retryTitle": "Startet einen neuen Lauf nur für diese Kandidaten. Die anderen werden nicht erneut verarbeitet.",
+        "code": {
+          "unknown_task": "unbekannte Aktion",
+          "entry_not_found": "nicht mehr auf dem Board",
+          "entry_has_no_profile": "kein Kandidatenprofil",
+          "task_not_offered": "Aktion in dieser Phase nicht verfügbar",
+          "engine_failed": "Verarbeitungsfehler"
+        }
       }
     },
     "results": {

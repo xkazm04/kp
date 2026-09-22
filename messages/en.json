@@ -10625,7 +10625,9 @@
         "caseIncluded": "Work-sample case",
         "followups": "Follow-up questions",
         "proposals": "Proposals",
-        "failures": "Failures"
+        "failures": "Failures",
+        "sent": "Sent",
+        "notContacted": "Not contacted"
       },
       "value": {
         "llm": "AI",
@@ -10653,6 +10655,21 @@
         "no_alternative": "No alternative role found",
         "skipped_hired": "Skipped: already hired",
         "skipped_stage_changed": "Skipped: the candidate moved stage"
+      },
+      "fanout": {
+        "failedBy": "Failed:",
+        "codeCount": "{label} ({count})",
+        "unreached": "{count, plural, one {# candidate was not reached before the run stopped} other {# candidates were not reached before the run stopped}}",
+        "retryFailed": "{count, plural, one {Retry the failed candidate} other {Retry the # failed}}",
+        "retryUnreached": "{count, plural, one {Resume with the candidate not reached} other {Resume with the # not reached}}",
+        "retryTitle": "Starts a new run for these candidates only. The others are not processed again.",
+        "code": {
+          "unknown_task": "unknown action",
+          "entry_not_found": "no longer on the board",
+          "entry_has_no_profile": "no candidate profile",
+          "task_not_offered": "action not available at this stage",
+          "engine_failed": "processing error"
+        }
       }
     },
     "results": {
