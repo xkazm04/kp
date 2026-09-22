@@ -151,7 +151,7 @@ to be the first moment a tab's chunk was requested, putting the download on the
 critical path between the click and the first frame. `prefetchTabChunk(id)` starts
 it on nav-item hover **and** focus (a keyboard user never hovers) and inside
 `selectTab` before the URL flips; `warmLikelyTabChunks(active)` warms the hiring
-tabs on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
+tabs, including Roles and Job intake, on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
 failed prefetch is swallowed, and the render path re-requests and surfaces a real
 failure through the tab's `ErrorBoundary`.
 
