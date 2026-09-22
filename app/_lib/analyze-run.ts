@@ -14,6 +14,7 @@ import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "
 import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
+import type { Locale } from "@/i18n/locales";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
 // the background-task runner (detached from the request → survives navigation
@@ -35,7 +36,7 @@ export type AnalyzeParams = {
   // request time (the background task runs outside request scope, so it can't
   // read the cookie itself) and forwarded to the Python CLI via --lang. Part of
   // the cache key so localized results don't collide. Defaults to "en".
-  lang?: string;
+  lang?: Locale;
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   // Forwarded to the CLI as --blind; part of the cache key so a blind and a
   // non-blind run of the same CV don't collide.
