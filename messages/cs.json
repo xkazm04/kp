@@ -7089,7 +7089,8 @@
       "status": {
         "active": "Aktivní",
         "invited": "Pozván/a",
-        "disabled": "Deaktivován/a"
+        "disabled": "Deaktivován/a",
+        "unknown": "Neznámý stav"
       },
       "loadError": "Členy se nepodařilo načíst.",
       "invitePlaceholder": "Pozvat e-mailem: jmeno@spolecnost.cz",

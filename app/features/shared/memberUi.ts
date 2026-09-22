@@ -93,7 +93,9 @@ export function countActiveMembers(members: { user: { status: MemberStatus } }[]
 export function statusBadge(status: MemberStatus, t: MembersTranslator): BadgeContent & { dot?: boolean; muted?: boolean } {
   if (status === "active") return { tone: "positive", label: t("status.active"), dot: true };
   if (status === "invited") return { tone: "info", label: t("status.invited"), icon: Clock };
-  return { tone: "neutral", label: t("status.disabled"), icon: MinusCircle, muted: true };
+  if (status === "disabled") return { tone: "neutral", label: t("status.disabled"), icon: MinusCircle, muted: true };
+  // A future or corrupt server value must never inherit a known seat state.
+  return { tone: "neutral", label: t("status.unknown"), muted: true };
 }
 
 // The overridable capabilities, for the per-user permission editor. Order = most-

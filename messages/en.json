@@ -7089,7 +7089,8 @@
       "status": {
         "active": "Active",
         "invited": "Invited",
-        "disabled": "Disabled"
+        "disabled": "Disabled",
+        "unknown": "Unknown"
       },
       "loadError": "Couldn't load members.",
       "invitePlaceholder": "Invite by email: name@company.com",

@@ -7089,7 +7089,8 @@
       "status": {
         "active": "Actif",
         "invited": "Invité(e)",
-        "disabled": "Désactivé(e)"
+        "disabled": "Désactivé(e)",
+        "unknown": "Statut inconnu"
       },
       "loadError": "Impossible de charger les membres.",
       "invitePlaceholder": "Inviter par e-mail : nom@entreprise.fr",

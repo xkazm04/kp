@@ -411,6 +411,10 @@ routes below. The switch route now refuses on the workspace the session came fro
 | Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
 
+Member-status badges use a neutral **Unknown** label for a server status outside
+`active`, `invited`, and `disabled`; an unfamiliar value is never presented as a
+disabled seat.
+
 ### The Workspaces console
 
 Two lenses over one dataset (`useWorkspaceAdmin` composes `/api/workspaces` +

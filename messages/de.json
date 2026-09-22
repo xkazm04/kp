@@ -7089,7 +7089,8 @@
       "status": {
         "active": "Aktiv",
         "invited": "Eingeladen",
-        "disabled": "Deaktiviert"
+        "disabled": "Deaktiviert",
+        "unknown": "Unbekannt"
       },
       "loadError": "Mitglieder konnten nicht geladen werden.",
       "invitePlaceholder": "Per E-Mail einladen: name@firma.de",
