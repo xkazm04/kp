@@ -131,6 +131,10 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
+  const [addedEntry, setAddedEntry] = useState<{ candidateId: string; jobId: string; id: string } | null>(null);
+  const addedEntryId = addedEntry?.candidateId === pipelineRef?.candidateId && addedEntry.jobId === pipelineRef.jobId
+    ? addedEntry.id
+    : null;
   // A comparison only counts — for showing the Compare tab AND for defaulting
   // to it below — when it meets the minimum-variant contract. A stray 1-variant
   // payload no longer auto-opens an empty Compare tab; it falls through to
@@ -263,9 +267,11 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
           ) : null}
           {pipelineRef ? (
             <AddToPipelineButton
+              key={`${pipelineRef.candidateId}:${pipelineRef.jobId}`}
               pipelineRef={pipelineRef}
               // GH2 — a done deep-dive rides the add as compact evidence.
               github={github?.status === "done" ? github.analysis : null}
+              onAdded={(id) => setAddedEntry({ candidateId: pipelineRef.candidateId, jobId: pipelineRef.jobId, id })}
             />
           ) : pipelineDisabledReason ? (
             <PipelineDisabledNote reason={pipelineDisabledReason} label={t("addToPipeline")} />
@@ -302,7 +308,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
         {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}
         {activeTab === "salary" ? <SalaryTab analysis={analysis} /> : null}
-        {activeTab === "interview" ? <InterviewTab analysis={analysis} prepEntryId={prepEntryId} /> : null}
+        {activeTab === "interview" ? <InterviewTab analysis={analysis} prepEntryId={prepEntryId ?? addedEntryId ?? undefined} /> : null}
         {activeTab === "github" && github ? (
           <GithubAnalysisPanel
             status={github.status}

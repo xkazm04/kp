@@ -89,7 +89,9 @@ career-switcher) that other features key off. Downstream ranking is
   questions, evidence gaps, and nonempty STAR prompts to the clipboard. It
   confirms a successful copy and reports a blocked clipboard write in place.
   When adding the kit to a candidate's interview prep pack, the same action
-  includes soft-signal probes that still need confirmation.
+  includes soft-signal probes that still need confirmation. A live report exposes
+  this action as soon as Add to pipeline returns the new entry ID; reopening the
+  saved report is unnecessary.
 - **Engine notes in the quality strip** — `QualityStrip.tsx` mixes localized chrome
   with the engine's own deterministic English check sentences, shown verbatim so a
   degraded run is not paraphrased. Each list is now headed by a localized
