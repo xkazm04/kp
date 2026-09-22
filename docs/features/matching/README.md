@@ -617,6 +617,26 @@ the route's `Cell` type and `matrix_cli.py` and fails on a declared key the CLI 
 emits. Payload cost on the seeded corpus: about 90 bytes per scored cell
 (85 KB → 211 KB for 112 × 18).
 
+**The grid proposes a slate; the recruiter decides.** The toolbar's *Propose slate*
+toggle opens `MatrixSlatePanel.tsx` over the pure allocator
+`matrixSlate.ts::proposeSlate` (pinned by `matrixSlate.test.ts`). Over the VISIBLE
+rectangle only (the family filter, min-fit floor and `?job=` scope in force) it
+walks eligible pairs by descending score, one role per candidate, with a
+locale-collated label then id tie-break so the same grid always yields the same
+slate. Eligible means scored, not blocked, not already in flight for that pair
+(the cell ring's `isTerminalEntryStatus` rule, plus pairs added this session), and
+at or above `FIT_PROMISING_FLOOR` (55). Each role gets a state: `clear`,
+`contested` (the role's top eligible scorer was allocated elsewhere; the line names
+them, their score and the role they went to), `thin` (only one assessed candidate,
+so no comparative claim) or `uncovered` (nobody eligible at or above 55; never a
+sub-floor "best available"). A `clear` pick whose `confidence.low` does not clear
+the runner-up's score says its lead is within the margin. The slate never writes:
+*Review in grid* replaces the selection with the picks' cell keys
+(`applySlateToSelection`, a new Set) and enters select mode, so the recruiter
+unticks or swaps and files through the existing *Add*, which keeps the
+hidden-selection disclosure and the partial-failure band. Keyless: it is pure
+client arithmetic over the scores already on screen.
+
 ### Both modes say when their field was cut
 Every list on this surface is capped, so each cap is stated rather than hidden —
 the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
