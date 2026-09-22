@@ -570,8 +570,12 @@ the link panels…) and its per-entry state hook moved in unchanged, arranged in
 | Tab | Holds |
 | --- | --- |
 | **Overview** | the degraded-intake banner and, on the terminal-role stage, the hire outcome card first; then the Scorecard — score with its kind and provenance (a transfer score names itself), the confidence meter, fit tier, estimated salary against the band in the org currency, the route across the axis, the weighted breakdown table, matched / claimed-not-proven / missing skills |
+
 | **Activity** | interview outcome (+ transcript), human scorecard, messages with their delivery verdict; the merged history with rematch links |
 | **Record** | the autosaved recruiter note, GitHub evidence / deep-dive, GDPR consent with its audit trail, links to the full match and the profile editor |
+
+The Scorecard breakdown resolves the ranker's `labelCode` through the shared
+`match.dims.*` translations, with its English label as a fallback for older rows.
 
 Mechanics. `PipelineTab` holds one `CandidateView` (`candidateView.ts`: entry, cohort,
 tab) and mounts `CandidateModal` through `next/dynamic`. The frame is portalled to
@@ -1605,9 +1609,6 @@ the same server-side instant.
   a catalog change in all four locales.
 - **No on-board key explains the bead fill or the waiting dots.** The legend footer
   was removed; the dots carry their meaning in their hover text and accessible name.
-- **The score dimension names in the Scorecard are the ranker's English `label`.**
-  `ScoreDimension.labelCode` (`match.dims.*`) exists for exactly this and the
-  Scorecard does not read it yet.
 - **Avatar fill = gender is a HINT, not data.** Nothing on the wire says gender
   (the pipeline redacts gender-coded signals before scoring — `redact.py`); the
   fill comes from Czech surname morphology (`genderHintOf`, `-ová`/`-á` feminine)
