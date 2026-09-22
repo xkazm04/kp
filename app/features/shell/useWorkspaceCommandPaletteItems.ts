@@ -34,6 +34,7 @@ export function useWorkspaceCommandPaletteItems({
   hits,
   search,
   recents,
+  recentTabs,
   simRunning,
   simStart,
   askCandi,
@@ -45,6 +46,7 @@ export function useWorkspaceCommandPaletteItems({
   hits: SearchHit[];
   search: string;
   recents: RecentItem[];
+  recentTabs: WorkspaceTabId[];
   simRunning: boolean;
   simStart: () => void;
   /** Opens the companion dock seeded with the query. Null on the deep-link pages,
@@ -87,6 +89,18 @@ export function useWorkspaceCommandPaletteItems({
           recent: { type: r.type, id: r.id },
         });
       }
+      for (const id of recentTabs) {
+        if (locked.has(id)) continue;
+        const def = NAV_GROUPS.flatMap((group) => group.items).find((item) => item.id === id);
+        out.push({
+          key: `recent-tab-${id}`,
+          group: "recent",
+          label: id === "tasks" ? tasks("label") : tabLabel(id, def?.label ?? id),
+          sub: null,
+          href: buildTabSwitchUrl(id, search),
+          tabId: id,
+        });
+      }
     }
     // Jump-to-tab actions: all of them on an empty query (the palette's resting
     // state is a navigator), narrowed by label/id match while typing. Walked
@@ -109,17 +123,16 @@ export function useWorkspaceCommandPaletteItems({
     for (const { section, items } of sections) {
       for (const { def, label } of items) {
         if (locked.has(def.id)) continue;
-        if (!q || label.toLowerCase().includes(q) || def.id.includes(q)) {
-          navOut.push({
-            key: `tab-${def.id}`,
-            group: "tabs",
-            section,
-            label,
-            sub: null,
-            href: buildTabSwitchUrl(def.id, search),
-            tabId: def.id,
-          });
-        }
+        if ((!q && recentTabs.includes(def.id)) || (q && !label.toLowerCase().includes(q) && !def.id.includes(q))) continue;
+        navOut.push({
+          key: `tab-${def.id}`,
+          group: "tabs",
+          section,
+          label,
+          sub: null,
+          href: buildTabSwitchUrl(def.id, search),
+          tabId: def.id,
+        });
       }
     }
     // The tour command: offered at rest and under "tour"/"demo"-flavored
@@ -152,7 +165,7 @@ export function useWorkspaceCommandPaletteItems({
       });
     }
     const tasksItem = tasksPaletteItem(q, tasks("label"), search);
-    if (tasksItem) navOut.push(tasksItem);
+    if (tasksItem && (q || !recentTabs.includes("tasks"))) navOut.push(tasksItem);
     // "Ask Candi: <query>" — the palette's ONE non-navigation answer to a query
     // that matches nothing. It is appended to the navigator (so entity hits and
     // tab matches always outrank it) and offered from two characters, which is
@@ -184,5 +197,5 @@ export function useWorkspaceCommandPaletteItems({
     }
     return q ? out.concat(navOut) : out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents, simRunning, simStart, askCandi, locale, capabilities]);
+  }, [query, hits, search, recents, recentTabs, simRunning, simStart, askCandi, locale, capabilities]);
 }

@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
 import { recordRecent, useRecents } from "./recents";
+import { useRecentTabs } from "./recentTabs";
+import { DEFAULT_TAB, resolveTabParam } from "./tabs";
 import { useCapabilities } from "./useCapabilities";
 import { paletteItemId, paletteListView } from "./workspacePaletteResults";
 import { useOptionalSimulation } from "./simulation/SimulationProvider";
@@ -104,6 +106,7 @@ export function CommandPalette({
   }, [open]);
 
   const recents = useRecents();
+  const recentTabs = useRecentTabs(resolveTabParam(searchParams.get("tab")) ?? DEFAULT_TAB);
   // The palette is a NAVIGATOR: a "Go to Billing" it knows will 403, or a tour
   // command that starts a pipeline write this caller may not perform, is noise
   // that costs a click to discover. Unlike the rail — where a vanished row would
@@ -125,6 +128,7 @@ export function CommandPalette({
     hits,
     search,
     recents,
+    recentTabs,
     simRunning: sim ? sim.running : true,
     simStart: sim ? sim.start : () => {},
     askCandi,
