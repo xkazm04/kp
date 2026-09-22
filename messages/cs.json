@@ -2178,6 +2178,7 @@
   "apply": {
     "eyebrow": "Přihláška",
     "roleClosed": "Tato pozice už je obsazená a další přihlášky nepřijímáme. Děkujeme za váš zájem!",
+    "roleSummary": "O této pozici",
     "subtitle": "Krátký rozhovor, žádné formuláře, žádné přihlašování. Pár otázek a máte hotovo.",
     "progress": "Otázka {current} z {total}",
     "progressAria": "Průběh přihlášky, otázka {current} z {total}",
@@ -6096,6 +6097,7 @@
         "confHigh": "Pásmo skóre horní",
         "fitTier": "Úroveň vhodnosti",
         "matchedSkills": "Odpovídající dovednosti",
+        "unprovenSkills": "Uvedené, zatím neprokázané dovednosti",
         "missingSkills": "Chybějící dovednosti"
       }
     },

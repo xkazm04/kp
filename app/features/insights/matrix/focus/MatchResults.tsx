@@ -91,7 +91,7 @@ export function MatchResults({
   // or email thread outside the app, so the ranking has to be able to leave it.
   // Built entirely from data already on screen; no backend call.
   const exportCsv = () => {
-    const header = [t("csv.rank"), t("csv.role"), t("csv.company"), t("csv.score"), t("csv.confLow"), t("csv.confHigh"), t("csv.fitTier"), t("csv.matchedSkills"), t("csv.missingSkills")];
+    const header = [t("csv.rank"), t("csv.role"), t("csv.company"), t("csv.score"), t("csv.confLow"), t("csv.confHigh"), t("csv.fitTier"), t("csv.matchedSkills"), t("csv.unprovenSkills"), t("csv.missingSkills")];
     const rows = matches.map((m, i) => [
       i + 1,
       m.title,
@@ -101,6 +101,7 @@ export function MatchResults({
       m.confidence.high,
       m.fitTier,
       (m.matchedSkills ?? []).join("; "),
+      (m.unprovenSkills ?? []).join("; "),
       (m.missingSkills ?? []).join("; "),
     ]);
     const safe = (candidate.label ?? "candidate").replace(/[^\w-]+/g, "_").slice(0, 60) || "candidate";

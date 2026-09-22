@@ -29,6 +29,7 @@ than silently dropping a reason.
     `focus/MatchCard.tsx`, per-skill provenance chips in `focus/MatchCardSkillChips.tsx`.
     The role comparison table separates matched, claimed-but-unproven, and
     missing skills for each role, so a claim is never presented as proof.
+    The ranking CSV exports those same three buckets as separate columns.
     When a newer CV analysis makes the profile stale, the rebuild banner formats
     that analysis date in the reader's locale (`useFormatter`).
     This was the standalone **Match tab** until it was folded in; `?tab=match`

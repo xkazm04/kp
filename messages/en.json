@@ -2178,6 +2178,7 @@
   "apply": {
     "eyebrow": "Apply",
     "roleClosed": "This role has been filled and is no longer accepting applications. Thank you for your interest!",
+    "roleSummary": "About this role",
     "subtitle": "A quick chat, no forms, no logins. A few questions and you're done.",
     "progress": "Question {current} of {total}",
     "progressAria": "Application progress, question {current} of {total}",
@@ -6096,6 +6097,7 @@
         "confHigh": "Score range high",
         "fitTier": "Fit tier",
         "matchedSkills": "Matched skills",
+        "unprovenSkills": "Claimed, not yet proven",
         "missingSkills": "Missing skills"
       }
     },

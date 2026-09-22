@@ -2178,6 +2178,7 @@
   "apply": {
     "eyebrow": "Postuler",
     "roleClosed": "Ce poste a été pourvu et n’accepte plus de candidatures. Merci de votre intérêt !",
+    "roleSummary": "À propos de ce poste",
     "subtitle": "Une petite conversation, sans formulaire ni connexion. Quelques questions et c’est terminé.",
     "progress": "Question {current} sur {total}",
     "progressAria": "Progression de la candidature, question {current} sur {total}",
@@ -6096,6 +6097,7 @@
         "confHigh": "Plage haute",
         "fitTier": "Niveau de correspondance",
         "matchedSkills": "Compétences correspondantes",
+        "unprovenSkills": "Compétences déclarées, non encore prouvées",
         "missingSkills": "Compétences manquantes"
       }
     },

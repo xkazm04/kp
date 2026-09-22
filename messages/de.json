@@ -2178,6 +2178,7 @@
   "apply": {
     "eyebrow": "Bewerben",
     "roleClosed": "Diese Stelle wurde besetzt und nimmt keine Bewerbungen mehr an. Vielen Dank für Ihr Interesse!",
+    "roleSummary": "Über diese Stelle",
     "subtitle": "Ein kurzes Gespräch, keine Formulare, keine Logins. Ein paar Fragen und Sie sind fertig.",
     "progress": "Frage {current} von {total}",
     "progressAria": "Bewerbungsfortschritt, Frage {current} von {total}",
@@ -6096,6 +6097,7 @@
         "confHigh": "Score-Band oben",
         "fitTier": "Eignungsstufe",
         "matchedSkills": "Passende Skills",
+        "unprovenSkills": "Angegebene, noch nicht belegte Skills",
         "missingSkills": "Fehlende Skills"
       }
     },
