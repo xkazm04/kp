@@ -70,6 +70,22 @@ def _run(profiles: list[dict]) -> dict:
 
 
 class MatrixCliMissingCandidatesTest(unittest.TestCase):
+    def test_cell_payload_names_the_hard_gate_that_blocked_it(self) -> None:
+        german_only = {
+            **GOOD_PROFILE,
+            "id": "german-only",
+            "label": "German-only candidate",
+            "payload": {**GOOD_PROFILE["payload"], "languages": ["German"]},
+        }
+        result = _run([GOOD_PROFILE, german_only])
+        self.assertEqual(result["code"], 0)
+        cells = result["payload"]["cells"]
+        self.assertEqual(len(cells), 2)
+        self.assertEqual(len(cells[0]), 1)
+        self.assertFalse(cells[0][0]["blocked"])
+        self.assertIsInstance(cells[0][0]["score"], int)
+        self.assertEqual(cells[1][0], {"score": None, "blocked": True, "koKeys": ["language"]})
+
     def test_invalid_profile_is_surfaced_not_dropped(self) -> None:
         # A malformed profile sits between/with a valid one. The bad row is recorded
         # in missingCandidates (not silently swallowed); the valid row still scores.
