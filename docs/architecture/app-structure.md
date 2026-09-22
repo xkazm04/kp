@@ -907,7 +907,8 @@ the stamp writes under, because session storage outlives a logout inside one tab
 and the next person to sign in must not inherit a half-typed setup. Only the
 operator's own answers travel (name, accent, logo, invites, consent, the axis
 *draft*, the step); `pipeline.stored`/`counts` and the brain probe are re-read from
-the server, so the dirty check keeps comparing against real truth. The merge lets
+the server, so the dirty check keeps comparing against real truth. Restoring a
+saved draft updates a persistent screen-reader status region. The merge lets
 anything typed in this mount win over the restored value, and finishing or
 dismissing clears the slot — a dismissal is an answer, not an interruption.
 

@@ -9019,6 +9019,7 @@
       "dialog": "Configurer votre espace de travail",
       "skip": "Ignorer la configuration pour l’instant",
       "stepAnnounce": "Étape {index} sur {total} : {title}",
+      "draftRestored": "Votre brouillon de configuration a été restauré.",
       "stepPosition": "Étape {index} sur {total} :"
     },
     "previewRibbon": "Aperçu : rien de ce que vous faites ici ne sera enregistré",

@@ -9019,6 +9019,7 @@
       "dialog": "Nastavení pracovního prostoru",
       "skip": "Přeskočit nastavení",
       "stepAnnounce": "Krok {index} z {total}: {title}",
+      "draftRestored": "Váš rozepsaný průvodce nastavením byl obnoven.",
       "stepPosition": "Krok {index} z {total}:"
     },
     "previewRibbon": "Náhled: nic z toho, co tady uděláte, se neuloží",

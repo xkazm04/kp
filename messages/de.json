@@ -9019,6 +9019,7 @@
       "dialog": "Arbeitsbereich einrichten",
       "skip": "Einrichtung vorerst überspringen",
       "stepAnnounce": "Schritt {index} von {total}: {title}",
+      "draftRestored": "Ihr gespeicherter Einrichtungsentwurf wurde wiederhergestellt.",
       "stepPosition": "Schritt {index} von {total}:"
     },
     "previewRibbon": "Vorschau: Nichts, was Sie hier tun, wird gespeichert",

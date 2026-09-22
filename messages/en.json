@@ -9019,6 +9019,7 @@
       "dialog": "Set up your workspace",
       "skip": "Skip setup for now",
       "stepAnnounce": "Step {index} of {total}: {title}",
+      "draftRestored": "Your setup draft was restored.",
       "stepPosition": "Step {index} of {total}:"
     },
     "previewRibbon": "Preview: nothing you do here will be saved",

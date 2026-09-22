@@ -54,6 +54,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const t = useTranslations("setup");
   const resolveError = useErrorMessage();
   const [stepIndex, setStepIndex] = useState(0);
+  const [draftRestored, setDraftRestored] = useState(false);
   // Seed the language draft from the locale the app is ACTUALLY running in
   // (cookie, else Accept-Language, else en) rather than the hardcoded "en" in
   // INITIAL_SETUP — otherwise a browser that already resolved to Czech opens the
@@ -124,6 +125,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const restore = useCallback(
     (draft: SetupDraft) => {
       setState((s) => mergeSetupDraft(s, draft, initial));
+      setDraftRestored(true);
       // The restored position is a position in the sequence the restored INTENT
       // implies — a seeker's draft claiming step 4 clamps to its two-step run.
       const at = restoredStepIndex(draft, relevantSteps({ ...initial, intent: draft.intent }).length);
@@ -292,7 +294,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       aria-modal="true"
       aria-label={t("aria.dialog")}
     >
-      <OnboardingWizard ctrl={ctrl} />
+      <OnboardingWizard ctrl={ctrl} draftRestored={draftRestored} />
     </div>
   );
 }
