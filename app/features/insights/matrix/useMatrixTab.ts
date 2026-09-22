@@ -16,6 +16,7 @@ import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, matrixReasoningKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition, popoverDims } from "./matrixPopover";
 import { matrixCsvRows } from "./matrixCsv";
+import { applySlateToSelection, proposeSlate } from "./matrixSlate";
 import { createFrameThrottle } from "./matrixAnchor";
 import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
@@ -103,6 +104,7 @@ export function useMatrixTab() {
   // added, 7 failed" — even when the door had refused with a code and named the
   // permission the seat lacked. The localized sentence travels with the count.
   const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number; reason: string | null } | null>(null);
+  const [slateOpen, setSlateOpen] = useState(false);
 
   // matrix-answers-with-codes-and-retries (b). Bumping this re-runs the fetch effect;
   // it is the retry button's whole mechanism, so a failed load is recoverable without
@@ -354,6 +356,18 @@ export function useMatrixTab() {
     [cols, colScores],
   );
 
+  // Per-role slate over the VISIBLE grid, only while open; never writes (matrixSlate.ts).
+  const slate = useMemo(
+    () => (slateOpen && data ? proposeSlate({ rows, cols, cells: data.cells, placements: data.placements, added, locale }) : null),
+    [slateOpen, data, rows, cols, added, locale],
+  );
+  const reviewSlate = () => {
+    if (!slate) return;
+    setSelected((prev) => applySlateToSelection(prev, slate));
+    setSelectMode(true);
+    setSlateOpen(false);
+  };
+
   // "View full match" no longer LEAVES this tab: Match became Matrix's candidate-focus
   // mode, so the same params (?profile=<candidate>&job=<position>) now switch mode in
   // place — MatrixTab derives the mode from ?profile=. The grid's filters, scroll and
@@ -578,6 +592,10 @@ export function useMatrixTab() {
     announce,
     lastAdd,
     setLastAdd,
+    slate,
+    slateOpen,
+    setSlateOpen,
+    reviewSlate,
     families,
     cols,
     scopedPosition,

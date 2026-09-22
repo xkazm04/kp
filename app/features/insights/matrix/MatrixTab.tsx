@@ -18,6 +18,7 @@ import { MatrixFilterRow } from "./MatrixFilterRow";
 import { MatrixDataNotices } from "./MatrixDataNotices";
 import { MatrixGrid } from "./MatrixGrid";
 import { MatrixReasoningPopover } from "./MatrixReasoningPopover";
+import { MatrixSlatePanel } from "./MatrixSlatePanel";
 import { useMatrixTab } from "./useMatrixTab";
 import { deriveMatrixMode, pickGridState, type MatrixMode, type MatrixModeOverride } from "./matrixTabState";
 import { BTN_PRIMARY, BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
@@ -100,6 +101,8 @@ export function MatrixTab() {
             setSelectMode={m.setSelectMode}
             exitSelect={m.exitSelect}
             exportCsv={m.exportCsv}
+            slateOpen={m.slateOpen}
+            setSlateOpen={m.setSlateOpen}
             t={t}
           />
         ) : null}
@@ -217,6 +220,10 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
             <X size={14} aria-hidden />
           </button>
         </p>
+      ) : null}
+
+      {m.slate && state === "grid" ? (
+        <MatrixSlatePanel slate={m.slate} review={m.reviewSlate} close={() => m.setSlateOpen(false)} t={t} />
       ) : null}
 
       {m.selectMode ? (

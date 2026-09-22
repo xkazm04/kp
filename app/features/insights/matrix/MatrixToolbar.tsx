@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ListChecks } from "lucide-react";
+import { Download, ListChecks, Split } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { BTN_SECONDARY, CHIP, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 import { MIN_FIT_FLOORS } from "./matrixStats";
@@ -24,6 +24,8 @@ export function MatrixToolbar({
   setSelectMode,
   exitSelect,
   exportCsv,
+  slateOpen,
+  setSlateOpen,
   t,
 }: {
   data: Matrix | null;
@@ -39,6 +41,8 @@ export function MatrixToolbar({
   setSelectMode: (v: boolean) => void;
   exitSelect: () => void;
   exportCsv: () => void;
+  slateOpen: boolean;
+  setSlateOpen: (v: boolean) => void;
   t: ReturnType<typeof useTranslations<"matrix">>;
 }) {
   return (
@@ -90,6 +94,17 @@ export function MatrixToolbar({
           title={t("shortlistTitle")}
         >
           <ListChecks size={14} /> {selectMode ? t("doneSelecting") : t("shortlist")}
+        </button>
+      ) : null}
+      {rowsLength > 0 && colsLength > 0 ? (
+        <button
+          type="button"
+          onClick={() => setSlateOpen(!slateOpen)}
+          aria-pressed={slateOpen}
+          className={`${BTN_SECONDARY} px-2.5 py-1 text-sm font-semibold ${slateOpen ? "border-coral bg-coral/10 text-coral" : "bg-white"}`}
+          title={t("slate.toggleTitle")}
+        >
+          <Split size={14} /> {t("slate.toggle")}
         </button>
       ) : null}
       {data && data.candidates.length > 0 && rowsLength > 0 ? (
