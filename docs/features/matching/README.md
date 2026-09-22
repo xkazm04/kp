@@ -598,6 +598,25 @@ return strings against `matching.FitTier`). It is the shape
 on one side alone and CI reddens instead of a recruiter reading "promising" from the
 gate that admitted them and "partial" on the badge beside their name.
 
+**The fit grid is on the same scale.** The grid kept a private 45/60/72/85 heatmap,
+so a pair at 70-71 was a strong badge in candidate focus and, one segment over, an
+unstarred cell that the column's strong count skipped and the coverage banner called
+"no strong fit". `matrixStats.ts::MATRIX_BANDS` now takes its two tier edges from
+`FIT_PROMISING_FLOOR`/`FIT_STRONG_FLOOR` (bands `<40`, `40–54`, `55–69`, `70–84`,
+`85+`; 40 and 85 are cosmetic splits inside a tier). `STRONG_THRESHOLD` (the row ★,
+the column strong count) and the min-fit floors (`0 / 55 / 70`) are the shared
+floors, and the coverage rule is the pure `uncoveredRoles`. This reverses an earlier
+choice to derive the floors *from* the bands, which existed so a floor could never
+land mid-band. It still cannot: the tier floors now open bands by construction, and
+`matrixStats.test.ts` pins every floor as a band edge and forbids the literals in the
+module. On the wire, `matrix_cli` emits each scored cell's `fitTier`,
+`confidence {low, high, level}` and `unprovenCount` (a blocked cell stays
+`{score: null, blocked, koKeys}`), and `matrixCellClass.ts::cellTier` prefers that
+server tier over banding the bare score. `app/api/matrix/matrix-cell.test.ts` reads
+the route's `Cell` type and `matrix_cli.py` and fails on a declared key the CLI never
+emits. Payload cost on the seeded corpus: about 90 bytes per scored cell
+(85 KB → 211 KB for 112 × 18).
+
 ### Both modes say when their field was cut
 Every list on this surface is capped, so each cap is stated rather than hidden —
 the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
@@ -1190,13 +1209,10 @@ side either; it was removed, and a test asserts it does not come back.
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
 - The grid's cells still **paint one number**: whether that number rests on
   evidenced or self-declared skills is only readable after opening the cell's
-  reasoning popover. The GET `/api/matrix` `Cell` type now enumerates optional
-  `fitTier`, `confidence`, `unprovenCount`, and `provenanceMix` (additive: a
-  `{score, blocked}` cell still validates, and `respond()` spreads the parsed
-  matrix so a future CLI cannot be stripped by a typed mapper). `matrix_cli`
-  still emits `{score, blocked, koKeys?}` only — filling those fields is a
-  pipeline change. Until then the match card's three-bucket split is the honest
-  interim: the unproven bucket is visible on the card, not yet in the grid.
+  reasoning popover. `matrix_cli` now sends `fitTier`, `confidence` and
+  `unprovenCount` per scored cell, but the grid does not paint the band or the
+  unproven count yet; the match card's three-bucket split is the honest interim:
+  the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.
