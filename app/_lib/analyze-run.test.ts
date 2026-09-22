@@ -297,6 +297,130 @@ test("the seeded demo corpus is stamped deterministic by the seeder, not left bl
   assert.deepEqual(unmarked.map((r) => r.slug), [], "every seeded row must say no model produced it");
 });
 
+// ---- 4. the GitHub deep-dive rides the task (challenge-r02 analyze-engine/A) --------
+//
+// The stage is reached through the late-bound registry (task-external-runners.ts) so the
+// GitHub harvest stays off tasks.ts's import graph. These cases drive the REAL runAnalyze
+// with a registered stage whose GitHub half is faked and whose persist is the real
+// setAnalysisGithub, so "the deep-dive lands on the saved row" is observed in the DB.
+
+const { registerTaskRunner, _resetTaskRunnersForTests } = await import("./task-external-runners.ts");
+const { runGithubStage } = await import("./analyze-github-stage.ts");
+const { setAnalysisGithub } = await import("./db/analyses.ts");
+const { GithubAnalysisError } = await import("./github/client.ts");
+const { ANALYZE_GITHUB_RUNNER, baseAnalyzeLog } = await import("./analyze-run.ts");
+
+const GH_FIXTURE = {
+  username: "octocat",
+  profileUrl: "https://github.com/octocat",
+  summary: "s",
+  analyzedAt: "2026-09-23T00:00:00.000Z",
+  metrics: { publicRepos: 1, followers: 0, totalStars: 0, totalForks: 0, activeRepos: 1, recentlyUpdatedRepos: 0, ownedReposAnalyzed: 1 },
+  languages: [],
+  topRepositories: [],
+  contributionSignals: [],
+  jobFitSignals: { jobDescriptionProvided: false, matchingSkills: [], potentialGaps: [], complexityAssessment: "" },
+  limitations: [],
+};
+
+let stageCalls = 0;
+function registerFakeStage(build: () => Promise<unknown>) {
+  stageCalls = 0;
+  registerTaskRunner(ANALYZE_GITHUB_RUNNER, async (ctx) => {
+    stageCalls += 1;
+    const p = ctx.params as Parameters<typeof runGithubStage>[0];
+    return runGithubStage(
+      { ...p, signal: ctx.signal },
+      {
+        buildGithubAnalysis: build as never,
+        isTransientlyDegraded: () => false,
+        readGithubCache: () => undefined,
+        writeGithubCache: () => {},
+        extractJdText: async () => "",
+        persist: (slug, json) => void setAnalysisGithub(slug, json, ctx.workspaceId || undefined),
+      },
+    );
+  });
+}
+
+type WithDive = { persistence: { slug: string } | null; githubDeepDive?: Record<string, unknown> };
+
+test("a missing stage registration is a CODED deep-dive failure, never a failed CV run", async () => {
+  _resetTaskRunnersForTests();
+  const { baseDir, cvPath } = tempCv("gh-unregistered.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const realError = console.error;
+  console.error = () => {};
+  let out: WithDive;
+  try {
+    out = (await runAnalyze({ ...params("gh-unregistered.pdf", baseDir, cvPath), githubProfile: "octocat" })) as WithDive;
+  } finally {
+    console.error = realError;
+  }
+  assert.ok(out.persistence, "the CV half delivers and persists regardless");
+  assert.deepEqual(out.githubDeepDive, { status: "error", code: "ANALYSIS_FAILED" });
+});
+
+test("a handle rides the task: the deep-dive lands on the result AND on the saved row, server-side", async () => {
+  registerFakeStage(async () => GH_FIXTURE);
+  const { baseDir, cvPath } = tempCv("gh-done.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-done.pdf", baseDir, cvPath), githubProfile: "octocat" })) as WithDive;
+  assert.equal(stageCalls, 1);
+  assert.equal(out.githubDeepDive?.status, "done");
+  assert.ok(out.persistence);
+  const row = rowFor(out.persistence.slug);
+  assert.ok(row?.github_json, "the deep-dive was written onto the saved row by the task, not by a client PATCH");
+  assert.equal(JSON.parse(row.github_json).username, "octocat");
+});
+
+test("a deep-dive failure never fails the CV run and never changes its debit", async () => {
+  registerFakeStage(async () => {
+    throw new GithubAnalysisError("RATE_LIMITED", "GitHub said no", 60);
+  });
+  const { baseDir, cvPath } = tempCv("gh-throttled.pdf");
+  const before = usage();
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-throttled.pdf", baseDir, cvPath), githubProfile: "octocat" })) as WithDive;
+  assert.ok(out.persistence, "the CV analysis is still persisted");
+  assert.equal(usage(), before + 1, "exactly the one unit the CV run always cost — no more, no less");
+  assert.deepEqual(out.githubDeepDive, { status: "error", code: "RATE_LIMITED", retryAfterSec: 60 });
+  assert.equal(rowFor(out.persistence.slug)?.github_json ?? null, null, "a failed deep-dive writes nothing");
+});
+
+test("BLIND never reaches the stage: skipped, and the registered runner is not even called", async () => {
+  registerFakeStage(async () => GH_FIXTURE);
+  const { baseDir, cvPath } = tempCv("gh-blind.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-blind.pdf", baseDir, cvPath), blind: true, githubProfile: "octocat" })) as WithDive;
+  assert.equal(stageCalls, 0);
+  assert.deepEqual(out.githubDeepDive, { status: "skipped", reason: "blind" });
+  assert.equal(rowFor(out.persistence!.slug)?.github_json ?? null, null);
+});
+
+test("a handle the ROUTE dropped (capability / throttle) surfaces its code without running the stage", async () => {
+  registerFakeStage(async () => GH_FIXTURE);
+  const { baseDir, cvPath } = tempCv("gh-dropped.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze({ ...params("gh-dropped.pdf", baseDir, cvPath), githubDropped: "REQUEST_THROTTLED" })) as WithDive;
+  assert.equal(stageCalls, 0);
+  assert.deepEqual(out.githubDeepDive, { status: "error", code: "REQUEST_THROTTLED" });
+});
+
+test("a run with no handle carries no githubDeepDive at all", async () => {
+  const { baseDir, cvPath } = tempCv("gh-none.pdf");
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  const out = (await runAnalyze(params("gh-none.pdf", baseDir, cvPath))) as WithDive;
+  assert.equal("githubDeepDive" in out, false);
+});
+
+test("the analyze log says whether a deep-dive rode along (it was hard-coded false)", () => {
+  const p = { baseDir: "", grounding: false, variants: [], requestId: "r" };
+  assert.equal(baseAnalyzeLog({ ...p, githubProfile: "octocat" }, Date.now()).github_present, true);
+  assert.equal(baseAnalyzeLog(p, Date.now()).github_present, false);
+  assert.equal(baseAnalyzeLog({ ...p, githubProfile: "  " }, Date.now()).github_present, false);
+});
+
 // LAST: it drops the table the earlier tests write to.
 test("a PERSIST FAILURE charges nothing - the unit follows the row, not the spawn", async () => {
   const { baseDir, cvPath } = tempCv("unsaved.pdf");

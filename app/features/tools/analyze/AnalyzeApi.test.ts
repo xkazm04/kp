@@ -20,6 +20,7 @@ import {
   AnalyzeClientError,
   nextPollDelay,
   resolveAnalyzeErrorText,
+  githubViewFromDeepDive,
   submitAnalysis,
   watchAnalysis,
   type AnalyzeMessageResolvers,
@@ -285,4 +286,70 @@ test("the cadence backs off only after a run of quiet ticks, and any news resets
   assert.equal(nextPollDelay(20), 3000, "20 quiet ticks (~30s of no news) doubles the interval");
   assert.equal(nextPollDelay(40), 6000);
   assert.equal(nextPollDelay(400), 6000, "the interval is capped, so a long run stays responsive");
+});
+
+// ---- the GitHub handle rides the analyze task (challenge-r02 analyze-engine/A) ----
+
+async function capturedForm(run: () => Promise<unknown>): Promise<FormData> {
+  const originalFetch = globalThis.fetch;
+  let body: FormData | undefined;
+  globalThis.fetch = async (_input, init) => {
+    body = init?.body as FormData;
+    return new Response(JSON.stringify({ task: { id: "t1" } }), { status: 200 });
+  };
+  try {
+    await run();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.ok(body instanceof FormData);
+  return body;
+}
+
+const CV = () => new File(["cv"], "cv.pdf");
+
+test("a CV run with a handle sends it to the task as a 'githubProfile' field", async () => {
+  const form = await capturedForm(() =>
+    submitAnalysis([CV()], null, "", null, "", null, undefined, false, undefined, " octocat "),
+  );
+  assert.equal(form.get("githubProfile"), "octocat");
+});
+
+test("in BLIND mode the handle never leaves the browser", async () => {
+  const form = await capturedForm(() =>
+    submitAnalysis([CV()], null, "", null, "", null, undefined, true, undefined, "octocat"),
+  );
+  assert.equal(form.get("githubProfile"), null);
+  assert.equal(form.get("blind"), "true");
+});
+
+test("no handle, no field", async () => {
+  const form = await capturedForm(() => submitAnalysis([CV()], null, "", null, "", null, undefined, false, undefined, "  "));
+  assert.equal(form.get("githubProfile"), null);
+});
+
+test("the task's deep-dive outcome maps onto the panel's state", () => {
+  const gh = { username: "octocat" } as never;
+  assert.deepEqual(githubViewFromDeepDive({ status: "done", analysis: gh }), {
+    status: "done",
+    analysis: gh,
+    error: null,
+    warning: null,
+  });
+  assert.deepEqual(githubViewFromDeepDive({ status: "done", analysis: gh, warning: "githubJdDropped" }).warning, {
+    code: "githubJdDropped",
+  });
+  // The deep-dive's own code resolves through the same precedence the door's failures use.
+  assert.deepEqual(githubViewFromDeepDive({ status: "error", code: "RATE_LIMITED", retryAfterSec: 60 }), {
+    status: "error",
+    analysis: null,
+    error: { code: "errGithubFailed", apiCode: "RATE_LIMITED" },
+    warning: null,
+  });
+  // Blind (or an absent stage) shows no panel — the blind note beside the field already says why.
+  assert.equal(githubViewFromDeepDive({ status: "skipped", reason: "blind" }).status, "idle");
+  assert.equal(githubViewFromDeepDive(null).status, "idle");
+  assert.equal(githubViewFromDeepDive(undefined).status, "idle");
+  // A "done" with no payload is not a result: it is a failure, never an empty panel.
+  assert.equal(githubViewFromDeepDive({ status: "done" }).status, "error");
 });
