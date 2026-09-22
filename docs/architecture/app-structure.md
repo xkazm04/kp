@@ -59,6 +59,11 @@ The workspace is **one route**: `/` plus query params. Every selection and filte
 `?stage=`) is a param on the same page. The server render of `/` reads **none** of
 them — only `?sim=auto` and `?onboarding=1`.
 
+`WorkspaceDocumentTitle` reflects the active tab's localized nav label in the
+browser title after an in-shell switch and restores the server title when the
+workspace unmounts. The title therefore follows app state even when the URL
+does not change.
+
 ### The view selectors are app state; the URL is their inbox
 
 `?tab=` (the panel) and `?sec=` (the Analytics section) are the exception: they no

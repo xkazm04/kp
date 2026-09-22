@@ -16,6 +16,7 @@ import { SimulationProvider } from "./simulation/SimulationProvider";
 import { CompanionDockProvider } from "./companion/CompanionDockProvider";
 import { WorkspaceNavDrawer } from "./WorkspaceNavDrawer";
 import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
+import { WorkspaceDocumentTitle } from "./WorkspaceDocumentTitle";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import { useOnboardingReopen } from "./setup/onboardingReopen";
 import {
@@ -186,6 +187,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
 
   return (
     <TasksProvider>
+    <WorkspaceDocumentTitle active={navActive} />
     <SimulationProvider>
     {/* Candi's dock mounts as a SIBLING of this div (fixed-positioned), inside every
         provider and outside the keyed tab panel — so a conversation survives tab
