@@ -1974,6 +1974,7 @@
     "respondFailed": "Vaši odpověď se nepodařilo zaznamenat.",
     "deadline": "Odpovězte prosím do {date}.",
     "deadlineHours": "{hours, plural, one {zbývá # hodina} few {zbývají # hodiny} other {zbývá # hodin}}.",
+    "deadlineMinutes": "{minutes, plural, one {zbývá # minuta} few {zbývají # minuty} other {zbývá # minut}}.",
     "expiredTitle": "Platnost této nabídky vypršela",
     "expiredBody": "Lhůta pro odpověď uplynula. Pokud máte stále zájem, kontaktujte prosím náborový tým."
   },

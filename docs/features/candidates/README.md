@@ -861,8 +861,8 @@ Two things on `/status/[token]` that only a test can hold:
 
 The public offer card formats its deadline in the company's named time zone
 projected by the offer API, so candidates in other zones see the same deadline
-as the hiring team. The server still calculates the remaining hours from the
-absolute expiry instant.
+as the hiring team. The server calculates remaining time from the absolute
+expiry instant, and the card switches from hours to minutes in the final hour.
 
 | Concern | Files |
 |---|---|

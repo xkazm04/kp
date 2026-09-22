@@ -30,6 +30,7 @@ type OfferView = {
   // SERVER at GET time so the countdown can't disagree with server-enforced expiry on a
   // skewed/back-dated client clock. Null when the offer carries no valid deadline.
   hoursRemaining: number | null;
+  minutesRemaining: number | null;
   notes: string | null;
   startDate: string | null;
 };
@@ -372,9 +373,12 @@ export function OfferClient({
                   // candidate's browser zone. The formatter names that clock.
                   const date = formatOfferDeadline(offer.expiresAt, locale, offer.timeZone);
                   if (!date) return null;
+                  const mins = offer.minutesRemaining;
                   return (
                     <p className={`mt-2 text-sm font-medium ${hrs <= 48 ? "text-coral" : "text-steel"}`}>
-                      {t("deadline", { date })} {t("deadlineHours", { hours: hrs })}
+                      {t("deadline", { date })} {mins !== null && mins <= 60
+                        ? t("deadlineMinutes", { minutes: mins })
+                        : t("deadlineHours", { hours: hrs })}
                     </p>
                   );
                 })()}

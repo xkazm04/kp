@@ -1974,6 +1974,7 @@
     "respondFailed": "Ihre Antwort konnte nicht erfasst werden.",
     "deadline": "Bitte antworten Sie bis {date}.",
     "deadlineHours": "{hours, plural, one {# Stunde} other {# Stunden}} übrig.",
+    "deadlineMinutes": "{minutes, plural, one {# Minute} other {# Minuten}} übrig.",
     "expiredTitle": "Dieses Angebot ist abgelaufen",
     "expiredBody": "Die Frist zur Antwort ist verstrichen. Wenn Sie weiterhin interessiert sind, wenden Sie sich bitte an das Recruiting-Team."
   },

@@ -1974,6 +1974,7 @@
     "respondFailed": "Impossible d’enregistrer votre réponse.",
     "deadline": "Merci de répondre avant le {date}.",
     "deadlineHours": "{hours, plural, one {# heure restante} other {# heures restantes}}.",
+    "deadlineMinutes": "{minutes, plural, one {# minute restante} other {# minutes restantes}}.",
     "expiredTitle": "Cette offre a expiré",
     "expiredBody": "Le délai de réponse est dépassé. Si vous êtes toujours intéressé(e), contactez l’équipe de recrutement."
   },
