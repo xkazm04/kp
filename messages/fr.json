@@ -3227,6 +3227,7 @@
       "renameView": "Renommer la vue {name}",
       "renameViewTitle": "Renommer la vue",
       "previewScope": "{mine} des {total} décisions de cette exécution appartiennent à votre équipe. Les compteurs ci-dessus couvrent toute l’installation.",
+      "previewScoringDeferred": "Limite de calcul des scores atteinte : {count, plural, one {# groupe de postes sera évalué lors d’un prochain passage} other {# groupes de postes seront évalués lors d’un prochain passage}}. Cet aperçu peut inclure des candidatures en attente d’un score.",
       "previewOtherTeamsOnly": "{count, plural, one {Aucun changement pour votre équipe. Cette exécution comporte # changement en attente pour une autre équipe.} other {Aucun changement pour votre équipe. Cette exécution comporte # changements en attente pour d’autres équipes.}}",
       "previewApplyGlobal": "{count, plural, one {Appliquer # changement (toutes les équipes)} other {Appliquer # changements (toutes les équipes)}}",
       "emptyBoardWaiting": "Votre tableau, en attente",

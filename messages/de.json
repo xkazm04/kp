@@ -3227,6 +3227,7 @@
       "renameView": "Ansicht {name} umbenennen",
       "renameViewTitle": "Ansicht umbenennen",
       "previewScope": "{mine} von {total} Entscheidungen dieses Laufs gehören Ihrem Team. Die Zahlen oben umfassen die gesamte Installation.",
+      "previewScoringDeferred": "Bewertungsbudget erreicht: {count, plural, one {# Stellengruppe wird in einem späteren Durchlauf bewertet} other {# Stellengruppen werden in einem späteren Durchlauf bewertet}}. Diese Vorschau kann zurückgestellte Personen enthalten, die noch auf eine Bewertung warten.",
       "previewOtherTeamsOnly": "{count, plural, one {Keine Änderungen für Ihr Team. In diesem Lauf wartet # Änderung für ein anderes Team.} other {Keine Änderungen für Ihr Team. In diesem Lauf warten # Änderungen für andere Teams.}}",
       "previewApplyGlobal": "{count, plural, one {# Änderung anwenden (alle Teams)} other {# Änderungen anwenden (alle Teams)}}",
       "emptyBoardWaiting": "Ihr Board wartet",

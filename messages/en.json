@@ -3227,6 +3227,7 @@
       "renameView": "Rename view {name}",
       "renameViewTitle": "Rename view",
       "previewScope": "{mine} of this run's {total} decisions are your team's. The counts above cover the whole installation.",
+      "previewScoringDeferred": "Scoring budget reached: {count, plural, one {# job group will be scored on a later pass} other {# job groups will be scored on a later pass}}. This preview may include holds awaiting a score.",
       "previewOtherTeamsOnly": "{count, plural, one {No changes for your team. This run has # change waiting for another team.} other {No changes for your team. This run has # changes waiting for other teams.}}",
       "previewApplyGlobal": "{count, plural, one {Apply # change (all teams)} other {Apply # changes (all teams)}}",
       "emptyBoardWaiting": "Your board, waiting",

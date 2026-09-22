@@ -3227,6 +3227,7 @@
       "renameView": "Přejmenovat pohled {name}",
       "renameViewTitle": "Přejmenovat pohled",
       "previewScope": "{mine} z {total} rozhodnutí tohoto běhu patří vašemu týmu. Počty výše zahrnují celou instalaci.",
+      "previewScoringDeferred": "Byl dosažen limit skórování: {count, plural, one {# skupina pozic bude ohodnocena v některém z dalších průchodů} few {# skupiny pozic budou ohodnoceny v některém z dalších průchodů} other {# skupin pozic bude ohodnoceno v některém z dalších průchodů}}. Náhled může obsahovat pozastavené kandidáty čekající na skóre.",
       "previewOtherTeamsOnly": "{count, plural, one {Pro váš tým žádné změny. Tento běh má # změnu, která čeká na jiný tým.} few {Pro váš tým žádné změny. Tento běh má # změny, které čekají na jiné týmy.} other {Pro váš tým žádné změny. Tento běh má # změn, které čekají na jiné týmy.}}",
       "previewApplyGlobal": "{count, plural, one {Použít # změnu (všechny týmy)} few {Použít # změny (všechny týmy)} other {Použít # změn (všechny týmy)}}",
       "emptyBoardWaiting": "Vaše nástěnka čeká",
