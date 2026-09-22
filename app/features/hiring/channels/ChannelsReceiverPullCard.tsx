@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, KeyRound, RefreshCw } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { TextInput } from "@/app/_components/TextInput";
-import { BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, ICON_TILE, META_LABEL } from "@/app/_components/ui/recipes";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
@@ -87,7 +87,7 @@ export function ReceiverPullCard({
   return (
     <section aria-label={t("title")} className="rounded-lg border border-stone-200 bg-paper/50 p-4">
       <div className="flex min-h-[2rem] flex-wrap items-center gap-2">
-        <span aria-hidden className="inline-grid h-8 w-8 place-items-center rounded-lg border border-stone-200 bg-white text-steel">
+        <span aria-hidden className={ICON_TILE}>
           <RefreshCw size={15} />
         </span>
         <h3 className="font-semibold text-ink">{t("title")}</h3>

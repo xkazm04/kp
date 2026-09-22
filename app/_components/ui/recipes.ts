@@ -24,6 +24,11 @@
  *  catches the ~90 not-yet-migrated literal panels. */
 export const PANEL = "rounded-lg border border-stone-200 bg-white shadow-panel";
 
+/** Small bordered icon tile at the head of a settings card (h-8 square, steel glyph).
+ *  The channels cards re-typed it; new cards compose this instead. */
+export const ICON_TILE =
+  "inline-grid h-8 w-8 place-items-center rounded-lg border border-stone-200 bg-white text-steel";
+
 /** Raised coral-tinted callout for high-signal result summaries. */
 export const PANEL_ACCENT = "rounded-lg border border-coral/30 bg-coral/5 shadow-pop";
 

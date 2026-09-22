@@ -582,6 +582,11 @@ checklist.
 as the report's Archetype banner. It uses the shared `shadow-pop` token, so its
 depth follows both themes.
 
+`ICON_TILE` is the small bordered glyph tile at the head of a settings card
+(the channels receiver, relay and edge cards). It is tokens only, so both themes
+remap it; compose it rather than re-typing the class string, which the recipe
+literal ratchet reads as a hand-typed panel.
+
 ## Type & motion (shared by both themes)
 
 - Type scale: `display 36 / h2 22 / h3 16 / body 16 / meta+micro 14` — nothing
