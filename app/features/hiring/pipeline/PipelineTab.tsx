@@ -58,6 +58,10 @@ export function PipelineTab() {
         degradedCount={s.degradedCount}
         approvals={s.approvals}
         onToggleAging={() => s.toggleQuick("aging")}
+        onToggleActive={() => s.toggleQuick("active")}
+        onToggleInterview={() => s.toggleQuick("interview")}
+        activeSelected={s.quicks.has("active")}
+        interviewSelected={s.quicks.has("interview")}
         onFocusDegraded={s.focusDegradedCohort}
         onGoToDecisions={s.goToDecisions}
       />

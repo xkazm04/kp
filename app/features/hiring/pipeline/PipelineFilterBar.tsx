@@ -141,6 +141,7 @@ export function PipelineFilterBar({
   const locale = useLocale();
   const byLabel = (a: FilterMenuOption, b: FilterMenuOption) => a.label.localeCompare(b.label, locale);
   const stateOptions: FilterMenuOption[] = [
+    { value: "active", label: t("statActive") },
     { value: "interview", label: t("filterInterview") },
     { value: "aging", label: t("filterAging") },
     { value: "awaiting", label: t("filterAwaiting") },
