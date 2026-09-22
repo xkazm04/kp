@@ -141,6 +141,12 @@ export function NavSectionRail({
   }
   const shown = openSection ?? activeSection;
   const shownGroup = groups.find((g) => sectionOf(g) === shown) ?? groups[0];
+  const attentionAnnouncement = showAttention && attention
+    ? groups.flatMap((group) => group.items)
+      .filter((item) => item.badgeKey && attention[item.badgeKey] > 0)
+      .map((item) => `${navText(`tabs.${item.id}`, item.label)}: ${attentionLabel(attention[item.badgeKey!])}`)
+      .join("; ") || attentionLabel(0)
+    : "";
 
   // Which second-level rows this viewer cannot open, and why. The rows STAY —
   // disabled, with the capability named — because a door that disappears for the
@@ -196,6 +202,7 @@ export function NavSectionRail({
 
   return (
     <div className="flex h-full w-full min-h-0">
+      <span role="status" aria-live="polite" className="sr-only">{attentionAnnouncement}</span>
       {/* ── Level 1 — icon rail ── */}
       <div className="flex w-[4.75rem] shrink-0 flex-col gap-1 border-r border-stone-200 bg-paper p-2">
         {railTop}

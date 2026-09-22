@@ -165,6 +165,8 @@ per group, deduped per document by `prefetchTabChunk`.
 The visible rail section is remembered in session storage across reloads. A tab
 switch makes its own section the new stored default; unavailable storage only
 loses that preference.
+The rail also announces attention-count changes through a stable polite live
+region, including when the last count drops to zero.
 
 ### A nav group may own a DOOR as well as its destinations
 
