@@ -82,29 +82,49 @@ test("the conversational re-apply response gates its tokens on proven ownership"
   );
   assert.match(
     fn[0],
-    /proven \? \{ statusToken: safeStatusLink\(entryId\), \.\.\.followup \} : \{\}/,
+    /proven \? \{ statusToken: safeStatusToken\(entryId\), \.\.\.followup \} : \{\}/,
     "tokens (status + the follow-up capability) ride only for a proven caller"
   );
   // Proof is the ?lead= capability token resolving to THIS entry — the emailed
   // enrichment walk, which must keep working — never the submitted name/email.
-  // The unproven duplicate now RETURNS before the merge (the write gate,
-  // behaviourally pinned by [id]/reapply-capability-gate.test.ts), so the only
-  // acknowledgeReapply call left in that branch is the tokenless early exit.
-  // Since link recovery (challenge 2026-09-22 candidate-apply-api/B) the branch also
-  // re-sends the entry's links to the address ON FILE, and its copy is keyed on the
-  // relay state alone (recoveryMessageKey) — never on "alreadyMessage", whose "we've
-  // noted your renewed interest" is true only on the proven path that records it.
-  const unproven = /if \(!leadEntry\) \{([\s\S]{0,1600}?)acknowledgeReapply\(existing\.id, t\(recoveryMessageKey\(relayConfigured\)\), \[\], false, workspaceId, \{\}, false\);/.exec(
+  // Since challenge 2026-09-22 candidate-apply-api/A the route states that proof to
+  // the shared filing core (application-filing.ts) instead of branching on it itself:
+  // "token" only with the resolved lead entry, "none" otherwise.
+  assert.match(
+    conversational,
+    /\.\.\.\(leadEntry \? \{ proof: "token" as const, tokenEntry: leadEntry \} : \{ proof: "none" as const \}\)/,
+    "the route claims 'token' proof only when the lead token resolved to an entry on THIS job"
+  );
+  // The unproven duplicate (the core reports `merged: false`) returns the tokenless
+  // acknowledgement, and the route writes nothing onto the entry on that branch (the
+  // write gate, behaviourally pinned by [id]/reapply-capability-gate.test.ts). Since
+  // link recovery (challenge 2026-09-22 candidate-apply-api/B) the branch also re-sends
+  // the entry's links to the address ON FILE, and its copy is keyed on the relay state
+  // alone (recoveryMessageKey) — never on "alreadyMessage", whose "we've noted your
+  // renewed interest" is true only on the proven path that records it.
+  const unproven = /if \(!filed\.merged\) \{([\s\S]{0,1600}?)acknowledgeReapply\(filed\.entry\.id, t\(recoveryMessageKey\(relayConfigured\)\), false, \{\}, false\);/.exec(
     conversational
   );
-  assert.ok(unproven, "a duplicate without the lead token must return the tokenless acknowledgement BEFORE any merge");
+  assert.ok(unproven, "a duplicate without the lead token must return the tokenless acknowledgement");
   assert.doesNotMatch(unproven[1], /mergeReapplication\(|recordEntryConsent\(|recordAutomationEvent\(/, "the unproven branch writes nothing onto the entry");
   assert.doesNotMatch(unproven[0], /t\("alreadyMessage"\)/, "the unproven branch must not claim the renewed interest was noted");
-  // The event is a write too, so it rides the same proof.
+  // The event is a write too, so it rides the same proof — and it now lives in the
+  // core, never in the response helper (which used to write it for any caller).
+  assert.doesNotMatch(fn[0], /recordAutomationEvent\(/, "the acknowledgement helper writes nothing");
+  const core = read("../../_lib/application-filing.ts");
+  const repeat = /const repeat = async \([\s\S]*?\n  \};/.exec(core);
+  assert.ok(repeat, "expected the core's repeat handler");
+  const noneAt = repeat[0].indexOf('if (proof === "none") {');
+  const noneReturn = repeat[0].indexOf("return {", noneAt);
+  assert.ok(noneAt > 0, "the core gates the repeat on its proof");
+  for (const write of ["recordAutomationEvent(", "mergeReapplication(", "recordConsentSafely(", "input.onEntry?.("]) {
+    const at = repeat[0].indexOf(write);
+    assert.ok(at > noneReturn, `an unproven repeat returns BEFORE ${write}`);
+  }
   assert.match(
-    fn[0],
-    /if \(proven\) recordAutomationEvent\(entryId, "re_applied"/,
-    "an unproven repeat must not write a `re_applied` line onto the matched person's timeline"
+    repeat[0].slice(noneAt, noneReturn + 120),
+    /merged: false/,
+    "and says so, so the door can answer tokenless"
   );
 });
 

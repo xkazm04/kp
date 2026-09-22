@@ -14,7 +14,8 @@
 //  2. AXIS — the stage was the literal string "Accepted". The axis is editable, so the
 //     moment a team renamed or removed its first column every conversational applicant
 //     landed off-axis (PipelineBoardOffAxisStrip) while quick-apply leads and CV intake,
-//     which both resolve stageWithRole("entry", …), landed correctly.
+//     which both resolve stageWithRole("entry", …), landed correctly. All doors now file
+//     through application-filing.ts, which holds the one copy of that rule.
 //
 //  3. KO AUDIT — the knockout decline persists the applicant's name on an entry-less
 //     ko_declined event, and pipeline_events bounds the event DETAIL but not the
@@ -42,42 +43,52 @@ test("conversational apply drops a filled honeypot before any candidate write", 
 });
 
 test("both profile builds are filed into the SAME workspace the entry is stamped with", () => {
+  // Since challenge 2026-09-22 candidate-apply-api/A the route files through the shared
+  // core (application-filing.ts), which owns BOTH builds — the first-apply build and the
+  // proven merge's rebuild — for every door. The route's half of the invariant is that
+  // it hands the core the opening's workspace; the core's half is that every build it
+  // makes passes that workspace (and the applicant's locale) through.
+  assert.match(route, /const workspaceId = getJobWorkspace\(id\)/, "the opening's team");
   assert.match(
     route,
-    /const built = await buildApplicantProfile\(job, intakeAnswers, null, workspaceId, applicantLocale\)/,
-    "the first-apply build must pass the opening's workspace"
+    /const filed = await fileApplication\(\{\s*job,\s*workspaceId,/,
+    "the route files through the core, carrying the opening's workspace"
+  );
+  const core = read("../../_lib/application-filing.ts");
+  assert.match(
+    core,
+    /built = await build\(job, answers, null, workspaceId, locale\)/,
+    "the first-apply build must pass the entry's workspace"
   );
   assert.match(
-    route,
-    /const rebuilt = await buildApplicantProfile\(job, intakeAnswers, existing\.candidateId, workspaceId, applicantLocale\)/,
+    core,
+    /rebuilt = await build\(job, answers, existing\.candidateId, workspaceId, locale\)/,
     "the re-apply rebuild must pass it too"
   );
   // The buggy forms, forbidden explicitly: an omitted tenant is silent (the
-  // parameter is optional), so only banning the shape keeps it from coming back.
-  assert.ok(
-    !/buildApplicantProfile\(job, intakeAnswers\)/.test(route),
-    "a tenant-less build saves the profile into the DEFAULT workspace"
-  );
-  assert.ok(
-    !/buildApplicantProfile\(job, intakeAnswers, existing\.candidateId\)/.test(route),
-    "a tenant-less rebuild saves the profile into the DEFAULT workspace"
-  );
-  // The entry it belongs to is stamped with that same value.
-  assert.match(route, /const workspaceId = getJobWorkspace\(id\)/);
+  // parameter is optional), so only banning the shape keeps it from coming back —
+  // in the core, and in the route, which must not build on its own at all.
+  assert.ok(!/build\(job, answers\)/.test(core), "a tenant-less build saves the profile into the DEFAULT workspace");
+  assert.ok(!/build\(job, answers, existing\.candidateId\)/.test(core), "a tenant-less rebuild saves the profile into the DEFAULT workspace");
+  assert.ok(!/buildApplicantProfile\(/.test(route), "a route-side build bypasses the core's tenant threading");
+  // The entry the profile belongs to is stamped with that same value.
+  assert.match(core, /const workspaceId = input\.workspaceId \?\? getJobWorkspace\(job\.id\)/);
 });
 
 test("a fresh application lands on the workspace axis's ENTRY column, not a hardcoded name", () => {
-  assert.match(
-    route,
-    /stage: stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/,
-    "the conversational apply must resolve its landing column from the axis"
-  );
-  assert.ok(!/stage: "Accepted",/.test(route), "the hardcoded landing stage strands applicants off-axis");
-  // Non-vacuity: this is the shared intake idiom, not a shape invented here — the
-  // other inbound surfaces already use it (the CV door files through the shared core,
-  // application-filing.ts, which owns the rule for every door it serves).
-  for (const rel of ["../../_lib/lead-intake.ts", "../../_lib/application-filing.ts"]) {
-    assert.match(read(rel), /stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/, rel);
+  // The rule lives ONCE, in the filing core every door files through; no door keeps a
+  // copy (the card counted three before: this route, lead-intake.ts, cv-intake.ts).
+  const rule = /stage: stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/g;
+  const core = read("../../_lib/application-filing.ts");
+  assert.equal((core.match(rule) ?? []).length, 1, "the core resolves the landing column from the axis");
+  assert.match(route, /await fileApplication\(\{/, "the conversational apply files through the core that owns the rule");
+  for (const rel of ["[id]/route.ts", "../../_lib/lead-intake.ts", "../../_lib/cv-intake.ts", "../../_lib/application-filing.ts"]) {
+    // The old defect, forbidden on every door and in the core: a hardcoded landing
+    // stage strands applicants off-axis the moment a team renames its first column.
+    assert.ok(!/stage: "Accepted",/.test(read(rel)), `${rel}: the hardcoded landing stage strands applicants off-axis`);
+  }
+  for (const rel of ["[id]/route.ts", "../../_lib/lead-intake.ts", "../../_lib/cv-intake.ts"]) {
+    assert.equal((read(rel).match(rule) ?? []).length, 0, `${rel} keeps no private copy of the entry-stage rule`);
   }
 });
 

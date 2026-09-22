@@ -2,40 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
-import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, findEntryByLeadToken, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
+import { ensureLeadEnrichToken, findEntryByLeadToken, recordAutomationEvent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
 import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
-import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
+import { applyKoSteps } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
-import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
-import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
-import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { recoverApplicationLinks, recoveryMessageKey } from "@/app/_lib/apply-link-recovery";
+import { fileApplication, safeStatusToken } from "@/app/_lib/application-filing";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import type { ApplyAnswers } from "@/app/_lib/apply-intake";
-import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
-import { randomId } from "@/app/_lib/random-id";
-import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { capAttribution } from "@/app/_lib/lead-payload";
-
-// Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
-// best-effort: the application already succeeded, so a status-link failure must
-// never turn it into an error — the candidate just doesn't get the tracking link.
-function safeStatusLink(entryId: string): string | null {
-  try {
-    return getOrCreateStatusLink(entryId);
-  } catch (err) {
-    console.error(`[apply] could not mint status link for entry ${entryId}:`, err instanceof Error ? err.message : err);
-    return null;
-  }
-}
-
 
 // How many of the profile's unmet-checklist gaps the candidate is offered right
 // after "You're in". Deliberately small: this is a courtesy ask on a flow that has
@@ -95,14 +76,15 @@ const MAX_CV_TEXT_LENGTH = 64 * 1024; // extracted CV text — bounded, head-sam
 // inbound-channel route. (clientIpFrom's XFF caveat is documented in rate-limit.ts.)
 const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 
-// Record the renewed interest on the applicant's ORIGINAL entry and return the
-// "already applied" acknowledgment. Shared by BOTH dedup paths — the primary
-// name-based check and the dedupeKey backstop race — so the event name and
-// duplicate flag can never drift between them. The localized `message` (shown to
-// the candidate) is passed in by the caller from the request's "apply" catalog.
-// W8-6 (APP1): `changes` lists what the merge folded onto the original entry
-// (contact backfill, profile rebuild); it lands in the event detail so the feed
-// shows WHAT a repeat contributed, not just that one happened.
+// The "already applied" acknowledgment, shared by every duplicate outcome the
+// filing core reports — the unproven match, the proven merge and the dedupeKey
+// backstop race — so the response shape and duplicate flag can never drift between
+// them. The localized `message` is passed in by the caller from the request's
+// "apply" catalog. The `re_applied` event is NOT written here: it is part of the
+// MUTATING half, so it lives in the core (application-filing.ts) behind the same
+// proof the merge rides — an unproven repeat is a caller who typed a name we cannot
+// authenticate, and letting it write a line into the recruiter's activity feed on
+// the victim's timeline is both a nuisance channel and a false provenance record.
 // E2 — `enriched` marks the repeat that REBUILT the profile (the quick-apply
 // lead following its enrichment link, or any degraded stub recovered). The
 // client celebrates it as a completed profile rather than shrugging "already
@@ -110,26 +92,15 @@ const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 function acknowledgeReapply(
   entryId: string,
   message: string,
-  changes: string[] = [],
-  enriched = false,
-  workspaceId?: string,
+  enriched: boolean,
   // The gap follow-up, when the repeat REBUILT the profile (an enrichment walk):
   // the freshly computed gaps are the honest ones to ask about.
-  followup: FollowupOffer = {},
+  followup: FollowupOffer,
   // Did this caller PROVE they own the entry this response is about? See the
   // capability block below — the answer decides whether the entry's tokens are
   // allowed onto the wire at all.
-  proven = false
+  proven: boolean
 ): NextResponse {
-  const detail = changes.length
-    ? `repeat application via conversational apply — ${changes.join("; ")}`
-    : "repeat application via conversational apply";
-  // The event is part of the MUTATING half, so it rides the same proof the merge
-  // does. An unproven repeat is a caller who typed a name we cannot authenticate:
-  // letting it write a line into the recruiter's activity feed on the victim's
-  // timeline is both a nuisance channel and a false provenance record ("this
-  // candidate re-applied") for something the candidate never did.
-  if (proven) recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // CAPABILITY GATE — the reason this response is thinner than the first-apply one.
   //
   // A duplicate is detected from the submitted NAME/EMAIL alone
@@ -147,8 +118,8 @@ function acknowledgeReapply(
   //
   // So the tokens ride ONLY when the caller demonstrated possession of this entry:
   // a valid ?lead= capability token (the emailed enrichment walk — the designed
-  // path, unaffected), or the dedupeKey race below where this very request created
-  // the row. An ordinary re-application still gets its acknowledgement; the link
+  // path, unaffected), or the dedupeKey race where this very request created the
+  // row. An ordinary re-application still gets its acknowledgement; the link
   // reaches its owner through the address on file, which is the one channel we can
   // authenticate. The `duplicate` flag itself stays: the candidate must be told
   // honestly that they already applied.
@@ -159,7 +130,7 @@ function acknowledgeReapply(
     message,
     // The repeat reuses the ORIGINAL entry, so a proven caller gets the SAME status
     // link (getOrCreateStatusLink is keyed on entry_id) — the returning lead can track.
-    ...(proven ? { statusToken: safeStatusLink(entryId), ...followup } : {}),
+    ...(proven ? { statusToken: safeStatusToken(entryId), ...followup } : {}),
   });
 }
 
@@ -356,288 +327,131 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const leadTarget = leadToken ? findEntryByLeadToken(leadToken) : null;
     const leadEntry = leadTarget && leadTarget.entry.jobId === job.id ? leadTarget.entry : null;
 
-    // The captured intake answers, assembled once from the parsed locals so the
-    // re-apply rebuild and the first-apply build are guaranteed to feed
-    // buildApplicantProfile the identical answer set (they differ only in whether
-    // a target profile id is passed).
-    const intakeAnswers: ApplyAnswers = {
-      name,
-      experience,
-      skills,
-      archetype,
-      studentProject,
-      studentEducation,
-      studentAspirations,
-      switchPrior,
-      switchAspirations,
-      cvText,
-    };
+    // The ABSOLUTE origin every emailed link is built on.
+    const base = publicBaseUrl(new URL(request.url).origin);
 
-    // Duplicate-application policy (primary check): if this named applicant has
-    // already applied to this role, surface the repeat on the original entry and
-    // acknowledge it — don't create a second pipeline row. The lead token (when
-    // valid) IS the identity; otherwise dedup keys on the EMAIL when given (the
-    // stronger identity), else the name — so two same-named applicants with
-    // different addresses no longer merge.
+    // FILE THROUGH THE SHARED CORE (application-filing.ts). It owns the whole filing
+    // contract for every door: the tenant (the opening's workspace, threaded into the
+    // entry, the profile build, consent and every event — omitting it from the build
+    // once saved the profile in the DEFAULT workspace while the entry went to the
+    // opening's owner, so the recruiter found no profile, Match never saw the
+    // candidate and the follow-up POST 404'd), identity BEFORE any profile is built,
+    // the entry column, consent, the status-link mint and the acknowledgement.
     //
-    // W8-6 (APP1) — merge, don't drop. Re-applying is the only self-service
-    // "update my info" path an applicant has, so a detected repeat folds its
-    // fresh signals onto the original entry before acknowledging:
-    //   - a valid email backfills a contactless entry (the applicant becoming
-    //     reachable is the point of re-applying for most);
-    //   - a CV-carrying repeat (or any repeat on a degraded stub) rebuilds the
-    //     profile — in place for a healthy original, a fresh save + re-point for
-    //     the stub. A FAILED rebuild touches nothing: a junk repeat can never
-    //     degrade a healthy entry, and a stub just stays a stub.
-    if (leadEntry || providedName || email) {
-      const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email, workspaceId);
-      if (existing) {
-        // CAPABILITY GATE, WRITE SIDE — the twin of the one in acknowledgeReapply.
-        //
-        // The read side stopped handing a name-guesser the matched entry's tokens.
-        // The WRITE side stayed open, and everything below this line mutates the
-        // matched person's record: it sets the address every future comm is sent
-        // to, backfills their GitHub handle, rebuilds their stored profile from
-        // whatever CV text the POST carried, writes a `re_applied` line onto their
-        // timeline and refreshes the consent that extends their retention clock.
-        // The match that authorizes all of it is `findApplicationByApplicant` on a
-        // NAME (an email is optional and a bare name matches), so knowing that a
-        // person applied — a LinkedIn post is enough — was enough to make yourself
-        // their contact of record and to overwrite the profile a recruiter scores.
-        //
-        // So the merge needs the same proof the tokens do: a valid ?lead= token
-        // resolving to THIS entry, which is the emailed enrichment walk — the path
-        // the merge was designed for and the only re-apply that is authenticated.
-        // Without it the honest answer is unchanged and unchanging: the candidate
-        // is told they already applied (they must be — silently dropping a repeat
-        // is how the "update my info" path became invisible), and not one column of
-        // the original entry moves. A genuine returning applicant who lost their
-        // link is not stranded: the enrichment link is re-sent to the address on
-        // file, which is the one channel we can authenticate.
-        if (!leadEntry) {
-          // The funnel back-link still runs: it writes to apply_sessions (keyed by
-          // the caller's OWN client-minted attempt id), never to the entry, and the
-          // attempt genuinely did reach a filed application — which is the only
-          // thing the apply-to-pipeline rate measures.
-          linkApplySession(applySessionId, existing.id);
-          // …and the promise above is kept: the entry's OWN status + enrichment
-          // links go to the address ON FILE (never the one this request typed), at
-          // most once per entry per 24h, with no event and no consent write. The
-          // copy is picked from the relay state alone, so the answer is the same
-          // whether or not an address is on file (apply-link-recovery.ts).
-          const relayConfigured = isRelayConfigured();
-          recoverApplicationLinks(existing, {
-            base: publicBaseUrl(new URL(request.url).origin),
-            relayConfigured,
-            defer: (task) => afterResponse("apply-link-recovery", task),
-          });
-          return acknowledgeReapply(existing.id, t(recoveryMessageKey(relayConfigured)), [], false, workspaceId, {}, false);
-        }
-        const changes: string[] = [];
-        const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
-        let profileRebuilt = false;
-        // The gap follow-up offered on THIS response, populated only by a rebuild.
-        let followup: FollowupOffer = {};
-        if (email && !existing.contact) {
-          updates.contact = email;
-          changes.push("contact email captured");
-        }
-        // A repeat (notably a lead's enrichment walk — the github step is new
-        // to them) that shares a handle backfills a handle-less entry; one
-        // already on file is kept (fill-only, see mergeReapplication).
-        if (githubHandle && !existing.githubHandle) {
-          updates.githubHandle = githubHandle;
-          changes.push("GitHub handle captured");
-        }
-        if (cvText || existing.intakeDegraded) {
-          // Same tenant the entry itself is filed into (see the first-apply build
-          // below): the rebuilt profile must land in the team that owns the opening.
-          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId, workspaceId, applicantLocale);
-          if (rebuilt.ok) {
-            updates.candidateId = rebuilt.id;
-            updates.archetype = rebuilt.archetype;
-            profileRebuilt = true;
-            followup = recordAndOfferGaps(existing.id, rebuilt.missingGaps, workspaceId);
-            changes.push(
-              existing.intakeDegraded ? "degraded intake recovered (profile rebuilt)" : "profile rebuilt with CV"
-            );
-          }
-        }
-        if (changes.length > 0) {
-          const merged = mergeReapplication(existing.id, updates, workspaceId);
-          // Newly reachable: the original acknowledgment dead-lettered (no
-          // recipient existed), so send it to the address just captured.
-          // Best-effort, same contract as the first-apply ack below — and, like
-          // it, dispatched AFTER this response rather than in front of it.
-          if (updates.contact && merged) {
-            // …carrying the status link, exactly like the first-apply ack and the
-            // quick-apply ack (capst-l1-002). This is the ONE ack that reaches a
-            // candidate whose entry had no address until now, so without the link
-            // they are the only applicant we never hand a durable way to check
-            // where they stand — and since a name/email-matched repeat no longer
-            // gets the token in its JSON response (see acknowledgeReapply's
-            // capability gate), this email is the whole delivery path. Minted
-            // synchronously, before the deferral, so the token is the entry's real
-            // one; pinned to the language the EMAIL renders in (the entry's own
-            // locale, which is what dispatchApplicationReceived resolves), not the
-            // language of whoever POSTed.
-            const reackToken = safeStatusLink(merged.id);
-            const reackLink = reackToken
-              ? `${publicBaseUrl(new URL(request.url).origin)}/status/${reackToken}?lang=${merged.locale || applicantLocale}`
-              : undefined;
-            afterResponse("apply-reack", async () => {
-              try {
-                await dispatchApplicationReceived(merged, reackLink ? { statusLink: reackLink } : undefined);
-              } catch (ackErr) {
-                console.error(
-                  `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
-                  ackErr instanceof Error ? ackErr.message : ackErr
-                );
-              }
-            });
-          }
-        }
-        // Re-applying re-consents: refresh the data-processing consent + expiry
-        // (best-effort — a consent-record failure must never block the apply ack).
-        try {
-          recordEntryConsent(existing.id, "apply", undefined, workspaceId);
-        } catch (consentErr) {
-          console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
-        }
-        linkApplySession(applySessionId, existing.id);
-        return acknowledgeReapply(
-          existing.id,
-          profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
-          changes,
-          profileRebuilt,
-          workspaceId,
-          followup,
-          // Unconditionally proven: the write gate above already returned for every
-          // caller without a lead token, so reaching here means `leadEntry !== null`.
-          true
-        );
-      }
-    }
-
-    // Build a real, matchable V2 candidate from the answers; on failure fall back
-    // to a label-only id AND flag the entry intake-degraded so the recruiter sees
-    // a stub that needs manual profile capture (rather than a silent demotion).
+    // Duplicate-application policy: one application per (applicant, role). Identity
+    // is the lead token when valid, else the EMAIL when given (the stronger identity),
+    // else the provided name — so two same-named applicants with different addresses
+    // do not merge, and the "Applicant" fallback is never a key (two anonymous
+    // applicants must not be merged into one entry).
     //
-    // Tenant (P1): the profile row MUST be filed into the same team the entry below
-    // is stamped with (buildApplicantProfile takes it as a caller argument — it is
-    // not derivable from `job`). Omitting it saved the profile in the DEFAULT
-    // workspace while the entry went to the opening's owner, so for any job owned by
-    // a non-default team the recruiter opened their new applicant and found no
-    // profile behind them, the Match pool never saw the candidate, and the follow-up
-    // POST below 404'd (it reads getProfileRecord(profileId, getJobWorkspace(job.id))).
-    const built = await buildApplicantProfile(job, intakeAnswers, null, workspaceId, applicantLocale);
-    const candidateId = built.ok ? built.id : randomId("apply");
-
-    const { entry, created } = createPipelineEntry({
-      candidateId,
-      candidateLabel: name,
-      // A degraded intake (or a build with no archetype) is stamped UNCLASSIFIED —
-      // never a guessed archetype, and never a concrete class that would strip the
-      // fail-closed fairness shield. See FALLBACK_ARCHETYPE.
-      archetype: (built.ok ? built.archetype : null) ?? FALLBACK_ARCHETYPE,
-      roleFamily: job.roleFamily ?? null,
-      jobId: job.id,
-      jobTitle: job.title,
-      // A fresh application arrives at the board's ENTRY column, whatever THIS
-      // workspace calls it — not at a stage that happens to be named "Accepted".
-      // The axis is editable, so a hardcoded name stranded every conversational
-      // applicant on the off-axis strip (PipelineBoardOffAxisStrip) the moment a
-      // team renamed or removed its first column, while quick-apply leads
-      // (lead-intake.ts) and CV intake (cv-intake.ts) landed correctly.
-      stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
-      // Stable per-applicant key so the entry dedups on (name, job) even though
-      // candidateId is a fresh profile id each submission. Backstops the rare
-      // race where two concurrent first-time submissions slip past the check
-      // above (each builds its own profile, but they collapse to one entry).
-      dedupeKey: applyDedupeKey(providedName, email),
-      intakeDegraded: !built.ok,
-      intakeDegradedReason: built.ok ? null : built.reason,
-      // The deliverable recipient for every downstream comm; null when the
-      // applicant left it blank (the entry still files, comms just dead-letter).
-      contact: email || null,
-      // Self-reported GitHub handle — the drawer's on-demand deep-dive hook.
-      githubHandle,
+    // What a match may do is this door's PROOF:
+    //   - "token": a valid ?lead= token resolving to THIS entry — the emailed
+    //     enrichment walk, the path the W8-6 merge ("merge, don't drop") was designed
+    //     for and the only re-apply that is authenticated. It backfills a contactless
+    //     entry's address (re-acking it, deferred, with the status link pinned to the
+    //     language the EMAIL renders in), backfills the GitHub handle, and — for a
+    //     CV-carrying repeat or a degraded stub — REBUILDS the profile. A FAILED
+    //     rebuild touches nothing: a junk repeat can never degrade a healthy entry.
+    //   - "none": everything else. The match came from a NAME (an email is optional
+    //     and a bare name matches), and knowing that a person applied — a LinkedIn
+    //     post is enough — must not make you their contact of record or overwrite the
+    //     profile a recruiter scores. Not one column of the original entry moves, and
+    //     no event or consent refresh is written (see the unproven branch below).
+    const filed = await fileApplication({
+      job,
+      workspaceId,
+      name: providedName,
+      email: email || null,
       // SIM3 — the applicant's language, so downstream comms speak it.
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
       sourceCampaign: typeof body.campaign === "string" ? capAttribution(body.campaign.trim()) || null : null,
       sourceVariant: typeof body.variant === "string" ? capAttribution(body.variant.trim()) || null : null,
-      workspaceId,
+      channelLabel: "conversational apply",
+      // Self-reported GitHub handle — the drawer's on-demand deep-dive hook.
+      githubHandle,
+      answers: {
+        experience,
+        skills,
+        archetype,
+        studentProject,
+        studentEducation,
+        studentAspirations,
+        switchPrior,
+        switchAspirations,
+        cvText,
+      },
+      ...(leadEntry ? { proof: "token" as const, tokenEntry: leadEntry } : { proof: "none" as const }),
+      // The durable "where do I stand" link on every ack this door sends. Pinned to
+      // the language the EMAIL renders in (the entry's own locale — the applied-in
+      // one on a first filing): the link is opened outside the app, where no
+      // NEXT_LOCALE cookie exists yet, and proxy.ts turns ?lang= back into it.
+      statusLinkFor: (entry) => {
+        const token = safeStatusToken(entry.id);
+        return token ? `${base}/status/${token}?lang=${entry.locale || applicantLocale}` : null;
+      },
+      // Both acks — the first one and the newly-reachable re-ack — run AFTER this
+      // response: an SMTP/relay round-trip whose failure already cannot change the
+      // outcome only made a slow provider look like a broken apply form.
+      defer: (task, kind) => afterResponse(kind === "reack" ? "apply-reack" : "apply-ack", task),
+      // The audit prose this door has always written: WHAT a repeat contributed.
+      repeatDetail: (changes) =>
+        changes.length
+          ? `repeat application via conversational apply — ${changes.join("; ")}`
+          : "repeat application via conversational apply",
     });
 
-    linkApplySession(applySessionId, entry.id);
+    // Close the funnel loop on whichever path reached the pipeline: a first
+    // application, the dedupe backstop, a merge, or an unproven repeat (the last
+    // writes to apply_sessions, keyed by the caller's OWN attempt id — never to the
+    // entry — and the attempt genuinely did reach a filed application).
+    linkApplySession(applySessionId, filed.entry.id);
 
-    // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
-    // (the candidate agreed at submit, with the retention statement shown via
-    // AiDisclosure). The expiry drives the anonymization sweep. Best-effort — never
-    // block a successful application on the consent bookkeeping.
-    try {
-      recordEntryConsent(entry.id, "apply", undefined, workspaceId);
-    } catch (consentErr) {
-      console.error(`[apply] consent record failed for entry ${entry.id}:`, consentErr);
+    if (filed.kind === "duplicate") {
+      if (!filed.merged) {
+        // UNPROVEN: the candidate is told they already applied (they must be —
+        // silently dropping a repeat is how the "update my info" path became
+        // invisible), and the promise that they are not stranded is kept: the
+        // entry's OWN status + enrichment links go to the address ON FILE (never the
+        // one this request typed), at most once per entry per 24h, with no event
+        // and no consent write. The copy is picked from the relay state alone, so
+        // the answer is the same whether or not an address is on file
+        // (apply-link-recovery.ts).
+        const relayConfigured = isRelayConfigured();
+        recoverApplicationLinks(filed.entry, {
+          base,
+          relayConfigured,
+          defer: (task) => afterResponse("apply-link-recovery", task),
+        });
+        return acknowledgeReapply(filed.entry.id, t(recoveryMessageKey(relayConfigured)), false, {}, false);
+      }
+      // PROVEN — the lead token, or the dedupeKey backstop race. The race is
+      // unreachable by identity-guessing: it needs the dedupeKey to COLLIDE while the
+      // identity lookup MISSED, and the two read the same (email, else name)
+      // identity — so what arrives there is the genuine double-submit (a retry whose
+      // first response was lost), which must keep its status link: with no relay
+      // configured the on-screen link is the candidate's only touchpoint.
+      const rebuilt = filed.rebuilt?.ok ? filed.rebuilt : null;
+      // The gap follow-up offered on THIS response, populated only by a rebuild.
+      const followup = rebuilt ? recordAndOfferGaps(filed.entry.id, rebuilt.missingGaps, workspaceId) : {};
+      return acknowledgeReapply(filed.entry.id, rebuilt ? t("enrichedMessage") : t("alreadyMessage"), rebuilt !== null, followup, true);
     }
 
-    // created:false here means the dedupeKey backstop caught a concurrent repeat
-    // submission — surface it as a re-apply rather than logging a second
-    // "applied" against the same entry.
-    //
-    // `proven`: this branch is unreachable by identity-guessing. Getting here needs
-    // the dedupeKey to COLLIDE while findApplicationByApplicant above MISSED, and
-    // the two read the same (email, else name) identity — an impostor who supplies
-    // a real applicant's address or name is matched by the check above and never
-    // arrives here. What does arrive is the genuine double-submit (a retry whose
-    // first response was lost), which must keep its status link: with no relay
-    // configured the on-screen link is the candidate's only touchpoint.
-    if (!created) {
-      return acknowledgeReapply(entry.id, t("alreadyMessage"), [], false, workspaceId, {}, true);
-    }
-
+    const { entry, built } = filed;
     // createPipelineEntry already logs an `intake_degraded` event for the stub; for
     // a healthy intake record the usual `applied` provenance. The event detail is
     // whichever lane's story the applicant told.
-    if (built.ok) {
+    if (built?.ok) {
       const story = experience || studentProject || switchPrior;
       recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply", workspaceId);
     }
 
-    // Acknowledge the application (APP3) — a durable "we received it" instead of
-    // only the in-page bubble. Best-effort: the entry is already created, so a
-    // comms failure must never turn a successful application into a 500. Lands in
-    // the Outbox (deliverable when an email was captured above, traceable either
-    // way). Fires for degraded stubs too — they still applied.
-    // Mint the status link ONCE so the ack email and the JSON response carry the
-    // SAME token — the email is the durable touchpoint that survives the candidate
-    // closing the tab (without it the unguessable token was lost forever on tab
-    // close, defeating the whole status-tracking feature).
-    // The dispatch itself runs AFTER this response: it's an SMTP/relay round-trip
-    // whose failure already can't change the outcome, so awaiting it only made a
-    // slow provider look like a slow (or broken) apply form for an application
-    // that had already succeeded. The token is minted BEFORE, synchronously, so
-    // the response and the email still carry the same one.
-    const statusToken = safeStatusLink(entry.id);
-    // Pinned to the language the candidate applied in — this ABSOLUTE link is
-    // opened from an email, outside the app, where no NEXT_LOCALE cookie exists
-    // yet; without ?lang= a Czech applicant lands on an English status page.
-    // Same convention (and the same proxy.ts handler) as the enrichment link.
-    const statusLink = statusToken
-      ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}?lang=${applicantLocale}`
-      : undefined;
-    afterResponse("apply-ack", async () => {
-      try {
-        await dispatchApplicationReceived(entry, { statusLink });
-      } catch (ackErr) {
-        console.error(
-          `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
-          ackErr instanceof Error ? ackErr.message : ackErr
-        );
-      }
-    });
+    // The core already minted this entry's status link (synchronously, before it
+    // scheduled the acknowledgement); getOrCreateStatusLink is keyed on the entry,
+    // so this is the SAME token the ack email carries — the email is the durable
+    // touchpoint that survives the candidate closing the tab.
+    const statusToken = safeStatusToken(entry.id);
 
     return NextResponse.json({
       result: "accepted",
@@ -651,7 +465,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // standing right here — was never asked. Purely additive to the response:
       // absent when there is nothing askable, and the client treats it as an
       // after-the-fact courtesy (the application is already filed).
-      ...(built.ok ? recordAndOfferGaps(entry.id, built.missingGaps, workspaceId) : {}),
+      ...(built?.ok ? recordAndOfferGaps(entry.id, built.missingGaps, workspaceId) : {}),
     });
   } catch (error) {
     // Public + unauthenticated: a raw err.message here is SQLite/Python/fs

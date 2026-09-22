@@ -16,25 +16,10 @@
 // and the localized human-facing response copy.
 
 import type { JobRecord } from "./db/core";
-import { getPipelineAxis } from "./pipeline-axis-server";
-import { stageWithRole } from "./pipeline-stages";
 import { getJobWorkspace } from "./db/jobs";
-import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline } from "./db/pipeline";
-
-// GDPR: a lead is a reachable candidate whose data we're storing for enrichment —
-// record data-processing consent + a 12-month expiry at intake, best-effort (the
-// consent bookkeeping must never undo a filed lead). Source is the inbound channel.
-function recordLeadConsent(entryId: string, source: string, workspaceId: string): void {
-  try {
-    recordEntryConsent(entryId, source, undefined, workspaceId);
-  } catch (err) {
-    console.error(`[lead-intake] consent record failed for entry ${entryId}:`, err);
-  }
-}
-import { applyDedupeKey, FALLBACK_ARCHETYPE } from "./apply";
-import { ANONYMOUS_APPLICANT_LABEL } from "./apply-intake";
-import { dispatchApplicationReceived, dispatchKnockoutDecline } from "./comms-dispatch";
-import { randomId } from "./random-id";
+import { ensureLeadEnrichToken, recordKnockoutDecline } from "./db/pipeline";
+import { fileApplication } from "./application-filing";
+import { dispatchKnockoutDecline } from "./comms-dispatch";
 import { sanitizeFreeText } from "./text-sanitize";
 import { codedReasonDetail } from "./coded-reason";
 
@@ -165,65 +150,6 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     return { result: "declined" };
   }
 
-  // `enrichLink` carries the entry's tokened identity when one exists; null
-  // sends the plain ack (a healthy entry needs no enrichment invitation). The
-  // status link (when the caller can mint one) rides along on EVERY ack — it is
-  // the lead's durable "where do I stand" touchpoint once the tab is gone.
-  const ack = async (entry: Parameters<typeof dispatchApplicationReceived>[0], enrichLink: string | null) => {
-    try {
-      const statusLink = input.statusLinkFor?.(entry.id) ?? undefined;
-      await dispatchApplicationReceived(entry, {
-        ...(enrichLink ? { enrichLink } : undefined),
-        ...(statusLink ? { statusLink } : undefined),
-      });
-    } catch (ackErr) {
-      console.error(
-        `[lead-intake] lead accepted but acknowledgement failed for entry ${entry.id}:`,
-        ackErr instanceof Error ? ackErr.message : ackErr
-      );
-    }
-  };
-
-  // Send it — after the response when the caller gave us a scheduler, inline
-  // otherwise (see `defer`). One seam so BOTH ack sites below (the first-time
-  // dispatch and the newly-reachable re-ack) can never drift apart.
-  const sendAck = async (entry: Parameters<typeof dispatchApplicationReceived>[0], enrichLink: string | null) => {
-    if (input.defer) input.defer(() => ack(entry, enrichLink));
-    else await ack(entry, enrichLink);
-  };
-
-  // Duplicate policy — same identity rules as the conversational flow. A repeat
-  // backfills a missing contact onto the original entry; a newly-reachable entry
-  // gets the ack its first application couldn't deliver (with the enrichment
-  // link when it's still a stub needing one). The token mints (fill-only) on the
-  // ORIGINAL entry, and this repeat just re-verified its gates, so the recorded
-  // KO pass-state refreshes alongside.
-  const existing = findApplicationByApplicant(job.id, name, email, workspaceId);
-  if (existing) {
-    const leadToken = ensureLeadEnrichToken(existing.id, input.passedKoIds, workspaceId);
-    recordLeadConsent(existing.id, input.sourceChannel, workspaceId);
-    const changes: string[] = [];
-    if (!existing.contact) {
-      const merged = mergeReapplication(existing.id, { contact: email }, workspaceId);
-      changes.push("contact email captured");
-      if (merged) await sendAck(merged, merged.intakeDegraded ? withLeadToken(input.enrichLink, leadToken) : null);
-    }
-    // CODED, not prose: the reader resolves `pipeline.eventReasons.repeatApplication*`
-    // in their own language. The interesting half is the interpolated channel, which is
-    // why the code carries params rather than being a bare token. Rows written before
-    // this still hold the English sentence and still render - parseCodedReason returns
-    // null for them and the feed falls through to its legacy path.
-    recordAutomationEvent(
-      existing.id,
-      "re_applied",
-      codedReasonDetail(changes.length ? "repeatApplicationContact" : "repeatApplication", {
-        channel: input.channelLabel,
-      }),
-      workspaceId
-    );
-    return { result: "accepted", duplicate: true, entryId: existing.id, leadToken };
-  }
-
   // The stub reason is the recruiter-visible story of WHY this entry is thin —
   // including which eligibility gates the source form never asked (E3: ungated
   // is visible, not silent).
@@ -241,45 +167,42 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     stubReason = codedReasonDetail("leadPending", { channel: input.channelLabel });
   }
 
-  const { entry, created } = createPipelineEntry({
-    candidateId: randomId("lead"),
-    candidateLabel: name || ANONYMOUS_APPLICANT_LABEL,
-    // A thin lead is stamped UNCLASSIFIED, never a guessed archetype and never a
-    // concrete class — the enrichment re-apply recovers the real one alongside the
-    // profile. See FALLBACK_ARCHETYPE.
-    archetype: FALLBACK_ARCHETYPE,
-    roleFamily: job.roleFamily ?? null,
-    jobId: job.id,
-    jobTitle: job.title,
-    // A fresh application arrives at the board's ENTRY column, whatever this
-    // workspace calls it — not at a stage that happens to be named "Accepted".
-    stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
-    dedupeKey: applyDedupeKey(name, email),
-    intakeDegraded: true,
-    intakeDegradedReason: stubReason,
-    contact: email,
+  // The FILING is the shared core's (application-filing.ts): tenant, identity before
+  // anything is written, the entry column, consent, the ack seam and its deferral.
+  // This door supplies its proof and its lead-specific halves:
+  //   - proof "channel": the lead arrived through a form or webhook we issued, so a
+  //     repeat (identity = the email, findApplicationByApplicant) backfills the
+  //     original entry's contact and re-acks if it just became reachable — never a
+  //     profile rebuild;
+  //   - a profile-less STUB: a passing lead files intake-degraded (an UNCLASSIFIED
+  //     archetype, the stub reason above), carrying contact, locale and E5 attribution;
+  //   - the entry's opaque lead token, minted (fill-only) on every entry the filing
+  //     writes to — fresh, repeat, or the dedupe backstop's race — and refreshing the
+  //     recorded KO pass-state, since this submission just re-verified those gates;
+  //   - E4 speed-to-lead: the ack carries the enrichment link tokened with that lead
+  //     token, so the follow-up opens prefilled AND merges back onto this exact entry.
+  //     A newly-reachable repeat gets it only while the entry is still a stub needing
+  //     it (a healthy entry needs no enrichment invitation); the status link (when the
+  //     caller can mint one) rides on EVERY ack.
+  let leadToken: string | null = null;
+  const outcome = await fileApplication({
+    job,
+    workspaceId,
+    name,
+    email,
     locale: input.locale,
     sourceChannel: input.sourceChannel,
     sourceCampaign,
     sourceVariant,
-    workspaceId,
+    channelLabel: input.channelLabel,
+    proof: "channel",
+    stub: { idPrefix: "lead", reason: stubReason },
+    defer: input.defer,
+    onEntry: (entry) => {
+      leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
+    },
+    enrichLinkFor: (entry, kind) => (kind === "reack" && !entry.intakeDegraded ? null : withLeadToken(input.enrichLink, leadToken)),
+    statusLinkFor: input.statusLinkFor ? (entry) => input.statusLinkFor?.(entry.id) ?? null : undefined,
   });
-
-  // The dedupeKey backstop caught a concurrent repeat — surface it as one.
-  if (!created) {
-    const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
-    recordLeadConsent(entry.id, input.sourceChannel, workspaceId);
-    recordAutomationEvent(entry.id, "re_applied", codedReasonDetail("repeatApplication", { channel: input.channelLabel }), workspaceId);
-    return { result: "accepted", duplicate: true, entryId: entry.id, leadToken };
-  }
-
-  // E4 — speed-to-lead: the ack (with the enrichment link) fires the moment the
-  // lead lands. Best-effort: a comms failure must never undo a filed application.
-  // The link carries the entry's freshly-minted lead token, so the follow-up
-  // opens prefilled AND merges back onto this exact entry — no longer hinging on
-  // the candidate re-typing the identical email address.
-  const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
-  recordLeadConsent(entry.id, input.sourceChannel, workspaceId);
-  await sendAck(entry, withLeadToken(input.enrichLink, leadToken));
-  return { result: "accepted", duplicate: false, entryId: entry.id, leadToken };
+  return { result: "accepted", duplicate: outcome.kind === "duplicate", entryId: outcome.entry.id, leadToken };
 }

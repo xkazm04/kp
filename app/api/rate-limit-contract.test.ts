@@ -213,7 +213,11 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "APPLY_RATE_LIMIT",
     optsDef: "const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "buildApplicantProfile(",
+    // The profile build (the Python spawn) runs inside the shared filing core since
+    // challenge 2026-09-22 candidate-apply-api/A, so the call that reaches it is the
+    // marker. The route may no longer build on its own: application-filing.test.ts
+    // and apply-intake-scope.test.ts forbid `buildApplicantProfile(` in it.
+    expensive: "fileApplication(",
     windowMs: 60_000,
     windowSrc: "60_000",
   },

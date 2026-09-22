@@ -143,9 +143,9 @@ export async function ingestCvApplication(input: {
     entryId: entry.id,
     created: true,
     candidateId: entry.candidateId ?? "",
-    degraded: !built.ok,
-    degradedReason: built.ok ? null : built.reason,
-    archetype: built.ok ? built.archetype : null,
+    degraded: !built?.ok,
+    degradedReason: built && !built.ok ? built.reason : null,
+    archetype: built?.ok ? built.archetype : null,
     candidateLabel: outcome.label,
   };
 }

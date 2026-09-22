@@ -24,7 +24,13 @@ test("quick-apply done screen renders the status link", () => {
 
 test("quick-apply POST returns the status token and threads the status link into the ack", () => {
   const src = read("../../../api/apply/[id]/quick/route.ts");
-  assert.match(src, /getOrCreateStatusLink/, "the route mints/reuses the entry's status token");
+  // Minted through the filing core's ONE best-effort helper (safeStatusToken over
+  // getOrCreateStatusLink) since challenge 2026-09-22 candidate-apply-api/A; the route
+  // used to carry its own copy of that helper beside the conversational route's.
+  assert.match(src, /import \{ safeStatusToken \} from "@\/app\/_lib\/application-filing"/, "the route mints/reuses the entry's status token via the core");
+  assert.match(src, /const statusToken = safeStatusToken\(outcome\.entryId\)/, "the fresh accept mints it for its own entry");
+  assert.doesNotMatch(src, /function safeStatus(Token|Link)\(/, "no private copy of the mint");
+  assert.match(read("../../../_lib/application-filing.ts"), /return getOrCreateStatusLink\(entryId\);/, "the core's helper reuses the entry's token");
   assert.match(src, /statusLinkFor/, "the ack email gets the ABSOLUTE status link via lead-intake");
   assert.match(src, /statusToken,?\s*\n?\s*\}\);|statusToken,/, "accept responses carry statusToken");
 });
@@ -41,11 +47,18 @@ test("the emailed status links are pinned to the language the candidate applied 
     "quick-apply's statusLinkFor pins ?lang=<applicantLocale>"
   );
   const conversational = read("../../../api/apply/[id]/route.ts");
+  // One statusLinkFor serves the first ack AND the newly-reachable re-ack now (the
+  // core's ack seam calls it for both): the entry's own locale, which on a first
+  // filing IS the applied-in one, falling back to it.
   assert.match(
     conversational,
-    /\/status\/\$\{statusToken\}\?lang=\$\{applicantLocale\}/,
-    "the conversational route's ack statusLink pins ?lang=<applicantLocale>"
+    /\/status\/\$\{token\}\?lang=\$\{entry\.locale \|\| applicantLocale\}/,
+    "the conversational route's ack statusLink pins ?lang="
   );
+  // The old defect, forbidden on both routes: a bare status link with no ?lang=.
+  for (const src of [quick, conversational]) {
+    assert.doesNotMatch(src, /\/status\/\$\{\w+\}`/, "a status link without ?lang= drops the candidate on the wrong language");
+  }
 });
 
 test("the status page gives the candidate a way back to their own language", () => {
@@ -67,5 +80,11 @@ test("quick-apply accepted copy is honest about delivery capability (REC-10)", (
 test("lead-intake attaches the status link to every acknowledgement it dispatches", () => {
   const src = read("../../../_lib/lead-intake.ts");
   assert.match(src, /statusLinkFor\?\:\s*\(entryId: string\) => string \| null/, "the input contract exposes statusLinkFor");
-  assert.match(src, /statusLink \? \{ statusLink \} : undefined/, "the ack passes statusLink to dispatchApplicationReceived");
+  // The lead core files (and acknowledges) through application-filing.ts, handing it
+  // the caller's link maker; the core's ONE ack seam attaches it to every ack it
+  // sends — the first one and the newly-reachable re-ack alike.
+  assert.match(src, /statusLinkFor: input\.statusLinkFor \? \(entry\) => input\.statusLinkFor\?\.\(entry\.id\) \?\? null : undefined/, "the lead core forwards statusLinkFor to the filing core");
+  const core = read("../../../_lib/application-filing.ts");
+  assert.match(core, /const statusLink = input\.statusLinkFor\?\.\(entry\) \?\? null;/, "the core mints it for every ack kind");
+  assert.match(core, /statusLink \? \{ statusLink \} : undefined/, "the ack passes statusLink to dispatchApplicationReceived");
 });

@@ -12,29 +12,17 @@ import { intakeLead } from "@/app/_lib/lead-intake";
 import { capAttribution } from "@/app/_lib/lead-payload";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
+import { safeStatusToken } from "@/app/_lib/application-filing";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
-// Mint (or reuse) the entry's status-link token, best-effort — the application
-// already succeeded, so a status-link failure must never turn it into an error
-// (same contract as the conversational route's safeStatusLink).
-function safeStatusToken(entryId: string): string | null {
-  try {
-    return getOrCreateStatusLink(entryId);
-  } catch (err) {
-    console.error(`[apply:quick] could not mint status link for entry ${entryId}:`, err instanceof Error ? err.message : err);
-    return null;
-  }
-}
-
-
 // E2 (Erika gap) — the quick-apply LEAD form: the ≤30-second, ~3-field intake for
 // ad/social traffic. Captures name + contact email + this job's own knockout
-// questions; the shared lead-intake core (lead-intake.ts) files a passing lead at
-// Accepted as an enrichable stub and fires the instant acknowledgement with the
+// questions; the shared lead-intake core (lead-intake.ts, which files through the
+// application-filing core with proof "channel") files a passing lead at the board's
+// entry column as an enrichable stub and fires the instant acknowledgement with the
 // full-apply link. This route keeps what is surface-specific: input validation,
 // the STRICT KO verdict (our own form asks every gate, so an ABSENT key is a
 // fail — a scripted POST can't skip eligibility by omitting keys), and the
@@ -165,8 +153,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       passedKoIds: expectedKoIds,
       enrichLink,
       // capst-l1-002 — the ack email carries the same durable status link the
-      // conversational path has always sent (getOrCreateStatusLink is idempotent
-      // per entry, so email and success screen share ONE token).
+      // conversational path has always sent (the core's safeStatusToken reuses
+      // getOrCreateStatusLink, idempotent per entry, so email and success screen
+      // share ONE token).
       // …pinned to the applied-in language, exactly like enrichLink above: the
       // ack email is read outside the app, with no NEXT_LOCALE cookie, so a bare
       // link dropped a Czech lead onto an English status page (proxy.ts turns
