@@ -70,6 +70,13 @@ test("a missing, empty or non-path next falls back to the workspace root", () =>
   assert.equal(safeNextPath("?next=jobs", ORIGIN), "/");
 });
 
+test("a selected plan survives login with or without an explicit next path", () => {
+  assert.equal(safeNextPath("?plan=growth", ORIGIN), "/?plan=growth");
+  assert.equal(safeNextPath("?next=%2F%3Ftab%3Dbilling&plan=byom", ORIGIN), "/?tab=billing&plan=byom");
+  assert.equal(safeNextPath("?next=%2F%3Fplan%3Dstarter&plan=growth", ORIGIN), "/?plan=starter");
+  assert.equal(safeNextPath("?plan=%0Aevil", ORIGIN), "/");
+});
+
 test("a backslash authority can NOT redirect off-origin", () => {
   // WHATWG parses "/\evil.com" to the authority evil.com for a special scheme,
   // but it passes the old startsWith("/") && !startsWith("//") prefix test.
@@ -98,6 +105,7 @@ test("LoginPage redirects an entered session into the workspace", () => {
   assert.match(page, /hasEnteredWorkspace\(\)/, "the server wrapper must consult the home gate");
   assert.match(page, /redirect\(/, "an entered session leaves /login");
   assert.match(page, /safeNextPath\(/, "a phishing next cannot escape the request origin");
+  assert.match(page, /intent\.set\("plan", plan\)/, "an entered session keeps the selected plan");
 });
 
 test("the default login subtitle does not mention the operator password", () => {
