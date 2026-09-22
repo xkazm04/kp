@@ -372,6 +372,8 @@ The live-refresh bus also clears the memo and re-fetches the highlighted item
 after a mutation, so its count does not remain stale until the TTL expires.
 An unavailable preview keeps the palette open with a Retry action that clears
 the cached result and fetches the highlighted item again.
+The loaded preview is a polite live region named with the highlighted item, so
+arrowing through results announces the new facts without moving input focus.
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group

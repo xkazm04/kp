@@ -43,7 +43,8 @@ export function PalettePreviewPane({ item }: { item: PaletteItem }) {
     </div>
   );
   return (
-    <div key={previewQuery(item) ?? undefined} className="stagger-children space-y-3">
+    <div key={previewQuery(item) ?? undefined} role="status" aria-live="polite" aria-atomic="true" className="stagger-children space-y-3">
+      <span className="sr-only">{item.label}: </span>
       {renderPreview(state.preview, t)}
     </div>
   );
