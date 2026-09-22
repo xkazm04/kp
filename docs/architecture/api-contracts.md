@@ -25,7 +25,7 @@ handler tells you how the other ~150 behave.
 
 ### 1.1 Response envelopes
 
-Every handler answers through one of four helpers in
+Every handler answers through one of these helpers in
 [`app/_lib/api-response.ts`](../../app/_lib/api-response.ts). Which one it picks
 is a claim about what happened, and they are not interchangeable:
 
@@ -35,6 +35,7 @@ is a claim about what happened, and they are not interchangeable:
 | `jsonError(err, fallback, status = 500)` | `{ error }` | the message is already client-safe — validation, a business rule |
 | `safeJsonError(err, route, code, status = 500)` | `{ error, code }` | the catch can surface a **store** error. Logs the real one server-side under `[route] CODE`, sends a generic message |
 | `jsonRefusal(code, status)` | `{ error, code }` | an expected **decision** — an expired offer, a closed posting. Logs nothing |
+| `answerFailure(err, route, storeCode)` | `{ error, code }` | a catch block: a thrown `Refusal` is answered as `jsonRefusal`, anything else as `safeJsonError` (below) |
 
 Two registries back the coded forms, and the split between them is the load-
 bearing part:
@@ -54,6 +55,31 @@ locale catalogs, so **adding a code means adding four catalog entries in the
 same change** — `npm run i18n:check` pins both registries to `messages/*.json`
 and fails otherwise. `error` stays canonical English, for the server log and for
 API consumers.
+
+**A lib module that decides a failure throws a `Refusal`; the route answers
+`answerFailure`.** Which registry a failure belongs to is known where it is born,
+not at the route. [`app/_lib/refusal.ts`](../../app/_lib/refusal.ts) is the
+throwable form of a refusal: `new Refusal(code, status, { detail?, extra? })`, an
+`Error` whose `.message` is the operator `detail` or, without one, the code itself.
+It imports nothing at runtime, so a store or engine module can throw it without
+pulling `NextResponse`. A catch block then ends in one line:
+
+```ts
+} catch (error) {
+  return answerFailure(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
+}
+```
+
+`answerFailure(err, route, storeCode, status = 500)` answers a `Refusal` as
+`jsonRefusal(code, status, extra)`, logging its `detail` at info level and never
+sending it, and answers anything else as `safeJsonError(err, route, storeCode)`.
+`PostingClosedError` (POSTING_CLOSED, 410), `PortabilityError`,
+`AtsConnectionError` (400; `AtsConnectionStaleError` 409) and `AtsFieldMapError`
+(ATS_FIELD_MAP_INVALID, 400) are Refusals. A route keeps its own `instanceof`
+branch only when the answer needs something read at catch time — the ATS stale
+write attaches the live connection. `app/_lib/refusal.test.ts` walks `app/_lib`
+and fails on a new error class that carries a refusal code while extending bare
+`Error`. `CommsSuppressedError` is the one known fork still on its ratchet.
 
 > **When you add an endpoint**, you add a code to the right registry rather than
 > re-deriving the safe pattern in the handler. That is the whole reason the
