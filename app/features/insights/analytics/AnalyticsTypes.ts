@@ -64,6 +64,8 @@ export type Analytics = {
   koDeclined: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
   windowDays: number | null;
+  /** Echoed by the server for job-scoped analytics; null for workspace-wide reads. */
+  jobId: string | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;
   // Direction 1 — offer-leg conversion (extended/accepted/declined/expired),
