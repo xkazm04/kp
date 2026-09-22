@@ -1594,14 +1594,15 @@ the same server-side instant.
 
 ## Known gaps
 
-- **The map board does not yet render select mode, drag-and-drop between stages,
-  or the bounced-move reason.** `PipelineBoard` still accepts `selectMode` /
+- **The map board does not yet render select mode or drag-and-drop between stages.**
+  `PipelineBoard` still accepts `selectMode` /
   `selectedIds` / `onToggleSelect` / `onMove` / `bouncedEntryId` so the tab's
-  wiring is untouched, but the Subway board ignores them: bulk moves still work
+  wiring is untouched, but the Subway board ignores those interactions: bulk moves still work
   from the bulk bar's stage select (it acts on the filtered cohort, not on a
-  click), a single candidate moves through the candidate modal, and a refused move is
-  reported only by the page banner. Porting these onto beads/stations is the next
-  board round.
+  click), and a single candidate moves through the candidate modal. A refused move
+  marks the affected bead and puts the localized reason in its hover text and
+  accessible name, alongside the page banner. Porting selection and drag to
+  beads/stations is the next board round.
 - **The org currency reaches only the map board.** Every other money surface
   (offers, the salary gauge, match cards' `formatBandCompact`, group eval) still
   labels figures with `APP_CURRENCY`, and the setting is a per-browser cookie, so

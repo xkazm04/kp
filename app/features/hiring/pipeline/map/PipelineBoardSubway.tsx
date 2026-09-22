@@ -15,9 +15,8 @@
 // Parts: subway/useSubwayModel (derivation) · SubwayMarks (header, station, badge)
 // · SubwayLineRow · SubwayBeads.
 //
-// Not carried over from the card board yet (the tab still passes the props, this
-// board does not read them): select mode, drag-and-drop between stages, the
-// bounced-move reason.
+// Select mode and drag-and-drop between stages are not carried over from the card
+// board yet. A refused move names the affected bead and its reason.
 
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -60,6 +59,8 @@ export function PipelineBoardSubway({
   onOpenCell,
   openCell = null,
   openCandidate,
+  bouncedEntryId,
+  bouncedReason,
 }: MapBoardProps) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -132,6 +133,8 @@ export function PipelineBoardSubway({
               openJob={openJob}
               openPositionRanking={openPositionRanking}
               openCandidate={openCandidate}
+              bouncedEntryId={bouncedEntryId}
+              bouncedReason={bouncedReason}
             />
             );
           })}
