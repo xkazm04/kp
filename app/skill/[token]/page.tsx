@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
@@ -30,6 +30,7 @@ export const instant = false;
 export default async function SkillProfilePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslations("skillProfile");
+  const format = await getFormatter();
   // An RSC page has no NextRequest, so the client address comes off the request
   // headers the same way a route handler resolves it (clientIpFrom -> the trusted-
   // proxy-aware resolveClientIp). Nothing here can answer 429 — a page renders a
@@ -54,7 +55,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   const p = verdict.profile;
   const axes = Object.entries(p.axes);
   const confidencePct = Math.round((p.confidence ?? 0) * 100);
-  const issued = p.issuedAt.slice(0, 10);
+  const issued = format.dateTime(new Date(p.issuedAt), { dateStyle: "medium" });
   // A validly-signed but SUBSTANTIVELY EMPTY credential (no axes, transfer score 0) is
   // NOT a confident "verified" verdict — it's an "incomplete" attestation, shown muted
   // so a third party never reads a green shield over a 0.
