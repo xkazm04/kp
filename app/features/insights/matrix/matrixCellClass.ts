@@ -4,10 +4,12 @@
 // went untested while it was the single thing every cell in the grid depends on.
 // MatrixShared re-exports all three so existing importers are unaffected.
 import { MATRIX_BANDS } from "./matrixStats";
+import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "@/app/_lib/fit-thresholds";
 
-// Mirrors GET /api/matrix Cell. Honesty fields (fitTier, confidence,
-// unprovenCount, provenanceMix) are optional so a {score, blocked} cell still
-// type-checks; cellClass ignores them.
+// Mirrors GET /api/matrix Cell. matrix_cli emits fitTier/confidence/unprovenCount
+// on every scored cell (the scorer's own read); they stay optional so a cached or
+// older {score, blocked} cell still type-checks. cellClass paints from the score;
+// cellTier reads the server tier first.
 export type Cell = {
   score: number | null;
   blocked: boolean;
@@ -15,8 +17,23 @@ export type Cell = {
   fitTier?: "strong" | "promising" | "partial";
   confidence?: { low: number; high: number; level?: string };
   unprovenCount?: number;
-  provenanceMix?: string;
 };
+
+export type CellTier = "strong" | "promising" | "partial";
+
+/** The fit tier a cell stands for — the server's `fitTier` when matrix_cli sent it
+ *  (matching.py::fit_tier_for, the band focus mode's FitTierBadge renders), else the
+ *  bare score banded on the SAME shared floors Badge.tsx::scoreToFitTier uses (that
+ *  module is JSX, so the two-line fallback is restated here against the same
+ *  constants; matrixCellClass.test.ts pins both read FIT_*_FLOOR). `null` for a
+ *  blocked or unassessed cell: no score, no tier claim. */
+export function cellTier(c: Cell): CellTier | null {
+  if (c.blocked || c.score == null) return null;
+  if (c.fitTier) return c.fitTier;
+  if (c.score >= FIT_STRONG_FLOOR) return "strong";
+  if (c.score >= FIT_PROMISING_FLOOR) return "promising";
+  return "partial";
+}
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
 // without relying on the grey fill alone (color-independent legibility).

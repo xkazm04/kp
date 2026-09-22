@@ -8,7 +8,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { announcedCellScore, BLOCKED_CELL, cellClass } from "./matrixCellClass.ts";
+import { announcedCellScore, BLOCKED_CELL, cellClass, cellTier } from "./matrixCellClass.ts";
+import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "../../../_lib/fit-thresholds.ts";
 import { MATRIX_BANDS, STRONG_THRESHOLD } from "./matrixStats.ts";
 
 test("a blocked cell, and an unassessed one, both paint the hatched BLOCKED_CELL", () => {
@@ -45,7 +46,6 @@ test("honesty fields on a cell do not change the band class", () => {
     fitTier: "strong" as const,
     confidence: { low: 70, high: 90, level: "tight" },
     unprovenCount: 1,
-    provenanceMix: "mixed",
   };
   assert.equal(cellClass(rich), cellClass(base));
 });
@@ -104,4 +104,32 @@ test("the grid row builds its title and accessible name from that predicate", ()
     /c\.score \?\? 0/,
     "`c.score ?? 0` is the defect itself — it turns 'not assessed' into a concrete 0",
   );
+});
+
+// challenge 2026-09-22 matrix-grid/A — the grid paints on the SAME tier scale focus
+// mode's FitTierBadge reads (fit-thresholds.ts), so a 70 is strong on both segments.
+test("a 70 paints the same band as an 84, and a 69 does not", () => {
+  assert.equal(cellClass({ score: 70, blocked: false }), cellClass({ score: 84, blocked: false }));
+  assert.notEqual(cellClass({ score: 69, blocked: false }), cellClass({ score: 70, blocked: false }));
+});
+
+test("cellTier prefers the scorer's tier and falls back to the shared floors", () => {
+  const fallback = (s: number) => (s >= FIT_STRONG_FLOOR ? "strong" : s >= FIT_PROMISING_FLOOR ? "promising" : "partial");
+  for (const s of [0, FIT_PROMISING_FLOOR - 1, FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR - 1, FIT_STRONG_FLOOR, 100]) {
+    assert.equal(cellTier({ score: s, blocked: false }), fallback(s), `bare ${s}`);
+  }
+  // A server tier wins, even where the bare number would band differently.
+  assert.equal(cellTier({ score: 69, blocked: false, fitTier: "strong" }), "strong");
+  assert.equal(cellTier({ score: 90, blocked: false, fitTier: "promising" }), "promising");
+  // No score, no tier: blocked and unassessed cells claim nothing.
+  assert.equal(cellTier({ score: null, blocked: true }), null);
+  assert.equal(cellTier({ score: null, blocked: false }), null);
+});
+
+test("the fallback cellTier bands exactly like Badge.tsx::scoreToFitTier", () => {
+  // Badge.tsx is JSX and cannot load here; pin that both read the same two constants.
+  const badge = readFileSync(fileURLToPath(new URL("../../../_components/Badge.tsx", import.meta.url)), "utf8");
+  const body = badge.slice(badge.indexOf("export function scoreToFitTier"));
+  assert.match(body, /score >= FIT_STRONG_FLOOR\) return "strong"/);
+  assert.match(body, /score >= FIT_PROMISING_FLOOR\) return "promising"/);
 });

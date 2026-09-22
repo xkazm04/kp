@@ -11,7 +11,7 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Cell } from "./matrixCellClass";
-import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
+import { columnStats, STRONG_THRESHOLD, uncoveredRoles, type ColumnStat } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, matrixReasoningKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition, popoverDims } from "./matrixPopover";
@@ -346,15 +346,13 @@ export function useMatrixTab() {
   // Coverage rollup (the value prop the context is named for): which OPEN roles have
   // ZERO strong fits in the pool. The per-column strong counts already exist (colScores
   // + STRONG_THRESHOLD); nothing surfaced "3 of 8 roles have no strong candidate — source
-  // for these". Pure presentation over data already on the client.
-  const coverage = useMemo(() => {
-    const uncovered: string[] = [];
-    for (const { p, i } of cols) {
-      const strong = (colScores[i] ?? []).filter((s) => s >= STRONG_THRESHOLD).length;
-      if (strong === 0) uncovered.push(p.title);
-    }
-    return { uncovered, total: cols.length };
-  }, [cols, colScores]);
+  // for these". Pure presentation over data already on the client; the rule itself is
+  // matrixStats.ts::uncoveredRoles, on the shared strong floor (70), so the banner can
+  // no longer call a role uncovered while focus mode badges its 70-71 fit "strong".
+  const coverage = useMemo(
+    () => ({ uncovered: uncoveredRoles(cols, colScores), total: cols.length }),
+    [cols, colScores],
+  );
 
   // "View full match" no longer LEAVES this tab: Match became Matrix's candidate-focus
   // mode, so the same params (?profile=<candidate>&job=<position>) now switch mode in
