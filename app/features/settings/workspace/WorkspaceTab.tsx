@@ -130,17 +130,15 @@ export function WorkspaceTab() {
 
   async function renameWorkspace(id: string, name: string) {
     setBusy(true);
-    const r = await fetch(`/api/workspaces/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    }).catch(() => null);
-    if (r && r.ok) {
-      toast.success(t("renamed"));
+    await toast.promise(async () => {
+      const r = await fetch(`/api/workspaces/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!r.ok) throw new Error(`rename refused: ${r.status}`);
       await reload();
-    } else {
-      toast.error(t("renameFailed"));
-    }
+    }, { loading: t("org.saving"), success: t("renamed"), error: t("renameFailed") }).catch(() => {});
     setBusy(false);
   }
 

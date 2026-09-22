@@ -776,6 +776,13 @@ for a cell that heads its row), and no table shape here wants neither. It scans
 own prose about `<th>` is not read as markup, and tracking JSX brace depth so an
 attribute holding an arrow function does not end the tag early.
 
+### Mutation feedback
+
+The shared toast store offers `toast.promise(task, {loading, success, error})`
+for mutations. Its pending notice stays visible until settlement, then changes
+in place to a timed success or error; concurrent mutations keep separate notices.
+Callers provide localized copy and still receive the promise's value or error.
+
 ### One size vocabulary across the field primitives (2026-09-04)
 
 `TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `TextArea`

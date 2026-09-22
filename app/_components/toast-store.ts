@@ -116,6 +116,29 @@ export const toast = {
   error: (message: string, opts?: { duration?: number; action?: ToastAction }): number => show("error", message, opts),
   /** Neutral notice. */
   info: (message: string, opts?: { duration?: number; action?: ToastAction }): number => show("info", message, opts),
+  /** Keep one notice in place while an async mutation runs, then show its result. */
+  async promise<T>(task: Promise<T> | (() => Promise<T>), copy: { loading: string; success: string | ((value: T) => string); error: string }): Promise<T> {
+    // Pending work is unique even when two mutations share the same wording:
+    // settling one must not replace the other's still-running notice.
+    const id = nextId++;
+    toasts = [...toasts, { id, variant: "info", message: copy.loading, duration: 0, nonce: 0 }].slice(-TOAST_LIMIT);
+    emit();
+    const settle = (variant: "success" | "error", message: string) => {
+      if (!toasts.some((item) => item.id === id)) return;
+      toasts = toasts.map((item) => item.id === id
+        ? { ...item, variant, message, duration: TOAST_DURATION[variant], nonce: item.nonce + 1 }
+        : item);
+      emit();
+    };
+    try {
+      const value = await (typeof task === "function" ? task() : task);
+      settle("success", typeof copy.success === "function" ? copy.success(value) : copy.success);
+      return value;
+    } catch (error) {
+      settle("error", copy.error);
+      throw error;
+    }
+  },
   /** Manual removal (dismiss button / auto-dismiss timer). */
   dismiss(id: number): void {
     const next = reduceDismissToast(toasts, id);
