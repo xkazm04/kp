@@ -1074,9 +1074,11 @@ composition has nothing to fall back *from*: the strip was already showing every
 character she wrote.
 
 The shared bones are `VoiceNav`, `VoicePlaybackButton` and `VoiceParts` (prose,
-blocks, proposals, meta chips, empty and busy notes). `VoiceDots`,
-`VoicePlaybackRow` and `VoicePromptEcho` served only the deleted directions and
-went with them, along with their message keys.
+blocks, proposals, meta chips, empty and busy notes). `VoiceNav` includes a
+scrollable answer timeline; each dot jumps through `history.goTo` and marks the
+current answer. The old `VoiceDots`, `VoicePlaybackRow` and `VoicePromptEcho`
+served only the deleted directions and went with them, along with their message
+keys.
 
 Two rules the strip keeps:
 
