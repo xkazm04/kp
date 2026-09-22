@@ -7065,6 +7065,7 @@
       "currencyHint": "The pipeline board labels salary bands in this currency. Nothing is converted.",
       "previewOnboarding": "Preview onboarding flow",
       "backup": {
+        "confirmWord": "REPLACE",
         "title": "Backup & restore",
         "meta": "your organization",
         "lede": "Back up everything your organization holds, and roll it back.",

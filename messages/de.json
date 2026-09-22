@@ -7065,6 +7065,7 @@
       "currencyHint": "Das Pipeline-Board beschriftet Gehaltsbänder in dieser Währung. Es wird nichts umgerechnet.",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
       "backup": {
+        "confirmWord": "ERSETZEN",
         "title": "Sicherung & Wiederherstellung",
         "meta": "Ihre Organisation",
         "lede": "Sichern Sie alles, was Ihre Organisation enthält, und spielen Sie es zurück.",

@@ -7065,6 +7065,7 @@
       "currencyHint": "Le tableau du pipeline affiche les fourchettes de salaire dans cette devise. Rien n’est converti.",
       "previewOnboarding": "Aperçu du parcours d’intégration",
       "backup": {
+        "confirmWord": "REMPLACER",
         "title": "Sauvegarde et restauration",
         "meta": "votre organisation",
         "lede": "Sauvegardez tout ce que contient votre organisation, et revenez en arrière.",

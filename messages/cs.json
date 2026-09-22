@@ -7065,6 +7065,7 @@
       "currencyHint": "V této měně označuje pipeline nástěnka mzdová pásma. Nic se nepřepočítává.",
       "previewOnboarding": "Náhled onboardingu",
       "backup": {
+        "confirmWord": "NAHRADIT",
         "title": "Zálohování a obnovení",
         "meta": "vaše organizace",
         "lede": "Zazálohujte vše, co vaše organizace obsahuje, a vraťte to zpět.",

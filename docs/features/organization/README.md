@@ -513,8 +513,8 @@ would let any signed-in member export the whole company.
 Restore is deliberately two-step and loud: pick a file → the route returns a **dry-run
 plan** (per table, the rows the restore would actually insert against the rows it would
 delete first — the file's out-of-scope shared tier is excluded from that count so the
-preview cannot promise rows that will not land) → the operator types `REPLACE` to
-confirm. "Destructive" is decided by what
+preview cannot promise rows that will not land) → the operator types the localized
+confirmation word (`REPLACE` in English) to confirm. "Destructive" is decided by what
 would be **deleted**, not by how many tables the file names — a plan can carry
 thousands of rows and destroy nothing, or carry none and empty a live table. The write
 itself is `DELETE`-by-scope + `INSERT` in one transaction, never `DROP TABLE`, because

@@ -97,7 +97,7 @@ export function OrganizationBackupRestorePlan({
         <button
           type="button"
           onClick={onApply}
-          disabled={busy || (destructive && confirmText.trim().toUpperCase() !== confirmWord)}
+          disabled={busy || (destructive && confirmText.trim().toLocaleUpperCase() !== confirmWord.toLocaleUpperCase())}
           className={`${BTN_PRIMARY} h-9 px-3 text-sm ${destructive ? "" : "bg-ink hover:bg-steel"}`}
         >
           {destructive ? t("plan.applyReplace", { count: plan.totalExisting }) : t("plan.apply")}
