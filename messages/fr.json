@@ -8155,6 +8155,8 @@
     "exportTitle": "Télécharger la grille telle qu’affichée (CSV)",
     "exportCsv": "Exporter en CSV",
     "csvCandidate": "Candidat",
+    "csvMissingJobId": "ID du poste non évalué",
+    "csvMissingJobError": "Motif de l’absence d’évaluation",
     "selectedCount": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
     "selectedOutsideView": "{count, plural, one {# cellule sélectionnée est hors de cette vue. L’ajout la traite quand même.} other {# cellules sélectionnées sont hors de cette vue. L’ajout les traite quand même.}}",
     "tapToShortlist": "Touchez des cellules pour présélectionner",

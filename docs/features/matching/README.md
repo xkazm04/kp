@@ -21,6 +21,9 @@ than silently dropping a reason.
   `respond()` defaults `missingJobs` to `[]` when an older CLI omitted it.
   - **Grid** (pool-first: every candidate × every open role) — `MatrixGrid.tsx`,
     `MatrixReasoningPopover.tsx`.
+    Its CSV follows the visible candidate and role order, writes the localized
+    hard-gate reason into blocked cells, and appends an invalid-job table when
+    `missingJobs` reports jobs that could not be scored.
   - **Candidate focus** (candidate-first: one candidate ranked against every role) —
     `focus/MatrixCandidateFocus.tsx`, results in `focus/MatchResults.tsx` /
     `focus/MatchCard.tsx`, per-skill provenance chips in `focus/MatchCardSkillChips.tsx`.

@@ -15,6 +15,7 @@ import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition, popoverDims } from "./matrixPopover";
+import { matrixCsvRows } from "./matrixCsv";
 import { createFrameThrottle } from "./matrixAnchor";
 import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
@@ -529,20 +530,17 @@ export function useMatrixTab() {
 
   // Export the grid AS SHOWN (MAT4 matrix half): the visible columns × the
   // filtered+sorted rows, so the CSV matches the recruiter's current view. Blocked
-  // / unscored cells render as "–", matching the on-screen cell. Built from data
+  // / unscored cells retain their on-screen status. Built from data
   // already on screen via the shared toCsv/downloadFile — no backend call.
   const exportCsv = () => {
     if (!data) return;
-    const header = [t("csvCandidate"), ...cols.map(({ p }) => p.title)];
-    const body = rows.map(({ cand, ri }) => [
-      cand.label,
-      ...cols.map(({ i }) => {
-        const c = data.cells[ri]?.[i];
-        return c && !c.blocked && c.score != null ? c.score : "–";
-      }),
-    ]);
+    const csvRows = matrixCsvRows(data, rows, cols, {
+      candidate: t("csvCandidate"),
+      missingJobId: t("csvMissingJobId"),
+      missingJobError: t("csvMissingJobError"),
+    }, blockedLabel);
     const name = scopedPosition ? `fit-${scopedPosition.title}` : "fit-matrix";
-    downloadFile(`${name.replace(/[^\w-]+/g, "_").slice(0, 60)}.csv`, toCsv([header, ...body]), "text/csv");
+    downloadFile(`${name.replace(/[^\w-]+/g, "_").slice(0, 60)}.csv`, toCsv(csvRows), "text/csv");
   };
 
   return {
