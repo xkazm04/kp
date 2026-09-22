@@ -212,6 +212,9 @@ ladder: explicit env → shared home `bin/` → PATH.
   characters are not tokens. Same shape and the same reasoning as
   `app/_lib/voice/minute-prices.ts` on the realtime plane. The write is best-effort — the
   ledger is telemetry and never the request.
+  An operator can set `KP_TTS_KCHAR_USD_ELEVENLABS` to the non-negative USD rate
+  they pay per 1000 characters; it is read at call time. An invalid value logs a
+  warning and keeps the built-in estimate. Local synthesis remains a known zero.
 - **A bounded host-side cache** (`app/_lib/tts-cache.ts`) folds an identical repeat request
   into the clip the first one produced, so auto-speak followed by the play the operator
   presses after a blocked autoplay — or arrowing back to an answer and replaying it — is
