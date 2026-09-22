@@ -108,6 +108,11 @@ A region whose content depends on a fetch renders, in the same geometry, one of:
 decides what an *empty* region shows — nothing more. Re-fetches settle silently
 behind the current content.
 
+Shared `useJsonFetch` reads settle into a retryable error after 30 seconds if a
+server or proxy leaves a request hanging. The request is aborted, and a late
+response cannot replace the timeout state. A refresh keeps the last good data
+visible while the retry runs.
+
 **A form is chrome; only its VALUES are data.** Panel frames, labels, help text
 and buttons are hardcoded — hold a `reveal-quiet` box for a *region*, never for a
 settings form that a round-trip fills with three strings. Render the form on the
