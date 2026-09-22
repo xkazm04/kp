@@ -2,6 +2,7 @@ import { Clock, MinusCircle } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import type { BadgeContent } from "@/app/_components/Badge";
 import type { Capability, MemberRole } from "@/app/_lib/auth/roles";
+import { OVERRIDABLE_CAPABILITIES } from "@/app/_lib/auth/roles";
 import type { Locale } from "@/i18n/locales";
 
 // Presentational helpers for the REAL role slugs (auth/roles), replacing the mock
@@ -99,12 +100,18 @@ export function statusBadge(status: MemberStatus, t: MembersTranslator): BadgeCo
 // to least-privileged operationally. The slug carries a colon, which is not a
 // catalog-key character, so each row names its own `key` under
 // `workspaceAdmin.permissions.caps.*`.
-export const CAPABILITY_ORDER: { cap: Capability; key: "manageMembers" | "manageTeams" | "editPipeline" | "view" }[] = [
-  { cap: "members:manage", key: "manageMembers" },
-  { cap: "team:manage", key: "manageTeams" },
-  { cap: "pipeline:write", key: "editPipeline" },
-  { cap: "read", key: "view" },
-];
+type CapabilityKey = "manageMembers" | "manageTeams" | "editPipeline" | "view";
+const CAPABILITY_KEYS: Partial<Record<Capability, CapabilityKey>> = {
+  "members:manage": "manageMembers",
+  "team:manage": "manageTeams",
+  "pipeline:write": "editPipeline",
+  read: "view",
+};
+export const CAPABILITY_ORDER: { cap: Capability; key: CapabilityKey }[] = OVERRIDABLE_CAPABILITIES.map((cap) => {
+  const key = CAPABILITY_KEYS[cap];
+  if (!key) throw new Error(`Missing display key for overridable capability: ${cap}`);
+  return { cap, key };
+});
 
 /** The capability rows with their localized label + one-line description. */
 export function capabilityMeta(t: PermissionsTranslator): { cap: Capability; label: string; desc: string }[] {

@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { countActiveMembers } from "@/app/features/shared/memberUi";
+import { CAPABILITY_ORDER, countActiveMembers } from "@/app/features/shared/memberUi";
+import { OVERRIDABLE_CAPABILITIES } from "@/app/_lib/auth/roles";
+
+test("permission rows cover every overridable capability in server order", () => {
+  assert.deepEqual(CAPABILITY_ORDER.map(({ cap }) => cap), OVERRIDABLE_CAPABILITIES);
+  assert.ok(CAPABILITY_ORDER.every(({ key }) => key), "every row has catalog copy");
+});
 
 // LOW (2026-07-09 scan, organizations-members-invites #5): the "Active" stat used
 // `status !== "disabled"`, which counted still-`invited` (pending) seats as Active and
