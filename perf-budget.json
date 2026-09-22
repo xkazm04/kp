@@ -64,13 +64,13 @@
         },
         "app/api/devcase/lifecycle/[id]/approve/route.ts": {
           "maxModules": 229,
-          "maxKb": 3002,
-          "why": "The lifecycle approval route reaches both devcase and task hubs; the merged tree measures 227 modules / 2974 KB. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends. Plus ~1 KB on 2026-09-22 (challenge task-automation-engine/B): tasks.ts records the per-candidate fan-out ledger; task-fanout.ts itself is a type-only import there, so no module is added"
+          "maxKb": 3006,
+          "why": "The lifecycle approval route reaches both devcase and task hubs; the merged tree measures 227 modules / 2974 KB. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends. Plus ~1 KB on 2026-09-22 (challenge task-automation-engine/B): tasks.ts records the per-candidate fan-out ledger; task-fanout.ts itself is a type-only import there, so no module is added. Plus ~3 KB on 2026-09-23 (challenge-r02 analyze-engine/A): analyze-run.ts (on the task hub's path) starts the GitHub deep-dive stage through the registry and schemas.ts declares githubDeepDive; no module added"
         },
         "app/api/status/[token]/letter/route.ts": {
           "maxModules": 228,
-          "maxKb": 3020,
-          "why": "The candidate letter route joins status and feedback-letter graphs; the merged tree measures 226 modules / 2990 KB. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends"
+          "maxKb": 3022,
+          "why": "The candidate letter route joins status and feedback-letter graphs; the merged tree measures 226 modules / 2990 KB. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends. Plus ~3 KB on 2026-09-23 (challenge-r02 analyze-engine/A): analyze-run.ts (on the task hub's path) starts the GitHub deep-dive stage through the registry and schemas.ts declares githubDeepDive; no module added"
         },
         "app/api/jobs/[id]/interview-kit/route.ts": {
           "maxModules": 227,
@@ -78,9 +78,9 @@
           "why": "The route sat exactly at the 225 group ceiling through the task hub; the 2026-09-22 challenge card task-automation-engine/A added app/_lib/task-kinds.ts, an import-free ~2 KB leaf that every per-kind table is now keyed by, and the route measures 226. Named instead of lifting the group module ceiling. Plus 1 module and ~2 KB on 2026-09-22 (challenge shared-api-utilities/A): app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError in distribution.ts now extends. KB 3000 -> 3010 on 2026-09-22 at challenge wave-3 integration: 3005 KB measured; the growth is spread over schedule-store/schedule-slots (real-duration collision), comms-dispatch (apply-link recovery), tasks.ts (fan-out ledger) and api-response.ts (answerFailure) - no module added, no barrel"
         },
         "app/api/analyze/route.ts": {
-          "maxModules": 226,
-          "maxKb": 3000,
-          "why": "Sat exactly at the 225 group ceiling through distribution.ts; the 2026-09-22 challenge card shared-api-utilities/A added app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError now extends, and the route measures 226. Named instead of lifting the group module ceiling"
+          "maxModules": 239,
+          "maxKb": 3110,
+          "why": "Sat exactly at the 225 group ceiling through distribution.ts; the 2026-09-22 challenge card shared-api-utilities/A added app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError now extends, and the route measures 226. Named instead of lifting the group module ceiling. Plus 13 modules / ~100 KB on 2026-09-23 (challenge-r02 analyze-engine/A): the CV run's GitHub deep-dive became a stage of the analyze task, and this route registers that stage (app/_lib/analyze-github-stage.ts + the app/_lib/github/* harvest) into the late-bound runner registry so it stays off tasks.ts's graph, which ~60 routes import. The door /api/github-analysis already paid this graph; measured 239 modules / 3099 KB on the base plus this card"
         },
         "app/api/devcase/session/[id]/submit/route.ts": {
           "maxModules": 226,
