@@ -217,6 +217,8 @@ the nav is the thing that knows what its own chrome costs. Two things hang off i
   Sign out — which offered a candidate who never had a session a button that POSTs
   `/api/auth/logout` and hard-navigates them off the job ad. Appearance and language
   (`RailPreferences`) are viewer chrome and stay for everyone.
+  When a signed session exists, Sign out opens the shared confirmation dialog;
+  the open-mode entry marker with no session still leaves in one click.
 
 Open mode (`KP_OPERATOR_PASSWORD` unset) makes `isOperator()` true for everyone by
 design, so a keyless/dev install and the e2e subset are unchanged; only a

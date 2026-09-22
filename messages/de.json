@@ -2763,6 +2763,9 @@
     "brandName": "KandiDate",
     "tagline": "Talent-Matching",
     "signOut": "Abmelden",
+    "signOutConfirmTitle": "Von dieser Sitzung abmelden?",
+    "signOutConfirmBody": "Ihre Sitzung endet und Sie kehren zur Startseite zurück.",
+    "signOutConfirmCancel": "Hier bleiben",
     "tabs": {
       "pipeline": "Übersicht",
       "channels": "Kanäle",

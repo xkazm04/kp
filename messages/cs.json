@@ -2763,6 +2763,9 @@
     "brandName": "KandiDate",
     "tagline": "párování talentů",
     "signOut": "Odhlásit se",
+    "signOutConfirmTitle": "Odhlásit se z této relace?",
+    "signOutConfirmBody": "Vaše relace skončí a vrátíte se na úvodní stránku.",
+    "signOutConfirmCancel": "Zůstat zde",
     "tabs": {
       "pipeline": "Přehled",
       "channels": "Kanály",

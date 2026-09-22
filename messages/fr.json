@@ -2763,6 +2763,9 @@
     "brandName": "KandiDate",
     "tagline": "matching de talents",
     "signOut": "Se déconnecter",
+    "signOutConfirmTitle": "Se déconnecter de cette session ?",
+    "signOutConfirmBody": "Votre session prendra fin et vous reviendrez à l’accueil.",
+    "signOutConfirmCancel": "Rester ici",
     "tabs": {
       "pipeline": "Vue d’ensemble",
       "channels": "Canaux",

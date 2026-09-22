@@ -31,7 +31,7 @@ import {
 
 export type { WorkspaceTabId } from "./tabs";
 
-export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?: boolean }) {
+export function Workspace({ firstRunOnboarding = false, hasSession = false }: { firstRunOnboarding?: boolean; hasSession?: boolean }) {
   // Same-document URL patching, not router.push: a `?tab=` switch changes nothing
   // the SERVER render of '/' depends on, so making it a server navigation only
   // bought a ~358 KB RSC round-trip per click. See nav/shallow-nav.ts.
@@ -208,6 +208,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
       </div>
 
       <WorkspaceNavDrawer
+        hasSession={hasSession}
         t={t}
         drawerRef={drawerRef}
         isMobile={isMobile}

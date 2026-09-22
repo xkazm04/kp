@@ -39,6 +39,7 @@ function MobileDrawerA11y({
 }
 
 export function WorkspaceNavDrawer({
+  hasSession,
   t,
   drawerRef,
   isMobile,
@@ -54,6 +55,7 @@ export function WorkspaceNavDrawer({
   onSliceNav,
   onPrefetchTab,
 }: {
+  hasSession: boolean;
   t: ReturnType<typeof useTranslations>;
   drawerRef: RefObject<HTMLElement | null>;
   isMobile: boolean;
@@ -149,7 +151,7 @@ export function WorkspaceNavDrawer({
               <NavFeedbackButton active={navActive} />
               <RailPreferences />
               {/* Drop the dev session and return to the landing. */}
-              <SignOutButton />
+              <SignOutButton hasSession={hasSession} />
             </>
           }
           panelFooter={<TasksIndicator active={active === "tasks"} onOpen={() => selectTab("tasks")} />}

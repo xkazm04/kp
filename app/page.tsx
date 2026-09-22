@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Workspace } from "@/app/features/shell/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
+import { currentSession } from "@/app/_lib/auth/current-user";
 import { needsOnboarding } from "@/app/_lib/auth/onboarding-gate";
 import { signupEnabled } from "@/app/_lib/workspace-lock";
 
@@ -49,7 +50,7 @@ export default async function Home({
   const firstRunOnboarding = !demoMode && (sp?.onboarding === "1" || (await needsOnboarding()));
   return (
     <Suspense fallback={<div className="min-h-screen bg-paper" />}>
-      <Workspace firstRunOnboarding={firstRunOnboarding} />
+      <Workspace firstRunOnboarding={firstRunOnboarding} hasSession={Boolean(await currentSession())} />
     </Suspense>
   );
 }

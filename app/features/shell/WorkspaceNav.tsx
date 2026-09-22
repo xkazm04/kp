@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
-import { callerCapabilities } from "@/app/_lib/auth/current-user";
+import { callerCapabilities, currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
@@ -121,7 +121,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
             ) : null}
             <RailPreferences />
             {/* Drop the dev session and return to the landing. */}
-            {operator ? <SignOutButton /> : null}
+            {operator ? <SignOutButton hasSession={Boolean(await currentSession())} /> : null}
           </>
         }
       />

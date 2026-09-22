@@ -2763,6 +2763,9 @@
     "brandName": "KandiDate",
     "tagline": "talent matching",
     "signOut": "Sign out",
+    "signOutConfirmTitle": "Sign out of this session?",
+    "signOutConfirmBody": "Your session will end and you will return to the home page.",
+    "signOutConfirmCancel": "Stay here",
     "tabs": {
       "pipeline": "Overview",
       "channels": "Channels",
