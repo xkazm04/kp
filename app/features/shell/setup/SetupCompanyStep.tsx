@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
-import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
+import { FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, deriveDarkAccent, EXTERNAL_LOGO_IMG_ATTRS, normalizeHex6, sanitizeLogoUrl, shouldRenderLogo } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import { DEFAULT_ORG_NAME, readClientOrgName } from "@/app/_lib/org-settings";
@@ -192,7 +192,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
           />
           {logoInvalid ? <p className="mt-1 text-sm text-coral">{t("logoInvalid")}</p> : null}
           {previewLogo ? (
-            <div className="mt-2 inline-flex h-16 w-16 items-center justify-center rounded-lg border border-stone-200 bg-white p-2">
+            <div className={`${PANEL} mt-2 inline-flex h-16 w-16 items-center justify-center p-2`}>
               {/* eslint-disable-next-line @next/next/no-img-element -- operator-provided external logo, not a bundled asset */}
               <img src={logo} alt={t("logoLabel")} onError={() => setFailedLogo(logo)} {...EXTERNAL_LOGO_IMG_ATTRS} className="max-h-full max-w-full object-contain" />
             </div>
