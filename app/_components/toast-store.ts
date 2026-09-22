@@ -121,7 +121,8 @@ export const toast = {
     // Pending work is unique even when two mutations share the same wording:
     // settling one must not replace the other's still-running notice.
     const id = nextId++;
-    toasts = [...toasts, { id, variant: "info", message: copy.loading, duration: 0, nonce: 0 }].slice(-TOAST_LIMIT);
+    const pending: ToastItem = { id, variant: "info", message: copy.loading, duration: 0, nonce: 0 };
+    toasts = [...toasts, pending].slice(-TOAST_LIMIT);
     emit();
     const settle = (variant: "success" | "error", message: string) => {
       if (!toasts.some((item) => item.id === id)) return;
