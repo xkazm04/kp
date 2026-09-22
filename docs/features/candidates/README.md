@@ -615,6 +615,9 @@ every accepted save spawns `profile_cli` and writes a row, and the route is not
 operator-gated, so open mode left it an unbounded process-spawn endpoint. All five
 handlers across `route.ts` + `candidates/route.ts` answer `PROFILE_*_FAILED` codes
 rather than the thrown message (the temp workdir path, `PYTHON_CMD`, `SQLITE_*`).
+The POST/PUT child-failure branches keep the CLI status but log its stderr on the
+server and return `PROFILE_BUILD_FAILED` / `PROFILE_UPDATE_FAILED`; raw validation
+or traceback text never reaches the editor.
 
 **A save carries a version.** `GET /api/profile?id=` returns `updatedAt` (the
 row's content-write stamp) beside the payload; the editor sends it back as
