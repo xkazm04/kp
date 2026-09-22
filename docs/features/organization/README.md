@@ -645,6 +645,9 @@ set only the session: `AcceptForm` redirects to `/`, and in OPEN mode (no
 had just joined the team was handed the public landing page. Both cookies are set
 inside the same best-effort `try`: with no `KP_SECRET` nothing is signed, so
 neither is written and no marker claims a session that does not exist.
+The client checks the readable marker after redeem. If best-effort signing did
+not set it, the successful account creation lands on `/login` for manual sign-in
+instead of returning to the public landing.
 
 **One transaction, not four writes.** `acceptInvite` (`app/_lib/org-service.ts`)
 runs inside `db.transaction(...).immediate()` with the redeemable-invite read
