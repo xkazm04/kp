@@ -1,9 +1,10 @@
 """LLM-driven HR automation for the hiring pipeline (Direction 2).
 
-Local-first: the ONLY runtime LLM engine is the Claude Code CLI via
-ClaudeCliProvider. Every LLM task ships a deterministic fallback (mirroring
-match_reasoning.generate) so the pipeline never blocks when the CLI is absent
-(provider=None => deterministic path). Task 7 (policy pass) is pure-deterministic.
+The CLI resolves each task's provider through the shared LLM registry, which can
+select Claude Code CLI or a configured API provider. Every LLM task ships a
+deterministic fallback (mirroring match_reasoning.generate), so the pipeline
+still answers when no provider is available (provider=None => deterministic
+path). Task 7 (policy pass) is pure-deterministic.
 
 ADVERSE-ACTION BOUNDARY — what THIS module guarantees, and what it does not.
 "Fairness is enforced in code" used to be stated here as one guarantee, but it is
