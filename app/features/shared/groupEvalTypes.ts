@@ -91,7 +91,10 @@ export function assessRobustness(hasJob: boolean, fairness: Fairness | null): Ro
   if (!hasJob) return "not_applicable";
   if (!isFairnessAligned(fairness)) return "unavailable";
   if (fairness.labels.length < GROUP_EVAL_MIN_COHORT) return "insufficient_sample";
-  const varied = fairness.candidateIds.some((id) => (fairness.weightNotes?.[id]?.length ?? 0) > 0);
+  const first = fairness.schemes[0];
+  const varied = fairness.schemes.some((scheme) =>
+    scheme.skills !== first.skills || scheme.career !== first.career || scheme.personal !== first.personal
+  );
   return varied ? "assessed" : "not_varied";
 }
 

@@ -269,7 +269,9 @@ list stays deterministic.
 `robustness` status (`assessed` / `not_varied` / `unavailable` / `not_applicable` /
 `insufficient_sample`) that the fairness panel renders and the sealed decision
 record quotes. `assessed` means the matrix both *varied* the weights **and**
-covered the field that was compared: the ranker pool drops any candidate
+covered the field that was compared. The varied check compares the numeric
+scheme vectors directly; explanatory `weightNotes` alone cannot establish
+that a different weighting was tested. The ranker pool drops any candidate
 `group-eval-run` cannot resolve (no `candidateId`, or a `candidateId` whose
 profile and analysis are both gone) and `recruiter_cli` skips malformed rows,
 while those candidates are still compared and still ranked on their stored
