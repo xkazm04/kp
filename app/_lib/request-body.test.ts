@@ -58,7 +58,7 @@ test("BODY_TOO_LARGE is a value no body can produce", () => {
 
 test("a stalled body fails at the read deadline and cancels its stream", async () => {
   let cancelled = 0;
-  const body = new ReadableStream<Uint8Array>({ cancel() { cancelled += 1; } });
+  const body = new ReadableStream<Uint8Array<ArrayBuffer>>({ cancel() { cancelled += 1; } });
   await assert.rejects(readTextWithLimit({ body }, 64, 20), BodyReadTimeoutError);
   assert.equal(cancelled, 1);
 });
@@ -67,11 +67,11 @@ test("a slow trickle cannot reset the total body deadline", async () => {
   let cancelled = 0;
   let chunks = 0;
   let interval: ReturnType<typeof setInterval>;
-  const body = new ReadableStream<Uint8Array>({
+  const body = new ReadableStream<Uint8Array<ArrayBuffer>>({
     start(controller) {
       interval = setInterval(() => {
         chunks += 1;
-        controller.enqueue(new Uint8Array([65]));
+        controller.enqueue(new Uint8Array(new ArrayBuffer(1)).fill(65));
       }, 10);
     },
     cancel() {
