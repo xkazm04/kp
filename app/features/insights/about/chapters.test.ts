@@ -25,6 +25,21 @@ import { fileURLToPath } from "node:url";
 import { APPROVAL_KINDS, isApprovalKind, needsHumanDecision } from "../../../_lib/approval-kinds.ts";
 import { CHAPTERS } from "./chapters.ts";
 import { isWorkspaceTabId } from "../../shell/tabs.ts";
+// Each scene's pinned constants live in its pure `data.ts`, so they are
+// IMPORTED here rather than regex-parsed out of TSX: a cosmetic JSX edit can no
+// longer break the deck's honesty suite, and a renamed constant is a tsc error.
+import {
+  SCORES as ARCH_SCORES,
+  SIGNALS as ARCH_SIGNALS,
+  SIGNAL_AGREEMENT as ARCH_AGREEMENT,
+  TARGETS as ARCH_TARGETS,
+  TOTAL as ARCH_TOTAL,
+  WINNER as ARCH_WINNER,
+} from "./scenes/archetypes/data.ts";
+import { SIBLING_MATCH_LABEL, THRESHOLD as SCORING_THRESHOLD } from "./scenes/scoring/data.ts";
+import { KO_REASONS } from "./scenes/screening/data.ts";
+import { AIM, OVERLAP } from "./scenes/assignments/data.ts";
+import { ACTIONS, GATE_LABEL } from "./scenes/gates/data.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // app/features/insights/about/ -> repo root.
@@ -96,40 +111,30 @@ const registry = (): Registry =>
  *  reads as a message key); archetypes.json names them in snake_case. */
 const ruleId = (sceneId: string) => sceneId.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
-const SCENE = "scenes/archetypes/ArchetypeRouter.tsx";
-
-/** TARGETS, in the order the scene stacks them — `votes` index into this. */
-function sceneTargets(): string[] {
-  const src = read(SCENE);
-  const block = src.match(/const TARGETS = \[([\s\S]*?)\n\] as const;/);
-  assert.ok(block, `could not find TARGETS in ${SCENE} — update this test with its new shape`);
-  return [...block[1].matchAll(/\{\s*id:\s*"([^"]+)"/g)].map((m) => m[1]);
-}
+const SCENE = "scenes/archetypes/data.ts";
 
 /** SIGNALS as `{ sceneId -> { archetypeId: weight } }` — the shape
  *  archetypes.json stores a rule's `scores` in, so the two compare directly. */
 function sceneSignals(targets: string[]): Record<string, Record<string, number>> {
-  const src = read(SCENE);
-  const block = src.match(/const SIGNALS: readonly[^=]*=\s*\[([\s\S]*?)\n\];/);
-  assert.ok(block, `could not find SIGNALS in ${SCENE} — update this test with its new shape`);
   const out: Record<string, Record<string, number>> = {};
-  for (const row of block[1].matchAll(/\{\s*id:\s*"([^"]+)",\s*votes:\s*\[([^\]]*\])\s*\]/g)) {
+  for (const s of ARCH_SIGNALS) {
     const scores: Record<string, number> = {};
-    for (const vote of row[2].matchAll(/\[\s*(\d+)\s*,\s*([\d.]+)\s*\]/g)) {
-      const target = targets[Number(vote[1])];
-      assert.ok(target, `${SCENE}: signal "${row[1]}" votes for TARGETS[${vote[1]}], which does not exist`);
-      scores[target] = Number(vote[2]);
+    for (const [to, weight] of s.votes) {
+      const target = targets[to];
+      assert.ok(target, `${SCENE}: signal "${s.id}" votes for TARGETS[${to}], which does not exist`);
+      scores[target] = weight;
     }
-    out[row[1]] = scores;
+    out[s.id] = scores;
   }
-  assert.ok(Object.keys(out).length > 0, `parsed no SIGNALS out of ${SCENE}`);
+  assert.ok(Object.keys(out).length > 0, `${SCENE} declares no SIGNALS`);
   return out;
 }
 
 test("the archetype scene's tally board is drawn from the real registry", () => {
   const reg = registry();
   const known = new Set(reg.archetypes.map((a) => a.id));
-  const targets = sceneTargets();
+  // TARGETS, in the order the scene stacks them — `votes` index into this.
+  const targets: string[] = ARCH_TARGETS.map((t) => t.id);
 
   const unknown = targets.filter((id) => !known.has(id));
   assert.deepEqual(unknown, [], `${SCENE} tallies archetype(s) the registry does not ship`);
@@ -149,6 +154,11 @@ test("the archetype scene's tally board is drawn from the real registry", () => 
       `${SCENE}: signal "${sceneId}" draws votes that are not the rule's real \`scores\` map. Every vote it casts has to be on the board, or the totals stop adding up to the division the status line prints.`
     );
   }
+
+  // The status line prints `winner / total` with detect's own rounding; the
+  // winner the scene crowns has to be the row that actually leads.
+  assert.equal(ARCH_SCORES[ARCH_WINNER], Math.max(...ARCH_SCORES), `${SCENE}: WINNER is not the leading tally`);
+  assert.equal(ARCH_AGREEMENT, Math.round((Math.max(...ARCH_SCORES) / ARCH_TOTAL) * 100) / 100);
 });
 
 test("the archetype scene's quoted detection constants still hold", () => {
@@ -175,48 +185,10 @@ test("the archetype scene's quoted detection constants still hold", () => {
 // numbers they quote; chapter 1 was the remaining unpinned claim. A regex
 // against design.py plus the English catalog string is the same mechanical
 // coupling — no Python import required.
-
-test("every scene names a stillTick that is the complete-argument beat", () => {
-  // useSceneClock defaults stillTick to cycle-1. That is a trap: a scene whose
-  // last beat is a teardown or a reset would pin reduced-motion readers on the
-  // wrong story. Every scene must declare STILL, pass it explicitly, keep it
-  // inside the cycle, and not leave the closing status sentence after it.
-  const scenes = [
-    "scenes/jd/JdGrounding.tsx",
-    "scenes/scoring/ScoringBuckets.tsx",
-    "scenes/screening/ScreeningLadder.tsx",
-    "scenes/archetypes/ArchetypeRouter.tsx",
-    "scenes/assignments/CaseBaseline.tsx",
-    "scenes/gates/GatesQueue.tsx",
-  ];
-  for (const rel of scenes) {
-    const src = read(rel);
-    const cycleHit = src.match(/^const CYCLE = (\d+);/m);
-    const stillHit = src.match(/^const STILL = (\d+);/m);
-    assert.ok(cycleHit, `${rel} must declare CYCLE`);
-    assert.ok(stillHit, `${rel} must declare STILL — reduced motion has no complete-argument beat without it`);
-    const cycle = Number(cycleHit[1]);
-    const still = Number(stillHit[1]);
-    assert.ok(
-      still >= 0 && still < cycle,
-      `${rel} STILL=${still} must satisfy 0 <= STILL < CYCLE=${cycle}`,
-    );
-    assert.match(
-      src,
-      /useSceneClock\(CYCLE,\s*\{\s*stillTick:\s*STILL\s*\}\)/,
-      `${rel} must pass stillTick: STILL — the hook default is not an authoring choice`,
-    );
-    const table = src.match(/statusPicker\(\{([\s\S]*?)^\s*\}\)/m);
-    assert.ok(table, `${rel} has no statusPicker table`);
-    const keys = [...table[1].matchAll(/^\s*(\d+)\s*:/gm)].map((m) => Number(m[1]));
-    assert.ok(keys.length > 0, `${rel} statusPicker table parsed no beat keys`);
-    const last = Math.max(...keys);
-    assert.ok(
-      last <= still,
-      `${rel} last status beat ${last} is after STILL=${still}; reduced-motion would miss the closing sentence`,
-    );
-  }
-});
+//
+// (The stillTick contract — STILL is the FIRST complete-argument beat and no
+// status sentence lands after it — is executed per scene in
+// scenes/beats.test.ts, over each scene's imported beat table.)
 
 test("chapter 1's grounding sentence is still the live prompt rule", () => {
   const design = pySource("pipeline/jobfit/devcase/design.py");
@@ -291,15 +263,13 @@ test("chapter 2's two thresholds are still the engine's", () => {
     "the chapter's argument: an adjacent skill must score BELOW the line, so it can never be counted as the real one"
   );
 
-  assert.match(copy("scoring.status.s2"), new RegExp(String(matchThreshold)));
   assert.match(copy("scoring.status.s10"), new RegExp(String(siblingMatch)));
-  assert.match(read("scenes/scoring/ScoringBuckets.tsx"), new RegExp(`_SIBLING_MATCH = ${siblingMatch}`));
+  assert.match(copy("scoring.status.s2"), new RegExp(String(matchThreshold)));
+  assert.equal(SIBLING_MATCH_LABEL, `_SIBLING_MATCH = ${siblingMatch}`, "the scene's code label quotes taxonomy.py");
 
-  // The painted line is derived, not typed: `THRESHOLD_X = TRACK_X + TRACK_W * <f>`.
-  const fraction = read("scenes/scoring/ScoringBuckets.tsx").match(/const THRESHOLD_X = TRACK_X \+ TRACK_W \* ([\d.]+);/);
-  assert.ok(fraction, "ScoringBuckets.tsx no longer derives THRESHOLD_X from TRACK_X/TRACK_W");
+  // The painted line is derived, not typed: `THRESHOLD_X = TRACK_X + TRACK_W * THRESHOLD`.
   assert.equal(
-    Number(fraction[1]),
+    SCORING_THRESHOLD,
     matchThreshold,
     "the painted line's position and _MATCH_THRESHOLD are the same number, or the scene is drawing a lie"
   );
@@ -322,11 +292,8 @@ test("chapter 3 names three real layers, and marks its cohort figures as an exam
   const literal = matching.match(/^KoReasonKey = Literal\[([^\]]*)\]/m);
   assert.ok(literal, "matching.py no longer declares KoReasonKey as a Literal — chapter 3 lists its members");
   const known = new Set([...literal[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]));
-  const scene = read("scenes/screening/ScreeningLadder.tsx");
-  const block = scene.match(/const KO_REASONS = \[([\s\S]*?)\n\] as const;/);
-  assert.ok(block, "could not find KO_REASONS in ScreeningLadder.tsx — update this test with its new shape");
-  const shown = [...block[1].matchAll(/key: "([^"]+)"/g)].map((m) => m[1].replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`));
-  assert.ok(shown.length > 0, "parsed no KO_REASONS out of ScreeningLadder.tsx");
+  const shown = KO_REASONS.map((r) => r.key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`));
+  assert.ok(shown.length > 0, "scenes/screening/data.ts declares no KO_REASONS");
   assert.deepEqual(
     shown.filter((k) => !known.has(k)),
     [],
@@ -351,17 +318,12 @@ test("chapter 5's baseline-similarity threshold is still the one the checker use
   const aim = Number(hit[1]);
   assert.equal(aim, 0.85, "about.assignments.note and status.s9 are rendered with AIM");
 
-  const scene = read("scenes/assignments/CaseBaseline.tsx");
-  const declared = scene.match(/^const AIM = ([\d.]+);/m);
-  assert.ok(declared, "CaseBaseline.tsx no longer declares AIM");
-  assert.equal(Number(declared[1]), aim, "CaseBaseline's AIM and artifact_checks.py's gate are the same number");
+  assert.equal(AIM, aim, "the scene's AIM and artifact_checks.py's gate are the same number");
 
   // And the scene's own number must sit below it, or the worked example
   // contradicts the sentence printed under it.
-  const overlap = scene.match(/^const OVERLAP = ([\d.]+);/m);
-  assert.ok(overlap, "CaseBaseline.tsx no longer declares OVERLAP");
   assert.ok(
-    Number(overlap[1]) < aim,
+    OVERLAP < aim,
     "the scene shows a submission that does NOT trip the prompt — its overlap has to sit below AIM"
   );
 });
@@ -372,19 +334,11 @@ test("chapter 5's baseline-similarity threshold is still the one the checker use
 // Chapter 6 prints real approvalKind slugs (`rejection_review`, `offer_review`)
 // as the rows that stop at the barrier; a renamed kind would teach a false gate.
 
-const GATES = "scenes/gates/GatesQueue.tsx";
-
-function gatesActions(): { parks: boolean; kind: string }[] {
-  const src = read(GATES);
-  const block = src.match(/const ACTIONS = \[([\s\S]*?)\n\] as const;/);
-  assert.ok(block, `could not find ACTIONS in ${GATES} — update this test with its new shape`);
-  const rows = [...block[1].matchAll(/parks:\s*(true|false),\s*kind:\s*"([^"]*)"/g)];
-  assert.ok(rows.length > 0, `parsed no ACTIONS out of ${GATES}`);
-  return rows.map((m) => ({ parks: m[1] === "true", kind: m[2] }));
-}
+const GATES = "scenes/gates/data.ts";
 
 test("chapter 6's parked kinds are a true subset of APPROVAL_KINDS", () => {
-  const actions = gatesActions();
+  const actions: readonly { parks: boolean; kind: string }[] = ACTIONS;
+  assert.ok(actions.length > 0, `${GATES} declares no ACTIONS`);
   const parked = actions.filter((a) => a.parks);
   assert.equal(parked.length, 2, "the scene parks two actions (rejection + offer)");
 
@@ -402,7 +356,7 @@ test("chapter 6's parked kinds are a true subset of APPROVAL_KINDS", () => {
   }
 
   assert.equal(typeof needsHumanDecision, "function");
-  assert.match(read(GATES), /code="needsHumanDecision\(kind\)"/);
+  assert.equal(GATE_LABEL, "needsHumanDecision(kind)", `${GATES}: the note's code label names the real gate function`);
   assert.match(
     readFileSync(path.resolve(ROOT, "app/_lib/approval-kinds.ts"), "utf8"),
     /^export function needsHumanDecision\b/m,
@@ -441,6 +395,12 @@ test("every repo path the deck cites exists", () => {
     "scenes/archetypes/ArchetypeRouter.tsx",
     "scenes/assignments/CaseBaseline.tsx",
     "scenes/gates/GatesQueue.tsx",
+    "scenes/jd/data.ts",
+    "scenes/scoring/data.ts",
+    "scenes/screening/data.ts",
+    "scenes/archetypes/data.ts",
+    "scenes/assignments/data.ts",
+    "scenes/gates/data.ts",
   ];
 
   // A path-shaped token: a known repo root, then segments, ending in a real
