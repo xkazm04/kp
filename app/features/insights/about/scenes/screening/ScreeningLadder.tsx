@@ -4,9 +4,10 @@ import { useTranslations } from "next-intl";
 import { Field, Part, Slot, Wire, Wires } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { INK } from "../../stage/motion";
-import { stageOf, type Rect } from "../../stage/stages";
+import type { Rect } from "../../stage/stages";
 import { bottomOf, topOf, vCurve } from "../../stage/threads";
 import { CodeLabel, SceneStatus, statusPicker } from "../shared";
+import { COHORT, CYCLE, KO_REASONS, STILL, SURVIVORS, TOP_N, sceneAt, type StatusBeat } from "./data";
 
 /*
  * Chapter 3, variant A — THE COST LADDER.
@@ -28,42 +29,10 @@ import { CodeLabel, SceneStatus, statusPicker } from "../shared";
  * ruled out. A reader who assumes "AI screening" means a model reading 120 CVs
  * is being shown that it read four.
  *
- * Beats (CYCLE = 14 @ 900ms ≈ 12.6s):
- *   0 outline · 1 the cohort · 2 KO gates fire · 3 the KO reasons
- *   4 survivors drop to layer B · 5 scored · 6 ranked
- *   7 the top few rise to layer C · 8 the model reasons · 9 the cost line
- *   10-13 hold
+ * The beat table (CYCLE, STILL, which beat each mark lands on), the worked
+ * example's figures and the KO reasons live in `./data.ts`, where node:test can
+ * import and walk them; this file is geometry and words.
  */
-
-const CYCLE = 14;
-const STILL = 10;
-
-/*
- * ILLUSTRATIVE, and said out loud in the copy (`about.screening.figuresNote`).
- *
- * Unlike every other number in this deck, these three are NOT quoted from a
- * constant: there is no cohort size, no survival rate and no shortlist width in
- * `pipeline/jobfit/matching.py` — the shortlist is whatever the caller asks
- * `match_reasoning` for, and the survival rate is whatever the gates say about
- * the actual applicants. They are a worked example of the SHAPE (wide → narrow
- * → narrower), which is the claim the chapter makes.
- *
- * So they get a disclaimer instead of a drift guard, and chapters.test.ts pins
- * the parts that ARE coupled: the three layer function names, and the KO reason
- * keys. If one of these ever becomes a real default, guard it and delete the
- * note.
- */
-const COHORT = 120;
-const SURVIVORS = 74;
-const TOP_N = 8;
-
-/** Real KoReasonKey values, with the clause the product actually prints. */
-const KO_REASONS = [
-  { key: "language", n: 19 },
-  { key: "seniority", n: 14 },
-  { key: "education", n: 8 },
-  { key: "workMode", n: 5 },
-] as const;
 
 // ── Geometry ────────────────────────────────────────────────────────────────
 // Each layer is narrower than the one above it, so the funnel is drawn by the
@@ -78,7 +47,7 @@ const COST: Rect = { x: 62, y: 78, w: 38, h: 22 };
 export function ScreeningLadder() {
   const t = useTranslations("about.screening");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
-  const at = (n: number) => phase >= n;
+  const s = sceneAt(phase);
   const statusAt = statusPicker({
     0: t("status.s0", { n: COHORT }),
     2: t("status.s2"),
@@ -86,14 +55,14 @@ export function ScreeningLadder() {
     4: t("status.s4"),
     7: t("status.s7", { n: TOP_N }),
     9: t("status.s9"),
-  });
+  } satisfies Record<StatusBeat, string>);
 
   return (
     <div ref={ref}>
       <Field min="min-h-[32rem] sm:min-h-[36rem]">
         <Wires>
-          <Wire d={vCurve(bottomOf(LAYER_A, 0.5), topOf(LAYER_B, 0.5))} drawn={at(4)} stroke={INK.line} reduced={reduced} />
-          <Wire d={vCurve(bottomOf(LAYER_B, 0.5), topOf(LAYER_C, 0.5))} drawn={at(7)} stroke={INK.line} reduced={reduced} />
+          <Wire d={vCurve(bottomOf(LAYER_A, 0.5), topOf(LAYER_B, 0.5))} drawn={s.survivors} stroke={INK.line} reduced={reduced} />
+          <Wire d={vCurve(bottomOf(LAYER_B, 0.5), topOf(LAYER_C, 0.5))} drawn={s.shortlisted} stroke={INK.line} reduced={reduced} />
           {/* The rejected branch leaves sideways and stops. It is dashed and
               never "drawn", because being filtered out is not an event that
               happens to a candidate — it is the absence of one. */}
@@ -101,67 +70,67 @@ export function ScreeningLadder() {
         </Wires>
 
         {/* ── Layer A ───────────────────────────────────────────────────── */}
-        <Slot rect={LAYER_A} stage={stageOf({ shell: 1, body: 1, detail: 2, chosen: 2 }, phase)} chosen={at(2)} reduced={reduced} className="flex items-center gap-4 px-4">
+        <Slot rect={LAYER_A} stage={s.layerA} chosen={s.gated} reduced={reduced} className="flex items-center gap-4 px-4">
           <div className="min-w-0">
             <CodeLabel code="A · ko_filter()" />
-            <Part show={at(1)} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
+            <Part show={s.cohort} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
               {t("layerA")}
             </Part>
           </div>
           <div className="ml-auto shrink-0 text-right">
             <p className="nums font-serif text-h2 leading-none text-ink">{COHORT}</p>
-            <Part show={at(2)} reduced={reduced} className="mt-1 block rounded-full bg-limewash px-2 py-0.5 text-meta text-moss">
+            <Part show={s.gated} reduced={reduced} className="mt-1 block rounded-full bg-limewash px-2 py-0.5 text-meta text-moss">
               {t("free")}
             </Part>
           </div>
         </Slot>
 
         {/* ── Layer B ───────────────────────────────────────────────────── */}
-        <Slot rect={LAYER_B} stage={stageOf({ shell: 4, body: 4, detail: 5, chosen: 6 }, phase)} chosen={at(6)} reduced={reduced} className="flex items-center gap-4 px-4">
+        <Slot rect={LAYER_B} stage={s.layerB} chosen={s.ranked} reduced={reduced} className="flex items-center gap-4 px-4">
           <div className="min-w-0">
             <CodeLabel code="B · score_job()" />
-            <Part show={at(4)} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
+            <Part show={s.survivors} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
               {t("layerB")}
             </Part>
           </div>
           <div className="ml-auto shrink-0 text-right">
-            <Part show={at(4)} reduced={reduced} className="nums block font-serif text-h2 leading-none text-ink">
+            <Part show={s.survivors} reduced={reduced} className="nums block font-serif text-h2 leading-none text-ink">
               {SURVIVORS}
             </Part>
-            <Part show={at(5)} reduced={reduced} className="mt-1 block rounded-full bg-limewash px-2 py-0.5 text-meta text-moss">
+            <Part show={s.scored} reduced={reduced} className="mt-1 block rounded-full bg-limewash px-2 py-0.5 text-meta text-moss">
               {t("free")}
             </Part>
           </div>
         </Slot>
 
         {/* ── Layer C ───────────────────────────────────────────────────── */}
-        <Slot rect={LAYER_C} stage={stageOf({ shell: 7, body: 7, detail: 8, chosen: 8 }, phase)} chosen={at(8)} reduced={reduced} className="flex items-center gap-4 px-4">
+        <Slot rect={LAYER_C} stage={s.layerC} chosen={s.reasoned} reduced={reduced} className="flex items-center gap-4 px-4">
           <div className="min-w-0">
             <CodeLabel code="C · match_reasoning()" />
-            <Part show={at(7)} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
+            <Part show={s.shortlisted} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
               {t("layerC")}
             </Part>
           </div>
           <div className="ml-auto shrink-0 text-right">
-            <Part show={at(7)} reduced={reduced} className="nums block font-serif text-h2 leading-none text-ink">
+            <Part show={s.shortlisted} reduced={reduced} className="nums block font-serif text-h2 leading-none text-ink">
               {TOP_N}
             </Part>
-            <Part show={at(8)} reduced={reduced} className="mt-1 block rounded-full bg-coral/10 px-2 py-0.5 text-meta text-coral">
+            <Part show={s.reasoned} reduced={reduced} className="mt-1 block rounded-full bg-coral/10 px-2 py-0.5 text-meta text-coral">
               {t("paid")}
             </Part>
           </div>
         </Slot>
 
         {/* ── What the gates said ───────────────────────────────────────── */}
-        <Slot rect={REASONS} stage={stageOf({ shell: 3, body: 3, detail: 3, chosen: null }, phase)} reduced={reduced} className="p-3">
+        <Slot rect={REASONS} stage={s.reasons} reduced={reduced} className="p-3">
           <CodeLabel code="KoReason[]" />
           <ul className="mt-1.5 space-y-1">
             {KO_REASONS.map((r, i) => (
               <li key={r.key} className="flex items-baseline gap-2">
-                <Part show={at(3)} i={i} reduced={reduced} className="nums w-6 shrink-0 text-right font-mono text-meta text-coral">
+                <Part show={s.koListed} i={i} reduced={reduced} className="nums w-6 shrink-0 text-right font-mono text-meta text-coral">
                   {r.n}
                 </Part>
-                <Part show={at(3)} i={i} lead={0.05} reduced={reduced} className="min-w-0 truncate text-base text-steel">
+                <Part show={s.koListed} i={i} lead={0.05} reduced={reduced} className="min-w-0 truncate text-base text-steel">
                   {t(`ko.${r.key}`)}
                 </Part>
               </li>
@@ -170,9 +139,9 @@ export function ScreeningLadder() {
         </Slot>
 
         {/* ── The point ─────────────────────────────────────────────────── */}
-        <Slot rect={COST} stage={stageOf({ shell: 9, body: 9, detail: 9, chosen: null }, phase)} reduced={reduced} className="p-3">
+        <Slot rect={COST} stage={s.cost} reduced={reduced} className="p-3">
           <CodeLabel>{t("costLabel")}</CodeLabel>
-          <Part show={at(9)} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
+          <Part show={s.costLine} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
             {t("cost")}
           </Part>
         </Slot>

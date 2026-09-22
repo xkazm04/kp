@@ -4,8 +4,9 @@ import { useTranslations } from "next-intl";
 import { Field, Part, Slot, Wire, Wires } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { INK } from "../../stage/motion";
-import { stageOf, type Rect } from "../../stage/stages";
+import type { Rect } from "../../stage/stages";
 import { CodeLabel, SceneStatus, statusPicker } from "../shared";
+import { ACTIONS, CYCLE, GATE_LABEL, STILL, sceneAt, type StatusBeat } from "./data";
 
 /*
  * Chapter 6, variant A — WHAT FLOWS AND WHAT PARKS.
@@ -27,23 +28,10 @@ import { CodeLabel, SceneStatus, statusPicker } from "../shared";
  * on its own. Advances, holds and alerts continue autonomously, and saying so
  * is what makes the claim credible rather than marketing.
  *
- * Beats (CYCLE = 15 @ 900ms ≈ 13.5s):
- *   0 outline · 1 four proposed actions · 2 the barrier · 3-6 each meets it
- *   7 the rejection row is explained · 8 what stays autonomous
- *   9 Hired is named · 10-14 hold
+ * The beat table (CYCLE, STILL, which beat each mark lands on) and the
+ * approval kinds chapters.test.ts pins live in `./data.ts`, where node:test can
+ * import and walk them; this file is geometry and words.
  */
-
-const CYCLE = 15;
-const STILL = 10;
-
-// `key` names the catalog entry; `kind` is the real approvalKind slug, which
-// stays untranslated because it is the value stored on the row.
-const ACTIONS = [
-  { id: "advanced", key: "advance", parks: false, kind: "" },
-  { id: "hold", key: "hold", parks: false, kind: "" },
-  { id: "auto_rejected", key: "reject", parks: true, kind: "rejection_review" },
-  { id: "offer", key: "offer", parks: true, kind: "offer_review" },
-] as const;
 
 // ── Geometry ────────────────────────────────────────────────────────────────
 const ROW_H = 12.5;
@@ -54,13 +42,11 @@ const toRect = (i: number): Rect => ({ x: 60, y: 4 + i * (ROW_H + ROW_GAP), w: 4
 const BAR_X = 50;
 const NOTE: Rect = { x: 0, y: 70, w: 100, h: 30 };
 
-const meetsAt = (i: number) => 3 + i;
-
 
 export function GatesQueue() {
   const t = useTranslations("about.gates");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
-  const at = (n: number) => phase >= n;
+  const s = sceneAt(phase);
   const statusAt = statusPicker({
     0: t("status.s0"),
     2: t("status.s2"),
@@ -70,7 +56,7 @@ export function GatesQueue() {
     6: t("status.s6"),
     7: t("status.s7"),
     9: t("status.s9"),
-  });
+  } satisfies Record<StatusBeat, string>);
 
   return (
     <div ref={ref}>
@@ -82,7 +68,7 @@ export function GatesQueue() {
               <Wire
                 key={a.id}
                 d={a.parks ? `M 40 ${y} L ${BAR_X - 0.8} ${y}` : `M 40 ${y} L 60 ${y}`}
-                drawn={at(meetsAt(i))}
+                drawn={s.met[i]}
                 stroke={a.parks ? INK.act : INK.good}
                 width={0.45}
                 reduced={reduced}
@@ -99,27 +85,27 @@ export function GatesQueue() {
             left: `${BAR_X}%`,
             top: "2%",
             height: `${2 + ACTIONS.length * (ROW_H + ROW_GAP)}%`,
-            opacity: at(2) ? 1 : 0,
+            opacity: s.barrier ? 1 : 0,
             transition: reduced ? "none" : "opacity 500ms ease-out",
           }}
         />
         <div className="absolute z-10 -translate-x-1/2" style={{ left: `${BAR_X}%`, top: "0%" }}>
-          <Part show={at(2)} reduced={reduced} className="whitespace-nowrap rounded-full bg-coral/10 px-2 py-0.5 font-mono text-meta text-coral">
+          <Part show={s.barrier} reduced={reduced} className="whitespace-nowrap rounded-full bg-coral/10 px-2 py-0.5 font-mono text-meta text-coral">
             {t("gate")}
           </Part>
         </div>
 
         {ACTIONS.map((a, i) => {
-          const met = at(meetsAt(i));
+          const met = s.met[i];
           return (
             <Slot
               key={a.id}
               rect={fromRect(i)}
-              stage={stageOf({ shell: 1, body: 1, detail: meetsAt(i), chosen: null }, phase)}
+              stage={s.from[i]}
               reduced={reduced}
               className="flex items-center gap-2 px-3"
             >
-              <Part show={at(1)} i={i} reduced={reduced} className="min-w-0 flex-1 truncate text-base text-ink">
+              <Part show={s.proposed} i={i} reduced={reduced} className="min-w-0 flex-1 truncate text-base text-ink">
                 {t(`actions.${a.key}`)}
               </Part>
               <Part show={met && a.parks} reduced={reduced} className="shrink-0 text-meta font-medium text-coral">
@@ -130,12 +116,12 @@ export function GatesQueue() {
         })}
 
         {ACTIONS.map((a, i) => {
-          const met = at(meetsAt(i));
+          const met = s.met[i];
           return (
             <Slot
               key={a.id}
               rect={toRect(i)}
-              stage={stageOf({ shell: 2, body: meetsAt(i), detail: meetsAt(i), chosen: null }, phase)}
+              stage={s.to[i]}
               // Deliberately NOT `chosen`. That prop paints the coral commit
               // edge, and coral is already doing two jobs in this scene: the
               // barrier itself and the rows that stop at it. Giving the rows
@@ -158,15 +144,15 @@ export function GatesQueue() {
           );
         })}
 
-        <Slot rect={NOTE} stage={stageOf({ shell: 7, body: 7, detail: 9, chosen: null }, phase)} reduced={reduced} className="p-4">
-          <CodeLabel code="needsHumanDecision(kind)" />
-          <Part show={at(7)} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
+        <Slot rect={NOTE} stage={s.note} reduced={reduced} className="p-4">
+          <CodeLabel code={GATE_LABEL} />
+          <Part show={s.rejection} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
             {t("noteRejection")}
           </Part>
-          <Part show={at(8)} i={1} reduced={reduced} className="mt-2.5 block text-base leading-snug text-ink">
+          <Part show={s.autonomous} i={1} reduced={reduced} className="mt-2.5 block text-base leading-snug text-ink">
             {t("noteAutonomous")}
           </Part>
-          <Part show={at(9)} i={2} reduced={reduced} className="mt-2.5 block text-base leading-snug text-ink">
+          <Part show={s.hired} i={2} reduced={reduced} className="mt-2.5 block text-base leading-snug text-ink">
             {t("noteHired")}
           </Part>
         </Slot>

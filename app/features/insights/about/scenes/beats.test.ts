@@ -119,6 +119,17 @@ for (const dir of Object.keys(SCENES) as (keyof typeof SCENES)[]) {
       assert.ok(Number.isInteger(b) && b >= 0 && b <= d.STILL, `${dir} status beat ${b} is outside [0, STILL=${d.STILL}]`);
     }
   });
+
+  test(`${dir}: ${SCENES[dir]} reads its beats from sceneAt, not inline at(n) literals`, () => {
+    const src = readFileSync(path.join(HERE, dir, SCENES[dir]), "utf8");
+    assert.equal((src.match(/\bat\(\d/g) ?? []).length, 0, `${SCENES[dir]} still times a reveal inline`);
+    assert.equal((src.match(/\bstageOf\(/g) ?? []).length, 0, `${SCENES[dir]} still plans a stage inline`);
+    assert.ok(src.includes("sceneAt(phase)"), `${SCENES[dir]} must render from sceneAt(phase)`);
+    assert.ok(
+      src.includes("useSceneClock(CYCLE, { stillTick: STILL })"),
+      `${SCENES[dir]} must pass stillTick: STILL — the hook default is not an authoring choice`,
+    );
+  });
 }
 
 test("chapters.test.ts pins scene constants by import, never by regex over scene TSX", () => {

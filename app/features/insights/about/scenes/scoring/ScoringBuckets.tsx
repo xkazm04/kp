@@ -4,8 +4,9 @@ import { useTranslations } from "next-intl";
 import { Field, Part, Slot } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { SKIN } from "../../stage/motion";
-import { stageOf, type Rect } from "../../stage/stages";
+import type { Rect } from "../../stage/stages";
 import { Bar, CodeLabel, SceneStatus, statusPicker } from "../shared";
+import { CYCLE, REQS, SIBLING_MATCH_LABEL, STILL, THRESHOLD, sceneAt, type Bucket, type StatusBeat } from "./data";
 
 /*
  * Chapter 2, variant C — THREE BUCKETS.
@@ -30,30 +31,10 @@ import { Bar, CodeLabel, SceneStatus, statusPicker } from "../shared";
  * that applies the threshold) sits BELOW `_MATCH_THRESHOLD` on purpose, so a
  * merely adjacent skill can never be counted as the real thing.
  *
- * Both numbers are pinned to their source files by chapters.test.ts.
- *
- * Beats (CYCLE = 14 @ 900ms ≈ 12.6s):
- *   0 outline · 1 the requirements · 2 the threshold is painted
- *   3-8 one requirement resolves per beat · 9 the unproven reasons land
- *   10 the sibling rule · 11-13 hold
+ * Both numbers are pinned to their source files by chapters.test.ts, which
+ * imports them from `./data.ts` together with the beat table (CYCLE, STILL,
+ * which beat each mark lands on) and the rows; this file is geometry and words.
  */
-
-const CYCLE = 14;
-const STILL = 11;
-
-type Bucket = "matched" | "unproven" | "missing";
-/** The `unproven_skill_reason` values, as a closed set for the typed catalog. */
-type Why = "adjacency" | "provenance" | "both";
-
-const REQS: { skill: string; best: number; bucket: Bucket; why: Why | null }[] = [
-  { skill: "TypeScript", best: 1.0, bucket: "matched", why: null },
-  { skill: "React", best: 0.9, bucket: "matched", why: null },
-  { skill: "Postgres", best: 0.62, bucket: "matched", why: null },
-  { skill: "Kubernetes", best: 0.4, bucket: "unproven", why: "adjacency" },
-  { skill: "Terraform", best: 0.28, bucket: "unproven", why: "provenance" },
-  { skill: "Go", best: 0.18, bucket: "unproven", why: "both" },
-  { skill: "Rust", best: 0.0, bucket: "missing", why: null },
-];
 
 const BUCKET_TONE: Record<Bucket, { chip: string; bar: "moss" | "amber" | "coral" }> = {
   matched: { chip: "bg-limewash text-moss", bar: "moss" },
@@ -87,28 +68,21 @@ const TRACK_W = 36;
 const SCORE_X = 71;
 const BUCKET_X = 77;
 const WHY_X = 88;
-const THRESHOLD_X = TRACK_X + TRACK_W * 0.5; // _MATCH_THRESHOLD = 0.5
+const THRESHOLD_X = TRACK_X + TRACK_W * THRESHOLD; // _MATCH_THRESHOLD, via ./data.ts
 
 const NOTE: Rect = { x: 0, y: 80, w: 100, h: 20 };
-// A code identifier the reader matches against taxonomy.py, not copy — named
-// constant, not JSX text (the machine-surface idiom; i18next/no-literal-string
-// is right to refuse it as a literal child).
-const SIBLING_MATCH_LABEL = "_SIBLING_MATCH = 0.4";
-
-const resolvesAt = (i: number) => 3 + i;
-
 
 export function ScoringBuckets() {
   const t = useTranslations("about.scoring");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
-  const at = (n: number) => phase >= n;
+  const s = sceneAt(phase);
   const statusAt = statusPicker({
     0: t("status.s0"),
     2: t("status.s2"),
     3: t("status.s3"),
     9: t("status.s9"),
     10: t("status.s10"),
-  });
+  } satisfies Record<StatusBeat, string>);
 
   return (
     <div ref={ref}>
@@ -121,28 +95,28 @@ export function ScoringBuckets() {
             left: `${THRESHOLD_X}%`,
             top: "0%",
             height: `${2 + REQS.length * (ROW_H + ROW_GAP)}%`,
-            opacity: at(2) ? 1 : 0,
+            opacity: s.threshold ? 1 : 0,
             transitionDuration: reduced ? "0ms" : "600ms",
           }}
         />
         <div className="absolute z-10" style={{ left: `${THRESHOLD_X}%`, top: "-0.5%" }}>
-          <Part show={at(2)} reduced={reduced} className="-translate-x-1/2 whitespace-nowrap font-mono text-meta text-coral">
+          <Part show={s.threshold} reduced={reduced} className="-translate-x-1/2 whitespace-nowrap font-mono text-meta text-coral">
             0.5
           </Part>
         </div>
 
         {REQS.map((r, i) => {
-          const done = at(resolvesAt(i));
+          const done = s.resolved[i];
           const tone = BUCKET_TONE[r.bucket];
           return (
             <Slot
               key={r.skill}
               rect={rowRect(i)}
-              stage={stageOf({ shell: 1, body: 1, detail: resolvesAt(i), chosen: null }, phase)}
+              stage={s.rows[i]}
               reduced={reduced}
             >
               <span className="absolute top-1/2 -translate-y-1/2" style={{ left: `${NAME_X}%`, width: `${TRACK_X - NAME_X - 2}%` }}>
-                <Part show={at(1)} i={i} reduced={reduced} className="block truncate text-base text-ink">
+                <Part show={s.names} i={i} reduced={reduced} className="block truncate text-base text-ink">
                   {r.skill}
                 </Part>
               </span>
@@ -167,7 +141,7 @@ export function ScoringBuckets() {
               </span>
 
               <span className="absolute top-1/2 -translate-y-1/2" style={{ left: `${WHY_X}%`, width: `${100 - WHY_X - 2}%` }}>
-                <Part show={Boolean(r.why) && at(9)} i={2} reduced={reduced} className="block truncate font-mono text-meta text-steel">
+                <Part show={Boolean(r.why) && s.reasons} i={2} reduced={reduced} className="block truncate font-mono text-meta text-steel">
                   {r.why ? t(r.why) : ""}
                 </Part>
               </span>
@@ -176,9 +150,9 @@ export function ScoringBuckets() {
         })}
 
         {/* ── Why the middle bucket exists ──────────────────────────────── */}
-        <Slot rect={NOTE} stage={stageOf({ shell: 10, body: 10, detail: 10, chosen: null }, phase)} reduced={reduced} className="p-4">
+        <Slot rect={NOTE} stage={s.note} reduced={reduced} className="p-4">
           <CodeLabel>{SIBLING_MATCH_LABEL}</CodeLabel>
-          <Part show={at(10)} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
+          <Part show={s.noteBody} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
             {t("note")}
           </Part>
         </Slot>

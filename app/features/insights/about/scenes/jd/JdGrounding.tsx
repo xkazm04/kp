@@ -5,9 +5,10 @@ import { useTranslations } from "next-intl";
 import { Field, Part, Slot, Wire, Wires } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { INK, SKIN } from "../../stage/motion";
-import { stageOf, type Rect } from "../../stage/stages";
+import type { Rect } from "../../stage/stages";
 import { bowFor, leftOf, rightOf, sCurve } from "../../stage/threads";
 import { SceneStatus, statusPicker } from "../shared";
+import { CYCLE, REQS, STILL, sceneAt, type StatusBeat } from "./data";
 
 /*
  * Variant B — THE GROUNDING.
@@ -23,16 +24,10 @@ import { SceneStatus, statusPicker } from "../shared";
  * mustHave must trace to something the need/JD/analysis actually STATES"), and
  * it is far more convincing as an absence you watch happen than as a claim.
  *
- * Beats (CYCLE = 15 @ 900ms ≈ 13.5s):
- *   0 outline · 1 sources · 2 rows open · 3-8 six requirements attach, one per
- *   beat · 9 the seventh fails to attach · 10 it fades · 11 the gap is reported
- *   · 12 the cap chip · 13-14 hold
- *
- * `stillTick` is 13 — six attached rows, the seventh gone, the gap named.
+ * The beat table (CYCLE, STILL, which beat each mark lands on) and the rows
+ * live in `./data.ts`, where node:test can import and walk them; this file is
+ * geometry and words.
  */
-
-const CYCLE = 15;
-const STILL = 13;
 
 // ── Geometry ────────────────────────────────────────────────────────────────
 // Structure only. Labels resolve from `about.jd.sources.*` at render time.
@@ -42,48 +37,11 @@ const SOURCES: { rect: Rect; key: "need" | "jd" | "code" }[] = [
   { rect: { x: 0, y: 62, w: 30, h: 22 }, key: "code" },
 ];
 
-/*
- * Right-hand rows. `src` is the index of the source each one attaches to;
- * `null` means nothing in the inputs states it — the row that never prints.
- *
- * Two kinds of row label, and the difference is a localization rule rather than
- * a styling one (the same rule `CodeLabel`'s `code` prop states):
- *
- *   text: "code"  — a product noun. "TypeScript", "React 19", "Playwright",
- *                   "Kafka" are the same word in every locale, and putting them
- *                   in the catalog would invite four translators to render them
- *                   four ways. They stay here.
- *   text: "prose" — a requirement written as a SENTENCE. "Owning a service end
- *                   to end" is English, not an identifier, and shipping it from
- *                   this array meant a Czech reader met three untranslated
- *                   lines in the middle of a translated deck. These resolve
- *                   from `about.jd.reqs.<key>`.
- *
- * `id` is the React key and stays stable across locales; it is never rendered.
- */
-type ReqKey = "stack" | "ownership" | "languages";
-
-type Req = { id: string; src: number | null; kind: "must" | "nice" } & (
-  | { text: "code"; code: string }
-  | { text: "prose"; key: ReqKey }
-);
-
-const REQS: Req[] = [
-  { id: "typescript", text: "code", code: "TypeScript", src: 2, kind: "must" },
-  { id: "react", text: "code", code: "React 19", src: 2, kind: "must" },
-  { id: "stack", text: "prose", key: "stack", src: 1, kind: "must" },
-  { id: "ownership", text: "prose", key: "ownership", src: 0, kind: "must" },
-  { id: "languages", text: "prose", key: "languages", src: 0, kind: "must" },
-  { id: "playwright", text: "code", code: "Playwright", src: 1, kind: "nice" },
-  { id: "kafka", text: "code", code: "Kafka", src: null, kind: "must" },
-];
-
+// Right-hand rows (REQS, and why some labels are code and some are prose) are
+// declared in ./data.ts.
 const ROW_H = 10.5;
 const ROW_GAP = 1.8;
 const rowRect = (i: number): Rect => ({ x: 46, y: 4 + i * (ROW_H + ROW_GAP), w: 54, h: ROW_H });
-
-// Each row lands on its own beat, starting at 3.
-const landsAt = (i: number) => 3 + i;
 
 /** Anchors come from the shared helpers, so they are derived from the same
  *  rects the boxes are drawn from and can never point at empty space. */
@@ -94,7 +52,9 @@ function thread(i: number): string {
 export function JdGrounding() {
   const t = useTranslations("about.jd");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
-  const at = (n: number) => phase >= n;
+  const s = sceneAt(phase);
+  // `satisfies` ties this table to STATUS_BEATS both ways: a beat with no
+  // sentence, or a sentence on an undeclared beat, is a tsc error.
   const statusAt = statusPicker({
     0: t("status.s0"),
     2: t("status.s2"),
@@ -103,7 +63,7 @@ export function JdGrounding() {
     10: t("status.s10"),
     11: t("status.s11"),
     12: t("status.s12"),
-  });
+  } satisfies Record<StatusBeat, string>);
 
   return (
     <div ref={ref}>
@@ -114,7 +74,7 @@ export function JdGrounding() {
               <Wire
                 key={req.id}
                 d={thread(i)}
-                drawn={at(landsAt(i))}
+                drawn={s.landed[i]}
                 stroke={req.kind === "must" ? INK.line : INK.quiet}
                 width={0.4}
                 reduced={reduced}
@@ -124,14 +84,14 @@ export function JdGrounding() {
         </Wires>
 
         {/* ── The inputs ────────────────────────────────────────────────── */}
-        {SOURCES.map((s, i) => (
-          <Slot key={s.key} rect={s.rect} stage={stageOf({ shell: 1, body: 1, detail: 2, chosen: null }, phase)} reduced={reduced} className="p-3">
+        {SOURCES.map((source, i) => (
+          <Slot key={source.key} rect={source.rect} stage={s.sources} reduced={reduced} className="p-3">
             <p className="text-meta uppercase tracking-wide text-steel">{t("input")}</p>
-            <Part show={at(1)} i={i} reduced={reduced} className="mt-1 block font-medium text-ink">
-              {t(`sources.${s.key}Label`)}
+            <Part show={s.sourceLabels} i={i} reduced={reduced} className="mt-1 block font-medium text-ink">
+              {t(`sources.${source.key}Label`)}
             </Part>
-            <Part show={at(2)} i={i} lead={0.08} reduced={reduced} className="mt-1 block text-meta text-steel">
-              {t(`sources.${s.key}Detail`)}
+            <Part show={s.sourceDetails} i={i} lead={0.08} reduced={reduced} className="mt-1 block text-meta text-steel">
+              {t(`sources.${source.key}Detail`)}
             </Part>
           </Slot>
         ))}
@@ -139,12 +99,12 @@ export function JdGrounding() {
         {/* ── The requirements ──────────────────────────────────────────── */}
         {REQS.map((req, i) => {
           const orphan = req.src === null;
-          const landed = at(landsAt(i));
+          const landed = s.landed[i];
           // The orphan is mounted like every other row — it holds its space,
           // then loses opacity. Removing it from the tree would collapse the
           // stack and shift the six rows above it, which would read as a
           // layout bug rather than as a requirement being rejected.
-          const faded = orphan && at(10);
+          const faded = orphan && s.orphanFaded;
           return (
             <motion.div
               key={req.id}
@@ -191,10 +151,10 @@ export function JdGrounding() {
 
         {/* ── What happened to the orphan ───────────────────────────────── */}
         <div className="absolute left-[46%] top-[92%] w-[54%]">
-          <Part show={at(11)} reduced={reduced} className="block text-base text-ink">
+          <Part show={s.gap} reduced={reduced} className="block text-base text-ink">
             {t.rich("gap", { k: (chunks) => <span className="font-medium text-coral">{chunks}</span> })}
           </Part>
-          <Part show={at(12)} i={1} reduced={reduced} className="mt-1 block text-meta text-steel">
+          <Part show={s.gapNote} i={1} reduced={reduced} className="mt-1 block text-meta text-steel">
             {t("gapNote")}
           </Part>
         </div>
