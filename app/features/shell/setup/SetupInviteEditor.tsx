@@ -11,7 +11,7 @@ import { Select } from "@/app/_components/Select";
 // the REAL role slugs (auth/roles) + the shared Organization presenter (member-ui) —
 // the same ASSIGNABLE_ROLES the console offers — instead of the retired mock enum, so
 // the wizard emits server-valid slugs with no label→slug translation.
-import { ASSIGNABLE_ROLES, roleLabel, roleTone } from "@/app/features/shared/memberUi";
+import { ASSIGNABLE_ROLES, roleDescription, roleLabel, roleTone } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
 import { SETUP_PROSE } from "./setupProse";
 import type { OnboardingCtrl } from "./setupSteps";
@@ -92,6 +92,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
           <Plus size={15} aria-hidden /> {t("add")}
         </button>
       </div>
+      <p className="text-micro text-steel">{roleDescription(role, tRole)}</p>
 
       {ctrl.state.invites.length > 0 ? (
         <ul className={`flex flex-wrap gap-2 ${dense ? "max-h-16 overflow-y-auto" : ""}`}>

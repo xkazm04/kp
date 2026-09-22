@@ -7118,6 +7118,13 @@
         "hiring_manager": "Hiring manažer",
         "viewer": "Čtenář"
       },
+      "roleDescription": {
+        "owner": "Spravuje organizaci, členy, týmy a kandidáty.",
+        "admin": "Spravuje členy a týmy a pracuje s kandidáty.",
+        "recruiter": "Pracuje s kandidáty a upravuje náborový proces.",
+        "hiring_manager": "Pracuje s kandidáty a upravuje náborový proces.",
+        "viewer": "Prohlíží týmová data bez možnosti změn."
+      },
       "status": {
         "active": "Aktivní",
         "invited": "Pozván/a",

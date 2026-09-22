@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_GHOST, BTN_PRIMARY, META_LABEL, PANEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
-import { ASSIGNABLE_ROLES, roleLabel } from "@/app/features/shared/memberUi";
+import { ASSIGNABLE_ROLES, roleDescription, roleLabel } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
 import { WorkspaceMembersTable } from "./WorkspaceMembersTable";
 import { invitesForWorkspace, memberName, membersNotInWorkspace, membersOfWorkspace } from "./workspaceAdminHelpers";
@@ -236,6 +236,7 @@ export function WorkspaceDetailPanel({
               </>
             )}
           </div>
+          <p className="mt-2 text-micro text-steel">{roleDescription(role, tm)}</p>
           {addMode === "existing" && available.length === 0 && !loading ? (
             <p className="mt-2 text-micro text-steel">{t("everyoneSeated")}</p>
           ) : null}

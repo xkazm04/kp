@@ -7118,6 +7118,13 @@
         "hiring_manager": "Hiring manager",
         "viewer": "Lecteur"
       },
+      "roleDescription": {
+        "owner": "Gère l’organisation, les membres, les équipes et les candidats.",
+        "admin": "Gère les membres et les équipes et travaille avec les candidats.",
+        "recruiter": "Travaille avec les candidats et met à jour le pipeline.",
+        "hiring_manager": "Travaille avec les candidats et met à jour le pipeline.",
+        "viewer": "Consulte les données de l’équipe sans les modifier."
+      },
       "status": {
         "active": "Actif",
         "invited": "Invité(e)",

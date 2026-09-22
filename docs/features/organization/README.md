@@ -704,6 +704,7 @@ translator** from the caller:
 | Helper | Signature |
 | --- | --- |
 | `roleLabel` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.role.<slug>` |
+| `roleDescription` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.roleDescription.<slug>`; explains the default access beside invite role pickers |
 | `statusBadge` | `(status, t: MembersTranslator)` — `workspaceAdmin.members.status.<slug>` |
 | `capabilityMeta` | `(t: PermissionsTranslator)` — replaces the old `CAPABILITY_META` constant; `CAPABILITY_ORDER` keeps the slug order and the catalog key per row (a capability slug carries a `:` and cannot be a catalog key) |
 

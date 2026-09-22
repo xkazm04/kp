@@ -7118,6 +7118,13 @@
         "hiring_manager": "Hiring Manager",
         "viewer": "Betrachter"
       },
+      "roleDescription": {
+        "owner": "Verwaltet die Organisation, Mitglieder, Teams und Kandidaten.",
+        "admin": "Verwaltet Mitglieder und Teams und arbeitet mit Kandidaten.",
+        "recruiter": "Arbeitet mit Kandidaten und aktualisiert die Pipeline.",
+        "hiring_manager": "Arbeitet mit Kandidaten und aktualisiert die Pipeline.",
+        "viewer": "Sieht Teamdaten ein, ohne ?nderungen vorzunehmen."
+      },
       "status": {
         "active": "Aktiv",
         "invited": "Eingeladen",

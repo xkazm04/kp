@@ -62,6 +62,11 @@ export function roleLabel(role: MemberRole, t: MembersTranslator): string {
   return t(`role.${role}`);
 }
 
+/** A short explanation of the role's default access beside invite pickers. */
+export function roleDescription(role: MemberRole, t: MembersTranslator): string {
+  return t(`roleDescription.${role}`);
+}
+
 /** Role → monogram tint (encodes the role in colour; every shade carries a dark
  *  mapping via the Badge tone shades, so both themes hold). */
 export function roleTone(role: MemberRole): string {
