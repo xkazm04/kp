@@ -7,8 +7,8 @@
 // cannot import tasks.ts because it pulls better-sqlite3), so the tables are keyed
 // `Record<TaskKind, …>` and tsc — not text parsing — names a missing entry.
 //
-// Runner: node:test, via `npm run test:unit`. The `@ts-expect-error` lines below are
-// the typecheck half: `npm run typecheck` is green only while they are compile errors.
+// Runner: node:test, via `npm run test:unit`. The conditional-type fixtures below are
+// the typecheck half: `npm run typecheck` is green only while every `Assert` below holds.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TASK_KINDS, isTaskKind, type TaskKind } from "./task-kinds.ts";
@@ -35,16 +35,13 @@ test("the vocabulary is a set of snake_case ids", () => {
 });
 
 // ---- typecheck fixtures ------------------------------------------------------
-// Never executed: the body exists for tsc. A misspelled kind is a compile error both
-// against the union and through the provider's `startTask`, which is what the
-// ~25 client call sites pass their literals to.
-function typeOnlyFixtures(start: TasksCtx["startTask"]): void {
-  // @ts-expect-error — 'batch_sceen' is not a TaskKind
-  const bad: TaskKind = "batch_sceen";
-  // @ts-expect-error — the provider's startTask only accepts a TaskKind
-  void start("batch_sceen", {});
-  const good: TaskKind = "batch_screen";
-  void start(good, {});
-  void bad;
-}
-void typeOnlyFixtures;
+// Checked by tsc, never executed. A misspelled kind must be rejected both by the union
+// and by the provider's `startTask`, which is what the ~25 client call sites pass
+// their literals to. Written as conditional types rather than `@ts-expect-error`
+// directives, which ts-debt.json ratchets: if TaskKind ever widens back to `string`,
+// `Assert<false>` below is the compile error.
+type Assert<T extends true> = T;
+type StartKind = Parameters<TasksCtx["startTask"]>[0];
+export type TypoIsNotAKind = Assert<"batch_sceen" extends TaskKind ? false : true>;
+export type StartRejectsATypo = Assert<"batch_sceen" extends StartKind ? false : true>;
+export type RealKindIsAccepted = Assert<"batch_screen" extends StartKind ? true : false>;
