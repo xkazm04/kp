@@ -6107,6 +6107,7 @@
       "overallFit": "Correspondance globale",
       "confidence": "Plage du score",
       "matchedSkills": "Compétences correspondantes",
+      "unprovenSkills": "Compétences déclarées, non encore prouvées",
       "missingMustHaves": "Prérequis manquants",
       "salaryBand": "Fourchette de salaire",
       "none": "aucun"

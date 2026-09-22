@@ -6107,6 +6107,7 @@
       "overallFit": "Overall fit",
       "confidence": "Score range",
       "matchedSkills": "Matched skills",
+      "unprovenSkills": "Claimed, not yet proven",
       "missingMustHaves": "Missing must-haves",
       "salaryBand": "Salary band",
       "none": "none"

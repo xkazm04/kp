@@ -6107,6 +6107,7 @@
       "overallFit": "Celková vhodnost",
       "confidence": "Pásmo skóre",
       "matchedSkills": "Odpovídající dovednosti",
+      "unprovenSkills": "Uvedené, zatím neprokázané dovednosti",
       "missingMustHaves": "Chybějící povinné dovednosti",
       "salaryBand": "Mzdové rozpětí",
       "none": "žádné"

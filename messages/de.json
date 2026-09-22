@@ -6107,6 +6107,7 @@
       "overallFit": "Gesamteignung",
       "confidence": "Score-Band",
       "matchedSkills": "Passende Skills",
+      "unprovenSkills": "Angegebene, noch nicht belegte Skills",
       "missingMustHaves": "Fehlende Muss-Kriterien",
       "salaryBand": "Gehaltsband",
       "none": "keine"
