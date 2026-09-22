@@ -3,6 +3,7 @@
 import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
@@ -141,7 +142,7 @@ export function PassPreviewModal({
           </p>
         ) : null}
         {preview.summary.scoringDeferred ? (
-          <p role="status" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-800">
+          <p role="status" className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
             <AlertTriangle size={14} className="mr-1 inline-block align-text-bottom" aria-hidden />
             {t("previewScoringDeferred", { count: preview.summary.scoringDeferred })}
           </p>
