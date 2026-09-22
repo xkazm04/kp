@@ -30,9 +30,12 @@
 //
 // HOW EACH TOKEN IS MINTED (all four doors are mintable keyless — none had to be
 // skipped):
-//   offer   POST /api/sim/offer-draft → POST /api/pipeline/[id] {action:"accept"}
-//           (extendDraftedOffer) → GET /api/sim/offer-link?entryId= , the same
-//           three calls the in-product simulation walks.
+//   offer   POST /api/sim/inbound {jobId} mints a (SIM)-marked entry on a seeded
+//           job → POST /api/sim/offer-draft → POST /api/pipeline/[id]
+//           {action:"accept"} (extendDraftedOffer) → GET /api/sim/offer-link?entryId= ,
+//           the same calls the in-product simulation walks. The sim doors admit ONLY
+//           a (SIM) entry (app/_lib/sim-entry.ts): a real seeded candidate's id is a
+//           404 there, so the offer hangs on the demo row, never on a real person.
 //   data    the erasure token is minted by ensureErasureToken INSIDE a candidate
 //           comm's "manage your data" footer (comms-dispatch.ts dataFooter) — it
 //           has no mint endpoint of its own by design. So we send a real candidate
@@ -75,10 +78,11 @@ let inviteToken = "";
 //   • the org invite — revoked here. It is the one that ACCUMULATES: every run
 //     adds an unaccepted `e2e-doors-<runId>@example.test` row to the members
 //     screen, which is a real operator-visible mess after ten runs.
-//   • the offer and the schedule comm — deliberately left. Both are ledger
-//     facts on a seeded pipeline entry (an extended offer, a sent letter), and
-//     the app has no un-send; the two tests that COULD close them (decline,
-//     erase) already stop at the confirm dialog for exactly that reason.
+//   • the offer and the schedule comm — deliberately left. The schedule comm is
+//     a ledger fact on a seeded pipeline entry (a sent letter) and the offer one on
+//     a (SIM) entry (/api/sim/reset purges it), and the app has no un-send; the
+//     two tests that COULD close them (decline, erase) already stop at the
+//     confirm dialog for exactly that reason.
 // The residue is bounded and idempotent-ish rather than zero, and it is why the
 // managed webServer now runs on its own throwaway KP_DB_PATH (playwright.config
 // .ts): the reset for the irreversible half is deleting the database file.
@@ -122,7 +126,7 @@ test("recruiter mints an offer, an erasure and an invite token through the app's
   // 1 — an ACTIVE pipeline entry to hang the candidate-facing tokens on.
   const board = await page.request.get("/api/pipeline");
   expect(board.ok(), `GET /api/pipeline responded ${board.status()}`).toBe(true);
-  const entries = ((await board.json()) as { entries: { id: string; status: string }[] }).entries;
+  const entries = ((await board.json()) as { entries: { id: string; status: string; jobId: string | null }[] }).entries;
   const entry = entries.find((e) => e.status === "active");
   expect(entry, "the seeded board must carry at least one active entry").toBeTruthy();
   const entryId = entry!.id;
@@ -140,15 +144,28 @@ test("recruiter mints an offer, an erasure and an invite token through the app's
   expect(dataLink, "a candidate comm must carry the GDPR footer's /data/<token> link").toBeTruthy();
   dataPath = `/data/${dataLink![1]}`;
 
-  // 3 — the offer. offer-draft sets the offer_review approval WITHOUT a model
-  // call; approving it is what extends a real offer link to the candidate.
-  const drafted = await page.request.post("/api/sim/offer-draft", { data: { entryId } });
+  // 3 — the offer, on a (SIM) entry. The sim doors refuse a real candidate's row
+  // (SIM_ENTRY_NOT_FOUND 404: a viewer seat must not overwrite a real pending
+  // approval or read a real offer token through them), so the demo row is minted
+  // first through /api/sim/inbound on a seeded job — the first job it accepts.
+  let simEntryId = "";
+  for (const jobId of [...new Set(entries.filter((e) => e.status === "active").map((e) => e.jobId))]) {
+    if (!jobId) continue;
+    const inbound = await page.request.post("/api/sim/inbound", { data: { jobId } });
+    if (!inbound.ok()) continue;
+    simEntryId = ((await inbound.json()) as { entryId: string }).entryId;
+    break;
+  }
+  expect(simEntryId, "POST /api/sim/inbound must mint a (SIM) entry on some seeded job").toBeTruthy();
+  // offer-draft sets the offer_review approval WITHOUT a model call; approving it is
+  // what extends an offer link (comms dispatch keeps a (SIM) title off the real channel).
+  const drafted = await page.request.post("/api/sim/offer-draft", { data: { entryId: simEntryId } });
   expect(drafted.ok(), `POST /api/sim/offer-draft responded ${drafted.status()}`).toBe(true);
   // The accept may answer 502 OFFER_NOT_DISPATCHED with no comms relay wired —
   // the offer row and its token are still minted (the route's stated compensation),
   // and the token is what this spec needs, so the status is not asserted.
-  await page.request.post(`/api/pipeline/${entryId}`, { data: { action: "accept", actor: "sim" } });
-  const link = await page.request.get(`/api/sim/offer-link?entryId=${encodeURIComponent(entryId)}`);
+  await page.request.post(`/api/pipeline/${simEntryId}`, { data: { action: "accept", actor: "sim" } });
+  const link = await page.request.get(`/api/sim/offer-link?entryId=${encodeURIComponent(simEntryId)}`);
   expect(link.ok(), `GET /api/sim/offer-link responded ${link.status()}`).toBe(true);
   const offerToken = ((await link.json()) as { token: string | null }).token;
   expect(offerToken, "approving the offer_review approval must mint an offer token").toBeTruthy();

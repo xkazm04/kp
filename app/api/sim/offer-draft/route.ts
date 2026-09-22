@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
-import { getPipelineEntry, setApproval } from "@/app/_lib/db/pipeline";
+import { resolveSimEntry, setSimApproval } from "@/app/_lib/sim-entry";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
@@ -23,8 +23,12 @@ export async function POST(request: NextRequest) {
     // back null and the demo died on "Pipeline entry not found" one step from the
     // offer — and the scoping doubles as the authorization check, since a stranger's
     // entryId simply doesn't resolve.
+    // Demo corpus only: resolveSimEntry admits an entry in the CALLER'S team whose job
+    // title carries the (SIM) marker, and nothing else. The team scoping keeps a
+    // stranger's id from resolving; the marker keeps a REAL candidate's row out of
+    // this ungated door (a real id 404s exactly like a missing one). See sim-entry.ts.
     const workspaceId = await currentWorkspace();
-    const entry = getPipelineEntry(entryId, workspaceId);
+    const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
     const band = (entry.jobId ? getJob(entry.jobId)?.salaryBand : null) ?? [];
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     // The entry we just read is the tenant authority for the write (same row, same
     // team) — an unscoped setApproval matched nothing off the default team, so the
     // offer card never appeared in Decisions and "Send offer" had nothing to extend.
-    setApproval(entryId, "offer_review", JSON.stringify(draft), entry.workspaceId);
+    setSimApproval(entry, "offer_review", JSON.stringify(draft));
     return NextResponse.json({ ok: true, draft });
   } catch (error) {
     return safeJsonError(error, "api:sim/offer-draft", "SIM_OFFER_DRAFT_FAILED");

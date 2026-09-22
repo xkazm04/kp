@@ -176,9 +176,19 @@ const ALLOWED = new Map<string, string>([
   // real handlers for the viewer 403.
   ["sim/apply-cv/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["sim/inbound/route.ts", "guided-sim sandbox — writes only the demo corpus"],
-  ["sim/offer-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],
+  [
+    "sim/offer-draft/route.ts",
+    "guided-sim sandbox — writes only the demo corpus: every entry it reads or writes goes through " +
+      "resolveSimEntry (app/_lib/sim-entry.ts), which admits only a (SIM)-marked row in the caller's team, " +
+      "so a real candidate's id 404s (pinned by app/api/sim/sim-door-contract.test.ts)",
+  ],
   ["sim/reset/route.ts", "guided-sim sandbox — writes only the demo corpus"],
-  ["sim/screen-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],
+  [
+    "sim/screen-draft/route.ts",
+    "guided-sim sandbox — writes only the demo corpus: every entry it reads or writes goes through " +
+      "resolveSimEntry (app/_lib/sim-entry.ts), which admits only a (SIM)-marked row in the caller's team, " +
+      "so a real candidate's id 404s (pinned by app/api/sim/sim-door-contract.test.ts)",
+  ],
   ["status/[token]/nps/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   [
     "status/[token]/recording/route.ts",

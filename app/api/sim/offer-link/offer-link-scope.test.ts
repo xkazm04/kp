@@ -68,11 +68,16 @@ test("the offer token is reachable from ANY team through the unscoped helper —
 
 test("the route authorizes the entry in the caller's workspace before returning a token", () => {
   assert.match(src, /import \{ currentWorkspace \}/, "the caller's tenant must be read from the session");
+  // The lookup is the sim gate (app/_lib/sim-entry.ts): the CALLER'S team AND the
+  // (SIM) marker. The team scoping keeps another tenant's id from resolving; the
+  // marker keeps a REAL candidate's offer token out of this ungated door. A bare
+  // getPipelineEntry here would restore the real-candidate leak.
   assert.match(
     src,
-    /getPipelineEntry\(entryId, workspaceId\)/,
-    "the entry is looked up in the CALLER'S team — the scoping doubles as the authorization check"
+    /resolveSimEntry\(entryId, workspaceId\)/,
+    "the entry is looked up through the sim gate — caller's team AND (SIM)-marked"
   );
+  assert.doesNotMatch(src, /import \{[^}]*\bgetPipelineEntry\b/, "a raw entry read would admit a real candidate's row");
   // The refusal is now a CODE, not English prose (/perfect wave 16): the public demo
   // resolves `errors.SIM_ENTRY_NOT_FOUND` in the reader's language. Still a 404, and
   // still the thing that stands between an entry id and another tenant's offer token.
@@ -88,4 +93,7 @@ test("the route authorizes the entry in the caller's workspace before returning 
     /token:\s*offer\?\.token\s*\?\?\s*null/,
     "the bare unscoped `offer?.token ?? null` return must not come back"
   );
+  assert.match(src, /openSimOfferToken\(entry\)/, "the token is read only off the gated entry");
+  // (Import, not call: the route's history comment names the old call on purpose.)
+  assert.doesNotMatch(src, /import \{[^}]*\bgetOpenOfferForEntry\b/, "never straight off the workspace-blind helper");
 });

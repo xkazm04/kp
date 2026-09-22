@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOpenOfferForEntry } from "@/app/_lib/offers-store";
-import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { openSimOfferToken, resolveSimEntry } from "@/app/_lib/sim-entry";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -26,16 +25,19 @@ export async function GET(request: NextRequest) {
     // createPipelineEntry), so "you'd have to know the id" was never the guard it
     // looked like. A 404 for an entry outside the caller's team closes it; the
     // simulation only ever asks about the entry its own run just created.
+    //
+    // And the team is not enough on its own: this door asks no capability, so a viewer
+    // seat reaches it too, and a REAL candidate's offer token in a viewer's hands is an
+    // accept/decline on that candidate's behalf. resolveSimEntry admits only a
+    // (SIM)-marked entry, so a real id 404s exactly like a missing one (sim-entry.ts).
     const workspaceId = await currentWorkspace();
-    const entry = getPipelineEntry(entryId, workspaceId);
+    const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
-    const offer = getOpenOfferForEntry(entryId);
-    // Belt and braces: the offer row carries its own workspace (inherited from the
-    // entry at mint), so an offer that somehow disagrees with the entry we just
-    // authorized is not this caller's to read either.
-    const token = offer && offer.workspaceId === entry.workspaceId ? offer.token : null;
-    return NextResponse.json({ token: token ?? null });
+    // openSimOfferToken keeps the belt and braces: the offer row carries its own
+    // workspace (inherited from the entry at mint), so an offer that disagrees with
+    // the entry we just authorized is not this caller's to read either.
+    return NextResponse.json({ token: openSimOfferToken(entry) });
   } catch (error) {
     // Match the four sibling sim routes' try/catch: without it a DB throw becomes an opaque
     // non-JSON 500 that crashes the offer step's .json() instead of surfacing a clean error.
