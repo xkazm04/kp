@@ -69,7 +69,8 @@ export function SimDecisionWave() {
                 </div>
                 <FitTierBadge score={d.matchScore} className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-steel">
-                  {waveReasonText(tWave, { reasonCode: d.reasonCode, reasonParams: d.reasonParams }) ?? d.rationale}
+                  {/* An unknown code reads back as null (screen-wave-contract.ts): show the rationale. */}
+                  {(d.reasonCode ? waveReasonText(tWave, { reasonCode: d.reasonCode, reasonParams: d.reasonParams }) : null) ?? d.rationale}
                 </span>
               </li>
             );

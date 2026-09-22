@@ -15,9 +15,10 @@ import { clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { screenedLandingStage, stageWithRole } from "@/app/_lib/pipeline-stages";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
+import { readWaveResult, type ScreenWaveRead } from "@/app/_lib/screen-wave-contract";
 import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
 import { applyCompanyTemplate } from "./simCompanyTemplate";
-import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type ScreenWave, type SimState, type StepOpts } from "./simulationProviderTypes";
+import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type SimState, type StepOpts } from "./simulationProviderTypes";
 import { leaseFromClaim, releaseInit, renewInit, type SimRunLease } from "./simRunLease";
 import { clickRoute, matchHalt, offerHalt, simChapter } from "./simWalkSteps";
 import type { useSimulationEngine } from "./useSimulationEngine";
@@ -31,11 +32,6 @@ import type { useSimulationEngine } from "./useSimulationEngine";
  *  `rationale` is English for exactly the same reason; the UI renders its
  *  localized mirror from `reasonCode` instead (see SimDecisionWave). */
 const DEMO_APPROVER = "Guided demo (auto-approved)";
-
-/** What /api/decisions/screen-wave returns. Every field optional: the response is
- *  only trustworthy once its status has been checked (see `okJson`), and the
- *  approval token is minted by the preview for the commit to carry. */
-type ScreenWaveResponse = Partial<ScreenWave> & { approvalToken?: string };
 
 export function useSimulationWalk({
   ctrl,
@@ -63,6 +59,7 @@ export function useSimulationWalk({
   // line shows its localized label, falling back to the code for a stage the
   // enum catalog doesn't know.
   const tEnums = useTranslations("enums");
+  const tErrors = useTranslations("errors");
   const stageLabel = useCallback(
     (stage: string) => {
       const key = `stage.${stage}` as Parameters<typeof tEnums>[0];
@@ -389,27 +386,34 @@ export function useSimulationWalk({
           // labelled throw halts the run with "Failed: …" instead of a green lie —
           // the same failure policy waitEntry / advanceTo / getBoard already use.
           const screenWaveBody = { jobId, override: SIM_SCREEN_POLICY.screenWaveOverride };
-          const wavePreview = await okJson<ScreenWaveResponse>(
+          // okJson checks the status; readWaveResult (the route's one wire contract)
+          // checks the SHAPE, so a 200 that is not a wave halts the run too.
+          const readWave = (body: unknown): ScreenWaveRead => {
+            const read = readWaveResult(body);
+            if (!read.ok) throw new Error(tErrors("SCREEN_WAVE_FAILED"));
+            return read.result;
+          };
+          const wavePreview = readWave(await okJson<unknown>(
             await fetch("/api/decisions/screen-wave", {
               method: "POST",
               headers: JSON_HEADERS,
               body: JSON.stringify({ ...screenWaveBody, dryRun: true }),
             })
-          );
+          ));
           // A missing token is not silently committed as "no approval": the route's
           // Art. 22 gate refuses a token-less commit (409), which okJson surfaces.
-          const wave = await okJson<ScreenWaveResponse>(
+          const wave = readWave(await okJson<unknown>(
             await fetch("/api/decisions/screen-wave", {
               method: "POST",
               headers: JSON_HEADERS,
               body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
             })
-          );
-          patch({ screenWave: { decisions: wave.decisions ?? [], rejected: wave.rejected ?? 0, kept: wave.kept ?? 0, cohort: wave.cohort ?? 0 } });
+          ));
+          patch({ screenWave: { decisions: wave.decisions, rejected: wave.rejected, kept: wave.kept, cohort: wave.cohort } });
           notifyDataChanged();
           await beat(3400); // let the viewer read the audit
           patch({ screenWave: null });
-          log(t("log.screenWave", { rejected: wave.rejected ?? 0, kept: wave.kept ?? 0 }));
+          log(t("log.screenWave", { rejected: wave.rejected, kept: wave.kept }));
 
           // The survivor proceeds toward the interview: attach the deterministic
           // screening recommendation, then accept it. Accepting a screening_review
@@ -577,7 +581,7 @@ export function useSimulationWalk({
       leaseRef.current = null;
       if (release) await fetch("/api/sim/reset", release).catch(() => null);
     }
-  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, getBoard, okJson, topScreened, locale, log, logClickRoute, nav, patch, runGroupEval, stageLabel, step, t, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, getBoard, okJson, topScreened, locale, log, logClickRoute, nav, patch, runGroupEval, stageLabel, step, t, tErrors, waitDom, waitEntry]);
 
   return { run, releaseLease };
 }

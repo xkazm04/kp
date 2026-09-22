@@ -77,11 +77,17 @@ test("holdoutCount counts both holdout and holdoutSealFailed, and defaults missi
   assert.equal(holdoutCount(null), 0);
 });
 
-test("WaveResult requires sealFailures and holdout so a fixture without them is a type gap", () => {
-  const types = readFileSync(fileURLToPath(new URL("./decisionsScreenWaveTypes.ts", import.meta.url)), "utf8")
-    .replace(/\r\n/g, "\n")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|\s)\/\/.*$/gm, "$1");
-  assert.match(types, /export type WaveResult = \{[\s\S]*sealFailures:\s*number/, "WaveResult must require sealFailures");
-  assert.match(types, /export type WaveResult = \{[\s\S]*holdout:\s*number/, "WaveResult must require holdout");
+test("WaveResult is the contract's read shape, not a hand mirror with a phantom holdout field", () => {
+  const strip = (rel: string) =>
+    readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8")
+      .replace(/\r\n/g, "\n")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|\s)\/\/.*$/gm, "$1");
+  const types = strip("./decisionsScreenWaveTypes.ts");
+  assert.match(types, /export type WaveResult = ScreenWaveRead;/, "WaveResult aliases the one wire contract");
+  assert.match(types, /export type WaveDecision = ScreenDecisionRead;/, "WaveDecision aliases it too");
+  assert.doesNotMatch(types, /holdout:\s*number/, "the server never sends `holdout`; holdouts are counted from reason codes");
+  const contract = strip("../../../_lib/screen-wave-contract.ts");
+  assert.match(contract, /sealFailures:\s*number/, "the contract still requires sealFailures");
+  assert.doesNotMatch(contract, /holdout:\s*number/);
 });

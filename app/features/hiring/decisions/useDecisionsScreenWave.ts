@@ -8,10 +8,11 @@
 // `decisionsScreenWaveMachine.ts`, tested without a DOM. This hook is now only
 // the network and the debounce: every state change goes through `dispatch`.
 import { useEffect, useReducer, useState } from "react";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
-import { INITIAL_WAVE_STATE, waveReduce } from "./decisionsScreenWaveMachine";
-import type { WaveCommitSummary, WaveResult } from "./decisionsScreenWaveTypes";
+import { readWaveRefusal, readWaveResult } from "@/app/_lib/screen-wave-contract";
+import { INITIAL_WAVE_STATE, REFUSAL_EFFECT, waveReduce } from "./decisionsScreenWaveMachine";
+import type { WaveCommitSummary } from "./decisionsScreenWaveTypes";
 
 export function useDecisionsScreenWave(
   jobId: string,
@@ -27,7 +28,7 @@ export function useDecisionsScreenWave(
   const [bottomPercent, setBottomPercent] = useState(SCREENING_DEFAULT.rejectBottomPercent);
   const [maxMatch, setMaxMatch] = useState(SCREENING_DEFAULT.maxMatchToReject);
   const [machine, dispatch] = useReducer(waveReduce, INITIAL_WAVE_STATE);
-  const { preview, committed, loading, committing, error, confirmOpen, refreshNonce } = machine;
+  const { preview, committed, loading, committing, error, confirmOpen, refreshNonce, commitBlocked, blockedMessage } = machine;
 
   const override = () => ({ autoRejectEnabled: enabled, rejectBottomPercent: bottomPercent, maxMatchToReject: maxMatch });
 
@@ -46,12 +47,17 @@ export function useDecisionsScreenWave(
         body: JSON.stringify({ jobId, override: override(), dryRun: true }),
       })
         .then(async (r) => {
-          const d = await r.json();
+          // Typed only as far as errMsg needs; the contract readers below take it as unknown.
+          const d = (await r.json()) as ApiErrorPayload | null;
           if (!r.ok) throw new Error(errMsg(d, previewFailedFallback));
-          return d as WaveResult;
+          // Read through the contract's guard, never cast: a 200 whose shape is off
+          // is a failed preview, not a clean zero-row set.
+          const read = readWaveResult(d);
+          if (!read.ok) throw new Error(previewFailedFallback);
+          return read.result;
         })
-        .then((d) => {
-          if (alive) dispatch({ type: "previewSucceeded", result: d });
+        .then((result) => {
+          if (alive) dispatch({ type: "previewSucceeded", result });
         })
         .catch((e) => {
           if (alive) dispatch({ type: "previewFailed", message: e instanceof Error ? e.message : previewFailedFallback });
@@ -77,22 +83,37 @@ export function useDecisionsScreenWave(
         // the server commits only if it still matches the live set (the Art. 22 gate).
         body: JSON.stringify({ jobId, override: override(), dryRun: false, approvalToken: preview?.approvalToken }),
       });
-      const d = await r.json();
-      // 409 = the set changed since the preview. The reducer arms the notice and bumps
-      // the nonce, so the recruiter reviews and approves THIS set rather than a stale one.
-      if (r.status === 409) {
-        dispatch({ type: "commitConflict", message: errMsg(d, setChangedRepreviewFallback) });
+      // Typed only as far as errMsg needs; the contract readers below take it as unknown.
+          const d = (await r.json()) as ApiErrorPayload | null;
+      // 409 = an approval refusal, and its `reason` says which one. The reducer's
+      // REFUSAL_EFFECT decides: re-preview a changed / aged / missing approval, block
+      // the commit when no approver can be named, reload the queue when the wave
+      // had in fact already landed.
+      const refusal = readWaveRefusal(r.status, d);
+      if (refusal) {
+        dispatch({ type: "commitRefused", reason: refusal, message: errMsg(d, setChangedRepreviewFallback) });
+        // A `spent` refusal means an earlier attempt of this commit DID land (a lost
+        // response, then a retry): reload the queue behind the modal, so people
+        // already rejected stop showing live buttons.
+        if (REFUSAL_EFFECT[refusal].landedElsewhere) onCommitted();
         return;
       }
       if (!r.ok) throw new Error(errMsg(d, waveFailedFallback));
-      const result = d as WaveResult;
+      const read = readWaveResult(d);
+      // The wave may have committed while its body is unreadable: reload the queue
+      // anyway, and say the result could not be shown rather than paint a clean one.
+      if (!read.ok) {
+        onCommitted();
+        throw new Error(waveFailedFallback);
+      }
+      const result = read.result;
       dispatch({ type: "commitSucceeded", result });
       // Live-refresh the queue so rejected rows drop out, AND hand up comms
       // AND seal failures so the tab can surface them past this modal.
       onCommitted({
         commsFailures: result.commsFailures,
         failedLabels: result.decisions.filter((x) => x.commsFailed).map((x) => x.label),
-        sealFailures: result.sealFailures ?? 0,
+        sealFailures: result.sealFailures,
       });
     } catch (e) {
       dispatch({ type: "commitFailed", message: e instanceof Error ? e.message : waveFailedFallback });
@@ -106,6 +127,7 @@ export function useDecisionsScreenWave(
     bottomPercent, setBottomPercent,
     maxMatch, setMaxMatch,
     preview, loading, error, committing, committed,
+    commitBlocked, blockedMessage,
     confirmOpen,
     setConfirmOpen: (open: boolean) => dispatch({ type: open ? "confirmOpened" : "confirmClosed" }),
     commit,

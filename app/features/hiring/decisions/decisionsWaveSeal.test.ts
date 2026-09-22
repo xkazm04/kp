@@ -21,7 +21,11 @@ test("a fixture commit with sealFailures:1 paints the banner", () => {
 
 test("WaveResult requires sealFailures so a result without the field is a type error", () => {
   const types = source("./decisionsScreenWaveTypes.ts");
-  assert.match(types, /export type WaveResult = \{[\s\S]*sealFailures:\s*number/, "WaveResult must require sealFailures");
+  // WaveResult is the wire contract's read shape; the requirement lives there.
+  assert.match(types, /export type WaveResult = ScreenWaveRead;/, "WaveResult aliases the wire contract");
+  const contract = source("../../../_lib/screen-wave-contract.ts");
+  assert.match(contract, /export type ScreenWaveResult = \{[\s\S]*sealFailures:\s*number/, "the contract must require sealFailures");
+  assert.doesNotMatch(contract, /sealFailures\?:/, "sealFailures is never optional on the wire");
   assert.match(types, /export type WaveCommitSummary = \{[\s\S]*sealFailures:\s*number/, "the post-commit summary must carry sealFailures");
 });
 

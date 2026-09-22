@@ -12,7 +12,27 @@
 // The reducer owns ORDER and LIFETIME only; the caller owns the network and the
 // localization (every `message` here is already resolved through useErrorMessage,
 // never a server string).
+import type { ScreenWaveRefusalReason } from "@/app/_lib/screen-wave-contract";
 import type { WaveResult } from "./decisionsScreenWaveTypes";
+
+/** What each approval refusal (the 409's `reason`) does to the modal. The five ask
+ *  the recruiter for different things, and folding them into one "re-preview" loops
+ *  on `unattributed` (no re-preview names an approver: it re-arms a commit that must
+ *  fail again) and mis-narrates `spent` (a retried commit whose first attempt DID
+ *  land: the queue behind the modal still lists people already rejected).
+ *  - repreview: bump the nonce so the recruiter approves the CURRENT set, keeping
+ *    the notice alive across that one refresh (the 40fc5ac3 rule).
+ *  - blocked: disable Commit for this modal's life; nothing the recruiter does in
+ *    it can clear the refusal.
+ *  - landedElsewhere: the wave committed; the hook reloads the queue.
+ *  Typed as a total Record, so a new refusal reason is a type error here. */
+export const REFUSAL_EFFECT: Record<ScreenWaveRefusalReason, { repreview: boolean; blocked: boolean; landedElsewhere: boolean }> = {
+  required: { repreview: true, blocked: false, landedElsewhere: false },
+  expired: { repreview: true, blocked: false, landedElsewhere: false },
+  mismatch: { repreview: true, blocked: false, landedElsewhere: false },
+  spent: { repreview: true, blocked: false, landedElsewhere: true },
+  unattributed: { repreview: false, blocked: true, landedElsewhere: false },
+};
 
 export interface WaveMachineState {
   preview: WaveResult | null;
@@ -28,6 +48,14 @@ export interface WaveMachineState {
    *  that preview went. This is the invariant the bug fix bought: the notice must
    *  outlive the refresh it triggers, and must never stick to a later one. */
   keepCommitNotice: boolean;
+  /** Set by a refusal no re-preview can fix (REFUSAL_EFFECT.blocked): Commit stays
+   *  disabled with `blockedMessage` as its stated reason. Never cleared by a preview. */
+  commitBlocked: ScreenWaveRefusalReason | null;
+  /** Already-localized sentence for `commitBlocked`. */
+  blockedMessage: string | null;
+  /** Armed by a refusal whose wave DID land (`spent`; the hook reloads the queue on
+   *  that same refusal), consumed by the next preview settle. */
+  landedElsewhere: boolean;
 }
 
 export const INITIAL_WAVE_STATE: WaveMachineState = {
@@ -39,6 +67,9 @@ export const INITIAL_WAVE_STATE: WaveMachineState = {
   confirmOpen: false,
   refreshNonce: 0,
   keepCommitNotice: false,
+  commitBlocked: null,
+  blockedMessage: null,
+  landedElsewhere: false,
 };
 
 export type WaveEvent =
@@ -50,7 +81,7 @@ export type WaveEvent =
   | { type: "confirmClosed" }
   | { type: "commitStarted" }
   | { type: "commitSucceeded"; result: WaveResult }
-  | { type: "commitConflict"; message: string }
+  | { type: "commitRefused"; reason: ScreenWaveRefusalReason; message: string }
   | { type: "commitFailed"; message: string }
   | { type: "commitSettled" };
 
@@ -67,7 +98,7 @@ export function waveReduce(state: WaveMachineState, event: WaveEvent): WaveMachi
       return { ...state, error: event.message };
     case "previewSettled":
       // Consumed on the settle, whichever way it went — one refresh, no more.
-      return { ...state, loading: false, keepCommitNotice: false };
+      return { ...state, loading: false, keepCommitNotice: false, landedElsewhere: false };
     case "confirmOpened":
       return { ...state, confirmOpen: true };
     case "confirmClosed":
@@ -76,10 +107,22 @@ export function waveReduce(state: WaveMachineState, event: WaveEvent): WaveMachi
       return { ...state, committing: true, error: null };
     case "commitSucceeded":
       return { ...state, committed: event.result, error: null };
-    case "commitConflict":
-      // The set changed since the preview: say so, and re-preview the CURRENT set
-      // so the recruiter approves this one rather than rubber-stamping a stale one.
-      return { ...state, error: event.message, keepCommitNotice: true, refreshNonce: state.refreshNonce + 1 };
+    case "commitRefused": {
+      const effect = REFUSAL_EFFECT[event.reason];
+      if (effect.blocked) {
+        return { ...state, error: event.message, commitBlocked: event.reason, blockedMessage: event.message };
+      }
+      // The set changed / the review aged / it was already spent: say so, and
+      // re-preview the CURRENT set so the recruiter approves this one rather than
+      // rubber-stamping a stale one.
+      return {
+        ...state,
+        error: event.message,
+        keepCommitNotice: true,
+        refreshNonce: effect.repreview ? state.refreshNonce + 1 : state.refreshNonce,
+        landedElsewhere: effect.landedElsewhere || state.landedElsewhere,
+      };
+    }
     case "commitFailed":
       return { ...state, error: event.message };
     case "commitSettled":

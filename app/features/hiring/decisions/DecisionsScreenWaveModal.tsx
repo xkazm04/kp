@@ -41,6 +41,7 @@ export function ScreenWaveModal({
     bottomPercent, setBottomPercent,
     maxMatch, setMaxMatch,
     preview, loading, error, committing, committed,
+    commitBlocked, blockedMessage,
     confirmOpen, setConfirmOpen,
     commit,
   } = useDecisionsScreenWave(jobId, onCommitted, t("previewFailed"), t("setChangedRepreview"), t("waveFailed"));
@@ -51,7 +52,15 @@ export function ScreenWaveModal({
 
   // Why the commit button is disabled — surfaced in an aria-live line beside the
   // button (finding SD-5), not just a `title` invisible to screen readers / touch.
-  const commitDisabledReason = !enabled ? t("enableToCommit") : rejects.length === 0 ? t("nothingToReject") : null;
+  // A refusal no re-preview can fix (no named approver) comes first: it outlives
+  // every slider move, so the button must not re-arm a commit that fails again.
+  const commitDisabledReason = commitBlocked
+    ? (blockedMessage ?? t("waveFailed"))
+    : !enabled
+      ? t("enableToCommit")
+      : rejects.length === 0
+        ? t("nothingToReject")
+        : null;
 
   // The global floor the DISPLAYED rows were computed against. While `loading` the
   // sliders have already moved but `preview` is still the previous run's, so the live
@@ -164,7 +173,8 @@ export function ScreenWaveModal({
             </p>
           </div>
 
-          {error ? (
+          {/* The blocked reason already speaks from the footer's live line; one voice. */}
+          {error && !(commitBlocked && error === blockedMessage) ? (
             <p role="alert" className="flex items-center gap-2 rounded-md bg-red-50 p-2.5 text-sm text-red-700">
               <AlertTriangle size={14} /> {error}
             </p>

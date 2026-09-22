@@ -53,7 +53,7 @@ test("a 409 bumps the refresh nonce and arms the notice", () => {
     { type: "previewSucceeded", result: result(4) },
     { type: "previewSettled" },
     { type: "commitStarted" },
-    { type: "commitConflict", message: "the set changed — review and approve again" },
+    { type: "commitRefused", reason: "mismatch", message: "the set changed — review and approve again" },
     { type: "commitSettled" },
   ]);
   assert.equal(s.error, "the set changed — review and approve again");
@@ -68,7 +68,7 @@ test("the 409 notice survives the re-preview it triggers", () => {
     { type: "previewSucceeded", result: result(4) },
     { type: "previewSettled" },
     { type: "commitStarted" },
-    { type: "commitConflict", message: "set changed" },
+    { type: "commitRefused", reason: "mismatch", message: "set changed" },
     { type: "commitSettled" },
   ]);
   const after = run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(5) }, { type: "previewSettled" }], conflicted);
@@ -77,7 +77,7 @@ test("the 409 notice survives the re-preview it triggers", () => {
 });
 
 test("the notice is consumed on exactly ONE settle — the next preview clears it", () => {
-  const conflicted = run([{ type: "commitStarted" }, { type: "commitConflict", message: "set changed" }, { type: "commitSettled" }]);
+  const conflicted = run([{ type: "commitStarted" }, { type: "commitRefused", reason: "mismatch", message: "set changed" }, { type: "commitSettled" }]);
   const first = run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(5) }, { type: "previewSettled" }], conflicted);
   assert.equal(first.error, "set changed");
   const second = run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(6) }, { type: "previewSettled" }], first);
@@ -85,7 +85,7 @@ test("the notice is consumed on exactly ONE settle — the next preview clears i
 });
 
 test("the notice is consumed even when the re-preview itself fails", () => {
-  const conflicted = run([{ type: "commitStarted" }, { type: "commitConflict", message: "set changed" }, { type: "commitSettled" }]);
+  const conflicted = run([{ type: "commitStarted" }, { type: "commitRefused", reason: "mismatch", message: "set changed" }, { type: "commitSettled" }]);
   const failed = run([{ type: "previewStarted" }, { type: "previewFailed", message: "preview failed" }, { type: "previewSettled" }], conflicted);
   assert.equal(failed.error, "preview failed", "a failing re-preview reports itself");
   assert.equal(failed.keepCommitNotice, false, "and the armed notice is spent, never left to stick to a later preview");
@@ -102,6 +102,48 @@ test("opening the commit clears a stale error and cancelling closes the confirm"
   const s = run([{ type: "commitStarted" }, { type: "commitFailed", message: "wave failed" }, { type: "commitSettled" }]);
   assert.equal(waveReduce(s, { type: "commitStarted" }).error, null);
   assert.equal(waveReduce({ ...s, confirmOpen: true }, { type: "confirmClosed" }).confirmOpen, false);
+});
+
+// ---- the refusal reason decides the answer --------------------------------------
+// The route sends WHICH of five approval refusals happened; the modal used to fold
+// them all into "re-preview", which loops on `unattributed` (no re-preview names an
+// approver) and mis-narrates `spent` (the wave DID land on a lost-response retry).
+const previewed = () => run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(4) }, { type: "previewSettled" }, { type: "commitStarted" }]);
+
+test("an unattributed refusal blocks the commit instead of re-previewing into the same 409", () => {
+  const s = run([{ type: "commitRefused", reason: "unattributed", message: "sign in" }, { type: "commitSettled" }], previewed());
+  assert.equal(s.refreshNonce, INITIAL_WAVE_STATE.refreshNonce, "no re-preview: it cannot fix a missing approver");
+  assert.equal(s.commitBlocked, "unattributed");
+  assert.equal(s.error, "sign in");
+  assert.equal(s.keepCommitNotice, false);
+  const later = run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(5) }, { type: "previewSettled" }], s);
+  assert.equal(later.commitBlocked, "unattributed", "a slider-driven re-preview does not re-arm a commit that must fail again");
+});
+
+for (const reason of ["mismatch", "expired", "required"] as const) {
+  test(`a ${reason} refusal re-previews and arms the notice, exactly as the old 409 path`, () => {
+    const s = run([{ type: "commitRefused", reason, message: "m" }], previewed());
+    assert.equal(s.refreshNonce, INITIAL_WAVE_STATE.refreshNonce + 1);
+    assert.equal(s.keepCommitNotice, true);
+    assert.equal(s.error, "m");
+    assert.equal(s.commitBlocked, null);
+    assert.equal(s.landedElsewhere, false);
+  });
+}
+
+test("a spent refusal re-previews AND flags that the wave landed, consumed by the next settle", () => {
+  const s = run([{ type: "commitRefused", reason: "spent", message: "already used" }, { type: "commitSettled" }], previewed());
+  assert.equal(s.refreshNonce, INITIAL_WAVE_STATE.refreshNonce + 1);
+  assert.equal(s.landedElsewhere, true, "the hook reloads the queue behind the modal");
+  assert.equal(s.commitBlocked, null);
+  const after = run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(1) }, { type: "previewSettled" }], s);
+  assert.equal(after.landedElsewhere, false, "one reload, not one per later preview");
+});
+
+test("every refusal reason has an effect (the table is total)", async () => {
+  const { REFUSAL_EFFECT } = await import("./decisionsScreenWaveMachine.ts");
+  const { SCREEN_WAVE_REFUSAL_REASONS } = await import("../../../_lib/screen-wave-contract.ts");
+  for (const r of SCREEN_WAVE_REFUSAL_REASONS) assert.ok(REFUSAL_EFFECT[r], `no effect for ${r}`);
 });
 
 // ---- the outcome of the irreversible action is announced -----------------------
