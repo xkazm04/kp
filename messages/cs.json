@@ -1375,6 +1375,8 @@
     "salesEnquirySubject": "Poptávka plánu Enterprise"
   },
   "aiDisclosure": {
+    "loadFailed": "Pravidla tohoto prostoru se nepodařilo ověřit. Zobrazujeme výchozí informace.",
+    "retry": "Zkusit znovu",
     "title": "Jak to funguje",
     "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Zamítnutí je vždy na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",

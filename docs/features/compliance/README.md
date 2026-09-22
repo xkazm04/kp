@@ -553,6 +553,8 @@ one that is neither a declared public surface nor a declared session-bearing
 exemption, and requires each public element to carry both props — so a ninth
 candidate surface cannot quietly revert to the EU default. The EU default survives
 as the last-resort fallback only.
+If the simulator's fetch fails, its disclosure names the fallback and offers a
+retry; a successful retry restores the workspace-specific regime.
 
 **Fairness backstops.** `app/_lib/archetypes.ts` (`isFairnessProtected`,
 `isEarlyCareer`) + `app/_lib/automation-fairness.ts` re-derive the sole
