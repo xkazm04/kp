@@ -675,6 +675,12 @@ export const REFUSAL_ERRORS = {
   /** The screen was asked for without naming a candidate — neither `entryId` nor
    *  `submissionId` arrived in a usable shape (400). */
   INTERVIEW_ENTRY_REQUIRED: "Say which candidate this interview is for.",
+  /** Comparison requires a role id (400). */
+  INTERVIEW_JOB_REQUIRED: "Choose a role to compare interviews.",
+  /** Practice attachment requires both a run token and destination candidate (400). */
+  INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED: "Choose a practice interview and candidate to attach it to.",
+  /** No completed practice run with this token belongs to the caller's team (404). */
+  INTERVIEW_SIM_SESSION_NOT_FOUND: "That practice interview is not available.",
   /** A dev-case submission id that resolves to nothing, or to another team's
    *  submission (404). The two stay DELIBERATELY lumped: a distinct refusal would
    *  confirm which submission ids exist on other tenants, and this door can write a

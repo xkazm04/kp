@@ -173,10 +173,22 @@ test("every lifecycle refusal on the PUBLIC /connect door carries a code", () =>
   assert.match(src, /need: missingVoiceEnv\(adapter\)/, "the unconfigured 503 keeps naming the missing vars");
 });
 
+test("comparison and practice attachment refuse with localized codes", () => {
+  const compare = read("./compare/route.ts");
+  const attach = read("./simulate/attach/route.ts");
+  assert.match(compare, /jsonRefusal\("INTERVIEW_JOB_REQUIRED", 400\)/);
+  for (const code of ["INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED", "INTERVIEW_SIM_SESSION_NOT_FOUND", "PIPELINE_ENTRY_NOT_FOUND"]) {
+    assert.match(attach, new RegExp(`jsonRefusal\\("${code}"`));
+  }
+  for (const src of [compare, attach]) {
+    assert.doesNotMatch(src, /NextResponse\.json\(\{ error: [^}]+\}, \{ status: 4\d\d \}\)/);
+  }
+});
+
 test("the refusal registry defines every interview code the routes answer", () => {
   const registry = read("../../_lib/api-response.ts");
   const codes = new Set<string>();
-  for (const rel of ["./create/route.ts", "./connect/route.ts", "./revoke/route.ts", "./simulate/route.ts"] as const) {
+  for (const rel of ["./create/route.ts", "./connect/route.ts", "./revoke/route.ts", "./simulate/route.ts", "./compare/route.ts", "./simulate/attach/route.ts"] as const) {
     for (const m of read(rel).matchAll(/jsonRefusal\("([A-Z_]+)"/g)) codes.add(m[1]);
   }
   assert.ok(codes.size >= 12, `expected the routes to answer a real vocabulary, found ${codes.size}`);
