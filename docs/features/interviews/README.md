@@ -75,7 +75,10 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    (`"Test automation fundamentals (missing must-have)"`), so
    `candidateSafeTopic()` also scrubs the label's **content** — bracketed asides
    are removed by shape (not by phrase vocabulary) and the label is
-   length-capped. Pinned by `app/_lib/voice/candidate-brief.test.ts`.
+   length-capped. The candidate display label is also reduced to its first
+   line, stripped of control and bidirectional formatting characters, and
+   capped at 80 characters before it enters this client-sent prompt. Pinned by
+   `app/_lib/voice/candidate-brief.test.ts`.
    The **stored** `interview_sessions.run_of_show_json` is composed through the
    same scrub at the source (`candidateRunOfShow` in
    `app/_lib/interview-run.ts`, called by `buildGroundedInterview`), so every
@@ -2566,14 +2569,14 @@ money but were the last unmetered writes on the surface, and are now bounded too
 |---|---|---|
 | `POST /api/interview/create` | 20 / 10 min per IP (`CREATE_RATE_LIMIT`) | A model-backed run-of-show build **and** an email to the candidate, per call |
 | `POST /api/interview/simulate` | 20 / 10 min per IP (`SIMULATE_RATE_LIMIT`) | Mints a real billable session; on a self-hosted install it skips `meterGate`, so the limiter is the only bound |
-
-Both session-mint routes cap the request body at 16 KB on bytes read and return
-`PAYLOAD_TOO_LARGE` (413) before consuming their spend-throttle budget. The
-candidate `/connect` door has the same 16 KB cap.
 | `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
 | `POST /api/interview/complete` | 10 / 10 min per **token + IP** (`COMPLETE_RATE_LIMIT`) | The transcript write, the `interview_minutes` debit and the LLM scorecard run + sealed decision |
 | `PUT` / `POST` / `PATCH /api/interview-prep` | 600 / 10 min per IP, ONE shared bucket (`PREP_WRITE_RATE_LIMIT`) | Three read-merge-writes against the same prep artifact |
 | `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation for an active **interview-role** column (not the literal name `Interview`) also sets the `scorecard_review` approval, records an automation event and seals a decision |
+
+Both session-mint routes cap the request body at 16 KB on bytes read and return
+`PAYLOAD_TOO_LARGE` (413) before consuming their spend-throttle budget. The
+candidate `/connect` door has the same 16 KB cap.
 
 The prep budget looks loose next to its neighbours and the reason is pinned in
 `rate-limit-contract.test.ts` so nobody tightens it into a bug: the interviewer's

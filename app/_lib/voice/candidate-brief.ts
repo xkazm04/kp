@@ -68,6 +68,19 @@ export type CandidateSafeBlock = {
 const asCleanString = (v: unknown): string | null =>
   typeof v === "string" && v.trim() !== "" ? v.trim() : null;
 
+/** A database display label is not prompt prose. Keep only its first visual line,
+ *  drop control/bidi formatting, and bound it before placing it in the client-sent
+ *  ElevenLabs brief. A forged second line must never become an instruction. */
+export function candidateSafeLabel(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const firstLine = raw.split(/[\r\n\u2028\u2029]/, 1)[0];
+  const clean = firstLine
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean ? clean.slice(0, 80).trimEnd() : null;
+}
+
 const asQuestionList = (v: unknown): string[] =>
   Array.isArray(v) ? v.map(asCleanString).filter((q): q is string => q !== null) : [];
 
@@ -226,7 +239,8 @@ export function composeCandidateBrief(opts: {
   faq?: unknown;
 }): string {
   const agenda = opts.agenda ?? null;
-  const name = opts.candidateLabel ? ` You are speaking with ${opts.candidateLabel}.` : "";
+  const candidateLabel = candidateSafeLabel(opts.candidateLabel);
+  const name = candidateLabel ? ` You are speaking with ${candidateLabel}.` : "";
   const runOfShow = opts.blocks
     .map((b, i) => {
       const box = typeof b.fromMin === "number" && typeof b.toMin === "number" ? ` (${b.fromMin}–${b.toMin} min)` : "";
