@@ -155,6 +155,9 @@ one file by design. The saved-JD picker distinguishes an empty library from a fa
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
+Paste CV text is another variant entry: it becomes a `pasted-cv.txt` File and
+passes the same extension, size, cap, and content-dedupe gates as uploads.
+
 **And the library itself reports its own load.** `useAnalyzeJdLibrary` answers a
 `jdLibraryState` of `loading` / `ready` / `failed` (the closed vocabulary in
 `analyzeJdLibraryState.ts`) rather than a bare array whose emptiness meant all

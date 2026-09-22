@@ -10,6 +10,8 @@ import { useGlobalFileDrag } from "./useAnalyzeGlobalFileDrag";
 import { useDropZoneHighlight } from "./useAnalyzeDropZoneHighlight";
 import { AnalyzeProfileInputFileList } from "./AnalyzeProfileInputFileList";
 import { DROP_ZONE_FOCUS } from "./analyzeSurfaces";
+import { pastedCvFile } from "./analyzeCvIntake";
+import { TextArea } from "@/app/_components/TextArea";
 
 export function AnalyzeProfileInput({
   files,
@@ -26,6 +28,8 @@ export function AnalyzeProfileInput({
 }) {
   const t = useTranslations("analyze");
   const [isLoadingSample, setIsLoadingSample] = useState(false);
+  const [pastedText, setPastedText] = useState("");
+  const [isPasting, setIsPasting] = useState(false);
 
   // The shared intake gate: add (incl. the sample + drop-anywhere paths) and
   // replace both route their File through `accept(file, commit)`, so a bad
@@ -123,6 +127,35 @@ export function AnalyzeProfileInput({
     }
   }
 
+  const pasteControl = (
+    <div className="mt-3">
+      <button type="button" aria-expanded={isPasting} onClick={() => setIsPasting((open) => !open)} className="focus-ring text-sm font-semibold text-coral hover:underline">
+        {t("pasteCv")}
+      </button>
+      {isPasting ? (
+        <div className="mt-2 space-y-2">
+          <TextArea value={pastedText} onChange={(event) => setPastedText(event.target.value)} rows={5} aria-label={t("pasteCv")} placeholder={t("pasteCvPlaceholder")} sizeVariant="sm" />
+          <button
+            type="button"
+            disabled={!pastedText.trim()}
+            onClick={() => {
+              const file = pastedCvFile(pastedText);
+              if (!file) return;
+              if (files.length >= maxVariants) {
+                reject(t("variantLimitReject", { count: maxVariants }));
+                return;
+              }
+              accept(file, (next) => { onAdd(next); setPastedText(""); setIsPasting(false); });
+            }}
+            className="focus-ring rounded bg-ink px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {t("addPastedCv")}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+
   if (files.length === 0) {
     const isActive = isWindowDragging || isOverDropzone;
     return (
@@ -194,21 +227,25 @@ export function AnalyzeProfileInput({
             {isLoadingSample ? t("loadingSample") : t("trySample")}
           </button>
         </p>
+        {pasteControl}
       </>
     );
   }
 
   return (
-    <AnalyzeProfileInputFileList
-      files={files}
-      dragAnnouncement={dragAnnouncement}
-      maxVariants={maxVariants}
-      isWindowDragging={isWindowDragging}
-      dragOverlay={dragOverlay}
-      errorRow={errorRow}
-      onAddFiles={addFiles}
-      onReplaceFile={replaceFile}
-      onRemove={onRemove}
-    />
+    <>
+      <AnalyzeProfileInputFileList
+        files={files}
+        dragAnnouncement={dragAnnouncement}
+        maxVariants={maxVariants}
+        isWindowDragging={isWindowDragging}
+        dragOverlay={dragOverlay}
+        errorRow={errorRow}
+        onAddFiles={addFiles}
+        onReplaceFile={replaceFile}
+        onRemove={onRemove}
+      />
+      {pasteControl}
+    </>
   );
 }
