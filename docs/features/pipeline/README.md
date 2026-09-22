@@ -1497,7 +1497,7 @@ header and actions became the modal's **decision bar** (`candidate/decision/
 CandidateDecisionBar.tsx`: kind tag, verdict or offer amount with band + deadline,
 engine disclosure, JD-staleness chip, Accept / Reject) above the general footer, and
 the card's Ladder became a **side panel** docked to the modal's right
-(`CandidateDecisionPanel.tsx`; it takes the modal's full height and scrolls only when the ladder is taller; folds under the tabs below `md`). `isScoreStale(scoredAt, jdEditedAt, scorecardAt?)` treats a score strictly before the latest scorecard the same way it treats a score before a JD edit — missing `scorecardAt` stays non-stale. The modal's pager
+(`CandidateDecisionPanel.tsx`; it takes the modal's full height and scrolls only when the ladder is taller; folds under the tabs below `md`). `isScoreStale(scoredAt, jdEditedAt, scorecardAt?)` treats a score strictly before the latest scorecard the same way it treats a score before a JD edit — missing `scorecardAt` stays non-stale. It compares parsed instants across timezone offsets and fractional seconds; malformed timestamps cannot establish staleness. The modal's pager
 walks the visible reviews; a verdict that lands closes it, and a recommendation
 resolved elsewhere (another window, the batch bar) closes it too rather than
 offering a stale verdict. `useDecisionsCandidate.ts` holds that state; the queue
