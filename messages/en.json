@@ -9137,6 +9137,9 @@
       "removeAria": "Remove {stage}",
       "occupiedHint": "{count, plural, one {# candidate is} other {# candidates are}} on this step. Move them from Settings → Hiring pipeline first.",
       "presetsLabel": "Start from a shape",
+      "presetRemoveTitle": "This preset will remove these steps:",
+      "presetRemoveConfirm": "Apply preset",
+      "presetRemoveCancel": "Keep current steps",
       "presets": {
         "recommended": {
           "title": "Recommended",

@@ -9137,6 +9137,9 @@
       "removeAria": "{stage} entfernen",
       "occupiedHint": "{count, plural, one {# Person steht} other {# Personen stehen}} auf diesem Schritt. Verschieben Sie sie zuerst unter Einstellungen → Hiring-Pipeline.",
       "presetsLabel": "Mit einer Vorlage starten",
+      "presetRemoveTitle": "Diese Vorlage entfernt folgende Schritte:",
+      "presetRemoveConfirm": "Vorlage anwenden",
+      "presetRemoveCancel": "Aktuelle Schritte behalten",
       "presets": {
         "recommended": {
           "title": "Empfohlen",

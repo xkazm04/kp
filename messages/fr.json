@@ -9137,6 +9137,9 @@
       "removeAria": "Supprimer {stage}",
       "occupiedHint": "{count, plural, one {# candidat se trouve} other {# candidats se trouvent}} sur cette étape. Déplacez-les d’abord dans Paramètres → Pipeline de recrutement.",
       "presetsLabel": "Partir d’un modèle",
+      "presetRemoveTitle": "Ce modèle supprimera ces étapes :",
+      "presetRemoveConfirm": "Appliquer le modèle",
+      "presetRemoveCancel": "Garder les étapes actuelles",
       "presets": {
         "recommended": {
           "title": "Recommandé",

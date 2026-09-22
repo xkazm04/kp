@@ -9137,6 +9137,9 @@
       "removeAria": "Odebrat {stage}",
       "occupiedHint": "Na tomto kroku {count, plural, one {stojí # kandidát} few {stojí # kandidáti} other {stojí # kandidátů}}. Nejdřív je přesuňte v Nastavení → Náborová pipeline.",
       "presetsLabel": "Začněte šablonou",
+      "presetRemoveTitle": "Tato šablona odebere tyto kroky:",
+      "presetRemoveConfirm": "Použít šablonu",
+      "presetRemoveCancel": "Ponechat současné kroky",
       "presets": {
         "recommended": {
           "title": "Doporučeno",
