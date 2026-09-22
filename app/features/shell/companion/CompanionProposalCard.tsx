@@ -8,6 +8,9 @@ import type { CompanionProposal } from "@/app/_lib/db/companion";
 // The PURE payload module, never `companion-actions` — the catalog's executors
 // reach better-sqlite3, and a client component must not drag that graph in.
 import { coerceProposalPayload } from "@/app/_lib/companion-proposal-view";
+import { tabHref } from "@/app/features/shell/tabs";
+
+const TASK_OUTCOMES = new Set(["analysisQueued", "digestQueued", "outreachQueued"]);
 
 /*
  * What Candi OFFERED, under the sentence that offered it.
@@ -107,9 +110,15 @@ export function CompanionProposalCard({ proposal, onResolve, error }: CompanionP
             {proposal.status === "accepted" ? t("proposal.accepted") : t("proposal.declined")}
           </span>
           {payload?.outcome ? (
-            <span className={CHIP_QUIET}>
-              {reference(t, `outcome.${payload.outcome.key}`, payload.outcome.values, t("outcome.unknown"))}
-            </span>
+            proposal.status === "accepted" && payload.outcome.ref && TASK_OUTCOMES.has(payload.outcome.key) ? (
+              <a href={tabHref("tasks")} className={`${CHIP_QUIET} focus-ring underline underline-offset-2`}>
+                {reference(t, `outcome.${payload.outcome.key}`, payload.outcome.values, t("outcome.unknown"))}
+              </a>
+            ) : (
+              <span className={CHIP_QUIET}>
+                {reference(t, `outcome.${payload.outcome.key}`, payload.outcome.values, t("outcome.unknown"))}
+              </span>
+            )
           ) : null}
         </p>
       ) : null}

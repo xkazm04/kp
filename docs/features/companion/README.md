@@ -1249,8 +1249,8 @@ guard over exactly these decisions — the behaviour itself needs a browser.
   stricter rule for the same action.
 - **A proposal's outcome is stamped, not watched.** `outcome` records what was
   DISPATCHED (a task id, a JD slug), not whether that task later succeeded — the
-  Background-tasks view is where a dispatched run's fate lives, and nothing links
-  a proposal row back to it beyond `outcome.ref`.
+  Background-tasks view is where a dispatched run's fate lives. Accepted task
+  outcomes link to Tasks; `outcome.ref` remains the audit trail for the exact run.
 - **No approval kind.** `companion_proposal` was considered for `APPROVAL_KINDS`
   and deliberately not added: `approvalKind` marks a PIPELINE ENTRY as waiting on
   a human, feeds the `decisions` count and the Decisions tab, and is cleared by a
