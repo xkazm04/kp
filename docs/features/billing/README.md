@@ -325,6 +325,10 @@ match, and the verdict deep-equals the `jsonRefusal` body.
 
 ### The webhook reads its raw body under a hard cap
 
+The public webhook returns stable error codes for configuration, body size,
+signature verification, and processing failures. Verification and provider
+error details stay in server logs; the provider still receives non-2xx for retry.
+
 `/api/billing/webhook` is on the public allow-list (`app/_lib/auth/public-routes.ts` —
 a MACHINE posts here, so the operator gate would 401 Polar), and the standard-webhooks
 MAC covers the body, so the body has to be in hand **before** anything can be

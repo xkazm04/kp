@@ -77,6 +77,7 @@ const subscriptionActive = {
 test("webhook without billing configured → 503 (provider will retry once env is fixed)", async () => {
   const res = await webhookPost(signedWebhook("evt_unconfigured", subscriptionActive));
   assert.equal(res.status, 503);
+  assert.equal(((await res.json()) as { code: string }).code, "BILLING_NOT_CONFIGURED");
 });
 
 // ---- the raw body read is BOUNDED -------------------------------------------------
@@ -192,6 +193,7 @@ test("webhook with a bad signature → 400 and NO money state written", async ()
   configurePolarEnv();
   const res = await webhookPost(signedWebhook("evt_bad_sig", subscriptionActive, { corruptSignature: true }));
   assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "BILLING_WEBHOOK_SIGNATURE_INVALID");
   assert.equal(getBillingState(), null, "an unverified delivery must never touch billing_state");
 });
 

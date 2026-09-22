@@ -379,6 +379,7 @@ export const STORE_ERRORS = {
   // upstream provider's internals, in an English nobody in the catalog chose.
   BILLING_OVERVIEW_FAILED: "Could not load billing. Please try again.",
   BILLING_CHECKOUT_FAILED: "Could not start the checkout. Please try again.",
+  BILLING_WEBHOOK_FAILED: "Could not process the billing event. Please retry the delivery.",
   /** The outbound ATS webhook config write (/perfect 2026-09-03, integrations-settings).
    *  Its 500 forwarded the thrown message, which on this path is better-sqlite3
    *  constraint text, the absolute db path, or an at-rest crypto failure naming the key
@@ -1218,6 +1219,7 @@ export const REFUSAL_ERRORS = {
   BILLING_ORG_MANAGE_REQUIRED: "Only an owner can manage billing for this organization.",
   /** No POLAR_* env on this deployment (503). Normal on a self-hosted install. */
   BILLING_NOT_CONFIGURED: "Billing is not configured on this deployment.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID: "The billing event signature could not be verified.",
   /** A contact-sales tier was posted to checkout (400). `plan` carries its name. */
   BILLING_PLAN_CONTACT_SALES: "That plan is custom-priced. Talk to our sales team to get set up.",
   /** A legacy tier, withdrawn from sale, was posted to checkout (400). Distinct from
