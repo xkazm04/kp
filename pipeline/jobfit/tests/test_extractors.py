@@ -26,6 +26,7 @@ from pipeline.jobfit.extractors import (
     MAX_REPAIR_CHARS,
     collapse_letter_spacing,
     extract_text,
+    extract_text_with_stats,
 )
 
 
@@ -163,6 +164,14 @@ class MultiPagePdfTest(unittest.TestCase):
         positions = [text.index(f"PAGEMARKER{i}") for i in range(len(self._PAGES))]
         self.assertEqual(positions, sorted(positions), "pages came back out of order")
 
+    def test_page_count_is_reported_with_the_same_extracted_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cv.pdf"
+            path.write_bytes(_pdf_bytes(self._PAGES))
+            text, pages = extract_text_with_stats(path)
+            self.assertEqual(text, extract_text(path))
+            self.assertEqual(pages, len(self._PAGES))
+
     def test_page_cap_still_bounds_a_hostile_pdf(self) -> None:
         # Non-vacuity for the test above: the cap is real, it just must not be 1.
         with mock.patch.object(E, "MAX_PDF_PAGES", 2):
@@ -212,6 +221,7 @@ class MultiPagePdfTest(unittest.TestCase):
             path = Path(tmp) / "scanned.pdf"
             writer.write(path)
             self.assertEqual(extract_text(path), "")
+            self.assertEqual(extract_text_with_stats(path), ("", 1))
 
 
 if __name__ == "__main__":
