@@ -373,24 +373,12 @@ sentence stating what was counted, and a renderer must show the status beside th
 figure keeps its own `unit`, so CZK spend and USD compute cost are never summed. The
 spend-dating fix rides **inside** the existing `basis` string — nothing was added to the shape.
 
-**A count is not a page.** `recruiter_capacity`'s `openRoles` term is `listCorpusJobs(ws).length`
-— the unbounded read whose predicate (`status IS NULL OR status = 'published'`) already *is* the
-open-role definition the route wants, and the same one `openOnly` / `isJobOpenForApplications`
-use. It was a `.filter()` over `listJobs({}, ws)`, the paginated **browse** read: no `limit`
-means `LIMIT 300` (a supplied one caps at 500), so a workspace carrying more visible openings
-than that had its capacity numerator silently truncated to the cap and shipped as `measured` in
-the pack. Identical on the seeded corpus (100 either way); it only diverges above the cap.
-
-**…but the count is still the wrong TIER (open).** `listCorpusJobs(ws)` enumerates the dual-tier
-predicate `workspace_id IS NULL OR workspace_id = ws`, and the ~100 seeded rows every tenant
-matches against are `workspace_id IS NULL`. So on the shipped database a workspace that has
-authored **zero** live roles and carries one recruiter reports `100 roles/recruiter`,
-`status: measured`, basis *"100 open roles carried by 1 recruiter"* — a per-team capacity figure
-that is byte-identical for every tenant, under a pack whose own disclaimer says *"Figures
-describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/jobs.ts`) returns
-`{ own, corpus, visible }` precisely so the call site can choose; the choice (almost certainly
-`own`) and a `basis` string that **names the tier** are both still to be made, in
-`app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
+**Capacity counts owned openings.** The metric pack takes `countOpenRoles(ws).own`:
+live jobs authored by this workspace, excluding the shared reference corpus. The
+DB uses an unbounded count, so the numerator cannot be truncated by the jobs
+browse page's 300-row cap. Its basis names the owned tier in all four locales.
+Before this change, a workspace with no authored roles and one recruiter could
+report roughly 100 shared corpus roles per recruiter as a measured team figure.
 
 **Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
 `EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
