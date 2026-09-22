@@ -3,6 +3,9 @@
 The Channels tab accepts `?tab=channels&sec=comms|careers|email|ads` as an
 incoming section link. An unknown section opens Communications; changing the
 selected section afterward is local app state.
+Its waiting-arrivals count reads the small workspace-scoped `/api/attention`
+payload, using the `channels` count; Channels no longer downloads the entire
+pipeline list just to compute that number.
 
 Every candidate-facing message the pipeline sends — intake acknowledgements,
 outreach, rejections, offers, interview confirmations/reminders —
