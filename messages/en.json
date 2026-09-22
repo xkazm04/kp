@@ -8336,7 +8336,24 @@
     "modeFocus": "Candidate focus",
     "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for.",
     "servedFromCache": "Served from the cached scoring pass.",
-    "retryLoad": "Try again"
+    "retryLoad": "Try again",
+    "slate": {
+      "toggle": "Propose slate",
+      "toggleTitle": "Propose one candidate per visible role for you to review. Nothing is filed until you press Add.",
+      "heading": "Proposed slate",
+      "filled": "{filled} of {total} roles filled",
+      "intro": "A proposal, not a decision: the best eligible fit per role, one role per candidate. Review it in the grid, adjust the ticks, then file with Add.",
+      "stateClear": "Clear",
+      "stateContested": "Contested",
+      "stateThin": "Thin",
+      "stateUncovered": "Uncovered",
+      "rival": "{name} ({score}) is proposed for {role}",
+      "thinNote": "Only one assessed candidate, so no comparison",
+      "uncoveredNote": "Nobody eligible at or above {floor}",
+      "withinMargin": "Lead is within the score's margin",
+      "review": "Review in grid",
+      "close": "Close"
+    }
   },
   "analyze": {
     "modeNew": "New analysis",

@@ -8336,7 +8336,24 @@
     "modeFocus": "Detail kandidáta",
     "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo.",
     "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení.",
-    "retryLoad": "Zkusit znovu"
+    "retryLoad": "Zkusit znovu",
+    "slate": {
+      "toggle": "Navrhnout obsazení",
+      "toggleTitle": "Navrhne jednoho kandidáta na každou zobrazenou roli ke kontrole. Nic se nezařadí, dokud nestisknete Přidat.",
+      "heading": "Navržené obsazení",
+      "filled": "Obsazeno {filled} z {total} rolí",
+      "intro": "Návrh, nikoli rozhodnutí: nejlepší způsobilý kandidát pro každou roli, každý kandidát jen na jednu roli. Zkontrolujte ho v mřížce, upravte výběr a zařaďte tlačítkem Přidat.",
+      "stateClear": "Jasné",
+      "stateContested": "Sporné",
+      "stateThin": "Málo dat",
+      "stateUncovered": "Nepokryto",
+      "rival": "{name} ({score}) má návrh na roli {role}",
+      "thinNote": "Posouzen jen jeden kandidát, srovnání tedy chybí",
+      "uncoveredNote": "Nikdo způsobilý se skóre alespoň {floor}",
+      "withinMargin": "Náskok je v rámci nejistoty skóre",
+      "review": "Zkontrolovat v mřížce",
+      "close": "Zavřít"
+    }
   },
   "analyze": {
     "modeNew": "Nová analýza",

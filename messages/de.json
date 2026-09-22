@@ -8336,7 +8336,24 @@
     "modeFocus": "Kandidatenfokus",
     "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist.",
     "servedFromCache": "Aus dem zwischengespeicherten Bewertungslauf angezeigt.",
-    "retryLoad": "Erneut versuchen"
+    "retryLoad": "Erneut versuchen",
+    "slate": {
+      "toggle": "Besetzung vorschlagen",
+      "toggleTitle": "Schlägt pro sichtbarer Rolle eine Kandidatin oder einen Kandidaten zur Prüfung vor. Nichts wird übernommen, bevor Sie auf Hinzufügen klicken.",
+      "heading": "Vorgeschlagene Besetzung",
+      "filled": "{filled} von {total} Rollen besetzt",
+      "intro": "Ein Vorschlag, keine Entscheidung: die beste geeignete Passung pro Rolle, jede Person nur für eine Rolle. Prüfen Sie ihn im Raster, passen Sie die Auswahl an und übernehmen Sie mit Hinzufügen.",
+      "stateClear": "Eindeutig",
+      "stateContested": "Umkämpft",
+      "stateThin": "Dünne Basis",
+      "stateUncovered": "Unbesetzt",
+      "rival": "{name} ({score}) ist für {role} vorgeschlagen",
+      "thinNote": "Nur eine Person bewertet, daher kein Vergleich",
+      "uncoveredNote": "Niemand Geeignetes mit mindestens {floor}",
+      "withinMargin": "Der Vorsprung liegt innerhalb der Unsicherheit des Scores",
+      "review": "Im Raster prüfen",
+      "close": "Schließen"
+    }
   },
   "analyze": {
     "modeNew": "Neue Analyse",

@@ -8336,7 +8336,24 @@
     "modeFocus": "Focus candidat",
     "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir.",
     "servedFromCache": "Affiché depuis le calcul de scoring mis en cache.",
-    "retryLoad": "Réessayer"
+    "retryLoad": "Réessayer",
+    "slate": {
+      "toggle": "Proposer une répartition",
+      "toggleTitle": "Propose un candidat par rôle visible, à vérifier. Rien n'est enregistré tant que vous n'appuyez pas sur Ajouter.",
+      "heading": "Répartition proposée",
+      "filled": "{filled} rôles pourvus sur {total}",
+      "intro": "Une proposition, pas une décision : la meilleure adéquation éligible par rôle, un seul rôle par candidat. Vérifiez-la dans la grille, ajustez la sélection, puis enregistrez avec Ajouter.",
+      "stateClear": "Net",
+      "stateContested": "Disputé",
+      "stateThin": "Peu de données",
+      "stateUncovered": "Non couvert",
+      "rival": "{name} ({score}) : proposition pour {role}",
+      "thinNote": "Un seul candidat évalué, donc aucune comparaison",
+      "uncoveredNote": "Personne d'éligible à {floor} ou plus",
+      "withinMargin": "L'avance reste dans la marge d'incertitude du score",
+      "review": "Vérifier dans la grille",
+      "close": "Fermer"
+    }
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",
