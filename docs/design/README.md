@@ -751,6 +751,8 @@ candidate.
 `aria-sort` cannot then be omitted) but only reaches the tables that adopted it:
 **70 of the tree's 124 header cells declared nothing**, including six surfaces
 that imported the shared `ColumnFilter` and hand-rolled the headers around it.
+Its icon-only sort button uses the shared `Tooltip`, so the column-specific
+instruction appears on keyboard focus and touch as well as pointer hover.
 
 [`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
 ratchet — `scope` has no legitimate residual population: it is one attribute
