@@ -127,6 +127,11 @@ check('a dispatched agent cannot rewrite its own reviewer', () => {
   assert.match(problemsOf(p), /judges this change/);
 });
 
+check('a dispatched agent cannot write the operator database', () => {
+  assert.match(String(pathProblem('data/kp.sqlite')), /data\/ is protected/);
+  assert.match(String(pathProblem('data/seed_jobs/jobs.json')), /operator SQLite and seed data/);
+});
+
 check('path traversal, absolute paths and windows separators are all refused', () => {
   assert.match(String(pathProblem('../outside.ts')), /escapes the repository/);
   assert.match(String(pathProblem('app/../../etc/passwd')), /escapes the repository/);
