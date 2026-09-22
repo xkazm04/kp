@@ -155,7 +155,7 @@ Conventions worth keeping:
 
 The three pages share one rule set, so a visitor learns the chrome once.
 
-- **The topbar carries destinations only** — `/about`, `/market`, Sign in.
+- **The topbar carries destinations and a compact language switch** — `/about`, `/market`, Sign in.
   In-page section anchors do not belong there: on the landing they competed with
   the links that actually leave the page.
 - **In-page sections live in the scroll rail.** `app/landing/spark/SectionRail.tsx`

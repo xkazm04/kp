@@ -177,6 +177,10 @@ export default function AboutCurve() {
           <Link href="/" className="hover:text-[#d65a4a]">
             {t("nav.home")}
           </Link>
+          <Link href="/market" className="hover:text-[#d65a4a]">
+            {t("nav.market")}
+          </Link>
+          <LandingLangSwitch size="compact" />
           <button
             type="button"
             onClick={onSignIn}
