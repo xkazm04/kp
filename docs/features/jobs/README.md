@@ -499,6 +499,10 @@ throttle in the reader's language.
 | `POST /api/jobs/[id]/candidates/outreach` | `jobs-outreach:<ip>` | 60 | drafted first-touch + Outbox dispatch |
 | `POST /api/jobs/[id]/agent-fit` | `jobs-agent-fit:<ip>` | 20 | backgrounded `agent_fit` LLM transform |
 
+The shared `rankPoolForJob` child has a 240-second process deadline, below the
+Python runner's ten-minute hang backstop. A caller may request a shorter bound;
+the group evaluation still applies its own 240-second stage deadline.
+
 Every limiter sits **after** the cheap refusals (visibility/ownership 404s, the
 validation 400s, the outreach GDPR 409, the empty-pool short-circuits) and
 **before** the spawn, the spend and — on publish — the billing transaction, so a
