@@ -90,16 +90,17 @@ test("tokens that no longer decrypt read as NO ANSWER, never as a thrown 500", a
   }
 });
 
-test("the candidate's slot proposal survives it, and says 'unavailable' rather than lying", async () => {
+test("the candidate's slot proposal survives it, and says 'needs_reconnect' rather than lying", async () => {
   connectCalendar();
   rotateAtRestKey();
   try {
     const proposed = await proposeFreeSlots([], DEFAULT_WORKSPACE_ID, 6);
     assert.ok(proposed.slots.length > 0, "the pre-integration list still reaches the candidate");
     assert.equal(proposed.calendarChecked, false, "nothing was checked, so nothing may claim it was");
-    // "unavailable", not "not_connected": kp still HOLDS a grant, it just cannot read the
-    // credential — and the two ask the operator for different repairs.
-    assert.equal(proposed.calendarStatus, "unavailable");
+    // "needs_reconnect", not "not_connected" and not "unavailable": kp still HOLDS a grant
+    // it cannot read, and waiting will never fix that — a reconnect (or restoring the key)
+    // will. The three ask the operator for three different repairs.
+    assert.equal(proposed.calendarStatus, "needs_reconnect");
     assert.equal(isCalendarConnected(DEFAULT_WORKSPACE_ID), true, "the connection row is intact");
     assert.equal(proposed.droppedForConflict, 0);
   } finally {
