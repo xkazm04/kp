@@ -6,6 +6,10 @@ generator, and the specificity linter that runs on saved JD bodies (ledger
 and public editors), not on the Generate need prompt. Phrase findings are
 click-to-highlight locators in the ledger editor.
 
+The shared JD and template rich-text editor includes a link control. Select text,
+enter an http(s) or mailto URL, and the editor stores the result as a Markdown
+link using the same safe-link rule as the renderer.
+
 **Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
 **Job description**; **Role brief** belongs to the intake dialog and nowhere else.
 "Posting" is retired from copy — it named the `jobs` row on some surfaces ("Open the

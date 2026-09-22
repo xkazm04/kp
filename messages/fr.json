@@ -11247,6 +11247,12 @@
     "heading": "Titre",
     "bulletedList": "Liste à puces",
     "numberedList": "Liste numérotée",
+    "link": "Ajouter un lien",
+    "linkUrl": "Adresse du lien",
+    "addLink": "Appliquer",
+    "cancelLink": "Annuler le lien",
+    "selectText": "Sélectionnez d'abord le texte à lier.",
+    "invalidLink": "Saisissez un lien http(s) ou mailto.",
     "editorLabel": "Éditeur de texte enrichi"
   },
   "select": {

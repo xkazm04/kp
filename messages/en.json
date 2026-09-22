@@ -11247,6 +11247,12 @@
     "heading": "Heading",
     "bulletedList": "Bulleted list",
     "numberedList": "Numbered list",
+    "link": "Add link",
+    "linkUrl": "Link URL",
+    "addLink": "Apply",
+    "cancelLink": "Cancel link",
+    "selectText": "Select text to link first.",
+    "invalidLink": "Enter an http(s) or mailto link.",
     "editorLabel": "Rich text editor"
   },
   "select": {

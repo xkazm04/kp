@@ -11247,6 +11247,12 @@
     "heading": "Überschrift",
     "bulletedList": "Aufzählungsliste",
     "numberedList": "Nummerierte Liste",
+    "link": "Link hinzufügen",
+    "linkUrl": "Linkadresse",
+    "addLink": "Übernehmen",
+    "cancelLink": "Link abbrechen",
+    "selectText": "Wählen Sie zuerst den zu verlinkenden Text aus.",
+    "invalidLink": "Geben Sie einen http(s)- oder mailto-Link ein.",
     "editorLabel": "Rich-Text-Editor"
   },
   "select": {

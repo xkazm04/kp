@@ -11247,6 +11247,12 @@
     "heading": "Nadpis",
     "bulletedList": "Seznam s odrážkami",
     "numberedList": "Číslovaný seznam",
+    "link": "Přidat odkaz",
+    "linkUrl": "Adresa odkazu",
+    "addLink": "Použít",
+    "cancelLink": "Zrušit odkaz",
+    "selectText": "Nejprve vyberte text odkazu.",
+    "invalidLink": "Zadejte odkaz http(s) nebo mailto.",
     "editorLabel": "Editor formátovaného textu"
   },
   "select": {
