@@ -248,6 +248,27 @@ one, the display label only for the legacy label-only callers — and answers
 collision produces. Pinned by `app/_lib/schedule-store.test.ts` ("a re-confirm at
 a DIFFERENT slot is refused").
 
+**A booking collision is a real-duration overlap, decided inside the lock.**
+`confirmScheduleInvite` and `rescheduleScheduleInvite` used to refuse a time only
+when another confirmed invite held the *identical* `slot_at`. That held while every
+booking sat on the `KP_INTERVIEW_TIMES` grid at one length, but the pool now holds
+off-grid minutes (a `dateSlotToIso` grid pick, an accepted `proposedSlotFor` time)
+and per-invite `duration_min`. So a 14:30 booked beside a 14:00, and a 15:00 inside
+a 90-minute 14:00, on every path except the week-grid `book`, which patched it with
+an hour-bucket read of `bookedSlots()` outside the transaction. Both transactions
+now read the workspace's other confirmed rows (own row excluded) and call
+`bookingCollides` (`app/_lib/schedule-slots.ts`): a clash is a half-open overlap
+of the real intervals (a NULL duration counts as `DEFAULT_INTERVIEW_MINUTES`, never
+zero; back-to-back is not a clash) **or** the same interview-zone hour, which is
+what the grid shows as taken. The check is synchronous inside `.immediate()`, so it
+holds the write lock; the route pre-read is gone and every writer (candidate
+confirm/reschedule, `book`, `reschedule`, `accept_proposal`) answers the same
+`taken` → 409 `SCHEDULE_SLOT_TAKEN`. The proposer uses the same predicate:
+`proposeSlots` / `proposeFreeSlots` take `bookedIntervals()` (bookings with their
+length) and never offer a time an off-grid or long booking runs into, calendar
+connected or not. Pinned by `app/_lib/schedule-collision.test.ts` and the
+accept_proposal / grid cases in `app/api/schedule/schedule-book-refusals.test.ts`.
+
 **A dated pick must name a day that exists.** The recruiter's week-grid cell
 arrives as a raw `dateSlot` POST field and is resolved by `dateSlotToIso`
 (`app/_lib/schedule-slots.ts`). Its range check is per-field — month ≤ 12,
@@ -693,8 +714,8 @@ wiring as a source guard, like `schedule-picker-recovery.test.ts`).
 | Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times; the plain GET also returns `interviewTz` |
 | Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
 | Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 (overflow reported, not dropped), per-entry `delivery` |
-| Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
-| Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions, operator flags |
+| Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, `bookingCollides`, TTL |
+| Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions (real-duration overlap via `bookingCollides`), `bookedIntervals`, operator flags |
 | Free/busy (pure) | `app/_lib/calendar/free-busy.ts` | `isSlotFree`, `filterFreeSlots`, `busyQueryWindow`, `CALENDAR_STATUSES` |
 | Google edge | `app/_lib/calendar/google-calendar.ts` | `fetchBusy`, `isCalendarConnected`, and the event verbs `createInterviewEvent` / `updateInterviewEvent` / `deleteInterviewEvent` |
 | Event write-back | `app/_lib/calendar/event-sync.ts` | `syncInterviewEvent` (create-or-update), `removeInterviewEvent` (delete). Best-effort, never throws |
@@ -868,8 +889,8 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   three halves: the store filters, every handler passes the tenant, and the
   planned-minutes path reads a non-default team's pack.
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
-  is a single global pool, so collisions are workspace-wide rather than
-  per-interviewer.
+  is a single global pool, so collisions (real-duration overlap or same hour)
+  are workspace-wide rather than per-interviewer.
 - Only Google is supported; there is no Microsoft 365 provider (the event-sync
   seam is provider-shaped so one can be added, but nothing Outlook-side exists).
 - `POST /api/schedule` (the recruiter lifecycle actions — book, cancel, no-show,
