@@ -7,6 +7,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { readEntityId } from "../entry-id";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Per-IP spend door. One accepted call runs a model-backed run-of-show build AND
 // emails the candidate, and the route is operator-gated only in the sense that
@@ -18,6 +19,7 @@ import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 // once per request. The billing meter is a separate, per-workspace decision and
 // deliberately not what this is.
 const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+const MAX_CREATE_BODY_BYTES = 16 * 1024;
 
 // POST → recruiter creates a candidate-mode voice screen for a pipeline entry.
 // Builds grounded interviewer questions (Task 4) and returns a tokenized link
@@ -45,7 +47,8 @@ export async function POST(request: NextRequest) {
     // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and
     // language must look like a language tag — anything else is rejected or
     // dropped rather than passed into the DB layer.
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readJsonWithLimit<Record<string, unknown>>(request, MAX_CREATE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_CREATE_BODY_BYTES });
     // ONE THREAD (gap 4) — a screen can be asked for by the entry it hangs off OR by
     // the SUBMISSION the reviewer is looking at. The eval surface holds a submission
     // id and never held an entry id, which is why the voice screen was reachable only

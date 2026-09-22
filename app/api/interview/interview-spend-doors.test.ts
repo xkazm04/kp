@@ -85,6 +85,16 @@ test("/create refuses cheaply, throttles, grounds, reserves, THEN revokes and mi
   assert.ok(mint < dispatch, "nothing is mailed before the link it points at exists");
 });
 
+test("both voice session mint doors cap bytes before the spend throttle", () => {
+  for (const [route, cap] of [["./create/route.ts", "MAX_CREATE_BODY_BYTES"], ["./simulate/route.ts", "MAX_SIMULATE_BODY_BYTES"]] as const) {
+    const src = read(route);
+    const body = at(src, `readJsonWithLimit<`, `${route} bounded body read`);
+    const refusal = at(src, `jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: ${cap} })`, `${route} 413 refusal`);
+    const throttle = at(src, "rateLimit(`interview-", `${route} spend throttle`);
+    assert.ok(body < refusal && refusal < throttle, `${route} must refuse an oversized body before spend admission`);
+  }
+});
+
 test("/create's two meter gates are the cheap default and the authoritative worst case", () => {
   const src = read("./create/route.ts");
   const door = read("../../_lib/interview-invite.ts");
