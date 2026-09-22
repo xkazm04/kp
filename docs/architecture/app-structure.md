@@ -262,6 +262,11 @@ was a 403 rendered as a failed load.
 
 ### The tab error boundary speaks the reader's language
 
+The fallback also offers a Report action. It POSTs the workspace panel label,
+current path, and any server digest to `/api/feedback`, then confirms delivery
+or shows a localized failure. The thrown message stays in the browser console
+and configured error sink; it is never copied into a feedback row.
+
 `app/_components/ErrorBoundary.ts` is the fallback a reader meets when a tab's
 render throws. Its three strings were hardcoded English — the only shell copy
 outside the catalogs — because React error boundaries must be class components and a
