@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { analysisCalibrationBandCandidates } from "@/app/_lib/db/analyses";
 import { pipelineCalibrationBandCandidates } from "@/app/_lib/db/pipeline";
+import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
 import { CALIBRATION_BIN_COUNT } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
@@ -19,12 +20,13 @@ const bandCache = createTtlCache<Record<string, unknown>>();
 // Reads the SAME scoped calibration producers the curve is built from, so a
 // bin's drilldown can never diverge from the dot it was clicked on. Read-only.
 //
-// ?bin=0..9 (the fixed 10 probability bins) · ?source=pipeline|analysis
+// ?bin=0..9 (the fixed 10 probability bins) · ?source=pipeline|analysis|holdout
 //   (default pipeline) · ?roleFamily= mirrors the panel's family selector.
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
-    const source = params.get("source") === "analysis" ? "analysis" : "pipeline";
+    const rawSource = params.get("source");
+    const source = rawSource === "analysis" ? "analysis" : rawSource === "holdout" ? "holdout" : "pipeline";
     const roleFamily = params.get("roleFamily");
     const bin = Number(params.get("bin"));
     if (!Number.isInteger(bin) || bin < 0 || bin >= CALIBRATION_BIN_COUNT) {
@@ -47,7 +49,12 @@ export async function GET(request: Request) {
         return { bin, lo: loPct, hi: hiPct, source, candidates };
       }
       const rows = pipelineCalibrationBandCandidates(loPct, hiPct, inclusiveHi, family, ws);
-      const candidates = rows.map((r) => ({ label: r.label, score: r.score, outcome: r.outcome, entryId: r.entryId, live: r.live }));
+      // The clean-arm curve excludes every entry that was not spared by the
+      // screening wave. Its drilldown must use the same sealed holdout set.
+      const only = source === "holdout" ? heldOutEntryIds(ws) : null;
+      const candidates = rows
+        .filter((r) => !only || only.has(r.entryId))
+        .map((r) => ({ label: r.label, score: r.score, outcome: r.outcome, entryId: r.entryId, live: r.live }));
       return { bin, lo: loPct, hi: hiPct, source, candidates };
     });
     return NextResponse.json(payload);
