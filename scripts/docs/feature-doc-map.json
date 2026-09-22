@@ -393,7 +393,9 @@
     {
       "doc": "docs/features/simulation/README.md",
       "sourceGlobs": [
-        "app/features/shell/simulation/**"
+        "app/features/shell/simulation/**",
+        "app/api/sim/**",
+        "app/_lib/sim-entry.ts"
       ]
     },
     {

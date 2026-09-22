@@ -223,7 +223,7 @@ None. Nothing in this directory owns a table.
 
 ## What the demo may never do
 
-The tour drives the REAL paths — that is its whole claim — so three of them carry
+The tour drives the REAL paths — that is its whole claim — so the ones below carry
 an explicit guard rather than a special-case fake:
 
 - **It never mails anybody.** Every sim artifact's title carries the `(SIM)` marker
@@ -238,6 +238,18 @@ an explicit guard rather than a special-case fake:
   still written: the Outbox entry is part of what the tour shows, and `queued` is the
   outbox's honest "recorded locally, nothing will deliver it" state. Pinned by
   `app/_lib/comms-dispatch-sim.test.ts`.
+- **It never touches a real candidate.** The sim doors ask no capability (the
+  capability ratchet in `app/api/route-capability-coverage.test.ts` exempts them as
+  a guided-sim sandbox), so any signed-in seat reaches them, a viewer included.
+  That exemption holds because `screen-draft`, `offer-draft` and `offer-link` read
+  an entry by id only through `resolveSimEntry` (`app/_lib/sim-entry.ts`): the
+  caller's team AND a `(SIM)`-marked job title. A real candidate's id answers
+  `SIM_ENTRY_NOT_FOUND` (404), exactly like a missing one, so a sim door can neither
+  overwrite a real pending approval with its canned draft nor hand out a real offer
+  token. The writers (`setSimApproval`, `openSimOfferToken`) take the resolved entry,
+  never a bare id. `app/api/sim/sim-door-contract.test.ts` drives the real handlers
+  and fails when any `app/api/sim/**/route.ts` imports `getPipelineEntry`,
+  `setApproval` or `getOpenOfferForEntry` directly.
 - **It checks the invite write.** The interview beat reads the schedule-invite
   response through `okJson`, so a refused write takes the stated manual-confirm
   fallback and records why self-scheduling was unavailable.
