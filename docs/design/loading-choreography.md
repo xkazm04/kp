@@ -43,6 +43,10 @@ big-banged 1500 nodes onto one frame. Same product, three unrelated experiences.
 5. **Arrive in waves, not in one big bang.** A tab commits in three tiers (below).
    Never build 1500 DOM nodes in the frame the user pressed the button.
 
+Paged regions using `useInfiniteScroll` abort their current fetch when the
+region unmounts. A response from an abandoned tab cannot append rows or turn
+into a visible error after navigation; remounting starts a fresh request.
+
 ## The three tiers
 
 | Tier | What | When it commits | How it enters |
