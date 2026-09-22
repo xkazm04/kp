@@ -7147,6 +7147,7 @@
       "inviteCreated": "Invitation created. Copy the link to share it.",
       "inviteFailed": "Couldn't create the invite",
       "pendingTitle": "Pending invitations",
+      "inviteExpires": "Expires {date}",
       "copyLink": "Copy link",
       "linkCopied": "Invite link copied",
       "copyFailed": "Copy failed. The link is in the console.",

@@ -7147,6 +7147,7 @@
       "inviteCreated": "Pozvánka vytvořena. Zkopírujte odkaz a sdílejte jej.",
       "inviteFailed": "Pozvánku se nepodařilo vytvořit",
       "pendingTitle": "Čekající pozvánky",
+      "inviteExpires": "Platnost do {date}",
       "copyLink": "Kopírovat odkaz",
       "linkCopied": "Odkaz na pozvánku zkopírován",
       "copyFailed": "Kopírování selhalo. Odkaz najdete v konzoli.",

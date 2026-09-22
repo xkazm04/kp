@@ -7147,6 +7147,7 @@
       "inviteCreated": "Einladung erstellt. Kopieren Sie den Link zum Teilen.",
       "inviteFailed": "Die Einladung konnte nicht erstellt werden",
       "pendingTitle": "Ausstehende Einladungen",
+      "inviteExpires": "Gültig bis {date}",
       "copyLink": "Link kopieren",
       "linkCopied": "Einladungslink kopiert",
       "copyFailed": "Kopieren fehlgeschlagen. Der Link steht in der Konsole.",

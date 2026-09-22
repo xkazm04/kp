@@ -14,6 +14,9 @@ inventing a second scoping dimension.
 
 ## Entry points
 
+Pending invitations in each workspace's roster show their expiry in the
+reader's locale when the server supplies one, alongside the invitee and role.
+
 The Organization name field saves after a short pause. If the operator leaves
 the tab before that pause ends, the pending name is sent on unmount so the last
 edit is not discarded.
