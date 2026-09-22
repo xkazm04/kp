@@ -696,6 +696,9 @@ form because `normalize_text` does not fold diacritics. Acronyms that collide wi
 credit. `pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py` holds one
 glue-only pair and one genuinely-related pair per language, and reddens when a fifth
 locale reaches `LANG_NAMES` without a stopword pass.
+The Czech generic nouns `vedení`, `správa`, and `podpora` are filtered too: pairs
+that share only one of those nouns now score 0.0, with distinct subjects still
+present in the token sets.
 
 The word tokenizer itself is now single-sourced as `taxonomy.WORD_RE`; `matching`'s
 `_WORD_RE` and `taxonomy_check`'s `_CORPUS_WORD_RE` alias it, so the scan that AUDITS
