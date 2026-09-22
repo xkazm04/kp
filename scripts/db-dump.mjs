@@ -38,13 +38,14 @@
 import Database from "better-sqlite3";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
+import { dumpChecksum } from "./db-dump-checksum.mjs";
 
 // Keep in sync with app/_lib/db-path.ts (this script must stay runnable with
 // bare `node`, so it can't import the TS module).
 const DEFAULT_DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
 
 export const DUMP_FORMAT = "kp-db-dump";
-export const DUMP_VERSION = 1;
+export const DUMP_VERSION = 2;
 
 /** Mirror of ORG_CONFIG_NOT_PORTABLE in app/_lib/tenancy.ts — the singleton
  *  integration configs a restore already tells the operator to re-enter, every
@@ -198,6 +199,7 @@ function main() {
     redacted: args.redact,
     tables: dumped,
   };
+  payload.checksum = dumpChecksum(payload);
   // 0600 at creation: a dump lands in data/dumps/ beside the workspace and used
   // to inherit the directory's default mode. No-op on Windows (advisory only).
   writeFileSync(out, JSON.stringify(payload), { encoding: "utf-8", mode: 0o600 });
