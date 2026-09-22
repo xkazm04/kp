@@ -205,6 +205,8 @@ task is server-side and survives a refresh, so nothing is lost). The whole
 contract is pinned by `AnalyzeApi.test.ts` against a fetch double: terminal 404,
 the ten-soft-failure ceiling shared by all three soft branches, phases forwarded
 verbatim, abort, the visibility park, and the backoff curve.
+The same abort signal now reaches the initial `/api/analyze` upload. Cancel during
+that request stops the transfer before a task id exists to cancel server-side.
 Two silences also went: a cancel the server refuses now says the task may still
 be running (`analyze.cancelFailed`) instead of leaving an idle form beside a live
 Python child, and a failed `/api/health` probe says `analyze.engineStatusUnknown`
@@ -409,6 +411,9 @@ animation — so a reduced-motion reader gets the same signal. Pinned by
 form-filling bot is dropped the same way on the chat as on the lead form.
 The conversational POST checks the honeypot before its knockout audit or
 pipeline writes and returns the ordinary decline shape for a filled field.
+For ad links, the conversational door reads `c`/`v` (or the UTM aliases),
+records them on its funnel session, and stores capped campaign/variant labels on
+the accepted pipeline entry, matching the quick-apply door.
 After a quick-apply decline, the done card lets the candidate return to their
 preserved answers and submit a corrected response.
 An accepted lead can copy the status link from the same card; the copied URL

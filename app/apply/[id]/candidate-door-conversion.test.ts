@@ -16,6 +16,19 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(path.join(HERE, rel), "utf8");
 
+test("chat ad attribution reaches the funnel and the filed entry", () => {
+  const page = read("page.tsx");
+  const view = read("ConversationalApply.tsx");
+  const submit = read("use-apply-submit.ts");
+  const route = read("../../api/apply/[id]/route.ts");
+  assert.match(page, /first\(sp\.c\) \|\| first\(sp\.utm_campaign\)/);
+  assert.match(page, /first\(sp\.v\) \|\| first\(sp\.utm_content\)/);
+  assert.match(view, /ensureApplySession\(jobId, "chat", \{ campaign, variant \}\)/);
+  assert.match(submit, /body: JSON\.stringify\(\{[\s\S]*?campaign,[\s\S]*?variant,/);
+  assert.match(route, /sourceCampaign: typeof body\.campaign === "string" \? capAttribution/);
+  assert.match(route, /sourceVariant: typeof body\.variant === "string" \? capAttribution/);
+});
+
 test("chat knockout buttons are tonally neutral — neither answer is signposted as the passing one", () => {
   const src = read("ApplyStepControls.tsx");
   // Isolate the ko branch's control block: everything between the `step.type === "ko"`

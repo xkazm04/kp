@@ -27,6 +27,11 @@ export default async function ApplyPage({
   const job = getJob(id);
   if (!job) notFound();
 
+  const sp = await searchParams;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? "";
+  const campaign = (first(sp.c) || first(sp.utm_campaign)).slice(0, 120);
+  const variant = (first(sp.v) || first(sp.utm_content)).slice(0, 120);
+
   const t = await getTranslations("apply");
 
   // W8-1 (JOB1) — the apply surface follows the role's lifecycle. A closed
@@ -72,7 +77,7 @@ export default async function ApplyPage({
   // exact entry — an alternate or typo'd email no longer mints a duplicate row.
   // Anything invalid/mismatched degrades silently to the first-time flow: the
   // emailed link must never be WORSE than no token.
-  const leadToken = coerceLeadTokenParam((await searchParams).lead);
+  const leadToken = coerceLeadTokenParam(sp.lead);
   const target = leadToken ? findEntryByLeadToken(leadToken) : null;
   const lead = leadToken && target && target.entry.jobId === job.id ? target : null;
   const prefill =
@@ -115,6 +120,8 @@ export default async function ApplyPage({
       <div className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
         <ConversationalApply
           jobId={job.id}
+          campaign={campaign}
+          variant={variant}
           steps={prefill ? trimSeededSteps(steps, prefill.answers) : steps}
           prefill={prefill}
           // Same tenant the POST files this applicant into (getJobWorkspace is the

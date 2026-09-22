@@ -20,6 +20,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { capAttribution } from "@/app/_lib/lead-payload";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -224,6 +225,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // the attempt looking abandoned.
       applySessionId?: unknown;
       company_url?: unknown;
+      campaign?: unknown;
+      variant?: unknown;
     }>(request, MAX_APPLY_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     // A filled hidden field signals an automated submission. Mirror the ordinary
@@ -550,6 +553,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
+      sourceCampaign: typeof body.campaign === "string" ? capAttribution(body.campaign.trim()) || null : null,
+      sourceVariant: typeof body.variant === "string" ? capAttribution(body.variant.trim()) || null : null,
       workspaceId,
     });
 
