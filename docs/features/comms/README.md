@@ -988,11 +988,10 @@ already returns alongside the entries. Both rules are pinned by
   `anonymized` and treats `delivery_failed` / `replied` / `manual` / `candidate` as a
   consent lapse — map every reason 1:1 there without expanding the dispatcher's
   contract.
-- **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
-  and the encrypted store write, and the two are indistinguishable from the route, so a
-  store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
-  server-side) instead of a 500. Separating them needs a typed error out of
-  `db/channels.ts`.
+- **Pull-config refusals distinguish input from storage.** `PATCH` validates the
+  operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
+  for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
+  the route's coded `500 CHANNEL_WEBHOOK_UPDATE_FAILED` path.
 - **Pull sources have no editor UI.** `GET /api/channels/webhooks` now projects
   `pullUrl` / `hasPullSecret` / `lastPullAt` / `lastPullError` on every receiver
   (secret material never appears), so a week-old `last_pull_error` is on the same
