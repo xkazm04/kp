@@ -5,6 +5,11 @@ matching, provenance weighting, the early-career dimension swap, bounded
 dynamic weights, and the cross-candidate fairness matrix. Candidate intake and
 archetype detection are `docs/features/candidates/README.md`.
 
+Confidence-band driver codes and legacy English driver strings are paired only
+when both arrays have the same length. If the scorer or an older cached payload
+returns a partial code list, the full English driver list remains visible rather
+than silently dropping a reason.
+
 ## Entry points
 
 - **Fit matrix** (`?tab=matrix`) — `app/features/insights/matrix/MatrixTab.tsx`. One
