@@ -19,7 +19,7 @@ import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { DECISIONS_GLYPH } from "@/app/_components/glyph/glyphs/decisionsGlyph";
-import { CARD_PAD, EYEBROW, ICON_STICKER, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { CARD_PAD, EYEBROW, ICON_STICKER, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { DESTINATION_ICON, hintFor, useChainNav, type ChainLink } from "./DecisionsEmptyShared";
 import type { DecisionsEmptyProps } from "./DecisionsEmptyShared";
 
@@ -85,7 +85,7 @@ export function DecisionsEmptyHandoff({
         <button
           type="button"
           onClick={onRevealReconsider}
-          className="focus-ring mx-auto mt-5 inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+          className={`focus-ring mx-auto mt-5 inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-semibold hover:bg-amber-100 ${NOTICE("amber")}`}
         >
           <RotateCcw size={13} aria-hidden />
           {t("reconsiderLine", { count: reconsiderCount })}
