@@ -85,10 +85,18 @@ export function upsertLlmConfig(input: {
   return apply.immediate();
 }
 
-/** Remove a use-case pin — it reverts to the built-in default provider. */
-export function deleteLlmConfig(useCase: string): boolean {
+/** Remove a use-case pin only if the caller still sees its current version.
+ *  Omitting the version keeps the headless unconditional DELETE contract. */
+export function deleteLlmConfig(useCase: string, expectedUpdatedAt?: string | null): { removed: boolean; stale: boolean } {
   const db = ensureDb();
-  return db.prepare(`DELETE FROM llm_config WHERE use_case = ?`).run(useCase).changes > 0;
+  const remove = db.transaction(() => {
+    const current = db.prepare(`SELECT updated_at FROM llm_config WHERE use_case = ?`).get(useCase) as { updated_at: string } | undefined;
+    if (expectedUpdatedAt !== undefined && (current?.updated_at ?? null) !== expectedUpdatedAt) {
+      return { removed: false, stale: true };
+    }
+    return { removed: db.prepare(`DELETE FROM llm_config WHERE use_case = ?`).run(useCase).changes > 0, stale: false };
+  });
+  return remove.immediate();
 }
 
 export type ProviderKeyRow = {

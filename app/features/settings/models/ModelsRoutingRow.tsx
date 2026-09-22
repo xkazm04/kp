@@ -87,9 +87,12 @@ export function ModelsRoutingRow({
     if (busy) return;
     setBusy("reset");
     setNote(null);
-    const result = await resetRoutingPin(useCase, t("resetFailed"), errMsg);
+    const result = await resetRoutingPin(useCase, row?.updatedAt ?? null, t("resetFailed"), errMsg);
     if (result.ok) onRows(result.rows);
-    else setNote({ text: result.message, ok: false });
+    else {
+      if (result.rows) onRows(result.rows);
+      setNote({ text: result.message, ok: false });
+    }
     setBusy(null);
   };
 

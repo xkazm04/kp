@@ -90,10 +90,17 @@ export async function DELETE(request: NextRequest) {
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
   if (underPrivileged) return underPrivileged;
-  const body = (await request.json().catch(() => null)) as { useCase?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { useCase?: unknown; expectedUpdatedAt?: unknown } | null;
   if (!body || !isLlmUseCase(body.useCase)) {
     return NextResponse.json({ error: "Unknown useCase.", useCases: LLM_USE_CASES }, { status: 400 });
   }
-  const removed = deleteLlmConfig(body.useCase);
-  return NextResponse.json({ ok: true, removed, rows: listLlmConfig() });
+  const expectedUpdatedAt =
+    typeof body.expectedUpdatedAt === "string"
+      ? body.expectedUpdatedAt
+      : body.expectedUpdatedAt === null
+        ? null
+        : undefined;
+  const result = deleteLlmConfig(body.useCase, expectedUpdatedAt);
+  if (result.stale) return jsonRefusal("MODEL_ROUTING_STALE", 409, { rows: listLlmConfig() });
+  return NextResponse.json({ ok: true, removed: result.removed, rows: listLlmConfig() });
 }

@@ -877,6 +877,10 @@ screen. The stamp is nudged forward on a same-millisecond collision so the token
 strictly increases. Omitting the field keeps the old unconditional write for the
 headless/curl path. Pinned by `app/api/llm/config/llm-config-race.test.ts`.
 
+Reset carries the same `expectedUpdatedAt` from the rendered pin. A stale DELETE
+returns `MODEL_ROUTING_STALE` and the current rows instead of removing another
+operator's newer pin; omitting the version still permits a headless reset.
+
 The keys route's refusals are codes, not prose: `MODEL_KEY_BODY_INVALID`,
 `MODEL_KEY_PROVIDER_UNKNOWN`, `MODEL_KEY_SECRET_REQUIRED`,
 `MODEL_KEY_LOCATION_REQUIRED`, `MODEL_KEY_ENDPOINT_REQUIRED`,
