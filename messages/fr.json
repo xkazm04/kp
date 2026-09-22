@@ -642,6 +642,14 @@
       "body": "Votre travail pour le poste de {role} nous a marqués et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
       "bodyScore": "Votre travail pour le poste de {role} nous a marqués (adéquation {score}/100) et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
       "signoff": "Cordialement,\nL’équipe de recrutement"
+    },
+    "linkRecovery": {
+      "subject": "Vos liens de candidature",
+      "subjectRole": "Vos liens de candidature : {role}",
+      "body": "Nous venons de recevoir une nouvelle candidature, et votre candidature précédente est toujours enregistrée chez nous. Voici vos liens pour savoir où elle en est ou pour la mettre à jour.",
+      "bodyRole": "Nous venons de recevoir une nouvelle candidature pour {role}, et votre candidature précédente est toujours enregistrée chez nous. Voici vos liens pour savoir où elle en est ou pour la mettre à jour.",
+      "updateCta": "Mettre à jour votre candidature",
+      "notYou": "Si vous n'avez pas postulé à nouveau, vous pouvez ignorer cet e-mail. Rien n'a changé dans votre candidature."
     }
   },
   "language": {
@@ -2334,7 +2342,9 @@
       "thanks": "Merci. C’est ajouté à votre profil.",
       "saveFailed": "Nous n’avons pas pu enregistrer ces réponses pour le moment. Votre candidature est bien enregistrée, n’hésitez pas à réessayer."
     },
-    "fixAnswer": "Corriger la réponse"
+    "fixAnswer": "Corriger la réponse",
+    "alreadyMessageRecover": "Il semble que vous ayez déjà postulé à ce poste, et votre candidature précédente est toujours dans notre pipeline. Si nous disposons d'une adresse e-mail pour celle-ci, nous venons d'y envoyer votre lien de suivi et un lien pour mettre à jour votre candidature.",
+    "alreadyMessageNoRelay": "Il semble que vous ayez déjà postulé à ce poste, et votre candidature précédente est toujours dans notre pipeline. Pour savoir où elle en est, utilisez le lien de suivi reçu lors de votre première candidature."
   },
   "interview": {
     "completedTitle": "Merci",

@@ -642,6 +642,14 @@
       "body": "Your submission for {role} stood out and we would like to take it forward. We will be in touch with next steps shortly.",
       "bodyScore": "Your submission for {role} stood out (fit {score}/100) and we would like to take it forward. We will be in touch with next steps shortly.",
       "signoff": "Best,\nThe hiring team"
+    },
+    "linkRecovery": {
+      "subject": "Your application links",
+      "subjectRole": "Your application links: {role}",
+      "body": "We just received a repeat application, and your earlier one is still on file with us. Here are your links, so you can check where you stand or update your application.",
+      "bodyRole": "We just received a repeat application for {role}, and your earlier one is still on file with us. Here are your links, so you can check where you stand or update your application.",
+      "updateCta": "Update your application",
+      "notYou": "If you didn't just apply again, you can ignore this email. Nothing about your application has changed."
     }
   },
   "language": {
@@ -2334,7 +2342,9 @@
       "thanks": "Thank you. That's on your profile now.",
       "saveFailed": "We couldn't save those answers just now. Your application is safely filed, so feel free to try again."
     },
-    "fixAnswer": "Fix this answer"
+    "fixAnswer": "Fix this answer",
+    "alreadyMessageRecover": "It looks like you've already applied to this role, and your earlier application is still in our pipeline. If we have an email address for it, we've just sent your status link and a link to update your application there.",
+    "alreadyMessageNoRelay": "It looks like you've already applied to this role, and your earlier application is still in our pipeline. To check where you stand, use the status link you were given when you first applied."
   },
   "interview": {
     "completedTitle": "Thank you",

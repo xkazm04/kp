@@ -642,6 +642,14 @@
       "body": "Ihre Einreichung für {role} hat uns überzeugt, und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
       "bodyScore": "Ihre Einreichung für {role} hat uns überzeugt (Passung {score}/100), und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
       "signoff": "Beste Grüße\nIhr Recruiting-Team"
+    },
+    "linkRecovery": {
+      "subject": "Ihre Bewerbungslinks",
+      "subjectRole": "Ihre Bewerbungslinks: {role}",
+      "body": "Wir haben soeben eine erneute Bewerbung erhalten, und Ihre frühere Bewerbung liegt uns weiterhin vor. Hier sind Ihre Links, damit Sie Ihren aktuellen Stand prüfen oder Ihre Bewerbung aktualisieren können.",
+      "bodyRole": "Wir haben soeben eine erneute Bewerbung für {role} erhalten, und Ihre frühere Bewerbung liegt uns weiterhin vor. Hier sind Ihre Links, damit Sie Ihren aktuellen Stand prüfen oder Ihre Bewerbung aktualisieren können.",
+      "updateCta": "Bewerbung aktualisieren",
+      "notYou": "Falls Sie sich nicht gerade erneut beworben haben, können Sie diese E-Mail ignorieren. An Ihrer Bewerbung hat sich nichts geändert."
     }
   },
   "language": {
@@ -2334,7 +2342,9 @@
       "thanks": "Vielen Dank. Das steht jetzt in Ihrem Profil.",
       "saveFailed": "Diese Antworten konnten wir gerade nicht speichern. Ihre Bewerbung ist sicher erfasst, versuchen Sie es gern noch einmal."
     },
-    "fixAnswer": "Antwort korrigieren"
+    "fixAnswer": "Antwort korrigieren",
+    "alreadyMessageRecover": "Sie haben sich anscheinend bereits auf diese Stelle beworben, und Ihre frühere Bewerbung ist weiterhin in unserer Pipeline. Falls uns dazu eine E-Mail-Adresse vorliegt, haben wir Ihnen soeben dorthin den Link zu Ihrem Bewerbungsstatus und einen Link zum Aktualisieren Ihrer Bewerbung gesendet.",
+    "alreadyMessageNoRelay": "Sie haben sich anscheinend bereits auf diese Stelle beworben, und Ihre frühere Bewerbung ist weiterhin in unserer Pipeline. Ihren aktuellen Stand sehen Sie über den Statuslink, den Sie bei Ihrer ersten Bewerbung erhalten haben."
   },
   "interview": {
     "completedTitle": "Vielen Dank",

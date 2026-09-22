@@ -642,6 +642,14 @@
       "body": "vaše řešení na pozici {role} nás zaujalo a rádi bychom pokračovali dál. Brzy se vám ozveme s dalšími kroky.",
       "bodyScore": "vaše řešení na pozici {role} nás zaujalo (shoda {score}/100) a rádi bychom pokračovali dál. Brzy se vám ozveme s dalšími kroky.",
       "signoff": "S pozdravem\nnáborový tým"
+    },
+    "linkRecovery": {
+      "subject": "Odkazy k vaší přihlášce",
+      "subjectRole": "Odkazy k vaší přihlášce: {role}",
+      "body": "Právě jsme obdrželi opakovanou přihlášku a vaše dřívější přihláška u nás stále je. Posíláme vám vaše odkazy, abyste mohli zjistit, v jaké fázi se nacházíte, nebo přihlášku doplnit.",
+      "bodyRole": "Právě jsme obdrželi opakovanou přihlášku na pozici {role} a vaše dřívější přihláška u nás stále je. Posíláme vám vaše odkazy, abyste mohli zjistit, v jaké fázi se nacházíte, nebo přihlášku doplnit.",
+      "updateCta": "Doplnit přihlášku",
+      "notYou": "Pokud jste se právě znovu nepřihlašovali, můžete tento e-mail ignorovat. Na vaší přihlášce se nic nezměnilo."
     }
   },
   "language": {
@@ -2334,7 +2342,9 @@
       "thanks": "Děkujeme. Máme to ve vašem profilu.",
       "saveFailed": "Odpovědi se nám teď nepodařilo uložit. Vaše přihláška je v pořádku uložená, klidně to zkuste znovu."
     },
-    "fixAnswer": "Opravit odpověď"
+    "fixAnswer": "Opravit odpověď",
+    "alreadyMessageRecover": "Vypadá to, že jste se na tuto pozici už přihlásili a vaše dřívější přihláška je stále v našem procesu. Pokud k ní máme e-mailovou adresu, právě jsme na ni poslali odkaz na stav přihlášky a odkaz, přes který ji můžete doplnit.",
+    "alreadyMessageNoRelay": "Vypadá to, že jste se na tuto pozici už přihlásili a vaše dřívější přihláška je stále v našem procesu. Stav přihlášky zjistíte přes odkaz, který jste dostali při prvním přihlášení."
   },
   "interview": {
     "completedTitle": "Děkujeme",
