@@ -79,6 +79,54 @@ having updated the doc, verify with `git log --oneline -- <doc>` and say so with
 the evidence — do not dismiss it as "no doc update needed", which is a different
 claim and an untrue one.
 
+## Challenge mode
+
+Keys for `--challenge` (skill 3.4.0, `references/challenge.md`).
+
+| Key | Value |
+| --- | --- |
+| `challenge.cohort` | 6 |
+| `challenge.waveSize` | 4 |
+| `challenge.worktrees` | `false` — a worktree + junctioned `node_modules` runs `tsc` but fails ~106 route-handler unit tests, and Turbopack refuses it for `next build`. Builders share the main checkout. |
+| `challenge.runDir` | `.claude/scan-history/challenge-<date>/` (cards, critic verdicts, builder results) |
+
+`challenge.sharedSurfaces` — edit only under the `mkdir .git/scan-sweep-challenge.lock`
+lock, append at the END, commit alone and immediately:
+
+- `messages/en.json`, `messages/cs.json`, `messages/de.json`, `messages/fr.json`
+  (one key set lands in all four in the same commit — `i18n:check`)
+- `docs/architecture/api-reference.md` (regenerate with `npm run api:docs`, never by hand)
+- `scripts/docs/feature-doc-map.json`, `ts-debt.json`, `test-quarantine.json`,
+  `perf-budget.json`
+- `app/api/rate-limit-contract.test.ts`, `app/api/error-response-contract.test.ts`
+- `app/_lib/tenancy.ts`, `app/features/shell/tabs.ts`
+
+`challenge.integrationGate` — run on the combined tree after every wave, each
+command on its own, exit code asserted:
+
+```bash
+npx tsc --noEmit -p tsconfig.json
+npm run lint
+npm run lint:ts-ratchet
+npm run i18n:check
+npm run design:check
+npm run api:check
+npm run docs:check
+npm run test:perf        # the import-graph budget (perf-budget.json) lives here
+npm run test:unit
+```
+
+`npm run build` is NOT in the per-wave gate: the operator's dev servers usually hold
+`.next` (see the prod-build note in memory); run it once at the end with
+`KP_EMPTY=1` if the run touched routing or server/client boundaries.
+
+Repo law a builder trips most (brief it in): 4-locale parity; no raw hex/rgba outside
+`app/landing/`; never `await` inside `db.transaction()`; empty catch needs a reason;
+failures answer a CODE via `safeJsonError`; a new persistent table needs the tenancy
+manifest; new routes need an auth posture and an `api-reference.md` row; the doc
+named by `scripts/docs/feature-doc-map.json` for touched source is updated in the
+same change; commit bodies need a `Doc-sync:` trailer when no doc applies.
+
 ## Skill improvement log
 
 - **2026-08-29 — Normalize line endings to LF before staging. This is the one
