@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { supportContactHref } from "@/app/_lib/sales-contact";
 import type { CheckoutBanner } from "./billingCheckoutBanner";
+import type { CheckoutReturnKind } from "./billingTabState";
 
 // Billing tab — the load-failed retry banner, the post-checkout confirmation
 // banner, the tier-2 reserved-height placeholder, and the local-dev
 // not-configured note. Split out of BillingTab.tsx.
 export function BillingStatusBanners({
   checkout,
+  checkoutKind,
   planName,
   loadError,
   onRetry,
@@ -21,6 +23,7 @@ export function BillingStatusBanners({
   showCheckoutSupport = false,
 }: {
   checkout: CheckoutBanner;
+  checkoutKind: CheckoutReturnKind | null;
   planName: string;
   /** The localized reason the overview could not be read, or null. Resolved from the
    *  server's machine code by the tab — never the server's English `error` string. */
@@ -56,11 +59,9 @@ export function BillingStatusBanners({
             aria-hidden
           />
           <p className={`text-base font-medium ${checkout === "confirmed" ? "text-moss" : "text-steel"}`}>
-            {checkout === "confirmed"
-              ? t("checkoutDone", { plan: planName })
-              : checkout === "unconfirmed"
-                ? t("checkoutPending")
-                : t("checkoutConfirming")}
+            {checkoutKind === "pack"
+              ? checkout === "confirmed" ? t("packCheckoutDone") : checkout === "unconfirmed" ? t("packCheckoutPending") : t("packCheckoutConfirming")
+              : checkout === "confirmed" ? t("checkoutDone", { plan: planName }) : checkout === "unconfirmed" ? t("checkoutPending") : t("checkoutConfirming")}
           </p>
           {/* Progressive recovery while the webhook is still landing: a Refresh button
               appears at 10 s so a paying customer isn't left with a frozen banner, and
@@ -71,7 +72,7 @@ export function BillingStatusBanners({
           {checkout === "confirming" && showCheckoutRefresh ? (
             <button type="button" onClick={onRecheck} className={`${BTN_SECONDARY} h-8 shrink-0 px-3 text-sm`}>
               <RefreshCw size={14} aria-hidden />
-              {t("checkoutRefresh")}
+              {checkoutKind === "pack" ? t("checkoutRecheck") : t("checkoutRefresh")}
             </button>
           ) : null}
           {checkout === "confirming" && showCheckoutSupport ? (

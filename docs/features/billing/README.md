@@ -201,6 +201,10 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+The redirect carries `billing=plan-success` or `billing=pack-success`. The tab
+confirms a plan only after the paid plan appears in the overview, and a pack only
+after minute credits rise above the balance recorded before checkout. Otherwise
+it keeps a pending banner and a recheck action.
 
 ### Who may open a billing door: `org:manage`, not "any session"
 
