@@ -574,6 +574,16 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
     setZoom(clamp(Math.min((vp.clientWidth - 48) / W, (vp.clientHeight - 48) / H)));
   };
 
+  const onViewportKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === "+" || event.key === "=") setZoom((z) => clamp(z * ZOOM_STEP));
+    else if (event.key === "-") setZoom((z) => clamp(z / ZOOM_STEP));
+    else if (event.key === "0") setZoom(1);
+    else if (event.key.toLowerCase() === "f") fit();
+    else return;
+    event.preventDefault();
+  };
+
   const btn = "focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:bg-stone-100 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40";
   const textBtn = "focus-ring rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-steel hover:bg-stone-100 hover:text-ink";
 
@@ -604,7 +614,13 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
       onClose={onClose}
       footer={controls}
     >
-      <div ref={viewportRef} className="h-full w-full overflow-auto rounded-md border border-stone-200 bg-paper">
+      <div
+        ref={viewportRef}
+        tabIndex={0}
+        onKeyDown={onViewportKeyDown}
+        aria-keyshortcuts="+ = - 0 F"
+        className="focus-ring h-full w-full overflow-auto rounded-md border border-stone-200 bg-paper"
+      >
         {/* min-w/h-full + margin:auto on the child centers a small diagram but,
             unlike justify/items-center, keeps the start reachable when it
             overflows (so a zoomed-in diagram scrolls to its top-left corner). */}
