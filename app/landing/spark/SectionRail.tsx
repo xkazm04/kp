@@ -10,7 +10,8 @@ import {
   type MouseEvent,
   type ReactNode
 } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { useStillMotion } from "./useStillMotion";
 import { ArrowUp, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
@@ -233,7 +234,7 @@ function RailBody({
   onTop?: () => void;
 }) {
   const t = useTranslations("landing");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useStillMotion();
   return (
     <>
       <ul className="flex flex-col gap-1">
@@ -302,7 +303,7 @@ export default function SectionRail({
   // The typed catalog only exposes top-level namespaces, so scope to `landing`
   // and reach the nav keys by path.
   const t = useTranslations("landing");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useStillMotion();
   const shown = useSyncExternalStore(subscribeScroll, isScrolledPastHero, serverSnapshot);
   const [active, setActive] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
