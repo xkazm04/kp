@@ -52,7 +52,6 @@ const FILES = sources(LANDING);
  * on a server-rendered node — the inline-style hydration hazard the rule exists to
  * stop. Delete an entry as it is migrated; the list must only ever shrink. */
 const KNOWN_FRAMER_HOOK_HOLDOUTS = new Set([
-  "spark/FeatureSpotlight.tsx",
   "spark/SectionRail.tsx",
   "spark/market/CzMap.tsx",
   "spark/market/parts.tsx",
