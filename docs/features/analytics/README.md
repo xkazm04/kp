@@ -809,6 +809,10 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
 | `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
+
+A successful threshold apply bumps the calibration memo version for that
+workspace. The panel's immediate reload recomputes its recommendation while
+other workspaces keep their warm curve entries.
 | `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=pipeline\|analysis\|holdout`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only). Holdout bands include only sealed clean-arm entries, matching the holdout curve; the threshold strip reads the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain. |
 | `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
 | `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
