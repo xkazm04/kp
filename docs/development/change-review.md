@@ -65,8 +65,8 @@ App-master programme calls forbidden change classes:
 | Rule | Severity | Fires when |
 | --- | --- | --- |
 | `test-only` | blocking | `.only(` lands in a test file — it silently disables every *other* test there |
-| `test-skip` | blocking | a new **bare** `describe.skip` / `xit` / `@unittest.skip` / `@pytest.mark.skip` / `self.skipTest` |
-| `test-skip` | note | a **conditional** skip that states its reason — `test.skip(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")`, `@unittest.skipIf(cond, "why")`. The note quotes the reason |
+| `test-skip` | blocking | a new **bare** `describe.skip` / `test.skipIf` / `xit` / `@unittest.skip` / `@pytest.mark.skip` / `self.skipTest` |
+| `test-skip` | note | a **conditional** skip that states its reason — `test.skip(cond, "why")`, `test.skipIf(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")`, `@unittest.skipIf(cond, "why")`. The note quotes the reason |
 | `test-deletion` | blocking | a test file is deleted |
 | `secret` | blocking, **un-waivable** | a structurally-valid API key or token is committed outside `.env.example` |
 | `tenancy-manifest` | blocking | `CREATE TABLE` in `app/**` without touching `app/_lib/tenancy.ts` |

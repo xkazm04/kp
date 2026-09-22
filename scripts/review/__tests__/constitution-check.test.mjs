@@ -147,6 +147,13 @@ check('a conditional skip on ONE line is a note too', () => {
   assert.equal(sev(f, 'test-skip'), 'warn');
 });
 
+check('node:test skipIf requires a stated reason', () => {
+  const bare = rules(diff({ path: 'app/_lib/a.test.ts', added: ['test.skipIf(true, () => {});'] }));
+  assert.equal(sev(bare, 'test-skip'), 'blocking');
+  const reasoned = rules(diff({ path: 'app/_lib/a.test.ts', added: ['test.skipIf(!process.env.KP_LIVE, "live-only smoke", () => {});'] }));
+  assert.equal(sev(reasoned, 'test-skip'), 'warn');
+});
+
 check('@pytest.mark.skipif with a reason= is a note; a bare @pytest.mark.skip blocks', () => {
   const noted = rules(
     diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@pytest.mark.skipif(not HAS_PYPDF, reason="pypdf is not installed in this environment")'] }),

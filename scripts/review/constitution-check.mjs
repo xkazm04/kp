@@ -187,6 +187,7 @@ const SUPPRESSIONS = [
 // test, it disables every OTHER test in the file, silently.
 const SKIP_MARKERS = [
   { re: /\b(?:it|test|describe)\.skip\s*\(/, what: 'a skipped JS test' },
+  { re: /\b(?:it|test|describe)\.skipIf\s*\(/, what: 'a conditionally skipped JS test' },
   { re: /\b(?:xit|xdescribe|xtest)\s*\(/, what: 'a skipped JS test' },
   { re: /\btest\.describe\.skip\s*\(/, what: 'a skipped Playwright block' },
   { re: /@unittest\.skip\b/, what: 'a skipped Python test' },
