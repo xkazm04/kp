@@ -24,6 +24,7 @@
 // compile error — so a new task kind cannot ship with a nameless outcome.
 
 import type { TaskKind } from "./task-kinds";
+import { fanoutOutcome } from "./task-fanout";
 
 /** The label vocabulary. A closed union, not a string: next-intl keys are TYPED,
  *  so `t(`outcome.field.${labelKey}`)` only compiles while every member has a
@@ -44,7 +45,9 @@ export type OutcomeFieldKey =
   | "caseIncluded"
   | "followups"
   | "proposals"
-  | "failures";
+  | "failures"
+  | "sent"
+  | "notContacted";
 
 /** The closed VALUE vocabulary — the internal tokens a result carries that a
  *  recruiter must never be shown raw (`deterministic`, `held_for_review`). Same
@@ -169,8 +172,22 @@ const TABLE: Record<MappedKind, Mapper> = {
   // language the text was actually produced in — the panel's honest "shown in
   // English" note is derived from it, so it belongs on the outcome too.
   reasoning: (r) => [...freshnessLine(r.cached), ...fact("language", str(r.narrativeLang))],
-  // { ok, total, results } — how many letters were actually drafted.
+  // { ok, total, results } — what actually happened to each letter. A row whose items
+  // carry `applied` (task-fanout.ts) says how many were SENT and how many were
+  // deliberately not contacted (consent expired / anonymized): both return without
+  // throwing, so the old `ok / total` counted a suppressed letter as drafted. An
+  // older row without per-item outcomes keeps that line — it is all it can say.
   batch_outreach: (r) => {
+    const ledger = fanoutOutcome("batch_outreach", null, r, "succeeded");
+    const items = Array.isArray(r.results) ? r.results : [];
+    if (ledger && items.some((i) => typeof obj(i)?.applied === "string")) {
+      const { deliveredIds, suppressedIds, failedIds } = ledger;
+      return [
+        ...fact("sent", deliveredIds.length),
+        ...(suppressedIds.length ? fact("notContacted", suppressedIds.length) : []),
+        ...(failedIds.length ? fact("failures", failedIds.length) : []),
+      ];
+    }
     const ok = num(r.ok);
     const total = num(r.total);
     if (ok == null || total == null) return [];

@@ -11,10 +11,64 @@
 // `markdown`, `cached true`, `narrativeLang en`, `source deterministic`. Internal
 // vocabulary, untranslated in all four locales, to the one person who opens this
 // drawer. Now a pure table decides WHAT is said and this file only paints it.
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { taskOutcomeLink, taskOutcomeSummary } from "@/app/_lib/task-outcome-summary";
-import type { Task } from "./TasksProvider";
+import { FANOUT_CODES, fanoutOutcome, retryScopes, type RetryScope } from "@/app/_lib/task-fanout";
+import { useTasks, type Task } from "./TasksProvider";
+
+// The per-candidate half of a fan-out run (batch_screen / batch_outreach): WHY items
+// failed, by code, how many a stopped run never reached, and a retry scoped to
+// exactly those — the rest of the cohort is not touched (or paid for) again. Reads
+// the stored ledger through app/_lib/task-fanout.ts; the row holds ids and codes
+// only, so this says how many and why, never who. Renders nothing for a row with no
+// ledger (an older run stored counts only, which cannot name whom to retry).
+function FanoutLedger({ task }: { task: Task }) {
+  const t = useTranslations("tasks.outcome.fanout");
+  const { retryTask } = useTasks();
+  const [pending, setPending] = useState<RetryScope | null>(null);
+  const out = fanoutOutcome(task.kind, task.params, task.result, task.status);
+  if (!out) return null;
+  const scopes = retryScopes(task.kind, task.params, task.result, task.status);
+  const codes = FANOUT_CODES.filter((c) => (out.byCode[c] ?? 0) > 0);
+  if (codes.length === 0 && out.unreachedIds.length === 0) return null;
+  return (
+    <div className="space-y-1.5 border-t border-stone-200 pt-1.5">
+      {codes.length > 0 ? (
+        <p className="text-sm text-ink">
+          <span className="font-semibold text-coral">{t("failedBy")}</span>{" "}
+          {codes.map((c) => t("codeCount", { label: t(`code.${c}`), count: out.byCode[c] ?? 0 })).join(" · ")}
+        </p>
+      ) : null}
+      {out.unreachedIds.length > 0 ? <p className="text-sm text-steel">{t("unreached", { count: out.unreachedIds.length })}</p> : null}
+      {scopes.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {scopes.map((scope) => (
+            <button
+              key={scope}
+              type="button"
+              disabled={pending !== null}
+              title={t("retryTitle")}
+              onClick={() => {
+                setPending(scope);
+                void retryTask(task.id, scope).finally(() => setPending(null));
+              }}
+              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`}
+            >
+              <RefreshCw size={12} className={pending === scope ? "animate-spin" : ""} aria-hidden />
+              {scope === "failed"
+                ? t("retryFailed", { count: out.failedIds.length })
+                : t("retryUnreached", { count: out.unreachedIds.length })}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function TaskOutcome({ task }: { task: Task }) {
   const t = useTranslations("tasks");
@@ -63,6 +117,7 @@ export function TaskOutcome({ task }: { task: Task }) {
       ) : bodyHeld ? null : (
         <p className="text-sm text-steel">{task.status === "succeeded" ? t("outcome.noSummary") : t("outcome.noResult")}</p>
       )}
+      <FanoutLedger task={task} />
       {link ? (
         <Link href={link.href} className="focus-ring inline-block rounded text-sm font-semibold text-coral underline-offset-2 hover:underline">
           {t(`outcome.${link.key}`)} →

@@ -6,6 +6,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
+import { retryDecision } from "@/app/_lib/task-fanout";
 
 // Every accepted retry re-spends — a real LLM call and/or a Python spawn — so this
 // door carries the SAME per-class budget as POST /api/tasks (app/_lib/task-budget.ts)
@@ -20,7 +21,14 @@ const TASKS_RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // self-contained (inline text/objects) or DB-keyed (entryId / submissionId /
 // lifecycleId / repoRef), so they replay unchanged. `buildDedupeKey` makes a
 // double-click merge into the in-flight run instead of duplicating it.
-const RETRYABLE = new Set(["failed", "interrupted", "canceled"]);
+//
+// SCOPED retry (optional body `{ scope: "failed" | "unreached" }`): a fan-out run
+// (batch_screen / batch_outreach) records a per-candidate ledger, so it can replay
+// ONLY its failed items — even when the run itself SUCCEEDED — or, after a cancel,
+// only the cohort it never reached. The subset is derived here from the stored row,
+// never sent by the client. Which statuses and scopes are accepted is decided by the
+// pure `retryDecision` (app/_lib/task-fanout.ts, where it is tested); this handler
+// is its thin caller, and every refusal it makes precedes the limiter below.
 
 // The ONE kind whose params are not self-contained. /api/analyze persists the
 // uploaded CVs (and any JD/company file) into a temp workdir BEFORE enqueuing, and
@@ -56,9 +64,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Scoped read: a retry both reveals the original row and spends money, so
     // another team's task must be unreachable here, not merely unstartable.
     const ws = await currentWorkspace();
+    // An absent or unreadable body is the whole-run replay (the original contract).
+    const body = (await request.json().catch(() => null)) as { scope?: unknown } | null;
     const task = getTask(id, ws);
-    if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
-    if (!RETRYABLE.has(task.status)) {
+    const decision = retryDecision(task, body?.scope);
+    if (!task || "refuse" in decision) {
+      // retryDecision weighs the (tenant-scoped) read FIRST, so a null row is its
+      // TASK_NOT_FOUND and a present row can only be refused as not retryable.
+      if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
       // The status rides along so the dock can say WHICH state refused, in the
       // reader's language, instead of painting this handler's English.
       return jsonRefusal("TASK_NOT_RETRYABLE", 409, { status: task.status });
@@ -67,7 +80,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!isKnownKind(task.kind)) {
       return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: task.kind });
     }
-    const params = (task.params as Record<string, unknown>) ?? {};
+    const params = decision.ok;
     // Refuse a replay whose inputs no longer exist (see replayInputsMissing) —
     // BEFORE startTask, so it costs no queue slot and no subprocess.
     if (replayInputsMissing(task.kind, params)) {

@@ -116,9 +116,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   );
 
   const retryTask = useCallback(
-    async (id: string) => {
+    async (id: string, scope?: Parameters<TasksCtx["retryTask"]>[1]) => {
       try {
-        const r = await fetch(`/api/tasks/${id}/retry`, { method: "POST" });
+        // No body = the whole-run replay; a scope asks the server for the subset only.
+        const init: RequestInit = scope
+          ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope }) }
+          : { method: "POST" };
+        const r = await fetch(`/api/tasks/${id}/retry`, init);
         const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string; code?: string };
         if (!r.ok) throw new Error(errMsg(p, t("startErrorTitle")));
         dispatch({ type: "actionOk" });

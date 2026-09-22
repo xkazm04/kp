@@ -1,6 +1,7 @@
 // Shared types + the ACTIVE predicate for TasksProvider.tsx, split out so the
 // provider stays under the 200-line file cap. Verbatim — same shapes.
 import type { TaskKind } from "@/app/_lib/task-kinds";
+import type { RetryScope } from "@/app/_lib/task-fanout";
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
 
@@ -44,8 +45,11 @@ export type TasksCtx = {
    * DATA1 — replay a failed/interrupted/canceled task from its persisted params
    * (server-side via POST /api/tasks/[id]/retry, so the blobs never round-trip).
    * Resolves to the NEW task, or null on failure (surfaced via `startError`).
+   * With a `scope`, a fan-out run (batch_screen / batch_outreach) replays only its
+   * failed items or, after a cancel, only the cohort it never reached — the server
+   * derives that subset from the stored row (app/_lib/task-fanout.ts).
    */
-  retryTask: (id: string) => Promise<Task | null>;
+  retryTask: (id: string, scope?: RetryScope) => Promise<Task | null>;
   cancelTask: (id: string) => Promise<void>;
   refresh: () => void;
   /**

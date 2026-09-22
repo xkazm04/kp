@@ -65,6 +65,25 @@ test("mappers pick the fact, defensively", () => {
     { labelKey: "drafted", value: "7 / 9" },
     { labelKey: "failures", value: 2 },
   ]);
+  // With per-item outcomes the line tells SENT from not-contacted: a consent-suppressed
+  // letter returns without throwing, and used to be counted as drafted.
+  assert.deepEqual(
+    taskOutcomeSummary("batch_outreach", {
+      ok: 3,
+      total: 4,
+      results: [
+        { id: "a", ok: true, applied: "sent" },
+        { id: "b", ok: true, applied: "suppressed_consent_expired" },
+        { id: "c", ok: true, applied: "suppressed_anonymized" },
+        { id: "d", ok: false, code: "entry_has_no_profile" },
+      ],
+    }),
+    [
+      { labelKey: "sent", value: 1 },
+      { labelKey: "notContacted", value: 2 },
+      { labelKey: "failures", value: 1 },
+    ]
+  );
   assert.deepEqual(taskOutcomeSummary("analyze", { persistence: { slug: "ada-l" }, servedFromCache: true }), [
     { labelKey: "savedAs", value: "ada-l" },
     { labelKey: "freshness", valueKey: "cached" },

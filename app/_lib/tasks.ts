@@ -12,7 +12,7 @@ import {
   tasksToReap,
   taskRetentionCutoffIso,
 } from "./task-maintenance.ts";
-import { runAutomationTask } from "./automation-run";
+import { AutomationError, runAutomationTask } from "./automation-run";
 import { runReasoning } from "./reasoning-run";
 import { runAnalyze, type AnalyzeParams } from "./analyze-run";
 import { runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
@@ -34,6 +34,7 @@ import { SCAN_JOB_NAME } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
+import { fanoutItemCode, type FanoutCode, type FanoutItem } from "./task-fanout";
 import { TASK_KINDS, isTaskKind, type TaskKind } from "./task-kinds";
 import { encodeTaskLabel } from "./task-label";
 import { nextTaskToRun, type PumpEntry } from "./task-pump";
@@ -134,6 +135,10 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
     (e) => e.workspaceId === ctx.workspaceId && (wanted ? wanted.has(e.id) : preGate.has(e.stage))
   );
   const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
+  // The per-candidate ledger beside the counts (app/_lib/task-fanout.ts): WHICH
+  // entries failed, and with which code, so the drawer can retry exactly those — and
+  // a canceled run's remainder is the cohort minus these ids. Ids and codes only.
+  const results: FanoutItem[] = [];
   ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
   let done = 0;
   for (const e of entries) {
@@ -143,12 +148,25 @@ async function batchScreen(ctx: TaskCtx): Promise<unknown> {
       if (out.applied === "advanced") summary.advanced += 1;
       else if (out.applied === "held_for_review") summary.held += 1;
       else summary.advisory += 1;
-    } catch {
+      results.push({ id: e.id, ok: true, applied: out.applied });
+    } catch (err) {
       summary.errors += 1;
+      results.push({ id: e.id, ok: false, code: itemCode(err) });
     }
     ctx.progress(++done, entries.length, e.candidateLabel);
   }
-  return summary;
+  return { ...summary, results };
+}
+
+// A caught per-item failure as a CODE, never its message (which can carry a Python
+// traceback or the workdir path). Assigning `e.refusal` to FanoutCode is the
+// compile-time check that every AutomationRefusal has a label in the drawer.
+function itemCode(err: unknown): FanoutCode {
+  if (err instanceof AutomationError && err.refusal) {
+    const code: FanoutCode = err.refusal;
+    return code;
+  }
+  return fanoutItemCode(err);
 }
 
 // Draft tailored OUTREACH for a board-selected cohort — one background job that
@@ -175,7 +193,7 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
       ? (ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string")
       : []
   ).slice(0, OUTREACH_COHORT_CAP);
-  const results: { id: string; ok: boolean; reason?: string }[] = [];
+  const results: FanoutItem[] = [];
   ctx.progress(0, ids.length, ids.length ? "Starting…" : "Nothing to draft");
   let done = 0;
   for (const id of ids) {
@@ -188,10 +206,12 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
       // lang is undefined by design: outreach is a LETTER task, so runAutomationTask
       // resolves the CANDIDATE'S comms locale itself — the caller's UI locale must not
       // override it. Mirrors the single-entry `automation` handler above.
-      await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
-      results.push({ id, ok: true });
+      // `applied` is kept per item: `suppressed_*` and `already_sent` return normally
+      // but contacted nobody now, and the drawer must not count them as sent.
+      const out = await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
+      results.push({ id, ok: true, applied: out.applied });
     } catch (e) {
-      results.push({ id, ok: false, reason: e instanceof Error ? e.message : "Unexpected error." });
+      results.push({ id, ok: false, code: itemCode(e) });
     }
     ctx.progress(++done, ids.length, entry?.candidateLabel ?? id);
   }

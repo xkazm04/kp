@@ -119,6 +119,28 @@ an older build: POST `/api/tasks` refuses an unknown kind with `TASK_KIND_UNKNOW
 Runners registered only on the late-bound seam, such as `intake_round`, are not
 kinds.
 
+**Fan-out outcomes and scoped retry.** The two kinds that run one automation per
+entry of a cohort, `batch_screen` and `batch_outreach`, store a per-candidate ledger
+in their result: `results: [{ id, ok, applied?, code? }]`. It holds ids and machine
+tokens only, because the `tasks` table is erasure-exempt and not entry-keyed. A
+failed item carries a code (an `AutomationRefusal` such as `entry_has_no_profile`,
+or `engine_failed`), never the thrown message, which can carry a Python traceback or
+the workdir path. An outreach item keeps its `applied` value, so a letter that was
+suppressed for consent or anonymization is not counted as sent. `app/_lib/task-fanout.ts`
+is the pure reader. It turns a row (params, result, status) into delivered,
+suppressed, failed-by-code and unreached id sets. Only a run that stopped has an
+unreached remainder: the cohort minus the recorded ids. It also holds
+`retryDecision(task, scope)`, which POST `/api/tasks/[id]/retry` calls before any
+rate-limit bucket. With no body the route replays the whole run, as before, and only
+for a failed, interrupted or canceled row. With `{ scope: "failed" | "unreached" }`
+it re-enqueues only that subset, derived from the stored row and never sent by the
+client, and it does so even for a succeeded run with failures. The subset is a
+different cohort, so it gets its own dedupe identity and never merges onto the old
+run. It spends the same per-class budget. The Background-tasks drawer
+(`TasksOutcome.tsx`) shows the failure codes, the not-reached count and one button
+per available scope. Older rows that stored counts only offer no subset retry,
+because counts cannot say which candidates to retry.
+
 ```text
 app/
   page.tsx                          Workspace shell (tab-based studio UI); '/' is gated

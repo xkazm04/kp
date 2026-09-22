@@ -195,7 +195,9 @@ const ROUTES: RouteSpec[] = [
     // substring also appears in this route's header comment, which precedes the
     // limiter, so the generic marker would fail on prose rather than on ordering.
     expensive: "startTask(task.kind",
-    servedBefore: "RETRYABLE.has(task.status)",
+    // The ownership + status (+ scope) refusals are one pure call now
+    // (app/_lib/task-fanout.ts retryDecision); it must still precede the limiter.
+    servedBefore: "retryDecision(task, body?.scope)",
   },
   // The four PUBLIC apply surfaces. Every one is unauthenticated, spawns the
   // deterministic profile_cli and writes a pipeline entry, and every one has
