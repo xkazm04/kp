@@ -69,6 +69,7 @@ SAMPLES: dict[str, str] = {
     "openai-legacy": "sk-" + _FILL[:40] + "aB3dEf7h",
     "openrouter": "sk-" + "or-v1-" + _HEX[:32],
     "elevenlabs": "sk" + "_" + _HEX[:40],
+    "polar-webhook": "polar" + "_whs_" + _FILL[:24],
     "google": "AI" + "za" + _FILL[:35],
     "gcp-service-account": '"type"' + ': "service_account"',
     "aws": "AK" + "IA" + _UPPER[:16],
