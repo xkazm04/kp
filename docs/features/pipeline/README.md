@@ -1635,16 +1635,15 @@ the same server-side instant.
   producer is paired against the rating itself — nothing yet validates the
   `confidence ≥ 80` auto-advance band against how a hire actually worked out.
   Deliberate: the corpus accrues first.
-- **The market band NAMES its corpus and its vintage, but the candidate modal does not render
-  them yet.** `salaryBenchmark` (`app/_lib/db/salary-benchmark.ts`) now answers
+- **The market band names its corpus and vintage in the candidate modal.**
+  `salaryBenchmark` (`app/_lib/db/salary-benchmark.ts`) answers
   `source: "kp-reference-corpus"` (`SALARY_BENCHMARK_SOURCE_ID` — these are seeded
   reference roles, not a survey of employers) and `asOf`, the newest contributing
   role's `created_at` or `null` when none carries a usable one, both normalized
   through the shared `normalizeSalaryBenchmark` the JD side's band uses. They ride
-  `GET /api/benchmarks/salary` verbatim; `SalaryBenchmarkHint` still renders only the
-  percentiles, so the band on screen reads as current whatever its vintage. Rendering
-  them (`formatBenchmarkAsOf`, plus a caveat under `isThinBenchmark`) is a
-  component-and-catalog change, not a data one.
+  `GET /api/benchmarks/salary` verbatim. `SalaryBenchmarkHint` renders the corpus
+  identifier and the formatted month or an explicit unknown-date label beneath the
+  percentiles, so a stale or undated reference cannot appear current by default.
 - **The market salary band in the candidate modal is role-FAMILY only, never per level.**
   `SalaryBenchmarkHint` (`app/features/hiring/pipeline/PipelineSalaryBenchmarkHint.tsx`)
   accepts a `seniority` and forwards it to `/api/benchmarks/salary`, which bands by

@@ -3570,6 +3570,8 @@
       "perMonth": "/ měs.",
       "band": "pásmo {min}–{max} {currency}",
       "marketBand": "Trh · {min}–{max} {currency} (medián {median}, {count, plural, one {# pozice} few {# pozice} other {# pozic}})",
+      "marketBandVintage": "Referenční korpus: {source} · aktualizováno {date}",
+      "marketBandVintageUndated": "Referenční korpus: {source} · datum neznámé",
       "noAlternative": "Nenalezena žádná alternativa.",
       "matchSuffix": "· shoda {score}",
       "task": {

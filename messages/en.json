@@ -3570,6 +3570,8 @@
       "perMonth": "/ mo",
       "band": "band {min}–{max} {currency}",
       "marketBand": "Market · {min}–{max} {currency} (median {median}, {count} roles)",
+      "marketBandVintage": "Reference corpus: {source} · updated {date}",
+      "marketBandVintageUndated": "Reference corpus: {source} · date unknown",
       "noAlternative": "No alternative found.",
       "matchSuffix": "· {score} match",
       "task": {

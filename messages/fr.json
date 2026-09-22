@@ -3570,6 +3570,8 @@
       "perMonth": "/ mois",
       "band": "fourchette {min}–{max} {currency}",
       "marketBand": "Marché · {min}–{max} {currency} (médiane {median}, {count} postes)",
+      "marketBandVintage": "Corpus de référence : {source} · mis à jour le {date}",
+      "marketBandVintageUndated": "Corpus de référence : {source} · date inconnue",
       "noAlternative": "Aucune alternative trouvée.",
       "matchSuffix": "· {score} de correspondance",
       "task": {

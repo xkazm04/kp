@@ -3570,6 +3570,8 @@
       "perMonth": "/ Mon.",
       "band": "Gehaltsband {min}–{max} {currency}",
       "marketBand": "Markt · {min}–{max} {currency} (Median {median}, {count} Positionen)",
+      "marketBandVintage": "Referenzkorpus: {source} · aktualisiert {date}",
+      "marketBandVintageUndated": "Referenzkorpus: {source} · Datum unbekannt",
       "noAlternative": "Keine Alternative gefunden.",
       "matchSuffix": "· {score} Match",
       "task": {
