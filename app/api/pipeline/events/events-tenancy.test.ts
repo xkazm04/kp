@@ -71,4 +71,6 @@ test("the events route threads the caller's workspace into its reads and no long
   // requireOperator() gate (the sibling [id]/timeline routes are gated). It was
   // dead code and is removed; if it ever comes back it MUST be operator-gated.
   assert.doesNotMatch(src, /listPipelineEventsForEntry/, "the ungated per-entry branch must stay removed (gate with requireOperator if reintroduced)");
+  assert.match(src, /jsonRefusal\("PIPELINE_EVENTS_CURSOR_INVALID", 400\)/, "an invalid since cursor must carry a localizable code");
+  assert.doesNotMatch(src, /error: "since must be/, "the cursor refusal must not regress to English prose");
 });

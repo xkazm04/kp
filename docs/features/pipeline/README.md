@@ -1167,6 +1167,10 @@ leaving a submitted command with no outcome. Its `p.error` branch resolves throu
 
 ## The activity feed speaks the recruiter's language
 
+`GET /api/pipeline/events?since=<id>` rejects a malformed cursor with the
+`PIPELINE_EVENTS_CURSOR_INVALID` code, so the board can show the refusal in the
+reader's language.
+
 The board's activity feed (`PipelineActivityFeed`) renders **every** `pipeline_events`
 row, so its vocabulary is the *whole* writer vocabulary — not the board-lifecycle subset.
 `EVENT_KINDS` (`pipelineEventCatalog.ts`) is that full list (55 kinds); `EVENT_CATALOG` is
