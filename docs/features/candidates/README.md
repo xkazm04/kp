@@ -372,6 +372,12 @@ Cancel halts the CV scan; `reset()` is the action that clears everything
 (including `githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
 
 ### 2. Conversational / quick apply
+The public conversational apply page shows a short excerpt of the opening's
+description, plus its location when present, before the chat.
+The excerpt comes from the same server-loaded job record that builds the chat
+script, is capped at 280 characters, and renders as plain text. Roles without
+those details still start directly with the chat.
+
 Conversational apply asks 4 universal questions (name, most relevant recent
 experience, skills, "which best describes you" archetype pick), then branches:
 students get project/thesis + education + aspirations questions, switchers get
