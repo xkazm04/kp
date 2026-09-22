@@ -1187,6 +1187,8 @@ for a missing entry, matching the main entry route's localized 404 contract.
 Operator-only activity feed rows with an entry ID open that candidate's drawer.
 Rows without an entry ID stay readable. The public events endpoint still removes
 entry IDs and full candidate names.
+The feed's Event kind selector lists kinds present in the seven-day window and
+filters its rows and pager without changing the event cursor or server query.
 
 The board's activity feed (`PipelineActivityFeed`) renders **every** `pipeline_events`
 row, so its vocabulary is the *whole* writer vocabulary — not the board-lifecycle subset.

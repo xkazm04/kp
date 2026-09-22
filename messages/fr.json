@@ -3259,7 +3259,9 @@
       "expandBoard": "Pleine page",
       "collapseBoard": "Quitter la pleine page",
       "boardFullPageAria": "Tableau des postes, pleine page",
-      "activityWindow": "7 derniers jours"
+      "activityWindow": "7 derniers jours",
+      "activityKindLabel": "Type d’événement",
+      "activityAllKinds": "Tous les événements"
     },
     "emptyState": {
       "optional": "Facultatif",

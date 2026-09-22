@@ -3259,7 +3259,9 @@
       "expandBoard": "Full page",
       "collapseBoard": "Exit full page",
       "boardFullPageAria": "Positions board, full page",
-      "activityWindow": "Last 7 days"
+      "activityWindow": "Last 7 days",
+      "activityKindLabel": "Event kind",
+      "activityAllKinds": "All events"
     },
     "emptyState": {
       "optional": "Optional",

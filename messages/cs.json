@@ -3259,7 +3259,9 @@
       "expandBoard": "Celá stránka",
       "collapseBoard": "Zavřít celou stránku",
       "boardFullPageAria": "Nástěnka pozic na celou stránku",
-      "activityWindow": "Posledních 7 dní"
+      "activityWindow": "Posledních 7 dní",
+      "activityKindLabel": "Typ události",
+      "activityAllKinds": "Všechny události"
     },
     "emptyState": {
       "optional": "Volitelné",
