@@ -6677,7 +6677,10 @@
       "confirmBody": "Cela supprime le point d’entrée du poste <b>{role}</b>. <b>{endpoint}</b> cesse immédiatement d’accepter les candidatures et ne peut pas être restauré. Vous devriez ajouter un nouveau récepteur et réorienter la source vers sa nouvelle adresse.",
       "confirmLive": "{count, plural, one {Ce récepteur est actif. Il a reçu # candidature entrante.} other {Ce récepteur est actif. Il a reçu # candidatures entrantes.}} La règle de transfert ou le flux publicitaire qui pointe dessus continuera d’envoyer des POST vers une URL morte et les nouvelles candidatures seront perdues jusqu’à ce qu’il soit reconnecté.",
       "cancel": "Annuler",
-      "confirm": "Supprimer le récepteur"
+      "confirm": "Supprimer le récepteur",
+      "healthDelivering": "Opérationnel",
+      "healthReachedNoLeads": "Joint, aucun candidat enregistré",
+      "healthPullFailing": "Récupération en échec"
     },
     "add": {
       "roleLabel": "Poste",
@@ -6799,7 +6802,31 @@
       }
     },
     "copyFailed": "Échec de la copie. Sélectionnez le texte.",
-    "receiversTruncated": "Seuls les récepteurs les plus récents sont affichés. Certains ne figurent pas dans la liste : un canal ci-dessous peut donc sembler plus vide qu'il ne l'est."
+    "receiversTruncated": "Seuls les récepteurs les plus récents sont affichés. Certains ne figurent pas dans la liste : un canal ci-dessous peut donc sembler plus vide qu'il ne l'est.",
+    "statusNeedsAttention": "À vérifier",
+    "pull": {
+      "title": "Source de récupération",
+      "intro": "Facultatif. Indiquez une URL qui liste les nouvelles candidatures ; le studio l’interroge à chaque cycle pour récupérer ce qui est arrivé pendant que cette machine était éteinte. Laissez vide pour rester en réception push uniquement.",
+      "statusOn": "Récupération active",
+      "statusOff": "Push uniquement",
+      "statusFailing": "Dernière récupération en échec",
+      "secretSet": "Jeton défini",
+      "failingTitle": "La source n’a pas répondu à la dernière récupération. Les candidatures qu’elle détient n’arrivent pas dans ce studio.",
+      "failingHint": "Vérifiez l’URL et le jeton, puis enregistrez. L’enregistrement efface cette erreur ; la prochaine récupération montrera si la correction fonctionne.",
+      "reachedNoLeadsHint": "Ce récepteur a été joint mais n’a encore enregistré aucun candidat. Un ping de test compte aussi. Si de vraies candidatures auraient dû arriver, vérifiez le mappage des champs de la source, ou simulez un CV ci-dessus pour voir une vraie candidature aboutir.",
+      "urlLabel": "URL de récupération (https)",
+      "secretLabel": "Jeton Bearer",
+      "secretPlaceholder": "Facultatif, envoyé en Authorization : Bearer",
+      "secretKeepPlaceholder": "Laissez vide pour conserver le jeton actuel",
+      "clearSecret": "Supprimer le jeton enregistré",
+      "save": "Enregistrer la source",
+      "saved": "Source enregistrée",
+      "saveFailed": "Impossible d’enregistrer la source",
+      "lastPull": "Dernière récupération {time}",
+      "neverPulled": "Pas encore récupérée. L’horloge la prendra au prochain cycle.",
+      "pushOnly": "Push uniquement : les candidatures n’arrivent que lorsque la source peut joindre cette machine.",
+      "disableWarning": "Enregistrer avec une URL vide désactive la récupération et oublie la position dans la source."
+    }
   },
   "interviewSim": {
     "eyebrow": "Simulateur d’entretien",

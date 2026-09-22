@@ -6677,7 +6677,10 @@
       "confirmBody": "This deletes the intake endpoint for <b>{role}</b>. The <b>{endpoint}</b> stops accepting applications immediately and can’t be restored. You’d have to add a new receiver and re-point the source at its new address.",
       "confirmLive": "{count, plural, one {This receiver is live. It has taken # inbound application.} other {This receiver is live. It has taken # inbound applications.}} The forwarding rule / ad flow pointing at it will keep POSTing to a dead URL and new applications will be dropped until it’s re-wired.",
       "cancel": "Cancel",
-      "confirm": "Remove receiver"
+      "confirm": "Remove receiver",
+      "healthDelivering": "Delivering",
+      "healthReachedNoLeads": "Reached, no candidate filed",
+      "healthPullFailing": "Pull failing"
     },
     "add": {
       "roleLabel": "Role",
@@ -6799,7 +6802,31 @@
       }
     },
     "copyFailed": "Copy failed. Select the text.",
-    "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is."
+    "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is.",
+    "statusNeedsAttention": "Needs attention",
+    "pull": {
+      "title": "Pull source",
+      "intro": "Optional. Give a URL that lists new applications and the studio asks it on every tick what arrived while this machine was off. Leave it empty to stay push-only.",
+      "statusOn": "Pulling",
+      "statusOff": "Push only",
+      "statusFailing": "Last pull failed",
+      "secretSet": "Bearer token set",
+      "failingTitle": "The source did not answer the last pull. Applications it holds are not reaching this studio.",
+      "failingHint": "Check the URL and the bearer token, then save. Saving clears this error; the next pull shows whether the fix worked.",
+      "reachedNoLeadsHint": "This receiver has been reached but has not filed a candidate yet. A test ping counts as reached. If real applications should have arrived, check the source’s field mapping, or simulate a CV above to watch a real application go through.",
+      "urlLabel": "Pull URL (https)",
+      "secretLabel": "Bearer token",
+      "secretPlaceholder": "Optional, sent as Authorization: Bearer",
+      "secretKeepPlaceholder": "Leave blank to keep the current token",
+      "clearSecret": "Remove the stored token",
+      "save": "Save pull source",
+      "saved": "Pull source saved",
+      "saveFailed": "Couldn’t save the pull source",
+      "lastPull": "Last pull {time}",
+      "neverPulled": "Not pulled yet. The clock picks it up on its next tick.",
+      "pushOnly": "Push only: applications arrive only while the source can reach this machine.",
+      "disableWarning": "Saving with an empty URL turns pulling off and forgets the source’s position."
+    }
   },
   "interviewSim": {
     "eyebrow": "Interview simulator",

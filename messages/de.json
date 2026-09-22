@@ -6677,7 +6677,10 @@
       "confirmBody": "Damit löschen Sie den Eingangspunkt für <b>{role}</b>. <b>{endpoint}</b> nimmt sofort keine Bewerbungen mehr an und lässt sich nicht wiederherstellen. Sie müssten einen neuen Empfänger anlegen und die Quelle auf dessen neue Adresse umstellen.",
       "confirmLive": "{count, plural, one {Dieser Empfänger ist live. Er hat # eingehende Bewerbung angenommen.} other {Dieser Empfänger ist live. Er hat # eingehende Bewerbungen angenommen.}} Die Weiterleitungsregel bzw. der Anzeigen-Flow, der darauf zeigt, POSTet weiter an eine tote URL, und neue Bewerbungen gehen verloren, bis sie neu eingerichtet ist.",
       "cancel": "Abbrechen",
-      "confirm": "Empfänger entfernen"
+      "confirm": "Empfänger entfernen",
+      "healthDelivering": "Liefert",
+      "healthReachedNoLeads": "Erreicht, kein Kandidat erfasst",
+      "healthPullFailing": "Abruf schlägt fehl"
     },
     "add": {
       "roleLabel": "Stelle",
@@ -6799,7 +6802,31 @@
       }
     },
     "copyFailed": "Kopieren fehlgeschlagen. Text markieren.",
-    "receiversTruncated": "Angezeigt werden die neuesten Empfänger. Einige fehlen in der Liste, daher kann ein Kanal unten leerer wirken, als er ist."
+    "receiversTruncated": "Angezeigt werden die neuesten Empfänger. Einige fehlen in der Liste, daher kann ein Kanal unten leerer wirken, als er ist.",
+    "statusNeedsAttention": "Prüfung nötig",
+    "pull": {
+      "title": "Abrufquelle",
+      "intro": "Optional. Geben Sie eine URL an, die neue Bewerbungen auflistet. Das Studio fragt sie bei jedem Takt ab, was eingegangen ist, während dieser Rechner aus war. Leer lassen, um nur Push zu nutzen.",
+      "statusOn": "Ruft ab",
+      "statusOff": "Nur Push",
+      "statusFailing": "Letzter Abruf fehlgeschlagen",
+      "secretSet": "Bearer-Token gesetzt",
+      "failingTitle": "Die Quelle hat auf den letzten Abruf nicht geantwortet. Die dort liegenden Bewerbungen erreichen dieses Studio nicht.",
+      "failingHint": "Prüfen Sie URL und Bearer-Token und speichern Sie. Das Speichern setzt den Fehler zurück; der nächste Abruf zeigt, ob die Korrektur greift.",
+      "reachedNoLeadsHint": "Dieser Empfänger wurde erreicht, hat aber noch keinen Kandidaten erfasst. Ein Test-Ping zählt ebenfalls. Wenn echte Bewerbungen hätten ankommen sollen, prüfen Sie die Feldzuordnung der Quelle oder simulieren Sie oben einen Lebenslauf, um eine echte Bewerbung durchlaufen zu sehen.",
+      "urlLabel": "Abruf-URL (https)",
+      "secretLabel": "Bearer-Token",
+      "secretPlaceholder": "Optional, gesendet als Authorization: Bearer",
+      "secretKeepPlaceholder": "Leer lassen, um den aktuellen Token zu behalten",
+      "clearSecret": "Gespeicherten Token entfernen",
+      "save": "Abrufquelle speichern",
+      "saved": "Abrufquelle gespeichert",
+      "saveFailed": "Abrufquelle konnte nicht gespeichert werden",
+      "lastPull": "Letzter Abruf {time}",
+      "neverPulled": "Noch nicht abgerufen. Der Takt holt die Quelle beim nächsten Durchlauf ab.",
+      "pushOnly": "Nur Push: Bewerbungen kommen nur an, solange die Quelle diesen Rechner erreicht.",
+      "disableWarning": "Speichern mit leerer URL schaltet den Abruf ab und verwirft die Position in der Quelle."
+    }
   },
   "interviewSim": {
     "eyebrow": "Interview-Simulator",

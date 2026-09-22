@@ -6677,7 +6677,10 @@
       "confirmBody": "Tím smažete příjmovou adresu pro pozici <b>{role}</b>. <b>{endpoint}</b> okamžitě přestane přijímat přihlášky a nedá se obnovit. Museli byste přidat nový přijímač a přesměrovat zdroj na jeho novou adresu.",
       "confirmLive": "{count, plural, one {Tento přijímač je aktivní. Přijal # příchozí přihlášku.} few {Tento přijímač je aktivní. Přijal # příchozí přihlášky.} many {Tento přijímač je aktivní. Přijal # příchozí přihlášky.} other {Tento přijímač je aktivní. Přijal # příchozích přihlášek.}} Pravidlo pro přeposílání či reklamní tok, který na něj míří, bude dál posílat data na mrtvou URL a nové přihlášky se budou ztrácet, dokud ho nepřepojíte.",
       "cancel": "Zrušit",
-      "confirm": "Odebrat přijímač"
+      "confirm": "Odebrat přijímač",
+      "healthDelivering": "Doručuje",
+      "healthReachedNoLeads": "Dostává data, bez kandidáta",
+      "healthPullFailing": "Stahování selhává"
     },
     "add": {
       "roleLabel": "Pozice",
@@ -6799,7 +6802,31 @@
       }
     },
     "copyFailed": "Kopírování selhalo. Označte text.",
-    "receiversTruncated": "Zobrazujeme nejnovější příjemce. Některé v seznamu nejsou, takže některý kanál níže může působit prázdněji, než ve skutečnosti je."
+    "receiversTruncated": "Zobrazujeme nejnovější příjemce. Některé v seznamu nejsou, takže některý kanál níže může působit prázdněji, než ve skutečnosti je.",
+    "statusNeedsAttention": "Vyžaduje pozornost",
+    "pull": {
+      "title": "Zdroj pro stahování",
+      "intro": "Volitelné. Zadejte URL, která vypisuje nové přihlášky, a studio se jí při každém cyklu zeptá, co přišlo, zatímco byl tento počítač vypnutý. Necháte-li pole prázdné, přijímač bude dál jen přijímat odeslaná data (push).",
+      "statusOn": "Stahuje",
+      "statusOff": "Pouze push",
+      "statusFailing": "Poslední stažení selhalo",
+      "secretSet": "Token nastaven",
+      "failingTitle": "Zdroj na poslední stažení neodpověděl. Přihlášky, které drží, se do studia nedostávají.",
+      "failingHint": "Zkontrolujte URL a token a uložte. Uložením se chyba vymaže; příští stažení ukáže, zda oprava zabrala.",
+      "reachedNoLeadsHint": "Na tento přijímač už dorazily požadavky, ale zatím nezapsal žádného kandidáta. Započítává se i testovací ping. Pokud už měly dorazit skutečné přihlášky, zkontrolujte mapování polí ve zdroji, nebo výše nasimulujte životopis a ověřte, že skutečná přihláška projde.",
+      "urlLabel": "URL pro stahování (https)",
+      "secretLabel": "Token (Bearer)",
+      "secretPlaceholder": "Volitelné, odesílá se jako Authorization: Bearer",
+      "secretKeepPlaceholder": "Ponechte prázdné, chcete-li zachovat stávající token",
+      "clearSecret": "Odstranit uložený token",
+      "save": "Uložit zdroj",
+      "saved": "Zdroj uložen",
+      "saveFailed": "Zdroj se nepodařilo uložit",
+      "lastPull": "Poslední stažení {time}",
+      "neverPulled": "Zatím nestaženo. Hodiny zdroj vyzvednou při příštím cyklu.",
+      "pushOnly": "Pouze push: přihlášky přicházejí jen tehdy, když zdroj tento počítač zastihne.",
+      "disableWarning": "Uložením s prázdnou URL se stahování vypne a pozice ve zdroji se zapomene."
+    }
   },
   "interviewSim": {
     "eyebrow": "Simulátor pohovoru",

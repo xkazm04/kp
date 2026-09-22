@@ -605,12 +605,31 @@ the only thing that can replay it); a page is clamped to 50 events and 1 MB with
 (the relay/ATS SSRF posture); a failure is recorded on the row as
 `last_pull_error` and cleared by the next clean pull, never left sticky.
 
-Configuration is API-only today: `PATCH /api/channels/webhooks`
-`{token, pullUrl, pullSecret}` (team-scoped; secret semantics are the usual
-omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` already
-projects the recruiter-safe pull half onto every receiver (`pullUrl` /
-`hasPullSecret` / `lastPullAt` / `lastPullError`) so a failing source is visible
-on the same list as Listening. There is no editor UI for it yet — see Known gaps.
+Configuration is `PATCH /api/channels/webhooks` `{token, pullUrl, pullSecret}`
+(team-scoped, `org:manage` + the receiver-write limiter; secret semantics are the
+usual omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` projects
+the recruiter-safe pull half onto every receiver (`pullUrl` / `hasPullSecret` /
+`lastPullAt` / `lastPullError`), and the Channels tab binds it:
+
+- **The pull editor** (`ChannelsReceiverPullCard.tsx`) renders under the selected
+  receiver in both the Email intake and Ad forms panes, modelled on the Edge card:
+  URL, a write-only bearer (placeholder says "keep" when one is stored, plus an
+  explicit "remove the stored token" toggle), last pull time, Save. The body and the
+  guards are pure in `receiverPullForm.ts`: `pullPatchBody` (keep / clear / replace),
+  `canSavePull` (a blank save on an unread record is refused, because a blank URL
+  disables pulling AND clears the cursor; an unchanged form is not saveable) and
+  `interpretPullResponse` (a refusal keeps only its `code`, resolved by
+  `useErrorMessage`; a 200 without `{ pull }` is not a save). A save reloads the tab
+  lists. A failing pull is headlined as a localized sentence with the raw
+  `last_pull_error` (`HTTP 502`, pull-pass machine text) shown as code-styled data.
+- **The health verdict** (`receiverHealth.ts`) replaces the row's binary
+  Listening/Waiting: `waiting` (neutral) · `reachedNoLeads` (caution: reached, no
+  candidate filed) · `delivering` (positive: at least one filed) · `pullFailing`
+  (critical: a pull URL is set and its last pull failed; wins over delivering). The
+  row dot stays `isReceiverLive` (receipts). `sectionReceiverStatus` rolls a
+  section up for the tab switcher: Off / Configured / Listening as before, plus a
+  caution **Needs attention** whenever any receiver is reached-but-empty or failing
+  its pull, so a channel whose pull stopped a week ago no longer reads green.
 
 **IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
 which is a dependency decision, not a code decision — and the edge's Email Routing
@@ -807,7 +826,7 @@ air-gapped.
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. Each receiver row shows `acceptedCount` (filed candidates) beside `receivedCount` (connectivity), with a quiet relative `firstAcceptedAt` when a lead has landed — an em dash when it has not — so a live-but-zero-leads Zapier mapping is visible on the row that owns the setup guide. Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
+| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables (row status from `receiverHealth.ts`, the pull editor `ChannelsReceiverPullCard.tsx` + `receiverPullForm.ts` — §11) and the shared clipboard state. Each receiver row shows `acceptedCount` (filed candidates) beside `receivedCount` (connectivity), with a quiet relative `firstAcceptedAt` when a lead has landed — an em dash when it has not — so a live-but-zero-leads Zapier mapping is visible on the row that owns the setup guide. Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
 | `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
 | `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
@@ -1011,11 +1030,11 @@ already returns alongside the entries. Both rules are pinned by
   operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
   for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
   the route's coded `500 CHANNEL_WEBHOOK_UPDATE_FAILED` path.
-- **Pull sources have no editor UI.** `GET /api/channels/webhooks` now projects
-  `pullUrl` / `hasPullSecret` / `lastPullAt` / `lastPullError` on every receiver
-  (secret material never appears), so a week-old `last_pull_error` is on the same
-  list as Listening. `PATCH` is still the only write; the receiver table does not
-  yet bind those fields. The Edge card (§11) is the model for the editor.
+- **The pull failure is one class.** `last_pull_error` is stored as machine text
+  (`HTTP <status>`, an exception message, intake prose), so the editor headlines a
+  single localized "the source did not answer" sentence and shows the raw string as
+  data. Distinguishing unreachable / refused / intake-rejected needs a stored error
+  KIND (the edge's `EdgeErrorKind` is the model), which is a store change.
 - **The edge cannot carry a CV.** Mail is headers-only by design, so an emailed
   attachment is not extracted — the candidate has to follow the enrichment link.
   Closing this means sealing the body at the edge and extracting locally on drain,
