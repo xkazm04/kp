@@ -32,6 +32,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   const { token } = await params;
   const t = await getTranslations("skillProfile");
   const tReport = await getTranslations("report");
+  const tAxis = await getTranslations("devcase.dimension");
   const format = await getFormatter();
   // An RSC page has no NextRequest, so the client address comes off the request
   // headers the same way a route handler resolves it (clientIpFrom -> the trusted-
@@ -159,10 +160,12 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
             <ul className="mt-2 space-y-2">
               {axes.map(([name, score]) => {
                 const pct = Math.max(0, Math.min(100, score));
+                const axisKey = name as Parameters<typeof tAxis>[0];
+                const axisName = tAxis.has(axisKey) ? tAxis(axisKey) : name;
                 return (
                 <li key={name}>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-ink">{name}</span>
+                    <span className="text-ink">{axisName}</span>
                     <span className="font-mono text-stone-500">{Math.round(score)}</span>
                   </div>
                   {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #5): the axis meter
@@ -176,7 +179,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
                     aria-valuenow={Math.round(pct)}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={t("axisMeterLabel", { axis: name, score: Math.round(score) })}
+                    aria-label={t("axisMeterLabel", { axis: axisName, score: Math.round(score) })}
                     className="mt-1 h-1.5 w-full rounded-full bg-stone-100"
                   >
                     {pct > 0 ? (

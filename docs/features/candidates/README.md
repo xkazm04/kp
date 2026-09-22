@@ -101,6 +101,8 @@ career-switcher) that other features key off. Downstream ranking is
   a false claim about what kp issued.
   The issued date, including the date in stale-state explanations, uses the
   reader's locale instead of a raw ISO day.
+  Capability axes use the existing `devcase.dimension` labels in the reader's
+  locale, with the signed axis name as a fallback for older credentials.
   The public card offers a print/PDF action; its controls disappear from print.
   Since /perfect wave 20 the card matches its sibling doors in three further ways:
   it carries a **`LanguageSwitcher`** (it is shared with employers and reached from
