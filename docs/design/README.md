@@ -762,6 +762,8 @@ candidate.
 that imported the shared `ColumnFilter` and hand-rolled the headers around it.
 Its icon-only sort button uses the shared `Tooltip`, so the column-specific
 instruction appears on keyboard focus and touch as well as pointer hover.
+The tooltip label is portaled to the document body and tracks its trigger on
+scroll and resize, so clipped table panes cannot cut off the explanation.
 
 [`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
 ratchet — `scope` has no legitimate residual population: it is one attribute
