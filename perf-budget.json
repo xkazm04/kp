@@ -32,8 +32,8 @@
   "entries": {
     "app/page.tsx": {
       "maxModules": 1370,
-      "maxKb": 8700,
-      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on. Raised 1307/8082 to 1370/8700 on 2026-09-22 after the journeys, interview director and feedback-letter streams merged: the combined tree measures 1364 modules / 8649 KB against the previous green main's 1287 / 7846. The homepage already imports the shared workspace shell, so replacing its direct session import did not reduce this graph; this ceiling records the actual merged cost with little headroom"
+      "maxKb": 8710,
+      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on. Raised 1307/8082 to 1370/8700 on 2026-09-22 after the journeys, interview director and feedback-letter streams merged: the combined tree measures 1364 modules / 8649 KB against the previous green main's 1287 / 7846. The homepage already imports the shared workspace shell, so replacing its direct session import did not reduce this graph; this ceiling records the actual merged cost with little headroom. Raised 8700 -> 8710 KB on 2026-09-22 (scan-sweep challenge waves 1-2): 1368 modules / 8702 KB measured after the receiver-health, relay-capability, task-kind, grant-health and matrix-tier modules joined the shell graph; the module ceiling is unchanged"
     },
     "app/_lib/llm-config.ts": {
       "maxModules": 19,
