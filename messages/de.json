@@ -1798,6 +1798,7 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "Dieser Bewerbungslink ist ungültig. Bitten Sie die Recruiterin oder den Recruiter um einen neuen.",
     "DEVCASE_SESSION_NOT_FOUND": "Diese Arbeitssitzung wurde nicht gefunden. Öffnen Sie Ihren Bewerbungslink erneut, um eine neue zu starten.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Name und Link zu Ihrer Lösung sind beide erforderlich.",
+    "DEVCASE_CONTACT_REQUIRED": "Geben Sie eine E-Mail-Adresse an, damit wir Ihre Bewerbung bestätigen können.",
     "DEVCASE_SESSION_START_FAILED": "Die Arbeitssitzung konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
     "CHANNEL_UNKNOWN": "Über diesen Kanal kann kp nichts empfangen.",
     "CHANNEL_JOB_NOT_FOUND": "Diese Stelle ist nicht verfügbar.",

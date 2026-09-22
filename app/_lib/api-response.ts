@@ -1529,6 +1529,7 @@ export const REFUSAL_ERRORS = {
    *  The public form validates both client-side, so this is a hand-rolled or
    *  external-channel call — which is exactly the caller who needs a code. */
   DEVCASE_SUBMISSION_FIELDS_REQUIRED: "A name and a link to your solution are both required.",
+  DEVCASE_CONTACT_REQUIRED: "Enter an email address so we can confirm your submission.",
   // ---- The four studio doors (/perfect wave 31, api-devcase-2). The manual approve
   // and the credential mint answered bare English for every refusal, on doors whose
   // consumers (useDevTabActions.runAction, DevSubmissionRowSkillProfile) resolve

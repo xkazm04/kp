@@ -50,12 +50,12 @@ function seedOpenPosting(): { token: string; postingId: string } {
 /** The webhook reads its token from `request.nextUrl` (the public apply form sends it in
  *  the query string), which a plain Request does not carry — attach it explicitly rather
  *  than depending on next/server's NextRequest identity under the test loader. */
-function inboundReq(token: string, candidate: string) {
+function inboundReq(token: string, candidate: string, contact: string | null = `${candidate}@example.test`) {
   const url = `http://localhost/api/devcase/inbound?token=${encodeURIComponent(token)}`;
   const req = new Request(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ candidate, repoRef: `https://example.test/${candidate}`, contact: `${candidate}@example.test` }),
+    body: JSON.stringify({ candidate, repoRef: `https://example.test/${candidate}`, ...(contact === null ? {} : { contact }) }),
   });
   Object.defineProperty(req, "nextUrl", { value: new URL(url) });
   return req as never;
@@ -66,6 +66,22 @@ test("a genuine application still passes (the throttle is not over-broad)", asyn
   const res = await POST(inboundReq(token, "ada"));
   assert.equal(res.status, 200);
   assert.equal(listSubmissions(postingId, DEFAULT_WORKSPACE_ID).length, 1, "the submission is recorded");
+});
+
+test("an inbound application without a sendable email is refused before writing", async () => {
+  const { token, postingId } = seedOpenPosting();
+  const response = await POST(inboundReq(token, "opaque-123", null));
+  assert.equal(response.status, 400);
+  assert.equal((await response.json() as { code: string }).code, "DEVCASE_CONTACT_REQUIRED");
+  assert.equal(listSubmissions(postingId, DEFAULT_WORKSPACE_ID).length, 0);
+});
+
+test("an email-shaped candidate ref remains a sendable fallback", async () => {
+  const { token, postingId } = seedOpenPosting();
+  const response = await POST(inboundReq(token, "candidate@example.test", null));
+  assert.equal(response.status, 200);
+  const [submission] = listSubmissions(postingId, DEFAULT_WORKSPACE_ID);
+  assert.equal(submission?.contact, "candidate@example.test");
 });
 
 test("the per-token BURST window refuses the over-quota application — no row, no ack, no lifecycle resume", async () => {

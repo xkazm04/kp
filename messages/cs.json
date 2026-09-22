@@ -1798,6 +1798,7 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "Tento odkaz pro přihlášení není platný. Požádejte náboráře o nový.",
     "DEVCASE_SESSION_NOT_FOUND": "Toto pracovní sezení se nepodařilo najít. Otevřete znovu svůj odkaz a začněte nové.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Jméno i odkaz na vaše řešení jsou povinné.",
+    "DEVCASE_CONTACT_REQUIRED": "Zadejte e-mailovou adresu, abychom vám mohli potvrdit přijetí přihlášky.",
     "DEVCASE_SESSION_START_FAILED": "Pracovní sezení se nepodařilo otevřít. Zkuste to prosím znovu.",
     "CHANNEL_UNKNOWN": "Na tomto kanálu kp přijímat neumí.",
     "CHANNEL_JOB_NOT_FOUND": "Tato pozice není dostupná.",

@@ -1101,6 +1101,9 @@ credential. These rules keep that honest, all sized so a real candidate never me
   `DAILY_LIMIT` in `app/api/devcase/inbound/route.ts`) — placed after the 401/410/400
   refusals so those keep answering without consuming a real applicant's slot. Never keyed
   by IP, for the same NAT reason as the chat aggregate.
+  Inbound intake also requires a sendable email before the throttle or submission
+  write. It accepts a valid `contact` or an email-shaped `candidateRef` fallback;
+  otherwise it returns `DEVCASE_CONTACT_REQUIRED` (400).
 - **Finalize throttling.** `[id]/submit` was the last public intake door with no bound at
   all, and it was also the cheapest until it joined the shared intake — it now buys the
   same acknowledgement and lifecycle resume the webhook does. **60 per 24 h** keyed on the

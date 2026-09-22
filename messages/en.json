@@ -1798,6 +1798,7 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "This apply link isn't valid. Ask the recruiter for a fresh one.",
     "DEVCASE_SESSION_NOT_FOUND": "This work session can't be found. Open your apply link again to start a new one.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "A name and a link to your solution are both required.",
+    "DEVCASE_CONTACT_REQUIRED": "Enter an email address so we can confirm your submission.",
     "DEVCASE_SESSION_START_FAILED": "Could not open the work session. Please try again.",
     "CHANNEL_UNKNOWN": "That channel isn’t one kp can receive on.",
     "CHANNEL_JOB_NOT_FOUND": "That role isn’t available.",

@@ -1798,6 +1798,7 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "Ce lien de candidature n’est pas valide. Demandez-en un nouveau au recruteur.",
     "DEVCASE_SESSION_NOT_FOUND": "Cette session de travail est introuvable. Rouvrez votre lien de candidature pour en démarrer une nouvelle.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Un nom et un lien vers votre solution sont tous deux obligatoires.",
+    "DEVCASE_CONTACT_REQUIRED": "Indiquez une adresse e-mail pour que nous puissions confirmer votre candidature.",
     "DEVCASE_SESSION_START_FAILED": "Impossible d’ouvrir la session de travail. Veuillez réessayer.",
     "CHANNEL_UNKNOWN": "kp ne peut rien recevoir sur ce canal.",
     "CHANNEL_JOB_NOT_FOUND": "Ce poste n’est pas disponible.",
