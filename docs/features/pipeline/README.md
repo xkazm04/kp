@@ -119,7 +119,7 @@ Every rule that used to read a stage NAME to ask a question about MEANING:
 | `db/org-benchmarks.ts` | one shared axis across a cross-TEAM aggregate | each row judged against **its own team's** axis (resolved once per team) |
 | `application-status.ts` | name→status map only | role→status map when the caller can resolve one; the name map remains the shipped-axis fallback |
 | `analytics-momentum.ts`, `pipeline-command.ts`, `ats/field-map.ts` | literals | an injected terminal stage / axis / allowlist, defaulting to the shipped one |
-| `cv-intake.ts`, `lead-intake.ts` | filed at `"Accepted"` | filed at the axis's `entry` column |
+| `application-filing.ts` (the CV door's filing core), `lead-intake.ts` | filed at `"Accepted"` | filed at the axis's `entry` column |
 | the candidate modal's AI actions (`candidate/footer/CandidateFooter.tsx`) | each action gated on literal stage names (`"Screened"`, `"Interview"`, `"Offer"`) | `app/_lib/stage-ai-actions.ts` resolves the default from roles (a step's own list from Settings → Hiring replaces it): pre-gate columns *plus* every column explicitly roled `screening` for **Screen** (so the Enterprise funnel's post-round triage still screens, advisorily), every column immediately before an interview round + the rounds themselves for **Prep**, interview rounds for **Scorecard**, the offer column for **Draft offer**, every non-terminal column for **Rejection**, every non-terminal non-entry column for **Rematch**. A `homework` column is excluded from Screen and Prep, so it defaults to outreach + rejection + rematch |
 
 `analytics-custom-axis.test.ts` is the proof: it stores a fully renamed six-column
@@ -1252,7 +1252,8 @@ Two surfaces read the format now:
 
 - `useEventVerb` (`pipelineEventCatalog.ts`) for an event `detail`, through
   `pipeline.eventReasons.*` — now including `repeatApplication` /
-  `repeatApplicationContact`, written by `app/_lib/lead-intake.ts` in place of
+  `repeatApplicationContact`, written by `app/_lib/lead-intake.ts` (and, for a
+  repeat inbound CV, by `app/_lib/application-filing.ts`) in place of
   `repeat application via <channel>`;
 - `useIntakeReasonText` (same module) for an ENTRY's `intakeDegradedReason`, through
   `pipeline.intakeReasons.*` (`leadPending` / `leadPendingUngated`). That column is read

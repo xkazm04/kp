@@ -501,9 +501,27 @@ pinned by `app/api/apply/apply-intake-scope.test.ts`:
   never sees them, and `POST /api/apply/[id]/followup` 404s.
 - **The landing column comes from the axis.** Every inbound surface files at
   `stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted"` —
-  conversational apply, quick apply (`lead-intake.ts`) and CV intake
-  (`cv-intake.ts`) alike. A hardcoded stage name strands applicants on
+  conversational apply, quick apply (`lead-intake.ts`) and CV intake (through
+  the filing core below) alike. A hardcoded stage name strands applicants on
   `PipelineBoardOffAxisStrip` as soon as a team renames its first column.
+
+**The application-filing core** (`app/_lib/application-filing.ts`,
+`fileApplication`) is the one place a door turns an applicant into an entry:
+tenant, name sanitisation, identity *before* any profile build, a profile build
+that always carries the workspace and locale, the entry column, consent and the
+acknowledgement. The door states a `proof`: `channel` (the applicant came through
+a channel we issued — a repeat may backfill a missing contact, refreshes consent
+and records `re_applied`, and never rebuilds or re-points the profile) or `none`
+(a typed name/email — a repeat moves nothing). The headless CV door
+(`ingestCvApplication`, used by `/api/channels/inbound/[token]` and
+`/api/sim/apply-cv`) files through it with `channel` proof, which closed three
+defects there: the profile was saved into the default workspace while the entry
+went to the webhook's team; a repeat CV built and saved a profile before the
+dedupe returned the existing row (an orphan profile); and a nameless, email-less
+CV deduped on the `"Applicant"` label, merging strangers. The conversational
+route and `lead-intake.ts` still file on their own code, and moving them in means
+re-pointing the source-contract tests that pin their current layout. Pinned by
+`app/_lib/application-filing.test.ts` (injected profile builder, no Python).
 - **Input caps precede the knockout audit.** A KO fail creates no entry but does
   persist an entry-less `ko_declined` event carrying the applicant's display
   name, and `pipeline_events` bounds the event *detail*, not the label — so the
