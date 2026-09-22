@@ -62,7 +62,9 @@ them — only `?sim=auto` and `?onboarding=1`.
 `WorkspaceDocumentTitle` reflects the active tab's localized nav label in the
 browser title after an in-shell switch and restores the server title when the
 workspace unmounts. The title therefore follows app state even when the URL
-does not change.
+does not change. While a background task reports a measured total, the browser
+title also carries its bounded `done/total` progress so an operator can monitor
+it from another tab.
 
 ### The view selectors are app state; the URL is their inbox
 
