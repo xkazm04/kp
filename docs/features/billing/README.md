@@ -537,7 +537,7 @@ different tabs:
 |---|---|
 | the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, overage, pack credits — **the caller's org** |
 | `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
-| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters, and the bounded `ops-warn.log` tail (`opsWarnings`) |
+| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, all-provider token totals from `llm_usage`, comms/schedule failure counters, and the bounded `ops-warn.log` tail (`opsWarnings`) |
 
 `useSpendData.ts` owns both fetches, so the section has **one** loading state and
 **one** failure state. The ledger read is the failure that matters; a dead

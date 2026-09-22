@@ -1,6 +1,7 @@
 import { appendFileSync, closeSync, mkdirSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 import { logDir } from "./logger";
+import type { LlmUsageAggregateRow } from "./db/llm";
 
 /** Write a structured warning to ops-warn.log so failures that must not
  *  break their caller are still visible to operators.  Never throws. */
@@ -95,17 +96,15 @@ export type EngineTelemetry = {
   stageAvgMs: Record<string, number>;
 };
 
-export function engineTelemetry(now = Date.now()): EngineTelemetry {
+export function engineTelemetry(usage: Pick<LlmUsageAggregateRow, "inputTokens" | "outputTokens" | "cachedTokens">[], now = Date.now()): EngineTelemetry {
   const recent = tailJsonl("pipeline.log").filter((r) => withinWeek(r, now));
-  let totalTokens = 0;
-  let cachedTokens = 0;
+  // The sidecar ledger includes every provider and every use case. pipeline.log
+  // only describes analyze_cv's Gemini-shaped stage, so its token block omits
+  // other adapters and can double-count if added to this ledger.
+  const totalTokens = usage.reduce((sum, row) => sum + row.inputTokens + row.outputTokens, 0);
+  const cachedTokens = usage.reduce((sum, row) => sum + row.cachedTokens, 0);
   const stageSums: Record<string, { sum: number; n: number }> = {};
   for (const r of recent) {
-    const gemini = r.gemini as Record<string, unknown> | undefined;
-    const total = Number(gemini?.total_tokens);
-    const cached = Number(gemini?.cached_tokens);
-    if (Number.isFinite(total)) totalTokens += total;
-    if (Number.isFinite(cached)) cachedTokens += cached;
     const stages = r.stages_ms as Record<string, unknown> | undefined;
     if (stages && typeof stages === "object") {
       for (const [stage, ms] of Object.entries(stages)) {
