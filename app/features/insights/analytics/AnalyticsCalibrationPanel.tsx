@@ -271,6 +271,7 @@ export function CalibrationPanel() {
                   rec={data.recommendation}
                   roleFamily={family}
                   leakage={data.leakage}
+                  autoRejectEnabled={data.autoRejectEnabled ?? null}
                   onApplied={() => {
                     reload();
                     setApplyNonce((n) => n + 1);

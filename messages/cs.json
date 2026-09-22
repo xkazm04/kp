@@ -7640,6 +7640,7 @@
       "recLower": "Kandidáti se skóre {lo}–{hi} postoupili přes screening v {pct} % případů (n={n}). Práh pro automatické zamítnutí je {current}. Zvažte jeho snížení na {suggested}.",
       "recRaise": "Kandidáti se skóre {lo}–{hi} postoupili přes screening jen v {pct} % případů (n={n}). Práh pro automatické zamítnutí je {current}. Zvažte jeho zvýšení na {suggested}.",
       "recBasis": "Na základě {total} rozhodnutých kandidátů. Je to jen doporučení. Dokud ho nepoužijete, nic se nemění.",
+      "recAutoRejectOff": "Automatické odmítání je vypnuté. Použití uloží práh, ale kandidáty neodmítne, dokud automatické odmítání nezapnete v pravidlech rozhodování.",
       "recApply": "Použít (nastavit práh na {suggested})",
       "recApplying": "Používání…",
       "recApplied": "Práh pro automatické zamítnutí nastaven na {suggested} (dříve {previous}). Změnu vrátíte v Pravidlech rozhodování.",

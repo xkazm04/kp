@@ -7640,6 +7640,7 @@
       "recLower": "Kandidaten mit Score {lo}–{hi} wurden in {pct} % der Fälle über das Screening hinaus weitergeleitet (n={n}). Ihre Schwelle für automatische Ablehnung liegt bei {current}. Erwägen Sie, sie auf {suggested} zu senken.",
       "recRaise": "Kandidaten mit Score {lo}–{hi} wurden nur in {pct} % der Fälle über das Screening hinaus weitergeleitet (n={n}). Ihre Schwelle für automatische Ablehnung liegt bei {current}. Erwägen Sie, sie auf {suggested} anzuheben.",
       "recBasis": "Basierend auf {total} entschiedenen Kandidaten. Das ist nur eine Empfehlung. Bis Sie sie anwenden, ändert sich nichts.",
+      "recAutoRejectOff": "Die automatische Ablehnung ist deaktiviert. Anwenden speichert die Schwelle, lehnt aber keine Kandidaten ab, bis Sie sie in den Entscheidungsregeln aktivieren.",
       "recApply": "Anwenden (Schwelle auf {suggested} setzen)",
       "recApplying": "Wird angewendet…",
       "recApplied": "Schwelle für automatische Ablehnung auf {suggested} gesetzt (vorher {previous}). Über die Entscheidungsregeln können Sie das rückgängig machen.",

@@ -7640,6 +7640,7 @@
       "recLower": "Les candidats avec un score de {lo} à {hi} ont franchi la présélection dans {pct} % des cas (n={n}). Votre seuil de rejet automatique est {current}. Envisagez de l’abaisser à {suggested}.",
       "recRaise": "Les candidats avec un score de {lo} à {hi} n’ont franchi la présélection que dans {pct} % des cas (n={n}). Votre seuil de rejet automatique est {current}. Envisagez de le relever à {suggested}.",
       "recBasis": "D’après {total} candidats traités. Il s’agit uniquement d’une suggestion. Rien ne change tant que vous ne l’appliquez pas.",
+      "recAutoRejectOff": "Le rejet automatique est désactivé. Appliquer enregistre le seuil sans rejeter de candidats tant que vous ne l'activez pas dans les règles de décision.",
       "recApply": "Appliquer (fixer le seuil à {suggested})",
       "recApplying": "Application…",
       "recApplied": "Seuil de rejet automatique fixé à {suggested} (précédemment {previous}). Réversible depuis les Règles de décision.",

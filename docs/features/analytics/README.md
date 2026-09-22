@@ -1124,6 +1124,8 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
+  The suggestion card now warns at Apply when auto-reject is off: the write
+  saves a threshold but does not turn on the rejection policy.
 - **`effectAfterOnly` over-states an empty before side. CLOSED 2026-09-17.** With the evidence
   floor applied symmetrically, a before side of 1–7 in-band decisions still claims `after-only`,
   but the strip now maps that to `effectBeforeThin` when `effect.before.n` is in `(0, min)` —

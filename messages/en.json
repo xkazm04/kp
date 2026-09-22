@@ -7640,6 +7640,7 @@
       "recLower": "Candidates scoring {lo}–{hi} advanced past screening {pct}% of the time (n={n}). Your auto-reject floor is {current}. Consider lowering it to {suggested}.",
       "recRaise": "Candidates scoring {lo}–{hi} advanced past screening only {pct}% of the time (n={n}). Your auto-reject floor is {current}. Consider raising it to {suggested}.",
       "recBasis": "Based on {total} decided candidates. This is only a suggestion. Nothing changes until you apply it.",
+      "recAutoRejectOff": "Auto-reject is off. Applying saves the threshold but will not reject candidates until you enable auto-reject in Decision rules.",
       "recApply": "Apply (set floor to {suggested})",
       "recApplying": "Applying…",
       "recApplied": "Auto-reject floor set to {suggested} (was {previous}). Reversible from Decision rules.",
