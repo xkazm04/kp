@@ -182,6 +182,8 @@ The three pages share one rule set, so a visitor learns the chrome once.
     and updates the hash with `replaceState`, not `pushState` — the rail is a
     scrubber, not a trail of destinations, so it must not bury the referring
     page under five back-presses. The `href="#id"` stays as the no-JS fallback.
+- **The Voice Teaser opens its spotlight.** Its button pins the same voice
+  preview opened by the feature card.
 - **Phone navigation is one disclosure, with per-page destinations.**
   `spark/sections/MobileNav.tsx` takes a `destinations` prop (`NavDestination`:
   a `#band` of this page, or another page). The landing passes its five bands

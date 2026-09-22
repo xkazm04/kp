@@ -867,6 +867,7 @@
         "Transcription en direct, scorecard structurée"
       ],
       "cardTitle": "Présélection du premier tour",
+      "previewCta": "Découvrir l’entretien vocal",
       "cardMeta": "en direct · 4 min 12 s",
       "transcript": [
         "Vous avez livré une appli React pour un projet scolaire. Qu’est-ce qui a cassé en premier quand de vrais utilisateurs sont arrivés ?",

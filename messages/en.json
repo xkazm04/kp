@@ -867,6 +867,7 @@
         "Live transcript, structured scorecard"
       ],
       "cardTitle": "First-round screen",
+      "previewCta": "Preview voice screening",
       "cardMeta": "live · 4 min 12 s",
       "transcript": [
         "You shipped a React app for a school project. What broke first when real users hit it?",
