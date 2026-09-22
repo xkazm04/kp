@@ -341,6 +341,7 @@
       "gaugeAria": "Fourchette salariale {min} à {max} {currency}, médian {midpoint}, objectif {growth} à {target}"
     },
     "archetype": {
+      "needsReview": "À vérifier",
       "detected": "Archétype détecté",
       "confidence": "concordance des signaux {value}",
       "completeness": "complétude {value}",

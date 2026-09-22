@@ -341,6 +341,7 @@
       "gaugeAria": "Mzdové rozpětí {min} až {max} {currency}, střed {midpoint}, cíl {growth} na {target}"
     },
     "archetype": {
+      "needsReview": "Vyžaduje kontrolu",
       "detected": "Rozpoznaný archetyp",
       "confidence": "shoda signálů {value}",
       "completeness": "úplnost {value}",

@@ -341,6 +341,7 @@
       "gaugeAria": "Gehaltsspanne {min} bis {max} {currency}, Mittelwert {midpoint}, Ziel {growth} bei {target}"
     },
     "archetype": {
+      "needsReview": "Prüfung erforderlich",
       "detected": "Erkannter Archetyp",
       "confidence": "Signalübereinstimmung {value}",
       "completeness": "Vollständigkeit {value}",

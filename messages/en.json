@@ -342,6 +342,7 @@
     },
     "archetype": {
       "detected": "Detected archetype",
+      "needsReview": "Needs review",
       "confidence": "signals agree {value}",
       "completeness": "completeness {value}",
       "save": "Save as profile",

@@ -20,6 +20,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 type V2 = {
   archetype?: string;
   archetypeConfidence?: number;
+  archetypeNeedsReview?: boolean;
   archetypeReasons?: string[];
   completeness?: number;
   displayName?: string;
@@ -119,6 +120,11 @@ export function ArchetypeBanner({
         <Sparkles size={16} className="text-coral" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
+        {v2.archetypeNeedsReview ? (
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
+            {t("archetype.needsReview")}
+          </span>
+        ) : null}
         {signalAgreement != null ? (
           <span className="text-sm text-steel">{t("archetype.confidence", { value: signalAgreement })}</span>
         ) : null}
