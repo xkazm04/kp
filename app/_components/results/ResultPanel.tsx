@@ -12,6 +12,7 @@ import { parseResultTabHash, resolveActiveTab, resultTabHash, type ResultTab } f
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { DispositionEditor } from "./DispositionEditor";
 import { ArchetypeBanner } from "./ArchetypeBanner";
+import { ReportActions } from "./ReportActions";
 import { QualityStrip } from "./QualityStrip";
 import { VerdictBanner } from "./VerdictBanner";
 import type { Analysis, GithubAnalysis } from "@/app/_lib/schemas";
@@ -57,6 +58,9 @@ type ResultPanelProps = {
   // lineage (staleness detection). Absent on unsaved runs → lineage-less save,
   // exactly the old behavior.
   analysisSlug?: string;
+  // The live Analyze tab may already have a stable saved slug. The saved-report
+  // route renders actions in its own header, so only the live caller opts in.
+  liveReportActions?: boolean;
   // Human decision on a saved analysis (advance/hold/pass). Present once the
   // run has a slug — live Analyze after persist, and the saved report. Absent
   // on an unsaved run, so the editor is omitted rather than PATCHing nothing.
@@ -123,7 +127,7 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, initialDisposition, initialNote, prepEntryId, initialTab }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, liveReportActions, initialDisposition, initialNote, prepEntryId, initialTab }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -237,6 +241,14 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
           in the Extraction tab's dial. On a multi-variant run (which defaults to the
           Compare tab) it shows the winner's verdict. Both consumers — live Analyze
           and the saved report — render the same banner. */}
+      {liveReportActions && analysisSlug ? (
+        <ReportActions
+          analysis={analysis}
+          candidateLabel={analysis.persistence?.candidateLabel}
+          savedAt={analysis.persistence?.createdAt}
+          reportPath={`/history/${encodeURIComponent(analysisSlug)}`}
+        />
+      ) : null}
       <VerdictBanner analysis={analysis} />
       {analysisSlug || pipelineRef || pipelineDisabledReason ? (
         <div className="flex flex-wrap items-start justify-end gap-3">

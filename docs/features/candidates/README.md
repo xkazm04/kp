@@ -72,7 +72,9 @@ career-switcher) that other features key off. Downstream ranking is
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
   advance/hold/pass is recorded on the same surface as the verdict; an unsaved
-  run omits it. The panel also
+  run omits it. A persisted live result also shows `ReportActions`; Copy link
+  points to its stable `/history/<slug>` URL rather than the Analyze workspace
+  URL. The saved report keeps those actions in its own header. The panel also
   keeps its active tab in the URL fragment: selecting a tab rewrites
   `#report-<tab>` with `history.replaceState`, and the panel reads that fragment on
   mount and on `hashchange`. So a recruiter can send a colleague the salary read of
