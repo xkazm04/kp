@@ -22,7 +22,8 @@ import {
   voiceStartGate,
   type AvailabilityProbe,
 } from "./availability-gate.ts";
-import { createTimerRegistry, type Clock } from "./timer-registry.ts";
+import { readFileSync } from "node:fs";
+import { armConnectTimeout, createTimerRegistry, type Clock } from "./timer-registry.ts";
 
 const configured = { elevenlabs: true, openai: true };
 const keyless = { elevenlabs: false, openai: false };
@@ -170,6 +171,66 @@ test("a timer's cancel is idempotent and harmless after it fired or after clearA
   afterTeardown();
   run();
   assert.equal(fired, 1);
+});
+
+// ---- connect timeout across attempts (idea 046efe21) -----------------------
+// The connect path cleared the prior attempt's timeout with clearAll() and armed
+// the new one straight after. clearAll LATCHES the registry, so the arm was a
+// no-op: the 30s timeout never fired — on the first attempt, not only a retry —
+// and every later timer in the call (the finalize poll, the EL disconnect-grace
+// fallback) was dead with it.
+
+test("the connect timeout fires on EVERY attempt, not just until the first clear", () => {
+  const { clock, run } = fakeClock();
+  const timers = createTimerRegistry(clock);
+  let timedOut = 0;
+
+  armConnectTimeout(timers, () => (timedOut += 1), 30_000); // attempt 1 hangs
+  run();
+  assert.equal(timedOut, 1, "the first attempt's timeout must fire");
+
+  armConnectTimeout(timers, () => (timedOut += 1), 30_000); // Retry, hangs again
+  run();
+  assert.equal(timedOut, 2, "the retry's timeout must fire too");
+  assert.equal(timers.cleared, false, "arming between attempts must never latch the registry");
+});
+
+test("re-arming cancels the prior attempt's timeout instead of stacking it", () => {
+  const { clock, queued, run } = fakeClock();
+  const timers = createTimerRegistry(clock);
+  let first = 0;
+  let second = 0;
+  armConnectTimeout(timers, () => (first += 1), 30_000);
+  armConnectTimeout(timers, () => (second += 1), 30_000);
+  assert.equal(queued.size, 1);
+  run();
+  assert.deepEqual([first, second], [0, 1]);
+});
+
+test("cancelAll keeps other timers schedulable; clearAll after it still silences everything", async () => {
+  const { clock, queued, run } = fakeClock();
+  const timers = createTimerRegistry(clock);
+  let fired = 0;
+  armConnectTimeout(timers, () => (fired += 1), 30_000);
+  timers.cancelAll(); // went live
+  timers.set(() => (fired += 1), 1_500); // the EL disconnect-grace fallback, scheduled later
+  run();
+  assert.equal(fired, 1, "a timer scheduled after cancelAll must still run");
+
+  armConnectTimeout(timers, () => (fired += 1), 30_000);
+  timers.clearAll(); // unmount
+  armConnectTimeout(timers, () => (fired += 1), 30_000); // a late path after teardown
+  assert.equal(queued.size, 0);
+  run();
+  assert.equal(fired, 1, "nothing may fire after teardown");
+  await timers.sleep(100); // cleared — resolves immediately, never hangs
+});
+
+test("VoiceInterview latches its registry only in the unmount teardown", () => {
+  const src = readFileSync(new URL("./VoiceInterview.tsx", import.meta.url), "utf8");
+  const latches = src.match(/^\s*timers(?:Ref\.current)?\.clearAll\(\);/gm) ?? [];
+  assert.equal(latches.length, 1, "clearAll() is teardown-only; comments are not calls");
+  assert.match(src, /timers\.clearAll\(\)/, "the one clearAll is the unmount effect's copied registry");
 });
 
 // ---- provider picker (wave 20) ---------------------------------------------

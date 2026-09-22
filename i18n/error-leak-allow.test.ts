@@ -43,8 +43,16 @@ test("every comment in the allowlist block names a path that is in the Set", () 
   const block = src.match(/const ERROR_LEAK_ALLOW = new Set\(\[([\s\S]*?)\]\)/);
   assert.ok(block);
   // The dangling "Dev-facing studio" sentence closed the Set with no studio
-  // path listed — a later session could not tell forgotten vs migrated.
-  assert.doesNotMatch(block[1], /studio/i, "studio comment has no matching Set member");
+  // path listed — a later session could not tell forgotten vs migrated. Scoped
+  // to COMMENT lines, not the whole block: a later Set entry can legitimately
+  // live under a "-studio" path (app/features/setup-studio/...), and that
+  // quoted string must not trip the same guard its own comment is held to —
+  // the mentioned-path check below still catches an orphaned comment.
+  const commentLines = block[1]
+    .split("\n")
+    .filter((line) => line.trim().startsWith("//"))
+    .join("\n");
+  assert.doesNotMatch(commentLines, /studio/i, "studio comment has no matching Set member");
   const mentioned = [...block[1].matchAll(/((?:app|scripts)\/[\w./-]+\.tsx?)/g)].map((m) => m[1]);
   for (const rel of mentioned) {
     assert.ok(entries.includes(rel), `comment names ${rel} which is not in ERROR_LEAK_ALLOW`);

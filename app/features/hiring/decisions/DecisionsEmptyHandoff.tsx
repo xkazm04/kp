@@ -85,7 +85,7 @@ export function DecisionsEmptyHandoff({
         <button
           type="button"
           onClick={onRevealReconsider}
-          className={`focus-ring mx-auto mt-5 inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-semibold hover:bg-amber-100 ${NOTICE("amber")}`}
+          className={`${NOTICE("amber")} focus-ring mx-auto mt-5 inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-semibold hover:bg-amber-100`}
         >
           <RotateCcw size={13} aria-hidden />
           {t("reconsiderLine", { count: reconsiderCount })}

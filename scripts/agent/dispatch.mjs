@@ -172,6 +172,7 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/security/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/hooks/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/docs/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/dev-inspector/', why: 'the machinery that judges this change (test:docs)' },
   { prefix: 'scripts/__tests__/', why: 'fixtures test:docs runs (schemas-gen, market-fetch)' },
   { prefix: 'scripts/schemas-gen.mjs', why: 'the first step of typecheck and build' },
   { prefix: 'scripts/lint/', why: 'the machinery that judges this change' },

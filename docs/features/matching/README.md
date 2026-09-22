@@ -396,6 +396,45 @@ workspace that fell back holds English prose in a **shared, persisted** record �
 does, instead of every later reader being told the text is in their language.
 Evals saved before the field carry no `comparisonLang` and render no note.
 
+The language it is asked for is **the evaluating team's own** default, not a
+fixed tenant's. `runGroupCompare` used to call `getWorkspaceDefaultLocale()` with
+no argument, which reads `DEFAULT_WORKSPACE_ID` — so a team that had set its own
+language received a persisted, team-shared comparison written in the default
+team's language, and `comparisonLang` then recorded that wrong language
+permanently, note and all. The run's `workspaceId` is now threaded into
+`runGroupCompare` as a parameter (so no call site can omit it) and passed as
+`--lang`. This is the same untenanted-locale defect `app/_lib/automation-run.ts`
+documents for the background automation pass. Pinned by
+`app/_lib/group-eval-i18n-facts.test.ts`.
+
+**A cell announces what it paints.** `cellClass` treats a null score as
+unassessed — it paints the hatch rather than the lowest band, because a coral cell
+would claim a poor fit the pipeline never computed — and the cell body renders
+nothing for it. The accessible name did not agree: `aria-label` said
+`matchVal { score: c.score ?? 0 }` and `title` a bare `c.score ?? 0`, so a
+screen-reader user was told a concrete "match 0" for the very cell the grid reads
+as not-assessed. Both halves now derive from the one exported predicate,
+`matrixCellClass.ts::announcedCellScore`, and an absent score announces
+`matrix.cellUnassessed` ("not scored") instead of a number. A GENUINE 0 is a real
+score and still announces as 0. Pinned by
+`app/features/insights/matrix/matrixCellClass.test.ts`, which asserts the paint
+and the name agree across every band floor and both null cases.
+
+**The grid popover's narrative cache is keyed by language.** The "why this
+score" popover fetches one LLM-backed narrative per cell and de-dupes on a ref so
+a second click cannot spend a second Python spawn. Both that ref and the state
+map behind it were keyed `candidate|position`, while the request itself carries
+`lang` — so the cache key did not name the one parameter that changes the answer.
+After a reader switched language, re-opening the same cell hit the de-dupe and
+kept showing the OLD language's text, and `ReasoningProvenance` then compared
+that stale `narrativeLang` against the NEW locale, so the "shown in {language}"
+note was wrong exactly when it mattered. Both the writer (`useMatrixTab`) and the
+reader (`MatrixReasoningPopover`) now build the key through
+`matrixSelection.ts::matrixReasoningKey`, so they cannot drift apart in one
+direction only. The SELECTION key stays language-free by design — a shortlisted
+cell is shortlisted whatever the reader is reading in. Pinned by
+`app/features/insights/matrix/matrixSelection.test.ts`.
+
 **`group_compare` reports its own provenance honestly.** An under-delivered
 model payload (a headline with no `keyPoints`) is replaced *wholesale* by the
 deterministic synthesis, and `generate` used to still return `source="llm"` for

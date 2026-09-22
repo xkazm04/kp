@@ -284,6 +284,11 @@ async function runGroupCompare(
   roleTitle: string,
   candidates: PerCandidate[],
   roleSalaryBand: number[],
+  // TENANCY: the workspace this eval is being run FOR. The narrative is persisted and
+  // shared across that team, so its language is the team's own configured default —
+  // never a fixed tenant's. Threaded as a parameter rather than read inside, so the
+  // call site cannot forget it.
+  workspaceId: string,
   signal?: AbortSignal,
 ): Promise<{ comparison: Comparison; source: string; narrativeLang: string } | null> {
   let workdir: string | null = null;
@@ -324,8 +329,13 @@ async function runGroupCompare(
     // saved eval — render it in the org's configured language. The workspace
     // default is the org language authority available in every context (this runs
     // on-demand and in the background eval pass, which has no request cookie).
+    // …and it is THIS TEAM's default, not a fixed tenant's. A bare
+    // getWorkspaceDefaultLocale() reads DEFAULT_WORKSPACE_ID, so a team that had set
+    // its own language got a persisted, team-shared comparison written in the default
+    // team's language — and `comparisonLang` recorded that wrong language permanently.
+    // Same untenanted defect automation-run.ts documents for the background pass.
     const { result } = spawnPython(
-      ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale()],
+      ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale(workspaceId)],
       // buildLlmConfigEnv: the CLI resolves the group_compare use case — without
       // this env the configured BYOM provider/key re-route is silently dead.
       // timeoutMs: this is the ONE spawn of the three this module owns directly, so
@@ -718,7 +728,9 @@ export async function runGroupEval(
   // against nobody. Below the floor there is nothing to compare: emit no narrative, and
   // AiVerdict falls back to the honest insufficient-sample summary.
   const compareStage = stageSignal(signal, stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS));
-  const compare = comparable ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], compareStage.signal) : null;
+  const compare = comparable
+    ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], workspaceId, compareStage.signal)
+    : null;
   // A null compare over a comparable field means the narrative did not arrive — the
   // spawn failed, passed its deadline, or returned a headline-less body. Either way
   // the modal falls back to `summary`, and the payload now says so rather than

@@ -1406,7 +1406,10 @@ class RematchNarrativeTest(unittest.TestCase):
         self.assertEqual(result["source"], "deterministic")
         reason = automation.take_degradation_reason()
         self.assertIsNotNone(reason, "a descent with no reason is the blank ledger line A7 is about")
-        self.assertIn("provider exploded", reason)
+        # One of DEGRADATION_REASONS, like every other task's — an unannotated
+        # RuntimeError carries no LLMError subtype, so it falls to the generic
+        # bucket exactly as `_call_failure_reason` would.
+        self.assertEqual(reason, "provider_error")
 
     def test_a_clean_run_leaves_no_stale_reason_behind(self):
         # rematch does not go through `_generate`, which is where the per-call reset

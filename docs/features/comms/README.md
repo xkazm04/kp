@@ -159,6 +159,16 @@ it, so such a message dead-letters). Every `OutboundMessage` carries `ref`
 When a real email *is* captured at intake (quick-apply requires one), it
 rides the envelope as `candidate.email` — see outbound-export.md.
 
+**Refused, not guessed:** an entry whose `population` is `'agent'` (an AI agent
+on a role's slate) has no mailbox, so `candidateRecipient()` returns `null`
+(`recipientRefusal()` in `app/_lib/comms-recipient.ts` states why) rather than
+resolving its label for a relay to dead-letter. `sendCandidateComm` records the
+comm at once as `failed` on the `refused` channel with the reason in
+`failure_detail`, an empty recipient and no data/stop footers; no channel or
+relay is contacted, and the empty recipient keeps the resend door from
+re-dispatching it. The field is optional on the dispatch input — absent means a
+person — so the guard is inert until entries carry the column.
+
 ## 5. Interview-reminder policy (sub-24h bookings)
 
 Confirmed interviews get one timed reminder, fired by the heartbeat sweep

@@ -13,7 +13,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Cell } from "./matrixCellClass";
 import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
-import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
+import { matrixCellKey, matrixReasoningKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition, popoverDims } from "./matrixPopover";
 import { matrixCsvRows } from "./matrixCsv";
 import { createFrameThrottle } from "./matrixAnchor";
@@ -383,7 +383,13 @@ export function useMatrixTab() {
   const requestedReasoning = useRef<Set<string>>(new Set());
   // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
   const fetchReasoning = useCallback((candId: string, posId: string) => {
-    const key = `${candId}|${posId}`;
+    // The key names the LANGUAGE too. The request below carries `lang: locale`, so the
+    // narrative is a different answer per locale — keyed without it, re-opening a cell
+    // after a language switch hit this de-dupe and kept showing the old language's text,
+    // while the provenance note compared that stale `narrativeLang` against the NEW
+    // locale. This callback's `locale` dependency makes the CALLBACK fresh; it does
+    // nothing to the ref the callback closes over, which is where the staleness lived.
+    const key = matrixReasoningKey(candId, posId, locale);
     if (requestedReasoning.current.has(key)) return; // already loaded / in flight
     requestedReasoning.current.add(key);
     const ac = new AbortController();

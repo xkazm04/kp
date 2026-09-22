@@ -200,6 +200,22 @@ export async function startClock(): Promise<void> {
     // here too so the boot log names the cause.
     console.error("[clock] late-bound registration failed:", e);
   }
+  // Late-bound stage-arrival hook (app/_lib/stage-hook-registry.ts): the same seam,
+  // for the same reason. db/pipeline.ts is reached by nearly every route, and
+  // stage-hooks.ts reaches the interview-invite door and the whole voice layer, so
+  // the implementation is bound HERE rather than from the store. Idempotent.
+  try {
+    const { registerStageEnteredHook } = await import("./app/_lib/stage-hook-registry");
+    registerStageEnteredHook((input) => {
+      void import("./app/_lib/stage-hooks")
+        .then(({ scheduleStageEnteredHook }) => scheduleStageEnteredHook(input))
+        .catch((error) => {
+          console.error("[pipeline] stage-entered hook could not be scheduled", error instanceof Error ? error.message : error);
+        });
+    });
+  } catch (e) {
+    console.error("[clock] stage-entered hook registration failed:", e);
+  }
   const g = globalThis as typeof globalThis & { __kpClockStarted?: boolean };
   if (g.__kpClockStarted) return; // guard against duplicate intervals across HMR
   g.__kpClockStarted = true;

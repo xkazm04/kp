@@ -134,14 +134,20 @@ usually fixes it:
    the path; import the slice instead.
 2. **A helper living in a hub module.** Move it to a leaf — that is what
    `plannedInterviewMinutes` → `app/_lib/interview-planned-minutes.ts` was.
-3. **A heavy implementation behind a hub.** When a hub (`tasks.ts`, `db/pipeline.ts`)
-   needs to *run* something large but not to *know* it, late-bind it: a leaf registry
-   on `globalThis` (`task-external-runners.ts`, `stage-hooks-invite.ts`), filled at
-   boot by `app/_lib/late-bound-boot.ts` from `instrumentation-node.ts`. A dynamic
-   `import()` in the hub does not help, because the walker counts it. That is what took
-   `/api/tasks` from 256 to 229 modules on 2026-09-18.
-4. **`import type` written as a value import.** Free once it is a type import.
-5. **The route genuinely needs it.** Raise the ceiling with a `why`.
+3. **`import type` written as a value import.** Free once it is a type import.
+4. **A heavy subsystem hanging off a hub through `import()`.** A dynamic import
+   is COUNTED — Next pays for the chunk either way — so writing `await
+   import("…")` does not take a module off the graph. What does is a leaf
+   registry the hub reads and `instrumentation-node.ts` fills at boot, which is
+   on no route's path: `app/_lib/task-external-runners.ts` (the job-seeker scan,
+   off `app/_lib/tasks.ts`) and `app/_lib/stage-hook-registry.ts` (the
+   stage-arrival hook and the voice layer behind it, off `app/_lib/db/pipeline.ts`
+   — 23 modules and 295 KB off every route that reaches the store). Both keep the
+   registry map on `globalThis`: Next evaluates the instrumentation chunk and the
+   route chunk separately, so a module-level map is two maps.
+5. **The route genuinely needs it.** Raise the ceiling with a `why`. A single
+   route above the group's p95 takes a named `overrides` entry rather than a
+   group raise, so it is the one route that is visible in the diff.
 
 ```bash
 node scripts/perf/check-budget.mjs --explain app/api/schedule/route.ts

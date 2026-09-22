@@ -60,6 +60,17 @@ const { createOffer, listOffersForEntry } = await import("./offers-store.ts");
 const { createScheduleInvite, getScheduleInviteByToken } = await import("./schedule-store.ts");
 const { saveInterviewPrep, getInterviewPrep } = await import("./interview-prep.ts");
 const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./rediscovery-alert-store.ts");
+// HOISTED, and it has to stay here. node:test starts the root suite as soon as the
+// module yields at a top-level await, so a `test(...)` registered BEFORE such an
+// await and an `await import(...)` written further down mean the root can COMPLETE
+// — running the `after()` hook below, which deletes TMP_DIR — while the tests after
+// that await are still queued as late subtests. On Windows the delete fails (SQLite
+// keeps the file open) and the catch swallows it, so this file passed; on Linux it
+// succeeds and the last test opened a database in a directory that was no longer
+// there ("Cannot open database because the directory does not exist", CI 2026-09-21).
+// Every dynamic import this file makes is therefore taken BEFORE the first test.
+const { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES } = await import("./tenancy.ts");
+const { ERASURE_EXEMPT, ERASURE_DELEGATED_SCRUBS } = await import("./db/pipeline.ts");
 
 after(() => {
   try {
@@ -202,8 +213,6 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
 // These tests close the loop: every scoped table must be written by the erasure
 // region, delegated to a named scrub, or carry a legal retention reason.
 // ---------------------------------------------------------------------------
-const { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES } = await import("./tenancy.ts");
-const { ERASURE_EXEMPT, ERASURE_DELEGATED_SCRUBS } = await import("./db/pipeline.ts");
 
 /** The erasure region of db/pipeline.ts: scrubEntryLinkedPii + anonymizeEntry, with
  *  comments stripped (a table named in PROSE must never count as scrubbed) and line

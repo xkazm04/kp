@@ -29,6 +29,7 @@ import { revokeOpenInterviewSessions } from "./interviews";
 // commits (see its tail). interview-recording.ts reaches the compliance config and the
 // interview stores, neither of which imports this module, so this is not a cycle.
 import { deleteEntryRecordings } from "../interview-recording";
+import { notifyStageEnteredHook } from "../stage-hook-registry";
 
 /** POST-COMMIT seam: "this entry now STANDS on stage X".
  *
@@ -42,11 +43,19 @@ import { deleteEntryRecordings } from "../interview-recording";
  *  and comms work, and an `await` between BEGIN and COMMIT would silently destroy
  *  the transaction's atomicity. The scheduling itself (`afterResponse`, which keeps
  *  the work off the request's critical path and alive on serverless) lives in
- *  stage-hooks.ts, and the whole module is reached through a LAZY import for two
+ *  stage-hooks.ts, and the whole module is reached through a LATE BINDING for three
  *  reasons: it imports back into this store — and into the billing, comms and
  *  interview layers — so a static edge would make a cycle out of what is really a
- *  one-way notification; and it pulls in `next/server`, which this store must stay
- *  free of so the node:test suite can load it outside a Next runtime.
+ *  one-way notification; it pulls in `next/server`, which this store must stay
+ *  free of so the node:test suite can load it outside a Next runtime; and it drags
+ *  the whole voice layer (23 modules, ~295 KB) onto the graph of every route that
+ *  reaches this store, which is nearly all of them.
+ *
+ *  The binding used to be a dynamic `import()`, which answers the first two reasons
+ *  but not the third — the perf budget counts a dynamic import, because Next pays
+ *  for the chunk either way. So the edge is a leaf registry instead
+ *  (stage-hook-registry.ts) that instrumentation-node.ts fills at boot, the same
+ *  seam and the same globalThis caveat as task-external-runners.ts.
  *
  *  Fire-and-forget by construction: `scheduleStageEnteredHook` never throws and
  *  `afterResponse` logs a throwing task rather than letting it become an unhandled
@@ -58,13 +67,7 @@ import { deleteEntryRecordings } from "../interview-recording";
 function notifyStageEntered(entry: PipelineEntry | null, fromStage: string | null, actorRef?: string | null): void {
   if (!entry || fromStage === null || entry.stage === fromStage) return;
   const { id, stage, workspaceId } = entry;
-  void import("../stage-hooks")
-    .then(({ scheduleStageEnteredHook }) =>
-      scheduleStageEnteredHook({ entryId: id, stage, workspaceId, actorRef: actorRef ?? null })
-    )
-    .catch((error) => {
-      console.error("[pipeline] stage-entered hook could not be scheduled", error instanceof Error ? error.message : error);
-    });
+  notifyStageEnteredHook({ entryId: id, stage, workspaceId, actorRef: actorRef ?? null });
 }
 
 // ---- Hiring pipeline (Phase 10) -------------------------------------------

@@ -2160,7 +2160,8 @@
       "human": "Menschliche Entscheidung",
       "humanReviewNote": "Sie können jederzeit eine menschliche Überprüfung jeder Entscheidung anfordern. Antworten Sie einfach auf eine beliebige Nachricht des Recruiting-Teams.",
       "reasons": {
-        "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter der Screening-Schwelle von {threshold}."
+        "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter der Screening-Schwelle von {threshold}.",
+        "rubric": "Die entscheidenden Fakten nach Kompetenz:"
       },
       "kinds": {
         "auto_rejected": "Bewerbung im automatisierten Screening nicht weitergekommen",
@@ -8275,6 +8276,7 @@
     "cellAria": "{cand} zu {pos}: {val}{ring}{sel}",
     "blocked": "blockiert",
     "matchVal": "Match {score}",
+    "cellUnassessed": "nicht bewertet",
     "popoverAria": "Warum {cand} für {pos} punktet",
     "closePopover": "Schließen",
     "reasoningLoading": "Eignung wird gelesen…",

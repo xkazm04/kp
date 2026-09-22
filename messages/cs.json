@@ -2160,7 +2160,8 @@
       "human": "Lidské rozhodnutí",
       "humanReviewNote": "Kdykoli můžete požádat o lidské přezkoumání kteréhokoli rozhodnutí. Stačí odpovědět na libovolnou zprávu od náborového týmu.",
       "reasons": {
-        "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem screeningu {threshold}."
+        "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem screeningu {threshold}.",
+        "rubric": "Rozhodující skutečnosti podle hodnocených oblastí:"
       },
       "kinds": {
         "auto_rejected": "Přihláška nepostoupila při automatizovaném screeningu",
@@ -8275,6 +8276,7 @@
     "cellAria": "{cand} na {pos}: {val}{ring}{sel}",
     "blocked": "blokováno",
     "matchVal": "shoda {score}",
+    "cellUnassessed": "nehodnoceno",
     "popoverAria": "Proč {cand} skóruje na {pos}",
     "closePopover": "Zavřít",
     "reasoningLoading": "Načítá se hodnocení…",
