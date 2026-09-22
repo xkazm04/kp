@@ -407,6 +407,8 @@ animation — so a reduced-motion reader gets the same signal. Pinned by
 `app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
 `company_url` honeypot (not `type="hidden"`) and POST it on submit so a
 form-filling bot is dropped the same way on the chat as on the lead form.
+The conversational POST checks the honeypot before its knockout audit or
+pipeline writes and returns the ordinary decline shape for a filled field.
 After a quick-apply decline, the done card lets the candidate return to their
 preserved answers and submit a corrected response.
 An accepted lead can copy the status link from the same card; the copied URL

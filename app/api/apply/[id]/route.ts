@@ -5,7 +5,7 @@ import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, findEntryByLeadToken, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
 import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
+import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageWithRole } from "@/app/_lib/pipeline-stages";
@@ -223,8 +223,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // measurement — it grants nothing, so an absent or bogus value only leaves
       // the attempt looking abandoned.
       applySessionId?: unknown;
+      company_url?: unknown;
     }>(request, MAX_APPLY_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
+    // A filled hidden field signals an automated submission. Mirror the ordinary
+    // knockout result without creating an entry or sending any comms.
+    if (isHoneypotFilled(body)) {
+      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+    }
     const answers = body.answers ?? {};
     // Close the funnel loop on whichever path files an entry: a first application,
     // the dedupe backstop, or a re-apply that merged onto the original. All three
