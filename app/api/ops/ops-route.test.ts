@@ -62,8 +62,25 @@ process.env.KP_OPERATOR_PASSWORD = "ops-route-test-password";
 
 const { GET } = await import("./route.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
+const { afterResponse, getAfterResponseFailureCount } = await import("../../_lib/after-response.ts");
 
 after(() => cleanupUnitDb());
+
+test("deferred task failures increment operator telemetry", async () => {
+  const before = getAfterResponseFailureCount();
+  const original = console.error;
+  console.error = () => {};
+  try {
+    afterResponse("ops-test", async () => { throw new Error("test failure"); });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(getAfterResponseFailureCount(), before + 1);
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const body = await bodyOf(await GET());
+    assert.equal(body.afterResponseFailures, before + 1);
+  } finally {
+    console.error = original;
+  }
+});
 
 type OpsBody = {
   tables?: Record<string, number>;
@@ -77,6 +94,7 @@ type OpsBody = {
   degradedReasons?: string[];
   configIssues?: { phase: string; scope: string; workspaceId: string }[];
   opsWarnings?: { event?: string; level?: string }[];
+  afterResponseFailures?: number;
 };
 const bodyOf = async (r: Response): Promise<OpsBody> => (await r.json()) as OpsBody;
 

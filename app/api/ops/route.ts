@@ -10,6 +10,7 @@ import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/l
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 import { publicOriginHealth } from "@/app/_lib/public-base-url";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
+import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
 
 
 // DATA2 — the operator's read of everything the app records and nothing read:
@@ -121,6 +122,7 @@ export async function GET() {
         reconcileFailures: getScheduleReconcileCount(),
         noSlotStalls: getScheduleNoSlotsCount(),
       },
+      afterResponseFailures: getAfterResponseFailureCount(),
     });
   } catch (error) {
     // The thrown message here is the WORST kind to forward: this payload is built
