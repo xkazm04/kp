@@ -13,9 +13,13 @@ import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
 // Wire contract the grid consumes. Extra CLI keys currently survive parsePythonJson
 // at runtime but were untyped (and could be dropped by the next typed mapper) —
 // the same hole koKeys had to be named before the grid could localize blockers.
-// fitTier/confidence/unprovenCount/provenanceMix are additive and optional so a
-// cell of only {score, blocked} still validates. respond() spreads the parsed
-// matrix unchanged; the cache key hashes the CLI JSON, so typing here does not
+// matrix_cli emits fitTier/confidence/unprovenCount on every SCORED cell (the
+// scorer's own tier and band, matching.py::score_job); a blocked cell is
+// {score: null, blocked, koKeys}. They stay optional so a cached/older
+// {score, blocked} cell still validates. Every optional key here must be one the
+// CLI actually emits — matrix-cell.test.ts reads both files (provenanceMix was
+// declared for months and sent by nothing). respond() spreads the parsed matrix
+// unchanged; the cache key hashes the CLI INPUT JSON, so typing here does not
 // move the key.
 type Cell = {
   score: number | null;
@@ -24,7 +28,6 @@ type Cell = {
   fitTier?: "strong" | "promising" | "partial";
   confidence?: { low: number; high: number; level?: string };
   unprovenCount?: number;
-  provenanceMix?: string;
 };
 type MatrixOut = {
   candidates: { id: string; label: string; archetype: string | null }[];

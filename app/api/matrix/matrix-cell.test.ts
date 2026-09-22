@@ -1,16 +1,22 @@
-// Pins the GET /api/matrix Cell wire contract: the four CLI summary fields are
+// Pins the GET /api/matrix Cell wire contract: the CLI summary fields are
 // declared optional on the route type, and a cell of only `{score, blocked}`
-// still validates. Extra keys must not become required — that would reject the
-// payload matrix_cli emits today ({score, blocked, koKeys?} only).
+// still validates (a blocked cell is {score: null, blocked, koKeys}; an older
+// cached payload has no summary fields). Every optional key the type declares
+// must be EMITTED by matrix_cli.py — a declared-but-never-sent field is a wire
+// type describing something nothing produces (provenanceMix was exactly that).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const SUMMARY = ["fitTier?", "confidence?", "unprovenCount?", "provenanceMix?"] as const;
+const SUMMARY = ["fitTier?", "confidence?", "unprovenCount?"] as const;
 
 function routeSrc(): string {
   return readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+}
+
+function cliSrc(): string {
+  return readFileSync(fileURLToPath(new URL("../../../pipeline/jobfit/matrix_cli.py", import.meta.url)), "utf8");
 }
 
 function cellTypeBody(src: string): string {
@@ -28,7 +34,7 @@ function isMatrixCell(raw: unknown): boolean {
   return true;
 }
 
-test("route Cell type enumerates the four CLI summary fields as optional", () => {
+test("route Cell type enumerates the CLI summary fields as optional", () => {
   const body = cellTypeBody(routeSrc());
   for (const field of SUMMARY) {
     assert.ok(body.includes(field), `${field} must be optional on Cell`);
@@ -46,7 +52,6 @@ test("a cell with only score and blocked still validates; summary fields are add
     fitTier: "strong",
     confidence: { low: 50, high: 72, level: "moderate" },
     unprovenCount: 2,
-    provenanceMix: "mixed",
   };
   assert.equal(isMatrixCell(old), true);
   assert.equal(isMatrixCell(blocked), true);
@@ -92,4 +97,16 @@ test("respond() still spreads the parsed matrix, so extra cell keys are not stri
   assert.ok(respond >= 0, "respond() helper");
   const body = src.slice(respond, src.indexOf("const key = matrixCacheKey", respond));
   assert.match(body, /\.\.\.\s*matrix/);
+});
+
+test("every optional key the route's Cell declares is emitted by matrix_cli.py", () => {
+  const body = cellTypeBody(routeSrc());
+  // Top-level members only (two-space indent): `level?` inside confidence is nested.
+  const optional = [...body.matchAll(/^ {2}(\w+)\?:/gm)].map((m) => m[1]);
+  assert.ok(optional.length >= 4, `expected koKeys + the summary fields, got ${optional.join(",")}`);
+  const cli = cliSrc();
+  for (const key of optional) {
+    assert.ok(cli.includes(`"${key}"`), `${key} is declared on Cell but matrix_cli.py never emits it`);
+  }
+  assert.doesNotMatch(body, /provenanceMix/, "provenanceMix was declared and emitted by nothing");
 });

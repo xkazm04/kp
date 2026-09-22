@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 from pipeline.jobfit.jobs import normalize_job
+from pipeline.jobfit.matching import fit_tier_for
 from pipeline.jobfit.matrix_cli import main
 
 JOB = normalize_job(
@@ -85,6 +86,36 @@ class MatrixCliMissingCandidatesTest(unittest.TestCase):
         self.assertFalse(cells[0][0]["blocked"])
         self.assertIsInstance(cells[0][0]["score"], int)
         self.assertEqual(cells[1][0], {"score": None, "blocked": True, "koKeys": ["language"]})
+
+    def test_scored_cell_carries_the_scorers_tier_band_and_unproven_count(self) -> None:
+        # score_job already computes fit_tier, the confidence band and the unproven
+        # skills; the grid used to keep only `.total` and band the number itself on a
+        # private scale. A scored cell now carries the scorer's own read of the pair.
+        result = _run([GOOD_PROFILE])
+        self.assertEqual(result["code"], 0)
+        cell = result["payload"]["cells"][0][0]
+        self.assertFalse(cell["blocked"])
+        score = cell["score"]
+        self.assertIsInstance(score, int)
+        self.assertEqual(cell["fitTier"], fit_tier_for(score))
+        conf = cell["confidence"]
+        self.assertEqual(set(conf), {"low", "high", "level"})
+        self.assertLessEqual(conf["low"], score)
+        self.assertLessEqual(score, conf["high"])
+        self.assertIn(conf["level"], {"tight", "moderate", "wide"})
+        self.assertIsInstance(cell["unprovenCount"], int)
+        self.assertGreaterEqual(cell["unprovenCount"], 0)
+
+    def test_blocked_cell_carries_no_scorer_fields(self) -> None:
+        german_only = {
+            **GOOD_PROFILE,
+            "id": "german-only",
+            "payload": {**GOOD_PROFILE["payload"], "languages": ["German"]},
+        }
+        cell = _run([german_only])["payload"]["cells"][0][0]
+        self.assertEqual(set(cell), {"score", "blocked", "koKeys"})
+        self.assertIsNone(cell["score"])
+        self.assertTrue(cell["blocked"])
 
     def test_invalid_profile_is_surfaced_not_dropped(self) -> None:
         # A malformed profile sits between/with a valid one. The bad row is recorded
