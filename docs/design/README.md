@@ -445,6 +445,9 @@ pinned by `useTablist.test.ts`; the two per-feature copies it replaced
 carrying a note asking for this promotion on the third caller) are gone.
 
 `useDateFormat` carries four shapes — `date`, `dateTime`, `dayTime`, `time` —
+from `app/_components/ui/dateShapes.ts`. Server components and plain `.ts`
+callers use `createDateFormatters(locale)` for the same four shapes without a
+React hook; both paths share the option bags and invalid-date fallback. They are
 all null-safe with a `fallback` (default `—`), because dates arrive as ISO
 strings that can be absent or malformed and "Invalid Date" in a candidate card
 is the failure the guard exists to prevent.
