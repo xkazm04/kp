@@ -45,12 +45,12 @@ export function PalettePreviewPane({ item }: { item: PaletteItem }) {
   return (
     <div key={previewQuery(item) ?? undefined} role="status" aria-live="polite" aria-atomic="true" className="stagger-children space-y-3">
       <span className="sr-only">{item.label}: </span>
-      {renderPreview(state.preview, t)}
+      {renderPreview(state.preview, t, item)}
     </div>
   );
 }
 
-function renderPreview(p: PalettePreview, t: ReturnType<typeof useTranslations>) {
+function renderPreview(p: PalettePreview, t: ReturnType<typeof useTranslations>, item: PaletteItem) {
   switch (p.view) {
     case "pipeline":
       return <PreviewPipeline p={p} />;
@@ -81,7 +81,7 @@ function renderPreview(p: PalettePreview, t: ReturnType<typeof useTranslations>)
     case "activity":
       return <PreviewActivity p={p} />;
     case "about":
-      return <PreviewAbout />;
+      return <PreviewAbout href={item.href ?? "?tab=about"} />;
     case "organization":
       return <PreviewOrganization p={p} />;
     case "branding":

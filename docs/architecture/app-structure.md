@@ -312,7 +312,8 @@ row 0, and Enter opened a candidate the recruiter had not typed. A malformed but
 successful body is the opposite case and stays a genuine zero-hit result, so the
 palette may still say "no matches" for it.
 
-The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
+The About tab's preview lists its six localized chapter claims with direct hash
+links to each chapter. The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
 master–detail): a dense grouped index on the left (`WorkspacePaletteRow.tsx`:
 glyph tile, match highlight) and a **live preview pane** on the right for the
 highlighted row: kind eyebrow, the name in the display face, the destination's
