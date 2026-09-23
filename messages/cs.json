@@ -9100,7 +9100,39 @@
       "deadLetters": "{count, plural, one {# nedoručená zpráva · 7 dní} few {# nedoručené zprávy · 7 dní} other {# nedoručených zpráv · 7 dní}}",
       "reconcileFailures": "{count, plural, one {# selhání synchronizace plánování} few {# selhání synchronizace plánování} other {# selhání synchronizace plánování}}",
       "bookedStalls": "{count, plural, one {# zablokování kvůli plnému kalendáři} few {# zablokování kvůli plnému kalendáři} other {# zablokování kvůli plnému kalendáři}}",
-      "alarmOpen": "Otevřít: {tab}"
+      "alarmOpen": "Otevřít: {tab}",
+      "findingEnv": "Nastavte na serveru: {vars}",
+      "findingsLabel": "Zjištění o připravenosti",
+      "findings": {
+        "PUBLIC_ORIGIN_CONFLICT": {
+          "title": "Dvě veřejné adresy si odporují",
+          "fix": "APP_BASE_URL je {server}, ale NEXT_PUBLIC_APP_BASE_URL je {client}, takže e-maily kandidátům a kopírované odkazy mohou vést na různé servery. Nastavte obě proměnné na stejnou adresu a restartujte server."
+        },
+        "PUBLIC_ORIGIN_FALLBACK": {
+          "title": "Není nastavena veřejná adresa",
+          "fix": "Odkazy v e-mailech odesílaných na pozadí používají výchozí adresu webu, která nemusí patřit tomuto nasazení. Nastavte APP_BASE_URL na adresu, kterou mají kandidáti otevírat."
+        },
+        "SEED_LOAD_FAILED": {
+          "title": "Výchozí data {seed} se nepodařilo načíst",
+          "fix": "Soubor {path} nelze přečíst ani zpracovat. Opravte jej nebo nahraďte na serveru a poté server restartujte."
+        },
+        "CATALOG_SEED_FAILED": {
+          "title": "Katalog pozic je prázdný, protože selhala výchozí data",
+          "fix": "Do katalogu se nic nenačetlo. Opravte soubor s výchozími daty pozic a restartujte server, nebo pozice vytvořte ručně."
+        },
+        "DECISION_CONFIG_UNREADABLE": {
+          "title": "Pravidla rozhodování pro fázi {phase} neplatí",
+          "fix": "{scope, select, org {Základní nastavení organizace} other {Nastavení týmu {workspaceId}}} nelze přečíst, proto platí výchozí pravidla, i když je nastavení zobrazuje jako zvolená. Otevřete Rozhodnutí a pravidla znovu uložte."
+        },
+        "SCHEDULER_STARTING": {
+          "title": "Plánovač se spouští",
+          "fix": "Automatizační hodiny jsou připravené a čekají na první tep. Nemusíte nic dělat, stav zmizí do dvou minut po restartu."
+        },
+        "SCHEDULER_STALLED": {
+          "title": "Plánovač se zastavil",
+          "fix": "{lastTickAt, select, never {Automatizační hodiny nezaznamenaly žádný tep.} other {Od {lastTickAt} nepřišel žádný tep.}} Připomínky pohovorů, vypršení nabídek ani kontrola souhlasů neprobíhají. Restartujte serverový proces."
+        }
+      }
     },
     "useCases": {
       "match_reasoning": "Zdůvodnění shody",

@@ -9100,7 +9100,39 @@
       "deadLetters": "{count, plural, one {# dead-lettered message · 7d} other {# dead-lettered messages · 7d}}",
       "reconcileFailures": "{count, plural, one {# schedule reconcile failure} other {# schedule reconcile failures}}",
       "bookedStalls": "{count, plural, one {# fully-booked stall} other {# fully-booked stalls}}",
-      "alarmOpen": "Open {tab}"
+      "alarmOpen": "Open {tab}",
+      "findingEnv": "Set on the server: {vars}",
+      "findingsLabel": "Readiness findings",
+      "findings": {
+        "PUBLIC_ORIGIN_CONFLICT": {
+          "title": "Two public addresses disagree",
+          "fix": "APP_BASE_URL is {server} but NEXT_PUBLIC_APP_BASE_URL is {client}, so candidate emails and copied links can point at different hosts. Set both to the same address and restart the server."
+        },
+        "PUBLIC_ORIGIN_FALLBACK": {
+          "title": "No public address is configured",
+          "fix": "Links in emails sent by background work use the default site address, which may not be this deployment. Set APP_BASE_URL to the address candidates should open."
+        },
+        "SEED_LOAD_FAILED": {
+          "title": "Seed data {seed} failed to load",
+          "fix": "The file {path} could not be read or parsed. Repair or replace it on the server, then restart the server."
+        },
+        "CATALOG_SEED_FAILED": {
+          "title": "The job catalog is empty because its seed failed",
+          "fix": "Nothing was loaded into the catalog. Repair the jobs seed file and restart the server, or create roles by hand."
+        },
+        "DECISION_CONFIG_UNREADABLE": {
+          "title": "Decision rules for {phase} are not in force",
+          "fix": "{scope, select, org {The organization baseline} other {The team override for {workspaceId}}} could not be read, so the default rules apply while settings show them as chosen. Open Decisions and save the rules again."
+        },
+        "SCHEDULER_STARTING": {
+          "title": "The scheduler is starting",
+          "fix": "The automation clock is armed and waiting for its first heartbeat. Nothing to do: this clears within two minutes of a restart."
+        },
+        "SCHEDULER_STALLED": {
+          "title": "The scheduler has stopped",
+          "fix": "{lastTickAt, select, never {The automation clock never recorded a heartbeat.} other {No heartbeat since {lastTickAt}.}} Interview reminders, offer expiry and the consent sweep are not running. Restart the server process."
+        }
+      }
     },
     "useCases": {
       "match_reasoning": "Match reasoning",

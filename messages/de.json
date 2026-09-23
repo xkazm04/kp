@@ -9100,7 +9100,39 @@
       "deadLetters": "{count, plural, one {# unzustellbare Nachricht · 7 Tage} other {# unzustellbare Nachrichten · 7 Tage}}",
       "reconcileFailures": "{count, plural, one {# fehlgeschlagener Planungsabgleich} other {# fehlgeschlagene Planungsabgleiche}}",
       "bookedStalls": "{count, plural, one {# Blockade durch vollen Kalender} other {# Blockaden durch volle Kalender}}",
-      "alarmOpen": "Öffnen: {tab}"
+      "alarmOpen": "Öffnen: {tab}",
+      "findingEnv": "Auf dem Server setzen: {vars}",
+      "findingsLabel": "Befunde zur Betriebsbereitschaft",
+      "findings": {
+        "PUBLIC_ORIGIN_CONFLICT": {
+          "title": "Zwei öffentliche Adressen widersprechen sich",
+          "fix": "APP_BASE_URL ist {server}, NEXT_PUBLIC_APP_BASE_URL aber {client}, daher können E-Mails an Kandidaten und kopierte Links auf verschiedene Hosts zeigen. Setzen Sie beide auf dieselbe Adresse und starten Sie den Server neu."
+        },
+        "PUBLIC_ORIGIN_FALLBACK": {
+          "title": "Keine öffentliche Adresse konfiguriert",
+          "fix": "Links in E-Mails, die im Hintergrund versendet werden, nutzen die Standardadresse der Website, die nicht zu dieser Installation gehören muss. Setzen Sie APP_BASE_URL auf die Adresse, die Kandidaten öffnen sollen."
+        },
+        "SEED_LOAD_FAILED": {
+          "title": "Startdaten {seed} konnten nicht geladen werden",
+          "fix": "Die Datei {path} ließ sich nicht lesen oder verarbeiten. Reparieren oder ersetzen Sie sie auf dem Server und starten Sie den Server anschließend neu."
+        },
+        "CATALOG_SEED_FAILED": {
+          "title": "Der Stellenkatalog ist leer, weil seine Startdaten fehlschlugen",
+          "fix": "In den Katalog wurde nichts geladen. Reparieren Sie die Startdatei der Stellen und starten Sie den Server neu, oder legen Sie Stellen manuell an."
+        },
+        "DECISION_CONFIG_UNREADABLE": {
+          "title": "Entscheidungsregeln für {phase} sind nicht in Kraft",
+          "fix": "{scope, select, org {Die Grundeinstellung der Organisation} other {Die Team-Einstellung für {workspaceId}}} ließ sich nicht lesen, daher gelten die Standardregeln, obwohl die Einstellungen sie als gewählt anzeigen. Öffnen Sie Entscheidungen und speichern Sie die Regeln erneut."
+        },
+        "SCHEDULER_STARTING": {
+          "title": "Der Scheduler startet",
+          "fix": "Die Automatisierungsuhr ist bereit und wartet auf ihren ersten Herzschlag. Sie müssen nichts tun, dies erledigt sich binnen zwei Minuten nach einem Neustart."
+        },
+        "SCHEDULER_STALLED": {
+          "title": "Der Scheduler steht still",
+          "fix": "{lastTickAt, select, never {Die Automatisierungsuhr hat nie einen Herzschlag aufgezeichnet.} other {Kein Herzschlag seit {lastTickAt}.}} Interview-Erinnerungen, das Verfallen von Angeboten und der Einwilligungslauf finden nicht statt. Starten Sie den Serverprozess neu."
+        }
+      }
     },
     "useCases": {
       "match_reasoning": "Match-Begründung",

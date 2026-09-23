@@ -9100,7 +9100,39 @@
       "deadLetters": "{count, plural, one {# message non distribué · 7 j} other {# messages non distribués · 7 j}}",
       "reconcileFailures": "{count, plural, one {# échec de synchronisation de la planification} other {# échecs de synchronisation de la planification}}",
       "bookedStalls": "{count, plural, one {# blocage pour agenda complet} other {# blocages pour agenda complet}}",
-      "alarmOpen": "Ouvrir : {tab}"
+      "alarmOpen": "Ouvrir : {tab}",
+      "findingEnv": "À définir sur le serveur : {vars}",
+      "findingsLabel": "Constats de disponibilité",
+      "findings": {
+        "PUBLIC_ORIGIN_CONFLICT": {
+          "title": "Deux adresses publiques se contredisent",
+          "fix": "APP_BASE_URL vaut {server} mais NEXT_PUBLIC_APP_BASE_URL vaut {client}, si bien que les e-mails aux candidats et les liens copiés peuvent pointer vers des hôtes différents. Donnez-leur la même adresse et redémarrez le serveur."
+        },
+        "PUBLIC_ORIGIN_FALLBACK": {
+          "title": "Aucune adresse publique n’est configurée",
+          "fix": "Les liens des e-mails envoyés en arrière-plan utilisent l’adresse par défaut du site, qui n’est peut-être pas celle de ce déploiement. Définissez APP_BASE_URL avec l’adresse que les candidats doivent ouvrir."
+        },
+        "SEED_LOAD_FAILED": {
+          "title": "Les données initiales {seed} n’ont pas pu être chargées",
+          "fix": "Le fichier {path} n’a pas pu être lu ni analysé. Réparez-le ou remplacez-le sur le serveur, puis redémarrez le serveur."
+        },
+        "CATALOG_SEED_FAILED": {
+          "title": "Le catalogue de postes est vide car ses données initiales ont échoué",
+          "fix": "Rien n’a été chargé dans le catalogue. Réparez le fichier initial des postes et redémarrez le serveur, ou créez les postes à la main."
+        },
+        "DECISION_CONFIG_UNREADABLE": {
+          "title": "Les règles de décision pour {phase} ne s’appliquent pas",
+          "fix": "{scope, select, org {La configuration de base de l’organisation} other {La configuration de l’équipe {workspaceId}}} n’a pas pu être lue, donc les règles par défaut s’appliquent alors que les réglages les affichent comme choisies. Ouvrez Décisions et enregistrez à nouveau les règles."
+        },
+        "SCHEDULER_STARTING": {
+          "title": "Le planificateur démarre",
+          "fix": "L’horloge d’automatisation est armée et attend son premier battement. Rien à faire, cela se résout dans les deux minutes suivant un redémarrage."
+        },
+        "SCHEDULER_STALLED": {
+          "title": "Le planificateur s’est arrêté",
+          "fix": "{lastTickAt, select, never {L’horloge d’automatisation n’a jamais enregistré de battement.} other {Aucun battement depuis {lastTickAt}.}} Les rappels d’entretien, l’expiration des offres et la revue des consentements ne tournent pas. Redémarrez le processus serveur."
+        }
+      }
     },
     "useCases": {
       "match_reasoning": "Raisonnement de matching",
