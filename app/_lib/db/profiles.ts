@@ -188,10 +188,7 @@ export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKS
   return { row: rest, payload };
 }
 
-// The analysis slug a profile was built FROM — the baseline a rebuild merges against
-// (profileRebuildMerge.ts), so the client can tell a hand edit from what the CV said.
-// NULL for a hand-built profile. Kept off getProfileRecord's `row`, which the GET
-// serializes verbatim.
+// The analysis a profile was built FROM (the rebuild merge's baseline); NULL if hand-built.
 export function profileSourceAnalysisSlug(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
   const db = ensureDb();
   const row = db

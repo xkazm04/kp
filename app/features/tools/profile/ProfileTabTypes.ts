@@ -1,6 +1,7 @@
 // Shared note/editor-state shapes for ProfileTab.tsx and its split-out hook/modal.
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import type { EditorMode } from "./ProfileEditor";
+import type { RebuildDialogModel, RebuildPlan, RebuildSeed } from "./profileRebuildMerge";
 
 // A note's tone picks its color + a11y role from the mapped status shades (all
 // present in the dark ramp). No new primitive — the same red-50/red-700 pattern
@@ -22,13 +23,25 @@ export type EditorState = {
   // Set when the editor was opened FROM a saved CV analysis (build-from-analysis or
   // rebuild-from-latest) — carried into the save so lineage is stamped.
   sourceAnalysisSlug?: string | null;
+  // A rebuild from a newer CV opens ON its field-level merge (profileRebuildMerge.ts)
+  // with the rebuild pending, so the editor's banner can undo it or take the new CV.
+  rebuildSeed?: RebuildSeed | null;
   // Bumped on every open. The editor is keyed on it, so re-opening the SAME profile
   // (the answer to a refused stale save) genuinely remounts with the fresh payload
   // instead of keeping the state it was built with.
   nonce?: number;
 };
 
-export type RebuildWarn = { slug: string; profileId: string; editedAt: string | null; updatedAt?: string | null };
+// A rebuild whose merge has CONTESTED fields (edited by hand AND changed by the newer CV):
+// the plan to open on "merge", and the dialog model that names those fields.
+export type RebuildWarn = {
+  slug: string;
+  profileId: string;
+  editedAt: string | null;
+  updatedAt?: string | null;
+  plan: RebuildPlan;
+  dialog: RebuildDialogModel;
+};
 
 /** The remount identity of an editor session: mode + row + open. */
 export function editorKey(editor: EditorState): string {

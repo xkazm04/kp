@@ -39,10 +39,11 @@ export function ProfileTab() {
   // a profile yet) is a benign status, not a failure — it reads as info. Genuine
   // failures elsewhere (roster delete) keep their own red error state.
   const [note, setNote] = useState<{ text: string; tone: NoteTone } | null>(null);
-  // A rebuild whose target profile was hand-edited after it was built: hold the intent
-  // and warn (naming the edit date) BEFORE hydrating, so the recruiter chooses whether
-  // to overwrite their edits (proceed) or keep them (open as a plain edit). Never a
-  // silent clobber.
+  // A rebuild whose merge has CONTESTED fields — edited by hand after the build AND
+  // changed by the newer CV: hold the plan and ask, naming those fields, BEFORE opening.
+  // Merge (default) keeps the edits and takes the newer CV everywhere else; keep opens a
+  // plain edit; replace takes the newer CV wholesale. Never a silent clobber, and no
+  // dialog at all when nothing is contested (useProfileTabDeepLinks.openRebuild).
   const [rebuildWarn, setRebuildWarn] = useState<RebuildWarn | null>(null);
   // Bumped when the roster changes (a delete) so the matrix, a sibling that fetches
   // the same union, refetches instead of showing a just-deleted profile. Only one
@@ -63,7 +64,7 @@ export function ProfileTab() {
   // keying it on `params` re-fired it when router.replace cleared them) never reads
   // the intent. The button was inert, and the params it left behind meant an unrelated
   // page reload would later spring the editor open on a rebuild nobody asked for.
-  const { archetypes, archLoading, openEditor, openFromAnalysis, openRebuild, reloadArchetypes } = useProfileTabDeepLinks({
+  const { archetypes, archLoading, openEditor, openFromAnalysis, openMerged, openRebuild, reloadArchetypes } = useProfileTabDeepLinks({
     t,
     router,
     params,
@@ -84,6 +85,7 @@ export function ProfileTab() {
         initialPayload={editor.initialPayload}
         initialUpdatedAt={editor.initialUpdatedAt}
         sourceAnalysisSlug={editor.sourceAnalysisSlug}
+        rebuildSeed={editor.rebuildSeed}
         archetypes={archetypes}
         onCancel={() => setEditor(null)}
         onReload={editor.editingId ? () => void openEditor(editor.editingId!) : undefined}
@@ -161,6 +163,10 @@ export function ProfileTab() {
         <ProfileTabRebuildWarnModal
           rebuildWarn={rebuildWarn}
           onClose={() => setRebuildWarn(null)}
+          onMerge={() => {
+            setRebuildWarn(null);
+            openMerged(rebuildWarn.slug, rebuildWarn.profileId, rebuildWarn.updatedAt, rebuildWarn.plan);
+          }}
           onKeep={(profileId) => {
             setRebuildWarn(null);
             void openEditor(profileId);

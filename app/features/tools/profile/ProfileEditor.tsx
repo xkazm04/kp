@@ -14,6 +14,7 @@ import { useProfileEditorFields } from "./useProfileEditorFields";
 import { useProfileEditorSubmit } from "./useProfileEditorSubmit";
 import { focusProfileField, validateProfileEditorFields } from "./profileEditorHelpers";
 import { archetypeFieldVisibility } from "./ProfileForm";
+import type { RebuildSeed } from "./profileRebuildMerge";
 
 export type EditorMode = "create" | "edit";
 
@@ -23,6 +24,7 @@ export function ProfileEditor({
   initialPayload,
   initialUpdatedAt,
   sourceAnalysisSlug,
+  rebuildSeed,
   archetypes,
   onCancel,
   onReload,
@@ -37,6 +39,9 @@ export function ProfileEditor({
    *  rebuild-from-latest), the slug of that analysis. Carried into the save so the
    *  route stamps source lineage; the recruiter still reviews before saving. */
   sourceAnalysisSlug?: string | null;
+  /** A rebuild from a newer CV: open ON the field-level merge with the rebuild pending
+   *  (profileRebuildMerge.rebuildEditorState), so the banner below can undo it. */
+  rebuildSeed?: RebuildSeed | null;
   /** Live archetype registry (ProfileTab's /api/archetypes fetch) — drives the routing segments. */
   archetypes: ArchetypeDef[];
   onCancel: () => void;
@@ -77,8 +82,12 @@ export function ProfileEditor({
     dismissDraftNotice,
     draftApplied,
     draftConflicts,
+    draftOrigin,
     clearBackup,
-  } = useProfileEditorFields(initialPayload, editingId);
+  } = useProfileEditorFields(initialPayload, editingId, rebuildSeed);
+  // A rebuild rides the same banner as an AI draft (merge, "use anyway", undo) — only
+  // the words differ, so the recruiter reads "the newer CV", not "the draft".
+  const rebuilt = draftOrigin === "rebuild";
 
   const { result, loading, error, stale, build: submit } = useProfileEditorSubmit({
     t,
@@ -165,7 +174,13 @@ export function ProfileEditor({
       {draftApplied ? (
         <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-sm text-amber-800">
-            {draftConflicts.length ? t("draftKeptEdits", { count: draftConflicts.length }) : t("draftAppliedNote")}
+            {rebuilt
+              ? draftConflicts.length
+                ? t("rebuildKeptEdits", { count: draftConflicts.length })
+                : t("rebuildAppliedNote")
+              : draftConflicts.length
+                ? t("draftKeptEdits", { count: draftConflicts.length })
+                : t("draftAppliedNote")}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {draftConflicts.length ? (
@@ -174,7 +189,7 @@ export function ProfileEditor({
                 onClick={acceptDraftFully}
                 className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
               >
-                {t("draftUseAnyway")}
+                {rebuilt ? t("rebuildUseAnyway") : t("draftUseAnyway")}
               </button>
             ) : null}
             <button
@@ -182,7 +197,7 @@ export function ProfileEditor({
               onClick={undoDraft}
               className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
             >
-              {t("draftUndo")}
+              {rebuilt ? t("rebuildUndo") : t("draftUndo")}
             </button>
             <button
               type="button"
