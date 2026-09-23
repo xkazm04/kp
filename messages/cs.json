@@ -3157,7 +3157,15 @@
       "doneCommsFailed": "{count, plural, =1 {1 zamítnutý kandidát nebyl informován} few {# zamítnutí kandidáti nebyli informováni} other {# zamítnutých kandidátů nebylo informováno}}. Zamítnutí platí; zprávu odešlete ručně z jejich karty.",
       "doneSummary": "Průchod pravidel dokončen: {advanced} postoupilo, {rejected} zamítnuto, {held} pozdrženo.",
       "dismiss": "Zavřít",
-      "failed": "Příkaz se nepodařilo spustit. Zkontrolujte připojení a zkuste to znovu."
+      "failed": "Příkaz se nepodařilo spustit. Zkontrolujte připojení a zkuste to znovu.",
+      "doneRoutedToHumanRound": "{count, plural, =1 {1 kandidát byl podle náborového plánu přesměrován} few {# kandidáti byli podle náborového plánu přesměrováni} other {# kandidátů bylo podle náborového plánu přesměrováno}} do kola pohovoru s člověkem. Ve svém sloupci zůstávají, dokud toto kolo neskončí.",
+      "undoWave": "Vrátit tato zamítnutí",
+      "undoWaveLabel": "Vrátit zamítnutí {count, plural, =1 {1 kandidáta} few {# kandidátů} other {# kandidátů}}",
+      "undoRunning": "Probíhá vrácení…",
+      "undoneRestored": "{count, plural, =0 {Nikdo nebyl vrácen.} =1 {1 kandidát byl vrácen do fáze, ve které byl.} few {# kandidáti byli vráceni do fáze, ve které byli.} other {# kandidátů bylo vráceno do fáze, ve které byli.}}",
+      "undoneNotified": "{count, plural, =1 {1 z nich už dostal} few {# z nich už dostali} other {# z nich už dostalo}} zamítací dopis. Odeslaný dopis nelze vzít zpět, proto je prosím kontaktujte osobně.",
+      "undoneSkipped": "{count, plural, =1 {1 kandidát zůstal beze změny} few {# kandidáti zůstali beze změny} other {# kandidátů zůstalo beze změny}}: tímto příkazem nebyli zamítnuti, nebo se od té doby změnili.",
+      "undoFailed": "Vrácení se nepodařilo potvrdit. Obnovte nástěnku a ověřte, kde se který kandidát nachází."
     },
     "tab": {
       "eyebrow": "Nábor",
@@ -3783,7 +3791,8 @@
       "manualStageMove": "Přesunuto ručně náborářem.",
       "addedToPipeline": "Přidáno do náboru.",
       "repeatApplication": "Opakovaná přihláška přes {channel}.",
-      "repeatApplicationContact": "Opakovaná přihláška přes {channel}. Zachycen kontaktní e-mail."
+      "repeatApplicationContact": "Opakovaná přihláška přes {channel}. Zachycen kontaktní e-mail.",
+      "commandWaveReversed": "Zamítnutí z příkazového řádku vráceno. Kandidát je zpět ve fázi, ve které byl."
     },
     "intakeReasons": {
       "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",

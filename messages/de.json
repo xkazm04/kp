@@ -3157,7 +3157,15 @@
       "doneCommsFailed": "{count, plural, =1 {1 abgelehnte/r Kandidat/in wurde nicht benachrichtigt} other {# abgelehnte Kandidat/innen wurden nicht benachrichtigt}}. Die Ablehnung gilt; senden Sie die Nachricht manuell von der Karte aus.",
       "doneSummary": "Richtlinien-Durchlauf abgeschlossen: {advanced} weitergeleitet, {rejected} abgelehnt, {held} zurückgehalten.",
       "dismiss": "Ausblenden",
-      "failed": "Der Befehl konnte nicht ausgeführt werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+      "failed": "Der Befehl konnte nicht ausgeführt werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "doneRoutedToHumanRound": "{count, plural, =1 {1 Kandidat/in wurde} other {# Kandidat/innen wurden}} laut Einstellungsplan an die Interviewrunde mit einer Person weitergegeben. Sie bleiben in ihrer Spalte, bis diese Runde abgeschlossen ist.",
+      "undoWave": "Diese Absagen rückgängig machen",
+      "undoWaveLabel": "Absage von {count, plural, =1 {1 Kandidat/in} other {# Kandidat/innen}} rückgängig machen",
+      "undoRunning": "Wird rückgängig gemacht…",
+      "undoneRestored": "{count, plural, =0 {Niemand wurde wiederhergestellt.} =1 {1 Kandidat/in wurde in die vorherige Phase zurückgesetzt.} other {# Kandidat/innen wurden in ihre vorherige Phase zurückgesetzt.}}",
+      "undoneNotified": "{count, plural, =1 {1 davon hatte} other {# davon hatten}} das Absageschreiben bereits erhalten. Ein versendetes Schreiben lässt sich nicht zurückholen, bitte melden Sie sich persönlich bei ihnen.",
+      "undoneSkipped": "{count, plural, =1 {1 Kandidat/in blieb unverändert} other {# Kandidat/innen blieben unverändert}}: nicht durch diesen Befehl abgelehnt oder seitdem geändert.",
+      "undoFailed": "Das Rückgängigmachen konnte nicht bestätigt werden. Aktualisieren Sie das Board, um zu sehen, wo jede Person steht."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -3783,7 +3791,8 @@
       "manualStageMove": "Manuell von einer recruitenden Person verschoben.",
       "addedToPipeline": "Zur Pipeline hinzugefügt.",
       "repeatApplication": "Erneute Bewerbung über {channel}.",
-      "repeatApplicationContact": "Erneute Bewerbung über {channel}. Kontakt-E-Mail erfasst."
+      "repeatApplicationContact": "Erneute Bewerbung über {channel}. Kontakt-E-Mail erfasst.",
+      "commandWaveReversed": "Absage aus der Befehlszeile rückgängig gemacht. In die vorherige Phase zurückgesetzt."
     },
     "intakeReasons": {
       "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",

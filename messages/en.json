@@ -3157,7 +3157,15 @@
       "doneCommsFailed": "{count, plural, =1 {1 rejected candidate was not notified} other {# rejected candidates were not notified}}. The rejection stands; send the note manually from their card.",
       "doneSummary": "Policy pass done: {advanced} advanced, {rejected} rejected, {held} held.",
       "dismiss": "Dismiss",
-      "failed": "The command couldn't run. Check your connection and try again."
+      "failed": "The command couldn't run. Check your connection and try again.",
+      "doneRoutedToHumanRound": "{count, plural, =1 {1 candidate was} other {# candidates were}} routed to the human interview round by the hiring plan. They stay in their column until that round is done.",
+      "undoWave": "Undo these rejections",
+      "undoWaveLabel": "Undo the rejection of {count, plural, =1 {1 candidate} other {# candidates}}",
+      "undoRunning": "Undoing…",
+      "undoneRestored": "{count, plural, =0 {Nobody was restored.} =1 {1 candidate restored to the stage they stood on.} other {# candidates restored to the stage they stood on.}}",
+      "undoneNotified": "{count, plural, =1 {1 of them had} other {# of them had}} already been sent the rejection letter. A sent letter cannot be recalled, so follow up with them personally.",
+      "undoneSkipped": "{count, plural, =1 {1 candidate was left alone} other {# candidates were left alone}}: not rejected by this command, or changed since.",
+      "undoFailed": "The undo could not be confirmed. Refresh the board to see where each candidate stands."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -3783,7 +3791,8 @@
       "manualStageMove": "Moved manually by a recruiter.",
       "addedToPipeline": "Added to the pipeline.",
       "repeatApplication": "Repeat application via {channel}.",
-      "repeatApplicationContact": "Repeat application via {channel}. Contact email captured."
+      "repeatApplicationContact": "Repeat application via {channel}. Contact email captured.",
+      "commandWaveReversed": "Command-bar rejection undone. Restored to the stage they stood on."
     },
     "intakeReasons": {
       "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",

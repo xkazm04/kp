@@ -3157,7 +3157,15 @@
       "doneCommsFailed": "{count, plural, =1 {1 candidat rejeté n’a pas été notifié} other {# candidats rejetés n’ont pas été notifiés}}. Le rejet reste valable ; envoyez le message manuellement depuis sa fiche.",
       "doneSummary": "Passe de règles terminée : {advanced} avancé, {rejected} rejeté, {held} en attente.",
       "dismiss": "Ignorer",
-      "failed": "La commande n'a pas pu s'exécuter. Vérifiez votre connexion et réessayez."
+      "failed": "La commande n'a pas pu s'exécuter. Vérifiez votre connexion et réessayez.",
+      "doneRoutedToHumanRound": "{count, plural, =1 {1 candidat a été orienté} other {# candidats ont été orientés}} vers l’entretien avec une personne, selon le plan de recrutement. Ils restent dans leur colonne jusqu’à la fin de ce tour.",
+      "undoWave": "Annuler ces refus",
+      "undoWaveLabel": "Annuler le refus de {count, plural, =1 {1 candidat} other {# candidats}}",
+      "undoRunning": "Annulation…",
+      "undoneRestored": "{count, plural, =0 {Personne n’a été rétabli.} =1 {1 candidat rétabli à l’étape où il se trouvait.} other {# candidats rétablis à l’étape où ils se trouvaient.}}",
+      "undoneNotified": "{count, plural, =1 {1 d’entre eux avait} other {# d’entre eux avaient}} déjà reçu la lettre de refus. Une lettre envoyée ne peut pas être rappelée : contactez-les personnellement.",
+      "undoneSkipped": "{count, plural, =1 {1 candidat a été laissé tel quel} other {# candidats ont été laissés tels quels}} : non refusés par cette commande, ou modifiés depuis.",
+      "undoFailed": "L’annulation n’a pas pu être confirmée. Actualisez le tableau pour voir où en est chaque candidat."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -3783,7 +3791,8 @@
       "manualStageMove": "Déplacé manuellement par un recruteur.",
       "addedToPipeline": "Ajouté au pipeline.",
       "repeatApplication": "Nouvelle candidature via {channel}.",
-      "repeatApplicationContact": "Nouvelle candidature via {channel}. E-mail de contact enregistré."
+      "repeatApplicationContact": "Nouvelle candidature via {channel}. E-mail de contact enregistré.",
+      "commandWaveReversed": "Refus de la barre de commande annulé. Rétabli à l’étape où il se trouvait."
     },
     "intakeReasons": {
       "leadPending": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception.",
