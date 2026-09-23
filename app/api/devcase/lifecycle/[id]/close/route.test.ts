@@ -18,6 +18,8 @@ import {
   claimLifecycleClose,
 } from "../../../../../_lib/db.ts";
 import { createPipelineEntry } from "../../../../../_lib/db/pipeline.ts";
+import { saveSubmissionEvaluation } from "../../../../../_lib/db/devcase.ts";
+import { promoteSubmission } from "../../../../../_lib/devcase-run.ts";
 import { listAudit } from "../../../../../_lib/dev-control.ts";
 import { POST } from "./route.ts";
 
@@ -112,4 +114,23 @@ test("close skips opaque candidate handles but uses an email ref when contact is
   const sent = listOutboxFiltered({ kind: "rejection" }).filter((row) => !before.has(row.id));
   assert.deepEqual(sent.map((row) => row.recipient), ["ref@example.test"]);
   assert.equal(getLifecycle(lc.id)?.stage, "closed");
+});
+
+test("the everyday path: a candidate promoted through promoteSubmission keeps the one outcome they have", async () => {
+  // The same rule, driven through the real promote door rather than a hand-made entry:
+  // promoteSubmission is what writes dev_submission_id, so this is the link the close reads.
+  const lc = createLifecycle({ title: "Backend role" }, false);
+  const dc = saveDevCase({ need: {}, analysis: {}, role: { title: "Backend Engineer" }, case: { title: "API case" } });
+  updateLifecycle(lc.id, { caseId: dc.id, stage: "promoted" });
+  const posting = createPosting({ caseId: dc.id, channel: "link", token: `tok-everyday-${dc.id}`, roleTitle: "Backend Engineer", caseTitle: "API case" });
+  const kept = createSubmission({ postingId: posting.id, candidateRef: "Rita", repoRef: "repo-r", contact: "rita@example.test" });
+  createSubmission({ postingId: posting.id, candidateRef: "Saul", repoRef: "repo-s", contact: "saul@example.test" });
+  saveSubmissionEvaluation(kept.submission.id, { evaluation: { summary: "Strong.", strengths: [], concerns: [], confidence: 0.9 } }, 90);
+  assert.ok(promoteSubmission(kept.submission.id, 55), "the submission is on the board");
+
+  const before = new Set(listOutboxFiltered({ kind: "rejection" }).map((row) => row.id));
+  const res = await POST(req(lc.id), ctx(lc.id));
+  assert.equal((await res.json() as { notified: number }).notified, 1, "one wrap-up note");
+  const sent = listOutboxFiltered({ kind: "rejection" }).filter((row) => !before.has(row.id));
+  assert.deepEqual(sent.map((row) => row.recipient), ["saul@example.test"], "addressed to the submitter who was not promoted");
 });

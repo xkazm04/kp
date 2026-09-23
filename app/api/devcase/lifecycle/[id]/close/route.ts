@@ -7,8 +7,7 @@ import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { sendComm } from "@/app/_lib/comms";
 import { findEntryByDevSubmission } from "@/app/_lib/db/pipeline";
 import { recordAudit } from "@/app/_lib/dev-control";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { wrapUpRecipients } from "@/app/_lib/devcase-lifecycle-fence";
 
 // W5-3 (DEVO3) — human-gated case close-out. "closed" sat in the lifecycle
 // STAGES (and the control room's TERMINAL set) with no writer: a lifecycle
@@ -58,56 +57,59 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // Courteous wrap-up to every non-promoted submitter — the same no-ghosting
     // standard the main pipeline enforces (screen-wave dispatches rejections).
     // Deduped by recipient so two submissions from one person get one note.
-    const seen = new Set<string>();
+    //
+    // WHO is owed a note is ONE rule, wrapUpRecipients (devcase-lifecycle-fence.ts): a
+    // submitter PROMOTED to the pipeline is not rejected here. Promotion is recorded as a
+    // pipeline entry linked by dev_submission_id (no code writes a submission status of
+    // "promoted"), and from then on the pipeline owns that candidate's comms. Checking the
+    // status alone skipped nobody, so every candidate who had just been sent the "Next step"
+    // letter was then told "we won't be moving forward". Only an email-shaped contact (or,
+    // for older submissions, an email-shaped candidateRef) is an address, once per address
+    // across every posting. The runner consults the same module's stopVerdict, so after
+    // the claim above it promotes and mails nobody else.
+    const recipients = wrapUpRecipients(
+      postings.flatMap((posting) =>
+        listSubmissions(posting.id, lc.workspaceId).map((submission) => ({
+          ...submission,
+          role: posting.roleTitle ?? posting.caseTitle ?? "the role",
+        }))
+      ),
+      (submission) => findEntryByDevSubmission(submission.id, lc.workspaceId) != null
+    );
     let notified = 0;
     let notifyFailures = 0;
-    for (const posting of postings) {
-      const role = posting.roleTitle ?? posting.caseTitle ?? "the role";
-      for (const submission of listSubmissions(posting.id, lc.workspaceId)) {
-        // A submitter PROMOTED to the pipeline is not rejected here: promotion is recorded as
-        // a pipeline entry linked by dev_submission_id (no code writes a submission status of
-        // "promoted"), and from then on the pipeline owns that candidate's comms. Checking the
-        // status alone skipped nobody, so every candidate who had just been sent the "Next
-        // step" letter was then told "we won't be moving forward".
-        if (submission.status === "promoted" || findEntryByDevSubmission(submission.id, lc.workspaceId)) continue;
-        // candidateRef can be an opaque handle or display name. Only an actual
-        // address belongs in the comms outbox; an email-shaped ref is a valid
-        // fallback for older submissions without a separate contact field.
-        const to = [submission.contact, submission.candidateRef]
-          .map((value) => value?.trim())
-          .find((value) => value && EMAIL_RE.test(value));
-        if (!to || seen.has(to)) continue;
-        seen.add(to);
-        // ISOLATE each send: a relay/network failure on ONE wrap-up note must NOT
-        // abort the close. The old loop let a single throw leave the lifecycle
-        // half-closed — some postings flipped, stage never set, no audit — and a
-        // re-run re-notified everyone already messaged (the dedup Set is per-request).
-        // sendComm's durable Outbox records the attempt, so a failed note is
-        // recoverable via Resend; here we just count it and carry on.
-        try {
-          await sendComm({
-            to,
-            subject: `Update on your submission — ${role}`,
-            body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
-            kind: "rejection",
-            ref: submission.id,
-            // TENANT SCOPE (D5): the outbox's tenant derivation reads pipeline_entries by
-            // ref, and a dev-case submission id is not a pipeline entry — so without this
-            // the wrap-up note filed into the DEFAULT team's Outbox, invisible (and
-            // un-resendable) to the team whose case was actually closed.
-            workspaceId: lc.workspaceId,
-          });
-          notified += 1;
-        } catch (commError) {
-          notifyFailures += 1;
-          console.error(
-            `[lifecycle:close] wrap-up note failed for "${to}" (${submission.id}):`,
-            commError instanceof Error ? commError.message : commError
-          );
-        }
+    for (const { to, submission } of recipients) {
+      const role = submission.role;
+      // ISOLATE each send: a relay/network failure on ONE wrap-up note must NOT
+      // abort the close. The old loop let a single throw leave the lifecycle
+      // half-closed — some postings flipped, stage never set, no audit — and a
+      // re-run re-notified everyone already messaged (the dedup Set is per-request).
+      // sendComm's durable Outbox records the attempt, so a failed note is
+      // recoverable via Resend; here we just count it and carry on.
+      try {
+        await sendComm({
+          to,
+          subject: `Update on your submission — ${role}`,
+          body: `Hi ${submission.candidateRef ?? "there"},\n\nThank you for the time you put into the assignment for ${role}. The intake for this role has now closed, and we won't be moving forward with your submission. We'd be glad to see you apply for a future role.\n\nBest,\nThe hiring team`,
+          kind: "rejection",
+          ref: submission.id,
+          // TENANT SCOPE (D5): the outbox's tenant derivation reads pipeline_entries by
+          // ref, and a dev-case submission id is not a pipeline entry — so without this
+          // the wrap-up note filed into the DEFAULT team's Outbox, invisible (and
+          // un-resendable) to the team whose case was actually closed.
+          workspaceId: lc.workspaceId,
+        });
+        notified += 1;
+      } catch (commError) {
+        notifyFailures += 1;
+        console.error(
+          `[lifecycle:close] wrap-up note failed for "${to}" (${submission.id}):`,
+          commError instanceof Error ? commError.message : commError
+        );
       }
-      setPostingStatus(posting.id, "closed");
     }
+    // Every posting stops accepting submissions nobody will process.
+    for (const posting of postings) setPostingStatus(posting.id, "closed");
 
     // Stage is already "closed" (claimed atomically above); now that the count is
     // known, stamp the human-facing detail and write the audit. Only the claiming

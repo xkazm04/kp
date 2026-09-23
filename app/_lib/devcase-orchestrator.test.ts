@@ -30,16 +30,20 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import {
   createLifecycle,
   createPosting,
+  claimLifecycleClose,
   createSubmission,
   getDevCase,
   getLifecycle,
   listOutbox,
+  listPostings,
   saveDevCase,
+  saveDevCaseBaselineIfAbsent,
   saveDevCaseScenarioIfAbsent,
   saveDevCaseSeedIfAbsent,
   saveSubmissionEvaluation,
   updateLifecycle,
 } from "./db/devcase.ts";
+import { ensureDb } from "./db/core.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { listAudit, setAutonomy } from "./dev-control.ts";
 import { runLifecycle } from "./devcase-orchestrator.ts";
@@ -262,4 +266,79 @@ test("freeze-at-publish is idempotent: a resumed `approved` run never re-mints t
   assert.ok(!actions.includes("interview_scenario"), "no scenario was regenerated");
   assert.ok(!actions.includes("seed_materialized"), "no seed was regenerated");
   assert.deepEqual(actions, ["published"], "one row: the publish that resumed");
+});
+
+// --- The fence (devcase-lifecycle-fence.ts): a human close lands while the runner works. ---
+// The close is the real claim the close route makes (claimLifecycleClose), fired from the
+// runner's own progress ticks, i.e. between two of its effects.
+
+function entriesForCase(caseId: string): number {
+  const row = ensureDb().prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE dev_case_id = ?`).get(caseId) as { n: number };
+  return Number(row.n);
+}
+
+test("a close during the promote loop stops the next promotion and its advance letter", async () => {
+  const { lifecycleId, postingId, caseId } = collecting();
+  const ids = new Set([
+    evaluated(postingId, "Karel", 90).id,
+    evaluated(postingId, "Lenka", 85).id,
+    evaluated(postingId, "Milan", 80).id,
+  ]);
+
+  let ticks = 0;
+  const out = await runLifecycle(lifecycleId, (_d, _t, msg) => {
+    if (!msg?.startsWith("promoting")) return;
+    ticks += 1;
+    if (ticks === 1) claimLifecycleClose(lifecycleId);
+  });
+
+  assert.equal(out.stage, "closed", "the run reports where the lifecycle is, not where it was");
+  assert.equal(getLifecycle(lifecycleId)?.stage, "closed");
+  const invites = listOutbox(50, WS).filter((o) => o.kind === "invite" && ids.has(o.ref ?? ""));
+  assert.equal(invites.length, 1, "only the candidate promoted before the close was told they advanced");
+  assert.equal(entriesForCase(caseId), 1, "no board write after the close");
+  const stopped = listAudit(200, WS).filter((r) => r.lifecycleId === lifecycleId && r.action === "stage_moved");
+  assert.equal(stopped.length, 1, "the stop is audited");
+  assert.match(stopped[0].reason ?? "", /'ranked' to 'closed'/);
+});
+
+test("a close during the collecting drain stops the next evaluation", async () => {
+  const { lifecycleId, postingId } = collecting();
+  unevaluated(postingId, "Nina");
+  unevaluated(postingId, "Oto");
+  unevaluated(postingId, "Petr");
+
+  let finished = 0;
+  const out = await runLifecycle(lifecycleId, onEvaluated(() => {
+    finished += 1;
+    if (finished === 1) claimLifecycleClose(lifecycleId);
+  }));
+
+  assert.equal(finished, 1, "the second and third submissions are never attempted");
+  assert.equal(out.stage, "closed");
+  assert.equal(getLifecycle(lifecycleId)?.stage, "closed");
+  const actions = listAudit(200, WS).filter((r) => r.lifecycleId === lifecycleId).map((r) => r.action);
+  assert.ok(!actions.includes("evaluated"), "no evaluation decision is recorded for a closed lifecycle");
+});
+
+test("a close while publishing mints no live posting and sources nobody", async () => {
+  // A separate team keeps the sourcing pool empty, and the frozen scenario/seed/baseline
+  // mean no generation spawns: what runs is the publish step itself.
+  const WS_PUB = "team-orchestrator-publish";
+  const kase = saveDevCase({ need: null, analysis: null, role: {}, case: { title: "Publish race" } }, WS_PUB);
+  saveDevCaseScenarioIfAbsent(kase.id, { probes: ["p"], source: "llm" });
+  saveDevCaseSeedIfAbsent(kase.id, { files: [{ path: "src/a.ts", contents: "// a" }], source: "llm" });
+  saveDevCaseBaselineIfAbsent(kase.id, { solutions: [], source: "llm" });
+  const lc = createLifecycle({ title: "Publish race" }, true, "en", WS_PUB);
+  updateLifecycle(lc.id, { stage: "approved", caseId: kase.id });
+
+  const out = await runLifecycle(lc.id, (_d, _t, msg) => {
+    if (msg === "publishing") claimLifecycleClose(lc.id);
+  });
+
+  assert.equal(out.stage, "closed");
+  const open = listPostings(WS_PUB).filter((p) => p.caseId === kase.id && p.status === "open");
+  assert.equal(open.length, 0, "no open apply token is left behind a closed lifecycle");
+  assert.equal(getLifecycle(lc.id)?.postingId ?? null, null, "no posting is linked");
+  assert.equal(entriesForCase(kase.id), 0, "nobody was sourced onto the board");
 });
