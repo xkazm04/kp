@@ -114,6 +114,27 @@ career-switcher) that other features key off. Downstream ranking is
   `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader. Saved-at dates go through
   `useDateFormat` (the list) and `dateFormatter` with the server `getLocale()`
   (the report header), never the runtime default locale.
+- **History triage** (challenge-r09 cv-analyze-workspace/B) — every History row has
+  a **Decide** button beside its slug link (the link still opens the full report).
+  It opens `HistoryTriageDrawer.tsx`, a size-3xl `Modal` that reads
+  `GET /api/analyses/[slug]` (consent scrub applied) and mounts the report's own
+  `DispositionEditor`, keyed by slug, so the decision brief and its open flags are
+  in view and the decision goes through the same `PATCH /api/analyses/[slug]`
+  (acknowledgement gate, compare-and-swap, pipeline echo). There is no second write
+  path. `DispositionEditor` takes an optional `onSettled` that reports every settled
+  save, including the keepalive flush when the recruiter moves on mid-reason; the
+  host repaints the row only when `shouldApplySave` says the server accepted it
+  (`applyDecision` normalises it the way `writeDisposition` stores it). A
+  `DISPOSITION_ACK_REQUIRED` 409 or a viewer seat's 403 leaves the row as it was and
+  the drawer on that analysis. `j`/`k` (or Next/Previous) walk the queue in the
+  list's display order, never while typing in a field and never wrapping. With
+  "Skip runs that already have a decision" on (the default) the walk visits only
+  undecided runs, and the run on screen stays anchored after it is decided
+  (`triageQueueAround`). The header counts undecided/decided over the LOADED rows
+  and says "among the loaded runs" when the list is a window. Closing the drawer
+  prunes rows the active decision filter no longer matches (`pruneToFilter`), as a
+  refetch would. Opening a row also repaints it with the disposition the server
+  holds now. Pure half: `historyTriage.ts`, pinned by `historyTriage.test.ts`.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
