@@ -9,17 +9,13 @@ appeared in /api/match's ranking at any rank, and reasoning_cli raised
 
 from __future__ import annotations
 
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
 from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.match_cli import main as match_main
 from pipeline.jobfit.matching import load_corpus
 from pipeline.jobfit.reasoning_cli import main as reasoning_main
+from pipeline.jobfit.tests._helpers import CliRun, run_cli
 
 # A "DB-ingested" job under a hand-namespaced id that can never collide with the
 # committed seed corpus (seed ids are title slugs).
@@ -45,52 +41,34 @@ CANDIDATE = {
 }
 
 
-def _run_match(jobs_json: list[dict] | None) -> dict:
+def _run_match(jobs_json: list[dict] | None) -> CliRun:
     """Run match_cli over the seed corpus, optionally augmented by --jobs-json."""
-    with tempfile.TemporaryDirectory() as tmp:
-        candidate_path = Path(tmp) / "candidate.json"
-        candidate_path.write_text(json.dumps(CANDIDATE), encoding="utf-8")
-        # The CLI does not clamp --limit (the route does); rank the whole corpus
-        # so an augmented job can't be missed merely by falling below a cutoff.
-        argv = ["--candidate-json", str(candidate_path), "--limit", "1000"]
-        if jobs_json is not None:
-            jobs_path = Path(tmp) / "jobs.json"
-            jobs_path.write_text(json.dumps(jobs_json), encoding="utf-8")
-            argv += ["--jobs-json", str(jobs_path)]
-
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = match_main(argv)
-        return {"code": code, "payload": json.loads(out.getvalue() or "{}")}
+    # The CLI does not clamp --limit (the route does); rank the whole corpus
+    # so an augmented job can't be missed merely by falling below a cutoff.
+    argv = ["--candidate-json", "@candidate.json", "--limit", "1000"]
+    files: dict[str, object] = {"candidate.json": CANDIDATE}
+    if jobs_json is not None:
+        files["jobs.json"] = jobs_json
+        argv += ["--jobs-json", "@jobs.json"]
+    return run_cli(match_main, argv, files=files)
 
 
-def _run_reasoning(jobs_json: list[dict] | None, job_id: str) -> dict:
+def _run_reasoning(jobs_json: list[dict] | None, job_id: str) -> CliRun:
     """Run reasoning_cli (--no-llm: deterministic template) for one job id."""
-    with tempfile.TemporaryDirectory() as tmp:
-        candidate_path = Path(tmp) / "candidate.json"
-        candidate_path.write_text(json.dumps(CANDIDATE), encoding="utf-8")
-        argv = ["--candidate-json", str(candidate_path), "--job-id", job_id, "--no-llm"]
-        if jobs_json is not None:
-            jobs_path = Path(tmp) / "jobs.json"
-            jobs_path.write_text(json.dumps(jobs_json), encoding="utf-8")
-            argv += ["--jobs-json", str(jobs_path)]
-
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = reasoning_main(argv)
-        return {
-            "code": code,
-            "payload": json.loads(out.getvalue() or "{}"),
-            "error": json.loads(err.getvalue() or "{}"),
-        }
+    argv = ["--candidate-json", "@candidate.json", "--job-id", job_id, "--no-llm"]
+    files: dict[str, object] = {"candidate.json": CANDIDATE}
+    if jobs_json is not None:
+        files["jobs.json"] = jobs_json
+        argv += ["--jobs-json", "@jobs.json"]
+    return run_cli(reasoning_main, argv, files=files)
 
 
 class MatchCliJobsJsonTest(unittest.TestCase):
     def test_db_only_job_ranks_with_jobs_json(self) -> None:
         # The augmented job appears in the ranking alongside the seed corpus…
         result = _run_match([DB_JOB.model_dump(mode="json")])
-        self.assertEqual(result["code"], 0)
-        ranked = [m["jobId"] for m in result["payload"]["matches"]]
+        self.assertEqual(result.code, 0)
+        ranked = [m["jobId"] for m in result.payload["matches"]]
         self.assertIn(DB_JOB.id, ranked)
         # …and the seed corpus itself still ranks (augment, not replace).
         self.assertGreater(len(ranked), 1)
@@ -98,8 +76,8 @@ class MatchCliJobsJsonTest(unittest.TestCase):
     def test_db_only_job_is_absent_without_jobs_json(self) -> None:
         # Pins the contrast: the seed corpus alone cannot surface the DB job.
         result = _run_match(None)
-        self.assertEqual(result["code"], 0)
-        self.assertNotIn(DB_JOB.id, [m["jobId"] for m in result["payload"]["matches"]])
+        self.assertEqual(result.code, 0)
+        self.assertNotIn(DB_JOB.id, [m["jobId"] for m in result.payload["matches"]])
 
     def test_override_wins_on_id_collision(self) -> None:
         # A DB record sharing a seed id replaces the seed entry (DB wins), exactly
@@ -117,8 +95,8 @@ class MatchCliJobsJsonTest(unittest.TestCase):
             job_id=seed_id,
         )
         result = _run_match([override.model_dump(mode="json")])
-        self.assertEqual(result["code"], 0)
-        by_id = {m["jobId"]: m for m in result["payload"]["matches"]}
+        self.assertEqual(result.code, 0)
+        by_id = {m["jobId"]: m for m in result.payload["matches"]}
         self.assertIn(seed_id, by_id)
         self.assertEqual(by_id[seed_id]["title"], "Override Title Wins")
 
@@ -151,20 +129,19 @@ class MatchCliMalformedCorpusTest(unittest.TestCase):
         # describes (a partially-ingested/legacy job persisted without them).
         malformed = {"id": "job-poison", "title": "No company or location"}
 
-        # Skip-and-log writes a note to stderr; capture it so the run stays quiet.
-        with contextlib.redirect_stderr(io.StringIO()):
-            result = _run_match(
-                [
-                    valid_a.model_dump(mode="json"),
-                    malformed,
-                    valid_b.model_dump(mode="json"),
-                ]
-            )
+        # Skip-and-log writes a note to stderr; run_cli captures it so the run stays quiet.
+        result = _run_match(
+            [
+                valid_a.model_dump(mode="json"),
+                malformed,
+                valid_b.model_dump(mode="json"),
+            ]
+        )
 
         # Pre-fix: the bare validate loop raised ValidationError -> emit_error ->
         # exit 1 (a hard 500 for every candidate). Post-fix the run succeeds.
-        self.assertEqual(result["code"], 0)
-        ranked = [m["jobId"] for m in result["payload"]["matches"]]
+        self.assertEqual(result.code, 0)
+        ranked = [m["jobId"] for m in result.payload["matches"]]
         # The two valid DB jobs still score…
         self.assertIn("job-valid-a", ranked)
         self.assertIn("job-valid-b", ranked)
@@ -175,15 +152,20 @@ class MatchCliMalformedCorpusTest(unittest.TestCase):
 class ReasoningCliJobsJsonTest(unittest.TestCase):
     def test_db_ingested_job_id_resolves(self) -> None:
         result = _run_reasoning([DB_JOB.model_dump(mode="json")], DB_JOB.id)
-        self.assertEqual(result["code"], 0)
-        self.assertEqual(result["payload"]["jobId"], DB_JOB.id)
-        self.assertTrue(result["payload"]["reasoning"])  # a real verdict, not an empty shell
+        self.assertEqual(result.code, 0)
+        self.assertEqual(result.payload["jobId"], DB_JOB.id)
+        self.assertTrue(result.payload["reasoning"])  # a real verdict, not an empty shell
 
     def test_without_jobs_json_db_job_is_not_found(self) -> None:
         # Pins the pre-fix failure mode this augment closes.
         result = _run_reasoning(None, DB_JOB.id)
-        self.assertEqual(result["code"], 1)
-        self.assertIn("job not found", result["error"]["error"])
+        self.assertEqual(result.code, 1)
+        self.assertIn("job not found", result.envelope["message"])
+        # The CODE is what the route answers with: a regression to an uncoded 500 would
+        # keep the exit code and the English message and still reach the browser as
+        # "the engine failed". Read as the bridge reads it, and as the engine named it.
+        self.assertEqual((result.envelope["status"], result.envelope["code"]), (404, "not_found"))
+        self.assertEqual(result.raw_envelope["code"], "not_found")
 
 
 if __name__ == "__main__":
