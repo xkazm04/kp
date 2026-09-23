@@ -491,6 +491,13 @@ export const TAB_SCOPED_PARAM_KEYS = [
   // it at mount (opens the JD in edit mode with a suggestion banner) then strips it
   // via history.replaceState; tab-scoped so a bare tab switch can't re-stage it.
   "coachEdit",
+  // Assignments as an address (challenge-r03 devcase-workspace/B): ?case=<id> opens
+  // one case's reader, ?lifecycle=<id> focuses a lifecycle and opens its review when
+  // it awaits approval (the Control Room's Art. 22 gate Review link). ?job= above is
+  // shared with Decisions and narrows the ledger to one role. One-shot like ?arm=:
+  // DevTab consumes them on arrival and strips them via history.replaceState.
+  "case",
+  "lifecycle",
 ] as const;
 
 export type TabScopedParamKey = (typeof TAB_SCOPED_PARAM_KEYS)[number];
