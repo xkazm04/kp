@@ -164,7 +164,9 @@ route passed one. The axis is now wired end to end (challenge r04, analytics-das
   (`TAB_SCOPED_PARAM_KEYS` in `app/features/shell/tabs.ts`), so a bare tab switch drops it.
 - **One parse, three readers.** `analyticsJobScope.ts` (pure) owns `parseJobParam` (trimmed;
   blank, over 128 chars or control characters = workspace-wide), `analyticsFetchUrl(days, job)`,
-  and the withheld vocabulary. The route, `AnalyticsTab` and `analyticsViewUrl` all read it,
+  and the catalog keys for the withheld list (the list itself is `JOB_SCOPE_WITHHELD` in
+  `app/_lib/db/analytics.ts`, type-imported so no server code reaches the bundle). The
+  route, `AnalyticsTab` and `analyticsViewUrl` all read the parse,
   so the minted view link (`…&win=30&job=<id>`) round-trips through the reader's own parse.
 - **What scopes.** `GET /api/analytics?job=` passes the role to BOTH reads and to the memo:
   the cohort, the sim-exclusion count, the event-time hire count, and every entry-bearing
