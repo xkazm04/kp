@@ -92,6 +92,17 @@ export function parseStageOutcome(raw: unknown): StageOutcome | null {
   return { code: o.code, facts, warnings };
 }
 
+/** The outcome with one warning code removed, every other field and warning kept
+ *  verbatim; null when there is nothing to remove (the caller writes nothing). A door
+ *  that FIXES what a warning reports clears it with this: a successful Re-source drops
+ *  `sourcing_failed`, so the row stops claiming a crash that has been repaired. */
+export function withoutOutcomeWarning(outcome: StageOutcome, code: OutcomeWarningCode): StageOutcome | null {
+  const warnings = Array.isArray(outcome.warnings) ? outcome.warnings : [];
+  const kept = warnings.filter((w) => w?.code !== code);
+  if (kept.length === warnings.length) return null;
+  return { ...outcome, warnings: kept };
+}
+
 /** The doors a warning (or the outcome itself) opens. Every one already exists:
  *  the Decisions tab, the row's Re-source handler (POST /api/devcase/source), and the
  *  control room's reconcile (POST /api/devcase/control). No new route. */

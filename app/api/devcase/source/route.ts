@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db/devcase";
+import { rewriteLifecycleOutcomesForCase } from "@/app/_lib/db/devcase-outcome-rewrite";
+import { withoutOutcomeWarning } from "@/app/_lib/devcase-stage-outcome";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -54,6 +56,16 @@ export async function POST(request: NextRequest) {
     // Shared write contract (incl. the `sourceChannel: "devcase"` origin marker)
     // with the lifecycle orchestrator — previously this route omitted the marker.
     const { added } = seedPipelineFromMatches(matches, { caseId: devCase.id, roleTitle, workspaceId: ws });
+    // This door is the fix the lifecycle row offers for a `sourcing_failed` warning, so a
+    // sourcing that just SUCCEEDED clears it (other warnings stay). Only here, after the
+    // seed: a throw above skips this and the warning keeps standing, because it is still
+    // true. Bookkeeping after the fact - its own failure is logged, not answered as a
+    // failed sourcing, since the candidates really were seeded.
+    try {
+      rewriteLifecycleOutcomesForCase(devCase.id, ws, (o) => withoutOutcomeWarning(o, "sourcing_failed"));
+    } catch (clearErr) {
+      console.error("[api:devcase/source] sourcing succeeded but the lifecycle outcome was not cleared", clearErr);
+    }
     // `skipped` > 0 with an empty `candidates` means the pool failed to parse, not that
     // nobody matched — surfaced so the UI can be honest about an empty shortlist.
     return NextResponse.json({ ok: true, added, skipped, skippedReasons, candidates: matches });
