@@ -4264,6 +4264,9 @@
     },
     "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",
     "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA.",
+    "evalStartFailed": "La comparaison n’a pas pu être lancée : aucune exécution de l’IA n’a donc commencé. Relancez-la pour réessayer.",
+    "evalRunFailed": "L’exécution de la comparaison a échoué avant de se terminer. Relancez-la pour comparer les candidats.",
+    "evalResultUnavailable": "La comparaison est terminée, mais son résultat n’a pas pu être chargé. Relancez-la, ou rouvrez ce poste dans un instant.",
     "feedbackLetters": {
       "title": "Demandes de retour · {count}",
       "help": "Candidats qui ont demandé une courte lettre sur leur entretien avec l’IA après qu’une personne a statué sur leur candidature. Vous modifiez et assumez chaque phrase avant tout envoi.",

@@ -4264,6 +4264,9 @@
     },
     "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen.",
     "evalCacheProbeFailed": "Wir konnten nicht prüfen, ob für diese Auswahl bereits ein gespeicherter Vergleich vorliegt. Neu ausführen startet einen neuen KI-Durchlauf.",
+    "evalStartFailed": "Der Vergleich konnte nicht gestartet werden, es wurde also kein KI-Durchlauf begonnen. Führen Sie ihn erneut aus, um es noch einmal zu versuchen.",
+    "evalRunFailed": "Der Vergleichsdurchlauf ist fehlgeschlagen, bevor er abgeschlossen war. Führen Sie ihn erneut aus, um die Kandidaten zu vergleichen.",
+    "evalResultUnavailable": "Der Vergleich ist abgeschlossen, aber sein Ergebnis konnte nicht geladen werden. Führen Sie ihn erneut aus oder öffnen Sie diese Stelle gleich noch einmal.",
     "feedbackLetters": {
       "title": "Feedback-Anfragen · {count}",
       "help": "Kandidatinnen und Kandidaten, die nach der Entscheidung einer Person über ihre Bewerbung um einen kurzen Brief zu ihrem KI-Interview gebeten haben. Sie bearbeiten und verantworten jeden Satz, bevor etwas versendet wird.",

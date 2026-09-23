@@ -4264,6 +4264,9 @@
     },
     "reinstateFailed": "Couldn't put this candidate back. Try again.",
     "evalCacheProbeFailed": "We couldn't check whether a saved comparison already exists for this selection. Re-run to compare fresh; that starts a new AI run.",
+    "evalStartFailed": "The comparison couldn't be started, so no AI run began. Re-run to try again.",
+    "evalRunFailed": "The comparison run failed before it finished. Re-run it to compare the candidates.",
+    "evalResultUnavailable": "The comparison finished, but its result couldn't be loaded. Re-run it, or reopen this role in a moment.",
     "feedbackLetters": {
       "title": "Feedback requests · {count}",
       "help": "Candidates who asked for a short letter about their AI interview after a person decided on their application. You edit and own every sentence before anything is sent.",

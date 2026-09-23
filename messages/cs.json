@@ -4264,6 +4264,9 @@
     },
     "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu.",
     "evalCacheProbeFailed": "Nepodařilo se ověřit, zda pro tento výběr už existuje uložené srovnání. Spusťte znovu pro nové srovnání; tím začne nový běh AI.",
+    "evalStartFailed": "Srovnání se nepodařilo spustit, žádný běh AI tedy nezačal. Zkuste to znovu tlačítkem Spustit znovu.",
+    "evalRunFailed": "Běh srovnání selhal dřív, než doběhl. Spusťte jej znovu a porovnejte kandidáty.",
+    "evalResultUnavailable": "Srovnání doběhlo, ale jeho výsledek se nepodařilo načíst. Spusťte jej znovu, nebo tuto pozici za chvíli otevřete znovu.",
     "feedbackLetters": {
       "title": "Žádosti o zpětnou vazbu · {count}",
       "help": "Kandidáti, kteří po rozhodnutí člověka o své přihlášce požádali o krátký dopis k pohovoru s AI. Než se cokoli odešle, každou větu upravujete a odpovídáte za ni vy.",
