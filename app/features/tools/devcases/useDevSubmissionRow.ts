@@ -9,6 +9,7 @@ import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { assertScore } from "@/app/_lib/format";
 import { parseRepoRef } from "@/app/_lib/repo-snapshot";
 import { githubAnalysisSchema, type GithubAnalysis } from "@/app/_lib/schemas";
+import { foldPromoteResponse, type PromoteRecommendation } from "@/app/_lib/devcase-promote-verdict";
 import { evalTaskView } from "./devEvalTaskState";
 import type { EvalBundle, Submission } from "./DevTypes";
 
@@ -31,6 +32,12 @@ export function useDevSubmissionRow({
   const [taskId, setTaskId] = useState<string | null>(null);
   const [promoted, setPromoted] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  // What the promote click actually landed with (the route returns the verdict it wrote
+  // onto the Decisions card), or the coded failure - resolved via useErrorMessage, never
+  // the server's English. A failed promote used to be a silent no-op.
+  const [promoteLanded, setPromoteLanded] = useState<PromoteRecommendation | null>(null);
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+  const tPanel = useTranslations("devcase.evalPanel.promoteVerdict");
   // GH4 — the submitter's broader public profile, one click from the repo in
   // hand. parseRepoRef(repoRef).owner IS their username; the dev-case eval only
   // ever reads the submission repo, so this joins the two halves (this-task
@@ -209,13 +216,23 @@ export function useDevSubmissionRow({
   const promote = async () => {
     if (promoting || isPromoted) return; // in-flight + already-promoted double-promote guard
     setPromoting(true);
+    setPromoteError(null);
     try {
       const r = await fetch("/api/devcase/promote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submissionId: submission.id }),
       });
-      if (r.ok) setPromoted(true);
+      const fold = foldPromoteResponse(r.status, await r.json().catch(() => null));
+      if (fold.state === "promoted") {
+        setPromoteLanded(fold.recommendation);
+        setPromoted(true);
+      } else {
+        setPromoteError(errMsg({ code: fold.code }, tPanel("failed")));
+      }
+    } catch {
+      // A transport failure has no code to resolve - the generic line is the honest one.
+      setPromoteError(tPanel("failed"));
     } finally {
       setPromoting(false);
     }
@@ -239,7 +256,7 @@ export function useDevSubmissionRow({
     evalView, busy, ev,
     evaluate,
     feedback, queueFeedback,
-    promote, promoting,
+    promote, promoting, promoteLanded, promoteError,
     ts,
   };
 }

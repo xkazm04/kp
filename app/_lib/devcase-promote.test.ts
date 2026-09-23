@@ -152,3 +152,30 @@ test("a held submission never mints observed skills onto the candidate's profile
   // …and the profile write is held with it — no spawn, no credit.
   assert.deepEqual(await mintObservedFromSubmission(submission.id, result!.entryId), { credited: [], applied: false });
 });
+
+// challenge-r02 devcase-eval/B — PARITY with the pure rule the postings preview and the
+// EvalPanel render (devcase-promote-verdict.ts). The DB write and the preview must agree
+// on the recommendation AND the coded reasons, or the panel promises one verdict and the
+// Decisions card lands with another. The automation trail keeps its English sentence.
+test("promoteSubmission lands the same verdict and reason codes the preview shows", async () => {
+  const { promoteVerdict, promoteVerdictInputOf } = await import("./devcase-promote-verdict.ts");
+  const fixtures: Array<{ bundle: Record<string, unknown>; score: number | null; floor: number }> = [
+    { bundle: { ...evalBundle(), authenticity: { band: "authentic", score: 90 } }, score: 82, floor: 70 },
+    { bundle: { ...evalBundle({ band: "suspect", confidence: 0.9 }), authenticity: { band: "suspect", score: 28 } }, score: 95, floor: 70 },
+    { bundle: evalBundle({ confidence: 0.3 }), score: 90, floor: 70 },
+    { bundle: { ...evalBundle(), transfer: { roleFitRationale: "No score." } }, score: null, floor: 70 },
+  ];
+  for (const f of fixtures) {
+    const subId = makeSubmission(f.bundle, f.score as number);
+    const expected = promoteVerdict(promoteVerdictInputOf(f.bundle, f.score, f.floor));
+    const result = promoteSubmission(subId, f.floor);
+    assert.ok(result);
+    assert.equal(result!.recommendation, expected.recommendation, `recommendation parity for score ${f.score}`);
+    assert.deepEqual(result!.reasonCodes, expected.reasons, `reason-code parity for score ${f.score}`);
+    assert.ok(result!.reasons.every((r) => /^[\x20-\x7e]+$/.test(r)), "the trail sentence stays plain English");
+    assert.ok(!result!.reasons.some((r) => /transfer score 0\b/.test(r)), "an unscored submission is never 'transfer score 0'");
+    const card = JSON.parse(getPipelineEntry(result!.entryId)!.approvalDetail ?? "{}") as { recommendation?: string; confidence?: unknown };
+    assert.equal(card.recommendation, expected.recommendation, "the reviewer card agrees");
+    if (f.score == null) assert.equal(card.confidence, null, "the card carries no fabricated score");
+  }
+});

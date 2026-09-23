@@ -4,6 +4,7 @@ import { Check, CircleDot, MessageCircleQuestion, Send, TriangleAlert, X, type L
 import { useTranslations } from "next-intl";
 import { formatFraction } from "@/app/_lib/format";
 import { judgeSeatState } from "@/app/_lib/devcase-judge-independence";
+import { promoteReasonMessage, type PromoteRecommendation, type PromoteVerdict } from "@/app/_lib/devcase-promote-verdict";
 import { describeSource } from "./DevHelpers";
 import { useDimensionLabel, useProbeKindLabel, useProbeStatusLabel } from "./DevLabels";
 import { FollowupQuestionItem } from "./DevShared";
@@ -46,8 +47,50 @@ function probeStatus(o: ProbeOutcome): ProbeStatus {
   return o.detected ? "detected" : "missed";
 }
 
-export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: EvalBundle; onPromote: () => void; promoted: boolean; promoting?: boolean }) {
+// The promote verdict, shown BEFORE the click: advance or hold, and why, from the same
+// pure rule promoteSubmission writes (devcase-promote-verdict.ts). A hold is a human
+// decision gate - this line explains it and never offers a way around it; promoting a
+// held submission lands it on a Decisions card a person must review.
+const VERDICT_TONE: Record<PromoteRecommendation, string> = {
+  advance: "bg-moss/10 text-moss",
+  hold: "bg-amber-100 text-amber-700",
+};
+
+function PromoteVerdictLine({ preview }: { preview: PromoteVerdict }) {
+  const tv = useTranslations("devcase.evalPanel.promoteVerdict");
+  return (
+    <div className="mb-1.5" title={tv("previewTitle")}>
+      <span className={`rounded px-1.5 py-0.5 font-semibold uppercase ${VERDICT_TONE[preview.recommendation]}`}>
+        {preview.recommendation === "advance" ? tv("advance") : tv("hold")}
+      </span>
+      <ul className="mt-1 space-y-0.5 pl-1 text-micro text-steel">
+        {preview.reasons.map((reason) => {
+          const { key, values } = promoteReasonMessage(reason);
+          return <li key={key}>{tv(`reasons.${key}`, values)}</li>;
+        })}
+      </ul>
+      {preview.recommendation === "hold" ? <p className="mt-0.5 text-micro italic text-steel">{tv("holdNote")}</p> : null}
+    </div>
+  );
+}
+
+export function EvalPanel({
+  ev,
+  onPromote,
+  promoted,
+  promoting = false,
+  verdict,
+}: {
+  ev: EvalBundle;
+  onPromote: () => void;
+  promoted: boolean;
+  promoting?: boolean;
+  /** preview: the server's verdict at the calibrated floor (postings GET); landed: what
+   *  this session's click actually landed with; error: an already-localized failure. */
+  verdict?: { preview?: PromoteVerdict; landed?: PromoteRecommendation | null; error?: string | null };
+}) {
   const tr = useTranslations("devcase.evalPanel");
+  const tv = useTranslations("devcase.evalPanel.promoteVerdict");
   const dimensionLabel = useDimensionLabel();
   const probeKindLabel = useProbeKindLabel();
   const probeStatusLabel = useProbeStatusLabel();
@@ -158,16 +201,29 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
         <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-micro text-amber-800">{tr("degraded")}</p>
       ) : null}
 
-      <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
-        {promoted ? (
-          <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> {tr("inPipeline")}</span>
-        ) : (
-          <button type="button" onClick={onPromote} disabled={promoting}
-            className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50">
-            <Send size={12} /> {promoting ? tr("promoting") : tr("promote")}
-          </button>
-        )}
-        <span className="text-micro text-steel">{tr("promoteHint")}</span>
+      <div className="mt-2 border-t border-stone-100 pt-2">
+        {!promoted && verdict?.preview ? <PromoteVerdictLine preview={verdict.preview} /> : null}
+        <div className="flex items-center gap-2">
+          {promoted ? (
+            verdict?.landed === "hold" ? (
+              <span className="inline-flex items-center gap-1 text-micro font-semibold text-amber-700"><CircleDot size={13} /> {tv("landedHold")}</span>
+            ) : verdict?.landed === "advance" ? (
+              <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> {tv("landedAdvance")}</span>
+            ) : (
+              // Promoted before this session (or by the lifecycle): the verdict it landed
+              // with is on its Decisions card - the preview may use a newer floor, so it
+              // is not restated here as if it were the landed one.
+              <span className="inline-flex items-center gap-1 text-micro font-semibold text-moss"><Check size={13} /> {tr("inPipeline")}</span>
+            )
+          ) : (
+            <button type="button" onClick={onPromote} disabled={promoting}
+              className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-ink px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50">
+              <Send size={12} /> {promoting ? tr("promoting") : tr("promote")}
+            </button>
+          )}
+          <span className="text-micro text-steel">{tr("promoteHint")}</span>
+        </div>
+        {verdict?.error ? <p role="alert" className="mt-1 text-micro text-coral">{verdict.error}</p> : null}
       </div>
     </div>
   );

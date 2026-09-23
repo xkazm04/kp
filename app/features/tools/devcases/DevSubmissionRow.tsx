@@ -59,7 +59,7 @@ export function SubmissionRow({
     evalView, busy, ev,
     evaluate,
     feedback, queueFeedback,
-    promote, promoting,
+    promote, promoting, promoteLanded, promoteError,
     ts,
   } = useDevSubmissionRow({ submission, jdText, onChanged });
 
@@ -214,7 +214,7 @@ export function SubmissionRow({
           </button>
         </div>
       ) : null}
-      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} verdict={{ preview: submission.promotePreview, landed: promoteLanded, error: promoteError }} /> : null}
       {/* Gap #1 — the raw evidence behind every verdict above. Gated on the submission
           being an in-product SESSION (a repo submission has no transcript and no
           observed tree), NOT on `ev`: the evidence exists from the moment the candidate

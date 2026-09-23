@@ -13,6 +13,7 @@ import { invitedCandidateIdForSubmission } from "./devcase-invite-binding";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import type { JudgeIndependence } from "./devcase-judge-independence";
+import { promoteAuditReasons, promoteVerdict, promoteVerdictInputOf, type PromoteReason } from "./devcase-promote-verdict";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
@@ -1008,10 +1009,9 @@ function promoteProvenance(identity: CaseJobIdentity, candidate: PromotedCandida
   return `${job}; candidate ${candidate.candidateId} (${candidate.origin})`;
 }
 
-// The evidence-confidence floor for auto-advance advice — mirrors the Python
-// confidence scale's LOW_CONFIDENCE (pipeline/jobfit/devcase/models.py): at or
-// below this the evaluation rests on thin/deterministic-fallback evidence.
-const LOW_EVAL_CONFIDENCE = 0.4;
+// The advance/hold RULE (blockers above the score ladder, the 0.4 evidence-confidence
+// floor, the absent-score tier) lives in devcase-promote-verdict.ts so the postings
+// preview and the EvalPanel show the verdict a promotion will land with, from one truth.
 
 export type PromoteResult = {
   entryId: string;
@@ -1025,6 +1025,9 @@ export type PromoteResult = {
   // the verdict, persisted on the automation trail so a reviewer can answer
   // "why did this advance / hold?" later.
   reasons: string[];
+  // The same reasons as CODES (devcase-promote-verdict.ts), blockers first — what the
+  // UI resolves in the reader's language. `reasons` above stays the trail's English.
+  reasonCodes: PromoteReason[];
 };
 
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.
@@ -1043,7 +1046,6 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   };
   const evaluation = bundle.evaluation ?? {};
   const transfer = bundle.transfer ?? {};
-  const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   // The case's candidate-facing language (DEVP5) rides the lifecycle — promote
   // carries it onto the entry so post-promotion comms render in the candidate's
@@ -1054,16 +1056,21 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   // never auto-advanced on transfer score alone: it's held for the live interview
   // that verifies ownership of the decisions (the minted followups), with the
   // authenticity concern surfaced to the reviewer.
-  const suspectAuth = bundle.authenticity?.band === "suspect";
+  //
   // Case-sim round 2 canary c2: the evaluation's PROPAGATED evidence-confidence
   // (min of its upstream signals — see models.py's confidence scale) was silently
   // dropped here, so a deterministic-fallback evaluation advised "advance" as
   // confidently as a fully-grounded one. Low evidence never auto-advances.
-  const evalConfidence =
-    typeof (evaluation as { confidence?: unknown }).confidence === "number"
-      ? ((evaluation as { confidence: number }).confidence)
-      : null;
-  const lowConfidence = evalConfidence != null && evalConfidence <= LOW_EVAL_CONFIDENCE;
+  //
+  // Both blockers, the floor and the absent-score tier are ONE pure rule, computed
+  // here — ABOVE the transaction — and shared with the postings preview.
+  const verdictInput = promoteVerdictInputOf(sub.evaluation, sub.transferScore, floor);
+  const verdict = promoteVerdict(verdictInput);
+  // null when nothing scored the submission — never the fabricated 0 it used to be.
+  const score = verdictInput.transferScore;
+  const suspectAuth = verdictInput.authenticityBand === "suspect";
+  const evalConfidence = verdictInput.confidence ?? null;
+  const lowConfidence = verdict.reasons.some((r) => r.code === "low_confidence");
 
   // TENANT: the SUBMISSION's own team owns everything this function writes — the
   // pipeline entry, the screening card and the audit event. There is no session
@@ -1156,17 +1163,13 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     sourceChannel: "devcase",
     workspaceId,
   });
-  const recommendation: PromoteResult["recommendation"] =
-    score >= floor && !suspectAuth && !lowConfidence ? "advance" : "hold";
-  const reasons = [
-    `transfer score ${score} vs calibrated floor ${floor}`,
-    ...(suspectAuth ? [`process authenticity is suspect (${bundle.authenticity?.score ?? 0}/100)`] : []),
-    ...(lowConfidence ? [`evaluation evidence-confidence is low (${evalConfidence})`] : []),
-  ];
+  const recommendation: PromoteResult["recommendation"] = verdict.recommendation;
+  const reasons = promoteAuditReasons(verdict, floor);
   const redFlags = [...((evaluation.concerns as string[]) ?? [])];
   if (suspectAuth) {
+    const authScore = verdictInput.authenticityScore;
     redFlags.unshift(
-      `Process-authenticity is suspect (${bundle.authenticity?.score ?? 0}/100) — verify the candidate authored this before advancing.`
+      `Process-authenticity is suspect${authScore != null ? ` (${authScore}/100)` : ""} — verify the candidate authored this before advancing.`
     );
   }
   if (lowConfidence) {
@@ -1181,7 +1184,8 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
       recommendation,
       // NOTE: this field carries the transfer SCORE (the card UI's existing
       // contract), not the 0..1 evidence-confidence — which now gates the
-      // recommendation above instead of being silently dropped.
+      // recommendation above instead of being silently dropped. null when unscored:
+      // the card reader (decisionsAiReviewCardLogic) shows no score for a non-number.
       confidence: score,
       rationale: `${String(evaluation.summary ?? "")} ${String(transfer.roleFitRationale ?? "")}`.trim() || "Dev-case evaluation.",
       strengths: (evaluation.strengths as string[]) ?? [],
@@ -1190,6 +1194,6 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     workspaceId
   );
   recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")} | ${promoteProvenance(identity, candidate)}`, workspaceId);
-  return { entryId: entry.id, recommendation, reasons };
+  return { entryId: entry.id, recommendation, reasons, reasonCodes: verdict.reasons };
   }).immediate();
 }

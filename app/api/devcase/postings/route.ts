@@ -3,6 +3,8 @@ import { safeJsonError } from "@/app/_lib/api-response";
 import { listPostings, listSubmissions } from "@/app/_lib/db/devcase";
 import { latestOutcomeByRefs } from "@/app/_lib/dev-outcomes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
+import { promoteVerdict, promoteVerdictInputOf } from "@/app/_lib/devcase-promote-verdict";
 
 
 // Postings (OUT) with their received submissions (IN) inlined, each carrying its latest
@@ -18,11 +20,18 @@ export async function GET() {
     const ws = await currentWorkspace();
     const postings = listPostings(ws).map((p) => ({ ...p, submissions: listSubmissions(p.id, ws) }));
     const outcomes = latestOutcomeByRefs(postings.flatMap((p) => p.submissions.map((s) => s.id)), ws);
+    // The promote verdict each EVALUATED submission would land with, at the server's
+    // calibrated floor - the same pure rule promoteSubmission writes - so the panel shows
+    // advance-or-hold (and why) BEFORE the click. Unevaluated rows carry no key at all.
+    const floor = activePromoteFloor();
     const merged = postings.map((p) => ({
       ...p,
       submissions: p.submissions.map((s) => {
         const outcome = outcomes.get(s.id);
-        return outcome ? { ...s, outcome } : s;
+        const withOutcome = outcome ? { ...s, outcome } : s;
+        return s.evaluation
+          ? { ...withOutcome, promotePreview: promoteVerdict(promoteVerdictInputOf(s.evaluation, s.transferScore, floor)) }
+          : withOutcome;
       }),
     }));
     return NextResponse.json({ postings: merged });

@@ -3,6 +3,7 @@ import type { OutboxStatus } from "@/app/_lib/comms-status";
 // adds roleFamily/languages/promptVersion); see app/_lib/rolespec.ts.
 import type { RoleBrief, RoleSpec } from "@/app/_lib/rolespec";
 import type { JudgeIndependence } from "@/app/_lib/devcase-judge-independence";
+import type { PromoteVerdict } from "@/app/_lib/devcase-promote-verdict";
 
 // Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
 // mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
@@ -124,6 +125,10 @@ export type Submission = {
    *  without it the "recorded" state lived only in SubmissionRow and any remount
    *  re-offered the buttons, double-counting re-records in calibration. */
   outcome?: { outcome: "hired" | "rejected" | "withdrawn" | "pending"; performance: number | null; recordedAt: string } | null;
+  /** The advance/hold verdict a promotion would land with NOW, at the server's calibrated
+   *  floor (GET /api/devcase/postings, devcase-promote-verdict.ts - the same rule
+   *  promoteSubmission writes). Present only on evaluated submissions. */
+  promotePreview?: PromoteVerdict;
   /** Minutes past the case timebox, measured server-side at finalize (/perfect wave
    *  42a). 0 = measured and inside the box, null = not measured (a repo-link
    *  submission, or a row written before the column existed). A recruiter comparing

@@ -51,6 +51,9 @@ export async function POST(request: NextRequest) {
       entryId: result?.entryId ?? null,
       recommendation: result?.recommendation ?? null,
       reasons: result?.reasons ?? [],
+      // The same reasons as codes (devcase-promote-verdict.ts) - what the panel resolves
+      // in the reader's language; `reasons` stays the trail's locale-invariant English.
+      reasonCodes: result?.reasonCodes ?? [],
       observedSkills,
     });
   } catch (error) {
