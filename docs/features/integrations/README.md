@@ -218,6 +218,23 @@ ping (`POST /api/ats/test`).
   before delivering — an operator pressing Retry while a cron POSTs the same route used to
   send the hire twice. `finalizeAtsDelivery` re-asserts the attempt count it read in the
   UPDATE's `WHERE` for the same reason.
+- **A claim is a lease, so a crash mid-POST cannot strand a hire.** Every attempt passes
+  through `pending`, and before the lease only the process that entered `pending` could
+  leave it: a deploy or crash during the awaited delivery left the row pending forever —
+  never due, never dead-lettered, never pruned, refused by Replay. Opening a row
+  (`openAtsDelivery`) and claiming a due one (`leaseAtsDelivery`) now write a random
+  `lease_token` and a `lease_until` (`ATS_DELIVERY_LEASE_MS`, 5 minutes, far above the 5s
+  fetch bound) with the status flip. The retry sweep first runs `reclaimExpiredAtsLeases`:
+  one conditional UPDATE per expired row (re-asserting the token and deadline it read, so
+  `changes === 0` means someone else got it) turns it into a `failed` attempt that is due
+  now — or dead-lettered at `MAX_ATTEMPTS` — with `last_error` naming the abandoned attempt.
+  The lost attempt may have landed, so it is counted, and the redelivery goes out under the
+  SAME `Idempotency-Key` with a byte-identical body: the receiver dedupes. A finalize that
+  carries a token only writes while `status='pending' AND lease_token=?`, so a slow worker
+  whose lease was reclaimed loses instead of overwriting the redelivery. A lease-less pending
+  row written before the upgrade counts as expired once it is older than one lease.
+  `GET /api/ats/deliveries` reports those rows as `stranded`, and Replay on one reclaims it
+  (`ok`) while a live lease is still refused. Nothing on the external wire changed.
 - **The ledger is pruned.** Terminal rows — delivered, or dead-lettered with no retry
   scheduled — are dropped after `DELIVERY_RETENTION_DAYS` (90) by a sweep on the
   instrumentation clock. A still-scheduled failure is live work and is never swept, however
@@ -230,11 +247,11 @@ ping (`POST /api/ats/test`).
   drain the queue). POST remains the on-demand flush.
 - **A dead-letter can be force-replayed.** After `MAX_ATTEMPTS` (6) a failed row parks
   with `next_attempt_at NULL`. `GET /api/ats/deliveries` reports that parked count as
-  `dead` beside `due`. `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal
+  `dead` beside `due` (and `stranded`, above). `POST /api/ats/deliveries { replayId }` CAS-requeues the terminal
   row (restoring one shot of retry budget when attempts are exhausted) then runs the due
   sweep under the same ledger id / `Idempotency-Key`. An omitted body still flushes every
   currently-due retry. An unknown id answers `ATS_DELIVERY_NOT_FOUND`; a delivered,
-  pending, or still-due row answers `ATS_DELIVERY_NOT_REPLAYABLE`.
+  live-pending (inside its lease), or still-due row answers `ATS_DELIVERY_NOT_REPLAYABLE`.
 - **The secret is write-only**, same contract as the inbound token: `GET` returns
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
@@ -280,7 +297,8 @@ ping (`POST /api/ats/test`).
 - **Nothing exits without a ledger row.** A dispatch opens its `ats_delivery` row *before* the
   record is built, so an entry that cannot be resolved — or a build that throws — becomes a
   `failed`, retryable, operator-visible row that says why, never a silent return. A hire that
-  cannot be mirrored must not also be invisible.
+  cannot be mirrored must not also be invisible. The row a process death leaves `pending`
+  is the lease's job (above), not this path's.
 - **Redirects are not followed** (`redirect: "manual"`). The SSRF guard resolves and vets only
   the host kp dials; with the default follow behaviour a vetted public endpoint answering
   `302 Location: http://169.254.169.254/…` (or a 307 to a loopback port, which replays the
@@ -493,8 +511,10 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 - `ats_delivery` — the outbound delivery ledger, one row per (event, entry) attempt-set,
   org-level like the config. `event`, `entry_id`, `status` (`pending` / `delivered` /
   `failed`, read through a runtime guard), `attempts`, `last_status`, `last_error`,
-  `next_attempt_at`, `created_at` (the envelope's stable `sentAt`), `updated_at`. Terminal
-  rows are pruned after 90 days.
+  `next_attempt_at`, `created_at` (the envelope's stable `sentAt`), `updated_at`,
+  `lease_token` / `lease_until` (the current attempt's holder and deadline; additive
+  `ALTER TABLE` columns in the store's own `db()`, NULL on rows written before them, never
+  returned by the API). Terminal rows are pruned after 90 days.
 
 ## Known gaps
 
