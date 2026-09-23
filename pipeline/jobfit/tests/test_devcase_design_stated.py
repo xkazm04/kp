@@ -6,6 +6,7 @@ import unittest
 
 from pipeline.jobfit.devcase.design import design_role
 from pipeline.jobfit.devcase.models import DevNeed, NeedAnalysis
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 
 
 def _need() -> DevNeed:
@@ -31,17 +32,11 @@ class TestStatedRequirements(unittest.TestCase):
         self.assertEqual(role["niceToHaves"], ["Python"])
 
     def test_prompt_carries_the_grading(self) -> None:
-        captured = {}
-
-        class Capture:
-            def complete_json(self, prompt, system=None):
-                captured["prompt"] = prompt
-                return {}
-
-        design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=Capture())
-        self.assertIn("statedRequirements", captured["prompt"])
-        self.assertIn("dbt", captured["prompt"])
-        self.assertIn("nice_to_have", captured["prompt"])
+        capture = TextReply({})
+        design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=capture)
+        self.assertIn("statedRequirements", capture.last_prompt)
+        self.assertIn("dbt", capture.last_prompt)
+        self.assertIn("nice_to_have", capture.last_prompt)
 
     def test_pre_intake_needs_unchanged(self) -> None:
         need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="senior")

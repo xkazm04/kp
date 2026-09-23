@@ -20,6 +20,7 @@ from pipeline.jobfit.devcase.seed_materializer import (
     deterministic_seed,
     materialize_seed,
 )
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 
 CASE = CaseScenario(
     id="case-1",
@@ -33,17 +34,9 @@ ROLE = RoleSpec(title="Junior Backend", role_family="software_engineering", seni
                 must_haves=["Python"])
 
 
-class _StubProvider:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def available(self) -> bool:
-        return True
-
-    def complete_json(self, prompt, system=None):
-        if isinstance(self._payload, Exception):
-            raise self._payload
-        return self._payload
+class _StubProvider(TextReply):
+    """Answers with ``payload`` as TEXT through the real extractor, or raises it when it is
+    an exception (tests/devcase_fakes.py)."""
 
 
 class DeterministicSeedTest(unittest.TestCase):

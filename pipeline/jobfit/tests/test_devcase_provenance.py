@@ -27,6 +27,7 @@ from pipeline.jobfit.devcase.evaluate import evaluate_submission, mint_followups
 from pipeline.jobfit.devcase.provenance import fenced_untrusted
 from pipeline.jobfit.devcase.reflect import assess_tooling, reflect_commits
 from pipeline.jobfit.match_reasoning import build_prompt
+from pipeline.jobfit.tests.devcase_fakes import RaisingProvider, TextReply, by_prompt
 
 
 class TestCombineSource(unittest.TestCase):
@@ -62,12 +63,7 @@ class TestDescribeFallback(unittest.TestCase):
         self.assertLessEqual(len(reason), 300)
 
 
-class _RaisingProvider:
-    def __init__(self, exc):
-        self._exc = exc
-
-    def complete_json(self, prompt, system=None):
-        raise self._exc
+_RaisingProvider = RaisingProvider
 
 
 class TestGenerateWithFallback(unittest.TestCase):
@@ -86,11 +82,7 @@ class TestGenerateWithFallback(unittest.TestCase):
         self.assertNotIn(FALLBACK_REASON_KEY, result)  # off by design is NOT a failure
 
     def test_success_is_llm(self):
-        class _Ok:
-            def complete_json(self, prompt, system=None):
-                return {"raw": True}
-
-        result, source = generate_with_fallback(_Ok(), "p", "sys", self._det, self._coerce, logging.getLogger("t"))
+        result, source = generate_with_fallback(TextReply({"raw": True}), "p", "sys", self._det, self._coerce, logging.getLogger("t"))
         self.assertEqual(source, SOURCE_LLM)
         self.assertEqual(result, {"value": 2})  # coerce ran
         self.assertNotIn(FALLBACK_REASON_KEY, result)
@@ -132,11 +124,7 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
         return {"files": files, "note": det["note"]} if files else det
 
     def _run(self, payload, logger):
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return payload
-
-        return generate_with_fallback(_Provider(), "p", "sys", self._det, self._coerce, logger)
+        return generate_with_fallback(TextReply(payload), "p", "sys", self._det, self._coerce, logger)
 
     def test_payload_that_coerces_to_the_template_is_deterministic(self):
         logger = logging.getLogger("pipeline.jobfit.devcase.test_x4_empty")
@@ -173,12 +161,8 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
         def coerce(_payload):
             return dict(self.TEMPLATE)  # the plain template, no stamp
 
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return {}
-
         with self.assertLogs(logger, level="WARNING"):
-            result, source = generate_with_fallback(_Provider(), "p", "sys", det, coerce, logger)
+            result, source = generate_with_fallback(TextReply({}), "p", "sys", det, coerce, logger)
         self.assertEqual(source, SOURCE_DETERMINISTIC)
         self.assertEqual(result[FALLBACK_REASON_KEY], UNUSABLE_OUTPUT_REASON)
 
@@ -191,12 +175,8 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
             # builder that throws leaves the comparison unprovable.
             raise RuntimeError("builder is not re-entrant")
 
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return {"files": [{"path": "a.py"}]}
-
         with self.assertLogs(logger, level="WARNING") as cm:
-            result, source = generate_with_fallback(_Provider(), "p", "sys", det, self._coerce, logger)
+            result, source = generate_with_fallback(TextReply({"files": [{"path": "a.py"}]}), "p", "sys", det, self._coerce, logger)
         self.assertEqual(source, SOURCE_LLM)
         self.assertNotIn(FALLBACK_REASON_KEY, result)
         self.assertTrue(any("could not rebuild" in m for m in cm.output))
@@ -209,38 +189,50 @@ class TestTemplateForTemplateIsNotLlm(unittest.TestCase):
         self.assertNotIn(FALLBACK_REASON_KEY, result)  # off by design is not a failure
 
 
-class _PartialReflectProvider:
+class _PartialReflectProvider(TextReply):
     """Succeeds for the reflect step only; every other step raises -> deterministic fallback,
     so a submission run mixes LLM + deterministic and must collapse to "partial"."""
 
-    def complete_json(self, prompt, system=None):
-        if "WHERE THE CANDIDATE MENTALLY WENT" in prompt:
-            return {
-                "narrative": "n",
-                "iterationPattern": "linear",
-                "deadEnds": [],
-                "readBeforeWrite": 0.5,
-                "verificationHabits": ["ran tests"],
-                "confidence": 0.6,
-            }
-        raise RuntimeError("stub: force deterministic for this step")
+    def __init__(self) -> None:
+        super().__init__(
+            by_prompt(
+                [(
+                    "WHERE THE CANDIDATE MENTALLY WENT",
+                    {
+                        "narrative": "n",
+                        "iterationPattern": "linear",
+                        "deadEnds": [],
+                        "readBeforeWrite": 0.5,
+                        "verificationHabits": ["ran tests"],
+                        "confidence": 0.6,
+                    },
+                )],
+                RuntimeError("stub: force deterministic for this step"),
+            )
+        )
 
 
-class _PartialAnalyzeProvider:
+class _PartialAnalyzeProvider(TextReply):
     """Succeeds for the analyze step only; role/case design raise -> deterministic fallback."""
 
-    def complete_json(self, prompt, system=None):
-        if "REFLECT it against the actual body of work" in prompt:  # analyze prompt (need-analysis-v3)
-            return {
-                "realStack": ["Python"],
-                "coreResponsibilities": ["own ingest"],
-                "statedVsRealGaps": [],
-                "trueComplexity": "medium",
-                "riskAreas": [],
-                "reflection": "r",
-                "confidence": 0.7,
-            }
-        raise RuntimeError("stub: force deterministic for this step")
+    def __init__(self) -> None:
+        super().__init__(
+            by_prompt(
+                [(
+                    "REFLECT it against the actual body of work",  # analyze prompt (need-analysis-v3)
+                    {
+                        "realStack": ["Python"],
+                        "coreResponsibilities": ["own ingest"],
+                        "statedVsRealGaps": [],
+                        "trueComplexity": "medium",
+                        "riskAreas": [],
+                        "reflection": "r",
+                        "confidence": 0.7,
+                    },
+                )],
+                RuntimeError("stub: force deterministic for this step"),
+            )
+        )
 
 
 class TestEvalHarnessesUseSharedCollapse(unittest.TestCase):
@@ -468,14 +460,10 @@ class TestCodedDescent(unittest.TestCase):
     def test_kept_nothing_is_coded_unusable_output(self):
         from pipeline.jobfit.devcase.provenance import FALLBACK_CODE_KEY
 
-        class _Provider:
-            def complete_json(self, prompt, system=None):
-                return {}
-
         logger = logging.getLogger("pipeline.jobfit.devcase.test_coded_kept_nothing")
         with self.assertLogs(logger, level="WARNING"):
             result, source = generate_with_fallback(
-                _Provider(), "p", "sys", lambda: {"value": 1}, lambda _p: {"value": 1}, logger
+                TextReply({}), "p", "sys", lambda: {"value": 1}, lambda _p: {"value": 1}, logger
             )
         self.assertEqual(source, SOURCE_DETERMINISTIC)
         self.assertEqual(result[FALLBACK_CODE_KEY], "unusable_output")

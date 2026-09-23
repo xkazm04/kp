@@ -11,6 +11,7 @@ from pipeline.jobfit.devcase.design import (
     design_role,
 )
 from pipeline.jobfit.devcase.lifecycle_eval import _check_case
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 from pipeline.jobfit.devcase.models import (
     DEFAULT_TIMEBOX_HOURS,
     MAX_TIMEBOX_HOURS,
@@ -21,14 +22,9 @@ from pipeline.jobfit.devcase.models import (
 )
 
 
-class _StubProvider:
-    """Minimal provider stub: returns a fixed JSON payload for the design prompt."""
-
-    def __init__(self, payload):
-        self._payload = payload
-
-    def complete_json(self, prompt, system=None):
-        return self._payload
+class _StubProvider(TextReply):
+    """Minimal provider stub: answers the design prompt with a fixed JSON payload, as TEXT
+    through the real extractor (tests/devcase_fakes.py), so the step's shape pin runs."""
 
 
 class TestDesign(unittest.TestCase):
@@ -164,15 +160,9 @@ class TestMustHavesReachTheDesigner(unittest.TestCase):
         }
 
     def _capture(self, role):
-        captured = {}
-
-        class Capture:
-            def complete_json(self, prompt, system=None):
-                captured["prompt"] = prompt
-                return {}
-
-        design_case(self.need, self.analysis, role, provider=Capture())
-        return captured["prompt"]
+        capture = TextReply({})
+        design_case(self.need, self.analysis, role, provider=capture)
+        return capture.last_prompt
 
     def test_must_haves_reach_the_design_prompt(self):
         prompt = self._capture(self.role)

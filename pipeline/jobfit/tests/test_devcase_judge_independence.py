@@ -26,6 +26,7 @@ from pathlib import Path
 from unittest import mock
 
 from pipeline.jobfit.devcase import devcase_cli, lifecycle_audits
+from pipeline.jobfit.tests.devcase_fakes import RaisingProvider
 from pipeline.jobfit.devcase.llm_judge import (
     judge_independence,
     provider_identity,
@@ -214,18 +215,12 @@ class TestStrictRefusesASelfGradedGate(unittest.TestCase):
         self.assertNotIn("judge is not independent", err.getvalue())
 
 
-class _FailingProvider:
+class _FailingProvider(RaisingProvider):
     """Available, carries an identity, and fails every call — so a devcase_cli run reaches
     the emit with ``provider is not None`` while every step falls back deterministically."""
 
     def __init__(self, model=None):
-        self.model = model
-
-    def available(self):
-        return True
-
-    def complete_json(self, prompt, system=None):
-        raise RuntimeError("no LLM in tests")
+        super().__init__(RuntimeError("no LLM in tests"), model=model)
 
 
 class TestJudgeSeatIsIndependentByDefault(unittest.TestCase):

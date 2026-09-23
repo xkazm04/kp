@@ -17,6 +17,7 @@ from pathlib import Path
 from pipeline.jobfit.devcase import interview_scenario
 from pipeline.jobfit.devcase.devcase_cli import main
 from pipeline.jobfit.devcase.models import CaseScenario, CoverProbe, RoleSpec
+from pipeline.jobfit.tests.devcase_fakes import TextReply
 
 _SCRIPT = json.loads(
     (Path(interview_scenario.__file__).resolve().parents[1] / "interview-script.json").read_text(encoding="utf-8")
@@ -39,12 +40,8 @@ CASE = CaseScenario(
 ROLE = RoleSpec(title="Junior Backend Developer", seniority="junior", must_haves=["Python", "SQL"])
 
 
-class _FakeProvider:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def complete_json(self, prompt, system=None):  # noqa: ARG002 - mirrors ClaudeCliProvider
-        return self._payload
+class _FakeProvider(TextReply):
+    """Answers with ``payload`` as TEXT through the real extractor (tests/devcase_fakes.py)."""
 
 
 class DeterministicScenarioTest(unittest.TestCase):

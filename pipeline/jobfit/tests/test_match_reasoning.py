@@ -13,6 +13,7 @@ from pipeline.jobfit.match_reasoning import (
     reasoning_context,
 )
 from pipeline.jobfit.matching import MatchCandidate, score_job
+from pipeline.jobfit.tests.devcase_fakes import RaisingProvider, TextReply
 
 CAND = MatchCandidate(
     skills=["Python", "Django", "PostgreSQL"],
@@ -51,12 +52,9 @@ class DeterministicTest(unittest.TestCase):
         self.assertEqual(source, "deterministic")
 
 
-class FakeProvider:
-    def __init__(self, payload):
-        self.payload = payload
-
-    def complete_json(self, prompt, *, system=None):
-        return self.payload
+class FakeProvider(TextReply):
+    """Answers with ``payload`` as TEXT through the real extractor, so the shape pin
+    ``match_reasoning`` forwards actually runs (tests/devcase_fakes.py)."""
 
 
 class LlmPathTest(unittest.TestCase):
@@ -83,11 +81,9 @@ class LlmPathTest(unittest.TestCase):
         self.assertTrue(r["strengths"])
 
     def test_provider_exception_falls_back(self) -> None:
-        class Boom:
-            def complete_json(self, prompt, *, system=None):
-                raise RuntimeError("cli down")
-
-        _r, source = generate(CAND, JOB, score_job(CAND, JOB), provider=Boom())
+        _r, source = generate(
+            CAND, JOB, score_job(CAND, JOB), provider=RaisingProvider(RuntimeError("cli down"))
+        )
         self.assertEqual(source, "deterministic")
 
 

@@ -19,6 +19,7 @@ from pipeline.jobfit.devcase import devcase_cli
 from pipeline.jobfit.devcase.models import LOW_CONFIDENCE
 from pipeline.jobfit import _cli
 from pipeline.jobfit.devcase.provenance import combine_source
+from pipeline.jobfit.tests.devcase_fakes import RaisingProvider, TextReply, by_prompt
 
 
 def _run(argv: list[str]) -> tuple[int, str, str]:
@@ -34,39 +35,34 @@ def _last_json(stream: str) -> dict:
     return json.loads(lines[-1])
 
 
-class _AlwaysFailProvider:
+class _AlwaysFailProvider(RaisingProvider):
     """A provider that is available but whose every LLM call raises — so every step falls
     back to its deterministic template. Mocked in for resolve_provider to exercise the
     real CLI fallback path without a Claude CLI."""
 
-    def __init__(self, exc: Exception):
-        self._exc = exc
 
-    def available(self) -> bool:
-        return True
-
-    def complete_json(self, prompt, system=None):
-        raise self._exc
-
-
-class _ReflectOnlyProvider:
+class _ReflectOnlyProvider(TextReply):
     """Available; succeeds for the reflect step only (matched by its prompt) and raises for
-    every other step — a 'partial' run whose fallbackReason keys EXACTLY the failed steps."""
+    every other step — a 'partial' run whose fallbackReason keys EXACTLY the failed steps.
+    The reflect answer is TEXT through the real extractor (tests/devcase_fakes.py)."""
 
-    def available(self) -> bool:
-        return True
-
-    def complete_json(self, prompt, system=None):
-        if "WHERE THE CANDIDATE MENTALLY WENT" in prompt:
-            return {
-                "narrative": "n",
-                "iterationPattern": "linear",
-                "deadEnds": [],
-                "readBeforeWrite": 0.5,
-                "verificationHabits": ["ran tests"],
-                "confidence": 0.6,
-            }
-        raise RuntimeError("boom: no stub for this step")
+    def __init__(self) -> None:
+        super().__init__(
+            by_prompt(
+                [(
+                    "WHERE THE CANDIDATE MENTALLY WENT",
+                    {
+                        "narrative": "n",
+                        "iterationPattern": "linear",
+                        "deadEnds": [],
+                        "readBeforeWrite": 0.5,
+                        "verificationHabits": ["ran tests"],
+                        "confidence": 0.6,
+                    },
+                )],
+                RuntimeError("boom: no stub for this step"),
+            )
+        )
 
 
 class TestDevcaseCliErrorStatus(unittest.TestCase):
