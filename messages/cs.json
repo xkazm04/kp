@@ -10131,14 +10131,14 @@
           "score_clears_floor": "Skóre přenosu {score} splňuje laťku {floor}"
         }
       },
-      "caseScore": "skóre úlohy",
-      "caseScoreTitle": "Pět skóre schopností vážených podle hodnoticí škály této úlohy. Body u jednotlivých pruhů dávají dohromady právě toto skóre.",
-      "caseScorePartialTitle": "Nehodnoceno: {dimensions}. Skóre úlohy je vážené jen přes {pct} % škály, které byly ohodnoceny, a jistota evaluace je úměrně snížena.",
-      "caseScoreLegacyTitle": "Tento běh byl ohodnocen dříve, než existovalo vážené skóre úlohy, takže se na něj váhy škály nepoužily.",
-      "contributionTitle": "Příspěvek schopnosti {label} ke skóre úlohy: {points} bodu",
+      "caseScore": "skóre zadání",
+      "caseScoreTitle": "Pět skóre schopností vážených podle hodnoticí škály tohoto zadání. Body u jednotlivých pruhů dávají dohromady právě toto skóre.",
+      "caseScorePartialTitle": "Nehodnoceno: {dimensions}. Skóre zadání je vážené jen přes {pct} % škály, které byly ohodnoceny, a jistota evaluace je úměrně snížena.",
+      "caseScoreLegacyTitle": "Tento běh byl ohodnocen dříve, než existovalo vážené skóre zadání, takže se na něj váhy škály nepoužily.",
+      "contributionTitle": "Příspěvek schopnosti {label} ke skóre zadání: {points} bodu",
       "notScored": "nehodnoceno",
-      "notScoredTitle": "Schopnost {label} nebyla ohodnocena, proto se do skóre úlohy nezapočítává, místo aby se počítala jako střední hodnota.",
-      "weightsNotApplied": "Uloženo před zavedením váženého skóre úlohy: procenta ukazují hodnoticí škálu, ale skóre tohoto běhu s nimi zkombinována nebyla."
+      "notScoredTitle": "Schopnost {label} nebyla ohodnocena, proto se do skóre zadání nezapočítává, místo aby se počítala jako střední hodnota.",
+      "weightsNotApplied": "Uloženo před zavedením váženého skóre zadání: procenta ukazují hodnoticí škálu, ale skóre tohoto běhu s nimi zkombinována nebyla."
     },
     "jobLink": {
       "linked": "Pozice: {title}",

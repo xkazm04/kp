@@ -10131,14 +10131,14 @@
           "score_clears_floor": "Transfer-Score {score} erreicht die Schwelle von {floor}"
         }
       },
-      "caseScore": "Fallwert",
-      "caseScoreTitle": "Die fünf Kompetenzwerte, gewichtet nach dem Bewertungsraster dieses Falls. Die Punkte neben den Balken ergeben zusammen diesen Wert.",
-      "caseScorePartialTitle": "Nicht bewertet: {dimensions}. Der Fallwert ist nur über die bewerteten {pct} % des Rasters gewichtet, und die Konfidenz der Bewertung ist entsprechend gesenkt.",
-      "caseScoreLegacyTitle": "Dieser Durchlauf wurde bewertet, bevor es gewichtete Fallwerte gab; die Gewichte des Rasters wurden darauf nicht angewendet.",
-      "contributionTitle": "Beitrag von {label} zum Fallwert: {points} Punkte",
+      "caseScore": "Aufgabenwert",
+      "caseScoreTitle": "Die fünf Kompetenzwerte, gewichtet nach dem Bewertungsraster dieser Aufgabe. Die Punkte neben den Balken ergeben zusammen diesen Wert.",
+      "caseScorePartialTitle": "Nicht bewertet: {dimensions}. Der Aufgabenwert ist nur über die bewerteten {pct} % des Rasters gewichtet, und die Konfidenz der Bewertung ist entsprechend gesenkt.",
+      "caseScoreLegacyTitle": "Dieser Durchlauf wurde bewertet, bevor es gewichtete Aufgabenwerte gab; die Gewichte des Rasters wurden darauf nicht angewendet.",
+      "contributionTitle": "Beitrag von {label} zum Aufgabenwert: {points} Punkte",
       "notScored": "nicht bewertet",
-      "notScoredTitle": "{label} wurde nicht bewertet und fließt deshalb nicht in den Fallwert ein, statt als Mittelwert gezählt zu werden.",
-      "weightsNotApplied": "Gespeichert vor den gewichteten Fallwerten: Die Prozentangaben zeigen das Raster, aber die Werte dieses Durchlaufs wurden nicht damit verrechnet."
+      "notScoredTitle": "{label} wurde nicht bewertet und fließt deshalb nicht in den Aufgabenwert ein, statt als Mittelwert gezählt zu werden.",
+      "weightsNotApplied": "Gespeichert vor den gewichteten Aufgabenwerten: Die Prozentangaben zeigen das Raster, aber die Werte dieses Durchlaufs wurden nicht damit verrechnet."
     },
     "jobLink": {
       "linked": "Stelle: {title}",
