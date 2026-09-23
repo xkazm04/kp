@@ -16,14 +16,13 @@ export type ApplyTranslator = ReturnType<typeof useTranslations<"apply">>;
 // runs job-derived knockout (KO) questions before they enter the pipeline.
 
 // The locale default, the bilingual years parser, and the duplicate-application
-// dedup-key helpers live in the registry-free `apply-intake` module so they can
+// name normalizer live in the registry-free `apply-intake` module so they can
 // be unit-tested directly; re-exported here so the apply flow keeps a single
 // public surface.
 export {
   DEFAULT_APPLY_LANGUAGES,
   parseYearsExperience,
   normalizeApplicantName,
-  applyDedupeKey,
 } from "./apply-intake";
 
 export type ApplyStep =

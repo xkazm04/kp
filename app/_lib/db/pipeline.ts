@@ -5,7 +5,7 @@ import type { CalibrationOutcomeAxis } from "../calibration";
 import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-status";
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
-import { randomToken } from "../random-id";
+import { randomId, randomToken } from "../random-id";
 import { CONSENT_EXPIRING_DAYS, CONSENT_TTL_DAYS, consentExpiresAt, consentNeedsExpiryNotice, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
@@ -1383,15 +1383,10 @@ export type CreatePipelineInput = {
   // short human-readable reason. Defaults to not-degraded for normal additions.
   intakeDegraded?: boolean;
   intakeDegradedReason?: string | null;
-  // Optional stable identity to key idempotency on when `candidateId` itself is
-  // NOT stable across submissions. The conversational apply flow mints a fresh
-  // profile id per submission, so keying the entry id on candidateId would let
-  // the same person spawn unlimited Accepted rows for one role. When set, the
-  // entry's primary key derives from this instead (the candidate_id column still
-  // stores the real profile id), so repeat applies collapse onto one row. See
-  // `applyDedupeKey` in apply-intake.ts. Recruiter/Match adds omit it and keep
-  // the historical candidateId-keyed behavior.
-  dedupeKey?: string | null;
+  // The filing core's hashed, erasable identity (applicant-key.ts). When present (even
+  // "", which never dedupes) the id is an opaque surrogate and a non-empty key finds the
+  // (workspace, job, key) row. Erasure NULLs it. Recruiter/Match adds omit it.
+  applicantKey?: string | null;
   // Candidate contact (email/phone) from inbound apply; stored so downstream comms
   // are deliverable. Omitted by recruiter/Match adds (they carry no address).
   contact?: string | null;
@@ -1465,10 +1460,8 @@ function readdReopenDecision(
 }
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
-// or the recruiter view returns the existing row rather than duplicating it. When
-// the caller supplies a `dedupeKey` (the apply flow does — candidateId is a fresh
-// per-submission profile id there), the id keys on that stable value instead, so
-// repeat applications dedup rather than piling up. Returns created:false when an
+// or the recruiter view returns the existing row rather than duplicating it; a filing
+// (`applicantKey`) dedups on its key instead. Returns created:false when an
 // entry already existed, letting the caller surface the repeat.
 // One IMMEDIATE transaction (read → decide → write), so each outcome commits whole;
 // nests as a savepoint under devcase-run.ts's own transaction.
@@ -1476,22 +1469,32 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
   const db = ensureDb();
   // Tenant scope (P1): stamp + scope every by-id lookup to the owning team.
   const workspaceId = input.workspaceId ?? DEFAULT_WORKSPACE_ID;
-  const keySource = input.dedupeKey || input.candidateId;
-  // The entry id is a GLOBAL PK. The DEFAULT workspace keeps the historical `m-<key>-<job>`
-  // scheme so existing entries stay idempotent (a re-apply regenerates the SAME id and
-  // merges); a non-default team prefixes its workspace so two teams sourcing the same
-  // candidate→job can't collide on the shared PK once KP_MULTI_WORKSPACE is on. Fully
-  // behavior-identical under the single-tenant lock — every id uses the default scheme.
+  // The entry id is a GLOBAL PK (a non-default team prefixes its workspace). A re-add
+  // regenerates `m-<candidateId>-<job>`; a filing gets a SURROGATE: the id is the ATS
+  // ref, the chain's candidateRef and every log line's name, and survives erasure.
   const idPrefix = workspaceId === DEFAULT_WORKSPACE_ID ? "" : `${workspaceId}-`;
+  const keyed = input.applicantKey != null;
+  const applicantKey = input.applicantKey || null;
+  const keySource = keyed ? randomId("appl") : input.candidateId;
   const id = `m-${idPrefix}${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+  // The row this add lands on ("" never matches: an anonymous applicant is always new).
+  const findExisting = (): PipelineRow | undefined =>
+    keyed
+      ? applicantKey
+        ? (db
+            .prepare(`SELECT * FROM pipeline_entries WHERE workspace_id = ? AND job_id = ? AND applicant_key = ?`)
+            .get(workspaceId, input.jobId, applicantKey) as PipelineRow | undefined)
+        : undefined
+      : (db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined);
   // A caller that names no stage is filing an already-assessed candidate (a
   // match fan-out, a recruiter add): they land where that means on THIS
   // workspace's axis, not on a column that happens to be called "Screened".
   // Resolved before the transaction (the axis reads another store).
   const stage = input.stage ?? screenedLandingStage(getPipelineAxis(workspaceId).stages);
   const tx = db.transaction((): CreatePipelineResult => {
-    const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
-    if (existing) {
+    // A re-add onto a row that already exists: fill-only backfills, then the re-add transition.
+    const landOnExisting = (existing: PipelineRow): CreatePipelineResult => {
+      const id = existing.id;
       // An ERASED entry takes no backfill: that would re-attach scrubbed personal data.
       if (!existing.anonymized_at) {
         // A re-add carrying GitHub evidence backfills an entry that has none —
@@ -1570,45 +1573,57 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
       }
       const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
       return { entry: rowToEntry(row), created: false, reopened, ...(reopenRefused ? { reopenRefused } : {}) };
-    }
+    };
+    const existing = findExisting();
+    if (existing) return landOnExisting(existing);
     const now = new Date().toISOString();
     const intakeDegraded = input.intakeDegraded ? 1 : 0;
     const intakeDegradedReason = input.intakeDegraded ? input.intakeDegradedReason ?? "intake normalization failed" : null;
-    db.prepare(
-      `INSERT INTO pipeline_entries
-         (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-          stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-          intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-          source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id)
-       VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-          @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
-          @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-          @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id)`
-    ).run({
-      id,
-      candidate_id: input.candidateId,
-      candidate_label: input.candidateLabel,
-      archetype: input.archetype ?? null,
-      role_family: input.roleFamily ?? null,
-      job_id: input.jobId,
-      job_title: input.jobTitle,
-      stage,
-      match_score: input.matchScore ?? null,
-      approval_kind: input.approvalKind ?? null,
-      now,
-      intake_degraded: intakeDegraded,
-      intake_degraded_reason: intakeDegradedReason,
-      contact: input.contact ?? null,
-      locale: input.locale ?? null,
-      github_json: input.githubJson ?? null,
-      github_handle: input.githubHandle ?? null,
-      source_channel: input.sourceChannel ?? null,
-      source_campaign: input.sourceCampaign ?? null,
-      source_variant: input.sourceVariant ?? null,
-      dev_case_id: input.devCaseId ?? null,
-      dev_submission_id: input.devSubmissionId ?? null,
-      workspace_id: workspaceId,
-    });
+    // The UNIQUE backstop (the db/tasks.ts shape): a key another writer committed first
+    // is this applicant's entry. IMMEDIATE already closes the window; this keeps it closed.
+    try {
+      db.prepare(
+        `INSERT INTO pipeline_entries
+           (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
+            stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
+            intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
+            source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key)
+         VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
+            @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
+            @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
+            @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key)`
+      ).run({
+        id,
+        candidate_id: input.candidateId,
+        candidate_label: input.candidateLabel,
+        archetype: input.archetype ?? null,
+        role_family: input.roleFamily ?? null,
+        job_id: input.jobId,
+        job_title: input.jobTitle,
+        stage,
+        match_score: input.matchScore ?? null,
+        approval_kind: input.approvalKind ?? null,
+        now,
+        intake_degraded: intakeDegraded,
+        intake_degraded_reason: intakeDegradedReason,
+        contact: input.contact ?? null,
+        locale: input.locale ?? null,
+        github_json: input.githubJson ?? null,
+        github_handle: input.githubHandle ?? null,
+        source_channel: input.sourceChannel ?? null,
+        source_campaign: input.sourceCampaign ?? null,
+        source_variant: input.sourceVariant ?? null,
+        dev_case_id: input.devCaseId ?? null,
+        dev_submission_id: input.devSubmissionId ?? null,
+        workspace_id: workspaceId,
+        applicant_key: applicantKey,
+      });
+    } catch (err) {
+      const winner =
+        applicantKey && (err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE" ? findExisting() : undefined;
+      if (!winner) throw err;
+      return landOnExisting(winner);
+    }
     recordEvent(db, {
       entryId: id,
       candidateLabel: input.candidateLabel,
@@ -1750,7 +1765,7 @@ export function recordAnalysisDispositionEvents(
 // event to the original application (the canonical row). A blank name yields null
 // — anonymous applicants can't be told apart, so they aren't merged. This is the
 // primary, pre-build check the POST handler runs to avoid both a duplicate
-// pipeline row AND a wasted profile build; createPipelineEntry's `dedupeKey`
+// pipeline row AND a wasted profile build; createPipelineEntry's `applicantKey`
 // backstops the rare concurrent-submission race.
 export function findApplicationByApplicant(jobId: string, name: string, email?: string | null, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const emailKey = normalizeContact(email);
@@ -1758,8 +1773,11 @@ export function findApplicationByApplicant(jobId: string, name: string, email?: 
   // Nothing to key on (anonymous, no email) — never merge.
   if (!emailKey && !nameKey) return null;
   const db = ensureDb();
+  // An ERASED row is nobody (its label is only a mask a stranger could type): never an identity.
   const rows = db
-    .prepare(`SELECT * FROM pipeline_entries WHERE job_id = ? AND workspace_id = ? ORDER BY created_at ASC, id ASC`)
+    .prepare(
+      `SELECT * FROM pipeline_entries WHERE job_id = ? AND workspace_id = ? AND anonymized_at IS NULL ORDER BY created_at ASC, id ASC`
+    )
     .all(jobId, workspaceId) as PipelineRow[];
   // When the applicant gave an email, identity is the EMAIL: a repeat is an entry
   // sharing that contact. A row holding a DIFFERENT address is never matched —
@@ -2480,7 +2498,8 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     const claimed = db.prepare(
       `UPDATE pipeline_entries
           SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL,
-              notes = NULL, erasure_token = NULL, optout_token = NULL, anonymized_at = ?, updated_at = ?
+              notes = NULL, erasure_token = NULL, optout_token = NULL, applicant_key = NULL,
+              anonymized_at = ?, updated_at = ?
         WHERE id = ? AND workspace_id = ? AND anonymized_at IS NULL`
     ).run(masked, now, now, entryId, workspaceId);
     if (claimed.changes === 0) {

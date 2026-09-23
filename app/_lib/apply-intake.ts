@@ -78,23 +78,13 @@ export function parseYearsExperience(experience: string): number | undefined {
  * This is the identity the duplicate-application policy keys on. The
  * conversational apply flow captures no contact field (email/phone), so the
  * applicant's name (paired with the role) is the only stable signal available;
- * see {@link applyDedupeKey} and `findApplicationByApplicant` in db.ts.
+ * see `applicantKey` (applicant-key.ts, the server-only hashed filing identity)
+ * and `findApplicationByApplicant` in db/pipeline.ts.
  */
 export function normalizeApplicantName(name: string): string {
   return name.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-/**
- * Build the stable per-applicant idempotency key the apply flow hands to
- * `createPipelineEntry` so repeat submissions from the same (person, role)
- * collapse onto one pipeline row instead of minting a fresh entry each time.
- *
- * Shape: `appl-<normalized-name-with-spaces-as-hyphens>` (e.g. "Jane Doe" →
- * `appl-jane-doe`). The hyphen/alphanumeric form survives createPipelineEntry's
- * slug strip so the derived entry id stays stable and human-legible. Returns ""
- * for a nameless applicant, which the caller treats as "don't dedup" (we can't
- * tell two anonymous applicants apart, so each gets its own entry).
- */
 /** Normalize a captured contact (email) into a stable comparison key: trimmed +
  *  lowercased. Email is the stronger identity than a display name (two real people
  *  can share a name; an address is theirs), so when present it drives dedup. "" for
@@ -113,19 +103,6 @@ export function normalizeContact(contact: string | null | undefined): string {
  * module/contract.)
  */
 export const APPLY_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export function applyDedupeKey(name: string, email?: string | null): string {
-  // Prefer the email (idea: dedup-by-email) — two same-named applicants with
-  // different addresses are different people and must get DISTINCT keys, which a
-  // name-only key collapsed onto one entry. Non-alphanumerics → hyphens so the key
-  // survives createPipelineEntry's slug strip distinctly (a.b@x vs ab@x don't
-  // collide once `@`/`.` become separators). Falls back to the name when no email
-  // was captured, preserving the legacy behavior for those applicants.
-  const e = normalizeContact(email);
-  if (e) return `appl-${e.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
-  const norm = normalizeApplicantName(name);
-  return norm ? `appl-${norm.replace(/ /g, "-")}` : "";
-}
 
 /**
  * The conversational-apply submit-failure recovery contract: given the HTTP

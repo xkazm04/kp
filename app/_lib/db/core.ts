@@ -2196,6 +2196,7 @@ export function ensureDb(): Database.Database {
     // sha256 of the per-attempt dev-case session key (devcase-session-auth.ts). NULL on
     // pre-key rows, which keep the apply-token rule. Never the raw key.
     "ALTER TABLE dev_sessions ADD COLUMN key_hash TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN applicant_key TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -2203,6 +2204,8 @@ export function ensureDb(): Database.Database {
     // was written to prevent. It tolerates only the benign "already applied" error.
     migrateExec(sql);
   }
+  // applicant-key.ts: one filing per (team, job, key); NULL (legacy, erased) never collides.
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_applicant_key ON pipeline_entries (workspace_id, job_id, applicant_key) WHERE applicant_key IS NOT NULL`);
   // The public skill-profile verify/view resolves a presented token by its CSPRNG
   // access_token (new credentials); index it like the other single-row token lookups.
   // Created AFTER the ALTER loop above so a legacy DB already holds the column.

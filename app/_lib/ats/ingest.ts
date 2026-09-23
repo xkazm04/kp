@@ -28,9 +28,10 @@
 //      operator import), a profile-less STUB (no Python spawns here), and NO
 //      acknowledgement — the vendor already acknowledged this application. A record the
 //      core recognises as an existing applicant of the same opening is bound to that
-//      entry (`linked`) instead of duplicating them. If the core lands on a SCRUBBED row
-//      (its dedupe key survives the erasure), the filing is stopped before it writes
-//      and the answer is `erased`, with no link.
+//      entry (`linked`) instead of duplicating them. The core cannot resolve a SCRUBBED
+//      row (erasure NULLs its applicant_key and removes it from the identity lookup); the
+//      guard below still stops a filing that lands on one before it writes, answering
+//      `erased` with no link.
 //   6. NEVER THE TERMINAL COLUMN. The vendor stage is mapped against the importing
 //      team's own axis; a stage that maps to the terminal role, or to nothing, lands on
 //      the entry column. Terminal is outcome-bearing and reachable only through kp's

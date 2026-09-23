@@ -30,9 +30,12 @@
 //        - "none": the match came from a typed name/email, which is not a secret.
 //          Nothing on the matched entry moves; the door answers (and may re-send the
 //          entry's own links to the address ON FILE — apply-link-recovery.ts).
-//      The dedupeKey backstop catching a concurrent first filing is this same
+//      The applicantKey backstop catching a concurrent first filing is this same
 //      applicant by construction (its key collided while the identity lookup missed),
-//      so a raced "none" writes like "channel".
+//      so a raced "none" writes like "channel". An ERASED applicant is never that:
+//      erasure NULLs the key, and the entry id is an opaque surrogate rather than a
+//      value the same address regenerates, so a re-application after erasure is a
+//      new applicant, never a re-contact of the scrubbed row.
 //   5. The entry at the workspace axis's ENTRY column, consent (best-effort), the
 //      best-effort status-link mint, and the acknowledgement (best-effort, its links
 //      minted synchronously, its dispatch deferrable off the response path).
@@ -55,7 +58,8 @@ import {
 import type { PipelineEntry } from "./db/core";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { stageWithRole } from "./pipeline-stages";
-import { applyDedupeKey, FALLBACK_ARCHETYPE } from "./apply";
+import { FALLBACK_ARCHETYPE } from "./apply";
+import { applicantKey } from "./applicant-key";
 import { ANONYMOUS_APPLICANT_LABEL, type ApplyAnswers } from "./apply-intake";
 import { buildApplicantProfile, type BuildOutcome } from "./applicant-profile";
 import { getOrCreateStatusLink } from "./application-status-store";
@@ -144,7 +148,7 @@ export type ApplicationFilingOutcome =
       label: string;
       /** True when the repeat was allowed to write (token or channel proof, or a race). */
       merged: boolean;
-      /** The dedupeKey backstop caught a concurrent first filing. */
+      /** The applicantKey backstop caught a concurrent first filing. */
       raced: boolean;
       /** What the merge folded onto the entry, for the event trail. */
       changes: string[];
@@ -293,10 +297,11 @@ export async function fileApplication(input: ApplicationFilingInput): Promise<Ap
     // workspace calls it — not at a stage that happens to be named "Accepted" (the
     // axis is editable; a hardcoded name strands applicants off-axis).
     stage: input.stage ?? stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
-    // Keyed on the PROVIDED name (and the email first): "" yields no key, so the
-    // entry id falls back to the fresh candidate id and anonymous applicants stay
-    // apart. Backstops two concurrent first filings that both missed the lookup.
-    dedupeKey: applyDedupeKey(providedName, email),
+    // Keyed on the email, else the PROVIDED name, as a hashed, erasable identity: ""
+    // (anonymous) never dedupes, so anonymous applicants stay apart. The entry id is an
+    // opaque surrogate either way. Backstops two concurrent first filings that both
+    // missed the lookup.
+    applicantKey: applicantKey(providedName, email),
     intakeDegraded: degraded !== null,
     intakeDegradedReason: degraded?.reason ?? null,
     contact: email,
