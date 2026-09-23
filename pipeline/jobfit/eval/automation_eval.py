@@ -46,7 +46,7 @@ from ._style import _make_styler, should_color
 from .judging import DEFAULT_JUDGE_MODEL, JSON_CONTRACT, SameJudgeRefused, quality_passes, quality_state, render_output, resolve_judge_provider, run_judge
 from .runner import GLYPH_NA, verdict_banner
 from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD  # noqa: F401  (re-exported)
-from .thresholds import record_refusal, settle_live
+from .thresholds import record_refusal, settle_live, unit_map
 
 # Single-sourced from automation.py — the SAME vocabulary the production letter
 # guard (automation._letter_is_safe) discards a draft on. Keeping a second copy
@@ -326,6 +326,13 @@ def live_measurements(agg: dict[str, Any]) -> dict[str, tuple[float, int]]:
     return {"RELIABILITY_THRESHOLD": (agg["reliability"], agg["total"])}
 
 
+def live_units(rows: list[Row]) -> dict[str, dict[str, float]]:
+    """The task-runs behind RELIABILITY_THRESHOLD, by ``<task>/<scenario>``:
+    1.0 when the run was reliable. A stale record then names the run that
+    broke, left or joined instead of only the rate."""
+    return {"RELIABILITY_THRESHOLD": unit_map((f"{r.task}/{r.scenario}", 1.0 if r.reliable else 0.0) for r in rows)}
+
+
 def _passes(agg: dict[str, Any], judge_requested: bool = False) -> bool:
     if agg["reliability"] < RELIABILITY_THRESHOLD:
         return False
@@ -500,7 +507,9 @@ def main(argv: list[str] | None = None) -> int:
     certified = True
     if args.no_llm:
         # Certified only on the keyless run: with a provider the figure is a sample.
-        certified = settle_live(live_measurements(agg), record=args.record, prog="automation_eval")
+        certified = settle_live(
+            live_measurements(agg), live_units(rows), record=args.record, prog="automation_eval"
+        )
     return 1 if (args.strict and not (_passes(agg, args.judge) and certified)) else 0
 
 

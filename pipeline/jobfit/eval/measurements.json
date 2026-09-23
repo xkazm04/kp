@@ -6,11 +6,11 @@
     "PASS_THRESHOLDS.seniority": {"measured": 1.0, "n": null, "measured_at": "2026-05-31", "source": "seed_cv_fixtures --all", "corpus": "fixtures_csas (50-CV CSAS pilot)"},
     "PASS_THRESHOLDS.salary_overlap": {"measured": 0.968, "n": null, "measured_at": "2026-05-31", "source": "seed_cv_fixtures --all", "corpus": "fixtures_csas (50-CV CSAS pilot)"},
     "PASS_THRESHOLDS.skill_recall": {"measured": 0.952, "n": null, "measured_at": "2026-05-31", "source": "seed_cv_fixtures --all", "corpus": "fixtures_csas (50-CV CSAS pilot)"},
-    "MATCHING_THRESHOLDS.archetype_accuracy": {"measured": 1.0, "n": 7, "measured_at": "2026-09-23", "source": "python -m pipeline.jobfit.eval.matching_eval --record", "corpus": "data/seed_jobs (committed corpus) x matching_eval.SCENARIOS"},
-    "MATCHING_THRESHOLDS.entry_precision": {"measured": 1.0, "n": 4, "measured_at": "2026-09-23", "source": "python -m pipeline.jobfit.eval.matching_eval --record", "corpus": "data/seed_jobs (committed corpus) x matching_eval.SCENARIOS"},
-    "MATCHING_THRESHOLDS.role_relevance_at5": {"measured": 0.857, "n": 7, "measured_at": "2026-09-23", "source": "python -m pipeline.jobfit.eval.matching_eval --record", "corpus": "data/seed_jobs (committed corpus) x matching_eval.SCENARIOS"},
-    "RELIABILITY_THRESHOLD": {"measured": 1.0, "n": 42, "measured_at": "2026-09-23", "source": "python -m pipeline.jobfit.eval.automation_eval --no-llm --record", "corpus": "automation_eval.TASKS x automation_eval.SCENARIOS (task-runs)"},
-    "FAULT_THRESHOLD": {"measured": 1.0, "n": 240, "measured_at": "2026-09-23", "source": "python -m pipeline.jobfit.eval.fault_eval --record", "corpus": "fault_eval drill rows (fault x task x scenario, plus fallback-runner seams)"},
-    "INTAKE_THRESHOLD": {"measured": 1.0, "n": 98, "measured_at": "2026-09-23", "source": "python -m pipeline.jobfit.eval.intake_eval --no-llm --record", "corpus": "intake_scenarios.json curated persona bank (dialog checks)"}
+    "MATCHING_THRESHOLDS.archetype_accuracy": {"measured": 1.0, "n": 7, "measured_at": "2026-09-24", "source": "python -m pipeline.jobfit.eval.matching_eval --record", "corpus": "data/seed_jobs (committed corpus) x matching_eval.SCENARIOS"},
+    "MATCHING_THRESHOLDS.entry_precision": {"measured": 1.0, "n": 4, "measured_at": "2026-09-24", "source": "python -m pipeline.jobfit.eval.matching_eval --record", "corpus": "data/seed_jobs (committed corpus) x matching_eval.SCENARIOS"},
+    "MATCHING_THRESHOLDS.role_relevance_at5": {"measured": 0.857, "n": 7, "measured_at": "2026-09-24", "source": "python -m pipeline.jobfit.eval.matching_eval --record", "corpus": "data/seed_jobs (committed corpus) x matching_eval.SCENARIOS"},
+    "RELIABILITY_THRESHOLD": {"measured": 1.0, "n": 42, "measured_at": "2026-09-24", "source": "python -m pipeline.jobfit.eval.automation_eval --no-llm --record", "corpus": "automation_eval.TASKS x automation_eval.SCENARIOS (task-runs)"},
+    "FAULT_THRESHOLD": {"measured": 1.0, "n": 240, "measured_at": "2026-09-24", "source": "python -m pipeline.jobfit.eval.fault_eval --record", "corpus": "fault_eval drill rows (fault x task x scenario, plus fallback-runner seams)"},
+    "INTAKE_THRESHOLD": {"measured": 1.0, "n": 98, "measured_at": "2026-09-24", "source": "python -m pipeline.jobfit.eval.intake_eval --no-llm --record", "corpus": "intake_scenarios.json curated persona bank (dialog checks)"}
   }
 }

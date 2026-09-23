@@ -37,6 +37,17 @@ its count ``n`` to the record, and a difference fails the gate. The owning eval'
 ``--record`` flag is the only writer; it rewrites that eval's lines alone and
 refuses to run in CI, because re-recording is an operator act that moves the
 certified figure and the committed diff is its review.
+
+THE UNITS ARE RECORDED TOO. A (rate, n) pair cannot tell "one unit left and
+another joined" from "nothing changed", and a mean cannot tell one scenario
+falling from another rising by the same amount: both certified clean. So every
+deterministic bar also records the units behind its figure, by identity (a
+scenario, a task-run, a drill row, a persona's check) with each unit's own
+value, in ``measurements.units.json`` (one unit per line, sorted). A strict run
+certifies them as well, and a stale-record finding names the units that LEFT,
+JOINED or FLIPPED, so "intended or regression" is answered by reading ids, and
+a ``--record`` diff shows the reviewer exactly which units the new record
+accepts.
 """
 from __future__ import annotations
 
@@ -60,6 +71,12 @@ UNMEASURED = "unmeasured"
 # :func:`record_measurements` (an eval's ``--record``).
 MEASUREMENTS_PATH = Path(__file__).with_name("measurements.json")
 MEASUREMENTS_SCHEMA = 1
+# The units behind each deterministic bar's figure, one unit per line. Written
+# beside measurements.json by the same --record, read here only.
+UNITS_PATH = MEASUREMENTS_PATH.with_name("measurements.units.json")
+UNITS_SCHEMA = 1
+# How many changed units one stale-record finding names before "+k more".
+UNITS_SHOWN = 10
 # Any of these set means the process is a CI job, where --record must not run.
 CI_ENV_VARS: tuple[str, ...] = ("CI", "GITHUB_ACTIONS")
 
@@ -428,6 +445,88 @@ def _validate() -> None:
 _validate()
 
 
+# --- The units behind each deterministic figure ------------------------------
+
+# bar -> unit id -> that unit's own value (1.0 / 0.0 for a pass/fail unit, the
+# scenario's score for a mean such as relevance@5).
+LiveUnits = Mapping[str, Mapping[str, float]]
+
+
+def _unit_value(where: str, uid: object, value: object) -> float:
+    if not isinstance(uid, str) or not uid:
+        raise ValueError(f"{where}: a unit id must be a non-empty string, got {uid!r}")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"{where}: unit {uid!r} must carry a number, got {value!r}")
+    return round(float(value), 3)
+
+
+def unit_map(pairs, *, where: str = "live units") -> dict[str, float]:
+    """A bar's unit map from ``(id, value)`` pairs, refusing a duplicate id.
+
+    Every eval builds its units through this, because a plain dict would keep
+    the last of two rows sharing an id and the count would silently shrink."""
+    out: dict[str, float] = {}
+    for uid, value in pairs:
+        if uid in out:
+            raise ValueError(f"{where}: duplicate unit id {uid!r} — each unit must be named once")
+        out[uid] = _unit_value(where, uid, value)
+    return out
+
+
+def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    # json.loads keeps the LAST of two equal keys; in the units file that is a
+    # unit silently collapsing into another, so it is refused instead.
+    out: dict[str, object] = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"{UNITS_PATH.name}: duplicate unit id or bar {key!r}")
+        out[key] = value
+    return out
+
+
+def load_units(path: Path | None = None) -> dict[str, dict[str, float]]:
+    """The recorded units, keyed by qualified bar name. Refuses a duplicate id."""
+    target = path or UNITS_PATH
+    data = json.loads(target.read_text(encoding="utf-8"), object_pairs_hook=_no_duplicate_keys)
+    if data.get("schema") != UNITS_SCHEMA or not isinstance(data.get("units"), dict):
+        raise ValueError(f"{target.name} is not a schema-{UNITS_SCHEMA} units file")
+    out: dict[str, dict[str, float]] = {}
+    for name, units in data["units"].items():
+        if not isinstance(units, dict):
+            raise ValueError(f"{target.name} {name} must map unit ids to numbers")
+        out[name] = {uid: _unit_value(f"{target.name} {name}", uid, v) for uid, v in units.items()}
+    return out
+
+
+def bind_units(units: Mapping[str, Mapping[str, float]], bars: Mapping[str, Bar] | None = None) -> dict[str, dict[str, float]]:
+    """Check the recorded units against the bound bars.
+
+    Refuses (ValueError) units for a bar that is not deterministic or does not
+    exist, a deterministic bar with a record but no units, and units whose count
+    is not the record's ``n``: the two files describe one measurement."""
+    bars = all_bars() if bars is None else bars
+    orphans = sorted(name for name in units if name not in bars or not bars[name].deterministic)
+    if orphans:
+        raise ValueError(f"{UNITS_PATH.name} records units for bars that are not deterministic bars: {orphans}")
+    for name, bar in bars.items():
+        if not bar.deterministic:
+            continue
+        if name not in units:
+            raise ValueError(
+                f"{name} is deterministic but has no units in {UNITS_PATH.name} — run "
+                f"`{bar.recorder}` and commit the diff"
+            )
+        if len(units[name]) != bar.n:
+            raise ValueError(
+                f"{name} records n={bar.n} but {UNITS_PATH.name} holds {len(units[name])} units for it — "
+                f"re-record it with `{bar.recorder}`"
+            )
+    return {name: dict(u) for name, u in units.items()}
+
+
+UNITS = bind_units(load_units())
+
+
 # --- Certifying and re-recording a live run ----------------------------------
 
 # A live figure is a (value, n) pair: the rate the eval reported and the count of
@@ -441,28 +540,86 @@ def _same(a: float, b: float) -> bool:
     return round(float(a), 3) == round(float(b), 3)
 
 
-def certify_live(live: Live) -> list[str]:
-    """Findings for every DETERMINISTIC bar whose live figure or count differs
-    from its record. A keyed / judged bar is never certified (it has run-to-run
-    variance, which is what its slack is for). Empty list = certified."""
-    bars = all_bars()
+def _num(value: float) -> str:
+    return repr(round(float(value), 3))
+
+
+def unit_changes(recorded: Mapping[str, float], live: Mapping[str, float]) -> dict[str, list[str]]:
+    """The units that left, joined or flipped, each rendered for a reader and
+    sorted by id: ``c (1.0)`` left / joined, ``s1 1.0 -> 0.8`` flipped."""
+    return {
+        "left": [f"{uid} ({_num(recorded[uid])})" for uid in sorted(set(recorded) - set(live))],
+        "joined": [f"{uid} ({_num(live[uid])})" for uid in sorted(set(live) - set(recorded))],
+        "flipped": [
+            f"{uid} {_num(recorded[uid])} -> {_num(live[uid])}"
+            for uid in sorted(set(recorded) & set(live))
+            if not _same(recorded[uid], live[uid])
+        ],
+    }
+
+
+def _render_changes(changes: Mapping[str, list[str]]) -> str:
+    """At most UNITS_SHOWN changed units, grouped by kind, then '+k more'."""
+    budget = UNITS_SHOWN
+    parts: list[str] = []
+    total = sum(len(v) for v in changes.values())
+    for kind in ("left", "joined", "flipped"):
+        shown = changes[kind][:budget]
+        budget -= len(shown)
+        if shown:
+            parts.append(f"{kind}: {', '.join(shown)}")
+    if total > UNITS_SHOWN:
+        parts.append(f"+{total - UNITS_SHOWN} more")
+    return "; ".join(parts)
+
+
+def _check_live_units(name: str, n: int, units: LiveUnits | None) -> Mapping[str, float]:
+    if units is None or name not in units:
+        raise ValueError(f"{name} is deterministic, so certifying it needs its live units")
+    if len(units[name]) != n:
+        raise ValueError(f"{name}: the eval reported n={n} but named {len(units[name])} units")
+    return units[name]
+
+
+def certify_live(
+    live: Live,
+    units: LiveUnits | None,
+    *,
+    bars: Mapping[str, Bar] | None = None,
+    recorded: Mapping[str, Mapping[str, float]] | None = None,
+) -> list[str]:
+    """Findings for every DETERMINISTIC bar whose live figure, count or units
+    differ from its record. A keyed / judged bar is never certified (it has
+    run-to-run variance, which is what its slack is for). Empty list =
+    certified. Each finding names the units that left, joined or flipped (at
+    most UNITS_SHOWN, then '+k more') and ends with the bar's recorder command.
+
+    ``bars`` / ``recorded`` default to the bound bars and the committed units."""
+    bars = all_bars() if bars is None else bars
+    recorded = UNITS if recorded is None else recorded
     findings: list[str] = []
     for name, (value, n) in live.items():
         bar = bars[name]  # a KeyError here is a caller naming a bar that does not exist
         if not bar.deterministic:
             continue
+        mine = _check_live_units(name, n, units)
+        changes = unit_changes(recorded.get(name, {}), mine)
         moved = []
         if bar.measured is None or not _same(value, bar.measured):
             moved.append("the measurement moved")
         if n != bar.n:
             moved.append("corpus size moved")
+        if any(changes.values()) and not moved:
+            moved.append("the units behind it moved")
         if not moved:
             continue
+        detail = _render_changes(changes) if any(changes.values()) else "no unit changed id or value"
         findings.append(
             f"{name}: live {round(float(value), 3)} over n={n}, recorded {bar.measured} over "
-            f"n={bar.n} ({bar.measured_at}) — {' and '.join(moved)}. The certified figure is "
-            f"stale: if the change is intended, re-record it with `{bar.recorder}` and commit "
-            f"the measurements.json diff; if it is not, the engine regressed."
+            f"n={bar.n} ({bar.measured_at}) — {' and '.join(moved)}. Units: {detail}. The certified "
+            f"record is stale: if the change is intended, re-record it and commit the "
+            f"measurements.json + {UNITS_PATH.name} diff; if it is not, the engine regressed. "
+            f"Re-record: `{bar.recorder}`"
         )
     return findings
 
@@ -486,6 +643,29 @@ def render_measurements(records: Mapping[str, Mapping[str, object]]) -> str:
     return "\n".join(lines)
 
 
+def render_units(units: Mapping[str, Mapping[str, float]]) -> str:
+    """The canonical text of measurements.units.json: sorted by bar, then by
+    unit id, one unit per line, so a --record diff shows exactly which units
+    left, joined or flipped."""
+    lines = [
+        "{",
+        f'  "schema": {UNITS_SCHEMA},',
+        '  "note": "Written by an eval\'s --record flag beside measurements.json (never by hand, never '
+        'in CI). The units behind each deterministic bar, by identity; a strict run certifies them.",',
+        '  "units": {',
+    ]
+    names = sorted(units)
+    for i, name in enumerate(names):
+        lines.append(f"    {json.dumps(name)}: {{")
+        ids = sorted(units[name])
+        for j, uid in enumerate(ids):
+            comma = "," if j < len(ids) - 1 else ""
+            lines.append(f"      {json.dumps(uid, ensure_ascii=False)}: {_num(units[name][uid])}{comma}")
+        lines.append("    }" + ("," if i < len(names) - 1 else ""))
+    lines += ["  }", "}", ""]
+    return "\n".join(lines)
+
+
 def record_refusal(environ: Mapping[str, str] | None = None) -> str | None:
     """Why --record may not run here, or None. It refuses inside CI: re-recording
     moves the certified figure, and a CI job doing it would certify whatever the
@@ -500,17 +680,23 @@ def record_refusal(environ: Mapping[str, str] | None = None) -> str | None:
     return None
 
 
-def record_measurements(live: Live, *, source: str, today: str | None = None, path: Path | None = None) -> list[str]:
-    """Rewrite ONLY the named bars' measured / n / measured_at / source; every
-    other line of the file stays byte-identical. Returns the names whose record
-    changed. Refuses a bar that is not deterministic (a keyed figure is recorded
-    from its own report, not re-derived by a keyless run)."""
+def record_measurements(
+    live: Live, units: LiveUnits, *, source: str, today: str | None = None, path: Path | None = None
+) -> list[str]:
+    """Rewrite ONLY the named bars' measured / n / measured_at / source and their
+    units; every other line of both files stays byte-identical. Returns the
+    names whose record changed. Refuses a bar that is not deterministic (a keyed
+    figure is recorded from its own report, not re-derived by a keyless run),
+    and units whose count is not the live ``n``."""
     target = path or MEASUREMENTS_PATH
+    units_target = target.with_name(UNITS_PATH.name)
     bars = all_bars()
-    for name in live:
+    for name, (_, n) in live.items():
         if not bars[name].deterministic:
             raise ValueError(f"{name} is not deterministic; --record only re-derives keyless figures")
+        _check_live_units(name, n, units)
     records = load_measurements(target)
+    recorded_units = load_units(units_target)
     stamp = today or _dt.date.today().isoformat()
     changed: list[str] = []
     for name, (value, n) in live.items():
@@ -522,15 +708,23 @@ def record_measurements(live: Live, *, source: str, today: str | None = None, pa
             "source": source,
             "corpus": old.get("corpus") or bars[name].corpus,
         }
-        if old.get("measured") != new["measured"] or old.get("n") != new["n"] or old.get("source") != source:
+        new_units = unit_map(units[name].items(), where=name)
+        if (
+            old.get("measured") != new["measured"] or old.get("n") != new["n"] or old.get("source") != source
+            or recorded_units.get(name) != new_units
+        ):
             changed.append(name)
             records[name] = new
-    bind_measurements(records)  # never write a file the next import would refuse
+            recorded_units[name] = new_units
+    # Never write a file the next import would refuse.
+    bound = bind_measurements(records)
+    bind_units(recorded_units, {_qualified(t, k): bar for t, table in bound.items() for k, bar in table.items()})
     target.write_text(render_measurements(records), encoding="utf-8", newline="\n")
+    units_target.write_text(render_units(recorded_units), encoding="utf-8", newline="\n")
     return changed
 
 
-def settle_live(live: Live, *, record: bool, prog: str) -> bool:
+def settle_live(live: Live, units: LiveUnits, *, record: bool, prog: str) -> bool:
     """The one call every keyless eval makes after a canonical run: record it
     (--record) or certify it. Prints to stderr; True when the record stands."""
     if record:
@@ -538,13 +732,21 @@ def settle_live(live: Live, *, record: bool, prog: str) -> bool:
         sources = {bars[name].recorder for name in live}
         if len(sources) != 1:
             raise ValueError(f"{prog}: one --record run re-records one eval's bars, got {sorted(sources)}")
-        changed = record_measurements(live, source=sources.pop())
-        if changed:
-            sys.stderr.write(f"{prog}: recorded {', '.join(changed)} in {MEASUREMENTS_PATH.name}\n")
-        else:
+        changed = record_measurements(live, units, source=sources.pop())
+        for name in changed:
+            # What the new record accepts, per unit, so the operator reviews ids
+            # before committing rather than only a number.
+            diff = unit_changes(UNITS.get(name, {}), units[name])
+            summary = ", ".join(f"{len(diff[k])} {k}" for k in ("left", "joined", "flipped"))
+            detail = _render_changes(diff)
+            sys.stderr.write(
+                f"{prog}: recorded {name} (units: {summary}{'; ' + detail if detail else ''}) in "
+                f"{MEASUREMENTS_PATH.name} + {UNITS_PATH.name}\n"
+            )
+        if not changed:
             sys.stderr.write(f"{prog}: the record already matches this run; nothing re-dated\n")
         return True
-    findings = certify_live(live)
+    findings = certify_live(live, units)
     for finding in findings:
         sys.stderr.write(f"{prog}: stale record — {finding}\n")
     return not findings

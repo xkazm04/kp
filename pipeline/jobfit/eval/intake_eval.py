@@ -76,7 +76,7 @@ from ..intake import opening_turn, run_intake_turn
 from ..rolebrief import BRIEF_PROVENANCE, coerce_role_brief
 from ._style import _make_styler, should_color
 from .runner import glyph, verdict_banner, write_text_lf
-from .thresholds import INTAKE_THRESHOLD, record_refusal, settle_live
+from .thresholds import INTAKE_THRESHOLD, record_refusal, settle_live, unit_map
 
 SCENARIOS_PATH = Path(__file__).with_name("intake_scenarios.json")
 END_TOKEN = "<<END>>"
@@ -242,10 +242,11 @@ def check_dialog(
 
 
 def run_eval(
-    scenarios: list[dict], *, no_llm: bool, cap: int, color: bool, tally: dict[str, int] | None = None
+    scenarios: list[dict], *, no_llm: bool, cap: int, color: bool, tally: dict[str, Any] | None = None
 ) -> tuple[str, bool]:
     """Run the dialog bank and gate it on INTAKE_THRESHOLD (the share of checks
-    that hold). ``tally``, when given, receives the counts the record certifies."""
+    that hold). ``tally``, when given, receives the counts the record certifies
+    and, under ``checks_by_persona``, each persona's checks (the units)."""
     st = _make_styler(color)
     agent_provider = None
     persona_provider = None
@@ -270,7 +271,13 @@ def run_eval(
     # the same verdict as "every persona passed"; an empty run is never a pass.
     ok = bool(total) and checks_held / total >= INTAKE_THRESHOLD
     if tally is not None:
-        tally.update(personas=len(rows), passed=passed, checks=total, checks_held=checks_held)
+        tally.update(
+            personas=len(rows),
+            passed=passed,
+            checks=total,
+            checks_held=checks_held,
+            checks_by_persona=[(name, dict(checks)) for name, checks, _ in rows],
+        )
     mode = "offline (deterministic agent + golden requestors)" if no_llm or agent_provider is None else "live"
     lines = ["# Role-intake dialog eval", ""]
     lines.append(
@@ -289,13 +296,26 @@ def run_eval(
     return "\n".join(lines) + "\n", ok
 
 
-def live_measurements(tally: dict[str, int]) -> dict[str, tuple[float, int]]:
+def live_measurements(tally: dict[str, Any]) -> dict[str, tuple[float, int]]:
     """The offline curated-bank figure for thresholds.certify_live: the check
     pass rate over the CHECK count, so a scenario that silently lost a key (and
     with it an assertion) moves ``n`` while still reporting PASS."""
     checks = tally["checks"]
     rate = round(tally["checks_held"] / checks, 3) if checks else 0.0
     return {"INTAKE_THRESHOLD": (rate, checks)}
+
+
+def live_units(tally: dict[str, Any]) -> dict[str, dict[str, float]]:
+    """The checks behind INTAKE_THRESHOLD, by ``<persona>/<check>``: 1.0 when the
+    check held. ``n`` moves when a check is lost, but not when another persona
+    gains one in the same change; the ids name both."""
+    return {
+        "INTAKE_THRESHOLD": unit_map(
+            (f"{persona}/{check}", 1.0 if held else 0.0)
+            for persona, checks in tally["checks_by_persona"]
+            for check, held in checks.items()
+        )
+    }
 
 
 # --- JD-grounded corpus mode ------------------------------------------------
@@ -773,11 +793,13 @@ def main(argv: list[str] | None = None) -> int:
         # Nothing to run: the eval could not be performed, so 2 rather than a verdict.
         print("no scenarios matched", file=sys.stderr)
         return 2
-    tally: dict[str, int] = {}
+    tally: dict[str, Any] = {}
     report, ok = run_eval(scenarios, no_llm=args.no_llm, cap=args.cap, color=should_color(), tally=tally)
     print(report)
     if canonical:
-        ok = settle_live(live_measurements(tally), record=args.record, prog="intake_eval") and ok
+        ok = settle_live(
+            live_measurements(tally), live_units(tally), record=args.record, prog="intake_eval"
+        ) and ok
     # Exit-code contract (eval/__main__.py): --strict is what asks for a verdict.
     return 1 if (args.strict and not ok) else 0
 

@@ -97,7 +97,7 @@ from ..llm.fault import MODES, NO_PAYLOAD_MODES, FaultProvider
 from ._style import _make_styler, should_color
 from .automation_eval import SCENARIOS, TASKS
 from .runner import glyph, verdict_banner
-from .thresholds import FAULT_THRESHOLD, record_refusal, settle_live
+from .thresholds import FAULT_THRESHOLD, record_refusal, settle_live, unit_map
 
 # The candidate-facing letters. A fault that reaches the wire here reaches a
 # person outside the company, which is why they carry an extra assertion.
@@ -610,6 +610,13 @@ def live_measurements(agg: dict[str, Any]) -> dict[str, tuple[float, int]]:
     return {"FAULT_THRESHOLD": (agg["pass_rate"], agg["total"])}
 
 
+def live_units(rows: list[Row]) -> dict[str, dict[str, float]]:
+    """The drill rows behind FAULT_THRESHOLD, by ``<mode>/<task>/<scenario>``:
+    1.0 when the row held its contract. ``n`` alone cannot see a row swapped
+    for another; the ids can."""
+    return {"FAULT_THRESHOLD": unit_map((f"{r.mode}/{r.task}/{r.scenario}", 1.0 if r.ok else 0.0) for r in rows)}
+
+
 def _passes(agg: dict[str, Any]) -> bool:
     # A drill with nothing in it is not a pass: an empty --mode filter must not
     # read as "every fault degraded correctly".
@@ -773,7 +780,7 @@ def main(argv: list[str] | None = None) -> int:
     certified = True
     if not args.mode:
         # A --mode subset is a different n by construction; only the full drill is certified.
-        certified = settle_live(live_measurements(agg), record=args.record, prog="fault_eval")
+        certified = settle_live(live_measurements(agg), live_units(rows), record=args.record, prog="fault_eval")
     return 1 if (args.strict and not (_passes(agg) and certified)) else 0
 
 

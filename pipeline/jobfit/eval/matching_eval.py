@@ -39,7 +39,7 @@ from ._style import _make_styler, should_color
 from .neutrality import PERTURBATIONS, gender_pairs
 from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import MATCHING_THRESHOLDS as THRESHOLDS
-from .thresholds import record_refusal, settle_live
+from .thresholds import record_refusal, settle_live, unit_map
 
 
 # -- scenario builders ------------------------------------------------------
@@ -459,6 +459,25 @@ def live_measurements(report: Report) -> dict[str, tuple[float, int]]:
     return live
 
 
+def live_units(report: Report) -> dict[str, dict[str, float]]:
+    """The units behind each figure in live_measurements, by scenario name: one
+    per scenario for archetype routing and relevance@5 (a mean, so compensating
+    moves show up here and nowhere else), one per early-career scenario for
+    entry precision."""
+    units = {
+        "MATCHING_THRESHOLDS.archetype_accuracy": unit_map(
+            (s.name, 1.0 if s.archetype_ok else 0.0) for s in report.scenarios
+        ),
+        "MATCHING_THRESHOLDS.role_relevance_at5": unit_map(
+            (s.name, s.role_relevance_at5) for s in report.scenarios
+        ),
+    }
+    entry = [(s.name, s.entry_precision) for s in report.scenarios if s.entry_precision is not None]
+    if entry:
+        units["MATCHING_THRESHOLDS.entry_precision"] = unit_map(entry)
+    return units
+
+
 def run(jobs: list[Any] | None = None) -> Report:
     if jobs is None:
         jobs = load_corpus()
@@ -622,7 +641,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(_format_markdown(report, color=use_color))
 
-    certified = settle_live(live_measurements(report), record=args.record, prog="matching_eval")
+    certified = settle_live(
+        live_measurements(report), live_units(report), record=args.record, prog="matching_eval"
+    )
     if args.strict and not (report.passes() and certified):
         return 1
     return 0
