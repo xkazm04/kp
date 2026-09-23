@@ -1629,8 +1629,13 @@ every posting of the case. `GET /api/devcase` answers these rows (identity,
 `facets` (the stage and seniority vocabulary for the whole workspace, so a picker does
 not collapse to the value already chosen). `?q=` / `?stage=` / `?seniority=` are applied
 in `WHERE`, before `LIMIT`, so a filtered page is never empty while matches exist past
-it; the title match is case-folded with `toLocaleLowerCase` on both sides (a
-connection-registered `kp_fold`, because SQLite's `lower()` leaves `Š` alone). The rows
+it; the title match is case- and diacritic-folded on both sides by the ONE shared
+fold (`foldText` / `registerKpFold` in `app/_lib/text-fold.ts`, because SQLite's
+`lower()` leaves `Š` alone), so `sablona` and `šablona` both find `Šablona testu`. The
+ledger used to register its own `kp_fold` (`toLocaleLowerCase`, NULL -> '') on the
+connection it shares with the jobs browse, and whichever store registered second
+replaced the other's for the whole process (challenge-r09 cv-analyze-workspace/A;
+both orders pinned by `app/_lib/text-fold.test.ts`). The rows
 are a **projection**: need/analysis/role/case JSON (cover probes included) no longer
 ride the list. The detail reader fetches the full record on open from
 `GET /api/devcase/[id]` (`requireOperator`; a case from another workspace answers the

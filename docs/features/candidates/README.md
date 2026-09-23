@@ -88,13 +88,26 @@ career-switcher) that other features key off. Downstream ranking is
   the form already holds) and falls back to `JD <slug>` only when that row is
   missing. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
-  seniority/decision filters run CLIENT-side over the rows `/api/analyses`
-  returned (a hard cap, default 200). Name search folds diacritics and case
-  (`foldForSearch` / `historyRowMatchesQuery` in `HistoryTypes.ts`, the same
-  fold as the profile roster), so `capek` finds `Čapek`. The route answers `{ truncated, limit }`
-  beside the rows; when the page was cut, History names it as a page
-  ("Showing {n} newest; older runs still open by slug") and the Showing-of
-  line uses the loaded-slice copy instead of `rows.length` as a total. The
+  seniority/decision filters run on the SERVER (challenge-r09
+  cv-analyze-workspace/A): `historyQuery.ts` `toSearchParams` sends only what
+  narrows (search debounced 250 ms, dropdowns at once) to
+  `GET /api/analyses?q=&family=&seniority=&disposition=&cursor=&limit=`, and
+  `listAnalysesPage(query, ws)` (`app/_lib/db/analyses.ts`) applies them AFTER the
+  newest-per-(cv_hash, jd_slug) collapse (a superseded run's decision never
+  resurfaces its group) and BEFORE the window, so a workspace past 200 groups
+  still finds its oldest candidate. Name search matches
+  `kp_fold(candidate_label || ' ' || slug)` against a needle folded by the same
+  function (`foldText` in `app/_lib/text-fold.ts`), so `capek` finds `Čapek`. The
+  page is keyset-cut on `(created_at DESC, slug DESC)`: the route answers
+  `{ analyses, truncated, limit, nextCursor, facets }`, `truncated` is the store's
+  exact cap+1 answer (an exact fit is not "cut"), and **Load more** appends the
+  next page of the same query through `mergeHistoryPages` (slug-deduped, server
+  order; a row saved between two loads never shifts a later page). The count line
+  is the server's answer: "N matching runs" for a complete filtered answer, "N
+  runs shown, newest first" on a cut page, never a total. The dropdowns are
+  filled from `facets` (`listAnalysisFacets(ws)`: the family and seniority
+  vocabulary of the whole workspace's kept rows), not from the loaded page. A
+  bare GET is still the newest 200 groups. The
   family/seniority dropdowns are ordered by their **localized** label through
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
@@ -1619,12 +1632,6 @@ absence has to survive the CV.
   and returns no `truncated` flag, so past 200 saved analyses the board's lane
   counts, distribution bars and "N candidates" label describe the newest 200 —
   presented as the whole population.
-- **History still cannot page past the cap.** `GET /api/analyses` now answers
-  `{ truncated, limit }` and History names a cut page as a page (it no longer
-  reads a 900-run workspace as "200"), but the tab still filters CLIENT-side
-  over that newest slice: searching a candidate analysed 250 runs ago returns
-  "No runs match your search or filter". The row is still reachable at
-  `/history/[slug]`. A server pager (or a query param) is the remaining half.
 - **A same-CV refusal names the profile but does not open it.** `PROFILE_EXISTS`
   carries the existing id, and the matrix no longer offers the build, but the
   other build doors (a `fromAnalysis` deep link, the analysis report's "save as
