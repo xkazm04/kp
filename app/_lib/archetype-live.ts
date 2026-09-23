@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
-import path from "node:path";
 import { isFairnessProtected, isKnownArchetype, normalizeArchetype, shieldsFromAutoReject } from "./archetypes";
 import { parseRegistryDocument, registryWriteGeneration } from "./archetype-registry";
+import { archetypeRegistryPath, setRegistryFilePathOverride } from "./archetype-registry-file";
 
 // The LIVE archetype registry, for server decisions. SERVER-ONLY (node:fs).
 //
@@ -18,6 +18,8 @@ import { parseRegistryDocument, registryWriteGeneration } from "./archetype-regi
 //   - screen-wave.ts          the auto-reject eligibility + unknown-archetype audit
 //   - automation-fairness.ts  the TS re-check of Python's reject decisions
 //   - api/matrix/route.ts     the grid cache key (archetypeRegistryDigest)
+//   - analyze-run.ts          the analysis cache key, through the leaf
+//                             archetype-registry-file.ts (same path, same bytes digest)
 // archetypes.ts keeps its client-safe exports (labels, display grouping) unchanged.
 //
 // Contract:
@@ -46,17 +48,16 @@ export type LiveArchetypes = {
   isFairnessProtected(archetype: string | null | undefined): boolean;
 };
 
-let pathOverride: string | null = null;
-
 /** Point the reader at another file (tests only — the deployment reads the one file
- *  Python reads, and a production knob here would let the two runtimes diverge). */
+ *  Python reads, and a production knob here would let the two runtimes diverge). The
+ *  path lives in archetype-registry-file.ts, so the analyze cache key's digest follows. */
 export function setLiveRegistryPathForTest(filePath: string | null): void {
-  pathOverride = filePath;
+  setRegistryFilePathOverride(filePath);
   invalidateLiveRegistry();
 }
 
 function livePath(): string {
-  return pathOverride ?? path.join(process.cwd(), "pipeline", "jobfit", "archetypes.json");
+  return archetypeRegistryPath();
 }
 
 let memo: { stamp: string; live: LiveArchetypes } | null = null;

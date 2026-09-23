@@ -4,6 +4,7 @@ import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import { getJob } from "@/app/_lib/db/jobs";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
+import { archetypeRegistryFileDigest } from "@/app/_lib/archetype-registry-file";
 import { buildComparison } from "@/app/_lib/comparison";
 import { trustWarnCount, trustedScoreTotal } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
@@ -326,6 +327,9 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // client's fixed cosmetic timeline. The per-variant `done`/`total` counter
     // rides along (real completion signal for a multi-CV comparison).
     onProgress?.(0, total, ANALYZE_PHASE.reading);
+    // ONE registry snapshot for the run: Python re-reads archetypes.json per spawn, so
+    // the digest is a cache-key axis (cache-key.ts archetypeRegistryDigest).
+    const registryDigest = archetypeRegistryFileDigest();
 
     const results: VariantResult[] = await Promise.all(
       p.variants.map(async ({ label, cvPath }): Promise<VariantResult> => {
@@ -341,6 +345,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             lang: p.lang || "en",
             blind: p.blind,
             jobStructureJson: jobStructureJson ?? undefined,
+            archetypeRegistryDigest: registryDigest,
           });
 
           const cached = lookupCachedAnalysis(cacheKey);
@@ -404,7 +409,9 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             // Our own literal (no engine text) → coded so the client localizes it.
             return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, code: ANALYZE_GENERIC_FAIL_CODE, status: 502 };
           }
-          storeCachedAnalysis(cacheKey, parsed.data);
+          // A registry edit landed while the engine ran: the result may be scored under
+          // either file, so do not file it under the pre-edit key (same guard as matrix).
+          if (archetypeRegistryFileDigest() === registryDigest) storeCachedAnalysis(cacheKey, parsed.data);
           onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
           return { label, ok: true, analysis: parsed.data, cached: false };
         } catch (caught) {

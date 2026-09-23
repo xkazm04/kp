@@ -86,3 +86,75 @@ test("structured job context distinguishes the key; its absence keeps the legacy
   // existing cache stays valid for runs without a structured job.
   assert.equal(without, computeCacheKey({ ...base, jobDescriptionText: "jd", jobStructureJson: "" }));
 });
+
+// The analysis Python reads pipeline/jobfit/archetypes.json on every spawn (registry.py
+// at import): the v2 profile's archetype routing (detect rules), its confidence and
+// needs-review threshold, the early-career set and the per-archetype checklist weights
+// all come from it. The file is editable at runtime (archetype manager), so a key that
+// ignores it serves an analysis scored under the pre-edit registry. These cases run the
+// REAL registry readers (archetype-registry-file.ts, archetype-live.ts) against a temp
+// copy of the registry.
+test("the live archetype-registry digest is an axis: an edited registry misses, an unchanged one hits", async () => {
+  const { mkdtempSync, readFileSync, rmSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = (await import("node:path")).default;
+  const { fileURLToPath } = await import("node:url");
+  const { archetypeRegistryDigest, invalidateLiveRegistry, setLiveRegistryPathForTest } = await import(
+    "./archetype-live.ts"
+  );
+  // What analyze-run.ts actually keys on: the import-free leaf beside archetype-live.
+  const { archetypeRegistryFileDigest } = await import("./archetype-registry-file.ts");
+  const bundledPath = fileURLToPath(new URL("../../pipeline/jobfit/archetypes.json", import.meta.url));
+  const bundled = JSON.parse(readFileSync(bundledPath, "utf8")) as {
+    archetypes: { weights: Record<string, number> }[];
+  };
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-cache-key-registry-"));
+  const file = path.join(dir, "archetypes.json");
+  const write = (reg: unknown): void => {
+    writeFileSync(file, `${JSON.stringify(reg, null, 2)}\n`, "utf8");
+    invalidateLiveRegistry();
+  };
+  const key = (): string => {
+    const digest = archetypeRegistryFileDigest();
+    // ONE registry, one digest: the leaf the analyze key reads agrees with the live
+    // reader the matrix key reads, for any file Python can import.
+    assert.equal(digest, archetypeRegistryDigest());
+    return computeCacheKey({ ...base, archetypeRegistryDigest: digest });
+  };
+  try {
+    setLiveRegistryPathForTest(file);
+    write(bundled);
+    const before = key();
+    // Unchanged registry -> same key (the cache stays usable).
+    assert.equal(key(), before);
+    // A weight edit (swap two dimensions, so the weights still sum to 1.0 and the
+    // registry validates) -> a different key: the stale analysis must miss.
+    const edited = structuredClone(bundled);
+    const w = edited.archetypes[0].weights;
+    [w.skills, w.career] = [w.career, w.skills];
+    write(edited);
+    const after = key();
+    assert.notEqual(after, before);
+    // Reverting restores the original key.
+    write(bundled);
+    assert.equal(key(), before);
+  } finally {
+    setLiveRegistryPathForTest(null);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the registry digest is appended only when set, so a digest-less caller keeps its key", () => {
+  const k0 = computeCacheKey({ ...base });
+  assert.equal(k0, computeCacheKey({ ...base, archetypeRegistryDigest: "" }));
+  assert.notEqual(k0, computeCacheKey({ ...base, archetypeRegistryDigest: "d0" }));
+  assert.notEqual(
+    computeCacheKey({ ...base, archetypeRegistryDigest: "a" }),
+    computeCacheKey({ ...base, archetypeRegistryDigest: "b" })
+  );
+  // Framed behind its own marker: a digest cannot be confused with a structured job.
+  assert.notEqual(
+    computeCacheKey({ ...base, jobStructureJson: "x" }),
+    computeCacheKey({ ...base, archetypeRegistryDigest: "x" })
+  );
+});

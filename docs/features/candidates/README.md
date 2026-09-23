@@ -1205,7 +1205,11 @@ every spawn. Every server reader that *decides* or *caches* on the registry goes
 per wave), the TS re-check of Python's rejects (`automation-fairness.ts`), and the
 scored-grid cache key of `GET /api/matrix` (`archetypeRegistryDigest()`, so a reweight
 re-scores the grid instead of serving the pre-edit one from the LRU; the digest is
-re-checked before a fresh grid is cached). The reader is memoised on the file's
+re-checked before a fresh grid is cached). The analyze cache key carries the same
+digest: `analyze-run.ts` reads it through the import-free leaf
+`app/_lib/archetype-registry-file.ts` (the one registry path, sha1 of the bytes), so a
+reweight misses every cached analysis once rather than serving one scored under the old
+registry, and a result whose registry changed mid-run is not cached. The reader is memoised on the file's
 mtime + size + a write generation `writeRegistry` bumps, validates through the same
 `parseRegistryDocument` the manager uses, and never throws: an unreadable or invalid file
 falls back to the bundled gate with the digest `unreadable`. Its shield is a **union**:

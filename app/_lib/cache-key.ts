@@ -52,6 +52,15 @@ export type CacheKeyInput = {
   // re-ingest) must invalidate. Folded in only when set, so runs without a
   // structured job keep their pre-existing keys.
   jobStructureJson?: string;
+  // Content digest of the LIVE archetype registry (archetype-live.ts
+  // archetypeRegistryDigest). The Python analysis re-reads
+  // pipeline/jobfit/archetypes.json on every spawn: the v2 profile's archetype
+  // routing, its needs-review threshold, the early-career set and the checklist
+  // weights all come from it, and the archetype manager rewrites it at runtime. A
+  // key without it served an analysis scored under the pre-edit registry. Passed as
+  // a value (not read here) so this module stays pure. Appended only when set;
+  // every cached analysis misses ONCE after a registry edit — intended.
+  archetypeRegistryDigest?: string;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -92,6 +101,11 @@ export function computeCacheKey(input: CacheKeyInput): string {
   if (input.jobStructureJson) {
     field("jobstruct");
     field(input.jobStructureJson);
+  }
+  // Same append-only contract, behind its own marker.
+  if (input.archetypeRegistryDigest) {
+    field("archreg");
+    field(input.archetypeRegistryDigest);
   }
   return h.digest("hex");
 }
