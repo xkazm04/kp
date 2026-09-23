@@ -2676,6 +2676,31 @@ two signed-in interviewers, a foreign team and open mode).
   checklist/notes `PUT` via `saveInterviewPrepProgress`) and deliberately leave the stamp
   where it was; bumping it there would mark a pack fresh while its chronology still
   described the old role.
+- **Staged regeneration** (`payload.pendingPlan`, r09 schedule-interview-prep/B). Every
+  Regenerate the prep modal offers (the footer, the fallback banner, the "JD edited since"
+  banner) starts the `interview_prep` task with `stage: true`. On a pack that already has a
+  committed plan, `commitGeneratedPrep` (`app/_lib/interview-prep-run.ts`) parks the new
+  generator-owned keys under `pendingPlan` through `stageInterviewPrepPlan`. The committed
+  plan, every human key and `created_at` stay exactly as they were. With no plan yet it
+  commits as before. The modal shows `ScheduleInterviewPrepPlanDiff.tsx` above the
+  run-of-show, which stays usable. The banner is computed by `computePlanDiff`
+  (`app/features/hiring/schedule/schedulePrepPlanDiff.ts`) with the same `splitImported`
+  and `c-/k-/w-` tick-key rules the post-swap render uses. It lists blocks added, removed,
+  retimed and reworded, woven questions that would fall back to unassigned, ticks that
+  would detach or land on a different item, and a template replacing an AI plan.
+  **Replace plan** / **Keep current** send `PATCH /api/interview-prep?entry=<id> { plan:
+  "accept" | "discard" }`, which has the same `pipeline:write` gate, throttle and tenancy
+  read as the weave. `resolvePendingPlan` runs inside `.immediate()`. Accept merges the
+  plan through `mergeRegeneratedPrep` and moves `created_at` in the same UPDATE, so the
+  stale chip clears truthfully. Discard leaves `created_at` alone. The call is idempotent,
+  not coded: with no pending plan it answers `200 { applied: false }` and writes nothing.
+  Closing the modal mid-decision is safe, because the GET returns the payload with
+  `pendingPlan` and the next open shows the same preview. The Decisions-queue accept and
+  the voice first-generation stay unstaged by design, since nobody is watching a plan
+  there. `mergeRegeneratedPrep` drops a stale `pendingPlan`, so an unstaged commit never
+  carries a candidate forward. The voice agenda, the copy-out and the Schedule card read
+  only the committed keys. Pinned by `app/api/interview-prep/pending-plan.test.ts` and
+  `schedulePrepPlanDiff.test.ts`.
 
 ## Rubric coverage — when the scorecard is generic, it says so
 
