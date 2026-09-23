@@ -164,6 +164,43 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
    deliberately omits it). See `docs/features/intake/README.md`.
 
+### Session status: one transition table
+
+`interview_sessions.status` has five states. The legal moves are written down
+once, in `app/_lib/interview-session-status.ts` (`INTERVIEW_SESSION_STATUSES`,
+`canInterviewTransition`, `fromStatesFor`):
+
+| From | May move to |
+| --- | --- |
+| `created` | `in_progress`, `failed`, `completed`, `revoked` |
+| `in_progress` | `in_progress` (a reconnect), `failed`, `completed`, `revoked` |
+| `failed` | `in_progress` (the retry a dropped call is owed), `failed`, `completed`, `revoked` |
+| `completed` | nothing: the transcript is evidence and the link is single-use |
+| `revoked` | nothing: the recruiter's control over a live, paid credential |
+
+Every status UPDATE in `app/_lib/db/interviews.ts` builds its `WHERE` from this
+table (`statusFromGuard` / `finalizeFromGuard`). `db/interview-session-transitions.test.ts`
+fails a status write whose guard is written by hand. Three consequences:
+
+- **A revoked link cannot be reopened.** `markInterviewStarted` used to guard on
+  `completed` only, so a connect flipped a revoked row back to live.
+- **A completion keeps a revoke.** A finalize still persists the transcript on a
+  revoked row, but the SQL keeps the status (a `CASE` on the row) and returns
+  the stored status. `/complete` bills and scores from that stored status. It no
+  longer uses its own pre-read, which a revoke landing in between made stale.
+- **Late writes are conditional.** The writes that land after a long await
+  report whether they landed:
+  - the agenda, the failover provider and the recording consent require the row
+    to still be `in_progress`;
+  - the scorecard attach requires a `completed` row that still holds a transcript.
+
+  When one of these writes does not land, `/connect` answers
+  `INTERVIEW_LINK_INACTIVE` (or `INTERVIEW_ALREADY_COMPLETED`) and does not hand
+  out the provider credentials it just minted. A final `isInterviewSessionStillLive`
+  check guards the handoff on paths that have no such write. `/complete` seals no
+  `ai_scorecard` decision when a GDPR erasure (or a revoke) landed during the
+  scoring call.
+
 ## Director protocol & agenda
 
 The realtime provider still runs each spoken turn, but every candidate interview that
