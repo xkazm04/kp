@@ -1,11 +1,14 @@
 "use client";
 
 import { useId } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { X } from "lucide-react";
+import { BTN_GHOST, CHIP } from "@/app/_components/ui/recipes";
 import { AnalyticsStatCluster } from "./AnalyticsStatCluster";
 import { AnalyticsCopyViewLink } from "./AnalyticsCopyViewLink";
 import type { AnalyticsSectionId } from "./sections/analyticsSections";
 import { WINDOW_CHOICES, type Analytics } from "./AnalyticsTypes";
+import { JOB_SCOPE_FIGURE_KEY, JOB_SCOPE_REASON_KEY, withheldByReason } from "./analyticsJobScope";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // The tab's header: eyebrow/title/intro, the cohort-window switcher, and the
@@ -28,6 +31,8 @@ export function AnalyticsHeader({
   days,
   setDays,
   section,
+  job = null,
+  setJob,
 }: {
   data: Analytics | null;
   error: string | null;
@@ -36,8 +41,19 @@ export function AnalyticsHeader({
   /** The section on screen, so the switcher can say when it governs nothing
    *  below it. Optional: omitted, the control describes its overall reach. */
   section?: AnalyticsSectionId;
+  /** The role in scope (?job=), null for the whole workspace. */
+  job?: string | null;
+  /** Clears (or sets) the role scope. Omitted = no scope control is offered. */
+  setJob?: (next: string | null) => void;
 }) {
   const t = useTranslations("analytics");
+  const locale = useLocale();
+  // The payload's own statement of the scope — only once it answers for THIS role
+  // (a window or role switch keeps the previous payload on screen until the new one
+  // lands, and its scope must not be read as the new one's).
+  const jobScope = job && data?.jobScope?.jobId === job ? data.jobScope : null;
+  const withheld = withheldByReason(jobScope);
+  const listFormat = new Intl.ListFormat(locale, { type: "conjunction" });
   const scopeNoteId = useId();
   const windowApplies = section == null || !WINDOW_BLIND_SECTIONS.includes(section);
   // One line, three truths — the note is the switcher's accessible description
@@ -112,6 +128,41 @@ export function AnalyticsHeader({
         {data && (data.excludedSim ?? 0) > 0 ? (
           <p className="mt-1 max-w-3xl text-meta text-steel">{t("simExcludedNote", { count: data.excludedSim ?? 0 })}</p>
         ) : null}
+        {/* THE ROLE SCOPE, NAMED — and what it cannot scope, named too. A role view
+            that quietly kept workspace spend, the account-wide AI ledger or title-keyed
+            knockout counts under a role heading would be the lie this block exists to
+            prevent (registry: not-measurable-versus-zero). The store withholds them;
+            this says which, and why, instead of letting a blank read as a zero. */}
+        {job ? (
+          <div className="mt-3 max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`${CHIP} font-semibold text-ink`}>
+                {t("jobScopeChip", { title: jobScope ? (jobScope.jobTitle ?? t("jobScopeUnknownTitle")) : t("jobScopeLoadingTitle") })}
+              </span>
+              {setJob ? (
+                <button type="button" onClick={() => setJob(null)} className={`${BTN_GHOST} px-2 py-1 text-sm`}>
+                  <X size={13} aria-hidden />
+                  {t("jobScopeClear")}
+                </button>
+              ) : null}
+            </div>
+            {withheld.length > 0 ? (
+              <div className="mt-2 text-meta text-steel">
+                <p>{t("jobScopeWithheldIntro")}</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {withheld.map((g) => (
+                    <li key={g.reason}>
+                      {t("jobScopeWithheldLine", {
+                        figures: listFormat.format(g.figures.map((f) => t(JOB_SCOPE_FIGURE_KEY[f]))),
+                        reason: t(JOB_SCOPE_REASON_KEY[g.reason]),
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {/* The two ways to take this view somewhere else. UAT TOM-ANA-8 put the
             second one here: the reader who came to settle an argument needs the file
             OR the link, and both belong above the section they describe rather than
@@ -125,13 +176,15 @@ export function AnalyticsHeader({
             href={`/api/analytics/metric-pack?format=md${days ? `&days=${days}` : ""}`}
             className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
           >
-            {t("metricPackDownload")}
+            {/* The pack is a workspace artifact (its route reads no role), so while a
+                role is in scope the link says so rather than implying a role pack. */}
+            {job ? t("metricPackDownloadWorkspace") : t("metricPackDownload")}
           </a>
           {/* UAT TOM-ANA-8 — a view link needs a view to name. `section` is optional on
               this header (a caller may render it without one), and minting a link to the
               DEFAULT section instead would hand the reader a URL that lands somewhere
               else — the defect one layer down. No section, no link. */}
-          {section ? <AnalyticsCopyViewLink section={section} days={days} /> : null}
+          {section ? <AnalyticsCopyViewLink section={section} days={days} job={job} /> : null}
         </div>
       </div>
 

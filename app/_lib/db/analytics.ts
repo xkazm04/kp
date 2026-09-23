@@ -11,6 +11,20 @@ import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpendDetail } from "./channels";
 
+// Figures a role-scoped read cannot honestly scope, WITHHELD BY NAME with a reason
+// (analyticsJobScope.ts renders them; kept here so the route graph stays small).
+export const JOB_SCOPE_WITHHELD = [
+  { figure: "bySource", reason: "workspaceOnly" },
+  { figure: "channelDecisionTime", reason: "workspaceOnly" },
+  { figure: "channelSpend", reason: "workspaceSpend" },
+  { figure: "costPerHire", reason: "workspaceSpend" },
+  { figure: "computeCostPerHire", reason: "accountLedger" },
+  { figure: "koDeclined", reason: "noEntry" },
+] as const;
+export type JobScopeFigure = (typeof JOB_SCOPE_WITHHELD)[number]["figure"];
+export type JobScopeReason = (typeof JOB_SCOPE_WITHHELD)[number]["reason"];
+export type JobScope = { jobId: string; jobTitle: string | null; withheld: { figure: JobScopeFigure; reason: JobScopeReason }[] };
+
 // gsim-l2-105 / REC-11 — live aggregates must not count guided-demo residue: the
 // simulation writes REAL pipeline rows and events whose job_title carries the
 // (SIM) marker (the same single-sourced key resetSim purges by). Every cohort and
@@ -128,7 +142,9 @@ export type PipelineAnalytics = {
   // single worst stage; this is the full breakdown the same perStageDays feeds.
   // Excludes terminal Hired (no dwell) and stages with no active entries.
   stageDwell: { stage: string; avgDays: number; count: number }[];
-  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
+  // Keyed by job id (id-less entries by title). koDeclined is title-keyed, so null where
+  // several reqs share the title, and on every row of a role-scoped read.
+  byJob: { jobId: string | null; jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number | null }[];
   // Distinct job count before the byJob cap, so the UI can show "top N of M".
   byJobTotal: number;
   // E2/ANA — applicants turned away at the eligibility (KO) gate BEFORE any
@@ -141,10 +157,12 @@ export type PipelineAnalytics = {
   // renders the selector state from the server's answer, not its own request.
   windowDays: number | null;
   /** Echo of `opts.jobId` — null when the read is workspace-wide. A job-scoped
-   *  cohort ANDs `job_id = ?` on the entries SELECT, the sim-exclusion COUNT, and
-   *  the event-time hire count (funnel, TTH, cost-per-hire). Callers that omit it
-   *  stay byte-identical on every other field. */
+   *  read scopes the cohort and joins every entry-bearing event read through
+   *  `entry_id`; what that join cannot reach is withheld (`jobScope`). */
   jobId: string | null;
+  /** Null = workspace-wide. A withheld field carries a placeholder (null, [], 0) no
+   *  surface may render as a measurement; the header names the list and reasons. */
+  jobScope: JobScope | null;
   // ANA2 — weekly inflow/outcome trend from pipeline_events (see
   // analytics-momentum.ts for the series mapping and bucket semantics).
   momentum: MomentumWeek[];
@@ -325,6 +343,9 @@ export function pipelineAnalytics(
   const jobId = typeof opts?.jobId === "string" && opts.jobId.trim() ? opts.jobId.trim() : null;
   const jobPred = jobId ? " AND job_id = ?" : "";
   const jobBind: string[] = jobId ? [jobId] : [];
+  // Events carry no job_id: an event belongs to a role through its entry.
+  const eventJobPred = jobId ? " AND entry_id IN (SELECT id FROM pipeline_entries WHERE job_id = ? AND workspace_id = ?)" : "";
+  const eventJobBind: string[] = jobId ? [jobId, workspaceId] : [];
   const ROW_COLUMNS =
     "job_id, job_title, archetype, stage, status, created_at, stage_changed_at, source_channel, source_campaign, source_variant";
   // NEWEST FIRST + one row past the cap: the ordering makes the slice deterministic
@@ -462,10 +483,13 @@ export function pipelineAnalytics(
     return [{ stage, avgDays: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length), count: arr.length }];
   });
 
-  const jobMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
+  // One row per requisition: grouping by title merged two reqs sharing one.
+  type JobAgg = { jobId: string | null; jobTitle: string; total: number; reachedInterview: number; hired: number };
+  const jobMap = new Map<string, JobAgg>();
   for (const r of rows) {
-    const key = r.job_title ?? "—";
-    const m = jobMap.get(key) ?? { total: 0, reachedInterview: 0, hired: 0 };
+    const title = r.job_title ?? "—";
+    const key = r.job_id ? `id:${r.job_id}` : `title:${title}`;
+    const m = jobMap.get(key) ?? { jobId: r.job_id ?? null, jobTitle: title, total: 0, reachedInterview: 0, hired: 0 };
     m.total += 1;
     if (idxOf(r.stage) >= gateIdx) m.reachedInterview += 1;
     if (isTerminal(r.stage)) m.hired += 1;
@@ -475,33 +499,40 @@ export function pipelineAnalytics(
   // count is the funnel's invisible top-of-funnel loss. Grouped by job_title so
   // the role table can answer "how many applicants did this role's ad turn away
   // at eligibility?"; a role with KO discards but no entries still gets a row.
+  // Withheld under a role scope: no entry_id to join through.
   const koRows = (
-    cutoffIso
-      ? db
-          .prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND created_at >= ? AND ${notSim()} AND workspace_id = ? GROUP BY job_title`)
-          .all(cutoffIso, SIM_TITLE_LIKE, workspaceId)
-      : db.prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND ${notSim()} AND workspace_id = ? GROUP BY job_title`).all(SIM_TITLE_LIKE, workspaceId)
+    jobId
+      ? []
+      : cutoffIso
+        ? db
+            .prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND created_at >= ? AND ${notSim()} AND workspace_id = ? GROUP BY job_title`)
+            .all(cutoffIso, SIM_TITLE_LIKE, workspaceId)
+        : db.prepare(`SELECT job_title, COUNT(*) AS n FROM pipeline_events WHERE kind='ko_declined' AND ${notSim()} AND workspace_id = ? GROUP BY job_title`).all(SIM_TITLE_LIKE, workspaceId)
   ) as { job_title: string | null; n: number }[];
   const koByJob = new Map(koRows.map((r) => [r.job_title ?? "—", r.n]));
   const koDeclined = koRows.reduce((s, r) => s + r.n, 0);
+  // A title-keyed KO count attaches only to a title exactly one req carries.
+  const reqsPerTitle = new Map<string, number>();
+  for (const m of jobMap.values()) reqsPerTitle.set(m.jobTitle, (reqsPerTitle.get(m.jobTitle) ?? 0) + 1);
   for (const jobTitle of koByJob.keys()) {
-    if (!jobMap.has(jobTitle)) jobMap.set(jobTitle, { total: 0, reachedInterview: 0, hired: 0 });
+    if (!reqsPerTitle.has(jobTitle)) jobMap.set(`title:${jobTitle}`, { jobId: null, jobTitle, total: 0, reachedInterview: 0, hired: 0 });
   }
   // Cap the role table to the highest-volume jobs, but report the true distinct-job
   // count alongside it so the UI can say "top N of M" — a silently truncated table
   // would otherwise read as "these are all my roles" for larger orgs.
   const BY_JOB_CAP = 12;
   const byJobTotal = jobMap.size;
-  const byJob = [...jobMap.entries()]
-    .map(([jobTitle, m]) => ({
-      jobTitle,
+  const byJob = [...jobMap.values()]
+    .map((m) => ({
+      jobId: m.jobId,
+      jobTitle: m.jobTitle,
       total: m.total,
       reachedInterview: m.reachedInterview,
       hired: m.hired,
       hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
-      koDeclined: koByJob.get(jobTitle) ?? 0,
+      koDeclined: jobId || (reqsPerTitle.get(m.jobTitle) ?? 0) > 1 ? null : (koByJob.get(m.jobTitle) ?? 0),
     }))
-    .sort((a, b) => b.total - a.total || b.koDeclined - a.koDeclined)
+    .sort((a, b) => b.total - a.total || (b.koDeclined ?? 0) - (a.koDeclined ?? 0))
     .slice(0, BY_JOB_CAP);
 
   const archMap = new Map<string, { total: number; hired: number; advanced: number }>();
@@ -540,9 +571,9 @@ export function pipelineAnalytics(
   const momentumRows = db
     .prepare(
       `SELECT kind, to_stage, created_at FROM pipeline_events
-        WHERE created_at >= ? AND kind IN ${momentumKindList} AND ${notSim()} AND workspace_id = ?`
+        WHERE created_at >= ? AND kind IN ${momentumKindList} AND ${notSim()} AND workspace_id = ?${eventJobPred}`
     )
-    .all(momentumCutoff, SIM_TITLE_LIKE, workspaceId) as { kind: string; to_stage: string | null; created_at: string }[];
+    .all(momentumCutoff, SIM_TITLE_LIKE, workspaceId, ...eventJobBind) as { kind: string; to_stage: string | null; created_at: string }[];
   // `terminalStage` is what splits the `hired` series out of `advanced`, and it is a
   // REQUIRED argument (analytics-momentum.ts): left to a literal default, a workspace
   // whose final column is named anything else saw every completed hire land in the
@@ -561,8 +592,8 @@ export function pipelineAnalytics(
   // (advance / reject / auto-reject) landed AFTER its first in-window hold.
   const kindCountRows = (
     cutoffIso
-      ? db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE created_at >= ? AND ${notSim()} AND workspace_id = ? GROUP BY kind`).all(cutoffIso, SIM_TITLE_LIKE, workspaceId)
-      : db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE ${notSim()} AND workspace_id = ? GROUP BY kind`).all(SIM_TITLE_LIKE, workspaceId)
+      ? db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE created_at >= ? AND ${notSim()} AND workspace_id = ?${eventJobPred} GROUP BY kind`).all(cutoffIso, SIM_TITLE_LIKE, workspaceId, ...eventJobBind)
+      : db.prepare(`SELECT kind, COUNT(*) AS c FROM pipeline_events WHERE ${notSim()} AND workspace_id = ?${eventJobPred} GROUP BY kind`).all(SIM_TITLE_LIKE, workspaceId, ...eventJobBind)
   ) as { kind: string; c: number }[];
   const kindCounts = Object.fromEntries(kindCountRows.map((r) => [r.kind, r.c]));
   const holdRow = db
@@ -577,12 +608,12 @@ export function pipelineAnalytics(
          FROM (
            SELECT entry_id, MIN(created_at) AS first_hold
              FROM pipeline_events
-            WHERE kind = 'screening_hold' AND entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ?
+            WHERE kind = 'screening_hold' AND entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ?${eventJobPred}
               ${cutoffIso ? "AND created_at >= ?" : ""}
             GROUP BY entry_id
          ) h`
     )
-    .get(SIM_TITLE_LIKE, workspaceId, ...(cutoffIso ? [cutoffIso] : [])) as { raised: number; resolved: number | null };
+    .get(SIM_TITLE_LIKE, workspaceId, ...eventJobBind, ...(cutoffIso ? [cutoffIso] : [])) as { raised: number; resolved: number | null };
   const automation = summarizeAutomationImpact(kindCounts, {
     raised: holdRow.raised,
     resolved: holdRow.resolved ?? 0,
@@ -607,30 +638,33 @@ export function pipelineAnalytics(
   // entire cross-workspace events table on every request just to find first-events
   // that the outer p.workspace_id join then discards. Scoping keeps the result
   // identical (an entry's events share its workspace) while bounding the scan.
+  // Withheld under a role scope.
   const sourceRows = (
-    cutoffIso
-      ? db
-          .prepare(
-            `SELECT p.stage AS stage, fe.kind AS kind
-               FROM pipeline_entries p
-               JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
-                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
-                    ) fe ON fe.entry_id = p.id
-              WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
-          )
-          .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId)
-      : db
-          .prepare(
-            `SELECT p.stage AS stage, fe.kind AS kind
-               FROM pipeline_entries p
-               JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
-                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
-                    ) fe ON fe.entry_id = p.id
-              WHERE ${notSim("p.job_title")} AND p.workspace_id = ?`
-          )
-          .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
+    jobId
+      ? []
+      : cutoffIso
+        ? db
+            .prepare(
+              `SELECT p.stage AS stage, fe.kind AS kind
+                 FROM pipeline_entries p
+                 JOIN (SELECT entry_id, kind FROM pipeline_events
+                        WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                      WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
+                      ) fe ON fe.entry_id = p.id
+                WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+            )
+            .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId)
+        : db
+            .prepare(
+              `SELECT p.stage AS stage, fe.kind AS kind
+                 FROM pipeline_entries p
+                 JOIN (SELECT entry_id, kind FROM pipeline_events
+                        WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                      WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
+                      ) fe ON fe.entry_id = p.id
+                WHERE ${notSim("p.job_title")} AND p.workspace_id = ?`
+            )
+            .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
   ) as { stage: string; kind: string }[];
   const sourceMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
   for (const r of sourceRows) {
@@ -667,16 +701,19 @@ export function pipelineAnalytics(
   // Median time from entry creation to the FIRST decision event (advance or
   // reject, human or policy) — the per-channel "how fast do we actually decide"
   // figure. One grouped query; the median itself is pure (source-analytics).
-  const decisionRows = db
-    .prepare(
-      `SELECT p.source_channel AS channel, p.created_at AS created, MIN(e.created_at) AS decided
-         FROM pipeline_entries p
-         JOIN pipeline_events e
-           ON e.entry_id = p.id AND e.kind IN ('advanced', 'auto_advanced', 'rejected', 'auto_rejected')
-        WHERE p.source_channel IS NOT NULL AND ${notSim("p.job_title")} AND p.workspace_id = ? ${cutoffIso ? "AND p.created_at >= ?" : ""}
-        GROUP BY p.id`
-    )
-    .all(SIM_TITLE_LIKE, workspaceId, ...(cutoffIso ? [cutoffIso] : [])) as { channel: string; created: string | null; decided: string }[];
+  // Withheld under a role scope.
+  const decisionRows = jobId
+    ? []
+    : db
+          .prepare(
+            `SELECT p.source_channel AS channel, p.created_at AS created, MIN(e.created_at) AS decided
+               FROM pipeline_entries p
+               JOIN pipeline_events e
+                 ON e.entry_id = p.id AND e.kind IN ('advanced', 'auto_advanced', 'rejected', 'auto_rejected')
+              WHERE p.source_channel IS NOT NULL AND ${notSim("p.job_title")} AND p.workspace_id = ? ${cutoffIso ? "AND p.created_at >= ?" : ""}
+              GROUP BY p.id`
+          )
+          .all(SIM_TITLE_LIKE, workspaceId, ...(cutoffIso ? [cutoffIso] : [])) as { channel: string; created: string | null; decided: string }[];
   const decisionMsByChannel = new Map<string, number[]>();
   for (const r of decisionRows) {
     if (!r.created) continue;
@@ -686,7 +723,8 @@ export function pipelineAnalytics(
     if (list) list.push(delta);
     else decisionMsByChannel.set(r.channel, [delta]);
   }
-  const spendByChannel = listChannelSpendDetail(workspaceId);
+  // Workspace-wide spend is withheld under a role scope, never divided by its hires.
+  const spendByChannel: ReturnType<typeof listChannelSpendDetail> = jobId ? new Map() : listChannelSpendDetail(workspaceId);
   // UAT KAT-ANA-2 — a channel someone has RECORDED SPEND for gets a row even with no
   // attributed candidates, exactly as a role with KO discards and no entries does
   // above. Two reasons, and the second is the important one. (1) "We put 5,000 CZK
@@ -839,8 +877,9 @@ export function pipelineAnalytics(
     compute.calls > 0
       ? {
           ...compute,
+          // Withheld under a role scope: the ledger is account-wide.
           costPerHireUsd:
-            hiresClosedInWindow > 0 ? Math.round((compute.costUsd / hiresClosedInWindow) * 100) / 100 : null,
+            !jobId && hiresClosedInWindow > 0 ? Math.round((compute.costUsd / hiresClosedInWindow) * 100) / 100 : null,
           workspaceCount,
           windowDays: windowDays ?? null,
           hires: hiresClosedInWindow,
@@ -850,6 +889,18 @@ export function pipelineAnalytics(
   // One read of the goal table for both consumers below (the conversion/TTH split and
   // the two reserved ROI parameters) instead of the two it used to do.
   const targetValues = listAnalyticsTargets(workspaceId);
+
+  // Title from this workspace's jobs row, else the newest entry; unseen id = null.
+  const jobScope: JobScope | null = jobId
+    ? {
+        jobId,
+        jobTitle:
+          (db.prepare(`SELECT title FROM jobs WHERE id = ? AND workspace_id = ?`).get(jobId, workspaceId) as { title: string } | undefined)?.title ??
+          rows.find((r) => r.job_title)?.job_title ??
+          null,
+        withheld: JOB_SCOPE_WITHHELD.map((w) => ({ ...w })),
+      }
+    : null;
 
   return {
     total,
@@ -874,6 +925,7 @@ export function pipelineAnalytics(
     byArchetype,
     windowDays: windowDays ?? null,
     jobId,
+    jobScope,
     momentum,
     automation,
     offers,
@@ -957,13 +1009,14 @@ export function pipelineAnalyticsPrior(
   windowDays: number,
   endMs: number,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  // Tests only — see pipelineAnalytics' note on the same option.
-  opts?: { rowCap?: number }
+  // rowCap: tests only. jobId: the live read's role axis, so deltas compare like cohorts.
+  opts?: { rowCap?: number; jobId?: string | null }
 ): PriorWindowSlice {
   const db = ensureDb();
   const cutoffIso = new Date(endMs - windowDays * 86_400_000).toISOString();
   const upperIso = new Date(endMs).toISOString();
   const rowCap = cohortCap(opts?.rowCap);
+  const jobId = typeof opts?.jobId === "string" && opts.jobId.trim() ? opts.jobId.trim() : null;
   // Same axis resolution as pipelineAnalytics: the prior-window slice is diffed
   // against the live one, so the two MUST index identically or the delta would
   // compare a row of one funnel to a different row of another.
@@ -979,10 +1032,10 @@ export function pipelineAnalyticsPrior(
     .prepare(
       `SELECT stage, status, created_at, stage_changed_at, source_channel
          FROM pipeline_entries
-        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?
+        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?${jobId ? " AND job_id = ?" : ""}
         ORDER BY created_at DESC LIMIT ?`
     )
-    .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, rowCap + 1) as {
+    .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, ...(jobId ? [jobId] : []), rowCap + 1) as {
     stage: string;
     status: string;
     created_at: string | null;
@@ -1013,18 +1066,21 @@ export function pipelineAnalyticsPrior(
   const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
 
   // bySource — earliest-event origin, the SAME JOIN + lower-bound-only window the
-  // full battery's sourceRows query uses (see byte-identity note above).
-  const sourceRows = db
-    .prepare(
-      `SELECT p.stage AS stage, fe.kind AS kind
-         FROM pipeline_entries p
-         JOIN (SELECT entry_id, kind FROM pipeline_events
-                WHERE id IN (SELECT MIN(id) FROM pipeline_events
-                              WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
-              ) fe ON fe.entry_id = p.id
-        WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
-    )
-    .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId) as { stage: string; kind: string }[];
+  // full battery's sourceRows query uses (see byte-identity note above); withheld
+  // under a role scope, as the live read withholds it.
+  const sourceRows = jobId
+    ? []
+    : db
+          .prepare(
+            `SELECT p.stage AS stage, fe.kind AS kind
+               FROM pipeline_entries p
+               JOIN (SELECT entry_id, kind FROM pipeline_events
+                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
+                    ) fe ON fe.entry_id = p.id
+              WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+          )
+          .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId) as { stage: string; kind: string }[];
   const sourceMap = new Map<string, { total: number; hired: number }>();
   for (const r of sourceRows) {
     const key = originOf(r.kind);

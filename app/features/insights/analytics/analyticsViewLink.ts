@@ -18,6 +18,7 @@
 // than by a click on a live host.
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { AnalyticsSectionId } from "./sections/analyticsSections";
+import { parseJobParam } from "./analyticsJobScope";
 
 /** The absolute, pasteable URL that reopens the analytics view the reader is on.
  *
@@ -30,11 +31,15 @@ export function analyticsViewUrl({
   origin,
   section,
   days,
+  job = null,
 }: {
   origin: string;
   section: AnalyticsSectionId;
   /** The cohort window in force: 30, 90, or null for all time. */
   days: number | null;
+  /** The role in scope (?job=), or null/absent for the whole workspace. Written only
+   *  when set, for the same reason as `win`: absence IS the workspace view. */
+  job?: string | null;
 }): string {
   // Composed against an EMPTY query string, not the current one — the sibling
   // idiom in usePipelineSavedViews.copyViewLink. A shared link carries the view and
@@ -42,6 +47,6 @@ export function analyticsViewUrl({
   // inherit without anyone choosing to send it. `win` is omitted for the all-time
   // view (buildUrl drops a null), because an absent window IS all time and writing
   // it out would invent a state the switcher does not have.
-  const href = buildUrl({ tab: "analytics", sec: section, win: days ? String(days) : null }, "");
+  const href = buildUrl({ tab: "analytics", sec: section, win: days ? String(days) : null, job: parseJobParam(job) }, "");
   return `${origin.replace(/\/+$/, "")}${href}`;
 }

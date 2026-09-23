@@ -78,15 +78,8 @@ const STAGED_FIELDS: { field: string; section: string; reason: string }[] = [
   // All cleared 2026-08-18: every staged edit landed (panels wired into
   // PerformanceBriefing, the two fields into EconomicsBoard, the three superseded
   // panels deleted). An entry here is a promise with an expiry date, not a waiver.
-  {
-    field: "jobId",
-    section: "AnalyticsHeader.tsx",
-    reason:
-      "echo of the request's job-scoped cohort filter (mirrors windowDays' echo-and-render " +
-      "pattern, rendered a few lines above it in this file) — added to close the type-mirror " +
-      "gap AnalyticsTypes.ts had against PipelineAnalytics.jobId; the header's job-scope pill " +
-      "reading it back is a follow-up, not part of this fix.",
-  },
+  // `jobId` cleared 2026-09-23 (challenge r04 analytics-dashboard/B): the role table
+  // reads it to mark the row in scope, and the header renders `jobScope`.
 ];
 
 // ---------------------------------------------------------------------------

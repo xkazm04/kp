@@ -22,7 +22,7 @@ import type { AnalyticsSectionId } from "./sections/analyticsSections";
 // whether the clipboard actually took it. A blocked clipboard — an insecure origin,
 // a denied permission — must NOT print "Link copied"; it falls back to the URL in a
 // selectable field, which is the honest version of the same help.
-export function AnalyticsCopyViewLink({ section, days }: { section: AnalyticsSectionId; days: number | null }) {
+export function AnalyticsCopyViewLink({ section, days, job = null }: { section: AnalyticsSectionId; days: number | null; job?: string | null }) {
   const t = useTranslations("analytics");
   const [state, setState] = useState<{ kind: "idle" | "copied" } | { kind: "manual"; url: string }>({ kind: "idle" });
   // The 2 s "Link copied" reset outlived the component: this button sits in the
@@ -45,6 +45,7 @@ export function AnalyticsCopyViewLink({ section, days }: { section: AnalyticsSec
       origin: typeof window === "undefined" ? "" : window.location.origin,
       section,
       days,
+      job,
     });
     if (await copyText(url)) {
       setState({ kind: "copied" });

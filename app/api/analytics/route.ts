@@ -4,6 +4,7 @@ import type { PipelineAnalytics } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { periodDeltas, type PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import { createAnalyticsCache } from "@/app/_lib/analytics-cache";
+import { parseJobParam } from "@/app/features/insights/analytics/analyticsJobScope";
 
 
 // ANA2 — bounds for the optional ?days= window. Absent/invalid → all time (the
@@ -12,9 +13,9 @@ import { createAnalyticsCache } from "@/app/_lib/analytics-cache";
 const MIN_WINDOW_DAYS = 7;
 const MAX_WINDOW_DAYS = 365;
 
-// Short-TTL per-(workspace, window) memo: repeat loads within the TTL skip the
+// Short-TTL per-(workspace, window, role) memo: repeat loads within the TTL skip the
 // double aggregation (current + prior window). Module-scoped so it persists across
-// requests; keyed so no payload crosses tenants or windows (see analytics-cache.ts).
+// requests; keyed so no payload crosses tenants, windows or roles (see analytics-cache.ts).
 type AnalyticsPayload = PipelineAnalytics & { deltas: PeriodDeltas | null };
 const payloadCache = createAnalyticsCache<AnalyticsPayload>();
 
@@ -36,19 +37,24 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const windowDays = parseWindowDays(searchParams.get("days"));
+    // ?job= — one requisition. Blank / over-long / malformed = the workspace view. The
+    // role rides into BOTH reads and the memo key: a role's deltas compare the role
+    // with itself, and a scoped payload is never served to another scope. A job of
+    // another workspace yields an empty cohort (every read is workspace-predicated).
+    const jobId = parseJobParam(searchParams.get("job"));
     const ws = await currentWorkspace();
     const payload = payloadCache.get(ws, windowDays, () => {
-      const current = pipelineAnalytics(windowDays, undefined, ws);
+      const current = pipelineAnalytics(windowDays, jobId ? { jobId } : undefined, ws);
       // ce8e3c9e — only a windowed view has a well-defined "previous period". For
       // all-time (no window) there's nothing to compare against, so deltas are null.
       // channel-story-complete — the prior window feeds ONLY periodDeltas, which reads
       // a handful of scalars; pipelineAnalyticsPrior computes just those (2 queries)
       // instead of re-running the full ~9-query battery whose rest the route discards.
       const deltas = windowDays
-        ? periodDeltas(current, pipelineAnalyticsPrior(windowDays, Date.now() - windowDays * 86_400_000, ws))
+        ? periodDeltas(current, pipelineAnalyticsPrior(windowDays, Date.now() - windowDays * 86_400_000, ws, { jobId }))
         : null;
       return { ...current, deltas };
-    });
+    }, jobId);
     return NextResponse.json(payload);
   } catch (error) {
     console.error("[api/analytics] failed to build pipeline analytics", error);

@@ -14,6 +14,7 @@ import { AnalyticsHeader } from "./AnalyticsHeader";
 import { AnalyticsSectionNav } from "./sections/AnalyticsSectionNav";
 import { isAnalyticsSectionId, resolveAnalyticsSection, type AnalyticsSectionId } from "./sections/analyticsSections";
 import type { Analytics } from "./AnalyticsTypes";
+import { analyticsFetchUrl, parseJobParam } from "./analyticsJobScope";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // Re-exported for the split-out panels/tests that still import these two
@@ -67,6 +68,14 @@ export function AnalyticsTab() {
   const setDays = (w: number | null) =>
     router.replace(buildUrl({ win: w ? String(w) : null }, search.toString()), { scroll: false });
 
+  // The ROLE axis (?job=): one requisition, end to end — the route scopes both reads
+  // and the memo to it, and withholds by name what cannot be scoped. Held in the URL
+  // beside ?win= so the view link and a reload keep it; tab-scoped (tabs.ts
+  // TAB_SCOPED_PARAM_KEYS), so a bare tab switch drops it with no code here.
+  const job = parseJobParam(search.get("job"));
+  const setJob = (next: string | null) =>
+    router.replace(buildUrl({ job: parseJobParam(next) }, search.toString()), { scroll: false });
+
   // The active section is APP STATE, with `?sec=` as an inbox only: a link to
   // "Analytics → Quality & audit" is a thing people send each other and must
   // still land, but clicking between sections writes nothing to the URL. Same
@@ -84,10 +93,7 @@ export function AnalyticsTab() {
     setSectionState(next);
   };
 
-  const { data, error, reload } = useJsonFetch<Analytics>(
-    days ? `/api/analytics?days=${days}` : "/api/analytics",
-    t("loadFailed")
-  );
+  const { data, error, reload } = useJsonFetch<Analytics>(analyticsFetchUrl(days, job), t("loadFailed"));
 
   // ANA1 — every chart links to the candidates behind it: a board deep link
   // carrying the matching filter (?stage= funnel stage, ?q= role title), with
@@ -118,7 +124,7 @@ export function AnalyticsTab() {
           window-blind, so on that section the pills grey out and the note says the
           period governs nothing below. Without this prop the header assumes the
           window applies everywhere — which is the claim the finding was about. */}
-      <AnalyticsHeader data={data} error={error} days={days} setDays={setDays} section={section} />
+      <AnalyticsHeader data={data} error={error} days={days} setDays={setDays} section={section} job={job} setJob={setJob} />
 
       <AnalyticsSectionNav section={section} onSection={setSection} />
 

@@ -106,7 +106,9 @@ export function funnelCsvRows(
 
 export type RoleCsvRow = {
   jobTitle: string;
-  koDeclined: number;
+  /** null = not attributable to this row (a title several reqs share, or a role-scoped
+   *  read) — exported as the em dash, never as a zero. */
+  koDeclined: number | null;
   total: number;
   reachedInterview: number;
   hired: number;
@@ -131,7 +133,7 @@ export function rolesCsvRows(
   const header = [labels.job, labels.koDeclined, labels.inPipeline, labels.reachedInterview, labels.hired, labels.hireRate];
   const body = rows.map((j) => [
     j.jobTitle,
-    j.koDeclined,
+    j.koDeclined ?? ABSENT,
     j.total,
     j.reachedInterview,
     j.hired,

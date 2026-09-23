@@ -8,6 +8,7 @@ import type { AutomationRoi } from "@/app/_lib/automation-roi";
 // `import type` only — erased at compile time, no server code in the bundle.
 import type { ChannelEconomics } from "@/app/_lib/db/analytics";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
+import type { JobScope } from "./analyticsJobScope";
 
 export type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
 
@@ -59,13 +60,19 @@ export type Analytics = {
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
   stageDwell: { stage: string; avgDays: number; count: number }[];
-  byJob: { jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number }[];
+  /** One row per requisition (keyed by job id; a legacy id-less entry keys by title).
+   *  `koDeclined` is null where it cannot be attributed: a title more than one req
+   *  shares, and every row of a role-scoped read. */
+  byJob: { jobId: string | null; jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number | null }[];
   byJobTotal: number;
   koDeclined: number;
   byArchetype: { archetype: string; total: number; hired: number; advanceRatePct: number }[];
   /** Echo of the request's job-scoped cohort filter — null when the read is
    *  workspace-wide. Mirrors PipelineAnalytics.jobId (db/analytics.ts). */
   jobId: string | null;
+  /** The role scope in force and, by name, every figure it withholds (null = the
+   *  workspace view). Mirrors PipelineAnalytics.jobScope; the header renders it. */
+  jobScope: JobScope | null;
   windowDays: number | null;
   momentum: MomentumWeek[];
   automation: AutomationImpact;

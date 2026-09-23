@@ -23,10 +23,15 @@ export type { TtlCache };
 // The joiner for this module’s composite keys — the shared NUL separator.
 const SEP = KEY_SEP;
 
-/** The memo key: workspace first, then the window (null = all-time). Two workspaces —
- *  or two windows within one workspace — never collide. Exposed for the keying test. */
-export function analyticsCacheKey(workspaceId: string, windowDays: number | null): string {
-  return `${workspaceId}${SEP}${windowDays == null ? "all" : windowDays}`;
+/** The memo key: workspace first, then the window (null = all-time), then the ROLE
+ *  (null = workspace-wide). Two workspaces, two windows or two scopes never collide —
+ *  a job-scoped payload served to the workspace view (or to another role) would put one
+ *  req's funnel under the whole team's heading. The workspace view keeps its historical
+ *  two-part key, and a role rides after it through `optionalKeyField`, whose absent
+ *  marker no job id can spell. Exposed for the keying test. */
+export function analyticsCacheKey(workspaceId: string, windowDays: number | null, jobId: string | null = null): string {
+  const base = `${workspaceId}${SEP}${windowDays == null ? "all" : windowDays}`;
+  return jobId ? `${base}${SEP}job${SEP}${field(jobId)}` : base;
 }
 
 // ── Per-route key builders ───────────────────────────────────────
@@ -106,9 +111,9 @@ export function invalidateAnalyticsWorkspace(workspaceId: string): void {
 }
 
 export type AnalyticsCache<T> = {
-  /** Return the memoized payload for (workspace, window) if still fresh, else compute,
-   *  store, and return it. */
-  get(workspaceId: string, windowDays: number | null, compute: () => T): T;
+  /** Return the memoized payload for (workspace, window, role) if still fresh, else
+   *  compute, store, and return it. `jobId` omitted/null = the workspace-wide view. */
+  get(workspaceId: string, windowDays: number | null, compute: () => T, jobId?: string | null): T;
   /** Drop all entries (test hook / manual flush). */
   clear(): void;
 };
@@ -120,11 +125,11 @@ export type AnalyticsCache<T> = {
 export function createAnalyticsCache<T>(opts?: { ttlMs?: number; now?: () => number; maxEntries?: number }): AnalyticsCache<T> {
   const inner = createTtlCache<T>(opts);
   return {
-    get(workspaceId, windowDays, compute) {
+    get(workspaceId, windowDays, compute, jobId = null) {
       // The write version is appended rather than folded into `analyticsCacheKey`
       // so that builder stays PURE (its keying test drives it directly). A bumped
       // version simply names a key nothing has stored yet, which is a miss.
-      return inner.get(`${analyticsCacheKey(workspaceId, windowDays)}${SEP}v${analyticsWriteVersion(workspaceId)}`, compute);
+      return inner.get(`${analyticsCacheKey(workspaceId, windowDays, jobId)}${SEP}v${analyticsWriteVersion(workspaceId)}`, compute);
     },
     clear() {
       inner.clear();
