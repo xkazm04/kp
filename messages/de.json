@@ -1963,7 +1963,9 @@
     "AUTOMATION_SELECTION_INVALID": "Diese Auswahl an Änderungen konnte nicht gelesen werden. Rufen Sie die Vorschau erneut auf und wenden Sie die Änderungen noch einmal an.",
     "PROFILE_EXISTS": "Für diesen Lebenslauf gibt es bereits ein gespeichertes Profil. Öffnen Sie dieses Profil zum Bearbeiten, statt ein zweites anzulegen.",
     "GLYPH_UNKNOWN": "Diese Illustration existiert nicht.",
-    "DEVCASE_CASE_NOT_FOUND": "Diese Aufgabe ist in diesem Arbeitsbereich nicht vorhanden."
+    "DEVCASE_CASE_NOT_FOUND": "Diese Aufgabe ist in diesem Arbeitsbereich nicht vorhanden.",
+    "ANALYTICS_TARGET_UNKNOWN_METRIC": "Für diese Spalte gibt es auf diesem Board kein Ziel. Ziele gelten für die aktiven Spalten des Boards nach der ersten.",
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "Dieser Wert liegt außerhalb des zulässigen Bereichs. Geben Sie eine Zahl von 0 bis zur Grenze des Feldes ein (bei einem Konversionsziel 100)."
   },
   "resilience": {
     "notFoundEyebrow": "404",

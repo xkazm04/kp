@@ -1963,7 +1963,9 @@
     "AUTOMATION_SELECTION_INVALID": "That selection of changes could not be read. Preview the pass again and re-apply.",
     "PROFILE_EXISTS": "This CV already has a saved profile. Open that profile to edit it instead of creating a second one.",
     "GLYPH_UNKNOWN": "That illustration does not exist.",
-    "DEVCASE_CASE_NOT_FOUND": "That assignment is not in this workspace."
+    "DEVCASE_CASE_NOT_FOUND": "That assignment is not in this workspace.",
+    "ANALYTICS_TARGET_UNKNOWN_METRIC": "That column has no goal slot on this board. Goals apply to the board's live columns after the first one.",
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "That value is out of range. Use a number from 0 up to the field's limit (100 for a conversion goal)."
   },
   "resilience": {
     "notFoundEyebrow": "404",

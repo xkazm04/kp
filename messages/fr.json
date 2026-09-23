@@ -1963,7 +1963,9 @@
     "AUTOMATION_SELECTION_INVALID": "Cette sélection de changements est illisible. Relancez l’aperçu du passage et appliquez à nouveau.",
     "PROFILE_EXISTS": "Un profil enregistré existe déjà pour ce CV. Ouvrez ce profil pour le modifier au lieu d’en créer un second.",
     "GLYPH_UNKNOWN": "Cette illustration n’existe pas.",
-    "DEVCASE_CASE_NOT_FOUND": "Cette mission ne se trouve pas dans cet espace de travail."
+    "DEVCASE_CASE_NOT_FOUND": "Cette mission ne se trouve pas dans cet espace de travail.",
+    "ANALYTICS_TARGET_UNKNOWN_METRIC": "Aucun objectif ne peut être défini pour cette colonne sur ce tableau. Les objectifs s'appliquent aux colonnes actives du tableau, après la première.",
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "Cette valeur est hors limites. Saisissez un nombre compris entre 0 et la limite du champ (100 pour un objectif de conversion)."
   },
   "resilience": {
     "notFoundEyebrow": "404",

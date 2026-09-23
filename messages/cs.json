@@ -1963,7 +1963,9 @@
     "AUTOMATION_SELECTION_INVALID": "Tento výběr změn nelze přečíst. Zobrazte náhled průchodu znovu a změny použijte ještě jednou.",
     "PROFILE_EXISTS": "K tomuto životopisu již existuje uložený profil. Otevřete jej a upravte ho, místo abyste vytvářeli druhý.",
     "GLYPH_UNKNOWN": "Tato ilustrace neexistuje.",
-    "DEVCASE_CASE_NOT_FOUND": "Toto zadání v tomto pracovním prostoru není."
+    "DEVCASE_CASE_NOT_FOUND": "Toto zadání v tomto pracovním prostoru není.",
+    "ANALYTICS_TARGET_UNKNOWN_METRIC": "Pro tento sloupec nelze na této nástěnce nastavit cíl. Cíle lze nastavit pro aktivní sloupce nástěnky kromě prvního.",
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "Tato hodnota je mimo povolený rozsah. Zadejte číslo od 0 do limitu pole (u cíle konverze 100)."
   },
   "resilience": {
     "notFoundEyebrow": "404",

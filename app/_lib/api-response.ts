@@ -1899,6 +1899,13 @@ export const REFUSAL_ERRORS = {
   /** GET /api/devcase/[id] for a case that is not in the caller's workspace, or does not
    *  exist at all (404, the same answer for both: no existence oracle). */
   DEVCASE_CASE_NOT_FOUND: "That assignment is not in this workspace.",
+  /** POST /api/analytics/targets (400): the metric is not a goal key on this workspace's
+   *  LIVE board (unknown, a retired column, or the entry column, which has no inbound
+   *  conversion). The key space is app/_lib/analytics-target-keys.ts. */
+  ANALYTICS_TARGET_UNKNOWN_METRIC: "That column has no goal slot on this board. Goals apply to the board's live columns after the first one.",
+  /** POST /api/analytics/targets (400): the value is not a finite non-negative number,
+   *  or is over the key's ceiling in the goal-key registry. */
+  ANALYTICS_TARGET_OUT_OF_RANGE: "That value is out of range. Use a number from 0 up to the field's limit (100 for a conversion goal).",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
