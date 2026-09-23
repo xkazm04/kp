@@ -4,7 +4,8 @@
 // the full MatchResult stay on the server; the page needs the body as text, the
 // skill lists, the breakdown, the confidence, the eligibility and the reasoning.
 
-import type { EligibilityFlag, FitTier, JobseekerPosting, PostingStatus, DismissReason, SalaryPeriod, WorkMode } from "@/app/_lib/jobseeker/types";
+import { FIT_TIERS, isKoReasonKey } from "@/app/_lib/jobseeker/types";
+import type { EligibilityFlag, FitTier, JobseekerPosting, KoReasonKey, PostingStatus, DismissReason, SalaryPeriod, WorkMode } from "@/app/_lib/jobseeker/types";
 import type { Confidence, ScoreDimension } from "@/app/features/shared/matchTypes";
 
 export type PostingReasoningView = {
@@ -22,6 +23,16 @@ export type PostingMatchView = {
   unprovenSkills: string[];
   breakdown: ScoreDimension[];
   confidence: Confidence | null;
+  eligibility: EligibilityFlag[];
+};
+
+/** A posting the hard filter removed (setPostingBlocked): the gates, and what it would
+ *  score with them lifted. Only the MISMATCHES of the as-if eligibility ride along — the
+ *  flag that explains the gate, not a full card for a score the posting does not have. */
+export type PostingBlockedView = {
+  koKeys: KoReasonKey[];
+  asIfTotal: number | null;
+  asIfTier: FitTier | null;
   eligibility: EligibilityFlag[];
 };
 
@@ -43,6 +54,9 @@ export type PostingDetailView = {
   dismissReason: DismissReason | null;
   dismissNote: string | null;
   match: PostingMatchView | null;
+  /** Non-null only for a filtered posting; `match` is then null. A never-matched posting
+   *  has both null — the page tells the two states apart. */
+  blocked: PostingBlockedView | null;
   reasoning: PostingReasoningView | null;
   jobSource: "deterministic" | "llm" | null;
 };
@@ -73,11 +87,7 @@ export function matchView(match: Record<string, unknown> | null, total: number |
     c && typeof c.low === "number" && typeof c.high === "number" && (c.level === "tight" || c.level === "moderate" || c.level === "wide")
       ? { low: c.low, high: c.high, level: c.level, drivers: strings(c.drivers, 10) }
       : null;
-  const eligibility = Array.isArray(m.eligibility)
-    ? (m.eligibility as unknown[]).filter(
-        (f): f is EligibilityFlag => !!f && typeof f === "object" && typeof (f as EligibilityFlag).key === "string" && typeof (f as EligibilityFlag).state === "string"
-      )
-    : [];
+  const eligibility = eligibilityFlags(m.eligibility);
   return {
     total,
     fitTier,
@@ -88,6 +98,28 @@ export function matchView(match: Record<string, unknown> | null, total: number |
     confidence,
     eligibility,
   };
+}
+
+function eligibilityFlags(v: unknown): EligibilityFlag[] {
+  return Array.isArray(v)
+    ? (v as unknown[]).filter(
+        (f): f is EligibilityFlag => !!f && typeof f === "object" && typeof (f as EligibilityFlag).key === "string" && typeof (f as EligibilityFlag).state === "string"
+      )
+    : [];
+}
+
+/** The stored KO verdict (`{blocked: {koKeys}, asIf}`) as the page's view. A row with a
+ *  total is scored whatever its payload says; a verdict with no known gate is nothing to
+ *  show (the page then reads it as not yet matched); an unreadable as-if keeps the gate. */
+export function blockedView(match: Record<string, unknown> | null, total: number | null): PostingBlockedView | null {
+  if (total !== null || !match) return null;
+  const blocked = match.blocked && typeof match.blocked === "object" ? (match.blocked as Record<string, unknown>) : null;
+  const koKeys = Array.isArray(blocked?.koKeys) ? (blocked.koKeys as unknown[]).filter(isKoReasonKey) : [];
+  if (koKeys.length === 0) return null;
+  const asIf = match.asIf && typeof match.asIf === "object" && !Array.isArray(match.asIf) ? (match.asIf as Record<string, unknown>) : {};
+  const asIfTotal = typeof asIf.total === "number" && Number.isFinite(asIf.total) ? asIf.total : null;
+  const asIfTier = (FIT_TIERS as readonly unknown[]).includes(asIf.fitTier) ? (asIf.fitTier as FitTier) : null;
+  return { koKeys, asIfTotal, asIfTier, eligibility: eligibilityFlags(asIf.eligibility).filter((f) => f.state === "flag") };
 }
 
 export function reasoningView(reasoning: Record<string, unknown> | null): PostingReasoningView | null {
@@ -130,6 +162,7 @@ export function postingDetailView(p: JobseekerPosting, sourceLabel: string, attr
     dismissReason: p.dismissReason,
     dismissNote: p.dismissNote,
     match: matchView(p.match, p.matchTotal, p.fitTier),
+    blocked: blockedView(p.match, p.matchTotal),
     reasoning: reasoningView(p.reasoning),
     jobSource: p.jobSource,
   };

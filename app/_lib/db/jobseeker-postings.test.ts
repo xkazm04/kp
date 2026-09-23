@@ -9,12 +9,15 @@ import { cleanupUnitDb } from "../testing/unit-db.ts";
 import type { RawPosting } from "../jobseeker/types.ts";
 import {
   getJobseekerPosting,
+  getPostingSummary,
+  listDeepDiveCandidates,
   listJobseekerPostings,
   listPostingsForMatching,
   markAbsent,
   setPostingMatch,
   setPostingStructure,
   setJobseekerPostingStatus,
+  setPostingBlocked,
   upsertPosting,
 } from "./jobseeker-postings.ts";
 
@@ -221,4 +224,55 @@ test("listPostingsForMatching: scoped, it returns only the rows that still owe a
   assert.equal(listPostingsForMatching(ws, scope).skippedUpToDate, 0);
   // …and another workspace sees none of it.
   assert.equal(listPostingsForMatching("ws-other", scope).rows.length, 0);
+});
+
+test("setPostingBlocked: stamps the verdict with no total, is skipped by the next scan, and projects blockedBy", () => {
+  const source = "src-blocked";
+  const ws = "ws-blocked";
+  const blocked = upsertPosting(source, raw(), T0, ws);
+  const scored = upsertPosting(source, raw(), T0, ws);
+  for (const id of [blocked.id, scored.id]) setPostingStructure(id, { title: "x" }, "deterministic", ws);
+  const asIf = { jobId: blocked.id, total: 88, fitTier: "strong", eligibility: [{ key: "work_mode", state: "flag", detail: "work mode onsite not preferred" }] };
+  const verdict = { blocked: { koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"] }, asIf };
+  assert.equal(setPostingBlocked(blocked.id, verdict, { version: "jobseeker-match-v2", matchedAt: T2 }, ws), true);
+  setPostingMatch(scored.id, { jobId: scored.id, eligibility: [] }, { total: 70, fitTier: "strong", version: "jobseeker-match-v2", matchedAt: T2 }, ws);
+
+  const row = getJobseekerPosting(blocked.id, ws)!;
+  assert.equal(row.matchTotal, null, "the as-if score never becomes the sort column");
+  assert.equal(row.fitTier, null);
+  assert.equal(row.matchVersion, "jobseeker-match-v2");
+  assert.equal(row.matchedAt, T2);
+  assert.deepEqual(row.match, verdict);
+
+  const scope = { upToDateVersion: "jobseeker-match-v2", profileUpdatedAt: T1 };
+  const pending = listPostingsForMatching(ws, scope);
+  assert.equal(pending.rows.length, 0, "a stamped verdict is current: the next unchanged scan does not re-send it");
+  assert.equal(pending.skippedUpToDate, 2);
+
+  const byId = new Map(listJobseekerPostings({}, ws).rows.map((r) => [r.id, r]));
+  assert.deepEqual(byId.get(blocked.id)!.blockedBy, ["work_mode"]);
+  assert.deepEqual(byId.get(blocked.id)!.eligibility, [], "the as-if flags are not the row's own eligibility");
+  assert.deepEqual(byId.get(scored.id)!.blockedBy, []);
+  assert.deepEqual(getPostingSummary(blocked.id, ws)!.blockedBy, ["work_mode"]);
+
+  // An as-if 88 never reaches the deep-dive shortlist: it reads match_total, which is NULL.
+  assert.deepEqual(listDeepDiveCandidates({ threshold: 0, limit: 10 }, ws).map((p) => p.id), [scored.id]);
+});
+
+test("setPostingBlocked re-checks instead of locking: a posting whose content changed after the list is not stamped", () => {
+  const source = "src-blocked-race";
+  const ws = "ws-blocked-race";
+  const first = raw();
+  const p = upsertPosting(source, first, T0, ws);
+  setPostingStructure(p.id, { title: "x" }, "deterministic", ws);
+  // The scan listed it; then a concurrent reconcile saw new content, which NULLs job_json.
+  assert.equal(upsertPosting(source, { ...first, bodyText: `${first.bodyText} Now onsite only.` }, T1, ws).outcome, "changed");
+  const stamped = setPostingBlocked(p.id, { blocked: { koKeys: ["work_mode"], koDetails: ["x"] }, asIf: { total: 50 } }, { version: "jobseeker-match-v2", matchedAt: T2 }, ws);
+  assert.equal(stamped, false, "changes === 0: the verdict was computed from content that no longer exists");
+  const row = getJobseekerPosting(p.id, ws)!;
+  assert.equal(row.match, null);
+  assert.equal(row.matchVersion, null, "so the next scan structures and matches it afresh");
+  // …and a foreign workspace cannot stamp it either.
+  setPostingStructure(p.id, { title: "x" }, "deterministic", ws);
+  assert.equal(setPostingBlocked(p.id, { blocked: { koKeys: [], koDetails: [] }, asIf: {} }, { version: "v", matchedAt: T2 }, "ws-other"), false);
 });

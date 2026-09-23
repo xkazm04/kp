@@ -15,8 +15,9 @@
 //     between phases, never mid-source — a half-reconciled source would mark absent what
 //     it never reached; sources not reached are recorded `skipped` with reason
 //     `wall_budget`, not omitted;
-//   - `matched` counts rows the matcher returned this run; KO'd postings are not scored 0,
-//     they stay unmatched and the count goes to the log; `skippedUpToDate` counts the rows
+//   - `matched` counts rows the matcher scored this run; KO'd postings are not scored 0,
+//     they are stored with their gate and as-if score (match_total NULL) and stamped, so
+//     the next unchanged scan skips them too; `skippedUpToDate` counts the rows
 //     whose stored match was still the truth, so a re-scan that changed nothing says "0
 //     scored, N already current" instead of quietly re-spending on the whole dataset;
 //   - the deep-dive stops at the FIRST keyless / deterministic answer, `deepDiveSkipped:
@@ -27,6 +28,7 @@ import {
   listPostingsForMatching,
   listPostingsNeedingStructure,
   markAbsent,
+  setPostingBlocked,
   setPostingMatch,
   setPostingStructure,
   upsertPosting,
@@ -69,6 +71,7 @@ export type ScanDeps = {
   setPostingStructure: typeof setPostingStructure;
   listPostingsForMatching: typeof listPostingsForMatching;
   setPostingMatch: typeof setPostingMatch;
+  setPostingBlocked: typeof setPostingBlocked;
   listDeepDiveCandidates: typeof listDeepDiveCandidates;
   deepDive: (posting: JobseekerPosting, profile: JobseekerProfile, opts: { signal?: AbortSignal; workspaceId: string }) => Promise<DeepDiveOutcome>;
   runCli: CliRunner;
@@ -89,6 +92,7 @@ export const defaultScanDeps: ScanDeps = {
   setPostingStructure,
   listPostingsForMatching,
   setPostingMatch,
+  setPostingBlocked,
   listDeepDiveCandidates,
   deepDive: (posting, profile, opts) => deepDivePosting(posting, profile, opts),
   runCli: runPythonCli,
@@ -238,6 +242,12 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
       const matchedAt = deps.now();
       for (const m of outcome.matched) {
         deps.setPostingMatch(m.id, m.match, { total: m.total, fitTier: m.fitTier, version: MATCH_VERSION, matchedAt }, workspaceId);
+      }
+      // The filtered tail: stored once with the gate and the as-if score (never a
+      // total), stamped so the next unchanged scan skips it. setPostingBlocked re-checks
+      // job_json, so a posting whose content moved since the list is left to re-match.
+      for (const b of outcome.blocked) {
+        deps.setPostingBlocked(b.id, { blocked: { koKeys: b.koKeys, koDetails: b.koDetails }, asIf: b.match }, { version: MATCH_VERSION, matchedAt }, workspaceId);
       }
       summary.matched = outcome.matched.length;
       if (outcome.koFiltered) {

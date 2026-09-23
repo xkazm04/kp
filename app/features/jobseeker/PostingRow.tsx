@@ -36,9 +36,11 @@ import { EligibilityChips } from "./EligibilityChips";
 // same "cascade on FIRST appearance, never replay" rule — with `<tr>` as the element.
 // `arrivalOrder` is the caller's diff-by-id position; -1 means "was already here".
 //
-// An UNSCORED posting (KO'd by the hard filter, or not yet matched) still says "not
-// scored", never "0 %": a posting the filter dropped is not comparable, and the feed
-// must not read it as a bad match.
+// A posting with no score is never "0 %". Two different states, told apart: one the
+// hard filter REMOVED names its gate ("Filtered: work mode" — `row.blockedBy`, stored by
+// the scan with the as-if score the detail page shows), and one the scan has not matched
+// yet says "not scored". Neither is comparable, and the feed must not read either as a
+// bad match.
 
 const SPRING = { type: "spring" as const, stiffness: 420, damping: 34 };
 const STAGGER_MS = 40;
@@ -118,6 +120,12 @@ export function PostingRow({
           ) : (
             <span className="nums font-serif text-h3 text-ink">{Math.round(row.matchTotal)}</span>
           )
+        ) : row.blockedBy.length > 0 ? (
+          <span className="inline-flex flex-col items-end gap-1">
+            {row.blockedBy.map((k) => (
+              <Badge key={k} tone="caution" label={t(`card.filtered.${k}`)} />
+            ))}
+          </span>
         ) : (
           <span className={CHIP_QUIET}>{t("card.unscored")}</span>
         )}

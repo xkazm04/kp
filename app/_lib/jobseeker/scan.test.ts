@@ -187,6 +187,18 @@ function makeStore() {
         r.matchedAt = projection.matchedAt;
         return true;
       },
+      // Mirrors setPostingBlocked's re-check: a row whose structure was cleared (content
+      // changed after the list) is not stamped.
+      setPostingBlocked: (id, verdict, projection) => {
+        const r = rows.get(id);
+        if (!r || r.job === null) return false;
+        r.match = verdict;
+        r.matchTotal = null;
+        r.fitTier = null;
+        r.matchVersion = projection.version;
+        r.matchedAt = projection.matchedAt;
+        return true;
+      },
       setPostingReasoning: (id, reasoning) => {
         const r = rows.get(id);
         if (!r) return false;
@@ -230,7 +242,18 @@ function scriptedRunner(script: Script, calls: CliCall[]): CliRunner {
           .map((j) => ({ id: j.id, total: script.totals ? script.totals(j.id) : 70 }))
           .filter((m): m is { id: string; total: number } => m.total !== null)
           .map((m) => ({ jobId: m.id, total: m.total, fitTier: m.total >= 70 ? "strong" : "partial", confidence: { low: m.total - 5, high: m.total + 5, level: "tight" }, eligibility: [] }));
-        return { matches, meta: { evaluated: jobs.length, koFiltered: jobs.length - matches.length, koReasons: [] } };
+        // A null total is a KO: with --include-blocked the matcher names the gate and
+        // scores the posting as if it were lifted (matching.py BlockedMatch).
+        const asked = call.args({ "profile.json": "p", "preferences.json": "q", "corpus.json": "c", "jobs.json": "j" }).includes("--include-blocked");
+        const blocked = jobs
+          .filter((j) => (script.totals ? script.totals(j.id) : 70) === null)
+          .map((j) => ({
+            jobId: j.id,
+            koKeys: ["work_mode"],
+            koDetails: ["work mode onsite not preferred"],
+            result: { jobId: j.id, total: 78, fitTier: "strong", eligibility: [{ key: "work_mode", state: "flag", detail: "work mode onsite not preferred" }] },
+          }));
+        return { matches, meta: { evaluated: jobs.length, koFiltered: jobs.length - matches.length, koReasons: [] }, ...(asked ? { blocked } : {}) };
       }
       case "jobs_cli": {
         if (script.keyless) throw new PipelineError({ message: "No LLM provider available for ad ingestion (configure one in Models, or install the Claude CLI).", status: 500, code: "engine_error" });
@@ -310,7 +333,7 @@ test("(a) 30 fixture postings: every row is structured and carries a match_total
     assert.equal(row.jobSource, "deterministic");
     assert.equal(typeof row.matchTotal, "number", `${row.id} scored`);
     assert.ok(row.fitTier, `${row.id} banded`);
-    assert.equal(row.matchVersion, "jobseeker-match-v1");
+    assert.equal(row.matchVersion, "jobseeker-match-v2");
   }
   assert.equal(summary.matched, 30);
   // ONE structure spawn (30 < 200) and ONE match spawn (30 < 500).
@@ -320,7 +343,7 @@ test("(a) 30 fixture postings: every row is structured and carries a match_total
   );
   const matchCall = calls.find((c) => c.module === "match_cli")!;
   const argv = matchCall.args({ "profile.json": "P", "preferences.json": "R", "corpus.json": "C", "jobs.json": "J" });
-  assert.deepEqual(argv, ["--profile-json", "P", "--preferences-json", "R", "--jobs", "C", "--jobs-json", "J", "--limit", "30"]);
+  assert.deepEqual(argv, ["--profile-json", "P", "--preferences-json", "R", "--jobs", "C", "--jobs-json", "J", "--limit", "30", "--include-blocked"]);
   assert.deepEqual(matchCall.files["corpus.json"], [], "the seed corpus is replaced by an empty one: only the seeker's postings rank");
   assert.equal(matchCall.llm, undefined, "the matcher is deterministic and is not handed the LLM config");
 });
@@ -491,4 +514,33 @@ test("(f) incremental matching: an unchanged second scan scores nothing, a moved
   assert.equal(four.skippedUpToDate, 3);
   const matchCall = fourth.find((c) => c.module === "match_cli")!;
   assert.deepEqual((matchCall.files["jobs.json"] as { id: string }[]).map((j) => j.id), [changed.id]);
+});
+
+test("(g) a KO'd posting is stored once with its gate and as-if score, and the next unchanged scan skips it", async () => {
+  const store = makeStore();
+  const postings = Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha"));
+  const sources = [source("alpha", { postings })];
+  const matchSpawns = (calls: CliCall[]) => calls.filter((c) => c.module === "match_cli").length;
+  // jpo-2 fails the hard filter; the other two score 60.
+  const totals = (id: string) => (id === "jpo-2" ? null : 60);
+
+  const first: CliCall[] = [];
+  const one = await runJobseekerScan(WS, { trigger: "manual", deps: depsFor(store, scriptedRunner({ totals }, first), sources) });
+  assert.equal(one.matched, 2, "only survivors count as scored");
+  const blocked = store.rows.get("jpo-2")!;
+  assert.equal(blocked.matchTotal, null, "a filtered posting is not a 0 % fit and never sorts as a score");
+  assert.equal(blocked.fitTier, null);
+  assert.equal(blocked.matchVersion, "jobseeker-match-v2");
+  assert.equal(blocked.matchedAt, NOW);
+  assert.deepEqual(blocked.match, {
+    blocked: { koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"] },
+    asIf: { jobId: "jpo-2", total: 78, fitTier: "strong", eligibility: [{ key: "work_mode", state: "flag", detail: "work mode onsite not preferred" }] },
+  });
+
+  // Unchanged second scan: the stamped verdict is current, so the matcher is not spawned
+  // for it (it used to be re-sent on every scan because nothing ever stamped it).
+  const second: CliCall[] = [];
+  const two = await runJobseekerScan(WS, { trigger: "clock", deps: depsFor(store, scriptedRunner({ totals }, second), sources) });
+  assert.equal(two.skippedUpToDate, 3, "the blocked row counts as already current");
+  assert.equal(matchSpawns(second), 0, "and nothing is re-sent to the matcher");
 });

@@ -36,6 +36,7 @@ function SlotLine({ text }: { text: string }) {
 
 export function FitSheet({ posting, artifact, closed, applied, onMarkApplied }: { posting: PostingDetailView; artifact: FitArtifact | null; closed: boolean; applied: boolean; onMarkApplied(): void }) {
   const t = useTranslations("me.fit");
+  const tJobs = useTranslations("me.jobs");
   const tierLabels = useFitTierLabels();
   return (
     <div className="space-y-6 pb-2">
@@ -47,6 +48,15 @@ export function FitSheet({ posting, artifact, closed, applied, onMarkApplied }: 
             <span className="nums text-sm font-semibold text-ink">{Math.round(posting.match.total)}</span>
             <FitTierBadge tier={posting.match.fitTier} labels={tierLabels} />
             <EligibilityChips flags={posting.match.eligibility} />
+          </div>
+        ) : posting.blocked ? (
+          // A filtered posting names its gate here too — the same chip the feed row shows —
+          // so the fit conversation never opens on a posting that silently has no score.
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {posting.blocked.koKeys.map((k) => (
+              <Badge key={k} tone="caution" label={tJobs(`card.filtered.${k}`)} />
+            ))}
+            <EligibilityChips flags={posting.blocked.eligibility} />
           </div>
         ) : null}
       </section>

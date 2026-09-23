@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   isDismissReason,
+  isKoReasonKey,
   isPostingStatus,
   isWorkMode,
   FIT_TIERS,
@@ -143,17 +144,28 @@ function fromRow(row: PostingRow): JobseekerPosting {
   };
 }
 
+/** The gates a KO verdict names (setPostingBlocked's `{blocked: {koKeys}}`), filtered to
+ *  the known vocabulary; [] for a scored row, a never-matched one, or an unreadable payload. */
+function projectBlockedBy(match: Record<string, unknown> | null): JobseekerPostingSummary["blockedBy"] {
+  const blocked = match?.blocked;
+  if (!blocked || typeof blocked !== "object") return [];
+  const keys = (blocked as { koKeys?: unknown }).koKeys;
+  return Array.isArray(keys) ? keys.filter(isKoReasonKey) : [];
+}
+
 /** Eligibility + confidence are PROJECTIONS of the stored MatchResult: read defensively,
  *  because the match schema is the pipeline's (codegen) and this store must not break
- *  when a field is renamed there — an unreadable projection is empty, never a throw. */
-function projectMatch(match: Record<string, unknown> | null): Pick<JobseekerPostingSummary, "eligibility" | "confidence"> {
+ *  when a field is renamed there — an unreadable projection is empty, never a throw. A
+ *  blocked row's payload is `{blocked, asIf}`, so its own eligibility/confidence read
+ *  empty: the as-if flags describe a score the posting does not have. */
+function projectMatch(match: Record<string, unknown> | null): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy"> {
   const eligibility = Array.isArray(match?.eligibility) ? (match.eligibility as EligibilityFlag[]) : [];
   const raw = match?.confidence;
   const confidence =
     raw && typeof raw === "object" && typeof (raw as { low?: unknown }).low === "number" && typeof (raw as { high?: unknown }).high === "number"
       ? (raw as JobseekerPostingSummary["confidence"])
       : null;
-  return { eligibility, confidence };
+  return { eligibility, confidence, blockedBy: projectBlockedBy(match) };
 }
 
 function fromSummaryRow(row: SummaryRow): JobseekerPostingSummary {
@@ -333,6 +345,32 @@ export function setPostingMatch(
        WHERE id = ? AND workspace_id = ?`
     )
     .run(JSON.stringify(match), projection.total, projection.fitTier, projection.version, projection.matchedAt, id, workspaceId);
+  return res.changes > 0;
+}
+
+/** A KO verdict: the posting failed the matcher's hard filter. Stored in match_json as
+ *  `{blocked: {koKeys, koDetails}, asIf: <MatchResult>}` with match_total and fit_tier
+ *  NULL — sorting, the minTotal filter and the deep-dive shortlist all read match_total,
+ *  so an as-if score can never rank — and STAMPED with the matcher version and time, so
+ *  listPostingsForMatching's skip predicate treats it as current until the posting or
+ *  the profile moves.
+ *
+ *  Re-check, not lock: the verdict was computed from the job_json the scan listed, and a
+ *  content change since then (upsertPosting) NULLs job_json. `AND job_json IS NOT NULL`
+ *  makes that a `changes === 0` skip, so a stale verdict is never stamped over new
+ *  content; the row stays unmatched and the next scan structures and matches it. */
+export function setPostingBlocked(
+  id: string,
+  verdict: { blocked: { koKeys: string[]; koDetails: string[] }; asIf: Record<string, unknown> },
+  projection: { version: string; matchedAt: string },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE jobseeker_postings SET match_json = ?, match_total = NULL, fit_tier = NULL, match_version = ?, matched_at = ?
+       WHERE id = ? AND workspace_id = ? AND job_json IS NOT NULL`
+    )
+    .run(JSON.stringify(verdict), projection.version, projection.matchedAt, id, workspaceId);
   return res.changes > 0;
 }
 

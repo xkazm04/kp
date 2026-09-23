@@ -352,6 +352,40 @@ export function PostingDetail({
                   </div>
                 ) : null}
               </div>
+            ) : view.blocked ? (
+              // FILTERED, not unscored: the gate that removed it, what it would score with
+              // that gate lifted (never drawn as the dial — it is not this posting's score),
+              // and the door to the profile and preferences that set the gate.
+              <div className="mt-3 space-y-3">
+                <ul className="flex flex-wrap gap-1.5">
+                  {view.blocked.koKeys.map((k) => (
+                    <li key={k}>
+                      <Badge tone="caution" label={tJobs(`card.filtered.${k}`)} />
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-sm text-steel">{t("match.blocked")}</p>
+                {view.blocked.asIfTotal !== null ? (
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-ink">
+                    <span className="nums">{t("match.blockedAsIf", { score: Math.round(view.blocked.asIfTotal) })}</span>
+                    {view.blocked.asIfTier ? <FitTierBadge tier={view.blocked.asIfTier} labels={tierLabels} /> : null}
+                  </p>
+                ) : null}
+                {view.blocked.eligibility.length > 0 ? (
+                  <ul className="space-y-1 text-sm text-steel">
+                    {view.blocked.eligibility
+                      .filter((f) => f.detail)
+                      .map((f) => (
+                        <li key={f.key}>
+                          <span className="font-medium text-ink">{tJobs(`eligibility.key.${f.key}`)}:</span> {f.detail}
+                        </li>
+                      ))}
+                  </ul>
+                ) : null}
+                <Link href="/me" className="focus-ring inline-block rounded text-sm font-medium text-ink underline">
+                  {t("match.blockedLink")}
+                </Link>
+              </div>
             ) : (
               <p className="mt-2 text-sm text-steel">{t("match.notScored")}</p>
             )}

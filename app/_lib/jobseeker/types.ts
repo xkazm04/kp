@@ -232,6 +232,15 @@ export type EligibilityKey = "salary" | "location" | "seniority" | "language" | 
 /** `flag` = a measured mismatch; `unknown` = the posting did not say (never a penalty). */
 export type EligibilityFlag = { key: EligibilityKey; state: "ok" | "flag" | "unknown"; detail: string };
 
+/** The matcher's hard-gate categories (pipeline/jobfit/matching.py `KoReasonKey`), in the
+ *  order the feed names them. A posting the KO filter removed is stored with these keys
+ *  and an as-if MatchResult (match_json `{blocked, asIf}`, match_total NULL). */
+export const KO_REASON_KEYS = ["seniority", "early_career", "education", "language", "work_mode"] as const;
+export type KoReasonKey = (typeof KO_REASON_KEYS)[number];
+export function isKoReasonKey(v: unknown): v is KoReasonKey {
+  return typeof v === "string" && (KO_REASON_KEYS as readonly string[]).includes(v);
+}
+
 export type JobseekerPosting = {
   id: string;
   sourceId: string;
@@ -279,6 +288,8 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
   bodyChars: number;
   eligibility: EligibilityFlag[];
   confidence: { low: number; high: number; level: "tight" | "moderate" | "wide" } | null;
+  /** The hard gates that removed this posting (empty for a scored or not-yet-matched row). */
+  blockedBy: KoReasonKey[];
   deepDived: boolean;
 };
 
