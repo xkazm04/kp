@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmUsageAggregateRow } from "@/app/_lib/db/llm";
 import type { EngineAvailability } from "@/app/_lib/engine-preflight";
+import type { ReadinessFinding } from "@/app/_lib/readiness";
 import { createLoadLatch } from "../billingTabState";
 
 // The two server reads the consolidated spend section needs, fetched ONCE for
@@ -23,6 +24,9 @@ export type SpendOps = {
   catalog: "ok" | "empty";
   clock: "healthy" | "starting" | "stalled";
   degradedReasons: string[];
+  /** Coded twins of `degradedReasons` (app/_lib/readiness.ts). Optional: an older
+   *  server sends none, and the strip then renders the reasons as before. */
+  findings?: ReadinessFinding[];
   tables: Record<string, number>;
   queue: { running: number; queued: number };
   engines: EngineAvailability;

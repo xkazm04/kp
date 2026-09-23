@@ -3,13 +3,11 @@ import { safeJsonError } from "@/app/_lib/api-response";
 import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { aggregateLlmUsage } from "@/app/_lib/db/llm";
-import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { analyzeTelemetry, commsTelemetry, engineTelemetry, tailJsonl } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
-import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
-import { publicOriginHealth } from "@/app/_lib/public-base-url";
+import { collectReadiness } from "@/app/_lib/readiness";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
 import { rateLimitRefusalStats } from "@/app/_lib/rate-limit";
@@ -50,13 +48,6 @@ export async function GET() {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   try {
-    const degradedReasons: string[] = [];
-    const originHealth = publicOriginHealth();
-    if (originHealth.reason) degradedReasons.push(originHealth.reason);
-    const seed = getSeedHealth();
-    for (const issue of seed.issues) {
-      if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);
-    }
     const tables = coreTableCounts();
     const queue = countActiveTasks();
 
@@ -68,54 +59,43 @@ export async function GET() {
     // "The catalog is empty because its SEED failed to load" is a different thing
     // entirely: a fault someone has to go and fix.
     //
-    // The honest signal for the second one already exists a few lines up, in
-    // getSeedHealth(), and /api/jobs already draws exactly this line for
-    // JOB_SEED_BROKEN (app/api/jobs/route.ts): severity "error", never "missing" —
-    // a seed file that is simply absent is a supported install (a self-hosted box
-    // that ships no demo corpus), not a break. Same rule here so the two surfaces
-    // cannot disagree about whether the same catalog is broken.
+    // The honest signal for the second one already exists in getSeedHealth(), and
+    // /api/jobs already draws exactly this line for JOB_SEED_BROKEN
+    // (app/api/jobs/route.ts): severity "error", never "missing" — a seed file that
+    // is simply absent is a supported install (a self-hosted box that ships no demo
+    // corpus), not a break. app/_lib/readiness.ts applies that rule for both this
+    // route and /api/health, so the two surfaces cannot disagree about whether the
+    // same catalog is broken.
     //
     // `catalog` carries the ordinary state instead, as a fact rather than a
     // verdict, so the strip can say "no jobs yet" without saying "degraded".
     const catalogEmpty = (tables.jobs ?? 0) === 0;
-    const jobsSeedFailed = seed.issues.some((i) => i.seed === "jobs" && i.severity === "error");
-    if (catalogEmpty && jobsSeedFailed) {
-      degradedReasons.push("job catalog is empty because its seed data failed to load");
-    }
 
-    // Decision-config health (/perfect wave 41). /api/health carries the VERDICT for a
-    // monitor; this route is operator-gated in full, so it carries the DETAIL the System
-    // strip renders: which phase, which tier (an org baseline going dark hits every team,
-    // one team's override hits one) and which workspace. An unreadable row means that
-    // workspace's auto-reject rules are not in force while its settings panel shows the
-    // shipped defaults — a silent revert nothing else on this box would report.
+    // Every readiness check (public origin, seeds, catalog-seed, decision-config,
+    // scheduler liveness) runs ONCE, in app/_lib/readiness.ts, which /api/health
+    // calls too — the two inline copies had already drifted (only this route
+    // checked the origin). This route is home-org gated in full, so it carries the
+    // DETAIL: the legacy `degradedReasons` strings (unchanged, and still what `ok`
+    // is judged on) and the coded `findings` the System strip renders in the
+    // reader's language with a fix — which phase and tier of an unreadable decision
+    // config, which seed, how long the clock has been silent.
+    const readiness = collectReadiness({ catalogEmpty: () => catalogEmpty });
+    const degradedReasons = readiness.degradedReasons;
     const configHealth = getDecisionConfigHealth();
-    for (const issue of configHealth.issues) {
-      degradedReasons.push(`decision-config:${issue.phase} unreadable (${issue.scope} ${issue.workspaceId})`);
-    }
-
-    // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
-    // clock heartbeat, judged by age. This is the surface SystemCard's "Healthy"
-    // dot reads, so a wedged automation clock now flips that dot to Degraded and
-    // adds a named reason — the green dot can no longer lie about a dead clock.
-    const beat = ensureDb()
-      .prepare(`SELECT last_tick_at FROM scheduler_heartbeat WHERE id = 'clock'`)
-      .get() as { last_tick_at?: string } | undefined;
-    const lastTickAt = beat?.last_tick_at ?? null;
-    const clock = schedulerLiveness(Date.now(), lastTickAt ? Date.parse(lastTickAt) : null, process.uptime() * 1000);
-    const clockReason = schedulerLivenessReason(clock, lastTickAt);
-    if (clockReason) degradedReasons.push(clockReason);
 
     return NextResponse.json({
       ok: degradedReasons.length === 0,
-      seeds: seed.ok ? "ok" : "degraded",
-      config: configHealth.ok ? "ok" : "degraded",
+      seeds: readiness.seedOk ? "ok" : "degraded",
+      config: readiness.configOk ? "ok" : "degraded",
       // A STATE, not a verdict (see the note above): "empty" is what a new install
       // looks like, and the strip renders it as a neutral fact.
       catalog: catalogEmpty ? "empty" : "ok",
       // Named sub-check so the panel says WHICH thing is broken, not just "unhealthy".
-      clock,
+      clock: readiness.clock,
       degradedReasons,
+      // Coded twins of `degradedReasons` (app/_lib/readiness.ts): code, severity,
+      // params and remedy, so the strip can localize each and offer its fix.
+      findings: readiness.findings,
       configIssues: configHealth.issues,
       tables,
       queue,
