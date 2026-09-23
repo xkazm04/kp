@@ -135,9 +135,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
 
           {/* Human scorecard (PREP1): fill the role's rubric live and save it
               against this candidate — the human counterpart to the AI voice-screen
-              scorecard. Hydrated from the freshest payload: a regenerated result
-              carries the saved scorecard forward, so never read the stale GET. */}
-          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} roleFamily={entry.roleFamily} initial={prep.humanScorecard} />
+              scorecard. Seeded from the CALLER'S OWN record for this round (the panel
+              asks GET /api/interview-prep/scorecard for `mine`), never from
+              prep.humanScorecard: that headline is whoever saved last, and passing it
+              here pre-filled a second interviewer's form with the first one's verdict
+              (r09 schedule-interview-prep/A). */}
+          <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} roleFamily={entry.roleFamily} />
         </div>
       )}
     </Modal>

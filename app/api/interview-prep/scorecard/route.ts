@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
-import { getInterviewPrep, saveHumanScorecard } from "@/app/_lib/interview-prep";
+import { fileHumanScorecard, getInterviewPrep } from "@/app/_lib/interview-prep";
+import { ownScorecard, readHumanScorecards, type HumanScorecardKey } from "@/app/_lib/human-scorecard-set";
+import { getUserById } from "@/app/_lib/db/users";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
@@ -29,8 +31,43 @@ const MAX_SUMMARY = 4_000;
 // leaves room to edit and re-save without leaving a scripted loop any.
 const SCORECARD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-// POST ?entry=<id> → save the recruiter's human-filled scorecard onto the entry's
-// prep artifact. Validated field-by-field at the trust boundary (not cast): each
+/** The key a caller's scorecard is filed under (r09 schedule-interview-prep/A): WHO
+ *  scored — the signed-in user id, null in open mode or on an operator-password
+ *  session, which have no identity and so keep today's one slot per round — and WHICH
+ *  round — the column the candidate sits in now. The label is resolved once, at write
+ *  time, so a reader never needs the users table to say whose record it is. */
+async function scorecardKey(stage: string | null): Promise<HumanScorecardKey> {
+  const { userId } = await currentUser();
+  const user = userId ? getUserById(userId) : null;
+  return { author: userId, authorLabel: user ? (user.name ?? user.email) : null, stage };
+}
+
+// GET ?entry=<id> -> { mine, records }. `mine` is the caller's OWN record for the
+// round the candidate is in now — the only thing the scoring form may seed from, so a
+// second interviewer opens an empty form instead of the first one's verdict. `records`
+// is the whole panel (every interviewer, every round). Scoped by the same
+// getInterviewPrep(entry, ws) read the POST authorizes its write with: another team's
+// entry id answers the same 404 as "no prep yet".
+export async function GET(request: NextRequest) {
+  try {
+    const entry = request.nextUrl.searchParams.get("entry");
+    if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
+    }
+    const ws = await currentWorkspace();
+    const prep = getInterviewPrep(entry, ws);
+    if (!prep) return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+    const records = readHumanScorecards(prep.payload);
+    const key = await scorecardKey(getPipelineEntry(entry, ws)?.stage ?? null);
+    return NextResponse.json({ mine: ownScorecard(records, key.author, key.stage), records });
+  } catch (error) {
+    return safeJsonError(error, "api:interview-prep:scorecard", "INTERVIEW_PREP_FAILED");
+  }
+}
+
+// POST ?entry=<id> → save the caller's human-filled scorecard onto the entry's
+// prep artifact, filed under (caller, current round) so it never replaces a
+// colleague's record or an earlier round's. Validated field-by-field at the trust boundary (not cast): each
 // rating's competency is a bounded string, the rating clamps to [1, RATING_MAX],
 // evidence/summary are length-capped, and the recommendation is coerced onto the
 // canonical advance|hold|reject set. 404 when no prep artifact exists yet.
@@ -129,9 +166,13 @@ export async function POST(request: NextRequest) {
       scorecard.recommendation = coerceInterviewRecommendation(body.recommendation);
     }
 
-    const ok = saveHumanScorecard(entry, scorecard);
-    if (!ok) {
+    const key = await scorecardKey(pipelineEntry?.stage ?? null);
+    const saved = fileHumanScorecard(entry, scorecard, key);
+    if (saved === "missing") {
       return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+    }
+    if (saved === "full") {
+      return jsonRefusal("INTERVIEW_PREP_SCORECARDS_FULL", 409);
     }
 
     // Decision SoR (moonshot D backfill): seal the human scorecard verdict —
@@ -144,7 +185,9 @@ export async function POST(request: NextRequest) {
       candidateRef: entry,
       rationale: `Human interview scorecard — recommendation: ${rec}.`,
       reasonCode: "scorecard",
-      inputs: { recommendation: rec, ratings: ratings.length },
+      // WHO scored and in which round: the actor stays the role ("human:recruiter"), the
+      // named interviewer rides the inputs (null in open mode, which has no identity).
+      inputs: { recommendation: rec, ratings: ratings.length, author: key.author, stage: key.stage },
     });
 
     // DEC1 — close the loop PREP1 left open: this route saved the human verdict

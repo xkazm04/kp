@@ -5,7 +5,8 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { normalizeScorecardEntities, type Scorecard } from "@/app/_lib/interview-scorecard";
+import { normalizeScorecardEntities } from "@/app/_lib/interview-scorecard";
+import { readHumanScorecards } from "@/app/_lib/human-scorecard-set";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import type { SchedEntry } from "./ScheduleTypes";
@@ -27,13 +28,17 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
   const loading = data === null && error === null;
   const session = data?.session ?? null;
 
-  // The recruiter's human scorecard (PREP1), if one was filled from the prep
+  // The recruiters' human scorecards (PREP1), if any were filled from the prep
   // rubric — shown beside the AI screen so a human-led round isn't invisible here.
-  const { data: prepData } = useJsonFetch<{ prep?: { payload?: { humanScorecard?: Scorecard } } }>(
+  // EVERY record, one per (interviewer, round), each labelled — not the payload's
+  // `humanScorecard` headline, which is only the latest save (r09
+  // schedule-interview-prep/A). A pre-list row reads as its one unattributed record.
+  const { data: prepData } = useJsonFetch<{ prep?: { payload?: unknown } }>(
     `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
     t("scorecardLoadFailed")
   );
-  const humanSc = prepData?.prep?.payload?.humanScorecard ?? null;
+  const humanScs = useMemo(() => readHumanScorecards(prepData?.prep?.payload), [prepData]);
+  const humanList = humanScs.map((h, i) => <HumanScorecardSection key={`${h.author ?? "-"}:${h.stage ?? "-"}:${i}`} sc={h} />);
 
   const sc = session?.scorecard ?? null;
   const transcript = session?.transcript ?? [];
@@ -85,9 +90,9 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
       ) : !session ? (
         // No voice screen — but a recruiter may still have filed a human scorecard
         // (a human-led round), so show that rather than a bare empty state.
-        humanSc ? (
+        humanScs.length ? (
           <div className="space-y-3">
-            <HumanScorecardSection sc={humanSc} />
+            {humanList}
             <p className="text-sm text-steel">{t("noVoiceShowScorecard")}</p>
           </div>
         ) : (
@@ -107,7 +112,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
             />
           ) : null}
 
-          {humanSc ? <HumanScorecardSection sc={humanSc} /> : null}
+          {humanList}
 
           {/* WP4 — the director's record: observations, the audio the candidate opted
               into, and the transcript grouped under the agenda. Keyed by session id, so

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ClipboardCheck, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, ClipboardCheck, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { rubricForArchetype, localizedRubric, localizedRatingAnchors, rubricCoverage } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
@@ -9,7 +9,9 @@ import { RATING_MAX } from "@/app/_lib/format";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { HumanScorecardRecord } from "@/app/_lib/human-scorecard-set";
 import { ScheduleHumanScorecardForm } from "./ScheduleHumanScorecardForm";
 
 // Human interviewer scorecard (PREP1). When a HUMAN runs the round there was
@@ -19,18 +21,109 @@ import { ScheduleHumanScorecardForm } from "./ScheduleHumanScorecardForm";
 // evidence per competency, an overall verdict + summary, and saves a
 // source:"human" Scorecard onto the prep artifact. Collapsed by default — not
 // every prep view is a scoring session.
+//
+// One record per (interviewer, round) — r09 schedule-interview-prep/A. The form
+// seeds ONLY from the caller's own record for the current round (`mine`, from GET
+// /api/interview-prep/scorecard), never from the prep payload's headline card: that
+// is whoever saved last, and seeding from it opened a second interviewer's form
+// pre-filled with the first one's verdict and let Save overwrite it. Other
+// interviewers' records stay out of this form (independent scoring); the transcript
+// modal lists them.
 export function HumanScorecardPanel({
   entryId,
   archetype,
   roleFamily,
-  initial,
 }: {
   entryId: string;
   archetype: string | null | undefined;
   // P2-3 — drives the appended industry axes (clinical / trades / scientific …);
   // omit and the panel shows exactly the pre-P2-3 base rubric.
   roleFamily?: string | null;
-  initial?: Scorecard | null;
+}) {
+  const t = useTranslations("scheduleTab.scorecard");
+  const tc = useTranslations("common");
+  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; records?: HumanScorecardRecord[] }>(
+    `/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`,
+    t("loadMineFailed")
+  );
+  const [open, setOpen] = useState(false);
+  // What THIS form last saved, so collapsing and re-opening re-seeds from it rather
+  // than from the GET that loaded before the save.
+  const [savedHere, setSavedHere] = useState<Scorecard | null>(null);
+  const mine: Scorecard | null = savedHere ?? data?.mine ?? null;
+  const othersCount = Math.max(0, (data?.records?.length ?? 0) - (data?.mine ? 1 : 0));
+  const saved = Boolean(mine?.ratings?.length);
+
+  if (!open) {
+    return (
+      <section>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/40"
+        >
+          <ClipboardCheck size={15} className="text-coral" />
+          {saved ? t("editScorecard") : t("scoreInterview")}
+          {saved ? <Check size={14} className="text-moss" /> : null}
+        </button>
+      </section>
+    );
+  }
+
+  if (error && !savedHere) {
+    return (
+      <section className="flex flex-wrap items-center gap-2 text-sm text-coral">
+        <AlertTriangle size={15} aria-hidden /> {error}
+        <button
+          type="button"
+          onClick={reload}
+          className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-stone-200 px-2 text-sm font-semibold text-ink hover:border-coral/40"
+        >
+          <RefreshCw size={13} aria-hidden /> {tc("retry")}
+        </button>
+      </section>
+    );
+  }
+
+  if (!data && !savedHere) {
+    return (
+      <p role="status" className="flex items-center gap-2 text-sm text-steel">
+        <Loader2 size={14} className="animate-spin text-coral" aria-hidden /> {t("loadingMine")}
+      </p>
+    );
+  }
+
+  return (
+    <HumanScorecardEditor
+      entryId={entryId}
+      archetype={archetype}
+      roleFamily={roleFamily}
+      initial={mine}
+      othersCount={othersCount}
+      onSaved={setSavedHere}
+      onCollapse={() => setOpen(false)}
+    />
+  );
+}
+
+/** The scoring form itself, mounted only once the caller's own record is known, so
+ *  its state seeds from `initial` exactly once and never from another author. */
+function HumanScorecardEditor({
+  entryId,
+  archetype,
+  roleFamily,
+  initial,
+  othersCount,
+  onSaved,
+  onCollapse,
+}: {
+  entryId: string;
+  archetype: string | null | undefined;
+  roleFamily?: string | null;
+  initial: Scorecard | null;
+  othersCount: number;
+  onSaved: (sc: Scorecard) => void;
+  onCollapse: () => void;
 }) {
   const t = useTranslations("scheduleTab.scorecard");
   // Save failures resolve from the machine `code`, never the server's English
@@ -58,7 +151,6 @@ export function HumanScorecardPanel({
     }
     return { ratings, evidence };
   };
-  const [open, setOpen] = useState(false);
   const [{ ratings, evidence }, setForm] = useState(seed);
   const [recommendation, setRecommendation] = useState<InterviewRecommendation | "">(initial?.recommendation ?? "");
   const [summary, setSummary] = useState(initial?.summary ?? "");
@@ -107,6 +199,7 @@ export function HumanScorecardPanel({
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(errMsg(d, t("saveFailedStatus", { status: res.status })));
       setSaved(true);
+      onSaved({ ratings: payloadRatings, summary, ...(recommendation ? { recommendation } : {}), source: "human" });
       if (d.gated === true) setGated(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("saveFailed"));
@@ -115,32 +208,17 @@ export function HumanScorecardPanel({
     }
   };
 
-  if (!open) {
-    return (
-      <section>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/40"
-        >
-          <ClipboardCheck size={15} className="text-coral" />
-          {saved ? t("editScorecard") : t("scoreInterview")}
-          {saved ? <Check size={14} className="text-moss" /> : null}
-        </button>
-      </section>
-    );
-  }
-
   return (
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
           <ClipboardCheck size={13} /> {t("yourScorecard")}
         </p>
-        <button type="button" onClick={() => setOpen(false)} className="focus-ring rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
+        <button type="button" onClick={onCollapse} className="focus-ring rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
           {t("collapse")}
         </button>
       </div>
+      {othersCount > 0 ? <p className="mt-1 text-meta text-steel">{t("othersScored", { count: othersCount })}</p> : null}
 
       <ScheduleHumanScorecardForm
         rubric={rubric}
