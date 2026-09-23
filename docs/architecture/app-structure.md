@@ -297,6 +297,46 @@ tab's fallback).
   dialog (`isAnyModalOpen()`) — stacking the palette on an unsaved edit dialog let
   the reader Enter their way out of a form they were mid-way through.
 
+### A lapsing session warns, then re-signs in over the page
+
+A signed session lives exactly `SESSION_TTL_MS` (7 days) and only the sign-in doors
+mint one, so every signed-in user's session ended mid-work once a week: the proxy
+answered the next write with a bare 401, the pipeline / JD / bulk surfaces folded it
+into "you don't have permission", and the only recovery was leaving the page.
+
+- **The facts.** `GET /api/me/capabilities` also answers `session`: the caller's OWN
+  `{kind: "user" | "operator", userId, email, workspaceId, expiresAt}` (`expiresAt` is
+  the verified token's `exp`). The route is ungated, so the field is strictly the
+  caller's own (never a hash, never another member) and is `null` in open mode, for
+  the guided demo, with no signed cookie, and for an identity-less non-operator
+  cookie. Pinned by `app/api/me/capabilities/route.test.ts`.
+- **The decisions** are pure, in `shell/session/sessionLapse.ts` (pinned by its test):
+  `phaseAt` (live, then `expiring` from `WARN_BEFORE_MS` = 10 min before expiry, then
+  `lapsed`; open mode is always live and arms nothing), `lapseOnStatus` (only a 401
+  lapses; a 403 is under-privilege, a 5xx an outage), `reconcileRead` (a due expiry
+  re-reads the server before prompting, so a re-sign-in in another tab is adopted),
+  `resolveReauth` and `resolveSwitch`.
+- **The wiring** is `shell/session/useSessionLapse.ts`: one timer at the next moment
+  the phase can change, a re-read on `visibilitychange`, and a 401 intake from
+  `useAttention` (`reportSessionStatus`). That works because `sharedGetJson` now
+  rejects with an `HttpStatusError` carrying `.status`; its message is still
+  `HTTP <n>`, so existing catch sites read what they read before.
+- **The surface** is `shell/session/SessionLapseDialog.tsx`, mounted once in
+  `Workspace.tsx`: an amber chip with "Stay signed in" from ten minutes out, a modal at
+  lapse (the chip stays, red, if it is dismissed). It POSTs to the real
+  `/api/auth/login` door and maps the answer with `classifyLoginResult`; the email is
+  prefilled for a user, and the operator gets a password-only form.
+- **After a successful sign-in** it re-reads the facts. Same person on the same team:
+  resume in place with one `notifyDataChanged()`. Same person whose login landed on
+  their first team: `POST /api/auth/switch-workspace` back to the lapsed one (the
+  membership-checked renewal door); anything but 2xx reloads `/`. A different person or
+  kind: a hard reload of `/`, because the page's client state was someone else's.
+- **Fail-closed.** Nothing here mints, renews or extends a session: the dialog's only
+  way out of "lapsed" is a real re-authentication through the login door, which issues
+  through `app/_lib/auth/session-issuer.ts` with its own cookie attributes. Unsaved
+  form state survives only because the page is never unmounted; nothing is persisted
+  server-side.
+
 ### The command palette lives on the rail
 
 `shell/WorkspaceCommandPalette.tsx` is the Ctrl/Cmd+K search + navigator. Its
