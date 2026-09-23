@@ -1394,7 +1394,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "ingestJobAd(jd.body,",
     // The already-ingested short-circuit parses nothing, so it must neither consume
     // nor be masked by the budget.
-    servedBefore: "if (getJob(jobId)) {",
+    servedBefore: "if (getJob(jobId, ws)) {",
   },
   {
     // The loosest of the four on purpose: a save is the CHEAPEST door (a
