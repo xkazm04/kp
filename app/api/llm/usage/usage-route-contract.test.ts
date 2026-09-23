@@ -1,6 +1,6 @@
 // Locks the /api/llm/usage contract (backlog item 9): the ledger read surface is
-// operator-gated exactly like /api/llm/keys (requireOperator rejects the anonymous
-// demo session), read-only (GET only), returns the aggregateLlmUsage rollup plus
+// home-org gated (requireHomeOrgReader: 401 for the anonymous demo session, a coded
+// 403 for a member of another org), read-only (GET only), returns the aggregateLlmUsage rollup plus
 // promptCacheStats, and clamps the ?days= window so a hostile query can't force an
 // unbounded ledger scan.
 //
@@ -18,17 +18,22 @@ function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 }
 
-test("usage route is operator-gated before touching the ledger", () => {
+test("usage route is HOME-ORG gated before touching the ledger", () => {
   const src = read("./route.ts");
+  // requireHomeOrgReader, not requireOperator: the ledger has no org column, so a
+  // signed-in member of ANOTHER org must not read it (challenge r03
+  // platform-auth-api/A, app/api/deployment-read-gate.test.ts). The coarse gate
+  // alone is the old defect and must not come back.
   assert.match(
     src,
-    /const denied = await requireOperator\(\);\s*\n\s*if \(denied\) return denied;/,
-    "GET must re-verify the operator session at the handler (defense in depth)"
+    /const denied = await requireHomeOrgReader\(\);\s*\n\s*if \(denied\) return denied;/,
+    "GET must re-verify the caller at the handler (defense in depth)"
   );
+  assert.doesNotMatch(src, /await requireOperator\(\)/, "the any-signed-in-session gate is not enough for a deployment-wide read");
   // The gate must run BEFORE any DB read.
-  const gateAt = src.indexOf("requireOperator()");
+  const gateAt = src.indexOf("requireHomeOrgReader()");
   const readAt = src.indexOf("aggregateLlmUsage(");
-  assert.ok(gateAt > -1 && readAt > gateAt, "the operator gate must precede the ledger read");
+  assert.ok(gateAt > -1 && readAt > gateAt, "the gate must precede the ledger read");
 });
 
 test("usage route returns the aggregate rollup plus prompt-cache stats", () => {

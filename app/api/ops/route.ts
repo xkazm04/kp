@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
@@ -36,11 +36,18 @@ import { rateLimitRefusalStats } from "@/app/_lib/rate-limit";
 // team on the box has. So the counts stay global; the caller now has to earn
 // them. Not a tenancy fix (there is nothing here to scope) — an authz one.
 //
+// "Earn" means HOME ORG (challenge r03 platform-auth-api/A). requireOperator() alone
+// said yes to any signed-in member of ANY org, and a signup-enabled deployment makes
+// every registrant the owner of a fresh org, so the sentence above was not yet true.
+// requireHomeOrgReader() keeps the 401 for no session / demo and answers a coded 403
+// (FORBIDDEN_CAPABILITY, capability "deployment:read") to a member of another org;
+// the password operator, open dev and every home-org seat read exactly as before.
+//
 // Callers already treat a non-200 as "no telemetry" rather than an error
 // (useSpendData drops the engine lines), so a demo session loses the strip
 // instead of seeing a failure it can do nothing about.
 export async function GET() {
-  const denied = await requireOperator();
+  const denied = await requireHomeOrgReader();
   if (denied) return denied;
   try {
     const degradedReasons: string[] = [];

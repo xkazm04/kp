@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
-import { isOperator } from "@/app/_lib/auth/require-operator";
+import { isHomeOrgReader, isOperator } from "@/app/_lib/auth/require-operator";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 
@@ -56,8 +56,19 @@ import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 // ordinary state as a fact, and rides the operator gate with `tables` rather than the
 // public verdict — "this deployment holds zero jobs" is business volume, which is the
 // exact class of fact this route stopped handing to anonymous callers.
+//
+// TWO TIERS since challenge r03 (platform-auth-api/A). `trusted` above meant
+// isOperator(), i.e. "signed in and not demo", which a member of ANY org satisfies,
+// and a signup-enabled deployment makes every registrant the owner of a fresh org.
+// `engines` is the signed-in shell's own business (useEngineAvailability) and stays
+// on isOperator(). Everything deployment-wide (tables, queue, catalog, the reasons
+// that name workspace ids and host paths, configIssues, and the raw DB error) moves
+// to `hostDetail`: the install's HOME org (require-operator.ts homeOrgReader), the
+// same gate /api/ops and the llm_usage routes answer on. Single-org installs are
+// unchanged; app/api/deployment-read-gate.test.ts keeps a new reader from skipping it.
 export async function GET() {
   const trusted = await isOperator();
+  const hostDetail = trusted && (await isHomeOrgReader());
   const degradedReasons: string[] = [];
 
   let seedOk = true;
@@ -78,7 +89,7 @@ export async function GET() {
     // severity, as /api/ops and /api/jobs — a monitor and the operator's own strip
     // must never disagree about whether this catalog is broken.
     const jobsSeedFailed = seed.issues.some((i) => i.seed === "jobs" && i.severity === "error");
-    if (trusted) {
+    if (hostDetail) {
       tables = coreTableCounts();
       queue = countActiveTasks();
       catalogEmpty = (tables.jobs ?? 0) === 0;
@@ -129,7 +140,7 @@ export async function GET() {
       {
         ok: false,
         db: "unavailable",
-        ...(trusted ? { error: error instanceof Error ? error.message : String(error) } : {}),
+        ...(hostDetail ? { error: error instanceof Error ? error.message : String(error) } : {}),
       },
       { status: 503 }
     );
@@ -154,9 +165,9 @@ export async function GET() {
       // `catalog` is a STATE, not a verdict, and it rides the same gate as `tables`
       // for the same reason: an empty catalog is what a new install looks like, and
       // how much business a deployment holds is not a public readiness fact.
-      ...(trusted
+      ...(trusted ? { engines: engineAvailability() } : {}),
+      ...(hostDetail
         ? {
-            engines: engineAvailability(),
             tables,
             queue,
             catalog: catalogEmpty ? "empty" : "ok",

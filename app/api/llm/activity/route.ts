@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listLlmActivity, LLM_ACTIVITY_WINDOW } from "@/app/_lib/db/llm";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
 
 // Row-level read surface of the llm_usage ledger — the Insights → Activity
 // audit table (every individual LLM action: when, which use case, which
-// provider/model, tokens, cost, llm-vs-deterministic source). Operator-gated
-// exactly like /api/llm/usage: spend telemetry, not demo content. Read-only by
+// provider/model, tokens, cost, llm-vs-deterministic source). HOME-ORG gated
+// exactly like /api/llm/usage: the ledger has no org column, so a member of
+// another org would be reading every tenant's actions and request ids. Read-only by
 // design — the ledger is written only by spawnPython's sidecar ingest.
 //
 // Returns a bounded newest-first window (LLM_ACTIVITY_WINDOW rows); the client
 // filters and pages it in memory with the shared table primitives.
 export async function GET(request: NextRequest) {
-  const denied = await requireOperator();
+  const denied = await requireHomeOrgReader();
   if (denied) return denied;
   const query = request.nextUrl.searchParams;
   const rawUseCase = query.get("useCase") || undefined;

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { aggregateLlmUsage } from "@/app/_lib/db/llm";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
 
 
 // Usage/cost read surface for the Models tab — the first reader of the llm_usage
 // ledger (docs/architecture/llm-provider-layer.md, T0.1): per (day × use_case × provider ×
-// model) rollups plus the prompt-cache hit stats. Operator-gated exactly like
-// /api/llm/keys (requireOperator rejects the anonymous demo session): spend
-// figures are operator telemetry, not demo content. Read-only by design — the
-// ledger is written only by spawnPython's sidecar ingest.
+// model) rollups plus the prompt-cache hit stats. HOME-ORG gated
+// (requireHomeOrgReader): the ledger has no org or workspace column, so every row
+// is every tenant's; a demo session is a 401 and a member of another org a coded
+// 403. Read-only by design — the ledger is written only by spawnPython's sidecar
+// ingest.
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
@@ -23,7 +24,7 @@ function windowDays(raw: string | null): number {
 }
 
 export async function GET(request: NextRequest) {
-  const denied = await requireOperator();
+  const denied = await requireHomeOrgReader();
   if (denied) return denied;
   const days = windowDays(request.nextUrl.searchParams.get("days"));
   const rawUseCase = request.nextUrl.searchParams.get("useCase");

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { connection, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
-import { currentWorkspaceId, DEMO_WORKSPACE, verifySession } from "./session";
+import { currentOrgId, currentWorkspaceId, DEMO_WORKSPACE, isOperatorSession, verifySession, type SessionPayload } from "./session";
 
 // Handler-level operator gate — DEFENSE IN DEPTH for the most sensitive admin
 // routes (provider-key writes, model-routing changes, the token-spending canary).
@@ -44,4 +44,42 @@ export async function isOperator(): Promise<boolean> {
 export async function requireOperator(): Promise<NextResponse | null> {
   if (await isOperator()) return null;
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+// HOME-ORG tier for deployment-wide READS (counts, queue, log tails, the llm_usage
+// ledger): isOperator() admits a member of ANY org; these readers must be in the
+// home org. Why, and why single-org installs are unchanged: api-contracts.md §1.2.
+// Ratchet: app/api/deployment-read-gate.test.ts.
+
+/** = db/organizations.ts DEFAULT_ORG_ID (pinned by the test); not imported, to keep
+ *  the data layer out of this module's ~140 importers' graphs. */
+export const HOME_ORG_ID = "org-default";
+
+/** Open mode, the password operator, or a session whose org is absent or home. */
+export function homeOrgReader(session: SessionPayload | null, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!env.KP_OPERATOR_PASSWORD) return true;
+  if (session === null || currentWorkspaceId(session) === DEMO_WORKSPACE) return false;
+  if (isOperatorSession(session)) return true;
+  const org = currentOrgId(session);
+  return org === null || org === HOME_ORG_ID;
+}
+
+export async function isHomeOrgReader(): Promise<boolean> {
+  if (!process.env.KP_OPERATOR_PASSWORD) return true;
+  try {
+    const jar = await cookies();
+    await connection();
+    return homeOrgReader(verifySession(jar.get(SESSION_COOKIE)?.value));
+  } catch {
+    return false; // fail closed: an unreadable cookie jar is no reader
+  }
+}
+
+/** 401 where requireOperator() is; a coded 403 (FORBIDDEN_CAPABILITY,
+ *  "deployment:read") for another org's member; null to proceed. */
+export async function requireHomeOrgReader(): Promise<NextResponse | null> {
+  const signedIn = await requireOperator();
+  if (signedIn) return signedIn;
+  if (await isHomeOrgReader()) return null;
+  return NextResponse.json({ error: "Your role does not allow this action.", code: "FORBIDDEN_CAPABILITY", capability: "deployment:read" }, { status: 403 });
 }

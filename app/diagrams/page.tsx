@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { isOperator } from "@/app/_lib/auth/require-operator";
+import { isHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
@@ -63,7 +63,11 @@ export default async function DiagramsPage({
   // room does: `isOperator()` (open dev -> true; a demo-workspace session -> false),
   // answering the same 404 an unknown route does rather than confirming it exists.
   // The About tab's link is hidden for the same seats.
-  if (!(await isOperator())) notFound();
+  // Since challenge r03 the bar is the install's HOME org (isHomeOrgReader), not any
+  // signed-in session: "the people who run this install" are not a member of some
+  // other org a signup-enabled deployment minted. Open dev and every home-org seat
+  // are unchanged; another org's seat gets the same 404 a demo cookie does.
+  if (!(await isHomeOrgReader())) notFound();
   // bug-ui-scan-2026-07-09 (architecture-diagrams #3): page chrome / legend /
   // blurbs are localized; the diagram BODIES stay code identifiers (untranslated).
   const t = await getTranslations("diagrams");

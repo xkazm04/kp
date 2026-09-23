@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db/llm";
 import { routingHealth } from "@/app/_lib/db/llm-routing-health";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { isHomeOrgReader, requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal } from "@/app/_lib/api-response";
 
@@ -41,9 +41,12 @@ export async function GET() {
     providers: LLM_PROVIDERS,
     useCases: LLM_USE_CASES,
     // What SERVED each use case since its pin was set (db/llm-routing-health.ts):
-    // the routing table's health chip. Same gate and the same deployment-wide,
-    // tenancy-exempt ledger the Activity and usage routes already list row by row.
-    health: routingHealth(LLM_USE_CASES),
+    // the routing table's health chip. It aggregates the deployment-wide,
+    // tenancy-exempt ledger the Activity and usage routes list row by row, so it
+    // rides THEIR gate, the home org (app/api/deployment-read-gate.test.ts). A member
+    // of another org keeps the pins and loses only the chip: `health` is OMITTED, and
+    // ModelsRoutingPanel already treats an absent row as "no health to show".
+    ...((await isHomeOrgReader()) ? { health: routingHealth(LLM_USE_CASES) } : {}),
   });
 }
 
