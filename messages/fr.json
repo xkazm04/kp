@@ -2999,7 +2999,9 @@
         "accepted": "{ok} sur {total} acceptées.",
         "rejected": "{ok} sur {total} refusées.",
         "failed": "Impossible d’appliquer l’action à ce poste."
-      }
+      },
+      "cellSelect": "{position}, {stage} : sélectionner {count, plural, one {# candidat} other {les # candidats}}",
+      "dropRefused": "Un candidat ne peut être déplacé que vers une autre étape de son propre poste."
     },
     "stageHelp": {
       "Accepted": "CV reçu : une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",

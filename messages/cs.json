@@ -2999,7 +2999,9 @@
         "accepted": "Přijato {ok} z {total}.",
         "rejected": "Zamítnuto {ok} z {total}.",
         "failed": "Akci se nepodařilo na pozici použít."
-      }
+      },
+      "cellSelect": "{position}, {stage}: vybrat {count, plural, one {# kandidáta} few {všechny # kandidáty} many {všech # kandidátů} other {všech # kandidátů}}",
+      "dropRefused": "Kandidáta lze přesunout pouze do jiné fáze na jeho vlastní pozici."
     },
     "stageHelp": {
       "Accepted": "Přijatý životopis: příchozí přihláška nebo aktivně vyhledaný kandidát čekající na prověření.",

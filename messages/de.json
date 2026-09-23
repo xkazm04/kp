@@ -2999,7 +2999,9 @@
         "accepted": "{ok} von {total} angenommen.",
         "rejected": "{ok} von {total} abgelehnt.",
         "failed": "Die Aktion konnte nicht angewendet werden."
-      }
+      },
+      "cellSelect": "{position}, {stage}: {count, plural, one {# Kandidaten auswählen} other {alle # Kandidaten auswählen}}",
+      "dropRefused": "Kandidaten lassen sich nur in eine andere Phase ihrer eigenen Position verschieben."
     },
     "stageHelp": {
       "Accepted": "Lebenslauf erhalten: eine eingehende Bewerbung oder ein/e proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",

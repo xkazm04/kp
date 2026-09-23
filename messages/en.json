@@ -2999,7 +2999,9 @@
         "accepted": "Accepted {ok} of {total}.",
         "rejected": "Rejected {ok} of {total}.",
         "failed": "Couldn’t apply that to the position."
-      }
+      },
+      "cellSelect": "{position}, {stage}: select {count, plural, one {# candidate} other {all # candidates}}",
+      "dropRefused": "A candidate can only move to another stage on their own position."
     },
     "stageHelp": {
       "Accepted": "CV received: an inbound application or a proactively-sourced candidate, waiting to be screened.",
