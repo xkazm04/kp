@@ -1995,7 +1995,10 @@
     "VOICE_READINESS_FAILED": "Die Bereitschaft der Sprachdienste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "VOICE_READINESS_OFFLINE": "Dieser Server läuft offline, daher können Sprachanbieter nicht geprüft werden.",
     "STOP_LANGUAGE_INVALID": "In dieser Sprache können wir Ihnen nicht schreiben.",
-    "STOP_LANGUAGE_FAILED": "Ihre Sprache konnte gerade nicht gespeichert werden. Bitte versuchen Sie es erneut."
+    "STOP_LANGUAGE_FAILED": "Ihre Sprache konnte gerade nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_INTAKE_STOP_FAILED": "Die Bewerbungsphase dieser Aufgabe konnte nicht beendet werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_INTAKE_LIFECYCLE_OWNS": "Ein automatischer Durchlauf steuert die Bewerbungsphase dieser Aufgabe. Schließen Sie stattdessen den Durchlauf; dabei erhalten die Einreichenden auch eine Abschlussnachricht.",
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Diese Aktion für die Bewerbungsphase wird bei dieser Aufgabe nicht unterstützt."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9962,7 +9965,9 @@
       },
       "waiting": {
         "title": "Warten auf die erste Einreichung",
-        "body": "Diese Aufgabe ist live. Wer sich über die Kanäle unten bewirbt, landet hier und wird gegen die anderen eingeordnet."
+        "body": "Diese Aufgabe ist live. Wer sich über die Kanäle unten bewirbt, landet hier und wird gegen die anderen eingeordnet.",
+        "closedTitle": "Die Bewerbungsphase ist beendet",
+        "closedBody": "Bis zum Ende der Bewerbungsphase ist keine Einreichung eingegangen. Öffnen Sie sie oben wieder, um einen neuen Bewerbungslink zu erzeugen."
       },
       "jds": {
         "failed": "Die gespeicherten Stellenbeschreibungen konnten nicht geladen werden.",
@@ -10022,14 +10027,26 @@
         "sourceHint": "Ordnet die bestehende Kandidatendatenbank nach dieser Rolle und füllt die Pipeline",
         "confirmLabel": "Veröffentlichung bestätigen",
         "confirmTitle": "Diese Aufgabe veröffentlichen?",
-        "confirmBody": "Beim Veröffentlichen entsteht ein für Kandidaten sichtbarer Bewerbungslink und echte Kandidaten aus Ihrer Datenbank gelangen in die Pipeline. Von hier aus lässt sich das nicht rückgängig machen.",
+        "confirmBody": "Beim Veröffentlichen entsteht ein für Kandidaten sichtbarer Bewerbungslink und echte Kandidaten aus Ihrer Datenbank gelangen in die Pipeline. Die Bewerbungsphase können Sie später beenden; die gefundenen Kandidaten bleiben in der Pipeline.",
         "degradedTitle": "Diese Aufgabe ist eingeschränkt",
         "degradedAck": "Mir ist klar, dass diese Aufgabe eingeschränkt ist. Trotzdem veröffentlichen.",
         "confirmCta": "Bestätigen und veröffentlichen",
         "cancel": "Abbrechen",
         "seedSummary": "Erzeugtes Startpaket: was die Person erhält",
         "seedFiles": "{count, plural, one {# Datei} other {# Dateien}}",
-        "seedSkeletonWarning": "Nur ein Gerüst. Das ist der reine Textersatz, keine konkreten Startdateien. Erzeugen Sie es vor dem Versand neu."
+        "seedSkeletonWarning": "Nur ein Gerüst. Das ist der reine Textersatz, keine konkreten Startdateien. Erzeugen Sie es vor dem Versand neu.",
+        "reopen": "Bewerbungsphase wieder öffnen",
+        "stopIntake": "Bewerbungsphase beenden",
+        "stopping": "Wird beendet…",
+        "intakeClosed": "Bewerbungsphase beendet",
+        "intakeLive": "Live · {count, plural, one {# Kanal offen} other {# Kanäle offen}}",
+        "lifecycleOwnsIntake": "Ein automatischer Durchlauf steuert diese Bewerbungsphase. Beenden Sie sie über Aufgabe schließen in der Zeile des Durchlaufs in der Aufgabenliste; dabei erhalten die Einreichenden auch eine Abschlussnachricht.",
+        "reopenTitle": "Bewerbungsphase wieder öffnen?",
+        "reopenBody": "Beim Wiederöffnen entsteht ein neuer Bewerbungslink für diese Aufgabe. Der alte Link bleibt geschlossen, teilen Sie daher den neuen mit den Kandidaten.",
+        "reopenCta": "Bestätigen und öffnen",
+        "stopTitle": "Bewerbungsphase beenden?",
+        "stopBody": "Alle offenen Bewerbungslinks dieser Aufgabe werden geschlossen. Wer einen davon öffnet, erfährt, dass die Bewerbungsphase beendet ist, und wer gerade daran arbeitet, erfährt es beim nächsten Speichern. Es wird keine E-Mail versendet, und bereits eingegangene Einreichungen bleiben erhalten. Sie können die Bewerbungsphase später mit einem neuen Link wieder öffnen.",
+        "stopCta": "Bewerbungsphase beenden"
       },
       "degradedReason": {
         "scenario": "Das Interviewszenario nutzt allgemeine Vorlagensonden statt auf diese Aufgabe bezogener Sonden.",
@@ -10049,7 +10066,9 @@
         "title": "Bewerbungskanäle",
         "posting": "Ausschreibung",
         "received": "{count} eingegangen",
-        "applyLink": "Bewerbungslink"
+        "applyLink": "Bewerbungslink",
+        "closed": "Geschlossen",
+        "linkClosed": "Link geschlossen. Wer ihn öffnet, erfährt, dass die Bewerbungsphase beendet ist."
       },
       "channel": {
         "local": "Lokal",

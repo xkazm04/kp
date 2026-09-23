@@ -509,6 +509,9 @@ export const STORE_ERRORS = {
   /** POST /api/stop/[token]/language: the store faulted while saving the candidate's
    *  chosen letter language (500). Public token door: never the raw message. */
   STOP_LANGUAGE_FAILED: "Could not save your language right now. Please try again.",
+  /** POST /api/devcase/[id]/intake: the store faulted while closing the case's open
+   *  postings (500). The lifecycle-owns refusal is a decision, coded in REFUSAL_ERRORS. */
+  DEVCASE_INTAKE_STOP_FAILED: "Could not stop intake for this assignment. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1985,6 +1988,14 @@ export const REFUSAL_ERRORS = {
   /** POST /api/stop/[token]/language named no locale, or one the app does not write
    *  letters in (400). Nothing is stored. */
   STOP_LANGUAGE_INVALID: "That language is not one we can write to you in.",
+  /** POST /api/devcase/[id]/intake (409): the case's newest lifecycle is still running and
+   *  owns intake. Its own Close ends intake AND wraps the submitters up; the hand stop
+   *  notifies nobody, so it must not end a run's intake behind its back. `stage` rides as
+   *  data. */
+  DEVCASE_INTAKE_LIFECYCLE_OWNS: "An automated run owns this assignment’s intake. Close the run instead; that also wraps up its submitters.",
+  /** POST /api/devcase/[id]/intake (400): the body named an action other than "stop". A
+   *  reopen is an ordinary POST /api/devcase/publish. */
+  DEVCASE_INTAKE_ACTION_UNKNOWN: "That is not an intake action this assignment supports.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -1995,7 +1995,10 @@
     "VOICE_READINESS_FAILED": "Připravenost hlasových služeb se nepodařilo načíst. Zkuste to prosím znovu.",
     "VOICE_READINESS_OFFLINE": "Tento server běží offline, proto nelze poskytovatele hlasu zkontrolovat.",
     "STOP_LANGUAGE_INVALID": "V tomto jazyce vám psát nemůžeme.",
-    "STOP_LANGUAGE_FAILED": "Jazyk se teď nepodařilo uložit. Zkuste to prosím znovu."
+    "STOP_LANGUAGE_FAILED": "Jazyk se teď nepodařilo uložit. Zkuste to prosím znovu.",
+    "DEVCASE_INTAKE_STOP_FAILED": "Příjem pro toto zadání se nepodařilo zastavit. Zkuste to prosím znovu.",
+    "DEVCASE_INTAKE_LIFECYCLE_OWNS": "Příjem tohoto zadání řídí automatický běh. Uzavřete místo toho běh; tím se zároveň rozešle závěrečné sdělení všem, kdo odevzdali.",
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Tuto akci příjmu toto zadání nepodporuje."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9962,7 +9965,9 @@
       },
       "waiting": {
         "title": "Čekáme na první odevzdání",
-        "body": "Toto zadání je živé. Kandidáti, kteří se přihlásí přes kanály níže, se objeví zde a seřadí se mezi sebou."
+        "body": "Toto zadání je živé. Kandidáti, kteří se přihlásí přes kanály níže, se objeví zde a seřadí se mezi sebou.",
+        "closedTitle": "Příjem je uzavřený",
+        "closedBody": "Před uzavřením příjmu nepřišlo žádné odevzdání. Příjem můžete výše znovu otevřít a vytvořit tak nový odkaz pro přihlášení."
       },
       "jds": {
         "failed": "Uložené popisy pozic se nepodařilo načíst.",
@@ -10022,14 +10027,26 @@
         "sourceHint": "Seřadí stávající databázi kandidátů podle této role a naplní pipeline",
         "confirmLabel": "Potvrzení publikace",
         "confirmTitle": "Publikovat toto zadání?",
-        "confirmBody": "Publikací vznikne živý odkaz pro kandidáty a do pipeline se dostanou skuteční kandidáti z vaší databáze. Odtud to nelze vzít zpět.",
+        "confirmBody": "Publikací vznikne živý odkaz pro kandidáty a do pipeline se dostanou skuteční kandidáti z vaší databáze. Příjem můžete později zastavit; získaní kandidáti v pipeline zůstanou.",
         "degradedTitle": "Toto zadání je v omezeném režimu",
         "degradedAck": "Rozumím, že je zadání v omezeném režimu. Přesto ho publikovat.",
         "confirmCta": "Potvrdit a publikovat",
         "cancel": "Zrušit",
         "seedSummary": "Připravený startovní balíček: co kandidát dostane",
         "seedFiles": "{count, plural, one {# soubor} few {# soubory} other {# souborů}}",
-        "seedSkeletonWarning": "Jen kostra. Jde o textovou náhradu, ne o konkrétní zdrojové soubory. Před odesláním generování zopakujte."
+        "seedSkeletonWarning": "Jen kostra. Jde o textovou náhradu, ne o konkrétní zdrojové soubory. Před odesláním generování zopakujte.",
+        "reopen": "Znovu otevřít příjem",
+        "stopIntake": "Zastavit příjem",
+        "stopping": "Zastavujeme…",
+        "intakeClosed": "Příjem uzavřen",
+        "intakeLive": "Živé · {count, plural, one {# otevřený kanál} few {# otevřené kanály} other {# otevřených kanálů}}",
+        "lifecycleOwnsIntake": "Příjem řídí automatický běh. Ukončíte ho tlačítkem Uzavřít zadání na řádku běhu v seznamu zadání; tím se zároveň rozešle závěrečné sdělení všem, kdo odevzdali.",
+        "reopenTitle": "Znovu otevřít příjem?",
+        "reopenBody": "Opětovným otevřením vznikne pro toto zadání nový odkaz pro přihlášení. Původní odkaz zůstane uzavřený, kandidátům proto pošlete ten nový.",
+        "reopenCta": "Potvrdit a otevřít",
+        "stopTitle": "Zastavit příjem?",
+        "stopBody": "Všechny otevřené odkazy pro přihlášení k tomuto zadání se uzavřou. Kandidáti, kteří některý otevřou, se dozví, že příjem skončil, a kdo právě pracuje, to zjistí při dalším uložení. Nikomu neodejde e-mail a již přijatá odevzdání zůstanou, kde jsou. Později můžete příjem znovu otevřít s novým odkazem.",
+        "stopCta": "Zastavit příjem"
       },
       "degradedReason": {
         "scenario": "Scénář pohovoru používá obecné šablonové sondy, ne sondy vycházející z tohoto zadání.",
@@ -10049,7 +10066,9 @@
         "title": "Kanály pro přihlášení",
         "posting": "Inzerát",
         "received": "{count} přijato",
-        "applyLink": "Odkaz pro přihlášení"
+        "applyLink": "Odkaz pro přihlášení",
+        "closed": "Uzavřeno",
+        "linkClosed": "Odkaz je uzavřený. Kandidáti, kteří ho otevřou, se dozví, že příjem skončil."
       },
       "channel": {
         "local": "Lokální",

@@ -1995,7 +1995,10 @@
     "VOICE_READINESS_FAILED": "Impossible de charger l’état des services vocaux. Veuillez réessayer.",
     "VOICE_READINESS_OFFLINE": "Ce serveur fonctionne hors ligne, les fournisseurs vocaux ne peuvent donc pas être vérifiés.",
     "STOP_LANGUAGE_INVALID": "Nous ne pouvons pas vous écrire dans cette langue.",
-    "STOP_LANGUAGE_FAILED": "Impossible d’enregistrer votre langue pour le moment. Veuillez réessayer."
+    "STOP_LANGUAGE_FAILED": "Impossible d’enregistrer votre langue pour le moment. Veuillez réessayer.",
+    "DEVCASE_INTAKE_STOP_FAILED": "Impossible de clore les candidatures de cet exercice. Veuillez réessayer.",
+    "DEVCASE_INTAKE_LIFECYCLE_OWNS": "Un déroulé automatique gère les candidatures de cet exercice. Fermez plutôt ce déroulé ; les personnes ayant rendu leur travail reçoivent alors un message de clôture.",
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Cette action sur les candidatures n’est pas prise en charge pour cet exercice."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9962,7 +9965,9 @@
       },
       "waiting": {
         "title": "En attente du premier rendu",
-        "body": "Cet exercice est en ligne. Les personnes qui candidatent via les canaux ci-dessous arrivent ici, classées entre elles."
+        "body": "Cet exercice est en ligne. Les personnes qui candidatent via les canaux ci-dessous arrivent ici, classées entre elles.",
+        "closedTitle": "Les candidatures sont closes",
+        "closedBody": "Aucun rendu n’est arrivé avant la clôture. Rouvrez les candidatures ci-dessus pour créer un nouveau lien."
       },
       "jds": {
         "failed": "Les fiches de poste enregistrées n’ont pas pu être chargées.",
@@ -10022,14 +10027,26 @@
         "sourceHint": "Classe la base de candidatures existante face à ce poste et amorce le pipeline",
         "confirmLabel": "Confirmer la publication",
         "confirmTitle": "Publier cet exercice ?",
-        "confirmBody": "La publication crée un lien de candidature public et fait entrer dans le pipeline de vraies candidatures issues de votre base. C’est irréversible depuis cet écran.",
+        "confirmBody": "La publication crée un lien de candidature public et fait entrer dans le pipeline de vraies candidatures issues de votre base. Vous pourrez clore les candidatures plus tard ; les candidatures déjà entrées restent dans le pipeline.",
         "degradedTitle": "Cet exercice est dégradé",
         "degradedAck": "Je comprends que cet exercice est dégradé. Le publier quand même.",
         "confirmCta": "Confirmer et publier",
         "cancel": "Annuler",
         "seedSummary": "Amorce matérialisée : ce que reçoit la personne candidate",
         "seedFiles": "{count, plural, one {# fichier} other {# fichiers}}",
-        "seedSkeletonWarning": "Squelette seulement. C’est la solution de repli en texte, pas des fichiers de départ concrets. Relancez avant l’envoi."
+        "seedSkeletonWarning": "Squelette seulement. C’est la solution de repli en texte, pas des fichiers de départ concrets. Relancez avant l’envoi.",
+        "reopen": "Rouvrir les candidatures",
+        "stopIntake": "Clore les candidatures",
+        "stopping": "Clôture…",
+        "intakeClosed": "Candidatures closes",
+        "intakeLive": "En ligne · {count, plural, one {# canal ouvert} other {# canaux ouverts}}",
+        "lifecycleOwnsIntake": "Un déroulé automatique gère ces candidatures. Terminez-le avec Clôturer l’exercice sur sa ligne dans la liste des exercices ; les personnes ayant rendu leur travail reçoivent alors un message de clôture.",
+        "reopenTitle": "Rouvrir les candidatures ?",
+        "reopenBody": "La réouverture crée un nouveau lien de candidature pour cet exercice. L’ancien lien reste fermé : partagez donc le nouveau avec les candidats.",
+        "reopenCta": "Confirmer et rouvrir",
+        "stopTitle": "Clore les candidatures ?",
+        "stopBody": "Tous les liens de candidature ouverts pour cet exercice se ferment. Les personnes qui en ouvrent un apprennent que les candidatures sont closes, et celles qui sont en plein travail le découvrent à leur prochain enregistrement. Aucun e-mail n’est envoyé et les rendus déjà reçus restent en place. Vous pourrez rouvrir plus tard avec un nouveau lien.",
+        "stopCta": "Clore les candidatures"
       },
       "degradedReason": {
         "scenario": "Le scénario d’entretien utilise des sondes génériques, pas des sondes ancrées dans cet exercice.",
@@ -10049,7 +10066,9 @@
         "title": "Canaux de candidature",
         "posting": "Annonce",
         "received": "{count} reçus",
-        "applyLink": "Lien de candidature"
+        "applyLink": "Lien de candidature",
+        "closed": "Fermé",
+        "linkClosed": "Lien fermé. Les personnes qui l’ouvrent apprennent que les candidatures sont closes."
       },
       "channel": {
         "local": "Local",

@@ -1995,7 +1995,10 @@
     "VOICE_READINESS_FAILED": "Could not load voice readiness. Please try again.",
     "VOICE_READINESS_OFFLINE": "This server runs offline, so voice providers cannot be checked.",
     "STOP_LANGUAGE_INVALID": "That language is not one we can write to you in.",
-    "STOP_LANGUAGE_FAILED": "Could not save your language right now. Please try again."
+    "STOP_LANGUAGE_FAILED": "Could not save your language right now. Please try again.",
+    "DEVCASE_INTAKE_STOP_FAILED": "Could not stop intake for this assignment. Please try again.",
+    "DEVCASE_INTAKE_LIFECYCLE_OWNS": "An automated run owns this assignment’s intake. Close the run instead; that also wraps up its submitters.",
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "That is not an intake action this assignment supports."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9962,7 +9965,9 @@
       },
       "waiting": {
         "title": "Waiting for the first submission",
-        "body": "This assignment is live. Candidates who apply through the channels below land here, ranked against each other."
+        "body": "This assignment is live. Candidates who apply through the channels below land here, ranked against each other.",
+        "closedTitle": "Intake is closed",
+        "closedBody": "No submissions arrived before intake closed. Reopen intake above to mint a fresh apply link."
       },
       "jds": {
         "failed": "The saved job descriptions could not be loaded.",
@@ -10022,14 +10027,26 @@
         "sourceHint": "Rank the existing candidate database against this role and seed the pipeline",
         "confirmLabel": "Confirm publish",
         "confirmTitle": "Publish this assignment?",
-        "confirmBody": "Publishing mints a live candidate-facing apply link and sources real candidates from your database into the pipeline. It cannot be undone from here.",
+        "confirmBody": "Publishing mints a live candidate-facing apply link and sources real candidates from your database into the pipeline. You can stop intake later; the sourced candidates stay in the pipeline.",
         "degradedTitle": "This assignment is degraded",
         "degradedAck": "I understand this assignment is degraded. Publish it anyway.",
         "confirmCta": "Confirm & publish",
         "cancel": "Cancel",
         "seedSummary": "Materialized seed: what the candidate receives",
         "seedFiles": "{count, plural, one {# file} other {# files}}",
-        "seedSkeletonWarning": "Skeleton only. This is the prose-only fallback, not concrete starter files. Re-run it before sending."
+        "seedSkeletonWarning": "Skeleton only. This is the prose-only fallback, not concrete starter files. Re-run it before sending.",
+        "reopen": "Reopen intake",
+        "stopIntake": "Stop intake",
+        "stopping": "Stopping…",
+        "intakeClosed": "Intake closed",
+        "intakeLive": "Live · {count, plural, one {# channel open} other {# channels open}}",
+        "lifecycleOwnsIntake": "An automated run owns this intake. End it with Close assignment on the run’s row in the assignment list; that also wraps up its submitters.",
+        "reopenTitle": "Reopen intake?",
+        "reopenBody": "Reopening mints a new apply link for this assignment. The old link stays closed, so share the new one with candidates.",
+        "reopenCta": "Confirm & reopen",
+        "stopTitle": "Stop intake?",
+        "stopBody": "Every open apply link for this assignment closes. Candidates who open one are told intake has ended, and anyone mid-attempt learns it on their next save. Nobody is emailed, and submissions already in stay where they are. You can reopen later with a fresh link.",
+        "stopCta": "Stop intake"
       },
       "degradedReason": {
         "scenario": "The interview scenario uses generic template probes, not ones grounded in this assignment.",
@@ -10049,7 +10066,9 @@
         "title": "Apply channels",
         "posting": "Posting",
         "received": "{count} in",
-        "applyLink": "Apply link"
+        "applyLink": "Apply link",
+        "closed": "Closed",
+        "linkClosed": "Link closed. Candidates who open it are told intake has ended."
       },
       "channel": {
         "local": "Local",
