@@ -41,6 +41,9 @@ process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
 //     (rows carry org_id; the enumeration is deployment-wide by design).
 //   - billingOrgForProviderRefs: the webhook's org RESOLVER — it looks a
 //     subscription/customer up across orgs to FIND the org to scope to.
+//   - listProviderSubscriptionsForReconcile: the daily subscription reconcile's
+//     read-only enumeration of stored provider subscriptions (rows carry org_id; the
+//     result feeds an operator-only alert, never an org owner's read).
 
 const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "billing.ts"), "utf8");
 const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
@@ -79,6 +82,12 @@ function orgBound(sql: string): boolean {
  *  find the org to scope everything else to (sync.ts → resolveBillingOrg). */
 const ORG_RESOLVERS = new Set(["billingOrgForProviderRefs"]);
 
+/** The one documented deployment-wide ENUMERATION of billing_state (challenge-r07
+ *  billing-subscriptions/B): the lost-webhook check reads every stored subscription
+ *  back from the provider. Named, pinned to exactly one read-only bounded statement, so
+ *  a second unscoped read cannot hide behind it. */
+const DEPLOYMENT_ENUMERATIONS = new Set(["listProviderSubscriptionsForReconcile"]);
+
 test("every SQL on billing_state / billing_credits / billing_usage BINDS org_id", () => {
   const owned = sqlByOwner(src).filter(({ sql }) =>
     /\b(from|into|update|delete\s+from)\s+billing_(state|credits|usage)\b/i.test(sql)
@@ -91,8 +100,14 @@ test("every SQL on billing_state / billing_credits / billing_usage BINDS org_id"
     2,
     "the org resolver is exactly its two lookups (by subscription, by customer) — a third is a new exemption"
   );
+  const enumerations = owned.filter(({ owner }) => DEPLOYMENT_ENUMERATIONS.has(owner));
+  assert.equal(enumerations.length, 1, "the reconcile enumeration is exactly one statement — a second is a new exemption");
+  for (const { sql } of enumerations) {
+    assert.match(sql, /^\s*SELECT\b/i, "the reconcile enumeration is READ-ONLY: it never writes billing_state");
+    assert.match(sql, /\bLIMIT \?/i, "the reconcile enumeration is bounded");
+  }
   for (const { owner, sql } of owned) {
-    if (ORG_RESOLVERS.has(owner)) continue;
+    if (ORG_RESOLVERS.has(owner) || DEPLOYMENT_ENUMERATIONS.has(owner)) continue;
     assert.ok(orgBound(sql), `${owner}: org_id is mentioned but NOT bound:\n${sql.trim().slice(0, 220)}`);
   }
 });
@@ -129,7 +144,7 @@ test("the guard itself rejects a statement that only MENTIONS org_id", () => {
 
 test("the exempt cross-org resolver is named and still exists", () => {
   assert.equal(ORG_RESOLVERS.size, 1, "a second exemption needs its own documented rationale above");
-  for (const name of ORG_RESOLVERS) {
+  for (const name of [...ORG_RESOLVERS, ...DEPLOYMENT_ENUMERATIONS]) {
     assert.match(src, new RegExp(`export function ${name}\\b`), `${name} is gone — the exemption is now dead weight`);
   }
 });

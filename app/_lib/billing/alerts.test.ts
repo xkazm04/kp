@@ -97,10 +97,23 @@ test("closed vocabulary: a newer writer's kind shows as unknown, never dropped",
   assert.equal(views[0].id, 9);
   assert.equal("detail" in views[0], false);
 
-  assert.deepEqual([...BILLING_ALERT_KINDS], ["unmapped_product", "price_drift"]);
+  assert.deepEqual([...BILLING_ALERT_KINDS], ["unmapped_product", "price_drift", "subscription_drift"]);
   assert.equal(isBillingAlertKind("unmapped_product"), true);
   assert.equal(isBillingAlertKind("x"), false);
   assert.equal(isBillingAlertResolution("fixed"), true);
   assert.equal(isBillingAlertResolution("dismissed"), true);
   assert.equal(isBillingAlertResolution("bogus"), false);
+});
+
+test("audience: deployment-level subscription_drift reaches the home-org operator only (challenge-r07 billing-subscriptions/B)", () => {
+  // The daily subscription reconcile records a provider/stored disagreement under the
+  // default org. It names ANOTHER customer's subscription, so an org owner must never
+  // receive it; the home-org operator reads it with its detail.
+  const drift = row({ id: 4, orgId: DEFAULT_ORG, kind: "subscription_drift", detail: "org-b: missed_activation sub_X", providerRef: "sub-drift:sub_X" });
+  assert.equal(billingAlertViews([drift], { homeOrgReader: false }).length, 0);
+  const operator = billingAlertViews([drift], { homeOrgReader: true });
+  assert.equal(operator.length, 1);
+  assert.equal(operator[0].code, "subscription_drift");
+  assert.equal(operator[0].audience, "operator");
+  assert.equal(operator[0].detail, "org-b: missed_activation sub_X");
 });
