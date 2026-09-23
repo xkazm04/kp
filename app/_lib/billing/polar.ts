@@ -257,15 +257,27 @@ export class PolarGateway implements BillingGateway {
     throw new Error(`Polar ${path} failed (${first.status}): ${first.text.slice(0, 300)}`);
   }
 
-  /** Read ONE product object (its `prices` are what the customer is actually charged).
-   *  A GET, bounded by the same budget as the POSTs, and never retried: its only
-   *  caller is the clock's daily reconcile, which would rather skip a product for a
-   *  day than double an already-throttled provider's load. Returns null on ANY
-   *  failure — an unreadable product is "unknown", and the pure decision treats
-   *  unknown as "no verdict" rather than as drift. */
-  async fetchProduct(productId: string): Promise<unknown | null> {
+  /** Read ONE product object (its `prices` are what the customer is actually charged)
+   *  for the clock's daily price reconcile. */
+  fetchProduct(productId: string): Promise<unknown | null> {
+    return this.read("product", "/v1/products/", productId);
+  }
+
+  /** Read ONE subscription object for the daily subscription reconcile
+   *  (subscription-reconcile.ts) — the object a webhook delivery carries as `data`. */
+  fetchSubscription(subscriptionId: string): Promise<unknown | null> {
+    return this.read("subscription", "/v1/subscriptions/", subscriptionId);
+  }
+
+  /** The one background GET. Bounded by the same budget as the POSTs and never
+   *  retried: its callers are daily clock passes, which would rather skip an object
+   *  for a day than double an already-throttled provider's load. Null on ANY failure
+   *  (an unreadable object is "unknown", which the pure decisions treat as no verdict,
+   *  never as drift), and refused outright under KP_OFFLINE, whoever built the gateway. */
+  private async read(what: string, path: string, id: string): Promise<unknown | null> {
+    if (isOffline()) return null;
     try {
-      const res = await fetch(`${SERVERS[this.cfg.server]}/v1/products/${encodeURIComponent(productId)}`, {
+      const res = await fetch(`${SERVERS[this.cfg.server]}${path}${encodeURIComponent(id)}`, {
         headers: this.headers(),
         signal: AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS),
       });
@@ -274,8 +286,8 @@ export class PolarGateway implements BillingGateway {
       return JSON.parse(await res.text()) as unknown;
     } catch (error) {
       // Best-effort by contract: this read informs a background alert, never a
-      // request. Logged so a persistently unreadable product is still visible.
-      console.warn(`[billing:reconcile] could not read Polar product ${productId}:`, error);
+      // request. Logged so a persistently unreadable object is still visible.
+      console.warn(`[billing:reconcile] could not read Polar ${what} ${id}:`, error);
       return null;
     }
   }

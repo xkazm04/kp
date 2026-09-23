@@ -78,6 +78,18 @@ export function billingOrgForProviderRefs(subscriptionId: string | null, custome
   return null;
 }
 
+/** Every stored provider subscription, stalest first, for the daily subscription
+ *  reconcile (billing/subscription-reconcile.ts). READ-ONLY and DEPLOYMENT-WIDE by
+ *  design (a lost webhook is a fact about the deployment; the result feeds an
+ *  operator-only alert) — named in billing-tenancy.test.ts so it cannot widen. */
+export function listProviderSubscriptionsForReconcile(limit: number): BillingStateRow[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(`SELECT * FROM billing_state WHERE provider_subscription_id IS NOT NULL ORDER BY updated_at, org_id LIMIT ?`)
+    .all(Math.max(1, Math.trunc(limit) || 1)) as Array<Record<string, unknown>>;
+  return rows.map(rowToState);
+}
+
 /** Write the org's money state.
  *
  *  COMPARE-AND-SWAP, opt-in via `expectedUpdatedAt` (the read→compute→write rule in

@@ -4,8 +4,10 @@ import type { BillingAlert } from "@/app/_lib/db/billing";
 //
 // Two producers write `billing_alerts` (app/_lib/billing/sync.ts): a PAID subscription
 // whose product is not mapped to a plan (`unmapped_product` — the customer paid and is
-// NOT entitled; attributed to the paying org) and the daily catalog-vs-provider price
-// check (`price_drift` — a DEPLOYMENT-level fact, stored under the default org). This
+// NOT entitled; attributed to the paying org), the daily catalog-vs-provider price
+// check (`price_drift` — a DEPLOYMENT-level fact, stored under the default org) and,
+// behind KP_BILLING_SUBSCRIPTION_RECONCILE=1, the daily subscription reconcile
+// (`subscription_drift` — a lost webhook, also stored under the default org). This
 // module is the one place that decides what a reader of those rows is shown:
 //
 //   - the closed kind vocabulary (literal array → derived union → runtime guard, the
@@ -19,7 +21,7 @@ import type { BillingAlert } from "@/app/_lib/db/billing";
 // Pure: no DB, no auth. The route decides who is a home-org reader and which rows to
 // read; this decides what those rows become on the wire.
 
-export const BILLING_ALERT_KINDS = ["unmapped_product", "price_drift"] as const;
+export const BILLING_ALERT_KINDS = ["unmapped_product", "price_drift", "subscription_drift"] as const;
 export type BillingAlertKind = (typeof BILLING_ALERT_KINDS)[number];
 
 export function isBillingAlertKind(value: unknown): value is BillingAlertKind {
@@ -43,6 +45,11 @@ export type BillingAlertAudience = "customer" | "operator";
 const KIND_AUDIENCE: Record<BillingAlertKind, BillingAlertAudience> = {
   unmapped_product: "customer",
   price_drift: "operator",
+  // The daily subscription reconcile (subscription-reconcile.ts): the provider and our
+  // stored state disagree about one customer's subscription. Operator-only although it
+  // concerns a customer — the row is stored under the default org, names another org's
+  // subscription, and the fix (replay the lost delivery, re-sync) is the operator's.
+  subscription_drift: "operator",
 };
 
 /** Deployment-level kinds — recorded under the default org, read only by the home-org

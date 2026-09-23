@@ -406,6 +406,40 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] price reconcile bookkeeping failed:", e);
     }
+    // Subscription drift (billing) — a lost or CAS-dropped webhook, found by reading each
+    // stored subscription back from the provider (app/_lib/billing/subscription-reconcile.ts).
+    // It only ever raises an operator alert; billing_state stays the webhook's.
+    //
+    // DEFAULT OFF, and the flag guards the REGISTRATION, not just the run: ensureSchedule
+    // creates a row once and never re-reads its defaults, so a row registered disabled
+    // could never be enabled by setting the flag later. With the flag unset nothing below
+    // runs — no scheduler row, no provider call — so a deployment is byte-identical to one
+    // without this pass. Set it only after the sandbox pass the billing README names.
+    if (process.env.KP_BILLING_SUBSCRIPTION_RECONCILE === "1") {
+      try {
+        const { ensureSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+        const SUBSCRIPTION_RECONCILE_JOB = "subscription_reconcile";
+        ensureSchedule(SUBSCRIPTION_RECONCILE_JOB, { enabled: true, intervalMinutes: 24 * 60 });
+        if (claimDueRun(SUBSCRIPTION_RECONCILE_JOB)) {
+          const startedAt = new Date().toISOString();
+          try {
+            const { runSubscriptionReconcile } = await import("./app/_lib/billing/subscription-reconcile");
+            const r = await runSubscriptionReconcile();
+            if (!r.skipped) recordRun({ job: SUBSCRIPTION_RECONCILE_JOB, status: "ok", summary: r, startedAt });
+          } catch (e) {
+            recordRun({
+              job: SUBSCRIPTION_RECONCILE_JOB,
+              status: "error",
+              error: e instanceof Error ? e.message : String(e),
+              startedAt,
+            });
+            console.error("[clock] subscription reconcile failed:", e);
+          }
+        }
+      } catch (e) {
+        console.error("[clock] subscription reconcile bookkeeping failed:", e);
+      }
+    }
     // Provider-event payload retention (db/billing.ts) — independent, best-effort,
     // idempotent, and placed beside the reconcile job because it is the other standing
     // duty on the billing tables. `billing_events` had no retention anywhere in the
