@@ -391,6 +391,49 @@ decided. `resolveBillingAlert({ id, orgId, expectedUnresolved: true })` stamps
 Polar signal can leave the open worklist; a second call (or a missing id) returns
 false and does not move the stamp. Pinned by `app/_lib/db/billing-store.test.ts`.
 
+### Billing alerts have a reader: org-scoped, coded, with a resolve door
+
+`billing_alerts` used to be write-only. It now has exactly one reader, and the
+audience is part of the projection (`app/_lib/billing/alerts.ts`, pure):
+
+- **Closed vocabulary.** `BILLING_ALERT_KINDS = ["unmapped_product", "price_drift"]`
+  with `isBillingAlertKind`. A kind written by a newer writer than the reader is shown
+  as `code: "unknown"`, never dropped.
+- **Audience.** `unmapped_product` is the paying org's (`customer`): its owner reads a
+  coded sentence (`billing.alerts.code.*`: the plan has not changed, do not pay again).
+  `price_drift` is deployment-level (`operator`, stored under the home org) and reaches
+  the **home-org operator only**: the same tier as `requireHomeOrgReader`
+  (`app/_lib/auth/require-operator.ts`). The raw provider `detail` (product ids,
+  `POLAR_PRODUCT_*`, prices) is on the wire **only** for that reader.
+- **The store.** `listBillingAlertsForOrg(orgId)` and `getBillingAlert(id, orgId)` are
+  org-BOUND, beside the unchanged deployment-wide `listBillingAlerts` (still the
+  operator's cross-customer list). The tenancy guard names both.
+- **GET /api/billing** gains `alerts`: the caller's org's open alerts (plus the home
+  org's deployment-level kinds when the caller is a home-org reader from another org),
+  projected for that reader. Every pre-existing key is unchanged.
+- **POST /api/billing/alerts/[id]** `{ resolution: "fixed" | "dismissed" }`, behind the
+  same `org:manage` door (`requireBillingAuthority`). Refusals are coded: 400
+  `BILLING_ALERT_RESOLUTION_INVALID`, 404 `BILLING_ALERT_NOT_FOUND` (another org's
+  alert answers what an unknown id answers), 409 `BILLING_ALERT_NOT_OPEN` (the store's
+  `resolved_at IS NULL` CAS: a second call never re-kinds a closed alert), 500
+  `BILLING_ALERT_RESOLVE_FAILED`.
+- **`billing_alerts.resolution`** (nullable, no default; additive migration) records HOW
+  an alert ended, so a real fix and dismissed noise stay distinguishable. Rows closed
+  before the column existed read NULL: "not recorded", never a guessed `fixed`.
+- **Billing tab.** `BillingAlertsPanel` renders above the plan card when there is at
+  least one open alert (nothing otherwise), with **Mark fixed** / **Dismiss**, and
+  re-reads the overview after either.
+- **No charge moves.** The reader writes only `billing_alerts`. Resolving a
+  paid-but-dark subscription's alert does not entitle it (the webhook does, once the
+  product is mapped). This is a declared GUARD case in
+  `app/api/billing/billing-alerts-route.test.ts`: a scripted three-org replay of the four
+  money tables + `billingOverview` + `meterAllowance` + a `meterGate` 402 probe must stay
+  byte-identical to `app/_lib/billing/__fixtures__/charge-parity.json` before and after
+  every alert is resolved. Regenerate that golden only for a deliberate charge change.
+- Known edge: `recordBillingAlert` dedupes on OPEN rows only, so a cause resolved as
+  `fixed` that is not actually fixed re-opens on the next webhook or daily reconcile
+  for the same ref. That is the alert list telling the truth, not a money effect.
+
 `billing_events` rows are kept **forever**: the row *is* the idempotency gate, and
 deleting one would let a very late redelivery re-apply a plan change or re-grant a pack.
 What ages out is `payload_json` — the verbatim provider body, carrying a customer id, an
@@ -777,6 +820,15 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   not merely to mention it, which a cross-org `SELECT org_id, … WHERE plan = ?` would
   satisfy. `billingOrgForProviderRefs` is the one exemption and is named, because it
   is the resolver that looks ACROSS orgs to decide which org to scope to.
+  It also requires the alert reader's statements (`listBillingAlertsForOrg`,
+  `getBillingAlert`, `resolveBillingAlert`) to bind `org_id`, and names the only two
+  unscoped alert reads: the operator worklist and the dedupe probe.
+- `app/_lib/billing/alerts.test.ts` — the alert reader: org-filtered store, the
+  projection (detail withheld, price_drift operator-only, unknown kinds kept).
+- `app/api/billing/billing-alerts-route.test.ts` — GET `alerts` + wire parity against
+  the golden, the resolve door's coded refusals, and the charge-parity GUARD replay.
+- `app/_lib/db/billing-alerts-migration.test.ts` — a pre-change DB gains the nullable
+  `resolution` column and keeps its legacy closed rows.
 
 ## Known gaps
 
