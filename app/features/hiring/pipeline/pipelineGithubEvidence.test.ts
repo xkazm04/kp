@@ -12,7 +12,7 @@ import {
   GITHUB_NOT_SEEN_KEY,
   GITHUB_NOT_SEEN_TITLE_KEY,
   notSeenInPublicRepos,
-} from "./pipelineGithubEvidence.ts";
+} from "./PipelineCandidateDrawerTypes.ts";
 
 const ACCUSATORY = /\b(?:bg|text|border)-(?:coral|amber|red)(?:-\d+)?\b/;
 

@@ -12,7 +12,7 @@
 // where the other path's metric does not exist for it.
 import { useTranslations } from "next-intl";
 import type { EvalBundle } from "./DevTypes";
-import { decisionsLogChip } from "./DevEvalPanelProcessTrace.chip";
+import { decisionsLogChip } from "./DevHelpers";
 
 export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
   const t = useTranslations("devcase.processTrace");
@@ -22,7 +22,7 @@ export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
   // the strip needs anyway.
   const sig = ev.tooling?.signals ?? null;
   // Tri-state: kept / missing / could not read. Only a READ tree without the log is
-  // coral; an unreadable tree is neutral (DevEvalPanelProcessTrace.chip.ts).
+  // coral; an unreadable tree is neutral (decisionsLogChip in DevHelpers.ts).
   const logChip = decisionsLogChip(ev.processTrace?.decisionsLogPresent);
 
   return (

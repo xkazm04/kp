@@ -14,7 +14,7 @@ import {
   GITHUB_NOT_SEEN_KEY,
   GITHUB_NOT_SEEN_TITLE_KEY,
   notSeenInPublicRepos,
-} from "./pipelineGithubEvidence";
+} from "./PipelineCandidateDrawerTypes";
 
 export function PipelineGithubEvidenceCard({
   github,
@@ -54,7 +54,7 @@ export function PipelineGithubEvidenceCard({
           </p>
         ) : null}
         {/* Skills the review did not see in public repo signals. Absence of public
-            evidence is not a false claim, so the label is neutral (pipelineGithubEvidence.ts). */}
+            evidence is not a false claim, so the label is neutral (notSeenInPublicRepos in PipelineCandidateDrawerTypes.ts). */}
         {notSeen.length ? (
           <p className="mt-1 text-sm text-ink">
             <span className={GITHUB_NOT_SEEN_CLASS} title={t(GITHUB_NOT_SEEN_TITLE_KEY)}>

@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { decisionsLogChip } from "./DevEvalPanelProcessTrace.chip.ts";
+import { decisionsLogChip } from "./DevHelpers.ts";
 
 const ACCUSATORY = /\b(?:bg|text)-(?:coral|amber|red)\b/;
 
