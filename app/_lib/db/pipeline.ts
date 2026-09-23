@@ -590,8 +590,8 @@ export function pipelineReasonDetail(code: PipelineReasonCode): string {
 //
 //   prediction — the entry's stored match_score (the number the screen gate
 //     thresholds; see the canonical producer map in app/_lib/match-score.ts).
-//   outcome 1  — the entry advanced beyond the screen gate (stage Interview/
-//     Offer/Hired), whatever happened later: a candidate rejected AT interview
+//   outcome 1  — the entry stands or ever stood (per the ledger) past the screen
+//     gate, whatever happened later: a candidate rejected AT interview
 //     or declining an offer still validated "this score advances past screening".
 //   outcome 0  — closed out as `rejected` while still at Accepted/Screened
 //     (recruiter or auto-reject — the adverse decision the score fed).
@@ -665,17 +665,42 @@ export function pipelineCalibrationPairs(
   // One positive-label set per axis; everything else about the loop is identical,
   // so the two axes are computed by the same rule and stay directly comparable.
   const positive = opts?.outcome === "hired" ? calibrationHiredStages(stages) : calibrationAdvancedStages(stages);
+  // Hire axis: current position only (an undone hire is not a hire).
+  const reached = reachedPositiveStages(workspaceId, opts?.outcome === "hired" ? NO_STAGES : positive);
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
     if (only && !only.has(r.id)) continue; // clean-arm filter (holdout source only)
-    if (positive.has(r.stage)) {
-      pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family, at: r.created_at });
-    } else if (r.status === "rejected") {
-      pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family, at: r.created_at });
-    }
+    const outcome = calibrationOutcome({ status: r.status, currentStage: r.stage, reachedStages: reached.get(r.id) ?? NO_STAGES }, positive);
+    if (outcome !== null) pairs.push({ score: r.score, outcome, roleFamily: r.role_family, at: r.created_at });
   }
   return pairs;
+}
+
+// The ONE calibration label rule (curve + band drill), pure. Kept in this file, not a
+// leaf module: a new module is +1 on every task-hub route's import-graph budget.
+export function calibrationOutcome(
+  row: { status: string; currentStage: string; reachedStages: ReadonlySet<string> },
+  positive: ReadonlySet<string>
+): 0 | 1 | null {
+  if (positive.has(row.currentStage)) return 1;
+  for (const s of row.reachedStages) if (positive.has(s)) return 1;
+  return row.status === "rejected" ? 0 : null;
+}
+
+const NO_STAGES: ReadonlySet<string> = new Set();
+
+// Furthest stage reached: the positive columns each entry ever stood on, per the
+// ledger. A board edit (`stage_migrated`) is not evidence the score advanced anyone.
+function reachedPositiveStages(ws: string, positive: ReadonlySet<string>): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const ids = [...positive];
+  if (ids.length === 0) return out;
+  const rows = ensureDb()
+    .prepare(`SELECT DISTINCT entry_id e, to_stage s FROM pipeline_events WHERE workspace_id = ? AND kind != 'stage_migrated' AND to_stage IN (${ids.map(() => "?")})`)
+    .all(ws, ...ids) as { e: string; s: string }[];
+  for (const r of rows) out.set(r.e, (out.get(r.e) ?? new Set<string>()).add(r.s));
+  return out;
 }
 
 // Direction 2 — the candidates behind ONE calibration score band, workspace-scoped.
@@ -711,14 +736,13 @@ export function pipelineCalibrationBandCandidates(
     role_family: string | null;
   }[];
   const advanced = calibrationAdvancedStages(getPipelineAxis(workspaceId).stages);
+  const reached = reachedPositiveStages(workspaceId, advanced);
   const out: CalibrationBandCandidate[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue;
     if (roleFamily && r.role_family !== roleFamily) continue;
-    let outcome: 0 | 1;
-    if (advanced.has(r.stage)) outcome = 1;
-    else if (r.status === "rejected") outcome = 0;
-    else continue; // pending / non-merit terminal — not part of the calibration set
+    const outcome = calibrationOutcome({ status: r.status, currentStage: r.stage, reachedStages: reached.get(r.id) ?? NO_STAGES }, advanced);
+    if (outcome === null) continue;
     out.push({
       entryId: r.id,
       label: r.candidate_label,
