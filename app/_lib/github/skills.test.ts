@@ -5,7 +5,7 @@
 // THROUGH buildJobFitSignals, which is the only contract that matters anyway.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildJobFitSignals } from "./skills.ts";
+import { buildJobFitSignals, canonicalSkill } from "./skills.ts";
 import type { GithubRepo } from "./client.ts";
 
 function repo(over: Partial<GithubRepo> = {}): GithubRepo {
@@ -136,4 +136,38 @@ test("a Svelte JD matches sveltekit evidence", () => {
   const matched = fit("Svelte required", [repo({ name: "app", topics: ["sveltekit"] })]);
   assert.deepEqual(matched.matchingSkills, ["svelte"]);
   assert.deepEqual(matched.potentialGaps, []);
+});
+
+// --- per-repo attribution + the canonical vocabulary (challenge-r04 github-repo-intelligence/B)
+
+test("each matched skill names the repo(s) whose labels produced it", () => {
+  const r = fit("React and Go required", [
+    repo({ name: "ui-kit", topics: ["react"] }),
+    repo({ name: "svc", language: "Go" }),
+  ]);
+  assert.deepEqual(r.matchingSkills.sort(), ["go", "react"]);
+  assert.deepEqual(r.skillEvidence, { react: ["ui-kit"], go: ["svc"] });
+});
+
+test("a skill evidenced only by the aggregate language mix is a match with no repo to name", () => {
+  const r = fit("python", [repo({ name: "misc" })], [{ name: "Python", percent: 100 }]);
+  assert.deepEqual(r.matchingSkills, ["python"]);
+  assert.deepEqual(r.skillEvidence, { python: [] }, "never a repo that did not carry the label");
+});
+
+test("a partial run keeps the JD skills it could not determine instead of dropping them", () => {
+  const r = fit("We need typescript and rust.", [repo({ name: "web", language: "TypeScript" })], [], false);
+  assert.deepEqual(r.potentialGaps, [], "still no gap asserted from missing data");
+  assert.deepEqual(r.undeterminedSkills, ["rust"]);
+  assert.deepEqual(fit("We need rust.").undeterminedSkills, [], "a complete run determines everything");
+});
+
+test("canonicalSkill maps free text onto the disjoint taxonomy, and nothing else", () => {
+  assert.equal(canonicalSkill("TypeScript"), "typescript");
+  assert.equal(canonicalSkill("Next.js"), "react");
+  assert.equal(canonicalSkill("Kubernetes (Helm)"), "kubernetes");
+  assert.equal(canonicalSkill("Docker"), "docker");
+  assert.equal(canonicalSkill("event sourcing"), null, "free text outside the taxonomy stays free text");
+  assert.equal(canonicalSkill("Python and Rust"), null, "a phrase spanning two buckets is never forced into one");
+  assert.equal(canonicalSkill(""), null);
 });
