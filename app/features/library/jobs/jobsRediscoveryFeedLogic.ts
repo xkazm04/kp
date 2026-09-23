@@ -1,19 +1,23 @@
 // State + data flow for JobsRediscoveryFeed.tsx — extracted verbatim (no
 // behaviour change) so the feed file stays under the 200-line split threshold.
 // Owns: the initial alerts load (with abort-on-unmount), the on-demand sweep,
-// per-row dismiss, and the add-to-pipeline outcome transition.
+// per-row dismiss, and the add-to-pipeline / reach-out outcome transitions. Outcomes
+// are keyed by PAIR (person x role): the feed renders one row per person, and a
+// person-keyed "added" once badged every role she cleared after one add.
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
+import { postReachOut } from "@/app/_lib/useReachOut";
 import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): the add-outcome
 // transition (keep the row + badge it "Added ✓", THEN dismiss after a beat) lives in
 // this pure sibling so the previously-dead success branch is reachable and testable.
 import { applyAddResult, ADDED_BADGE_MS } from "./jobsRediscoveryAdd";
 // The reversible-dismiss transitions, pure + pinned by jobsRediscoveryDismiss.test.ts.
-import { dropAddedMark, extractRow, restoreRow, type RemovedRow } from "./jobsRediscoveryDismiss";
+import { extractRow, restoreRow, type RemovedRow } from "./jobsRediscoveryDismiss";
+import { applyReachOut, emptyOutcomes, isActionable, markPair, pairKey, pairStatus } from "./jobsRediscoveryFeedGroups";
 // What the sweep should SAY it did — pure, so "0 new matches" and "every ranking
 // broke" can never render as the same reassuring green line.
 import { sweepNote } from "./jobsRediscoverySweepNote";
@@ -26,6 +30,9 @@ export type FeedNote = { text: string; tone: "ok" | "error" };
 
 export function useRediscoveryFeedLogic() {
   const t = useTranslations("jobs.rediscoveryFeed");
+  // The reach-out refusal sentences are the ones every sourcing surface already
+  // speaks (useReachOut), not a forked copy.
+  const tReach = useTranslations("pipeline.reachOut");
   // A failed add is answered from its CODE in the reader's language. The row error
   // used to be postPipelineAdd's canonical ENGLISH, painted verbatim into every
   // locale — the capability gate's refusal was the loudest example.
@@ -42,8 +49,8 @@ export function useRediscoveryFeedLogic() {
   // medalists right now", i.e. it answered "there are none" when the truth was
   // "we could not look".
   const [loadFailed, setLoadFailed] = useState(false);
-  const [added, setAdded] = useState<Set<string>>(() => new Set());
-  const [pending, setPending] = useState<Set<string>>(() => new Set());
+  const [outcomes, setOutcomes] = useState(emptyOutcomes);
+  // Keyed by pairKey(candidateId, jobId), like every outcome.
   const [rowError, setRowError] = useState<Map<string, string>>(() => new Map());
   const abortRef = useRef<AbortController | null>(null);
   // The "Added ✓" badge is held for a beat, then the row auto-dismisses on a
@@ -142,11 +149,11 @@ export function useRediscoveryFeedLogic() {
     }
   };
 
-  // `addedCandidateId` is set only for the DEFERRED dismiss that follows a
-  // successful add. It is what the rollback needs in order to undo the "Added ✓"
+  // `acted` is set only for the DEFERRED dismiss that follows a successful add or
+  // reach-out. It is what the rollback needs in order to undo that pair's done
   // badge: a restored row that kept its badge rendered a green success and a red
   // "couldn't dismiss" at once, and the recruiter had to guess which was true.
-  const dismiss = async (id: string, addedCandidateId?: string) => {
+  const dismiss = async (id: string, acted?: Alert) => {
     // Optimistic, and REVERSIBLE. The row is dropped immediately, but the
     // position it was dropped from is remembered: a PATCH that never lands (or
     // answers non-OK) used to leave the recruiter with a candidate silently gone
@@ -164,7 +171,7 @@ export function useRediscoveryFeedLogic() {
       if (!dropped) return;
       setAlerts((prev) => restoreRow(prev, dropped));
       // One truth per row: the badge goes back with the row.
-      setAdded((s) => dropAddedMark(s, addedCandidateId));
+      if (acted) setOutcomes((s) => markPair(s, acted.candidateId, acted.jobId, "open"));
       setNote({ text: t("dismissFailed"), tone: "error" });
     };
     try {
@@ -181,14 +188,32 @@ export function useRediscoveryFeedLogic() {
     }
   };
 
-  const addToPipeline = async (a: Alert) => {
-    if (pending.has(a.candidateId) || added.has(a.candidateId)) return;
-    setPending((p) => new Set(p).add(a.candidateId));
+  // Clear one pair's error line before a retry.
+  const clearError = (key: string) =>
     setRowError((m) => {
+      if (!m.has(key)) return m;
       const next = new Map(m);
-      next.delete(a.candidateId);
+      next.delete(key);
       return next;
     });
+
+  // A done pair keeps its badge for a beat, then leaves the list. Registered so an
+  // unmount inside the beat cancels it (see dismissTimers); the pair travels with
+  // it so a failed PATCH can undo the badge. Only THIS pair's alert is dismissed:
+  // the person's other roles stay on her row, still actionable.
+  const deferDismiss = (a: Alert) => {
+    const timer = window.setTimeout(() => {
+      dismissTimers.current.delete(timer);
+      void dismiss(a.id, a);
+    }, ADDED_BADGE_MS);
+    dismissTimers.current.add(timer);
+  };
+
+  const addToPipeline = async (a: Alert) => {
+    if (!isActionable(pairStatus(outcomes, a.candidateId, a.jobId))) return;
+    const key = pairKey(a.candidateId, a.jobId);
+    setOutcomes((s) => markPair(s, a.candidateId, a.jobId, "pending"));
+    clearError(key);
     const res = await postPipelineAdd(a.jobId, a.jobTitle, {
       candidateId: a.candidateId,
       candidateLabel: a.label,
@@ -196,39 +221,50 @@ export function useRediscoveryFeedLogic() {
       matchScore: a.score,
       source: "rediscovery",
     });
-    setPending((p) => {
-      const next = new Set(p);
-      next.delete(a.candidateId);
-      return next;
-    });
     const addReason = res.ok ? "" : capabilityAwareReason(errMsg, res, t("addFailed"));
     // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): route the outcome
     // through the pure transition, then HONOR its dismiss timing. On success the row is
     // KEPT so the green "Added ✓" badge actually renders, and dismissed only after a
-    // beat — pre-fix the row was filtered out in the same tick, so the badge branch was
-    // unreachable dead code and the candidate vanished with no confirmation. Each slice
-    // derives from the LATEST state (functional updater) so a second in-flight add of a
-    // different candidate can't drop the first.
-    //
-    // The transition takes a message, so it is handed the LOCALIZED one: the fold
-    // happens here (where the bound resolver lives) and jobsRediscoveryAdd stays the
-    // pure state machine it is, with no opinion about language.
+    // beat. The transition takes the LOCALIZED message (the fold happens here, where
+    // the bound resolver lives) and is keyed by the pair, not the person.
     const outcome = res.ok
       ? res
       : { ok: false as const, message: addReason };
-    setAdded((s) => applyAddResult({ added: s, rowError: new Map() }, a.candidateId, outcome).added);
-    setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, a.candidateId, outcome).rowError);
-    const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, a.candidateId, outcome);
-    if (timing === "deferred") {
-      // Registered so an unmount inside the beat cancels it — see dismissTimers.
-      // The candidateId travels with it so a failed PATCH can undo the badge.
-      const timer = window.setTimeout(() => {
-        dismissTimers.current.delete(timer);
-        void dismiss(a.id, a.candidateId);
-      }, ADDED_BADGE_MS);
-      dismissTimers.current.add(timer);
-    }
+    setOutcomes((s) => markPair(s, a.candidateId, a.jobId, res.ok ? "added" : "error"));
+    setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, key, outcome).rowError);
+    const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, key, outcome);
+    if (timing === "deferred") deferDismiss(a);
   };
 
-  return { t, alerts, loadFailed, retryLoad, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline };
+  // Reach out from the feed itself: the route files the person into THIS role's
+  // pipeline and sends the first-touch message in one call, so contacting a
+  // surfaced person no longer means opening the role and re-finding her in its
+  // Rediscover panel. The verdict is classified (reachOutVerdict) before anything
+  // claims a message went out.
+  const reachOut = async (a: Alert) => {
+    if (!isActionable(pairStatus(outcomes, a.candidateId, a.jobId))) return;
+    const key = pairKey(a.candidateId, a.jobId);
+    setOutcomes((s) => markPair(s, a.candidateId, a.jobId, "pending"));
+    clearError(key);
+    const result = await postReachOut(a.jobId, {
+      candidateId: a.candidateId,
+      candidateLabel: a.label,
+      archetype: a.archetype,
+      matchScore: a.score,
+      source: "rediscovery",
+    });
+    // An anonymization refusal withholds every role on her row; any other verdict
+    // moves only this pair (applyReachOut).
+    setOutcomes((s) => applyReachOut(s, a.candidateId, a.jobId, result));
+    if (result.ok) {
+      deferDismiss(a);
+      return;
+    }
+    const reason = result.suppression
+      ? tReach(`suppressed.${result.suppression}`)
+      : capabilityAwareReason(errMsg, result, tReach("failed", { name: a.label }));
+    setRowError((m) => new Map(m).set(key, reason));
+  };
+
+  return { t, alerts, loadFailed, retryLoad, sweeping, note, outcomes, rowError, sweep, dismiss, addToPipeline, reachOut };
 }

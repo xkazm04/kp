@@ -1,24 +1,30 @@
 "use client";
 
+import { useMemo } from "react";
 import { RefreshCw, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useRediscoveryFeedLogic } from "./jobsRediscoveryFeedLogic";
 import { JobsRediscoveryFeedRow } from "./JobsRediscoveryFeedRow";
+import { groupAlertsByPerson, groupView } from "./jobsRediscoveryFeedGroups";
 
 // Standing silver-medalist feed (idea-fdb45cd0). Rediscovery used to be a button
 // a recruiter had to remember to click per role; this surfaces the hits the moment
 // they become true — raised on publish, re-swept on demand — as a dismissable
-// feed at the top of the Jobs tab. Each row is "a candidate you rejected from Role
-// X clears the bar for new Role Y (78)" with one-click add-to-pipeline / dismiss.
+// feed at the top of the Jobs tab. Each row is ONE PERSON (challenge-r08
+// candidate-rediscovery/B): her best open role with its why-now line, the other
+// roles she clears ranked beneath it, and Reach out / Add / Dismiss per role.
 export function RediscoveryFeed() {
   // Same localized why-now the on-demand panel tells (RediscoverPanel): reuse the exact
   // jobs.rediscover.whyNow.* keys + enums.stage resolution — never a forked copy.
   const tr = useTranslations("jobs.rediscover");
   // Hoisted: one `enums` subscription for the feed, not one per alert row.
   const enumLabel = useEnumLabel();
-  const { t, alerts, loadFailed, retryLoad, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline } =
+  const { t, alerts, loadFailed, retryLoad, sweeping, note, outcomes, rowError, sweep, dismiss, addToPipeline, reachOut } =
     useRediscoveryFeedLogic();
+  // Derived from the unchanged flat Alert[] (the wire shape and the reversible
+  // dismiss both stay per pair); the grouping is only how the feed reads.
+  const groups = useMemo(() => groupAlertsByPerson(alerts ?? []), [alerts]);
 
   // Empty + loaded: render a slim bar so the recruiter can still trigger a sweep
   // after the pool changes. Hidden entirely until the first load resolves.
@@ -38,8 +44,8 @@ export function RediscoveryFeed() {
       <div className="flex items-center gap-2">
         <Sparkles size={16} className="text-coral" />
         <h3 className="text-base font-semibold text-ink">{t("title")}</h3>
-        {alerts.length > 0 ? (
-          <span className="rounded-full bg-coral px-2 py-0.5 text-meta font-semibold text-white">{alerts.length}</span>
+        {groups.length > 0 ? (
+          <span className="rounded-full bg-coral px-2 py-0.5 text-meta font-semibold text-white">{groups.length}</span>
         ) : null}
         <button
           type="button"
@@ -73,15 +79,16 @@ export function RediscoveryFeed() {
           <p className="mt-1 text-sm text-steel">{t("intro")}</p>
           {note ? <p className={`mt-1 text-sm ${noteFailed ? "text-red-700" : "text-moss"}`}>{note.text}</p> : null}
           <ul className="mt-2 space-y-2">
-            {alerts.map((a) => (
+            {groups.map((g) => (
               <JobsRediscoveryFeedRow
-                key={a.id}
-                a={a}
-                added={added.has(a.candidateId)}
-                pending={pending.has(a.candidateId)}
-                error={rowError.get(a.candidateId)}
-                onAdd={() => addToPipeline(a)}
-                onDismiss={() => dismiss(a.id)}
+                key={g.candidateId}
+                group={g}
+                view={groupView(g, outcomes)}
+                outcomes={outcomes}
+                rowError={rowError}
+                onAdd={addToPipeline}
+                onReach={reachOut}
+                onDismiss={(a) => dismiss(a.id)}
                 t={t}
                 tr={tr}
                 enumLabel={enumLabel}
