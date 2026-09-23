@@ -9,7 +9,7 @@ import {
 } from "@/app/_lib/db/pipeline";
 import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
-import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { delivered, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
@@ -261,12 +261,21 @@ export async function extendDraftedOffer(
   }
 
   const link = `${publicBaseUrl(origin)}/offer/${offer.token}`;
+  // The letter did not go out when the dispatch THREW (the send gate refused) OR when
+  // it RESOLVED with a dead letter / a refusal (challenge-r06 comms-dispatch-relay/A):
+  // the relay records `failed` and returns, so a catch alone heard only half of it and
+  // a dead-lettered offer used to clear the approval and answer `offerExtended: true`.
+  let notDispatched: unknown = null;
   try {
-    await dispatchOffer(entry, draft, link, {
+    const outcome = await dispatchOffer(entry, draft, link, {
       expiresAt: offer.expiresAt,
       startDate: typeof draft.startDate === "string" ? draft.startDate : null,
     });
+    if (!delivered(outcome)) notDispatched = `${outcome.claim}: ${outcome.detail ?? "no detail recorded"}`;
   } catch (dispatchError) {
+    notDispatched = dispatchError;
+  }
+  if (notDispatched !== null) {
     // COMPENSATION (stated deliberately): the approval is LEFT IN PLACE and the
     // offer row is left open. The token was minted but never reached the wire, and
     // getOrCreateOpenOffer is idempotent — so the recruiter's retry re-sends THAT
@@ -274,7 +283,7 @@ export async function extendDraftedOffer(
     // not orphaned. The alternative (clearing the approval here) is the one thing
     // that must not happen: it would leave a live offer link nobody was ever sent,
     // with no gate left on the card to notice.
-    console.error(`[pipeline:offer] offer dispatch failed for ${entry.id}`, dispatchError);
+    console.error(`[pipeline:offer] offer dispatch failed for ${entry.id}`, notDispatched);
     recordAutomationEvent(
       entry.id,
       "offer_comms_failed",
@@ -527,11 +536,22 @@ export async function runPipelineEntryAction(
   // failure is stated instead: a nudge marker on the timeline (the raw cause stays in
   // the server log, since a pipeline event's detail reaches the Activity feed) and
   // `commsFailed: true` on the 200. Both mirrors below still run.
+  //
+  // Both failure signals count (challenge-r06 comms-dispatch-relay/A): a THROW, and a
+  // RESOLVED dead letter — the relay records `failed` and returns, which a catch alone
+  // never saw, so a dead-lettered letter read as notified. A `refused` verdict (an
+  // agent on the slate, no mailbox by design) is neither a failure to nudge about nor a
+  // send: no marker, no commsFailed, and the dispatcher recorded no `rejection_sent`.
   let commsFailed = false;
   if (action === "reject") {
+    let commsError: unknown = null;
     try {
-      await deps.dispatchRejection(updated);
-    } catch (commsError) {
+      const outcome = await deps.dispatchRejection(updated);
+      if (outcome.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
+    } catch (thrown) {
+      commsError = thrown;
+    }
+    if (commsError !== null) {
       commsFailed = true;
       console.warn(`[pipeline-entry-action] rejection comms failed for ${updated.id}:`, commsError);
       recordAutomationEvent(

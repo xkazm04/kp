@@ -2,6 +2,7 @@ import { sendComm, type OutboundMessage } from "./comms";
 import { recordOutbox, type OutboxEntry } from "./db/devcase";
 import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import type { OutboxStatus } from "./comms-status";
+import type { DeliveryClaim } from "./comms-truth";
 import type { PipelineEntry } from "./db/core";
 import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
@@ -268,13 +269,54 @@ async function sendCommUnlessSim(msg: OutboundMessage, jobTitle: string | null |
   });
 }
 
+// THE DISPATCH VERDICT (challenge-r06 comms-dispatch-relay/A). The channel has TWO
+// failure signals: a THROW (the send gate refused — CommsSuppressedError) and a
+// RETURNED `failed` row (the relay dead-lettered, or the recipient was refused). A
+// dispatcher that returned `void` let its caller hear only the first, so a resolved
+// dead letter read as delivered: an offer cleared the recruiter's approval and
+// answered `offerExtended: true`, a rejection was stamped `rejection_sent`. Every
+// candidate dispatcher now returns this, produced in ONE place (dispatchOutcome), and
+// writes its `*_sent` event only when `delivered(outcome)`.
+//
+//   sent    — a relay took the message (2xx).
+//   queued  — recorded in the local outbox (no relay, or a simulation): the honest
+//             keyless terminal state, and a success for every caller.
+//   failed  — the relay dead-lettered it. A caller that makes a claim must say so.
+//   refused — no recipient exists by design (an agent on the slate): NOT a failure
+//             to nudge about and NOT a send; recorded as a `failed` row on the
+//             `refused` channel so the audit trail still states what did not go.
+export type DispatchClaim = DeliveryClaim | "refused";
+export type DispatchOutcome = {
+  claim: DispatchClaim;
+  /** The outbox row's own status — what callers that return OutboxStatus pass on. */
+  status: OutboxStatus;
+  outboxId: string;
+  /** Why a failed/refused row did not go (the row's failure_detail), else null. */
+  detail: string | null;
+};
+
+/** The one mapping from a recorded outbox row to a dispatch verdict. */
+export function dispatchOutcome(row: Pick<OutboxEntry, "id" | "status" | "channel" | "failureDetail">): DispatchOutcome {
+  // Same row -> claim rule as comms-truth.deliveryClaim (a bounced row is a failure),
+  // written inline: a VALUE import of comms-truth would add a module to every route
+  // graph that sends a candidate comm (perf-budget.json), for three comparisons.
+  const claim: DispatchClaim =
+    row.channel === REFUSED_COMMS_CHANNEL ? "refused" : row.status === "sent" ? "sent" : row.status === "queued" ? "queued" : "failed";
+  return { claim, status: row.status, outboxId: row.id, detail: claim === "sent" || claim === "queued" ? null : row.failureDetail ?? null };
+}
+
+/** Did the letter leave (or land in the keyless outbox, which is its destination)? */
+export function delivered(outcome: DispatchOutcome): boolean {
+  return outcome.claim === "sent" || outcome.claim === "queued";
+}
+
 // Candidate-facing send: identical to sendComm but auto-appends the GDPR data
 // footer and defaults `to`/`ref` from the entry, so every applicant comm carries
 // the self-service erasure link without each dispatcher re-deriving it.
-// Returns the recorded outbox row's REAL delivery status (queued / sent /
-// failed — see comms-status.ts): callers that surface a claim must key their
-// language off this (REC-10), never off "the call resolved" — with no relay
-// configured a resolved send is a terminal `queued` row nothing will deliver.
+// Returns the recorded outbox row's VERDICT (see DispatchOutcome above): callers
+// that surface a claim must key their language off it (REC-10), never off "the
+// call resolved" — with no relay configured a resolved send is a terminal `queued`
+// row nothing will deliver, and a relay dead letter RESOLVES as `failed`.
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
@@ -282,14 +324,14 @@ async function sendCandidateComm(
   // The language the letter is written in — carried so the footer's own link is pinned to
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
-): Promise<OutboxStatus> {
+): Promise<DispatchOutcome> {
   const to = candidateRecipient(entry);
   if (to === null) {
     // Refused NOW, as a `failed` row that names why, instead of handed to the relay to
     // bounce asynchronously. No footers: minting erasure/opt-out capability tokens for
     // an entity with no inbox mints links nobody can receive. The recipient stays
     // empty — there is none — which also keeps the resend door from re-dispatching it.
-    return recordOutbox({
+    return dispatchOutcome(recordOutbox({
       recipient: "",
       subject: msg.subject,
       body: msg.body,
@@ -299,7 +341,7 @@ async function sendCandidateComm(
       failureDetail: recipientRefusal(entry),
       ref: msg.ref ?? entry.id ?? undefined,
       workspaceId: msg.workspaceId,
-    }).status;
+    }));
   }
   const footers = await candidateFooters(entry, t, locale);
   const recorded = await sendCommUnlessSim({
@@ -317,7 +359,7 @@ async function sendCandidateComm(
     // candidate reads; this is the one their mail client offers them.
     unsubscribeUrl: footers.unsubscribeUrl ?? undefined,
   }, entry.jobTitle);
-  return recorded.status;
+  return dispatchOutcome(recorded);
 }
 
 /** Acknowledge a freshly-received inbound application. Inbound applicants got only
@@ -348,7 +390,7 @@ async function sendCandidateComm(
 export async function dispatchApplicationReceived(
   entry: PipelineEntry,
   opts?: { enrichLink?: string; statusLink?: string }
-): Promise<void> {
+): Promise<DispatchOutcome> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const ta = await namespaceTranslator(locale, "apply");
@@ -361,8 +403,11 @@ export async function dispatchApplicationReceived(
   if (opts?.enrichLink) lines.push("", `${ta("quick.enrichCta")} — ${ta("quick.enrichNote")}`, opts.enrichLink);
   if (opts?.statusLink) lines.push("", `${ta("trackStatus")}:`, opts.statusLink);
   lines.push("", t("ack.signoff"));
-  await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "acknowledgement" }, locale);
-  recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
+  const outcome = await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "acknowledgement" }, locale);
+  // `*_sent` only for a letter that left (or landed in the keyless outbox): a dead
+  // letter or a refusal is on the outbox row, never claimed on the timeline.
+  if (delivered(outcome)) recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
+  return outcome;
 }
 
 /** Re-send a returning applicant's OWN links to the address on file (link recovery,
@@ -393,7 +438,7 @@ export async function dispatchApplicationLinks(
   if (links.statusLink) lines.push("", `${ta("trackStatus")}:`, links.statusLink);
   if (links.enrichLink) lines.push("", `${t("linkRecovery.updateCta")}:`, links.enrichLink);
   lines.push("", t("linkRecovery.notYou"), "", t("ack.signoff"));
-  return sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "acknowledgement" }, locale);
+  return (await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "acknowledgement" }, locale)).status;
 }
 
 /** Outcome of an outreach dispatch: delivered (or honestly queued with no relay),
@@ -456,7 +501,7 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  const status = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
+  const { status } = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
   // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
   // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
   // — and that must not consume the one-shot `outreach_sent` marker automation-run
@@ -484,7 +529,7 @@ export async function dispatchOutreach(
  * was never the actual reason. Protected-attribute lines are dropped whole, and with
  * nothing recorded the template ships exactly as before (rejection-feedback.ts).
  */
-export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<void> {
+export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<DispatchOutcome> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);
@@ -500,7 +545,11 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   const subject = t("rejection.subject", { role });
   const body = t("rejection.opening", { name, role }) + middle + feedbackBlock + t("rejection.closing", { team: t("team") });
 
-  await sendCandidateComm(entry, t, { subject, body, kind: "rejection" }, locale);
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "rejection" }, locale);
+  // A dead letter (`failed`) or a refusal is NOT a sent rejection: the caller reads the
+  // verdict and records the nudge (or, for a refusal, nothing), so the timeline never
+  // claims a candidate was told when no letter went.
+  if (!delivered(outcome)) return outcome;
   recordAutomationEvent(
     entry.id,
     "rejection_sent",
@@ -516,6 +565,7 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
       .join(" · "),
     entry.workspaceId
   );
+  return outcome;
 }
 
 /**
@@ -551,7 +601,7 @@ export async function dispatchInterviewLetter(
     const link = `${await candidateLinkBase()}/status/${encodeURIComponent(letter.statusToken)}?lang=${letter.locale}`;
     lines.push("", t("interviewLetter.statusLine", { link }));
   }
-  return sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale);
+  return (await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale)).status;
 }
 
 /** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are
@@ -575,14 +625,14 @@ export async function dispatchKnockoutDecline(input: {
   locale?: string | null;
   /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
   workspaceId?: string | null;
-}): Promise<void> {
+}): Promise<DispatchOutcome> {
   const locale = candidateLocale(input.locale, input.workspaceId);
   const t = await commsTranslator(locale);
   const name = (input.name ?? "").trim() || t("there");
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
   const body = t("koDecline.body", { name, role, team: t("team") });
-  await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle);
+  return dispatchOutcome(await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle));
 }
 
 /**
@@ -604,7 +654,7 @@ export async function dispatchOffer(
   draft: { subject?: unknown; body?: unknown },
   responseLink: string,
   opts?: { expiresAt?: string | null; startDate?: string | null }
-): Promise<void> {
+): Promise<DispatchOutcome> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
@@ -621,8 +671,12 @@ export async function dispatchOffer(
   // door (perfect: offer-door-speaks-the-letter-language, 2026-09-01).
   const link = pinLinkLocale(responseLink, locale);
   const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link });
-  await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
-  recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "", entry.workspaceId);
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
+  // `offer_sent` is what analytics counts as "offers extended" and what the timeline
+  // shows the recruiter: a dead-lettered or refused letter is neither. The caller
+  // (extendDraftedOffer) routes that verdict into its compensation branch.
+  if (delivered(outcome)) recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "", entry.workspaceId);
+  return outcome;
 }
 
 /** Confirm a candidate's self-booked interview slot. For a normal booking this
@@ -663,7 +717,7 @@ export async function dispatchInterviewConfirmation(
   // closes, this footer link is the one way back to reschedule (SCH2) or grab
   // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
   const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
-  const status = await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" }, locale);
+  const { status } = await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" }, locale);
   recordAutomationEvent(entry.id, "interview_scheduled", slot, entry.workspaceId);
   return status;
 }
@@ -762,7 +816,7 @@ export async function dispatchScheduleInvite(
   const length = opts?.durationMin ? t("scheduleInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("scheduleInvite.subject", { role });
   const body = t("scheduleInvite.body", { name, role, link, length, team: t("team") });
-  const status = await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" }, locale);
+  const { status } = await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" }, locale);
   recordAutomationEvent(entry.id, "schedule_invite_sent", role, entry.workspaceId);
   return status;
 }
@@ -800,7 +854,7 @@ export async function dispatchInterviewReminder(
   const slotText = formatSlotForLetter(opts?.slotAtIso, locale, opts?.candidateTz) || slot || t("interviewReminder.slotFallback");
   const subject = t("interviewReminder.subject", { slot: slotText });
   const body = t("interviewReminder.body", { name, role, slot: slotText, length, team: t("team") });
-  await sendCandidateComm(entry, t, {
+  const outcome = await sendCandidateComm(entry, t, {
     subject,
     body,
     kind: "interview_reminder",
@@ -815,7 +869,7 @@ export async function dispatchInterviewReminder(
     // row's own team is the authority, not a field on `entry`.
     // The ledger is RECRUITER-side: it keeps the stored, operator-stable label, not
     // the candidate-localized letter text (which differs per reader).
-    if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot ?? "", opts?.workspaceId ?? undefined);
+    if (entry.id && delivered(outcome)) recordAutomationEvent(entry.id, "interview_reminder_sent", slot ?? "", opts?.workspaceId ?? undefined);
   } catch (e) {
     console.error(`[reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
@@ -844,7 +898,7 @@ export async function dispatchInterviewInvite(
   const length = opts?.durationMin ? t("interviewInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewInvite.subject", { role });
   const body = t("interviewInvite.body", { name, role, link, length, team: t("team") });
-  const status = await sendCandidateComm(entry, t, {
+  const { status } = await sendCandidateComm(entry, t, {
     subject,
     body,
     kind: "interview_invite",
@@ -895,13 +949,13 @@ export async function dispatchCaseInvite(
   // The apply surface is a public page rendered in the reader's language, so the link
   // is pinned to the letter's locale exactly as the offer/nudge links are.
   const body = t("caseInvite.body", { name, role, link: pinLinkLocale(link, locale), team: t("team") });
-  return sendCandidateComm(entry, t, {
+  return (await sendCandidateComm(entry, t, {
     subject,
     body,
     kind: "case_invite",
     ref: entry.id ?? link,
     workspaceId: opts?.workspaceId,
-  }, locale);
+  }, locale)).status;
 }
 
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
@@ -991,7 +1045,7 @@ function formatOfferDeadline(iso: string | null, locale: string | null | undefin
  *  NOT go out. (The sweep already CAS-claimed reminded_at, so a throw here is logged,
  *  not retried — at-most-once.) The post-send audit write is swallowed so a transient
  *  DB blip after the message left can't masquerade as a delivery failure. */
-export async function dispatchOfferReminder(entry: PipelineEntry, link: string, deadlineIso: string | null): Promise<void> {
+export async function dispatchOfferReminder(entry: PipelineEntry, link: string, deadlineIso: string | null): Promise<DispatchOutcome> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);
@@ -1001,12 +1055,13 @@ export async function dispatchOfferReminder(entry: PipelineEntry, link: string, 
   // Same pin as dispatchOffer: the nudge must open the same-language page the letter did.
   const pinned = pinLinkLocale(link, locale);
   const body = t("offerReminder.body", { name, role, deadline, link: pinned, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link }, locale);
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link }, locale);
   try {
-    recordAutomationEvent(entry.id, "offer_reminder_sent", role, entry.workspaceId);
+    if (delivered(outcome)) recordAutomationEvent(entry.id, "offer_reminder_sent", role, entry.workspaceId);
   } catch (e) {
     console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
+  return outcome;
 }
 
 function formatConsentExpiryDate(iso: string, locale: string | null | undefined, workspaceId?: string | null): string {
@@ -1021,7 +1076,7 @@ function formatConsentExpiryDate(iso: string, locale: string | null | undefined,
  *  `sendCandidateComm` already appends the `/data/[token]` and `/stop/[token]`
  *  footers. A throw means the message did NOT go out; the sweep claims the
  *  `expiring_notified` event before calling, so a throw is logged, not retried. */
-export async function dispatchConsentExpiryReminder(entry: PipelineEntry): Promise<void> {
+export async function dispatchConsentExpiryReminder(entry: PipelineEntry): Promise<DispatchOutcome> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);
@@ -1030,5 +1085,5 @@ export async function dispatchConsentExpiryReminder(entry: PipelineEntry): Promi
     || (entry.consentExpiresAt ?? "").slice(0, 10);
   const subject = t("consentExpiryReminder.subject", { role, date });
   const body = t("consentExpiryReminder.body", { name, role, date, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "consent_expiry" }, locale);
+  return sendCandidateComm(entry, t, { subject, body, kind: "consent_expiry" }, locale);
 }

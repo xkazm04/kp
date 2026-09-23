@@ -594,10 +594,19 @@ export async function runScreenWave(
       // half-applied with a bare 500 and no record of what had landed. Isolate
       // it per candidate: log it, surface it in the activity feed, count it for
       // the caller, and keep going.
+      //
+      // Both failure signals count (challenge-r06 comms-dispatch-relay/A): a throw AND a
+      // resolved dead letter (the relay records `failed` and returns — a catch alone
+      // counted it as notified). A `refused` verdict (no mailbox by design) is neither.
       let commsFailed = false;
+      let commsError: unknown = null;
       try {
-        await dispatchRejection(updated, { automated: true }); // queued, never ghosts
-      } catch (commsError) {
+        const outcome = await dispatchRejection(updated, { automated: true }); // queued, never ghosts
+        if (outcome.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
+      } catch (thrown) {
+        commsError = thrown;
+      }
+      if (commsError !== null) {
         commsFailed = true;
         commsFailures += 1;
         const msg = commsError instanceof Error ? commsError.message : String(commsError);
