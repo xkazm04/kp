@@ -28,8 +28,10 @@
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import type { SchedEntry } from "./ScheduleTypes";
 
-/** Every recruiter write the Schedule tab makes. `book` and `reject` are the grid's
- *  card actions (Confirm / Decline); the rest are the lifecycle panel's invite verbs. */
+/** Every recruiter write the Schedule tab makes. `book`, `reject` and `send_link` are
+ *  the pending card's actions (Confirm or Book suggested time / Decline / Send
+ *  scheduling link); the rest are the lifecycle panel's invite verbs (a card's
+ *  proposal accept reuses `accept_proposal`). */
 export const AGENDA_VERBS = [
   "book",
   "reject",
@@ -39,6 +41,7 @@ export const AGENDA_VERBS = [
   "decline_proposals",
   "resolve_reconcile",
   "reinvite",
+  "send_link",
   "meeting_url",
 ] as const;
 export type AgendaVerb = (typeof AGENDA_VERBS)[number];
@@ -108,6 +111,9 @@ const EFFECTS: Record<AgendaVerb, AgendaEffects> = {
   // Mints a new pending invite; the route answers a token, not a row, so the OWNER
   // re-reads the agenda (a mutation with no invite to adopt) — the entry is unchanged.
   reinvite: { refetchEntries: false, notify: true },
+  // A pending card's FIRST scheduling link (challenge-r02 slot B): the same invite
+  // route as reinvite, so the same answer - a token, not a row - and the same re-read.
+  send_link: { refetchEntries: false, notify: true },
   // A join link on the invite: nothing another view renders.
   meeting_url: { refetchEntries: false, notify: false },
 };

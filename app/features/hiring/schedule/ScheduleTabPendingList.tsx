@@ -4,15 +4,96 @@
 // awaiting-slot candidate, with prep/transcript/start-interview/confirm-decline
 // actions. Split out of ScheduleTab.tsx to keep the tab file under the
 // 200-line cap.
+//
+// Each card's scheduling step follows its candidate's LIVE invite
+// (schedulePendingCardState.ts, challenge-r02 slot B): send the link, a sent link's
+// age, a fresh link for an expired or closed one, the candidate's proposed times
+// accepted in place, a pointer at a stall. Confirm is the primary action only where
+// a confirmed invite backs the cell; everywhere else the same control reads "Book
+// suggested time" and sits second, so the guided simulation's click still resolves.
 
 import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
-import { Check, ClipboardList, FileText, History, Phone, UserRound, X } from "lucide-react";
-import type { useTranslations } from "next-intl";
+import { Check, ClipboardList, FileText, History, Link2, Phone, RotateCw, Send, UserRound, X } from "lucide-react";
+import { useFormatter, type useTranslations } from "next-intl";
 import { CandidateCardHeader } from "./ScheduleCandidateCardHeader";
 import type { SchedEntry } from "./ScheduleTypes";
 import { isSuggested, type SlotSource } from "./scheduleGridSeeds";
 import type { IvStatus } from "./useScheduleTab";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import { bookControlFor, pendingCardState, type PendingCardState } from "./schedulePendingCardState";
+import { BTN_AFFIRM, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+
+type Tr = ReturnType<typeof useTranslations<"scheduleTab">>;
+
+// The line under the card header that says where scheduling stands, and the card's
+// first action for that state. Nothing for a booked card: its "confirmed" chip says it.
+function PendingCardNextStep({
+  t,
+  e,
+  state,
+  nowMs,
+  busy,
+  onSendLink,
+  onCopyLink,
+  onAcceptProposal,
+}: {
+  t: Tr;
+  e: SchedEntry;
+  state: PendingCardState;
+  nowMs: number;
+  busy: boolean;
+  onSendLink: (e: SchedEntry) => void;
+  onCopyLink: (token: string | null) => void;
+  onAcceptProposal: (e: SchedEntry, token: string | null, slotAt: string) => void;
+}) {
+  const format = useFormatter();
+  if (state.kind === "booked") return null;
+  const line =
+    state.kind === "no_link"
+      ? t("cardState.noLink")
+      : state.kind === "awaiting"
+        ? t("cardState.awaiting", {
+            when: state.sentAt && nowMs > 0 ? format.relativeTime(new Date(state.sentAt), nowMs) : "",
+          })
+        : state.kind === "expired"
+          ? t("cardState.expired")
+          : state.kind === "closed"
+            ? state.closedReason === "no_show"
+              ? t("cardState.noShow")
+              : t("cardState.declined")
+            : state.kind === "proposals"
+              ? t("cardState.proposals", { count: state.proposals.length })
+              : t("cardState.stuck");
+  const wide = "mt-1.5 h-8 w-full justify-center text-sm";
+  return (
+    <div className="mt-2 border-t border-stone-200 pt-2">
+      <p className={`text-meta ${state.kind === "stuck_no_slots" ? "font-semibold text-amber-800" : "text-steel"}`}>{line}</p>
+      {state.primary === "send_link" || state.primary === "reinvite" ? (
+        <button type="button" onClick={() => onSendLink(e)} disabled={busy} className={`${BTN_AFFIRM} ${wide}`}>
+          {state.primary === "send_link" ? <Send size={14} aria-hidden /> : <RotateCw size={14} aria-hidden />}
+          {state.primary === "send_link" ? t("sendLink.action") : t("cardState.reinvite")}
+        </button>
+      ) : state.primary === "copy_link" ? (
+        <button type="button" onClick={() => onCopyLink(state.token)} className={`${BTN_SECONDARY} ${wide}`}>
+          <Link2 size={14} aria-hidden /> {t("cardState.copyLink")}
+        </button>
+      ) : state.primary === "accept_proposal" ? (
+        <div role="group" aria-label={t("lifecycle.proposalsGroupAria")} className="mt-1.5 flex flex-col gap-1">
+          {state.proposals.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => onAcceptProposal(e, state.token, p.value)}
+              disabled={busy}
+              className={`${BTN_AFFIRM} h-8 w-full justify-center text-sm`}
+            >
+              <Check size={14} aria-hidden /> {t("lifecycle.acceptProposal", { time: p.label })}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function ScheduleTabPendingList({
   t,
@@ -35,8 +116,13 @@ export function ScheduleTabPendingList({
   onTranscript,
   onStartInterview,
   onAct,
+  cardStates,
+  nowMs,
+  onSendLink,
+  onCopyLink,
+  onAcceptProposal,
 }: {
-  t: ReturnType<typeof useTranslations<"scheduleTab">>;
+  t: Tr;
   calendarEntries: SchedEntry[];
   picks: Record<string, string>;
   // entry id → where that card's time came from; anything but "booked" is a guess.
@@ -62,6 +148,13 @@ export function ScheduleTabPendingList({
   // Absent when the workspace plan runs no AI round — the launcher is hidden.
   onStartInterview?: (e: SchedEntry) => void;
   onAct: (e: SchedEntry, action: "approve_event" | "reject") => void;
+  // entry id -> the card's state from its candidate's live invite.
+  cardStates: Record<string, PendingCardState>;
+  // "Now" as of the last agenda change (a sent link's age is relative to it).
+  nowMs: number;
+  onSendLink: (e: SchedEntry) => void;
+  onCopyLink: (token: string | null) => void;
+  onAcceptProposal: (e: SchedEntry, token: string | null, slotAt: string) => void;
 }) {
   return (
     <>
@@ -72,6 +165,10 @@ export function ScheduleTabPendingList({
         {calendarEntries.map((e, i) => {
           const active = e.id === selectedId;
           const iv = interviews[e.id];
+          // No resolved state yet (a card rendered before its first agenda read) reads
+          // as "no link" - a suggestion, never a booking.
+          const state = cardStates[e.id] ?? pendingCardState(e, null, pickSources[e.id], nowMs);
+          const book = bookControlFor(state);
           return (
             <motion.div
               key={e.id}
@@ -166,15 +263,29 @@ export function ScheduleTabPendingList({
                   {creatingIv === e.id ? t("opening") : t("startInterview")}
                 </button>
               ) : null}
+              <PendingCardNextStep
+                t={t}
+                e={e}
+                state={state}
+                nowMs={nowMs}
+                busy={busy === e.id}
+                onSendLink={onSendLink}
+                onCopyLink={onCopyLink}
+                onAcceptProposal={onAcceptProposal}
+              />
               <div className="mt-1.5 flex gap-1.5">
+                {/* ONE book control for every state. A confirmed cell makes it the
+                    primary Confirm; anywhere else it books a SUGGESTED time (the route
+                    mails the candidate nothing), so it is labelled so and sits second. */}
                 <button
                   type="button"
                   data-sim-click="confirm"
                   onClick={() => onAct(e, "approve_event")}
                   disabled={busy === e.id}
-                  className={`${BTN_AFFIRM} h-8 flex-1 justify-center text-sm`}
+                  title={book.label === "bookSuggested" ? t("cardState.bookSuggestedTitle", { slot: slotLabel(picks[e.id] ?? "") }) : undefined}
+                  className={`${book.emphasis === "primary" ? BTN_AFFIRM : BTN_SECONDARY} h-8 flex-1 justify-center text-sm`}
                 >
-                  <Check size={14} /> {t("confirm")}
+                  <Check size={14} aria-hidden /> {book.label === "confirm" ? t("confirm") : t("cardState.bookSuggested")}
                 </button>
                 <button
                   type="button"

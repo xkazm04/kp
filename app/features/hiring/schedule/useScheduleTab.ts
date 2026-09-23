@@ -28,6 +28,10 @@ import {
   type ScheduleAgendaView,
 } from "./scheduleAgenda";
 import { seedGrid, type SlotSource } from "./scheduleGridSeeds";
+// Each pending card's state from its candidate's live invite (challenge-r02 slot B).
+import { liveInviteFor, pendingCardState, sendLinkNotice, type PendingCardState } from "./schedulePendingCardState";
+import { toast } from "@/app/_components/toast-store";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 // The two derived lists + the poll cadence, extracted and unit-pinned (schedule-ui-2).
 import { bookedMarkersFrom, interviewedEntriesFrom } from "./scheduleTabDerived";
 import { pollDelayMs, pollIsStale } from "./schedulePollBackoff";
@@ -173,13 +177,18 @@ export function useScheduleTab() {
         // slot_at (converted to the grid's wall-clock cell) wins over the legacy
         // free-text approvalDetail, which is the back-compat fallback for entries with
         // no invite yet. So a self-booked or recruiter-booked time shows in the right cell.
-        const inviteByEntry = new Map(invs.filter((i) => i.entryId).map((i) => [i.entryId as string, i]));
+        //
+        // WHICH invite: the agenda can hold several per entry (a re-invite history), and
+        // a `new Map(...)` over the list kept whichever sorted LAST in the read's ORDER
+        // BY. liveInviteFor picks deliberately (confirmed, else a live pending link, else
+        // the newest closed one), the same pick the pending card's state reads.
+        const seededAt = Date.now();
         if (typeof s.interviewTz === "string" && s.interviewTz) setInterviewTz(s.interviewTz);
         const seeded = seedGrid(
           sched
             .filter((e) => e.approvalKind === "calendar")
             .map((e) => {
-              const inv = inviteByEntry.get(e.id);
+              const inv = liveInviteFor(e.id, invs, seededAt);
               // Only a CONFIRMED invite is a fact; a pending one carries no slot_at.
               const fromInvite = inv?.status === "confirmed" && inv.slotAt ? isoToDateSlot(inv.slotAt) : null;
               // Legacy approvalDetail is a weekday-relative string; resolve it to a
@@ -259,9 +268,11 @@ export function useScheduleTab() {
     return { ok: true, body };
   };
 
-  // Re-invite from a Closed row: the route mints a NEW token and answers no row, so
-  // the owner re-reads the agenda (the fresh pending link lands in Awaiting).
-  const reinviteEntry = async (entryId: string): Promise<AgendaWriteResult> => {
+  // Mint a scheduling link (POST /api/schedule/invite): a Closed row's re-invite, or a
+  // pending card's first link. The route mints a NEW token and answers no row, so the
+  // owner re-reads the agenda (the fresh pending link lands in Awaiting and the card
+  // turns to "link sent").
+  const mintLink = async (entryId: string, kind: "reinvite" | "send_link"): Promise<AgendaWriteResult> => {
     const r = await fetch("/api/schedule/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -269,8 +280,61 @@ export function useScheduleTab() {
     });
     const body = ((await r.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
     if (!r.ok) return { ok: false, body };
-    commitMutation({ kind: "reinvite", invite: null }, { reload: true });
+    commitMutation({ kind, invite: null }, { reload: true });
     return { ok: true, body };
+  };
+  const reinviteEntry = (entryId: string) => mintLink(entryId, "reinvite");
+
+  // The pending card's own actions (challenge-r02 slot B): each card's first action
+  // follows its candidate's live invite (schedulePendingCardState.ts), not a blind
+  // Confirm of the seeded cell. A refusal renders under that card, like a book refusal.
+  //
+  // Send the candidate their self-scheduling link. The toast repeats the route's
+  // TRUTHFUL delivery claim (sent / queued / failed), never a green "sent" over a
+  // message nothing will deliver.
+  const sendLink = async (e: SchedEntry) => {
+    setBusy(e.id);
+    setActionError(null);
+    try {
+      const res = await mintLink(e.id, "send_link");
+      if (!res.ok) {
+        setActionError({ entryId: e.id, message: errMsg(res.body, t("sendLink.refused")) });
+        return;
+      }
+      const notice = sendLinkNotice(res.body);
+      toast[notice.variant](t(notice.key, { name: e.candidateLabel }));
+    } catch {
+      setActionError({ entryId: e.id, message: t("sendLink.refused") });
+    } finally {
+      setBusy(null);
+    }
+  };
+  // Accept one of the candidate's proposed times where the recruiter is reading their
+  // card: the lifecycle panel's accept_proposal verb, written through the one agenda
+  // (the card leaves the pending list; the booking lands in Upcoming and on the grid).
+  const acceptProposal = async (e: SchedEntry, token: string | null, slotAt: string) => {
+    if (!token) return;
+    setBusy(e.id);
+    setActionError(null);
+    try {
+      const res = await runInviteAction(token, "accept_proposal", slotAt);
+      if (!res.ok) setActionError({ entryId: e.id, message: errMsg(res.body, t("bookFailed")) });
+      else setLastDir("confirm");
+    } catch {
+      setActionError({ entryId: e.id, message: t("bookFailed") });
+    } finally {
+      setBusy(null);
+    }
+  };
+  // Copy an awaiting candidate's link (the recruiter re-sends it through their own
+  // channel). A denied clipboard says so rather than leave a stale clipboard to paste.
+  const copyLink = (token: string | null) => {
+    if (!token) return;
+    const url = `${publicBaseUrl(window.location.origin)}/schedule/${token}`;
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(url))
+      .then(() => toast.success(t("cardState.linkCopied")))
+      .catch(() => toast.error(t("cardState.copyFailed")));
   };
 
   // The meeting-link PATCH answers the row re-read AFTER its calendar refresh (so it
@@ -304,6 +368,17 @@ export function useScheduleTab() {
   // Entries already rendered as assignable chips are excluded to avoid a double render.
   const calendarEntryIds = useMemo(() => new Set(calendarEntries.map((e) => e.id)), [calendarEntries]);
   const bookedMarkers = useMemo(() => bookedMarkersFrom(invites, calendarEntryIds), [invites, calendarEntryIds]);
+  // entry id -> what that pending card offers first: send the link, a sent link's age,
+  // a fresh link for an expired one, the candidate's proposals, a stall pointer, or
+  // Confirm, which is primary ONLY where a confirmed invite backs the cell.
+  // `loadedAt` is "now" as of the last agenda change, so this stays pure in render.
+  const cardStates = useMemo(() => {
+    const out: Record<string, PendingCardState> = {};
+    for (const e of calendarEntries) {
+      out[e.id] = pendingCardState(e, liveInviteFor(e.id, invites, loadedAt), pickSources[e.id], loadedAt);
+    }
+    return out;
+  }, [calendarEntries, invites, pickSources, loadedAt]);
   // Interviewed = moved past scheduling with either a saved voice transcript or a
   // recruiter-filled human scorecard — a human-led round has no transcript, but its
   // candidate must stay visible (and the prep modal reachable) after the verdict
@@ -558,6 +633,11 @@ export function useScheduleTab() {
     interviewedEntries,
     startInterview,
     act,
+    cardStates,
+    loadedAt,
+    sendLink,
+    acceptProposal,
+    copyLink,
     cardExit,
     slotLabel,
   };

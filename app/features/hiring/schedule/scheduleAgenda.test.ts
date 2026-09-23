@@ -180,7 +180,7 @@ test("case 4: cancel drops the grid marker and re-buckets to awaiting, from one 
 
 test("case 5: effectsFor is total over the recruiter verbs", () => {
   const refetch = new Set(["book", "accept_proposal"]);
-  for (const kind of ["book", "accept_proposal", "cancel", "no_show", "decline_proposals", "resolve_reconcile", "reinvite", "meeting_url"] as const) {
+  for (const kind of ["book", "accept_proposal", "cancel", "no_show", "decline_proposals", "resolve_reconcile", "reinvite", "send_link", "meeting_url"] as const) {
     assert.ok(AGENDA_VERBS.includes(kind), `${kind} is a declared verb`);
     const fx = effectsFor(kind);
     assert.equal(fx.refetchEntries, refetch.has(kind), `${kind}.refetchEntries`);

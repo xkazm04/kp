@@ -69,6 +69,11 @@ export function ScheduleTab() {
     interviewedEntries,
     startInterview,
     act,
+    cardStates,
+    loadedAt,
+    sendLink,
+    acceptProposal,
+    copyLink,
     cardExit,
     slotLabel,
   } = useScheduleTab();
@@ -236,6 +241,11 @@ export function ScheduleTab() {
               // Plan-aware: a human-only plan offers no AI-interview launcher.
               onStartInterview={hasAiRound ? startInterview : undefined}
               onAct={act}
+              cardStates={cardStates}
+              nowMs={loadedAt}
+              onSendLink={sendLink}
+              onCopyLink={copyLink}
+              onAcceptProposal={acceptProposal}
             />
 
             <ScheduleTabInterviewedList
