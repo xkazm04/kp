@@ -7,6 +7,7 @@ import { PANEL } from "@/app/_components/ui/recipes";
 // interview no longer vanishes the instant its start passes.
 import { bucketInvites, isInProgress } from "./scheduleInviteLifecycleBuckets";
 import { useScheduleInviteLifecycle } from "./useScheduleInviteLifecycle";
+import type { ScheduleAgendaView } from "./scheduleAgenda";
 import { AttentionSection } from "./ScheduleInviteAttentionSection";
 import { AgendaRow } from "./ScheduleInviteAgendaRow";
 import { AwaitingSection, ClosedSection } from "./ScheduleInviteHistorySection";
@@ -18,7 +19,11 @@ import { AwaitingSection, ClosedSection } from "./ScheduleInviteHistorySection";
 // (candidate hit a fully-booked horizon) and needs_reconcile (booked but the
 // pipeline didn't advance) — terminated in a server console. Attention rows
 // first; then the chronological agenda; then invites still awaiting a booking.
-export function InviteLifecyclePanel() {
+//
+// `agenda` is ScheduleTab's one invite list and its writers (scheduleAgenda.ts) — the
+// same list the week grid draws its booked markers from, so a booking on either
+// surface shows on both.
+export function InviteLifecyclePanel({ agenda }: { agenda: ScheduleAgendaView }) {
   const {
     t,
     relativeTime,
@@ -36,7 +41,7 @@ export function InviteLifecyclePanel() {
     runAction,
     reinvite,
     updateInvite,
-  } = useScheduleInviteLifecycle();
+  } = useScheduleInviteLifecycle(agenda);
 
   if (failed) {
     return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{t("loadFailed")}</p>;

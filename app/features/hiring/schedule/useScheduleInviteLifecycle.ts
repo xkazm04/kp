@@ -1,11 +1,18 @@
 "use client";
 
-// All state, fetch/poll logic and recruiter actions for InviteLifecyclePanel,
-// split out of ScheduleInviteLifecyclePanel.tsx so the component file stays
-// under the 200-line cap. Returns everything the panel and its section
-// components need; no JSX here.
+// Interaction state and recruiter actions for InviteLifecyclePanel, split out of
+// ScheduleInviteLifecyclePanel.tsx so the component file stays under the 200-line
+// cap. Returns everything the panel and its section components need; no JSX here.
+//
+// It no longer FETCHES or HOLDS the agenda (challenge-r02 schedule-calendar-invites/A).
+// ScheduleTab owns the one invite list (useScheduleTab) and renders this panel as its
+// child, so the list arrives as props and every write goes through the owner's
+// writers — which adopt the route's answer into the same list the week grid reads,
+// re-read where the write moved the pipeline, and announce on the live-refresh bus.
+// Before, this hook kept a second copy from its own agenda read: a grid booking never
+// reached it, and its accept/cancel never reached the grid.
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
@@ -13,12 +20,12 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useRelativeTime } from "@/app/features/hiring/pipeline/PipelineShared";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
-import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
+import { isInviteActionVerb, type ScheduleAgendaView } from "./scheduleAgenda";
 
 export type ArmedAction ={ token: string; action: "cancel" | "no_show" | "resolve_reconcile" | "decline_proposals" | "reinvite" };
 
-export function useScheduleInviteLifecycle() {
+export function useScheduleInviteLifecycle(agenda: ScheduleAgendaView) {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
   // Failures resolve from the machine `code`, not the server's English `error`.
@@ -32,45 +39,30 @@ export function useScheduleInviteLifecycle() {
   const slotLabel = useSlotLabel();
   // App origin → a clickable reschedule link inside the calendar event body.
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
-  const [invites, setInvites] = useState<ScheduleInvite[] | null>(null);
-  // "Now" captured when the data landed, so the upcoming/past split is a pure
-  // function of state during render (react-hooks/purity) — the agenda is as
-  // fresh as the fetch, which is the honest claim anyway.
-  const [loadedAt, setLoadedAt] = useState(0);
-  const [failed, setFailed] = useState(false);
-  // The agenda read is BOUNDED (GET /api/schedule clamps `?limit=`, default 200) and
-  // now says when it hit that bound. A panel that renders a clipped list as the whole
-  // lifecycle is making a claim the server did not: the oldest invites simply stopped
-  // existing on this surface, silently.
-  const [truncated, setTruncated] = useState(false);
+  // The owner's list, its load-time "now" (so the upcoming/past split stays a pure
+  // function of props during render — react-hooks/purity), and the stated bound: the
+  // agenda read returns at most `limit` invites and says when it hit it.
+  const { invites, loadedAt, failed, truncated } = agenda;
   // Direction 2 — recruiter-side invite control. `armed` is the two-step inline
   // confirm latch (token+action) reused from the app's delete idiom; `busy` gates a
   // row while its action is in flight. (The recruiter reschedule sub-flow was
   // removed 2026-08-10 — time changes come from the candidate's link/proposals.)
   const [armed, setArmed] = useState<ArmedAction | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  // Patch one invite in place (e.g. after a meeting link save) so the row + its
-  // calendar event refresh without a full refetch.
-  const updateInvite = (token: string, patch: Partial<ScheduleInvite>) =>
-    setInvites((prev) => prev?.map((i) => (i.token === token ? { ...i, ...patch } : i)) ?? prev);
 
-  // Run a recruiter action against an invite, then adopt the server's returned row so
-  // it re-buckets in place (a cancel drops it to awaiting, a no-show to closed, a
-  // reschedule updates the slot, a resolve clears the flag) without a full refetch.
+  // Run a recruiter action against an invite through the owner, which adopts the
+  // server's returned row so it re-buckets in place (a cancel drops it to awaiting, a
+  // no-show to closed, an accepted proposal to upcoming AND off the grid's pending
+  // list, a resolve clears the flag) on both surfaces at once.
   const runAction = async (token: string, action: string, slotAt?: string) => {
+    if (!isInviteActionVerb(action)) return false;
     setBusy(token);
     try {
-      const r = await fetch("/api/schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, action, slotAt }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        toast.error(errMsg(d, t("actionFailed")));
+      const res = await agenda.runInviteAction(token, action, slotAt);
+      if (!res.ok) {
+        toast.error(errMsg(res.body, t("actionFailed")));
         return false;
       }
-      if (d.invite) updateInvite(token, d.invite as ScheduleInvite);
       return true;
     } catch {
       toast.error(t("actionFailed"));
@@ -85,27 +77,19 @@ export function useScheduleInviteLifecycle() {
   // FRESH scheduling link via the EXISTING invite route (new token, existing dispatch).
   // The store reconciles only against LIVE invites, so a terminal/expired row never
   // reused — a genuinely new pending invite is created and lands in the awaiting bucket
-  // on the reload below. Honest delivery language keyed off the route's truthful claim.
+  // on the owner's re-read. Honest delivery language keyed off the route's truthful claim.
   const reinvite = async (token: string, entryId: string | null) => {
     if (!entryId) return;
     setBusy(token);
     try {
-      const r = await fetch("/api/schedule/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        toast.error(errMsg(d, t("actionFailed")));
+      const res = await agenda.reinviteEntry(entryId);
+      if (!res.ok) {
+        toast.error(errMsg(res.body, t("actionFailed")));
         return;
       }
       // The route returns the truthful delivery claim (sent only on a relayed 2xx,
       // else queued in the Outbox) — mirror the panel's sent/queued language.
-      toast.success(d.delivery === "sent" ? t("reinviteSent") : t("reinviteQueued"));
-      // Post-mutation: force a fresh request rather than sharing one that may
-      // predate the re-invite we just made.
-      await loadInvites({ refresh: true });
+      toast.success(res.body.delivery === "sent" ? t("reinviteSent") : t("reinviteQueued"));
     } catch {
       toast.error(t("actionFailed"));
     } finally {
@@ -114,40 +98,9 @@ export function useScheduleInviteLifecycle() {
     }
   };
 
-  // Reload the whole agenda from the ONE scheduling engine. Used after a re-invite (so
-  // the freshly-minted pending link appears in the awaiting bucket). useCallback keeps
-  // the Date.now() capture out of render scope (react-hooks/purity).
-  // `refresh` bypasses the in-flight share (sharedGet.ts): a reload AFTER a
-  // mutation must not attach to a request that started before the write.
-  const loadInvites = useCallback(async (opts?: { refresh?: boolean }) => {
-    try {
-      const p = await sharedGetJson<{ invites?: ScheduleInvite[]; truncated?: boolean }>("/api/schedule", opts);
-      setInvites(p.invites ?? []);
-      setTruncated(p.truncated === true);
-      setLoadedAt(Date.now());
-    } catch {
-      setFailed(true);
-    }
-  }, []);
-
-  // Mount read. This panel and the tab's own grid (useScheduleTab) both need the
-  // agenda and both mount in the same tick, so the two GETs coalesce into one.
-  useEffect(() => {
-    let alive = true;
-    sharedGetJson<{ invites?: ScheduleInvite[]; truncated?: boolean }>("/api/schedule")
-      .then((p) => {
-        if (!alive) return;
-        setInvites(p.invites ?? []);
-        setTruncated(p.truncated === true);
-        setLoadedAt(Date.now());
-      })
-      .catch(() => {
-        if (alive) setFailed(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Patch one invite in place (after a meeting link save) so the row + its calendar
+  // event refresh without a full refetch — in the owner's one list.
+  const updateInvite = (token: string, patch: Partial<ScheduleInvite>) => agenda.adoptMeetingPatch(token, patch);
 
   const slotLine = (i: ScheduleInvite) =>
     i.slotAt
