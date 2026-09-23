@@ -4772,6 +4772,26 @@
           "id_invalid": "Ces modifications sont incohérentes. Fermez la préparation et rouvrez-la.",
           "id_duplicate": "Ces modifications sont incohérentes. Fermez la préparation et rouvrez-la."
         }
+      },
+      "planDiff": {
+        "title": "Un plan régénéré est prêt. Vérifiez ce qui changerait avant qu'il ne remplace le plan actuel.",
+        "noopTitle": "Le plan régénéré est identique au plan actuel.",
+        "added": "Ajouté : {topics}",
+        "removed": "Retiré : {topics}",
+        "retimed": "Horaire modifié : {topics}",
+        "retimedItem": "{topic} ({fromA}-{toA} à {fromB}-{toB} min)",
+        "reworded": "Reformulé : {topics}",
+        "signals": "Signaux à confirmer : {added} ajouté(s), {removed} retiré(s)",
+        "scenario": "Le scénario a été réécrit.",
+        "duration": "Durée : {from} à {to} min",
+        "wovenOrphaned": "{count, plural, one {# question que vous avez ajoutée au plan retourne} other {# questions que vous avez ajoutées au plan retournent}} dans la liste importée : {questions}",
+        "checksDetached": "{count, plural, one {# élément coché n'a} other {# éléments cochés n'ont}} pas d'équivalent dans le nouveau plan",
+        "checksMoved": "{count, plural, one {# coche passerait} other {# coches passeraient}} sur un autre élément",
+        "toFallback": "Le nouveau plan est un modèle générique, non adapté par l'IA.",
+        "replace": "Remplacer le plan",
+        "keep": "Conserver l'actuel",
+        "dismiss": "Fermer",
+        "failed": "Votre choix n'a pas pu être enregistré. Veuillez réessayer."
       }
     },
     "transcript": {

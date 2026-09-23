@@ -4772,6 +4772,26 @@
           "id_invalid": "These changes are inconsistent. Close the prep and open it again.",
           "id_duplicate": "These changes are inconsistent. Close the prep and open it again."
         }
+      },
+      "planDiff": {
+        "title": "A regenerated plan is ready. Review what would change before it replaces the current one.",
+        "noopTitle": "The regenerated plan is the same as the current one.",
+        "added": "Added: {topics}",
+        "removed": "Removed: {topics}",
+        "retimed": "Retimed: {topics}",
+        "retimedItem": "{topic} ({fromA}-{toA} to {fromB}-{toB} min)",
+        "reworded": "Reworded: {topics}",
+        "signals": "Signals to confirm: {added} added, {removed} removed",
+        "scenario": "The scenario was rewritten.",
+        "duration": "Length: {from} to {to} min",
+        "wovenOrphaned": "{count, plural, one {# question you added to the plan returns} other {# questions you added to the plan return}} to the imported list: {questions}",
+        "checksDetached": "{count, plural, one {# ticked item has} other {# ticked items have}} no counterpart in the new plan",
+        "checksMoved": "{count, plural, one {# tick would move} other {# ticks would move}} onto a different item",
+        "toFallback": "The new plan is a generic template, not tailored by AI.",
+        "replace": "Replace plan",
+        "keep": "Keep current",
+        "dismiss": "Dismiss",
+        "failed": "That choice could not be saved. Try again."
       }
     },
     "transcript": {

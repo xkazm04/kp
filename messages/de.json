@@ -4772,6 +4772,26 @@
           "id_invalid": "Diese Änderungen sind widersprüchlich. Schließen Sie die Vorbereitung und öffnen Sie sie erneut.",
           "id_duplicate": "Diese Änderungen sind widersprüchlich. Schließen Sie die Vorbereitung und öffnen Sie sie erneut."
         }
+      },
+      "planDiff": {
+        "title": "Ein neu generierter Plan liegt vor. Prüfen Sie, was sich ändern würde, bevor er den aktuellen ersetzt.",
+        "noopTitle": "Der neu generierte Plan entspricht dem aktuellen.",
+        "added": "Hinzugefügt: {topics}",
+        "removed": "Entfernt: {topics}",
+        "retimed": "Zeitlich verschoben: {topics}",
+        "retimedItem": "{topic} ({fromA}-{toA} auf {fromB}-{toB} Min.)",
+        "reworded": "Umformuliert: {topics}",
+        "signals": "Zu bestätigende Signale: {added} hinzugefügt, {removed} entfernt",
+        "scenario": "Das Szenario wurde neu formuliert.",
+        "duration": "Dauer: {from} auf {to} Min.",
+        "wovenOrphaned": "{count, plural, one {# Frage, die Sie in den Plan eingefügt haben, kehrt} other {# Fragen, die Sie in den Plan eingefügt haben, kehren}} in die importierte Liste zurück: {questions}",
+        "checksDetached": "{count, plural, one {# abgehakter Punkt hat} other {# abgehakte Punkte haben}} im neuen Plan keine Entsprechung",
+        "checksMoved": "{count, plural, one {# Häkchen würde} other {# Häkchen würden}} auf einen anderen Punkt wandern",
+        "toFallback": "Der neue Plan ist eine allgemeine Vorlage und nicht per KI zugeschnitten.",
+        "replace": "Plan ersetzen",
+        "keep": "Aktuellen behalten",
+        "dismiss": "Schließen",
+        "failed": "Ihre Auswahl konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
       }
     },
     "transcript": {

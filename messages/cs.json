@@ -4772,6 +4772,26 @@
           "id_invalid": "Tyto změny si odporují. Zavřete přípravu a otevřete ji znovu.",
           "id_duplicate": "Tyto změny si odporují. Zavřete přípravu a otevřete ji znovu."
         }
+      },
+      "planDiff": {
+        "title": "Nově vygenerovaný plán je připraven. Než nahradí ten současný, zkontrolujte, co by se změnilo.",
+        "noopTitle": "Nově vygenerovaný plán je stejný jako ten současný.",
+        "added": "Přidáno: {topics}",
+        "removed": "Odebráno: {topics}",
+        "retimed": "Změněný čas: {topics}",
+        "retimedItem": "{topic} ({fromA}-{toA} na {fromB}-{toB} min)",
+        "reworded": "Přeformulováno: {topics}",
+        "signals": "Signály k ověření: {added} přidáno, {removed} odebráno",
+        "scenario": "Scénář byl přepsán.",
+        "duration": "Délka: {from} až {to} min",
+        "wovenOrphaned": "{count, plural, one {# otázka, kterou jste zařadili do plánu, se vrátí} few {# otázky, které jste zařadili do plánu, se vrátí} many {# otázky, které jste zařadili do plánu, se vrátí} other {# otázek, které jste zařadili do plánu, se vrátí}} mezi importované: {questions}",
+        "checksDetached": "{count, plural, one {# zaškrtnutá položka nemá} few {# zaškrtnuté položky nemají} many {# zaškrtnuté položky nemá} other {# zaškrtnutých položek nemá}} v novém plánu obdobu",
+        "checksMoved": "{count, plural, one {# zaškrtnutí by se přesunulo} few {# zaškrtnutí by se přesunula} many {# zaškrtnutí by se přesunulo} other {# zaškrtnutí by se přesunulo}} na jinou položku",
+        "toFallback": "Nový plán je obecná šablona, nikoli plán přizpůsobený pomocí AI.",
+        "replace": "Nahradit plán",
+        "keep": "Ponechat současný",
+        "dismiss": "Zavřít",
+        "failed": "Volbu se nepodařilo uložit. Zkuste to prosím znovu."
       }
     },
     "transcript": {
