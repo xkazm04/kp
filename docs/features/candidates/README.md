@@ -857,10 +857,29 @@ hash (a hand-built profile, a pre-`cv_hash` analysis) behaves exactly as before.
 The editor and the analysis report's "save as profile" banner both render the
 refusal in the reader's language through `useErrorMessage`.
 
-**An abandoned intake survives Back and refresh.** The editor backs its form up to
-`sessionStorage` per profile id (`kp.profileEditor.<id|new>`), restores it after
-mount, and drops it on save or cancel. Every access is wrapped — a private window
-or a full quota costs the safety net, never the edit.
+**An abandoned intake survives a refresh — and never overwrites newer work.** The
+editor backs its form up to `sessionStorage`, one slot per editing identity
+(`profileEditorBackup.backupSlot`: `kp.profileEditor.<id|new>`, plus `@<analysis slug>`
+when the editor was opened from a CV analysis — so a build-from-analysis never shares
+the blank-create slot and a rebuild never shares the plain-edit slot). The slot holds a
+versioned envelope `{v:2, baseVersion, savedAt, baseline, draft}`: the row's
+`updated_at` and the form as this session loaded it, beside the form as the recruiter
+left it. On the next open `planRestore` decides, three-way:
+
+| Plan | When | What the editor does |
+| --- | --- | --- |
+| `silent` | same version, same loaded form | restores the draft, as before |
+| `moved` | the row was saved since | recruiter-only edits apply, server-only changes stand; a field both sides changed differently is **contested** and keeps the saved value. The banner dates the backup and counts the contested fields; "Use my edits anyway" takes them, "Discard my unsaved edits" is the undo |
+| `offer` | a pre-envelope backup (no version) | nothing is applied; the banner offers "Restore my edits" |
+| `none` | absent, unreadable, or nothing was typed | the slot is dropped |
+
+This matters because the editor seeds `expectedUpdatedAt` from the FRESH load: a stale
+backup restored blind would pass `PROFILE_STALE` on the save and revert a colleague's
+version. While a restore is undecided (contested or offered fields) the slot is not
+rewritten, so a second refresh cannot silently delete the only copy. The slot is
+dropped on save, Back and the stale-reload action. Every access is wrapped — a private
+window or a full quota costs the safety net, never the edit. Pure planner + cases:
+`app/features/tools/profile/profileEditorBackup.ts` / `.test.ts`.
 
 The roster's per-column controls live in the pure `profileRosterView.ts`
 (filter/sort) — the name search folds diacritics and case (`foldForSearch`, the
