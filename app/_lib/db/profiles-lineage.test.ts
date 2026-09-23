@@ -95,31 +95,54 @@ test("a hand-built profile (NULL lineage) is never stale, even when same-label a
   assert.equal(profileStaleness(WS)[handBuilt.id], undefined, "NULL lineage ⇒ no false staleness");
 });
 
+// Every timestamp this test compares is PINNED to a distinct past value. Left to the
+// wall clock it flaked under full-suite load: the staleness entry also carries
+// `edited` + `updatedAt` (see the count-before-run test below), and a plain edit
+// legitimately moves both — so a whole-entry deepEqual only held when saveProfile
+// and updateProfile happened to land in the same millisecond, and the rebuild half
+// was skipped outright whenever the two analyses did.
 test("a plain updateProfile preserves lineage; only setProfileLineage (rebuild) refreshes it", () => {
+  const db = ensureDb();
   const older = saveAnalysis({ ...analysisBase, cvHash: "hash-edit" }, WS);
+  db.prepare(`UPDATE analyses SET created_at = ? WHERE slug = ?`).run("2026-01-01T00:00:00.000Z", older.slug);
   const prof = saveProfile({ ...profileInput, label: "Editable" }, WS, {
     sourceAnalysisSlug: older.slug,
     sourceCvHash: "hash-edit",
-    sourceAnalyzedAt: older.createdAt,
+    sourceAnalyzedAt: "2026-01-01T00:00:00.000Z",
   });
+  // Built (and last written) on 01-05: updated_at == lineage_stamped_at ⇒ not edited.
+  db.prepare(`UPDATE profiles SET updated_at = ?, lineage_stamped_at = ? WHERE id = ?`).run(
+    "2026-01-05T00:00:00.000Z",
+    "2026-01-05T00:00:00.000Z",
+    prof.id
+  );
   const newer = saveAnalysis({ ...analysisBase, cvHash: "hash-edit", payload: { v: 2 } }, WS);
-  const staleBefore = profileStaleness(WS)[prof.id];
+  db.prepare(`UPDATE analyses SET created_at = ? WHERE slug = ?`).run("2026-02-01T00:00:00.000Z", newer.slug);
 
-  // A plain edit must NOT wipe lineage — staleness is unchanged after it.
+  const staleBefore = profileStaleness(WS)[prof.id];
+  assert.ok(staleBefore, "precondition: a newer same-CV analysis makes the profile stale");
+  assert.equal(staleBefore.newerSlug, newer.slug);
+  assert.equal(staleBefore.edited, false, "precondition: no edit since the build");
+
+  // A plain edit must NOT wipe or re-point lineage — the staleness target is unchanged.
+  // It IS a content write, so the entry now (correctly) reports the edit and its version.
   updateProfile(prof.id, { ...profileInput, label: "Editable (edited)" }, WS);
   const staleAfterEdit = profileStaleness(WS)[prof.id];
-  assert.deepEqual(staleAfterEdit, staleBefore, "a plain edit leaves lineage (and staleness) untouched");
+  assert.ok(staleAfterEdit, "a plain edit leaves the profile stale");
+  assert.equal(staleAfterEdit.newerSlug, staleBefore.newerSlug, "a plain edit leaves lineage untouched");
+  assert.equal(staleAfterEdit.newerAnalyzedAt, staleBefore.newerAnalyzedAt, "a plain edit leaves lineage untouched");
+  const { updated_at } = db.prepare(`SELECT updated_at FROM profiles WHERE id = ?`).get(prof.id) as { updated_at: string };
+  assert.ok(updated_at > "2026-01-05T00:00:00.000Z", "the edit stamped updated_at");
+  assert.equal(staleAfterEdit.updatedAt, updated_at, "the entry names the edited version");
+  assert.equal(staleAfterEdit.edited, true, "the edit after the build is reported");
 
   // Rebuild-from-latest re-points the SAME row at the newer analysis ⇒ staleness clears.
-  if (newer.createdAt > older.createdAt) {
-    assert.ok(staleBefore, "precondition: the profile was stale before rebuild");
-    setProfileLineage(
-      prof.id,
-      { sourceAnalysisSlug: newer.slug, sourceCvHash: "hash-edit", sourceAnalyzedAt: newer.createdAt },
-      WS
-    );
-    assert.equal(profileStaleness(WS)[prof.id], undefined, "after rebuild, no newer analysis exists ⇒ not stale");
-  }
+  setProfileLineage(
+    prof.id,
+    { sourceAnalysisSlug: newer.slug, sourceCvHash: "hash-edit", sourceAnalyzedAt: "2026-02-01T00:00:00.000Z" },
+    WS
+  );
+  assert.equal(profileStaleness(WS)[prof.id], undefined, "after rebuild, no newer analysis exists ⇒ not stale");
 });
 
 test("staleness is workspace-scoped", () => {
