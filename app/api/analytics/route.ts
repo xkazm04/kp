@@ -3,6 +3,7 @@ import { pipelineAnalytics, pipelineAnalyticsPrior } from "@/app/_lib/db/analyti
 import type { PipelineAnalytics } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { periodDeltas, type PeriodDeltas } from "@/app/_lib/analytics-deltas";
+import { deltaWindows } from "@/app/_lib/analytics-cohort";
 import { createAnalyticsCache } from "@/app/_lib/analytics-cache";
 import { parseJobParam } from "@/app/features/insights/analytics/analyticsJobScope";
 
@@ -44,14 +45,19 @@ export async function GET(request: Request) {
     const jobId = parseJobParam(searchParams.get("job"));
     const ws = await currentWorkspace();
     const payload = payloadCache.get(ws, windowDays, () => {
-      const current = pipelineAnalytics(windowDays, jobId ? { jobId } : undefined, ws);
+      // challenge-r06 — ONE clock per request. Both windows derive from it
+      // (deltaWindows): the prior window's end IS the live window's cutoff, the same
+      // number, so the two reads tile instead of each computing its own boundary.
+      const nowMs = Date.now();
+      const windows = windowDays ? deltaWindows(nowMs, windowDays) : null;
+      const current = pipelineAnalytics(windowDays, jobId ? { jobId, nowMs } : { nowMs }, ws);
       // ce8e3c9e — only a windowed view has a well-defined "previous period". For
       // all-time (no window) there's nothing to compare against, so deltas are null.
       // channel-story-complete — the prior window feeds ONLY periodDeltas, which reads
       // a handful of scalars; pipelineAnalyticsPrior computes just those (2 queries)
       // instead of re-running the full ~9-query battery whose rest the route discards.
-      const deltas = windowDays
-        ? periodDeltas(current, pipelineAnalyticsPrior(windowDays, Date.now() - windowDays * 86_400_000, ws, { jobId }))
+      const deltas = windowDays && windows
+        ? periodDeltas(current, pipelineAnalyticsPrior(windowDays, windows.prior.endExclusive, ws, { jobId }))
         : null;
       return { ...current, deltas };
     }, jobId);

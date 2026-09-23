@@ -11,6 +11,7 @@ import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpendDetail } from "./channels";
 import { stageDwellNow, type StageDwellNowRow } from "./analytics-stage-dwell";
+import { DAY_MS, foldCohort, foldSources, windowStart } from "../analytics-cohort";
 
 // Figures a role-scoped read cannot honestly scope, WITHHELD BY NAME with a reason
 // (analyticsJobScope.ts renders them; kept here so the route graph stays small).
@@ -247,17 +248,8 @@ export const ANALYTICS_COHORT_CAP = 20_000;
  *  arithmetic cannot drift apart. */
 const BUCKET_TZ = "UTC" as const;
 
-/** The four ORIGIN buckets `bySource` reports, from an entry's EARLIEST pipeline
- *  event kind. Declared once: this mapping was typed out byte-identically inside
- *  both `pipelineAnalytics` and `pipelineAnalyticsPrior`, whose whole contract is
- *  that they bucket the same rows the same way — two copies of the rule the delta
- *  depends on being identical is the one shape that rule must not have. */
-function originOf(kind: string): string {
-  if (kind === "applied") return "applied";
-  if (kind === "matched") return "matched";
-  if (kind === "added" || kind === "intake_degraded") return "added";
-  return "other";
-}
+// `originOf` (the four ORIGIN buckets `bySource` reports) lives in the pure cohort
+// module (../analytics-cohort.ts) beside the fold both windows share.
 
 /** Resolve a caller's `rowCap` against the module cap. A non-positive or
  *  non-integer override would bind `LIMIT 0` (reads nothing) or `LIMIT -1`
@@ -327,12 +319,17 @@ export function pipelineAnalytics(
   // honesty about the DEFAULT bound.
   // `jobId` is the missing cohort axis: one role's funnel / TTH / cost-per-hire.
   // Omitted = workspace-wide, byte-identical to the historical two-opt shape.
-  opts?: { endMs?: number; rowCap?: number; jobId?: string },
+  // `nowMs` pins the read's clock (challenge-r06): the route captures ONE `now` and
+  // derives both delta windows from it (deltaWindows), so the live cohort's cutoff and
+  // the prior window's end are the same number. It does NOT upper-bound the cohort
+  // (that is `endMs`); every as-of-now figure (age, dwell, momentum) reads it too.
+  opts?: { endMs?: number; nowMs?: number; rowCap?: number; jobId?: string },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineAnalytics {
   const db = ensureDb();
-  const endMs = opts?.endMs ?? Date.now();
-  const cutoffIso = windowDays ? new Date(endMs - windowDays * 86_400_000).toISOString() : null;
+  const clockMs = opts?.nowMs ?? Date.now();
+  const endMs = opts?.endMs ?? clockMs;
+  const cutoffIso = windowDays ? new Date(windowStart(endMs, windowDays)).toISOString() : null;
   const upperIso = opts?.endMs != null && windowDays ? new Date(endMs).toISOString() : null;
   const rowCap = cohortCap(opts?.rowCap);
   const jobId = typeof opts?.jobId === "string" && opts.jobId.trim() ? opts.jobId.trim() : null;
@@ -408,50 +405,39 @@ export function pipelineAnalytics(
   // five canonical names produced a chart with rows nobody recognised, and
   // silently dropped (idxOf === -1) every candidate standing on a renamed one.
   const axis = getPipelineAxis(workspaceId).stages;
-  const stageIds = axis.map((s) => s.id);
   const idxOf = (s: string) => stageIndex(s, axis);
   // "Reached the real-evaluation gate", by ROLE — the same threshold the
   // archetype-fairness metric uses, so the two can never report different numbers
   // for one cohort. And "finished", by role rather than by the name "Hired".
   const gateIdx = screeningGateIndex(axis);
   const isTerminal = (stage: string) => stageHasRole(stage, "terminal", axis);
-  const now = Date.now();
+  const now = clockMs;
   const daysSince = (iso?: string | null): number | null => {
     if (!iso) return null;
     const ms = Date.parse(iso);
     // A blank/malformed timestamp parses to NaN; skip it rather than letting
     // NaN poison avgAgeDays / the bottleneck average downstream.
-    return Number.isFinite(ms) ? Math.max(0, (now - ms) / 86_400_000) : null;
+    return Number.isFinite(ms) ? Math.max(0, (now - ms) / DAY_MS) : null;
   };
 
-  const total = rows.length;
-  const hired = rows.filter((r) => isTerminal(r.stage)).length;
+  // The cohort scalars — total, hired, funnel reach/conversion, the time-to-hire
+  // sample, the per-channel counts — through the ONE fold the prior window uses too
+  // (../analytics-cohort.ts), judged as of this read's end: the window's own end when
+  // `endMs` bounds it; unbounded (+Infinity) for the live read, so every row counts as it
+  // stands — a hire stamped in the same millisecond as the read is still a hire.
+  const asOfMs = opts?.endMs ?? Number.POSITIVE_INFINITY;
+  const cohort = foldCohort(rows, axis, { asOfMs });
+  const total = cohort.total;
+  const hired = cohort.hired;
   // Now that declines carry their own status, `rejected` counts only company-side
   // passes; `declined` is the candidate-side close that used to be folded in.
   const rejected = rows.filter((r) => r.status === "rejected").length;
   const declined = rows.filter((r) => r.status === "declined").length;
   const active = rows.filter((r) => r.status === "active" && !isTerminal(r.stage)).length;
 
-  const reached = stageIds.map(() => 0);
-  const current = stageIds.map(() => 0);
-  for (const r of rows) {
-    const i = idxOf(r.stage);
-    if (i < 0) continue;
-    for (let k = 0; k <= i; k += 1) reached[k] += 1;
-    if (r.status === "active") current[i] += 1;
-  }
-  const funnel = stageIds.map((stage, i) => ({
-    stage,
-    reached: reached[i],
-    current: current[i],
-    conversionPct: i === 0 ? null : reached[i - 1] > 0 ? Math.round((reached[i] / reached[i - 1]) * 100) : null,
-  }));
-
-  const tth = rows
-    .filter((r) => isTerminal(r.stage) && r.created_at && r.stage_changed_at)
-    .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
-    .filter((d) => d >= 0);
-  const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
+  const funnel = cohort.funnel;
+  const tth = cohort.tthDays;
+  const avgTimeToHireDays = cohort.avgTimeToHireDays;
   const medianTimeToHireDays = medianRounded(tth);
 
   const ages = rows
@@ -558,7 +544,7 @@ export function pipelineAnalytics(
   // shows the default trailing MOMENTUM_WEEKS. Events are fetched only for the
   // span the buckets cover (created_at is indexed).
   const momentumWeeks = windowDays ? Math.max(1, Math.ceil(windowDays / 7)) : MOMENTUM_WEEKS;
-  const momentumCutoff = new Date(Date.now() - momentumWeeks * 7 * 86_400_000).toISOString();
+  const momentumCutoff = new Date(clockMs - momentumWeeks * 7 * DAY_MS).toISOString();
   const momentumKindList = `(${MOMENTUM_EVENT_KINDS.map((k) => `'${k}'`).join(", ")})`; // compile-time literals
   const momentumRows = db
     .prepare(
@@ -631,24 +617,27 @@ export function pipelineAnalytics(
   // that the outer p.workspace_id join then discards. Scoping keeps the result
   // identical (an entry's events share its workspace) while bounding the scan.
   // Withheld under a role scope.
+  // Half-open like the cohort SELECT: when `endMs` bounds the window, so does this read
+  // (challenge-r06 — it used to be lower-bound only, so a bounded window's per-source
+  // volume also counted every candidate created after it).
   const sourceRows = (
     jobId
       ? []
       : cutoffIso
         ? db
             .prepare(
-              `SELECT p.stage AS stage, fe.kind AS kind
+              `SELECT p.stage AS stage, fe.kind AS kind, p.stage_changed_at AS stage_changed_at
                  FROM pipeline_entries p
                  JOIN (SELECT entry_id, kind FROM pipeline_events
                         WHERE id IN (SELECT MIN(id) FROM pipeline_events
                                       WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                       ) fe ON fe.entry_id = p.id
-                WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+                WHERE p.created_at >= ?${upperIso ? " AND p.created_at < ?" : ""} AND ${notSim("p.job_title")} AND p.workspace_id = ?`
             )
-            .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId)
+            .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, ...(upperIso ? [upperIso] : []), SIM_TITLE_LIKE, workspaceId)
         : db
             .prepare(
-              `SELECT p.stage AS stage, fe.kind AS kind
+              `SELECT p.stage AS stage, fe.kind AS kind, p.stage_changed_at AS stage_changed_at
                  FROM pipeline_entries p
                  JOIN (SELECT entry_id, kind FROM pipeline_events
                         WHERE id IN (SELECT MIN(id) FROM pipeline_events
@@ -657,39 +646,16 @@ export function pipelineAnalytics(
                 WHERE ${notSim("p.job_title")} AND p.workspace_id = ?`
             )
             .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
-  ) as { stage: string; kind: string }[];
-  const sourceMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
-  for (const r of sourceRows) {
-    const key = originOf(r.kind);
-    const m = sourceMap.get(key) ?? { total: 0, reachedInterview: 0, hired: 0 };
-    m.total += 1;
-    if (idxOf(r.stage) >= gateIdx) m.reachedInterview += 1;
-    if (isTerminal(r.stage)) m.hired += 1;
-    sourceMap.set(key, m);
-  }
-  const bySource = [...sourceMap.entries()]
-    .map(([source, m]) => ({
-      source,
-      total: m.total,
-      reachedInterview: m.reachedInterview,
-      hired: m.hired,
-      hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
+  ) as { stage: string; kind: string; stage_changed_at: string | null }[];
+  const bySource = foldSources(sourceRows, axis, { asOfMs });
 
   // E5 — channel economics over the STORED source_channel (E3). Same windowed
   // cohort as the rest of the page; entries without attribution (recruiter/
   // Match-sourced, legacy) simply don't appear — bySource above covers them.
-  const channelMap = new Map<string, { total: number; reachedInterview: number; hired: number; rejected: number }>();
-  for (const r of rows) {
-    if (!r.source_channel) continue;
-    const m = channelMap.get(r.source_channel) ?? { total: 0, reachedInterview: 0, hired: 0, rejected: 0 };
-    m.total += 1;
-    if (idxOf(r.stage) >= gateIdx) m.reachedInterview += 1;
-    if (isTerminal(r.stage)) m.hired += 1;
-    if (r.status === "rejected") m.rejected += 1;
-    channelMap.set(r.source_channel, m);
-  }
+  // The per-channel counts come from the same fold as the cohort scalars.
+  const channelMap = new Map<string, { total: number; reachedInterview: number; hired: number; rejected: number }>(
+    cohort.byChannel.map((c) => [c.channel, { total: c.total, reachedInterview: c.reachedInterview, hired: c.hired, rejected: c.rejected }])
+  );
   // Median time from entry creation to the FIRST decision event (advance or
   // reject, human or policy) — the per-channel "how fast do we actually decide"
   // figure. One grouped query; the median itself is pure (source-analytics).
@@ -952,20 +918,25 @@ export function pipelineAnalytics(
 }
 
 // channel-story-complete — the period-over-period comparison (periodDeltas) reads
-// ONLY these scalars off the prior window: total, hired, avgTimeToHireDays, the
-// funnel conversion per stage, and per-source / per-channel volume + hire-rate (+ a
-// per-channel CPA that is null in any windowed view). Everything else the full
-// pipelineAnalytics battery computes for the prior window — momentum, automation,
-// holds, the decision-time median, KO counts, spend, targets, variants — is thrown
-// away by the route. Running that whole ~9-query battery twice per windowed load was
-// pure waste; this computes the SAME compared scalars with just the two queries they
-// need (the cohort SELECT + the first-event origin JOIN). Pinned byte-identical to
-// the full battery's fields by analytics-prior-slice.test.ts.
+// ONLY these scalars off the prior window: total, hired, time-to-hire (with its
+// sample), the funnel reach + conversion per stage, and per-source / per-channel volume
+// + hire-rate (+ a per-channel CPA that is null in any windowed view). Everything else
+// the full pipelineAnalytics battery computes for the prior window is thrown away by
+// the route, so this computes just the compared scalars with the two queries they need
+// (the cohort SELECT + the first-event origin JOIN). analytics-prior-slice.test.ts
+// pins it equal to the full battery's projection over a bounded window.
+//
+// challenge-r06 — both windows fold through the ONE pure function
+// (../analytics-cohort.ts). The slice carries each side's n (funnel `reached`,
+// `timeToHireSamples`) so periodDeltas can withhold a movement computed off a thin
+// cohort instead of painting it as a trend.
 export type PriorWindowSlice = {
   total: number;
   hired: number;
   avgTimeToHireDays: number | null;
-  funnel: { stage: string; conversionPct: number | null }[];
+  /** How many hires the time-to-hire figure was computed over — its n. */
+  timeToHireSamples: number;
+  funnel: { stage: string; reached: number; conversionPct: number | null }[];
   bySource: { source: string; total: number; hireRatePct: number }[];
   byChannel: { channel: string; total: number; hireRatePct: number; costPerApplicantCzk: number | null }[];
   /** Same bound, same honesty as PipelineAnalytics.truncated — a delta computed
@@ -975,27 +946,25 @@ export type PriorWindowSlice = {
 
 /**
  * The slim prior-window aggregation: exactly the fields periodDeltas() diffs, no
- * more. The route only ever calls this for the PRIOR window of a windowed load, so
- * `endMs` (the window's upper bound) and `windowDays` are always set — mirror the
- * full battery's prior call `pipelineAnalytics(windowDays, { endMs }, ws)`.
+ * more. The route calls it with the prior window of `deltaWindows(now, days)`, so
+ * `endMs` is the CURRENT window's start — the two windows tile.
  *
- * Byte-identity notes (each choice matches the full battery's exact semantics):
- *  - The cohort SELECT is upper-AND-lower-bounded (`created_at >= cutoff AND < end`),
- *    exactly the full main query for a prior window (analytics.ts main SELECT).
- *  - bySource comes from the first-event origin JOIN with the LOWER bound ONLY — the
- *    full battery's sourceRows query applies `p.created_at >= cutoff` and no upper
- *    bound, so this replicates that (a bounded version would diverge from the value
- *    the route currently produces).
+ * Window semantics (challenge-r06 — these replaced a byte-identity with a leak):
+ *  - EVERY read is half-open, `created_at >= start AND created_at < endMs`: the cohort
+ *    SELECT and the first-event origin JOIN alike. The origin read used to be
+ *    lower-bound only, so the prior window's per-source volume also counted every
+ *    candidate of the current window.
+ *  - The cohort is judged AS OF `endMs`: a terminal row whose terminal transition
+ *    landed at or after the window end is not a hire of this window and not in its
+ *    time-to-hire sample (see analytics-cohort.ts for the rule and its stated limit).
  *  - Per-channel CPA is null: spend is a lifetime total, so a windowed cohort has no
  *    honest per-period CPA (the full battery returns null in windowed views), which
  *    is why no channel_spend read is needed here at all.
- *  - ONE deliberate divergence (UAT KAT-ANA-2): the full battery now also emits a row
- *    for a channel that has recorded SPEND but no attributed candidates, so its stored
+ *  - ONE deliberate divergence (UAT KAT-ANA-2): the full battery also emits a row for
+ *    a channel that has recorded SPEND but no attributed candidates, so its stored
  *    figure stays editable. The prior slice does not, and must not — such a row is
  *    volume 0 with a null rate and a null CPA, i.e. it contributes nothing any delta
- *    could read, and adding it would reintroduce the channel_spend read this slice
- *    exists to avoid. periodDeltas already treats an absent prior channel as "no
- *    baseline", the same as an absent prior funnel stage.
+ *    could read. periodDeltas already treats an absent prior channel as "no baseline".
  */
 export function pipelineAnalyticsPrior(
   windowDays: number,
@@ -1005,7 +974,7 @@ export function pipelineAnalyticsPrior(
   opts?: { rowCap?: number; jobId?: string | null }
 ): PriorWindowSlice {
   const db = ensureDb();
-  const cutoffIso = new Date(endMs - windowDays * 86_400_000).toISOString();
+  const cutoffIso = new Date(windowStart(endMs, windowDays)).toISOString();
   const upperIso = new Date(endMs).toISOString();
   const rowCap = cohortCap(opts?.rowCap);
   const jobId = typeof opts?.jobId === "string" && opts.jobId.trim() ? opts.jobId.trim() : null;
@@ -1013,9 +982,6 @@ export function pipelineAnalyticsPrior(
   // against the live one, so the two MUST index identically or the delta would
   // compare a row of one funnel to a different row of another.
   const axis = getPipelineAxis(workspaceId).stages;
-  const stageIds = axis.map((s) => s.id);
-  const idxOf = (s: string) => stageIndex(s, axis);
-  const isTerminal = (stage: string) => stageHasRole(stage, "terminal", axis);
 
   // Bounded + newest-first + one row past the cap, exactly like the full battery's
   // cohort read (see the note there) — the two must cut the SAME way or the delta
@@ -1037,74 +1003,49 @@ export function pipelineAnalyticsPrior(
   const truncated = capRead.length > rowCap;
   const rows = truncated ? capRead.slice(0, rowCap) : capRead;
 
-  const total = rows.length;
-  const hired = rows.filter((r) => isTerminal(r.stage)).length;
+  const cohort = foldCohort(rows, axis, { asOfMs: endMs });
 
-  const reached = stageIds.map(() => 0);
-  for (const r of rows) {
-    const i = idxOf(r.stage);
-    if (i < 0) continue;
-    for (let k = 0; k <= i; k += 1) reached[k] += 1;
-  }
-  const funnel = stageIds.map((stage, i) => ({
-    stage,
-    conversionPct: i === 0 ? null : reached[i - 1] > 0 ? Math.round((reached[i] / reached[i - 1]) * 100) : null,
-  }));
-
-  const tth = rows
-    .filter((r) => isTerminal(r.stage) && r.created_at && r.stage_changed_at)
-    .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
-    .filter((d) => d >= 0);
-  const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
-
-  // bySource — earliest-event origin, the SAME JOIN + lower-bound-only window the
-  // full battery's sourceRows query uses (see byte-identity note above); withheld
-  // under a role scope, as the live read withholds it.
+  // bySource — earliest-event origin over the SAME half-open window; withheld under a
+  // role scope, as the live read withholds it.
   const sourceRows = jobId
     ? []
-    : db
-          .prepare(
-            `SELECT p.stage AS stage, fe.kind AS kind
-               FROM pipeline_entries p
-               JOIN (SELECT entry_id, kind FROM pipeline_events
-                      WHERE id IN (SELECT MIN(id) FROM pipeline_events
-                                    WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
-                    ) fe ON fe.entry_id = p.id
-              WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
-          )
-          .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId) as { stage: string; kind: string }[];
-  const sourceMap = new Map<string, { total: number; hired: number }>();
-  for (const r of sourceRows) {
-    const key = originOf(r.kind);
-    const m = sourceMap.get(key) ?? { total: 0, hired: 0 };
-    m.total += 1;
-    if (isTerminal(r.stage)) m.hired += 1;
-    sourceMap.set(key, m);
-  }
-  const bySource = [...sourceMap.entries()]
-    .map(([source, m]) => ({ source, total: m.total, hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0 }))
+    : (db
+        .prepare(
+          `SELECT p.stage AS stage, fe.kind AS kind, p.stage_changed_at AS stage_changed_at
+             FROM pipeline_entries p
+             JOIN (SELECT entry_id, kind FROM pipeline_events
+                    WHERE id IN (SELECT MIN(id) FROM pipeline_events
+                                  WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
+                  ) fe ON fe.entry_id = p.id
+            WHERE p.created_at >= ? AND p.created_at < ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+        )
+        .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId) as {
+        stage: string;
+        kind: string;
+        stage_changed_at: string | null;
+      }[]);
+  const bySource = foldSources(sourceRows, axis, { asOfMs: endMs }).map((r) => ({
+    source: r.source,
+    total: r.total,
+    hireRatePct: r.hireRatePct,
+  }));
+
+  // byChannel — the stored source_channel grouping off the same bounded cohort, sorted
+  // by volume like the full battery's; CPA is null in any windowed view (see above).
+  const byChannel = cohort.byChannel
+    .map((c) => ({ channel: c.channel, total: c.total, hireRatePct: c.hireRatePct, costPerApplicantCzk: null }))
     .sort((a, b) => b.total - a.total);
 
-  // byChannel — the stored source_channel grouping off the same bounded cohort;
-  // CPA is null in any windowed view (see byte-identity note above).
-  const channelMap = new Map<string, { total: number; hired: number }>();
-  for (const r of rows) {
-    if (!r.source_channel) continue;
-    const m = channelMap.get(r.source_channel) ?? { total: 0, hired: 0 };
-    m.total += 1;
-    if (isTerminal(r.stage)) m.hired += 1;
-    channelMap.set(r.source_channel, m);
-  }
-  const byChannel = [...channelMap.entries()]
-    .map(([channel, m]) => ({
-      channel,
-      total: m.total,
-      hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
-      costPerApplicantCzk: null,
-    }))
-    .sort((a, b) => b.total - a.total);
-
-  return { total, hired, avgTimeToHireDays, funnel, bySource, byChannel, truncated };
+  return {
+    total: cohort.total,
+    hired: cohort.hired,
+    avgTimeToHireDays: cohort.avgTimeToHireDays,
+    timeToHireSamples: cohort.timeToHireSamples,
+    funnel: cohort.funnel.map((f) => ({ stage: f.stage, reached: f.reached, conversionPct: f.conversionPct })),
+    bySource,
+    byChannel,
+    truncated,
+  };
 }
 
 // compute-cost-per-hire — read-only windowed aggregate of the LLM usage ledger (the
@@ -1121,7 +1062,7 @@ export function computeCostWindow(
 ): { costUsd: number; calls: number; unpricedCalls: number } {
   const db = ensureDb();
   const end = endMs ?? Date.now();
-  const cutoffIso = windowDays ? new Date(end - windowDays * 86_400_000).toISOString() : null;
+  const cutoffIso = windowDays ? new Date(windowStart(end, windowDays)).toISOString() : null;
   const upperIso = endMs != null && windowDays ? new Date(end).toISOString() : null;
   const clauses: string[] = [];
   const args: string[] = [];
