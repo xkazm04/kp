@@ -161,6 +161,29 @@ run. It spends the same per-class budget. The Background-tasks drawer
 per available scope. Older rows that stored counts only offer no subset retry,
 because counts cannot say which candidates to retry.
 
+**Replay verdict per dead row.** `app/_lib/task-replay.ts` decides whether a
+whole-run replay of a finished row can run. `replayVerdict(kind, status, params,
+exists, hasCapability)` returns `null` for a succeeded or active row. For a failed,
+interrupted or canceled row it returns `{ replayable: true }` or
+`{ replayable: false, reason }`, where the reason is a code: `no-seat` (the caller
+lacks the capability `task-admission.ts` declares for the kind), `kind-retired` (a
+kind this build no longer knows) or `inputs-gone`. The last one applies to
+path-bearing kinds, today only `analyze`. Its params name the upload workdir, and
+`runAnalyze` deletes that workdir on every exit, so a failed or canceled analyze row
+usually points at files that no longer exist. The check is a stat, not a ban on the
+kind: a crash leaves the row `interrupted` with the workdir still on disk, and that
+replay is valid. GET `/api/tasks` and GET `/api/tasks/history` stamp `replay` on
+every row through `attachReplayVerdicts`. It reads the stored params of the page's
+dead path-bearing rows in one query (`listTaskParams` in `app/_lib/db/tasks.ts`),
+and the list payload still carries `params: null`. POST `/api/tasks/[id]/retry`
+refuses with 409 `TASK_REPLAY_INPUTS_GONE` through `replayBlock`, the same function,
+so the row and the refusal agree. The row (`TasksRowActions.tsx`, through
+`rowRetryAction` in `tasksTabHelpers.ts`) shows Retry only when the verdict allows
+it. Otherwise it shows the reason from `tasks.replay.*` in the reader's language
+and, for `inputs-gone` on analyze, a link to the Analyze tab where the files are
+uploaded again. A row with no `replay` field, from an older server, still offers
+Retry. The verdict is part of `tasksSignature`, so a change repaints the row.
+
 ```text
 app/
   page.tsx                          Workspace shell (tab-based studio UI); '/' is gated
