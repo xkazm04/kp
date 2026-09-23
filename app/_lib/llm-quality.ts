@@ -34,6 +34,18 @@ export interface QualityCell extends QualityDims {
   /** median wall-clock of the model's LLM scenarios, ms — the speed axis (the instant
    *  deterministic fallback is excluded so it can't fake a fast p50) */
   p50Ms: number;
+  /** median USD spend of the model's served LLM scenarios (one task). null =
+   *  UNPRICED (no scenario reported a cost) - never read as free. Optional so a
+   *  bake from before the field existed still type-checks. For the claude_cli lane
+   *  this is the CLI's list-price equivalent; the seat itself is subscription-billed. */
+  costPerTaskUsd?: number | null;
+}
+
+/** The exact bench (provider, model) that produced a scorecard slug - what a
+ *  routing pin must name to run the measured configuration. */
+export interface QualityTarget {
+  provider: string;
+  model: string;
 }
 
 export interface QualityScores {
@@ -47,6 +59,8 @@ export interface QualityScores {
   models: string[];
   /** cells[benchOp][modelSlug] — only measured cells present */
   cells: Record<string, Record<string, QualityCell>>;
+  /** slug -> bench provider/model (baked from the records; optional for old bakes) */
+  targets?: Record<string, QualityTarget>;
 }
 
 /** The 15 bench ops = the fine-grained "cases", each mapped to the coarser routing
@@ -147,6 +161,18 @@ export const QUALITY_WEIGHTS: QualityDims = {
   adherence: 0.35,
   relevance: 0.25,
 };
+
+/** How far below the best composite a model may sit and still count as a statistical
+ *  tie - the ruler's swing at the bake's sample size. Fixed BEFORE the recommendation
+ *  was built (challenge r07 llm-layer/B) and pinned by llm-quality.test.ts; do not tune
+ *  it to a result. `narrow` applies when BOTH compared use-case aggregates rest on at
+ *  least `atJudges` judged scenarios in every op, `wide` otherwise (fewer judged runs,
+ *  a noisier median). Composite points on the 0-10 scale. */
+export const NOISE_BAND = { atJudges: 4, narrow: 0.15, wide: 0.3 } as const;
+
+/** A model whose worst op produced real LLM output on fewer than this share of
+ *  attempts is not a candidate for a recommendation (the bar the board flags at). */
+export const RELIABILITY_FLOOR = 0.9;
 
 /** A structurally-invalid output is coerced to the deterministic fallback in
  *  production, so it takes a real quality hit even when the prose reads well. */
@@ -300,4 +326,145 @@ export function matrixSlug(provider: string, model: string | null | undefined): 
   if (provider === "openrouter") return model;
   const prefix = PROVIDER_PREFIX[provider];
   return prefix ? `${prefix}/${model}` : model;
+}
+
+// ── Recommended routing: the cheapest model within noise of the best ──────────
+//
+// Per ROUTING use case (automation's five ops together): every model with a cell on
+// EVERY op of the use case and a worst-op llmRate at or above RELIABILITY_FLOOR is a
+// candidate. The best is the highest mean composite; the pick is the cheapest PRICED
+// candidate whose composite sits within NOISE_BAND of the best. An unpriced model is
+// never claimed cheapest, and an unpriced best means the price comparison cannot be
+// made at all (cost_unmeasured: the pick is the best).
+
+export const PICK_REASONS = [
+  "cheapest_in_band",
+  "best_is_cheapest",
+  "only_candidate",
+  "cost_unmeasured",
+  "no_reliable_candidate",
+] as const;
+export type PickReason = (typeof PICK_REASONS)[number];
+
+export interface UseCaseAggregate {
+  model: string;
+  /** mean composite across the use case's ops (one decimal, as the board shows) */
+  composite: number;
+  /** mean per-op cost; null when any op is unpriced */
+  costPerTaskUsd: number | null;
+  /** median of the per-op p50s */
+  p50Ms: number | null;
+  /** the fewest judged scenarios behind any op (confidence) */
+  judges: number;
+  /** the worst op's llmRate (reliability) */
+  llmRate: number;
+  /** the bench provider/model a pin needs; null on a bake without targets */
+  target: QualityTarget | null;
+}
+
+export interface UseCaseRecommendation {
+  useCase: string;
+  pick: UseCaseAggregate;
+  best: UseCaseAggregate;
+  /** the band that decided the pick (NOISE_BAND.narrow or .wide) */
+  band: number;
+  reason: PickReason;
+  /** best cost / pick cost - how many times more the top scorer costs; null when
+   *  either side is unpriced or the pick costs nothing measurable */
+  costMultiple: number | null;
+}
+
+function aggregateForUseCase(scores: QualityScores, ops: string[], model: string): UseCaseAggregate | null {
+  const measured: QualityCell[] = [];
+  for (const op of ops) {
+    const c = scores.cells[op]?.[model];
+    if (!c) return null;
+    measured.push(c);
+  }
+  if (!measured.length) return null;
+  const composite = clamp10(measured.reduce((sum, c) => sum + qualityComposite(c), 0) / measured.length);
+  const costs: number[] = [];
+  for (const c of measured) {
+    if (typeof c.costPerTaskUsd === "number" && Number.isFinite(c.costPerTaskUsd)) costs.push(c.costPerTaskUsd);
+  }
+  return {
+    model,
+    composite,
+    costPerTaskUsd: costs.length === measured.length ? costs.reduce((sum, c) => sum + c, 0) / costs.length : null,
+    p50Ms: median(measured.map((c) => c.p50Ms)),
+    judges: Math.min(...measured.map((c) => c.judges)),
+    llmRate: Math.min(...measured.map((c) => c.llmRate)),
+    target: scores.targets?.[model] ?? null,
+  };
+}
+
+/** One model's aggregate on a routing use case (the board's "your pin" column), or
+ *  null when the use case has no bench op or the model misses one of them. */
+export function modelOnUseCase(scores: QualityScores, useCase: string, model: string): UseCaseAggregate | null {
+  const ops = opsForUseCase(useCase);
+  return ops.length ? aggregateForUseCase(scores, ops, model) : null;
+}
+
+const bandFor = (a: UseCaseAggregate, b: UseCaseAggregate): number =>
+  Math.min(a.judges, b.judges) >= NOISE_BAND.atJudges ? NOISE_BAND.narrow : NOISE_BAND.wide;
+
+// Composites are one-decimal; an epsilon keeps 9.1 - 9.0 (0.0999...) and the band
+// edge honest under float arithmetic.
+const EPS = 1e-9;
+
+const highest = (list: UseCaseAggregate[]): UseCaseAggregate =>
+  list.reduce((top, a) => (a.composite > top.composite ? a : top), list[0]);
+
+/** The recommended model for one routing use case, or null when no bench op feeds it.
+ *  `opUseCases` overrides the BENCH_OPS mapping (op id -> use case), for fixtures. */
+export function recommendForUseCase(
+  scores: QualityScores,
+  useCase: string,
+  opUseCases?: Readonly<Record<string, string>>
+): UseCaseRecommendation | null {
+  const ops = opUseCases
+    ? Object.keys(opUseCases).filter((op) => opUseCases[op] === useCase)
+    : opsForUseCase(useCase);
+  if (!ops.length) return null;
+  const all = scores.models
+    .map((m) => aggregateForUseCase(scores, ops, m))
+    .filter((a): a is UseCaseAggregate => a !== null);
+  if (!all.length) return null;
+
+  const reliable = all.filter((a) => a.llmRate + EPS >= RELIABILITY_FLOOR);
+  if (!reliable.length) {
+    const top = highest(all);
+    return { useCase, pick: top, best: top, band: NOISE_BAND.wide, reason: "no_reliable_candidate", costMultiple: null };
+  }
+  const best = highest(reliable);
+  const inBand = reliable.filter((a) => best.composite - a.composite <= bandFor(best, a) + EPS);
+  // The band that decided: narrow only when every in-band comparison was narrow.
+  const band = inBand.every((a) => bandFor(best, a) === NOISE_BAND.narrow) ? NOISE_BAND.narrow : NOISE_BAND.wide;
+  if (reliable.length === 1) {
+    return { useCase, pick: best, best, band, reason: "only_candidate", costMultiple: null };
+  }
+  const bestCost = best.costPerTaskUsd;
+  if (bestCost === null) {
+    return { useCase, pick: best, best, band, reason: "cost_unmeasured", costMultiple: null };
+  }
+  // Cheapest priced in-band candidate; on an equal price the higher composite, then
+  // scorecard order (the best is the seed, so it keeps a dead heat on price).
+  let pick = best;
+  let pickCost = bestCost;
+  for (const a of inBand) {
+    const cost = a.costPerTaskUsd;
+    if (cost === null) continue;
+    if (cost < pickCost - EPS || (Math.abs(cost - pickCost) <= EPS && a.composite > pick.composite)) {
+      pick = a;
+      pickCost = cost;
+    }
+  }
+  return {
+    useCase,
+    pick,
+    best,
+    band,
+    reason: pick.model === best.model ? "best_is_cheapest" : "cheapest_in_band",
+    costMultiple: pickCost > 0 ? Math.round((bestCost / pickCost) * 10) / 10 : null,
+  };
 }

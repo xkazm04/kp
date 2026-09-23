@@ -1,23 +1,34 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { useCallback, useEffect, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { BTN_SECONDARY, CHIP_QUIET, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import type { LlmConfigRow } from "@/app/_lib/db/llm";
 import { labelize } from "@/app/_lib/format";
 import {
   BENCH_OPS,
+  NOISE_BAND,
   UNMEASURED_USE_CASES,
   cellComposite,
   modelRanking,
+  recommendForUseCase,
+  modelOnUseCase,
   type QualityCell,
   type QualityScores,
+  type UseCaseRecommendation,
 } from "@/app/_lib/llm-quality";
 import { QUALITY_SCORES, hasQualityScores } from "@/app/_lib/llm-quality-scores";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useCapabilities } from "@/app/features/shell/useCapabilities";
+import { pickRowState, pinPayload } from "./modelsQualityPick";
+import { saveRoutingPin } from "./modelsRoutingActions";
 
 // Models tab — measured quality scorecard. Turns the baked bench matrix into two
 // operator-facing views: a per-model ranking (who's strongest overall + fastest)
 // and a per-case "best model" board (which model proved useful for which case), so
 // a BYOM operator can balance a package — pin the top model per use case, or the
-// fastest that clears their bar. Pure read of the baked data; renders nothing until
+// fastest that clears their bar. The Recommended routing section prices each pick and
+// pins it (the one write, through the routing PUT). Renders nothing until
 // a matrix run has been baked in.
 
 const short = (slug: string) => slug.split("/").pop() ?? slug;
@@ -180,6 +191,8 @@ export function QualityOverview() {
         </div>
       </div>
 
+      <RecommendedRouting />
+
       {UNMEASURED_USE_CASES.length > 0 ? (
         <div>
           <h4 className="text-sm font-semibold text-ink">{t("unmeasuredTitle")}</h4>
@@ -213,5 +226,184 @@ export function QualityOverview() {
         })}
       </p>
     </section>
+  );
+}
+
+// The routing use cases the bench measures, in BENCH_OPS order (automation's five
+// ops fold into one row).
+const MEASURED_USE_CASES = [...new Set(BENCH_OPS.map((o) => o.useCase))];
+
+type PinsPayload = { rows: LlmConfigRow[]; providers: string[] };
+
+/** Recommended routing: per use case, the cheapest model whose score sits inside the
+ *  noise band of the best (llm-quality.ts recommendForUseCase), next to what is pinned
+ *  today, with a one-click Pin through the routing PUT (stale-write guard intact). */
+function RecommendedRouting() {
+  const t = useTranslations("models.quality.pick");
+  const tUse = useTranslations("models.useCases");
+  const format = useFormatter();
+  const errMsg = useErrorMessage();
+  const caps = useCapabilities();
+  const canPin = caps === null ? null : caps.includes("org:manage");
+  const [pins, setPins] = useState<PinsPayload | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<{ useCase: string; ok: boolean; text: string } | null>(null);
+
+  // One read of the current pins when the section opens; state is only set in the
+  // async callbacks.
+  const load = useCallback(() => {
+    fetch("/api/llm/config")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((p) => setPins(p as PinsPayload))
+      .catch(() => setLoadFailed(true));
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const recs = MEASURED_USE_CASES.map((uc) => recommendForUseCase(QUALITY_SCORES, uc)).filter(
+    (r): r is UseCaseRecommendation => r !== null
+  );
+  if (!recs.length) return null;
+
+  const labelForUseCase = (uc: string) => {
+    const key = uc as Parameters<typeof tUse>[0];
+    return tUse.has(key) ? tUse(key) : labelize(uc);
+  };
+  const usd = (n: number | null) =>
+    n === null ? t("unpriced") : format.number(n, { style: "currency", currency: "USD", maximumSignificantDigits: 2 });
+  const secs = (ms: number | null) => (ms === null ? "" : `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`);
+
+  const pin = async (rec: UseCaseRecommendation) => {
+    if (!pins || busy) return;
+    const body = pinPayload(rec.useCase, rec, pins.rows);
+    if (!body) return;
+    setBusy(rec.useCase);
+    setNote(null);
+    const result = await saveRoutingPin(
+      body.useCase,
+      body.provider,
+      body.model,
+      body.params,
+      body.expectedUpdatedAt,
+      t("pinFailed"),
+      errMsg
+    );
+    if (result.ok) {
+      setPins({ ...pins, rows: result.rows });
+      setNote({ useCase: rec.useCase, ok: true, text: t("pinnedNote", { model: body.model }) });
+    } else {
+      // A stale refusal carries the current table: apply it so the row re-derives
+      // its state from what is actually pinned now.
+      if (result.rows) setPins({ ...pins, rows: result.rows });
+      setNote({ useCase: rec.useCase, ok: false, text: result.message });
+    }
+    setBusy(null);
+  };
+
+  return (
+    <div>
+      <h4 className="text-sm font-semibold text-ink">{t("title")}</h4>
+      <p className="mt-1 max-w-3xl text-sm text-steel">
+        {t("intro", {
+          narrow: String(NOISE_BAND.narrow),
+          wide: String(NOISE_BAND.wide),
+          judges: String(NOISE_BAND.atJudges),
+        })}
+      </p>
+      {loadFailed ? <p className="mt-1 text-sm text-coral">{t("loadFailed")}</p> : null}
+      <div className={`${PANEL} mt-2 overflow-hidden p-0`}>
+        <div className="hidden grid-cols-[1.1fr_1.3fr_1.8fr_0.9fr] gap-3 border-b border-stone-200 px-4 py-2.5 text-meta uppercase tracking-wide text-steel sm:grid">
+          <span>{t("colUseCase")}</span>
+          <span>{t("colPin")}</span>
+          <span>{t("colPick")}</span>
+          <span className="text-right">{t("colAction")}</span>
+        </div>
+        {recs.map((rec) => {
+          const current =
+            pins?.rows.find((r) => r.useCase === rec.useCase) ?? pins?.rows.find((r) => r.useCase === "*") ?? null;
+          const currentAgg = current?.model ? modelOnUseCase(QUALITY_SCORES, rec.useCase, current.model) : null;
+          const state = pins
+            ? pickRowState(rec.useCase, rec, pins.rows, pins.providers, {
+                measuredModels: QUALITY_SCORES.models,
+                canPin,
+              })
+            : null;
+          const cliLane = rec.pick.target?.provider === "claude_cli";
+          return (
+            <div
+              key={rec.useCase}
+              className="grid grid-cols-1 gap-1.5 border-b border-stone-100 px-4 py-3 last:border-0 sm:grid-cols-[1.1fr_1.3fr_1.8fr_0.9fr] sm:items-center sm:gap-3"
+            >
+              <span className="text-sm font-medium text-ink">{labelForUseCase(rec.useCase)}</span>
+              <span className="text-sm text-steel">
+                {!pins ? (
+                  loadFailed ? t("na") : t("pinLoading")
+                ) : current?.model ? (
+                  <>
+                    <span className="text-ink">{short(current.model)}</span>
+                    <span className="ml-1.5 tabular-nums">
+                      {currentAgg
+                        ? `${currentAgg.composite.toFixed(1)} · ${usd(currentAgg.costPerTaskUsd)}`
+                        : t("notMeasured")}
+                    </span>
+                  </>
+                ) : (
+                  t("pinDefault")
+                )}
+              </span>
+              <span className="text-sm text-ink">
+                <span className="font-medium">{short(rec.pick.model)}</span>
+                <span className="ml-1.5 tabular-nums text-steel">
+                  {rec.pick.composite.toFixed(1)} · {t("perTask", { cost: usd(rec.pick.costPerTaskUsd) })}
+                  {rec.pick.p50Ms !== null ? ` · ${secs(rec.pick.p50Ms)}` : ""}
+                </span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className={CHIP_QUIET}>{t(`reasons.${rec.reason}`)}</span>
+                  {rec.pick.model !== rec.best.model ? (
+                    <span className="text-meta text-steel">
+                      {rec.costMultiple !== null
+                        ? t("vsBest", {
+                            model: short(rec.best.model),
+                            score: rec.best.composite.toFixed(1),
+                            multiple: String(rec.costMultiple),
+                          })
+                        : t("vsBestUnpriced", { model: short(rec.best.model), score: rec.best.composite.toFixed(1) })}
+                    </span>
+                  ) : null}
+                  {cliLane && rec.pick.costPerTaskUsd !== null ? (
+                    <span className="text-meta text-steel">{t("listPrice")}</span>
+                  ) : null}
+                </span>
+              </span>
+              <span className="text-sm sm:text-right">
+                {state === "pin_available" || state === "unmeasured_pin" ? (
+                  <button
+                    type="button"
+                    className={`${BTN_SECONDARY} h-8 px-3 text-sm`}
+                    disabled={busy !== null}
+                    onClick={() => void pin(rec)}
+                  >
+                    {busy === rec.useCase ? t("pinning") : t("pin")}
+                  </button>
+                ) : null}
+                {state && state !== "pin_available" ? (
+                  <span className="block text-meta text-steel">{t(`states.${state}`)}</span>
+                ) : null}
+                {note?.useCase === rec.useCase ? (
+                  <span role="status" className={`mt-1 block text-meta ${note.ok ? "text-moss" : "text-coral"}`}>
+                    {note.text}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
