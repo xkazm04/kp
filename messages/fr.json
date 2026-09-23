@@ -9892,7 +9892,13 @@
       "untitledAssignment": "Épreuve",
       "stageAria": "Étape de l’exercice : {stage}",
       "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées.",
-      "loadMore": "Charger les affectations plus anciennes"
+      "loadMore": "Charger les affectations plus anciennes",
+      "jobFilter": "Exercices affichés pour {job}",
+      "jobFilterUnnamed": "Exercices affichés pour un seul poste",
+      "clearJobFilter": "Afficher tous les exercices",
+      "linkGateDecided": "L’approbation visée par ce lien a déjà été tranchée. L’exercice est désormais à l’étape : {stage}.",
+      "linkLifecycleMissing": "Le cycle d’exercice lié ne figure pas dans la liste de votre équipe. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
+      "linkLifecycleOutsideWindow": "Le cycle d’exercice lié est plus ancien que les {count} cycles les plus récents affichés ici."
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",

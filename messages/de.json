@@ -9892,7 +9892,13 @@
       "untitledAssignment": "Aufgabe",
       "stageAria": "Aufgabenphase: {stage}",
       "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet.",
-      "loadMore": "Ältere Aufgaben laden"
+      "loadMore": "Ältere Aufgaben laden",
+      "jobFilter": "Es werden Aufgaben für {job} angezeigt",
+      "jobFilterUnnamed": "Es werden Aufgaben für eine Stelle angezeigt",
+      "clearJobFilter": "Alle Aufgaben anzeigen",
+      "linkGateDecided": "Über die Freigabe, auf die dieser Link verweist, wurde bereits entschieden. Die Aufgabe ist jetzt in der Phase: {stage}.",
+      "linkLifecycleMissing": "Der verlinkte Aufgabenablauf ist nicht in der Liste Ihres Teams. Er wurde möglicherweise entfernt oder gehört einem anderen Team.",
+      "linkLifecycleOutsideWindow": "Der verlinkte Aufgabenablauf ist älter als die {count} neuesten hier gelisteten Abläufe."
     },
     "evalPanel": {
       "capabilityScores": "Kompetenzwerte",

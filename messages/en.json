@@ -9892,7 +9892,13 @@
       "untitledAssignment": "Assignment",
       "stageAria": "Assignment stage: {stage}",
       "truncated": "Showing the {count} most recent assignments. Older ones are not listed.",
-      "loadMore": "Load older assignments"
+      "loadMore": "Load older assignments",
+      "jobFilter": "Showing assignments for {job}",
+      "jobFilterUnnamed": "Showing assignments for one role",
+      "clearJobFilter": "Show all assignments",
+      "linkGateDecided": "The approval this link asked for has already been decided. This assignment is now at: {stage}.",
+      "linkLifecycleMissing": "The linked assignment run is not in your team's list. It may have been removed, or it belongs to another team.",
+      "linkLifecycleOutsideWindow": "The linked assignment run is older than the {count} most recent runs listed here."
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",

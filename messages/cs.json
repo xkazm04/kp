@@ -9892,7 +9892,13 @@
       "untitledAssignment": "Zadání",
       "stageAria": "Fáze zadání: {stage}",
       "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují.",
-      "loadMore": "Načíst starší zadání"
+      "loadMore": "Načíst starší zadání",
+      "jobFilter": "Zobrazena zadání pro pozici {job}",
+      "jobFilterUnnamed": "Zobrazena zadání pro jednu pozici",
+      "clearJobFilter": "Zobrazit všechna zadání",
+      "linkGateDecided": "O schválení, na které odkaz míří, už bylo rozhodnuto. Zadání je nyní ve fázi: {stage}.",
+      "linkLifecycleMissing": "Odkazovaný průběh zadání není v seznamu vašeho týmu. Mohl být odstraněn, nebo patří jinému týmu.",
+      "linkLifecycleOutsideWindow": "Odkazovaný průběh zadání je starší než {count} nejnovějších průběhů, které se zde zobrazují."
     },
     "evalPanel": {
       "capabilityScores": "Skóre schopností",
