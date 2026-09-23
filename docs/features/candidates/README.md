@@ -792,6 +792,31 @@ an id (it writes nothing). `profileEditorContracts.test.ts` pins that decision
 (and the deep-link precedence below) at the source level, proved non-vacuous
 against a mutated copy of each hook.
 
+**Readiness is live; the save confirms it.** The routing chip, the "Routing: …"
+line, the completeness meter and the clickable "Add next" gaps render from the
+first keystroke, evaluated in the browser by `profileReadiness.ts`
+(`readiness(form, archetypes)`) — no request. They used to appear only after a
+"Check (preview)" POST, which spawned `profile_cli` and spent the shared
+`profile-save` rate-limit budget; the editor no longer sends one (the route still
+accepts `persist:false`). The port reads the form through `buildProfilePayload`, the
+save's own visibility rule, so a years value retained under Student is invisible to
+it exactly as it is to the save. It reads `detection` and `commonChecklist` from the
+static `archetypes.json` import (neither is UI-editable) but the archetype ids and
+per-archetype checklists from the LIVE `archetypes` prop, because `createArchetype`
+rewrites the file at runtime and a client import is frozen at build — a custom
+archetype chosen as Who routes self-declared with its own (empty) checklist, as
+`profile_cli` would. Drift between the two engines is a red gate, not a risk:
+`pipeline/jobfit/tests/profile_readiness_cases.json` (18 request bodies with
+`profile_cli`'s answers — contradictions, a declaration-order tie, a half-even
+rounding, custom archetypes, an unknown check id failing closed) is asserted by
+`test_profile_readiness_parity.py` through `profile_cli.main` and by
+`profileReadiness.test.ts` through the port, which also pins the `CHECKS` key set
+read from `profile.py` and the signals object against `useProfileEditorSubmit`'s.
+The server stays the authority: after a save the panel shows the saved result
+(receipt, "Match now") for as long as the form still equals what was saved, and
+the live view — flagged "live preview · confirmed on save" — otherwise.
+Completeness gates nothing; Save stays enabled.
+
 **An AI draft merges; it no longer replaces.** Running "Draft with AI" inside the
 open editor used to set every field from the draft, so a recruiter who had typed
 half the intake first lost it with no diff, no confirm and no undo — while the
