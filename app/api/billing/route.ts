@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { billingOverview, PACKS, PLANS, polarGatewayFromEnv } from "@/app/_lib/billing";
+import { billingOrgForWorkspace, billingOverview, PACKS, PLANS, polarGatewayFromEnv } from "@/app/_lib/billing";
+import { billingAlertViews, DEPLOYMENT_ALERT_KINDS } from "@/app/_lib/billing/alerts";
+import { listBillingAlertsForOrg, type BillingAlert } from "@/app/_lib/db/billing";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { HOME_ORG_ID, isHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireBillingAuthority } from "./authority";
 
@@ -9,6 +12,8 @@ import { requireBillingAuthority } from "./authority";
 // state (included limit, month's usage, prepaid credits, remaining), and the
 // catalogs the pricing UI renders. `configured` tells the UI whether checkout
 // is wired (Polar env present) or the workspace is running unbilled local-dev.
+// `alerts` is the org's open billing alerts (app/_lib/billing/alerts.ts): coded, with
+// the provider detail and the deployment-level kinds for the home-org operator only.
 
 export async function GET() {
   // `org:manage` — the same authority the two spending doors need (authority.ts).
@@ -22,10 +27,12 @@ export async function GET() {
     // session workspace (billingOverview → billingOrgForWorkspace). Single-tenant
     // sessions resolve to the default org — the exact rows this always read.
     const workspace = await currentWorkspace();
+    const homeOrgReader = await isHomeOrgReader();
     return NextResponse.json({
       ...billingOverview(new Date(), workspace),
       configured: polarGatewayFromEnv() !== null,
       catalog: { plans: PLANS, packs: PACKS },
+      alerts: billingAlertViews(openAlertsFor(billingOrgForWorkspace(workspace), homeOrgReader), { homeOrgReader }),
     });
   } catch (error) {
     // billingOverview runs several synchronous SQLite reads; a locked/transient DB
@@ -33,4 +40,14 @@ export async function GET() {
     // shows a dead-end. Log server-side, answer the stable code the tab localizes.
     return safeJsonError(error, "api/billing", "BILLING_OVERVIEW_FAILED");
   }
+}
+
+/** The caller's org's open alerts, plus — for the home-org operator only — the
+ *  deployment-level kinds (price drift), which are recorded under the home org. A
+ *  reader outside the home org never reads a row that is not their own org's. */
+function openAlertsFor(orgId: string, homeOrgReader: boolean): BillingAlert[] {
+  const own = listBillingAlertsForOrg(orgId);
+  if (!homeOrgReader || orgId === HOME_ORG_ID) return own;
+  const deployment = listBillingAlertsForOrg(HOME_ORG_ID).filter((a) => (DEPLOYMENT_ALERT_KINDS as readonly string[]).includes(a.kind));
+  return [...own, ...deployment].sort((a, b) => b.id - a.id);
 }

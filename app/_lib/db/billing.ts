@@ -234,7 +234,29 @@ export type BillingAlert = {
   providerRef: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  /** HOW the alert ended — 'fixed' | 'dismissed' (app/_lib/billing/alerts.ts owns the
+   *  vocabulary). NULL while open, and on every row closed before the column existed:
+   *  "not recorded" is the honest reading there, never a guessed 'fixed'. */
+  resolution: string | null;
 };
+
+function rowToAlert(r: Record<string, unknown>): BillingAlert {
+  return {
+    id: Number(r.id),
+    orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,
+    kind: String(r.kind),
+    detail: String(r.detail),
+    providerRef: (r.provider_ref as string) ?? null,
+    createdAt: String(r.created_at),
+    resolvedAt: (r.resolved_at as string) ?? null,
+    resolution: (r.resolution as string) ?? null,
+  };
+}
+
+function clampAlertLimit(limit: number | undefined): number {
+  const requested = typeof limit === "number" && Number.isFinite(limit) ? Math.trunc(limit) : BILLING_ALERT_LIST_DEFAULT_LIMIT;
+  return Math.min(BILLING_ALERT_LIST_MAX_LIMIT, Math.max(1, requested));
+}
 
 /** Record a durable "needs attention" billing signal (e.g. a paid-but-unmapped
  *  subscription). `providerRef` (when given) de-duplicates redeliveries so the same
@@ -274,33 +296,55 @@ export const BILLING_ALERT_LIST_MAX_LIMIT = 500;
  *  for the whole table. */
 export function listBillingAlerts(opts: { includeResolved?: boolean; limit?: number } = {}): BillingAlert[] {
   const db = ensureDb();
-  const requested = typeof opts.limit === "number" && Number.isFinite(opts.limit) ? Math.trunc(opts.limit) : BILLING_ALERT_LIST_DEFAULT_LIMIT;
-  const limit = Math.min(BILLING_ALERT_LIST_MAX_LIMIT, Math.max(1, requested));
+  const limit = clampAlertLimit(opts.limit);
   const where = opts.includeResolved ? "" : "WHERE resolved_at IS NULL";
   const rows = db
     .prepare(
-      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at FROM billing_alerts ${where} ORDER BY id DESC LIMIT ?`
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at, resolution FROM billing_alerts ${where} ORDER BY id DESC LIMIT ?`
     )
     .all(limit) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
-    id: Number(r.id),
-    orgId: (r.org_id as string) ?? DEFAULT_ORG_ID,
-    kind: String(r.kind),
-    detail: String(r.detail),
-    providerRef: (r.provider_ref as string) ?? null,
-    createdAt: String(r.created_at),
-    resolvedAt: (r.resolved_at as string) ?? null,
-  }));
+  return rows.map(rowToAlert);
+}
+
+/** ONE org's billing alerts, newest first — the org owner's reader (GET /api/billing).
+ *  Beside, not instead of, the deployment-wide list above: an owner must never be
+ *  handed another customer's rows, so this is the org-BOUND accessor the tenancy
+ *  guard pins (billing-tenancy.test.ts). Open only unless `includeResolved`; bounded
+ *  by the same clamp. */
+export function listBillingAlertsForOrg(orgId: string, opts: { includeResolved?: boolean; limit?: number } = {}): BillingAlert[] {
+  const db = ensureDb();
+  const open = opts.includeResolved ? "" : "AND resolved_at IS NULL";
+  const rows = db
+    .prepare(
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at, resolution FROM billing_alerts WHERE org_id = ? ${open} ORDER BY id DESC LIMIT ?`
+    )
+    .all(orgId, clampAlertLimit(opts.limit)) as Array<Record<string, unknown>>;
+  return rows.map(rowToAlert);
+}
+
+/** One alert, only if it belongs to `orgId` (open or not). A row of another org reads
+ *  exactly like a missing id, so the resolve door can answer both with one 404. */
+export function getBillingAlert(id: number, orgId: string): BillingAlert | null {
+  const db = ensureDb();
+  const r = db
+    .prepare(
+      `SELECT id, org_id, kind, detail, provider_ref, created_at, resolved_at, resolution FROM billing_alerts WHERE id = ? AND org_id = ?`
+    )
+    .get(id, orgId) as Record<string, unknown> | undefined;
+  return r ? rowToAlert(r) : null;
 }
 
 /** Stamp `resolved_at` so a paid-but-unmapped Polar signal can leave the open
  *  worklist. Compensating WHERE: only an unresolved row for this org matches, so
- *  a second call (or a missing id) is a no-op that returns false. `expectedUnresolved`
- *  defaults true — the documented call; passing false is not a restamp, it is the
- *  same gate (already-resolved stays a skip). */
+ *  a second call (or a missing id) is a no-op that returns false — and a second call
+ *  can never re-kind an alert that is already closed. `resolution` records HOW it
+ *  ended ('fixed' | 'dismissed'); omitted, it stays NULL (the pre-column behaviour).
+ *  `expectedUnresolved` defaults true — the documented call; passing false is not a
+ *  restamp, it is the same gate (already-resolved stays a skip). */
 export function resolveBillingAlert(input: {
   id: number;
   orgId?: string;
+  resolution?: string | null;
   expectedUnresolved?: boolean;
 }): boolean {
   const db = ensureDb();
@@ -309,8 +353,8 @@ export function resolveBillingAlert(input: {
   // Compensating predicate: never overwrite a stamp that already exists. The
   // documented call passes `expectedUnresolved: true`; already-resolved is a skip.
   const info = db
-    .prepare(`UPDATE billing_alerts SET resolved_at = ? WHERE id = ? AND org_id = ? AND resolved_at IS NULL`)
-    .run(at, input.id, orgId);
+    .prepare(`UPDATE billing_alerts SET resolved_at = ?, resolution = ? WHERE id = ? AND org_id = ? AND resolved_at IS NULL`)
+    .run(at, input.resolution ?? null, input.id, orgId);
   return Number(info.changes) > 0;
 }
 

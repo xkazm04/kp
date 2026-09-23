@@ -11,6 +11,7 @@ import { EYEBROW, INTRO } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { BillingAlertsPanel } from "./BillingAlertsPanel";
 import { BillingCurrentPlanPanel } from "./BillingCurrentPlanPanel";
 import { BillingSelfHostPanel } from "./BillingSelfHostPanel";
 import { BillingStatusBanners } from "./BillingStatusBanners";
@@ -302,6 +303,11 @@ export function BillingTab() {
       />
 
       {selfHosted ? <BillingSelfHostPanel /> : null}
+
+      {/* The org's open billing alerts (a paid-but-dark subscription; for the home-org
+          operator, catalog price drift), above the plan card they explain. Renders
+          nothing when there are none. Resolving one re-reads the overview. */}
+      {data?.alerts?.length ? <BillingAlertsPanel alerts={data.alerts} onResolved={load} /> : null}
 
       {data && !selfHosted ? (
         <BillingCurrentPlanPanel

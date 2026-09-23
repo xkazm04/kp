@@ -2189,6 +2189,10 @@ export function ensureDb(): Database.Database {
     // not applied (and for rows applied before this column existed: unknown, never a
     // fabricated date).
     "ALTER TABLE jobseeker_postings ADD COLUMN applied_at TEXT",
+    // HOW a billing alert ended — 'fixed' | 'dismissed' (app/_lib/billing/alerts.ts).
+    // A resolution with no kind cannot tell a real fix from noise. Nullable, no default:
+    // open rows and rows closed before this column existed read NULL ("not recorded").
+    "ALTER TABLE billing_alerts ADD COLUMN resolution TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

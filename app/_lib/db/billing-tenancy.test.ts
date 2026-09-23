@@ -147,6 +147,26 @@ test("the documented global exceptions stay the ONLY unscoped reads", () => {
   for (const sql of alertWrites) assert.ok(/org_id/.test(sql), "billing_alerts insert must stamp org_id");
 });
 
+test("the org owner's alert readers and the resolve write BIND org_id — only listBillingAlerts is deployment-wide", () => {
+  // The alert reader (GET /api/billing, POST /api/billing/alerts/[id]) hands an org
+  // owner their own rows only. The deployment-wide list stays the operator's; these
+  // three must never degrade into it.
+  const alertStatements = sqlByOwner(src).filter(
+    ({ sql }) => /^\s*(select|update|delete)\b/i.test(sql) && /\bbilling_alerts\b/i.test(sql)
+  );
+  for (const owner of ["listBillingAlertsForOrg", "getBillingAlert", "resolveBillingAlert"]) {
+    const mine = alertStatements.filter((s) => s.owner === owner);
+    assert.ok(mine.length >= 1, `${owner} is gone or no longer reads billing_alerts`);
+    for (const { sql } of mine) assert.ok(orgBound(sql), `${owner}: org_id is not bound:\n${sql.trim().slice(0, 220)}`);
+  }
+  const unbound = alertStatements.filter(({ sql }) => !orgBound(sql)).map((s) => s.owner);
+  assert.deepEqual(
+    [...new Set(unbound)].sort(),
+    ["listBillingAlerts", "recordBillingAlert"],
+    "the cross-customer worklist and the providerRef dedupe probe are the only unscoped alert reads"
+  );
+});
+
 test("cross-org isolation: one org's plan/usage/credits never leak into another", () => {
   // Give the DEFAULT org a paid plan + usage + credits.
   upsertBillingState({ plan: "starter", status: "active", provider: "polar", providerSubscriptionId: "sub_default" });
