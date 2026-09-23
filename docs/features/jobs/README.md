@@ -30,12 +30,12 @@ once, no ordering anywhere, and the filters in a toolbar far above the columns
 they filtered. It now carries the same register as ProfileRoster and the Channels
 ledger:
 
-- **Sorting** — the shared `useTableSort` over accessors in `jobsTableView.ts`
-  (pinned by `jobsTableView.test.ts`). Two rules live there because a hand-rolled
-  accessor gets them wrong: a salary BAND sorts by its floor, and a missing value
-  (no location, no band, not entry-eligible) resolves to `null` so it sorts last
-  in BOTH directions instead of leading an ascending sort. "Not eligible" and
-  "eligible, scored 0%" stay different facts.
+- **Sorting** — SERVER-side since challenge-r07: a header click sets
+  `useJobsList.sort` (`nextJobsSort`: the active column flips, salary and status
+  open descending) and the route orders the WHOLE matching set before it cuts the
+  page (see "The Roles desk window" below). `jobsTableView.ts` keeps the accessors
+  as the reference semantics the SQL mirrors: a missing value sorts last in BOTH
+  directions, and "not eligible" and "eligible, scored 0%" stay different facts.
 - **Header cells** — the shared `ColumnHead`, which owns `aria-sort`; the local
   `Th` never claimed it, so a screen-reader user could not learn the table was
   ordered.
@@ -46,16 +46,17 @@ ledger:
   The one control with no column to live in — "open roles only", a lifecycle
   predicate over the whole query rather than a value in any cell — is a toggle
   chip beside the count it changes.
-- **Paging** — the shared 20-row `TablePager`. `useJobsList` owns the index beside
-  the filters and every filter setter returns to page 1; `clampPage` catches
-  everything else (a publish that drops a row out of an "open only" view).
+- **Paging** — the shared 20-row `TablePager`, driven by the route's `matching`
+  count. `useJobsList` owns the index beside the filters, sends it as
+  `offset = pageIndex * 20`, and every filter or sort change returns to page 1; a
+  window that comes back empty under the reader (a publish dropped rows) re-lands on
+  the last page `clampPage` says exists.
 
   It is called **`pageIndex`, not `page`**, and the name is load-bearing: `page` on
   that hook is already the ROUTE's honesty triple (`truncated` / `matching` /
   `limit` — was the server's answer cut, and at what size), which is a different
-  fact from which 20-row slice the client is showing. `JobsTabResults` reads both:
-  the summary line renders `showingCut` against `matching` when the slice was cut,
-  the pager renders the index. They were briefly both named `page` after a merge,
+  fact from which 20-row window the server answered. `JobsTabResults` reads both:
+  the summary line renders `showing` with `matching`, the pager renders the index. They were briefly both named `page` after a merge,
   which is a redeclaration the type checker catches but a reader would not.
 
 ## Entry points
@@ -1474,10 +1475,10 @@ roles" (30 roles/recruiter instead of 35) for a workspace carrying 350, labelled
 `stats`, so the summary line said *"Showing 300 of 340 roles"* against the
 workspace-wide UNFILTERED total — the very reading the `matching` field was added
 to prevent. It now carries `{ truncated, matching, limit }` through to
-`JobsTabResults`, which paints `jobs.tab.showingCut` (amber) — *"Showing the first
-300 of 312 matching roles — the list is cut at 300"* — whenever the slice was cut,
-and keeps the ordinary `jobs.tab.showing` line otherwise. Truncated and filtered
-read differently on screen because they are different facts.
+`JobsTabResults`, which painted `jobs.tab.showingCut` (amber) whenever the slice was
+cut. Since challenge-r07 the desk pages through the whole matching set on the server
+(see "The Roles desk window" at the end of this file), so it renders
+`jobs.tab.showing` against `matching` and the cut line no longer applies there.
 
 **And it really cancels now.** The hook's header has claimed since it was written
 that "the in-flight request is cancelled on the next change/unmount". It was not: a
@@ -1823,13 +1824,14 @@ stored flag would contradict the count beside it, and no migration could ever le
 the two disagreeing. Sorting the column uses the desk's reading order (open → draft →
 filled → closed), not the alphabet, which is not the same in any of the four locales.
 
-The Status filter is the one filter on this table that runs **client-side**, over the
-page the query returned: `filled` compares a `jobs` column against a
-`pipeline_entries` count on the workspace's own board axis, which the browse query
-cannot express, and a second server-side definition of "filled" could disagree with
-the badge in the row. The `?job=` deep link therefore resolves against the
-*unfiltered* answer (`useJobsList.allJobs`) — a link to a role the reader filtered out
-of view must not report that the role does not exist.
+The Status filter is a **server** predicate (it ran client-side over the truncated
+page until challenge-r07, so a filled role ranked past the cut never showed): the
+store derives the status in SQL (`ROLE_STATUS_SQL` in `db/jobs.ts`) from the overlay
+status, the folded target and a `pipeline_entries` count on the workspace's own
+terminal-ROLE stages, and `jobs-browse.test.ts` pins it against `roleStatusOf` on
+every cell of status x hired x target, so badge, filter and sort cannot disagree. A
+`?job=` deep link or a just-ingested draft that is not on the current 20-row window
+is point-fetched by id (`GET /api/jobs/[id]`), never reported missing.
 
 ### Opening a role
 
@@ -1946,3 +1948,36 @@ translation and links the authoritative original.
 Known gaps: there is no bulk "translate every open role" action, and the auto-close hook does not notify
 anyone that a role retired itself (it writes no event kind of its own by design; the
 withdrawn candidates' `role_closed` events are the only trace).
+
+## The Roles desk window: sort, status and paging are the server's
+
+Until challenge-r07 (`jobs-table-core/A`) the Roles desk split its query axes across
+two tiers: `GET /api/jobs` cut a 300-row page ordered by entry eligibility, and the
+client then sorted that slice by title, filtered it by derived status and windowed it
+to 20 rows. A workspace past 300 matching roles could not reach whole roles from the
+table, whatever the reader clicked. Every axis now runs where every row is visible.
+
+| Surface | Contract |
+|---|---|
+| `JobFilter` (`db/jobs.ts`) | Optional `sort` (`JOB_BROWSE_SORTS`: title, location, mode, seniority, family, salary, status), `dir`, `offset`, `roleStatus` (open/draft/filled/closed), `withHired`. All absent = today's entry-eligible ORDER BY and SQL, byte-identical rows (the JD library, analytics and benchmark callers). |
+| `listJobsPage` / `countJobs` | ORDER BY an allowlisted key with missing values last in both directions and `jobs.id` as the tiebreak; `LIMIT/OFFSET`; the hired subquery (terminal-ROLE stage ids from the workspace's axis, bound) joins only when status, a status sort or `withHired` needs it. `countJobs` binds the identical predicate. |
+| `GET /api/jobs` | Reads `sort`, `dir`, `offset`, `roleStatus` through allowlists (unknown value -> default, never SQL); malformed or negative `offset` -> 0; a windowed read with no `limit` answers 20 rows; the answer adds `window: {sort, dir, offset, roleStatus}` echoing what was APPLIED. `hired` on each row now comes from the store's query. |
+| `useJobsList` | `jobsListQuery` emits `sort/dir/offset/roleStatus`; `sort` + `toggleSort` state; no client-side filter. |
+
+Declared differences from the old client sort:
+
+- **Salary** orders by the `salary_min` column (ingest writes `salaryBand[0]` there),
+  not the payload band floor; a corpus row whose column and payload disagree now
+  sorts by the column.
+- **Text** keys go through `kp_fold` (NFD, combining marks stripped, lower-cased), a
+  deterministic function registered on the connection, because SQLite has no ICU
+  collation. Known deviation from the client's `Intl.Collator`: Czech sorts "ch" after
+  "h" and c/r/s/z with caron as their own letters; `kp_fold` sorts them as the base
+  letter.
+- The amber `showingCut` line no longer renders on this desk: a multi-page answer is
+  paged, not cut. The key stays in the catalogs.
+
+Tests: `app/_lib/db/jobs-browse.test.ts` (320-role fixture, the status matrix with a
+per-team overlay, a renamed terminal stage, ordering), `app/api/jobs/jobs-list-window.test.ts`
+(params, fallbacks, echo), `useJobsList.test.ts`, `jobsTabDeepLink.test.ts` and
+`jobsIngestLatch.test.ts` (wire mapping, the latch's point-fetch).
