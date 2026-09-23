@@ -3792,7 +3792,8 @@
       "addedToPipeline": "Ajouté au pipeline.",
       "repeatApplication": "Nouvelle candidature via {channel}.",
       "repeatApplicationContact": "Nouvelle candidature via {channel}. E-mail de contact enregistré.",
-      "commandWaveReversed": "Refus de la barre de commande annulé. Rétabli à l’étape où il se trouvait."
+      "commandWaveReversed": "Refus de la barre de commande annulé. Rétabli à l’étape où il se trouvait.",
+      "readdedByRecruiter": "Ajouté à nouveau par le recrutement et rouvert pour un nouvel examen."
     },
     "intakeReasons": {
       "leadPending": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception.",

@@ -3792,7 +3792,8 @@
       "addedToPipeline": "Přidáno do náboru.",
       "repeatApplication": "Opakovaná přihláška přes {channel}.",
       "repeatApplicationContact": "Opakovaná přihláška přes {channel}. Zachycen kontaktní e-mail.",
-      "commandWaveReversed": "Zamítnutí z příkazového řádku vráceno. Kandidát je zpět ve fázi, ve které byl."
+      "commandWaveReversed": "Zamítnutí z příkazového řádku vráceno. Kandidát je zpět ve fázi, ve které byl.",
+      "readdedByRecruiter": "Znovu přidáno náborářem a znovu otevřeno k dalšímu posouzení."
     },
     "intakeReasons": {
       "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",

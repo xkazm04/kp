@@ -3792,7 +3792,8 @@
       "addedToPipeline": "Zur Pipeline hinzugefügt.",
       "repeatApplication": "Erneute Bewerbung über {channel}.",
       "repeatApplicationContact": "Erneute Bewerbung über {channel}. Kontakt-E-Mail erfasst.",
-      "commandWaveReversed": "Absage aus der Befehlszeile rückgängig gemacht. In die vorherige Phase zurückgesetzt."
+      "commandWaveReversed": "Absage aus der Befehlszeile rückgängig gemacht. In die vorherige Phase zurückgesetzt.",
+      "readdedByRecruiter": "Erneut durch das Recruiting hinzugefügt und zur nochmaligen Prüfung wieder geöffnet."
     },
     "intakeReasons": {
       "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",

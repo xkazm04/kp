@@ -3792,7 +3792,8 @@
       "addedToPipeline": "Added to the pipeline.",
       "repeatApplication": "Repeat application via {channel}.",
       "repeatApplicationContact": "Repeat application via {channel}. Contact email captured.",
-      "commandWaveReversed": "Command-bar rejection undone. Restored to the stage they stood on."
+      "commandWaveReversed": "Command-bar rejection undone. Restored to the stage they stood on.",
+      "readdedByRecruiter": "Re-added by a recruiter and reopened for another look."
     },
     "intakeReasons": {
       "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",
