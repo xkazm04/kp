@@ -22,6 +22,25 @@
 
 const inflight = new Map<string, Promise<unknown>>();
 
+// A failed read keeps its HTTP status as a VALUE. The message is still
+// "HTTP <status>" (every existing catch site reads exactly what it read before);
+// `.status` is what lets the shell's attention poll tell a lapsed session (401)
+// from an outage and hand it to the lapse store (shell/session/useSessionLapse.ts).
+export class HttpStatusError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(`HTTP ${status}`);
+    this.name = "HttpStatusError";
+    this.status = status;
+  }
+}
+
+/** The HTTP status a sharedGetJson rejection carried, or null (network failure,
+ *  abort, or not one of ours). */
+export function httpStatusOf(err: unknown): number | null {
+  return err instanceof HttpStatusError ? err.status : null;
+}
+
 export function sharedGetJson<T>(url: string, opts?: { refresh?: boolean }): Promise<T> {
   if (!opts?.refresh) {
     const existing = inflight.get(url);
@@ -29,7 +48,7 @@ export function sharedGetJson<T>(url: string, opts?: { refresh?: boolean }): Pro
   }
   const p: Promise<unknown> = fetch(url)
     .then((r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) throw new HttpStatusError(r.status);
       return r.json();
     })
     // Only clear the slot if it is still OURS — a `refresh` call replaces the entry,

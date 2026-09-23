@@ -19,6 +19,7 @@ import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
 import { WorkspaceDocumentTitle } from "./WorkspaceDocumentTitle";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import { useOnboardingReopen } from "./setup/onboardingReopen";
+import { SessionLapseDialog } from "./session/SessionLapseDialog";
 import {
   AGENTS_TAB_IN_NAV,
   buildUrl,
@@ -242,6 +243,9 @@ export function Workspace({ firstRunOnboarding = false, hasSession = false }: { 
       </main>
       <SimSurfaces />
       {onboardingOpen && <FirstRunOnboarding mode="live" onClose={() => setOnboardingOpen(false)} />}
+      {/* A lapsing session warns ten minutes ahead, then re-signs in over the page
+          (session/sessionLapse.ts). Renders nothing in open mode or while live. */}
+      <SessionLapseDialog />
     </div>
     </CompanionDockProvider>
     </SimulationProvider>
