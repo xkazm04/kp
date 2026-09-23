@@ -1148,7 +1148,7 @@ expiry instant, and the card switches from hours to minutes in the final hour.
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
 | Archetype admin UI | `app/features/tools/profile/ArchetypeManager.tsx` + `ArchetypeManagerEditPanel.tsx`/`ArchetypeManagerList.tsx`/`ArchetypeManagerViewPanel.tsx`/`ArchetypeArchiveConfirmModal.tsx` |
 | GitHub evidence | `app/_lib/github-evidence.ts`, `github-handle.ts`, `github-summary.ts`, `repo-activity.ts`, `repo-snapshot.ts` |
-| GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
+| GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy + `canonicalSkill`), `skill-ledger.ts` (the one skill ledger the panel renders), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
 | Signal display | `app/_components/Badge.tsx`, `PotentialBadge.tsx`, `FactorChart.tsx`, `ScoreDial.tsx`, `ScoreBadge.tsx`, `ScoreProvenanceLabel.tsx` |
 | Saved analyses | `app/history/[slug]/page.tsx`, `app/features/tools/analyze/history/*` |
 | Public skill credential | `app/skill/[token]/page.tsx` |
@@ -1180,6 +1180,48 @@ Three consequences worth knowing:
   summary verbatim — so `buildGithubEvidenceSummary` takes the review's line only on
   `ok` and otherwise falls back to the run's own metrics sentence
   (`app/_lib/github-summary.ts`; pinned by `github-summary.test.ts`).
+
+### One skill ledger, two engines
+
+The deep-dive judges skills with two engines: the **label comparison**
+(`buildJobFitSignals`, `app/_lib/github/skills.ts`: JD tokens vs repo names,
+descriptions, languages and topics over a 28-bucket disjoint taxonomy) and the
+**repo-signal review** (`code-review.ts`: the model's free-text `confirmedSkills` /
+`unverifiedClaims` / `hiddenStrengths`). The panel used to print five unreconciled
+lists from them, so one skill could sit under "Potential gaps" and "Evidenced" at
+once, and a coral "Unverified claims" column read as an accusation.
+
+`buildSkillLedger` (`app/_lib/github/skill-ledger.ts`, pure, runs in the panel over a
+payload of any age) now joins both on `canonicalSkill` (free text onto the taxonomy
+bucket it uniquely names; `null`, so it stays free text, when it names none or
+several) and emits **one row per skill**, rendered by `SkillLedgerBlock` in
+`GithubAnalysisPanel.tsx`:
+
+| Verdict | When | Shows |
+|---|---|---|
+| `corroborated` | a JD skill the labels match and/or the review evidences | the repos whose labels carried it (`jobFitSignals.skillEvidence`, linked when the repo is in `topRepositories`), "seen in the language mix" when only the aggregate language map matched, and/or "seen by the review" |
+| `notReached` | a JD skill neither engine shows, on a complete read | nothing more. **Neutral**: public repositories can confirm a skill, never rule one out, and the copy says so |
+| `couldNotDetermine` | the same, but the read lost coverage (`evidenceIncomplete` in `limitations`, or `codeReview.partial`) | the partial-read caveat under the ledger |
+| `unclaimed` | a strength the review saw that no JD row accounts for (all of them when no JD was supplied) | "seen by the review" |
+
+When the labels corroborate a skill the review listed as not visible, the row stays
+`corroborated` (the label evidence is named) and carries a quiet `reviewDisagrees`
+line; the two statements differ, which is for a person to look at, not a verdict.
+This is the registry's `corroborate-a-claim-never-replace-it` three-bucket rule
+(recruiting / public-work-evidence-bounding) held by construction: there is no
+"unverified" or "gap" list left to render.
+
+Two nullish `jobFitSignals` fields feed it: `skillEvidence` (skill to repo names) and
+`undeterminedSkills` (the JD skills a partial run could not check; `potentialGaps`
+stays empty on a partial run, as before). An analysis stored before either field
+existed still parses, and its rows build from `matchingSkills` / `potentialGaps`
+with no repo names. Copy: `results.github.ledger.*`. Pinned by
+`app/_lib/github/skill-ledger.test.ts` and `skills.test.ts`.
+
+**Not yet on the ledger:** the pipeline candidate modal's frozen evidence card
+(`app/features/hiring/pipeline/PipelineGithubEvidenceCard.tsx`, over
+`github-summary.ts`) still prints the review's `unverifiedClaims` under its own
+"unverified" label.
 
 ### Who may open this door
 
