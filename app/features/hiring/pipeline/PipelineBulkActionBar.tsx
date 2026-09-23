@@ -14,25 +14,13 @@ import { bulkMoveTargetStages } from "./pipelineMoveTargets";
 import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
 import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
+import type { BulkResult as BulkSelectionResult } from "./pipelineBulkSelection";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 
-type BulkResult = {
-  ok: number;
-  failed: number;
-  verb: "moved" | "accepted" | "rejected" | "invited" | "drafted";
-  /** Already localized by the hook (the whole-request refusal). */
-  reason?: string | null;
-  /** The SERVER's per-id refusal codes, resolved here through errors.<CODE>. */
-  reasonCodes?: string[];
-  /** The permission a whole-request FORBIDDEN_CAPABILITY refusal named, so the line
-   *  can say WHICH one is missing instead of a flat "not permitted". */
-  refusalCapability?: string | null;
-  /** The background task runner's own English diagnostic, when a drafting run failed.
-   *  It carries no code, so it is never the sentence rendered — it hangs off the
-   *  localized line as a `title` for whoever is debugging. */
-  diagnostic?: string | null;
-};
+// The status line's shape is the reducer's (pipelineBulkSelection.ts): one definition,
+// so a field the reducer adds (e.g. `departed`) cannot be dropped on the way here.
+type BulkResult = BulkSelectionResult;
 
 export function PipelineBulkActionBar({
   t,
@@ -180,24 +168,35 @@ export function PipelineBulkActionBar({
       />
       {bulkResult ? (
         <span role="status" className="text-sm">
-          <span className="font-semibold text-moss">
-            {t(
-              bulkResult.verb === "moved"
-                ? "bulkMoved"
-                : bulkResult.verb === "accepted"
-                  ? "bulkAccepted"
-                  : bulkResult.verb === "invited"
-                    ? relayConfigured === false
-                      ? "bulkInvitedQueued"
-                      : "bulkInvited"
-                    : bulkResult.verb === "drafted"
+          {bulkResult.verb !== "departed" ? (
+            <span className="font-semibold text-moss">
+              {t(
+                bulkResult.verb === "moved"
+                  ? "bulkMoved"
+                  : bulkResult.verb === "accepted"
+                    ? "bulkAccepted"
+                    : bulkResult.verb === "invited"
                       ? relayConfigured === false
-                        ? "bulkDraftedQueued"
-                        : "bulkDrafted"
-                      : "bulkRejected",
-              { count: bulkResult.ok }
-            )}
-          </span>
+                        ? "bulkInvitedQueued"
+                        : "bulkInvited"
+                      : bulkResult.verb === "drafted"
+                        ? relayConfigured === false
+                          ? "bulkDraftedQueued"
+                          : "bulkDrafted"
+                        : "bulkRejected",
+                { count: bulkResult.ok }
+              )}
+            </span>
+          ) : null}
+          {/* cohort-drift-forces-a-fresh-review — selected candidates closed elsewhere
+              left the board; the selection dropped them (they are not "hidden by the
+              filter"), and the bar says so once instead of shrinking the count silently. */}
+          {bulkResult.departed ? (
+            <span className="font-semibold text-steel">
+              {bulkResult.verb !== "departed" ? " · " : null}
+              {t("selectionDeparted", { count: bulkResult.departed })}
+            </span>
+          ) : null}
           {bulkResult.failed > 0 ? (
             <span className="font-semibold text-coral">
               {" · "}

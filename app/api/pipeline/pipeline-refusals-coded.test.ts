@@ -95,7 +95,11 @@ test("the batch route carries the helper's CODE onto each per-id row", () => {
 });
 
 test("the bulk action bar resolves those codes instead of painting the server's string", () => {
-  const hook = read("../../features/hiring/pipeline/usePipelineBulk.ts");
+  // The per-id fold lives in pipelineBulkSelection.ts since challenge-r06
+  // (pipeline-move-bulk-operations/A): one fold for move, decide and invite.
+  const hook =
+    read("../../features/hiring/pipeline/usePipelineBulk.ts") +
+    read("../../features/hiring/pipeline/pipelineBulkSelection.ts");
   assert.match(hook, /reasonCodes/, "the hook must keep the CODES");
   assert.ok(!/reasons\.add\(r\.reason\)/.test(hook), "keeping the server's prose is the bug this closes");
   assert.match(hook, /if \(r\.code\) reasonCodes\.add\(r\.code\)/);

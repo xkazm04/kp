@@ -31,6 +31,10 @@ import {
   type VisibleScopeShape,
 } from "./pipelineSelectionScope.ts";
 
+/** These cases hold the COHORT constant to isolate the scope-side invariants; the
+ *  cohort-side ones live in pipelineBulkSelection.test.ts. */
+const COHORT = "reject|e1:Screened:screening_review";
+
 /** The board's filter state as the hook holds it. `scopeOf` mirrors the hook's memo
  *  exactly (same fields, same source), so this harness is the production derivation,
  *  not a re-implementation of it. */
@@ -54,9 +58,9 @@ test("select -> arm reject -> apply a saved view -> confirm does NOT email the o
   const selectedIds = new Set(["e1", "e2", "e3", "e4", "e5"]);
 
   // 1. Arm the reject. The bar now reads "Reject 5 and notify them?".
-  let confirm: BulkConfirm = bulkConfirmReducer(null, { type: "arm", which: "reject", scope: boardScope });
+  let confirm: BulkConfirm = bulkConfirmReducer(null, { type: "arm", which: "reject", scope: boardScope, cohort: COHORT });
   assert.equal(
-    armedConfirm(confirm, boardScope),
+    armedConfirm(confirm, boardScope, COHORT),
     "reject",
     "the confirm is armed while the board still shows the cohort it was armed for"
   );
@@ -76,7 +80,7 @@ test("select -> arm reject -> apply a saved view -> confirm does NOT email the o
   // 3. The confirm is no longer armed — the next click RE-ARMS against the cohort
   //    now on screen instead of firing against the invisible one.
   assert.equal(
-    armedConfirm(confirm, savedViewScope),
+    armedConfirm(confirm, savedViewScope, COHORT),
     null,
     "an armed reject must not survive the saved view that made its cohort invisible"
   );
@@ -89,9 +93,9 @@ test("select -> arm reject -> apply a saved view -> confirm does NOT email the o
   // 4. And the reducer state is not silently 'still reject underneath': re-arming
   //    under the new scope is what makes it live again, which is the recruiter
   //    re-confirming against what they can see.
-  confirm = bulkConfirmReducer(confirm, { type: "arm", which: "reject", scope: savedViewScope });
-  assert.equal(armedConfirm(confirm, savedViewScope), "reject", "a deliberate second click re-arms");
-  assert.equal(armedConfirm(confirm, boardScope), null, "…and only under the scope it was re-armed in");
+  confirm = bulkConfirmReducer(confirm, { type: "arm", which: "reject", scope: savedViewScope, cohort: COHORT });
+  assert.equal(armedConfirm(confirm, savedViewScope, COHORT), "reject", "a deliberate second click re-arms");
+  assert.equal(armedConfirm(confirm, boardScope, COHORT), null, "…and only under the scope it was re-armed in");
 });
 
 test("EVERY visible-set mutator invalidates an armed confirm — not just saved views", () => {
@@ -117,11 +121,11 @@ test("EVERY visible-set mutator invalidates an armed confirm — not just saved 
     clearStageFilter: scopeOf({ ...base, stage: null }),
   };
   for (const armedWhich of ["reject", "outreach"] as const) {
-    const confirm = bulkConfirmReducer(null, { type: "arm", which: armedWhich, scope: baseScope });
+    const confirm = bulkConfirmReducer(null, { type: "arm", which: armedWhich, scope: baseScope, cohort: COHORT });
     for (const [mutator, scope] of Object.entries(after)) {
       assert.notEqual(scope, baseScope, `${mutator} must change the visible scope`);
       assert.equal(
-        armedConfirm(confirm, scope),
+        armedConfirm(confirm, scope, COHORT),
         null,
         `${mutator} must invalidate an armed ${armedWhich} confirm`
       );
@@ -238,4 +242,16 @@ test("the selection is NOT pruned — disclosure is the mechanism, by design", (
   const outside = selectionOutsideVisible(selected, [{ id: "e2" }]);
   assert.equal(outside.length, 2, "the hidden rows are reported…");
   assert.equal(selected.size, 3, "…and the selection itself is untouched");
+});
+
+test("filtered-out is not departed: reconcile prunes only ids that left the WHOLE board", async () => {
+  // challenge-r06 pipeline-move-bulk-operations/A prunes ghost ids (an entry closed
+  // elsewhere drops off the board list). It must not become the "just prune it"
+  // refactor the case above forbids: a row hidden by the filter is still on the board.
+  const { reconcileSelection } = await import("./pipelineBulkSelection.ts");
+  const board = [{ id: "e1" }, { id: "e2" }, { id: "e3" }];
+  const visible = [{ id: "e2" }];
+  const { selected, pruned } = reconcileSelection(new Set(["e1", "e2", "e3", "ghost"]), board);
+  assert.deepEqual(pruned, ["ghost"], "only the id with no entry anywhere is pruned");
+  assert.deepEqual(selectionOutsideVisible(selected, visible), ["e1", "e3"], "the filtered-out rows stay selected and disclosed");
 });
