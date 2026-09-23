@@ -15,21 +15,33 @@
 // Parts: subway/useSubwayModel (derivation) · SubwayMarks (header, station, badge)
 // · SubwayLineRow · SubwayBeads.
 //
-// Select mode and drag-and-drop between stages are not carried over from the card
-// board yet. A refused move names the affected bead and its reason.
+// A working board, in the retired card board's grammar (subway/subwayInteraction.ts):
+//   - select mode: a bead is a checkbox, a station toggles its whole cell, the "+N"
+//     roster names toggle too - so the bulk bar acts on a hand-picked cohort;
+//   - otherwise a bead drags onto a legal station of its OWN line, or moves from its
+//     Move-to menu (right-click, Shift+F10, the Menu key). Both inputs resolve
+//     through commitDrop into the board's optimistic, CAS-guarded moveEntry, so the
+//     keyboard twin cannot drift from the pointer. A refused move names the
+//     affected bead and its reason.
 
+import { useState } from "react";
+import { UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { displayScoreOf } from "@/app/_lib/match-score";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
-import { DEFAULT_BOARD_AXIS, type Entry } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS, entryLaneKey, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
 import { PipelineBoardOffAxisStrip } from "../PipelineBoardOffAxisStrip";
+import { PipelineCandidateMenu } from "../PipelineCandidateMenu";
 import type { MapBoardProps } from "./mapTypes";
-import { LineRow } from "./subway/SubwayLineRow";
+import { LineRow, type LineInteraction } from "./subway/SubwayLineRow";
+import { canDropOn, commitDrop, moveMenuItems, toggleCellSelection } from "./subway/subwayInteraction";
 import { StationHeader, SubwayKey } from "./subway/SubwayMarks";
 import { useSubwayModel } from "./subway/useSubwayModel";
 
 type PipelineT = ReturnType<typeof useTranslations<"pipeline">>;
+
+const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 /** The bead's tooltip: the name, then which of the 0–100 numbers this is (a
  *  work-sample TRANSFER score is never read as a match score — ONE THREAD gap 2). */
@@ -61,7 +73,17 @@ export function PipelineBoardSubway({
   openCandidate,
   bouncedEntryId,
   bouncedReason,
+  selectMode = false,
+  selectedIds,
+  onToggleSelect,
+  onUpdateSelection,
 }: MapBoardProps) {
+  // The bead being dragged (the drop reads it from here, not from dataTransfer), and
+  // the open Move-to menu with the cohort its "Open" item pages through.
+  const [dragging, setDragging] = useState<Entry | null>(null);
+  const [menu, setMenu] = useState<{ entry: Entry; cohort: readonly Entry[]; at: { x: number; y: number } } | null>(
+    null,
+  );
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
   const { columns, cellsByLane, stranded, attentionByLane, gridStyle, minWidth, terminal } = useSubwayModel(
@@ -81,6 +103,34 @@ export function PipelineBoardSubway({
     stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
   const titleOf = (e: Entry) => beadTitle(e, t);
   const labelOf = (e: Entry) => t("candidateRow.menuFor", { name: e.candidateLabel });
+
+  const mode = { selectMode };
+  const picked = selectedIds ?? EMPTY_SELECTION;
+  // One line's view of the interaction state. `move` is absent when the board cannot
+  // move (no onMove) or is selecting - then there is no drag and no Move-to menu.
+  const interactionFor = (pos: Position): LineInteraction => ({
+    selectMode,
+    selectedIds: picked,
+    onToggleSelect,
+    onSelectCell: onUpdateSelection ? (cell) => onUpdateSelection((cur) => toggleCellSelection(cur, cell)) : undefined,
+    selectLabel: (e) => t("candidateRow.selectCandidate", { name: e.candidateLabel }),
+    cellSelectAria: (stage, count) => t("board.cellSelect", { position: pos.title, stage, count }),
+    move:
+      onMove && !selectMode
+        ? {
+            menuHint: t("candidateRow.menuHint"),
+            dropRefused: t("board.dropRefused"),
+            dragging: dragging && entryLaneKey(dragging) === pos.id ? dragging : null,
+            canDrop: (stageId) => (dragging ? canDropOn(dragging, { positionId: pos.id, stageId }, axis) : false),
+            onDrag: setDragging,
+            onDrop: (stageId) => {
+              if (dragging) commitDrop(dragging, { positionId: pos.id, stageId }, axis, mode, onMove);
+              setDragging(null);
+            },
+            onMenu: (entry, cohort, at) => setMenu({ entry, cohort, at }),
+          }
+        : null,
+  });
 
   return (
     <section>
@@ -105,6 +155,7 @@ export function PipelineBoardSubway({
             return (
             <LineRow
               key={pos.id}
+              interaction={interactionFor(pos)}
               position={pos}
               axis={axis}
               cells={cellsByLane.get(pos.id) ?? columns.map(() => [] as Entry[])}
@@ -141,6 +192,38 @@ export function PipelineBoardSubway({
         </div>
       </div>
       <SubwayKey />
+
+      {/* A bead's Move-to menu - the keyboard/right-click twin of the drag. Its items
+          carry the DropTarget the drag would hit, so a pick rides commitDrop too. */}
+      {menu && onMove && !selectMode ? (
+        <PipelineCandidateMenu
+          at={menu.at}
+          ariaLabel={t("candidateRow.menuFor", { name: menu.entry.candidateLabel })}
+          onClose={() => setMenu(null)}
+          sections={[
+            {
+              id: "open",
+              items: [
+                {
+                  id: "open",
+                  label: t("candidateRow.openProfile"),
+                  Icon: UserRound,
+                  onSelect: () => openCandidate(menu.entry, menu.cohort),
+                },
+              ],
+            },
+            {
+              id: "move",
+              label: t("candidateRow.moveTo"),
+              items: moveMenuItems(menu.entry, axis, (id) => enumLabel("stage", id)).map((item) => ({
+                id: item.id,
+                label: item.label,
+                onSelect: () => void commitDrop(menu.entry, item.target, axis, mode, onMove),
+              })),
+            },
+          ]}
+        />
+      ) : null}
 
       {/* Candidates standing on a column this board does not draw — loud by
           design, exactly as on the baseline board. */}

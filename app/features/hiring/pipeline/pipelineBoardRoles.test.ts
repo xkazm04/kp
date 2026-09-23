@@ -50,10 +50,14 @@ test("a bead is a real button that names the candidate, never a button inside a 
 });
 
 test("an empty station says so in words, not only by shape", () => {
-  assert.match(board, /title=\{cellEntries\.length === 0 \? cellEmpty : undefined\}/);
+  // (A drag in flight names a refusing station instead - pipeline-board-ui/B - but an
+  // empty cell otherwise still says "No candidates".)
+  assert.match(board, /title=\{droppable === false \? move\?\.dropRefused : cellEntries\.length === 0 \? cellEmpty : undefined\}/);
   assert.match(board, /cellEmpty=\{t\("board\.cellEmpty"\)\}/);
-  // …and it is INERT: nobody stands there, so there is nothing to expand. The cell
-  // names itself; the station button (and its hover) exists only when occupied.
+  // …and it is INERT: nobody stands there, so there is nothing to expand or select.
+  // The cell names itself; the station button - the Orchard door, or in select mode
+  // the cell checkbox - exists only when occupied.
   assert.match(board, /aria-label=\{empty \? cellAria\(stageLabel\(stage\), 0\) : undefined\}/);
-  assert.match(board, /\{empty \? null : \(\s*<button/, "no station button on an empty cell");
+  assert.match(board, /\{empty \? null : selectMode && interaction\.onSelectCell \? \(\s*(\/\/[^\n]*\n\s*)*<button/, "no station button on an empty cell");
+  assert.doesNotMatch(board, /\{empty \? \(?\s*<button/, "an empty cell never renders a button of either kind");
 });

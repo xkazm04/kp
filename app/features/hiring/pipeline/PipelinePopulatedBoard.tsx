@@ -147,6 +147,7 @@ export function PipelinePopulatedBoard({
               selectMode={s.selectMode}
               selectedIds={s.selectedIds}
               onToggleSelect={s.toggleSelected}
+              onUpdateSelection={s.updateSelection}
               onMove={s.moveEntry}
               // The refused move, shown ON the card that bounced back (the page-level
               // banner sits above a board that is usually scrolled away from it).

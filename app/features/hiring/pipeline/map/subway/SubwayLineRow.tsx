@@ -3,6 +3,9 @@
 // One position = one metro line: the sticky line header (badge, title, head-count,
 // rank action), a 2px track across the stage columns, and per station a cell whose
 // underlay button opens the orchard while its beads open the candidate detail.
+// In select mode the station button is the cell's checkbox (all / some / none) and
+// the beads are checkboxes; outside it a dragged bead lights the legal stations of
+// ITS line and a drop moves it (subwayInteraction.ts owns every one of those rules).
 
 import { useState } from "react";
 import { ListOrdered } from "lucide-react";
@@ -12,10 +15,33 @@ import type { CellSelection, LineAction } from "../mapTypes";
 import type { LineAttention as LineCounts } from "./lineAttention";
 import { LineContextMenu } from "./LineContextMenu";
 import { Bead, BeadOverflow } from "./SubwayBeads";
+import { cellSelectState } from "./subwayInteraction";
 import { LineAttention, RejectedMark, Station } from "./SubwayMarks";
 import { BEAD_LIMIT, LINE_COL } from "./subwayGeometry";
 
 export type LineLabels = { active: string; openJd: string; rank: string; waiting: string; rejected: string };
+
+/** The board's interaction state as ONE line sees it. */
+export type LineInteraction = {
+  selectMode: boolean;
+  selectedIds: ReadonlySet<string>;
+  onToggleSelect?: (e: Entry) => void;
+  /** Toggle a whole cell (subwayInteraction.toggleCellSelection). */
+  onSelectCell?: (cell: readonly Entry[]) => void;
+  selectLabel: (e: Entry) => string;
+  cellSelectAria: (stage: string, count: number) => string;
+  /** Absent = the board cannot move (no onMove): no drag, no Move-to menu. */
+  move: {
+    menuHint: string;
+    dropRefused: string;
+    /** The bead being dragged when it belongs to THIS line, else null. */
+    dragging: Entry | null;
+    canDrop: (stageId: string) => boolean;
+    onDrag: (e: Entry | null) => void;
+    onDrop: (stageId: string) => void;
+    onMenu: (e: Entry, cohort: readonly Entry[], at: { x: number; y: number }) => void;
+  } | null;
+};
 
 export function LineRow({
   position,
@@ -40,7 +66,9 @@ export function LineRow({
   onLineAction,
   bouncedEntryId,
   bouncedReason,
+  interaction,
 }: {
+  interaction: LineInteraction;
   position: Position;
   axis: readonly StageDef[];
   cells: Entry[][];
@@ -70,6 +98,8 @@ export function LineRow({
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const entryAt = axis.findIndex((s) => s.role === "entry");
   const entryCount = entryAt >= 0 ? (cells[entryAt] ?? []).filter((e) => e.status === "active").length : 0;
+  const { selectMode, selectedIds, move } = interaction;
+  const dragging = move?.dragging ?? null;
   return (
     <div className="relative grid border-b border-stone-200 last:border-0" style={gridStyle} role="row">
       {menuAt && onLineAction ? (
@@ -132,24 +162,67 @@ export function LineRow({
         const empty = cellEntries.length === 0;
         const overflow = cellEntries.length > BEAD_LIMIT;
         const isOpen = openCell?.positionId === position.id && openCell.stageId === stage.id;
+        const picked = selectMode ? cellSelectState(selectedIds, cellEntries) : "none";
+        // While a bead of THIS line is dragged, every station says whether it takes it.
+        const droppable = dragging ? move?.canDrop(stage.id) === true : null;
+        const tone =
+          droppable === true
+            ? "bg-moss/10 ring-1 ring-inset ring-moss"
+            : droppable === false
+              ? "bg-stone-100"
+              : picked === "all"
+                ? "group bg-coral/10 ring-1 ring-inset ring-coral"
+                : picked === "some"
+                  ? "group bg-coral/5 hover:bg-coral/10"
+                  : empty
+                    ? ""
+                    : isOpen
+                      ? "group bg-coral/10 ring-1 ring-inset ring-coral"
+                      : "group hover:bg-stone-100";
         return (
           <div
             key={stage.id}
             role="gridcell"
             // An EMPTY station is inert: no button, no hover, nothing to expand. It
             // still says so in words — the cell itself carries the name and the hint
-            // the (absent) station button would have.
+            // the (absent) station button would have. It is still a drop target.
             aria-label={empty ? cellAria(stageLabel(stage), 0) : undefined}
-            title={cellEntries.length === 0 ? cellEmpty : undefined}
-            className={`relative flex h-10 items-center gap-2 border-r border-stone-200 px-3 last:border-0 ${
-              empty ? "" : isOpen ? "group bg-coral/10 ring-1 ring-inset ring-coral" : "group hover:bg-stone-100"
-            }`}
+            title={droppable === false ? move?.dropRefused : cellEntries.length === 0 ? cellEmpty : undefined}
+            onDragOver={
+              droppable
+                ? (ev) => {
+                    ev.preventDefault();
+                    ev.dataTransfer.dropEffect = "move";
+                  }
+                : undefined
+            }
+            onDrop={
+              droppable
+                ? (ev) => {
+                    ev.preventDefault();
+                    move?.onDrop(stage.id);
+                  }
+                : undefined
+            }
+            className={`relative flex h-10 items-center gap-2 border-r border-stone-200 px-3 transition-colors last:border-0 motion-reduce:transition-none ${tone}`}
           >
             {/* The station button fills the cell UNDER the beads (absolute, z-0), so a
                 click on a bead is the bead's and a click anywhere else is the cell's.
                 Beads are siblings, never children: a button inside a button is not
                 markup, and a screen reader would lose one of the two. */}
-            {empty ? null : (
+            {empty ? null : selectMode && interaction.onSelectCell ? (
+              // Select mode: the station is the CELL's checkbox - a partial cell
+              // selects the rest, a full one clears (toggleCellSelection).
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={picked === "all" ? true : picked === "some" ? "mixed" : false}
+                aria-label={interaction.cellSelectAria(stageLabel(stage), cellEntries.length)}
+                title={interaction.cellSelectAria(stageLabel(stage), cellEntries.length)}
+                onClick={() => interaction.onSelectCell?.(cellEntries)}
+                className="focus-ring absolute inset-0 z-0 cursor-pointer"
+              />
+            ) : (
               <button
                 type="button"
                 aria-label={cellAria(stageLabel(stage), cellEntries.length)}
@@ -175,8 +248,19 @@ export function LineRow({
                   entry={e}
                   title={beadTitle(e)}
                   label={beadLabel(e)}
+                  selectLabel={interaction.selectLabel(e)}
+                  menuHint={move?.menuHint}
                   onOpen={() => openCandidate(e, cellEntries)}
                   bouncedReason={e.id === bouncedEntryId ? bouncedReason : null}
+                  actions={{
+                    selectMode,
+                    selected: selectedIds.has(e.id),
+                    onToggle: () => interaction.onToggleSelect?.(e),
+                    draggable: move != null,
+                    onDragStart: () => move?.onDrag(e),
+                    onDragEnd: () => move?.onDrag(null),
+                    onMenu: move ? (at) => move.onMenu(e, cellEntries, at) : undefined,
+                  }}
                 />
               ))}
               {overflow ? (
@@ -185,6 +269,16 @@ export function LineRow({
                   title={(e) => e.id === bouncedEntryId && bouncedReason ? `${beadTitle(e)} — ${bouncedReason}` : beadTitle(e)}
                   label={(e) => e.id === bouncedEntryId && bouncedReason ? `${beadLabel(e)}. ${bouncedReason}` : beadLabel(e)}
                   onOpen={(e) => openCandidate(e, cellEntries)}
+                  selection={
+                    selectMode && interaction.onToggleSelect
+                      ? {
+                          isSelected: (e) => selectedIds.has(e.id),
+                          onToggle: (e) => interaction.onToggleSelect?.(e),
+                          label: interaction.selectLabel,
+                        }
+                      : null
+                  }
+                  onMenu={move ? (e, at) => move.onMenu(e, cellEntries, at) : undefined}
                 />
               ) : null}
             </span>

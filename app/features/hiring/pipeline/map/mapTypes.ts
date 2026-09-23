@@ -27,8 +27,9 @@ export type RejectedTag = { stage: string; auto: boolean };
 export type OpenCandidate = (entry: Entry, cohort?: readonly Entry[] | null, tab?: CandidateTab) => void;
 
 /** The board's public props — what PipelineTab hands to <PipelineBoard />. The
- *  map board renders bounced-move feedback on beads; select-mode and drag-and-drop
- *  remain unused (see the pipeline README's Known gaps). */
+ *  map board renders bounced-move feedback on beads, select mode (beads and
+ *  stations become checkboxes) and moves (drag a bead, or its Move-to menu) - the
+ *  rules live in subway/subwayInteraction.ts. */
 export type PipelineBoardProps = {
   positions: Position[];
   entries: Entry[];
@@ -51,6 +52,9 @@ export type PipelineBoardProps = {
   selectMode?: boolean;
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (e: Entry) => void;
+  /** Select or clear a whole cell at once (a station in select mode). Takes the pure
+   *  set transform so the board never re-implements the selection's side effects. */
+  onUpdateSelection?: (update: (cur: ReadonlySet<string>) => ReadonlySet<string>) => void;
   onMove?: (entry: Entry, toStage: string) => void;
   bouncedEntryId?: string | null;
   bouncedReason?: string | null;

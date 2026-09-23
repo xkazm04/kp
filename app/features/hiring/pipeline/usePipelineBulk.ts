@@ -166,6 +166,15 @@ export function usePipelineBulk({
       return next;
     });
   };
+  // A whole CELL at once (a Subway station in select mode): the caller hands the pure
+  // set transform (subwayInteraction.toggleCellSelection), and the side effects are
+  // exactly a single toggle's - the result line clears and an armed bulk
+  // reject/outreach confirm disarms, because the cohort it was armed for changed.
+  const updateSelection = (update: (cur: ReadonlySet<string>) => ReadonlySet<string>) => {
+    setBulkResult(null);
+    dispatchBulkConfirm({ type: "selectionChanged" });
+    setSelectedIds((cur) => new Set(update(cur)));
+  };
   const selectAllVisible = () => {
     setBulkResult(null);
     dispatchBulkConfirm({ type: "selectionChanged" });
@@ -473,6 +482,7 @@ export function usePipelineBulk({
     toggleSelectMode,
     selectedIds,
     toggleSelected,
+    updateSelection,
     selectAllVisible,
     clearSelection,
     selectedOutsideCount,
