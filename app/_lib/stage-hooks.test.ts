@@ -12,7 +12,7 @@ import { listPipelineEventsForEntry } from "./db/pipeline-events.ts";
 import { listRecentInterviewSessions } from "./db/interviews.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { runStageEnteredHook } from "./stage-hooks.ts";
-import { _resetStageHookInviteForTests } from "./stage-hooks-invite.ts";
+import { _resetStageHookInviteForTests, registerStageHookInvite, type StageHookInvite } from "./stage-hooks-invite.ts";
 import { registerLateBoundImplementations } from "./late-bound-boot.ts";
 
 after(() => cleanupUnitDb());
@@ -231,4 +231,21 @@ test("an UNREGISTERED mint door is a loud failure: parked for a human, logged by
   // …and once registered again, the same kind of arrival mints as before.
   const next = entryAt(WS_AUTO, "Interview", "reregistered@example.com");
   assert.equal((await runStageEnteredHook({ entryId: next.id, stage: "Interview", workspaceId: WS_AUTO })).outcome, "invited");
+});
+
+test("a mint refused by the send gate AFTER the arrival check parks as suppressed, never as a billing miss", async () => {
+  // The arrival check reads contactability first; the mint door (8b293dc05) asks the
+  // send gate again. If the answer changed between the two reads, the refusal is
+  // COMMS_SUPPRESSED and carries no quota — the hook must not read one.
+  const entry = entryAt(WS_AUTO, "Interview", "raced@example.com");
+  registerStageHookInvite(async () => ({ ok: false, refusal: "COMMS_SUPPRESSED" }) as Awaited<ReturnType<StageHookInvite>>);
+  try {
+    const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+    assert.equal(res.outcome, "failed");
+    assert.equal(res.outcome === "failed" && res.reason, "suppressed");
+  } finally {
+    registerLateBoundImplementations();
+  }
+  assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0, "nothing was minted");
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, "calendar", "parked for a human");
 });

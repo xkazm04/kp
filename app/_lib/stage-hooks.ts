@@ -302,9 +302,16 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
     });
 
     if (!minted.ok) {
-      return minted.refusal === "INTERVIEW_CALL_IN_PROGRESS"
-        ? failOpenToTheHumanQueue(entry, workspaceId, "call_in_progress", "the candidate is already on a live call")
-        : failOpenToTheHumanQueue(entry, workspaceId, "billing", `the ${minted.quota.meter} allowance is exhausted on the ${minted.quota.plan} plan`);
+      if (minted.refusal === "INTERVIEW_CALL_IN_PROGRESS") {
+        return failOpenToTheHumanQueue(entry, workspaceId, "call_in_progress", "the candidate is already on a live call");
+      }
+      // The mint door now asks the send gate itself (8b293dc05). The arrival check above
+      // already parks a suppressed candidate, so this only fires when contactability
+      // changed between the two reads — park it the same way, never as a billing miss.
+      if (minted.refusal === "COMMS_SUPPRESSED") {
+        return failOpenToTheHumanQueue(entry, workspaceId, "suppressed", "the send gate refused the invite at mint time");
+      }
+      return failOpenToTheHumanQueue(entry, workspaceId, "billing", `the ${minted.quota.meter} allowance is exhausted on the ${minted.quota.plan} plan`);
     }
 
     // The invite's own ledger row was written by `dispatchInterviewInvite`, carrying
