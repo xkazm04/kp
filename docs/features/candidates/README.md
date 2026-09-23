@@ -980,6 +980,46 @@ edited only through fields `profile_cli` normalizes (the routed archetype) can s
 those fields as "edited"; they are preserved, never contested, unless the newer CV
 changes them too.
 
+**Refreshing every unedited stale profile at once, never an edited one.** Every
+re-analysis of a CV leaves one "Newer CV" profile behind, and for a profile nobody
+edited the per-row rebuild is ceremony (the editor opens on the newer analysis and
+waits for a Save). `ProfileRosterRefreshBar` sits above the roster table and speaks
+only when the list IN VIEW (the filtered set, every page) holds a stale profile:
+
+1. **Count first.** Each `profileStaleness` entry (`app/_lib/db/profiles.ts`) now
+   carries `edited`, the `profileDivergence` rule read in the same join
+   (`updated_at > lineage_stamped_at`), and `updatedAt`, the version a refresh
+   re-asserts. The single-query oracle in `profiles-staleness-equivalence.test.ts`
+   holds both to the per-profile answer. `planBulkRefresh`
+   (`profileBulkRefresh.ts`, pure) splits the stale rows in view into clean and
+   edited; an entry that cannot PROVE it is unedited (no flag, no version) counts as
+   edited. The bar states both numbers and asks once.
+2. **The editor's own save.** `runBulkRefresh` walks the clean rows one at a time:
+   `GET /api/analyses/<newerSlug>`, then the PUT the editor sends when an unedited
+   rebuild is opened and saved unchanged (`refreshRequest`: `buildProfilePayload`
+   over `formStateFrom(v2)`, the editor's signal shape, `expectedUpdatedAt`,
+   `sourceAnalysisSlug`), byte-equal and source-pinned against
+   `useProfileEditorSubmit.ts`. No new route: the batch keeps the PUT's lost-update
+   check, its lineage re-stamp (one profile per CV holds, the row is updated in
+   place) and its per-IP `profile-save` bucket.
+3. **Every row says what happened.** `refreshed`; `changedSince` (409
+   `PROFILE_STALE`, the run continues); `throttled` (429 on the read or the PUT:
+   the run STOPS and every later row is `notAttempted`, with a "run again in a few
+   minutes" note, never a success line); `failed` (`noNewerProfile` when the
+   analysis is gone or holds no profile, otherwise the route's code resolved through
+   `useErrorMessage`). Stop aborts the analysis read and ends the walk between rows;
+   a PUT already sent is never cancelled, so its outcome is known.
+4. **Edited profiles are never written.** They are `skippedEdited`, never read, and
+   listed as a review queue whose buttons call the same `openRebuild` as the row
+   action, so each one goes through the field-level merge above.
+
+After a run that wrote anything the roster calls `onRefreshed`, which
+`ProfileTab` wires to `population.reload`, so the roster, the matrix and the
+retire count see the refreshed rows together. Pinned by
+`profileBulkRefresh.test.ts` (injected fetch, 200/409/429/404/abort) and
+`profiles-lineage.test.ts`. Keyless: the PUT spawns `profile_cli`, which needs no
+model key.
+
 The matrix's "build from analysis" action is the same shape: `CandidateMatrix`
 takes `onBuildFromAnalysis` and `ProfileTab` feeds it `openFromAnalysis(slug, null)`.
 A same-tab `?tab=archetypes&fromAnalysis=` push left both the chip action and the
