@@ -496,6 +496,9 @@ export const STORE_ERRORS = {
   /** POST /api/ats/import: the store faulted while filing or linking a vendor record
    *  (500). The refusals the import can make are coded in REFUSAL_ERRORS. */
   ATS_IMPORT_FAILED: "Could not import the ATS applications. Please try again.",
+  /** GET /api/pipeline/[id]/offer-letter: the store or the letter composer faulted while
+   *  rendering the read-only offer letter preview (500). */
+  OFFER_LETTER_PREVIEW_FAILED: "Could not render the offer letter preview. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1925,6 +1928,9 @@ export const REFUSAL_ERRORS = {
   /** POST /api/ats/import whose `records` is not a list, is empty, or is longer than the
    *  per-call cap (400, with `maxRecords`). A connector pages; one call is never an account. */
   ATS_IMPORT_RECORDS_INVALID: "Send the applications as a list, at most 100 per import.",
+  /** GET /api/pipeline/[id]/offer-letter on an entry whose approval is not an offer
+   *  awaiting review (409): there is no drafted letter to preview. */
+  OFFER_LETTER_NOT_PENDING: "There is no offer awaiting approval for this candidate, so there is no letter to preview.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

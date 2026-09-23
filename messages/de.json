@@ -1972,7 +1972,9 @@
     "BILLING_ALERT_RESOLUTION_INVALID": "Geben Sie an, ob der Abrechnungshinweis behoben oder verworfen wurde.",
     "ATS_IMPORT_FAILED": "Die Bewerbungen aus dem ATS konnten nicht importiert werden. Bitte versuchen Sie es erneut.",
     "ATS_IMPORT_JOB_NOT_FOUND": "Diese Stelle ist für Ihr Team nicht verfügbar. Wählen Sie eine Stelle Ihres Teams für den Import aus.",
-    "ATS_IMPORT_RECORDS_INVALID": "Senden Sie die Bewerbungen als Liste, höchstens 100 pro Import."
+    "ATS_IMPORT_RECORDS_INVALID": "Senden Sie die Bewerbungen als Liste, höchstens 100 pro Import.",
+    "OFFER_LETTER_NOT_PENDING": "Für diese Person wartet kein Angebot auf Freigabe, daher gibt es kein Schreiben zur Vorschau.",
+    "OFFER_LETTER_PREVIEW_FAILED": "Die Vorschau des Angebotsschreibens konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3930,7 +3932,22 @@
       "engineTemplate": "Vorlage (kein Modell im Einsatz)",
       "engineTemplateNote": "Von der eingebauten Vorlage verfasst, nicht von einem Modell. Als Ausgangspunkt lesen und die Begründung selbst prüfen.",
       "engineTemplateTitle": "Die Automatisierung lief ohne Modell (kein API-Schlüssel, KI-Kontingent aufgebraucht oder Aufruf fehlgeschlagen), daher stammt dieses Urteil aus einer deterministischen Vorlage.",
-      "engineLlm": "Modell · {provider}"
+      "engineLlm": "Modell · {provider}",
+      "letterToggle": "Schreiben anzeigen",
+      "letterHeading": "Das Schreiben, das die Person erhält",
+      "letterLanguage": "Sprache: {language}",
+      "letterTo": "An: {recipient}",
+      "letterNoRecipient": "Kein Empfänger",
+      "letterSubject": "Betreff: {subject}",
+      "letterLoading": "Das Schreiben wird erstellt…",
+      "letterFailed": "Die Vorschau des Schreibens konnte nicht geladen werden.",
+      "letterPlaceholderNote": "Die Links sind Platzhalter. Die privaten Links der Person entstehen erst beim Senden.",
+      "letterForecastRelay": "Zustellung: wird an Ihr Mail-Relay übergeben.",
+      "letterForecastRelayNoContact": "Zustellung: wird an Ihr Mail-Relay übergeben, aber es ist keine E-Mail-Adresse hinterlegt, daher muss das Relay die Person über ihren Namen finden.",
+      "letterForecastLocal": "Zustellung: Es ist kein Mail-Relay konfiguriert. Das Schreiben wird nur im Postausgang protokolliert und von niemandem empfangen.",
+      "letterForecastRefused": "Zustellung: wird nicht gesendet. Dieses Mitglied der Auswahl ist ein AI-Agent ohne Postfach.",
+      "letterForecastSuppressed": "Zustellung: wird nicht gesendet. {reason, select, consent_expired {Die Einwilligung der Person ist abgelaufen.} anonymized {Die Daten der Person wurden gelöscht.} other {Diese Person darf nicht kontaktiert werden.}}",
+      "letterForecastSimulation": "Zustellung: Simulationsstelle. Das Schreiben wird im Postausgang protokolliert und nie über das Relay versendet."
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",

@@ -1972,7 +1972,9 @@
     "BILLING_ALERT_RESOLUTION_INVALID": "Say whether the billing alert was fixed or dismissed.",
     "ATS_IMPORT_FAILED": "Could not import the ATS applications. Please try again.",
     "ATS_IMPORT_JOB_NOT_FOUND": "That role is not available to your team. Pick one of your team's roles to import into.",
-    "ATS_IMPORT_RECORDS_INVALID": "Send the applications as a list, at most 100 per import."
+    "ATS_IMPORT_RECORDS_INVALID": "Send the applications as a list, at most 100 per import.",
+    "OFFER_LETTER_NOT_PENDING": "There is no offer awaiting approval for this candidate, so there is no letter to preview.",
+    "OFFER_LETTER_PREVIEW_FAILED": "Could not render the offer letter preview. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3930,7 +3932,22 @@
       "engineTemplate": "Template (no model was used)",
       "engineTemplateNote": "Written by the built-in fallback, not by a model. Read it as a starting point and check the reasoning yourself.",
       "engineTemplateTitle": "The automation ran without a model (no API key, the AI allowance is spent, or the call failed), so a deterministic template produced this verdict.",
-      "engineLlm": "Model · {provider}"
+      "engineLlm": "Model · {provider}",
+      "letterToggle": "Preview the letter",
+      "letterHeading": "The letter the candidate receives",
+      "letterLanguage": "Language: {language}",
+      "letterTo": "To: {recipient}",
+      "letterNoRecipient": "No recipient",
+      "letterSubject": "Subject: {subject}",
+      "letterLoading": "Rendering the letter…",
+      "letterFailed": "The letter preview could not be loaded.",
+      "letterPlaceholderNote": "The links are placeholders. The candidate's private links are created when you send.",
+      "letterForecastRelay": "Delivery: handed to your mail relay.",
+      "letterForecastRelayNoContact": "Delivery: handed to your mail relay, but no email address is on file, so the relay must find the candidate by name.",
+      "letterForecastLocal": "Delivery: no mail relay is configured. The letter is only recorded in the outbox and nobody receives it.",
+      "letterForecastRefused": "Delivery: will not be sent. This slate member is an AI agent with no mailbox.",
+      "letterForecastSuppressed": "Delivery: will not be sent. {reason, select, consent_expired {The candidate's consent has expired.} anonymized {The candidate's data was erased.} other {This candidate may not be contacted.}}",
+      "letterForecastSimulation": "Delivery: simulation role. The letter is recorded in the outbox and never relayed."
     },
     "rules": {
       "title": "Decision rules · Screening",

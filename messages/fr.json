@@ -1972,7 +1972,9 @@
     "BILLING_ALERT_RESOLUTION_INVALID": "Indiquez si l’alerte de facturation a été corrigée ou ignorée.",
     "ATS_IMPORT_FAILED": "Impossible d’importer les candidatures depuis l’ATS. Veuillez réessayer.",
     "ATS_IMPORT_JOB_NOT_FOUND": "Ce poste n’est pas disponible pour votre équipe. Choisissez un poste de votre équipe pour l’import.",
-    "ATS_IMPORT_RECORDS_INVALID": "Envoyez les candidatures sous forme de liste, 100 au maximum par import."
+    "ATS_IMPORT_RECORDS_INVALID": "Envoyez les candidatures sous forme de liste, 100 au maximum par import.",
+    "OFFER_LETTER_NOT_PENDING": "Aucune offre n’attend de validation pour ce candidat, il n’y a donc pas de lettre à prévisualiser.",
+    "OFFER_LETTER_PREVIEW_FAILED": "Impossible de générer l’aperçu de la lettre d’offre. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3930,7 +3932,22 @@
       "engineTemplate": "Gabarit (aucun modèle utilisé)",
       "engineTemplateNote": "Rédigé par le gabarit intégré, pas par un modèle. À lire comme un point de départ et à vérifier vous-même.",
       "engineTemplateTitle": "L'automatisation a tourné sans modèle (pas de clé API, quota IA épuisé ou appel en échec), ce verdict vient donc d'un gabarit déterministe.",
-      "engineLlm": "Modèle · {provider}"
+      "engineLlm": "Modèle · {provider}",
+      "letterToggle": "Afficher la lettre",
+      "letterHeading": "La lettre que reçoit le candidat",
+      "letterLanguage": "Langue : {language}",
+      "letterTo": "À : {recipient}",
+      "letterNoRecipient": "Aucun destinataire",
+      "letterSubject": "Objet : {subject}",
+      "letterLoading": "Préparation de la lettre…",
+      "letterFailed": "L’aperçu de la lettre n’a pas pu être chargé.",
+      "letterPlaceholderNote": "Les liens sont des exemples. Les liens privés du candidat sont créés au moment de l’envoi.",
+      "letterForecastRelay": "Remise : transmise à votre relais de messagerie.",
+      "letterForecastRelayNoContact": "Remise : transmise à votre relais de messagerie, mais aucune adresse e-mail n’est enregistrée, le relais doit donc retrouver le candidat par son nom.",
+      "letterForecastLocal": "Remise : aucun relais de messagerie n’est configuré. La lettre est seulement enregistrée dans la boîte d’envoi et personne ne la reçoit.",
+      "letterForecastRefused": "Remise : ne sera pas envoyée. Ce membre de la sélection est un agent AI sans boîte aux lettres.",
+      "letterForecastSuppressed": "Remise : ne sera pas envoyée. {reason, select, consent_expired {Le consentement du candidat a expiré.} anonymized {Les données du candidat ont été effacées.} other {Ce candidat ne peut pas être contacté.}}",
+      "letterForecastSimulation": "Remise : poste de simulation. La lettre est enregistrée dans la boîte d’envoi et n’est jamais relayée."
     },
     "rules": {
       "title": "Règles de décision · Présélection",
