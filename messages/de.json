@@ -12403,5 +12403,18 @@
       "label": "Übersicht aller Spalten",
       "roleColumns": "{role}: {count} Verläufe"
     }
+  },
+  "sessionLapse": {
+    "expiringChip": "{minutes, plural, =0 {Ihre Sitzung endet} one {Ihre Sitzung endet in # Minute} other {Ihre Sitzung endet in # Minuten}}",
+    "staySignedIn": "Angemeldet bleiben",
+    "lapsedChip": "Sie sind abgemeldet",
+    "signInAgain": "Erneut anmelden",
+    "titleLapsed": "Ihre Sitzung ist abgelaufen",
+    "titleExpiring": "Ihre Sitzung läuft bald ab",
+    "bodyUser": "Melden Sie sich erneut an, um dort weiterzumachen, wo Sie aufgehört haben. Diese Seite bleibt unverändert.",
+    "bodyOperator": "Geben Sie das Operator-Passwort ein, um dort weiterzumachen, wo Sie aufgehört haben. Diese Seite bleibt unverändert.",
+    "notYouHint": "Wenn Sie sich mit einem anderen Konto anmelden, wird der Arbeitsbereich neu geladen.",
+    "resumed": "Sie sind wieder angemeldet und machen dort weiter, wo Sie aufgehört haben.",
+    "later": "Nicht jetzt"
   }
 }

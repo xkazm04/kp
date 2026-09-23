@@ -12403,5 +12403,18 @@
       "label": "Overview of every column",
       "roleColumns": "{role}: {count} journeys"
     }
+  },
+  "sessionLapse": {
+    "expiringChip": "{minutes, plural, =0 {Your session is ending} one {Your session ends in # minute} other {Your session ends in # minutes}}",
+    "staySignedIn": "Stay signed in",
+    "lapsedChip": "You're signed out",
+    "signInAgain": "Sign in again",
+    "titleLapsed": "Your session has ended",
+    "titleExpiring": "Your session is about to end",
+    "bodyUser": "Sign in again to carry on where you left off. This page stays as it is.",
+    "bodyOperator": "Enter the operator password to carry on where you left off. This page stays as it is.",
+    "notYouHint": "Signing in with a different account reloads the workspace.",
+    "resumed": "Signed in again. You're back where you left off.",
+    "later": "Not now"
   }
 }

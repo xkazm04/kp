@@ -12403,5 +12403,18 @@
       "label": "Přehled všech sloupců",
       "roleColumns": "{role}: {count} cest"
     }
+  },
+  "sessionLapse": {
+    "expiringChip": "{minutes, plural, =0 {Vaše relace končí} one {Vaše relace skončí za # minutu} few {Vaše relace skončí za # minuty} many {Vaše relace skončí za # minuty} other {Vaše relace skončí za # minut}}",
+    "staySignedIn": "Zůstat přihlášeni",
+    "lapsedChip": "Jste odhlášeni",
+    "signInAgain": "Přihlásit se znovu",
+    "titleLapsed": "Vaše relace skončila",
+    "titleExpiring": "Vaše relace brzy skončí",
+    "bodyUser": "Přihlaste se znovu a pokračujte tam, kde jste skončili. Tato stránka zůstane beze změny.",
+    "bodyOperator": "Zadejte heslo operátora a pokračujte tam, kde jste skončili. Tato stránka zůstane beze změny.",
+    "notYouHint": "Přihlášení jiným účtem pracovní prostor znovu načte.",
+    "resumed": "Jste znovu přihlášeni. Pokračujete tam, kde jste skončili.",
+    "later": "Teď ne"
   }
 }

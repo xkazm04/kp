@@ -12403,5 +12403,18 @@
       "label": "Vue d'ensemble de toutes les colonnes",
       "roleColumns": "{role} : {count} parcours"
     }
+  },
+  "sessionLapse": {
+    "expiringChip": "{minutes, plural, =0 {Votre session se termine} one {Votre session se termine dans # minute} other {Votre session se termine dans # minutes}}",
+    "staySignedIn": "Garder la session ouverte",
+    "lapsedChip": "Session terminée",
+    "signInAgain": "Se reconnecter",
+    "titleLapsed": "Votre session a expiré",
+    "titleExpiring": "Votre session expire bientôt",
+    "bodyUser": "Reconnectez-vous pour reprendre là où vous en étiez. Cette page reste telle quelle.",
+    "bodyOperator": "Saisissez le mot de passe opérateur pour reprendre là où vous en étiez. Cette page reste telle quelle.",
+    "notYouHint": "Vous connecter avec un autre compte recharge l’espace de travail.",
+    "resumed": "Reconnexion réussie. Vous reprenez là où vous en étiez.",
+    "later": "Plus tard"
   }
 }
