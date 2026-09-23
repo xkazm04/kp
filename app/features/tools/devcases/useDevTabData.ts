@@ -59,7 +59,13 @@ export function useDevTabData() {
     truncated: boolean;
     facets: CaseLedgerFacets;
   }>(
-    filterCasesUrl({ limit: caseLimit, title: debouncedTitle, stage: caseFilters.stage, seniority: caseFilters.seniority }),
+    filterCasesUrl({
+      limit: caseLimit,
+      title: debouncedTitle,
+      stage: caseFilters.stage,
+      seniority: caseFilters.seniority,
+      job: caseFilters.job,
+    }),
     (p) => ({
       items: (p.cases as CaseLedgerRow[]) ?? [],
       truncated: p.truncated === true,

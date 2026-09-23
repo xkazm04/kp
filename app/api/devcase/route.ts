@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
       q: params.get("q") ?? "",
       stage: params.get("stage") ?? "",
       seniority: params.get("seniority") ?? "",
+      // The job page's assignments chip (?job= on the tab, challenge-r03 B): one role.
+      job: params.get("job") ?? "",
     };
     // Read one MORE than the page: the extra row is the whole evidence that a page
     // was cut, and it costs one row rather than a second COUNT(*) over the table.

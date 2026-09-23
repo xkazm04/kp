@@ -119,6 +119,7 @@ export function DevTabCasesView({
   loadPostings,
   approveLifecycle,
   loadLifecycles,
+  lifecycleFocus = null,
 }: {
   cases: CaseLedgerRow[];
   casesTruncated: boolean;
@@ -143,6 +144,8 @@ export function DevTabCasesView({
   loadPostings: () => void;
   approveLifecycle: (id: string) => void;
   loadLifecycles: () => void;
+  /** The lifecycle a ?lifecycle= address pointed at (assignmentsDeepLink.ts). */
+  lifecycleFocus?: { id: string; openReview: boolean; nonce: number } | null;
 }) {
   if (selectedCaseId) {
     return (
@@ -186,6 +189,7 @@ export function DevTabCasesView({
           approveLifecycle={approveLifecycle}
           state={lifecyclesState}
           onChanged={loadLifecycles}
+          focus={lifecycleFocus}
         />
       </Defer>
     </>

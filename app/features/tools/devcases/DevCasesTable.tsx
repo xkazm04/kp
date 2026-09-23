@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AlarmClock, ChevronRight } from "lucide-react";
+import { AlarmClock, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusChip, StatusLegend } from "@/app/_components/StatusChip";
-import { DIVIDER, PANEL } from "@/app/_components/ui/recipes";
+import { CHIP_TOGGLE, DIVIDER, PANEL } from "@/app/_components/ui/recipes";
 import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
@@ -81,6 +81,11 @@ export function CasesTable({
   const seniorities = facets.seniorities.includes(filters.seniority) || !filters.seniority
     ? facets.seniorities
     : [...facets.seniorities, filters.seniority];
+  // The role the ledger is narrowed to (?job= from the job page's assignments chip,
+  // challenge-r03 devcase-workspace/B). Named from the rows it matched; an empty answer
+  // has no row to name it from, so it says "one role" rather than printing an id.
+  const jobTitle = filters.job ? cases.find((c) => c.jobId === filters.job)?.jobTitle ?? null : null;
+  const jobLabel = jobTitle ? t("jobFilter", { job: jobTitle }) : t("jobFilterUnnamed");
 
   return (
     <div className={`overflow-hidden ${PANEL}`}>
@@ -106,6 +111,19 @@ export function CasesTable({
             {seniorities.map((seniority) => <option key={seniority} value={seniority}>{seniority}</option>)}
           </select>
         </label>
+        {filters.job ? (
+          <div className="flex w-full items-center">
+            <button
+              type="button"
+              onClick={() => onFiltersChange({ ...filters, job: "" })}
+              aria-label={`${jobLabel}. ${t("clearJobFilter")}`}
+              title={t("clearJobFilter")}
+              className={CHIP_TOGGLE(true)}
+            >
+              {jobLabel} <X size={12} aria-hidden />
+            </button>
+          </div>
+        ) : null}
       </div>
       <table className="w-full border-collapse text-left">
         <thead>

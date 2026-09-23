@@ -13,6 +13,7 @@ export function LifecycleSection({
   approveLifecycle,
   state,
   onChanged,
+  focus = null,
 }: {
   lifecycles: Lifecycle[];
   // d8a0c4cf — to count submissions per lifecycle (by caseId) for the stall flag.
@@ -21,6 +22,9 @@ export function LifecycleSection({
   state: LoadState;
   /** W5-3 — refresh after a close-out flips a lifecycle to its terminal stage. */
   onChanged?: () => void;
+  /** The lifecycle an address pointed at (?lifecycle=): scrolled in, review opened
+   *  when it awaits approval. See assignmentsDeepLink.ts. */
+  focus?: { id: string; openReview: boolean; nonce: number } | null;
 }) {
   const t = useTranslations("devcase.lifecycle");
   // Submissions per case, summed across its postings — the stall check's "empty?".
@@ -41,6 +45,7 @@ export function LifecycleSection({
             submissionCount={lc.caseId ? submissionsByCase.get(lc.caseId) ?? 0 : 0}
             onApprove={() => approveLifecycle(lc.id)}
             onChanged={onChanged}
+            focus={focus?.id === lc.id ? focus : null}
           />
         ))}
       </div>

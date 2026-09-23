@@ -28,6 +28,8 @@ export type CaseLedgerFilters = {
   q?: string;
   stage?: string;
   seniority?: string;
+  /** One role's assignments: dev_cases.job_id (the job page's assignments chip). */
+  job?: string;
 };
 
 export type CaseLedgerRow = {
@@ -123,6 +125,7 @@ export function listCaseLedger(
   const q = (filters.q ?? "").trim().toLocaleLowerCase();
   const stage = (filters.stage ?? "").trim();
   const seniority = (filters.seniority ?? "").trim();
+  const job = (filters.job ?? "").trim();
   const rows = db
     .prepare(
       `WITH latest AS (
@@ -150,10 +153,11 @@ export function listCaseLedger(
        SELECT * FROM ledger
        WHERE (? = '' OR stage = ?)
          AND (? = '' OR seniority = ?)
+         AND (? = '' OR job_id = ?)
          AND (? = '' OR instr(kp_fold(COALESCE(title, '') || ' ' || COALESCE(role_title, '')), ?) > 0)
        ORDER BY created_at DESC, id DESC LIMIT ?`
     )
-    .all(workspaceId, workspaceId, workspaceId, stage, stage, seniority, seniority, q, q, limit) as CaseLedgerDbRow[];
+    .all(workspaceId, workspaceId, workspaceId, stage, stage, seniority, seniority, job, job, q, q, limit) as CaseLedgerDbRow[];
   return rows.map(rowToLedger);
 }
 

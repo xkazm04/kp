@@ -4,12 +4,15 @@
 // builds the address and the store filters before the limit (db/devcase.ts
 // listCaseLedger). What stays client-side is the shape and whether anything is set.
 
-export type CaseFilters = { title: string; stage: string; seniority: string };
+/** `job` is the role the ledger is narrowed to (a jobs.id): set by the ?job= address
+ *  from the job page's assignments chip, cleared from its chip above the table.
+ *  Optional so a caller that never narrows by role need not name it. */
+export type CaseFilters = { title: string; stage: string; seniority: string; job?: string };
 
-export const EMPTY_CASE_FILTERS: CaseFilters = { title: "", stage: "", seniority: "" };
+export const EMPTY_CASE_FILTERS: CaseFilters = { title: "", stage: "", seniority: "", job: "" };
 
 /** True when a filter would narrow the query. An empty ledger under an active filter
  *  is "no matches", not the first-run empty state. */
 export function caseFiltersActive(filters: CaseFilters): boolean {
-  return Boolean(filters.title.trim() || filters.stage || filters.seniority);
+  return Boolean(filters.title.trim() || filters.stage || filters.seniority || filters.job);
 }

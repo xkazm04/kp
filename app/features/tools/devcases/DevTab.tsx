@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useDevTabData } from "./useDevTabData";
 import { useDevTabActions } from "./useDevTabActions";
@@ -12,6 +14,17 @@ import { DevTabCasesView } from "./DevTabCasesView";
 import { DevTabDefineView } from "./DevTabDefineView";
 import { VIEW_HEADING, type DevView } from "./DevTabViews";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
+import { useStageLabel } from "./DevLabels";
+import { EMPTY_CASE_FILTERS } from "./DevCasesTable.filter";
+import {
+  LIFECYCLE_WINDOW,
+  assignmentsLinkKey,
+  consumedSearch,
+  parseAssignmentsLink,
+  resolveAssignmentsLink,
+  type AssignmentsLink,
+  type AssignmentsNotice,
+} from "./assignmentsDeepLink";
 
 // Tier 3 (docs/design/loading-choreography.md): the comms outbox is a whole sub-tab's
 // worth of table + resend wiring that's only ever needed once the recruiter
@@ -61,6 +74,71 @@ export function DevTab() {
     design, designing,
     submit, startDesign, approve, approving, approvedId,
   } = useDevTabNeedAnalysis({ tasks, startTask, buildNeed, runAction, loadCases });
+
+  // ASSIGNMENTS AS AN ADDRESS (challenge-r03 devcase-workspace/B). ?lifecycle= (the
+  // Control Room's Art. 22 gate Review link), ?case= and ?job= (the job page's
+  // assignments chip) used to be read by nothing here: view and selection were local
+  // state, so a reviewer sent to sign off a gate landed on an unfocused table. The
+  // rules are pure in assignmentsDeepLink.ts; this is only the plumbing. An intent is
+  // adopted when its key ARRIVES (during render, the useUrlInboxState pattern - no
+  // flash of the unfocused tab), held until the list it resolves against has loaded,
+  // then applied once; the params are stripped as soon as they are read.
+  const tCases = useTranslations("devcase.casesTable");
+  const stageLabel = useStageLabel();
+  const search = useSearchParams();
+  const searchString = search.toString();
+  const incomingLink = parseAssignmentsLink(searchString);
+  const incomingKey = assignmentsLinkKey(incomingLink);
+  const [seenLinkKey, setSeenLinkKey] = useState<string | null>(null);
+  const [pendingLink, setPendingLink] = useState<AssignmentsLink | null>(null);
+  const [linkNotice, setLinkNotice] = useState<AssignmentsNotice | null>(null);
+  const [lifecycleFocus, setLifecycleFocus] = useState<{ id: string; openReview: boolean; nonce: number } | null>(null);
+  if (incomingKey !== seenLinkKey) {
+    setSeenLinkKey(incomingKey);
+    if (incomingLink) {
+      setPendingLink(incomingLink);
+      setView("cases");
+      setLinkNotice(null);
+    }
+  }
+  if (pendingLink) {
+    const resolved = resolveAssignmentsLink(pendingLink, {
+      lifecycles,
+      // A failed lifecycle load keeps the intent pending: "not found" would be a claim
+      // the list never established, and the section below already names the failure.
+      loaded: lifecyclesState.lastUpdated != null,
+    });
+    if (!("pending" in resolved)) {
+      setPendingLink(null);
+      setLinkNotice(resolved.notice ?? null);
+      if (resolved.selectedCaseId) {
+        // Read by id (GET /api/devcase/[id]): a case past the loaded page opens all the
+        // same, and a foreign or deleted id is answered by the reader's coded 404.
+        setSelectedCaseId(resolved.selectedCaseId);
+      } else if (resolved.focus || resolved.jobFilter) {
+        // Both point at the ledger view; an open case reader would hide them.
+        setSelectedCaseId(null);
+      }
+      if (resolved.jobFilter) setCaseFilters({ ...EMPTY_CASE_FILTERS, job: resolved.jobFilter });
+      if (resolved.focus) {
+        setLifecycleFocus((prev) => ({
+          id: resolved.focus as string,
+          openReview: resolved.openReview === resolved.focus,
+          nonce: (prev?.nonce ?? 0) + 1,
+        }));
+      }
+    }
+  }
+  useEffect(() => {
+    // One-shot, like ?arm= (useDecisionsQueue): a raw history write, not a router
+    // navigation - the intent is already captured in state above, so erasing the params
+    // must not re-render or re-fetch anything. Keyed on the whole query, not only the
+    // intent: the shell's own ?tab= cleanup can re-write the query from a snapshot that
+    // still carried these params, and they must not survive that either.
+    if (incomingKey == null) return;
+    const qs = consumedSearch(window.location.search);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+  }, [incomingKey, searchString]);
 
   const lifecycleActive = tasks.some((t) => t.kind === "lifecycle" && (t.status === "running" || t.status === "queued"));
   // 56a20eb2 — reload ONLY the lists the just-finished task kind actually touched,
@@ -123,6 +201,21 @@ export function DevTab() {
         </div>
       ) : null}
 
+      {linkNotice ? (
+        <div role="status" className={`${NOTICE("info")} flex items-start justify-between gap-3 px-3 py-2 text-sm`}>
+          <span>
+            {linkNotice.kind === "gateDecided"
+              ? tCases("linkGateDecided", { stage: stageLabel(linkNotice.stage) })
+              : linkNotice.kind === "lifecycleOutsideWindow"
+                ? tCases("linkLifecycleOutsideWindow", { count: LIFECYCLE_WINDOW })
+                : tCases("linkLifecycleMissing")}
+          </span>
+          <button type="button" onClick={() => setLinkNotice(null)} className="focus-ring shrink-0 font-semibold hover:underline">
+            {tCopy("studio.dismiss")}
+          </button>
+        </div>
+      ) : null}
+
       <DevTabSwitcher view={view} onChange={setView} casesCount={cases.length} outboxCount={outbox.length} />
 
       {view === "cases" ? (
@@ -150,6 +243,7 @@ export function DevTab() {
           loadPostings={loadPostings}
           approveLifecycle={approveLifecycle}
           loadLifecycles={loadLifecycles}
+          lifecycleFocus={lifecycleFocus}
         />
       ) : null}
 

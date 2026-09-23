@@ -122,7 +122,9 @@ export function JobLifecycleStrip({
     // Sits between the JD and the channels because that is where it happens: the case is
     // cut FROM the JD, before the role is distributed. Rendered only when there is at
     // least one — a role with no work sample is the normal case, not a gap to nag about.
-    assignments ? { key: "assignments", label: t("assignments", { count: assignments }), tab: "assignments" } : null,
+    // Lands on the ledger narrowed to THIS role (?job=, like the decisions segment), not
+    // on the whole library the recruiter would then have to search.
+    assignments ? { key: "assignments", label: t("assignments", { count: assignments }), tab: "assignments", params: { job: jobId } } : null,
     hooks !== null ? { key: "channels", label: t("channels", { count: hooks }), tab: "channels" } : null,
     entries !== null
       ? { key: "funnel", label: t("funnel", { count: active.length }), tab: "pipeline", params: { q: jobTitle } }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
@@ -19,12 +19,17 @@ export function LifecycleRow({
   submissionCount = 0,
   onApprove,
   onChanged,
+  focus = null,
 }: {
   lc: Lifecycle;
   // d8a0c4cf — submissions across this lifecycle's postings, for the stall check.
   submissionCount?: number;
   onApprove: () => void;
   onChanged?: () => void;
+  /** An address pointed at this row (?lifecycle=, challenge-r03 devcase-workspace/B):
+   *  bring it into view and, when the link came for the approval gate, open the
+   *  review. `nonce` makes a repeat link to the same row an arrival again. */
+  focus?: { openReview: boolean; nonce: number } | null;
 }) {
   const t = useTranslations("devcase");
   // Resolve API failures from the machine `code`, never from the server's
@@ -48,6 +53,24 @@ export function LifecycleRow({
   // closing fires unrecoverable wrap-up comms to every non-promoted submitter.
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Adopt a focus ARRIVAL during render (the useUrlInboxState pattern): opening the
+  // panel in an effect would paint the closed row first and flash it open a frame later.
+  // Only a row still awaiting approval opens; the resolver already told the reader
+  // when the gate was decided since the link was minted.
+  const [seenFocus, setSeenFocus] = useState<number | null>(null);
+  if (focus && focus.nonce !== seenFocus) {
+    setSeenFocus(focus.nonce);
+    if (focus.openReview && awaiting) setReviewOpen(true);
+  }
+  const rowRef = useRef<HTMLDivElement>(null);
+  const focusNonce = focus?.nonce ?? null;
+  useEffect(() => {
+    if (focusNonce == null) return;
+    // The side effect only: scroll the row in and move focus to it, so a keyboard or
+    // screen-reader user lands where the link pointed rather than at the top of the tab.
+    rowRef.current?.scrollIntoView({ block: "center" });
+    rowRef.current?.focus({ preventScroll: true });
+  }, [focusNonce]);
   // d8a0c4cf — flag a lifecycle that's been open and empty past the SLA (client
   // read of the pure rule; no cron). A stalled row offers a one-click re-source.
   // `now` is snapshotted once at mount (Date.now() is impure in render).
@@ -103,7 +126,14 @@ export function LifecycleRow({
     ).join(", "),
   });
   return (
-    <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:shadow-lg">
+    <div
+      ref={rowRef}
+      tabIndex={focus ? -1 : undefined}
+      data-focused={focus ? "true" : undefined}
+      className={`animate-fade-in rounded-lg border bg-white p-3 shadow-panel outline-none transition-shadow motion-reduce:animate-none hover:shadow-lg ${
+        focus ? "border-coral/60 ring-2 ring-coral/30" : "border-stone-200"
+      }`}
+    >
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{lc.title || t("lifecycle.untitledRole")}</span>
         {/* ONE THREAD (gap 8) — this chip used to derive its own three-way tint

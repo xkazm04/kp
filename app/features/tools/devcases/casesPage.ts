@@ -27,5 +27,6 @@ export function filterCasesUrl(input: { limit: number } & CaseFilters): string {
   if (q) params.set("q", q);
   if (input.stage) params.set("stage", input.stage);
   if (input.seniority) params.set("seniority", input.seniority);
+  if (input.job) params.set("job", input.job);
   return `/api/devcase?${params.toString()}`;
 }
