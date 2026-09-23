@@ -7212,7 +7212,21 @@
     "priorRuns": "{count, plural, one {supersedes # earlier run of the same CV} other {supersedes # earlier runs of the same CV}}",
     "loadMore": "Load more",
     "showingMatched": "{count, plural, one {# matching run} other {# matching runs}}",
-    "showingFirst": "{count, plural, one {# run shown} other {# runs shown}}, newest first. Load more for older ones."
+    "showingFirst": "{count, plural, one {# run shown} other {# runs shown}}, newest first. Load more for older ones.",
+    "decide": "Decide",
+    "decideOn": "Decide on {candidate}",
+    "triageTitle": "Decide from History",
+    "triageProgress": "{undecided, plural, one {# undecided} other {# undecided}}, {decided} decided",
+    "triageProgressOfLoaded": "{undecided, plural, one {# undecided} other {# undecided}}, {decided} decided, among the loaded runs",
+    "triageDone": "Every run in this list has a decision.",
+    "triageDoneOfLoaded": "Every loaded run has a decision. Close and load more to continue.",
+    "triageLoadFailed": "This analysis could not be loaded.",
+    "triagePrev": "Previous",
+    "triageNext": "Next",
+    "triagePosition": "{index} of {total}",
+    "triageOpenReport": "Open full report",
+    "triageSkipDecided": "Skip runs that already have a decision",
+    "triageKeys": "<kbd>j</kbd> next, <kbd>k</kbd> previous"
   },
   "results": {
     "quality": {

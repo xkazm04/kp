@@ -7212,7 +7212,21 @@
     "priorRuns": "{count, plural, one {remplace # exécution précédente du même CV} other {remplace # exécutions précédentes du même CV}}",
     "loadMore": "Charger plus",
     "showingMatched": "{count, plural, one {# exécution correspondante} other {# exécutions correspondantes}}",
-    "showingFirst": "{count, plural, one {# exécution affichée} other {# exécutions affichées}}, les plus récentes d’abord. Chargez-en plus pour voir les plus anciennes."
+    "showingFirst": "{count, plural, one {# exécution affichée} other {# exécutions affichées}}, les plus récentes d’abord. Chargez-en plus pour voir les plus anciennes.",
+    "decide": "Décider",
+    "decideOn": "Décider pour {candidate}",
+    "triageTitle": "Décider depuis l’historique",
+    "triageProgress": "{undecided, plural, one {# sans décision} other {# sans décision}}, {decided} décidé(s)",
+    "triageProgressOfLoaded": "{undecided, plural, one {# sans décision} other {# sans décision}}, {decided} décidé(s), parmi les analyses chargées",
+    "triageDone": "Chaque analyse de cette liste a une décision.",
+    "triageDoneOfLoaded": "Chaque analyse chargée a une décision. Fermez la fenêtre et chargez-en davantage.",
+    "triageLoadFailed": "Impossible de charger cette analyse.",
+    "triagePrev": "Précédent",
+    "triageNext": "Suivant",
+    "triagePosition": "{index} sur {total}",
+    "triageOpenReport": "Ouvrir le rapport complet",
+    "triageSkipDecided": "Ignorer les analyses déjà décidées",
+    "triageKeys": "<kbd>j</kbd> suivant, <kbd>k</kbd> précédent"
   },
   "results": {
     "quality": {

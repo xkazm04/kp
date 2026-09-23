@@ -7212,7 +7212,21 @@
     "priorRuns": "{count, plural, one {ersetzt # früheren Lauf desselben Lebenslaufs} other {ersetzt # frühere Läufe desselben Lebenslaufs}}",
     "loadMore": "Mehr laden",
     "showingMatched": "{count, plural, one {# passender Lauf} other {# passende Läufe}}",
-    "showingFirst": "{count, plural, one {# Lauf angezeigt} other {# Läufe angezeigt}}, neueste zuerst. Ältere Läufe laden Sie mit „Mehr laden“."
+    "showingFirst": "{count, plural, one {# Lauf angezeigt} other {# Läufe angezeigt}}, neueste zuerst. Ältere Läufe laden Sie mit „Mehr laden“.",
+    "decide": "Entscheiden",
+    "decideOn": "Über {candidate} entscheiden",
+    "triageTitle": "Aus dem Verlauf entscheiden",
+    "triageProgress": "{undecided, plural, one {# unentschieden} other {# unentschieden}}, {decided} entschieden",
+    "triageProgressOfLoaded": "{undecided, plural, one {# unentschieden} other {# unentschieden}}, {decided} entschieden, unter den geladenen Läufen",
+    "triageDone": "Jeder Lauf in dieser Liste hat eine Entscheidung.",
+    "triageDoneOfLoaded": "Jeder geladene Lauf hat eine Entscheidung. Schließen Sie das Fenster und laden Sie weitere.",
+    "triageLoadFailed": "Diese Analyse konnte nicht geladen werden.",
+    "triagePrev": "Zurück",
+    "triageNext": "Weiter",
+    "triagePosition": "{index} von {total}",
+    "triageOpenReport": "Vollständigen Bericht öffnen",
+    "triageSkipDecided": "Läufe mit Entscheidung überspringen",
+    "triageKeys": "<kbd>j</kbd> weiter, <kbd>k</kbd> zurück"
   },
   "results": {
     "quality": {
